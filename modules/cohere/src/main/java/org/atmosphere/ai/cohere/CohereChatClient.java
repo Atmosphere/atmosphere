@@ -20,6 +20,7 @@ import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.TokenUsage;
 import org.atmosphere.ai.approval.ToolApprovalPolicy;
+import org.atmosphere.ai.llm.AbstractSseLlmClient;
 import org.atmosphere.ai.llm.ChatMessage;
 import org.atmosphere.ai.tool.ToolDefinition;
 import org.atmosphere.ai.tool.ToolExecutionHelper;
@@ -27,23 +28,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -82,41 +78,25 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * pass — text and tool calling ship first per the
  * {@code docs/audits/vision-parity-2026-05-22.md} plan.</p>
  */
-public final class CohereChatClient {
+public final class CohereChatClient extends AbstractSseLlmClient {
 
     private static final Logger logger = LoggerFactory.getLogger(CohereChatClient.class);
-    private static final ObjectMapper MAPPER = JsonMapper.builder().build();
-    private static final String DATA_PREFIX = "data: ";
     private static final String DEFAULT_BASE_URL = "https://api.cohere.com";
     private static final int DEFAULT_MAX_TOKENS = 4096;
     private static final int DEFAULT_TOOL_ROUND_CAP = 5;
 
-    private final String baseUrl;
-    private final String apiKey;
-    private final HttpClient httpClient;
-    private final Duration timeout;
-    private final Map<String, String> customHeaders;
-    private final int maxTokens;
-
     private CohereChatClient(Builder b) {
-        this.baseUrl = b.baseUrl.endsWith("/")
-                ? b.baseUrl.substring(0, b.baseUrl.length() - 1)
-                : b.baseUrl;
-        this.apiKey = b.apiKey;
-        this.httpClient = b.httpClient != null ? b.httpClient
-                : HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30)).build();
-        this.timeout = b.timeout;
-        this.customHeaders = Map.copyOf(b.customHeaders);
-        this.maxTokens = b.maxTokens;
+        super(new SseClientConfig(b.baseUrl, b.apiKey, b.httpClient, b.timeout,
+                b.maxTokens, b.customHeaders));
     }
 
     public static Builder builder() {
         return new Builder();
     }
 
-    /** Visible for tests. */
-    public Map<String, String> customHeaders() {
-        return customHeaders;
+    @Override
+    protected String providerName() {
+        return "Cohere";
     }
 
     /**
@@ -194,7 +174,7 @@ public final class CohereChatClient {
                 return;
             }
 
-            var roundOutcome = runRound(httpRequest, context, session, effectiveCancel);
+            var roundOutcome = parseRound(httpRequest, context, session, effectiveCancel);
             if (roundOutcome.errored()) {
                 // The round already emitted session.error / session.complete.
                 return;
@@ -212,71 +192,31 @@ public final class CohereChatClient {
         }
     }
 
-    private RoundOutcome runRound(HttpRequest httpRequest,
-                                  AgentExecutionContext context,
-                                  StreamingSession session,
-                                  AtomicBoolean cancelled) {
-        HttpResponse<InputStream> response;
-        try {
-            response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
-        } catch (Exception e) {
-            session.error(e);
-            return RoundOutcome.failure();
-        }
-        if (response.statusCode() / 100 != 2) {
-            var bodySnippet = readSnippet(response.body());
-            session.error(new RuntimeException("Cohere API returned "
-                    + response.statusCode() + ": " + bodySnippet));
-            return RoundOutcome.failure();
-        }
-        try (var body = response.body();
-             var reader = new BufferedReader(
-                     new InputStreamReader(body, StandardCharsets.UTF_8))) {
-            return parseSse(reader, context, session, cancelled);
-        } catch (Exception e) {
-            session.error(e);
-            return RoundOutcome.failure();
-        }
-    }
-
-    private RoundOutcome parseSse(BufferedReader reader,
-                                  AgentExecutionContext context,
-                                  StreamingSession session,
-                                  AtomicBoolean cancelled) throws Exception {
+    private RoundOutcome parseRound(HttpRequest httpRequest,
+                                    AgentExecutionContext context,
+                                    StreamingSession session,
+                                    AtomicBoolean cancelled) {
         var assistantText = new StringBuilder();
         // Tool-call accumulators keyed by tool-call index (Cohere assigns
         // a stable index on tool-call-start within a stream).
         var toolBuffers = new LinkedHashMap<Integer, ToolCallAccumulator>();
-        TokenUsage usage = null;
+        // Mutable holder so the per-event mapper lambda can update the running
+        // usage across message-end events.
+        var usageHolder = new TokenUsage[1];
 
-        String line;
-        while ((line = reader.readLine()) != null) {
-            if (cancelled.get()) {
-                return RoundOutcome.failure();
-            }
-            if (!line.startsWith(DATA_PREFIX)) {
-                continue;
-            }
-            var payload = line.substring(DATA_PREFIX.length()).trim();
-            if (payload.isEmpty()) {
-                continue;
-            }
-            JsonNode event;
-            try {
-                event = MAPPER.readTree(payload);
-            } catch (RuntimeException e) {
-                logger.debug("Skipping unparseable SSE payload: {}", payload, e);
-                continue;
-            }
+        // The shared base owns the HTTP send, non-2xx error string, and the
+        // data:-framed readLine scaffolding; this lambda is the only
+        // Cohere-specific part — the per-event switch.
+        var completed = runRound(httpRequest, session, cancelled, event -> {
             var type = event.path("type").asString("");
             switch (type) {
                 case "content-delta" -> handleContentDelta(event, session, assistantText);
                 case "tool-call-start" -> handleToolCallStart(event, toolBuffers);
                 case "tool-call-delta" -> handleToolCallDelta(event, session, toolBuffers);
                 case "message-end" -> {
-                    var parsed = parseUsage(event, usage);
+                    var parsed = parseUsage(event, usageHolder[0]);
                     if (parsed != null) {
-                        usage = parsed;
+                        usageHolder[0] = parsed;
                     }
                 }
                 // Lifecycle / RAG events with no SPI mapping yet — silently
@@ -286,8 +226,14 @@ public final class CohereChatClient {
                         "citation-start", "citation-end" -> { /* no-op */ }
                 default -> logger.trace("Unhandled Cohere SSE event: {}", type);
             }
+        });
+        if (!completed) {
+            // runRound already emitted session.error for the IO/non-2xx paths;
+            // the cancel path leaves the session untouched (matches original).
+            return RoundOutcome.failure();
         }
 
+        var usage = usageHolder[0];
         if (usage != null && usage.hasCounts()) {
             session.usage(usage);
         }
@@ -300,7 +246,7 @@ public final class CohereChatClient {
         for (var entry : toolBuffers.entrySet()) {
             var acc = entry.getValue();
             toolCalls.add(acc);
-            var args = acc.parseArguments();
+            var args = acc.parseArguments(MAPPER);
             session.emit(new AiEvent.ToolStart(acc.name, args));
             var resultText = dispatchTool(context, session, acc, args);
             session.emit(new AiEvent.ToolResult(acc.name, resultText));
@@ -558,23 +504,9 @@ public final class CohereChatClient {
         var function = root.putObject("function");
         function.put("name", def.name());
         function.put("description", def.description());
-        var parameters = function.putObject("parameters");
-        parameters.put("type", "object");
-        var properties = parameters.putObject("properties");
-        var required = MAPPER.createArrayNode();
-        for (var param : def.parameters()) {
-            var prop = properties.putObject(param.name());
-            prop.put("type", param.type() != null ? param.type() : "string");
-            if (param.description() != null && !param.description().isBlank()) {
-                prop.put("description", param.description());
-            }
-            if (param.required()) {
-                required.add(param.name());
-            }
-        }
-        if (!required.isEmpty()) {
-            parameters.set("required", required);
-        }
+        // Wrap the shared inner schema object (built by the base) in Cohere's
+        // {@code function.parameters} envelope.
+        function.set("parameters", toolSchemaObjectNode(def, MAPPER));
         return root;
     }
 
@@ -592,36 +524,9 @@ public final class CohereChatClient {
         // Reserved protocol headers are filtered out — same posture as
         // OpenAiCompatibleClient.applyCustomHeaders and
         // AnthropicMessagesClient.buildHttpRequest.
-        for (var entry : customHeaders.entrySet()) {
-            var name = entry.getKey();
-            if (name == null || name.isBlank()) {
-                continue;
-            }
-            if (name.equalsIgnoreCase("authorization")
-                    || name.equalsIgnoreCase("content-type")
-                    || name.equalsIgnoreCase("accept")) {
-                logger.debug("Skipping reserved Cohere header {} from customHeaders", name);
-                continue;
-            }
-            var value = entry.getValue();
-            if (value != null) {
-                builder.header(name, value);
-            }
-        }
+        applyReservedFilteredHeaders(builder,
+                Set.of("authorization", "content-type", "accept"));
         return builder.build();
-    }
-
-    private static String readSnippet(InputStream body) {
-        if (body == null) {
-            return "<no body>";
-        }
-        try (body) {
-            var bytes = body.readAllBytes();
-            var text = new String(bytes, StandardCharsets.UTF_8);
-            return text.length() > 500 ? text.substring(0, 500) + "..." : text;
-        } catch (Exception e) {
-            return "<unreadable: " + e.getClass().getSimpleName() + ">";
-        }
     }
 
     /** Per-tool accumulator that gathers tool-call-delta argument fragments
@@ -631,13 +536,13 @@ public final class CohereChatClient {
         String name = "";
         final StringBuilder rawJson = new StringBuilder();
 
-        Map<String, Object> parseArguments() {
+        Map<String, Object> parseArguments(ObjectMapper mapper) {
             if (rawJson.length() == 0) {
                 return Map.of();
             }
             try {
                 @SuppressWarnings("unchecked")
-                Map<String, Object> parsed = MAPPER.readValue(rawJson.toString(), Map.class);
+                Map<String, Object> parsed = mapper.readValue(rawJson.toString(), Map.class);
                 return parsed != null ? parsed : Map.of();
             } catch (Exception e) {
                 return Map.of("__raw", rawJson.toString());

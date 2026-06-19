@@ -20,6 +20,7 @@ import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.TokenUsage;
 import org.atmosphere.ai.approval.ToolApprovalPolicy;
+import org.atmosphere.ai.llm.AbstractSseLlmClient;
 import org.atmosphere.ai.llm.ChatMessage;
 import org.atmosphere.ai.tool.ToolDefinition;
 import org.atmosphere.ai.tool.ToolExecutionHelper;
@@ -27,23 +28,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -70,44 +66,29 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *       {@code delta.stop_reason}), {@code message_stop}.</li>
  * </ul>
  */
-public final class AnthropicMessagesClient {
+public final class AnthropicMessagesClient extends AbstractSseLlmClient {
 
     private static final Logger logger = LoggerFactory.getLogger(AnthropicMessagesClient.class);
-    private static final ObjectMapper MAPPER = JsonMapper.builder().build();
-    private static final String DATA_PREFIX = "data: ";
     private static final String DEFAULT_BASE_URL = "https://api.anthropic.com";
     private static final String DEFAULT_VERSION = "2023-06-01";
     private static final int DEFAULT_MAX_TOKENS = 4096;
     private static final int DEFAULT_TOOL_ROUND_CAP = 5;
 
-    private final String baseUrl;
-    private final String apiKey;
     private final String anthropicVersion;
-    private final HttpClient httpClient;
-    private final Duration timeout;
-    private final Map<String, String> customHeaders;
-    private final int maxTokens;
 
     private AnthropicMessagesClient(Builder b) {
-        this.baseUrl = b.baseUrl.endsWith("/")
-                ? b.baseUrl.substring(0, b.baseUrl.length() - 1)
-                : b.baseUrl;
-        this.apiKey = b.apiKey;
+        super(new SseClientConfig(b.baseUrl, b.apiKey, b.httpClient, b.timeout,
+                b.maxTokens, b.customHeaders));
         this.anthropicVersion = b.anthropicVersion;
-        this.httpClient = b.httpClient != null ? b.httpClient
-                : HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30)).build();
-        this.timeout = b.timeout;
-        this.customHeaders = Map.copyOf(b.customHeaders);
-        this.maxTokens = b.maxTokens;
     }
 
     public static Builder builder() {
         return new Builder();
     }
 
-    /** Visible for tests. */
-    public Map<String, String> customHeaders() {
-        return customHeaders;
+    @Override
+    protected String providerName() {
+        return "Anthropic";
     }
 
     /**
@@ -180,7 +161,7 @@ public final class AnthropicMessagesClient {
                 return;
             }
 
-            var roundOutcome = runRound(httpRequest, context, session, effectiveCancel);
+            var roundOutcome = parseRound(httpRequest, context, session, effectiveCancel);
             if (roundOutcome.errored()) {
                 // The round already emitted session.error / session.complete.
                 return;
@@ -197,80 +178,46 @@ public final class AnthropicMessagesClient {
         }
     }
 
-    private RoundOutcome runRound(HttpRequest httpRequest,
-                                  AgentExecutionContext context,
-                                  StreamingSession session,
-                                  AtomicBoolean cancelled) {
-        HttpResponse<InputStream> response;
-        try {
-            response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
-        } catch (Exception e) {
-            session.error(e);
-            return RoundOutcome.failure();
-        }
-        if (response.statusCode() / 100 != 2) {
-            var bodySnippet = readSnippet(response.body());
-            session.error(new RuntimeException("Anthropic API returned "
-                    + response.statusCode() + ": " + bodySnippet));
-            return RoundOutcome.failure();
-        }
-        try (var body = response.body();
-             var reader = new BufferedReader(
-                     new InputStreamReader(body, StandardCharsets.UTF_8))) {
-            return parseSse(reader, context, session, cancelled);
-        } catch (Exception e) {
-            session.error(e);
-            return RoundOutcome.failure();
-        }
-    }
-
-    private RoundOutcome parseSse(BufferedReader reader,
-                                  AgentExecutionContext context,
-                                  StreamingSession session,
-                                  AtomicBoolean cancelled) throws Exception {
+    private RoundOutcome parseRound(HttpRequest httpRequest,
+                                    AgentExecutionContext context,
+                                    StreamingSession session,
+                                    AtomicBoolean cancelled) {
         // Per-content-block accumulators keyed by SSE index (Anthropic
         // assigns a stable index per content_block_start within a message).
         // text_delta entries accumulate into a single text buffer; tool_use
         // entries accumulate their partial_json into a single JSON string.
         var textBuffers = new LinkedHashMap<Integer, StringBuilder>();
         var toolBuffers = new LinkedHashMap<Integer, ToolUseAccumulator>();
-        TokenUsage usage = null;
+        // Mutable holder so the per-event mapper lambda can update the running
+        // usage across message_delta events (Anthropic streams usage twice).
+        var usageHolder = new TokenUsage[1];
 
-        String line;
-        while ((line = reader.readLine()) != null) {
-            if (cancelled.get()) {
-                return RoundOutcome.failure();
-            }
-            if (!line.startsWith(DATA_PREFIX)) {
-                continue;
-            }
-            var payload = line.substring(DATA_PREFIX.length()).trim();
-            if (payload.isEmpty()) {
-                continue;
-            }
-            JsonNode event;
-            try {
-                event = MAPPER.readTree(payload);
-            } catch (RuntimeException e) {
-                logger.debug("Skipping unparseable SSE payload: {}", payload, e);
-                continue;
-            }
+        // The shared base owns the HTTP send, non-2xx error string, and the
+        // data:-framed readLine scaffolding; this lambda is the only
+        // Anthropic-specific part — the per-event switch.
+        var completed = runRound(httpRequest, session, cancelled, event -> {
             var type = event.path("type").asString("");
             switch (type) {
                 case "content_block_start" -> handleContentBlockStart(event, textBuffers, toolBuffers);
                 case "content_block_delta" -> handleContentBlockDelta(event, session, textBuffers, toolBuffers);
                 case "content_block_stop" -> { /* finalisation handled lazily */ }
                 case "message_delta" -> {
-                    var parsed = parseMessageDelta(event, usage);
+                    var parsed = parseMessageDelta(event, usageHolder[0]);
                     if (parsed != null) {
-                        usage = parsed;
+                        usageHolder[0] = parsed;
                     }
                 }
                 case "message_start", "message_stop", "ping" -> { /* no-op */ }
                 default -> logger.trace("Unhandled Anthropic SSE event: {}", type);
             }
+        });
+        if (!completed) {
+            // runRound already emitted session.error for the IO/non-2xx paths;
+            // the cancel path leaves the session untouched (matches original).
+            return RoundOutcome.failure();
         }
 
+        var usage = usageHolder[0];
         if (usage != null && usage.hasCounts()) {
             session.usage(usage);
         }
@@ -286,7 +233,7 @@ public final class AnthropicMessagesClient {
         }
         for (var entry : toolBuffers.entrySet()) {
             var acc = entry.getValue();
-            ordered.put(entry.getKey(), toolUseBlock(acc.id, acc.name, acc.parseInput()));
+            ordered.put(entry.getKey(), toolUseBlock(acc.id, acc.name, acc.parseInput(MAPPER)));
         }
         // Insertion order in LinkedHashMap is not numeric — sort by index.
         ordered.entrySet().stream()
@@ -299,7 +246,7 @@ public final class AnthropicMessagesClient {
         var toolResults = new ArrayList<ObjectNode>();
         for (var entry : toolBuffers.entrySet()) {
             var acc = entry.getValue();
-            session.emit(new AiEvent.ToolStart(acc.name, acc.parseInput()));
+            session.emit(new AiEvent.ToolStart(acc.name, acc.parseInput(MAPPER)));
             var resultText = dispatchTool(context, session, acc);
             session.emit(new AiEvent.ToolResult(acc.name, resultText));
             toolResults.add(toolResultBlock(acc.id, resultText));
@@ -392,7 +339,7 @@ public final class AnthropicMessagesClient {
         if (definition == null) {
             return "{\"error\":\"Unknown tool: " + acc.name + "\"}";
         }
-        var args = acc.parseInput();
+        var args = acc.parseInput(MAPPER);
         var injectables = Map.<Class<?>, Object>of(StreamingSession.class, session);
         var approvalPolicy = context.approvalPolicy() != null
                 ? context.approvalPolicy() : ToolApprovalPolicy.annotated();
@@ -564,26 +511,11 @@ public final class AnthropicMessagesClient {
         node.put("name", def.name());
         node.put("description", def.description());
         // ToolDefinition stores its JSON Schema fragment on the parameters
-        // list. Anthropic expects an {@code input_schema} object — synthesise
-        // one from the parameter list so callers do not have to know
+        // list. Anthropic expects an {@code input_schema} object — wrap the
+        // shared inner schema object (built by the base) in Anthropic's
+        // {@code input_schema} envelope so callers do not have to know
         // Anthropic's schema shape.
-        var schema = node.putObject("input_schema");
-        schema.put("type", "object");
-        var properties = schema.putObject("properties");
-        var required = MAPPER.createArrayNode();
-        for (var param : def.parameters()) {
-            var prop = properties.putObject(param.name());
-            prop.put("type", param.type() != null ? param.type() : "string");
-            if (param.description() != null && !param.description().isBlank()) {
-                prop.put("description", param.description());
-            }
-            if (param.required()) {
-                required.add(param.name());
-            }
-        }
-        if (!required.isEmpty()) {
-            schema.set("required", required);
-        }
+        node.set("input_schema", toolSchemaObjectNode(def, MAPPER));
         return node;
     }
 
@@ -601,37 +533,9 @@ public final class AnthropicMessagesClient {
         // Custom headers carry observability / proxy / tenant metadata.
         // Reserved protocol headers are filtered out — same posture as
         // OpenAiCompatibleClient.applyCustomHeaders.
-        for (var entry : customHeaders.entrySet()) {
-            var name = entry.getKey();
-            if (name == null || name.isBlank()) {
-                continue;
-            }
-            if (name.equalsIgnoreCase("x-api-key")
-                    || name.equalsIgnoreCase("anthropic-version")
-                    || name.equalsIgnoreCase("content-type")
-                    || name.equalsIgnoreCase("accept")) {
-                logger.debug("Skipping reserved Anthropic header {} from customHeaders", name);
-                continue;
-            }
-            var value = entry.getValue();
-            if (value != null) {
-                builder.header(name, value);
-            }
-        }
+        applyReservedFilteredHeaders(builder,
+                Set.of("x-api-key", "anthropic-version", "content-type", "accept"));
         return builder.build();
-    }
-
-    private static String readSnippet(InputStream body) {
-        if (body == null) {
-            return "<no body>";
-        }
-        try (body) {
-            var bytes = body.readAllBytes();
-            var text = new String(bytes, StandardCharsets.UTF_8);
-            return text.length() > 500 ? text.substring(0, 500) + "..." : text;
-        } catch (Exception e) {
-            return "<unreadable: " + e.getClass().getSimpleName() + ">";
-        }
     }
 
     /** Per-tool accumulator that gathers partial_json fragments and exposes
@@ -641,13 +545,13 @@ public final class AnthropicMessagesClient {
         String name = "";
         final StringBuilder rawJson = new StringBuilder();
 
-        Map<String, Object> parseInput() {
+        Map<String, Object> parseInput(ObjectMapper mapper) {
             if (rawJson.length() == 0) {
                 return Map.of();
             }
             try {
                 @SuppressWarnings("unchecked")
-                Map<String, Object> parsed = MAPPER.readValue(rawJson.toString(), Map.class);
+                Map<String, Object> parsed = mapper.readValue(rawJson.toString(), Map.class);
                 return parsed != null ? parsed : Map.of();
             } catch (Exception e) {
                 return Map.of("__raw", rawJson.toString());
