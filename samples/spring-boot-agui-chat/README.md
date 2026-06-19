@@ -1,6 +1,6 @@
 # Spring Boot AG-UI Chat Sample
 
-A streaming AI assistant that speaks the [AG-UI (Agent-User Interaction)](https://docs.ag-ui.com/) protocol. The agent streams steps, tool calls, and text to the browser via Server-Sent Events — compatible with CopilotKit and similar frontends.
+An [AG-UI (Agent-User Interaction)](https://docs.ag-ui.com/) protocol demo. It maps Atmosphere `AiEvent`s to AG-UI events via the real `AgUiEventMapper` and streams them to the browser via Server-Sent Events — compatible with CopilotKit and similar frontends. The assistant responses are scripted (no LLM); see [`spring-boot-ai-chat`](../spring-boot-ai-chat/) for real model-backed streaming.
 
 ## What It Does
 
@@ -28,7 +28,7 @@ Open **http://localhost:8085** and try these messages:
 | Message | What happens |
 |---------|-------------|
 | `Hello!` | Steps + streamed greeting |
-| `What's the weather?` | Steps + `get_weather` tool call + streamed analysis |
+| `What's the weather?` | Steps + `get_weather` tool call (randomized stub data) + streamed scripted response |
 | `What time is it?` | Steps + `get_time` tool call + streamed response |
 
 ## Key Code

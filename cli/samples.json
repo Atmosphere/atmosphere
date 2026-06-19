@@ -411,14 +411,13 @@
     },
     {
       "name": "spring-boot-coding-agent",
-      "description": "Coding agent — Sandbox SPI + Git clone + AgentResumeHandle reattach",
+      "description": "Coding agent — Sandbox SPI + Git clone (reads repo README in an isolated sandbox)",
       "category": "agent",
       "tags": [
         "spring-boot",
         "ai",
         "agent",
-        "sandbox",
-        "reattach"
+        "sandbox"
       ],
       "port": 8081,
       "runnable": true,

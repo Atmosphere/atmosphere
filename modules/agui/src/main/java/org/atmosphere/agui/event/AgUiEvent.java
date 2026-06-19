@@ -18,7 +18,7 @@ package org.atmosphere.agui.event;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
- * Sealed interface representing all 28 AG-UI protocol events. Each record variant
+ * Sealed interface representing all 27 AG-UI protocol events. Each record variant
  * maps to a specific wire-format event type defined by {@link AgUiEventType}.
  *
  * <p>Being sealed enables exhaustive pattern matching in switch expressions,

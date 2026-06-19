@@ -16,7 +16,7 @@
 package org.atmosphere.agui.event;
 
 /**
- * All 28 AG-UI event type string constants as defined by the AG-UI protocol specification.
+ * All 27 AG-UI event type string constants as defined by the AG-UI protocol specification.
  * Each enum constant maps to its wire-format event type string.
  */
 public enum AgUiEventType {

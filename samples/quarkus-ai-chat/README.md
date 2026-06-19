@@ -185,7 +185,7 @@ $ curl -s http://localhost:18810/q/health | head -20
             "status": "UP",
             "data": {
                 "status": "UP",
-                "version": "4.0.49-SNAPSHOT",
+                "version": "<atmosphere-version>",
                 "handlers": 5,
                 "broadcasters": 5,
                 "interceptors": 12,

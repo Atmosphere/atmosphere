@@ -39,6 +39,8 @@ One agent class — slash commands and AI work on Web, Slack, Telegram, Discord,
 | [spring-boot-personal-assistant](spring-boot-personal-assistant/) | `@Coordinator`, `@Fleet`, `AgentState`, `AgentWorkspace`, `AgentIdentity`, `ToolExtensibilityPoint`, `InMemoryProtocolBridge` | Web | Long-lived memory-bearing assistant — primary delegates to scheduler / research / drafter crew over `InMemoryProtocolBridge`; ships an OpenClaw-compatible workspace |
 | [spring-boot-coding-agent](spring-boot-coding-agent/) | `@Agent`, `Sandbox` | Web | Coding agent — clones a repo into a Docker sandbox, reads files |
 | [spring-boot-guarded-email-agent](spring-boot-guarded-email-agent/) | `PlanVerifier`, `@Sink`, `NumericInvariant`, `SmtChecker`, `WorkflowExecutor` | Web | Plan-and-Verify (Meijer) — refuses unsafe plans before any tool fires: taint (exfiltration) + SMT (over-quota bulk send) |
+| [spring-boot-orchestration-demo](spring-boot-orchestration-demo/) | `@Agent`, `session.handoff()`, `@RequiresApproval`, `@Command` | Web | Support Desk — agent handoffs with human approval gates |
+| [spring-boot-ms-governance-chat](spring-boot-ms-governance-chat/) | `@AiEndpoint`, `PolicyAdmissionGate`, MS Agent Governance YAML | Web | Chat gated every turn by Microsoft Agent Governance Toolkit YAML policies |
 
 ### Agent Protocols
 
@@ -189,7 +191,7 @@ public class Chat {
 
 Only packaging and configuration differ — your business logic is portable across Spring Boot, Quarkus, and plain Servlet containers.
 
-## Wave 1-6 Unified @Agent Feature Matrix
+## Unified @Agent Feature Matrix
 
 | Sample | Tool calling | HITL approval | Prompt caching | Lifecycle listeners | Embeddings |
 |--------|:------------:|:-------------:|:--------------:|:-------------------:|:----------:|
@@ -202,12 +204,12 @@ Only packaging and configuration differ — your business logic is portable acro
 | [spring-boot-orchestration-demo](spring-boot-orchestration-demo/) | ✅ | ✅ | — | — | — |
 
 **Feature reference:**
-- **Tool calling + HITL approval** (Phase 0 + Wave 1): `@AiTool` + `@RequiresApproval`; every runtime routes through `ToolExecutionHelper.executeWithApproval`.
-- **Multi-modal** (Wave 2): `Content.Image` / `Audio` / `File` on `context.parts()`; Spring AI `Media`, LC4j `ImageContent`, ADK `Part.fromBytes`, Built-in OpenAI `image_url`.
-- **Lifecycle listeners** (Wave 3): implement `AgentLifecycleListener` and attach via `context.withListeners(...)`. Bridges fire `onToolCall`/`onToolResult` on every round.
-- **Prompt caching** (Wave 4): `@AiEndpoint(promptCache = CachePolicy.CONSERVATIVE)` or `CacheHint` on context metadata. Spring AI/LC4j/Built-in emit OpenAI `prompt_cache_key`; pipeline-level `ResponseCache` also replays identical requests across all runtimes.
-- **Embeddings** (Wave 5): `EmbeddingRuntime` SPI auto-discovered via `ServiceLoader`. Ships for Spring AI, LangChain4j, Built-in OpenAI, Embabel, Semantic Kernel.
-- **Retry policy** (Wave 6): `@AiEndpoint(retry = @Retry(maxRetries = 5))` or programmatic `context.withRetryPolicy(...)`.
+- **Tool calling + HITL approval**: `@AiTool` + `@RequiresApproval`; every runtime routes through `ToolExecutionHelper.executeWithApproval`.
+- **Multi-modal**: `Content.Image` / `Audio` / `File` on `context.parts()`; Spring AI `Media`, LC4j `ImageContent`, ADK `Part.fromBytes`, Built-in OpenAI `image_url`.
+- **Lifecycle listeners**: implement `AgentLifecycleListener` and attach via `context.withListeners(...)`. Bridges fire `onToolCall`/`onToolResult` on every round.
+- **Prompt caching**: `@AiEndpoint(promptCache = CachePolicy.CONSERVATIVE)` or `CacheHint` on context metadata. Spring AI/LC4j/Built-in emit OpenAI `prompt_cache_key`; pipeline-level `ResponseCache` also replays identical requests across all runtimes.
+- **Embeddings**: `EmbeddingRuntime` SPI auto-discovered via `ServiceLoader`. Ships for Spring AI, Spring AI Alibaba, LangChain4j, Semantic Kernel, Embabel, Koog, and the Built-in OpenAI client (7 runtimes).
+- **Retry policy**: `@AiEndpoint(retry = @Retry(maxRetries = 5))` or programmatic `context.withRetryPolicy(...)`.
 
 See the [atmosphere-ai capability matrix](../modules/ai/README.md#capability-matrix) for the cross-runtime support view.
 
