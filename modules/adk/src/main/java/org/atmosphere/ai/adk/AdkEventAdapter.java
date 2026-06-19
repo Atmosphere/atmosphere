@@ -59,29 +59,27 @@ public final class AdkEventAdapter {
     private final java.util.concurrent.CompletableFuture<Void> doneFuture = new java.util.concurrent.CompletableFuture<>();
 
     /**
-     * Lifecycle hook bridge: optional listeners + model name passed in via the
-     * lifecycle-aware {@code bridge(...)} overload. Default empty/{@code "adk"}
-     * keeps the existing 3 bridge factories backward-compatible — when not
-     * provided the fire calls are no-ops.
+     * Per-dispatch model-call observation span. Owns the listeners + model name
+     * + start time and fans out onModelStart/End/Error. The lifecycle-aware
+     * {@code bridge(...)} overload opens a real scope; the backward-compatible
+     * 3 bridge factories open an empty-listener scope whose fires are no-ops.
      */
-    private final java.util.List<org.atmosphere.ai.AgentLifecycleListener> listeners;
-    private final String modelName;
-    private final long startNanos;
+    private final org.atmosphere.ai.ModelCallScope modelScope;
     private final java.util.concurrent.atomic.AtomicReference<org.atmosphere.ai.TokenUsage>
             lastUsage = new java.util.concurrent.atomic.AtomicReference<>();
 
     private AdkEventAdapter(StreamingSession session) {
-        this(session, java.util.List.of(), "adk");
+        // No-listener bridge factories: the scope fires nothing (empty
+        // listeners) but still gives onComplete/onError a terminal target.
+        this(session,
+                org.atmosphere.ai.ModelCallScope.open(java.util.List.of(), "adk", 0, 0));
     }
 
     private AdkEventAdapter(
             StreamingSession session,
-            java.util.List<org.atmosphere.ai.AgentLifecycleListener> listeners,
-            String modelName) {
+            org.atmosphere.ai.ModelCallScope modelScope) {
         this.session = session;
-        this.listeners = listeners != null ? listeners : java.util.List.of();
-        this.modelName = modelName != null ? modelName : "adk";
-        this.startNanos = System.nanoTime();
+        this.modelScope = modelScope;
     }
 
     /**
@@ -139,9 +137,17 @@ public final class AdkEventAdapter {
             String modelName,
             int messageCount,
             int toolCount) {
-        var adapter = new AdkEventAdapter(session, listeners, modelName);
-        org.atmosphere.ai.AgentLifecycleListener.fireModelStart(
-                adapter.listeners, adapter.modelName, messageCount, toolCount);
+        var safeListeners = listeners != null ? listeners : java.util.List.<org.atmosphere.ai.AgentLifecycleListener>of();
+        var safeModel = modelName != null ? modelName : "adk";
+        // Open the scope at the dispatch moment: ModelCallScope.open captures
+        // System.nanoTime() and fires onModelStart in one step. This aligns
+        // ADK's start instant to the dispatch moment like every peer runtime —
+        // previously the start time was captured in the constructor (which runs
+        // just before this start fire). Sub-microsecond delta; affects only the
+        // reported duration value, never event count or ordering.
+        var scope = org.atmosphere.ai.ModelCallScope.open(
+                safeListeners, safeModel, messageCount, toolCount);
+        var adapter = new AdkEventAdapter(session, scope);
         adapter.subscribe(events);
         return adapter;
     }
@@ -274,7 +280,7 @@ public final class AdkEventAdapter {
         // appenders / AiEventForwardingListener see the failure even when
         // session.error short-circuits on already-closed sessions. No-op
         // when bridge() was called without listeners.
-        org.atmosphere.ai.AgentLifecycleListener.fireModelError(listeners, modelName, t);
+        modelScope.fail(t);
         if (completed.compareAndSet(false, true) && !session.isClosed()) {
             session.error(t);
         }
@@ -291,11 +297,9 @@ public final class AdkEventAdapter {
         // Fire model-lifecycle end hook with captured usage + duration. The
         // usage comes from extractUsageMetadata, which stores the latest
         // ADK-emitted TokenUsage in the lastUsage holder. Duration is
-        // wall-clock from adapter construction (effectively the dispatch
-        // start, since bridge() constructs and subscribes in the same call).
-        long durationMs = (System.nanoTime() - startNanos) / 1_000_000L;
-        org.atmosphere.ai.AgentLifecycleListener.fireModelEnd(
-                listeners, modelName, lastUsage.get(), durationMs);
+        // wall-clock from ModelCallScope.open() — the dispatch moment, since
+        // the lifecycle bridge() opens the scope and subscribes in the same call.
+        modelScope.complete(lastUsage.get());
         doneFuture.complete(null);
     }
 

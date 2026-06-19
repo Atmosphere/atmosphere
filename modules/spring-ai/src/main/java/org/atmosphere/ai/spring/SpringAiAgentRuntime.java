@@ -211,17 +211,16 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
         // Error fires on doOnError. The captured-usage AtomicReference holds
         // the last TokenUsage seen during streaming because Spring AI emits
         // usage on the final ChatResponse, not as a separate event.
-        var listeners = context.listeners();
-        var modelName = context.model() != null ? context.model() : name();
         var messageCount = context.history().size()
                 + (context.systemPrompt() != null && !context.systemPrompt().isEmpty() ? 1 : 0)
                 + 1; // user message
         var toolCount = context.tools().size();
-        var startNanos = System.nanoTime();
         var lastUsage =
                 new java.util.concurrent.atomic.AtomicReference<org.atmosphere.ai.TokenUsage>();
-        org.atmosphere.ai.AgentLifecycleListener.fireModelStart(
-                listeners, modelName, messageCount, toolCount);
+        var modelScope = org.atmosphere.ai.ModelCallScope.open(
+                context.listeners(),
+                context.model() != null ? context.model() : name(),
+                messageCount, toolCount);
 
         // Phase 2: wrap the Reactor Disposable in an ExecutionHandle so callers
         // can cancel in-flight Spring AI completions. The Settable helper holds
@@ -258,9 +257,7 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
                     }
                 })
                 .doOnComplete(() -> {
-                    var durationMs = (System.nanoTime() - startNanos) / 1_000_000L;
-                    org.atmosphere.ai.AgentLifecycleListener.fireModelEnd(
-                            listeners, modelName, lastUsage.get(), durationMs);
+                    modelScope.complete(lastUsage.get());
                     session.complete();
                     completion.complete(null);
                 })
@@ -278,8 +275,7 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
                             // handler-less subscribe() into Reactor's default
                             // onErrorDropped where it is silently swallowed and the
                             // session is left hanging.
-                            org.atmosphere.ai.AgentLifecycleListener.fireModelError(
-                                    listeners, modelName, error);
+                            modelScope.fail(error);
                             logger.error("Spring AI streaming error: {}", error.getMessage());
                             if (!session.isClosed()) {
                                 session.error(error);

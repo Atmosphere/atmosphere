@@ -718,13 +718,14 @@ private fun GraphAIAgent.FeatureContext.wireFeatureHandlers(
     listeners: List<org.atmosphere.ai.AgentLifecycleListener> = emptyList(),
     modelName: String = "koog"
 ) {
-    // Per-LLM-call start time for fireModelEnd duration computation. Koog's
-    // AIAgent runs may issue multiple LLM calls (tool loop), so we capture
-    // the start time per call rather than once per agent.run(). AtomicLong
-    // is safe for the single-writer / single-reader pattern Koog uses
-    // (onLLMCallStarting writes; onLLMCallCompleted reads on the same
-    // dispatcher).
-    val callStartNanos = java.util.concurrent.atomic.AtomicLong()
+    // Per-LLM-call observation span for fireModelStart/End duration computation.
+    // Koog's AIAgent runs may issue multiple LLM calls (tool loop), so we open a
+    // fresh scope per call rather than once per agent.run(). AtomicReference is
+    // safe for the single-writer / single-reader pattern Koog uses
+    // (onLLMCallStarting opens + writes; onLLMCallCompleted reads + completes on
+    // the same dispatcher).
+    val callScope =
+        java.util.concurrent.atomic.AtomicReference<org.atmosphere.ai.ModelCallScope?>()
     handleEvents {
         onLLMStreamingFrameReceived { ctx ->
             if (cancelled.get() || session.isClosed) return@onLLMStreamingFrameReceived
@@ -748,15 +749,17 @@ private fun GraphAIAgent.FeatureContext.wireFeatureHandlers(
             session.emit(AiEvent.ToolError(ctx.toolName, ctx.error?.message ?: "Tool failed"))
         }
         onLLMCallStarting { ctx ->
-            // Fire model-lifecycle start hook per LLM call. Koog's tool loop
-            // issues one ctx per dispatch, so callers see one start/end pair
-            // per round — matching the Built-in OpenAiCompatibleClient posture
-            // (one fireModelStart per HTTP attempt).
-            callStartNanos.set(System.nanoTime())
+            // Open the model-call span per LLM call. Koog's tool loop issues one
+            // ctx per dispatch, so callers see one start/end pair per round —
+            // matching the Built-in OpenAiCompatibleClient posture (one
+            // fireModelStart per HTTP attempt). ModelCallScope.open captures the
+            // start time and fires onModelStart in one step.
             val messageCount = ctx.prompt.messages.size
             val toolCount = ctx.tools.size
-            org.atmosphere.ai.AgentLifecycleListener.fireModelStart(
-                listeners, modelName, messageCount, toolCount
+            callScope.set(
+                org.atmosphere.ai.ModelCallScope.open(
+                    listeners, modelName, messageCount, toolCount
+                )
             )
         }
         onLLMCallCompleted { ctx ->
@@ -778,15 +781,20 @@ private fun GraphAIAgent.FeatureContext.wireFeatureHandlers(
                     atmoUsage = usage
                 }
             }
-            // Fire model-lifecycle end hook with the captured TokenUsage and
-            // wall-clock duration. nanos to millis with floor at 0 in case the
-            // start hook didn't fire (defensive — shouldn't happen but Koog's
-            // event ordering is its own).
-            val startNs = callStartNanos.get()
-            val durationMs = if (startNs > 0) (System.nanoTime() - startNs) / 1_000_000L else 0L
-            org.atmosphere.ai.AgentLifecycleListener.fireModelEnd(
-                listeners, modelName, atmoUsage, durationMs
-            )
+            // Complete the model-call span with the captured TokenUsage and
+            // wall-clock duration. If the start hook did not fire (defensive —
+            // shouldn't happen but Koog's event ordering is its own) the scope
+            // is null; fall back to firing onModelEnd directly with duration 0L
+            // so the end event still fires, matching the prior floor-at-0
+            // behavior bit-for-bit.
+            val scope = callScope.getAndSet(null)
+            if (scope != null) {
+                scope.complete(atmoUsage)
+            } else {
+                org.atmosphere.ai.AgentLifecycleListener.fireModelEnd(
+                    listeners, modelName, atmoUsage, 0L
+                )
+            }
         }
     }
 }

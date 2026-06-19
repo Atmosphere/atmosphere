@@ -176,12 +176,12 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
         // Model-lifecycle hooks: fire onModelStart synchronously before subscribe;
         // onModelEnd / onModelError fire from drainCancellable on the matching
         // terminal signal. Same posture as Spring AI / LC4j / ADK / Koog / Embabel.
-        var listeners = context.listeners();
-        var modelName = context.model() != null ? context.model() : name();
         var messageCount = chatHistory.getMessages().size();
         var toolCount = toolPlugin != null ? context.tools().size() : 0;
-        org.atmosphere.ai.AgentLifecycleListener.fireModelStart(
-                listeners, modelName, messageCount, toolCount);
+        var modelScope = org.atmosphere.ai.ModelCallScope.open(
+                context.listeners(),
+                context.model() != null ? context.model() : name(),
+                messageCount, toolCount);
 
         // Wrap the Reactor Disposable in an ExecutionHandle so a client
         // disconnect can dispose the in-flight SK subscription — disposing
@@ -191,7 +191,7 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
         // so dispose + session.complete fire at most once.
         var completion = new java.util.concurrent.CompletableFuture<Void>();
         var disposable = SemanticKernelStreamingAdapter.drainCancellable(
-                flux, session, listeners, modelName, completion);
+                flux, session, modelScope, completion);
         return new ExecutionHandle() {
             private final java.util.concurrent.atomic.AtomicBoolean cancelled =
                     new java.util.concurrent.atomic.AtomicBoolean();

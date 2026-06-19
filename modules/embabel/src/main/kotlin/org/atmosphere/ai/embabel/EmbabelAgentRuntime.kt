@@ -138,15 +138,12 @@ class EmbabelAgentRuntime : AgentRuntime {
         // Token usage is captured inside executeDeployedAgent via
         // process.usage() and stashed in lastUsage so onModelEnd reports the
         // final aggregate.
-        val listeners = effective.listeners()
-        val modelName = effective.model() ?: name()
         val messageCount = effective.history().size +
             (if (effective.systemPrompt()?.isNotEmpty() == true) 1 else 0) + 1
         val toolCount = effective.tools().size
-        val startNanos = System.nanoTime()
         val lastUsage = java.util.concurrent.atomic.AtomicReference<TokenUsage>()
-        org.atmosphere.ai.AgentLifecycleListener.fireModelStart(
-            listeners, modelName, messageCount, toolCount
+        val modelScope = org.atmosphere.ai.ModelCallScope.open(
+            effective.listeners(), effective.model() ?: name(), messageCount, toolCount
         )
 
         try {
@@ -158,12 +155,9 @@ class EmbabelAgentRuntime : AgentRuntime {
                     executeAtmosphereNative(platform, effective, session, lastUsage)
                 }
             }
-            val durationMs = (System.nanoTime() - startNanos) / 1_000_000L
-            org.atmosphere.ai.AgentLifecycleListener.fireModelEnd(
-                listeners, modelName, lastUsage.get(), durationMs
-            )
+            modelScope.complete(lastUsage.get())
         } catch (t: Throwable) {
-            org.atmosphere.ai.AgentLifecycleListener.fireModelError(listeners, modelName, t)
+            modelScope.fail(t)
             throw t
         }
     }

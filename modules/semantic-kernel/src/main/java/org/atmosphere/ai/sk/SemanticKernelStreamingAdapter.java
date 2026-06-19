@@ -59,17 +59,14 @@ final class SemanticKernelStreamingAdapter {
     static reactor.core.Disposable drainCancellable(
             Flux<StreamingChatContent<?>> flux,
             StreamingSession session,
-            java.util.List<org.atmosphere.ai.AgentLifecycleListener> listeners,
-            String modelName,
+            org.atmosphere.ai.ModelCallScope modelScope,
             java.util.concurrent.CompletableFuture<Void> completion) {
-        var startNanos = System.nanoTime();
         var lastUsage =
                 new java.util.concurrent.atomic.AtomicReference<TokenUsage>();
         return flux.takeWhile(ignored -> !session.isClosed())
                 .doOnNext(frame -> forwardFrame(frame, session, lastUsage))
                 .doOnError(error -> {
-                    org.atmosphere.ai.AgentLifecycleListener.fireModelError(
-                            listeners, modelName, error);
+                    modelScope.fail(error);
                     logger.error("Semantic Kernel streaming error: {}", error.getMessage());
                     if (!session.isClosed()) {
                         session.error(error);
@@ -77,9 +74,7 @@ final class SemanticKernelStreamingAdapter {
                     completion.complete(null);
                 })
                 .doOnComplete(() -> {
-                    long durationMs = (System.nanoTime() - startNanos) / 1_000_000L;
-                    org.atmosphere.ai.AgentLifecycleListener.fireModelEnd(
-                            listeners, modelName, lastUsage.get(), durationMs);
+                    modelScope.complete(lastUsage.get());
                     if (!session.isClosed()) {
                         session.complete();
                     }

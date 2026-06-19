@@ -174,14 +174,13 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
         // / Embabel / SK. fireModelStart synchronously before subscribe;
         // fireModelEnd on completion (with the last captured TokenUsage from
         // handleEvent); fireModelError on the error callback.
-        var listeners = context.listeners();
-        var modelName = context.model() != null ? context.model() : name();
         var messageCount = msgs.size();
         var toolCount = context.tools().size();
-        var startNanos = System.nanoTime();
         var lastUsage = new java.util.concurrent.atomic.AtomicReference<TokenUsage>();
-        org.atmosphere.ai.AgentLifecycleListener.fireModelStart(
-                listeners, modelName, messageCount, toolCount);
+        var modelScope = org.atmosphere.ai.ModelCallScope.open(
+                context.listeners(),
+                context.model() != null ? context.model() : name(),
+                messageCount, toolCount);
 
         Disposable subscription = activeAgent.stream(msgs, StreamOptions.defaults())
                 .subscribe(
@@ -190,15 +189,12 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
                             // Boundary safety (Invariant #4): every terminal
                             // path must close the session. error() is
                             // idempotent on Atmosphere's StreamingSession.
-                            org.atmosphere.ai.AgentLifecycleListener.fireModelError(
-                                    listeners, modelName, error);
+                            modelScope.fail(error);
                             session.error(error);
                             done.completeExceptionally(error);
                         },
                         () -> {
-                            long durationMs = (System.nanoTime() - startNanos) / 1_000_000L;
-                            org.atmosphere.ai.AgentLifecycleListener.fireModelEnd(
-                                    listeners, modelName, lastUsage.get(), durationMs);
+                            modelScope.complete(lastUsage.get());
                             if (!session.isClosed()) {
                                 session.complete();
                             }

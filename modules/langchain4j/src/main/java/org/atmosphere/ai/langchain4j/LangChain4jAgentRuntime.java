@@ -305,11 +305,10 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         // terminal callbacks. Same posture as Built-in's OpenAiCompatibleClient
         // — gives Micrometer / AiEventForwardingListener / audit appenders a
         // uniform per-call event surface across runtimes.
-        var listeners = context.listeners();
-        var modelName = context.model() != null ? context.model() : name();
-        var startNanos = System.nanoTime();
-        org.atmosphere.ai.AgentLifecycleListener.fireModelStart(
-                listeners, modelName, messages.size(), toolSpecs.size());
+        var modelScope = org.atmosphere.ai.ModelCallScope.open(
+                context.listeners(),
+                context.model() != null ? context.model() : name(),
+                messages.size(), toolSpecs.size());
 
         var handler = new CancelAwareStreamingHandler(
                 new ToolAwareStreamingResponseHandler(
@@ -317,7 +316,7 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                         context.approvalStrategy(), context.listeners(), cancelled,
                         context.approvalPolicy(),
                         org.atmosphere.ai.llm.ToolLoopPolicies.fromOrDefault(context)),
-                cancelled, done, listeners, modelName, startNanos);
+                cancelled, done, modelScope);
         streamingModel.chat(chatRequestBuilder.build(), handler);
 
         return new org.atmosphere.ai.ExecutionHandle() {
@@ -426,23 +425,17 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         private final dev.langchain4j.model.chat.response.StreamingChatResponseHandler inner;
         private final java.util.concurrent.atomic.AtomicBoolean cancelled;
         private final java.util.concurrent.CompletableFuture<Void> done;
-        private final java.util.List<org.atmosphere.ai.AgentLifecycleListener> listeners;
-        private final String modelName;
-        private final long startNanos;
+        private final org.atmosphere.ai.ModelCallScope modelScope;
 
         CancelAwareStreamingHandler(
                 dev.langchain4j.model.chat.response.StreamingChatResponseHandler inner,
                 java.util.concurrent.atomic.AtomicBoolean cancelled,
                 java.util.concurrent.CompletableFuture<Void> done,
-                java.util.List<org.atmosphere.ai.AgentLifecycleListener> listeners,
-                String modelName,
-                long startNanos) {
+                org.atmosphere.ai.ModelCallScope modelScope) {
             this.inner = inner;
             this.cancelled = cancelled;
             this.done = done;
-            this.listeners = listeners;
-            this.modelName = modelName;
-            this.startNanos = startNanos;
+            this.modelScope = modelScope;
         }
 
         @Override public void onPartialResponse(String partial) {
@@ -472,9 +465,7 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                                 lcUsage.totalTokenCount() != null
                                         ? lcUsage.totalTokenCount().longValue() : null);
                     }
-                    long durationMs = (System.nanoTime() - startNanos) / 1_000_000L;
-                    org.atmosphere.ai.AgentLifecycleListener.fireModelEnd(
-                            listeners, modelName, atmoUsage, durationMs);
+                    modelScope.complete(atmoUsage);
                 }
             } finally {
                 done.complete(null);
@@ -497,8 +488,7 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                     // so consumers (audit appenders, AiEventForwardingListener) see
                     // the failure even when downstream session.error() handling
                     // varies between transport-level and model-level errors.
-                    org.atmosphere.ai.AgentLifecycleListener.fireModelError(
-                            listeners, modelName, error);
+                    modelScope.fail(error);
                 } else {
                     logger.trace("Dropping post-cancel LC4j error", error);
                 }

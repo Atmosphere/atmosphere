@@ -157,11 +157,10 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
         // incremental token deltas), so onModelEnd fires once at completion
         // with the full duration but no TokenUsage (Alibaba's ReactAgent.call
         // returns AssistantMessage which has no usage surface in v1.1.2.0).
-        var listeners = context.listeners();
         var modelName = context.model() != null ? context.model() : name();
-        var startNanos = System.nanoTime();
-        org.atmosphere.ai.AgentLifecycleListener.fireModelStart(
-                listeners, modelName, messages.size(), context.tools().size());
+        var modelScope = org.atmosphere.ai.ModelCallScope.open(
+                context.listeners(), modelName,
+                messages.size(), context.tools().size());
 
         var activeAgent = agent;
         if (!context.tools().isEmpty()) {
@@ -232,8 +231,7 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
             if (captureUsage) {
                 UsageCapturingChatModel.endCapture();
             }
-            org.atmosphere.ai.AgentLifecycleListener.fireModelError(
-                    listeners, modelName, gre);
+            modelScope.fail(gre);
             session.error(gre);
             throw new IllegalStateException("Spring AI Alibaba ReactAgent failed", gre);
         } catch (RuntimeException re) {
@@ -243,8 +241,7 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
             if (captureUsage) {
                 UsageCapturingChatModel.endCapture();
             }
-            org.atmosphere.ai.AgentLifecycleListener.fireModelError(
-                    listeners, modelName, re);
+            modelScope.fail(re);
             throw re;
         }
 
@@ -279,9 +276,7 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
             }
         }
 
-        long durationMs = (System.nanoTime() - startNanos) / 1_000_000L;
-        org.atmosphere.ai.AgentLifecycleListener.fireModelEnd(
-                listeners, modelName, tokenUsage, durationMs);
+        modelScope.complete(tokenUsage);
         if (!session.isClosed()) {
             session.complete();
         }

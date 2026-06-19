@@ -239,10 +239,9 @@ public class OpenAiCompatibleClient implements LlmClient {
         // tool-loop round, matching how Spring AI / LC4j / ADK observability
         // surfaces count "model calls"). The corresponding onModelEnd fires
         // when the streaming response has been fully consumed, see below.
-        org.atmosphere.ai.AgentLifecycleListener.fireModelStart(
+        var modelScope = org.atmosphere.ai.ModelCallScope.open(
                 request.listeners(), request.model(),
                 request.messages().size(), request.tools().size());
-        var modelStartNanos = System.nanoTime();
 
         java.net.http.HttpResponse<java.io.InputStream> response;
         try {
@@ -251,8 +250,7 @@ public class OpenAiCompatibleClient implements LlmClient {
             // Transport-layer failures must surface to onModelError so
             // observability consumers can distinguish provider failures from
             // application-side errors (e.g. tool execution exceptions).
-            org.atmosphere.ai.AgentLifecycleListener.fireModelError(
-                    request.listeners(), request.model(), dispatchError);
+            modelScope.fail(dispatchError);
             throw dispatchError;
         }
         if (response == null) {
@@ -261,8 +259,7 @@ public class OpenAiCompatibleClient implements LlmClient {
             // consistent (an exhausted retry budget IS a model dispatch
             // failure even though the helper returns null instead of
             // throwing).
-            org.atmosphere.ai.AgentLifecycleListener.fireModelError(
-                    request.listeners(), request.model(),
+            modelScope.fail(
                     new LlmException("Model dispatch failed after retry budget exhausted"));
             return;
         }
@@ -353,9 +350,7 @@ public class OpenAiCompatibleClient implements LlmClient {
         // stream is fully consumed). Fires once per round — the caller's tool
         // loop runs the same wiring on every follow-up round, so observability
         // consumers see one onModelStart/onModelEnd pair per LLM call.
-        var modelDurationMillis = (System.nanoTime() - modelStartNanos) / 1_000_000L;
-        org.atmosphere.ai.AgentLifecycleListener.fireModelEnd(
-                request.listeners(), request.model(), capturedUsage[0], modelDurationMillis);
+        modelScope.complete(capturedUsage[0]);
 
         // If the model requested tool calls, execute them and re-submit
         if (toolCallsRequested[0] && !accumulators.isEmpty() && !request.tools().isEmpty()) {

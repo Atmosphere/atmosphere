@@ -268,6 +268,102 @@ class ObservationBridgeTest {
         }
     }
 
+    // --- ModelCallScope: the per-call observation span that wraps the
+    //     fireModelStart/End/Error statics this test class also exercises.
+
+    @Test
+    void modelCallScopeOpenCompleteFiresOneStartOneEnd() {
+        var listener = new RecordingListener();
+        var usage = TokenUsage.of(7, 11, 18);
+
+        var scope = ModelCallScope.open(List.of(listener), "gpt-4o", 5, 2);
+        // open() fires exactly one start with the passed args.
+        assertEquals(1, listener.starts.size());
+        assertEquals("gpt-4o", listener.starts.get(0).model);
+        assertEquals(5, listener.starts.get(0).messageCount);
+        assertEquals(2, listener.starts.get(0).toolCount);
+        assertEquals(0, listener.ends.size(), "no end before complete()");
+
+        scope.complete(usage);
+        // complete() fires exactly one end carrying the usage + a non-negative
+        // duration; no error fires on the success path.
+        assertEquals(1, listener.ends.size());
+        assertSame(usage, listener.ends.get(0).usage);
+        assertTrue(listener.ends.get(0).durationMillis >= 0L,
+                "duration must be non-negative wall-clock millis");
+        assertEquals(0, listener.errors.size());
+        assertEquals(1, listener.starts.size(), "complete() must not re-fire start");
+    }
+
+    @Test
+    void modelCallScopeOpenFailFiresOneStartOneErrorZeroEnds() {
+        var listener = new RecordingListener();
+        var boom = new RuntimeException("provider 503");
+
+        var scope = ModelCallScope.open(List.of(listener), "gpt-4o", 3, 0);
+        scope.fail(boom);
+
+        assertEquals(1, listener.starts.size(), "one start from open()");
+        assertEquals(1, listener.errors.size(), "one error from fail()");
+        assertSame(boom, listener.errors.get(0).error);
+        assertEquals("gpt-4o", listener.errors.get(0).model);
+        assertEquals(0, listener.ends.size(),
+                "fail() must not fire onModelEnd — error path replaces end");
+    }
+
+    @Test
+    void modelCallSupplierPathFiresStartThenEndAndReturnsValue() {
+        var listener = new RecordingListener();
+
+        String result = ModelCallScope.modelCall(
+                List.of(listener), "gpt-4o", 4, 1, () -> "ok");
+
+        assertEquals("ok", result, "supplier value is returned to the caller");
+        assertEquals(1, listener.starts.size());
+        assertEquals(4, listener.starts.get(0).messageCount);
+        assertEquals(1, listener.starts.get(0).toolCount);
+        assertEquals(1, listener.ends.size(), "success completes the span once");
+        assertNull(listener.ends.get(0).usage,
+                "supplier convenience completes with null usage");
+        assertEquals(0, listener.errors.size());
+    }
+
+    @Test
+    void modelCallSupplierThrowsFiresErrorAndRethrows() {
+        var listener = new RecordingListener();
+        var boom = new IllegalStateException("blew up mid-call");
+
+        var thrown = assertThrows(IllegalStateException.class, () ->
+                ModelCallScope.modelCall(List.of(listener), "gpt-4o", 1, 0, () -> {
+                    throw boom;
+                }));
+
+        assertSame(boom, thrown, "the original exception propagates unchanged");
+        assertEquals(1, listener.starts.size(), "one start before the body ran");
+        assertEquals(1, listener.errors.size(), "throwing body fires exactly one error");
+        assertSame(boom, listener.errors.get(0).error);
+        assertEquals(0, listener.ends.size(),
+                "a failed supplier must not fire onModelEnd");
+    }
+
+    @Test
+    void modelCallScopeNullAndEmptyListenersAreNoOp() {
+        // open/complete/fail must survive null or empty listener lists without
+        // throwing — these calls happen on every dispatch.
+        var nullScope = ModelCallScope.open(null, "m", 0, 0);
+        nullScope.complete(null);
+        nullScope.fail(new RuntimeException());
+
+        var emptyScope = ModelCallScope.open(List.of(), "m", 0, 0);
+        emptyScope.complete(TokenUsage.of(1, 1));
+        emptyScope.fail(new RuntimeException());
+
+        // The supplier convenience also no-ops on empty listeners and still
+        // returns the body value.
+        assertEquals(42, ModelCallScope.modelCall(List.of(), "m", 0, 0, () -> 42));
+        // Survival (no NPE / no throw) is the contract.
+    }
+
     @Test
     void atomicReferenceDriverSanityCheck() {
         // Smoke check that the harness sets and reads the expected fields,
