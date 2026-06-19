@@ -118,7 +118,7 @@ public final class AnthropicMessagesClient {
      * via {@link AiEvent}. Calls {@link StreamingSession#complete} once the
      * final round emits no further tool requests.
      *
-     * @param model    Anthropic model identifier (e.g. {@code claude-opus-4-7})
+     * @param model    Anthropic model identifier (e.g. {@code claude-sonnet-4-6})
      * @param history  conversation history threaded by the framework
      * @param system   system prompt; null or blank is sent as an empty system
      * @param userMessage incoming user turn text

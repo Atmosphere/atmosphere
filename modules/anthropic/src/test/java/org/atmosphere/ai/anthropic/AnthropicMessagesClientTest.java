@@ -102,7 +102,7 @@ class AnthropicMessagesClientTest {
                 .httpClient(httpClient)
                 .build();
         var session = new CollectingSession();
-        client.stream("claude-opus-4-7", List.of(), "You are helpful",
+        client.stream("claude-sonnet-4-6", List.of(), "You are helpful",
                 "Hi", textContext(), session, null);
         session.await(java.time.Duration.ofSeconds(5));
         assertTrue(session.isClosed(), "session must complete after final round");
@@ -126,12 +126,12 @@ class AnthropicMessagesClientTest {
                 })
                 .build();
         var context = new AgentExecutionContext(
-                "What is 2+2?", "You are helpful", "claude-opus-4-7",
+                "What is 2+2?", "You are helpful", "claude-sonnet-4-6",
                 null, "session-tool", "user-1", "conv-tool",
                 List.of(calculator), null, null, List.of(), Map.of(),
                 List.of(), null, null);
         var session = new CollectingSession();
-        client.stream("claude-opus-4-7", List.of(), context.systemPrompt(),
+        client.stream("claude-sonnet-4-6", List.of(), context.systemPrompt(),
                 context.message(), context, session, null);
         session.await(java.time.Duration.ofSeconds(5));
         assertEquals(1, calls.get(), "tool executor must run exactly once");
@@ -147,7 +147,7 @@ class AnthropicMessagesClientTest {
                 .httpClient(httpClient)
                 .build();
         var session = new CollectingSession();
-        client.stream("claude-opus-4-7", List.of(), null,
+        client.stream("claude-sonnet-4-6", List.of(), null,
                 "Hi", textContext(), session, null);
         session.await(java.time.Duration.ofSeconds(5));
         assertTrue(session.failed(), "non-2xx must surface as session.error()");
@@ -166,7 +166,7 @@ class AnthropicMessagesClientTest {
                 .customHeader("x-api-key", "attacker-key")
                 .build();
         var session = new CollectingSession();
-        client.stream("claude-opus-4-7", List.of(), null, "Hi",
+        client.stream("claude-sonnet-4-6", List.of(), null, "Hi",
                 textContext(), session, null);
         session.await(java.time.Duration.ofSeconds(5));
 
@@ -189,7 +189,7 @@ class AnthropicMessagesClientTest {
                 .httpClient(httpClient)
                 .build();
         var session = new CollectingSession();
-        client.stream("claude-opus-4-7", List.of(), "be terse",
+        client.stream("claude-sonnet-4-6", List.of(), "be terse",
                 "ping", textContext(), session, null);
         session.await(java.time.Duration.ofSeconds(5));
         var captor = ArgumentCaptor.forClass(HttpRequest.class);
@@ -198,7 +198,7 @@ class AnthropicMessagesClientTest {
         // Drain the publisher into a string so the request shape is asserted
         // on the actual wire payload, not on our intermediate object tree.
         var body = drainBody(bodyPublisher);
-        assertTrue(body.contains("\"model\":\"claude-opus-4-7\""), body);
+        assertTrue(body.contains("\"model\":\"claude-sonnet-4-6\""), body);
         assertTrue(body.contains("\"max_tokens\""), body);
         assertTrue(body.contains("\"stream\":true"), body);
         assertTrue(body.contains("\"system\":\"be terse\""), body);
@@ -255,14 +255,14 @@ class AnthropicMessagesClientTest {
                 .build();
         var imageBytes = new byte[] {(byte) 0x89, 0x50, 0x4E, 0x47}; // PNG magic
         var context = new AgentExecutionContext(
-                "What is in this image?", null, "claude-opus-4-7",
+                "What is in this image?", null, "claude-sonnet-4-6",
                 null, "session-vis", "user-1", "conv-vis",
                 List.of(), null, null, List.of(), Map.of(),
                 List.of(), null, null, List.of(),
                 List.of(org.atmosphere.ai.Content.image(imageBytes, "image/png")),
                 org.atmosphere.ai.approval.ToolApprovalPolicy.annotated());
         var session = new CollectingSession();
-        client.stream("claude-opus-4-7", List.of(), null, context.message(),
+        client.stream("claude-sonnet-4-6", List.of(), null, context.message(),
                 context, session, null);
         session.await(java.time.Duration.ofSeconds(5));
 
@@ -283,7 +283,7 @@ class AnthropicMessagesClientTest {
 
     private static AgentExecutionContext textContext() {
         return new AgentExecutionContext(
-                "Hi", "You are helpful", "claude-opus-4-7",
+                "Hi", "You are helpful", "claude-sonnet-4-6",
                 null, "session-1", "user-1", "conv-1",
                 List.of(), null, null, List.of(), Map.of(),
                 List.of(), null, null);

@@ -67,7 +67,7 @@ class AnthropicRuntimeContractTest extends AbstractAgentRuntimeContractTest {
     @Override
     protected AgentExecutionContext createTextContext() {
         return new AgentExecutionContext(
-                "Hello", "You are helpful", "claude-opus-4-7",
+                "Hello", "You are helpful", "claude-sonnet-4-6",
                 null, "session-1", "user-1", "conv-1",
                 List.of(), null, null, List.of(), Map.of(),
                 List.of(), null, null);
@@ -94,7 +94,7 @@ class AnthropicRuntimeContractTest extends AbstractAgentRuntimeContractTest {
         // without giving up the canned-SSE happy path the other assertions
         // depend on.
         return new AgentExecutionContext(
-                CONTRACT_ERROR_SENTINEL, "You are helpful", "claude-opus-4-7",
+                CONTRACT_ERROR_SENTINEL, "You are helpful", "claude-sonnet-4-6",
                 null, "session-1", "user-1", "conv-1",
                 List.of(), null, null, List.of(), Map.of(),
                 List.of(), null, null);

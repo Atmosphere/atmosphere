@@ -43,7 +43,23 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
     private static final String VERSION_PROPERTY = "anthropic.version";
     private static final String BASE_URL_PROPERTY = "anthropic.base.url";
     private static final String MAX_TOKENS_PROPERTY = "anthropic.max.tokens";
-    private static final String DEFAULT_MODEL = "claude-opus-4-7";
+    private static final String MODEL_PROPERTY = "anthropic.model";
+    private static final String DEFAULT_MODEL = "claude-sonnet-4-6";
+
+    /**
+     * The fallback model used only when neither the per-request
+     * {@link AgentExecutionContext#model()} nor {@link AiConfig#model()} pins
+     * one. Deployers override it without code via the {@code anthropic.model}
+     * system property; the built-in default is {@value #DEFAULT_MODEL}.
+     * Per-request and {@code AiConfig} models still win over this fallback
+     * through {@link #effectiveModel(AgentExecutionContext, String)}.
+     *
+     * <p>Package-private so the regression test can assert the default and the
+     * property override without depending on {@code AiConfig} static state.</p>
+     */
+    String defaultModel() {
+        return systemProperty(MODEL_PROPERTY, DEFAULT_MODEL);
+    }
 
     @Override
     public String name() {
@@ -123,14 +139,14 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
     protected void doExecute(AnthropicMessagesClient client,
                              AgentExecutionContext context,
                              StreamingSession session) {
-        streamThroughGateway(context, session, DEFAULT_MODEL, client::stream);
+        streamThroughGateway(context, session, defaultModel(), client::stream);
     }
 
     @Override
     protected org.atmosphere.ai.ExecutionHandle doExecuteWithHandle(
             AnthropicMessagesClient client, AgentExecutionContext context,
             StreamingSession session) {
-        return streamThroughGatewayWithHandle(context, session, DEFAULT_MODEL, client::stream);
+        return streamThroughGatewayWithHandle(context, session, defaultModel(), client::stream);
     }
 
     @Override
