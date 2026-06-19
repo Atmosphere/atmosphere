@@ -49,6 +49,41 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
     }
 
     /**
+     * Provider-neutral entry point to install the native client without a
+     * compile-time dependency on its concrete type — for reflective or non-DI
+     * wiring. The argument is validated against {@link #nativeClientClassName()}
+     * and delegated to {@link #setNativeClient(Object)}. Provider-typed static
+     * setters (e.g. LangChain4j {@code setModel}, Spring AI
+     * {@code setChatClient}) remain the primary, documented wiring path and
+     * additionally carry the ServiceLoader handoff this neutral entry cannot
+     * replace.
+     *
+     * @param client the native client instance; must be assignable to this
+     *               runtime's native client type
+     * @throws IllegalArgumentException if {@code client} is {@code null} or not
+     *                                  assignable to the runtime's native client type
+     * @throws IllegalStateException    if the native client class is not on the classpath
+     */
+    @SuppressWarnings("unchecked") // guarded by expected.isInstance(client) below
+    public final void configureNativeClient(Object client) {
+        if (client == null) {
+            throw new IllegalArgumentException(name() + ": native client must not be null");
+        }
+        Class<?> expected;
+        try {
+            expected = Class.forName(nativeClientClassName());
+        } catch (ClassNotFoundException e) {
+            throw new IllegalStateException(name() + ": native client class "
+                    + nativeClientClassName() + " is not on the classpath", e);
+        }
+        if (!expected.isInstance(client)) {
+            throw new IllegalArgumentException(name() + ": expected native client of type "
+                    + expected.getName() + " but got " + client.getClass().getName());
+        }
+        setNativeClient((C) client);
+    }
+
+    /**
      * Returns the fully-qualified class name used to check whether this
      * runtime's dependencies are on the classpath.
      */
