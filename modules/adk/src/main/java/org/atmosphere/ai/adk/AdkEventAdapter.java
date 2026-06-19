@@ -327,8 +327,8 @@ public final class AdkEventAdapter {
         return event.usageMetadata().flatMap(usage -> {
             long input = usage.promptTokenCount().map(Integer::longValue).orElse(0L);
             long output = usage.candidatesTokenCount().map(Integer::longValue).orElse(0L);
-            long total = usage.totalTokenCount().map(Integer::longValue).orElse(input + output);
-            var tokenUsage = new org.atmosphere.ai.TokenUsage(input, output, 0L, total, null);
+            Long total = usage.totalTokenCount().map(Integer::longValue).orElse(null);
+            var tokenUsage = org.atmosphere.ai.TokenUsage.fromCounts(input, output, null, total);
             if (tokenUsage.hasCounts()) {
                 session.usage(tokenUsage);
                 return Optional.of(tokenUsage);

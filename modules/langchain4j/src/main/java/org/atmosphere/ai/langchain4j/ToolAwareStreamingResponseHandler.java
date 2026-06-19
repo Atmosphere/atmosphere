@@ -127,11 +127,13 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
         // so existing Micrometer / budget consumers keep working unchanged.
         var tokenUsage = completeResponse.tokenUsage();
         if (tokenUsage != null) {
-            long input = tokenUsage.inputTokenCount() != null ? tokenUsage.inputTokenCount() : 0L;
-            long output = tokenUsage.outputTokenCount() != null ? tokenUsage.outputTokenCount() : 0L;
-            long total = tokenUsage.totalTokenCount() != null
-                    ? tokenUsage.totalTokenCount() : input + output;
-            var usage = new org.atmosphere.ai.TokenUsage(input, output, 0L, total, null);
+            Long input = tokenUsage.inputTokenCount() != null
+                    ? tokenUsage.inputTokenCount().longValue() : null;
+            Long output = tokenUsage.outputTokenCount() != null
+                    ? tokenUsage.outputTokenCount().longValue() : null;
+            Long total = tokenUsage.totalTokenCount() != null
+                    ? tokenUsage.totalTokenCount().longValue() : null;
+            var usage = org.atmosphere.ai.TokenUsage.fromCounts(input, output, null, total);
             if (usage.hasCounts()) {
                 session.usage(usage);
             }

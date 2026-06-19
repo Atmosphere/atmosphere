@@ -67,6 +67,47 @@ class TokenUsageTest {
     }
 
     @Test
+    void fromCountsComputesTotalWhenNull() {
+        var usage = TokenUsage.fromCounts(12L, 3L, null, null);
+        assertEquals(12L, usage.input());
+        assertEquals(3L, usage.output());
+        assertEquals(15L, usage.total(), "missing total must fall back to input + output");
+    }
+
+    @Test
+    void fromCountsRespectsExplicitTotal() {
+        var usage = TokenUsage.fromCounts(12L, 3L, null, 99L);
+        assertEquals(99L, usage.total(), "explicit total must be preserved, not recomputed");
+    }
+
+    @Test
+    void fromCountsCoalescesNullsToZero() {
+        var usage = TokenUsage.fromCounts(null, null, null, null);
+        assertEquals(0L, usage.input());
+        assertEquals(0L, usage.output());
+        assertEquals(0L, usage.cachedInput(), "null cached must coalesce to 0");
+        assertEquals(0L, usage.total());
+    }
+
+    @Test
+    void fromCountsPreservesCachedCount() {
+        var usage = TokenUsage.fromCounts(10L, 5L, 4L, null);
+        assertEquals(4L, usage.cachedInput());
+        assertEquals(15L, usage.total());
+    }
+
+    @Test
+    void fromCountsAllNullHasNoCounts() {
+        assertFalse(TokenUsage.fromCounts(null, null, null, null).hasCounts(),
+                "an all-null payload must not register as having counts");
+    }
+
+    @Test
+    void fromCountsNeverSetsModel() {
+        assertEquals(null, TokenUsage.fromCounts(1L, 2L, 3L, 6L).model());
+    }
+
+    @Test
     void defaultSinkTranslatesToLegacyMetadataKeys() {
         var session = new RecordingSession();
         session.usage(new TokenUsage(10L, 20L, 4L, 30L, "gpt-4o"));

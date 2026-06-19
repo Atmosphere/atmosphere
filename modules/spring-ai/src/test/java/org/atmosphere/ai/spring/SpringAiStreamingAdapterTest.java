@@ -509,6 +509,80 @@ public class SpringAiStreamingAdapterTest {
         assertTrue(session.isClosed(), "Session should be closed after error");
     }
 
+    /**
+     * Regression: a Spring AI response that reports prompt + completion tokens
+     * but a {@code null} total must now yield {@code total == prompt + completion}
+     * via {@link org.atmosphere.ai.TokenUsage#fromCounts}. Before the migration
+     * {@code SpringAiAgentRuntime} fell back to {@code total = 0L} on a missing
+     * total, dropping the count for budget/metrics consumers. Drives the real
+     * runtime extraction path ({@code SpringAiAgentRuntime#execute}) with a
+     * ChatClient stub whose response carries the pathological usage.
+     */
+    @Test
+    public void testRuntimeUsageMissingTotalFallsBackToPromptPlusCompletion() {
+        // A provider Usage that reports prompt + completion but leaves total null —
+        // the exact shape the old 0L fallback mishandled.
+        var usage = new org.springframework.ai.chat.metadata.Usage() {
+            @Override public Integer getPromptTokens() { return 12; }
+            @Override public Integer getCompletionTokens() { return 3; }
+            @Override public Integer getTotalTokens() { return null; }
+            @Override public Object getNativeUsage() { return null; }
+        };
+        assertNull(usage.getTotalTokens(), "test fixture must present a null total");
+
+        var metadata = org.springframework.ai.chat.metadata.ChatResponseMetadata.builder()
+                .usage(usage)
+                .build();
+        var response = ChatResponse.builder()
+                .generations(List.of(new Generation(new AssistantMessage("answer"))))
+                .metadata(metadata)
+                .build();
+
+        var runtime = new TestableSpringAiRuntime(usageChatClient(Flux.just(response)));
+        runtime.execute(textContext(), session);
+
+        var captor = ArgumentCaptor.forClass(Object.class);
+        verify(broadcaster, timeout(2000).atLeastOnce()).broadcast(captor.capture(), any(Set.class));
+        var messages = captor.getAllValues().stream().map(Object::toString).toList();
+
+        var totalMsg = messages.stream()
+                .filter(m -> m.contains("\"key\":\"ai.tokens.total\""))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("expected an ai.tokens.total metadata event"));
+        assertTrue(totalMsg.contains("\"value\":15"),
+                "missing total must compute prompt + completion (12 + 3 = 15), not 0: " + totalMsg);
+        assertFalse(totalMsg.contains("\"value\":0"),
+                "the old 0L fallback must no longer appear: " + totalMsg);
+    }
+
+    /** Minimal text context for driving the runtime's streaming path. */
+    private static org.atmosphere.ai.AgentExecutionContext textContext() {
+        return new org.atmosphere.ai.AgentExecutionContext(
+                "Hello", "You are helpful", "gpt-4",
+                null, "session-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), java.util.Map.of(),
+                List.of(), null, null, List.of());
+    }
+
+    /** Subclass that lets the test inject a stub ChatClient as the native client. */
+    private static final class TestableSpringAiRuntime extends SpringAiAgentRuntime {
+        TestableSpringAiRuntime(ChatClient client) {
+            setNativeClient(client);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ChatClient usageChatClient(Flux<ChatResponse> flux) {
+        var chatClient = mock(ChatClient.class);
+        var promptSpec = mock(ChatClient.ChatClientRequestSpec.class,
+                org.mockito.Answers.RETURNS_SELF);
+        var streamSpec = mock(ChatClient.StreamResponseSpec.class);
+        when(chatClient.prompt()).thenReturn(promptSpec);
+        when(promptSpec.stream()).thenReturn(streamSpec);
+        when(streamSpec.chatResponse()).thenReturn(flux);
+        return chatClient;
+    }
+
     private static ChatResponse chatResponse(String text) {
         return new ChatResponse(List.of(new Generation(new AssistantMessage(text))));
     }

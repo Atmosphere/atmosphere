@@ -60,6 +60,19 @@ public record TokenUsage(
     }
 
     /**
+     * Build a usage record from possibly-null provider counts: nulls coalesce to
+     * 0 and {@code total} is computed as {@code input + output} when the provider
+     * did not report it. Centralizes the null-guard + total-fallback idiom the
+     * adapters previously hand-rolled.
+     */
+    public static TokenUsage fromCounts(Long input, Long output, Long cached, Long total) {
+        long in = input != null ? input : 0L;
+        long out = output != null ? output : 0L;
+        long cachedIn = cached != null ? cached : 0L;
+        return new TokenUsage(in, out, cachedIn, total != null ? total : in + out, null);
+    }
+
+    /**
      * Non-zero check: returns {@code true} when at least one field carries a
      * meaningful count. Runtimes call this before emitting via the session sink
      * so they don't fire usage events for providers that never populated the

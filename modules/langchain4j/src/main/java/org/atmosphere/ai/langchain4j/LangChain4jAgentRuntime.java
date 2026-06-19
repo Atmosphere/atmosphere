@@ -362,12 +362,14 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                         try {
                             if (response != null && response.tokenUsage() != null) {
                                 var u = response.tokenUsage();
-                                var usage = new org.atmosphere.ai.TokenUsage(
-                                        u.inputTokenCount() != null ? u.inputTokenCount() : 0L,
-                                        u.outputTokenCount() != null ? u.outputTokenCount() : 0L,
-                                        0L,
-                                        u.totalTokenCount() != null ? u.totalTokenCount() : 0L,
-                                        null);
+                                var usage = org.atmosphere.ai.TokenUsage.fromCounts(
+                                        u.inputTokenCount() != null
+                                                ? u.inputTokenCount().longValue() : null,
+                                        u.outputTokenCount() != null
+                                                ? u.outputTokenCount().longValue() : null,
+                                        null,
+                                        u.totalTokenCount() != null
+                                                ? u.totalTokenCount().longValue() : null);
                                 if (usage.hasCounts()) {
                                     session.usage(usage);
                                 }
@@ -460,14 +462,14 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                     org.atmosphere.ai.TokenUsage atmoUsage = null;
                     var lcUsage = response != null ? response.tokenUsage() : null;
                     if (lcUsage != null) {
-                        long input = lcUsage.inputTokenCount() != null
-                                ? lcUsage.inputTokenCount() : 0L;
-                        long output = lcUsage.outputTokenCount() != null
-                                ? lcUsage.outputTokenCount() : 0L;
-                        long total = lcUsage.totalTokenCount() != null
-                                ? lcUsage.totalTokenCount() : input + output;
-                        atmoUsage = new org.atmosphere.ai.TokenUsage(
-                                input, output, 0L, total, null);
+                        atmoUsage = org.atmosphere.ai.TokenUsage.fromCounts(
+                                lcUsage.inputTokenCount() != null
+                                        ? lcUsage.inputTokenCount().longValue() : null,
+                                lcUsage.outputTokenCount() != null
+                                        ? lcUsage.outputTokenCount().longValue() : null,
+                                null,
+                                lcUsage.totalTokenCount() != null
+                                        ? lcUsage.totalTokenCount().longValue() : null);
                     }
                     long durationMs = (System.nanoTime() - startNanos) / 1_000_000L;
                     org.atmosphere.ai.AgentLifecycleListener.fireModelEnd(

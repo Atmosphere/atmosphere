@@ -243,12 +243,14 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
                     var metadata = response.getMetadata();
                     if (metadata != null && metadata.getUsage() != null) {
                         var u = metadata.getUsage();
-                        var tokenUsage = new org.atmosphere.ai.TokenUsage(
-                                u.getPromptTokens() != null ? u.getPromptTokens() : 0L,
-                                u.getCompletionTokens() != null ? u.getCompletionTokens() : 0L,
-                                0L,
-                                u.getTotalTokens() != null ? u.getTotalTokens() : 0L,
-                                null);
+                        var tokenUsage = org.atmosphere.ai.TokenUsage.fromCounts(
+                                u.getPromptTokens() != null
+                                        ? u.getPromptTokens().longValue() : null,
+                                u.getCompletionTokens() != null
+                                        ? u.getCompletionTokens().longValue() : null,
+                                null,
+                                u.getTotalTokens() != null
+                                        ? u.getTotalTokens().longValue() : null);
                         if (tokenUsage.hasCounts()) {
                             session.usage(tokenUsage);
                             lastUsage.set(tokenUsage);

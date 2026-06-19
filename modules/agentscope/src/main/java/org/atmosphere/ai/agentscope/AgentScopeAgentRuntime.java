@@ -255,12 +255,11 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
         // caller's onModelEnd lifecycle hook reports it.
         var usage = msg.getChatUsage();
         if (usage != null && event.isLast()) {
-            var tokenUsage = new TokenUsage(
-                    usage.getInputTokens(),
-                    usage.getOutputTokens(),
-                    0L,
-                    usage.getTotalTokens(),
-                    null);
+            var tokenUsage = TokenUsage.fromCounts(
+                    (long) usage.getInputTokens(),
+                    (long) usage.getOutputTokens(),
+                    null,
+                    (long) usage.getTotalTokens());
             session.usage(tokenUsage);
             lastUsage.set(tokenUsage);
         }

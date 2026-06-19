@@ -383,7 +383,7 @@ public final class AnthropicMessagesClient {
         long cached = usage.has("cache_read_input_tokens")
                 ? usage.get("cache_read_input_tokens").asLong()
                 : (prior != null ? prior.cachedInput() : 0L);
-        return new TokenUsage(input, output, cached, input + output, null);
+        return TokenUsage.fromCounts(input, output, cached, null);
     }
 
     private String dispatchTool(AgentExecutionContext context, StreamingSession session,

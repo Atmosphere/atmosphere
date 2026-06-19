@@ -401,7 +401,7 @@ public final class CohereChatClient {
                 : (prior != null ? prior.output() : 0L);
         long cached = usage.has("cached_tokens") ? usage.get("cached_tokens").asLong()
                 : (prior != null ? prior.cachedInput() : 0L);
-        return new TokenUsage(input, output, cached, input + output, null);
+        return TokenUsage.fromCounts(input, output, cached, null);
     }
 
     private String dispatchTool(AgentExecutionContext context,

@@ -684,7 +684,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                 cachedInput = details.get("cached_tokens").asLong();
             }
         }
-        var usage = new org.atmosphere.ai.TokenUsage(input, output, cachedInput, total, null);
+        var usage = org.atmosphere.ai.TokenUsage.fromCounts(input, output, cachedInput, total);
         if (usage.hasCounts()) {
             session.usage(usage);
             return usage;
@@ -1161,7 +1161,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                 cachedInput = details.get("cached_tokens").asLong();
             }
         }
-        var usage = new org.atmosphere.ai.TokenUsage(input, output, cachedInput, input + output, null);
+        var usage = org.atmosphere.ai.TokenUsage.fromCounts(input, output, cachedInput, null);
         if (usage.hasCounts()) {
             session.usage(usage);
             return usage;

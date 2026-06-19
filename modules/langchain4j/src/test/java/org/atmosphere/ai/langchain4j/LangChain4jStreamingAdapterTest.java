@@ -25,6 +25,8 @@ import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Future;
 import org.mockito.ArgumentCaptor;
@@ -446,5 +448,53 @@ public class LangChain4jStreamingAdapterTest {
         // Verify the model was actually called
         verify(model).chat(eq(chatRequest), any(StreamingChatResponseHandler.class));
         assertTrue(session.isClosed());
+    }
+
+    /**
+     * Regression: a LangChain4j response that reports input + output but a
+     * {@code null} total must now yield {@code total == input + output} via
+     * {@link org.atmosphere.ai.TokenUsage#fromCounts}. Before the migration
+     * the adapter fell back to {@code total = 0L} on a missing total, which
+     * dropped the count for budget/metrics consumers. Drives the real
+     * extraction path through {@code ToolAwareStreamingResponseHandler}.
+     */
+    @Test
+    public void testUsageMissingTotalFallsBackToInputPlusOutput() {
+        // No tools registered, so the approval strategy/policy are never consulted
+        // on this path — passing null keeps the fixture focused on usage extraction.
+        var handler = new ToolAwareStreamingResponseHandler(
+                session, mock(StreamingChatModel.class), List.of(), List.of(), Map.of(),
+                null, List.of(), new java.util.concurrent.atomic.AtomicBoolean(),
+                null);
+
+        // LangChain4j's own constructors always sum input + output into total, so
+        // simulate a provider/custom response that reports both counts but leaves
+        // total null — the exact shape the old 0L fallback mishandled.
+        var lcUsage = new dev.langchain4j.model.output.TokenUsage(12, 3) {
+            @Override
+            public Integer totalTokenCount() {
+                return null;
+            }
+        };
+        assertNull(lcUsage.totalTokenCount(), "test fixture must present a null total");
+
+        var response = ChatResponse.builder()
+                .aiMessage(AiMessage.from("answer"))
+                .tokenUsage(lcUsage)
+                .build();
+        handler.onCompleteResponse(response);
+
+        var captor = ArgumentCaptor.forClass(Object.class);
+        verify(broadcaster, atLeastOnce()).broadcast(captor.capture(), any(Set.class));
+        var messages = captor.getAllValues().stream().map(Object::toString).toList();
+
+        var totalMsg = messages.stream()
+                .filter(m -> m.contains("\"key\":\"ai.tokens.total\""))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("expected an ai.tokens.total metadata event"));
+        assertTrue(totalMsg.contains("\"value\":15"),
+                "missing total must compute input + output (12 + 3 = 15), not 0: " + totalMsg);
+        assertFalse(totalMsg.contains("\"value\":0"),
+                "the old 0L fallback must no longer appear: " + totalMsg);
     }
 }

@@ -127,10 +127,9 @@ final class SemanticKernelStreamingAdapter {
             long input = readLong(usage, "getPromptTokens");
             long output = readLong(usage, "getCompletionTokens");
             long total = readLong(usage, "getTotalTokens");
-            if (total == 0L && (input > 0L || output > 0L)) {
-                total = input + output;
-            }
-            var tokenUsage = new TokenUsage(input, output, 0L, total, null);
+            // SK reports a primitive 0 when the provider omits the total; treat
+            // that as "not reported" so fromCounts falls back to input + output.
+            var tokenUsage = TokenUsage.fromCounts(input, output, null, total > 0L ? total : null);
             if (tokenUsage.hasCounts()) {
                 session.usage(tokenUsage);
                 if (lastUsage != null) {
