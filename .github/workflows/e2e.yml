@@ -184,13 +184,19 @@ jobs:
         # binaries. The apt step hits packages.microsoft.com which has a
         # history of 403 flakes — retry 3x with exponential backoff. On
         # cache miss, install browsers + system deps with the same retry.
+        # Each attempt is bounded by `timeout 300`: a healthy install runs
+        # in well under a minute, but a stalled chromium download or apt
+        # mirror can hang with no exit code, which the retry loop alone
+        # cannot recover from (it only fires on a clean non-zero exit). The
+        # timeout converts a hang into exit 124 so the backoff/retry advances
+        # instead of pinning the leg for hours.
         if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
           cmd="npx playwright install-deps chromium"
         else
           cmd="npx playwright install --with-deps chromium"
         fi
         for attempt in 1 2 3; do
-          if $cmd; then
+          if timeout 300 $cmd; then
             break
           fi
           if [ "$attempt" = "3" ]; then
