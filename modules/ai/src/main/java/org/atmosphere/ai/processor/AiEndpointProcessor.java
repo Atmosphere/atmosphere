@@ -28,6 +28,7 @@ import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.DefaultModelRouter;
 import org.atmosphere.ai.InMemoryConversationMemory;
 import org.atmosphere.ai.ModelRouter;
+import org.atmosphere.ai.ModelTier;
 import org.atmosphere.ai.PersistentConversationMemory;
 import org.atmosphere.ai.PromptLoader;
 import org.atmosphere.ai.RoutingAiSupport;
@@ -146,8 +147,17 @@ public class AiEndpointProcessor implements Processor<Object> {
             // Validate required capabilities
             validateCapabilities(annotation.requires(), runtime, annotation.path());
 
-            // Per-endpoint model override
-            var endpointModel = annotation.model().isEmpty() ? null : annotation.model();
+            // Per-endpoint model override. The declared value may optionally be a
+            // provider-neutral tier alias ("fast"/"frontier"/"reasoning");
+            // ModelTier.resolve maps it to a concrete model for the active
+            // provider (detected from the runtime-resolved base URL). Any other
+            // value — including raw model ids and the empty string — passes
+            // through unchanged, so existing endpoints are unaffected.
+            var resolvedModel = ModelTier.resolve(
+                    annotation.model(),
+                    settings != null ? settings.baseUrl() : null,
+                    settings != null ? settings.model() : null);
+            var endpointModel = (resolvedModel == null || resolvedModel.isEmpty()) ? null : resolvedModel;
 
             // Shared lifecycle scanning — same infrastructure as @ManagedService
             var lifecycle = AnnotatedLifecycle.scan(annotatedClass);
