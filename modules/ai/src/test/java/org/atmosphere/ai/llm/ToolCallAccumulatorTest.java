@@ -16,10 +16,15 @@
 package org.atmosphere.ai.llm;
 
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
+
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class ToolCallAccumulatorTest {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Test
     void testBasicAccumulation() {
@@ -72,5 +77,54 @@ class ToolCallAccumulatorTest {
 
         assertEquals("call_2", acc.id());
         assertEquals("func_2", acc.functionName());
+    }
+
+    @Test
+    void testArgumentsAsMapValidJson() {
+        var acc = new ToolCallAccumulator();
+        acc.appendArguments("{\"city\":");
+        acc.appendArguments("\"Montreal\",\"units\":\"metric\"}");
+
+        Map<String, Object> parsed = acc.argumentsAsMap(MAPPER);
+        assertEquals(2, parsed.size());
+        assertEquals("Montreal", parsed.get("city"));
+        assertEquals("metric", parsed.get("units"));
+    }
+
+    @Test
+    void testArgumentsAsMapBlankIsEmpty() {
+        var acc = new ToolCallAccumulator();
+        // No argument fragments accumulated (a no-args tool call).
+        assertEquals(Map.of(), acc.argumentsAsMap(MAPPER));
+
+        var whitespace = new ToolCallAccumulator();
+        whitespace.appendArguments("   ");
+        assertEquals(Map.of(), whitespace.argumentsAsMap(MAPPER));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testArgumentsAsMapNestedObject() {
+        var acc = new ToolCallAccumulator();
+        acc.appendArguments("{\"filter\":{\"status\":\"open\",\"limit\":5},");
+        acc.appendArguments("\"name\":\"search\"}");
+
+        Map<String, Object> parsed = acc.argumentsAsMap(MAPPER);
+        assertEquals("search", parsed.get("name"));
+        // Nested JSON object parses to a nested Map.
+        assertInstanceOf(Map.class, parsed.get("filter"));
+        Map<String, Object> nested = (Map<String, Object>) parsed.get("filter");
+        assertEquals("open", nested.get("status"));
+        assertEquals(5, nested.get("limit"));
+    }
+
+    @Test
+    void testArgumentsAsMapMalformedJsonFallsBackToRaw() {
+        var acc = new ToolCallAccumulator();
+        // Truncated / malformed JSON — never a valid object.
+        acc.appendArguments("{\"city\":\"Montreal");
+
+        Map<String, Object> parsed = acc.argumentsAsMap(MAPPER);
+        assertEquals(Map.of("__raw", "{\"city\":\"Montreal"), parsed);
     }
 }

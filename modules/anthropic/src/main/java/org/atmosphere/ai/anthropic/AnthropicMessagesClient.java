@@ -22,12 +22,12 @@ import org.atmosphere.ai.TokenUsage;
 import org.atmosphere.ai.approval.ToolApprovalPolicy;
 import org.atmosphere.ai.llm.AbstractSseLlmClient;
 import org.atmosphere.ai.llm.ChatMessage;
+import org.atmosphere.ai.llm.ToolCallAccumulator;
 import org.atmosphere.ai.tool.ToolDefinition;
 import org.atmosphere.ai.tool.ToolExecutionHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.net.URI;
@@ -187,7 +187,7 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
         // text_delta entries accumulate into a single text buffer; tool_use
         // entries accumulate their partial_json into a single JSON string.
         var textBuffers = new LinkedHashMap<Integer, StringBuilder>();
-        var toolBuffers = new LinkedHashMap<Integer, ToolUseAccumulator>();
+        var toolBuffers = new LinkedHashMap<Integer, ToolCallAccumulator>();
         // Mutable holder so the per-event mapper lambda can update the running
         // usage across message_delta events (Anthropic streams usage twice).
         var usageHolder = new TokenUsage[1];
@@ -233,7 +233,8 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
         }
         for (var entry : toolBuffers.entrySet()) {
             var acc = entry.getValue();
-            ordered.put(entry.getKey(), toolUseBlock(acc.id, acc.name, acc.parseInput(MAPPER)));
+            ordered.put(entry.getKey(),
+                    toolUseBlock(acc.id(), acc.functionName(), acc.argumentsAsMap(MAPPER)));
         }
         // Insertion order in LinkedHashMap is not numeric — sort by index.
         ordered.entrySet().stream()
@@ -246,10 +247,10 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
         var toolResults = new ArrayList<ObjectNode>();
         for (var entry : toolBuffers.entrySet()) {
             var acc = entry.getValue();
-            session.emit(new AiEvent.ToolStart(acc.name, acc.parseInput(MAPPER)));
+            session.emit(new AiEvent.ToolStart(acc.functionName(), acc.argumentsAsMap(MAPPER)));
             var resultText = dispatchTool(context, session, acc);
-            session.emit(new AiEvent.ToolResult(acc.name, resultText));
-            toolResults.add(toolResultBlock(acc.id, resultText));
+            session.emit(new AiEvent.ToolResult(acc.functionName(), resultText));
+            toolResults.add(toolResultBlock(acc.id(), resultText));
         }
 
         return new RoundOutcome(assistantBlocks, List.copyOf(toolBuffers.values()),
@@ -258,7 +259,7 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
 
     private void handleContentBlockStart(JsonNode event,
                                          Map<Integer, StringBuilder> textBuffers,
-                                         Map<Integer, ToolUseAccumulator> toolBuffers) {
+                                         Map<Integer, ToolCallAccumulator> toolBuffers) {
         var index = event.path("index").asInt(-1);
         if (index < 0) {
             return;
@@ -268,9 +269,9 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
             case "text" -> textBuffers.put(index,
                     new StringBuilder(block.path("text").asString("")));
             case "tool_use" -> {
-                var acc = new ToolUseAccumulator();
-                acc.id = block.path("id").asString("");
-                acc.name = block.path("name").asString("");
+                var acc = new ToolCallAccumulator();
+                acc.setId(block.path("id").asString(""));
+                acc.setFunctionName(block.path("name").asString(""));
                 // Anthropic's streaming protocol always sends an empty
                 // `"input":{}` placeholder on content_block_start and then
                 // streams the real JSON via input_json_delta events. Seeding
@@ -282,7 +283,7 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
                 var seedInput = block.path("input");
                 if (!seedInput.isMissingNode() && !seedInput.isNull()
                         && seedInput.isObject() && !seedInput.isEmpty()) {
-                    acc.rawJson.append(seedInput.toString());
+                    acc.appendArguments(seedInput.toString());
                 }
                 toolBuffers.put(index, acc);
             }
@@ -293,7 +294,7 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
     private void handleContentBlockDelta(JsonNode event,
                                          StreamingSession session,
                                          Map<Integer, StringBuilder> textBuffers,
-                                         Map<Integer, ToolUseAccumulator> toolBuffers) {
+                                         Map<Integer, ToolCallAccumulator> toolBuffers) {
         var index = event.path("index").asInt(-1);
         var delta = event.path("delta");
         var deltaType = delta.path("type").asString("");
@@ -310,7 +311,7 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
                 if (!chunk.isEmpty()) {
                     var acc = toolBuffers.get(index);
                     if (acc != null) {
-                        acc.rawJson.append(chunk);
+                        acc.appendArguments(chunk);
                     }
                 }
             }
@@ -334,17 +335,17 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
     }
 
     private String dispatchTool(AgentExecutionContext context, StreamingSession session,
-                                ToolUseAccumulator acc) {
-        var definition = findToolDefinition(context.tools(), acc.name);
+                                ToolCallAccumulator acc) {
+        var definition = findToolDefinition(context.tools(), acc.functionName());
         if (definition == null) {
-            return "{\"error\":\"Unknown tool: " + acc.name + "\"}";
+            return "{\"error\":\"Unknown tool: " + acc.functionName() + "\"}";
         }
-        var args = acc.parseInput(MAPPER);
+        var args = acc.argumentsAsMap(MAPPER);
         var injectables = Map.<Class<?>, Object>of(StreamingSession.class, session);
         var approvalPolicy = context.approvalPolicy() != null
                 ? context.approvalPolicy() : ToolApprovalPolicy.annotated();
         return ToolExecutionHelper.executeWithApproval(
-                acc.name, definition, args, session,
+                acc.functionName(), definition, args, session,
                 context.approvalStrategy(), approvalPolicy, injectables);
     }
 
@@ -538,32 +539,11 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
         return builder.build();
     }
 
-    /** Per-tool accumulator that gathers partial_json fragments and exposes
-     *  a parsed {@code Map<String, Object>} once the block is closed. */
-    private static final class ToolUseAccumulator {
-        String id = "";
-        String name = "";
-        final StringBuilder rawJson = new StringBuilder();
-
-        Map<String, Object> parseInput(ObjectMapper mapper) {
-            if (rawJson.length() == 0) {
-                return Map.of();
-            }
-            try {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> parsed = mapper.readValue(rawJson.toString(), Map.class);
-                return parsed != null ? parsed : Map.of();
-            } catch (Exception e) {
-                return Map.of("__raw", rawJson.toString());
-            }
-        }
-    }
-
     /** Per-round outcome — assistant blocks, raw tool_use accumulators, and
      *  the materialised tool_result blocks ready for the next round. */
     private record RoundOutcome(
             List<ObjectNode> assistantBlocks,
-            List<ToolUseAccumulator> toolUses,
+            List<ToolCallAccumulator> toolUses,
             List<ObjectNode> toolResults,
             boolean errored) {
         static RoundOutcome failure() {

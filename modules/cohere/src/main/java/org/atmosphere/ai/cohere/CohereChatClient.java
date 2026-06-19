@@ -22,12 +22,12 @@ import org.atmosphere.ai.TokenUsage;
 import org.atmosphere.ai.approval.ToolApprovalPolicy;
 import org.atmosphere.ai.llm.AbstractSseLlmClient;
 import org.atmosphere.ai.llm.ChatMessage;
+import org.atmosphere.ai.llm.ToolCallAccumulator;
 import org.atmosphere.ai.tool.ToolDefinition;
 import org.atmosphere.ai.tool.ToolExecutionHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.net.URI;
@@ -200,6 +200,8 @@ public final class CohereChatClient extends AbstractSseLlmClient {
         // Tool-call accumulators keyed by tool-call index (Cohere assigns
         // a stable index on tool-call-start within a stream).
         var toolBuffers = new LinkedHashMap<Integer, ToolCallAccumulator>();
+        // (ToolCallAccumulator is the shared org.atmosphere.ai.llm type; the
+        // Cohere-specific tool-call index is the local map key, not a field.)
         // Mutable holder so the per-event mapper lambda can update the running
         // usage across message-end events.
         var usageHolder = new TokenUsage[1];
@@ -246,11 +248,11 @@ public final class CohereChatClient extends AbstractSseLlmClient {
         for (var entry : toolBuffers.entrySet()) {
             var acc = entry.getValue();
             toolCalls.add(acc);
-            var args = acc.parseArguments(MAPPER);
-            session.emit(new AiEvent.ToolStart(acc.name, args));
+            var args = acc.argumentsAsMap(MAPPER);
+            session.emit(new AiEvent.ToolStart(acc.functionName(), args));
             var resultText = dispatchTool(context, session, acc, args);
-            session.emit(new AiEvent.ToolResult(acc.name, resultText));
-            toolResults.put(acc.id, resultText);
+            session.emit(new AiEvent.ToolResult(acc.functionName(), resultText));
+            toolResults.put(acc.id(), resultText);
         }
 
         return new RoundOutcome(assistantText.toString(), toolCalls, toolResults, false);
@@ -290,13 +292,13 @@ public final class CohereChatClient extends AbstractSseLlmClient {
             return;
         }
         var acc = new ToolCallAccumulator();
-        acc.id = call.path("id").asString("");
-        acc.name = call.path("function").path("name").asString("");
+        acc.setId(call.path("id").asString(""));
+        acc.setFunctionName(call.path("function").path("name").asString(""));
         var seedArgs = call.path("function").path("arguments");
         if (seedArgs.isString()) {
-            acc.rawJson.append(seedArgs.asString(""));
+            acc.appendArguments(seedArgs.asString(""));
         } else if (seedArgs.isObject() && !seedArgs.isEmpty()) {
-            acc.rawJson.append(seedArgs.toString());
+            acc.appendArguments(seedArgs.toString());
         }
         toolBuffers.put(index, acc);
     }
@@ -312,7 +314,7 @@ public final class CohereChatClient extends AbstractSseLlmClient {
         if (!chunk.isEmpty()) {
             var acc = toolBuffers.get(index);
             if (acc != null) {
-                acc.rawJson.append(chunk);
+                acc.appendArguments(chunk);
                 // Forward the incremental fragment so browser UIs can render
                 // partial tool-argument JSON as the model types it — same
                 // posture as OpenAiCompatibleClient's chat-completions loop.
@@ -320,7 +322,7 @@ public final class CohereChatClient extends AbstractSseLlmClient {
                 // ships a tool-call-delta before tool-call-start (it does not
                 // today), the empty id is dropped by StreamingSession's null/
                 // empty guard rather than producing a stray frame.
-                session.toolCallDelta(acc.id, chunk);
+                session.toolCallDelta(acc.id(), chunk);
             }
         }
     }
@@ -354,9 +356,9 @@ public final class CohereChatClient extends AbstractSseLlmClient {
                                 StreamingSession session,
                                 ToolCallAccumulator acc,
                                 Map<String, Object> args) {
-        var definition = findToolDefinition(context.tools(), acc.name);
+        var definition = findToolDefinition(context.tools(), acc.functionName());
         if (definition == null) {
-            return "{\"error\":\"Unknown tool: " + acc.name + "\"}";
+            return "{\"error\":\"Unknown tool: " + acc.functionName() + "\"}";
         }
         // Forward the session's framework injectables (AgentFleet, AgentIdentity,
         // CodeSandbox, ...) to the tool, plus the live session — mirroring the
@@ -368,7 +370,7 @@ public final class CohereChatClient extends AbstractSseLlmClient {
         var approvalPolicy = context.approvalPolicy() != null
                 ? context.approvalPolicy() : ToolApprovalPolicy.annotated();
         return ToolExecutionHelper.executeWithApproval(
-                acc.name, definition, args, session,
+                acc.functionName(), definition, args, session,
                 context.approvalStrategy(), approvalPolicy, injectables);
     }
 
@@ -465,11 +467,11 @@ public final class CohereChatClient extends AbstractSseLlmClient {
             var array = message.putArray("tool_calls");
             for (var call : toolCalls) {
                 var node = array.addObject();
-                node.put("id", call.id);
+                node.put("id", call.id());
                 node.put("type", "function");
                 var fn = node.putObject("function");
-                fn.put("name", call.name);
-                fn.put("arguments", call.rawJson.toString());
+                fn.put("name", call.functionName());
+                fn.put("arguments", call.arguments());
             }
         }
         return message;
@@ -527,27 +529,6 @@ public final class CohereChatClient extends AbstractSseLlmClient {
         applyReservedFilteredHeaders(builder,
                 Set.of("authorization", "content-type", "accept"));
         return builder.build();
-    }
-
-    /** Per-tool accumulator that gathers tool-call-delta argument fragments
-     *  and exposes a parsed {@code Map<String, Object>} once the call closes. */
-    private static final class ToolCallAccumulator {
-        String id = "";
-        String name = "";
-        final StringBuilder rawJson = new StringBuilder();
-
-        Map<String, Object> parseArguments(ObjectMapper mapper) {
-            if (rawJson.length() == 0) {
-                return Map.of();
-            }
-            try {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> parsed = mapper.readValue(rawJson.toString(), Map.class);
-                return parsed != null ? parsed : Map.of();
-            } catch (Exception e) {
-                return Map.of("__raw", rawJson.toString());
-            }
-        }
     }
 
     /** Per-round outcome — accumulated assistant text, tool calls dispatched
