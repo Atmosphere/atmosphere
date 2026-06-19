@@ -23,6 +23,8 @@ import org.atmosphere.ai.approval.ToolApprovalPolicy;
 import org.atmosphere.ai.llm.AbstractSseLlmClient;
 import org.atmosphere.ai.llm.ChatMessage;
 import org.atmosphere.ai.llm.ToolCallAccumulator;
+import org.atmosphere.ai.llm.ToolLoopGuard;
+import org.atmosphere.ai.llm.ToolLoopPolicies;
 import org.atmosphere.ai.tool.ToolDefinition;
 import org.atmosphere.ai.tool.ToolExecutionHelper;
 import org.slf4j.Logger;
@@ -83,7 +85,6 @@ public final class CohereChatClient extends AbstractSseLlmClient {
     private static final Logger logger = LoggerFactory.getLogger(CohereChatClient.class);
     private static final String DEFAULT_BASE_URL = "https://api.cohere.com";
     private static final int DEFAULT_MAX_TOKENS = 4096;
-    private static final int DEFAULT_TOOL_ROUND_CAP = 5;
 
     private CohereChatClient(Builder b) {
         super(new SseClientConfig(b.baseUrl, b.apiKey, b.httpClient, b.timeout,
@@ -129,6 +130,12 @@ public final class CohereChatClient extends AbstractSseLlmClient {
         Objects.requireNonNull(model, "model");
         Objects.requireNonNull(session, "session");
         var effectiveCancel = cancelled != null ? cancelled : new AtomicBoolean();
+        // Per-request tool-loop policy controls both the iteration cap and the
+        // overflow behavior, exactly like the Built-in OpenAiCompatibleClient.
+        // fromOrDefault returns ToolLoopPolicy.DEFAULT (5,
+        // COMPLETE_WITHOUT_TOOLS) when no policy is attached, so callers that
+        // do not opt in keep the pre-policy behavior bit-identical.
+        var loopPolicy = ToolLoopPolicies.fromOrDefault(context);
         var rounds = 0;
         // Working messages list starts with optional system prompt + history,
         // then accumulates assistant + tool messages across rounds.
@@ -159,11 +166,16 @@ public final class CohereChatClient extends AbstractSseLlmClient {
                 session.error(new InterruptedException("Cancelled before round " + rounds));
                 return;
             }
-            if (rounds > DEFAULT_TOOL_ROUND_CAP) {
-                logger.warn("Cohere tool loop cap ({}) reached — completing without tools",
-                        DEFAULT_TOOL_ROUND_CAP);
-                session.complete();
-                return;
+            switch (ToolLoopGuard.checkRoundCap(rounds, loopPolicy, session, providerName())) {
+                case CONTINUE -> { /* below the cap — run the round below */ }
+                case FAILED -> {
+                    // checkRoundCap already fired session.error(...).
+                    return;
+                }
+                case COMPLETE_WITHOUT_TOOLS -> {
+                    session.complete();
+                    return;
+                }
             }
             var requestBody = buildRequestBody(model, working, context.tools());
             HttpRequest httpRequest;

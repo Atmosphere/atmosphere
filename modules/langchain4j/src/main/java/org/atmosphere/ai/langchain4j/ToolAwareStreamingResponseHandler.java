@@ -23,6 +23,8 @@ import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.approval.ApprovalStrategy;
+import org.atmosphere.ai.llm.ToolLoopGuard;
+import org.atmosphere.ai.llm.ToolLoopPolicy;
 import org.atmosphere.ai.tool.ToolDefinition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +48,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(ToolAwareStreamingResponseHandler.class);
-    private static final int MAX_TOOL_ROUNDS = 5;
 
     private final StreamingSession session;
     private final StreamingChatModel model;
@@ -69,6 +70,14 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
      */
     private final AtomicBoolean cancelled;
     private final org.atmosphere.ai.approval.ToolApprovalPolicy approvalPolicy;
+    /**
+     * Per-request tool-loop policy. Bounds the model→tool→model rounds and
+     * decides the overflow behavior, matching the Built-in
+     * {@code OpenAiCompatibleClient}. Defaults to {@link ToolLoopPolicy#DEFAULT}
+     * (5 rounds, complete-without-tools) when the caller passes {@code null},
+     * preserving the pre-policy behavior bit-identically.
+     */
+    private final ToolLoopPolicy loopPolicy;
     private int toolRound;
 
     ToolAwareStreamingResponseHandler(
@@ -80,9 +89,10 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
             ApprovalStrategy approvalStrategy,
             List<org.atmosphere.ai.AgentLifecycleListener> listeners,
             AtomicBoolean cancelled,
-            org.atmosphere.ai.approval.ToolApprovalPolicy approvalPolicy) {
+            org.atmosphere.ai.approval.ToolApprovalPolicy approvalPolicy,
+            ToolLoopPolicy loopPolicy) {
         this(session, model, conversationHistory, toolSpecifications, toolMap,
-                approvalStrategy, listeners, cancelled, 0, approvalPolicy);
+                approvalStrategy, listeners, cancelled, 0, approvalPolicy, loopPolicy);
     }
 
     private ToolAwareStreamingResponseHandler(
@@ -95,7 +105,8 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
             List<org.atmosphere.ai.AgentLifecycleListener> listeners,
             AtomicBoolean cancelled,
             int toolRound,
-            org.atmosphere.ai.approval.ToolApprovalPolicy approvalPolicy) {
+            org.atmosphere.ai.approval.ToolApprovalPolicy approvalPolicy,
+            ToolLoopPolicy loopPolicy) {
         this.session = session;
         this.model = model;
         this.conversationHistory = new ArrayList<>(conversationHistory);
@@ -106,6 +117,7 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
         this.cancelled = cancelled != null ? cancelled : new AtomicBoolean();
         this.toolRound = toolRound;
         this.approvalPolicy = approvalPolicy;
+        this.loopPolicy = loopPolicy != null ? loopPolicy : ToolLoopPolicy.DEFAULT;
     }
 
     @Override
@@ -147,14 +159,26 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
 
         // Check if the model wants to call tools
         if (aiMessage.hasToolExecutionRequests() && !toolMap.isEmpty()) {
-            if (toolRound >= MAX_TOOL_ROUNDS) {
-                logger.warn("Max tool rounds ({}) reached, completing response", MAX_TOOL_ROUNDS);
-                if (aiMessage.text() != null) {
-                    session.complete(aiMessage.text());
-                } else {
-                    session.complete();
+            // Honor the per-request ToolLoopPolicy in-loop, exactly like the
+            // Built-in OpenAiCompatibleClient: FAIL surfaces the cap-hit via
+            // session.error(ToolLoopExhaustedException); COMPLETE_WITHOUT_TOOLS
+            // flushes the last assistant text and completes (the pre-policy
+            // behavior when DEFAULT is in effect). The shared checkRoundCap
+            // owns the byte-identical FAIL dispatch.
+            switch (ToolLoopGuard.checkRoundCap(toolRound, loopPolicy, session, "LangChain4j")) {
+                case CONTINUE -> { /* below the cap — dispatch the tools below */ }
+                case FAILED -> {
+                    // checkRoundCap already fired session.error(...).
+                    return;
                 }
-                return;
+                case COMPLETE_WITHOUT_TOOLS -> {
+                    if (aiMessage.text() != null) {
+                        session.complete(aiMessage.text());
+                    } else {
+                        session.complete();
+                    }
+                    return;
+                }
             }
 
             logger.debug("Tool round {}: executing {} tool calls",
@@ -181,7 +205,8 @@ class ToolAwareStreamingResponseHandler implements StreamingChatResponseHandler 
             }
             var nextHandler = new ToolAwareStreamingResponseHandler(
                     session, model, updatedMessages, toolSpecifications, toolMap,
-                    approvalStrategy, listeners, cancelled, toolRound + 1, approvalPolicy);
+                    approvalStrategy, listeners, cancelled, toolRound + 1, approvalPolicy,
+                    loopPolicy);
             model.chat(followUpRequest, nextHandler);
         } else {
             // No tool calls — deliver the final text response

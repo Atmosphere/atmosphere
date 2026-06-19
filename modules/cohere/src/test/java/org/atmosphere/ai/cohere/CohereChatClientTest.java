@@ -17,6 +17,8 @@ package org.atmosphere.ai.cohere;
 
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.CollectingSession;
+import org.atmosphere.ai.llm.ToolLoopPolicies;
+import org.atmosphere.ai.llm.ToolLoopPolicy;
 import org.atmosphere.ai.tool.ToolDefinition;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -31,6 +33,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -379,12 +383,133 @@ class CohereChatClientTest {
         return body;
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void strictPolicyFailsAfterCapWithToolLoopExhausted() throws Exception {
+        var httpClient = mockAlwaysToolResponse();
+        var client = CohereChatClient.builder()
+                .apiKey("test-key")
+                .httpClient(httpClient)
+                .build();
+        var calls = new AtomicInteger();
+        var calculator = ToolDefinition.builder("calculator", "Evaluate an expression")
+                .parameter("expression", "math expression", "string")
+                .executor(args -> {
+                    calls.incrementAndGet();
+                    return "4";
+                })
+                .build();
+        var context = ToolLoopPolicies.attach(toolContext(calculator), ToolLoopPolicy.strict(2));
+        var session = new CollectingSession();
+        client.stream("command-a-plus-05-2026", List.of(), context.systemPrompt(),
+                context.message(), context, session, null);
+        session.await(java.time.Duration.ofSeconds(5));
+
+        assertTrue(session.failed(), "strict(2) must surface the cap hit as session.error()");
+        assertInstanceOf(ToolLoopPolicy.ToolLoopExhaustedException.class, session.failure(),
+                "FAIL overflow must carry ToolLoopExhaustedException");
+        assertEquals(2, ((ToolLoopPolicy.ToolLoopExhaustedException) session.failure()).maxIterations(),
+                "the exhausted-exception must report the configured cap");
+        assertEquals(2, calls.get(),
+                "tool executor must run exactly the cap (2) times, not the hardcoded 5");
+        verify(httpClient, times(2)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void completePolicyStopsAtCapAndCompletes() throws Exception {
+        var httpClient = mockAlwaysToolResponse();
+        var client = CohereChatClient.builder()
+                .apiKey("test-key")
+                .httpClient(httpClient)
+                .build();
+        var calls = new AtomicInteger();
+        var calculator = ToolDefinition.builder("calculator", "Evaluate an expression")
+                .parameter("expression", "math expression", "string")
+                .executor(args -> {
+                    calls.incrementAndGet();
+                    return "4";
+                })
+                .build();
+        var context = ToolLoopPolicies.attach(toolContext(calculator), ToolLoopPolicy.maxIterations(2));
+        var session = new CollectingSession();
+        client.stream("command-a-plus-05-2026", List.of(), context.systemPrompt(),
+                context.message(), context, session, null);
+        session.await(java.time.Duration.ofSeconds(5));
+
+        assertTrue(session.isClosed(), "maxIterations(2) COMPLETE mode must complete the session");
+        assertFalse(session.failed(), "COMPLETE overflow must NOT surface an error");
+        assertEquals(2, calls.get(),
+                "tool executor must run exactly the cap (2) times, not the hardcoded 5");
+        verify(httpClient, times(2)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void defaultPolicyCapsAtFiveAndCompletes() throws Exception {
+        var httpClient = mockAlwaysToolResponse();
+        var client = CohereChatClient.builder()
+                .apiKey("test-key")
+                .httpClient(httpClient)
+                .build();
+        var calls = new AtomicInteger();
+        var calculator = ToolDefinition.builder("calculator", "Evaluate an expression")
+                .parameter("expression", "math expression", "string")
+                .executor(args -> {
+                    calls.incrementAndGet();
+                    return "4";
+                })
+                .build();
+        // No policy attached → ToolLoopPolicy.DEFAULT (5, COMPLETE_WITHOUT_TOOLS).
+        var session = new CollectingSession();
+        var context = toolContext(calculator);
+        client.stream("command-a-plus-05-2026", List.of(), context.systemPrompt(),
+                context.message(), context, session, null);
+        session.await(java.time.Duration.ofSeconds(5));
+
+        assertTrue(session.isClosed(), "default policy must complete the session on overflow");
+        assertFalse(session.failed(), "default overflow is COMPLETE_WITHOUT_TOOLS, not an error");
+        assertEquals(5, calls.get(),
+                "default cap (5) must hold when no policy is attached");
+        verify(httpClient, times(5)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+    }
+
     private static AgentExecutionContext textContext() {
         return new AgentExecutionContext(
                 "Hi", "You are helpful", "command-a-plus-05-2026",
                 null, "session-1", "user-1", "conv-1",
                 List.of(), null, null, List.of(), Map.of(),
                 List.of(), null, null);
+    }
+
+    private static AgentExecutionContext toolContext(ToolDefinition tool) {
+        return new AgentExecutionContext(
+                "What is 2+2?", "You are helpful", "command-a-plus-05-2026",
+                null, "session-tool", "user-1", "conv-tool",
+                List.of(tool), null, null, List.of(), Map.of(),
+                List.of(), null, null);
+    }
+
+    /**
+     * Regression scaffolding for the tool-loop cap fix (Correctness Invariant
+     * #7, Mode Parity): a model that ALWAYS emits a tool-call round, so the
+     * loop only terminates when the {@link ToolLoopPolicy} cap fires. Every
+     * {@code send} returns a fresh response with a fresh body stream, because
+     * each round re-reads {@code response.body()} and a {@link ByteArrayInputStream}
+     * is single-use.
+     */
+    @SuppressWarnings("unchecked")
+    private static HttpClient mockAlwaysToolResponse() throws Exception {
+        var httpClient = mock(HttpClient.class);
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenAnswer(invocation -> {
+                    var response = mock(HttpResponse.class);
+                    when(response.statusCode()).thenReturn(200);
+                    when(response.body()).thenReturn(new ByteArrayInputStream(
+                            TOOL_USE_ROUND.getBytes(StandardCharsets.UTF_8)));
+                    return response;
+                });
+        return httpClient;
     }
 
     @SuppressWarnings("unchecked")

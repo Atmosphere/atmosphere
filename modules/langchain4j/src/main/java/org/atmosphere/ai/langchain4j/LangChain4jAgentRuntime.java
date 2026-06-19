@@ -315,7 +315,8 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                 new ToolAwareStreamingResponseHandler(
                         session, streamingModel, messages, toolSpecs, toolMap,
                         context.approvalStrategy(), context.listeners(), cancelled,
-                        context.approvalPolicy()),
+                        context.approvalPolicy(),
+                        org.atmosphere.ai.llm.ToolLoopPolicies.fromOrDefault(context)),
                 cancelled, done, listeners, modelName, startNanos);
         streamingModel.chat(chatRequestBuilder.build(), handler);
 

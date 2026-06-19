@@ -465,7 +465,7 @@ public class LangChain4jStreamingAdapterTest {
         var handler = new ToolAwareStreamingResponseHandler(
                 session, mock(StreamingChatModel.class), List.of(), List.of(), Map.of(),
                 null, List.of(), new java.util.concurrent.atomic.AtomicBoolean(),
-                null);
+                null, null);
 
         // LangChain4j's own constructors always sum input + output into total, so
         // simulate a provider/custom response that reports both counts but leaves
@@ -496,5 +496,140 @@ public class LangChain4jStreamingAdapterTest {
                 "missing total must compute input + output (12 + 3 = 15), not 0: " + totalMsg);
         assertFalse(totalMsg.contains("\"value\":0"),
                 "the old 0L fallback must no longer appear: " + totalMsg);
+    }
+
+    /**
+     * Regression for Correctness Invariant #7 (Mode Parity): the LangChain4j
+     * tool loop must honor the per-request {@link org.atmosphere.ai.llm.ToolLoopPolicy}
+     * exactly like the Built-in {@code OpenAiCompatibleClient}, instead of the
+     * old hard-coded {@code MAX_TOOL_ROUNDS = 5}. A model stub that ALWAYS
+     * requests a tool execution drives the loop; {@code strict(2)} (FAIL mode)
+     * must surface the cap hit as {@code session.error(ToolLoopExhaustedException)}
+     * after exactly two tool executions, not five.
+     */
+    @Test
+    public void testStrictPolicyFailsAfterCapWithToolLoopExhausted() {
+        var collecting = new org.atmosphere.ai.CollectingSession();
+        var calls = new java.util.concurrent.atomic.AtomicInteger();
+        var tool = org.atmosphere.ai.tool.ToolDefinition.builder("add", "Add numbers")
+                .parameter("a", "First", "integer")
+                .executor(args -> {
+                    calls.incrementAndGet();
+                    return "10";
+                })
+                .build();
+        var toolMap = Map.of("add", tool);
+        var model = alwaysToolRequestModel();
+
+        var handler = new ToolAwareStreamingResponseHandler(
+                collecting, model, List.of(), List.of(), toolMap,
+                null, List.of(), new java.util.concurrent.atomic.AtomicBoolean(),
+                null, org.atmosphere.ai.llm.ToolLoopPolicy.strict(2));
+
+        // Kick the loop: the first complete carries a tool request; every
+        // follow-up model.chat(...) re-arms another tool request via the stub.
+        handler.onCompleteResponse(toolRequestResponse());
+
+        assertTrue(collecting.failed(), "strict(2) must surface the cap hit as session.error()");
+        assertInstanceOf(org.atmosphere.ai.llm.ToolLoopPolicy.ToolLoopExhaustedException.class,
+                collecting.failure(), "FAIL overflow must carry ToolLoopExhaustedException");
+        assertEquals(2, ((org.atmosphere.ai.llm.ToolLoopPolicy.ToolLoopExhaustedException)
+                        collecting.failure()).maxIterations(),
+                "the exhausted-exception must report the configured cap");
+        assertEquals(2, calls.get(),
+                "tool executor must run exactly the cap (2) times, not the hardcoded 5");
+    }
+
+    /**
+     * Companion to {@link #testStrictPolicyFailsAfterCapWithToolLoopExhausted}:
+     * {@code maxIterations(2)} (COMPLETE_WITHOUT_TOOLS) must stop tool calling
+     * at the cap and complete the session cleanly — no error — after exactly
+     * two tool executions.
+     */
+    @Test
+    public void testCompletePolicyStopsAtCapAndCompletes() {
+        var collecting = new org.atmosphere.ai.CollectingSession();
+        var calls = new java.util.concurrent.atomic.AtomicInteger();
+        var tool = org.atmosphere.ai.tool.ToolDefinition.builder("add", "Add numbers")
+                .parameter("a", "First", "integer")
+                .executor(args -> {
+                    calls.incrementAndGet();
+                    return "10";
+                })
+                .build();
+        var toolMap = Map.of("add", tool);
+        var model = alwaysToolRequestModel();
+
+        var handler = new ToolAwareStreamingResponseHandler(
+                collecting, model, List.of(), List.of(), toolMap,
+                null, List.of(), new java.util.concurrent.atomic.AtomicBoolean(),
+                null, org.atmosphere.ai.llm.ToolLoopPolicy.maxIterations(2));
+
+        handler.onCompleteResponse(toolRequestResponse());
+
+        assertTrue(collecting.isClosed(), "maxIterations(2) COMPLETE mode must complete the session");
+        assertFalse(collecting.failed(), "COMPLETE overflow must NOT surface an error");
+        assertEquals(2, calls.get(),
+                "tool executor must run exactly the cap (2) times, not the hardcoded 5");
+    }
+
+    /**
+     * Default-behavior pin: with no policy attached the handler defaults to
+     * {@link org.atmosphere.ai.llm.ToolLoopPolicy#DEFAULT} (5 rounds,
+     * COMPLETE_WITHOUT_TOOLS), so an always-tool model caps at five tool
+     * executions and completes — bit-identical to the pre-policy
+     * {@code MAX_TOOL_ROUNDS = 5} behavior.
+     */
+    @Test
+    public void testDefaultPolicyCapsAtFiveAndCompletes() {
+        var collecting = new org.atmosphere.ai.CollectingSession();
+        var calls = new java.util.concurrent.atomic.AtomicInteger();
+        var tool = org.atmosphere.ai.tool.ToolDefinition.builder("add", "Add numbers")
+                .parameter("a", "First", "integer")
+                .executor(args -> {
+                    calls.incrementAndGet();
+                    return "10";
+                })
+                .build();
+        var toolMap = Map.of("add", tool);
+        var model = alwaysToolRequestModel();
+
+        // null loopPolicy → ToolLoopPolicy.DEFAULT (5, COMPLETE_WITHOUT_TOOLS).
+        var handler = new ToolAwareStreamingResponseHandler(
+                collecting, model, List.of(), List.of(), toolMap,
+                null, List.of(), new java.util.concurrent.atomic.AtomicBoolean(),
+                null, null);
+
+        handler.onCompleteResponse(toolRequestResponse());
+
+        assertTrue(collecting.isClosed(), "default policy must complete the session on overflow");
+        assertFalse(collecting.failed(), "default overflow is COMPLETE_WITHOUT_TOOLS, not an error");
+        assertEquals(5, calls.get(), "default cap (5) must hold when no policy is attached");
+    }
+
+    /** A LangChain4j response whose AiMessage always carries one tool request. */
+    private static ChatResponse toolRequestResponse() {
+        var request = dev.langchain4j.agent.tool.ToolExecutionRequest.builder()
+                .id("call-1")
+                .name("add")
+                .arguments("{\"a\":1}")
+                .build();
+        return ChatResponse.builder().aiMessage(AiMessage.from(List.of(request))).build();
+    }
+
+    /**
+     * Model stub that, on every {@code chat(request, handler)}, drives the
+     * handler with a fresh tool-request response — so the loop only ever
+     * terminates when the {@link org.atmosphere.ai.llm.ToolLoopPolicy} cap
+     * fires.
+     */
+    private static StreamingChatModel alwaysToolRequestModel() {
+        var model = mock(StreamingChatModel.class);
+        doAnswer(invocation -> {
+            StreamingChatResponseHandler handler = invocation.getArgument(1);
+            handler.onCompleteResponse(toolRequestResponse());
+            return null;
+        }).when(model).chat(any(ChatRequest.class), any(StreamingChatResponseHandler.class));
+        return model;
     }
 }

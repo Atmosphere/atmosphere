@@ -148,6 +148,70 @@ public final class ToolLoopGuard implements AgentLifecycleListener {
         return context.withListeners(List.copyOf(combined));
     }
 
+    /**
+     * In-loop cap decision shared by the SSE-driver runtimes (Anthropic,
+     * Cohere) and the LangChain4j streaming handler. Unlike the listener-based
+     * guard above — which can only close the session at the wire layer once a
+     * framework's own loop overruns — this is called from <em>inside</em> a
+     * client's tool loop, before the next model→tool→model round is dispatched,
+     * so it can actually stop the loop and honor the per-request
+     * {@link ToolLoopPolicy} exactly like {@link OpenAiCompatibleClient} does.
+     *
+     * <p>Counting matches the Built-in runtime: {@code round} is the zero-based
+     * count of tool rounds already executed, and the loop continues while
+     * {@code round < policy.maxIterations()}. When {@code round} reaches the
+     * cap, the FAIL branch is the byte-identical core shared by every driver —
+     * {@code session.error(new ToolLoopExhaustedException(cap))} — while the
+     * COMPLETE_WITHOUT_TOOLS branch returns control so each driver can apply
+     * its own completion shape (Anthropic/Cohere flush nothing and call
+     * {@code session.complete()}; LangChain4j flushes the last assistant text
+     * via {@code session.complete(text)}).</p>
+     *
+     * @param round       zero-based count of tool rounds already executed
+     * @param policy      the per-request policy (never null — callers pass
+     *                    {@link ToolLoopPolicies#fromOrDefault})
+     * @param session     the streaming session to terminate on FAIL
+     * @param runtimeName provider name for the overflow log line
+     * @return the action the caller must take for this round
+     */
+    public static CapDecision checkRoundCap(int round, ToolLoopPolicy policy,
+                                            StreamingSession session, String runtimeName) {
+        Objects.requireNonNull(policy, "policy");
+        Objects.requireNonNull(session, "session");
+        if (round < policy.maxIterations()) {
+            return CapDecision.CONTINUE;
+        }
+        logger.warn("{} tool loop cap ({}) reached, applying onMaxIterations={}",
+                runtimeName, policy.maxIterations(), policy.onMaxIterations());
+        return switch (policy.onMaxIterations()) {
+            case FAIL -> {
+                if (!session.isClosed()) {
+                    session.error(new ToolLoopPolicy.ToolLoopExhaustedException(policy.maxIterations()));
+                }
+                yield CapDecision.FAILED;
+            }
+            case COMPLETE_WITHOUT_TOOLS -> CapDecision.COMPLETE_WITHOUT_TOOLS;
+        };
+    }
+
+    /**
+     * Outcome of {@link #checkRoundCap}: whether the driver should run another
+     * round, terminate by failing the session (already done by the helper), or
+     * complete with whatever text it has.
+     */
+    public enum CapDecision {
+        /** Below the cap — run the next round. */
+        CONTINUE,
+        /** Cap reached with {@link ToolLoopPolicy.OnMaxIterations#FAIL} — the
+         *  helper already called {@code session.error(...)}; the driver must
+         *  return without completing. */
+        FAILED,
+        /** Cap reached with
+         *  {@link ToolLoopPolicy.OnMaxIterations#COMPLETE_WITHOUT_TOOLS} — the
+         *  driver must complete the session with whatever text it has. */
+        COMPLETE_WITHOUT_TOOLS
+    }
+
     /** Package-private for test introspection — current count of {@code onModelStart} events seen. */
     int currentCount() {
         return modelCallCount.get();
