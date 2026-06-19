@@ -66,6 +66,9 @@ internal class EmbabelAgentRuntimeCancelTest {
         // interrupt unwinds the await.
         val block = CountDownLatch(1)
         val interrupted = AtomicBoolean()
+        // Counted down by the worker once it has actually observed the interrupt,
+        // so the assertion can wait for that event instead of racing it.
+        val interruptObserved = CountDownLatch(1)
 
         val agent = mock(Agent::class.java)
         `when`(agent.name).thenReturn("chat-assistant")
@@ -83,6 +86,7 @@ internal class EmbabelAgentRuntimeCancelTest {
                 block.await()
             } catch (ie: InterruptedException) {
                 interrupted.set(true)
+                interruptObserved.countDown()
                 Thread.currentThread().interrupt()
                 throw ie
             }
@@ -102,7 +106,15 @@ internal class EmbabelAgentRuntimeCancelTest {
         handle.cancel()
 
         handle.whenDone().get(5, TimeUnit.SECONDS)
-        assertTrue(interrupted.get(), "cancel() must interrupt the in-flight dispatch worker")
+        // whenDone() is settled on the caller thread inside cancel(), which can
+        // win the race against the worker recording the interrupt. Wait for the
+        // worker to actually observe it before asserting — reading the flag
+        // immediately after whenDone() raced and intermittently failed on CI.
+        assertTrue(
+            interruptObserved.await(5, TimeUnit.SECONDS),
+            "cancel() must interrupt the in-flight dispatch worker"
+        )
+        assertTrue(interrupted.get(), "worker must record the interrupt after cancel")
         assertTrue(handle.isDone, "whenDone() must settle after cancel")
 
         // CAS-guarded idempotency: a second cancel must not re-close the session.
