@@ -574,19 +574,6 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         );
     }
 
-    @Override
-    public java.util.List<String> models() {
-        // LC4j's StreamingChatModel hides the configured model name behind
-        // provider-specific builders. Report the runtime-resolved default
-        // from AiConfig; per-request overrides via context.model() take
-        // precedence when present.
-        var settings = AiConfig.get();
-        if (settings == null || settings.model() == null || settings.model().isBlank()) {
-            return java.util.List.of();
-        }
-        return java.util.List.of(settings.model());
-    }
-
     private static dev.langchain4j.data.message.ChatMessage toLangChainMessage(
             org.atmosphere.ai.llm.ChatMessage msg) {
         return switch (msg.role()) {

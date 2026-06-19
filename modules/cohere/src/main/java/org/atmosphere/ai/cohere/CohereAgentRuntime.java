@@ -21,7 +21,6 @@ import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -219,14 +218,5 @@ public class CohereAgentRuntime extends AbstractAgentRuntime<CohereChatClient> {
                 // cancel() flips a `cancelled` flag the streaming worker polls,
                 // stopping token forwarding and settling whenDone().
                 AiCapability.CANCELLATION);
-    }
-
-    @Override
-    public List<String> models() {
-        var settings = AiConfig.get();
-        if (settings == null || settings.model() == null || settings.model().isBlank()) {
-            return List.of();
-        }
-        return List.of(settings.model());
     }
 }

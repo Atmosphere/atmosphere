@@ -180,6 +180,20 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
     }
 
     /**
+     * Reports the single model the framework has configured via {@link AiConfig},
+     * or an empty list when nothing is configured. Runtimes that can enumerate
+     * multiple models (e.g. provider list endpoints) should override this.
+     */
+    @Override
+    public java.util.List<String> models() {
+        var settings = AiConfig.get();
+        if (settings == null || settings.model() == null || settings.model().isBlank()) {
+            return java.util.List.of();
+        }
+        return java.util.List.of(settings.model());
+    }
+
+    /**
      * Admit the call through the process-wide {@link org.atmosphere.ai.gateway.AiGatewayHolder}
      * so per-user rate limits, credential resolution, and unified trace
      * emission apply uniformly regardless of which framework runtime the

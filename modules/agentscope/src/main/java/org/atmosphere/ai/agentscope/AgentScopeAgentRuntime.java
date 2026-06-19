@@ -408,13 +408,4 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
                 AiCapability.AUDIO,
                 AiCapability.MULTI_MODAL);
     }
-
-    @Override
-    public java.util.List<String> models() {
-        var settings = AiConfig.get();
-        if (settings == null || settings.model() == null || settings.model().isBlank()) {
-            return java.util.List.of();
-        }
-        return java.util.List.of(settings.model());
-    }
 }

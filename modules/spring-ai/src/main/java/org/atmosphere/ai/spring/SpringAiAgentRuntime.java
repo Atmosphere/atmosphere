@@ -381,19 +381,6 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
         );
     }
 
-    @Override
-    public java.util.List<String> models() {
-        // Spring AI's ChatClient options carry the configured model but the
-        // accessor surface differs across 1.0.x and 1.1.x. Report the
-        // runtime-resolved default from AiConfig; per-request overrides via
-        // context.model() still take precedence at dispatch time.
-        var settings = AiConfig.get();
-        if (settings == null || settings.model() == null || settings.model().isBlank()) {
-            return java.util.List.of();
-        }
-        return java.util.List.of(settings.model());
-    }
-
     private static Message toSpringMessage(ChatMessage msg) {
         return switch (msg.role()) {
             case "system" -> new SystemMessage(msg.content());

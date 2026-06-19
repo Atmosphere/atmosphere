@@ -380,18 +380,4 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
                 AiCapability.CANCELLATION
         );
     }
-
-    @Override
-    public java.util.List<String> models() {
-        // SK's ChatCompletionService carries the deployment / model name
-        // configured at client construction time. The 1.4.0 accessor surface
-        // varies between providers, so fall back to AiConfig's resolved
-        // default model. Per-request overrides via context.model() take
-        // precedence at dispatch time.
-        var settings = org.atmosphere.ai.AiConfig.get();
-        if (settings == null || settings.model() == null || settings.model().isBlank()) {
-            return java.util.List.of();
-        }
-        return java.util.List.of(settings.model());
-    }
 }

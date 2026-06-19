@@ -293,13 +293,4 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
                 // OpenAI-compatible streaming request and settling whenDone().
                 AiCapability.CANCELLATION);
     }
-
-    @Override
-    public java.util.List<String> models() {
-        var settings = AiConfig.get();
-        if (settings == null || settings.model() == null || settings.model().isBlank()) {
-            return java.util.List.of();
-        }
-        return java.util.List.of(settings.model());
-    }
 }
