@@ -154,10 +154,17 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
         // generic ChatOptions path.
         var settings = org.atmosphere.ai.AiConfig.get();
         var endpointUrl = settings != null ? settings.baseUrl() : null;
+        // Tri-state override: ENABLED force-emits, DISABLED force-suppresses,
+        // AUTO (default) defers to the legacy host deny-list — keeping the AUTO
+        // path byte-identical to the pre-flag behavior.
+        var cacheKeyMode = settings != null
+                ? settings.promptCacheKeyMode()
+                : org.atmosphere.ai.llm.PromptCacheKeyMode.AUTO;
+        var endpointAccepts = cacheKeyMode.resolve(
+                org.atmosphere.ai.llm.CacheHint.endpointAcceptsPromptCacheKey(endpointUrl));
         var cacheHint = org.atmosphere.ai.llm.CacheHint.from(context);
         var cacheKey = cacheHint.resolvedKey(context);
-        if (cacheHint.enabled() && cacheKey.isPresent()
-                && org.atmosphere.ai.llm.CacheHint.endpointAcceptsPromptCacheKey(endpointUrl)) {
+        if (cacheHint.enabled() && cacheKey.isPresent() && endpointAccepts) {
             // Spring AI 2.0 (M5+) replaced OpenAiChatOptions.Builder.promptCacheKey(String)
             // with the generic extraBody(Map) escape hatch so OpenAI extension fields
             // (prompt_cache_key, store, service_tier, ...) ride through without

@@ -18,6 +18,7 @@ package org.atmosphere.ai;
 import org.atmosphere.ai.llm.FakeLlmClient;
 import org.atmosphere.ai.llm.LlmClient;
 import org.atmosphere.ai.llm.OpenAiCompatibleClient;
+import org.atmosphere.ai.llm.PromptCacheKeyMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,6 +83,23 @@ public final class AiConfig {
      */
     public static final String LLM_BASE_URL = "org.atmosphere.ai.llmBaseUrl";
 
+    /**
+     * Tri-state control of OpenAI {@code prompt_cache_key} emission:
+     * {@code enabled} (force-emit), {@code disabled} (force-suppress), or
+     * {@code auto} (legacy host heuristic). Parsed leniently — see
+     * {@link PromptCacheKeyMode#parse(String)} — so malformed values fall back
+     * to {@code auto} instead of throwing.
+     * <p>Default: {@code auto}</p>
+     * <p>Sysprop: {@code atmosphere.ai.prompt-cache-key}; env: {@code LLM_PROMPT_CACHE_KEY}</p>
+     */
+    public static final String PROMPT_CACHE_KEY_PROPERTY = "atmosphere.ai.prompt-cache-key";
+
+    /**
+     * Environment-variable name for the tri-state {@code prompt_cache_key}
+     * control. See {@link #PROMPT_CACHE_KEY_PROPERTY}.
+     */
+    public static final String PROMPT_CACHE_KEY_ENV = "LLM_PROMPT_CACHE_KEY";
+
     // -- Well-known endpoints --
 
     public static final String GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/openai";
@@ -107,14 +125,25 @@ public final class AiConfig {
      * holds exactly the key the underlying {@link OpenAiCompatibleClient} was
      * built with; in fake mode it is {@code null}.</p>
      */
-    public record LlmSettings(LlmClient client, String model, String mode, String baseUrl, String apiKey) {
+    public record LlmSettings(LlmClient client, String model, String mode, String baseUrl,
+                              String apiKey, PromptCacheKeyMode promptCacheKeyMode) {
+
+        /**
+         * Canonical-constructor null guard: a {@code null}
+         * {@code promptCacheKeyMode} collapses to {@link PromptCacheKeyMode#AUTO}
+         * so the default path stays byte-identical to the pre-flag wire output.
+         */
+        public LlmSettings {
+            promptCacheKeyMode = promptCacheKeyMode == null ? PromptCacheKeyMode.AUTO : promptCacheKeyMode;
+        }
 
         /**
          * Backward-compatible 4-arg constructor. Defaults {@code apiKey} the
          * historical way — deriving it from the client only when that client
-         * is an {@link OpenAiCompatibleClient}, {@code null} otherwise — so
-         * existing callers that pre-date the stored {@code apiKey} component
-         * keep identical behavior.
+         * is an {@link OpenAiCompatibleClient}, {@code null} otherwise — and
+         * defaults {@code promptCacheKeyMode} to {@link PromptCacheKeyMode#AUTO}
+         * so existing callers that pre-date both stored components keep
+         * identical behavior.
          *
          * @param client  the resolved LLM client
          * @param model   the model name
@@ -123,7 +152,23 @@ public final class AiConfig {
          */
         public LlmSettings(LlmClient client, String model, String mode, String baseUrl) {
             this(client, model, mode, baseUrl,
-                    client instanceof OpenAiCompatibleClient oac ? oac.apiKey() : null);
+                    client instanceof OpenAiCompatibleClient oac ? oac.apiKey() : null,
+                    PromptCacheKeyMode.AUTO);
+        }
+
+        /**
+         * Backward-compatible 5-arg constructor preserving the post-B1 shape
+         * ({@code apiKey} supplied explicitly) while defaulting the new
+         * {@code promptCacheKeyMode} component to {@link PromptCacheKeyMode#AUTO}.
+         *
+         * @param client  the resolved LLM client
+         * @param model   the model name
+         * @param mode    the mode ({@code remote}, {@code local}, or {@code fake})
+         * @param baseUrl the resolved base URL
+         * @param apiKey  the framework-resolved provider API key (may be {@code null})
+         */
+        public LlmSettings(LlmClient client, String model, String mode, String baseUrl, String apiKey) {
+            this(client, model, mode, baseUrl, apiKey, PromptCacheKeyMode.AUTO);
         }
 
         /**
@@ -168,9 +213,16 @@ public final class AiConfig {
     public static LlmSettings configure(String mode, String model, String apiKey, String baseUrl) {
         LOCK.lock();
         try {
+            // Tri-state prompt-cache-key control is resolved once here from the
+            // sysprop (then env) and stored on the settings so every
+            // realization site reads the same value via AiConfig.get(). AUTO
+            // (the default) keeps every path byte-identical to the legacy
+            // host-heuristic behavior.
+            var cacheKeyMode = resolvePromptCacheKeyMode();
+
             if ("fake".equalsIgnoreCase(mode)) {
                 logger.info("AI config: mode=fake (using FakeLlmClient — no real API calls)");
-                instance = new LlmSettings(new FakeLlmClient(model), model, mode, "fake", null);
+                instance = new LlmSettings(new FakeLlmClient(model), model, mode, "fake", null, cacheKeyMode);
                 return instance;
             }
 
@@ -197,11 +249,29 @@ public final class AiConfig {
                 logger.warn("No API key configured for remote mode. Set LLM_API_KEY or GEMINI_API_KEY environment variable.");
             }
 
-            instance = new LlmSettings(builder.build(), model, mode, resolvedUrl, resolvedKey);
+            instance = new LlmSettings(builder.build(), model, mode, resolvedUrl, resolvedKey, cacheKeyMode);
             return instance;
         } finally {
             LOCK.unlock();
         }
+    }
+
+    /**
+     * Resolve the tri-state {@code prompt_cache_key} control from the
+     * {@code atmosphere.ai.prompt-cache-key} system property, falling back to
+     * the {@code LLM_PROMPT_CACHE_KEY} environment variable, then to
+     * {@link PromptCacheKeyMode#AUTO}. Parsing is lenient and never throws (see
+     * {@link PromptCacheKeyMode#parse(String)}); the sysprop wins over the env
+     * var, mirroring the precedence the per-runtime knobs use elsewhere.
+     *
+     * @return the resolved mode, never {@code null}
+     */
+    public static PromptCacheKeyMode resolvePromptCacheKeyMode() {
+        var raw = System.getProperty(PROMPT_CACHE_KEY_PROPERTY);
+        if (raw == null || raw.isBlank()) {
+            raw = System.getenv(PROMPT_CACHE_KEY_ENV);
+        }
+        return PromptCacheKeyMode.parse(raw);
     }
 
     /**

@@ -267,10 +267,17 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         // gates the injection on the configured base URL.
         var settings = org.atmosphere.ai.AiConfig.get();
         var endpointUrl = settings != null ? settings.baseUrl() : null;
+        // Tri-state override: ENABLED force-emits, DISABLED force-suppresses,
+        // AUTO (default) defers to the legacy host deny-list — keeping the AUTO
+        // path byte-identical to the pre-flag behavior.
+        var cacheKeyMode = settings != null
+                ? settings.promptCacheKeyMode()
+                : org.atmosphere.ai.llm.PromptCacheKeyMode.AUTO;
+        var endpointAccepts = cacheKeyMode.resolve(
+                org.atmosphere.ai.llm.CacheHint.endpointAcceptsPromptCacheKey(endpointUrl));
         var cacheHint = org.atmosphere.ai.llm.CacheHint.from(context);
         var cacheKey = cacheHint.resolvedKey(context);
-        if (cacheHint.enabled() && cacheKey.isPresent()
-                && org.atmosphere.ai.llm.CacheHint.endpointAcceptsPromptCacheKey(endpointUrl)) {
+        if (cacheHint.enabled() && cacheKey.isPresent() && endpointAccepts) {
             var paramsBuilder = dev.langchain4j.model.openai.OpenAiChatRequestParameters.builder()
                     .customParameters(java.util.Map.of("prompt_cache_key", cacheKey.get()));
             if (context.model() != null && !context.model().isBlank()) {

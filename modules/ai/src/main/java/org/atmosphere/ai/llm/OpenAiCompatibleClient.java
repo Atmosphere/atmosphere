@@ -746,6 +746,25 @@ public class OpenAiCompatibleClient implements LlmClient {
      * still short-circuit identical requests at the pipeline level.
      */
     boolean supportsPromptCacheKey() {
+        // Tri-state override: ENABLED force-emits, DISABLED force-suppresses,
+        // AUTO (default) defers to the legacy host allow-list below — keeping
+        // the AUTO path byte-identical to the pre-flag behavior. The mode is
+        // read from the framework-wide AiConfig settings; when unconfigured
+        // (e.g. unit tests that build a client directly) it resolves to AUTO.
+        var settings = org.atmosphere.ai.AiConfig.get();
+        var mode = settings != null
+                ? settings.promptCacheKeyMode()
+                : PromptCacheKeyMode.AUTO;
+        return mode.resolve(autoSupportsPromptCacheKey());
+    }
+
+    /**
+     * The legacy host allow-list (default-DENY): only endpoints empirically
+     * known to honor or gracefully ignore {@code prompt_cache_key} return
+     * {@code true}. This is the decision used under
+     * {@link PromptCacheKeyMode#AUTO}.
+     */
+    private boolean autoSupportsPromptCacheKey() {
         if (baseUrl == null) {
             return false;
         }

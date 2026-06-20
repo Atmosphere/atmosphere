@@ -88,4 +88,71 @@ public class AiConfigTest {
         assertEquals("org.atmosphere.ai.llmApiKey", AiConfig.LLM_API_KEY);
         assertEquals("org.atmosphere.ai.llmBaseUrl", AiConfig.LLM_BASE_URL);
     }
+
+    @Test
+    public void testPromptCacheKeyModeDefaultsToAuto() {
+        // No sysprop set: the resolved mode and the settings component both
+        // default to AUTO (byte-identical legacy behavior).
+        var previous = System.getProperty(AiConfig.PROMPT_CACHE_KEY_PROPERTY);
+        System.clearProperty(AiConfig.PROMPT_CACHE_KEY_PROPERTY);
+        try {
+            assertEquals(org.atmosphere.ai.llm.PromptCacheKeyMode.AUTO,
+                    AiConfig.resolvePromptCacheKeyMode());
+            var settings = AiConfig.configure("local", "llama3.2", null, null);
+            assertEquals(org.atmosphere.ai.llm.PromptCacheKeyMode.AUTO,
+                    settings.promptCacheKeyMode());
+        } finally {
+            restoreProperty(AiConfig.PROMPT_CACHE_KEY_PROPERTY, previous);
+        }
+    }
+
+    @Test
+    public void testPromptCacheKeyModeEnabledFromSysprop() {
+        var previous = System.getProperty(AiConfig.PROMPT_CACHE_KEY_PROPERTY);
+        System.setProperty(AiConfig.PROMPT_CACHE_KEY_PROPERTY, "true");
+        try {
+            assertEquals(org.atmosphere.ai.llm.PromptCacheKeyMode.ENABLED,
+                    AiConfig.resolvePromptCacheKeyMode());
+            var settings = AiConfig.configure("remote", "gpt-4o", "k", "https://api.openai.com/v1");
+            assertEquals(org.atmosphere.ai.llm.PromptCacheKeyMode.ENABLED,
+                    settings.promptCacheKeyMode());
+        } finally {
+            restoreProperty(AiConfig.PROMPT_CACHE_KEY_PROPERTY, previous);
+        }
+    }
+
+    @Test
+    public void testPromptCacheKeyModeDisabledFromSysprop() {
+        var previous = System.getProperty(AiConfig.PROMPT_CACHE_KEY_PROPERTY);
+        System.setProperty(AiConfig.PROMPT_CACHE_KEY_PROPERTY, "0");
+        try {
+            assertEquals(org.atmosphere.ai.llm.PromptCacheKeyMode.DISABLED,
+                    AiConfig.resolvePromptCacheKeyMode());
+            var settings = AiConfig.configure("remote", "gpt-4o", "k", "https://api.openai.com/v1");
+            assertEquals(org.atmosphere.ai.llm.PromptCacheKeyMode.DISABLED,
+                    settings.promptCacheKeyMode());
+        } finally {
+            restoreProperty(AiConfig.PROMPT_CACHE_KEY_PROPERTY, previous);
+        }
+    }
+
+    @Test
+    public void testPromptCacheKeyModeMalformedFallsBackToAuto() {
+        var previous = System.getProperty(AiConfig.PROMPT_CACHE_KEY_PROPERTY);
+        System.setProperty(AiConfig.PROMPT_CACHE_KEY_PROPERTY, "not-a-real-value");
+        try {
+            assertEquals(org.atmosphere.ai.llm.PromptCacheKeyMode.AUTO,
+                    AiConfig.resolvePromptCacheKeyMode());
+        } finally {
+            restoreProperty(AiConfig.PROMPT_CACHE_KEY_PROPERTY, previous);
+        }
+    }
+
+    private static void restoreProperty(String key, String previous) {
+        if (previous == null) {
+            System.clearProperty(key);
+        } else {
+            System.setProperty(key, previous);
+        }
+    }
 }
