@@ -98,8 +98,34 @@ public final class AiConfig {
 
     /**
      * Immutable settings record holding the resolved LLM configuration.
+     *
+     * <p>The {@code apiKey} component carries the framework-resolved provider
+     * API key regardless of the concrete {@link LlmClient} type, so every
+     * {@link AgentRuntime} adapter can read the same key from
+     * {@link #apiKey()} instead of inventing its own
+     * {@code <provider>.api.key} lookup. On the OpenAI-compatible path it
+     * holds exactly the key the underlying {@link OpenAiCompatibleClient} was
+     * built with; in fake mode it is {@code null}.</p>
      */
-    public record LlmSettings(LlmClient client, String model, String mode, String baseUrl) {
+    public record LlmSettings(LlmClient client, String model, String mode, String baseUrl, String apiKey) {
+
+        /**
+         * Backward-compatible 4-arg constructor. Defaults {@code apiKey} the
+         * historical way — deriving it from the client only when that client
+         * is an {@link OpenAiCompatibleClient}, {@code null} otherwise — so
+         * existing callers that pre-date the stored {@code apiKey} component
+         * keep identical behavior.
+         *
+         * @param client  the resolved LLM client
+         * @param model   the model name
+         * @param mode    the mode ({@code remote}, {@code local}, or {@code fake})
+         * @param baseUrl the resolved base URL
+         */
+        public LlmSettings(LlmClient client, String model, String mode, String baseUrl) {
+            this(client, model, mode, baseUrl,
+                    client instanceof OpenAiCompatibleClient oac ? oac.apiKey() : null);
+        }
+
         /**
          * @return {@code true} if running against a local model (e.g. Ollama)
          */
@@ -112,14 +138,6 @@ public final class AiConfig {
          */
         public boolean isFake() {
             return "fake".equalsIgnoreCase(mode);
-        }
-
-        /**
-         * Returns the API key if the underlying client is an {@link OpenAiCompatibleClient},
-         * or {@code null} otherwise (e.g. for fake mode).
-         */
-        public String apiKey() {
-            return client instanceof OpenAiCompatibleClient oac ? oac.apiKey() : null;
         }
     }
 
@@ -152,7 +170,7 @@ public final class AiConfig {
         try {
             if ("fake".equalsIgnoreCase(mode)) {
                 logger.info("AI config: mode=fake (using FakeLlmClient — no real API calls)");
-                instance = new LlmSettings(new FakeLlmClient(model), model, mode, "fake");
+                instance = new LlmSettings(new FakeLlmClient(model), model, mode, "fake", null);
                 return instance;
             }
 
@@ -160,14 +178,26 @@ public final class AiConfig {
 
             logger.info("AI config: mode={}, model={}, endpoint={}", mode, model, resolvedUrl);
 
+            // Normalize the key exactly as the OpenAiCompatibleClient does: a
+            // non-blank explicit key is stored verbatim, anything else (null,
+            // blank, whitespace) collapses to null. Storing this normalized
+            // value as the record's apiKey component keeps settings.apiKey()
+            // bit-for-bit identical to the OpenAiCompatibleClient's own
+            // apiKey() — the value the ~19 read-side consumers already see —
+            // and crucially does NOT inject an ambient-env fallback into the
+            // built-in path (that would flip the no-key demo-mode contract).
+            // Cross-provider credential resolution is the adapter's job via
+            // CredentialResolver when settings.apiKey() is null.
+            var resolvedKey = (apiKey != null && !apiKey.isBlank()) ? apiKey : null;
+
             var builder = OpenAiCompatibleClient.builder().baseUrl(resolvedUrl);
-            if (apiKey != null && !apiKey.isBlank()) {
-                builder.apiKey(apiKey);
+            if (resolvedKey != null) {
+                builder.apiKey(resolvedKey);
             } else if (!"local".equalsIgnoreCase(mode)) {
                 logger.warn("No API key configured for remote mode. Set LLM_API_KEY or GEMINI_API_KEY environment variable.");
             }
 
-            instance = new LlmSettings(builder.build(), model, mode, resolvedUrl);
+            instance = new LlmSettings(builder.build(), model, mode, resolvedUrl, resolvedKey);
             return instance;
         } finally {
             LOCK.unlock();
