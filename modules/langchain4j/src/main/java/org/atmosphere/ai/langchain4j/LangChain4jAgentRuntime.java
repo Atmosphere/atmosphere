@@ -277,17 +277,31 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                 org.atmosphere.ai.llm.CacheHint.endpointAcceptsPromptCacheKey(endpointUrl));
         var cacheHint = org.atmosphere.ai.llm.CacheHint.from(context);
         var cacheKey = cacheHint.resolvedKey(context);
+        // Framework-level generation overrides (temperature/maxTokens/topP/stop).
+        // LC4j's ChatRequest.Builder forbids setting both .parameters(...) and
+        // the per-field setters (it throws IllegalArgumentException at build()),
+        // so generation must go on whichever object this dispatch actually uses:
+        // the OpenAiChatRequestParameters builder on the caching path, or the
+        // ChatRequest builder itself on the model/plain paths.
+        var generation = settings != null
+                ? settings.generation() : org.atmosphere.ai.GenerationParams.defaults();
         if (cacheHint.enabled() && cacheKey.isPresent() && endpointAccepts) {
             var paramsBuilder = dev.langchain4j.model.openai.OpenAiChatRequestParameters.builder()
                     .customParameters(java.util.Map.of("prompt_cache_key", cacheKey.get()));
             if (context.model() != null && !context.model().isBlank()) {
                 paramsBuilder.modelName(context.model());
             }
+            applyGeneration(paramsBuilder, generation);
             chatRequestBuilder.parameters(paramsBuilder.build());
             logger.debug("Applied prompt_cache_key={} via OpenAiChatRequestParameters", cacheKey.get());
         } else if (context.model() != null && !context.model().isBlank()) {
             chatRequestBuilder.modelName(context.model());
+            applyGeneration(chatRequestBuilder, generation);
             logger.debug("Using per-request model override: {}", context.model());
+        } else {
+            // Plain path: no model override and no caching — still forward any
+            // framework generation override directly on the ChatRequest builder.
+            applyGeneration(chatRequestBuilder, generation);
         }
         if (!toolSpecs.isEmpty()) {
             chatRequestBuilder.toolSpecifications(toolSpecs);
@@ -572,6 +586,62 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                 // whenDone() so the caller unblocks immediately.
                 AiCapability.CANCELLATION
         );
+    }
+
+    /**
+     * Apply the framework-level {@link org.atmosphere.ai.GenerationParams}
+     * directly on the LC4j {@link dev.langchain4j.model.chat.request.ChatRequest.Builder}
+     * (the model-override and plain paths). Only set components are forwarded.
+     * Must NOT be combined with {@code ChatRequest.Builder.parameters(...)} —
+     * LC4j throws if both per-field setters and a parameters object are set.
+     */
+    private static void applyGeneration(
+            dev.langchain4j.model.chat.request.ChatRequest.Builder builder,
+            org.atmosphere.ai.GenerationParams generation) {
+        if (generation == null || !generation.hasAny()) {
+            return;
+        }
+        if (generation.temperature() != null) {
+            builder.temperature(generation.temperature());
+        }
+        if (generation.maxTokens() != null) {
+            builder.maxOutputTokens(generation.maxTokens());
+        }
+        if (generation.topP() != null) {
+            builder.topP(generation.topP());
+        }
+        if (generation.stop() != null && !generation.stop().isEmpty()) {
+            builder.stopSequences(generation.stop());
+        }
+    }
+
+    /**
+     * Apply the framework-level {@link org.atmosphere.ai.GenerationParams} on the
+     * LC4j {@link dev.langchain4j.model.openai.OpenAiChatRequestParameters.Builder}
+     * used by the prompt-cache path (it inherits the generic
+     * {@code temperature}/{@code maxOutputTokens}/{@code topP}/{@code stopSequences}
+     * setters from {@code DefaultChatRequestParameters.Builder}). Only set
+     * components are forwarded; an unset component leaves the parameters
+     * untouched so the wire stays byte-identical to today.
+     */
+    private static void applyGeneration(
+            dev.langchain4j.model.openai.OpenAiChatRequestParameters.Builder builder,
+            org.atmosphere.ai.GenerationParams generation) {
+        if (generation == null || !generation.hasAny()) {
+            return;
+        }
+        if (generation.temperature() != null) {
+            builder.temperature(generation.temperature());
+        }
+        if (generation.maxTokens() != null) {
+            builder.maxOutputTokens(generation.maxTokens());
+        }
+        if (generation.topP() != null) {
+            builder.topP(generation.topP());
+        }
+        if (generation.stop() != null && !generation.stop().isEmpty()) {
+            builder.stopSequences(generation.stop());
+        }
     }
 
     private static dev.langchain4j.data.message.ChatMessage toLangChainMessage(

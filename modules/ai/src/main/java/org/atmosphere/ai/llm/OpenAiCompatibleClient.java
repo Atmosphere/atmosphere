@@ -71,6 +71,18 @@ public class OpenAiCompatibleClient implements LlmClient {
     private final Duration timeout;
     private final RetryPolicy retryPolicy;
     /**
+     * Opt-in framework-level generation overrides (temperature, max_tokens,
+     * top_p, stop) sourced from {@link org.atmosphere.ai.AiConfig.LlmSettings}.
+     * Never {@code null} — the builder defaults it to
+     * {@link org.atmosphere.ai.GenerationParams#defaults()} (all unset), which
+     * keeps the request body byte-identical to the pre-feature behavior. Each
+     * set component is applied in {@link #buildRequestBody} and
+     * {@link #buildResponsesApiBody}; an unset component leaves today's wire
+     * shape untouched (Correctness Invariant #7 — the same override reaches
+     * both the chat-completions and Responses-API body builders).
+     */
+    private final org.atmosphere.ai.GenerationParams generation;
+    /**
      * Caller-supplied headers attached to every outgoing HTTP request, in
      * insertion order. Used for proxy routing (Helicone, OpenRouter), per-
      * tenant identifiers, request tracing, or any provider-specific header
@@ -97,13 +109,26 @@ public class OpenAiCompatibleClient implements LlmClient {
 
     private OpenAiCompatibleClient(String baseUrl, String apiKey, HttpClient httpClient,
                                    Duration timeout, RetryPolicy retryPolicy,
-                                   java.util.Map<String, String> customHeaders) {
+                                   java.util.Map<String, String> customHeaders,
+                                   org.atmosphere.ai.GenerationParams generation) {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         this.apiKey = apiKey;
         this.httpClient = httpClient;
         this.timeout = timeout;
         this.retryPolicy = retryPolicy;
         this.customHeaders = customHeaders;
+        this.generation = generation != null
+                ? generation : org.atmosphere.ai.GenerationParams.defaults();
+    }
+
+    /**
+     * Returns the framework-level generation overrides this client applies to
+     * every outgoing request body. Never {@code null}; defaults to
+     * {@link org.atmosphere.ai.GenerationParams#defaults()} (all unset).
+     * Package-private so the body-shape tests can assert the builder wiring.
+     */
+    org.atmosphere.ai.GenerationParams generation() {
+        return generation;
     }
 
     /**
@@ -716,9 +741,26 @@ public class OpenAiCompatibleClient implements LlmClient {
         body.put("messages", serialized);
 
         body.put("stream", true);
-        body.put("temperature", request.temperature());
-        if (request.maxStreamingTexts() > 0) {
+        // Temperature: a framework-level GenerationParams override wins when
+        // set; otherwise emit the per-request value exactly as before so the
+        // unset path stays byte-identical.
+        body.put("temperature",
+                generation.temperature() != null ? generation.temperature() : request.temperature());
+        // Max tokens: a GenerationParams override wins; otherwise fall back to
+        // the per-request maxStreamingTexts (only emitted when > 0, as before).
+        if (generation.maxTokens() != null) {
+            body.put("max_tokens", generation.maxTokens());
+        } else if (request.maxStreamingTexts() > 0) {
             body.put("max_tokens", request.maxStreamingTexts());
+        }
+        // top_p and stop are emitted ONLY when the framework override is set —
+        // today neither field is sent, so an unset GenerationParams keeps the
+        // wire shape unchanged.
+        if (generation.topP() != null) {
+            body.put("top_p", generation.topP());
+        }
+        if (generation.stop() != null && !generation.stop().isEmpty()) {
+            body.put("stop", generation.stop());
         }
         if (request.jsonMode()) {
             body.put("response_format", Map.of("type", "json_object"));
@@ -1024,11 +1066,31 @@ public class OpenAiCompatibleClient implements LlmClient {
             }
         }
 
-        if (request.maxStreamingTexts() > 0) {
+        // Max output tokens: a framework GenerationParams override wins;
+        // otherwise fall back to the per-request maxStreamingTexts (only when
+        // > 0, as before). The Responses API names the field
+        // max_output_tokens (vs. chat-completions' max_tokens) — same override
+        // value, provider-correct field name (Correctness Invariant #7).
+        if (generation.maxTokens() != null) {
+            body.put("max_output_tokens", generation.maxTokens());
+        } else if (request.maxStreamingTexts() > 0) {
             body.put("max_output_tokens", request.maxStreamingTexts());
         }
-        if (request.temperature() >= 0) {
+        // Temperature: a GenerationParams override wins; otherwise emit the
+        // per-request value exactly as before (only when >= 0) so the unset
+        // path stays byte-identical.
+        if (generation.temperature() != null) {
+            body.put("temperature", generation.temperature());
+        } else if (request.temperature() >= 0) {
             body.put("temperature", request.temperature());
+        }
+        // top_p is emitted only when the framework override is set — today the
+        // Responses path never sends it, so an unset GenerationParams keeps the
+        // wire shape unchanged. NOTE: the Responses API has no `stop` parameter
+        // (unlike chat-completions), so GenerationParams.stop() is intentionally
+        // NOT forwarded here — see modules/ai/README.md (§ Generation parameters).
+        if (generation.topP() != null) {
+            body.put("top_p", generation.topP());
         }
         if (!request.tools().isEmpty()) {
             body.put("tools", buildResponsesApiTools(request.tools()));
@@ -1243,6 +1305,8 @@ public class OpenAiCompatibleClient implements LlmClient {
         private int maxRetries = 3;
         private Duration retryBaseDelay = Duration.ofMillis(500);
         private final java.util.LinkedHashMap<String, String> customHeaders = new java.util.LinkedHashMap<>();
+        private org.atmosphere.ai.GenerationParams generation =
+                org.atmosphere.ai.GenerationParams.defaults();
 
         private Builder() {
         }
@@ -1332,6 +1396,19 @@ public class OpenAiCompatibleClient implements LlmClient {
             return this;
         }
 
+        /**
+         * Set the framework-level {@link org.atmosphere.ai.GenerationParams}
+         * (temperature, max_tokens, top_p, stop) applied to every outgoing
+         * request body. Each set component overrides the corresponding wire
+         * field; unset components leave today's behavior unchanged. Passing
+         * {@code null} restores {@link org.atmosphere.ai.GenerationParams#defaults()}.
+         */
+        public Builder generation(org.atmosphere.ai.GenerationParams generation) {
+            this.generation = generation != null
+                    ? generation : org.atmosphere.ai.GenerationParams.defaults();
+            return this;
+        }
+
         public OpenAiCompatibleClient build() {
             var client = this.httpClient != null ? this.httpClient : HttpClient.newBuilder()
                     .connectTimeout(Duration.ofSeconds(30))
@@ -1340,7 +1417,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                     : new RetryPolicy(maxRetries, retryBaseDelay, Duration.ofSeconds(30),
                             2.0, RetryPolicy.DEFAULT.retryableErrors());
             return new OpenAiCompatibleClient(baseUrl, apiKey, client, timeout, policy,
-                    java.util.Map.copyOf(customHeaders));
+                    java.util.Map.copyOf(customHeaders), generation);
         }
     }
 }

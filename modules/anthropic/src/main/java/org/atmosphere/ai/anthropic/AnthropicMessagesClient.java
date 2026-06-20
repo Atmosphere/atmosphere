@@ -76,15 +76,47 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
     private static final int DEFAULT_MAX_TOKENS = 4096;
 
     private final String anthropicVersion;
+    /**
+     * Opt-in framework-level generation overrides. Never {@code null} — the
+     * builder defaults it to {@link org.atmosphere.ai.GenerationParams#defaults()}
+     * (all unset). {@code temperature}, {@code top_p}, and {@code stop_sequences}
+     * are applied in {@link #buildRequestBody} when set; {@code maxTokens} is
+     * handled by the runtime's builder wiring (it feeds the base
+     * {@code max_tokens} field, preserving the {@code anthropic.max.tokens}
+     * sysprop precedence). An unset component leaves the request body
+     * byte-identical to today.
+     */
+    private final org.atmosphere.ai.GenerationParams generation;
 
     private AnthropicMessagesClient(Builder b) {
         super(new SseClientConfig(b.baseUrl, b.apiKey, b.httpClient, b.timeout,
                 b.maxTokens, b.customHeaders));
         this.anthropicVersion = b.anthropicVersion;
+        this.generation = b.generation != null
+                ? b.generation : org.atmosphere.ai.GenerationParams.defaults();
     }
 
     public static Builder builder() {
         return new Builder();
+    }
+
+    /**
+     * Returns the framework-level generation overrides applied to every
+     * request body. Never {@code null}. Package-private so the wiring tests can
+     * assert that {@link AnthropicAgentRuntime#createNativeClient} threaded the
+     * {@code AiConfig} generation through without reaching into private state.
+     */
+    org.atmosphere.ai.GenerationParams generationForTest() {
+        return generation;
+    }
+
+    /**
+     * Returns the resolved {@code max_tokens} this client emits on every
+     * request. Package-private — exists so the wiring tests can pin the
+     * sysprop / GenerationParams / default precedence the runtime resolves.
+     */
+    int maxTokensForTest() {
+        return maxTokens;
     }
 
     @Override
@@ -499,6 +531,24 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
         root.put("model", model);
         root.put("max_tokens", maxTokens);
         root.put("stream", true);
+        // Framework-level GenerationParams overrides ride through to the
+        // Anthropic Messages wire when set. Anthropic names the stop field
+        // stop_sequences (array). Unset components are omitted so the body
+        // stays byte-identical to today. maxTokens is NOT applied here — it is
+        // already folded into the base `max_tokens` field by the runtime's
+        // builder wiring, which preserves the anthropic.max.tokens precedence.
+        if (generation.temperature() != null) {
+            root.put("temperature", generation.temperature());
+        }
+        if (generation.topP() != null) {
+            root.put("top_p", generation.topP());
+        }
+        if (generation.stop() != null && !generation.stop().isEmpty()) {
+            var stopArray = root.putArray("stop_sequences");
+            for (var s : generation.stop()) {
+                stopArray.add(s);
+            }
+        }
         if (system != null && !system.isBlank()) {
             root.put("system", system);
         }
@@ -572,6 +622,8 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
         private Duration timeout = Duration.ofSeconds(120);
         private int maxTokens = DEFAULT_MAX_TOKENS;
         private final LinkedHashMap<String, String> customHeaders = new LinkedHashMap<>();
+        private org.atmosphere.ai.GenerationParams generation =
+                org.atmosphere.ai.GenerationParams.defaults();
 
         private Builder() {
         }
@@ -603,6 +655,22 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
 
         public Builder maxTokens(int maxTokens) {
             this.maxTokens = maxTokens;
+            return this;
+        }
+
+        /**
+         * Set the framework-level {@link org.atmosphere.ai.GenerationParams}.
+         * Only {@code temperature}, {@code top_p}, and {@code stop} are applied
+         * by the client (as {@code temperature} / {@code top_p} /
+         * {@code stop_sequences} on the Messages request); {@code maxTokens} is
+         * wired separately into the base {@code max_tokens} field by the
+         * runtime so the {@code anthropic.max.tokens} precedence is preserved.
+         * Passing {@code null} restores
+         * {@link org.atmosphere.ai.GenerationParams#defaults()}.
+         */
+        public Builder generation(org.atmosphere.ai.GenerationParams generation) {
+            this.generation = generation != null
+                    ? generation : org.atmosphere.ai.GenerationParams.defaults();
             return this;
         }
 

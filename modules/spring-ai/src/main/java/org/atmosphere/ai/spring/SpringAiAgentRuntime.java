@@ -164,6 +164,12 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
                 org.atmosphere.ai.llm.CacheHint.endpointAcceptsPromptCacheKey(endpointUrl));
         var cacheHint = org.atmosphere.ai.llm.CacheHint.from(context);
         var cacheKey = cacheHint.resolvedKey(context);
+        // Framework-level generation overrides (temperature/maxTokens/topP/stop).
+        // Applied to whatever options object this dispatch builds — Spring AI's
+        // generic ChatOptions.Builder carries temperature/maxTokens/topP/
+        // stopSequences, so all four reach the wire on the OpenAI-backed path.
+        var generation = settings != null
+                ? settings.generation() : org.atmosphere.ai.GenerationParams.defaults();
         if (cacheHint.enabled() && cacheKey.isPresent() && endpointAccepts) {
             // Spring AI 2.0 (M5+) replaced OpenAiChatOptions.Builder.promptCacheKey(String)
             // with the generic extraBody(Map) escape hatch so OpenAI extension fields
@@ -175,12 +181,22 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
             if (context.model() != null && !context.model().isBlank()) {
                 openAiOpts.model(context.model());
             }
+            applyGeneration(openAiOpts, generation);
             promptSpec = promptSpec.options(openAiOpts);
             logger.debug("Applied prompt_cache_key={} (model={})",
                     cacheKey.get(), context.model());
-        } else if (context.model() != null && !context.model().isBlank()) {
-            promptSpec = promptSpec.options(ChatOptions.builder().model(context.model()));
-            logger.debug("Using per-request model override: {}", context.model());
+        } else if ((context.model() != null && !context.model().isBlank()) || generation.hasAny()) {
+            // A per-request model override OR any framework generation override
+            // needs an options object. The generic ChatOptions.Builder carries
+            // both; when only generation is set we still build it (no model()
+            // call) so the override reaches the wire without forcing a model.
+            var opts = ChatOptions.builder();
+            if (context.model() != null && !context.model().isBlank()) {
+                opts.model(context.model());
+                logger.debug("Using per-request model override: {}", context.model());
+            }
+            applyGeneration(opts, generation);
+            promptSpec = promptSpec.options(opts);
         }
 
         var tools = context.tools();
@@ -384,6 +400,36 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
                 // chat completion and settling whenDone().
                 AiCapability.CANCELLATION
         );
+    }
+
+    /**
+     * Apply the framework-level {@link org.atmosphere.ai.GenerationParams} to a
+     * Spring AI {@link ChatOptions.Builder} (works for both the generic builder
+     * and the OpenAI-specific subclass, which both expose the generic
+     * {@code temperature}/{@code maxTokens}/{@code topP}/{@code stopSequences}
+     * setters). Only set components are forwarded; an unset component leaves the
+     * options untouched so the wire stays byte-identical to today.
+     *
+     * @param builder    the options builder to mutate in place
+     * @param generation the resolved overrides; {@link org.atmosphere.ai.GenerationParams#defaults()} is a no-op
+     */
+    private static void applyGeneration(ChatOptions.Builder<?> builder,
+                                        org.atmosphere.ai.GenerationParams generation) {
+        if (generation == null || !generation.hasAny()) {
+            return;
+        }
+        if (generation.temperature() != null) {
+            builder.temperature(generation.temperature());
+        }
+        if (generation.maxTokens() != null) {
+            builder.maxTokens(generation.maxTokens());
+        }
+        if (generation.topP() != null) {
+            builder.topP(generation.topP());
+        }
+        if (generation.stop() != null && !generation.stop().isEmpty()) {
+            builder.stopSequences(generation.stop());
+        }
     }
 
     private static Message toSpringMessage(ChatMessage msg) {

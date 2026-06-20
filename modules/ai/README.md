@@ -231,6 +231,64 @@ export LLM_MODE=local
 export LLM_MODEL=llama3.2
 ```
 
+### Generation parameters
+
+Four optional generation knobs let you set sampling controls once at the
+framework level instead of hardcoding per-adapter values. All four are
+**opt-in**: when a knob is unset the request body is byte-identical to the
+pre-configuration behavior.
+
+| Sysprop | Env var | Type | Notes |
+|---------|---------|------|-------|
+| `atmosphere.ai.temperature` | `LLM_TEMPERATURE` | double | clamped to `[0.0, 2.0]` |
+| `atmosphere.ai.max-tokens` | `LLM_MAX_TOKENS` | int | non-positive values ignored |
+| `atmosphere.ai.top-p` | `LLM_TOP_P` | double | clamped to `[0.0, 1.0]` |
+| `atmosphere.ai.stop` | `LLM_STOP` | comma-separated | blank entries dropped |
+
+The sysprop wins over the env var for each knob. **Malformed numeric values are
+logged and ignored** (the knob stays unset) — they never throw. Values are
+sanitized at the boundary: out-of-range temperature/top-p are clamped and a
+non-positive `max-tokens` is dropped rather than corrupting the request.
+
+```bash
+export LLM_TEMPERATURE=0.2
+export LLM_MAX_TOKENS=1024
+export LLM_TOP_P=0.9
+export LLM_STOP=END,STOP
+```
+
+#### Per-runtime honoring matrix (Runtime Truth)
+
+These knobs reach the provider wire **only** for the runtimes listed below.
+Each cell reflects a code path that actually emits the field — a runtime that
+cannot honor a knob via `AiConfig` is marked `native` and uses its own
+framework-native configuration instead (we never silently drop a knob).
+
+| Runtime | temperature | maxTokens | topP | stop |
+|---------|:-----------:|:---------:|:----:|:----:|
+| Built-in (`OpenAiCompatibleClient`, chat-completions) | ✅ | ✅ `max_tokens` | ✅ `top_p` | ✅ `stop` |
+| Built-in (`OpenAiCompatibleClient`, Responses API) | ✅ | ✅ `max_output_tokens` | ✅ `top_p` | ⛔ (API has no `stop`) |
+| Anthropic (`AnthropicMessagesClient`) | ✅ | ✅ `max_tokens` ¹ | ✅ `top_p` | ✅ `stop_sequences` |
+| Spring AI (`SpringAiAgentRuntime`) | ✅ | ✅ | ✅ | ✅ `stopSequences` ² |
+| LangChain4j (`LangChain4jAgentRuntime`) | ✅ | ✅ `maxOutputTokens` | ✅ | ✅ `stopSequences` ² |
+| ADK, Koog, Embabel, Semantic Kernel, AgentScope, Spring AI Alibaba, Cohere, CrewAI | native | native | native | native |
+
+¹ Anthropic `max_tokens` precedence is **`anthropic.max.tokens` sysprop →
+`AiConfig` `maxTokens` → client default (4096)**: the per-runtime sysprop still
+wins; the framework knob only fills the gap when the sysprop is unset.
+
+² Spring AI and LangChain4j apply the knobs through the generic
+`ChatOptions` / `ChatRequest` builders they already construct (the same seam
+used for prompt caching). Whether a given provider behind those frameworks
+honors every field depends on that provider, but the framework forwards all
+four; the OpenAI-backed path honors all four.
+
+> The Built-in Responses-API path intentionally does **not** emit `stop` — the
+> OpenAI Responses API has no `stop` parameter (unlike chat-completions). All
+> other knobs match across the chat-completions and Responses paths (Mode
+> Parity). The eight runtimes marked `native` are not wired through `AiConfig`
+> for these knobs; configure them via their framework's own options API.
+
 ## Tool Loop Policy
 
 When the model emits tool-call requests, the runtime runs an iterative

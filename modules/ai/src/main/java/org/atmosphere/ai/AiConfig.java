@@ -100,6 +100,34 @@ public final class AiConfig {
      */
     public static final String PROMPT_CACHE_KEY_ENV = "LLM_PROMPT_CACHE_KEY";
 
+    // -- Generation parameter knobs (sysprop / env) --
+    //
+    // All four are opt-in: when unset the resolved GenerationParams collapses to
+    // GenerationParams.defaults() (all null) and the wire stays byte-identical
+    // to the pre-feature behavior. Malformed numeric values are logged and
+    // ignored (never throw — Correctness Invariant #4, fail at the boundary).
+    // The sysprop wins over the env var, mirroring the prompt-cache-key precedence.
+
+    /** Sysprop for the sampling temperature override. Env: {@link #TEMPERATURE_ENV}. */
+    public static final String TEMPERATURE_PROPERTY = "atmosphere.ai.temperature";
+    /** Env var for the sampling temperature override. See {@link #TEMPERATURE_PROPERTY}. */
+    public static final String TEMPERATURE_ENV = "LLM_TEMPERATURE";
+
+    /** Sysprop for the max-tokens override. Env: {@link #MAX_TOKENS_ENV}. */
+    public static final String MAX_TOKENS_PROPERTY = "atmosphere.ai.max-tokens";
+    /** Env var for the max-tokens override. See {@link #MAX_TOKENS_PROPERTY}. */
+    public static final String MAX_TOKENS_ENV = "LLM_MAX_TOKENS";
+
+    /** Sysprop for the top-p override. Env: {@link #TOP_P_ENV}. */
+    public static final String TOP_P_PROPERTY = "atmosphere.ai.top-p";
+    /** Env var for the top-p override. See {@link #TOP_P_PROPERTY}. */
+    public static final String TOP_P_ENV = "LLM_TOP_P";
+
+    /** Sysprop for the comma-separated stop sequences. Env: {@link #STOP_ENV}. */
+    public static final String STOP_PROPERTY = "atmosphere.ai.stop";
+    /** Env var for the comma-separated stop sequences. See {@link #STOP_PROPERTY}. */
+    public static final String STOP_ENV = "LLM_STOP";
+
     // -- Well-known endpoints --
 
     public static final String GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/openai";
@@ -126,15 +154,20 @@ public final class AiConfig {
      * built with; in fake mode it is {@code null}.</p>
      */
     public record LlmSettings(LlmClient client, String model, String mode, String baseUrl,
-                              String apiKey, PromptCacheKeyMode promptCacheKeyMode) {
+                              String apiKey, PromptCacheKeyMode promptCacheKeyMode,
+                              GenerationParams generation) {
 
         /**
          * Canonical-constructor null guard: a {@code null}
          * {@code promptCacheKeyMode} collapses to {@link PromptCacheKeyMode#AUTO}
-         * so the default path stays byte-identical to the pre-flag wire output.
+         * and a {@code null} {@code generation} collapses to
+         * {@link GenerationParams#defaults()} so the default path stays
+         * byte-identical to the pre-flag / pre-{@code GenerationParams} wire
+         * output.
          */
         public LlmSettings {
             promptCacheKeyMode = promptCacheKeyMode == null ? PromptCacheKeyMode.AUTO : promptCacheKeyMode;
+            generation = generation == null ? GenerationParams.defaults() : generation;
         }
 
         /**
@@ -153,13 +186,15 @@ public final class AiConfig {
         public LlmSettings(LlmClient client, String model, String mode, String baseUrl) {
             this(client, model, mode, baseUrl,
                     client instanceof OpenAiCompatibleClient oac ? oac.apiKey() : null,
-                    PromptCacheKeyMode.AUTO);
+                    PromptCacheKeyMode.AUTO, GenerationParams.defaults());
         }
 
         /**
          * Backward-compatible 5-arg constructor preserving the post-B1 shape
-         * ({@code apiKey} supplied explicitly) while defaulting the new
-         * {@code promptCacheKeyMode} component to {@link PromptCacheKeyMode#AUTO}.
+         * ({@code apiKey} supplied explicitly) while defaulting the
+         * {@code promptCacheKeyMode} component to {@link PromptCacheKeyMode#AUTO}
+         * and the {@code generation} component to
+         * {@link GenerationParams#defaults()}.
          *
          * @param client  the resolved LLM client
          * @param model   the model name
@@ -168,7 +203,28 @@ public final class AiConfig {
          * @param apiKey  the framework-resolved provider API key (may be {@code null})
          */
         public LlmSettings(LlmClient client, String model, String mode, String baseUrl, String apiKey) {
-            this(client, model, mode, baseUrl, apiKey, PromptCacheKeyMode.AUTO);
+            this(client, model, mode, baseUrl, apiKey, PromptCacheKeyMode.AUTO,
+                    GenerationParams.defaults());
+        }
+
+        /**
+         * Backward-compatible 6-arg constructor preserving the post-B5 shape
+         * ({@code promptCacheKeyMode} supplied explicitly) while defaulting the
+         * new {@code generation} component to {@link GenerationParams#defaults()}
+         * so existing callers that pre-date the generation-parameter component
+         * keep identical behavior.
+         *
+         * @param client             the resolved LLM client
+         * @param model              the model name
+         * @param mode               the mode ({@code remote}, {@code local}, or {@code fake})
+         * @param baseUrl            the resolved base URL
+         * @param apiKey             the framework-resolved provider API key (may be {@code null})
+         * @param promptCacheKeyMode the tri-state {@code prompt_cache_key} control
+         */
+        public LlmSettings(LlmClient client, String model, String mode, String baseUrl,
+                           String apiKey, PromptCacheKeyMode promptCacheKeyMode) {
+            this(client, model, mode, baseUrl, apiKey, promptCacheKeyMode,
+                    GenerationParams.defaults());
         }
 
         /**
@@ -219,10 +275,17 @@ public final class AiConfig {
             // (the default) keeps every path byte-identical to the legacy
             // host-heuristic behavior.
             var cacheKeyMode = resolvePromptCacheKeyMode();
+            // Generation parameters (temperature/max-tokens/top-p/stop) are
+            // resolved once here from sysprops (then env) and stored on the
+            // settings so every realization site reads the same opt-in values.
+            // GenerationParams.defaults() (all null) keeps the wire byte-identical
+            // to the pre-feature behavior when nothing is configured.
+            var generation = resolveGenerationParams();
 
             if ("fake".equalsIgnoreCase(mode)) {
                 logger.info("AI config: mode=fake (using FakeLlmClient — no real API calls)");
-                instance = new LlmSettings(new FakeLlmClient(model), model, mode, "fake", null, cacheKeyMode);
+                instance = new LlmSettings(new FakeLlmClient(model), model, mode, "fake", null,
+                        cacheKeyMode, generation);
                 return instance;
             }
 
@@ -242,14 +305,16 @@ public final class AiConfig {
             // CredentialResolver when settings.apiKey() is null.
             var resolvedKey = (apiKey != null && !apiKey.isBlank()) ? apiKey : null;
 
-            var builder = OpenAiCompatibleClient.builder().baseUrl(resolvedUrl);
+            var builder = OpenAiCompatibleClient.builder().baseUrl(resolvedUrl)
+                    .generation(generation);
             if (resolvedKey != null) {
                 builder.apiKey(resolvedKey);
             } else if (!"local".equalsIgnoreCase(mode)) {
                 logger.warn("No API key configured for remote mode. Set LLM_API_KEY or GEMINI_API_KEY environment variable.");
             }
 
-            instance = new LlmSettings(builder.build(), model, mode, resolvedUrl, resolvedKey, cacheKeyMode);
+            instance = new LlmSettings(builder.build(), model, mode, resolvedUrl, resolvedKey,
+                    cacheKeyMode, generation);
             return instance;
         } finally {
             LOCK.unlock();
@@ -272,6 +337,77 @@ public final class AiConfig {
             raw = System.getenv(PROMPT_CACHE_KEY_ENV);
         }
         return PromptCacheKeyMode.parse(raw);
+    }
+
+    /**
+     * Resolve the opt-in {@link GenerationParams} (temperature, max-tokens,
+     * top-p, stop) from system properties, falling back to the matching
+     * environment variables. The sysprop wins over the env var for each knob,
+     * mirroring {@link #resolvePromptCacheKeyMode()}. Malformed numeric values
+     * are logged and ignored (the component stays unset) — never thrown
+     * (Correctness Invariant #4: catch parse errors at the boundary). When no
+     * knob is configured this returns {@link GenerationParams#defaults()} so
+     * the wire stays byte-identical to the pre-feature behavior.
+     *
+     * @return the resolved generation parameters, never {@code null}
+     */
+    public static GenerationParams resolveGenerationParams() {
+        var temperature = parseDoubleKnob(TEMPERATURE_PROPERTY, TEMPERATURE_ENV, "temperature");
+        var maxTokens = parseIntKnob(MAX_TOKENS_PROPERTY, MAX_TOKENS_ENV, "max-tokens");
+        var topP = parseDoubleKnob(TOP_P_PROPERTY, TOP_P_ENV, "top-p");
+        var stop = parseStopKnob(STOP_PROPERTY, STOP_ENV);
+        return new GenerationParams(temperature, maxTokens, topP, stop);
+    }
+
+    private static String rawKnob(String property, String env) {
+        var raw = System.getProperty(property);
+        if (raw == null || raw.isBlank()) {
+            raw = System.getenv(env);
+        }
+        return (raw != null && !raw.isBlank()) ? raw.trim() : null;
+    }
+
+    private static Double parseDoubleKnob(String property, String env, String label) {
+        var raw = rawKnob(property, env);
+        if (raw == null) {
+            return null;
+        }
+        try {
+            return Double.valueOf(raw);
+        } catch (NumberFormatException ex) {
+            logger.warn("Ignoring malformed {} value '{}' (expected a number)", label, raw);
+            return null;
+        }
+    }
+
+    private static Integer parseIntKnob(String property, String env, String label) {
+        var raw = rawKnob(property, env);
+        if (raw == null) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(raw);
+        } catch (NumberFormatException ex) {
+            logger.warn("Ignoring malformed {} value '{}' (expected an integer)", label, raw);
+            return null;
+        }
+    }
+
+    private static java.util.List<String> parseStopKnob(String property, String env) {
+        var raw = rawKnob(property, env);
+        if (raw == null) {
+            return null;
+        }
+        // Comma-separated; GenerationParams' canonical constructor strips blank
+        // entries and collapses an empty result to unset.
+        var parts = new java.util.ArrayList<String>();
+        for (var token : raw.split(",", -1)) {
+            var trimmed = token.trim();
+            if (!trimmed.isEmpty()) {
+                parts.add(trimmed);
+            }
+        }
+        return parts.isEmpty() ? null : parts;
     }
 
     /**
