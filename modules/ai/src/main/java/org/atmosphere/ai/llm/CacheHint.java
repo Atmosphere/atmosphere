@@ -124,27 +124,45 @@ public record CacheHint(CachePolicy policy, Optional<String> cacheKey, Optional<
     }
 
     /**
-     * True when the configured LLM endpoint is known to tolerate the OpenAI
-     * extension field {@code prompt_cache_key}. OpenAI proper accepts it;
-     * most OpenAI-compat proxies (Groq, Together, vLLM, Ollama) silently
-     * ignore unknown fields. Gemini's OpenAI-compat surface enforces strict
-     * JSON schema validation and rejects unknown fields with HTTP 400, so
-     * adapters MUST suppress {@code prompt_cache_key} when targeting Gemini.
+     * The single source of truth for whether the configured LLM endpoint is
+     * known to tolerate the OpenAI extension field {@code prompt_cache_key}
+     * under {@link PromptCacheKeyMode#AUTO}. This allow-list is shared by both
+     * realization sites — the Built-in {@link OpenAiCompatibleClient} (which
+     * delegates here from {@code autoSupportsPromptCacheKey()}) and the
+     * LangChain4j / Spring AI adapters — so AUTO behavior is identical across
+     * the Built-in and framework runtimes (Mode Parity, Correctness Invariant
+     * #7).
      *
-     * <p>Returns {@code true} for {@code null}/blank URLs (assumed OpenAI by
-     * default) and any URL not in the known-incompatible list, preserving
-     * the cache-hint behavior for all OpenAI-compatible providers except the
-     * ones empirically observed to reject unknown fields.</p>
+     * <p><strong>Allow-list, default-DENY.</strong> Returns {@code true} only
+     * for endpoints empirically known to honor or gracefully ignore the field:
+     * {@code api.openai.com}, Azure OpenAI ({@code .openai.azure.com}), and
+     * loopback ({@code localhost} / {@code 127.0.0.1}). Every other host —
+     * including {@code null}/blank URLs — returns {@code false}.</p>
+     *
+     * <p>Default-deny is the safe policy across arbitrary OpenAI-compatible
+     * endpoints. A strict OpenAI-compat proxy that rejects unknown fields
+     * (Gemini's {@code generativelanguage.googleapis.com} surface returns
+     * HTTP 400 {@code "Unknown name 'prompt_cache_key'"}; other gateways may
+     * do the same) would break the whole request if we emitted the field
+     * speculatively. Suppressing on unknown hosts costs only the prompt-cache
+     * optimization — {@link org.atmosphere.ai.cache.ResponseCache} still
+     * short-circuits identical requests at the pipeline level — while emitting
+     * speculatively risks a hard request failure. Callers who run against an
+     * OpenAI-compatible endpoint NOT on this list and know it tolerates the
+     * field can force emission anywhere via
+     * {@link PromptCacheKeyMode#ENABLED}.</p>
+     *
+     * @param endpointUrl the configured base URL (may be {@code null}/blank)
+     * @return {@code true} iff the host is a known-supported endpoint
      */
     public static boolean endpointAcceptsPromptCacheKey(String endpointUrl) {
         if (endpointUrl == null || endpointUrl.isBlank()) {
-            return true;
-        }
-        String url = endpointUrl.toLowerCase(java.util.Locale.ROOT);
-        // Gemini OpenAI-compat: strict schema, rejects unknown fields.
-        if (url.contains("generativelanguage.googleapis.com")) {
             return false;
         }
-        return true;
+        String url = endpointUrl.toLowerCase(java.util.Locale.ROOT);
+        return url.contains("api.openai.com")
+                || url.contains(".openai.azure.com")
+                || url.contains("localhost")
+                || url.contains("127.0.0.1");
     }
 }

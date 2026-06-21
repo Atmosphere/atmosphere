@@ -147,16 +147,17 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
         // OpenAiChatOptions instead so we can set both the model and
         // promptCacheKey in one options instance. OpenAiChatOptions extends
         // ChatOptions and is merged by Spring AI's ChatClient whenever the
-        // underlying ChatModel is OpenAI-backed. Most OpenAI-compat providers
-        // tolerate unknown fields, but Gemini's surface rejects with HTTP 400;
-        // CacheHint.endpointAcceptsPromptCacheKey gates the injection on the
-        // configured base URL so non-tolerant providers still keep the
-        // generic ChatOptions path.
+        // underlying ChatModel is OpenAI-backed.
+        // CacheHint.endpointAcceptsPromptCacheKey is the shared default-DENY
+        // allow-list (api.openai.com / Azure OpenAI / loopback only); on every
+        // other host — including a strict OpenAI-compat proxy that would reject
+        // the unknown field — the injection is suppressed and the generic
+        // ChatOptions path is kept.
         var settings = org.atmosphere.ai.AiConfig.get();
         var endpointUrl = settings != null ? settings.baseUrl() : null;
         // Tri-state override: ENABLED force-emits, DISABLED force-suppresses,
-        // AUTO (default) defers to the legacy host deny-list — keeping the AUTO
-        // path byte-identical to the pre-flag behavior.
+        // AUTO (default) defers to the shared allow-list, so the framework and
+        // Built-in runtimes make the identical AUTO decision (Mode Parity).
         var cacheKeyMode = settings != null
                 ? settings.promptCacheKeyMode()
                 : org.atmosphere.ai.llm.PromptCacheKeyMode.AUTO;

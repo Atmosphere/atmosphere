@@ -801,19 +801,16 @@ public class OpenAiCompatibleClient implements LlmClient {
     }
 
     /**
-     * The legacy host allow-list (default-DENY): only endpoints empirically
-     * known to honor or gracefully ignore {@code prompt_cache_key} return
-     * {@code true}. This is the decision used under
-     * {@link PromptCacheKeyMode#AUTO}.
+     * The host allow-list (default-DENY) used under {@link PromptCacheKeyMode#AUTO}.
+     * Delegates to {@link CacheHint#endpointAcceptsPromptCacheKey(String)} — the
+     * single source of truth shared with the LangChain4j and Spring AI adapters
+     * — so the Built-in and framework runtimes make the identical AUTO decision
+     * for any given endpoint (Mode Parity). A {@code null}/blank {@code baseUrl}
+     * resolves to {@code false} (default-deny on unknown), matching the shared
+     * helper's contract.
      */
     private boolean autoSupportsPromptCacheKey() {
-        if (baseUrl == null) {
-            return false;
-        }
-        return baseUrl.contains("api.openai.com")
-                || baseUrl.contains(".openai.azure.com")
-                || baseUrl.contains("localhost")
-                || baseUrl.contains("127.0.0.1");
+        return CacheHint.endpointAcceptsPromptCacheKey(baseUrl);
     }
 
     private static int findLastUserMessageIndex(List<ChatMessage> messages) {

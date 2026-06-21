@@ -32,18 +32,22 @@ import java.util.Locale;
  * <ul>
  *   <li>{@link #ENABLED} — always emit {@code prompt_cache_key} regardless of host.</li>
  *   <li>{@link #DISABLED} — never emit {@code prompt_cache_key} regardless of host.</li>
- *   <li>{@link #AUTO} — defer to the realization site's host heuristic (the
- *       legacy behavior). This is the default and is byte-for-byte identical
- *       to the pre-flag wire output on every path.</li>
+ *   <li>{@link #AUTO} — defer to the shared host allow-list. This is the default.</li>
  * </ul>
  *
- * <p><strong>Note on AUTO divergence:</strong> the AUTO heuristics are NOT
- * shared across realization sites. The Built-in client uses an allow-list
- * (default-DENY: only {@code api.openai.com}, Azure OpenAI, and localhost emit),
- * while the LangChain4j and Spring AI adapters use a deny-list (default-ALLOW:
- * only Gemini's OpenAI-compat surface suppresses). This flag preserves that
- * pre-existing divergence under AUTO; converging the two heuristics is a
- * separate, flagged follow-up.</p>
+ * <p><strong>AUTO is a single converged allow-list.</strong> All realization
+ * sites — the Built-in {@link OpenAiCompatibleClient} and the LangChain4j /
+ * Spring AI adapters — resolve AUTO through the one source of truth
+ * {@link CacheHint#endpointAcceptsPromptCacheKey(String)}: a default-DENY
+ * allow-list that emits only for {@code api.openai.com}, Azure OpenAI
+ * ({@code .openai.azure.com}), and loopback ({@code localhost} /
+ * {@code 127.0.0.1}). Every other host — including a {@code null}/blank base
+ * URL — suppresses the field. The Built-in and framework runtimes therefore
+ * make the identical AUTO decision for any given endpoint (Mode Parity,
+ * Correctness Invariant #7). Default-deny is the safe policy: a strict
+ * OpenAI-compat proxy that rejects unknown fields would otherwise fail the
+ * whole request, and users who know their endpoint tolerates the field can
+ * force emission anywhere via {@link #ENABLED}.</p>
  */
 public enum PromptCacheKeyMode {
 

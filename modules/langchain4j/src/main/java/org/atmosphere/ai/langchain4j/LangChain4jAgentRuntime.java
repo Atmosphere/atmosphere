@@ -261,15 +261,15 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         // OpenAI-path {@code prompt_cache_key} injected via LC4j's
         // OpenAiChatRequestParameters.customParameters(Map) — LC4j's generic
         // ChatRequest.Builder has no typed cache accessor, so we go through
-        // the OpenAI params surface. Most OpenAI-compat providers silently
-        // ignore unknown fields, but Gemini's surface enforces strict JSON
-        // schema and rejects with HTTP 400; CacheHint.endpointAcceptsPromptCacheKey
-        // gates the injection on the configured base URL.
+        // the OpenAI params surface. CacheHint.endpointAcceptsPromptCacheKey is
+        // the shared default-DENY allow-list (api.openai.com / Azure OpenAI /
+        // loopback only); on every other host — including a strict OpenAI-compat
+        // proxy that would reject the unknown field — the injection is suppressed.
         var settings = org.atmosphere.ai.AiConfig.get();
         var endpointUrl = settings != null ? settings.baseUrl() : null;
         // Tri-state override: ENABLED force-emits, DISABLED force-suppresses,
-        // AUTO (default) defers to the legacy host deny-list — keeping the AUTO
-        // path byte-identical to the pre-flag behavior.
+        // AUTO (default) defers to the shared allow-list, so the framework and
+        // Built-in runtimes make the identical AUTO decision (Mode Parity).
         var cacheKeyMode = settings != null
                 ? settings.promptCacheKeyMode()
                 : org.atmosphere.ai.llm.PromptCacheKeyMode.AUTO;
