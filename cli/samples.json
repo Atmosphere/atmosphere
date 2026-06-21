@@ -449,7 +449,7 @@
     },
     {
       "name": "spring-boot-personal-assistant",
-      "description": "Long-lived memory-bearing assistant: AgentState + AgentWorkspace + AgentIdentity + ProtocolBridge",
+      "description": "Long-lived memory-bearing assistant: AgentState + AgentWorkspace + AgentIdentity + ProtocolBridge + LongTermMemory cross-session recall",
       "category": "agent",
       "tags": [
         "spring-boot",
@@ -457,6 +457,7 @@
         "agent",
         "workspace",
         "memory",
+        "long-term-memory",
         "identity"
       ],
       "port": 8080,

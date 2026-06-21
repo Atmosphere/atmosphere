@@ -4,7 +4,18 @@ A long-lived, memory-bearing personal assistant with a three-member
 crew (scheduler, research, drafter) dispatched through
 `InMemoryProtocolBridge`. Exercises the foundation primitives —
 `AgentState`, `AgentWorkspace`, `AgentIdentity`, `ToolExtensibilityPoint`,
-`AiGateway`, `ProtocolBridge` — end-to-end.
+`AiGateway`, `ProtocolBridge`, and `LongTermMemory` — end-to-end.
+
+"Memory-bearing" here means two distinct, real mechanisms:
+
+1. **Workspace memory** (`AgentState` / `AgentWorkspace`) — durable rules
+   and notes seeded from the `agent-workspace/` markdown files.
+2. **Cross-session fact recall** (`LongTermMemory`) — the assistant
+   automatically remembers facts about a user (their name, pets,
+   preferences) and recalls them in later sessions. This is wired on the
+   `UpstreamMcpAgent` endpoint via the real `InMemoryLongTermMemory` +
+   `LongTermMemoryInterceptor` primitives — see
+   [Long-term memory](#long-term-memory--cross-session-fact-recall) below.
 
 ## What this sample proves
 
@@ -26,6 +37,12 @@ crew (scheduler, research, drafter) dispatched through
   through the trust provider backed by the user's `CredentialStore`.
 - **`AiGateway`** — every LLM call enters the gateway for rate limiting
   and trace emission.
+- **`LongTermMemory`** — the `UpstreamMcpAgent` endpoint recalls stored
+  user facts into the system prompt before each turn (`preProcess`) and
+  extracts new facts when the session closes (`onDisconnect`), so the
+  assistant remembers a user across reconnects. Backed by the in-tree
+  `InMemoryLongTermMemory` + `LongTermMemoryInterceptor`; see
+  [Long-term memory](#long-term-memory--cross-session-fact-recall).
 
 ## Running
 
@@ -121,6 +138,50 @@ curl http://localhost:8080/api/mcp-client/sources | jq
 
 Validated end-to-end by `modules/integration-tests/e2e/mcp-client.spec.ts`
 across both runtimes.
+
+## Long-term memory — cross-session fact recall
+
+The `UpstreamMcpAgent` endpoint is also a real consumer of the
+`LongTermMemory` primitive, so the assistant remembers facts about a user
+across separate WebSocket connections — exactly what a "long-lived,
+memory-bearing assistant" should do.
+
+Three small sample classes wire it, mirroring the `RemoteToolsConfig` /
+`McpToolSourceHolder` / `McpToolsInterceptor` pattern used for outbound MCP
+tools (the `@AiEndpoint(interceptors=...)` scanner instantiates interceptors
+via their no-arg constructor, so a Spring `@Configuration` builds the
+backend and hands it to the interceptor through a static holder):
+
+| Class | Role |
+|-------|------|
+| `LongTermMemoryConfig` | `@Configuration` — builds `InMemoryLongTermMemory(20)` + a `LongTermMemoryInterceptor` using the resolved `AgentRuntime` (`AgentRuntimeResolver.resolve()`) and the `onSessionClose` extraction strategy, then publishes both into the holder. |
+| `LongTermMemoryHolder` | Static handoff from the Spring bean to the reflectively-created interceptor. |
+| `PersonalAssistantMemoryInterceptor` | No-arg `AiInterceptor` registered on `UpstreamMcpAgent`; delegates `preProcess`/`postProcess`/`onDisconnect` to the held `LongTermMemoryInterceptor`. |
+
+How it runs on the user-message path:
+
+- **Recall (`preProcess`)** — before each turn, stored facts for the
+  request's `userId` are injected into the system prompt under a
+  "Known facts about this user:" block.
+- **Store (`onDisconnect`)** — when the session ends, the conversation is
+  summarized into concise facts by the extraction runtime and saved for
+  that user. With `onSessionClose` this is one extraction call per
+  session, not per message.
+
+`InMemoryLongTermMemory` keeps facts for the JVM's lifetime (lost on
+restart) with zero external dependencies. For persistence across restarts,
+swap in `SqliteLongTermMemory` (`atmosphere-durable-sessions-sqlite`) or
+`RedisLongTermMemory` (`atmosphere-durable-sessions-redis`) — the
+interceptor wiring is identical.
+
+> Facts are keyed by `userId`. The recall block only appears once an
+> authenticated `userId` is present on the request and facts have been
+> stored for that user; an anonymous request gets the original prompt
+> unchanged.
+
+Proven by `LongTermMemoryConsumerTest` (in the sample's `src/test`): a fact
+extracted when one session closes is recalled into a later session's system
+prompt for the same user, and never leaks to a different user.
 
 ## Notes
 

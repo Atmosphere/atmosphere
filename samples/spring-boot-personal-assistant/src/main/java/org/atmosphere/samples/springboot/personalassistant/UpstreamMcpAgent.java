@@ -45,6 +45,13 @@ import org.slf4j.LoggerFactory;
  * {@link RemoteToolsConfig}) and surfacing its tools via an
  * {@link org.atmosphere.ai.AiInterceptor}.</p>
  *
+ * <p>This endpoint also carries the assistant's <b>long-term memory</b>:
+ * {@link PersonalAssistantMemoryInterceptor} (backed by the framework's
+ * {@link org.atmosphere.ai.memory.LongTermMemoryInterceptor} via
+ * {@link LongTermMemoryConfig}) recalls stored user facts into the system
+ * prompt before each turn and extracts new facts when the session closes, so
+ * the assistant remembers a user across reconnects.</p>
+ *
  * <p><b>Pair with {@code spring-boot-mcp-server} as the upstream:</b></p>
  * <pre>{@code
  * # Terminal 1: start the upstream MCP server (port 8083)
@@ -73,7 +80,7 @@ import org.slf4j.LoggerFactory;
                 + "versions, or values — only report what the tools return.",
         conversationMemory = true,
         maxHistoryMessages = 20,
-        interceptors = McpToolsInterceptor.class)
+        interceptors = {PersonalAssistantMemoryInterceptor.class, McpToolsInterceptor.class})
 @AgentScope(unrestricted = true,
         justification = "Outbound-MCP demo endpoint — accepts arbitrary prompts to exercise remote tool dispatch.")
 public class UpstreamMcpAgent {
