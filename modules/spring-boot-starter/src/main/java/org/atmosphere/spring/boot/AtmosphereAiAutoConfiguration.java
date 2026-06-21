@@ -548,6 +548,153 @@ public class AtmosphereAiAutoConfiguration {
     }
 
 
+    /**
+     * Opt-in content-based model routing. Off by default — enable with
+     * {@code atmosphere.ai.routing.enabled=true}. Wraps the framework-resolved
+     * {@link org.atmosphere.ai.llm.LlmClient} in a
+     * {@link org.atmosphere.ai.routing.RoutingLlmClient} and installs it via
+     * {@link AiConfig#installClient}, so it becomes the client every
+     * {@code AgentRuntime} dispatch reads on the request critical path.
+     *
+     * <p>Each configured content rule routes requests whose latest user
+     * message contains any of the rule's keywords (case-insensitive substring
+     * match) to the rule's model. A rule reuses the resolved client by default;
+     * when {@code base-url}/{@code api-key} are set it targets a dedicated
+     * OpenAI-compatible endpoint instead. Requests matching no rule fall
+     * through to the resolved client and the configured default model.</p>
+     *
+     * <p>Depends on the {@link AiConfig.LlmSettings} bean so it installs the
+     * router after {@link AiConfig#configure} has resolved the base client.
+     * Returns a marker bean carrying the installed router so tests and
+     * diagnostics can assert the wiring; {@code DisposableBean} reinstalls the
+     * un-wrapped resolved client on shutdown so the process-wide singleton does
+     * not carry the router across context restarts.</p>
+     *
+     * <p>SCOPE: content rules only (the config-driven MVP). Cost-, latency-,
+     * and model-based routing remain programmatic via
+     * {@link org.atmosphere.ai.routing.RoutingLlmClient#builder}; see
+     * {@code modules/ai/README.md} (§ Routing).</p>
+     */
+    @Bean
+    @ConditionalOnMissingBean(RoutingClientInstaller.class)
+    @ConditionalOnProperty(name = "atmosphere.ai.routing.enabled", havingValue = "true")
+    public RoutingClientInstaller atmosphereRoutingClientInstaller(
+            AiConfig.LlmSettings baseSettings, AtmosphereProperties properties) {
+        var routing = properties.getAi().getRouting();
+        var defaultModel = (routing.getDefaultModel() != null && !routing.getDefaultModel().isBlank())
+                ? routing.getDefaultModel()
+                : baseSettings.model();
+        var builder = org.atmosphere.ai.routing.RoutingLlmClient.builder(
+                baseSettings.client(), defaultModel);
+        int ruleCount = 0;
+        for (var rule : routing.getContentRules()) {
+            if (rule.getModel() == null || rule.getModel().isBlank()
+                    || rule.getKeywords() == null || rule.getKeywords().isEmpty()) {
+                logger.warn("Skipping content routing rule with no model or no keywords: model={}, keywords={}",
+                        rule.getModel(), rule.getKeywords());
+                continue;
+            }
+            var keywords = java.util.List.copyOf(rule.getKeywords());
+            var target = resolveRuleTarget(rule, baseSettings);
+            builder.route(org.atmosphere.ai.routing.RoutingLlmClient.RoutingRule.contentBased(
+                    msg -> keywordsMatchCaseInsensitive(msg, keywords),
+                    target, rule.getModel()));
+            ruleCount++;
+        }
+        var router = builder.build();
+        AiConfig.installClient(router);
+        logger.info("Atmosphere AI content routing enabled: wrapped resolved client in "
+                + "RoutingLlmClient with {} content rule(s), defaultModel={}", ruleCount, defaultModel);
+        return new RoutingClientInstaller(router, baseSettings.client(), ruleCount);
+    }
+
+    /**
+     * Resolve the target {@link org.atmosphere.ai.llm.LlmClient} for a content
+     * rule. When the rule sets {@code base-url} and/or {@code api-key} it gets a
+     * dedicated {@link org.atmosphere.ai.llm.OpenAiCompatibleClient} (falling
+     * back to the resolved base URL / key for the component the rule omits);
+     * otherwise it reuses the framework-resolved client so the rule only
+     * changes the model name.
+     */
+    private static org.atmosphere.ai.llm.LlmClient resolveRuleTarget(
+            AtmosphereProperties.ContentRule rule, AiConfig.LlmSettings baseSettings) {
+        var hasBaseUrl = rule.getBaseUrl() != null && !rule.getBaseUrl().isBlank();
+        var hasApiKey = rule.getApiKey() != null && !rule.getApiKey().isBlank();
+        if (!hasBaseUrl && !hasApiKey) {
+            return baseSettings.client();
+        }
+        var clientBuilder = org.atmosphere.ai.llm.OpenAiCompatibleClient.builder()
+                .baseUrl(hasBaseUrl ? rule.getBaseUrl() : baseSettings.baseUrl());
+        var key = hasApiKey ? rule.getApiKey() : baseSettings.apiKey();
+        if (key != null && !key.isBlank()) {
+            clientBuilder.apiKey(key);
+        }
+        return clientBuilder.build();
+    }
+
+    /**
+     * Case-insensitive substring match: {@code true} if {@code message}
+     * contains any of {@code keywords}. A {@code null}/empty message matches
+     * nothing.
+     */
+    private static boolean keywordsMatchCaseInsensitive(String message, java.util.List<String> keywords) {
+        if (message == null || message.isEmpty()) {
+            return false;
+        }
+        var lower = message.toLowerCase(java.util.Locale.ROOT);
+        for (var kw : keywords) {
+            if (kw != null && !kw.isEmpty()
+                    && lower.contains(kw.toLowerCase(java.util.Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Marker bean recording the installed {@link org.atmosphere.ai.routing.RoutingLlmClient}
+     * and the un-wrapped resolved client it decorates. Restores the resolved
+     * client into {@link AiConfig} on shutdown so the process-wide singleton
+     * does not carry the router across context restarts (Correctness
+     * Invariant #1 — every install has a symmetric uninstall).
+     */
+    static final class RoutingClientInstaller
+            implements org.springframework.beans.factory.DisposableBean {
+
+        private final org.atmosphere.ai.routing.RoutingLlmClient router;
+        private final org.atmosphere.ai.llm.LlmClient resolvedClient;
+        private final int ruleCount;
+
+        RoutingClientInstaller(org.atmosphere.ai.routing.RoutingLlmClient router,
+                org.atmosphere.ai.llm.LlmClient resolvedClient, int ruleCount) {
+            this.router = router;
+            this.resolvedClient = resolvedClient;
+            this.ruleCount = ruleCount;
+        }
+
+        @Override
+        public void destroy() {
+            // Only restore if our router is still the installed client — a
+            // later install (another decorator) takes precedence and must not
+            // be clobbered on our shutdown.
+            var current = AiConfig.get();
+            if (current != null && current.client() == router) {
+                AiConfig.installClient(resolvedClient);
+                logger.info("Restored un-wrapped resolved client on routing installer shutdown");
+            }
+        }
+
+        /** Exposed so tests can assert the installed router. */
+        org.atmosphere.ai.routing.RoutingLlmClient router() {
+            return router;
+        }
+
+        /** Exposed so tests can assert the rule count. */
+        int ruleCount() {
+            return ruleCount;
+        }
+    }
+
     @Bean
     ApplicationListener<WebServerInitializedEvent> atmosphereAiConsoleLog() {
         return event -> {

@@ -657,6 +657,58 @@ var router = RoutingLlmClient.builder(defaultClient, "gemini-2.5-flash")
 
 Rules are evaluated in order; first match wins. If no model fits the constraint, the rule is skipped and the next rule is tried.
 
+### Routing (cost/content model selection) from Spring Boot config
+
+The Spring Boot starter exposes **content-based** routing through
+`atmosphere.ai.routing.*` properties — no Java wiring required. When
+`atmosphere.ai.routing.enabled=true`, the starter wraps the resolved LLM client
+in a `RoutingLlmClient` and installs it via `AiConfig.installClient(...)`, so it
+becomes the client every `AgentRuntime` dispatch reads on the request critical
+path. **Off by default** — when disabled, the resolved client is left untouched
+and the request path is byte-identical to today's behavior.
+
+Each content rule routes requests whose latest user message contains any of the
+rule's `keywords` (case-insensitive substring match) to the rule's `model`. A
+rule reuses the resolved client by default (same provider/credentials, only the
+model name changes); set `base-url` and/or `api-key` on the rule to target a
+different OpenAI-compatible endpoint. Requests matching no rule fall through to
+the resolved client and the configured `default-model` (or the `AiConfig` model
+when `default-model` is omitted).
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `atmosphere.ai.routing.enabled` | boolean | `false` | Wrap the resolved client in a `RoutingLlmClient`. |
+| `atmosphere.ai.routing.default-model` | string | (resolved `AiConfig` model) | Fallback model when no content rule matches. |
+| `atmosphere.ai.routing.content-rules[i].keywords` | list&lt;string&gt; | — | Keywords matched case-insensitively against the latest user message. |
+| `atmosphere.ai.routing.content-rules[i].model` | string | — | Model to route to when a keyword matches. |
+| `atmosphere.ai.routing.content-rules[i].base-url` | string | (resolved base URL) | Optional: target a different OpenAI-compatible endpoint for this rule. |
+| `atmosphere.ai.routing.content-rules[i].api-key` | string | (resolved API key) | Optional: API key for the rule's endpoint. |
+
+A rule with no `model` or no `keywords` is skipped with a `WARN` at startup.
+
+```yaml
+# application.yml — route coding questions to a frontier model, everything else
+# stays on the resolved default (gemini-2.5-flash here).
+atmosphere:
+  ai:
+    model: gemini-2.5-flash          # resolved default client + model
+    routing:
+      enabled: true
+      default-model: gemini-2.5-flash
+      content-rules:
+        - keywords: [code, function, refactor, stack trace]
+          model: gpt-4o              # reuses the resolved client; only the model changes
+          base-url: https://api.openai.com/v1   # optional: dedicated endpoint for this rule
+          api-key: ${OPENAI_API_KEY}            # optional: key for that endpoint
+```
+
+> **Scope (Runtime Truth):** only **content** rules are config-driven. Cost-,
+> latency-, and model-based routing remain **programmatic** via
+> `RoutingLlmClient.builder(...)` (see *Cost and Latency Routing* above) — the
+> Spring properties do **not** configure them. Build a `RoutingLlmClient`
+> yourself and install it with `AiConfig.installClient(router)` to use those
+> rule kinds, or expose it as an `AiConfig.LlmSettings`-dependent bean.
+
 ## Observability, grounded facts, and guardrails
 
 Three SPIs close the "generative model ↔ deterministic business layer"

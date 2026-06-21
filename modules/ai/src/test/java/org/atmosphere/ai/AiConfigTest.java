@@ -265,6 +265,48 @@ public class AiConfigTest {
         assertEquals("LLM_STOP", AiConfig.STOP_ENV);
     }
 
+    // -- installClient seam (F3a) --
+
+    @Test
+    public void testInstallClientSwapsClientPreservingOtherComponents() {
+        // configure a baseline, then install a replacement client and assert
+        // ONLY the client component changed.
+        var base = AiConfig.configure("remote", "gemini-2.5-flash", "test-key",
+                "https://api.openai.com/v1");
+        var baseClient = base.client();
+        var replacement = new org.atmosphere.ai.llm.FakeLlmClient("router-model");
+
+        var swapped = AiConfig.installClient(replacement);
+
+        assertSame(replacement, swapped.client(), "installed client must be the new one");
+        assertSame(replacement, AiConfig.get().client(),
+                "AiConfig.get() must reflect the installed client");
+        assertNotSame(baseClient, AiConfig.get().client(),
+                "the previous client must be replaced");
+        // Every other component preserved verbatim.
+        assertEquals(base.model(), swapped.model());
+        assertEquals(base.mode(), swapped.mode());
+        assertEquals(base.baseUrl(), swapped.baseUrl());
+        assertEquals(base.apiKey(), swapped.apiKey());
+        assertEquals(base.promptCacheKeyMode(), swapped.promptCacheKeyMode());
+        assertSame(base.generation(), swapped.generation());
+    }
+
+    @Test
+    public void testInstallClientBeforeConfigureThrows() {
+        // Reset the singleton to the unconfigured state so this test is
+        // order-independent: installClient with no resolved settings must throw.
+        AiConfig.resetForTesting();
+        var replacement = new org.atmosphere.ai.llm.FakeLlmClient("router-model");
+        assertThrows(IllegalStateException.class, () -> AiConfig.installClient(replacement));
+    }
+
+    @Test
+    public void testInstallClientNullThrows() {
+        AiConfig.configure("local", "llama3.2", null, null);
+        assertThrows(NullPointerException.class, () -> AiConfig.installClient(null));
+    }
+
     /**
      * Run {@code body} with all four generation sysprops cleared, restoring any
      * prior values afterwards so the tests do not leak global state.

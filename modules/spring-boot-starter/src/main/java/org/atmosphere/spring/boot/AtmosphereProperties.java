@@ -320,12 +320,22 @@ public class AtmosphereProperties {
          */
         private boolean failFast;
 
+        private RoutingProperties routing = new RoutingProperties();
+
         public boolean isEnabled() {
             return enabled;
         }
 
         public void setEnabled(boolean enabled) {
             this.enabled = enabled;
+        }
+
+        public RoutingProperties getRouting() {
+            return routing;
+        }
+
+        public void setRouting(RoutingProperties routing) {
+            this.routing = routing;
         }
 
         public boolean isFailFast() {
@@ -414,6 +424,108 @@ public class AtmosphereProperties {
 
         public void setTimeout(long timeout) {
             this.timeout = timeout;
+        }
+    }
+
+    /**
+     * Property-driven content routing, bound to {@code atmosphere.ai.routing.*}.
+     * When {@link #enabled} is {@code true}, the Spring Boot starter wraps the
+     * resolved LLM client in a
+     * {@link org.atmosphere.ai.routing.RoutingLlmClient} so requests route to
+     * alternate models by content. Off by default — the resolved client is
+     * left untouched, so the default path is byte-identical to today's
+     * behavior.
+     *
+     * <p>Only <em>content</em>-based rules are config-driven (the MVP). Cost-,
+     * latency-, and model-based routing stay programmatic via
+     * {@link org.atmosphere.ai.routing.RoutingLlmClient#builder}; see
+     * {@code modules/ai/README.md} (§ Routing).</p>
+     */
+    public static class RoutingProperties {
+
+        private boolean enabled = false;
+
+        /**
+         * Default model the router falls back to when no content rule matches.
+         * Optional — when blank the resolved {@code AiConfig} model is used.
+         */
+        private String defaultModel;
+
+        private java.util.List<ContentRule> contentRules = new java.util.ArrayList<>();
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getDefaultModel() {
+            return defaultModel;
+        }
+
+        public void setDefaultModel(String defaultModel) {
+            this.defaultModel = defaultModel;
+        }
+
+        public java.util.List<ContentRule> getContentRules() {
+            return contentRules;
+        }
+
+        public void setContentRules(java.util.List<ContentRule> contentRules) {
+            this.contentRules = contentRules;
+        }
+    }
+
+    /**
+     * A single content-based routing rule. When the latest user message
+     * contains any of {@link #keywords} (case-insensitive substring match),
+     * the request is routed to {@link #model}. By default the rule reuses the
+     * framework-resolved client (same provider/credentials); set
+     * {@link #baseUrl} and/or {@link #apiKey} to target a different
+     * OpenAI-compatible endpoint for this rule.
+     */
+    public static class ContentRule {
+
+        private java.util.List<String> keywords = new java.util.ArrayList<>();
+
+        private String model;
+
+        private String baseUrl;
+
+        private String apiKey;
+
+        public java.util.List<String> getKeywords() {
+            return keywords;
+        }
+
+        public void setKeywords(java.util.List<String> keywords) {
+            this.keywords = keywords;
+        }
+
+        public String getModel() {
+            return model;
+        }
+
+        public void setModel(String model) {
+            this.model = model;
+        }
+
+        public String getBaseUrl() {
+            return baseUrl;
+        }
+
+        public void setBaseUrl(String baseUrl) {
+            this.baseUrl = baseUrl;
+        }
+
+        public String getApiKey() {
+            return apiKey;
+        }
+
+        public void setApiKey(String apiKey) {
+            this.apiKey = apiKey;
         }
     }
 

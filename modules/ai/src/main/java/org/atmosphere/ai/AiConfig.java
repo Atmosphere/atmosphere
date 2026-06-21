@@ -258,6 +258,21 @@ public final class AiConfig {
     }
 
     /**
+     * Clears the resolved settings singleton back to the unconfigured state.
+     * Package-private — exposed only so tests can exercise the
+     * {@code installClient}-before-{@code configure} guard deterministically
+     * regardless of test ordering. Not part of the public API.
+     */
+    static void resetForTesting() {
+        LOCK.lock();
+        try {
+            instance = null;
+        } finally {
+            LOCK.unlock();
+        }
+    }
+
+    /**
      * Configure LLM settings programmatically.
      *
      * @param mode    {@code remote} or {@code local}
@@ -315,6 +330,55 @@ public final class AiConfig {
 
             instance = new LlmSettings(builder.build(), model, mode, resolvedUrl, resolvedKey,
                     cacheKeyMode, generation);
+            return instance;
+        } finally {
+            LOCK.unlock();
+        }
+    }
+
+    /**
+     * Install a replacement {@link LlmClient} on top of the already-resolved
+     * settings, preserving every other component (model, mode, baseUrl,
+     * apiKey, promptCacheKeyMode, generation). This is the seam for wrapping
+     * or decorating the framework-resolved client — for example, swapping in a
+     * {@link org.atmosphere.ai.routing.RoutingLlmClient} that fans a request
+     * out to alternate models by content while keeping the resolved client as
+     * its fallback.
+     *
+     * <p>Because {@link AbstractAgentRuntime} resolves the native client
+     * lazily on the first {@code execute()} (reading {@link #get()} then), an
+     * installation performed at startup — after {@link #configure} but before
+     * any request — is what every subsequent dispatch sees. The companion
+     * {@link org.atmosphere.ai.AgentRuntimeResolver#reset()} call below drops
+     * any runtime that already cached the previous client so the swap is
+     * picked up even if a runtime was eagerly configured.</p>
+     *
+     * @param client the wrapping/decorating client to install (must not be {@code null})
+     * @return the new settings now in effect
+     * @throws IllegalStateException if {@link #configure} / {@link #fromEnvironment()}
+     *                               has not run yet (there is nothing to wrap)
+     * @throws NullPointerException  if {@code client} is {@code null}
+     */
+    public static LlmSettings installClient(LlmClient client) {
+        if (client == null) {
+            throw new NullPointerException("client must not be null");
+        }
+        LOCK.lock();
+        try {
+            var current = instance;
+            if (current == null) {
+                throw new IllegalStateException(
+                        "AiConfig.installClient called before configure()/fromEnvironment() — "
+                                + "there is no resolved client to wrap");
+            }
+            instance = new LlmSettings(client, current.model(), current.mode(),
+                    current.baseUrl(), current.apiKey(), current.promptCacheKeyMode(),
+                    current.generation());
+            // Drop any cached runtime resolution so a runtime that already
+            // cached the previous client re-reads the swapped one lazily.
+            org.atmosphere.ai.AgentRuntimeResolver.reset();
+            logger.info("AI config: installed wrapping client {} (model={}, mode={})",
+                    client.getClass().getSimpleName(), current.model(), current.mode());
             return instance;
         } finally {
             LOCK.unlock();
