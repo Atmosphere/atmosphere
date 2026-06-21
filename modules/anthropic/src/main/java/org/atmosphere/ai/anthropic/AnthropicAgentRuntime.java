@@ -19,6 +19,7 @@ import org.atmosphere.ai.AbstractAgentRuntime;
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.ApiKeyResolver;
 import org.atmosphere.ai.StreamingSession;
 
 import java.util.Set;
@@ -28,7 +29,10 @@ import java.util.Set;
  * {@link AnthropicMessagesClient} that posts directly to
  * {@code https://api.anthropic.com/v1/messages}. Picked up via
  * {@link java.util.ServiceLoader} when this module's jar is on the
- * classpath alongside an {@code anthropic.api.key} configuration.
+ * classpath alongside an Anthropic API key — resolved by
+ * {@link ApiKeyResolver} from the {@code anthropic.api.key} system
+ * property, the {@code ANTHROPIC_API_KEY} environment variable, or the
+ * framework-resolved {@link AiConfig} key (in that order).
  *
  * <p>Priority is {@code 100} — the same convention every framework
  * runtime adapter (LangChain4j, Spring AI, ADK, Koog, Embabel,
@@ -38,7 +42,20 @@ import java.util.Set;
  */
 public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessagesClient> {
 
-    private static final String API_KEY_PROPERTY = "anthropic.api.key";
+    /**
+     * The provider name handed to {@link ApiKeyResolver#resolveProvider},
+     * which derives the top-priority {@code anthropic.api.key} system-property
+     * override from it ({@code <providerName>.api.key}).
+     */
+    private static final String PROVIDER_NAME = "anthropic";
+    /**
+     * The conventional Anthropic SDK key name. Resolved via
+     * {@link ApiKeyResolver#resolveProvider} as a system property and then
+     * an environment variable, ranking below the {@code anthropic.api.key}
+     * override but above the framework-resolved generic key. Matches the name
+     * the official Anthropic SDKs read from the environment.
+     */
+    private static final String API_KEY_ENV_VAR = "ANTHROPIC_API_KEY";
     private static final String VERSION_PROPERTY = "anthropic.version";
     private static final String BASE_URL_PROPERTY = "anthropic.base.url";
     private static final String MAX_TOKENS_PROPERTY = "anthropic.max.tokens";
@@ -89,7 +106,7 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
     @Override
     protected AnthropicMessagesClient createNativeClient(AiConfig.LlmSettings settings) {
         var builder = AnthropicMessagesClient.builder()
-                .apiKey(systemProperty(API_KEY_PROPERTY,
+                .apiKey(ApiKeyResolver.resolveProvider(PROVIDER_NAME, API_KEY_ENV_VAR,
                         settings != null ? settings.apiKey() : null))
                 .anthropicVersion(systemProperty(VERSION_PROPERTY, "2023-06-01"));
         // Sovereign-deploy story: {@code anthropic.base.url} system property
@@ -140,13 +157,15 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
 
     @Override
     public boolean isAvailable() {
-        // Honest Runtime Truth: the runtime is available iff an API key has
-        // been provided either via system property or AiConfig settings.
-        // Without a key, the first POST would 401 — declaring availability
-        // off the classpath alone would lie about the runtime state.
+        // Honest Runtime Truth: the runtime is available iff an Anthropic API
+        // key has been provided via the anthropic.api.key system property, the
+        // ANTHROPIC_API_KEY env var, or AiConfig settings. Without one the
+        // first POST to api.anthropic.com would 401 — and ApiKeyResolver
+        // deliberately does NOT fall back to OPENAI_API_KEY/GEMINI_API_KEY, so
+        // another provider's key can never mark Anthropic available.
         var settings = AiConfig.get();
         var settingsKey = settings != null ? settings.apiKey() : null;
-        return (systemProperty(API_KEY_PROPERTY, settingsKey) != null);
+        return ApiKeyResolver.resolveProvider(PROVIDER_NAME, API_KEY_ENV_VAR, settingsKey) != null;
     }
 
     @Override

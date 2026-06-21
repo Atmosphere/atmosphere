@@ -19,6 +19,7 @@ import org.atmosphere.ai.AbstractAgentRuntime;
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.ApiKeyResolver;
 import org.atmosphere.ai.StreamingSession;
 
 import java.util.Set;
@@ -28,7 +29,10 @@ import java.util.Set;
  * {@link CohereChatClient} that posts directly to
  * {@code https://api.cohere.com/v2/chat}. Picked up via
  * {@link java.util.ServiceLoader} when this module's jar is on the
- * classpath alongside a {@code cohere.api.key} configuration.
+ * classpath alongside a Cohere API key — resolved by
+ * {@link org.atmosphere.ai.ApiKeyResolver} from the {@code cohere.api.key}
+ * system property, the {@code COHERE_API_KEY} environment variable, or the
+ * framework-resolved {@link AiConfig} key (in that order).
  *
  * <p>The {@code cohere.base.url} system property overrides the default
  * Cohere cloud endpoint so a self-hosted Command A+ deployment that
@@ -43,7 +47,20 @@ import java.util.Set;
  */
 public class CohereAgentRuntime extends AbstractAgentRuntime<CohereChatClient> {
 
-    private static final String API_KEY_PROPERTY = "cohere.api.key";
+    /**
+     * The provider name handed to {@link ApiKeyResolver#resolveProvider},
+     * which derives the top-priority {@code cohere.api.key} system-property
+     * override from it ({@code <providerName>.api.key}).
+     */
+    private static final String PROVIDER_NAME = "cohere";
+    /**
+     * The conventional Cohere SDK key name. Resolved via
+     * {@link ApiKeyResolver#resolveProvider} as a system property and then
+     * an environment variable, ranking below the {@code cohere.api.key}
+     * override but above the framework-resolved generic key. Matches the name
+     * the official Cohere SDKs read from the environment.
+     */
+    private static final String API_KEY_ENV_VAR = "COHERE_API_KEY";
     private static final String BASE_URL_PROPERTY = "cohere.base.url";
     private static final String MAX_TOKENS_PROPERTY = "cohere.max.tokens";
     private static final String DEFAULT_MODEL = "command-a-plus-05-2026";
@@ -78,7 +95,7 @@ public class CohereAgentRuntime extends AbstractAgentRuntime<CohereChatClient> {
     @Override
     protected CohereChatClient createNativeClient(AiConfig.LlmSettings settings) {
         var builder = CohereChatClient.builder()
-                .apiKey(systemProperty(API_KEY_PROPERTY,
+                .apiKey(ApiKeyResolver.resolveProvider(PROVIDER_NAME, API_KEY_ENV_VAR,
                         settings != null ? settings.apiKey() : null));
         // Sovereign-deploy story: the {@code cohere.base.url} system property
         // wins outright; otherwise the framework-resolved settings.baseUrl()
@@ -114,13 +131,15 @@ public class CohereAgentRuntime extends AbstractAgentRuntime<CohereChatClient> {
 
     @Override
     public boolean isAvailable() {
-        // Honest Runtime Truth: the runtime is available iff an API key has
-        // been provided either via system property or AiConfig settings.
-        // Without a key, the first POST would 401 — declaring availability
-        // off the classpath alone would lie about the runtime state.
+        // Honest Runtime Truth: the runtime is available iff a Cohere API key
+        // has been provided via the cohere.api.key system property, the
+        // COHERE_API_KEY env var, or AiConfig settings. Without one the first
+        // POST to api.cohere.com would 401 — and ApiKeyResolver
+        // deliberately does NOT fall back to OPENAI_API_KEY/GEMINI_API_KEY, so
+        // another provider's key can never mark Cohere available.
         var settings = AiConfig.get();
         var settingsKey = settings != null ? settings.apiKey() : null;
-        return (systemProperty(API_KEY_PROPERTY, settingsKey) != null);
+        return ApiKeyResolver.resolveProvider(PROVIDER_NAME, API_KEY_ENV_VAR, settingsKey) != null;
     }
 
     @Override

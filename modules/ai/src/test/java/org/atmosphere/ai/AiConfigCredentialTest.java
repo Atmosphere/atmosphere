@@ -23,14 +23,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Verifies that {@link AiConfig.LlmSettings#apiKey()} carries the
  * framework-resolved provider key regardless of the concrete client type, the
  * 4-arg backward-compatible constructor preserves the historical
- * instanceof-based behavior, and {@link CredentialResolver} honors the
- * documented system-property precedence.
+ * instanceof-based behavior, and
+ * {@link ApiKeyResolver#resolveProvider} honors the documented
+ * per-provider precedence without leaking another provider's key.
  *
  * <p>{@link AiConfig#configure} just overwrites a volatile singleton, so —
  * like {@link AiConfigTest} — no static reset is needed between cases; each
@@ -119,87 +119,80 @@ public class AiConfigCredentialTest {
         assertNull(settings.apiKey());
     }
 
-    /** The four property/env names {@link CredentialResolver} consults, highest tier first. */
+    /**
+     * The property/env names {@link ApiKeyResolver#resolveProvider} can
+     * consult, plus the cross-provider keys the no-leak case probes. All are
+     * cleared and restored around each case so no state leaks between tests.
+     */
     private static final String[] ALL_NAMES = {
-            "anthropic.api.key", "LLM_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY"};
+            "anthropic.api.key", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY"};
 
     /**
-     * {@code <provider>.api.key} system property outranks the
-     * {@code LLM_API_KEY}/{@code OPENAI_API_KEY}/{@code GEMINI_API_KEY} tiers.
-     * Setting every tier as a system property makes this independent of any
-     * ambient environment (system properties are checked before env at each
-     * generic tier, and the provider tier is checked before all of them).
+     * Tier (a): the {@code <provider>.api.key} system property outranks the
+     * provider-env-var tier and the generic fallback. This preserves the
+     * historical top-priority override existing Anthropic/Cohere tests rely on.
      */
     @Test
-    public void testProviderPropertyWinsOverGenericTiers() {
+    public void testProviderPropertyWinsOverEverything() {
         withSysProps(() -> {
             System.setProperty("anthropic.api.key", "provider-specific");
-            System.setProperty("LLM_API_KEY", "generic-llm");
-            System.setProperty("OPENAI_API_KEY", "generic-openai");
-            System.setProperty("GEMINI_API_KEY", "generic-gemini");
+            System.setProperty("ANTHROPIC_API_KEY", "from-env-var");
 
-            assertEquals("provider-specific", CredentialResolver.resolve("anthropic"));
+            assertEquals("provider-specific",
+                    ApiKeyResolver.resolveProvider("anthropic", "ANTHROPIC_API_KEY", "generic-fallback"));
         });
     }
 
     /**
-     * {@code LLM_API_KEY} (set as a system property) outranks
-     * {@code OPENAI_API_KEY} and {@code GEMINI_API_KEY} when no
-     * provider-specific property is set. {@code LLM_API_KEY} is the top
-     * generic tier, so no higher tier can be supplied via the OS environment.
+     * Tier (b): the provider-env-var tier ({@code ANTHROPIC_API_KEY}) is used
+     * when no {@code anthropic.api.key} override is set, ranking above the
+     * generic fallback. {@code property()} reads the system property of that
+     * name before the OS environment variable, so setting the sysprop named
+     * {@code ANTHROPIC_API_KEY} exercises the same tier without mutating env.
      */
     @Test
-    public void testLlmApiKeyTierWins() {
+    public void testProviderEnvVarTierUsedWhenNoOverride() {
         withSysProps(() -> {
-            System.setProperty("LLM_API_KEY", "generic-llm");
-            System.setProperty("OPENAI_API_KEY", "generic-openai");
-            System.setProperty("GEMINI_API_KEY", "generic-gemini");
+            System.setProperty("ANTHROPIC_API_KEY", "from-env-var");
 
-            assertEquals("generic-llm", CredentialResolver.resolve("cohere"));
+            assertEquals("from-env-var",
+                    ApiKeyResolver.resolveProvider("anthropic", "ANTHROPIC_API_KEY", "generic-fallback"));
         });
     }
 
     /**
-     * {@code OPENAI_API_KEY} outranks {@code GEMINI_API_KEY}. Skipped only if
-     * the OS environment carries an {@code LLM_API_KEY} (a strictly-higher
-     * tier we cannot clear without mutating env).
+     * Tier (c): the {@code genericFallback} (the framework-resolved
+     * {@code settings.apiKey()}) is used when neither the provider sysprop nor
+     * the provider env var is set.
      */
     @Test
-    public void testOpenAiTierBeatsGemini() {
-        assumeTrue(blank(System.getenv("LLM_API_KEY")),
-                "ambient LLM_API_KEY env outranks the tier under test");
-        withSysProps(() -> {
-            System.setProperty("OPENAI_API_KEY", "generic-openai");
-            System.setProperty("GEMINI_API_KEY", "generic-gemini");
-
-            assertEquals("generic-openai", CredentialResolver.resolve("cohere"));
-        });
+    public void testGenericFallbackUsedWhenNoProviderKey() {
+        withSysProps(() -> assertEquals("generic-fallback",
+                ApiKeyResolver.resolveProvider("anthropic", "ANTHROPIC_API_KEY", "generic-fallback")));
     }
 
     /**
-     * {@code GEMINI_API_KEY} is the final fallback tier. Skipped only if the OS
-     * environment carries an {@code LLM_API_KEY} or {@code OPENAI_API_KEY}
-     * (strictly-higher tiers we cannot clear without mutating env).
+     * No cross-provider leak (Runtime Truth): with only {@code OPENAI_API_KEY}
+     * set and no Anthropic key anywhere, resolving for Anthropic with a
+     * {@code null} generic fallback returns {@code null} — the OpenAI key must
+     * never make a non-OpenAI provider look available. This is the regression
+     * the old {@code resolve(String)} OPENAI/GEMINI fallback would have failed.
      */
     @Test
-    public void testGeminiTierIsLastResort() {
-        assumeTrue(blank(System.getenv("LLM_API_KEY")) && blank(System.getenv("OPENAI_API_KEY")),
-                "ambient higher-tier env outranks the tier under test");
+    public void testNoCrossProviderLeakFromOpenAiKey() {
         withSysProps(() -> {
-            System.setProperty("GEMINI_API_KEY", "generic-gemini");
+            System.setProperty("OPENAI_API_KEY", "sk-openai-only");
 
-            assertEquals("generic-gemini", CredentialResolver.resolve("cohere"));
+            assertNull(ApiKeyResolver.resolveProvider("anthropic", "ANTHROPIC_API_KEY", null),
+                    "OPENAI_API_KEY must never resolve as an Anthropic credential");
         });
     }
 
-    private static boolean blank(String s) {
-        return s == null || s.isBlank();
-    }
-
     /**
-     * Runs {@code body} with all four credential property names cleared, then
+     * Runs {@code body} with all probed credential property names cleared, then
      * restores each to its prior value (cleared if it was unset) so cross-test
-     * state never leaks. The body sets only the system properties it needs.
+     * state never leaks. The body sets only the system properties it needs. The
+     * OS environment is never mutated.
      */
     private static void withSysProps(Runnable body) {
         var saved = new String[ALL_NAMES.length];
