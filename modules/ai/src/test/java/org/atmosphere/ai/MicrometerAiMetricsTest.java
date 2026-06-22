@@ -305,6 +305,77 @@ public class MicrometerAiMetricsTest {
     }
 
     @Test
+    public void tokenUsageEmitsRealProviderNotHardcodedAtmosphere() {
+        // The no-arg ctor hardcodes provider="atmosphere"; the provider-aware
+        // recordTokenUsage overload must tag gen_ai.provider.name with the
+        // RESOLVED runtime name instead. Pin the Runtime-Truth fix: build a
+        // metrics instance whose instance provider is the bogus "atmosphere"
+        // and assert the GenAI series carries the real runtime name.
+        var atmosphereDefault = new MicrometerAiMetrics(registry, "atmosphere");
+        atmosphereDefault.recordTokenUsage("google-adk", "gemini-2.0", "gemini-2.0-flash", 120, 80, 200);
+
+        // GenAI provider tag is the resolved runtime, NOT "atmosphere".
+        var realProvider = registry.find("gen_ai.client.token.usage")
+                .tag("gen_ai.provider.name", "google-adk")
+                .tag("gen_ai.request.model", "gemini-2.0")
+                .tag("gen_ai.token.type", "input")
+                .summary();
+        assertNotNull(realProvider, "gen_ai series must carry the resolved runtime provider");
+        assertEquals(120.0, realProvider.totalAmount(), 0.001);
+
+        // There must be NO gen_ai token series tagged with the hardcoded
+        // "atmosphere" provider — that is exactly the bug being fixed.
+        var hardcoded = registry.find("gen_ai.client.token.usage")
+                .tag("gen_ai.provider.name", "atmosphere")
+                .summary();
+        assertNull(hardcoded, "gen_ai.provider.name must not be the hardcoded 'atmosphere'");
+    }
+
+    @Test
+    public void tokenUsageEmitsResponseModelTag() {
+        metrics.recordTokenUsage("google-adk", "gemini-2.0", "gemini-2.0-flash-001", 120, 80, 200);
+
+        var withResponseModel = registry.find("gen_ai.client.token.usage")
+                .tag("gen_ai.response.model", "gemini-2.0-flash-001")
+                .tag("gen_ai.token.type", "input")
+                .summary();
+        assertNotNull(withResponseModel, "gen_ai.response.model tag must be emitted when reported");
+        assertEquals(120.0, withResponseModel.totalAmount(), 0.001);
+    }
+
+    @Test
+    public void tokenUsageOmitsResponseModelTagWhenNull() {
+        // Runtime did not report a model — no gen_ai.response.model tag.
+        metrics.recordTokenUsage("google-adk", "gemini-2.0", null, 120, 80, 200);
+
+        var input = registry.find("gen_ai.client.token.usage")
+                .tag("gen_ai.provider.name", "google-adk")
+                .tag("gen_ai.token.type", "input")
+                .summary();
+        assertNotNull(input);
+        // No series should carry a response-model tag.
+        var anyResponseModel = registry.find("gen_ai.client.token.usage")
+                .tag("gen_ai.response.model", "gemini-2.0")
+                .summary();
+        assertNull(anyResponseModel, "response model tag must be absent when the runtime reported none");
+    }
+
+    @Test
+    public void tokenUsageFourArgKeepsInstanceProviderForGenAiSeries() {
+        // Source-compat: the legacy 4-arg form defaults gen_ai.provider.name to
+        // the instance provider ("spring-ai" here) — byte-identical behaviour.
+        metrics.recordTokenUsage("gpt-4", 120, 80, 200);
+
+        var input = registry.find("gen_ai.client.token.usage")
+                .tag("gen_ai.provider.name", "spring-ai")
+                .tag("gen_ai.request.model", "gpt-4")
+                .tag("gen_ai.token.type", "input")
+                .summary();
+        assertNotNull(input, "4-arg form must default gen_ai.provider.name to the instance provider");
+        assertEquals(120.0, input.totalAmount(), 0.001);
+    }
+
+    @Test
     public void testLatencyDualEmitsGenAiOperationDuration() {
         metrics.recordLatency("gpt-4", Duration.ofMillis(200), Duration.ofMillis(1000));
 

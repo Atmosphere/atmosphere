@@ -61,6 +61,26 @@
             <optional>true</optional>
         </dependency>
 
+        <!--
+            OpenTelemetry SDK is TEST-scope ONLY. GenAiTracer reflects against
+            io.opentelemetry.api at runtime (no hard main-scope OTel dep, mirroring
+            GovernanceTracer); these artifacts let GenAiTracerTest install a real
+            SdkTracerProvider + InMemorySpanExporter and assert the emitted span
+            attributes. Pinned to the managed opentelemetry-api version.
+        -->
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-sdk</artifactId>
+            <version>${opentelemetry-api.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-sdk-testing</artifactId>
+            <version>${opentelemetry-api.version}</version>
+            <scope>test</scope>
+        </dependency>
+
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>

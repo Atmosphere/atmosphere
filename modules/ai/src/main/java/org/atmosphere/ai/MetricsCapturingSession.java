@@ -28,15 +28,21 @@ class MetricsCapturingSession extends DelegatingStreamingSession {
 
     private final AiMetrics metrics;
     private final String model;
+    private final String providerName;
     private final Instant startTime;
     private volatile Instant firstStreamingTextTime;
     private int promptStreamingTexts;
     private int completionStreamingTexts;
 
     MetricsCapturingSession(StreamingSession delegate, AiMetrics metrics, String model) {
+        this(delegate, metrics, model, null);
+    }
+
+    MetricsCapturingSession(StreamingSession delegate, AiMetrics metrics, String model, String providerName) {
         super(delegate);
         this.metrics = metrics;
         this.model = model != null ? model : "unknown";
+        this.providerName = providerName;
         this.startTime = Instant.now();
     }
 
@@ -77,7 +83,21 @@ class MetricsCapturingSession extends DelegatingStreamingSession {
         // re-enters this decorator's sendMetadata. The typed signal is the only
         // reliable capture point for gen_ai.client.token.usage.
         if (usage != null && usage.hasCounts()) {
-            metrics.recordTokenUsage(model, usage.input(), usage.output(), usage.total());
+            if (providerName != null) {
+                // Provider-aware path: thread the resolved runtime name into the
+                // GenAI convention's gen_ai.provider.name (Runtime Truth) and the
+                // provider-reported response model into gen_ai.response.model.
+                metrics.recordTokenUsage(providerName, model, usage.model(),
+                        usage.input(), usage.output(), usage.total());
+            } else {
+                // Legacy construction (no resolved provider): keep the exact
+                // 4-arg call so behaviour stays byte-identical.
+                metrics.recordTokenUsage(model, usage.input(), usage.output(), usage.total());
+            }
+            // Additive: tag the live OTel span (the AtmosphereTracing SERVER
+            // span) with the experimental gen_ai.* attributes. Self-guards on
+            // hasCounts() + a valid current span; no-op when OTel is absent.
+            GenAiTracer.record(usage, model, providerName);
         }
         delegate.usage(usage);
     }

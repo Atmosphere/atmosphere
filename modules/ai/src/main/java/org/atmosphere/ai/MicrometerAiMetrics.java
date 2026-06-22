@@ -111,9 +111,39 @@ public final class MicrometerAiMetrics implements AiMetrics {
 
     @Override
     public void recordTokenUsage(String model, long inputTokens, long outputTokens, long totalTokens) {
-        var tags = tags(model);
+        // Source-compatible 4-arg form: default the GenAI provider to this
+        // instance's provider and carry no response model. Existing callers
+        // (and the legacy decorator path) keep their exact behaviour.
+        recordTokenUsage(provider, model, null, inputTokens, outputTokens, totalTokens);
+    }
+
+    /**
+     * Provider- and response-model-aware token usage recording. Threads the
+     * <em>resolved</em> {@code AgentRuntime.name()} into the GenAI convention's
+     * {@code gen_ai.provider.name} attribute (Runtime Truth — the no-arg
+     * constructor's {@code "atmosphere"} default is never authoritative for the
+     * GenAI series) and tags {@code gen_ai.response.model} when the runtime
+     * reported a model.
+     *
+     * <p>The {@code atmosphere.ai.tokens} series is unchanged: it stays tagged
+     * with the instance's {@code model}/{@code provider} so existing dashboards
+     * keep working byte-for-byte.</p>
+     *
+     * @param genAiProvider  the resolved runtime name for {@code gen_ai.provider.name}
+     * @param requestModel   the request model ({@code gen_ai.request.model})
+     * @param responseModel  the provider-reported response model
+     *                       ({@code gen_ai.response.model}); omitted when blank
+     * @param inputTokens    prompt tokens consumed (0 when unknown)
+     * @param outputTokens   completion tokens produced (0 when unknown)
+     * @param totalTokens    total tokens for the completion (0 when unknown)
+     */
+    @Override
+    public void recordTokenUsage(String genAiProvider, String requestModel, String responseModel,
+                                 long inputTokens, long outputTokens, long totalTokens) {
         // Atmosphere-namespaced counter, tagged by token type, consistent with
-        // the rest of the atmosphere.ai.* series.
+        // the rest of the atmosphere.ai.* series. Uses the instance provider —
+        // byte-identical to the prior behaviour regardless of genAiProvider.
+        var tags = tags(requestModel);
         if (inputTokens > 0) {
             counter("atmosphere.ai.tokens", tags.and("type", "input")).increment(inputTokens);
         }
@@ -122,13 +152,16 @@ public final class MicrometerAiMetrics implements AiMetrics {
         }
         // OTel GenAI convention: gen_ai.client.token.usage, split by
         // gen_ai.token.type. The convention defines input/output token types
-        // only — total is derivable and not a distinct series.
+        // only — total is derivable and not a distinct series. The provider
+        // tag is the resolved runtime name (Runtime Truth), and the response
+        // model is added when the runtime reported one.
+        var genAiTags = genAiTags(genAiProvider, requestModel, responseModel);
         if (inputTokens > 0) {
-            registry.summary("gen_ai.client.token.usage", genAiTags(model).and("gen_ai.token.type", "input"))
+            registry.summary("gen_ai.client.token.usage", genAiTags.and("gen_ai.token.type", "input"))
                     .record(inputTokens);
         }
         if (outputTokens > 0) {
-            registry.summary("gen_ai.client.token.usage", genAiTags(model).and("gen_ai.token.type", "output"))
+            registry.summary("gen_ai.client.token.usage", genAiTags.and("gen_ai.token.type", "output"))
                     .record(outputTokens);
         }
     }
@@ -196,6 +229,27 @@ public final class MicrometerAiMetrics implements AiMetrics {
                 "gen_ai.operation.name", "chat",
                 "gen_ai.provider.name", provider,
                 "gen_ai.request.model", model != null ? model : "unknown");
+    }
+
+    /**
+     * GenAI convention tags carrying the resolved runtime provider and, when
+     * the runtime reported one, the response model. Used by the
+     * provider-aware {@link #recordTokenUsage(String, String, String, long, long, long)}
+     * overload so {@code gen_ai.provider.name} reflects the actual runtime
+     * (Runtime Truth) rather than the instance default. The
+     * {@code gen_ai.response.model} tag is omitted when {@code responseModel}
+     * is blank — no placeholder.
+     */
+    private Tags genAiTags(String genAiProvider, String requestModel, String responseModel) {
+        var tags = Tags.of(
+                "gen_ai.operation.name", "chat",
+                "gen_ai.provider.name", genAiProvider != null && !genAiProvider.isBlank()
+                        ? genAiProvider : provider,
+                "gen_ai.request.model", requestModel != null ? requestModel : "unknown");
+        if (responseModel != null && !responseModel.isBlank()) {
+            tags = tags.and("gen_ai.response.model", responseModel);
+        }
+        return tags;
     }
 
     private Counter counter(String name, Tags tags) {

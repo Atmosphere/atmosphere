@@ -615,7 +615,35 @@ point is the pipeline-level `MetricsCapturingSession`, not a single adapter.
 | `gen_ai.client.operation.duration` | Timer | Full operation wall-clock time |
 
 Convention instruments carry the `gen_ai.operation.name`, `gen_ai.provider.name`,
-and `gen_ai.request.model` attributes.
+and `gen_ai.request.model` attributes. `gen_ai.provider.name` is the **resolved
+runtime name** (`AgentRuntime.name()` — e.g. `built-in`, `google-adk`,
+`anthropic`), never a hardcoded value, and `gen_ai.response.model` is added when
+the runtime reported one.
+
+##### Experimental GenAI span attributes
+
+In addition to the metric series above, when `io.opentelemetry.api` is on the
+classpath **and** a live span is active (the `AtmosphereTracing` SERVER span,
+for example), Atmosphere tags that **current** span with the
+[**experimental** OpenTelemetry GenAI span semantic-convention](https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-spans/)
+attributes. This is purely **additive**: the legacy `ai.tokens.*` metadata and
+the `atmosphere.ai.*` / `gen_ai.client.*` metric series are emitted unchanged
+and byte-for-byte identical. Emission is via a reflection-based helper
+(`GenAiTracer`) with no hard OpenTelemetry dependency — absent OTel, or absent a
+current span, it is a no-op (no orphan span is ever created).
+
+| Span attribute | Type | Source |
+|----------------|------|--------|
+| `gen_ai.usage.input_tokens` | long | `TokenUsage.input()` |
+| `gen_ai.usage.output_tokens` | long | `TokenUsage.output()` |
+| `gen_ai.usage.total_tokens` | long | `TokenUsage.total()` |
+| `gen_ai.request.model` | string | the request model |
+| `gen_ai.response.model` | string | `TokenUsage.model()` — **omitted** when the runtime did not report a model (Runtime Truth: no placeholder) |
+| `gen_ai.operation.name` | string | `chat` |
+| `gen_ai.provider.name` | string | the resolved `AgentRuntime.name()` |
+
+All values are confirmed runtime values. The attributes are written only when
+`TokenUsage.hasCounts()` is true and a valid current span exists.
 
 ### TracingCapturingSession
 

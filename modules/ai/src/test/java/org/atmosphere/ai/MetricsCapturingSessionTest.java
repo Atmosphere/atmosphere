@@ -165,6 +165,58 @@ class MetricsCapturingSessionTest {
     }
 
     @Test
+    void usageWithProviderUsesProviderAwareOverloadWithResponseModel() {
+        var metrics = mockMetrics();
+        var delegate = mockDelegate();
+        // Construct with a resolved runtime name → provider-aware path.
+        var session = new MetricsCapturingSession(delegate, metrics, "gemini-2.0", "google-adk");
+        var usage = new TokenUsage(120, 80, 0, 200, "gemini-2.0-flash-001");
+        session.usage(usage);
+
+        // (a) legacy delegate.usage still flows unchanged
+        verify(delegate).usage(usage);
+        // (b) recordTokenUsage called once with provider + response model (the 6-arg overload)
+        verify(metrics).recordTokenUsage(
+                eq("google-adk"), eq("gemini-2.0"), eq("gemini-2.0-flash-001"),
+                eq(120L), eq(80L), eq(200L));
+        // (c) the 4-arg legacy overload must NOT be invoked on the provider path
+        verify(metrics, never()).recordTokenUsage(any(), anyLong(), anyLong(), anyLong());
+    }
+
+    @Test
+    void usageWithProviderInvokesGenAiTracerWithoutError() {
+        // GenAiTracer.record is a static no-op when no OTel span is current —
+        // assert the decorator wires it on the usage path without throwing and
+        // still forwards usage + records the provider-aware metric.
+        var metrics = mockMetrics();
+        var delegate = mockDelegate();
+        var session = new MetricsCapturingSession(delegate, metrics, "gpt-4", "built-in");
+        var usage = new TokenUsage(10, 5, 0, 15, "gpt-4");
+        session.usage(usage);
+
+        verify(delegate).usage(usage);
+        verify(metrics).recordTokenUsage(
+                eq("built-in"), eq("gpt-4"), eq("gpt-4"), eq(10L), eq(5L), eq(15L));
+    }
+
+    @Test
+    void usageWithoutProviderKeepsLegacyFourArgCall() {
+        // 3-arg ctor (no resolved provider) keeps the exact legacy 4-arg call —
+        // byte-identical behaviour for the pre-existing capture path.
+        var metrics = mockMetrics();
+        var delegate = mockDelegate();
+        var session = new MetricsCapturingSession(delegate, metrics, "gpt-4");
+        var usage = new TokenUsage(120, 80, 0, 200, "gpt-4");
+        session.usage(usage);
+
+        verify(metrics).recordTokenUsage("gpt-4", 120L, 80L, 200L);
+        verify(delegate).usage(usage);
+        // The provider-aware overload must NOT be called on the legacy path.
+        verify(metrics, never()).recordTokenUsage(
+                any(), any(), any(), anyLong(), anyLong(), anyLong());
+    }
+
+    @Test
     void progressForwardsToDelegateDirectly() {
         var delegate = mockDelegate();
         var session = new MetricsCapturingSession(delegate, mockMetrics(), "gpt-4");

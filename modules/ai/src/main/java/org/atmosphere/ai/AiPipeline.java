@@ -508,7 +508,8 @@ public class AiPipeline {
             target = new MemoryCapturingSession(target, memory, clientId, message);
         }
         if (metrics != AiMetrics.NOOP) {
-            target = new MetricsCapturingSession(target, metrics, model);
+            target = new MetricsCapturingSession(target, metrics, model,
+                    runtime != null ? runtime.name() : "unknown");
         }
         // Budget circuit breaker — wraps the session so token/step/wall-clock
         // accounting taps every runtime turn. Slotted after MetricsCapturingSession

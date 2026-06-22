@@ -729,7 +729,8 @@ public class AiStreamingSession implements StreamingSession {
 
         // Wrap in MetricsCapturingSession for latency/streaming text tracking
         if (metrics != AiMetrics.NOOP) {
-            target = new MetricsCapturingSession(target, metrics, model);
+            target = new MetricsCapturingSession(target, metrics, model,
+                    runtime != null ? runtime.name() : "unknown");
         }
 
         // Wrap in CostAccountingSession so TokenUsage events feed whatever

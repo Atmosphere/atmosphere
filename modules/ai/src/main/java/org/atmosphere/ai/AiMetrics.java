@@ -74,6 +74,31 @@ public interface AiMetrics {
     default void recordTokenUsage(String model, long inputTokens, long outputTokens, long totalTokens) { }
 
     /**
+     * Provider- and response-model-aware token usage recording. Carries the
+     * <em>resolved</em> {@code AgentRuntime.name()} (Runtime Truth) and the
+     * provider-reported response model so OpenTelemetry GenAI-convention
+     * consumers see the real provider, not a hardcoded value, and the response
+     * model when the runtime exposed it.
+     *
+     * <p>The default delegates to {@link #recordTokenUsage(String, long, long, long)}
+     * with the request model, so existing implementations stay source- and
+     * behaviour-compatible. {@link MicrometerAiMetrics} overrides this to tag
+     * {@code gen_ai.provider.name} / {@code gen_ai.response.model}.</p>
+     *
+     * @param provider      the resolved runtime name ({@code gen_ai.provider.name})
+     * @param requestModel  the request model ({@code gen_ai.request.model})
+     * @param responseModel the provider-reported response model
+     *                      ({@code gen_ai.response.model}); may be {@code null}
+     * @param inputTokens   prompt tokens consumed (0 when unknown)
+     * @param outputTokens  completion tokens produced (0 when unknown)
+     * @param totalTokens   total tokens for the completion (0 when unknown)
+     */
+    default void recordTokenUsage(String provider, String requestModel, String responseModel,
+                                  long inputTokens, long outputTokens, long totalTokens) {
+        recordTokenUsage(requestModel, inputTokens, outputTokens, totalTokens);
+    }
+
+    /**
      * Record latency metrics.
      *
      * @param model         the model name
