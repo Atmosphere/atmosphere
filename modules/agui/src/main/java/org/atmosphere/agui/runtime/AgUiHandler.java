@@ -162,7 +162,7 @@ public final class AgUiHandler implements AtmosphereHandler {
 
         // Execute on virtual thread
         var finalRunContext = runContext;
-        Thread.ofVirtual().name("agui-run-" + runContext.runId()).start(() -> {
+        var runThread = Thread.ofVirtual().name("agui-run-" + runContext.runId()).start(() -> {
             try {
                 var delegateSession = new NoOpStreamingSession();
                 var session = new ResourceAgUiStreamingSession(
@@ -197,6 +197,15 @@ public final class AgUiHandler implements AtmosphereHandler {
                 }
             }
         });
+        // Keep the container thread in handlePost (response open) until the run
+        // completes — otherwise the response is recycled when this method returns
+        // and the virtual thread's async SSE writes hit a null OutputBuffer.
+        try {
+            runThread.join();
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            runThread.interrupt();
+        }
     }
 
     private void handleGet(AtmosphereResource resource) {

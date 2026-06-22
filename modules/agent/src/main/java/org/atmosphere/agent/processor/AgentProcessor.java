@@ -687,7 +687,10 @@ public class AgentProcessor implements Processor<Object> {
      * {@link org.atmosphere.agui.runtime.RunContext}-based action protocol.
      * Only loaded when atmosphere-agui is on the classpath.
      */
-    static class AgUiAgentBridge {
+    // Public so the AG-UI handler (a sibling module, org.atmosphere.agui.runtime)
+    // can reflectively invoke onAction across the package/module boundary —
+    // a public method on a package-private class is not cross-package accessible.
+    public static class AgUiAgentBridge {
         private final Object promptTarget;
         private final Method bridgedPromptMethod;
 
