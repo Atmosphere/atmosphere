@@ -27,7 +27,15 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiGuardrail;
+import org.atmosphere.ai.facts.FactResolver;
+import org.atmosphere.ai.filter.PiiRedactionFilter;
+import org.atmosphere.ai.governance.GovernancePolicy;
+import org.atmosphere.ai.guardrails.OutputLengthZScoreGuardrail;
+import org.atmosphere.ai.guardrails.PiiRedactionGuardrail;
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.BroadcasterListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -81,8 +89,426 @@ public class AtmosphereAiAutoConfiguration {
     @ConditionalOnMissingBean
     public AtmosphereAiEndpointRegistrar atmosphereAiEndpointRegistrar(
             AtmosphereFramework framework,
-            AtmosphereProperties properties) {
-        return new AtmosphereAiEndpointRegistrar(framework, properties);
+            AtmosphereProperties properties,
+            org.springframework.beans.factory.ObjectProvider<AiGuardrail> guardrailProvider,
+            org.springframework.beans.factory.ObjectProvider<GovernancePolicy> policyProvider) {
+        var guardrails = guardrailProvider.orderedStream().toList();
+        // Bridge the bean list into framework properties so user-defined
+        // @AiEndpoint classes (which go through AiEndpointProcessor, not this
+        // registrar) also pick them up.
+        if (!guardrails.isEmpty()) {
+            framework.getAtmosphereConfig().properties()
+                    .put(AiGuardrail.GUARDRAILS_PROPERTY, guardrails);
+            logger.info("Bridged {} Spring AiGuardrail bean(s) into framework properties: {}",
+                    guardrails.size(),
+                    guardrails.stream().map(g -> g.getClass().getSimpleName()).toList());
+        }
+        var policies = policyProvider.orderedStream().toList();
+        if (!policies.isEmpty()) {
+            framework.getAtmosphereConfig().properties()
+                    .put(GovernancePolicy.POLICIES_PROPERTY, policies);
+            logger.info("Bridged {} Spring GovernancePolicy bean(s) into framework properties: {}",
+                    policies.size(),
+                    policies.stream().map(GovernancePolicy::name).toList());
+        }
+        return new AtmosphereAiEndpointRegistrar(framework, properties, guardrails);
+    }
+
+    /**
+     * Bridges the application's {@link FactResolver} bean (if any) into the
+     * framework's properties so {@code AiEndpointHandler} picks it up at turn
+     * dispatch. Framework-scoped, lifecycle owned by Spring, no process-wide
+     * static.
+     */
+    @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnBean(FactResolver.class)
+    public FactResolverBridge atmosphereFactResolverBridge(
+            AtmosphereFramework framework, FactResolver resolver) {
+        framework.getAtmosphereConfig().properties()
+                .put(FactResolver.FACT_RESOLVER_PROPERTY, resolver);
+        logger.info("Bridged Spring FactResolver bean {} into AiEndpointHandler "
+                + "(lifecycle: Spring-owned)", resolver.getClass().getName());
+        return new FactResolverBridge(resolver);
+    }
+
+    /**
+     * Marker bean recording that a Spring-managed FactResolver has been bridged
+     * into the framework properties.
+     */
+    public record FactResolverBridge(FactResolver resolver) { }
+
+    /**
+     * Opt-in PII redaction guardrail. Off by default — enable with
+     * {@code atmosphere.ai.guardrails.pii.enabled=true}. Redacts emails, phone
+     * numbers, credit card numbers, and US SSNs from requests and responses;
+     * set {@code atmosphere.ai.guardrails.pii.blocking=true} to block instead.
+     */
+    @Bean
+    @ConditionalOnMissingBean(name = "atmospherePiiGuardrail")
+    @ConditionalOnProperty(name = "atmosphere.ai.guardrails.pii.enabled", havingValue = "true")
+    public PiiRedactionGuardrail atmospherePiiGuardrail(
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.guardrails.pii.blocking:false}") boolean blocking) {
+        var g = new PiiRedactionGuardrail();
+        if (blocking) {
+            logger.info("PiiRedactionGuardrail registered (blocking mode)");
+            return g.blocking();
+        }
+        logger.info("PiiRedactionGuardrail registered (redacting mode)");
+        return g;
+    }
+
+    /**
+     * Opt-in drift / output-length guardrail. Off by default — enable with
+     * {@code atmosphere.ai.guardrails.drift.enabled=true}. Blocks responses
+     * whose length is beyond {@code z-score-threshold} standard deviations of a
+     * rolling window.
+     */
+    @Bean
+    @ConditionalOnMissingBean(name = "atmosphereDriftGuardrail")
+    @ConditionalOnProperty(name = "atmosphere.ai.guardrails.drift.enabled", havingValue = "true")
+    public OutputLengthZScoreGuardrail atmosphereDriftGuardrail(
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.guardrails.drift.window-size:50}") int windowSize,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.guardrails.drift.z-score-threshold:3.0}") double zThreshold,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.guardrails.drift.min-samples:10}") int minSamples) {
+        logger.info("OutputLengthZScoreGuardrail registered (window={}, z={}, minSamples={})",
+                windowSize, zThreshold, minSamples);
+        return new OutputLengthZScoreGuardrail(windowSize, zThreshold, minSamples);
+    }
+
+    /**
+     * Opt-in per-tenant cost ceiling. Off by default — enable with
+     * {@code atmosphere.ai.guardrails.cost.enabled=true} and set a USD ceiling
+     * via {@code atmosphere.ai.guardrails.cost.budget-usd}. Enforcement requires
+     * a {@link org.atmosphere.ai.cost.TokenPricing} bean (see the
+     * cost-accountant installer).
+     */
+    @Bean
+    @ConditionalOnMissingBean(name = "atmosphereCostCeilingGuardrail")
+    @ConditionalOnProperty(name = "atmosphere.ai.guardrails.cost.enabled", havingValue = "true")
+    public org.atmosphere.ai.guardrails.CostCeilingGuardrail atmosphereCostCeilingGuardrail(
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.guardrails.cost.budget-usd:0.0}") double budgetUsd) {
+        logger.info("CostCeilingGuardrail registered (budgetUsd={})", budgetUsd);
+        return new org.atmosphere.ai.guardrails.CostCeilingGuardrail(budgetUsd);
+    }
+
+    /**
+     * Opt-in content-safety moderation guardrail. Off by default — enable with
+     * {@code atmosphere.ai.guardrails.moderation.enabled=true}. Detector tier via
+     * {@code atmosphere.ai.guardrails.moderation.detector} ({@code rule} default,
+     * or {@code llm}); fail-closed by default
+     * ({@code ...moderation.fail-open=true} to admit on detector error).
+     */
+    @Bean
+    @ConditionalOnMissingBean(name = "atmosphereModerationGuardrail")
+    @ConditionalOnProperty(name = "atmosphere.ai.guardrails.moderation.enabled", havingValue = "true")
+    public org.atmosphere.ai.guardrails.ModerationGuardrail atmosphereModerationGuardrail(
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.guardrails.moderation.detector:rule}") String detector,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.guardrails.moderation.fail-open:false}") boolean failOpen) {
+        var llm = "llm".equalsIgnoreCase(detector);
+        var guardrail = llm
+                ? new org.atmosphere.ai.guardrails.ModerationGuardrail(
+                        new org.atmosphere.ai.guardrails.LlmModerationDetector())
+                        .scope(org.atmosphere.ai.guardrails.ModerationGuardrail.Scope.REQUEST)
+                : new org.atmosphere.ai.guardrails.ModerationGuardrail();
+        if (failOpen) {
+            guardrail = guardrail.failOpen();
+        }
+        logger.info("ModerationGuardrail registered (detector={}, failClosed={})",
+                llm ? "llm" : "rule", !failOpen);
+        return guardrail;
+    }
+
+    /**
+     * Opt-in OAuth on-behalf-of (RFC 8693 token-exchange) credential vault. Off
+     * by default — enable with {@code atmosphere.ai.identity.oauth-obo.enabled=true}
+     * and configure the {@code token-endpoint} / {@code client-id} /
+     * {@code client-secret}. Set {@code master-key} (base64) to back subject-token
+     * storage with the AES-GCM encrypted store (else unencrypted in-memory, with
+     * a startup warning).
+     */
+    @Bean
+    @ConditionalOnMissingBean(name = "atmosphereOAuthOboCredentialStore")
+    @ConditionalOnProperty(name = "atmosphere.ai.identity.oauth-obo.enabled", havingValue = "true")
+    public org.atmosphere.ai.identity.OAuthOnBehalfOfCredentialStore atmosphereOAuthOboCredentialStore(
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.identity.oauth-obo.token-endpoint}") String tokenEndpoint,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.identity.oauth-obo.client-id}") String clientId,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.identity.oauth-obo.client-secret:}") String clientSecret,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.identity.oauth-obo.default-scope:}") String scope,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.identity.oauth-obo.default-audience:}") String audience,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.identity.oauth-obo.subject-token-key:oauth.subject_token}") String subjectKey,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.identity.oauth-obo.master-key:}") String masterKeyB64) {
+        org.atmosphere.ai.identity.CredentialStore backing;
+        if (masterKeyB64 != null && !masterKeyB64.isBlank()) {
+            backing = new org.atmosphere.ai.identity.AtmosphereEncryptedCredentialStore(
+                    java.util.Base64.getDecoder().decode(masterKeyB64));
+        } else {
+            logger.warn("atmosphere.ai.identity.oauth-obo.master-key not set — subject tokens "
+                    + "are stored UNENCRYPTED in memory; set a base64 master key for production");
+            backing = new org.atmosphere.ai.identity.InMemoryCredentialStore();
+        }
+        var config = org.atmosphere.ai.identity.OAuthOboConfig.builder(
+                        java.net.URI.create(tokenEndpoint), clientId, clientSecret)
+                .defaultScope(scope == null || scope.isBlank() ? null : scope)
+                .defaultAudience(audience == null || audience.isBlank() ? null : audience)
+                .subjectTokenKey(subjectKey)
+                .build();
+        logger.info("OAuthOnBehalfOfCredentialStore registered (endpoint={}, encryptedBacking={})",
+                tokenEndpoint, masterKeyB64 != null && !masterKeyB64.isBlank());
+        return new org.atmosphere.ai.identity.OAuthOnBehalfOfCredentialStore(backing, config);
+    }
+
+    /**
+     * Publishes a {@link org.atmosphere.ai.cost.CostAccountant} into the
+     * process-wide holder the {@code AiStreamingSession} decorator chain reads.
+     * Priority: user-supplied {@code CostAccountant} bean, else a built-in
+     * {@code CostCeilingAccountant} from the cost-ceiling guardrail + token
+     * pricing beans, else NOOP (zero overhead).
+     */
+    @Bean
+    @ConditionalOnMissingBean(CostAccountantInstaller.class)
+    public CostAccountantInstaller atmosphereCostAccountantInstaller(
+            org.springframework.beans.factory.ObjectProvider<org.atmosphere.ai.cost.CostAccountant>
+                    userAccountant,
+            org.springframework.beans.factory.ObjectProvider<org.atmosphere.ai.guardrails.CostCeilingGuardrail>
+                    guardrailProvider,
+            org.springframework.beans.factory.ObjectProvider<org.atmosphere.ai.cost.TokenPricing>
+                    pricingProvider) {
+        var user = userAccountant.getIfAvailable();
+        if (user != null) {
+            return new CostAccountantInstaller(user, "user-bean");
+        }
+        var guardrail = guardrailProvider.getIfAvailable();
+        var pricing = pricingProvider.getIfAvailable();
+        if (guardrail != null && pricing != null) {
+            return new CostAccountantInstaller(
+                    new org.atmosphere.ai.cost.CostCeilingAccountant(guardrail, pricing),
+                    "CostCeilingAccountant(guardrail+pricing)");
+        }
+        return new CostAccountantInstaller(
+                org.atmosphere.ai.cost.CostAccountant.NOOP,
+                "NOOP (no CostAccountant, guardrail, or pricing bean)");
+    }
+
+    /**
+     * Installs a {@link org.atmosphere.ai.cost.CostAccountant} into the
+     * process-wide {@link org.atmosphere.ai.cost.CostAccountantHolder} on
+     * startup and restores the no-op on shutdown.
+     */
+    static final class CostAccountantInstaller
+            implements org.springframework.beans.factory.SmartInitializingSingleton,
+                       org.springframework.beans.factory.DisposableBean {
+
+        private final org.atmosphere.ai.cost.CostAccountant accountant;
+        private final String source;
+
+        CostAccountantInstaller(org.atmosphere.ai.cost.CostAccountant accountant, String source) {
+            this.accountant = accountant;
+            this.source = source;
+        }
+
+        @Override
+        public void afterSingletonsInstantiated() {
+            if (accountant != org.atmosphere.ai.cost.CostAccountant.NOOP) {
+                org.atmosphere.ai.cost.CostAccountantHolder.install(accountant);
+                logger.info("CostAccountant installed ({}): {}",
+                        source, accountant.getClass().getSimpleName());
+            } else {
+                logger.debug("CostAccountantInstaller: {} — holder stays at NOOP", source);
+            }
+        }
+
+        @Override
+        public void destroy() {
+            org.atmosphere.ai.cost.CostAccountantHolder.reset();
+        }
+
+        /** Exposed so tests can assert which path fired. */
+        String source() {
+            return source;
+        }
+
+        /** Exposed so tests can assert the resolved accountant. */
+        org.atmosphere.ai.cost.CostAccountant accountant() {
+            return accountant;
+        }
+    }
+
+    /**
+     * Opt-in crash-durable run resume. Off by default — enable with
+     * {@code atmosphere.ai.resume.durable.enabled=true}. Installs a
+     * {@code RunJournal}-backed {@code RunRegistry} into the process-wide holder
+     * and rehydrates persisted runs on startup. Supply a durable
+     * {@code RunJournal} bean for real crash survival; without one the bundled
+     * in-memory journal is used (a WARN fires — not crash-durable).
+     */
+    @Bean
+    @ConditionalOnMissingBean(RunRegistryInstaller.class)
+    @ConditionalOnProperty(name = "atmosphere.ai.resume.durable.enabled", havingValue = "true")
+    public RunRegistryInstaller atmosphereRunRegistryInstaller(
+            org.springframework.beans.factory.ObjectProvider<org.atmosphere.ai.resume.RunJournal>
+                    journalProvider) {
+        var journal = journalProvider.getIfAvailable(org.atmosphere.ai.resume.InMemoryRunJournal::new);
+        return new RunRegistryInstaller(journal);
+    }
+
+    /**
+     * Builds a {@code RunJournal}-backed {@code RunRegistry}, rehydrates
+     * persisted runs, installs it into the process-wide holder on startup, and
+     * restores the default in-memory registry on shutdown.
+     */
+    static final class RunRegistryInstaller
+            implements org.springframework.beans.factory.SmartInitializingSingleton,
+                       org.springframework.beans.factory.DisposableBean {
+
+        private final org.atmosphere.ai.resume.RunJournal journal;
+
+        RunRegistryInstaller(org.atmosphere.ai.resume.RunJournal journal) {
+            this.journal = journal;
+        }
+
+        @Override
+        public void afterSingletonsInstantiated() {
+            var registry = new org.atmosphere.ai.resume.RunRegistry(
+                    java.time.Clock.systemUTC(),
+                    org.atmosphere.ai.resume.RunRegistry.DEFAULT_TTL,
+                    journal);
+            var rehydrated = registry.rehydrate();
+            org.atmosphere.ai.resume.RunRegistryHolder.install(registry);
+            if (journal.durable()) {
+                logger.info("Crash-durable run resume enabled (journal={}, rehydrated={} run(s))",
+                        journal.getClass().getSimpleName(), rehydrated);
+            } else {
+                logger.warn("Run resume journaling enabled but journal {} is in-memory — "
+                                + "NOT crash-durable. Supply a durable RunJournal bean for "
+                                + "crash survival. (rehydrated={} run(s))",
+                        journal.getClass().getSimpleName(), rehydrated);
+            }
+        }
+
+        @Override
+        public void destroy() {
+            org.atmosphere.ai.resume.RunRegistryHolder.reset();
+        }
+
+        /** Exposed so tests can assert the resolved journal. */
+        org.atmosphere.ai.resume.RunJournal journal() {
+            return journal;
+        }
+    }
+
+    /**
+     * Stream-level PII scrubber — the response-path complement to the guardrail.
+     * Rewrites each text frame in-flight inside the broadcaster chain before any
+     * byte reaches the client. Registered under the same property as the
+     * guardrail ({@code atmosphere.ai.guardrails.pii.enabled=true}); default
+     * replacement {@code [REDACTED]} (override via
+     * {@code atmosphere.ai.guardrails.pii.replacement}).
+     */
+    @Bean
+    @ConditionalOnMissingBean(name = "atmospherePiiStreamFilter")
+    @ConditionalOnProperty(name = "atmosphere.ai.guardrails.pii.enabled", havingValue = "true")
+    public PiiRedactionFilter atmospherePiiStreamFilter(
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.guardrails.pii.replacement:[REDACTED]}") String replacement) {
+        logger.info("PiiRedactionFilter registered (BroadcasterFilter, replacement={})", replacement);
+        return new PiiRedactionFilter(replacement);
+    }
+
+    /**
+     * Installs every {@link org.atmosphere.ai.filter.AiStreamBroadcastFilter}
+     * bean on every broadcaster the framework creates (present + future), and
+     * removes the installer listener on shutdown (Correctness Invariant #1).
+     */
+    @Bean
+    @ConditionalOnBean(org.atmosphere.ai.filter.AiStreamBroadcastFilter.class)
+    public AiStreamFilterInstaller atmosphereAiStreamFilterInstaller(
+            AtmosphereFramework framework,
+            java.util.List<org.atmosphere.ai.filter.AiStreamBroadcastFilter> filters) {
+        return new AiStreamFilterInstaller(framework, filters);
+    }
+
+    /**
+     * Installs AI stream filters and keeps a handle on both the factory and the
+     * listener so the registration can be undone on shutdown.
+     */
+    static final class AiStreamFilterInstaller
+            implements org.springframework.beans.factory.SmartInitializingSingleton,
+                       org.springframework.beans.factory.DisposableBean {
+
+        private final AtmosphereFramework framework;
+        private final java.util.List<org.atmosphere.ai.filter.AiStreamBroadcastFilter> filters;
+        private volatile org.atmosphere.cpr.BroadcasterFactory factoryRef;
+        private volatile BroadcasterListener listenerRef;
+
+        AiStreamFilterInstaller(AtmosphereFramework framework,
+                java.util.List<org.atmosphere.ai.filter.AiStreamBroadcastFilter> filters) {
+            this.framework = framework;
+            this.filters = filters;
+        }
+
+        @Override
+        public void afterSingletonsInstantiated() {
+            framework.getAtmosphereConfig().startupHook(f -> {
+                var factory = f.getBroadcasterFactory();
+                if (factory == null) {
+                    logger.warn("BroadcasterFactory not available — cannot install "
+                            + "{} stream filter(s) on AI broadcasters", filters.size());
+                    return;
+                }
+                factory.lookupAll().forEach(b -> applyFilters(b, filters));
+                var listener = new BroadcasterListener() {
+                    @Override public void onPostCreate(Broadcaster b) { applyFilters(b, filters); }
+                    @Override public void onComplete(Broadcaster b) { }
+                    @Override public void onPreDestroy(Broadcaster b) { }
+                    @Override public void onAddAtmosphereResource(Broadcaster b,
+                            org.atmosphere.cpr.AtmosphereResource r) { }
+                    @Override public void onRemoveAtmosphereResource(Broadcaster b,
+                            org.atmosphere.cpr.AtmosphereResource r) { }
+                    @Override public void onMessage(Broadcaster b,
+                            org.atmosphere.cpr.Deliver d) { }
+                };
+                factory.addBroadcasterListener(listener);
+                this.factoryRef = factory;
+                this.listenerRef = listener;
+                logger.info("Installed {} AiStreamBroadcastFilter(s) on every broadcaster "
+                        + "(present + future)", filters.size());
+            });
+        }
+
+        @Override
+        public void destroy() {
+            var factory = factoryRef;
+            var listener = listenerRef;
+            if (factory != null && listener != null) {
+                factory.removeBroadcasterListener(listener);
+                logger.info("Removed AiStreamBroadcastFilter installer listener from factory");
+            }
+            factoryRef = null;
+            listenerRef = null;
+        }
+    }
+
+    private static void applyFilters(Broadcaster b,
+            java.util.List<org.atmosphere.ai.filter.AiStreamBroadcastFilter> filters) {
+        for (var f : filters) {
+            if (!b.getBroadcasterConfig().filters().contains(f)) {
+                b.getBroadcasterConfig().addFilter(f);
+            }
+        }
     }
 
     @Bean
