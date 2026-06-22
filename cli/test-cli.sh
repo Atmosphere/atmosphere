@@ -361,6 +361,19 @@ assert_contains "$out" "classroom" "error lists known templates including classr
 out=$("$CLI" new foo --bogus 2>&1) && ec=0 || ec=$?
 assert_exit_code "$ec" 1 "new with unknown option exits with error"
 
+# --routing on a non-AI template (chat ships no AI client / routing block) is
+# rejected up-front, before any network clone, with a message naming the
+# requirement. Pure-offline: the eligibility check runs before install_source.
+out=$("$CLI" new foo --routing --template chat 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 1 "new --routing on non-AI template exits with error"
+assert_contains "$out" "requires an AI template" "error explains --routing needs an AI template"
+
+# --routing must not break the unknown-flag guard: a bogus flag alongside (or
+# instead of) --routing still hits the Unknown-option path.
+out=$("$CLI" new foo --bogusflag 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 1 "new --bogusflag still exits with error (unknown-option path intact)"
+assert_contains "$out" "Unknown option: --bogusflag" "unknown flag names the offending option"
+
 # --skill-file with nonexistent file
 out=$("$CLI" new bad-agent --skill-file /nonexistent/skill.md 2>&1) && ec=0 || ec=$?
 assert_exit_code "$ec" 1 "nonexistent skill file exits with error"
@@ -739,6 +752,170 @@ if [ -f "$ai_tools_pom" ]; then
 fi
 
 rm -rf "$overlay_tmp"
+printf "\n"
+
+# ── 12d. CLI: new --routing ────────────────────────────────────────────────
+# `--routing` is a bare boolean that appends a COMMENTED, ready-to-uncomment
+# atmosphere.ai.routing.* block to an AI template's application.yml. Off by
+# default (the scaffold is byte-identical without it). Like the --runtime
+# overlay tests, the injection logic is exercised purely locally by sourcing the
+# inject_routing_block helper — no network. (The exit-1 rejection cases live in
+# the "atmosphere new (validation)" section above.)
+printf "${BOLD}atmosphere new --routing${RESET}\n"
+
+routing_tmp=$(mktemp -d)
+
+# Extract the routing helpers (ROUTING_AI_TEMPLATES, is_routing_template,
+# inject_routing_block) to a sourceable file — same trick as the overlay tests.
+# Range: from the "Routing block" section banner up to (not including) cmd_new.
+routing_fn_file="$routing_tmp/routing_fn.sh"
+sed -n '/^# ── Routing block (--routing)/,/^cmd_new() {$/p' "$CLI" \
+    | sed '/^cmd_new() {$/d' > "$routing_fn_file"
+
+cat > "$routing_tmp/harness.sh" <<HARNESS
+#!/bin/sh
+# Stand-alone harness that calls inject_routing_block with the env the real CLI
+# provides. \$1 = template, \$2 = scaffold dir.
+die()  { echo "error: \$1" >&2; exit 1; }
+info() { echo "info: \$1"; }
+warn() { echo "warn: \$1" >&2; }
+RED=''; GREEN=''; YELLOW=''; CYAN=''; BOLD=''; DIM=''; RESET=''
+. '$routing_fn_file'
+inject_routing_block "\$1" "\$2"
+HARNESS
+chmod +x "$routing_tmp/harness.sh"
+
+drive_routing() {
+    "$routing_tmp/harness.sh" "$1" "$2"
+}
+
+# Build a scaffold-shaped dir holding a COPY of the real ai-chat application.yml
+# so we never mutate the checked-in sample.
+routing_proj="$routing_tmp/proj"
+mkdir -p "$routing_proj/src/main/resources"
+src_yml="$SCRIPT_DIR/../samples/spring-boot-ai-chat/src/main/resources/application.yml"
+cp "$src_yml" "$routing_proj/src/main/resources/application.yml"
+proj_yml="$routing_proj/src/main/resources/application.yml"
+
+# Capture the pre-injection top-level keys so we can prove no-clobber later.
+pre_keys=$(grep -E '^[a-zA-Z].*:' "$proj_yml")
+
+# Inject once against the temp copy.
+out=$(drive_routing ai-chat "$routing_proj" 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 0 "inject_routing_block exits 0 on ai-chat yml"
+
+injected=$(cat "$proj_yml")
+assert_contains "$injected" "routing:" "injected yml contains routing:"
+assert_contains "$injected" "enabled: false" "injected yml contains enabled: false"
+assert_contains "$injected" "content-rules:" "injected yml contains content-rules:"
+assert_contains "$injected" "keywords:" "injected yml contains keywords:"
+assert_contains "$injected" "model:" "injected yml contains model:"
+assert_contains "$injected" "default-model:" "injected yml contains default-model:"
+
+# No-clobber: every pre-existing top-level key must survive the append.
+missing_key=""
+echo "$pre_keys" | while IFS= read -r k; do
+    [ -z "$k" ] && continue
+    printf '%s' "$injected" | grep -q -F -e "$k" || echo "$k" >> "$routing_tmp/missing_keys"
+done
+if [ -f "$routing_tmp/missing_keys" ]; then
+    fail "injection preserves pre-existing top-level keys" "$(cat "$routing_tmp/missing_keys")"
+else
+    pass "injection preserves pre-existing top-level keys (no clobber)"
+fi
+# Spot-check the headline pre-existing keys explicitly.
+assert_contains "$injected" "atmosphere:" "pre-existing atmosphere: block preserved"
+assert_contains "$injected" "llm:" "pre-existing llm: block preserved"
+assert_contains "$injected" "server:" "pre-existing server: block preserved"
+
+# Idempotency: a second injection must warn and no-op (routing: stays single).
+out=$(drive_routing ai-chat "$routing_proj" 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 0 "second inject_routing_block exits 0 (idempotent)"
+assert_contains "$out" "already exists" "second injection warns the block already exists"
+routing_count=$(grep -c 'routing:' "$proj_yml")
+if [ "$routing_count" -eq 1 ]; then
+    pass "routing: appears exactly once after double injection"
+else
+    fail "routing: appears exactly once after double injection" "grep -c routing: = $routing_count"
+fi
+
+# No-op: a scaffold dir with NO application.yml must warn + return 0 (graceful;
+# the routing block is optional, it must not break scaffolding).
+routing_empty="$routing_tmp/empty"
+mkdir -p "$routing_empty/src/main/resources"
+out=$(drive_routing ai-chat "$routing_empty" 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 0 "inject_routing_block returns 0 when no application.yml present"
+assert_contains "$out" "no application.yml" "no-yml case warns about the missing file"
+
+# Non-AI template via the helper directly: exit 1 + 'requires an AI template'.
+out=$(drive_routing chat "$routing_proj" 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 1 "inject_routing_block rejects a non-AI template"
+assert_contains "$out" "requires an AI template" "helper rejection names the AI-template requirement"
+
+# YAML validity: the post-injection file is still valid YAML (the block is inert
+# comments). Use pyyaml when available; otherwise fall back to an indentation
+# grep that proves the routing tree sits at the README's depth (mirrors the
+# xmllint-when-available fallback used by the --runtime tests).
+if python3 -c 'import yaml' >/dev/null 2>&1; then
+    if python3 -c "import yaml,sys; yaml.safe_load(open('$proj_yml')); sys.exit(0)" 2>/dev/null; then
+        pass "post-injection application.yml is valid YAML (pyyaml)"
+    else
+        fail "post-injection application.yml is valid YAML (pyyaml)" \
+             "$(python3 -c "import yaml; yaml.safe_load(open('$proj_yml'))" 2>&1 | tail -3)"
+    fi
+else
+    # Structural fallback: the commented routing tree must carry the README's
+    # nesting — '#     routing:' (6 cols incl. '#'), '#       enabled:' deeper,
+    # and a content-rules list item at the rule depth.
+    if grep -q '^#     routing:' "$proj_yml" \
+       && grep -q '^#       enabled: false' "$proj_yml" \
+       && grep -q '^#         - keywords:' "$proj_yml"; then
+        pass "post-injection routing block carries README indentation depth (grep fallback)"
+    else
+        fail "post-injection routing block carries README indentation depth (grep fallback)"
+    fi
+fi
+
+# Doc-drift pin: every routing key the block emits must be documented in
+# modules/ai/README.md. If the README drops/renames one, this breaks — the same
+# way capability sets are pinned against drift.
+AI_README="$SCRIPT_DIR/../modules/ai/README.md"
+if [ -f "$AI_README" ]; then
+    for key in default-model content-rules keywords model base-url api-key; do
+        if grep -q -F -e "$key" "$AI_README"; then
+            pass "routing key '$key' is documented in modules/ai/README.md"
+        else
+            fail "routing key '$key' missing from modules/ai/README.md" \
+                 "emitted block and README routing docs have drifted"
+        fi
+    done
+else
+    fail "modules/ai/README.md present for doc-drift pin" "$AI_README not found"
+fi
+
+rm -rf "$routing_tmp"
+
+# Network-gated end-to-end: scaffold a real ai-chat with --routing and confirm
+# the cloned application.yml carries the routing block. Skipped by default
+# (ATMOSPHERE_NETWORK_TESTS=1) to keep CI offline + fast.
+if [ "${ATMOSPHERE_NETWORK_TESTS:-0}" = "1" ]; then
+    routing_net_tmp=$(mktemp -d)
+    out=$(cd "$routing_net_tmp" && "$CLI" new net-routing --template ai-chat --routing 2>&1) && ec=0 || ec=$?
+    assert_exit_code "$ec" 0 "new ai-chat --routing exits successfully (network)"
+    net_yml="$routing_net_tmp/net-routing/src/main/resources/application.yml"
+    if [ -f "$net_yml" ]; then
+        net_content=$(cat "$net_yml")
+        assert_contains "$net_content" "routing:" "cloned ai-chat --routing yml contains routing:"
+        assert_contains "$net_content" "enabled: false" "cloned ai-chat --routing yml contains enabled: false"
+        assert_contains "$net_content" "content-rules:" "cloned ai-chat --routing yml contains content-rules:"
+    else
+        fail "cloned ai-chat --routing application.yml present (network)" "$net_yml missing"
+    fi
+    rm -rf "$routing_net_tmp"
+else
+    printf "  ${DIM}— skipping --routing network clone (set ATMOSPHERE_NETWORK_TESTS=1)${RESET}\n"
+fi
+
 printf "\n"
 
 # ── 13. npx: create-atmosphere-app ─────────────────────────────────────────

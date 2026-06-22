@@ -177,6 +177,7 @@ ${BOLD}Examples:${RESET}
   atmosphere new my-ai-app --template ai-chat
   atmosphere new my-ai-app --template ai-chat --runtime langchain4j
   atmosphere new my-ai-app --template ai-chat --runtime spring-ai --force
+  atmosphere new my-ai-app --template ai-chat --routing
   atmosphere checkpoint list --coordination dispatch
   atmosphere checkpoint approve abc-123 --by alice
 
@@ -959,14 +960,90 @@ EOF
     return 0
 }
 
+# ── Routing block (--routing) ───────────────────────────────────────────────
+# AI templates whose scaffold ships a src/main/resources/application.yml.
+# Built from VERIFIED on-disk presence (not assumption): each entry below has a
+# .yml (not .properties / .yaml). The non-yml AI templates (mcp-server and
+# guarded-agent ship application.properties; agent/dentist ships
+# application.yaml) and the plain `chat` template are intentionally excluded —
+# `--routing` injects YAML, so it only applies where there's a .yml to extend.
+ROUTING_AI_TEMPLATES="ai-chat ai-tools rag multi-agent classroom ms-governance coding-agent assistant browser-agent"
+
+# Return 0 if $1 is one of the routing-eligible AI templates, 1 otherwise.
+is_routing_template() {
+    _t="$1"
+    for _rt in $ROUTING_AI_TEMPLATES; do
+        [ "$_t" = "$_rt" ] && return 0
+    done
+    return 1
+}
+
+# Append a COMMENTED, ready-to-uncomment atmosphere.ai.routing.* block to a
+# scaffolded project's application.yml. Off by default: callers only invoke this
+# when `--routing` is set. The emitted tree mirrors modules/ai/README.md (§
+# Routing) verbatim — atmosphere → ai → routing → {enabled, default-model,
+# content-rules[].{keywords, model, base-url, api-key}} — so uncommenting it
+# binds correctly. Because the block is commented, the scaffold is byte-identical
+# unless `--routing` is passed.
+#
+#   - Non-AI / non-yml template  → exit 1 (message contains 'requires an AI template')
+#   - 'routing:' already present → warn + no-op (exit 0, idempotent)
+#   - no application.yml on disk → warn + return 0 (don't break scaffolding)
+#
+# Usage: inject_routing_block <template> <scaffold-dir>
+inject_routing_block() {
+    _tmpl="$1"
+    _dir="$2"
+
+    if ! is_routing_template "$_tmpl"; then
+        die "--routing requires an AI template that ships an application.yml (one of: $ROUTING_AI_TEMPLATES); template '$_tmpl' is not eligible."
+    fi
+
+    _yml="$_dir/src/main/resources/application.yml"
+    if [ ! -f "$_yml" ]; then
+        warn "--routing: no application.yml found at src/main/resources/ — skipping routing block."
+        return 0
+    fi
+
+    if grep -q '^[[:space:]#]*routing:' "$_yml" 2>/dev/null; then
+        warn "--routing: a 'routing:' block already exists in application.yml — leaving it untouched."
+        return 0
+    fi
+
+    # Heredoc keeps the block readable and the indentation explicit. The tree is
+    # rooted at a fresh (commented) `atmosphere:` so it binds standalone when
+    # uncommented, regardless of whether the file already has an atmosphere.ai
+    # node — see modules/ai/README.md (§ Routing) for the live example. A blank
+    # separator line precedes the block so it never fuses onto a prior key.
+    {
+        printf '\n'
+        cat <<'ROUTING_BLOCK'
+# Opt-in model routing (see modules/ai/README.md). Uncomment + set keys to enable.
+# atmosphere:
+#   ai:
+#     routing:
+#       enabled: false
+#       default-model: ${LLM_MODEL:gemini-2.5-flash}
+#       content-rules:
+#         - keywords: [code, refactor, stack trace]
+#           model: gpt-4o
+#           base-url: https://api.openai.com/v1
+#           api-key: ${OPENAI_API_KEY}
+ROUTING_BLOCK
+    } >> "$_yml"
+    info "--routing: appended a commented atmosphere.ai.routing block to application.yml (uncomment to enable)."
+    return 0
+}
+
 cmd_new() {
-    [ -z "$1" ] && die "Usage: atmosphere new <project-name> [--template <template>] [--runtime <runtime> [--force]] [--skill-file <path>]"
+    [ -z "$1" ] && die "Usage: atmosphere new <project-name> [--template <template>] [--runtime <runtime> [--force]] [--routing] [--skill-file <path>]"
     project_name="$1"; shift
 
     template="chat"
     skill_file=""
     runtime=""
     force="false"
+    routing="false"
     while [ $# -gt 0 ]; do
         case "$1" in
             --template|-t)
@@ -980,6 +1057,8 @@ cmd_new() {
                 runtime="$1"; shift ;;
             --force|-f)
                 force="true"; shift ;;
+            --routing)
+                routing="true"; shift ;;
             --group|-g)
                 warn "--group is no longer supported. Samples ship with their own groupId;"
                 warn "rename the groupId in pom.xml and the src/main/java package by hand after scaffolding."
@@ -1027,6 +1106,13 @@ cmd_new() {
         *)             die "Unknown template: $template (chat, ai-chat, ai-tools, mcp-server, rag, agent, multi-agent, classroom, ms-governance, coding-agent, guarded-agent, assistant, browser-agent)" ;;
     esac
 
+    # --routing is only meaningful for AI templates that ship an application.yml.
+    # Validate BEFORE the network clone so a bad combo (e.g. `--routing
+    # --template chat`) fails fast instead of cloning then erroring.
+    if [ "$routing" = "true" ] && ! is_routing_template "$template"; then
+        die "--routing requires an AI template that ships an application.yml (one of: $ROUTING_AI_TEMPLATES); template '$template' is not eligible."
+    fi
+
     json=$(get_samples_json)
     info "Scaffolding '$project_name' from sample '$source_sample'..."
     install_source "$source_sample" "$json" "$project_name" quiet
@@ -1046,6 +1132,13 @@ cmd_new() {
     # samples that already ship a different provider.
     if [ -n "$runtime" ]; then
         apply_runtime_overlay "$runtime" "$project_name/pom.xml" "$force"
+    fi
+
+    # Inject the opt-in (commented) routing block when requested. Eligibility was
+    # already validated above; here we only locate the .yml and append. Without
+    # --routing this is never called, so the scaffold is byte-identical.
+    if [ "$routing" = "true" ]; then
+        inject_routing_block "$template" "$project_name"
     fi
 
     ok "Project created: $project_name/"
