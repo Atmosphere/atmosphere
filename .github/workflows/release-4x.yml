@@ -64,6 +64,37 @@ jobs:
           exit 1
         fi
 
+    - name: Verify release version is free on Maven Central
+      if: ${{ !inputs.js_only }}
+      run: |
+        # Immutable-publish burn guard. Maven Central artifacts cannot be
+        # replaced or deleted: re-publishing an existing version burns it
+        # permanently (the cause of the 4.0.52 / 4.0.53 burns). Unlike the
+        # self-healing JS/NPM path below, we FAIL here rather than auto-bump —
+        # release_version is operator-chosen and must not be silently changed.
+        # Fail closed on ambiguity (a non-404/non-200 reply) so a transient
+        # outage can never let a burn through; the operator re-runs once
+        # Central is reachable.
+        POM_URL="https://repo1.maven.org/maven2/org/atmosphere/atmosphere-runtime/${{ inputs.release_version }}/atmosphere-runtime-${{ inputs.release_version }}.pom"
+        CODE="000"
+        for attempt in 1 2 3; do
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$POM_URL" || echo "000")
+          echo "Maven Central check attempt $attempt for ${{ inputs.release_version }}: HTTP $CODE ($POM_URL)"
+          if [ "$CODE" = "404" ] || [ "$CODE" = "200" ]; then
+            break
+          fi
+          sleep 5
+        done
+        if [ "$CODE" = "200" ]; then
+          echo "::error::atmosphere-runtime ${{ inputs.release_version }} already exists on Maven Central (HTTP 200) — pick the next version. Central artifacts are immutable; re-publishing burns the version."
+          exit 1
+        fi
+        if [ "$CODE" != "404" ]; then
+          echo "::error::Could not verify ${{ inputs.release_version }} against Maven Central (last HTTP $CODE) — failing closed to avoid an immutable burn. Re-run once Central is reachable."
+          exit 1
+        fi
+        echo "OK: ${{ inputs.release_version }} is free on Maven Central (404) — safe to publish."
+
     - name: Set up JDK 21
       if: ${{ !inputs.js_only }}
       uses: actions/setup-java@v5
