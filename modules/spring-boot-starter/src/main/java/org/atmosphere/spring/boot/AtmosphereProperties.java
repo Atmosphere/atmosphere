@@ -428,30 +428,38 @@ public class AtmosphereProperties {
     }
 
     /**
-     * Property-driven content routing, bound to {@code atmosphere.ai.routing.*}.
+     * Property-driven model routing, bound to {@code atmosphere.ai.routing.*}.
      * When {@link #enabled} is {@code true}, the Spring Boot starter wraps the
      * resolved LLM client in a
      * {@link org.atmosphere.ai.routing.RoutingLlmClient} so requests route to
-     * alternate models by content. Off by default — the resolved client is
-     * left untouched, so the default path is byte-identical to today's
-     * behavior.
+     * alternate models by content, model name, cost budget, or latency budget.
+     * Off by default — the resolved client is left untouched, so the default
+     * path is byte-identical to today's behavior.
      *
-     * <p>Only <em>content</em>-based rules are config-driven (the MVP). Cost-,
-     * latency-, and model-based routing stay programmatic via
-     * {@link org.atmosphere.ai.routing.RoutingLlmClient#builder}; see
-     * {@code modules/ai/README.md} (§ Routing).</p>
+     * <p>All four {@code RoutingRule} families are config-driven. Rules compose
+     * into the router in the documented order
+     * <strong>content → model → cost → latency</strong> (most-specific intent
+     * first); the {@link org.atmosphere.ai.routing.RoutingLlmClient} evaluates
+     * them first-match-wins in that order. See {@code modules/ai/README.md}
+     * (§ Routing).</p>
      */
     public static class RoutingProperties {
 
         private boolean enabled = false;
 
         /**
-         * Default model the router falls back to when no content rule matches.
+         * Default model the router falls back to when no rule matches.
          * Optional — when blank the resolved {@code AiConfig} model is used.
          */
         private String defaultModel;
 
         private java.util.List<ContentRule> contentRules = new java.util.ArrayList<>();
+
+        private java.util.List<ModelRule> modelRules = new java.util.ArrayList<>();
+
+        private java.util.List<CostRule> costRules = new java.util.ArrayList<>();
+
+        private java.util.List<LatencyRule> latencyRules = new java.util.ArrayList<>();
 
         public boolean isEnabled() {
             return enabled;
@@ -475,6 +483,30 @@ public class AtmosphereProperties {
 
         public void setContentRules(java.util.List<ContentRule> contentRules) {
             this.contentRules = contentRules;
+        }
+
+        public java.util.List<ModelRule> getModelRules() {
+            return modelRules;
+        }
+
+        public void setModelRules(java.util.List<ModelRule> modelRules) {
+            this.modelRules = modelRules;
+        }
+
+        public java.util.List<CostRule> getCostRules() {
+            return costRules;
+        }
+
+        public void setCostRules(java.util.List<CostRule> costRules) {
+            this.costRules = costRules;
+        }
+
+        public java.util.List<LatencyRule> getLatencyRules() {
+            return latencyRules;
+        }
+
+        public void setLatencyRules(java.util.List<LatencyRule> latencyRules) {
+            this.latencyRules = latencyRules;
         }
     }
 
@@ -526,6 +558,216 @@ public class AtmosphereProperties {
 
         public void setApiKey(String apiKey) {
             this.apiKey = apiKey;
+        }
+    }
+
+    /**
+     * A single model-name routing rule, bound to
+     * {@code atmosphere.ai.routing.model-rules[i]}. When the incoming request's
+     * model name {@link String#equalsIgnoreCase(String) equals (case-insensitive)}
+     * {@link #modelPattern}, the request is routed <em>unchanged</em> (the model
+     * name is NOT rewritten) to the rule's target client. By default the rule
+     * reuses the framework-resolved client; set {@link #baseUrl} and/or
+     * {@link #apiKey} to target a dedicated OpenAI-compatible endpoint.
+     *
+     * <p>The match is a literal case-insensitive equals, not a regex — this
+     * keeps the property contract predictable (no accidental
+     * metacharacter-driven over-matching from operator config) and mirrors the
+     * single-model dispatch intent of {@code RoutingRule.modelBased}.</p>
+     */
+    public static class ModelRule {
+
+        private String modelPattern;
+
+        private String baseUrl;
+
+        private String apiKey;
+
+        public String getModelPattern() {
+            return modelPattern;
+        }
+
+        public void setModelPattern(String modelPattern) {
+            this.modelPattern = modelPattern;
+        }
+
+        public String getBaseUrl() {
+            return baseUrl;
+        }
+
+        public void setBaseUrl(String baseUrl) {
+            this.baseUrl = baseUrl;
+        }
+
+        public String getApiKey() {
+            return apiKey;
+        }
+
+        public void setApiKey(String apiKey) {
+            this.apiKey = apiKey;
+        }
+    }
+
+    /**
+     * A single cost-budget routing rule, bound to
+     * {@code atmosphere.ai.routing.cost-rules[i]}. The router selects the
+     * highest-{@link ModelOptionProperties#capability capability} model from
+     * {@link #models} whose total cost
+     * ({@code costPerStreamingText * request.maxStreamingTexts()}) fits within
+     * {@link #maxCost}. A rule with a {@code null} {@link #maxCost} or empty
+     * {@link #models} is skipped with a {@code WARN} at startup.
+     */
+    public static class CostRule {
+
+        private Double maxCost;
+
+        private java.util.List<ModelOptionProperties> models = new java.util.ArrayList<>();
+
+        public Double getMaxCost() {
+            return maxCost;
+        }
+
+        public void setMaxCost(Double maxCost) {
+            this.maxCost = maxCost;
+        }
+
+        public java.util.List<ModelOptionProperties> getModels() {
+            return models;
+        }
+
+        public void setModels(java.util.List<ModelOptionProperties> models) {
+            this.models = models;
+        }
+    }
+
+    /**
+     * A single latency-budget routing rule, bound to
+     * {@code atmosphere.ai.routing.latency-rules[i]}. The router selects the
+     * highest-{@link ModelOptionProperties#capability capability} model from
+     * {@link #models} whose {@code averageLatencyMs} is within
+     * {@link #maxLatencyMs}. A rule with a {@code null} {@link #maxLatencyMs} or
+     * empty {@link #models} is skipped with a {@code WARN} at startup.
+     */
+    public static class LatencyRule {
+
+        private Long maxLatencyMs;
+
+        private java.util.List<ModelOptionProperties> models = new java.util.ArrayList<>();
+
+        public Long getMaxLatencyMs() {
+            return maxLatencyMs;
+        }
+
+        public void setMaxLatencyMs(Long maxLatencyMs) {
+            this.maxLatencyMs = maxLatencyMs;
+        }
+
+        public java.util.List<ModelOptionProperties> getModels() {
+            return models;
+        }
+
+        public void setModels(java.util.List<ModelOptionProperties> models) {
+            this.models = models;
+        }
+    }
+
+    /**
+     * A candidate model with cost/latency/capability metadata, bound to a
+     * {@code models[j]} entry under a cost- or latency-rule. Maps to the router's
+     * {@link org.atmosphere.ai.routing.RoutingLlmClient.RoutingRule.ModelOption}
+     * record (fields {@code client}, {@code model}, {@code costPerStreamingText},
+     * {@code averageLatencyMs}, {@code capability}) via {@link #toModelOption}.
+     *
+     * <p>The option's {@code client} is built with the same fallback as content
+     * rules: when both {@link #baseUrl} and {@link #apiKey} are blank the
+     * framework-resolved client is reused (only the model name changes);
+     * otherwise a dedicated OpenAI-compatible client is built, falling back to
+     * the resolved base URL / key for whichever component is omitted.</p>
+     */
+    public static class ModelOptionProperties {
+
+        private String model;
+
+        private Double costPerStreamingText;
+
+        private Long averageLatencyMs;
+
+        private Integer capability;
+
+        private String baseUrl;
+
+        private String apiKey;
+
+        public String getModel() {
+            return model;
+        }
+
+        public void setModel(String model) {
+            this.model = model;
+        }
+
+        public Double getCostPerStreamingText() {
+            return costPerStreamingText;
+        }
+
+        public void setCostPerStreamingText(Double costPerStreamingText) {
+            this.costPerStreamingText = costPerStreamingText;
+        }
+
+        public Long getAverageLatencyMs() {
+            return averageLatencyMs;
+        }
+
+        public void setAverageLatencyMs(Long averageLatencyMs) {
+            this.averageLatencyMs = averageLatencyMs;
+        }
+
+        public Integer getCapability() {
+            return capability;
+        }
+
+        public void setCapability(Integer capability) {
+            this.capability = capability;
+        }
+
+        public String getBaseUrl() {
+            return baseUrl;
+        }
+
+        public void setBaseUrl(String baseUrl) {
+            this.baseUrl = baseUrl;
+        }
+
+        public String getApiKey() {
+            return apiKey;
+        }
+
+        public void setApiKey(String apiKey) {
+            this.apiKey = apiKey;
+        }
+
+        /**
+         * Build the router {@code ModelOption} from these properties. Null
+         * numeric defaults: {@code capability=0}, {@code costPerStreamingText=0.0},
+         * {@code averageLatencyMs=0}. The option's {@code client} is resolved by
+         * {@code resolver} — the autoconfig passes its {@code resolveRuleTarget}
+         * fallback so {@code base-url}/{@code api-key} (or their absence) are
+         * honored identically to content/model rules.
+         *
+         * @param resolver resolves this option's optional {@code base-url}/{@code api-key}
+         *                 (or their absence) to a concrete {@code LlmClient}
+         * @return the populated router {@code ModelOption}
+         */
+        public org.atmosphere.ai.routing.RoutingLlmClient.RoutingRule.ModelOption toModelOption(
+                java.util.function.BiFunction<String, String,
+                        org.atmosphere.ai.llm.LlmClient> resolver) {
+            var client = resolver.apply(baseUrl, apiKey);
+            return new org.atmosphere.ai.routing.RoutingLlmClient.RoutingRule.ModelOption(
+                    client,
+                    model,
+                    costPerStreamingText != null ? costPerStreamingText : 0.0,
+                    averageLatencyMs != null ? averageLatencyMs : 0L,
+                    capability != null ? capability : 0);
         }
     }
 

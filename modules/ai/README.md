@@ -685,9 +685,9 @@ var router = RoutingLlmClient.builder(defaultClient, "gemini-2.5-flash")
 
 Rules are evaluated in order; first match wins. If no model fits the constraint, the rule is skipped and the next rule is tried.
 
-### Routing (cost/content model selection) from Spring Boot config
+### Routing (content / model / cost / latency) from Spring Boot config
 
-The Spring Boot starter exposes **content-based** routing through
+The Spring Boot starter exposes **all four** `RoutingRule` families through
 `atmosphere.ai.routing.*` properties — no Java wiring required. When
 `atmosphere.ai.routing.enabled=true`, the starter wraps the resolved LLM client
 in a `RoutingLlmClient` and installs it via `AiConfig.installClient(...)`, so it
@@ -695,28 +695,76 @@ becomes the client every `AgentRuntime` dispatch reads on the request critical
 path. **Off by default** — when disabled, the resolved client is left untouched
 and the request path is byte-identical to today's behavior.
 
-Each content rule routes requests whose latest user message contains any of the
-rule's `keywords` (case-insensitive substring match) to the rule's `model`. A
-rule reuses the resolved client by default (same provider/credentials, only the
-model name changes); set `base-url` and/or `api-key` on the rule to target a
-different OpenAI-compatible endpoint. Requests matching no rule fall through to
-the resolved client and the configured `default-model` (or the `AiConfig` model
-when `default-model` is omitted).
+**Compose order.** Rules are added to the router (and therefore evaluated
+first-match-wins) in the fixed order **content → model → cost → latency** —
+most-specific intent first. Within each family, rules are evaluated in the order
+they appear in config. The first rule that matches wins; the request never
+reaches a later family. Requests matching no rule fall through to the resolved
+client and the configured `default-model` (or the `AiConfig` model when
+`default-model` is omitted).
+
+Every rule reuses the resolved client by default (same provider/credentials,
+only the model name changes where applicable); set `base-url` and/or `api-key`
+on the rule (or, for cost/latency, on each model option) to target a different
+OpenAI-compatible endpoint. When only one of `base-url`/`api-key` is set, the
+other falls back to the resolved value.
 
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `atmosphere.ai.routing.enabled` | boolean | `false` | Wrap the resolved client in a `RoutingLlmClient`. |
-| `atmosphere.ai.routing.default-model` | string | (resolved `AiConfig` model) | Fallback model when no content rule matches. |
-| `atmosphere.ai.routing.content-rules[i].keywords` | list&lt;string&gt; | — | Keywords matched case-insensitively against the latest user message. |
-| `atmosphere.ai.routing.content-rules[i].model` | string | — | Model to route to when a keyword matches. |
-| `atmosphere.ai.routing.content-rules[i].base-url` | string | (resolved base URL) | Optional: target a different OpenAI-compatible endpoint for this rule. |
-| `atmosphere.ai.routing.content-rules[i].api-key` | string | (resolved API key) | Optional: API key for the rule's endpoint. |
+| `atmosphere.ai.routing.default-model` | string | (resolved `AiConfig` model) | Fallback model when no rule matches. |
 
-A rule with no `model` or no `keywords` is skipped with a `WARN` at startup.
+**Content rules** — match on the latest user message (case-insensitive substring):
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `…routing.content-rules[i].keywords` | list&lt;string&gt; | — | Keywords matched case-insensitively against the latest user message. |
+| `…routing.content-rules[i].model` | string | — | Model to route to when a keyword matches. |
+| `…routing.content-rules[i].base-url` | string | (resolved base URL) | Optional: target a different OpenAI-compatible endpoint for this rule. |
+| `…routing.content-rules[i].api-key` | string | (resolved API key) | Optional: API key for the rule's endpoint. |
+
+A content rule with no `model` or no `keywords` is skipped with a `WARN`.
+
+**Model rules** — match on the incoming `request.model()` by **literal
+case-insensitive equals** (not regex; the request is routed unchanged — the
+model name is **not** rewritten):
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `…routing.model-rules[i].model-pattern` | string | — | Routed when `request.model()` `equalsIgnoreCase` this value. |
+| `…routing.model-rules[i].base-url` | string | (resolved base URL) | Optional: dedicated endpoint for the matched model. |
+| `…routing.model-rules[i].api-key` | string | (resolved API key) | Optional: API key for the rule's endpoint. |
+
+A model rule with a blank `model-pattern` is skipped with a `WARN`.
+
+**Cost rules** — pick the highest-`capability` model whose total cost
+(`cost-per-streaming-text × request.maxStreamingTexts()`) is within `max-cost`:
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `…routing.cost-rules[i].max-cost` | double | — | Total-cost budget; required (rule skipped if absent). |
+| `…routing.cost-rules[i].models[j].model` | string | — | Candidate model name. |
+| `…routing.cost-rules[i].models[j].cost-per-streaming-text` | double | `0.0` | Per-streaming-text cost; null → `0.0`. |
+| `…routing.cost-rules[i].models[j].capability` | int | `0` | Tie-break score (higher wins within budget); null → `0`. |
+| `…routing.cost-rules[i].models[j].average-latency-ms` | long | `0` | Carried on the option; null → `0`. |
+| `…routing.cost-rules[i].models[j].base-url` / `.api-key` | string | (resolved) | Optional per-option endpoint override. |
+
+**Latency rules** — pick the highest-`capability` model whose
+`average-latency-ms` is within `max-latency-ms`:
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `…routing.latency-rules[i].max-latency-ms` | long | — | Latency budget in ms; required (rule skipped if absent). |
+| `…routing.latency-rules[i].models[j].*` | — | — | Same `ModelOption` fields as cost-rule models above. |
+
+A cost/latency rule with a null budget or empty `models` is skipped with a
+`WARN`. The `ModelOption` records mapped from config carry exactly the router's
+five fields — `client`, `model`, `costPerStreamingText` (null → `0.0`),
+`averageLatencyMs` (null → `0`), `capability` (null → `0`).
 
 ```yaml
-# application.yml — route coding questions to a frontier model, everything else
-# stays on the resolved default (gemini-2.5-flash here).
+# application.yml — all four families on one router. Evaluated content → model
+# → cost → latency, first match wins.
 atmosphere:
   ai:
     model: gemini-2.5-flash          # resolved default client + model
@@ -728,14 +776,36 @@ atmosphere:
           model: gpt-4o              # reuses the resolved client; only the model changes
           base-url: https://api.openai.com/v1   # optional: dedicated endpoint for this rule
           api-key: ${OPENAI_API_KEY}            # optional: key for that endpoint
+      model-rules:
+        - model-pattern: gpt-4o      # request.model()=="gpt-4o" → dedicated client, unchanged request
+          base-url: https://api.openai.com/v1
+          api-key: ${OPENAI_API_KEY}
+      cost-rules:
+        - max-cost: 5.0              # highest-capability model fitting the budget
+          models:
+            - model: gpt-4o
+              cost-per-streaming-text: 0.01
+              capability: 10
+            - model: gpt-4o-mini
+              cost-per-streaming-text: 0.001
+              capability: 5
+      latency-rules:
+        - max-latency-ms: 100        # highest-capability model under 100ms
+          models:
+            - model: gemini-2.5-flash
+              average-latency-ms: 50
+              capability: 8
 ```
 
-> **Scope (Runtime Truth):** only **content** rules are config-driven. Cost-,
-> latency-, and model-based routing remain **programmatic** via
-> `RoutingLlmClient.builder(...)` (see *Cost and Latency Routing* above) — the
-> Spring properties do **not** configure them. Build a `RoutingLlmClient`
-> yourself and install it with `AiConfig.installClient(router)` to use those
-> rule kinds, or expose it as an `AiConfig.LlmSettings`-dependent bean.
+> **Scope (Runtime Truth):** all four families above are config-driven and
+> install onto the same `RoutingLlmClient`. The compose order
+> **content → model → cost → latency** is fixed and pinned by
+> `AtmosphereRoutingAutoConfigurationTest`. For routing logic beyond these
+> property shapes (custom predicates, budget-degradation `budgetManager`, etc.)
+> build a `RoutingLlmClient` yourself with `RoutingLlmClient.builder(...)` (see
+> *Cost and Latency Routing* above) and install it with
+> `AiConfig.installClient(router)`, or expose it as an
+> `AiConfig.LlmSettings`-dependent bean.
 
 ## Observability, grounded facts, and guardrails
 

@@ -570,9 +570,11 @@ public class AtmosphereAiAutoConfiguration {
      * un-wrapped resolved client on shutdown so the process-wide singleton does
      * not carry the router across context restarts.</p>
      *
-     * <p>SCOPE: content rules only (the config-driven MVP). Cost-, latency-,
-     * and model-based routing remain programmatic via
-     * {@link org.atmosphere.ai.routing.RoutingLlmClient#builder}; see
+     * <p>SCOPE: all four {@code RoutingRule} families are config-driven. Rules
+     * compose into the router in the documented order
+     * <strong>content → model → cost → latency</strong> (most-specific intent
+     * first); {@link org.atmosphere.ai.routing.RoutingLlmClient} then evaluates
+     * them first-match-wins in that order. See
      * {@code modules/ai/README.md} (§ Routing).</p>
      */
     @Bean
@@ -586,7 +588,14 @@ public class AtmosphereAiAutoConfiguration {
                 : baseSettings.model();
         var builder = org.atmosphere.ai.routing.RoutingLlmClient.builder(
                 baseSettings.client(), defaultModel);
+        // Reused by ModelOptionProperties#toModelOption so cost/latency option
+        // clients honor base-url/api-key (or their absence) identically to
+        // content/model rules.
+        java.util.function.BiFunction<String, String, org.atmosphere.ai.llm.LlmClient> resolver =
+                (baseUrl, apiKey) -> resolveRuleTarget(baseUrl, apiKey, baseSettings);
         int ruleCount = 0;
+
+        // 1. content rules — most specific (matches on the user message body).
         for (var rule : routing.getContentRules()) {
             if (rule.getModel() == null || rule.getModel().isBlank()
                     || rule.getKeywords() == null || rule.getKeywords().isEmpty()) {
@@ -595,37 +604,84 @@ public class AtmosphereAiAutoConfiguration {
                 continue;
             }
             var keywords = java.util.List.copyOf(rule.getKeywords());
-            var target = resolveRuleTarget(rule, baseSettings);
+            var target = resolveRuleTarget(rule.getBaseUrl(), rule.getApiKey(), baseSettings);
             builder.route(org.atmosphere.ai.routing.RoutingLlmClient.RoutingRule.contentBased(
                     msg -> keywordsMatchCaseInsensitive(msg, keywords),
                     target, rule.getModel()));
             ruleCount++;
         }
+
+        // 2. model rules — literal case-insensitive equals on request.model().
+        for (var rule : routing.getModelRules()) {
+            if (rule.getModelPattern() == null || rule.getModelPattern().isBlank()) {
+                logger.warn("Skipping model routing rule with blank model-pattern");
+                continue;
+            }
+            var pattern = rule.getModelPattern();
+            var target = resolveRuleTarget(rule.getBaseUrl(), rule.getApiKey(), baseSettings);
+            builder.route(org.atmosphere.ai.routing.RoutingLlmClient.RoutingRule.modelBased(
+                    m -> m != null && m.equalsIgnoreCase(pattern), target));
+            ruleCount++;
+        }
+
+        // 3. cost rules — highest-capability model within the cost budget.
+        for (var rule : routing.getCostRules()) {
+            if (rule.getMaxCost() == null || rule.getModels() == null || rule.getModels().isEmpty()) {
+                logger.warn("Skipping cost routing rule with null max-cost or empty models: maxCost={}",
+                        rule.getMaxCost());
+                continue;
+            }
+            var options = rule.getModels().stream()
+                    .map(o -> o.toModelOption(resolver))
+                    .toList();
+            builder.route(org.atmosphere.ai.routing.RoutingLlmClient.RoutingRule.costBased(
+                    rule.getMaxCost(), options));
+            ruleCount++;
+        }
+
+        // 4. latency rules — highest-capability model within the latency budget.
+        for (var rule : routing.getLatencyRules()) {
+            if (rule.getMaxLatencyMs() == null || rule.getModels() == null || rule.getModels().isEmpty()) {
+                logger.warn("Skipping latency routing rule with null max-latency-ms or empty models: maxLatencyMs={}",
+                        rule.getMaxLatencyMs());
+                continue;
+            }
+            var options = rule.getModels().stream()
+                    .map(o -> o.toModelOption(resolver))
+                    .toList();
+            builder.route(org.atmosphere.ai.routing.RoutingLlmClient.RoutingRule.latencyBased(
+                    rule.getMaxLatencyMs(), options));
+            ruleCount++;
+        }
+
         var router = builder.build();
         AiConfig.installClient(router);
-        logger.info("Atmosphere AI content routing enabled: wrapped resolved client in "
-                + "RoutingLlmClient with {} content rule(s), defaultModel={}", ruleCount, defaultModel);
+        logger.info("Atmosphere AI routing enabled: wrapped resolved client in RoutingLlmClient with "
+                + "{} rule(s) [content={}, model={}, cost={}, latency={}], defaultModel={}",
+                ruleCount, routing.getContentRules().size(), routing.getModelRules().size(),
+                routing.getCostRules().size(), routing.getLatencyRules().size(), defaultModel);
         return new RoutingClientInstaller(router, baseSettings.client(), ruleCount);
     }
 
     /**
-     * Resolve the target {@link org.atmosphere.ai.llm.LlmClient} for a content
-     * rule. When the rule sets {@code base-url} and/or {@code api-key} it gets a
-     * dedicated {@link org.atmosphere.ai.llm.OpenAiCompatibleClient} (falling
-     * back to the resolved base URL / key for the component the rule omits);
-     * otherwise it reuses the framework-resolved client so the rule only
-     * changes the model name.
+     * Resolve the target {@link org.atmosphere.ai.llm.LlmClient} for a routing
+     * rule (or cost/latency model option). When {@code ruleBaseUrl} and/or
+     * {@code ruleApiKey} are set it gets a dedicated
+     * {@link org.atmosphere.ai.llm.OpenAiCompatibleClient} (falling back to the
+     * resolved base URL / key for the component the rule omits); otherwise it
+     * reuses the framework-resolved client so the rule only changes the model
+     * name.
      */
     private static org.atmosphere.ai.llm.LlmClient resolveRuleTarget(
-            AtmosphereProperties.ContentRule rule, AiConfig.LlmSettings baseSettings) {
-        var hasBaseUrl = rule.getBaseUrl() != null && !rule.getBaseUrl().isBlank();
-        var hasApiKey = rule.getApiKey() != null && !rule.getApiKey().isBlank();
+            String ruleBaseUrl, String ruleApiKey, AiConfig.LlmSettings baseSettings) {
+        var hasBaseUrl = ruleBaseUrl != null && !ruleBaseUrl.isBlank();
+        var hasApiKey = ruleApiKey != null && !ruleApiKey.isBlank();
         if (!hasBaseUrl && !hasApiKey) {
             return baseSettings.client();
         }
         var clientBuilder = org.atmosphere.ai.llm.OpenAiCompatibleClient.builder()
-                .baseUrl(hasBaseUrl ? rule.getBaseUrl() : baseSettings.baseUrl());
-        var key = hasApiKey ? rule.getApiKey() : baseSettings.apiKey();
+                .baseUrl(hasBaseUrl ? ruleBaseUrl : baseSettings.baseUrl());
+        var key = hasApiKey ? ruleApiKey : baseSettings.apiKey();
         if (key != null && !key.isBlank()) {
             clientBuilder.apiKey(key);
         }
