@@ -37,7 +37,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
- * Full-wire test of the experimental GenAI semantic-convention emission: drives
+ * Full-wire test of the OpenTelemetry GenAI semantic-convention emission (OTel
+ * marks the spec experimental): drives
  * one token-usage signal through the real {@link MetricsCapturingSession}
  * decorator (constructed exactly as {@code AiPipeline} / {@code AiStreamingSession}
  * do — with the resolved {@code AgentRuntime.name()} threaded in), a real

@@ -620,13 +620,14 @@ runtime name** (`AgentRuntime.name()` — e.g. `built-in`, `google-adk`,
 `anthropic`), never a hardcoded value, and `gen_ai.response.model` is added when
 the runtime reported one.
 
-##### Experimental GenAI span attributes
+##### OpenTelemetry GenAI span attributes
 
 In addition to the metric series above, when `io.opentelemetry.api` is on the
 classpath **and** a live span is active (the `AtmosphereTracing` SERVER span,
 for example), Atmosphere tags that **current** span with the
-[**experimental** OpenTelemetry GenAI span semantic-convention](https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-spans/)
-attributes. This is purely **additive**: the legacy `ai.tokens.*` metadata and
+[OpenTelemetry GenAI span semantic-convention](https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-spans/)
+attributes — a convention OpenTelemetry still marks **experimental** upstream
+(the emitter itself is production code). This is purely **additive**: the legacy `ai.tokens.*` metadata and
 the `atmosphere.ai.*` / `gen_ai.client.*` metric series are emitted unchanged
 and byte-for-byte identical. Emission is via a reflection-based helper
 (`GenAiTracer`) with no hard OpenTelemetry dependency — absent OTel, or absent a

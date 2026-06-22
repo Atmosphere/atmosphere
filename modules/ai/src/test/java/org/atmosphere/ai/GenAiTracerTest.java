@@ -36,8 +36,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tests for {@link GenAiTracer}: the experimental GenAI semantic-convention
- * span emitter. Drives a real {@link SdkTracerProvider} +
+ * Tests for {@link GenAiTracer}: the OpenTelemetry GenAI semantic-convention
+ * span emitter (OTel marks the spec experimental). Drives a real {@link SdkTracerProvider} +
  * {@link InMemorySpanExporter} registered as the global OpenTelemetry instance
  * so the reflective {@code Span.current()} lookup resolves to a live span and
  * the exported {@link SpanData} can be asserted directly.

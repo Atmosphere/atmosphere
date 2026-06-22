@@ -20,9 +20,10 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 
 /**
- * Reflection-based emitter for the <em>experimental</em>
+ * Reflection-based emitter for the
  * <a href="https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-spans/">OpenTelemetry
- * GenAI semantic-convention</a> span attributes. When
+ * GenAI semantic-convention</a> span attributes — a convention OpenTelemetry
+ * still marks <em>experimental</em> upstream (this emitter is production code). When
  * {@code io.opentelemetry.api} is on the classpath and a live span is active
  * (an {@code AtmosphereTracing} SERVER span, for example), {@link #record}
  * tags the <em>current</em> span with the {@code gen_ai.*} attributes so the
@@ -46,7 +47,7 @@ import java.lang.invoke.MethodType;
  */
 public final class GenAiTracer {
 
-    // --- GenAI semconv attribute keys (experimental). ---
+    // --- OpenTelemetry GenAI semconv attribute keys (OTel marks the spec experimental). ---
     static final String ATTR_USAGE_INPUT = "gen_ai.usage.input_tokens";
     static final String ATTR_USAGE_OUTPUT = "gen_ai.usage.output_tokens";
     static final String ATTR_USAGE_TOTAL = "gen_ai.usage.total_tokens";
@@ -104,8 +105,9 @@ public final class GenAiTracer {
     private GenAiTracer() { }
 
     /**
-     * Tag the current OpenTelemetry span with the experimental GenAI
-     * semantic-convention attributes for one chat completion. Sets, on the
+     * Tag the current OpenTelemetry span with the GenAI semantic-convention
+     * attributes for one chat completion (the OpenTelemetry GenAI spec is still
+     * experimental upstream). Sets, on the
      * <em>active</em> span (never a freshly-created one):
      *
      * <ul>

@@ -95,8 +95,9 @@ class MetricsCapturingSession extends DelegatingStreamingSession {
                 metrics.recordTokenUsage(model, usage.input(), usage.output(), usage.total());
             }
             // Additive: tag the live OTel span (the AtmosphereTracing SERVER
-            // span) with the experimental gen_ai.* attributes. Self-guards on
-            // hasCounts() + a valid current span; no-op when OTel is absent.
+            // span) with the gen_ai.* attributes (OpenTelemetry's still-experimental
+            // GenAI semconv). Self-guards on hasCounts() + a valid current span;
+            // no-op when OTel is absent.
             GenAiTracer.record(usage, model, providerName);
         }
         delegate.usage(usage);
