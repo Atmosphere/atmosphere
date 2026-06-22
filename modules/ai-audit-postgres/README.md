@@ -31,9 +31,16 @@ DataSource ds = /* HikariCP, Spring Boot autoconfigured DataSource, … */;
 // Default table name "governance_audit_log", auto-create DDL on startup.
 var jdbc = new JdbcAuditSink(ds);
 
+// Install a non-NOOP decision log FIRST, then attach the sink. Sinks fan out
+// from record(), which is a no-op on the default NOOP log (capacity 0) — so
+// addSink() on installed() silently drops every entry unless a real log is
+// installed. The Spring Boot starter auto-installs one (capacity 500 by
+// default, via atmosphere.ai.governance.decision-log.capacity); install
+// explicitly for standalone / non-Spring use, then add the sink to it.
+//
 // Wrap with AsyncAuditSink so admission threads never stall on
 // connection-pool exhaustion (Backpressure invariant).
-GovernanceDecisionLog.installed().addSink(new AsyncAuditSink(jdbc, 10_000));
+GovernanceDecisionLog.install(2_000).addSink(new AsyncAuditSink(jdbc, 10_000));
 ```
 
 ## Schema

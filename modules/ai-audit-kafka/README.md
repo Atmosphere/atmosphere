@@ -28,9 +28,16 @@ var kafka = new KafkaAuditSink(
         "broker-1:9092,broker-2:9092",
         "atmosphere.governance.audit");
 
-// Wrap with AsyncAuditSink so the admission thread never blocks
-// on Kafka — bounded drop-on-full queue (Backpressure invariant).
-GovernanceDecisionLog.installed().addSink(new AsyncAuditSink(kafka, 10_000));
+// Install a non-NOOP decision log FIRST, then attach the sink. Sinks fan out
+// from record(), which is a no-op on the default NOOP log (capacity 0) — so
+// addSink() on installed() silently drops every entry unless a real log is
+// installed. The Spring Boot starter auto-installs one (capacity 500 by
+// default, via atmosphere.ai.governance.decision-log.capacity); install
+// explicitly for standalone / non-Spring use, then add the sink to it.
+//
+// Wrap with AsyncAuditSink so the admission thread never blocks on Kafka —
+// bounded drop-on-full queue (Backpressure invariant).
+GovernanceDecisionLog.install(2_000).addSink(new AsyncAuditSink(kafka, 10_000));
 ```
 
 ## Producer defaults

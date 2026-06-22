@@ -442,7 +442,22 @@ public class AtmosphereAdminAutoConfiguration {
         @Bean
         @ConditionalOnClass(name = "org.atmosphere.ai.governance.GovernancePolicy")
         GovernanceController atmosphereAdminGovernanceController(
-                AtmosphereAdmin admin, AtmosphereFramework framework) {
+                AtmosphereAdmin admin, AtmosphereFramework framework,
+                @org.springframework.beans.factory.annotation.Value(
+                        "${atmosphere.ai.governance.decision-log.capacity:500}")
+                int decisionLogCapacity) {
+            // Populate the queryable governance decision trail out-of-box so the
+            // console's governance view — and any Kafka/Postgres AuditSink — record
+            // admit AND deny decisions (deny/error are also SLF4J-logged regardless).
+            // Bounded ring buffer (Backpressure invariant); set capacity 0 to disable.
+            // Install only over the NOOP so an operator's own install(...) (e.g. one
+            // already carrying audit sinks) is never clobbered.
+            if (decisionLogCapacity > 0
+                    && org.atmosphere.ai.governance.GovernanceDecisionLog.installed().capacity() == 0) {
+                org.atmosphere.ai.governance.GovernanceDecisionLog.install(decisionLogCapacity);
+                logger.debug("Atmosphere Admin: governance decision log installed (capacity={})",
+                        decisionLogCapacity);
+            }
             var controller = new GovernanceController(framework);
             admin.setGovernanceController(controller);
             logger.debug("Atmosphere Admin: governance policy controller wired");
