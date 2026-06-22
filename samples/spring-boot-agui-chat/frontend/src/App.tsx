@@ -125,7 +125,7 @@ export function App() {
     markConnecting();
 
     try {
-      const response = await fetch('/agui', {
+      const response = await fetch('/atmosphere/agent/assistant/agui', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

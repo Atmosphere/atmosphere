@@ -28,11 +28,18 @@ public class AgUiChatApplication {
         SpringApplication.run(AgUiChatApplication.class, args);
     }
 
+    /**
+     * Serve the bespoke AG-UI / CopilotKit-style React chat UI at the root path.
+     * AG-UI (not the generic Atmosphere console) is the point of this sample, so
+     * {@code /} forwards to the built React bundle in {@code static/index.html}
+     * rather than redirecting to {@code /atmosphere/console/}. The Atmosphere
+     * console remains available at {@code /atmosphere/console/} for inspection.
+     */
     @Configuration
-    static class ConsoleRedirect implements WebMvcConfigurer {
+    static class HomePage implements WebMvcConfigurer {
         @Override
         public void addViewControllers(ViewControllerRegistry registry) {
-            registry.addRedirectViewController("/", "/atmosphere/console/");
+            registry.addViewController("/").setViewName("forward:/index.html");
         }
     }
 }

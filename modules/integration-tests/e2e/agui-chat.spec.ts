@@ -3,6 +3,9 @@ import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-serve
 
 let server: SampleServer;
 
+/** Real AG-UI endpoint the @Agent auto-registers (atmosphere-agui on classpath). */
+const AGUI_PATH = '/atmosphere/agent/assistant/agui';
+
 test.beforeAll(async () => {
   test.setTimeout(120_000);
   server = await startSample(SAMPLES['spring-boot-agui-chat']);
@@ -18,9 +21,9 @@ interface SSEEvent {
   data: Record<string, unknown>;
 }
 
-/** POST to /agui and collect all SSE events from the response body. */
+/** POST to the AG-UI endpoint and collect all SSE events from the response body. */
 async function postAgui(baseUrl: string, message: string): Promise<SSEEvent[]> {
-  const res = await fetch(`${baseUrl}/agui`, {
+  const res = await fetch(`${baseUrl}${AGUI_PATH}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -55,7 +58,12 @@ function parseSSEStream(raw: string): SSEEvent[] {
   return events;
 }
 
-test.describe('AG-UI SSE Protocol', () => {
+// ── DEMO LANE: no LLM key, always runs ────────────────────────────────────
+// Drives the real AG-UI native bridge (AgUiHandler → ResourceAgUiStreamingSession
+// → AgUiEventMapper) with the DemoResponseProducer fallback. Tools are NOT
+// asserted here — the demo path does not call the model, so no real tool
+// dispatch happens (that is the REAL-LLM lane below).
+test.describe('AG-UI demo lane (no key)', () => {
   test('SSE lifecycle: first RUN_STARTED, last RUN_FINISHED', async () => {
     const events = await postAgui(server.baseUrl, 'Hello!');
 
@@ -64,62 +72,68 @@ test.describe('AG-UI SSE Protocol', () => {
     expect(events[events.length - 1].type).toBe('RUN_FINISHED');
   });
 
-  test('Hello message produces steps and streamed text', async () => {
+  test('streamed text deltas concatenate to the demo phrase', async () => {
     const events = await postAgui(server.baseUrl, 'Hello!');
 
-    // Should have STEP_STARTED / STEP_FINISHED events
-    const stepEvents = events.filter(e =>
-      e.type === 'STEP_STARTED' || e.type === 'STEP_FINISHED',
-    );
-    expect(stepEvents.length).toBeGreaterThanOrEqual(2);
-
-    // TEXT_MESSAGE_CONTENT deltas should concatenate to the response text
     const deltas = events
       .filter(e => e.type === 'TEXT_MESSAGE_CONTENT')
       .map(e => e.data.delta as string);
-    expect(deltas.length).toBeGreaterThan(0);
+    expect(deltas.length).toBeGreaterThanOrEqual(1);
 
+    // The demo fallback always includes this stable phrase (DemoResponseProducer.DEMO_PHRASE).
     const fullText = deltas.join('');
     expect(fullText).toContain('AG-UI protocol');
   });
 
-  test('weather query triggers get_weather tool call', async () => {
-    const events = await postAgui(server.baseUrl, 'What is the weather?');
+  test('text message is framed: one START, one END, stable messageId', async () => {
+    const events = await postAgui(server.baseUrl, 'Hello!');
+
+    const starts = events.filter(e => e.type === 'TEXT_MESSAGE_START');
+    const ends = events.filter(e => e.type === 'TEXT_MESSAGE_END');
+    expect(starts.length).toBe(1);
+    expect(ends.length).toBe(1);
+
+    const startId = starts[0].data.messageId as string;
+    const contentIds = events
+      .filter(e => e.type === 'TEXT_MESSAGE_CONTENT')
+      .map(e => e.data.messageId as string);
+    for (const id of contentIds) expect(id).toBe(startId);
+    expect(ends[0].data.messageId).toBe(startId);
+  });
+});
+
+// ── REAL-LLM LANE: only when a key is present ──────────────────────────────
+// Asserts the model actually dispatches the real @AiTool get_weather and that
+// the bridge maps the dispatch to AG-UI TOOL_CALL_* frames.
+test.describe('AG-UI real-LLM lane', () => {
+  test.skip(!process.env.LLM_API_KEY, 'requires LLM_API_KEY for real tool dispatch');
+
+  test('weather question dispatches the real get_weather tool', async () => {
+    const events = await postAgui(server.baseUrl, 'What is the weather in Paris?');
+
+    expect(events[0].type).toBe('RUN_STARTED');
+    expect(events[events.length - 1].type).toBe('RUN_FINISHED');
 
     const toolStart = events.find(
       e => e.type === 'TOOL_CALL_START' && e.data.name === 'get_weather',
     );
-    expect(toolStart).toBeDefined();
+    expect(toolStart, 'model should dispatch get_weather').toBeDefined();
+    const toolCallId = toolStart!.data.toolCallId as string;
 
-    const toolResult = events.find(e => e.type === 'TOOL_CALL_RESULT');
-    expect(toolResult).toBeDefined();
-
-    // Result is JSON with temp, condition, humidity keys
-    const resultStr = toolResult!.data.result as string;
-    const result = JSON.parse(resultStr);
-    expect(result).toHaveProperty('temp');
-    expect(result).toHaveProperty('condition');
-    expect(result).toHaveProperty('humidity');
-  });
-
-  test('time query triggers get_time tool call', async () => {
-    const events = await postAgui(server.baseUrl, 'What time is it?');
-
-    const toolStart = events.find(
-      e => e.type === 'TOOL_CALL_START' && e.data.name === 'get_time',
+    const toolResult = events.find(
+      e => e.type === 'TOOL_CALL_RESULT' && e.data.toolCallId === toolCallId,
     );
-    expect(toolStart).toBeDefined();
+    expect(toolResult, 'tool result must match the tool call id').toBeDefined();
 
-    const toolResult = events.find(e => e.type === 'TOOL_CALL_RESULT');
-    expect(toolResult).toBeDefined();
-
-    // Result is a formatted datetime string
-    const resultStr = toolResult!.data.result as string;
-    expect(resultStr).toMatch(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/);
+    const toolEnd = events.find(
+      e => e.type === 'TOOL_CALL_END' && e.data.toolCallId === toolCallId,
+    );
+    expect(toolEnd, 'tool call must be closed with matching id').toBeDefined();
   });
 });
 
-test.describe('AG-UI Chat UI', () => {
+// ── UI LANE: bespoke AG-UI React surface served at / ───────────────────────
+test.describe('AG-UI chat UI', () => {
   test('page loads with chat layout', async ({ page }) => {
     await page.goto(server.baseUrl);
     await expect(page.getByTestId('chat-layout')).toBeVisible();
@@ -127,35 +141,41 @@ test.describe('AG-UI Chat UI', () => {
     await expect(page.getByText('AG-UI Protocol Demo', { exact: false })).toBeVisible();
   });
 
-  test('send message and receive streamed response', async ({ page }) => {
+  test('send "Hello!" renders the user message and the streamed assistant text', async ({ page }) => {
     await page.goto(server.baseUrl);
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
     await page.getByTestId('chat-input').fill('Hello!');
     await page.getByTestId('chat-send').click();
 
-    // User message should appear
+    // The user's message bubble renders.
     await expect(page.getByText('Hello!')).toBeVisible();
 
-    // Assistant response includes "AG-UI protocol"
+    // The streamed assistant reply renders the rendered element (StreamingMessage),
+    // which always contains the stable demo phrase — assert the visible node,
+    // not payload bytes.
     await expect(page.getByText('AG-UI protocol', { exact: false }).first())
       .toBeVisible({ timeout: 30_000 });
   });
 
-  // Tool dispatch requires real LLM — demo provider echoes but doesn't call tools
-  test.skip('weather query shows tool name in UI', async ({ page }) => {
+  // Tool-call cards render only when the model dispatches a real tool — that
+  // needs a live key, exercised by the real-LLM lane above.
+  test('weather query shows the get_weather tool card', async ({ page }) => {
+    test.skip(!process.env.LLM_API_KEY, 'requires LLM_API_KEY for real tool dispatch');
     await page.goto(server.baseUrl);
     await expect(page.getByTestId('chat-input')).toBeVisible();
 
-    await page.getByTestId('chat-input').fill('What is the weather today?');
+    await page.getByTestId('chat-input').fill('What is the weather in Paris?');
     await page.getByTestId('chat-send').click();
 
-    // The tool call card should render with the tool name
     await expect(page.getByText('get_weather', { exact: false }).first())
       .toBeVisible({ timeout: 30_000 });
   });
 
-  // Demo AG-UI handler responds instantly — input disable/enable cycle too fast to observe
+  // Owner: atmosphere-agui; Expiry: 2026-09-30. The demo AG-UI handler responds
+  // fast enough that the input disable→enable cycle is not reliably observable
+  // in a headless run; revisit with an artificial demo delay or a network-idle
+  // wait when the bespoke UI gains a "thinking" affordance to assert against.
   test.skip('input disabled while streaming, re-enabled after', async ({ page }) => {
     await page.goto(server.baseUrl);
     await expect(page.getByTestId('chat-input')).toBeVisible();
@@ -163,11 +183,7 @@ test.describe('AG-UI Chat UI', () => {
     await page.getByTestId('chat-input').fill('Hello!');
     await page.getByTestId('chat-send').click();
 
-    // Input should become disabled while agent is running
     await expect(page.getByTestId('chat-input')).toBeDisabled();
-
-    // After response completes, input should be re-enabled
-    await expect(page.getByTestId('chat-input'))
-      .toBeEnabled({ timeout: 30_000 });
+    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
   });
 });

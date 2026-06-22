@@ -2,7 +2,7 @@ server:
   port: 8085
 
 atmosphere:
-  console-subtitle: AG-UI Protocol Demo — streaming assistant with tool calls
+  console-subtitle: AG-UI agent — real AgentRuntime streamed as AG-UI events (get_weather/get_time tools)
   packages: org.atmosphere.samples.springboot.agui
   web-transport:
     enabled: true

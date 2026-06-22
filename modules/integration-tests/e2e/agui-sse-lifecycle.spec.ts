@@ -3,6 +3,9 @@ import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-serve
 
 let server: SampleServer;
 
+/** Real AG-UI endpoint the @Agent auto-registers (atmosphere-agui on classpath). */
+const AGUI_PATH = '/atmosphere/agent/assistant/agui';
+
 test.beforeAll(async () => {
   test.setTimeout(120_000);
   server = await startSample(SAMPLES['spring-boot-agui-chat']);
@@ -20,7 +23,7 @@ interface SSEEvent {
 
 /** POST to /agui and collect all SSE events from the response body. */
 async function postAgui(baseUrl: string, message: string): Promise<SSEEvent[]> {
-  const res = await fetch(`${baseUrl}/agui`, {
+  const res = await fetch(`${baseUrl}${AGUI_PATH}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

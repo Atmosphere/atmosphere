@@ -148,6 +148,10 @@ export const SAMPLES: Record<string, SampleConfig> = {
     dir: 'spring-boot-agui-chat',
     port: 8094,
     type: 'spring-boot',
+    // The @Agent registers a real WS UI handler at /atmosphere/agent/assistant
+    // and an AG-UI SSE endpoint at /atmosphere/agent/assistant/agui. Probe the
+    // agent path so the servlet/WS layer is confirmed up before specs POST to it.
+    readyPath: '/atmosphere/agent/assistant',
   },
   'spring-boot-multi-agent-startup-team': {
     name: 'spring-boot-multi-agent-startup-team',
