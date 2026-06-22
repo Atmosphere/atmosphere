@@ -48,7 +48,7 @@ One agent class — slash commands and AI work on Web, Slack, Telegram, Discord,
 |--------|----------|-------------|
 | [spring-boot-mcp-server](spring-boot-mcp-server/) | MCP | Model Context Protocol — expose tools, resources, prompts to AI agents |
 | [spring-boot-a2a-agent](spring-boot-a2a-agent/) | A2A | Agent-to-Agent — discoverable skills via Agent Card, JSON-RPC 2.0 |
-| [spring-boot-agui-chat](spring-boot-agui-chat/) | AG-UI | Agent-User Interaction — stream agent state to frontends via SSE |
+| [spring-boot-agui-chat](spring-boot-agui-chat/) | AG-UI | Real `@Agent` whose `AgentRuntime` output (LLM + `get_weather`/`get_time` `@AiTool` calls) streams as AG-UI events over SSE; demo fallback when no key |
 
 ### Infrastructure & Integration
 

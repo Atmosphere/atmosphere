@@ -64,6 +64,9 @@ atmosphere new my-kotlin-ai --template ai-chat --runtime embabel
 
 # Force-swap: strip every pre-pinned adapter before injecting the chosen one
 atmosphere new my-ai-app --template ai-tools --runtime spring-ai --force
+
+# Scaffold an AI template with a commented, opt-in model-routing config block
+atmosphere new my-ai-app --template ai-chat --routing
 ```
 
 Available templates: `chat`, `ai-chat`, `ai-tools`, `mcp-server`, `rag`, `agent`, `multi-agent`, `classroom`, `ms-governance`, `coding-agent`, `guarded-agent`, `assistant`, `browser-agent`. Each template sparse-clones the matching sample from `cli/samples.json` into a directory you name.
@@ -71,6 +74,8 @@ Available templates: `chat`, `ai-chat`, `ai-tools`, `mcp-server`, `rag`, `agent`
 Available runtimes (`--runtime`): `builtin` (default — no extra deps), `spring-ai`, `langchain4j`, `adk`, `koog`, `semantic-kernel`, `agentscope`, `anthropic`, `cohere`, `crewai`, `embabel`, `spring-ai-alibaba`. The CLI appends the matching adapter dependencies (and any required repository, such as Embabel's release repository) to the scaffolded `pom.xml` — Atmosphere's `AgentRuntime` SPI then picks the highest-priority runtime present, so transparent templates like `ai-chat` swap runtime adapters without code changes. `embabel` and `spring-ai-alibaba` currently target the Spring Boot 3.5 profile.
 
 `--force` (only valid with `--runtime`) wipes every adapter dep declared in `cli/runtime-overlays.json` from the scaffolded `pom.xml` *before* injecting the chosen overlay. This makes the swap deterministic on samples that already pin a non-default adapter (e.g. `ai-tools` ships with `atmosphere-langchain4j`) — without `--force`, both adapters would land on the classpath and the SPI resolver would pick one based on `ServiceLoader` iteration order. Note: samples whose Java code imports a specific provider's API directly (e.g. `OpenAiStreamingChatModel`) will still need manual edits after force-swap; transparent templates (`ai-chat`, `multi-agent`) work end-to-end with no code changes.
+
+`--routing` (off by default) appends a **commented, ready-to-uncomment** `atmosphere.ai.routing.*` block to the scaffolded project's `src/main/resources/application.yml`. The block (`enabled`, `default-model`, `content-rules[].{keywords, model, base-url, api-key}`) mirrors the routing example in `modules/ai/README.md`, so uncommenting it and filling in keys enables content-based model routing without any extra wiring. Because the injected block stays commented, the scaffold is byte-identical to a non-routing scaffold until you opt in. It is only valid for the AI templates that ship an `application.yml`: `ai-chat`, `ai-tools`, `rag`, `multi-agent`, `classroom`, `ms-governance`, `coding-agent`, `assistant`, and `browser-agent`. Passing `--routing` with any other template (including `chat`, `mcp-server`, `guarded-agent`, and `agent`, whose scaffolds ship `.properties`/`.yaml` rather than a `.yml`) is rejected with an error that the flag *requires an AI template*. If the target `application.yml` already contains a `routing:` block, the existing one is left untouched.
 
 ### 10-minute enterprise agent path
 
