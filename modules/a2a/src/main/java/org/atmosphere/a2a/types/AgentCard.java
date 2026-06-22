@@ -87,4 +87,20 @@ public record AgentCard(
                 documentationUrl, newCapabilities, securitySchemes, securityRequirements,
                 defaultInputModes, defaultOutputModes, skills, signatures, iconUrl);
     }
+
+    /**
+     * A copy of this card with its {@link #securitySchemes} and
+     * {@link #securityRequirements} replaced. Used to advertise the security
+     * scheme the deployer declares they enforce in front of the (otherwise
+     * unauthenticated) A2A endpoint, so clients know what credential to present.
+     * The framework does not itself enforce the scheme — the deployer's
+     * gateway/filter does — so this relays the declared contract; it does not
+     * assert framework-enforced auth.
+     */
+    public AgentCard withSecurity(Map<String, SecurityScheme> newSchemes,
+                                  List<SecurityRequirement> newRequirements) {
+        return new AgentCard(name, description, supportedInterfaces, provider, version,
+                documentationUrl, capabilities, newSchemes, newRequirements,
+                defaultInputModes, defaultOutputModes, skills, signatures, iconUrl);
+    }
 }

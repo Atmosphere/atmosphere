@@ -253,7 +253,9 @@ public class AgentProcessor implements Processor<Object> {
 
                     var pushOn = A2aCardDecorations.pushEnabled(framework);
                     var card = A2aCardDecorations.signIfEnabled(
-                            registry.buildAgentCard(agentName, description, version, a2aEndpoint),
+                            A2aCardDecorations.advertiseSecurity(
+                                    registry.buildAgentCard(agentName, description, version, a2aEndpoint),
+                                    framework),
                             framework, agentName);
                     if (pushOn) {
                         card = A2aCardDecorations.advertisePush(card);
@@ -267,6 +269,7 @@ public class AgentProcessor implements Processor<Object> {
                     var a2aHandler = new org.atmosphere.a2a.runtime.A2aHandler(protocolHandler);
 
                     framework.addAtmosphereHandler(a2aEndpoint, a2aHandler, new java.util.ArrayList<>());
+                    A2aCardDecorations.warnIfUnauthenticated(framework, a2aEndpoint, agentName);
                     protocols.add("a2a");
                 }
             }
@@ -520,6 +523,7 @@ public class AgentProcessor implements Processor<Object> {
                     null, null, null, null,
                     skills,
                     null, null);
+            card = A2aCardDecorations.advertiseSecurity(card, framework);
             card = A2aCardDecorations.signIfEnabled(card, framework, annotation.name());
             var pushOn = A2aCardDecorations.pushEnabled(framework);
             if (pushOn) {
@@ -562,6 +566,7 @@ public class AgentProcessor implements Processor<Object> {
 
             var a2aPath = annotation.endpoint().isEmpty() ? basePath + "/a2a" : annotation.endpoint();
             framework.addAtmosphereHandler(a2aPath, a2aHandler, new java.util.ArrayList<>());
+            A2aCardDecorations.warnIfUnauthenticated(framework, a2aPath, annotation.name());
             protocols.add("a2a");
             logger.debug("A2A endpoint registered at {} with {} skills ({} executable)",
                     a2aPath, skills.size(), registry.skills().size());

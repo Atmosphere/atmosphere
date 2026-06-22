@@ -828,6 +828,14 @@ public class CoordinatorProcessor implements Processor<Object> {
             var card = registry.buildAgentCard(annotation.name(), description,
                     annotation.version(), a2aEndpoint,
                     guardrails.isEmpty() ? null : guardrails);
+            var a2aConfig = framework.getAtmosphereConfig();
+            var a2aScheme = a2aConfig != null
+                    ? a2aConfig.getInitParameter("org.atmosphere.a2a.securityScheme", "") : "";
+            if (a2aConfig != null) {
+                card = org.atmosphere.a2a.security.A2aCardSecurity.advertise(card, a2aScheme,
+                        a2aConfig.getInitParameter("org.atmosphere.a2a.apiKeyHeader",
+                                org.atmosphere.a2a.security.A2aCardSecurity.DEFAULT_API_KEY_HEADER));
+            }
             var taskManager = new org.atmosphere.a2a.runtime.TaskManager();
             var protocolHandler =
                     new org.atmosphere.a2a.runtime.A2aProtocolHandler(
@@ -837,6 +845,10 @@ public class CoordinatorProcessor implements Processor<Object> {
 
             framework.addAtmosphereHandler(a2aEndpoint, a2aHandler,
                     new ArrayList<>());
+            org.atmosphere.a2a.security.A2aCardSecurity.warnIfUnauthenticated(logger, a2aScheme,
+                    a2aConfig != null && Boolean.parseBoolean(a2aConfig.getInitParameter(
+                            "org.atmosphere.a2a.suppressAuthWarning", "false")),
+                    a2aEndpoint, annotation.name());
             protocols.add("a2a");
         } catch (Exception e) {
             logger.warn("Failed to register A2A for coordinator '{}'",

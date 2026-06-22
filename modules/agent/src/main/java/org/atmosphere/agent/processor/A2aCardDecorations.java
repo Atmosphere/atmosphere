@@ -18,6 +18,7 @@ package org.atmosphere.agent.processor;
 import org.atmosphere.a2a.runtime.A2aProtocolHandler;
 import org.atmosphere.a2a.runtime.PushNotificationService;
 import org.atmosphere.a2a.runtime.TaskManager;
+import org.atmosphere.a2a.security.A2aCardSecurity;
 import org.atmosphere.a2a.types.AgentCapabilities;
 import org.atmosphere.a2a.types.AgentCard;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -91,6 +92,44 @@ final class A2aCardDecorations {
                 ? new AgentCapabilities(true, true, null, true)
                 : new AgentCapabilities(caps.streaming(), true, caps.extensions(), caps.extendedAgentCard());
         return card.withCapabilities(updated);
+    }
+
+    /**
+     * Advertise the deployer-declared A2A security scheme on the served card so
+     * clients know what credential to present ({@code
+     * org.atmosphere.a2a.securityScheme=bearer|apiKey}, header overridable via
+     * {@code org.atmosphere.a2a.apiKeyHeader}). Off by default — an undeclared
+     * scheme leaves the card open (the prior behaviour). The framework does not
+     * enforce the scheme; the deployer's gateway/filter does.
+     */
+    static AgentCard advertiseSecurity(AgentCard card, AtmosphereFramework framework) {
+        var config = framework.getAtmosphereConfig();
+        if (config == null) {
+            return card;
+        }
+        return A2aCardSecurity.advertise(card,
+                config.getInitParameter("org.atmosphere.a2a.securityScheme", ""),
+                config.getInitParameter("org.atmosphere.a2a.apiKeyHeader",
+                        A2aCardSecurity.DEFAULT_API_KEY_HEADER));
+    }
+
+    /**
+     * Emit a startup warning when an A2A endpoint is exposed with no declared
+     * security scheme. The endpoint accepts {@code message/send} (LLM dispatch +
+     * tool execution) from any caller unless the deployer fronts it with auth,
+     * so the insecure default must not ship silently (Correctness Invariant #6).
+     * Suppress with {@code org.atmosphere.a2a.suppressAuthWarning=true}.
+     */
+    static void warnIfUnauthenticated(AtmosphereFramework framework, String endpoint, String agentName) {
+        var config = framework.getAtmosphereConfig();
+        if (config == null) {
+            return;
+        }
+        A2aCardSecurity.warnIfUnauthenticated(logger,
+                config.getInitParameter("org.atmosphere.a2a.securityScheme", ""),
+                Boolean.parseBoolean(
+                        config.getInitParameter("org.atmosphere.a2a.suppressAuthWarning", "false")),
+                endpoint, agentName);
     }
 
     /**
