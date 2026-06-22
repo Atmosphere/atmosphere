@@ -688,8 +688,10 @@ Rules are evaluated in order; first match wins. If no model fits the constraint,
 
 ### Routing (content / model / cost / latency) from Spring Boot config
 
-The Spring Boot starter exposes **all four** `RoutingRule` families through
-`atmosphere.ai.routing.*` properties — no Java wiring required. When
+Both the Spring Boot 4 starter (`atmosphere-spring-boot-starter`) and the
+Spring Boot 3 starter (`atmosphere-spring-boot3-starter`) expose **all four**
+`RoutingRule` families through `atmosphere.ai.routing.*` properties — no Java
+wiring required. When
 `atmosphere.ai.routing.enabled=true`, the starter wraps the resolved LLM client
 in a `RoutingLlmClient` and installs it via `AiConfig.installClient(...)`, so it
 becomes the client every `AgentRuntime` dispatch reads on the request critical
