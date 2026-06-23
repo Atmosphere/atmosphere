@@ -489,6 +489,13 @@ jobs:
         git add package.json package-lock.json
         cd ..
         git commit -m "chore(js): prepare next development version ${NEXT_VERSION}"
+        # The Maven release job pushes its version commits to main earlier in
+        # the same release; rebase onto them before pushing so this JS dev-bump
+        # never loses the race. 4.0.56 hit exactly this — the push was rejected
+        # 'fetch first' and the run went red even though every publish succeeded.
+        # Mirrors the Maven job's fetch+rebase+push pattern above.
+        git fetch origin main
+        git rebase origin/main
         git push origin main --tags
 
   # ─────────────────────────────────────────────
