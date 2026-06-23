@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.56] - 2026-06-23
+
+### Added
+
+- guardrails + OBO + cost + run-registry AI bean parity with SB4
+- config-driven AI routing parity with the SB4 starter
+- install governance decision log out-of-box for the queryable audit trail
+- warn on unauthenticated A2A endpoint + advertise declared security scheme
+- make spring-boot-agui-chat a real AG-UI agent via the native bridge @Agent + @Prompt + real @AiTool through session.stream() (demo fallback when no key); AiEvent->AgUiEvent over /atmosphere/agent/{name}/agui; replaces the scripted controller
+- config-driven cost/latency/model routing rules in atmosphere.ai.routing extends F3a (content-only); compose order content->model->cost->latency; off-by-default + content behavior byte-identical
+- emit experimental OTel GenAI semconv span attributes via GenAiTracer gen_ai.usage.*/request+response.model/operation/provider on the live span; fixes provider Runtime-Truth bug (real runtime name, not hardcoded atmosphere); legacy ai.tokens.* byte-identical
+- add --routing flag to 'atmosphere new' for routing config scaffolding injects a commented atmosphere.ai.routing.* block into AI-template application.yml; off by default, rejected for non-AI templates
+- wire real LongTermMemory cross-session recall into personal-assistant InMemoryLongTermMemory + LongTermMemoryInterceptor on the UpstreamMcpAgent @AiEndpoint (no-arg interceptor + static holder pattern); makes the memory-bearing claim true
+- opt-in RoutingLlmClient via atmosphere.ai.routing.enabled autoconfig wraps the resolved client with content-based routing rules; adds AiConfig.installClient seam; default-off byte-identical
+- wire ApiKeyResolver into anthropic/cohere with provider env-var support renamed from CredentialResolver (clashed with AiGateway.CredentialResolver); per-provider precedence reads ANTHROPIC_API_KEY/COHERE_API_KEY, no cross-provider key leak
+- add generation params (temperature/maxTokens/topP/stop) to LlmSettings wired to the wire for built-in/anthropic/spring-ai/langchain4j; honest per-runtime matrix in README; empty=byte-identical
+- explicit prompt-cache-key tri-state replaces base-URL sniffing PromptCacheKeyMode AUTO/ENABLED/DISABLED on LlmSettings; AUTO preserves current per-path heuristics byte-for-byte
+- store resolved apiKey on LlmSettings so apiKey() works for any client removes the OpenAiCompatibleClient-only instanceof; 4-arg constructor preserves old behavior; adds CredentialResolver precedence primitive
+- provider-neutral model tier aliases (fast/frontier/reasoning) ModelTier resolves tier tokens to a concrete model by active provider; raw model strings pass through unchanged
+- add provider-neutral configureNativeClient(Object) to AbstractAgentRuntime type-checked against nativeClientClassName(); provider-typed static setters remain the primary wiring path
+
+### Fixed
+
+- reachable agent bridge + keep response open during AG-UI streaming AgUiAgentBridge made public (cross-module reflective invoke from agui handler); handlePost joins the run thread so virtual-thread SSE writes don't hit a recycled response — fixes the agui-chat demo+UI e2e (only RUN_STARTED was reaching the wire)
+- converge AUTO prompt-cache-key to one default-deny allow-list built-in and framework runtimes share CacheHint.endpointAcceptsPromptCacheKey; framework no longer emits on unknown hosts under AUTO (force via PromptCacheKeyMode.ENABLED)
+- honor per-request ToolLoopPolicy in anthropic/cohere/langchain4j tool loops they hardcoded a 5-round cap and ignored maxIterations/onMaxIterations; now route through the shared ToolLoopGuard like the built-in (default behavior unchanged)
+- make default model configurable, default claude-sonnet-4-6 adds anthropic.model system property; per-request and AiConfig models still win over the fallback
+- version-bump touches only Atmosphere deps; regen SKILLCARDs
+- repair rag-chat/mcp-server/browser-agent + SB3 Tomcat + stream errors
+- restore real third-party dep versions clobbered by 4.0.x bump
+
+### Changed
+
+- pin deny-policy refusal on A2A and AG-UI bridges
+- fail-closed Maven Central pre-check guards against version burn
+- e2e proving config-driven routing is consumed on the wire
+- attribute GenAI "experimental" to the OpenTelemetry spec, not the emitter GenAiTracer/MetricsCapturingSession Javadoc + README make clear the implementation is production code; only the upstream OTel GenAI convention is experimental
+- document atmosphere new --routing flag and correct agui-chat sample row agui-chat is now a real @Agent (LLM + @AiTool over the AG-UI native bridge), not scripted
+- consolidate per-model-call observability into ModelCallScope replaces duplicated fireModelStart/End/Error + timing across 9 adapters and 2 Kotlin runtimes; event count/ordering unchanged (ADK start-time aligned to dispatch)
+- unify tool-call accumulator across built-in, anthropic, cohere shared ToolCallAccumulator gains argumentsAsMap(); deletes the two private copies; built-in parse path unchanged
+- extract AbstractSseLlmClient shared by Anthropic and Cohere clients collapses ~268 lines of duplicated HTTP/SSE plumbing (header filter, snippet read, data: loop, tool-schema) into one base; wire behavior byte-identical (black-box suites unchanged)
+- add TokenUsage.fromCounts and migrate adapter usage translation collapses 11 hand-rolled null-guard/total-fallback sites; 2 sites now compute total=input+output instead of 0 when the provider omits total (regression-tested)
+- hoist models() default into AbstractAgentRuntime removes 9 byte-identical adapter overrides; koog (distinct logic) and the interface default unchanged
+- fix cancel-test race by awaiting worker interrupt observation worker records the interrupt asynchronously; wait on a latch instead of reading the flag right after whenDone()
+- correct AI doc/sample drift vs verified runtime capabilities embeddings 5->7 runtimes, TOOL_CALL_DELTA Built-in+Cohere, ai.md classpath table, agui relabel, samples.json reattach
+- bound playwright install with timeout to prevent multi-hour hangs
+- both-layer regressions for the sweep failures (JUnit + Playwright)
+- sync version stamp to 4.0.56-SNAPSHOT
+- deep-link concept tables to docs site; fix verifier count
+- bump version to 4.0.55
+- prepare next development version 5.0.33
+- prepare for next development iteration 4.0.56-SNAPSHOT
+
 ## [4.0.55] - 2026-06-17
 
 ### Added
