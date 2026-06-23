@@ -100,6 +100,23 @@ public final class AiConfig {
      */
     public static final String PROMPT_CACHE_KEY_ENV = "LLM_PROMPT_CACHE_KEY";
 
+    /**
+     * Tri-state control of provider-native structured-output enforcement:
+     * {@code enabled} (apply + fail-fast on rejection), {@code disabled}
+     * (prompt-injection only), or {@code auto} (apply + graceful fall-back).
+     * Parsed leniently — see {@link NativeStructuredOutputMode#parse(String)} — so
+     * malformed values fall back to {@code auto} instead of throwing.
+     * <p>Default: {@code auto}</p>
+     * <p>Sysprop: {@code atmosphere.ai.native-structured-output}; env: {@code LLM_NATIVE_STRUCTURED_OUTPUT}</p>
+     */
+    public static final String NATIVE_STRUCTURED_OUTPUT_PROPERTY = "atmosphere.ai.native-structured-output";
+
+    /**
+     * Environment-variable name for the tri-state native structured-output
+     * control. See {@link #NATIVE_STRUCTURED_OUTPUT_PROPERTY}.
+     */
+    public static final String NATIVE_STRUCTURED_OUTPUT_ENV = "LLM_NATIVE_STRUCTURED_OUTPUT";
+
     // -- Generation parameter knobs (sysprop / env) --
     //
     // All four are opt-in: when unset the resolved GenerationParams collapses to
@@ -401,6 +418,24 @@ public final class AiConfig {
             raw = System.getenv(PROMPT_CACHE_KEY_ENV);
         }
         return PromptCacheKeyMode.parse(raw);
+    }
+
+    /**
+     * Resolve the tri-state native structured-output control from the
+     * {@code atmosphere.ai.native-structured-output} system property, falling
+     * back to the {@code LLM_NATIVE_STRUCTURED_OUTPUT} environment variable, then
+     * to {@link NativeStructuredOutputMode#AUTO}. Parsing is lenient and never
+     * throws (see {@link NativeStructuredOutputMode#parse(String)}); the sysprop
+     * wins over the env var, mirroring {@link #resolvePromptCacheKeyMode()}.
+     *
+     * @return the resolved mode, never {@code null}
+     */
+    public static NativeStructuredOutputMode resolveNativeStructuredOutputMode() {
+        var raw = System.getProperty(NATIVE_STRUCTURED_OUTPUT_PROPERTY);
+        if (raw == null || raw.isBlank()) {
+            raw = System.getenv(NATIVE_STRUCTURED_OUTPUT_ENV);
+        }
+        return NativeStructuredOutputMode.parse(raw);
     }
 
     /**

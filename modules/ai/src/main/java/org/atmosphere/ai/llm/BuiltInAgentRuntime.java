@@ -133,7 +133,17 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
             builder.message(msg);
         }
         if (context.responseType() != null) {
+            // json_object is the baseline (and the graceful fall-back when native
+            // is off or a provider rejects the schema). When the pipeline opts
+            // into provider-native structured output, upgrade to the strict
+            // json_schema response_format so OpenAI enforces the schema itself.
             builder.jsonMode(true);
+            if (org.atmosphere.ai.NativeStructuredOutput.shouldApply(context)) {
+                var schema = org.atmosphere.ai.NativeStructuredOutput.schema(context);
+                if (schema != null) {
+                    builder.jsonSchema(schema);
+                }
+            }
         }
         if (!context.tools().isEmpty()) {
             builder.tools(context.tools());
@@ -214,6 +224,13 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
                 AiCapability.TEXT_STREAMING,
                 AiCapability.TOOL_CALLING,
                 AiCapability.STRUCTURED_OUTPUT,
+                // NATIVE_STRUCTURED_OUTPUT is honest: buildRequest threads the
+                // generated JSON Schema into ChatCompletionRequest.jsonSchema when
+                // the pipeline opts in, and OpenAiCompatibleClient.buildRequestBody
+                // emits it as response_format:{type:"json_schema",strict:true} so
+                // OpenAI enforces the schema at the provider level (not just via
+                // the prompt). Falls back to json_object on rejection (AUTO mode).
+                AiCapability.NATIVE_STRUCTURED_OUTPUT,
                 AiCapability.SYSTEM_PROMPT,
                 AiCapability.TOOL_APPROVAL,
                 // VISION / AUDIO / MULTI_MODAL are honest: buildRequest

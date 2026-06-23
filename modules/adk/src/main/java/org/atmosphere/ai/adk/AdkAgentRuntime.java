@@ -277,6 +277,25 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
             if (!adkTools.isEmpty()) {
                 agentBuilder.tools(adkTools);
             }
+            // Provider-native structured output: when the pipeline opts in and
+            // there are no tools, attach the generated JSON Schema to the Gemini
+            // agent via LlmAgent.Builder.outputSchema(Schema.fromJson(...)). Gemini
+            // forbids combining responseSchema with function calling, so the
+            // tools-present case stays on the prompt-injection path. A malformed
+            // schema is skipped (logged) so it can never break dispatch; a
+            // provider rejection trips the NativeStructuredOutputMode.AUTO
+            // graceful fall-back.
+            if (adkTools.isEmpty() && context.responseType() != null
+                    && org.atmosphere.ai.NativeStructuredOutput.shouldApply(context)) {
+                var schema = org.atmosphere.ai.NativeStructuredOutput.schema(context);
+                if (schema != null) {
+                    try {
+                        agentBuilder.outputSchema(com.google.genai.types.Schema.fromJson(schema));
+                    } catch (RuntimeException e) {
+                        logger.debug("Skipping ADK outputSchema — schema not parseable", e);
+                    }
+                }
+            }
             rootAgent = agentBuilder.build();
             toolCount = adkTools.size();
         }
@@ -546,6 +565,13 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                 AiCapability.TEXT_STREAMING,
                 AiCapability.TOOL_CALLING,
                 AiCapability.STRUCTURED_OUTPUT,
+                // NATIVE_STRUCTURED_OUTPUT: the no-tool agent path attaches the
+                // generated JSON Schema via LlmAgent.Builder.outputSchema(
+                // Schema.fromJson(...)) so Gemini enforces it natively; AUTO mode
+                // falls back to prompt injection on rejection (and tools-present
+                // requests stay on prompt injection — Gemini forbids responseSchema
+                // with function calling).
+                AiCapability.NATIVE_STRUCTURED_OUTPUT,
                 AiCapability.AGENT_ORCHESTRATION,
                 AiCapability.CONVERSATION_MEMORY,
                 AiCapability.SYSTEM_PROMPT,

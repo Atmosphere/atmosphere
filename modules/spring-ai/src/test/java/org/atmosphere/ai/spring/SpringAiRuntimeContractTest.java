@@ -74,6 +74,7 @@ class SpringAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 AiCapability.TEXT_STREAMING,
                 AiCapability.TOOL_CALLING,
                 AiCapability.STRUCTURED_OUTPUT,
+                AiCapability.NATIVE_STRUCTURED_OUTPUT,
                 AiCapability.SYSTEM_PROMPT,
                 AiCapability.TOOL_APPROVAL,
                 AiCapability.VISION,

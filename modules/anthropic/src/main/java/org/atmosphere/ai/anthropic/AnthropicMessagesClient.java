@@ -180,6 +180,15 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
             working.add(textMessage("user", userMessage));
         }
 
+        // Provider-native structured output: the pipeline stamps the apply flag +
+        // generated schema when the request declares a response type and
+        // NativeStructuredOutputMode is not DISABLED. Resolved once per request;
+        // a NativeStructuredOutputMode.AUTO graceful fall-back re-dispatches with
+        // the flag cleared (so nativeSchema becomes null) if Anthropic rejects it.
+        var nativeSchema = context != null && context.responseType() != null
+                && org.atmosphere.ai.NativeStructuredOutput.shouldApply(context)
+                ? org.atmosphere.ai.NativeStructuredOutput.schema(context) : null;
+
         while (true) {
             if (effectiveCancel.get()) {
                 session.error(new InterruptedException("Cancelled before round " + rounds));
@@ -196,7 +205,7 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
                     return;
                 }
             }
-            var requestBody = buildRequestBody(model, working, system, context.tools());
+            var requestBody = buildRequestBody(model, working, system, context.tools(), nativeSchema);
             HttpRequest httpRequest;
             try {
                 httpRequest = buildHttpRequest(requestBody);
@@ -526,7 +535,8 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
     }
 
     private String buildRequestBody(String model, List<ObjectNode> messages,
-                                    String system, List<ToolDefinition> tools) {
+                                    String system, List<ToolDefinition> tools,
+                                    String jsonSchema) {
         var root = MAPPER.createObjectNode();
         root.put("model", model);
         root.put("max_tokens", maxTokens);
@@ -560,6 +570,23 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
             var toolArray = root.putArray("tools");
             for (var t : tools) {
                 toolArray.add(toolDefinitionNode(t));
+            }
+        }
+        if (jsonSchema != null && !jsonSchema.isBlank()) {
+            // Anthropic native structured output (generally available — no beta
+            // header). Verified wire shape from the Claude API structured-outputs
+            // docs: output_config.format carries the JSON schema so the model
+            // cannot emit non-conforming output. A malformed schema must not break
+            // the request — on a parse failure we skip native enforcement and let
+            // the pipeline's prompt-injection path carry the schema instead.
+            //   "output_config": { "format": { "type": "json_schema", "schema": {...} } }
+            try {
+                var schemaNode = MAPPER.readTree(jsonSchema);
+                var format = root.putObject("output_config").putObject("format");
+                format.put("type", "json_schema");
+                format.set("schema", schemaNode);
+            } catch (RuntimeException e) {
+                logger.debug("Skipping Anthropic output_config — schema not parseable", e);
             }
         }
         try {

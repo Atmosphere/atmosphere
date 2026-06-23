@@ -103,6 +103,7 @@ class CohereRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 AiCapability.TEXT_STREAMING,
                 AiCapability.SYSTEM_PROMPT,
                 AiCapability.STRUCTURED_OUTPUT,
+                AiCapability.NATIVE_STRUCTURED_OUTPUT,
                 AiCapability.TOOL_CALLING,
                 AiCapability.TOOL_APPROVAL,
                 AiCapability.TOKEN_USAGE,

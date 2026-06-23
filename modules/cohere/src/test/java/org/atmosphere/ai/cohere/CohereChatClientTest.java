@@ -474,6 +474,63 @@ class CohereChatClientTest {
         verify(httpClient, times(5)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
     }
 
+    public record City(String name) { }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void nativeStructuredOutputEmitsResponseFormat() throws Exception {
+        var httpClient = mockSingleResponse(200, TEXT_RESPONSE);
+        var client = CohereChatClient.builder()
+                .apiKey("test-key")
+                .httpClient(httpClient)
+                .build();
+        var schema = "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}},"
+                + "\"required\":[\"name\"],\"additionalProperties\":false}";
+        var context = new AgentExecutionContext(
+                "where?", "be terse", "command-a-plus-05-2026",
+                null, "s1", "u1", "c1",
+                List.of(), null, null, List.of(),
+                Map.of(org.atmosphere.ai.NativeStructuredOutput.APPLY_METADATA_KEY, Boolean.TRUE,
+                        org.atmosphere.ai.NativeStructuredOutput.SCHEMA_METADATA_KEY, schema),
+                List.of(), City.class, null);
+        var session = new CollectingSession();
+        client.stream("command-a-plus-05-2026", List.of(), context.systemPrompt(),
+                context.message(), context, session, null);
+        session.await(java.time.Duration.ofSeconds(5));
+
+        var captor = ArgumentCaptor.forClass(HttpRequest.class);
+        verify(httpClient).send(captor.capture(), any(HttpResponse.BodyHandler.class));
+        var body = drainBody(captor.getValue().bodyPublisher().orElseThrow());
+        // Cohere v2 wire shape: response_format.type=json_object + "schema" sub-field.
+        assertTrue(body.contains("\"response_format\""),
+                "native structured output must emit response_format: " + body);
+        assertTrue(body.contains("\"type\":\"json_object\""),
+                "Cohere v2 response_format must declare type=json_object: " + body);
+        assertTrue(body.contains("\"schema\":{"),
+                "the JSON schema must ride under the 'schema' sub-field: " + body);
+        assertTrue(body.contains("\"additionalProperties\":false"),
+                "the strict schema must be carried through: " + body);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void noNativeFlagOmitsResponseFormat() throws Exception {
+        var httpClient = mockSingleResponse(200, TEXT_RESPONSE);
+        var client = CohereChatClient.builder()
+                .apiKey("test-key")
+                .httpClient(httpClient)
+                .build();
+        var session = new CollectingSession();
+        client.stream("command-a-plus-05-2026", List.of(), "be terse",
+                "ping", textContext(), session, null);
+        session.await(java.time.Duration.ofSeconds(5));
+        var captor = ArgumentCaptor.forClass(HttpRequest.class);
+        verify(httpClient).send(captor.capture(), any(HttpResponse.BodyHandler.class));
+        var body = drainBody(captor.getValue().bodyPublisher().orElseThrow());
+        assertFalse(body.contains("response_format"),
+                "no apply flag must keep the wire free of response_format: " + body);
+    }
+
     private static AgentExecutionContext textContext() {
         return new AgentExecutionContext(
                 "Hi", "You are helpful", "command-a-plus-05-2026",

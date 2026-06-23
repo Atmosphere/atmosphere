@@ -36,18 +36,18 @@ The `AgentRuntime` interface is the AI-layer equivalent of `AsyncSupport`. Imple
 
 | Adapter JAR | `AgentRuntime` implementation | Priority | Capabilities |
 |-------------|-------------------------------|----------|-------------|
-| `atmosphere-ai` (built-in) | `BuiltInAgentRuntime` (OpenAI-compatible) | 0 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, PER_REQUEST_RETRY, TOKEN_USAGE, CONVERSATION_MEMORY, TOOL_CALL_DELTA, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
-| `atmosphere-anthropic` | `AnthropicAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, MULTI_MODAL, PER_REQUEST_RETRY, TOKEN_USAGE, CONVERSATION_MEMORY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
-| `atmosphere-cohere` | `CohereAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, MULTI_MODAL, PER_REQUEST_RETRY, TOKEN_USAGE, CONVERSATION_MEMORY, TOOL_CALL_DELTA, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
+| `atmosphere-ai` (built-in) | `BuiltInAgentRuntime` (OpenAI-compatible) | 0 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, PER_REQUEST_RETRY, TOKEN_USAGE, CONVERSATION_MEMORY, TOOL_CALL_DELTA, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
+| `atmosphere-anthropic` | `AnthropicAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, MULTI_MODAL, PER_REQUEST_RETRY, TOKEN_USAGE, CONVERSATION_MEMORY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
+| `atmosphere-cohere` | `CohereAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, MULTI_MODAL, PER_REQUEST_RETRY, TOKEN_USAGE, CONVERSATION_MEMORY, TOOL_CALL_DELTA, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
 | `atmosphere-crewai`³ (requires external Python sidecar) | `CrewAiAgentRuntime` | 50 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, AGENT_ORCHESTRATION, CANCELLATION, PER_REQUEST_RETRY, TOKEN_USAGE |
-| `atmosphere-spring-ai` | `SpringAiAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, TOKEN_USAGE, CONVERSATION_MEMORY, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
-| `atmosphere-langchain4j` | `LangChain4jAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, TOKEN_USAGE, CONVERSATION_MEMORY, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
-| `atmosphere-adk` | `AdkAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, TOKEN_USAGE, PER_REQUEST_RETRY, PROMPT_CACHING, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
+| `atmosphere-spring-ai` | `SpringAiAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, TOKEN_USAGE, CONVERSATION_MEMORY, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
+| `atmosphere-langchain4j` | `LangChain4jAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, TOKEN_USAGE, CONVERSATION_MEMORY, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
+| `atmosphere-adk` | `AdkAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, TOKEN_USAGE, PER_REQUEST_RETRY, PROMPT_CACHING, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
 | `atmosphere-embabel` | `EmbabelAgentRuntime` | 100 | TEXT_STREAMING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, SYSTEM_PROMPT, CONVERSATION_MEMORY, TOKEN_USAGE, PER_REQUEST_RETRY, TOOL_CALLING, TOOL_APPROVAL, VISION, MULTI_MODAL, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
-| `atmosphere-koog` | `KoogAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT, TOOL_APPROVAL, TOKEN_USAGE, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, CANCELLATION, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION |
-| `atmosphere-agentscope` | `AgentScopeAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, CANCELLATION, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, VISION, AUDIO, MULTI_MODAL |
+| `atmosphere-koog` | `KoogAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT, TOOL_APPROVAL, TOKEN_USAGE, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, CANCELLATION, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION |
+| `atmosphere-agentscope` | `AgentScopeAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, CANCELLATION, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, VISION, AUDIO, MULTI_MODAL |
 | `atmosphere-spring-ai-alibaba` | `SpringAiAlibabaAgentRuntime` | 100 | TEXT_STREAMING (buffered), SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOOL_CALLING, TOOL_APPROVAL, TOKEN_USAGE, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, VISION, AUDIO, MULTI_MODAL, CANCELLATION (cooperative) *(see runtime caveats below)* |
-| `atmosphere-semantic-kernel` | `SemanticKernelAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, VISION, MULTI_MODAL, CANCELLATION |
+| `atmosphere-semantic-kernel` | `SemanticKernelAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, VISION, MULTI_MODAL, CANCELLATION |
 
 Every runtime emits `TokenUsage` via `StreamingSession.usage()` when the underlying API provides token counts, feeding `ai.tokens.*` metadata into `MetricsCapturingSession` and `MicrometerAiMetrics`. Capability declarations are pinned in each runtime's contract test (`AbstractAgentRuntimeContractTest.expectedCapabilities()`), so the table above cannot drift from the running code without breaking the build. The aggregate counts ("12 runtimes") and the per-row capability lists are additionally pinned against `.harness/capabilities.snapshot.json` by `CapabilitySnapshotTest` and `scripts/validate-capability-claims.sh` (run from pre-push). That enforcement covers the structured table rows and the tight count claims (`All N runtimes`, `N AiCapability`/`N capabilities total`) only; free-form per-runtime narrative below is **not** machine-checked, so keep that prose in sync with the table by hand.
 
@@ -1170,6 +1170,19 @@ TCD=TOOL_CALL_DELTA, BE=BUDGET_ENFORCEMENT, CS=CONFIDENCE_SCORES, PSV=PASSIVATIO
 | `AnthropicAgentRuntime`      | 100 | yes | yes | yes | yes | —   | yes | yes | yes | —   | yes | —   | yes | yes | —   | yes | yes | yes |
 | `CohereAgentRuntime`         | 100 | yes | yes | yes | yes | —   | yes | yes | yes | —   | yes | —   | yes | yes | yes | yes | yes | yes |
 | `CrewAiAgentRuntime`³        |  50 | yes | yes | yes | yes | yes | —   | yes | —   | —   | —   | —   | yes | yes | —   | —   | —   | —   |
+
+The `SO` column above is `STRUCTURED_OUTPUT` (pipeline-level: schema injected into the
+prompt + parsed by `StructuredOutputCapturingSession`), declared by all twelve runtimes.
+Nine of them additionally declare **`NATIVE_STRUCTURED_OUTPUT`** — provider-enforced schema
+conformance threaded into the provider's own structured-output field — and appear with that
+token in the capability table above: `BuiltInAgentRuntime`, `SpringAiAgentRuntime`,
+`AnthropicAgentRuntime`, `CohereAgentRuntime`, `LangChain4jAgentRuntime`, `AdkAgentRuntime`,
+`SemanticKernelAgentRuntime`, `KoogAgentRuntime`, `AgentScopeAgentRuntime`. The three that
+do **not** (`CrewAiAgentRuntime`, `EmbabelAgentRuntime`, `SpringAiAlibabaAgentRuntime`) carry
+no schema field on their wire/SDK path and stay on the pipeline-injection path — declaring
+the native flag for them would violate Runtime Truth (Invariant #5). Activation is governed
+by `NativeStructuredOutputMode` (AUTO default, with graceful fall-back to prompt-injection
+when a provider rejects the schema).
 
 ¹ `SpringAiAlibabaAgentRuntime` declares `TEXT_STREAMING` honestly because the
 final reply ships as a single `session.send()` chunk and Atmosphere's transport

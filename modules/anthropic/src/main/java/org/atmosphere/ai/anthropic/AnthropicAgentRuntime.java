@@ -219,11 +219,18 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
         //                            forwarded via session.toolCallDelta yet
         //   AUDIO                 — Anthropic Messages has no audio block
         //                            (Content.Audio is dropped with a debug log)
+        //   NATIVE_STRUCTURED_OUTPUT — buildRequestBody threads the generated
+        //                            JSON Schema into Anthropic's GA
+        //                            output_config.format field so the model
+        //                            enforces the schema at the provider level;
+        //                            AUTO mode falls back to prompt injection on
+        //                            a provider rejection.
         //   PROMPT_CACHING        — cache_control blocks deferred
         return Set.of(
                 AiCapability.TEXT_STREAMING,
                 AiCapability.SYSTEM_PROMPT,
                 AiCapability.STRUCTURED_OUTPUT,
+                AiCapability.NATIVE_STRUCTURED_OUTPUT,
                 AiCapability.TOOL_CALLING,
                 AiCapability.TOOL_APPROVAL,
                 AiCapability.TOKEN_USAGE,

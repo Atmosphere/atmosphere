@@ -171,21 +171,47 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
         // stopSequences, so all four reach the wire on the OpenAI-backed path.
         var generation = settings != null
                 ? settings.generation() : org.atmosphere.ai.GenerationParams.defaults();
-        if (cacheHint.enabled() && cacheKey.isPresent() && endpointAccepts) {
+        // Provider-native structured output: the pipeline stamps the apply flag
+        // and the generated JSON Schema when the request declares a response type
+        // and NativeStructuredOutputMode is not DISABLED. Only the OpenAI-backed
+        // OpenAiChatOptions builder carries the outputSchema(...) setter; on a
+        // non-OpenAI ChatModel Spring AI ignores the OpenAI-specific options, so
+        // the schema is harmlessly dropped (the prompt-injection path still
+        // carries it). On the OpenAI path a rejected schema trips the
+        // NativeStructuredOutputMode.AUTO graceful fall-back (the pipeline
+        // re-dispatches with the apply flag cleared, so nativeSchema becomes null
+        // and this falls back to the generic/no-options path).
+        var nativeSchema = context.responseType() != null
+                && org.atmosphere.ai.NativeStructuredOutput.shouldApply(context)
+                ? org.atmosphere.ai.NativeStructuredOutput.schema(context) : null;
+        var cacheApplies = cacheHint.enabled() && cacheKey.isPresent() && endpointAccepts;
+        if (cacheApplies || nativeSchema != null) {
+            // OpenAiChatOptions carries BOTH the prompt-cache extraBody escape
+            // hatch and the outputSchema(...) native structured-output setter.
             // Spring AI 2.0 (M5+) replaced OpenAiChatOptions.Builder.promptCacheKey(String)
             // with the generic extraBody(Map) escape hatch so OpenAI extension fields
             // (prompt_cache_key, store, service_tier, ...) ride through without
             // per-field builder methods. ChatClient.options() also now takes a
             // ChatOptions.Builder<?> rather than the built options.
-            var openAiOpts = org.springframework.ai.openai.OpenAiChatOptions.builder()
-                    .extraBody(java.util.Map.of("prompt_cache_key", cacheKey.get()));
+            var openAiOpts = org.springframework.ai.openai.OpenAiChatOptions.builder();
+            if (cacheApplies) {
+                openAiOpts.extraBody(java.util.Map.of("prompt_cache_key", cacheKey.get()));
+            }
+            if (nativeSchema != null) {
+                // outputSchema(String) auto-selects strict JSON_SCHEMA on the
+                // OpenAI path (Spring AI sets the SDK ResponseFormat strict flag).
+                openAiOpts.outputSchema(nativeSchema);
+                logger.debug("Applied native structured-output schema (model={})", context.model());
+            }
             if (context.model() != null && !context.model().isBlank()) {
                 openAiOpts.model(context.model());
             }
             applyGeneration(openAiOpts, generation);
             promptSpec = promptSpec.options(openAiOpts);
-            logger.debug("Applied prompt_cache_key={} (model={})",
-                    cacheKey.get(), context.model());
+            if (cacheApplies) {
+                logger.debug("Applied prompt_cache_key={} (model={})",
+                        cacheKey.get(), context.model());
+            }
         } else if ((context.model() != null && !context.model().isBlank()) || generation.hasAny()) {
             // A per-request model override OR any framework generation override
             // needs an options object. The generic ChatOptions.Builder carries
@@ -340,6 +366,15 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
                 AiCapability.TEXT_STREAMING,
                 AiCapability.TOOL_CALLING,
                 AiCapability.STRUCTURED_OUTPUT,
+                // NATIVE_STRUCTURED_OUTPUT is honest on the OpenAI-backed path:
+                // doExecuteWithHandle threads the generated JSON Schema into
+                // OpenAiChatOptions.outputSchema(...), which Spring AI 2.0 maps to
+                // a strict json_schema response_format so OpenAI enforces the
+                // schema at the provider level. Non-OpenAI ChatModels ignore the
+                // OpenAI-specific option (schema harmlessly dropped, prompt
+                // injection still applies); a provider rejection trips the
+                // NativeStructuredOutputMode.AUTO graceful fall-back.
+                AiCapability.NATIVE_STRUCTURED_OUTPUT,
                 AiCapability.SYSTEM_PROMPT,
                 // TOOL_APPROVAL is honest: SpringAiToolBridge.AtmosphereToolCallback
                 // routes tool invocation through

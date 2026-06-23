@@ -43,10 +43,11 @@ class AiCapabilityTest {
     @Test
     void totalCapabilityCount() {
         // 17 baseline + 3 (BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION)
-        // added for the predictable-AI primitives. Bump this number when a
-        // new capability lands; the test exists so capability changes are
+        // added for the predictable-AI primitives + NATIVE_STRUCTURED_OUTPUT
+        // (provider-enforced JSON-schema structured output). Bump this number
+        // when a new capability lands; the test exists so capability changes are
         // reviewed deliberately rather than slipped in without thought.
-        assertEquals(20, AiCapability.values().length);
+        assertEquals(21, AiCapability.values().length);
     }
 
     @Test

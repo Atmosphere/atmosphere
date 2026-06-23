@@ -102,6 +102,7 @@ internal class KoogRuntimeContractTest : AbstractAgentRuntimeContractTest() {
         AiCapability.TEXT_STREAMING,
         AiCapability.TOOL_CALLING,
         AiCapability.STRUCTURED_OUTPUT,
+        AiCapability.NATIVE_STRUCTURED_OUTPUT,
         AiCapability.AGENT_ORCHESTRATION,
         AiCapability.CONVERSATION_MEMORY,
         AiCapability.SYSTEM_PROMPT,

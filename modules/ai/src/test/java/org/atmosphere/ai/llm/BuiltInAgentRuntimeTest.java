@@ -83,9 +83,10 @@ class BuiltInAgentRuntimeTest {
         var caps = new BuiltInAgentRuntime().capabilities();
         // 13 baseline + 3 (BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION)
         // added for the predictable-AI primitives + CANCELLATION (cooperative
-        // cancel via the SSE InputStream close). Bump this number when a new
+        // cancel via the SSE InputStream close) + NATIVE_STRUCTURED_OUTPUT
+        // (strict json_schema response_format). Bump this number when a new
         // capability lands on Built-in.
-        assertEquals(17, caps.size());
+        assertEquals(18, caps.size());
     }
 
     @Test

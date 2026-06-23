@@ -75,6 +75,27 @@ public class JacksonStructuredOutputParser implements StructuredOutputParser {
     }
 
     @Override
+    public String jsonSchema(Class<?> targetType) {
+        if (targetType == null || targetType == Void.class) {
+            return null;
+        }
+        try {
+            // Compact (non-pretty) raw schema for the wire — this is the object a
+            // runtime threads into its provider's native structured-output field,
+            // not prompt prose. Strict-mode-valid (additionalProperties:false +
+            // full required list + recursed nested records) so OpenAI / Anthropic
+            // / Gemini strict enforcement accepts it.
+            return MAPPER.writeValueAsString(generateSchema(targetType));
+        } catch (Exception e) {
+            // Null signals "no machine-readable schema" → the runtime stays on the
+            // prompt-injection path rather than POSTing a malformed native schema.
+            logger.debug("Failed to render raw JSON Schema for {}; native structured "
+                    + "output will be skipped for this type", targetType.getSimpleName(), e);
+            return null;
+        }
+    }
+
+    @Override
     public <T> T parse(String llmOutput, Class<T> targetType) {
         var json = extractJson(llmOutput);
         try {
@@ -118,55 +139,125 @@ public class JacksonStructuredOutputParser implements StructuredOutputParser {
     }
 
     /**
-     * Generate a minimal JSON Schema from a Java class using reflection.
-     * Supports records and POJOs.
+     * Generate a JSON Schema from a Java class using reflection. Supports records
+     * and POJOs and recurses into nested record/POJO property types.
+     *
+     * <p>The output is valid for provider <em>strict</em> structured-output modes
+     * (OpenAI {@code json_schema} {@code strict:true}, Anthropic {@code output_config},
+     * Gemini {@code responseSchema}): every object closes with
+     * {@code "additionalProperties": false} and lists <em>all</em> of its
+     * properties in {@code "required"}, and every array carries an {@code "items"}
+     * schema. A reflective cycle (a type that transitively contains itself) is cut
+     * with an open object so generation always terminates — such recursive schemas
+     * may not be accepted by every provider's strict mode, which is exactly what
+     * the {@link NativeStructuredOutputMode#AUTO} graceful fall-back exists for.</p>
      */
     private static Map<String, Object> generateSchema(Class<?> type) {
+        return objectSchema(type, new java.util.IdentityHashMap<>());
+    }
+
+    /**
+     * Build the schema for an object type, guarding against reflective cycles via
+     * the path-scoped {@code seen} set (put-on-descend, remove-on-return — so two
+     * sibling fields of the same type are both expanded, but a type nested inside
+     * itself is cut).
+     */
+    private static Map<String, Object> objectSchema(Class<?> type, Map<Class<?>, Boolean> seen) {
         var schema = new LinkedHashMap<String, Object>();
         schema.put("type", "object");
+        if (seen.put(type, Boolean.TRUE) != null) {
+            // Cycle: this type is already being expanded higher up the path. Emit
+            // an open object instead of descending forever.
+            schema.put("additionalProperties", true);
+            return schema;
+        }
 
         var properties = new LinkedHashMap<String, Object>();
         var required = new java.util.ArrayList<String>();
-
         if (type.isRecord()) {
             for (RecordComponent comp : type.getRecordComponents()) {
-                properties.put(comp.getName(), typeSchema(comp.getType()));
+                properties.put(comp.getName(), typeSchema(comp.getGenericType(), comp.getType(), seen));
                 required.add(comp.getName());
             }
         } else {
             for (var field : type.getDeclaredFields()) {
                 if (!java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
-                    properties.put(field.getName(), typeSchema(field.getType()));
+                    properties.put(field.getName(),
+                            typeSchema(field.getGenericType(), field.getType(), seen));
+                    required.add(field.getName());
                 }
             }
         }
+        seen.remove(type);
 
         schema.put("properties", properties);
-        if (!required.isEmpty()) {
-            schema.put("required", required);
-        }
+        // Strict mode requires EVERY property to be listed in "required".
+        schema.put("required", required);
+        // Strict mode requires objects to be closed.
+        schema.put("additionalProperties", false);
         return schema;
     }
 
-    private static Map<String, Object> typeSchema(Class<?> type) {
-        var jsonType = JSON_TYPE_MAP.get(type);
+    private static Map<String, Object> typeSchema(java.lang.reflect.Type generic,
+                                                  Class<?> raw, Map<Class<?>, Boolean> seen) {
+        var jsonType = JSON_TYPE_MAP.get(raw);
         if (jsonType != null) {
             return Map.of("type", jsonType);
         }
-        if (List.class.isAssignableFrom(type) || Set.class.isAssignableFrom(type)) {
-            return Map.of("type", "array");
-        }
-        if (Map.class.isAssignableFrom(type)) {
-            return Map.of("type", "object");
-        }
-        if (type.isEnum()) {
+        if (raw.isEnum()) {
             var values = new java.util.ArrayList<String>();
-            for (var constant : type.getEnumConstants()) {
+            for (var constant : raw.getEnumConstants()) {
                 values.add(constant.toString());
             }
             return Map.of("type", "string", "enum", values);
         }
-        return Map.of("type", "object");
+        if (List.class.isAssignableFrom(raw) || Set.class.isAssignableFrom(raw)) {
+            var element = elementType(generic);
+            var array = new LinkedHashMap<String, Object>();
+            array.put("type", "array");
+            array.put("items", element != null
+                    ? typeSchema(element, element, seen)
+                    : Map.of("type", "string"));
+            return array;
+        }
+        if (raw.isArray()) {
+            var component = raw.getComponentType();
+            var array = new LinkedHashMap<String, Object>();
+            array.put("type", "array");
+            array.put("items", typeSchema(component, component, seen));
+            return array;
+        }
+        if (Map.class.isAssignableFrom(raw)) {
+            // Arbitrary string-keyed maps cannot be closed with named properties;
+            // leave them open. Strict providers that reject open maps trip the
+            // NativeStructuredOutputMode.AUTO fall-back rather than failing hard.
+            var map = new LinkedHashMap<String, Object>();
+            map.put("type", "object");
+            map.put("additionalProperties", true);
+            return map;
+        }
+        if (raw == Object.class || raw == String.class) {
+            return Map.of("type", "string");
+        }
+        // Nested record / POJO — recurse so the native schema is complete.
+        return objectSchema(raw, seen);
+    }
+
+    /**
+     * Resolve the element {@link Class} of a {@code List<E>} / {@code Set<E>}
+     * generic type, or {@code null} when the collection is raw or the element is
+     * itself parameterized (we keep one level — deeper generic element schemas
+     * fall back to {@code string}, and the AUTO graceful path covers any provider
+     * rejection).
+     */
+    private static Class<?> elementType(java.lang.reflect.Type generic) {
+        if (generic instanceof java.lang.reflect.ParameterizedType pt) {
+            var args = pt.getActualTypeArguments();
+            if (args.length == 1 && args[0] instanceof Class<?> c) {
+                return c;
+            }
+        }
+        return null;
     }
 
     /**

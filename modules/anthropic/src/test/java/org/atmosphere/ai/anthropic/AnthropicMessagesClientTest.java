@@ -285,6 +285,63 @@ class AnthropicMessagesClientTest {
         assertTrue(body.contains("\"text\":\"What is in this image?\""), body);
     }
 
+    public record City(String name) { }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void nativeStructuredOutputEmitsOutputConfig() throws Exception {
+        var httpClient = mockSingleResponse(200, TEXT_RESPONSE);
+        var client = AnthropicMessagesClient.builder()
+                .apiKey("test-key")
+                .httpClient(httpClient)
+                .build();
+        var schema = "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}},"
+                + "\"required\":[\"name\"],\"additionalProperties\":false}";
+        // Context carries the pipeline-stamped apply flag + schema (what
+        // NativeStructuredDispatch sets when NativeStructuredOutputMode != DISABLED).
+        var context = new AgentExecutionContext(
+                "where?", "be terse", "claude-sonnet-4-6",
+                null, "s1", "u1", "c1",
+                List.of(), null, null, List.of(),
+                Map.of(org.atmosphere.ai.NativeStructuredOutput.APPLY_METADATA_KEY, Boolean.TRUE,
+                        org.atmosphere.ai.NativeStructuredOutput.SCHEMA_METADATA_KEY, schema),
+                List.of(), City.class, null);
+        var session = new CollectingSession();
+        client.stream("claude-sonnet-4-6", List.of(), context.systemPrompt(),
+                context.message(), context, session, null);
+        session.await(java.time.Duration.ofSeconds(5));
+
+        var captor = ArgumentCaptor.forClass(HttpRequest.class);
+        verify(httpClient).send(captor.capture(), any(HttpResponse.BodyHandler.class));
+        var body = drainBody(captor.getValue().bodyPublisher().orElseThrow());
+        assertTrue(body.contains("\"output_config\""),
+                "native structured output must emit output_config: " + body);
+        assertTrue(body.contains("\"format\":{\"type\":\"json_schema\""),
+                "output_config.format must declare type=json_schema: " + body);
+        // The strict schema (additionalProperties:false) must ride through intact.
+        assertTrue(body.contains("\"additionalProperties\":false"),
+                "the strict schema must be carried into output_config.format.schema: " + body);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void noNativeFlagOmitsOutputConfig() throws Exception {
+        var httpClient = mockSingleResponse(200, TEXT_RESPONSE);
+        var client = AnthropicMessagesClient.builder()
+                .apiKey("test-key")
+                .httpClient(httpClient)
+                .build();
+        var session = new CollectingSession();
+        client.stream("claude-sonnet-4-6", List.of(), "be terse",
+                "ping", textContext(), session, null);
+        session.await(java.time.Duration.ofSeconds(5));
+        var captor = ArgumentCaptor.forClass(HttpRequest.class);
+        verify(httpClient).send(captor.capture(), any(HttpResponse.BodyHandler.class));
+        var body = drainBody(captor.getValue().bodyPublisher().orElseThrow());
+        assertFalse(body.contains("output_config"),
+                "no apply flag must keep the wire free of output_config: " + body);
+    }
+
     private static AgentExecutionContext textContext() {
         return new AgentExecutionContext(
                 "Hi", "You are helpful", "claude-sonnet-4-6",

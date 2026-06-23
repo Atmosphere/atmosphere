@@ -46,7 +46,8 @@ public record ChatCompletionRequest(
         CacheHint cacheHint,
         RetryPolicy retryPolicy,
         ToolApprovalPolicy approvalPolicy,
-        ToolLoopPolicy toolLoopPolicy
+        ToolLoopPolicy toolLoopPolicy,
+        String jsonSchema
 ) {
     /**
      * Canonical constructor. {@code retryPolicy} is a per-request override
@@ -64,6 +65,31 @@ public record ChatCompletionRequest(
         toolLoopPolicy = toolLoopPolicy != null ? toolLoopPolicy : ToolLoopPolicy.DEFAULT;
         // retryPolicy stays nullable: null means "inherit the client's
         // configured default", non-null is an explicit per-request override.
+        // jsonSchema stays nullable: null means "no native json_schema this
+        // request" — the client then emits the weaker {@code json_object}
+        // response_format when {@code jsonMode} is set, preserving the legacy
+        // wire shape. A non-null value upgrades to provider-enforced strict
+        // {@code json_schema} (set only when the pipeline opts into native
+        // structured output via NativeStructuredOutput.shouldApply).
+    }
+
+    /**
+     * Shim constructor accepting the 14-arg form (without {@code jsonSchema}).
+     * Defaults {@code jsonSchema} to {@code null} so every existing call site —
+     * including the prior canonical signature — keeps emitting the historical
+     * wire shape (weak {@code json_object} when {@code jsonMode} is set).
+     */
+    public ChatCompletionRequest(String model, List<ChatMessage> messages,
+                                 double temperature, int maxStreamingTexts,
+                                 boolean jsonMode, List<ToolDefinition> tools,
+                                 String conversationId, ApprovalStrategy approvalStrategy,
+                                 List<org.atmosphere.ai.Content> parts,
+                                 List<org.atmosphere.ai.AgentLifecycleListener> listeners,
+                                 CacheHint cacheHint, RetryPolicy retryPolicy,
+                                 ToolApprovalPolicy approvalPolicy, ToolLoopPolicy toolLoopPolicy) {
+        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools,
+                conversationId, approvalStrategy, parts, listeners, cacheHint, retryPolicy,
+                approvalPolicy, toolLoopPolicy, null);
     }
 
     /**
@@ -207,6 +233,7 @@ public record ChatCompletionRequest(
         private RetryPolicy retryPolicy;
         private ToolApprovalPolicy approvalPolicy;
         private ToolLoopPolicy toolLoopPolicy = ToolLoopPolicy.DEFAULT;
+        private String jsonSchema;
 
         private Builder(String model) {
             this.model = model;
@@ -323,10 +350,24 @@ public record ChatCompletionRequest(
             return this;
         }
 
+        /**
+         * Attach the raw JSON Schema for provider-enforced strict structured
+         * output. When set (and non-blank), {@link OpenAiCompatibleClient}
+         * emits {@code response_format:{type:"json_schema",strict:true,...}}
+         * instead of the weaker {@code json_object} form. Set by
+         * {@code BuiltInAgentRuntime} only when the pipeline opts into native
+         * structured output ({@link org.atmosphere.ai.NativeStructuredOutput});
+         * {@code null} preserves the legacy {@code json_object} wire shape.
+         */
+        public Builder jsonSchema(String jsonSchema) {
+            this.jsonSchema = jsonSchema;
+            return this;
+        }
+
         public ChatCompletionRequest build() {
             return new ChatCompletionRequest(model, List.copyOf(messages),
                     temperature, maxStreamingTexts, jsonMode, tools, conversationId, approvalStrategy,
-                    parts, listeners, cacheHint, retryPolicy, approvalPolicy, toolLoopPolicy);
+                    parts, listeners, cacheHint, retryPolicy, approvalPolicy, toolLoopPolicy, jsonSchema);
         }
     }
 }

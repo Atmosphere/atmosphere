@@ -161,6 +161,15 @@ public final class CohereChatClient extends AbstractSseLlmClient {
             working.add(textMessage("user", userMessage));
         }
 
+        // Provider-native structured output: the pipeline stamps the apply flag +
+        // generated schema when the request declares a response type and
+        // NativeStructuredOutputMode is not DISABLED. Resolved once per request; a
+        // NativeStructuredOutputMode.AUTO graceful fall-back re-dispatches with the
+        // flag cleared (so nativeSchema becomes null) if Cohere rejects it.
+        var nativeSchema = context != null && context.responseType() != null
+                && org.atmosphere.ai.NativeStructuredOutput.shouldApply(context)
+                ? org.atmosphere.ai.NativeStructuredOutput.schema(context) : null;
+
         while (true) {
             if (effectiveCancel.get()) {
                 session.error(new InterruptedException("Cancelled before round " + rounds));
@@ -177,7 +186,7 @@ public final class CohereChatClient extends AbstractSseLlmClient {
                     return;
                 }
             }
-            var requestBody = buildRequestBody(model, working, context.tools());
+            var requestBody = buildRequestBody(model, working, context.tools(), nativeSchema);
             HttpRequest httpRequest;
             try {
                 httpRequest = buildHttpRequest(requestBody);
@@ -490,7 +499,7 @@ public final class CohereChatClient extends AbstractSseLlmClient {
     }
 
     private String buildRequestBody(String model, List<ObjectNode> messages,
-                                    List<ToolDefinition> tools) {
+                                    List<ToolDefinition> tools, String jsonSchema) {
         var root = MAPPER.createObjectNode();
         root.put("model", model);
         root.put("max_tokens", maxTokens);
@@ -503,6 +512,23 @@ public final class CohereChatClient extends AbstractSseLlmClient {
             var toolArray = root.putArray("tools");
             for (var t : tools) {
                 toolArray.add(toolDefinitionNode(t));
+            }
+        }
+        if (jsonSchema != null && !jsonSchema.isBlank()) {
+            // Cohere v2 native structured output. Verified wire shape from the
+            // Cohere v2 structured-outputs docs: response_format with
+            // type=json_object carries the schema under the "schema" sub-field
+            // (NOT "json_schema"). A malformed schema must not break the request —
+            // on a parse failure we skip native enforcement and let the pipeline's
+            // prompt-injection path carry the schema instead.
+            //   "response_format": { "type": "json_object", "schema": {...} }
+            try {
+                var schemaNode = MAPPER.readTree(jsonSchema);
+                var responseFormat = root.putObject("response_format");
+                responseFormat.put("type", "json_object");
+                responseFormat.set("schema", schemaNode);
+            } catch (RuntimeException e) {
+                logger.debug("Skipping Cohere response_format — schema not parseable", e);
             }
         }
         try {

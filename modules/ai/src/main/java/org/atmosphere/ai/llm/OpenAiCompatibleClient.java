@@ -762,7 +762,19 @@ public class OpenAiCompatibleClient implements LlmClient {
         if (generation.stop() != null && !generation.stop().isEmpty()) {
             body.put("stop", generation.stop());
         }
-        if (request.jsonMode()) {
+        if (request.jsonSchema() != null && !request.jsonSchema().isBlank()) {
+            // Provider-enforced strict structured output: thread the generated
+            // JSON Schema into OpenAI's response_format json_schema field so the
+            // model cannot emit non-conforming output. Set only when the pipeline
+            // opted into native structured output (NativeStructuredOutput); the
+            // weaker json_object branch below remains the graceful fall-back when
+            // native is disabled or a provider rejects the schema.
+            var jsonSchema = new LinkedHashMap<String, Object>();
+            jsonSchema.put("name", "structured_output");
+            jsonSchema.put("schema", MAPPER.readTree(request.jsonSchema()));
+            jsonSchema.put("strict", true);
+            body.put("response_format", Map.of("type", "json_schema", "json_schema", jsonSchema));
+        } else if (request.jsonMode()) {
             body.put("response_format", Map.of("type", "json_object"));
         }
         if (!request.tools().isEmpty()) {

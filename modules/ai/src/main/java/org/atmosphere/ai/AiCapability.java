@@ -43,6 +43,27 @@ public enum AiCapability {
      */
     STRUCTURED_OUTPUT,
 
+    /**
+     * Runtime enforces a declared response schema at the <em>provider</em> level —
+     * it threads the JSON Schema generated for the {@code responseType} into the
+     * provider's native structured-output API ({@code response_format:json_schema}
+     * for OpenAI / Cohere, {@code output_config} for Anthropic, LangChain4j
+     * {@code ResponseFormat.jsonSchema}, Gemini {@code responseSchema}, Semantic
+     * Kernel {@code JsonSchemaResponseFormat}, Koog {@code StructuredRequest.Native},
+     * AgentScope {@code ResponseFormat.jsonSchema}) so non-conforming output cannot
+     * be emitted by the model in the first place — rather than relying solely on the
+     * prompt-injection + parse path that {@link #STRUCTURED_OUTPUT} covers.
+     *
+     * <p>Distinct from {@link #STRUCTURED_OUTPUT}: every runtime that cooperates
+     * with the pipeline parser declares {@code STRUCTURED_OUTPUT}; only runtimes
+     * whose underlying SDK/wire actually carries a schema field declare this. The
+     * split is a Runtime-Truth boundary (Correctness Invariant #5) — declaring it
+     * asserts the schema reaches the provider, not just the prompt. Activation is
+     * governed by {@link NativeStructuredOutputMode} (AUTO default, with graceful
+     * fall-back to prompt-injection when a provider rejects the schema).</p>
+     */
+    NATIVE_STRUCTURED_OUTPUT,
+
     /** Model can process image inputs. */
     VISION,
 

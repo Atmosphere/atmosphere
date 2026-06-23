@@ -116,6 +116,7 @@ class SemanticKernelRuntimeContractTest extends AbstractAgentRuntimeContractTest
                 AiCapability.TEXT_STREAMING,
                 AiCapability.SYSTEM_PROMPT,
                 AiCapability.STRUCTURED_OUTPUT,
+                AiCapability.NATIVE_STRUCTURED_OUTPUT,
                 AiCapability.CONVERSATION_MEMORY,
                 AiCapability.TOKEN_USAGE,
                 AiCapability.TOOL_CALLING,

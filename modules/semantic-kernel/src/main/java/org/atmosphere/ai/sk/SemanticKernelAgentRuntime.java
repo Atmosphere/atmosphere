@@ -159,9 +159,15 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
         // Otherwise build the runtime's default (allowAllKernelFunctions
         // gated on tool presence, no other overrides).
         var perRequestInvocation = SemanticKernelInvocation.from(context);
+        // Provider-native structured output (default path only — a per-request
+        // InvocationContext override takes full control). The pipeline stamps the
+        // apply flag + schema when a response type is declared.
+        var nativeSchema = context.responseType() != null
+                && org.atmosphere.ai.NativeStructuredOutput.shouldApply(context)
+                ? org.atmosphere.ai.NativeStructuredOutput.schema(context) : null;
         var invocationContext = perRequestInvocation != null
                 ? perRequestInvocation
-                : buildInvocationContext(toolPlugin != null);
+                : buildInvocationContext(toolPlugin != null, nativeSchema);
         if (perRequestInvocation != null) {
             logger.debug("Applied per-request SK InvocationContext override");
         }
@@ -230,9 +236,40 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
      * non-null expectation.
      */
     static InvocationContext buildInvocationContext(boolean hasTools) {
-        return InvocationContext.builder()
-                .withToolCallBehavior(ToolCallBehavior.allowAllKernelFunctions(hasTools))
-                .build();
+        return buildInvocationContext(hasTools, null);
+    }
+
+    /**
+     * Overload that additionally carries provider-native structured output. When
+     * {@code nativeSchema} is non-null the JSON Schema is attached via
+     * {@code PromptExecutionSettings.withResponseFormat(JsonSchemaResponseFormat)},
+     * which SK's {@code OpenAIChatCompletion} maps to the Azure-SDK
+     * {@code ChatCompletionsJsonSchemaResponseFormat} wire object — i.e.
+     * provider-enforced structured output, not a prompt hack. {@code ToolCallBehavior}
+     * is always set (SK NPEs without it). A malformed schema is skipped (logged) so
+     * it can never break dispatch; a provider rejection trips the
+     * {@code NativeStructuredOutputMode.AUTO} graceful fall-back.
+     */
+    static InvocationContext buildInvocationContext(boolean hasTools, String nativeSchema) {
+        var builder = InvocationContext.builder()
+                .withToolCallBehavior(ToolCallBehavior.allowAllKernelFunctions(hasTools));
+        if (nativeSchema != null && !nativeSchema.isBlank()) {
+            try {
+                var responseFormat = com.microsoft.semantickernel.orchestration.responseformat
+                        .JsonSchemaResponseFormat.builder()
+                        .setName("structured_output")
+                        .setJsonSchema(nativeSchema)
+                        .setStrict(true)
+                        .build();
+                builder.withPromptExecutionSettings(
+                        com.microsoft.semantickernel.orchestration.PromptExecutionSettings.builder()
+                                .withResponseFormat(responseFormat)
+                                .build());
+            } catch (RuntimeException e) {
+                logger.debug("Skipping SK response format — schema not usable", e);
+            }
+        }
+        return builder.build();
     }
 
     /**
@@ -331,10 +368,17 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
         // TOOL_APPROVAL is honest because the same routing path runs through
         // the shared approval helper — @RequiresApproval gates fire
         // uniformly with the other runtime bridges.
+        // NATIVE_STRUCTURED_OUTPUT is honest: buildInvocationContext attaches the
+        // generated JSON Schema via PromptExecutionSettings.withResponseFormat(
+        // JsonSchemaResponseFormat), which SK's OpenAIChatCompletion maps to the
+        // Azure-SDK ChatCompletionsJsonSchemaResponseFormat wire object — provider-
+        // enforced, not a prompt hack. AUTO mode falls back to prompt injection on
+        // a provider rejection; a per-request InvocationContext override opts out.
         return Set.of(
                 AiCapability.TEXT_STREAMING,
                 AiCapability.SYSTEM_PROMPT,
                 AiCapability.STRUCTURED_OUTPUT,
+                AiCapability.NATIVE_STRUCTURED_OUTPUT,
                 AiCapability.CONVERSATION_MEMORY,
                 AiCapability.TOKEN_USAGE,
                 AiCapability.TOOL_CALLING,

@@ -725,11 +725,37 @@ public class AiPipeline {
             // behavior. Lives at the runtime seam because the structured
             // capturing session can't re-invoke the runtime itself.
             var structuredRetry = hasStructured ? AiStructuredRetry.from(baseMetadata) : null;
-            var handle = structuredRetry != null && structuredRetry.enabled()
-                    ? StructuredOutputRetry.executeWithHandle(runtime, context, effectiveTarget,
-                            StructuredOutputParser.resolve(), effectiveResponseType,
-                            structuredRetry.maxRetries())
-                    : runtime.executeWithHandle(context, effectiveTarget);
+            // Provider-native structured output: when the request declares a
+            // response type and the resolved runtime advertises
+            // NATIVE_STRUCTURED_OUTPUT, thread the generated JSON Schema into the
+            // provider's native schema field so non-conforming output cannot be
+            // emitted by the model — rather than relying solely on the
+            // prompt-injection + parse path above. Governed by the tri-state
+            // NativeStructuredOutputMode (AUTO default, with graceful fall-back).
+            var nativeMode = AiConfig.resolveNativeStructuredOutputMode();
+            var nativeEligible = hasStructured
+                    && nativeMode != NativeStructuredOutputMode.DISABLED
+                    && runtime.capabilities().contains(AiCapability.NATIVE_STRUCTURED_OUTPUT);
+            ExecutionHandle handle;
+            if (structuredRetry != null && structuredRetry.enabled()) {
+                // Opt-in reprompt loop. Apply native enforcement on each attempt
+                // when eligible by stamping the apply flag; the loop's schema-parse
+                // retries remain the safety net (a hard provider rejection
+                // propagates here rather than falling back — the AUTO graceful
+                // fall-back lives on the default, non-reprompt path below).
+                var retryContext = nativeEligible
+                        ? NativeStructuredOutput.withApply(context,
+                                NativeStructuredOutput.schemaFor(effectiveResponseType))
+                        : context;
+                handle = StructuredOutputRetry.executeWithHandle(runtime, retryContext, effectiveTarget,
+                        StructuredOutputParser.resolve(), effectiveResponseType,
+                        structuredRetry.maxRetries());
+            } else if (nativeEligible) {
+                handle = NativeStructuredDispatch.executeWithHandle(
+                        runtime, context, effectiveTarget, nativeMode);
+            } else {
+                handle = runtime.executeWithHandle(context, effectiveTarget);
+            }
             // Bind the budget's cancel hook to the runtime handle so a
             // wall-clock or token trip cancels the in-flight runtime call
             // instead of leaving the provider hung after the error frame.

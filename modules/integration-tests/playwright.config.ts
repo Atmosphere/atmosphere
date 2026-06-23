@@ -248,6 +248,10 @@ export default defineConfig({
       testMatch: /ai-tool-call-delta\.spec\.ts/,
     },
     {
+      name: 'ai-structured-output',
+      testMatch: /ai-structured-output\.spec\.ts/,
+    },
+    {
       name: 'ai-jfr-observability',
       testMatch: /ai-jfr-observability\.spec\.ts/,
     },

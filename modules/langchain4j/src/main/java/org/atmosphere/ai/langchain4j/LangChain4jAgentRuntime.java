@@ -285,6 +285,28 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         // ChatRequest builder itself on the model/plain paths.
         var generation = settings != null
                 ? settings.generation() : org.atmosphere.ai.GenerationParams.defaults();
+        // Provider-native structured output: when the pipeline opts in (response
+        // type declared and NativeStructuredOutputMode != DISABLED), derive an
+        // LC4j JsonSchema from the response type and attach it as a ResponseFormat
+        // so the provider enforces the schema. LC4j owns the wire serialization;
+        // we only decide WHETHER to attach it. A NativeStructuredOutputMode.AUTO
+        // graceful fall-back re-dispatches with the flag cleared if the provider
+        // rejects the schema. LC4j forbids setting both .parameters(...) and the
+        // per-field .responseFormat(...) on the ChatRequest builder, so the format
+        // rides the OpenAiChatRequestParameters builder on the caching path and the
+        // ChatRequest builder itself on the model / plain paths.
+        dev.langchain4j.model.chat.request.ResponseFormat nativeResponseFormat = null;
+        if (context.responseType() != null
+                && org.atmosphere.ai.NativeStructuredOutput.shouldApply(context)) {
+            var nativeSchema = dev.langchain4j.service.output.JsonSchemas
+                    .jsonSchemaFrom(context.responseType()).orElse(null);
+            if (nativeSchema != null) {
+                nativeResponseFormat = dev.langchain4j.model.chat.request.ResponseFormat.builder()
+                        .type(dev.langchain4j.model.chat.request.ResponseFormatType.JSON)
+                        .jsonSchema(nativeSchema)
+                        .build();
+            }
+        }
         if (cacheHint.enabled() && cacheKey.isPresent() && endpointAccepts) {
             var paramsBuilder = dev.langchain4j.model.openai.OpenAiChatRequestParameters.builder()
                     .customParameters(java.util.Map.of("prompt_cache_key", cacheKey.get()));
@@ -292,16 +314,27 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                 paramsBuilder.modelName(context.model());
             }
             applyGeneration(paramsBuilder, generation);
+            // Native structured output rides the params builder here because the
+            // ChatRequest builder forbids both .parameters(...) and .responseFormat(...).
+            if (nativeResponseFormat != null) {
+                paramsBuilder.responseFormat(nativeResponseFormat);
+            }
             chatRequestBuilder.parameters(paramsBuilder.build());
             logger.debug("Applied prompt_cache_key={} via OpenAiChatRequestParameters", cacheKey.get());
         } else if (context.model() != null && !context.model().isBlank()) {
             chatRequestBuilder.modelName(context.model());
             applyGeneration(chatRequestBuilder, generation);
+            if (nativeResponseFormat != null) {
+                chatRequestBuilder.responseFormat(nativeResponseFormat);
+            }
             logger.debug("Using per-request model override: {}", context.model());
         } else {
             // Plain path: no model override and no caching — still forward any
             // framework generation override directly on the ChatRequest builder.
             applyGeneration(chatRequestBuilder, generation);
+            if (nativeResponseFormat != null) {
+                chatRequestBuilder.responseFormat(nativeResponseFormat);
+            }
         }
         if (!toolSpecs.isEmpty()) {
             chatRequestBuilder.toolSpecifications(toolSpecs);
@@ -527,6 +560,13 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                 AiCapability.TEXT_STREAMING,
                 AiCapability.TOOL_CALLING,
                 AiCapability.STRUCTURED_OUTPUT,
+                // NATIVE_STRUCTURED_OUTPUT is honest: doExecuteWithHandle derives an
+                // LC4j JsonSchema from context.responseType() via JsonSchemas and
+                // attaches it as a ChatRequest ResponseFormat (or on the
+                // OpenAiChatRequestParameters builder on the cache path) so the
+                // provider enforces the schema; AUTO mode falls back to prompt
+                // injection on a provider rejection.
+                AiCapability.NATIVE_STRUCTURED_OUTPUT,
                 AiCapability.SYSTEM_PROMPT,
                 // TOOL_APPROVAL is honest: ToolAwareStreamingResponseHandler
                 // routes tool invocation through

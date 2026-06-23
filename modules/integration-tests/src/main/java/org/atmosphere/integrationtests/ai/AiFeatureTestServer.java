@@ -76,6 +76,7 @@ public class AiFeatureTestServer {
             framework.addAtmosphereHandler("/ai/cache-hint", new CacheHintTestHandler());
             framework.addAtmosphereHandler("/ai/embedding", new EmbeddingTestHandler());
             framework.addAtmosphereHandler("/ai/retry-policy", new RetryPolicyTestHandler());
+            framework.addAtmosphereHandler("/ai/structured-output", new StructuredOutputTestHandler());
             framework.addAtmosphereHandler("/ai/tool-call-delta", new ToolCallDeltaTestHandler());
             framework.addAtmosphereHandler("/ai/jfr-observability",
                     new JfrObservabilityTestHandler());

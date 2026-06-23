@@ -182,7 +182,20 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
                 context.model() != null ? context.model() : name(),
                 messageCount, toolCount);
 
-        Disposable subscription = activeAgent.stream(msgs, StreamOptions.defaults())
+        // Provider-native structured output: when the pipeline opts in (response
+        // type declared and NativeStructuredOutputMode != DISABLED), use the
+        // schema-aware 3-arg stream overload so AgentScope enforces the schema at
+        // the provider level (ReActAgent's structured-output tool / formatter
+        // ResponseFormat.jsonSchema). The Class overload lets AgentScope derive
+        // its own provider-appropriate schema. AUTO mode falls back to prompt
+        // injection on a provider rejection (the pipeline re-dispatches with the
+        // flag cleared, so this drops back to the 2-arg overload).
+        var nativeApply = context.responseType() != null
+                && org.atmosphere.ai.NativeStructuredOutput.shouldApply(context);
+        var eventStream = nativeApply
+                ? activeAgent.stream(msgs, StreamOptions.defaults(), context.responseType())
+                : activeAgent.stream(msgs, StreamOptions.defaults());
+        Disposable subscription = eventStream
                 .subscribe(
                         event -> handleEvent(event, session, lastUsage),
                         error -> {
@@ -356,6 +369,12 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
                 // every SYSTEM_PROMPT-capable runtime — the contract test
                 // pins this pairing.
                 AiCapability.STRUCTURED_OUTPUT,
+                // NATIVE_STRUCTURED_OUTPUT: doExecuteWithHandle uses AgentScope's
+                // schema-aware 3-arg stream(msgs, opts, responseType) overload so
+                // the agent enforces the schema at the provider level (formatter
+                // ResponseFormat.jsonSchema / structured-output tool); AUTO mode
+                // falls back to prompt injection on a provider rejection.
+                AiCapability.NATIVE_STRUCTURED_OUTPUT,
                 // assembleMessages threads context.history() into the Msg
                 // list the agent receives, so prior turns are honored.
                 AiCapability.CONVERSATION_MEMORY,

@@ -164,10 +164,13 @@ public class CohereAgentRuntime extends AbstractAgentRuntime<CohereChatClient> {
         //   SYSTEM_PROMPT         — system role threaded into messages[] head
         //   STRUCTURED_OUTPUT     — pipeline-layer schema injection via
         //                            StructuredOutputCapturingSession; the
-        //                            runtime honors SYSTEM_PROMPT and Cohere
-        //                            response_format={"type":"json_object"}
-        //                            could be added later if the pipeline
-        //                            asks for it
+        //                            runtime honors SYSTEM_PROMPT
+        //   NATIVE_STRUCTURED_OUTPUT — CohereChatClient.buildRequestBody threads
+        //                            the generated JSON Schema into Cohere v2's
+        //                            response_format={"type":"json_object",
+        //                            "schema":{...}} field so the model enforces
+        //                            the schema at the provider level; AUTO mode
+        //                            falls back to prompt injection on rejection
         //   TOOL_CALLING          — tool-call-start → tool-call-delta →
         //                            tool-call-end loop with shared
         //                            ToolExecutionHelper.executeWithApproval
@@ -222,6 +225,7 @@ public class CohereAgentRuntime extends AbstractAgentRuntime<CohereChatClient> {
                 AiCapability.TEXT_STREAMING,
                 AiCapability.SYSTEM_PROMPT,
                 AiCapability.STRUCTURED_OUTPUT,
+                AiCapability.NATIVE_STRUCTURED_OUTPUT,
                 AiCapability.TOOL_CALLING,
                 AiCapability.TOOL_APPROVAL,
                 AiCapability.TOKEN_USAGE,

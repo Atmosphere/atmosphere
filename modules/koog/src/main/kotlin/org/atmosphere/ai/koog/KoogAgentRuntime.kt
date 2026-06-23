@@ -25,6 +25,7 @@ import ai.koog.prompt.executor.clients.bedrock.BedrockCacheControl
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.llm.LLMProvider
+import ai.koog.prompt.params.LLMParams
 import ai.koog.prompt.message.AttachmentContent
 import ai.koog.prompt.message.AttachmentSource
 import ai.koog.prompt.message.CacheControl
@@ -479,8 +480,36 @@ class KoogAgentRuntime : AgentRuntime {
      * - Conversation history
      * - Current user message
      */
+    /**
+     * Provider-native structured output for the no-tool executor path: when the
+     * pipeline opts in (response type declared and NativeStructuredOutputMode !=
+     * DISABLED), carry the generated JSON Schema on the prompt's [LLMParams.schema]
+     * so Koog's streaming executor forwards it to the provider's native
+     * structured-output field — preserving streaming (unlike the non-streaming
+     * executeStructured API). A malformed schema is skipped (logged) so it can
+     * never break dispatch; a provider rejection trips the
+     * NativeStructuredOutputMode.AUTO graceful fall-back.
+     */
+    private fun nativeStructuredParams(context: AgentExecutionContext): LLMParams {
+        if (context.responseType() == null ||
+            !org.atmosphere.ai.NativeStructuredOutput.shouldApply(context)
+        ) {
+            return LLMParams()
+        }
+        val schemaJson = org.atmosphere.ai.NativeStructuredOutput.schema(context)
+            ?: return LLMParams()
+        return try {
+            val jsonObject = kotlinx.serialization.json.Json.Default
+                .parseToJsonElement(schemaJson) as kotlinx.serialization.json.JsonObject
+            LLMParams(schema = LLMParams.Schema.JSON.Standard("structured_output", jsonObject))
+        } catch (e: Exception) {
+            logger.debug("Skipping Koog native schema — not parseable", e)
+            LLMParams()
+        }
+    }
+
     private fun buildPrompt(context: AgentExecutionContext): Prompt {
-        return prompt("atmosphere") {
+        return prompt("atmosphere", nativeStructuredParams(context)) {
             // System prompt with optional RAG context
             val systemParts = mutableListOf<String>()
             if (context.systemPrompt() != null) {
@@ -630,6 +659,12 @@ class KoogAgentRuntime : AgentRuntime {
         AiCapability.TEXT_STREAMING,
         AiCapability.TOOL_CALLING,
         AiCapability.STRUCTURED_OUTPUT,
+        // NATIVE_STRUCTURED_OUTPUT: the no-tool executor path carries the generated
+        // JSON Schema on the prompt's LLMParams.schema, which Koog's streaming
+        // executor forwards to the provider's native structured-output field
+        // (preserving streaming, unlike the non-streaming executeStructured API);
+        // AUTO mode falls back to prompt injection on a provider rejection.
+        AiCapability.NATIVE_STRUCTURED_OUTPUT,
         AiCapability.AGENT_ORCHESTRATION,
         AiCapability.CONVERSATION_MEMORY,
         AiCapability.SYSTEM_PROMPT,

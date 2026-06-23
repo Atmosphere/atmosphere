@@ -72,6 +72,34 @@ public interface StructuredOutputParser {
     <T> Optional<Map.Entry<String, Object>> parseField(String chunk, Class<T> targetType);
 
     /**
+     * Render the <em>raw</em> JSON Schema for the target type — the schema
+     * object itself, with no prompt wrapper or instruction prose. This is the
+     * schema a runtime threads into its provider's native structured-output API
+     * (see {@link AiCapability#NATIVE_STRUCTURED_OUTPUT}), as opposed to
+     * {@link #schemaInstructions(Class)} which wraps the schema in
+     * "Respond with valid JSON…" prose for the prompt-injection path.
+     *
+     * <p>Mirrors Spring AI 2.0's {@code StructuredOutputConverter.getJsonSchema()}
+     * default method so a custom parser SPI implementation can bridge to both the
+     * prompt-injection and provider-native dials from one schema source.</p>
+     *
+     * <p>The default returns {@code null}, meaning "no machine-readable schema
+     * available" — runtimes treat that as a signal to stay on the
+     * prompt-injection path rather than risk sending a malformed native schema.
+     * {@link JacksonStructuredOutputParser} overrides it with a strict-mode-valid
+     * schema (every object closed with {@code additionalProperties:false} and a
+     * complete {@code required} list, nested records recursed) so OpenAI /
+     * Anthropic / Gemini strict enforcement accepts it.</p>
+     *
+     * @param targetType the Java class to render a schema for
+     * @return the raw JSON Schema as a JSON string, or {@code null} if this
+     *         parser cannot produce a machine-readable schema for the type
+     */
+    default String jsonSchema(Class<?> targetType) {
+        return null;
+    }
+
+    /**
      * Priority for ServiceLoader selection. Higher values win.
      */
     default int priority() {
