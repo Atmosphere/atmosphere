@@ -50,7 +50,7 @@ jobs:
     - uses: actions/checkout@v6
 
     - name: Install jq + xmllint
-      run: sudo apt-get install -y jq libxml2-utils
+      run: sudo apt-get update && sudo apt-get install -y jq libxml2-utils
 
     - name: Run CLI test suite
       run: sh cli/test-cli.sh
@@ -106,7 +106,7 @@ jobs:
         cache: 'maven'
 
     - name: Install jq + xmllint + maven
-      run: sudo apt-get install -y jq libxml2-utils maven
+      run: sudo apt-get update && sudo apt-get install -y jq libxml2-utils maven
 
     - name: Build Atmosphere modules
       run: ./mvnw -B install -DskipTests -Dgpg.skip=true -Dcheckstyle.skip=true -Dpmd.skip=true -q
