@@ -1184,6 +1184,22 @@ the native flag for them would violate Runtime Truth (Invariant #5). Activation 
 by `NativeStructuredOutputMode` (AUTO default, with graceful fall-back to prompt-injection
 when a provider rejects the schema).
 
+Among these nine, native enforcement is **path-scoped** for three — outside the scoped
+path they transparently fall back to prompt injection, so the declared flag stays honest:
+
+- `SpringAiAgentRuntime` threads the schema only through `OpenAiChatOptions.outputSchema(...)`,
+  so native enforcement applies only on an OpenAI-backed `ChatModel`; other `ChatModel`s ignore
+  the OpenAI-specific option and fall back to prompt injection.
+- `KoogAgentRuntime` carries the schema only on its no-tool executor path; tool-bearing
+  requests run through `AIAgent.run(...)`, which never sets `LLMParams.schema`, and fall back.
+- `AdkAgentRuntime` cannot combine Gemini's native `outputSchema` with tools (Gemini forbids
+  `responseSchema` alongside function calling), so tool-bearing requests fall back to prompt
+  injection; the native path is taken only for tool-free requests routed through a per-request
+  runner.
+
+The per-call AUTO fall-back (provider schema-rejection → retry without the schema) stacks on
+top of these structural gates.
+
 ¹ `SpringAiAlibabaAgentRuntime` declares `TEXT_STREAMING` honestly because the
 final reply ships as a single `session.send()` chunk and Atmosphere's transport
 still streams that chunk to the client over WebSocket / SSE / long-poll. The
