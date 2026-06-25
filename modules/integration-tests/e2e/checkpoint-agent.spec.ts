@@ -243,11 +243,17 @@ test.describe('spring-boot-checkpoint-agent — durable HITL coverage (gap #1)',
     // whose return type was org.atmosphere.mcp.registry.McpRegistry$ParamEntry,
     // so loading AgentProcessor in a sample that omits the optional
     // atmosphere-mcp jar linked against a class the classloader cannot
-    // find. Both `analyzer` and `approver` @Agent classes must now
+    // find. Both `analyzer` and `approver` @Agent classes must still
     // register cleanly — if either of these disappears from the log,
     // the lambda-in-class-file regression has returned.
+    //
+    // `analyzer` exposes its work as an A2A skill (@AgentSkill) with no
+    // @Prompt method, so AgentProcessor registers it headless (A2A-only,
+    // no WebSocket UI) — the correct shape for a back-end specialist the
+    // coordinator dispatches to over A2A. `approver` keeps an @AiTool
+    // method, so it takes the full WebSocket-handler registration path.
     const log = server.getOutput();
-    expect(log).toContain("Agent 'analyzer' registered at /atmosphere/agent/analyzer");
+    expect(log).toContain("Agent 'analyzer' registered (headless, protocols: [a2a])");
     expect(log).toContain("Agent 'approver' registered at /atmosphere/agent/approver");
 
     // And the NoClassDefFoundError traceback in the log, if any, must
