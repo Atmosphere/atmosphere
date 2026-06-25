@@ -150,7 +150,7 @@ SPI — the rest of the sample is backend-agnostic.
 
 ## Notes
 
-- The analyzer's `@AiTool` returns a deterministic JSON response so the
+- The analyzer's `@AgentSkill` returns a deterministic JSON response so the
   demo runs without any LLM API key. In a real deployment, configure an
   AI runtime (`atmosphere-spring-ai`, `atmosphere-langchain4j`, etc.) and
   call it from `@Prompt`.

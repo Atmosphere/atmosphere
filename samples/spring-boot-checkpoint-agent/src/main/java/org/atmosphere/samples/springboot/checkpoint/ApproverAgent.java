@@ -22,10 +22,9 @@ import org.springframework.stereotype.Component;
 
 /**
  * Approver specialist — executes the action decided by the analyzer.
- * Invoked from {@code CheckpointController#approve} after a human (or an
- * automated gate) approves a checkpoint written by the analyzer. Also
- * exposed through the fleet under the {@code approver} name so other
- * coordinators can dispatch to it.
+ * Invoked directly from {@code CheckpointController#approve} after a human (or
+ * an automated gate) approves a checkpoint written by the analyzer; its
+ * {@code String} return is surfaced as the approval result.
  */
 @Agent(name = "approver",
         description = "Executes an approved action")
