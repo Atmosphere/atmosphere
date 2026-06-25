@@ -171,6 +171,7 @@ DOC_SYMBOLS_REGEX='\.md$|^(modules|samples)/.*/src/main/.*\.java$|^scripts/valid
 ORPHAN_CLASS_REGEX='^modules/.*/src/main/.*\.java$|^scripts/validate-no-orphan-classes\.sh$|^\.harness/orphan-class-allowlist\.txt$'
 FACTS_REGISTRY_REGEX='\.md$|^\.harness/facts\.json$|^scripts/validate-facts-registry\.sh$'
 THIRDPARTY_VERSION_REGEX='\.md$|^pom\.xml$|^scripts/validate-doc-thirdparty-versions\.sh$|^\.harness/thirdparty-version-allowlist\.txt$'
+ATMO_DOC_VERSION_REGEX='\.md$|^cli/samples\.json$|^scripts/validate-atmosphere-doc-version\.sh$|^\.harness/atmosphere-doc-version-allowlist\.txt$'
 
 SIGNIFICANT_FILES=""
 IGNORED_FILES=""
@@ -188,6 +189,7 @@ RUN_DOC_VERSION=false
 RUN_DOC_SYMBOLS=false
 RUN_FACTS_REGISTRY=false
 RUN_THIRDPARTY_VERSION=false
+RUN_ATMO_DOC_VERSION=false
 while IFS= read -r file; do
     [ -z "$file" ] && continue
     if echo "$file" | grep -qE "$ARCHITECTURAL_REGEX"; then
@@ -229,6 +231,9 @@ while IFS= read -r file; do
     if echo "$file" | grep -qE "$THIRDPARTY_VERSION_REGEX"; then
         RUN_THIRDPARTY_VERSION=true
     fi
+    if echo "$file" | grep -qE "$ATMO_DOC_VERSION_REGEX"; then
+        RUN_ATMO_DOC_VERSION=true
+    fi
     if echo "$file" | grep -qE "$HIGH_BLAST_REGEX"; then
         HAS_HIGH_BLAST=true
     fi
@@ -258,6 +263,7 @@ if [ "$FORCE_FULL" = true ]; then
     RUN_DOC_SYMBOLS=true
     RUN_FACTS_REGISTRY=true
     RUN_THIRDPARTY_VERSION=true
+    RUN_ATMO_DOC_VERSION=true
 fi
 
 PL_LIST=""
@@ -448,6 +454,20 @@ if [ "$DRY_RUN" = false ]; then
         echo "Skipping third-party dependency-version validation."
     fi
     echo ""
+
+    if [ "$RUN_ATMO_DOC_VERSION" = true ]; then
+        echo "Running Atmosphere own-version doc validation."
+        if ! ./scripts/validate-atmosphere-doc-version.sh; then
+            echo ""
+            echo "An org.atmosphere <version> in docs drifted from the released version"
+            echo "(cli/samples.json). Run ./scripts/update-doc-versions.sh <released> to"
+            echo "resync, or allowlist an intentional historical mention."
+            exit 1
+        fi
+    else
+        echo "Skipping Atmosphere own-version doc validation."
+    fi
+    echo ""
 else
     echo "Dry-run — selected Tier 1 checks:"
     echo "  architectural validation : $RUN_ARCHITECTURAL"
@@ -463,6 +483,7 @@ else
     echo "  doc-symbol (annotations) : $RUN_DOC_SYMBOLS"
     echo "  facts registry           : $RUN_FACTS_REGISTRY"
     echo "  third-party dep versions : $RUN_THIRDPARTY_VERSION"
+    echo "  atmosphere doc version   : $RUN_ATMO_DOC_VERSION"
     echo ""
 fi
 

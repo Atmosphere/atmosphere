@@ -1,0 +1,36 @@
+name: "Doc Version Guard"
+
+# ci.yml ignores doc-only pushes (paths-ignore: '**.md', 'docs/**'), so its
+# doc-version-check job never fires on the exact change most likely to drift an
+# Atmosphere <version>: a Markdown-only edit. This lightweight workflow runs the
+# same hard gate on those changes (no Maven build), closing that hole.
+on:
+  push:
+    paths:
+      - '**.md'
+      - 'cli/samples.json'
+      - 'scripts/validate-atmosphere-doc-version.sh'
+      - '.harness/atmosphere-doc-version-allowlist.txt'
+      - '.github/workflows/doc-version-guard.yml'
+  pull_request:
+    paths:
+      - '**.md'
+      - 'cli/samples.json'
+      - 'scripts/validate-atmosphere-doc-version.sh'
+      - '.harness/atmosphere-doc-version-allowlist.txt'
+      - '.github/workflows/doc-version-guard.yml'
+
+jobs:
+  atmosphere-doc-version:
+    name: Atmosphere Doc Version
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.12'
+
+    - name: Verify Atmosphere doc versions match the release
+      run: ./scripts/validate-atmosphere-doc-version.sh

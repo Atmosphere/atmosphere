@@ -10,7 +10,7 @@ Add the Atmosphere Spring Boot Starter to your `pom.xml`:
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-spring-boot-starter</artifactId>
-    <version>4.0.14-SNAPSHOT</version>
+    <version>4.0.56</version>
 </dependency>
 ```
 
@@ -20,7 +20,7 @@ For AI features, also add:
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-ai</artifactId>
-    <version>4.0.14-SNAPSHOT</version>
+    <version>4.0.56</version>
 </dependency>
 ```
 
@@ -32,7 +32,7 @@ Add the Atmosphere Quarkus Extension:
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-quarkus-extension</artifactId>
-    <version>4.0.14-SNAPSHOT</version>
+    <version>4.0.56</version>
 </dependency>
 ```
 

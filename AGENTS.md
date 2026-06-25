@@ -87,7 +87,7 @@ atmosphere/
 │   └── quarkus-chat/
 ├── atmosphere.js/                 (TypeScript client library)
 ├── assembly/
-└── pom.xml                        (4.0.55-SNAPSHOT, JDK 21)
+└── pom.xml                        (4.0.57-SNAPSHOT, JDK 21)
 ```
 
 ### Key Artifacts

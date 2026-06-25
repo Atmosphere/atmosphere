@@ -37,7 +37,7 @@ sedi() {
 }
 
 # ── 1-3. Maven <version> tags for org.atmosphere deps in docs/*.md, module
-#         README.md, and the root README.md ──
+#         README.md, the root README.md, and sample docs (samples/**/*.md) ──
 #
 # Only bump a <version> that lives inside an Atmosphere <dependency>/<parent>
 # block (groupId org.atmosphere, or — for BOM-style snippets that omit the
@@ -50,7 +50,12 @@ sedi() {
 # third-party deps so readers copied coordinates that do not exist. The rule
 # below mirrors scripts/validate-doc-thirdparty-versions.sh (the gate that
 # catches the same drift), so generator and validator stay consistent.
-echo "── Atmosphere <version> tags (docs/*.md, module README.md, root README.md)"
+#
+# samples/**/*.md is swept too: samples/spring-boot-rag-chat/src/main/resources/
+# docs/atmosphere-getting-started.md carried a stale <version>4.0.14-SNAPSHOT</version>
+# for dozens of releases because the old file list stopped at module READMEs.
+# scripts/validate-atmosphere-doc-version.sh is the matching gate.
+echo "── Atmosphere <version> tags (docs/*.md, module README.md, root README.md, samples/**/*.md)"
 python3 - "$VERSION" "$ROOT" <<'PY'
 import re
 import sys
@@ -64,6 +69,9 @@ docs = root / "docs"
 if docs.is_dir():
     files += docs.rglob("*.md")
 files += (root / "modules").rglob("README.md")
+samples = root / "samples"
+if samples.is_dir():
+    files += samples.rglob("*.md")
 readme = root / "README.md"
 if readme.exists():
     files.append(readme)

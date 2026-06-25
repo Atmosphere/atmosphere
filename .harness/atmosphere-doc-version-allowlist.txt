@@ -1,0 +1,15 @@
+# Exceptions for scripts/validate-atmosphere-doc-version.sh
+#
+# The validator fails when an org.atmosphere <dependency>/<parent> example in a
+# tracked *.md names an Atmosphere <version> other than the current released
+# version (cli/samples.json `.version`). Add a substring that uniquely matches
+# the offending record — printed as:
+#
+#     <path>:<line>: <version>X.Y.Z</version>
+#
+# only when the stale version is genuinely intentional (e.g. a historical
+# snippet that must quote a specific past release to be correct). MIGRATION.md
+# and the append-only history files are skipped wholesale by the validator, so
+# they never need an entry here.
+#
+# One token per line. Lines starting with # are comments.
