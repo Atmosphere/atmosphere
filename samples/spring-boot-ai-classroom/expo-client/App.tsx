@@ -303,8 +303,8 @@ function Classroom({
         {stats && !isStreaming && (
           <View style={styles.statsBar}>
             <Text style={styles.statsText}>
-              {stats.totalTokens} tokens &middot; {stats.elapsedMs}ms &middot;{' '}
-              {stats.tokensPerSecond.toFixed(1)} tok/s
+              {stats.totalTokens ?? 0} tokens &middot; {stats.elapsedMs ?? 0}ms &middot;{' '}
+              {(stats.tokensPerSecond ?? 0).toFixed(1)} tok/s
             </Text>
           </View>
         )}
