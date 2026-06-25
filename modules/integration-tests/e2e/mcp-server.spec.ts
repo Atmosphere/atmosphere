@@ -81,4 +81,45 @@ test.describe('MCP Server Chat', () => {
     sender.close();
     receiver.close();
   });
+
+  // Regression (F3): the console's static <meta> CSP carried frame-src 'self',
+  // which blocked the MCP Apps sandbox from framing its distinct sibling origin
+  // (localhost<->127.0.0.1) — the "Server Clock" app showed "This content is
+  // blocked". The CSP is now a server response header on index.html with
+  // frame-src widened to the sandbox origin, so the cross-origin sandbox loads
+  // and the inner app renders. The sandbox proxy itself gets NO restrictive CSP
+  // so its inline bootstrap script can run.
+  test('MCP Apps sandbox iframe loads cross-origin', async ({ page }) => {
+    const cspErrors: string[] = [];
+    page.on('console', (m) => {
+      if (/Content Security Policy|frame-src/i.test(m.text())) {
+        cspErrors.push(m.text());
+      }
+    });
+
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await page.getByTestId('tab-apps').click();
+    await page.getByTestId('mcp-app-clock_app').click();
+
+    const frame = page.locator('[data-testid="mcp-app-frame"]');
+    await expect(frame).toBeVisible();
+    // Cross-origin sibling → proxy double-iframe (not the same-origin srcdoc path).
+    await expect(frame).toHaveAttribute('data-sandbox-mode', 'proxy');
+
+    // Drill through the sandbox proxy into the inner app document and assert it
+    // actually rendered — proof the cross-origin frame was NOT CSP-blocked.
+    const inner = page
+      .frameLocator('[data-testid="mcp-app-frame"]')
+      .frameLocator('iframe');
+    await expect(inner.getByTestId('mcp-app-label')).toHaveText('Atmosphere MCP App', {
+      timeout: 10_000,
+    });
+    // The clock starts at "--:--:--" and its inline script ticks it to a real
+    // time — proof the inner app's script ran (sandbox CSP not over-restricted).
+    await expect(inner.getByTestId('mcp-clock')).not.toHaveText('--:--:--', {
+      timeout: 10_000,
+    });
+
+    expect(cspErrors, `CSP errors logged: ${cspErrors.join(' | ')}`).toEqual([]);
+  });
 });

@@ -42,7 +42,7 @@ class ConsoleResourceFilterTest {
 
     @BeforeEach
     void setUp() throws IOException {
-        filter = new AtmosphereAutoConfiguration.ConsoleResourceFilter();
+        filter = new AtmosphereAutoConfiguration.ConsoleResourceFilter("");
         request = mock(HttpServletRequest.class);
         response = mock(HttpServletResponse.class);
         chain = mock(FilterChain.class);
@@ -165,5 +165,94 @@ class ConsoleResourceFilterTest {
         filter.doFilter(request, response, chain);
 
         verify(chain).doFilter(request, response);
+    }
+
+    // ── F3: the console HTML carries the CSP as a response header (not a static
+    //    <meta>), with frame-src widened to the MCP Apps sandbox origins. ──
+
+    @Test
+    void emitsCspHeaderOnHtmlWithDevSibling() throws Exception {
+        when(request.getRequestURI()).thenReturn("/atmosphere/console/");
+        when(request.getScheme()).thenReturn("http");
+        when(request.getHeader("Host")).thenReturn("localhost:8083");
+
+        filter.doFilter(request, response, chain);
+
+        var csp = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(response).setHeader(org.mockito.ArgumentMatchers.eq("Content-Security-Policy"),
+                csp.capture());
+        assertThat(csp.getValue()).contains("frame-src 'self' http://127.0.0.1:8083");
+        // The XSS hardening is preserved — no 'unsafe-inline' in script-src.
+        assertThat(csp.getValue()).contains("script-src 'self';");
+        assertThat(csp.getValue()).contains("object-src 'none'");
+    }
+
+    @Test
+    void doesNotEmitCspHeaderOnAssets() throws Exception {
+        when(request.getRequestURI()).thenReturn("/atmosphere/console/app.js");
+        filter.doFilter(request, response, chain);
+
+        verify(response, never()).setHeader(
+                org.mockito.ArgumentMatchers.eq("Content-Security-Policy"),
+                org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void doesNotEmitCspHeaderOnSandboxHtml() throws Exception {
+        // The MCP Apps sandbox proxy runs an inline bootstrap script and builds
+        // its own inner CSP — a script-src 'self' header would break it.
+        when(request.getRequestURI()).thenReturn("/atmosphere/console/sandbox.html");
+        filter.doFilter(request, response, chain);
+
+        verify(chain, never()).doFilter(request, response);
+        verify(response).setContentType("text/html; charset=utf-8");
+        verify(response, never()).setHeader(
+                org.mockito.ArgumentMatchers.eq("Content-Security-Policy"),
+                org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void buildConsoleCspSwapsLocalhostToLoopback() {
+        var csp = AtmosphereAutoConfiguration.ConsoleResourceFilter
+                .buildConsoleCsp("http", "localhost:8083", "");
+        assertThat(csp).contains("frame-src 'self' http://127.0.0.1:8083;");
+    }
+
+    @Test
+    void buildConsoleCspSwapsLoopbackToLocalhost() {
+        var csp = AtmosphereAutoConfiguration.ConsoleResourceFilter
+                .buildConsoleCsp("http", "127.0.0.1:8083", "");
+        assertThat(csp).contains("frame-src 'self' http://localhost:8083;");
+    }
+
+    @Test
+    void buildConsoleCspAddsConfiguredOrigin() {
+        var csp = AtmosphereAutoConfiguration.ConsoleResourceFilter
+                .buildConsoleCsp("https", "console.example.com", "https://sandbox.example.com");
+        // Non-loopback host → no dev sibling, but the configured origin is allowed.
+        assertThat(csp).contains("frame-src 'self' https://sandbox.example.com;");
+    }
+
+    @Test
+    void buildConsoleCspSkipsConfiguredOriginWhenSameAsCurrent() {
+        var csp = AtmosphereAutoConfiguration.ConsoleResourceFilter
+                .buildConsoleCsp("http", "localhost:8083", "http://localhost:8083");
+        // Configured == current origin → only the dev sibling is added, not a self-frame dup.
+        assertThat(csp).contains("frame-src 'self' http://127.0.0.1:8083;");
+    }
+
+    @Test
+    void buildConsoleCspNonLoopbackHasNoSibling() {
+        var csp = AtmosphereAutoConfiguration.ConsoleResourceFilter
+                .buildConsoleCsp("https", "console.example.com", "");
+        assertThat(csp).contains("frame-src 'self';");
+    }
+
+    @Test
+    void siblingOriginReturnsNullForNonLoopback() {
+        assertThat(AtmosphereAutoConfiguration.ConsoleResourceFilter
+                .siblingOrigin("http", "example.com:9000")).isNull();
+        assertThat(AtmosphereAutoConfiguration.ConsoleResourceFilter
+                .siblingOrigin("http", null)).isNull();
     }
 }

@@ -75,11 +75,17 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
             subtitle = "broadcast".equals(mode) ? "Multi-client broadcast chat" : "Runtime: " + runtime;
         }
 
-        var payload = new LinkedHashMap<String, String>();
+        var payload = new LinkedHashMap<String, Object>();
         payload.put("subtitle", subtitle);
         payload.put("endpoint", endpoint);
         payload.put("runtime", runtime);
         payload.put("mode", mode);
+        // Parity with the Spring starter's /api/console/info capability flags so
+        // the shared console gates its optional tabs without a 404-producing
+        // probe. The Quarkus extension does not bundle the interactions or
+        // admin/verifier REST planes, so both are honestly false here.
+        payload.put("hasInteractions", Boolean.FALSE);
+        payload.put("hasVerifier", Boolean.FALSE);
 
         resp.setStatus(HttpServletResponse.SC_OK);
         resp.setContentType("application/json;charset=UTF-8");
@@ -172,18 +178,25 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
     }
 
     /**
-     * Hand-rolled JSON serializer for a flat {@code String→String} map. The
-     * full key/value set is controlled by this servlet, so no nested types
-     * or numeric values flow through — keeps the runtime POM Jackson-free.
+     * Hand-rolled JSON serializer for a flat map of {@code String} keys to
+     * {@code String} or {@code Boolean} values. The full key/value set is
+     * controlled by this servlet — strings are quoted/escaped, booleans are
+     * emitted unquoted — so no nested types flow through and the runtime POM
+     * stays Jackson-free.
      */
-    private static String toJson(Map<String, String> entries) {
+    private static String toJson(Map<String, Object> entries) {
         var sb = new StringBuilder().append('{');
         var first = true;
         for (var e : entries.entrySet()) {
             if (!first) sb.append(',');
             first = false;
-            sb.append('"').append(escape(e.getKey())).append("\":\"")
-                    .append(escape(e.getValue())).append('"');
+            sb.append('"').append(escape(e.getKey())).append("\":");
+            var value = e.getValue();
+            if (value instanceof Boolean b) {
+                sb.append(b.toString());
+            } else {
+                sb.append('"').append(escape(String.valueOf(value))).append('"');
+            }
         }
         return sb.append('}').toString();
     }

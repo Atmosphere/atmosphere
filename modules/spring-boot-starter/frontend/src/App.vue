@@ -57,31 +57,12 @@ async function probeAgents() {
   }
 }
 
-async function probeInteractions() {
-  try {
-    // GET /api/interactions is the ownership-scoped read surface — a 200 (even
-    // an empty list) means the Interactions API is wired on this sample.
-    const res = await fetch('/api/interactions', { headers: { Accept: 'application/json' } })
-    if (res.ok) {
-      interactionsAvailable.value = true
-    }
-  } catch {
-    // atmosphere-interactions not on the classpath — hide the Interactions tab.
-  }
-}
-
-async function probeValidation() {
-  try {
-    // 200 means atmosphere-verifier + a PlanAndVerify bean are wired — show
-    // the Validation tab. A 404 (controller absent) hides it.
-    const res = await fetch('/api/admin/verifier/summary', { headers: { Accept: 'application/json' } })
-    if (res.ok) {
-      validationAvailable.value = true
-    }
-  } catch {
-    // atmosphere-verifier not on the classpath — hide the Validation tab.
-  }
-}
+// Interactions + Validation availability are read from /api/console/info's
+// runtime-resolved capability flags (hasInteractions / hasVerifier) in
+// onMounted — NOT probed. A speculative fetch to /api/interactions or
+// /api/admin/verifier/summary on a sample without those modules returns 404,
+// which the browser logs as a red console error that JS cannot suppress.
+// Gating on the server-confirmed flag keeps the console quiet (Runtime Truth).
 
 const tabs = computed(() => {
   const list: Array<{ id: Tab; label: string; badge?: string }> = [
@@ -123,11 +104,15 @@ onMounted(async () => {
       if (data.mode === 'broadcast' || data.mode === 'ai') mode.value = data.mode
       if (data.mcpEndpoint) mcpEndpoint.value = data.mcpEndpoint
       if (data.mcpSandboxOrigin) mcpSandboxOrigin.value = data.mcpSandboxOrigin
+      // Runtime-resolved capability flags — gate the optional tabs without a
+      // 404-producing probe. Absent/false means the module isn't wired here.
+      interactionsAvailable.value = data.hasInteractions === true
+      validationAvailable.value = data.hasVerifier === true
     }
   } catch {
     // Console info not available — use defaults
   }
-  await Promise.all([probeGovernance(), probeAgents(), probeInteractions(), probeValidation()])
+  await Promise.all([probeGovernance(), probeAgents()])
   ready.value = true
 })
 </script>

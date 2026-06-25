@@ -4,13 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!--
-      Content-Security-Policy: defence-in-depth for the v-html markdown sinks.
-      Scripts load only from this origin (no 'unsafe-inline'), so an injected
-      inline event handler that slips past DOMPurify still cannot execute.
-      style-src allows inline styles for Vue's scoped <style> injection;
-      connect-src allows the WebSocket/SSE transports.
+      Content-Security-Policy is emitted as a server response header on this
+      document (see ConsoleResourceFilter / AtmosphereConsoleServlet), NOT a
+      static <meta>. The MCP Apps sandbox frames a distinct sibling origin
+      (localhost<->127.0.0.1, or the configured mcp-sandbox-origin) that is only
+      known at request time, and CSP combines by intersection so a meta CSP
+      could never be loosened by the header. The header keeps the same XSS
+      hardening (no 'unsafe-inline' scripts for the v-html markdown sinks) while
+      widening frame-src to the resolvable sandbox origins.
     -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" />
     <title>Atmosphere AI Console</title>
   </head>
   <body>

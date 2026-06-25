@@ -22,10 +22,13 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereHandlerWrapper;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationContext;
 
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -53,7 +56,7 @@ class AtmosphereConsoleInfoEndpointModeTest {
         var result = info.info();
         assertThat(result).containsEntry("mode", "ai");
         // Default subtitle uses the runtime label when in ai mode (no override).
-        assertThat(result.get("subtitle")).startsWith("Runtime: ");
+        assertThat((String) result.get("subtitle")).startsWith("Runtime: ");
     }
 
     @Test
@@ -98,6 +101,16 @@ class AtmosphereConsoleInfoEndpointModeTest {
         assertThat(info.info()).containsEntry("mode", "ai");
     }
 
+    @Test
+    void capabilityFlagsEmittedAsBooleansDefaultFalse() {
+        // The frontend gates the Interactions/Validation tabs on these flags
+        // instead of probing (which 404s on samples without those modules).
+        // With no beans wired they must be present and false.
+        var result = newEndpoint(Map.of()).info();
+        assertThat(result).containsEntry("hasInteractions", false);
+        assertThat(result).containsEntry("hasVerifier", false);
+    }
+
     private AtmosphereConsoleInfoEndpoint newEndpoint(Map<String, AtmosphereHandlerWrapper> handlers) {
         return newEndpoint(new AtmosphereProperties(), handlers);
     }
@@ -107,7 +120,13 @@ class AtmosphereConsoleInfoEndpointModeTest {
             Map<String, AtmosphereHandlerWrapper> handlers) {
         var framework = mock(AtmosphereFramework.class);
         when(framework.getAtmosphereHandlers()).thenReturn(handlers);
-        return new AtmosphereConsoleInfoEndpoint(properties, framework);
+        // These tests pin mode/subtitle, not the capability flags; stub the
+        // context so hasInteractions/hasVerifier resolve to false (no beans).
+        var context = mock(ApplicationContext.class);
+        when(context.getClassLoader()).thenReturn(getClass().getClassLoader());
+        when(context.getBeanNamesForType(any(Class.class), anyBoolean(), anyBoolean()))
+                .thenReturn(new String[0]);
+        return new AtmosphereConsoleInfoEndpoint(properties, framework, context);
     }
 
     private AtmosphereHandlerWrapper wrapperFor(AtmosphereHandler handler) {

@@ -25,6 +25,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.ApplicationContext;
+import org.springframework.util.ClassUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -43,16 +45,19 @@ public class AtmosphereConsoleInfoEndpoint {
 
     private final AtmosphereProperties properties;
     private final AtmosphereFramework framework;
+    private final ApplicationContext context;
 
     public AtmosphereConsoleInfoEndpoint(AtmosphereProperties properties,
-                                          AtmosphereFramework framework) {
+                                          AtmosphereFramework framework,
+                                          ApplicationContext context) {
         this.properties = properties;
         this.framework = framework;
+        this.context = context;
     }
 
     @GetMapping("/api/console/info")
-    public Map<String, String> info() {
-        var result = new LinkedHashMap<String, String>();
+    public Map<String, Object> info() {
+        var result = new LinkedHashMap<String, Object>();
         var endpoint = detectEndpoint();
         var mode = detectMode(endpoint);
         var subtitle = properties.getConsoleSubtitle();
@@ -85,7 +90,31 @@ public class AtmosphereConsoleInfoEndpoint {
                 result.put("mcpSandboxOrigin", sandboxOrigin.trim());
             }
         }
+        // Runtime-resolved capability flags so the console only probes optional
+        // endpoints that actually exist — avoids a 404 to /api/interactions or
+        // /api/admin/verifier/summary (which the browser logs as a red error)
+        // on samples that don't carry those modules. Bean presence is the
+        // truthful runtime signal: InteractionsEndpoint is @ConditionalOnBean
+        // (InteractionService) and the verifier summary returns 404 unless the
+        // VerifierController bean is wired (Runtime Truth — Invariant #5).
+        result.put("hasInteractions", hasBean("org.atmosphere.interactions.InteractionService"));
+        result.put("hasVerifier", hasBean("org.atmosphere.admin.ai.VerifierController"));
         return result;
+    }
+
+    /**
+     * Whether a Spring bean of the named type is present, without taking a
+     * compile-time dependency on the optional module that declares it. Returns
+     * {@code false} when the class is absent from the classpath (the module
+     * isn't on it) so the capability is reported honestly as not present.
+     */
+    private boolean hasBean(String fqcn) {
+        try {
+            var type = ClassUtils.forName(fqcn, context.getClassLoader());
+            return context.getBeanNamesForType(type, true, false).length > 0;
+        } catch (ClassNotFoundException | LinkageError e) {
+            return false;
+        }
     }
 
     /**

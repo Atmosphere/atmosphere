@@ -136,9 +136,10 @@ public class AtmosphereAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(name = "atmosphereConsoleFilter")
-    org.springframework.boot.web.servlet.FilterRegistrationBean<jakarta.servlet.Filter> atmosphereConsoleFilter() {
+    org.springframework.boot.web.servlet.FilterRegistrationBean<jakarta.servlet.Filter> atmosphereConsoleFilter(
+            AtmosphereProperties properties) {
         var registration = new org.springframework.boot.web.servlet.FilterRegistrationBean<jakarta.servlet.Filter>(
-                new ConsoleResourceFilter());
+                new ConsoleResourceFilter(properties.getMcpSandboxOrigin()));
         registration.addUrlPatterns("/atmosphere/console/*");
         registration.setOrder(0);
         return registration;
@@ -152,6 +153,15 @@ public class AtmosphereAutoConfiguration {
 
         private static final String CONSOLE_PREFIX = "/atmosphere/console";
         private static final String RESOURCE_BASE = "META-INF/resources/atmosphere/console/";
+
+        // Configured MCP Apps sandbox origin (atmosphere.mcp-sandbox-origin),
+        // or "" when unset. Threaded into the console HTML's frame-src below.
+        private final String configuredSandboxOrigin;
+
+        ConsoleResourceFilter(String configuredSandboxOrigin) {
+            this.configuredSandboxOrigin = configuredSandboxOrigin == null
+                    ? "" : configuredSandboxOrigin.trim();
+        }
 
         @Override
         public void doFilter(jakarta.servlet.ServletRequest request,
@@ -185,12 +195,82 @@ public class AtmosphereAutoConfiguration {
             if (resource != null) {
                 try (resource) {
                     httpRes.setContentType(guessContentType(resourceName));
+                    // The console SPA shell (index.html) carries no static <meta>
+                    // CSP: the MCP Apps sandbox frames a DISTINCT sibling origin
+                    // (localhost<->127.0.0.1, or atmosphere.mcp-sandbox-origin) for
+                    // isolation, and that origin is only known at request time. A
+                    // meta CSP can't express it, and CSP combines by intersection so
+                    // a runtime header can't loosen a restrictive meta. So the full
+                    // policy is emitted here, with frame-src widened to the resolvable
+                    // sandbox origins.
+                    //
+                    // NOT applied to sandbox.html: the sandbox proxy runs an inline
+                    // bootstrap <script> and builds its OWN inner-app CSP; its
+                    // isolation is the sandboxed opaque origin, so a script-src 'self'
+                    // header would break the proxy bridge.
+                    if (resourceName.equals("index.html")) {
+                        httpRes.setHeader("Content-Security-Policy",
+                                buildConsoleCsp(httpReq.getScheme(),
+                                        httpReq.getHeader("Host"), configuredSandboxOrigin));
+                    }
                     resource.transferTo(httpRes.getOutputStream());
                 }
                 return;
             }
 
             chain.doFilter(request, response);
+        }
+
+        /**
+         * The console's Content-Security-Policy. Mirrors the former static
+         * {@code <meta>} XSS hardening, but {@code frame-src} additionally
+         * lists the resolvable MCP Apps sandbox origins: {@code 'self'}, the
+         * dev loopback sibling ({@code localhost}<->{@code 127.0.0.1}, same
+         * port/scheme), and the configured origin when set and not the current
+         * origin. Package-visible for unit testing.
+         */
+        static String buildConsoleCsp(String scheme, String host, String configuredOrigin) {
+            var frameSrc = new StringBuilder("'self'");
+            var sibling = siblingOrigin(scheme, host);
+            if (sibling != null) {
+                frameSrc.append(' ').append(sibling);
+            }
+            if (configuredOrigin != null && !configuredOrigin.isBlank()) {
+                var trimmed = configuredOrigin.trim();
+                var current = host != null && !host.isBlank() ? scheme + "://" + host : null;
+                if (!trimmed.equals(current)) {
+                    frameSrc.append(' ').append(trimmed);
+                }
+            }
+            return "default-src 'self'; script-src 'self'; "
+                    + "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+                    + "font-src 'self' data:; connect-src 'self' ws: wss:; "
+                    + "frame-src " + frameSrc + "; object-src 'none'; "
+                    + "base-uri 'self'; form-action 'self'";
+        }
+
+        /**
+         * The loopback sibling origin: when the page is served from
+         * {@code localhost} the sandbox is framed from {@code 127.0.0.1} (and
+         * vice versa), same scheme and port. Returns {@code null} when the host
+         * is neither loopback alias (no dev sibling to allow).
+         */
+        static String siblingOrigin(String scheme, String host) {
+            if (host == null || host.isBlank() || scheme == null || scheme.isBlank()) {
+                return null;
+            }
+            var colon = host.indexOf(':');
+            var name = colon >= 0 ? host.substring(0, colon) : host;
+            var port = colon >= 0 ? host.substring(colon) : "";
+            String siblingName;
+            if (name.equals("localhost")) {
+                siblingName = "127.0.0.1";
+            } else if (name.equals("127.0.0.1")) {
+                siblingName = "localhost";
+            } else {
+                return null;
+            }
+            return scheme + "://" + siblingName + port;
         }
 
         private String guessContentType(String path) {

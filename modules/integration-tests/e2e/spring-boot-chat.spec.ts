@@ -54,4 +54,27 @@ test.describe('Spring Boot Chat', () => {
     // With empty input, send should be disabled
     await expect(page.getByTestId('chat-send')).toBeDisabled();
   });
+
+  // Regression (F1): the console used to unconditionally probe optional-module
+  // endpoints for feature-detection, which 404'd on a plain chat sample and
+  // logged red console errors. The console now gates those tabs on the
+  // /api/console/info capability flags (hasInteractions / hasVerifier), so it
+  // never fetches an endpoint that isn't there.
+  test('does not probe optional endpoints that 404', async ({ page }) => {
+    const notFound: string[] = [];
+    page.on('response', (r) => {
+      const u = new URL(r.url()).pathname;
+      if (
+        r.status() === 404 &&
+        (u === '/api/interactions' || u === '/api/admin/verifier/summary')
+      ) {
+        notFound.push(u);
+      }
+    });
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await expect(page.getByTestId('chat-layout')).toBeVisible();
+    // Let onMounted's /api/console/info fetch + any gated probes settle.
+    await page.waitForTimeout(1500);
+    expect(notFound, `unexpected 404 probes: ${notFound.join(', ')}`).toEqual([]);
+  });
 });
