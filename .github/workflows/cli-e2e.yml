@@ -47,7 +47,7 @@ jobs:
     name: CLI Unit Tests
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: Install jq + xmllint
       run: sudo apt-get update && sudo apt-get install -y jq libxml2-utils
@@ -61,7 +61,7 @@ jobs:
     needs: cli-unit-tests
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: Set up JDK 21
       uses: actions/setup-java@v5
@@ -96,7 +96,7 @@ jobs:
     timeout-minutes: 25
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: Set up JDK 21
       uses: actions/setup-java@v5
