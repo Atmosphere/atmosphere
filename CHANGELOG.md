@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.58] - 2026-06-26
+
+### Added
+
+- default-on RAG injection-safety wiring across runtimes Screens retrieved RAG documents for indirect prompt injection before the LLM (fail-closed RULE_BASED/DROP); wired for @AiEndpoint, Spring Boot 3/4, and Quarkus with console runtime-truth and a poisoned-doc sample.
+
+### Fixed
+
+- pin rag-chat getting-started to released 4.0.57
+
+### Changed
+
+- stage doc sweep and fail-fast on doc-version drift before publish
+- bump version to 4.0.57
+- prepare next development version 5.0.35
+- prepare for next development iteration 4.0.58-SNAPSHOT
+
 ## [4.0.57] - 2026-06-26
 
 ### Added
