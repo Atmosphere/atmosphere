@@ -268,6 +268,8 @@ public class AtmosphereProperties {
 
         private RoutingProperties routing = new RoutingProperties();
 
+        private Rag rag = new Rag();
+
         public boolean isEnabled() {
             return enabled;
         }
@@ -282,6 +284,14 @@ public class AtmosphereProperties {
 
         public void setRouting(RoutingProperties routing) {
             this.routing = routing;
+        }
+
+        public Rag getRag() {
+            return rag;
+        }
+
+        public void setRag(Rag rag) {
+            this.rag = rag;
         }
 
         public String getMode() {
@@ -362,6 +372,77 @@ public class AtmosphereProperties {
 
         public void setTimeout(long timeout) {
             this.timeout = timeout;
+        }
+    }
+
+    /**
+     * RAG configuration group, bound to {@code atmosphere.ai.rag.*}. Currently
+     * carries the injection-safety screen ({@code atmosphere.ai.rag.safety.*}).
+     */
+    public static class Rag {
+
+        private Safety safety = new Safety();
+
+        public Safety getSafety() {
+            return safety;
+        }
+
+        public void setSafety(Safety safety) {
+            this.safety = safety;
+        }
+
+        /**
+         * RAG injection-safety screen, bound to {@code atmosphere.ai.rag.safety.*}.
+         * Every {@code @AiEndpoint} {@code ContextProvider} is wrapped so retrieved
+         * documents are checked for indirect prompt injection (OWASP Agentic A04)
+         * before they reach the LLM. On by default and fail-closed — disable with
+         * {@code atmosphere.ai.rag.safety.enabled=false}.
+         */
+        public static class Safety {
+
+            /** Master switch. Default {@code true} (protected out of the box). */
+            private boolean enabled = true;
+
+            /** Classifier tier: {@code RULE_BASED} (default), {@code EMBEDDING_SIMILARITY}, {@code LLM_CLASSIFIER}. */
+            private String tier = "RULE_BASED";
+
+            /** Breach policy: {@code DROP} (default), {@code FLAG}, {@code SANITIZE}. */
+            private String onBreach = "DROP";
+
+            /** Admit documents on classifier error. Default {@code false} (fail-closed). */
+            private boolean failOpen;
+
+            public boolean isEnabled() {
+                return enabled;
+            }
+
+            public void setEnabled(boolean enabled) {
+                this.enabled = enabled;
+            }
+
+            public String getTier() {
+                return tier;
+            }
+
+            public void setTier(String tier) {
+                this.tier = tier;
+            }
+
+            public String getOnBreach() {
+                return onBreach;
+            }
+
+            public void setOnBreach(String onBreach) {
+                this.onBreach = onBreach;
+            }
+
+            public boolean isFailOpen() {
+                return failOpen;
+            }
+
+            public void setFailOpen(boolean failOpen) {
+                this.failOpen = failOpen;
+            }
         }
     }
 

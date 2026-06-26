@@ -213,6 +213,12 @@ public final class OwaspAgenticMatrix {
                                     "SafetyContextProvider",
                                     "Decorator wraps any ContextProvider, drops / flags / sanitizes "
                                             + "flagged docs, records to GovernanceDecisionLog"),
+                            new Evidence("org.atmosphere.ai.governance.rag.RagSafetyConfig",
+                                    "org.atmosphere.ai.governance.rag.RagSafetyConfigTest",
+                                    "RagSafetyConfig",
+                                    "Default-on wiring: AiEndpointProcessor wraps every @AiEndpoint "
+                                            + "ContextProvider with SafetyContextProvider (rule-based, "
+                                            + "fail-closed) unless atmosphere.ai.rag.safety.enabled=false"),
                             new Evidence("org.atmosphere.ai.guardrails.PiiRedactionGuardrail",
                                     "org.atmosphere.ai.guardrails.GuardrailsTest",
                                     "PiiRedactionGuardrail",
@@ -221,12 +227,14 @@ public final class OwaspAgenticMatrix {
                                     "org.atmosphere.ai.AiPipelineScopeHardeningTest",
                                     "ScopePolicy",
                                     "Scope-confinement preamble blunts injected instructions")),
-                    "COVERED via three-tier InjectionClassifier SPI + SafetyContextProvider decorator. "
-                            + "Default rule-based tier requires no runtime; embedding-similarity tier "
-                            + "leverages any installed EmbeddingRuntime; LLM-classifier "
-                            + "tier uses any installed AgentRuntime. Every flagged document is "
-                            + "audited through GovernanceDecisionLog and honours drop / flag / "
-                            + "sanitize breach policies."),
+                    "COVERED — on by default. AiEndpointProcessor wraps every @AiEndpoint "
+                            + "ContextProvider with SafetyContextProvider unless "
+                            + "atmosphere.ai.rag.safety.enabled=false, so retrieved documents are "
+                            + "screened with no opt-in. Default rule-based tier requires no runtime; "
+                            + "embedding-similarity and LLM-classifier tiers leverage any installed "
+                            + "EmbeddingRuntime / AgentRuntime and downgrade to rule-based (never "
+                            + "fail open) when absent. Every flagged document is audited through "
+                            + "GovernanceDecisionLog and honours drop / flag / sanitize breach policies."),
 
             new Row("A05", "Cascading Failures / Runaway Agent Loops",
                     "Multi-agent loop spirals out of control; one agent's failure triggers another.",

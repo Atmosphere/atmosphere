@@ -86,6 +86,12 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
         // admin/verifier REST planes, so both are honestly false here.
         payload.put("hasInteractions", Boolean.FALSE);
         payload.put("hasVerifier", Boolean.FALSE);
+        // RAG injection-safety runtime truth, in parity with the Spring starter
+        // (Invariant #5): present only when a ContextProvider was actually wrapped.
+        var ragSafety = detectRagSafety(framework);
+        if (ragSafety != null) {
+            payload.put("ragSafety", ragSafety);
+        }
 
         resp.setStatus(HttpServletResponse.SC_OK);
         resp.setContentType("application/json;charset=UTF-8");
@@ -173,6 +179,45 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Runtime-truth view of the RAG injection-safety screen, read reflectively
+     * so this servlet keeps no hard compile-time link to {@code atmosphere-ai}
+     * (mirrors {@link #detectRuntime()}). Present only when {@code RagSafetyConfig}
+     * published an active state into the framework property bag (i.e. at least
+     * one {@code ContextProvider} was wrapped); the reported tier is the
+     * effective one after any runtime-absent downgrade. Key literal mirrors
+     * {@code RagSafetyConfig.RUNTIME_STATE_PROPERTY}.
+     */
+    private static Map<String, Object> detectRagSafety(AtmosphereFramework framework) {
+        if (framework == null) {
+            return null;
+        }
+        try {
+            var cfg = framework.getAtmosphereConfig();
+            if (cfg == null) {
+                return null;
+            }
+            var state = cfg.properties().get("org.atmosphere.ai.rag.safety.runtime-state");
+            if (state == null) {
+                return null;
+            }
+            var active = state.getClass().getMethod("active").invoke(state);
+            if (!Boolean.TRUE.equals(active)) {
+                return null;
+            }
+            var tier = state.getClass().getMethod("tier").invoke(state);
+            var breach = state.getClass().getMethod("breach").invoke(state);
+            var map = new LinkedHashMap<String, Object>();
+            map.put("active", Boolean.TRUE);
+            map.put("tier", String.valueOf(tier));
+            map.put("breach", String.valueOf(breach));
+            return map;
+        } catch (LinkageError | ReflectiveOperationException e) {
+            logger.debug("RAG injection-safety state not available", e);
+            return null;
+        }
+    }
+
     private static String orDefault(String s, String fallback) {
         return s == null ? fallback : s;
     }
@@ -184,16 +229,20 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
      * emitted unquoted — so no nested types flow through and the runtime POM
      * stays Jackson-free.
      */
-    private static String toJson(Map<String, Object> entries) {
+    private static String toJson(Map<?, ?> entries) {
         var sb = new StringBuilder().append('{');
         var first = true;
         for (var e : entries.entrySet()) {
             if (!first) sb.append(',');
             first = false;
-            sb.append('"').append(escape(e.getKey())).append("\":");
+            sb.append('"').append(escape(String.valueOf(e.getKey()))).append("\":");
             var value = e.getValue();
             if (value instanceof Boolean b) {
                 sb.append(b.toString());
+            } else if (value instanceof Map<?, ?> nested) {
+                // One-level nesting (e.g. the ragSafety object) — recurse so the
+                // payload stays Jackson-free while matching the Spring shape.
+                sb.append(toJson(nested));
             } else {
                 sb.append('"').append(escape(String.valueOf(value))).append('"');
             }

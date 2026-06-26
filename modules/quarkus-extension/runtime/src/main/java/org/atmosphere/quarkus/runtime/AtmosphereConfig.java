@@ -142,6 +142,88 @@ public interface AtmosphereConfig {
     }
 
     /**
+     * AI configuration block. Mirrors the Spring Boot starter's
+     * {@code atmosphere.ai.*} keys.
+     *
+     * @return the AI sub-configuration block
+     */
+    Ai ai();
+
+    /**
+     * AI sub-configuration. Currently carries the RAG injection-safety screen
+     * ({@code quarkus.atmosphere.ai.rag.safety.*}).
+     */
+    interface Ai {
+
+        /**
+         * RAG configuration block.
+         *
+         * @return the RAG sub-configuration block
+         */
+        Rag rag();
+
+        /**
+         * RAG sub-configuration. Currently carries the injection-safety screen.
+         */
+        interface Rag {
+
+            /**
+             * RAG injection-safety screen.
+             *
+             * @return the safety sub-configuration block
+             */
+            Safety safety();
+
+            /**
+             * RAG injection-safety screen, bound to
+             * {@code quarkus.atmosphere.ai.rag.safety.*}. Every
+             * {@code @AiEndpoint} {@code ContextProvider} is wrapped so retrieved
+             * documents are checked for indirect prompt injection (OWASP Agentic
+             * A04) before they reach the LLM. On by default and fail-closed.
+             */
+            interface Safety {
+
+                /**
+                 * Master switch. Defaults to {@code true} (protected out of the
+                 * box); set {@code false} to disable the screen.
+                 *
+                 * @return {@code true} if retrieved documents should be screened
+                 */
+                @WithDefault("true")
+                boolean enabled();
+
+                /**
+                 * Classifier tier: {@code RULE_BASED} (default, zero-dependency),
+                 * {@code EMBEDDING_SIMILARITY}, or {@code LLM_CLASSIFIER}. Higher
+                 * tiers downgrade to {@code RULE_BASED} when their runtime is absent.
+                 *
+                 * @return the classifier tier name
+                 */
+                @WithDefault("RULE_BASED")
+                String tier();
+
+                /**
+                 * Breach policy for a flagged document: {@code DROP} (default),
+                 * {@code FLAG}, or {@code SANITIZE}.
+                 *
+                 * @return the breach policy name
+                 */
+                @WithDefault("DROP")
+                String onBreach();
+
+                /**
+                 * Admit documents when the classifier errors. Defaults to
+                 * {@code false} (fail-closed).
+                 *
+                 * @return {@code true} to admit on classifier error
+                 */
+                @WithDefault("false")
+                boolean failOpen();
+            }
+        }
+    }
+
+    /**
      * Durable sessions configuration.
      *
      * @return the durable-sessions sub-configuration block

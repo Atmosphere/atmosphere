@@ -19,6 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.atmosphere.ai.AgentRuntimeResolver;
+import org.atmosphere.ai.governance.rag.RagSafetyConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,7 +100,42 @@ public class AtmosphereConsoleInfoEndpoint {
         // VerifierController bean is wired (Runtime Truth — Invariant #5).
         result.put("hasInteractions", hasBean("org.atmosphere.interactions.InteractionService"));
         result.put("hasVerifier", hasBean("org.atmosphere.admin.ai.VerifierController"));
+        // RAG injection-safety: reported only when a ContextProvider was actually
+        // wrapped at endpoint registration (Runtime Truth — Invariant #5), with
+        // the effective classifier tier after any runtime-absent downgrade.
+        var ragSafety = detectRagSafety();
+        if (ragSafety != null) {
+            result.put("ragSafety", ragSafety);
+        }
         return result;
+    }
+
+    /**
+     * Runtime-truth view of the RAG injection-safety screen. Present only when
+     * {@code RagSafetyConfig} published an active state into the framework
+     * property bag (i.e. at least one {@code ContextProvider} was wrapped), and
+     * the reported tier is the effective one after any runtime-absent downgrade.
+     * Class-guarded so the console keeps loading when {@code atmosphere-ai} is
+     * absent (the {@code instanceof} would otherwise raise NoClassDefFoundError).
+     */
+    private Map<String, Object> detectRagSafety() {
+        try {
+            var cfg = framework.getAtmosphereConfig();
+            if (cfg == null) {
+                return null;
+            }
+            var state = cfg.properties().get(RagSafetyConfig.RUNTIME_STATE_PROPERTY);
+            if (state instanceof RagSafetyConfig.RagSafetyRuntimeState s && s.active()) {
+                var map = new LinkedHashMap<String, Object>();
+                map.put("active", true);
+                map.put("tier", s.tier());
+                map.put("breach", s.breach());
+                return map;
+            }
+        } catch (LinkageError | Exception e) {
+            logger.debug("RAG injection-safety state not available", e);
+        }
+        return null;
     }
 
     /**

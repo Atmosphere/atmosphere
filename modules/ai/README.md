@@ -84,6 +84,52 @@ public class RagInterceptor implements AiInterceptor {
 }
 ```
 
+## RAG Injection Safety (OWASP Agentic A04)
+
+Every `@AiEndpoint` `ContextProvider` is wrapped with a `SafetyContextProvider`
+that screens retrieved documents for indirect prompt injection **before** they
+reach the LLM (OWASP Agentic Top-10 A04). It is **on by default**, **fail-closed**,
+and needs no dependencies — the default `RULE_BASED` tier runs in sub-milliseconds
+on a bare JVM. No opt-in, no per-endpoint annotation.
+
+```properties
+# Defaults shown — set enabled=false to turn the screen off
+atmosphere.ai.rag.safety.enabled=true
+atmosphere.ai.rag.safety.tier=RULE_BASED       # EMBEDDING_SIMILARITY | LLM_CLASSIFIER
+atmosphere.ai.rag.safety.on-breach=DROP        # FLAG | SANITIZE
+atmosphere.ai.rag.safety.fail-open=false       # admit on classifier error
+```
+
+Quarkus uses the same keys under `quarkus.atmosphere.ai.rag.safety.*`; a bare
+`AtmosphereConfig` reads them as `org.atmosphere.ai.rag.safety.*` init-params.
+
+| Tier | Backing | Notes |
+|------|---------|-------|
+| `RULE_BASED` (default) | none | regex/keyword probes for canonical injection vectors; zero deps |
+| `EMBEDDING_SIMILARITY` | `EmbeddingRuntime` | cosine similarity to known injection exemplars |
+| `LLM_CLASSIFIER` | `AgentRuntime` | zero-shot YES/NO classifier per document |
+
+Higher tiers run **on top of the `RULE_BASED` floor** (defense in depth): the
+zero-dependency probes always run first, so the canonical injection vectors are
+caught even when the higher tier is a no-key fallback model or returns an
+ambiguous verdict. When a higher tier's runtime is genuinely absent the screen
+**downgrades to `RULE_BASED` (with a warning)** rather than admitting documents.
+Either way the screen never silently fails open. On a classifier error the
+document is dropped (fail-closed) unless `fail-open=true`. Every enforcement is
+recorded to the `GovernanceDecisionLog`.
+
+Only `ContextProvider` retrieval is screened. `@Agent` does not auto-wire a
+`ContextProvider`; tool outputs (`@AiTool`) are a separate trust boundary.
+
+The console `/api/console/info` reports the live screen as runtime truth (present
+only once a provider is actually wrapped):
+
+```json
+{ "ragSafety": { "active": true, "tier": "RULE_BASED", "breach": "DROP" } }
+```
+
+See the `spring-boot-rag-chat` sample for a poisoned-document demo.
+
 ## Conversation Memory
 
 Enable multi-turn conversations with one annotation attribute:

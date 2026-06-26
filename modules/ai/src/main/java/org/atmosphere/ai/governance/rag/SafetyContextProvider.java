@@ -134,8 +134,18 @@ public final class SafetyContextProvider implements ContextProvider {
     }
 
     @Override
+    public List<Document> filter(String query, List<Document> documents) {
+        return delegate.filter(query, documents);
+    }
+
+    @Override
     public List<Document> rerank(String query, List<Document> documents) {
         return delegate.rerank(query, documents);
+    }
+
+    @Override
+    public List<Document> postProcess(String query, List<Document> documents) {
+        return delegate.postProcess(query, documents);
     }
 
     @Override
@@ -146,6 +156,22 @@ public final class SafetyContextProvider implements ContextProvider {
     @Override
     public boolean isAvailable() {
         return delegate.isAvailable();
+    }
+
+    /**
+     * The classifier tier actually in force — reflects any runtime-absent
+     * downgrade applied by {@link InjectionClassifierResolver} (e.g. a
+     * requested {@code EMBEDDING_SIMILARITY} resolves to {@code RULE_BASED}
+     * when no embedding runtime is installed). Discovery/info surfaces MUST
+     * report this, not the configured intent (Correctness Invariant #5).
+     */
+    public InjectionClassifier.Tier effectiveTier() {
+        return classifier.tier();
+    }
+
+    /** The breach policy applied to documents the classifier flags as injection. */
+    public Breach breach() {
+        return onBreach;
     }
 
     /**
@@ -248,7 +274,7 @@ public final class SafetyContextProvider implements ContextProvider {
     public static final class Builder {
         private ContextProvider delegate;
         private InjectionClassifier classifier;
-        private InjectionClassifier.Tier tier = InjectionClassifier.Tier.EMBEDDING_SIMILARITY;
+        private InjectionClassifier.Tier tier = InjectionClassifier.Tier.RULE_BASED;
         private Breach onBreach = Breach.DROP;
         private boolean failOpen = false;
         private String policyName;
@@ -261,7 +287,13 @@ public final class SafetyContextProvider implements ContextProvider {
             return this;
         }
 
-        /** Select the default classifier tier (ignored if {@link #classifier} is set). */
+        /**
+         * Select the classifier tier (ignored if {@link #classifier} is set).
+         * Defaults to {@link InjectionClassifier.Tier#RULE_BASED} — zero
+         * dependencies, sub-millisecond, and fail-closed even on a bare JVM.
+         * Higher tiers gracefully downgrade to rule-based when their runtime
+         * is absent (see {@link InjectionClassifierResolver}).
+         */
         public Builder tier(InjectionClassifier.Tier tier) {
             this.tier = tier;
             return this;

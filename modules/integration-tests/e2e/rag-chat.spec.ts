@@ -92,8 +92,9 @@ test.describe('RAG Chat', () => {
   // assistant response in the browser. Pre-fix, chat ran on the SpringAI
   // runtime and crashed on the Gemini OpenAI-compat tool-call deltas before any
   // answer streamed back; routing through the built-in runtime (pinned by the
-  // RuntimeSelectionTest unit test) makes the end-to-end flow work. LLM_MODE=fake
-  // keeps the response deterministic so this is safe to run in CI.
+  // RuntimeSelectionTest unit test) makes the end-to-end flow work. With no API
+  // key in CI, the no-key DemoAgentRuntime fallback keeps the response
+  // deterministic so this is safe to run.
   test('prompt produces an assistant response (browser e2e)', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
     await page.getByTestId('chat-input').fill('What does the Atmosphere RAG agent do?');
@@ -101,5 +102,20 @@ test.describe('RAG Chat', () => {
 
     await expect(page.locator('[class*="assistant"], [class*="message"]').last())
       .not.toBeEmpty({ timeout: 30_000 });
+  });
+
+  // Runtime-truth regression: the RAG chat endpoint declares a ContextProvider,
+  // so Atmosphere wraps it with the default-on injection-safety screen and the
+  // console /api/console/info reports it as live. Deterministic (no LLM call),
+  // and it asserts the specific feature — the screen is actually wired, not just
+  // configured. If the wiring regresses, ragSafety disappears and this fails.
+  test('console info advertises the active RAG injection-safety screen', async ({ request }) => {
+    const res = await request.get(server.baseUrl + '/api/console/info');
+    expect(res.ok()).toBeTruthy();
+    const info = await res.json();
+    expect(info.ragSafety).toBeTruthy();
+    expect(info.ragSafety.active).toBe(true);
+    expect(info.ragSafety.tier).toBe('RULE_BASED');
+    expect(info.ragSafety.breach).toBe('DROP');
   });
 });

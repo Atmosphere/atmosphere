@@ -38,6 +38,7 @@ import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.ai.governance.GovernancePolicies;
 import org.atmosphere.ai.governance.GovernancePolicy;
 import org.atmosphere.ai.governance.PolicyAsGuardrail;
+import org.atmosphere.ai.governance.rag.RagSafetyConfig;
 import org.atmosphere.ai.governance.scope.ScopeConfig;
 import org.atmosphere.ai.governance.scope.ScopeGuardrailResolver;
 import org.atmosphere.ai.governance.scope.ScopePolicy;
@@ -139,7 +140,8 @@ public class AiEndpointProcessor implements Processor<Object> {
                 guardrails = List.copyOf(merged);
             }
             var contextProviders = instantiateContextProviders(
-                    annotation.contextProviders(), annotation.autoDiscoverContextProviders(), framework);
+                    annotation.contextProviders(), annotation.autoDiscoverContextProviders(),
+                    framework, annotation.path());
 
             var metrics = resolveMetrics();
             var broadcastFilters = instantiateBroadcastFilters(annotation.filters(), framework);
@@ -466,7 +468,8 @@ public class AiEndpointProcessor implements Processor<Object> {
 
     private List<ContextProvider> instantiateContextProviders(Class<? extends ContextProvider>[] classes,
                                                               boolean autoDiscover,
-                                                              AtmosphereFramework framework) {
+                                                              AtmosphereFramework framework,
+                                                              String endpointPath) {
         var providers = new ArrayList<ContextProvider>();
         var declaredTypes = new HashSet<String>();
         for (var clazz : classes) {
@@ -492,7 +495,12 @@ public class AiEndpointProcessor implements Processor<Object> {
             }
         }
 
-        return List.copyOf(providers);
+        // Screen every retrieved document for indirect prompt injection (OWASP
+        // Agentic A04) before it reaches the LLM. Default-on, fail-closed,
+        // rule-based; operators relax via atmosphere.ai.rag.safety.* — see
+        // RagSafetyConfig. No-op when no provider is declared (no RAG surface).
+        return RagSafetyConfig.from(framework.getAtmosphereConfig())
+                .apply(List.copyOf(providers), framework, endpointPath);
     }
 
     private List<BroadcastFilter> instantiateBroadcastFilters(

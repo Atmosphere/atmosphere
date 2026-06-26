@@ -387,6 +387,18 @@ class AtmosphereProcessor {
                 builder.addInitParam("org.atmosphere.cpr.AtmosphereResource.heartbeatFrequencyInSeconds",
                         String.valueOf(h.toSeconds())));
 
+        // RAG injection-safety screen (OWASP Agentic A04): AiEndpointProcessor
+        // wraps every @AiEndpoint ContextProvider so retrieved documents are
+        // checked before reaching the LLM. On by default and fail-closed;
+        // disable with quarkus.atmosphere.ai.rag.safety.enabled=false. Keys are
+        // literals mirroring RagSafetyConfig in atmosphere-ai so this build-time
+        // deployment module needs no compile dep on the AI runtime module.
+        var ragSafety = config.ai().rag().safety();
+        builder.addInitParam("org.atmosphere.ai.rag.safety.enabled", String.valueOf(ragSafety.enabled()));
+        builder.addInitParam("org.atmosphere.ai.rag.safety.tier", ragSafety.tier());
+        builder.addInitParam("org.atmosphere.ai.rag.safety.on-breach", ragSafety.onBreach());
+        builder.addInitParam("org.atmosphere.ai.rag.safety.fail-open", String.valueOf(ragSafety.failOpen()));
+
         for (Map.Entry<String, String> entry : config.initParams().entrySet()) {
             builder.addInitParam(entry.getKey(), entry.getValue());
         }

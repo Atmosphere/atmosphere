@@ -20,6 +20,7 @@ import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.facts.FactResolver;
 import org.atmosphere.ai.filter.PiiRedactionFilter;
 import org.atmosphere.ai.governance.GovernancePolicy;
+import org.atmosphere.ai.governance.rag.RagSafetyConfig;
 import org.atmosphere.ai.guardrails.OutputLengthZScoreGuardrail;
 import org.atmosphere.ai.guardrails.PiiRedactionGuardrail;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -186,6 +187,20 @@ public class AtmosphereAiAutoConfiguration {
                     policies.size(),
                     policies.stream().map(GovernancePolicy::name).toList());
         }
+        // Bridge the RAG injection-safety policy into framework init-params so
+        // AiEndpointProcessor wraps every @AiEndpoint ContextProvider. On by
+        // default and fail-closed; disable with atmosphere.ai.rag.safety.enabled=false.
+        var rag = properties.getAi().getRag().getSafety();
+        framework.addInitParameter(RagSafetyConfig.ENABLED_KEY, String.valueOf(rag.isEnabled()));
+        framework.addInitParameter(RagSafetyConfig.FAIL_OPEN_KEY, String.valueOf(rag.isFailOpen()));
+        if (rag.getTier() != null) {
+            framework.addInitParameter(RagSafetyConfig.TIER_KEY, rag.getTier());
+        }
+        if (rag.getOnBreach() != null) {
+            framework.addInitParameter(RagSafetyConfig.ON_BREACH_KEY, rag.getOnBreach());
+        }
+        logger.info("RAG injection-safety: enabled={}, tier={}, onBreach={}, failOpen={}",
+                rag.isEnabled(), rag.getTier(), rag.getOnBreach(), rag.isFailOpen());
         return new AtmosphereAiEndpointRegistrar(framework, properties, guardrails);
     }
 

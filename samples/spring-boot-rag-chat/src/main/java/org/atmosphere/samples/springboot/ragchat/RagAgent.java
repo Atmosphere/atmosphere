@@ -31,16 +31,18 @@ import org.slf4j.LoggerFactory;
 /**
  * RAG-powered knowledge base agent.
  *
- * <p>Upgrades the basic RAG endpoint into a full {@code @Agent} with:</p>
+ * <p>A full {@code @Agent} with:</p>
  * <ul>
  *   <li>Slash commands for quick knowledge base inspection</li>
  *   <li>AI tools the LLM can call for targeted document search and retrieval</li>
- *   <li>Automatic RAG context augmentation via the framework's interceptor chain</li>
  * </ul>
  *
- * <p>The LLM gets both automatic context (via ContextProvider) and explicit
- * tools for multi-hop reasoning — it can search, read specific documents,
- * refine its query, and search again before composing an answer.</p>
+ * <p>This agent does RAG through explicit {@code @AiTool} search the LLM
+ * invokes for multi-hop reasoning — it can search, read specific documents,
+ * refine its query, and search again before composing an answer. The
+ * complementary {@link RagChatEndpoint} demonstrates <em>automatic</em>
+ * ContextProvider retrieval (and the default-on injection-safety screen that
+ * wraps it); {@code @Agent} does not auto-wire a {@code ContextProvider}.</p>
  */
 @Agent(name = "rag-assistant",
         skillFile = "skill:rag-assistant",
