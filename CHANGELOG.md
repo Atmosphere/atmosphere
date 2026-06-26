@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.57] - 2026-06-26
+
+### Added
+
+- provider-native structured output across 9 runtimes
+
+### Fixed
+
+- guard expo stats render against undefined token metrics
+- unblock MCP Apps sandbox CSP and stop optional-tab 404 probes
+- expose analyzer as @AgentSkill so approve happy path works
+
+### Changed
+
+- expect analyzer's headless A2A registration
+- note path-scoped native structured output for Spring AI, Koog, ADK
+- enforce Atmosphere doc <version> matches the released version
+- retry fetch+rebase+push so a lost race can't red a green release
+- apt-get update before installing libxml2-utils so the delisted stale version isn't fetched
+- rebase before pushing JS dev-bump so it can't lose the race to the Maven job
+- prepare next development version 5.0.34
+- bump version to 4.0.56
+- prepare for next development iteration 4.0.57-SNAPSHOT
+
 ## [4.0.56] - 2026-06-23
 
 ### Added
