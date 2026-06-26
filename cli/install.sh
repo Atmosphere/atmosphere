@@ -6,7 +6,7 @@
 
 set -e
 
-VERSION="4.0.56"
+VERSION="4.0.57"
 INSTALL_DIR="${ATMOSPHERE_INSTALL_DIR:-/usr/local/bin}"
 ATMOSPHERE_HOME="${ATMOSPHERE_HOME:-$HOME/.atmosphere}"
 BASE_URL="https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli"
