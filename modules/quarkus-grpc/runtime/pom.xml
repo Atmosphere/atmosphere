@@ -3,7 +3,7 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-quarkus-grpc-parent</artifactId>
-        <version>4.0.57</version>
+        <version>4.0.58-SNAPSHOT</version>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>

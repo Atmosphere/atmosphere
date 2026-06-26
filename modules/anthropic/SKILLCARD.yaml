@@ -31,7 +31,7 @@ license:
 artifact:
   group_id: org.atmosphere
   artifact_id: atmosphere-anthropic
-  version: 4.0.57
+  version: 4.0.58-SNAPSHOT
   packaging: jar
   module_path: modules/anthropic
 
