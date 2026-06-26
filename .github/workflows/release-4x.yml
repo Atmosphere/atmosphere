@@ -186,6 +186,14 @@ jobs:
     - name: Update documentation versions
       run: ./scripts/update-doc-versions.sh ${{ inputs.release_version }}
 
+    - name: Verify no Atmosphere doc-version drift remains
+      # Fail-fast BEFORE any irreversible Maven Central publish if the sweep
+      # above missed a doc. cli/samples.json is bumped in a later job, so pass
+      # the release version explicitly. This caught the 4.0.57 rag-chat
+      # getting-started doc lagging at 4.0.56 (the sweep ran but the commit
+      # step did not stage samples/**/*.md — fixed below).
+      run: ATMO_RELEASED_VERSION=${{ inputs.release_version }} ./scripts/validate-atmosphere-doc-version.sh
+
     - name: Regenerate SKILLCARD manifests
       # SKILLCARD.yaml stamps the artifact version from each module pom. Without
       # regenerating after versions:set, the manifests lag the bump and the
@@ -258,7 +266,7 @@ jobs:
     - name: Commit release version
       if: inputs.dry_run == false
       run: |
-        git add -- pom.xml '**/pom.xml' README.md '**/README.md' '**/SKILLCARD.yaml' CHANGELOG.md || true
+        git add -- pom.xml '**/pom.xml' README.md '**/README.md' 'docs/**/*.md' 'samples/**/*.md' '**/SKILLCARD.yaml' CHANGELOG.md || true
         git commit -m "release: Atmosphere ${{ inputs.release_version }}"
         # Remove stale tag from a previous failed attempt (if any)
         git tag -d "atmosphere-${{ inputs.release_version }}" 2>/dev/null || true

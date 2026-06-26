@@ -70,18 +70,23 @@ if ap.exists():
         if line and not line.startswith("#"):
             allow.append(line)
 
-# ── Source of truth: the current released version. cli/samples.json is what
-#    update-doc-versions.sh bumps alongside the doc <version> tags. ──
-samples = Path("cli/samples.json")
-if not samples.exists():
-    print("validate-atmosphere-doc-version.sh: cli/samples.json not found — cannot "
-          "determine the released version", file=sys.stderr)
-    sys.exit(1)
-released = json.loads(samples.read_text()).get("version")
+# ── Source of truth: the current released version. By default cli/samples.json
+#    (what update-doc-versions.sh bumps alongside the doc <version> tags). The
+#    release workflow runs the doc sweep BEFORE the cli/samples.json bump (a
+#    later job), so it passes the release version explicitly via the
+#    ATMO_RELEASED_VERSION env var to self-check the sweep before publishing. ──
+released = os.environ.get("ATMO_RELEASED_VERSION", "").strip()
 if not released:
-    print("validate-atmosphere-doc-version.sh: cli/samples.json has no .version",
-          file=sys.stderr)
-    sys.exit(1)
+    samples = Path("cli/samples.json")
+    if not samples.exists():
+        print("validate-atmosphere-doc-version.sh: cli/samples.json not found — cannot "
+              "determine the released version", file=sys.stderr)
+        sys.exit(1)
+    released = json.loads(samples.read_text()).get("version")
+    if not released:
+        print("validate-atmosphere-doc-version.sh: cli/samples.json has no .version",
+              file=sys.stderr)
+        sys.exit(1)
 
 # A <dependency>/<parent> block (xml fenced or inline), non-greedy.
 BLOCK = re.compile(r"<(dependency|parent)>(.*?)</\1>", re.DOTALL | re.IGNORECASE)
