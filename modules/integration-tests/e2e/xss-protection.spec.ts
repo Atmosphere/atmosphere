@@ -30,6 +30,16 @@ async function sendMessage(page: import('@playwright/test').Page, text: string) 
   await input.press('Enter');
 }
 
+/**
+ * XSS Protection E2E — skipped pending reliable console WebSocket connect in CI
+ * (the same harness limitation that gates the other console streaming specs).
+ *
+ * The actual XSS defense is implemented and unit-tested without a browser:
+ * renderMarkdown() routes all console output through DOMPurify before any
+ * `v-html` binding (modules/spring-boot-starter/frontend/src/lib/markdown.ts),
+ * and markdown.test.ts asserts script / onerror / javascript: payloads are
+ * stripped. These browser tests document the end-to-end gap; they do not run yet.
+ */
 test.describe.skip('XSS Protection', () => {
   test('script tags in messages are not executed', async ({ browser }) => {
     const ctx1 = await browser.newContext();

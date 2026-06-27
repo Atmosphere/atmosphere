@@ -204,18 +204,19 @@ Set `atmosphere.skills.offline=true` for air-gapped environments.
 ## Switching AI Runtimes
 
 Atmosphere has twelve contract-tested `AgentRuntime` adapters. This sample ships ready-made
-dependency toggles for four of them, and only one is active at a time — swap by
+dependency toggles for five of them, and only one is active at a time — swap by
 editing the dependencies in `pom.xml`:
 
 | Runtime | Default | Profile | Notes |
 |---------|---------|---------|-------|
-| **Google ADK** | Yes | — | `atmosphere-adk` + `google-adk` |
+| **JetBrains Koog** | Yes | — | `atmosphere-koog` (requires Kotlin 2.x stdlib, pinned in `dependencyManagement`) |
+| **Google ADK** | No | — | `atmosphere-adk` + `google-adk` (Gemini-only) |
 | **Embabel** | No | `-Pspring-boot3` | `atmosphere-embabel` + Embabel starters (requires SB 3.5) |
 | **Spring AI** | No | — | `atmosphere-spring-ai` + `spring-ai-openai` |
 | **LangChain4j** | No | — | `atmosphere-langchain4j` + `langchain4j-open-ai` |
 
 To switch to Embabel:
-1. Comment out ADK dependencies in `pom.xml`
+1. Comment out the active Koog dependency in `pom.xml`
 2. Uncomment Embabel dependencies
 3. Run with: `./mvnw spring-boot:run -pl samples/spring-boot-multi-agent-startup-team -Pspring-boot3`
 

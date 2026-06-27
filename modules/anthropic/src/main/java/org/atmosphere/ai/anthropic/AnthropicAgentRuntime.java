@@ -214,17 +214,17 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
         //                            AnthropicMessagesClient.userMessageWithParts
         //   MULTI_MODAL           — same code path; an Anthropic user message
         //                            can interleave text + image blocks
-        // NOT claimed:
-        //   TOOL_CALL_DELTA       — input_json_delta arrives but is not
-        //                            forwarded via session.toolCallDelta yet
-        //   AUDIO                 — Anthropic Messages has no audio block
-        //                            (Content.Audio is dropped with a debug log)
         //   NATIVE_STRUCTURED_OUTPUT — buildRequestBody threads the generated
         //                            JSON Schema into Anthropic's GA
         //                            output_config.format field so the model
         //                            enforces the schema at the provider level;
         //                            AUTO mode falls back to prompt injection on
         //                            a provider rejection.
+        // NOT claimed:
+        //   TOOL_CALL_DELTA       — input_json_delta arrives but is not
+        //                            forwarded via session.toolCallDelta yet
+        //   AUDIO                 — Anthropic Messages has no audio block
+        //                            (Content.Audio is dropped with a debug log)
         //   PROMPT_CACHING        — cache_control blocks deferred
         return Set.of(
                 AiCapability.TEXT_STREAMING,

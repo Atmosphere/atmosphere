@@ -50,7 +50,7 @@ crew (scheduler, research, drafter) dispatched through
 # From the repo root
 ./mvnw compile -pl samples/spring-boot-personal-assistant
 
-# Run with an OpenAI key (Spring AI runtime is the default)
+# Run with an OpenAI key (Built-in OpenAI-compatible runtime is the default)
 export OPENAI_API_KEY=sk-your-key
 ./mvnw spring-boot:run -pl samples/spring-boot-personal-assistant
 
@@ -65,11 +65,13 @@ match a crew member.
 
 ## Switching runtimes
 
-The sample defaults to Spring AI. Atmosphere discovers runtimes via
-`ServiceLoader`; add one runtime artifact to the POM and set
+The sample defaults to the Built-in OpenAI-compatible client (no extra runtime
+dependency — it speaks the OpenAI wire format using `OPENAI_API_KEY`). Atmosphere
+discovers runtimes via `ServiceLoader`; add one runtime artifact to the POM and set
 `atmosphere.ai.runtime` in `application.yml` to switch:
 
-- _(fallback)_ — Built-in OpenAI-compatible client
+- _(default)_ — Built-in OpenAI-compatible client
+- `atmosphere-spring-ai` — Spring AI
 - `atmosphere-adk` — Google ADK
 - `atmosphere-langchain4j` — LangChain4j
 - `atmosphere-koog` — Koog (Kotlin)
