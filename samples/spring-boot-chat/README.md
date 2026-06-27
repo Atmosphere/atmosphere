@@ -155,7 +155,7 @@ Open http://localhost:8080/ in multiple browser tabs to chat.
 
 ```
 spring-boot-chat/
-├── pom.xml                              # Spring Boot 4.0.6 parent
+├── pom.xml                              # Spring Boot 4.0.7 parent
 └── src/main/
     ├── java/org/atmosphere/samples/springboot/chat/
     │   ├── ChatApplication.java         # @SpringBootApplication entry point

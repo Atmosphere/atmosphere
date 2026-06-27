@@ -318,7 +318,7 @@ This frees up runners for the new push. Without this, stale queued runs accumula
 ```
 
 ## Spring Boot Starter Notes
-- Target: Spring Boot 4.0.6, Spring Framework 7.0
+- Target: Spring Boot 4.0.7, Spring Framework 7.0
 - Set object factory BEFORE init()
 - Expose AtmosphereFramework bean but NOT BroadcasterFactory
 - Override parent POM's SLF4J/Logback versions for Spring Boot 4 compatibility

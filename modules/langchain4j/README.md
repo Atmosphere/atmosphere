@@ -163,4 +163,4 @@ across all runtimes.
 
 - Java 21+
 - `atmosphere-ai` (transitive)
-- LangChain4j 1.15.0+
+- LangChain4j 1.17.0+

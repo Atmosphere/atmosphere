@@ -16,6 +16,7 @@
 package org.atmosphere.ai.embabel
 
 import com.embabel.common.ai.model.EmbeddingService
+import com.embabel.common.ai.model.PricingModel
 import org.atmosphere.ai.EmbeddingRuntime
 import org.atmosphere.ai.test.AbstractEmbeddingRuntimeContractTest
 
@@ -39,8 +40,12 @@ internal class EmbabelEmbeddingRuntimeContractTest : AbstractEmbeddingRuntimeCon
         override val dimensions: Int = 8
         // Embabel 0.3.5 dropped the AiModel<Any> super-interface from
         // EmbeddingService — the `model` property is no longer part of the
-        // contract. The minimal stub now only needs the metadata trio
-        // (name / provider / dimensions) plus the two embed() overloads.
+        // contract. Embabel 0.5.0 then re-added a `pricingModel` member via
+        // the EmbeddingServiceMetadata super-interface; a fake embedder is
+        // free, so it reports ALL_YOU_CAN_EAT. The stub thus needs the
+        // metadata trio (name / provider / dimensions), the pricing model,
+        // and the two embed() overloads.
+        override val pricingModel: PricingModel = PricingModel.ALL_YOU_CAN_EAT
         override fun embed(text: String): FloatArray {
             val vector = FloatArray(8)
             vector[0] = text.length.toFloat()
