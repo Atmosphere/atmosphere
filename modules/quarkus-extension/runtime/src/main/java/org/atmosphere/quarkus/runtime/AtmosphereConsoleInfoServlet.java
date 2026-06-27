@@ -92,6 +92,12 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
         if (ragSafety != null) {
             payload.put("ragSafety", ragSafety);
         }
+        // Long-term-memory injection-safety runtime truth, in parity with the
+        // Spring starter (Invariant #5): present only when the screen is active.
+        var memorySafety = detectMemorySafety(framework);
+        if (memorySafety != null) {
+            payload.put("memorySafety", memorySafety);
+        }
 
         resp.setStatus(HttpServletResponse.SC_OK);
         resp.setContentType("application/json;charset=UTF-8");
@@ -214,6 +220,44 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
             return map;
         } catch (LinkageError | ReflectiveOperationException e) {
             logger.debug("RAG injection-safety state not available", e);
+            return null;
+        }
+    }
+
+    /**
+     * Runtime-truth view of the long-term-memory injection-safety screen, read
+     * reflectively so this servlet keeps no hard compile-time link to
+     * {@code atmosphere-ai}. Present only when {@code MemorySafetyConfig}
+     * published an active state into the framework property bag; the reported
+     * tier is the effective one after any runtime-absent downgrade. Key literal
+     * mirrors {@code MemorySafetyConfig.RUNTIME_STATE_PROPERTY}.
+     */
+    private static Map<String, Object> detectMemorySafety(AtmosphereFramework framework) {
+        if (framework == null) {
+            return null;
+        }
+        try {
+            var cfg = framework.getAtmosphereConfig();
+            if (cfg == null) {
+                return null;
+            }
+            var state = cfg.properties().get("org.atmosphere.ai.memory.safety.runtime-state");
+            if (state == null) {
+                return null;
+            }
+            var active = state.getClass().getMethod("active").invoke(state);
+            if (!Boolean.TRUE.equals(active)) {
+                return null;
+            }
+            var tier = state.getClass().getMethod("tier").invoke(state);
+            var breach = state.getClass().getMethod("breach").invoke(state);
+            var map = new LinkedHashMap<String, Object>();
+            map.put("active", Boolean.TRUE);
+            map.put("tier", String.valueOf(tier));
+            map.put("breach", String.valueOf(breach));
+            return map;
+        } catch (LinkageError | ReflectiveOperationException e) {
+            logger.debug("Memory injection-safety state not available", e);
             return null;
         }
     }

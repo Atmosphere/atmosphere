@@ -18,6 +18,7 @@ package org.atmosphere.ai.memory;
 import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.AiRequest;
+import org.atmosphere.ai.governance.memory.MemorySafetyConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,7 +62,13 @@ public class LongTermMemoryInterceptor implements AiInterceptor {
                                      AgentRuntime extractionRuntime,
                                      int maxFactsToInject,
                                      MemoryConsolidationStrategy consolidation) {
-        this.memory = memory;
+        // Default-on injection-safety screen on the write path (OWASP Agentic
+        // A03 — Memory Poisoning): extracted facts are screened before they are
+        // persisted and later re-injected into the system prompt. The framework
+        // resolves the policy at startup via MemorySafetyConfig.installDefault;
+        // it begins fail-closed-on, so memory is screened even before the
+        // Spring / Quarkus bridge runs. No-op when already screened.
+        this.memory = MemorySafetyConfig.installedDefault().wrap(memory);
         this.strategy = strategy;
         this.extractionRuntime = extractionRuntime;
         this.maxFactsToInject = maxFactsToInject;

@@ -20,6 +20,7 @@ import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.facts.FactResolver;
 import org.atmosphere.ai.filter.PiiRedactionFilter;
 import org.atmosphere.ai.governance.GovernancePolicy;
+import org.atmosphere.ai.governance.memory.MemorySafetyConfig;
 import org.atmosphere.ai.governance.rag.RagSafetyConfig;
 import org.atmosphere.ai.guardrails.OutputLengthZScoreGuardrail;
 import org.atmosphere.ai.guardrails.PiiRedactionGuardrail;
@@ -201,6 +202,25 @@ public class AtmosphereAiAutoConfiguration {
         }
         logger.info("RAG injection-safety: enabled={}, tier={}, onBreach={}, failOpen={}",
                 rag.isEnabled(), rag.getTier(), rag.getOnBreach(), rag.isFailOpen());
+        // Bridge the long-term-memory injection-safety policy (OWASP Agentic A03)
+        // into framework init-params, then resolve + install it as the framework
+        // default so LongTermMemoryInterceptor screens every extracted fact before
+        // it is persisted. On by default and fail-closed; disable with
+        // atmosphere.ai.memory.safety.enabled=false.
+        var mem = properties.getAi().getMemory().getSafety();
+        framework.addInitParameter(MemorySafetyConfig.ENABLED_KEY, String.valueOf(mem.isEnabled()));
+        framework.addInitParameter(MemorySafetyConfig.FAIL_OPEN_KEY, String.valueOf(mem.isFailOpen()));
+        if (mem.getTier() != null) {
+            framework.addInitParameter(MemorySafetyConfig.TIER_KEY, mem.getTier());
+        }
+        if (mem.getOnBreach() != null) {
+            framework.addInitParameter(MemorySafetyConfig.ON_BREACH_KEY, mem.getOnBreach());
+        }
+        // AiEndpointProcessor resolves + installs + publishes this once per
+        // framework (before any LongTermMemoryInterceptor is built), so the
+        // bridge only needs to seed the init-params above.
+        logger.info("Memory injection-safety: enabled={}, tier={}, onBreach={}, failOpen={}",
+                mem.isEnabled(), mem.getTier(), mem.getOnBreach(), mem.isFailOpen());
         return new AtmosphereAiEndpointRegistrar(framework, properties, guardrails);
     }
 

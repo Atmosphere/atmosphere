@@ -152,15 +152,18 @@ public final class ComplianceMatrix {
                             new Evidence("org.atmosphere.ai.governance.AuditSink",
                                     "org.atmosphere.ai.governance.AuditSinkTest",
                                     "AuditSink",
-                                    "Persistent sink SPI — Kafka + JDBC reference modules ship "
-                                            + "for long-term retention"),
+                                    "Opt-in persistent sink SPI — Kafka + JDBC reference modules "
+                                            + "ship for long-term retention beyond the default "
+                                            + "in-memory ring buffer"),
                             new Evidence("org.atmosphere.coordinator.commitment.CommitmentRecord",
                                     "org.atmosphere.coordinator.commitment.CommitmentRecordTest",
                                     "CommitmentRecord",
-                                    "Ed25519-signed dispatch records close the tamper-evidence "
-                                            + "gap Article 12 specifically asks for")),
-                    "Full coverage: every decision is logged, signing provides tamper-evidence, "
-                            + "and downstream Kafka/Postgres sinks handle retention."),
+                                    "Opt-in Ed25519-signed dispatch records (flag-off) — "
+                                            + "tamper-evidence for mutations routed through the coordinator")),
+                    "Every policy decision is logged to an in-memory ring buffer that the Spring "
+                            + "starter installs by default (capacity 500). Long-term retention "
+                            + "(Kafka/Postgres AuditSinks) and Ed25519 tamper-evidence "
+                            + "(CommitmentRecord) are opt-in on top."),
 
             new Row("EU-AIA-13", "Transparency + information to deployers",
                     "Article 13 — information that enables deployers to interpret and use "
@@ -213,13 +216,17 @@ public final class ComplianceMatrix {
                                     "ScopePolicy",
                                     "Scope enforcement + system-prompt hardening — primary "
                                             + "robustness surface against goal hijacking"),
-                            new Evidence("org.atmosphere.coordinator.commitment.AgentStateIntegrity",
-                                    "org.atmosphere.coordinator.commitment.AgentStateIntegrityTest",
-                                    "AgentStateIntegrity",
-                                    "Ed25519 seals on AgentState memory snapshots — cybersecurity "
-                                            + "layer for long-term memory")),
-                    "Defense in depth: RAG injection filtering, scope confinement, memory "
-                            + "integrity seals, HITL approvals on privileged actions."));
+                            new Evidence("org.atmosphere.ai.governance.memory.MemorySafetyConfig",
+                                    "org.atmosphere.ai.governance.memory.MemorySafetyTest",
+                                    "MemorySafetyConfig",
+                                    "Default-on long-term-memory injection screen — cybersecurity "
+                                            + "layer that keeps poisoned facts out of the store")),
+                    "Defense in depth, on by default: RAG read-path injection filtering, long-term-"
+                            + "memory write-path injection screening, scope confinement + "
+                            + "system-prompt hardening, HITL approvals on privileged actions. Opt-in "
+                            + "Ed25519 memory seals (AgentStateIntegrity — API + reference impl, not "
+                            + "yet wired to a default consumer) add cryptographic tamper-evidence "
+                            + "for deployments that require it."));
 
     /** HIPAA Security Rule — 5 safeguards most directly mapped to Atmosphere primitives. */
     public static final List<Row> HIPAA = List.of(
@@ -266,26 +273,35 @@ public final class ComplianceMatrix {
                             new Evidence("org.atmosphere.ai.governance.AuditSink",
                                     "org.atmosphere.ai.governance.AuditSinkTest",
                                     "AuditSink",
-                                    "Persistent sinks (Kafka, JDBC) retain audit records beyond "
-                                            + "the in-memory ring buffer")),
-                    "Full audit-trail surface with retention options."),
+                                    "Opt-in persistent sinks (Kafka, JDBC) retain audit records "
+                                            + "beyond the default in-memory ring buffer")),
+                    "Every admission decision is recorded to the in-memory ring buffer the Spring "
+                            + "starter installs by default; persistent Kafka/JDBC sinks for "
+                            + "long-term retention are opt-in."),
 
             new Row("HIPAA-164.312-c-1", "Integrity — protect ePHI from alteration",
                     "§164.312(c)(1) — electronic protected health information is not "
                             + "improperly altered or destroyed.",
-                    Coverage.COVERED,
+                    Coverage.PARTIAL,
                     List.of(
-                            new Evidence("org.atmosphere.coordinator.commitment.AgentStateIntegrity",
-                                    "org.atmosphere.coordinator.commitment.AgentStateIntegrityTest",
-                                    "AgentStateIntegrity",
-                                    "Ed25519 seals on AgentState snapshots — tamper-evident "
-                                            + "memory"),
+                            new Evidence("org.atmosphere.ai.governance.memory.MemorySafetyConfig",
+                                    "org.atmosphere.ai.governance.memory.MemorySafetyTest",
+                                    "MemorySafetyConfig",
+                                    "Default-on long-term-memory injection screen — keeps poisoned "
+                                            + "facts out of the store, protecting the integrity of "
+                                            + "what is written"),
                             new Evidence("org.atmosphere.coordinator.commitment.CommitmentRecord",
                                     "org.atmosphere.coordinator.commitment.CommitmentRecordTest",
                                     "CommitmentRecord",
-                                    "Signed dispatch records prevent replay / forgery of "
-                                            + "coordinator decisions")),
-                    "Memory and dispatch both carry cryptographic integrity evidence."),
+                                    "Opt-in Ed25519-signed dispatch records (flag-off) — prevent "
+                                            + "replay / forgery of coordinator decisions")),
+                    "PARTIAL — the long-term-memory injection screen (MemorySafetyConfig, "
+                            + "default-on) prevents an attacker from writing poisoned facts, "
+                            + "protecting the integrity of what is stored. Cryptographic "
+                            + "tamper-evidence on already-stored snapshots is opt-in: Ed25519-signed "
+                            + "CommitmentRecords (flag-off) and the AgentStateIntegrity seal utility "
+                            + "(API + reference impl, not yet wired to a default consumer), both "
+                            + "requiring a durable operator key."),
 
             new Row("HIPAA-164.312-e-1", "Transmission security",
                     "§164.312(e)(1) — technical security measures to guard against "
@@ -362,9 +378,11 @@ public final class ComplianceMatrix {
                             new Evidence("org.atmosphere.coordinator.commitment.CommitmentRecord",
                                     "org.atmosphere.coordinator.commitment.CommitmentRecordTest",
                                     "CommitmentRecord",
-                                    "Signed dispatch records survive post-incident verification")),
-                    "Admin console decisions + signed commitment records give responders "
-                            + "verifiable evidence of what happened."),
+                                    "Opt-in signed dispatch records (flag-off) survive "
+                                            + "post-incident verification when enabled")),
+                    "The in-memory decision log the Spring starter installs by default drives "
+                            + "incident triage through the admin console; opt-in Ed25519 "
+                            + "CommitmentRecords add verifiable post-incident evidence when enabled."),
 
             new Row("SOC2-CC8.1", "Change management",
                     "CC8.1 — authorize, design, develop, configure, document, test, approve, "

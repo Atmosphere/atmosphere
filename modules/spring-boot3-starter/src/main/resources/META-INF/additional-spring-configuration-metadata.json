@@ -31,6 +31,30 @@
       "defaultValue": false
     },
     {
+      "name": "atmosphere.ai.memory.safety.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether to screen every fact written to a LongTermMemory store for indirect prompt injection (OWASP Agentic A03 — Memory Poisoning) before it is persisted and re-injected. On by default; set false to disable.",
+      "defaultValue": true
+    },
+    {
+      "name": "atmosphere.ai.memory.safety.tier",
+      "type": "java.lang.String",
+      "description": "Injection-classifier tier for the memory write path: RULE_BASED (default, zero-dependency), EMBEDDING_SIMILARITY (needs an EmbeddingRuntime), or LLM_CLASSIFIER (needs an AgentRuntime). Higher tiers downgrade to RULE_BASED when their runtime is absent.",
+      "defaultValue": "RULE_BASED"
+    },
+    {
+      "name": "atmosphere.ai.memory.safety.on-breach",
+      "type": "java.lang.String",
+      "description": "Action for a flagged fact: DROP (default), FLAG (persist with a marker prefix), or SANITIZE (persist a non-actionable placeholder).",
+      "defaultValue": "DROP"
+    },
+    {
+      "name": "atmosphere.ai.memory.safety.fail-open",
+      "type": "java.lang.Boolean",
+      "description": "Admit facts when the classifier errors. Default false (fail-closed) — an undetectable poisoned fact is worse than a dropped memory.",
+      "defaultValue": false
+    },
+    {
       "name": "atmosphere.servlet-path",
       "type": "java.lang.String",
       "description": "URL mapping for the Atmosphere servlet.",

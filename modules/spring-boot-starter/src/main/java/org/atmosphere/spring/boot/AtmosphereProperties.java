@@ -324,6 +324,8 @@ public class AtmosphereProperties {
 
         private Rag rag = new Rag();
 
+        private Memory memory = new Memory();
+
         public boolean isEnabled() {
             return enabled;
         }
@@ -346,6 +348,14 @@ public class AtmosphereProperties {
 
         public void setRag(Rag rag) {
             this.rag = rag;
+        }
+
+        public Memory getMemory() {
+            return memory;
+        }
+
+        public void setMemory(Memory memory) {
+            this.memory = memory;
         }
 
         public boolean isFailFast() {
@@ -472,6 +482,79 @@ public class AtmosphereProperties {
             private String onBreach = "DROP";
 
             /** Admit documents on classifier error. Default {@code false} (fail-closed). */
+            private boolean failOpen;
+
+            public boolean isEnabled() {
+                return enabled;
+            }
+
+            public void setEnabled(boolean enabled) {
+                this.enabled = enabled;
+            }
+
+            public String getTier() {
+                return tier;
+            }
+
+            public void setTier(String tier) {
+                this.tier = tier;
+            }
+
+            public String getOnBreach() {
+                return onBreach;
+            }
+
+            public void setOnBreach(String onBreach) {
+                this.onBreach = onBreach;
+            }
+
+            public boolean isFailOpen() {
+                return failOpen;
+            }
+
+            public void setFailOpen(boolean failOpen) {
+                this.failOpen = failOpen;
+            }
+        }
+    }
+
+    /**
+     * Long-term-memory configuration group, bound to {@code atmosphere.ai.memory.*}.
+     * Currently carries the injection-safety screen
+     * ({@code atmosphere.ai.memory.safety.*}).
+     */
+    public static class Memory {
+
+        private MemorySafety safety = new MemorySafety();
+
+        public MemorySafety getSafety() {
+            return safety;
+        }
+
+        public void setSafety(MemorySafety safety) {
+            this.safety = safety;
+        }
+
+        /**
+         * Long-term-memory injection-safety screen, bound to
+         * {@code atmosphere.ai.memory.safety.*}. Every fact extracted into a
+         * {@code LongTermMemory} store is screened for indirect prompt injection
+         * (OWASP Agentic A03 — Memory Poisoning) before it is persisted and later
+         * re-injected into the system prompt. On by default and fail-closed —
+         * disable with {@code atmosphere.ai.memory.safety.enabled=false}.
+         */
+        public static class MemorySafety {
+
+            /** Master switch. Default {@code true} (protected out of the box). */
+            private boolean enabled = true;
+
+            /** Classifier tier: {@code RULE_BASED} (default), {@code EMBEDDING_SIMILARITY}, {@code LLM_CLASSIFIER}. */
+            private String tier = "RULE_BASED";
+
+            /** Breach policy: {@code DROP} (default), {@code FLAG}, {@code SANITIZE}. */
+            private String onBreach = "DROP";
+
+            /** Admit facts on classifier error. Default {@code false} (fail-closed). */
             private boolean failOpen;
 
             public boolean isEnabled() {

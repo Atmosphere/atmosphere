@@ -156,48 +156,60 @@ public final class OwaspAgenticMatrix {
                                     "Tool-call admission seam — auto-injects tool_name + action into metadata before the tool executor runs"),
                             new Evidence("org.atmosphere.ai.governance.MsAgentOsPolicy",
                                     "org.atmosphere.ai.governance.MsAgentOsYamlConformanceTest",
-                                    "tool_name",
-                                    "MS-schema YAML rules deny specific tool invocations by context.tool_name")),
-                    "COVERED via three layers: @RequiresApproval HITL gate, "
-                            + "PolicyAdmissionGate.admitToolCall auto-injecting tool_name at dispatch "
-                            + "(ToolExecutionHelper calls it before executeAndFormat), and MS-schema "
-                            + "YAML rules over tool_name. The canonical MS example "
-                            + "{field: tool_name, operator: eq, value: delete_database, action: deny} "
-                            + "fires without operator plumbing."),
+                                    "MsAgentOsPolicy",
+                                    "Opt-in MS-schema YAML policy — the operator supplies tool-deny "
+                                            + "rules (e.g. {field: tool_name, operator: eq, "
+                                            + "value: delete_database, action: deny}), parsed by "
+                                            + "YamlPolicyParser; no code, but not on by default")),
+                    "COVERED by two default-on layers: the @RequiresApproval HITL gate parks the "
+                            + "virtual thread on a privileged @AiTool until a human approves, and "
+                            + "PolicyAdmissionGate.admitToolCall runs on every tool dispatch "
+                            + "(ToolExecutionHelper calls it before the executor), auto-injecting "
+                            + "tool_name + action into the admission context. MS-schema YAML rules "
+                            + "over tool_name are an opt-in third layer — the operator supplies the "
+                            + "rule (no code), but there are no default deny rules."),
 
             new Row("A03", "Memory Poisoning",
                     "Adversary writes malicious content into long-term memory or RAG store.",
                     Coverage.COVERED,
                     List.of(
-                            new Evidence("org.atmosphere.coordinator.commitment.AgentStateIntegrity",
-                                    "org.atmosphere.coordinator.commitment.AgentStateIntegrityTest",
-                                    "AgentStateIntegrity",
-                                    "Ed25519 seal/verify utility for AgentState memory snapshots. "
-                                            + "Domain-separated payload binds content to its memory "
-                                            + "slot so cross-slot replay fails."),
-                            new Evidence("org.atmosphere.coordinator.commitment.CommitmentRecord",
-                                    "org.atmosphere.coordinator.commitment.CommitmentRecordTest",
-                                    "CommitmentRecord",
-                                    "Ed25519-signed dispatch records — verifiable audit trail for "
-                                            + "any memory mutation that rides through the coordinator "
-                                            + "(flag-off default)"),
-                            new Evidence("org.atmosphere.coordinator.commitment.Ed25519CommitmentSigner",
-                                    "org.atmosphere.coordinator.commitment.CommitmentRecordTest",
-                                    "Ed25519CommitmentSigner",
-                                    "JDK 21 built-in EdDSA signer — no external crypto dep; "
-                                            + "shared with the AgentStateIntegrity seal format"),
+                            new Evidence("org.atmosphere.ai.governance.memory.MemorySafetyConfig",
+                                    "org.atmosphere.ai.governance.memory.MemorySafetyTest",
+                                    "MemorySafetyConfig",
+                                    "Default-on write-path screen: every fact extracted into a "
+                                            + "LongTermMemory store is checked for indirect prompt "
+                                            + "injection before it is persisted and re-injected, "
+                                            + "fail-closed and rule-based; disable with "
+                                            + "atmosphere.ai.memory.safety.enabled=false"),
+                            new Evidence("org.atmosphere.ai.governance.memory.ScreenedLongTermMemory",
+                                    "org.atmosphere.ai.governance.memory.MemorySafetyTest",
+                                    "ScreenedLongTermMemory",
+                                    "Decorator that enforces the memory write-path screen — drops / "
+                                            + "flags / sanitizes a poisoned fact and audits the "
+                                            + "enforcement to GovernanceDecisionLog"),
                             new Evidence("org.atmosphere.ai.governance.rag.SafetyContextProvider",
                                     "org.atmosphere.ai.governance.rag.SafetyContextProviderTest",
                                     "SafetyContextProvider",
-                                    "Filters injected documents from RAG retrieval — prevents "
-                                            + "poisoned RAG corpora from reaching the prompt (A04 overlap)")),
-                    "COVERED via two layers: AgentStateIntegrity seals long-term memory snapshots "
-                            + "with domain-separated Ed25519 signatures, and SafetyContextProvider "
-                            + "filters injected content out of the RAG retrieval path. The "
-                            + "coordinator's CommitmentRecord provides the audit trail for any "
-                            + "memory mutation that rides through dispatch. All three are flag-off "
-                            + "by default; operators opt in for deployments that require "
-                            + "tamper-evident memory."),
+                                    "Default-on read-path screen: filters injected documents from "
+                                            + "RAG retrieval before they reach the prompt (A04 overlap)"),
+                            new Evidence("org.atmosphere.ai.governance.rag.RagSafetyConfig",
+                                    "org.atmosphere.ai.governance.rag.RagSafetyConfigTest",
+                                    "RagSafetyConfig",
+                                    "Default-on read-path wiring that wraps every @AiEndpoint "
+                                            + "ContextProvider with SafetyContextProvider")),
+                    "COVERED — on by default on both halves of A03. The write path screens every "
+                            + "fact extracted into a LongTermMemory store (MemorySafetyConfig wraps "
+                            + "the store with ScreenedLongTermMemory) before it is persisted and "
+                            + "re-injected; the read path screens every retrieved RAG document "
+                            + "(RagSafetyConfig wraps the ContextProvider with SafetyContextProvider). "
+                            + "Both are fail-closed, rule-based, zero-dependency; disable with "
+                            + "atmosphere.ai.memory.safety.enabled=false / "
+                            + "atmosphere.ai.rag.safety.enabled=false. Opt-in tamper-evidence is "
+                            + "available on the coordinator dispatch path for deployments that "
+                            + "additionally require signed memory snapshots: Ed25519-signed "
+                            + "CommitmentRecords (flag-off by default) and the AgentStateIntegrity "
+                            + "seal utility (API + reference impl; not yet wired to a default "
+                            + "consumer). Both need a durable operator key, so they stay opt-in."),
 
             new Row("A04", "Indirect Prompt Injection",
                     "Attacker plants instructions in RAG docs / tool outputs / web content the agent ingests.",
@@ -222,7 +234,8 @@ public final class OwaspAgenticMatrix {
                             new Evidence("org.atmosphere.ai.guardrails.PiiRedactionGuardrail",
                                     "org.atmosphere.ai.guardrails.GuardrailsTest",
                                     "PiiRedactionGuardrail",
-                                    "Response-side regex guardrail catches PII leaked via indirect injection"),
+                                    "Opt-in response-side regex guardrail — extra layer catching PII "
+                                            + "leaked via indirect injection when enabled"),
                             new Evidence("org.atmosphere.ai.governance.scope.ScopePolicy",
                                     "org.atmosphere.ai.AiPipelineScopeHardeningTest",
                                     "ScopePolicy",
@@ -240,20 +253,33 @@ public final class OwaspAgenticMatrix {
                     "Multi-agent loop spirals out of control; one agent's failure triggers another.",
                     Coverage.COVERED,
                     List.of(
+                            new Evidence("org.atmosphere.coordinator.fleet.DefaultAgentFleet",
+                                    "",
+                                    "DEFAULT_PARALLEL_TIMEOUT_MS",
+                                    "Default-on 120s timeout on parallel agent fan-out — a stalled "
+                                            + "sub-agent cannot hang the fleet"),
+                            new Evidence("org.atmosphere.ai.llm.ToolLoopPolicy",
+                                    "",
+                                    "ToolLoopPolicy",
+                                    "Default-on tool-loop bound (5 model→tool→model rounds) — caps a "
+                                            + "runaway tool-calling loop at the turn level"),
                             new Evidence("org.atmosphere.ai.guardrails.CostCeilingGuardrail",
                                     "org.atmosphere.ai.guardrails.GuardrailsTest",
                                     "CostCeilingGuardrail",
-                                    "Per-tenant dollar ceiling — blocks outbound prompts when budget exhausted"),
+                                    "Opt-in per-tenant dollar ceiling — blocks outbound prompts when budget exhausted"),
                             new Evidence("org.atmosphere.ai.guardrails.OutputLengthZScoreGuardrail",
                                     "org.atmosphere.ai.guardrails.GuardrailsTest",
                                     "OutputLengthZScoreGuardrail",
-                                    "Z-score drift detector — blocks responses N sigma from rolling mean"),
+                                    "Opt-in z-score drift detector — blocks responses N sigma from rolling mean"),
                             new Evidence("org.atmosphere.coordinator.journal.CoordinationJournal",
                                     "",
                                     "CoordinationJournal",
                                     "Cross-agent dispatch log — observable + rate-inspectable")),
-                    "Backpressure invariant (#3 in CLAUDE.md) is enforced framework-wide; cost + "
-                            + "drift guardrails catch runaway generations at the turn level."),
+                    "Default-on bounds cap runaway loops: a 120s parallel-fan-out timeout "
+                            + "(DefaultAgentFleet) and a 5-round tool-loop cap (ToolLoopPolicy). The "
+                            + "backpressure invariant (#3 in CLAUDE.md) is enforced framework-wide. "
+                            + "Opt-in cost + output-drift guardrails add a per-tenant budget and "
+                            + "length-anomaly blocking on top when enabled."),
 
             new Row("A06", "Unauthorized Action / Privilege Escalation",
                     "Agent performs an action beyond its principal's authorization.",
@@ -276,18 +302,24 @@ public final class OwaspAgenticMatrix {
 
             new Row("A07", "Output Leakage / Sensitive Information Disclosure",
                     "Agent reveals secrets, PII, or internal data through generated text.",
-                    Coverage.COVERED,
+                    Coverage.PARTIAL,
                     List.of(
                             new Evidence("org.atmosphere.ai.filter.PiiRedactionFilter",
                                     "org.atmosphere.ai.filter.PiiRedactionFilterTest",
                                     "PiiRedactionFilter",
-                                    "Stream-level PII rewrite — rewrites tokens before bytes flush to client"),
+                                    "Opt-in stream-level PII rewrite — rewrites tokens before bytes flush to client"),
                             new Evidence("org.atmosphere.ai.guardrails.PiiRedactionGuardrail",
                                     "org.atmosphere.ai.guardrails.GuardrailsTest",
                                     "PiiRedactionGuardrail",
-                                    "Pre-admission + response-side PII detector")),
-                    "Both wire-level (filter) and turn-level (guardrail) coverage. Regex patterns "
-                            + "ship for email, phone, credit card, SSN, IPv4; operators extend via "
+                                    "Opt-in pre-admission + response-side PII detector")),
+                    "PARTIAL — PII redaction ships as a stream-level filter (PiiRedactionFilter, "
+                            + "wire-level token rewrite) and a turn-level guardrail "
+                            + "(PiiRedactionGuardrail, response-side block), with regex for email / "
+                            + "phone / credit-card / SSN / IPv4. Both are OPT-IN, not default-on: a "
+                            + "default response block would terminate any legitimate answer that "
+                            + "contains a customer's own email or IP, so the operator enables them "
+                            + "explicitly (the Spring starter beans, an @AiEndpoint(filters=...) "
+                            + "declaration, or PolicyRegistry YAML) and extends patterns via "
                             + "withPatterns()."),
 
             new Row("A08", "Supply Chain Compromise (Plugin / MCP)",
@@ -302,20 +334,29 @@ public final class OwaspAgenticMatrix {
                     "Attacker pumps expensive prompts, exhausts API budget, or forces large token generations.",
                     Coverage.COVERED,
                     List.of(
-                            new Evidence("org.atmosphere.ai.guardrails.CostCeilingGuardrail",
-                                    "org.atmosphere.ai.guardrails.GuardrailsTest",
-                                    "CostCeilingGuardrail",
-                                    "Per-tenant budget; blocks outbound prompts when exhausted"),
                             new Evidence("org.atmosphere.ai.gateway.PerUserRateLimiter",
                                     "",
                                     "PerUserRateLimiter",
-                                    "Per-user call rate limit on AiGateway admission path"),
+                                    "Default-on per-user rate limiter on the AiGateway admission path "
+                                            + "that every AbstractAgentRuntime call traverses; "
+                                            + "permissive 1M-calls/hour backstop, tighten via "
+                                            + "AiGatewayHolder.install(...)"),
+                            new Evidence("org.atmosphere.ai.guardrails.CostCeilingGuardrail",
+                                    "org.atmosphere.ai.guardrails.GuardrailsTest",
+                                    "CostCeilingGuardrail",
+                                    "Opt-in per-tenant budget; blocks outbound prompts when exhausted"),
                             new Evidence("org.atmosphere.ai.guardrails.OutputLengthZScoreGuardrail",
                                     "org.atmosphere.ai.guardrails.GuardrailsTest",
                                     "OutputLengthZScoreGuardrail",
-                                    "Caps runaway generations via length-drift detection")),
-                    "Three defensive layers: per-tenant cost, per-user rate, per-response length drift. "
-                            + "Cost + rate are observable in real time through Micrometer / OTel."),
+                                    "Opt-in cap on runaway generations via length-drift detection")),
+                    "Default-on: a per-user rate limiter sits on the AiGateway admission path that "
+                            + "every runtime call passes through (AbstractAgentRuntime → "
+                            + "AiGatewayHolder), at a permissive 1M-calls/hour backstop — the "
+                            + "framework warns at startup that the default is permissive and "
+                            + "production should call AiGatewayHolder.install(...) to tighten it. "
+                            + "Opt-in cost + length-drift guardrails add a per-tenant dollar ceiling "
+                            + "and runaway-generation caps; cost + rate are observable in real time "
+                            + "through Micrometer / OTel."),
 
             new Row("A10", "Lack of Accountability / No Audit Trail",
                     "Agent decisions cannot be traced back to policies, principals, or turn context.",

@@ -38,6 +38,8 @@ import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.ai.governance.GovernancePolicies;
 import org.atmosphere.ai.governance.GovernancePolicy;
 import org.atmosphere.ai.governance.PolicyAsGuardrail;
+import org.atmosphere.ai.governance.memory.MemorySafetyConfig;
+import org.atmosphere.ai.memory.LongTermMemoryInterceptor;
 import org.atmosphere.ai.governance.rag.RagSafetyConfig;
 import org.atmosphere.ai.governance.scope.ScopeConfig;
 import org.atmosphere.ai.governance.scope.ScopeGuardrailResolver;
@@ -83,6 +85,14 @@ public class AiEndpointProcessor implements Processor<Object> {
                 return;
             }
 
+            // Resolve + install the long-term-memory injection-safety policy (OWASP
+            // Agentic A03) once per framework, before any LongTermMemoryInterceptor
+            // is constructed below, so operator overrides (atmosphere.ai.memory.safety.*
+            // bridged into init-params by Spring / Quarkus) take effect and the
+            // runtime-state is published for the console (Invariant #5). Framework-
+            // agnostic — the same call serves the @AiEndpoint path on every runtime.
+            installMemorySafetyOnce(framework);
+
             var promptMethod = findPromptMethod(annotatedClass);
             if (promptMethod == null) {
                 logger.error("@AiEndpoint class {} has no @Prompt method", annotatedClass.getName());
@@ -102,6 +112,14 @@ public class AiEndpointProcessor implements Processor<Object> {
             var runtime = resolveRuntimeWithRouting(fallbackStrategy, settings,
                     annotation.requires());
             var interceptors = instantiateInterceptors(annotation.interceptors(), framework);
+            // Publish memory injection-safety as runtime truth only when this
+            // endpoint actually wires long-term memory — symmetric to ragSafety,
+            // which publishes only once a ContextProvider is wrapped. Advertising
+            // the screen on an endpoint with no memory store would be exactly the
+            // configured-intent overstatement Invariant #5 forbids.
+            if (interceptors.stream().anyMatch(i -> i instanceof LongTermMemoryInterceptor)) {
+                MemorySafetyConfig.installedDefault().publishActive(framework);
+            }
             AiConversationMemory memory = null;
             if (annotation.conversationMemory()) {
                 memory = resolveMemory(annotation.maxHistoryMessages());
@@ -464,6 +482,26 @@ public class AiEndpointProcessor implements Processor<Object> {
      */
     private List<GovernancePolicy> instantiatePolicies(AtmosphereFramework framework) {
         return GovernancePolicies.installed(framework);
+    }
+
+    /**
+     * Resolve and install the framework-wide long-term-memory injection-safety
+     * policy exactly once per framework. Guarded by a one-shot marker in the
+     * property bag so the install + runtime-state publish (and its single log
+     * line) happen on the first {@code @AiEndpoint} processed, not per-endpoint.
+     * The memory screen is on out of the box regardless (the
+     * {@link org.atmosphere.ai.governance.memory.MemorySafetyConfig#installedDefault()}
+     * holder begins fail-closed-on); this call applies any operator override and
+     * makes the active state visible to the console.
+     */
+    private void installMemorySafetyOnce(AtmosphereFramework framework) {
+        var cfg = framework.getAtmosphereConfig();
+        if (cfg == null) {
+            return;
+        }
+        if (cfg.properties().putIfAbsent("org.atmosphere.ai.memory.safety.bridged", Boolean.TRUE) == null) {
+            MemorySafetyConfig.installedFrom(framework);
+        }
     }
 
     private List<ContextProvider> instantiateContextProviders(Class<? extends ContextProvider>[] classes,

@@ -221,6 +221,74 @@ public interface AtmosphereConfig {
                 boolean failOpen();
             }
         }
+
+        /**
+         * Long-term-memory configuration block.
+         *
+         * @return the memory sub-configuration block
+         */
+        Memory memory();
+
+        /**
+         * Long-term-memory sub-configuration. Currently carries the
+         * injection-safety screen for the memory write path.
+         */
+        interface Memory {
+
+            /**
+             * Long-term-memory injection-safety screen.
+             *
+             * @return the safety sub-configuration block
+             */
+            Safety safety();
+
+            /**
+             * Long-term-memory injection-safety screen, bound to
+             * {@code quarkus.atmosphere.ai.memory.safety.*}. Every fact extracted
+             * into a {@code LongTermMemory} store is screened for indirect prompt
+             * injection (OWASP Agentic A03 — Memory Poisoning) before it is
+             * persisted and later re-injected. On by default and fail-closed.
+             */
+            interface Safety {
+
+                /**
+                 * Master switch. Defaults to {@code true} (protected out of the
+                 * box); set {@code false} to disable the screen.
+                 *
+                 * @return {@code true} if extracted facts should be screened
+                 */
+                @WithDefault("true")
+                boolean enabled();
+
+                /**
+                 * Classifier tier: {@code RULE_BASED} (default, zero-dependency),
+                 * {@code EMBEDDING_SIMILARITY}, or {@code LLM_CLASSIFIER}. Higher
+                 * tiers downgrade to {@code RULE_BASED} when their runtime is absent.
+                 *
+                 * @return the classifier tier name
+                 */
+                @WithDefault("RULE_BASED")
+                String tier();
+
+                /**
+                 * Breach policy for a flagged fact: {@code DROP} (default),
+                 * {@code FLAG}, or {@code SANITIZE}.
+                 *
+                 * @return the breach policy name
+                 */
+                @WithDefault("DROP")
+                String onBreach();
+
+                /**
+                 * Admit facts when the classifier errors. Defaults to
+                 * {@code false} (fail-closed).
+                 *
+                 * @return {@code true} to admit on classifier error
+                 */
+                @WithDefault("false")
+                boolean failOpen();
+            }
+        }
     }
 
     /**

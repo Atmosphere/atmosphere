@@ -399,6 +399,17 @@ class AtmosphereProcessor {
         builder.addInitParam("org.atmosphere.ai.rag.safety.on-breach", ragSafety.onBreach());
         builder.addInitParam("org.atmosphere.ai.rag.safety.fail-open", String.valueOf(ragSafety.failOpen()));
 
+        // Long-term-memory injection-safety screen (OWASP Agentic A03):
+        // AiEndpointProcessor screens every fact extracted into a LongTermMemory
+        // store before it is persisted. On by default and fail-closed; disable
+        // with quarkus.atmosphere.ai.memory.safety.enabled=false. Keys are
+        // literals mirroring MemorySafetyConfig in atmosphere-ai.
+        var memorySafety = config.ai().memory().safety();
+        builder.addInitParam("org.atmosphere.ai.memory.safety.enabled", String.valueOf(memorySafety.enabled()));
+        builder.addInitParam("org.atmosphere.ai.memory.safety.tier", memorySafety.tier());
+        builder.addInitParam("org.atmosphere.ai.memory.safety.on-breach", memorySafety.onBreach());
+        builder.addInitParam("org.atmosphere.ai.memory.safety.fail-open", String.valueOf(memorySafety.failOpen()));
+
         for (Map.Entry<String, String> entry : config.initParams().entrySet()) {
             builder.addInitParam(entry.getKey(), entry.getValue());
         }

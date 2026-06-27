@@ -19,6 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.atmosphere.ai.AgentRuntimeResolver;
+import org.atmosphere.ai.governance.memory.MemorySafetyConfig;
 import org.atmosphere.ai.governance.rag.RagSafetyConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.slf4j.Logger;
@@ -68,6 +69,13 @@ public class AtmosphereConsoleInfoEndpoint {
         if (ragSafety != null) {
             result.put("ragSafety", ragSafety);
         }
+        // Long-term-memory injection-safety: reported only when MemorySafetyConfig
+        // published an active screen into the framework property bag (Runtime Truth
+        // — Invariant #5), with the effective tier after any runtime-absent downgrade.
+        var memorySafety = detectMemorySafety();
+        if (memorySafety != null) {
+            result.put("memorySafety", memorySafety);
+        }
         return result;
     }
 
@@ -95,6 +103,33 @@ public class AtmosphereConsoleInfoEndpoint {
             }
         } catch (LinkageError | Exception e) {
             logger.debug("RAG injection-safety state not available", e);
+        }
+        return null;
+    }
+
+    /**
+     * Runtime-truth view of the long-term-memory injection-safety screen. Present
+     * only when {@code MemorySafetyConfig} published an active state into the
+     * framework property bag, with the effective tier after any runtime-absent
+     * downgrade. Class-guarded so the console keeps loading when
+     * {@code atmosphere-ai} is absent.
+     */
+    private Map<String, Object> detectMemorySafety() {
+        try {
+            var cfg = framework.getAtmosphereConfig();
+            if (cfg == null) {
+                return null;
+            }
+            var state = cfg.properties().get(MemorySafetyConfig.RUNTIME_STATE_PROPERTY);
+            if (state instanceof MemorySafetyConfig.MemorySafetyRuntimeState s && s.active()) {
+                var map = new LinkedHashMap<String, Object>();
+                map.put("active", true);
+                map.put("tier", s.tier());
+                map.put("breach", s.breach());
+                return map;
+            }
+        } catch (LinkageError | Exception e) {
+            logger.debug("Memory injection-safety state not available", e);
         }
         return null;
     }

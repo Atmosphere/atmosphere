@@ -25,8 +25,10 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Runtime-verified contract: every non-blank {@code consumerGrepPattern}
@@ -121,6 +123,28 @@ class EvidenceConsumerGrepPinTest {
         }
     }
 
+    /**
+     * Regression for the self-satisfying-citation hole: a pattern that appears
+     * only in a comment, Javadoc continuation, or import line must NOT count as
+     * a consumer. Before the gate stripped comments and excluded the matrix
+     * files, a row's own citation string (and any Javadoc mention) self-satisfied
+     * the grep — which is how the unwired {@code AgentStateIntegrity} primitive
+     * passed as "covered".
+     */
+    @Test
+    void commentAndImportMentionsDoNotCountAsConsumers() {
+        assertFalse(mentionsInCode("/*\n * seals via AgentStateIntegrity\n */\n", "AgentStateIntegrity"),
+                "a Javadoc/block-comment mention must not count as a consumer");
+        assertFalse(mentionsInCode(" * seals via AgentStateIntegrity\n", "AgentStateIntegrity"),
+                "a Javadoc continuation line must not count as a consumer");
+        assertFalse(mentionsInCode("import org.atmosphere.x.AgentStateIntegrity;\n", "AgentStateIntegrity"),
+                "an import must not count as a consumer");
+        assertFalse(mentionsInCode("int x = 1; // AgentStateIntegrity\n", "AgentStateIntegrity"),
+                "a trailing line comment must not count as a consumer");
+        assertTrue(mentionsInCode("    var s = new AgentStateIntegrity();\n", "AgentStateIntegrity"),
+                "a real code reference must count as a consumer");
+    }
+
     private static void verifyConsumer(String rowKey, String evidenceClass, String pattern,
                                         boolean selfGate,
                                         List<Path> productionFiles, List<String> failures) {
@@ -150,7 +174,7 @@ class EvidenceConsumerGrepPinTest {
             }
             try {
                 var content = Files.readString(file);
-                if (content.contains(pattern)) {
+                if (mentionsInCode(content, pattern)) {
                     hitFound = true;
                     break;
                 }
@@ -204,16 +228,63 @@ class EvidenceConsumerGrepPinTest {
     /**
      * "Production" = under a {@code src/main/} directory and NOT under
      * {@code target/}, {@code build/}, {@code .git/}, or {@code node_modules}.
+     *
+     * <p>The two matrix files themselves are excluded: they are the artifact
+     * under test, not consumers. Counting a row's own citation string as a
+     * "production consumer" is exactly the self-satisfying hole that let an
+     * unwired primitive ({@code AgentStateIntegrity}) pass as covered — the
+     * matrix Javadoc/citations named the class, so the grep matched the matrix
+     * file. Excluding them forces the consumer to be real downstream code.</p>
      */
     private static boolean isProductionPath(Path p) {
-        var parts = Set.of();
         var str = p.toString();
         if (!str.contains("/src/main/")) return false;
         if (str.contains("/target/")) return false;
         if (str.contains("/build/")) return false;
         if (str.contains("/.git/")) return false;
         if (str.contains("/node_modules/")) return false;
-        return !parts.contains(str);
+        if (str.endsWith("/governance/owasp/OwaspAgenticMatrix.java")) return false;
+        if (str.endsWith("/governance/compliance/ComplianceMatrix.java")) return false;
+        return true;
+    }
+
+    /**
+     * Whether {@code pattern} appears on a real code line of {@code content} —
+     * not inside a comment, Javadoc, {@code import}, or {@code package} line.
+     * This is the second half of closing the self-satisfying-citation hole: a
+     * Javadoc or import that merely <i>names</i> the evidence class is not a
+     * consumer of it.
+     */
+    static boolean mentionsInCode(String content, String pattern) {
+        for (var raw : content.split("\n", -1)) {
+            var code = stripComment(raw);
+            var trimmed = code.strip();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            if (trimmed.startsWith("import ") || trimmed.startsWith("package ")) {
+                continue;
+            }
+            if (code.contains(pattern)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Reduce a line to its code: blank out full-line comments ({@code //},
+     * {@code *}, {@code /*}, {@code *}{@code /}) and drop a trailing {@code //}
+     * line comment. Naive about {@code //} inside string literals, which is
+     * acceptable for a consumer-presence probe.
+     */
+    private static String stripComment(String line) {
+        var t = line.strip();
+        if (t.startsWith("//") || t.startsWith("*") || t.startsWith("/*") || t.startsWith("*/")) {
+            return "";
+        }
+        var idx = line.indexOf("//");
+        return idx >= 0 ? line.substring(0, idx) : line;
     }
 
     /** {@code a.b.Foo} → {@code a/b/Foo.java}. Returns null for blank input. */
