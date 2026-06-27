@@ -5,6 +5,7 @@ name: "Doc Version Guard"
 # Atmosphere <version>: a Markdown-only edit. This lightweight workflow runs the
 # same hard gate on those changes (no Maven build), closing that hole.
 on:
+  workflow_dispatch:
   push:
     paths:
       - '**.md'

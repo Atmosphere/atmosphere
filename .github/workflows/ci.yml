@@ -1,6 +1,7 @@
 name: "CI: Core (JDK 21/26)"
 
 on:
+  workflow_dispatch:
   push:
     branches: [ '**' ]
     paths-ignore:
