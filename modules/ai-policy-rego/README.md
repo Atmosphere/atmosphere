@@ -11,7 +11,7 @@ reuse the same dialect to gate AI dispatch on Atmosphere.
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-ai-policy-rego</artifactId>
-    <version>4.0.58</version>
+    <version>4.0.59</version>
 </dependency>
 ```
 

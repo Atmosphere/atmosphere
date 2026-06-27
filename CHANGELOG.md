@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.59] - 2026-06-27
+
+### Added
+
+- screen long-term-memory writes for injection by default harden coverage evidence gate; relabel opt-in OWASP/compliance rows honestly
+
+### Changed
+
+- bump Spring Boot, LangChain4j, Embabel, ADK, Spring AI Alibaba Embabel 0.5.0 adds EmbeddingService.pricingModel; test stub reports ALL_YOU_CAN_EAT.
+- record coverage-overstatement drift + self-referential-gate rule
+- add obsidian skills + atmosphere-vault docs routing
+- align capability comment, sample runtime defaults, and XSS skip note with reality
+- add workflow_dispatch to Core and Doc Version Guard
+- bump version to 4.0.58
+- prepare for next development iteration 4.0.59-SNAPSHOT
+
 ## [4.0.58] - 2026-06-26
 
 ### Added
