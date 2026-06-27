@@ -1764,3 +1764,36 @@ cross-reading the README row against the tutorial it now links to surfaced the m
 **Gate:** the README plan-and-verify row now links straight to the tutorial, so the two numbers
 sit one click apart and a future drift between them is visible on sight. The `doc-drift-audit`
 skill (capability/subset-enumeration class) covers this class of drift on its next run.
+
+## 2026-06-26 — OWASP/compliance matrices marked unwired primitives `COVERED`; the consumer-grep gate self-certified its own citations
+
+**Claim (OwaspAgenticMatrix + ComplianceMatrix):** A03 "Memory Poisoning" was `COVERED`
+on the strength of `AgentStateIntegrity` + `CommitmentRecord` (Ed25519 memory seals);
+A07 "Output Leakage" was `COVERED` via `PiiRedactionFilter`/`PiiRedactionGuardrail`; and
+several compliance rows (EU-AIA-12/15, HIPAA-164.312-b/c-1, SOC2-CC7.3) leaned on the same
+primitives — all presented as if on by default.
+
+**Truth:** `AgentStateIntegrity` had **zero** production consumers (only the two matrix files
++ its own file — the `SigningAgentState` decorator its Javadoc promised does not exist);
+`CommitmentRecord`/Ed25519 signing is flag-off; the PII filter/guardrail are opt-in beans whose
+response path hard-*blocks* (forcing them default-on would terminate any legit answer containing
+a customer's own email/IP); `MsAgentOsPolicy` default is ALLOW-all (a no-op); and three
+guardrails carry unbounded per-tenant maps (DoS, Invariant #3). None of these is a safe,
+genuine default-on. The genuinely default-on protections are the RAG read-path screen (4.0.58)
+and — newly — the long-term-memory write-path screen (`MemorySafetyConfig` →
+`ScreenedLongTermMemory`).
+
+**Slip path:** `EvidenceConsumerGrepPinTest` — the gate built to catch exactly this — walked
+**all** `src/main` sources *including the matrix files themselves* and used a bare
+`content.contains(pattern)`, so a row's own citation string (and any Javadoc mention)
+self-satisfied the "has a production consumer" check. A gate that walks its own artifact
+certifies the thing it is supposed to police.
+
+**Fix / Gate (`38479a218c`, Atmosphere 4.0.59):** wired the memory write-path injection screen
+genuinely default-on (Spring SB3/SB4 + Quarkus + console runtime-truth, published only once a
+real `LongTermMemory` store is wrapped — symmetric to `ragSafety`); rewrote the matrix rows to
+separate default-on from opt-in (A07 + HIPAA-164.312-c-1 honestly downgraded to `PARTIAL`,
+`AgentStateIntegrity` demoted out of the evidence list to "API + reference impl; not yet wired");
+and hardened the gate to exclude the matrix files and strip import/comment lines
+(`mentionsInCode`) with a regression proving a comment-only mention is detected as zero-consumer.
+Validated live on the rendered console OWASP tab.

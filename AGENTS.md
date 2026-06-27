@@ -437,6 +437,20 @@ costs credibility and has to be chased down and rolled back.
 - **"All seven runtimes do X"** — verify each runtime individually. Blanket "all runtimes"
   claims are almost always wrong because framework runtimes routinely lack features the
   Built-in runtime has.
+- **`COVERED` in a self-assessment matrix** (OWASP/compliance) — must mean a *default-on,
+  genuinely-wired* protection, not an SPI/reference-impl an operator could opt into. Flag-off,
+  opt-in, or citation-only primitives go in the row's *notes* prose, never the load-bearing
+  evidence list; downgrade the row to `PARTIAL` if the genuinely-on protection is thinner than
+  the claim. Forcing a primitive default-on to make `COVERED` true only counts if it's *safe*
+  to force on — an unbounded-map guardrail (DoS, Inv#3), a response-PII hard-block (kills legit
+  answers), or an ALLOW-all policy (no-op) recreates the overstatement in a new form. (4.0.59:
+  `AgentStateIntegrity` was cited as A03 `COVERED` with zero real consumers.)
+- **A gate that walks its own artifact** — any CI test that greps `src/main` to validate an
+  artifact X (a matrix, a manifest) MUST exclude X from the walk and strip import/comment/Javadoc
+  lines before matching, or X's own citations self-satisfy the check. `EvidenceConsumerGrepPinTest`
+  certified citation-only evidence for months because it walked the matrix files themselves with a
+  bare `contains()`. Self-referential gates give false confidence; add a regression that a
+  comment-only mention reads as zero-consumer.
 
 ## Persona Handle — NEVER in committed artifacts
 
