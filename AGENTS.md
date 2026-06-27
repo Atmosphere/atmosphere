@@ -548,3 +548,26 @@ above. Apply these tiebreakers, in order:
 ## Getting Help
 - Always ask for clarification rather than making assumptions
 - If you're having trouble with something, stop and ask for help
+
+## Knowledge Vault & Documentation Routing
+
+<important if="you are saving a doc, plan, ADR, runbook, audit, or report — or need prior decisions/context">
+
+`../atmosphere-vault` is the shared Atmosphere knowledge base. **Read it first** for prior decisions, designs, and context before starting structured work, and **write durable outputs there** — never leave structured docs only in chat (chat isn't durable).
+
+Routing (use the `obsidian-writer` skill, which writes to the live vault):
+
+| Doc type | Destination |
+|---|---|
+| ADR / decision | atmosphere-vault `Architecture/ADRs/` |
+| Plan / phased build | atmosphere-vault `Claude Plans/` |
+| Runbook / oncall procedure | atmosphere-vault `Development/Runbooks/` |
+| Audit / design analysis / session handoff / report | atmosphere-vault `Claude Outputs/` |
+| Reference docs that ship | repo `docs/` |
+| Directory-scoped specs | repo `<module>/README.md` |
+
+- **Local Claude Code (this CLI):** prefer the vault via `obsidian-writer`. Avoid `gh gist create` for the doc types above — gists aren't vault-searchable or wikilinkable.
+- **Claude Code for Web (containerized, no vault checkout):** `gh gist create` is the only durable output — acceptable there as a fallback; drop the gist link in chat so a later local session can backfill it into the vault.
+- Gists are also fine for pasteable snippets, cross-project material, and ephemeral share-with-stranger artifacts.
+- Writing markdown via the Write tool is limited to the `claude_docs/` folder under the repo — a per-dev, gitignored symlink into the vault's `Claude Outputs/` (run `/obsidian-vault-setup` to create it if missing; without the symlink, output stays local and never reaches the vault).
+</important>
