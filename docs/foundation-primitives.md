@@ -26,7 +26,7 @@ tree so users can see and edit what the agent remembers.
 
 Agent-as-artifact SPI. Adapters parse a directory into an
 `AgentDefinition`. `OpenClawWorkspaceAdapter` reads the canonical OpenClaw
-layout (`AGENTS.md` / `SOUL.md` / `USER.md` / `IDENTITY.md` / `MEMORY.md` /
+layout (`AGENTS.md` / `SOUL.md` / `USER.md` / `IDENTITY.md` /
 `skills/`) plus Atmosphere-only extension files (`CHANNELS.md` / `MCP.md` /
 `RUNTIME.md` / `PERMISSIONS.md` / `SKILLS.md`). `AtmosphereNativeWorkspaceAdapter`
 accepts any directory as a fallback. Third-party adapters ship through

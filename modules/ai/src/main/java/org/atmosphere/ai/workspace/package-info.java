@@ -23,7 +23,7 @@
  * <ul>
  *   <li>{@link org.atmosphere.ai.workspace.OpenClawWorkspaceAdapter} — reads
  *       the OpenClaw canonical workspace layout (AGENTS.md + SOUL.md +
- *       USER.md + IDENTITY.md + MEMORY.md + memory/ + skills/)</li>
+ *       USER.md + IDENTITY.md + skills/)</li>
  *   <li>{@link org.atmosphere.ai.workspace.AtmosphereNativeWorkspaceAdapter}
  *       — fallback that accepts any directory</li>
  * </ul>

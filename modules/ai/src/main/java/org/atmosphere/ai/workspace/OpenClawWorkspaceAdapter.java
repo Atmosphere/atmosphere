@@ -37,7 +37,7 @@ import java.util.stream.Stream;
  *
  * A workspace is considered OpenClaw-shaped when it contains
  * {@code AGENTS.md} at the root. Other canonical files ({@code SOUL.md},
- * {@code USER.md}, {@code IDENTITY.md}, {@code MEMORY.md}) are loaded when
+ * {@code USER.md}, {@code IDENTITY.md}) are loaded when
  * present but none are individually required.
  *
  * <h2>Atmosphere extensions</h2>

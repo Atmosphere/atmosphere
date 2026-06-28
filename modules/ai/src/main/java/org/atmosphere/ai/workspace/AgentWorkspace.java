@@ -35,8 +35,7 @@ import java.nio.file.Path;
  * <ul>
  *   <li>{@link OpenClawWorkspaceAdapter} — OpenClaw canonical layout
  *       ({@code AGENTS.md} + {@code SOUL.md} + {@code USER.md} +
- *       {@code IDENTITY.md} + {@code MEMORY.md} + {@code memory/*} +
- *       {@code skills/*} + JSONL sessions under {@code agents/})</li>
+ *       {@code IDENTITY.md} + {@code skills/*})</li>
  *   <li>{@link AtmosphereNativeWorkspaceAdapter} — minimal fallback for
  *       users without an existing workspace convention</li>
  * </ul>
