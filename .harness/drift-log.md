@@ -1770,15 +1770,19 @@ skill (capability/subset-enumeration class) covers this class of drift on its ne
 **Claim (OwaspAgenticMatrix + ComplianceMatrix):** A03 "Memory Poisoning" was `COVERED`
 on the strength of `AgentStateIntegrity` + `CommitmentRecord` (Ed25519 memory seals);
 A07 "Output Leakage" was `COVERED` via `PiiRedactionFilter`/`PiiRedactionGuardrail`; and
-several compliance rows (EU-AIA-12/15, HIPAA-164.312-b/c-1, SOC2-CC7.3) leaned on the same
-primitives — all presented as if on by default.
+two compliance rows (EU-AIA-15, HIPAA-164.312-c-1) leaned on that same unwired
+`AgentStateIntegrity` seal — presented as if on by default. (The sibling rows EU-AIA-12,
+HIPAA-164.312-b, SOC2-CC7.3 cite the *wired* AuditEntry/AuditSink/CommitmentRecord; no
+compliance row cites a PII primitive.)
 
 **Truth:** `AgentStateIntegrity` had **zero** production consumers (only the two matrix files
 + its own file — the `SigningAgentState` decorator its Javadoc promised does not exist);
-`CommitmentRecord`/Ed25519 signing is flag-off; the PII filter/guardrail are opt-in beans whose
-response path hard-*blocks* (forcing them default-on would terminate any legit answer containing
-a customer's own email/IP); `MsAgentOsPolicy` default is ALLOW-all (a no-op); and three
-guardrails carry unbounded per-tenant maps (DoS, Invariant #3). None of these is a safe,
+`CommitmentRecord`/Ed25519 signing is flag-off; the PII protections are opt-in beans — the
+*guardrail* hard-*blocks* on any PII hit (forcing it default-on would terminate any legit answer
+containing a customer's own email/IP) while the *filter* redacts in place; `MsAgentOsPolicy`
+default is ALLOW-all (a no-op); and two guardrails (`CostCeilingGuardrail.spentByTenant`,
+`OutputLengthZScoreGuardrail.windowsByTenant`) carry unbounded per-tenant maps (DoS, Invariant
+#3). None of these is a safe,
 genuine default-on. The genuinely default-on protections are the RAG read-path screen (4.0.58)
 and — newly — the long-term-memory write-path screen (`MemorySafetyConfig` →
 `ScreenedLongTermMemory`).
