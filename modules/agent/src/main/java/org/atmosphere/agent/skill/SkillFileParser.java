@@ -53,11 +53,14 @@ public final class SkillFileParser {
     private final String rawContent;
     private final String title;
     private final Map<String, String> sections;
+    private final Map<String, String> frontmatter;
 
-    private SkillFileParser(String rawContent, String title, Map<String, String> sections) {
+    private SkillFileParser(String rawContent, String title, Map<String, String> sections,
+                            Map<String, String> frontmatter) {
         this.rawContent = rawContent;
         this.title = title;
         this.sections = sections;
+        this.frontmatter = frontmatter;
     }
 
     /**
@@ -68,7 +71,7 @@ public final class SkillFileParser {
      */
     public static SkillFileParser parse(String content) {
         if (content == null || content.isBlank()) {
-            return new SkillFileParser("", "", Map.of());
+            return new SkillFileParser("", "", Map.of(), Map.of());
         }
 
         String title = "";
@@ -121,7 +124,72 @@ public final class SkillFileParser {
         }
 
         return new SkillFileParser(content, title,
-                Collections.unmodifiableMap(new LinkedHashMap<>(sections)));
+                Collections.unmodifiableMap(new LinkedHashMap<>(sections)),
+                parseFrontmatter(content));
+    }
+
+    /**
+     * Parses a leading YAML frontmatter block (delimited by {@code ---} fences)
+     * into its top-level scalar {@code key: value} pairs. Nested mappings and
+     * list items are ignored — callers read flat hints (e.g. {@code description},
+     * {@code scopeTier}). Returns an empty map when the content has no
+     * well-formed frontmatter block (no opening fence, or no closing fence).
+     */
+    private static Map<String, String> parseFrontmatter(String content) {
+        if (content == null) {
+            return Map.of();
+        }
+        var lines = content.split("\n", -1);
+        int i = 0;
+        // Skip leading blank lines before the opening fence.
+        while (i < lines.length && lines[i].trim().isEmpty()) {
+            i++;
+        }
+        if (i >= lines.length || !"---".equals(lines[i].trim())) {
+            return Map.of();
+        }
+        var start = i + 1;
+        var end = -1;
+        for (var j = start; j < lines.length; j++) {
+            if ("---".equals(lines[j].trim())) {
+                end = j;
+                break;
+            }
+        }
+        if (end < 0) {
+            // No closing fence — malformed; treat as no frontmatter rather than
+            // swallow the body (mirrors PromptLoader.stripFrontmatter).
+            return Map.of();
+        }
+        var fm = new LinkedHashMap<String, String>();
+        for (var j = start; j < end; j++) {
+            var line = lines[j];
+            // Top-level scalar keys only: skip blank, indented (nested), list items.
+            if (line.isBlank() || Character.isWhitespace(line.charAt(0))
+                    || line.trim().startsWith("- ")) {
+                continue;
+            }
+            var colon = line.indexOf(':');
+            if (colon <= 0) {
+                continue;
+            }
+            var key = line.substring(0, colon).trim();
+            var value = unquote(line.substring(colon + 1).trim());
+            if (!key.isEmpty()) {
+                fm.put(key, value);
+            }
+        }
+        return Collections.unmodifiableMap(fm);
+    }
+
+    /** Strips a single layer of matching single or double quotes from a value. */
+    private static String unquote(String value) {
+        if (value.length() >= 2
+                && ((value.charAt(0) == '"' && value.charAt(value.length() - 1) == '"')
+                || (value.charAt(0) == '\'' && value.charAt(value.length() - 1) == '\''))) {
+            return value.substring(1, value.length() - 1);
+        }
+        return value;
     }
 
     /**
@@ -153,6 +221,22 @@ public final class SkillFileParser {
      */
     public List<String> sectionNames() {
         return List.copyOf(sections.keySet());
+    }
+
+    /**
+     * Returns the value of a top-level frontmatter key (e.g. {@code description},
+     * {@code scopeTier}), or {@link Optional#empty()} when the key is absent or
+     * blank. Only present for skill files whose frontmatter survived loading —
+     * {@code skill:}-resolved files have their frontmatter stripped upstream by
+     * {@code PromptLoader}, so callers must treat every frontmatter hint as
+     * optional.
+     *
+     * @param key the frontmatter key
+     * @return the value, or empty if absent / blank
+     */
+    public Optional<String> frontmatter(String key) {
+        var value = frontmatter.get(key);
+        return (value == null || value.isBlank()) ? Optional.empty() : Optional.of(value);
     }
 
     /**

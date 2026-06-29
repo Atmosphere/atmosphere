@@ -55,29 +55,54 @@ public final class ScopePolicyBuilder {
                                               String path) {
         try {
             var config = ScopeConfig.fromAnnotation(annotation);
-            var guardrail = ScopeGuardrailResolver.resolve(config.tier());
-            if (guardrail.tier() != config.tier()) {
-                logger.warn("No {} ScopeGuardrail impl on the classpath for {} — "
-                                + "falling back to rule-based tier; install atmosphere-ai-scope-<tier> for the "
-                                + "intended behaviour", config.tier(), path);
-            }
             var name = "scope::" + agentClass.getSimpleName();
             var source = "annotation:" + agentClass.getName();
-            return Optional.of(new ScopePolicy(name, source, "1.0",
-                    // rebuild config against the guardrail we actually resolved
-                    // so we don't advertise EMBEDDING_SIMILARITY when only the
-                    // RULE_BASED fallback is installed
-                    new ScopeConfig(config.purpose(), config.forbiddenTopics(),
-                            config.onBreach(), config.redirectMessage(),
-                            guardrail.tier(), config.similarityThreshold(),
-                            config.postResponseCheck(), config.unrestricted(),
-                            config.justification()),
-                    guardrail));
+            return Optional.of(build(config, name, source));
         } catch (IllegalArgumentException e) {
             logger.error("Invalid @AgentScope on {} ({}) — agent will run WITHOUT scope "
                     + "enforcement; fix the annotation or add unrestricted = true with a justification",
                     agentClass.getName(), path, e);
             return Optional.empty();
         }
+    }
+
+    /**
+     * Build a {@link ScopePolicy} from a programmatically-assembled
+     * {@link ScopeConfig} — the path a {@code @Agent} takes when its scope is
+     * derived from a skill file's {@code ## Guardrails} section rather than an
+     * {@link AgentScope} annotation. The {@code config} must already be valid
+     * (its compact constructor enforces a non-blank purpose), so this overload
+     * does not swallow {@link IllegalArgumentException}; assemble a valid config
+     * before calling.
+     *
+     * <p>Resolves the {@link ScopeGuardrail} for the config's tier and rebuilds
+     * the config against the guardrail actually resolved, so the policy never
+     * advertises a tier (e.g. {@code EMBEDDING_SIMILARITY}) when only the
+     * {@code RULE_BASED} fallback is installed (Correctness Invariant #5 —
+     * Runtime Truth).</p>
+     *
+     * @param config the assembled, already-validated scope configuration
+     * @param name   the policy name (e.g. {@code "scope::my-agent"})
+     * @param source the policy source for the decision log (e.g.
+     *               {@code "skill-guardrails:my-agent"})
+     * @return the resolved policy
+     */
+    public static ScopePolicy build(ScopeConfig config, String name, String source) {
+        var guardrail = ScopeGuardrailResolver.resolve(config.tier());
+        if (guardrail.tier() != config.tier()) {
+            logger.warn("No {} ScopeGuardrail impl on the classpath for {} — "
+                            + "falling back to rule-based tier; install atmosphere-ai-scope-<tier> for the "
+                            + "intended behaviour", config.tier(), source);
+        }
+        return new ScopePolicy(name, source, "1.0",
+                // rebuild config against the guardrail we actually resolved
+                // so we don't advertise EMBEDDING_SIMILARITY when only the
+                // RULE_BASED fallback is installed
+                new ScopeConfig(config.purpose(), config.forbiddenTopics(),
+                        config.onBreach(), config.redirectMessage(),
+                        guardrail.tier(), config.similarityThreshold(),
+                        config.postResponseCheck(), config.unrestricted(),
+                        config.justification()),
+                guardrail);
     }
 }

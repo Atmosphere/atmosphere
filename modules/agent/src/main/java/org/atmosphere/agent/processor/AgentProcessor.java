@@ -30,8 +30,12 @@ import org.atmosphere.ai.ConversationPersistence;
 import org.atmosphere.ai.InMemoryConversationMemory;
 import org.atmosphere.ai.PersistentConversationMemory;
 import org.atmosphere.ai.PromptLoader;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiTool;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.governance.scope.ScopeConfig;
+import org.atmosphere.ai.governance.scope.ScopePolicy;
+import org.atmosphere.ai.governance.scope.ScopePolicyBuilder;
 import org.atmosphere.ai.processor.AiEndpointHandler;
 import org.atmosphere.ai.tool.DefaultToolRegistry;
 import org.atmosphere.ai.tool.ToolRegistry;
@@ -51,6 +55,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.ServiceLoader;
 
 /**
@@ -64,6 +69,17 @@ public class AgentProcessor implements Processor<Object> {
     private static final Logger logger = LoggerFactory.getLogger(AgentProcessor.class);
     private static final int DEFAULT_MAX_HISTORY = 20;
     private static final String AGENT_VERSION = resolveModuleVersion();
+
+    /**
+     * Default cosine-similarity admission threshold for a skill-derived
+     * {@link ScopePolicy} — mirrors {@code @AgentScope.similarityThreshold()}'s
+     * default so a {@code ## Guardrails} scope behaves identically to the
+     * annotation when no explicit hint is given.
+     */
+    private static final double DEFAULT_SCOPE_SIMILARITY_THRESHOLD = 0.45;
+
+    /** Fallback purpose when a skill / agent declares no description. */
+    private static final String DEFAULT_SCOPE_PURPOSE = "the agent's stated purpose";
 
     /**
      * Live MCP server connections opened from {@code MCP.md} ({@link McpServerRegistry}
@@ -183,13 +199,14 @@ public class AgentProcessor implements Processor<Object> {
             // Enforce the framework governance policies (including those parsed
             // from PERMISSIONS.md) on the web streaming path by wrapping each as
             // a guardrail — the same mechanism AiEndpointProcessor uses for
-            // @AiEndpoint. Without this the @Agent web handler admitted
-            // unguarded while only the A2A / AG-UI / channel pipeline enforced
-            // them (Correctness Invariant #7, Mode Parity).
-            var webGuardrails = new ArrayList<org.atmosphere.ai.AiGuardrail>();
-            for (var policy : org.atmosphere.ai.governance.GovernancePolicies.installed(framework)) {
-                webGuardrails.add(new org.atmosphere.ai.governance.PolicyAsGuardrail(policy));
-            }
+            // @AiEndpoint — and, when the skill file declares a ## Guardrails
+            // section, prepend its auto-built ScopePolicy so a guardrail-violating
+            // request is rejected at the cheapest gate. The identical chain is
+            // installed on the A2A / AG-UI / channel pipeline below so confinement
+            // is the same across every invocation mode (Correctness Invariant #7,
+            // Mode Parity).
+            var webGuardrails = buildWebGuardrails(framework, skillFile, agentName,
+                    annotation.description());
             var aiHandler = new AiEndpointHandler(
                     promptTarget, promptMethod, 120_000L,
                     systemPrompt, path, runtime, List.of(),
@@ -208,15 +225,14 @@ public class AgentProcessor implements Processor<Object> {
 
             // Step 8-11: Optional cross-protocol registration
             var protocols = new ArrayList<String>();
-            // Install the framework's governance policies so the A2A / AG-UI /
-            // channel pipelines admit against the same chain as @AiEndpoint
-            // (Mode Parity #7). Previously these pipelines were built with an
-            // empty policy list, leaving governance absent on those surfaces.
-            var pipeline = new org.atmosphere.ai.AiPipeline(
-                    runtime, systemPrompt, settings.model(), memory,
-                    toolRegistry, List.of(),
-                    org.atmosphere.ai.governance.GovernancePolicies.installed(framework),
-                    List.of(), metrics, null);
+            // Install the framework's governance policies — and the skill's
+            // ## Guardrails ScopePolicy when present — so the A2A / AG-UI /
+            // channel pipelines admit against the same chain as the web path
+            // above (Mode Parity #7). Previously these pipelines were built with
+            // an empty policy list, leaving governance absent on those surfaces.
+            var pipeline = buildPipeline(framework, skillFile, agentName,
+                    annotation.description(), runtime, systemPrompt, settings.model(),
+                    memory, toolRegistry, metrics);
             registerA2a(framework, annotation, skillFile, commandRegistry,
                     commandRouter, promptTarget, promptMethod, pipeline,
                     path, protocols);
@@ -250,6 +266,130 @@ public class AgentProcessor implements Processor<Object> {
         } catch (Exception e) {
             throw new RuntimeException("Failed to register Agent from " + annotatedClass.getName(), e);
         }
+    }
+
+    /**
+     * Build the {@link ScopePolicy} an {@code @Agent}'s skill file mandates via
+     * its {@code ## Guardrails} section, or {@code null} when the skill declares
+     * none. This is the wiring that makes a skill's free-text guardrails an
+     * <em>enforced</em> admission policy rather than prose the LLM may ignore:
+     * each guardrail line becomes a forbidden topic, the skill (or agent)
+     * description becomes the declared purpose, and the enforcement tier comes
+     * from an optional {@code scopeTier} / {@code scope-tier} frontmatter hint
+     * (default {@link AgentScope.Tier#EMBEDDING_SIMILARITY}, which catches
+     * paraphrased breaches without a per-request LLM call).
+     *
+     * <p>Package-private so {@code AgentSkillScopeConfinementTest} can assert the
+     * skill content actually reaches the governance subsystem.</p>
+     */
+    ScopePolicy buildSkillScopePolicy(SkillFileParser skillFile, String agentName,
+                                      String agentDescription) {
+        var guardrails = skillFile.listItems("Guardrails");
+        if (guardrails.isEmpty()) {
+            return null;
+        }
+        var purpose = firstNonBlank(
+                skillFile.frontmatter("description").orElse(null),
+                agentDescription,
+                DEFAULT_SCOPE_PURPOSE);
+        var tier = resolveScopeTier(skillFile);
+        var config = new ScopeConfig(purpose, guardrails,
+                AgentScope.Breach.POLITE_REDIRECT, null, tier,
+                DEFAULT_SCOPE_SIMILARITY_THRESHOLD, false, false, "");
+        return ScopePolicyBuilder.build(config,
+                "scope::" + agentName, "skill-guardrails:" + agentName);
+    }
+
+    /**
+     * Resolve the enforcement tier from an optional {@code scopeTier} /
+     * {@code scope-tier} frontmatter hint, mapped case-insensitively. Unknown or
+     * absent values fall back to {@link AgentScope.Tier#EMBEDDING_SIMILARITY}.
+     */
+    private static AgentScope.Tier resolveScopeTier(SkillFileParser skillFile) {
+        var hint = skillFile.frontmatter("scopeTier")
+                .or(() -> skillFile.frontmatter("scope-tier"))
+                .orElse("");
+        return switch (hint.trim().toLowerCase(Locale.ROOT)) {
+            case "" -> AgentScope.Tier.EMBEDDING_SIMILARITY;
+            case "rule_based", "rule-based", "rulebased" -> AgentScope.Tier.RULE_BASED;
+            case "embedding", "embedding_similarity", "embedding-similarity" ->
+                    AgentScope.Tier.EMBEDDING_SIMILARITY;
+            case "semantic", "semantic_intent", "semantic-intent" ->
+                    AgentScope.Tier.SEMANTIC_INTENT;
+            case "llm", "llm_classifier", "llm-classifier" -> AgentScope.Tier.LLM_CLASSIFIER;
+            default -> {
+                logger.warn("Unknown scopeTier '{}' in skill frontmatter — defaulting to "
+                        + "EMBEDDING_SIMILARITY", hint);
+                yield AgentScope.Tier.EMBEDDING_SIMILARITY;
+            }
+        };
+    }
+
+    /** First non-blank candidate, or {@code ""} when all are blank. */
+    private static String firstNonBlank(String... candidates) {
+        for (var candidate : candidates) {
+            if (candidate != null && !candidate.isBlank()) {
+                return candidate;
+            }
+        }
+        return "";
+    }
+
+    /**
+     * Build the web streaming guardrail chain for an {@code @Agent}. Wraps every
+     * framework governance policy (including {@code PERMISSIONS.md}-derived ones)
+     * as a guardrail and, when the skill file declares a {@code ## Guardrails}
+     * section, prepends the scope policy so an off-topic / guardrail-violating
+     * request is rejected on the web path exactly as it is on the
+     * A2A / AG-UI / channel pipeline ({@link #buildPipeline}). Keeps confinement
+     * consistent across every invocation mode (Correctness Invariant #7 —
+     * Mode Parity).
+     *
+     * <p>Package-private so {@code AgentSkillScopeConfinementTest} can assert the
+     * scope guardrail is installed first on the web path too.</p>
+     */
+    List<org.atmosphere.ai.AiGuardrail> buildWebGuardrails(AtmosphereFramework framework,
+            SkillFileParser skillFile, String agentName, String agentDescription) {
+        var guardrails = new ArrayList<org.atmosphere.ai.AiGuardrail>();
+        var scopePolicy = buildSkillScopePolicy(skillFile, agentName, agentDescription);
+        if (scopePolicy != null) {
+            // Scope first — cheapest rejection, before any framework policy.
+            guardrails.add(new org.atmosphere.ai.governance.PolicyAsGuardrail(scopePolicy));
+        }
+        for (var policy : org.atmosphere.ai.governance.GovernancePolicies.installed(framework)) {
+            guardrails.add(new org.atmosphere.ai.governance.PolicyAsGuardrail(policy));
+        }
+        return guardrails;
+    }
+
+    /**
+     * Build the {@code @Agent}'s protocol pipeline (the A2A / AG-UI / channel
+     * surface). Seeded with the framework's installed governance policies so the
+     * agent admits against the same chain as a plain {@code @AiEndpoint} instead
+     * of an empty policy list (Mode Parity #7). When the skill file declares a
+     * {@code ## Guardrails} section, the auto-built {@link ScopePolicy} is
+     * prepended so an off-topic request is rejected at the cheapest gate — the
+     * same confinement {@link #buildWebGuardrails} installs on the web path.
+     *
+     * <p>Package-private so {@code AgentSkillScopeConfinementTest} can drive a
+     * request through the real admission gate this method wires.</p>
+     */
+    org.atmosphere.ai.AiPipeline buildPipeline(AtmosphereFramework framework,
+            SkillFileParser skillFile, String agentName, String agentDescription,
+            AgentRuntime runtime, String systemPrompt, String model,
+            AiConversationMemory memory, ToolRegistry toolRegistry, AiMetrics metrics) {
+        List<org.atmosphere.ai.governance.GovernancePolicy> policies =
+                org.atmosphere.ai.governance.GovernancePolicies.installed(framework);
+        var scopePolicy = buildSkillScopePolicy(skillFile, agentName, agentDescription);
+        if (scopePolicy != null) {
+            var extended = new ArrayList<org.atmosphere.ai.governance.GovernancePolicy>(
+                    policies.size() + 1);
+            extended.add(scopePolicy);      // scope runs first — cheapest rejection
+            extended.addAll(policies);
+            policies = List.copyOf(extended);
+        }
+        return new org.atmosphere.ai.AiPipeline(runtime, systemPrompt, model, memory,
+                toolRegistry, List.of(), policies, List.of(), metrics, null);
     }
 
     /**
