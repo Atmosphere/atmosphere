@@ -1087,7 +1087,7 @@
             <dependency>
                 <groupId>io.modelcontextprotocol.sdk</groupId>
                 <artifactId>mcp-core</artifactId>
-                <version>1.0.0</version>
+                <version>1.0.1</version>
             </dependency>
             <dependency>
                 <groupId>io.modelcontextprotocol.sdk</groupId>
@@ -1262,7 +1262,7 @@
         <!-- Jackson 2 force-pin (CVE force-pin block in dependencyManagement).
              Jackson 2 enters the dep tree transitively via Spring/Quarkus/AWS;
              we don't compile against it. 2.21.2 closes GHSA-72hv-8253-57qq. -->
-        <jackson2.version>2.21.2</jackson2.version>
+        <jackson2.version>2.22.0</jackson2.version>
         <jackson-annotations.version>2.21</jackson-annotations.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
         <snakeyaml.version>2.3</snakeyaml.version>
