@@ -11,7 +11,11 @@ A real-time AI chat application that streams LLM responses text-by-text to the b
 - **Demo mode** — works out-of-the-box without an API key (simulated streaming)
 - **Prompt cache demo** — `PromptCacheDemoChat` at `/atmosphere/ai-chat-with-cache` shows how `@AiEndpoint(promptCache = CONSERVATIVE)` threads a `CacheHint` into every request; the sample routes prompts through a real `AiPipeline` + `InMemoryResponseCache` so the framework emits `ai.cache.hit=false` on the first request and `ai.cache.hit=true` on repeated identical prompts (canonical framework-level wire signal, not a sample shim)
 - **Retry policy demo** — `RetryDemoChat` at `/atmosphere/ai-chat-with-retry` echoes the declared `@AiEndpoint(retry = @Retry(...))` attributes and exposes a deterministic `fail-once:<id>` fault-injection path that recovers on a second request
-- **Multi-modal demo** — `MultiModalChat` at `/atmosphere/ai-chat-multimodal` accepts `image:<base64>` prompts, wraps them in a `Content.Image`, and streams a binary content frame next to a text acknowledgement. A minimal picker page is served at `/multimodal.html`
+- **Multi-modal demo** — `MultiModalChat` at `/atmosphere/ai-chat-multimodal` accepts both vision and audio input:
+  - **Vision** — `image:<base64>` prompts are wrapped in a `Content.Image` and streamed back as a binary content frame next to a text acknowledgement.
+  - **Audio input** — `audio:<base64>` prompts are wrapped in a `Content.Audio` and forwarded to the resolved AI runtime as a multi-modal **input** part via `session.stream(prompt, parts)`. The runtime encodes it onto the provider wire request (the built-in OpenAI-compatible client emits an `input_audio` content block), so an audio-capable model such as `gpt-4o-audio-preview` receives the clip. With no API key the demo runtime returns a canned reply, but the audio still reaches the runtime context. Override the media type with `audio:audio/<subtype>:<base64>` (default `audio/wav`).
+  - The delivery test `MultiModalAudioInputDeliveryTest` proves the audio reaches the runtime by asserting the captured `AgentExecutionContext.parts()` contains the `Content.Audio` with the right media type.
+  - A minimal picker page is served at `/multimodal.html`.
 
 ## How It Works
 

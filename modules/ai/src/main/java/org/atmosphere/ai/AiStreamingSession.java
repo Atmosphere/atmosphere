@@ -519,6 +519,11 @@ public class AiStreamingSession implements StreamingSession {
 
     @Override
     public void stream(String message) {
+        stream(message, List.of());
+    }
+
+    @Override
+    public void stream(String message, List<Content> inputParts) {
         // Fire pre-stream hook (e.g., journal emit) before LLM call starts.
         // By the time stream() is called, all coordinator/agent work is done.
         var hook = preStreamHook.getAndSet(null);
@@ -814,6 +819,13 @@ public class AiStreamingSession implements StreamingSession {
                 java.util.List.copyOf(tools), null, memory,
                 contextProviders, effectiveMetadata, request.history(),
                 effectiveResponseType, strategy);
+        // Multi-modal input: attach the image/audio/file parts the caller passed
+        // to stream(message, parts) so the runtime can encode them onto the
+        // provider wire request (e.g. OpenAiCompatibleClient → input_audio /
+        // image_url). Empty on the text-only stream(message) path.
+        if (inputParts != null && !inputParts.isEmpty()) {
+            context = context.withParts(inputParts);
+        }
         // Apply endpoint-scoped retry policy if configured.
         var endpointRetry = this.endpointRetryPolicy;
         if (endpointRetry != null) {

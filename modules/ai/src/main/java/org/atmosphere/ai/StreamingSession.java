@@ -15,6 +15,8 @@
  */
 package org.atmosphere.ai;
 
+import java.util.List;
+
 /**
  * A streaming session that delivers streaming text chunks from an AI model to connected
  * clients via Atmosphere's broadcast infrastructure.
@@ -358,6 +360,35 @@ public interface StreamingSession extends AutoCloseable {
     default void stream(String message) {
         throw new UnsupportedOperationException(
                 "stream(String) is only supported on AiStreamingSession. "
+                        + "Use @AiEndpoint or create an AiStreamingSession explicitly.");
+    }
+
+    /**
+     * Send a user message together with multi-modal input parts to the resolved
+     * {@link AiSupport} and stream the response back through this session. The
+     * parts are threaded into the {@link AgentExecutionContext} so a runtime
+     * that declares the matching {@link AiCapability} ({@link AiCapability#VISION}
+     * for {@link Content.Image}, {@link AiCapability#AUDIO} for
+     * {@link Content.Audio}) encodes them onto the provider wire request — e.g.
+     * the built-in OpenAI-compatible client maps {@link Content.Audio} to an
+     * {@code "input_audio"} content block and {@link Content.Image} to an
+     * {@code "image_url"} block.
+     *
+     * <p>Only supported on sessions created by the {@code @AiEndpoint}
+     * infrastructure (i.e., {@link AiStreamingSession}). The default throws so a
+     * caller can never silently drop multi-modal input against a session type
+     * that has no runtime dispatch — mirroring the fail-loud contract of
+     * {@link #stream(String)}.</p>
+     *
+     * @param message the user message to send to the AI model
+     * @param parts   the multi-modal input parts (image / audio / file) to
+     *                attach to the request; may be empty but not null
+     * @throws UnsupportedOperationException if this session does not support
+     *         auto-resolved AI streaming
+     */
+    default void stream(String message, List<Content> parts) {
+        throw new UnsupportedOperationException(
+                "stream(String, List<Content>) is only supported on AiStreamingSession. "
                         + "Use @AiEndpoint or create an AiStreamingSession explicitly.");
     }
 
