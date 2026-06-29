@@ -638,6 +638,7 @@
         <module>samples/spring-boot-multi-agent-startup-team</module>
         <module>samples/spring-boot-orchestration-demo</module>
         <module>samples/spring-boot-checkpoint-agent</module>
+        <module>samples/spring-boot-passivation-agent</module>
         <module>samples/spring-boot-personal-assistant</module>
         <module>samples/spring-boot-coding-agent</module>
         <module>samples/spring-boot-guarded-email-agent</module>

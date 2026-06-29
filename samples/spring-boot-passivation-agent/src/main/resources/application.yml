@@ -1,0 +1,14 @@
+server:
+  port: ${SERVER_PORT:8097}
+
+spring:
+  application:
+    name: atmosphere-passivation-agent
+
+atmosphere:
+  packages: org.atmosphere.samples.springboot.passivation
+
+logging:
+  level:
+    org.atmosphere.samples.springboot.passivation: INFO
+    org.atmosphere.checkpoint: INFO

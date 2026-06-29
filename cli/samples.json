@@ -20,6 +20,24 @@
       "envVars": {}
     },
     {
+      "name": "spring-boot-passivation-agent",
+      "description": "Agent passivation — snapshot a paused conversation and resume it from where it left off (AgentPassivation + CheckpointStore)",
+      "category": "agent",
+      "tags": [
+        "spring-boot",
+        "ai",
+        "passivation",
+        "checkpoint",
+        "durable-execution",
+        "hitl"
+      ],
+      "port": 8097,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": false,
+      "envVars": {}
+    },
+    {
       "name": "spring-boot-multi-agent-startup-team",
       "description": "True multi-agent: 4 @Agent specialists + 1 @Coordinator collaborate via A2A protocol",
       "category": "agent",

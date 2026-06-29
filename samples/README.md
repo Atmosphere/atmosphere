@@ -57,6 +57,7 @@ One agent class — slash commands and AI work on Web, Slack, Telegram, Discord,
 | [spring-boot-durable-sessions](spring-boot-durable-sessions/) | Spring Boot 4.0.7 | Persistent sessions with SQLite/Redis |
 | [spring-boot-otel-chat](spring-boot-otel-chat/) | Spring Boot 4.0.7 | OpenTelemetry observability |
 | [spring-boot-reattach-harness](spring-boot-reattach-harness/) | Spring Boot 4.0.7 | Deterministic harness for the mid-stream reattach contract (`RunRegistry` + `RunEventReplayBuffer`); driven by `e2e/tests/reattach.spec.ts` |
+| [spring-boot-passivation-agent](spring-boot-passivation-agent/) | Spring Boot 4.0.7 + `atmosphere-checkpoint` | Snapshot a paused agent conversation and resume it from where it left off (`AgentPassivation` + `CheckpointStore`); proven offline by `PassivationDeliveryTest` |
 | [shared-resources](shared-resources/) | — | Shared static assets (CSS, Grafana dashboard). Not a Maven module — no `pom.xml`. |
 
 ## Quick Start
