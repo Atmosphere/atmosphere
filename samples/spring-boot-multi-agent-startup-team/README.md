@@ -466,6 +466,13 @@ ECDSA certificate. The frontend auto-discovers the transport via
 `/api/webtransport-info` (returns port + SHA-256 certificate hash) and connects
 with `serverCertificateHashes`. Falls back to WebSocket if WebTransport is unavailable.
 
+`WebTransportWiringE2ETest` boots this application and proves the transport is
+genuinely wired: the HTTP/3 server binds a real UDP port, `/api/webtransport-info`
+advertises runtime-confirmed state only, the `Alt-Svc` advertisement is present in
+the servlet chain, and the `WebTransportProcessor` SPI resolves the starter's real
+processor (not the no-op fallback). The full HTTP/3 browser round-trip is covered
+separately by the Playwright specs in `modules/integration-tests/e2e/webtransport*.spec.ts`.
+
 ## Console Output
 
 When you send a prompt, the console shows:
