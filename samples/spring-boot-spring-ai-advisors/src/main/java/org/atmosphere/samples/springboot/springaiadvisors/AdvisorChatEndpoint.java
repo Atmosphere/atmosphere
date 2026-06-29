@@ -16,6 +16,7 @@
 package org.atmosphere.samples.springboot.springaiadvisors;
 
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.slf4j.Logger;
@@ -36,6 +37,9 @@ import org.slf4j.LoggerFactory;
 @AiEndpoint(path = "/atmosphere/ai-chat",
         interceptors = {PerRequestAuditInterceptor.class},
         systemPrompt = "You are a concise assistant.")
+@AgentScope(unrestricted = true,
+        justification = "Open assistant demo focused on Spring AI advisor routing; "
+                + "scope confinement is demonstrated by other samples")
 public class AdvisorChatEndpoint {
 
     private static final Logger logger = LoggerFactory.getLogger(AdvisorChatEndpoint.class);

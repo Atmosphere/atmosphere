@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -53,6 +54,7 @@ public abstract class DelegatingStreamingSession implements StreamingSession {
     @Override public Map<Class<?>, Object> injectables() { return delegate.injectables(); }
     @Override public void send(String text) { delegate.send(text); }
     @Override public void sendContent(Content content) { delegate.sendContent(content); }
+    @Override public void stream(String message, List<Content> parts) { delegate.stream(message, parts); }
     @Override public void sendMetadata(String key, Object value) { delegate.sendMetadata(key, value); }
     @Override public void usage(TokenUsage usage) { delegate.usage(usage); }
     @Override public void confidence(AiConfidence confidence) { delegate.confidence(confidence); }
