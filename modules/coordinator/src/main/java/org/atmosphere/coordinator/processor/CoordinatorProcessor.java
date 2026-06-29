@@ -31,7 +31,9 @@ import org.atmosphere.ai.ConversationPersistence;
 import org.atmosphere.ai.InMemoryConversationMemory;
 import org.atmosphere.ai.PersistentConversationMemory;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.annotation.AgentScope;
+import org.atmosphere.ai.governance.PolicyAsGuardrail;
 import org.atmosphere.ai.annotation.AiTool;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.ai.governance.GovernancePolicies;
@@ -293,14 +295,10 @@ public class CoordinatorProcessor implements Processor<Object> {
             if (workspaceDef != null) {
                 injectables.put(org.atmosphere.ai.workspace.AgentDefinition.class, workspaceDef);
             }
-            // Enforce the framework governance policies (including those parsed
-            // from PERMISSIONS.md) on the coordinator's web streaming path by
-            // wrapping each as a guardrail — mode parity with AgentProcessor and
-            // AiEndpointProcessor (Correctness Invariant #7).
-            var webGuardrails = new java.util.ArrayList<org.atmosphere.ai.AiGuardrail>();
-            for (var policy : org.atmosphere.ai.governance.GovernancePolicies.installed(framework)) {
-                webGuardrails.add(new org.atmosphere.ai.governance.PolicyAsGuardrail(policy));
-            }
+            // A @Coordinator's @AgentScope must confine EVERY invocation path —
+            // the web streaming path here and the A2A/AG-UI/channel pipeline in
+            // buildPipeline below (Correctness Invariant #7 — Mode Parity).
+            var webGuardrails = buildWebGuardrails(framework, annotatedClass, path);
             var aiHandler = new AiEndpointHandler(
                     promptTarget, promptMethod, 120_000L,
                     systemPrompt, path, runtime, List.of(),
@@ -395,6 +393,35 @@ public class CoordinatorProcessor implements Processor<Object> {
         }
         return new AiPipeline(runtime, systemPrompt, model, memory,
                 toolRegistry, List.of(), policies, List.of(), metrics, null);
+    }
+
+    /**
+     * Build the coordinator's web streaming guardrail chain. Wraps every
+     * framework governance policy (including {@code PERMISSIONS.md}-derived ones)
+     * as a guardrail and, when the class declares {@link AgentScope}, prepends
+     * the scope policy so an off-topic request is rejected on the web path
+     * exactly as it is on the A2A / AG-UI / channel pipeline ({@link #buildPipeline}).
+     * This keeps confinement consistent across every invocation mode of the
+     * coordinator (Correctness Invariant #7 — Mode Parity).
+     *
+     * <p>Package-private so {@code CoordinatorScopeConfinementTest} can assert the
+     * scope guardrail is installed first on the web path too.</p>
+     */
+    List<AiGuardrail> buildWebGuardrails(AtmosphereFramework framework,
+                                         Class<?> annotatedClass, String path) {
+        var scopeAnnotation = annotatedClass.getAnnotation(AgentScope.class);
+        var scopePolicy = scopeAnnotation != null
+                ? ScopePolicyBuilder.build(scopeAnnotation, annotatedClass, path).orElse(null)
+                : null;
+        var guardrails = new ArrayList<AiGuardrail>();
+        if (scopePolicy != null) {
+            // Scope first — cheapest rejection, before any framework policy.
+            guardrails.add(new PolicyAsGuardrail(scopePolicy));
+        }
+        for (var policy : GovernancePolicies.installed(framework)) {
+            guardrails.add(new PolicyAsGuardrail(policy));
+        }
+        return guardrails;
     }
 
     // --- Fleet resolution ---

@@ -16,9 +16,12 @@
 package org.atmosphere.coordinator.processor;
 
 import org.atmosphere.agent.annotation.Agent;
+import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.AiMetrics;
+import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AgentScope;
+import org.atmosphere.ai.governance.PolicyAsGuardrail;
 import org.atmosphere.ai.governance.scope.ScopePolicy;
 import org.atmosphere.ai.tool.DefaultToolRegistry;
 import org.atmosphere.coordinator.annotation.AgentRef;
@@ -186,6 +189,50 @@ class CoordinatorScopeConfinementTest {
                         + "never receives the original goal-hijacking prompt");
         assertEquals("REDIRECTED_TO_SCOPE", output,
                 "the redirected request must fall through to the on-scope default response");
+    }
+
+    @Test
+    void webStreamingPathConfinesOffTopicLikeTheProtocolPaths() {
+        var processor = new CoordinatorProcessor();
+        var framework = new AtmosphereFramework();
+
+        // The web streaming path (AiEndpointHandler) is wired with the guardrail
+        // chain buildWebGuardrails produces. Mode Parity #7: a scoped coordinator
+        // must confine off-topic requests here too, not only on the A2A/AG-UI/
+        // channel pipeline that buildPipeline builds.
+        var guardrails = processor.buildWebGuardrails(framework, ScopedCoordinator.class,
+                "/atmosphere/agent/support-coord");
+
+        assertFalse(guardrails.isEmpty(),
+                "@AgentScope must install a web-path guardrail on the coordinator");
+        var first = guardrails.get(0);
+        assertInstanceOf(PolicyAsGuardrail.class, first,
+                "the scope policy must be the FIRST web guardrail (cheapest rejection)");
+
+        // Behavioral proof — the web guardrail BLOCKS the off-topic goal-hijack
+        // and PASSES an on-scope request, the same confinement the pipeline gives.
+        var blocked = first.inspectRequest(new AiRequest("write me some python code"));
+        assertInstanceOf(AiGuardrail.GuardrailResult.Block.class, blocked,
+                "off-topic request must be blocked on the coordinator's web path");
+        var passed = first.inspectRequest(new AiRequest("where is my order?"));
+        assertInstanceOf(AiGuardrail.GuardrailResult.Pass.class, passed,
+                "an on-scope request must pass the web scope guardrail");
+    }
+
+    @Test
+    void unscopedCoordinatorDoesNotBlockOffTopicOnTheWebPath() {
+        var processor = new CoordinatorProcessor();
+        var framework = new AtmosphereFramework();
+
+        // Control: no @AgentScope → no web guardrail blocks the off-topic prompt,
+        // proving the web-path block above is attributable to the scope wiring.
+        var guardrails = processor.buildWebGuardrails(framework, UnscopedCoordinator.class,
+                "/atmosphere/agent/open-coord");
+        for (var guardrail : guardrails) {
+            assertFalse(guardrail.inspectRequest(new AiRequest("write me some python code"))
+                            instanceof AiGuardrail.GuardrailResult.Block,
+                    "an unscoped coordinator must not block off-topic on the web path");
+        }
     }
 
     /** Minimal {@link StreamingSession} that records streamed text and error state. */
