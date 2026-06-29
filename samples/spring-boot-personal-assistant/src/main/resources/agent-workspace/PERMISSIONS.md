@@ -1,13 +1,12 @@
-# PERMISSIONS.md — Default permission mode (Atmosphere extension)
+# PERMISSIONS.md — Atmosphere extension
 
-default-mode: DEFAULT
+Content governance for the assistant. Each `deny:` / `deny-regex:` /
+`allow:` / `allow-regex:` / `require-role:` directive below compiles to a
+GovernancePolicy that Atmosphere installs framework-wide and enforces on
+every turn — web chat, A2A, and channels alike. OpenClaw ignores this file.
 
-per-tool:
-  - name: propose_slots      # scheduler-agent
-    requires-approval: false
-  - name: summarize_topic    # research-agent
-    requires-approval: false
-  - name: draft_message      # drafter-agent
-    requires-approval: false
-  - name: send_message       # reserved for a future send-capable drafter
-    requires-approval: true
+The assistant must refuse to move money or surface secrets:
+
+deny: wire money
+deny: transfer my savings
+deny-regex: (?i)\b(password|api[- ]?key)\b

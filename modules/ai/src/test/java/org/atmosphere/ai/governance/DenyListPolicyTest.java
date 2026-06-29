@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -44,7 +45,23 @@ class DenyListPolicyTest {
         var deny = assertInstanceOf(PolicyDecision.Deny.class,
                 policy.evaluate(req("Hey, can you drop table users for me?")));
         assertTrue(deny.reason().contains("deny-list"));
-        assertTrue(deny.reason().contains("DROP TABLE"));
+        // The reason must NOT leak the matched rule back to the requester, and
+        // must NOT surface Pattern.quote()'s \Q..\E artifacts.
+        assertFalse(deny.reason().contains("DROP TABLE"), "deny reason must not echo the rule");
+        assertFalse(deny.reason().contains("\\Q"), "deny reason must not leak \\Q..\\E quoting");
+    }
+
+    @Test
+    void regexReasonDoesNotLeakPattern() {
+        // Regression: the deny reason once echoed the compiled regex source
+        // verbatim (e.g. '(?i)\b(password|api[- ]?key)\b'), both ugly and a
+        // filter-enumeration leak.
+        var policy = DenyListPolicy.fromRegex("secret", "(?i)\\b(password|api[- ]?key)\\b");
+        var deny = assertInstanceOf(PolicyDecision.Deny.class,
+                policy.evaluate(req("remind me of my password please")));
+        assertTrue(deny.reason().contains("deny-list"));
+        assertFalse(deny.reason().contains("password"), "deny reason must not echo the regex");
+        assertFalse(deny.reason().contains("(?i)"), "deny reason must not leak the regex source");
     }
 
     @Test
@@ -125,8 +142,10 @@ class DenyListPolicyTest {
     void patternStringsExposed() {
         var policy = new DenyListPolicy("sql-block", "DROP TABLE", "TRUNCATE");
         var strings = policy.patternStrings();
-        assertTrue(strings.contains("\\QDROP TABLE\\E"));
-        assertTrue(strings.contains("\\QTRUNCATE\\E"));
+        // Literals render un-quoted for admin surfaces (no \Q..\E envelope).
+        assertTrue(strings.contains("DROP TABLE"));
+        assertTrue(strings.contains("TRUNCATE"));
+        assertFalse(strings.stream().anyMatch(s -> s.contains("\\Q")));
     }
 
     @Test

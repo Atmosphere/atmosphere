@@ -21,6 +21,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Deny a request when its message matches any configured phrase or regex.
  * The simplest possible content policy — two-line {@code new
@@ -38,6 +41,8 @@ import java.util.regex.Pattern;
  * gating.</p>
  */
 public final class DenyListPolicy implements GovernancePolicy {
+
+    private static final Logger logger = LoggerFactory.getLogger(DenyListPolicy.class);
 
     private final String name;
     private final String source;
@@ -88,10 +93,10 @@ public final class DenyListPolicy implements GovernancePolicy {
     @Override public String source() { return source; }
     @Override public String version() { return version; }
 
-    /** Exposed so admin surfaces can render the list. */
+    /** Exposed so admin surfaces can render the list (literals shown un-quoted). */
     public List<String> patternStrings() {
         var out = new ArrayList<String>(patterns.size());
-        for (var p : patterns) out.add(p.pattern());
+        for (var p : patterns) out.add(displayForm(p));
         return List.copyOf(out);
     }
 
@@ -115,11 +120,32 @@ public final class DenyListPolicy implements GovernancePolicy {
         }
         for (var pattern : patterns) {
             if (pattern.matcher(text).find()) {
-                return PolicyDecision.deny(
-                        "deny-list: " + origin + " matched '" + pattern.pattern() + "'");
+                // The user-facing reason deliberately omits the matched
+                // phrase/regex: echoing the rule back both leaks the deny-list
+                // (aiding evasion) and surfaces Pattern.quote()'s \Q..\E
+                // artifacts. Operators get the specific rule on the DEBUG log.
+                if (logger.isDebugEnabled()) {
+                    logger.debug("deny-list '{}' blocked {} on rule '{}'",
+                            name, origin, displayForm(pattern));
+                }
+                return PolicyDecision.deny("deny-list: " + origin + " matched a denied phrase");
             }
         }
         return PolicyDecision.admit();
+    }
+
+    /**
+     * Human-readable form of a compiled pattern: literal phrases compiled via
+     * {@link Pattern#quote(String)} are unwrapped from their {@code \Q..\E}
+     * envelope; genuine regexes are returned verbatim.
+     */
+    private static String displayForm(Pattern pattern) {
+        var raw = pattern.pattern();
+        if (raw.startsWith("\\Q") && raw.endsWith("\\E")
+                && raw.indexOf("\\E") == raw.length() - 2) {
+            return raw.substring(2, raw.length() - 2);
+        }
+        return raw;
     }
 
     private static List<Pattern> toLiteralPatterns(String[] phrases) {

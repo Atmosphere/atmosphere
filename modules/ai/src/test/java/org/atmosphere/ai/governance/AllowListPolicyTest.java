@@ -18,6 +18,7 @@ package org.atmosphere.ai.governance;
 import org.atmosphere.ai.AiRequest;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -93,8 +94,10 @@ class AllowListPolicyTest {
         var policy = new AllowListPolicy("topics", "foo", "bar");
         var strings = policy.patternStrings();
         assertTrue(strings.size() == 2);
-        assertTrue(strings.contains("\\Qfoo\\E"));
-        assertTrue(strings.contains("\\Qbar\\E"));
+        // Literals render un-quoted for admin surfaces (no \Q..\E envelope).
+        assertTrue(strings.contains("foo"));
+        assertTrue(strings.contains("bar"));
+        assertFalse(strings.stream().anyMatch(s -> s.contains("\\Q")));
     }
 
     @Test

@@ -30,6 +30,7 @@ public final class ClasspathDetector {
     private static final String MCP_CLASS = "org.atmosphere.mcp.annotation.McpTool";
     private static final String AGUI_CLASS = "org.atmosphere.agui.annotation.AgUiAction";
     private static final String CHANNELS_CLASS = "org.atmosphere.channels.IncomingMessage";
+    private static final String MCP_CLIENT_CLASS = "org.atmosphere.mcp.client.McpToolSource";
 
     private ClasspathDetector() {
     }
@@ -62,6 +63,10 @@ public final class ClasspathDetector {
 
     public static boolean hasChannels() {
         return isPresent(CHANNELS_CLASS);
+    }
+
+    public static boolean hasMcpClient() {
+        return isPresent(MCP_CLIENT_CLASS);
     }
 
     /**

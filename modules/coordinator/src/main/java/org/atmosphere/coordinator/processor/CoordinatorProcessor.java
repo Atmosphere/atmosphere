@@ -158,6 +158,17 @@ public class CoordinatorProcessor implements Processor<Object> {
     private final java.util.Set<AtmosphereFramework> shutdownHookInstalledOn =
             java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
 
+    /**
+     * Live MCP server connections opened from a coordinator's {@code MCP.md}
+     * ({@link org.atmosphere.mcp.client.McpServerRegistry} instances, held as
+     * {@link AutoCloseable} so this class carries no compile-time MCP-client
+     * reference). Closed on framework pre-destroy (Correctness Invariant #1).
+     */
+    private final List<AutoCloseable> ownedMcpRegistries = new CopyOnWriteArrayList<>();
+
+    private final java.util.Set<AtmosphereFramework> mcpShutdownHookInstalledOn =
+            java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+
     @Override
     public void handle(AtmosphereFramework framework, Class<Object> annotatedClass) {
         try {
@@ -177,6 +188,20 @@ public class CoordinatorProcessor implements Processor<Object> {
             var skillFile = loadSkillFile(annotation.skillFile(), coordinatorName);
             var systemPrompt = skillFile != null ? skillFile.systemPrompt() : "";
 
+            // Step 2b: Agent-as-artifact — load the configured workspace and
+            // apply RUNTIME.md / PERMISSIONS.md / SKILLS.md before AI infra is
+            // resolved. Mirrors AgentProcessor for mode parity (Invariant #7).
+            var workspaceDef = org.atmosphere.ai.workspace.WorkspaceExtensions
+                    .load(org.atmosphere.ai.workspace.WorkspaceExtensions.resolveLocation(framework))
+                    .orElse(null);
+            if (workspaceDef != null) {
+                org.atmosphere.ai.workspace.WorkspaceExtensions.applyRuntime(workspaceDef);
+                systemPrompt = org.atmosphere.ai.workspace.WorkspaceExtensions
+                        .augmentSystemPrompt(systemPrompt, workspaceDef);
+                org.atmosphere.ai.workspace.WorkspaceExtensions.installPolicies(framework,
+                        org.atmosphere.ai.workspace.WorkspaceExtensions.permissionPolicies(workspaceDef));
+            }
+
             // Step 3: Scan @Command methods
             var commandRegistry = new CommandRegistry();
             commandRegistry.scan(annotatedClass);
@@ -191,6 +216,22 @@ public class CoordinatorProcessor implements Processor<Object> {
             var runtime = resolveRuntime(settings);
             var memory = resolveMemory(DEFAULT_MAX_HISTORY);
             var toolRegistry = registerTools(instance);
+
+            // MCP.md: connect the coordinator's outbound MCP servers and
+            // register their remote tools (mode parity with AgentProcessor).
+            // Guarded behind the optional mcp-client module; live connections
+            // are closed on framework pre-destroy.
+            if (workspaceDef != null && ClasspathDetector.hasMcpClient()) {
+                var mcpRefs = org.atmosphere.ai.workspace.WorkspaceExtensions.mcpServerUris(workspaceDef);
+                if (!mcpRefs.isEmpty()) {
+                    var owned = WorkspaceMcpToolWiring.wire(coordinatorName, mcpRefs, toolRegistry);
+                    if (owned != null) {
+                        ownedMcpRegistries.add(owned);
+                        installMcpShutdownHook(framework);
+                    }
+                }
+            }
+
             var metrics = resolveMetrics();
             var lifecycle = AnnotatedLifecycle.scan(annotatedClass);
 
@@ -245,11 +286,22 @@ public class CoordinatorProcessor implements Processor<Object> {
             // receive them as typed parameters. Same semantics as
             // AgentProcessor.buildFoundationPrimitives.
             wireFoundationPrimitives(coordinatorName, injectables);
+            if (workspaceDef != null) {
+                injectables.put(org.atmosphere.ai.workspace.AgentDefinition.class, workspaceDef);
+            }
+            // Enforce the framework governance policies (including those parsed
+            // from PERMISSIONS.md) on the coordinator's web streaming path by
+            // wrapping each as a guardrail — mode parity with AgentProcessor and
+            // AiEndpointProcessor (Correctness Invariant #7).
+            var webGuardrails = new java.util.ArrayList<org.atmosphere.ai.AiGuardrail>();
+            for (var policy : org.atmosphere.ai.governance.GovernancePolicies.installed(framework)) {
+                webGuardrails.add(new org.atmosphere.ai.governance.PolicyAsGuardrail(policy));
+            }
             var aiHandler = new AiEndpointHandler(
                     promptTarget, promptMethod, 120_000L,
                     systemPrompt, path, runtime, List.of(),
                     memory, lifecycle, toolRegistry,
-                    List.of(), List.of(), metrics, List.of(), null, injectables);
+                    webGuardrails, List.of(), metrics, List.of(), null, injectables);
 
             // Step 9: Register handler
             var commandRouter = new CommandRouter(commandRegistry, instance);
@@ -279,7 +331,18 @@ public class CoordinatorProcessor implements Processor<Object> {
                         coordinatorName);
             }
             var guardrails = skillFile != null ? skillFile.listItems("Guardrails") : List.<String>of();
-            var channels = skillFile != null ? skillFile.listItems("Channels") : List.<String>of();
+            // CHANNELS.md selects which channel types this coordinator serves,
+            // merged with the skill file's "Channels" section (mode parity with
+            // AgentProcessor). Empty = all channels.
+            var channels = new java.util.ArrayList<>(
+                    skillFile != null ? skillFile.listItems("Channels") : List.<String>of());
+            if (workspaceDef != null) {
+                for (var ch : org.atmosphere.ai.workspace.WorkspaceExtensions.channelNames(workspaceDef)) {
+                    if (!channels.contains(ch)) {
+                        channels.add(ch);
+                    }
+                }
+            }
             registerA2a(framework, annotation,
                     promptTarget, promptMethod, fleet,
                     pipeline, path, guardrails, protocols);
@@ -621,6 +684,44 @@ public class CoordinatorProcessor implements Processor<Object> {
                 stopOwnedJournals();
             }
         });
+    }
+
+    /**
+     * Register a one-shot framework pre-destroy listener (at most once per
+     * framework) that closes every MCP server connection opened from MCP.md.
+     */
+    private void installMcpShutdownHook(AtmosphereFramework framework) {
+        synchronized (mcpShutdownHookInstalledOn) {
+            if (!mcpShutdownHookInstalledOn.add(framework)) {
+                return;
+            }
+        }
+        framework.frameworkListener(new AtmosphereFrameworkListenerAdapter() {
+            @Override
+            public void onPreDestroy(AtmosphereFramework f) {
+                closeOwnedMcpRegistries();
+            }
+        });
+    }
+
+    /**
+     * Close every MCP server connection opened from MCP.md. Safe to call
+     * repeatedly: each registry is removed before close so a second invocation
+     * skips it. A single misbehaving connection is logged at WARN and does not
+     * block siblings from releasing (Correctness Invariant #2).
+     */
+    void closeOwnedMcpRegistries() {
+        for (var registry : ownedMcpRegistries) {
+            if (!ownedMcpRegistries.remove(registry)) {
+                continue;
+            }
+            try {
+                registry.close();
+            } catch (Exception e) {
+                logger.warn("MCP server registry failed to close on shutdown; "
+                        + "connections may leak: {}", e.getMessage(), e);
+            }
+        }
     }
 
     /**

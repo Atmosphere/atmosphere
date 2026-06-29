@@ -221,6 +221,15 @@ public class AtmosphereAiAutoConfiguration {
         // bridge only needs to seed the init-params above.
         logger.info("Memory injection-safety: enabled={}, tier={}, onBreach={}, failOpen={}",
                 mem.isEnabled(), mem.getTier(), mem.getOnBreach(), mem.isFailOpen());
+        // Bridge the agent-as-artifact workspace location into a framework
+        // init-param so AgentProcessor / CoordinatorProcessor load it and apply
+        // its extension files. Unset by default — no workspace is loaded.
+        var workspace = properties.getWorkspace();
+        if (workspace != null && !workspace.isBlank()) {
+            framework.addInitParameter(
+                    org.atmosphere.ai.workspace.WorkspaceExtensions.WORKSPACE_PROPERTY, workspace);
+            logger.info("Agent-as-artifact workspace configured: {}", workspace);
+        }
         return new AtmosphereAiEndpointRegistrar(framework, properties, guardrails);
     }
 

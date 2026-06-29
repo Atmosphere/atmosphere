@@ -96,10 +96,25 @@ public final class AllowListPolicy implements GovernancePolicy {
     @Override public String source() { return source; }
     @Override public String version() { return version; }
 
+    /** Exposed for admin introspection (literals shown un-quoted). */
     public List<String> patternStrings() {
         var out = new ArrayList<String>(patterns.size());
-        for (var p : patterns) out.add(p.pattern());
+        for (var p : patterns) out.add(displayForm(p));
         return List.copyOf(out);
+    }
+
+    /**
+     * Human-readable form of a compiled pattern: literal phrases compiled via
+     * {@link Pattern#quote(String)} are unwrapped from their {@code \Q..\E}
+     * envelope; genuine regexes are returned verbatim.
+     */
+    private static String displayForm(Pattern pattern) {
+        var raw = pattern.pattern();
+        if (raw.startsWith("\\Q") && raw.endsWith("\\E")
+                && raw.indexOf("\\E") == raw.length() - 2) {
+            return raw.substring(2, raw.length() - 2);
+        }
+        return raw;
     }
 
     @Override

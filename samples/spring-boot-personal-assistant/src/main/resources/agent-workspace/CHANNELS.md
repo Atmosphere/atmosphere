@@ -1,12 +1,10 @@
 # CHANNELS.md — Atmosphere extension
 
-Atmosphere-only extension file — OpenClaw ignores this. Declares which
-messaging channels the assistant reaches the user through.
+Channel types this assistant serves. Atmosphere reads the bare tokens
+below and restricts the agent to those channels (absent/empty = all
+channels). Credentials (SLACK_BOT_TOKEN, TELEGRAM_BOT_TOKEN) always stay
+in the app's own config — never in this file. OpenClaw ignores it.
 
-- web (default)
-- slack   # enable by setting SLACK_BOT_TOKEN
-- telegram # enable by setting TELEGRAM_BOT_TOKEN
-
-When multiple channels are configured, conversation continuity flows
-across them via the shared session id — start a chat in Slack, resume in
-the web UI.
+web
+slack
+telegram

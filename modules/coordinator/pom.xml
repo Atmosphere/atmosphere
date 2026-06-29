@@ -60,6 +60,12 @@
         </dependency>
 
         <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-mcp-client</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
             <groupId>tools.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>${jackson.version}</version>

@@ -35,11 +35,14 @@ import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.ai.processor.AiEndpointHandler;
 import org.atmosphere.ai.tool.DefaultToolRegistry;
 import org.atmosphere.ai.tool.ToolRegistry;
+import org.atmosphere.ai.workspace.AgentDefinition;
+import org.atmosphere.ai.workspace.WorkspaceExtensions;
 import org.atmosphere.annotation.AnnotationUtil;
 import org.atmosphere.annotation.Processor;
 import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.managed.AnnotatedLifecycle;
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereFrameworkListenerAdapter;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +64,26 @@ public class AgentProcessor implements Processor<Object> {
     private static final Logger logger = LoggerFactory.getLogger(AgentProcessor.class);
     private static final int DEFAULT_MAX_HISTORY = 20;
     private static final String AGENT_VERSION = resolveModuleVersion();
+
+    /**
+     * Live MCP server connections opened from {@code MCP.md} ({@link McpServerRegistry}
+     * instances, held as {@link AutoCloseable} so this class carries no
+     * compile-time MCP-client reference). Closed on framework pre-destroy
+     * (Correctness Invariant #1, Ownership). {@link java.util.concurrent.CopyOnWriteArrayList}
+     * because shutdown reads it on the destroy thread while {@code handle()} may
+     * still be appending on the annotation-scan thread.
+     */
+    private final List<AutoCloseable> ownedMcpRegistries =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /**
+     * Ensures the shutdown listener is registered at most once per
+     * {@code (processor, framework)} pair — multiple {@code @Agent} classes
+     * share one processor instance, so without this guard we would register a
+     * duplicate listener for every agent in the same scan.
+     */
+    private final java.util.Set<AtmosphereFramework> mcpShutdownHookInstalledOn =
+            java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
 
     @Override
     public void handle(AtmosphereFramework framework, Class<Object> annotatedClass) {
@@ -88,6 +111,22 @@ public class AgentProcessor implements Processor<Object> {
             var skillFile = parseSkillFile(annotation);
             var systemPrompt = skillFile.systemPrompt();
 
+            // Step 2b: Agent-as-artifact. When an OpenClaw / native workspace is
+            // configured (atmosphere.workspace), load it and apply its extension
+            // files BEFORE AI infrastructure is resolved so the workspace's
+            // runtime config (RUNTIME.md), governance (PERMISSIONS.md), and
+            // prompt (SKILLS.md + skill files) actually take effect. Loading is
+            // best-effort: a missing / unreadable workspace never aborts startup.
+            var workspaceDef = WorkspaceExtensions
+                    .load(WorkspaceExtensions.resolveLocation(framework))
+                    .orElse(null);
+            if (workspaceDef != null) {
+                WorkspaceExtensions.applyRuntime(workspaceDef);
+                systemPrompt = WorkspaceExtensions.augmentSystemPrompt(systemPrompt, workspaceDef);
+                WorkspaceExtensions.installPolicies(framework,
+                        WorkspaceExtensions.permissionPolicies(workspaceDef));
+            }
+
             // Step 3: Scan @Command methods
             var commandRegistry = new CommandRegistry();
             commandRegistry.scan(annotatedClass);
@@ -103,6 +142,21 @@ public class AgentProcessor implements Processor<Object> {
             var runtime = resolveRuntime(settings);
             AiConversationMemory memory = resolveMemory(DEFAULT_MAX_HISTORY);
             var toolRegistry = registerTools(instance);
+
+            // MCP.md: connect the workspace's outbound MCP servers and register
+            // their remote tools into this agent's registry so they flow to the
+            // handler + pipeline. Guarded behind the optional mcp-client module;
+            // the live connections are closed on framework pre-destroy.
+            if (workspaceDef != null && ClasspathDetector.hasMcpClient()) {
+                var mcpRefs = WorkspaceExtensions.mcpServerUris(workspaceDef);
+                if (!mcpRefs.isEmpty()) {
+                    var owned = WorkspaceMcpToolWiring.wire(agentName, mcpRefs, toolRegistry);
+                    if (owned != null) {
+                        ownedMcpRegistries.add(owned);
+                        installMcpShutdownHook(framework);
+                    }
+                }
+            }
 
             // Warn on tool mismatch with skill file
             crossReferenceTools(skillFile, toolRegistry);
@@ -123,11 +177,24 @@ public class AgentProcessor implements Processor<Object> {
                 agentInjectables.put(Class.class, responseType);
             }
             buildFoundationPrimitives(agentName, agentInjectables);
+            if (workspaceDef != null) {
+                agentInjectables.put(AgentDefinition.class, workspaceDef);
+            }
+            // Enforce the framework governance policies (including those parsed
+            // from PERMISSIONS.md) on the web streaming path by wrapping each as
+            // a guardrail — the same mechanism AiEndpointProcessor uses for
+            // @AiEndpoint. Without this the @Agent web handler admitted
+            // unguarded while only the A2A / AG-UI / channel pipeline enforced
+            // them (Correctness Invariant #7, Mode Parity).
+            var webGuardrails = new ArrayList<org.atmosphere.ai.AiGuardrail>();
+            for (var policy : org.atmosphere.ai.governance.GovernancePolicies.installed(framework)) {
+                webGuardrails.add(new org.atmosphere.ai.governance.PolicyAsGuardrail(policy));
+            }
             var aiHandler = new AiEndpointHandler(
                     promptTarget, promptMethod, 120_000L,
                     systemPrompt, path, runtime, List.of(),
                     memory, lifecycle, toolRegistry,
-                    List.of(), List.of(), metrics, List.of(), null, agentInjectables);
+                    webGuardrails, List.of(), metrics, List.of(), null, agentInjectables);
 
             var commandRouter = new CommandRouter(commandRegistry, instance);
             var handler = new AgentHandler(aiHandler, commandRouter,
@@ -155,7 +222,19 @@ public class AgentProcessor implements Processor<Object> {
                     path, protocols);
             registerMcp(framework, annotation, skillFile, toolRegistry, path, protocols);
             registerAgUi(framework, promptTarget, promptMethod, path, pipeline, protocols);
-            var channels = skillFile.listItems("Channels");
+            // CHANNELS.md selects which channel types this agent serves; it
+            // merges with any "Channels" section in the skill file. An empty
+            // list means all channels (ChannelAiBridge default). Credentials
+            // always come from the channel module's own config, never the
+            // workspace file (Correctness Invariant #6).
+            var channels = new ArrayList<>(skillFile.listItems("Channels"));
+            if (workspaceDef != null) {
+                for (var ch : WorkspaceExtensions.channelNames(workspaceDef)) {
+                    if (!channels.contains(ch)) {
+                        channels.add(ch);
+                    }
+                }
+            }
             wireChannelBridge(agentName, commandRouter, instance, systemPrompt, pipeline,
                     channels, protocols);
 
@@ -416,6 +495,53 @@ public class AgentProcessor implements Processor<Object> {
         } catch (Exception e) {
             logger.warn("AgentWorkspace not wired for '{}': {}", agentName, e.getMessage());
         }
+    }
+
+    /**
+     * Register a one-shot framework pre-destroy listener (at most once per
+     * framework) that closes every MCP server connection opened from MCP.md.
+     */
+    private void installMcpShutdownHook(AtmosphereFramework framework) {
+        synchronized (mcpShutdownHookInstalledOn) {
+            if (!mcpShutdownHookInstalledOn.add(framework)) {
+                return;
+            }
+        }
+        framework.frameworkListener(new AtmosphereFrameworkListenerAdapter() {
+            @Override
+            public void onPreDestroy(AtmosphereFramework f) {
+                closeOwnedMcpRegistries();
+            }
+        });
+    }
+
+    /**
+     * Close every MCP server connection opened from MCP.md. Safe to call
+     * repeatedly: each registry is removed before close so a second invocation
+     * skips it. A single misbehaving connection is logged at WARN and does not
+     * block siblings from releasing (Correctness Invariant #2, terminal paths).
+     */
+    void closeOwnedMcpRegistries() {
+        for (var registry : ownedMcpRegistries) {
+            if (!ownedMcpRegistries.remove(registry)) {
+                continue;
+            }
+            try {
+                registry.close();
+            } catch (Exception e) {
+                logger.warn("MCP server registry failed to close on shutdown; "
+                        + "connections may leak: {}", e.getMessage(), e);
+            }
+        }
+    }
+
+    /**
+     * Test hook: track an {@link AutoCloseable} as if it were an MCP server
+     * registry opened from MCP.md, so {@link #closeOwnedMcpRegistries()} can be
+     * exercised without standing up a live MCP server. Not part of the public API.
+     */
+    void trackMcpRegistryForTest(AutoCloseable registry) {
+        ownedMcpRegistries.add(registry);
     }
 
     private AgentRuntime resolveRuntime(AiConfig.LlmSettings settings) {

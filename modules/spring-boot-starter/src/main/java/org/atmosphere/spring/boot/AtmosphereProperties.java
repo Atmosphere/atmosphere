@@ -59,6 +59,16 @@ public class AtmosphereProperties {
 
     private WebTransportProperties webTransport = new WebTransportProperties();
 
+    /**
+     * Agent-as-artifact workspace directory (OpenClaw or Atmosphere-native
+     * layout). A filesystem path or a {@code classpath:} resource that resolves
+     * to a real directory. When set, {@code AgentProcessor} /
+     * {@code CoordinatorProcessor} load it and apply its extension files
+     * (RUNTIME.md, PERMISSIONS.md, SKILLS.md, CHANNELS.md, MCP.md). Unset by
+     * default — no workspace is loaded.
+     */
+    private String workspace;
+
     public String getServletPath() {
         return servletPath;
     }
@@ -161,6 +171,14 @@ public class AtmosphereProperties {
 
     public void setWebTransport(WebTransportProperties webTransport) {
         this.webTransport = webTransport;
+    }
+
+    public String getWorkspace() {
+        return workspace;
+    }
+
+    public void setWorkspace(String workspace) {
+        this.workspace = workspace;
     }
 
     public static class GrpcProperties {
