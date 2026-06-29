@@ -59,6 +59,7 @@ public final class JdbcAuditSink implements AuditSink {
 
     private final DataSource dataSource;
     private final String table;
+    private final boolean postgres;
     private final String insertSql;
 
     /** Build against the default table name {@code governance_audit_log}. */
@@ -83,9 +84,19 @@ public final class JdbcAuditSink implements AuditSink {
         }
         this.dataSource = dataSource;
         this.table = table;
+        this.postgres = detectDialect().contains("postgres");
+        // Postgres declares context_snapshot as JSONB. A plain setString bind is
+        // sent over the wire as varchar, which Postgres rejects outright with
+        // "column is of type jsonb but expression is of type character varying" —
+        // so the JSON parameter is wrapped in CAST(? AS JSONB) to coerce the text
+        // to jsonb server-side. Other dialects (H2's CLOB column) take the bind
+        // verbatim. Without this, every insert fails and is swallowed below, so
+        // the table silently stays empty on real Postgres.
+        var contextParam = postgres ? "CAST(? AS JSONB)" : "?";
         this.insertSql = "INSERT INTO " + table
                 + " (ts, policy_name, policy_source, policy_version, decision, reason,"
-                + " evaluation_ms, context_snapshot) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                + " evaluation_ms, context_snapshot) VALUES (?, ?, ?, ?, ?, ?, ?, "
+                + contextParam + ")";
         if (autoCreate) {
             createSchemaIfMissing();
         }
@@ -118,7 +129,7 @@ public final class JdbcAuditSink implements AuditSink {
     }
 
     private void createSchemaIfMissing() {
-        var ddl = createTableDdl(detectDialect());
+        var ddl = createTableDdl(postgres);
         try (var conn = dataSource.getConnection();
              var stmt = conn.createStatement()) {
             for (var statement : ddl) {
@@ -139,8 +150,7 @@ public final class JdbcAuditSink implements AuditSink {
         }
     }
 
-    private String[] createTableDdl(String dialect) {
-        var isPostgres = dialect.contains("postgres");
+    private String[] createTableDdl(boolean isPostgres) {
         var json = isPostgres ? "JSONB" : "CLOB";
         var idAuto = isPostgres ? "BIGSERIAL" : "BIGINT AUTO_INCREMENT";
         var ts = isPostgres ? "TIMESTAMP WITH TIME ZONE" : "TIMESTAMP";

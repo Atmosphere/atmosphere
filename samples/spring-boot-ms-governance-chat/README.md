@@ -221,6 +221,56 @@ Steps 3 and 4 also make the same policy list reachable from the admin HTTP endpo
 
 ---
 
+## Durable audit — ship every admit and deny to Kafka or Postgres
+
+Every decision the chain makes is recorded to the in-process `GovernanceDecisionLog`
+ring buffer that backs the console's decisions view. That buffer is a rolling window
+for triage, not long-term retention. For durable audit, register one or more
+`AuditSink`s on the decision log — the framework fans every `AuditEntry` (admit,
+transform, deny, error) out to each registered sink synchronously on the admission
+thread.
+
+Two reference sinks ship in-tree:
+
+| Maven artifact | Sink | Destination |
+|---|---|---|
+| `org.atmosphere:atmosphere-ai-audit-kafka` | `KafkaAuditSink` | JSON record per decision on a Kafka topic |
+| `org.atmosphere:atmosphere-ai-audit-postgres` | `JdbcAuditSink` | one row per decision in a JDBC table (Postgres `JSONB` context column) |
+
+Add the dependency, then register the sink on the already-installed decision log
+(the admin auto-configuration installs it at startup):
+
+```java
+@Bean
+ApplicationRunner auditSinks(DataSource dataSource) {
+    return args -> {
+        var log = GovernanceDecisionLog.installed();
+        log.addSink(new KafkaAuditSink("broker:9092", "governance.audit"));
+        log.addSink(new JdbcAuditSink(dataSource)); // auto-creates governance_audit_log
+    };
+}
+```
+
+Each persisted record carries the decision (`admit`/`deny`/…), the policy that
+made it, the reason, and a redaction-safe context snapshot (agent id, endpoint,
+tenant metadata, truncated message). A slow sink back-pressures the admission
+path, so wrap a network sink in `AsyncAuditSink` for bounded-queue, drop-on-full
+delivery in production.
+
+This is proven, not asserted: `GovernanceAuditSinkDeliveryTest` (in this sample's
+`src/test`) boots a real Kafka broker and a real Postgres via Testcontainers,
+drives an admit and a deny through the sample's own policy plane, then **reads the
+records back** — consuming the events from the Kafka topic and `SELECT`-ing the
+rows from the Postgres table — and asserts the persisted decision, policy, reason,
+agent id, and endpoint. Run it with Docker available:
+
+```bash
+./mvnw test -pl samples/spring-boot-ms-governance-chat \
+  -Dtest=GovernanceAuditSinkDeliveryTest
+```
+
+---
+
 ## Why use the built-in console (and not custom HTML)
 
 Early iterations of this sample shipped a custom chat page. It was −132 lines and one parser bug (WebSocket JSON-envelope) away from being right. The final sample uses the Vue chat console shipped with `atmosphere-spring-boot-starter` because:
@@ -240,8 +290,9 @@ Trade-off accepted: the console can't carry inline "try these prompts" hints. Th
 - `modules/ai/src/test/resources/ms-agent-os/` — byte-for-byte copies of MS's example YAMLs from `microsoft/agent-governance-toolkit@April-2026` (`docs/tutorials/policy-as-code/examples/`).
 - `modules/ai/src/test/java/org/atmosphere/ai/governance/MsAgentOsYamlConformanceTest.java` — 10 tests that parse those fixtures and assert MS's documented behavior. Upstream MS schema drift fails the build.
 - `modules/admin/src/main/java/org/atmosphere/admin/ai/GovernanceController.java` — the `/check` endpoint's MS-compat payload mapping + response shape.
+- `src/test/java/org/atmosphere/samples/springboot/msgovernance/GovernanceAuditSinkDeliveryTest.java` — the "point the decision log at Kafka or Postgres and every admit and deny is persisted" claim, proven against real brokers via Testcontainers by reading each record back out of both stores.
 
-When a claim like "Atmosphere consumes MS YAML artifacts" lands in a blog post or conference talk, the reviewer can point at any of those four files to verify it holds.
+When a claim like "Atmosphere consumes MS YAML artifacts" lands in a blog post or conference talk, the reviewer can point at any of those files to verify it holds.
 
 ---
 

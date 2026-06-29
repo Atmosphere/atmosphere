@@ -21,6 +21,11 @@
         <netty.version>4.2.15.Final</netty.version>
         <maven.deploy.skip>true</maven.deploy.skip>
         <atmosphere.starter>atmosphere-spring-boot-starter</atmosphere.starter>
+        <!-- kafka-clients pinned to match the apache/kafka:3.8.1 broker image and
+             the version atmosphere-ai-audit-kafka is compiled against, so the
+             Testcontainers audit-sink delivery test's producer/consumer/admin all
+             align rather than inheriting Spring Boot's 4.x kafka-clients line. -->
+        <kafka.version>3.9.2</kafka.version>
     </properties>
 
     <dependencyManagement>
@@ -32,6 +37,19 @@
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
                 <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- testcontainers-bom imported BEFORE spring-boot-dependencies so its
+                 first-wins rule pins ALL org.testcontainers.* artifacts (core +
+                 kafka + postgresql) to the repo-wide 1.20.x line. Spring Boot 4's
+                 managed testcontainers BOM is a different (2.x) line whose
+                 KafkaContainer/PostgreSQLContainer APIs diverge from what the
+                 repo's integration tests use. -->
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -80,6 +98,54 @@
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
             <scope>runtime</scope>
+        </dependency>
+
+        <!-- ===== Audit-sink delivery test (Kafka + Postgres via Testcontainers) =====
+             Proves the blog claim "point the decision log at Kafka or Postgres and
+             every admit and deny is persisted." Test scope only — the sample itself
+             ships without these sinks; an operator adds them as documented in
+             README.md. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai-audit-kafka</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai-audit-postgres</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Pinned to the broker image / audit-module line (see kafka.version) so it
+             is not bumped to Spring Boot's 4.x kafka-clients by the imported BOM. -->
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <version>${kafka.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>kafka</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- JDBC driver for the JdbcAuditSink against the Postgres container;
+             version managed by spring-boot-dependencies. -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
