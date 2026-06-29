@@ -13,6 +13,7 @@ All samples inherit their Atmosphere version from the parent POM. The target sta
 | [quarkus-chat](quarkus-chat/) | Quarkus 3.36.0 | JAR | — | — | ✅ |
 | [quarkus-ai-chat](quarkus-ai-chat/) | Quarkus 3.36.0 + LangChain4j | JAR | — | — | ✅ |
 | [embedded-jetty-websocket-chat](embedded-jetty-websocket-chat/) | Embedded Jetty | JAR | — | — | — |
+| [kotlin-dsl-chat](kotlin-dsl-chat/) | Kotlin DSL + coroutines (Embedded Jetty) | JAR | — | — | — |
 | [grpc-chat](grpc-chat/) | gRPC + Spring Boot | JAR | — | — | — |
 
 ### AI / LLM Streaming

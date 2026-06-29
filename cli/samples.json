@@ -416,6 +416,24 @@
       "hasFrontend": true
     },
     {
+      "name": "kotlin-dsl-chat",
+      "description": "Kotlin-first chat — endpoint built with the Atmosphere Kotlin DSL, delivery via coroutine extensions (offline)",
+      "category": "chat",
+      "tags": [
+        "kotlin",
+        "dsl",
+        "coroutines",
+        "embedded",
+        "standalone"
+      ],
+      "port": 8099,
+      "runnable": true,
+      "packaging": "executable-jar",
+      "mainClass": "org.atmosphere.samples.kotlindsl.KotlinDslChat",
+      "hasFrontend": false,
+      "envVars": {}
+    },
+    {
       "name": "chat",
       "description": "Classic Atmosphere chat (WAR deployment)",
       "category": "chat",
