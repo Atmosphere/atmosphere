@@ -22,6 +22,8 @@ import org.atmosphere.ai.annotation.RequiresApproval;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Framework-agnostic tool provider using Atmosphere's {@code @AiTool} annotation.
@@ -37,6 +39,28 @@ import java.time.format.DateTimeFormatter;
  * <p>The key advantage: switch your AI backend without rewriting tool code.</p>
  */
 public class AssistantTools {
+
+    /**
+     * Illustrative order book: order id → order total in cents. A refund posts
+     * the matching total back to the customer. Unknown orders fall back to a
+     * flat amount so the demo never throws on an arbitrary id.
+     */
+    private static final Map<String, Long> ORDER_TOTALS_CENTS = Map.of(
+            "A-1001", 4999L,
+            "A-1002", 12900L,
+            "A-1003", 2500L);
+
+    private static final long DEFAULT_REFUND_CENTS = 1000L;
+
+    /**
+     * In-memory refund ledger: order id → cumulative cents refunded. This is
+     * the observable side effect of the money-moving {@code issue_refund} tool.
+     * A refund only lands here <em>after</em> a human approves the
+     * {@code @RequiresApproval} gate — the approval gate in
+     * {@code ToolExecutionHelper} short-circuits denied/timed-out/un-wired
+     * approvals before the executor (and therefore this mutation) ever runs.
+     */
+    private final Map<String, Long> refundLedgerCents = new ConcurrentHashMap<>();
 
     @AiTool(name = "get_current_time",
             description = "Returns the current date and time in the server's timezone")
@@ -92,6 +116,43 @@ public class AssistantTools {
             @Param(value = "city", description = "City name to reset data for")
             String city) {
         return "All cached data for " + city + " has been reset successfully.";
+    }
+
+    /**
+     * Money-moving tool: posts a refund for an order. Because it moves money it
+     * is gated by {@code @RequiresApproval} — the pipeline pauses, asks a human
+     * to approve, and only invokes this method (which mutates the refund ledger)
+     * once the human approves. A denied, timed-out, or un-wired approval never
+     * reaches this body, so no money moves without sign-off.
+     */
+    @AiTool(name = "issue_refund",
+            description = "Issue a refund for an order. This moves money and posts to the ledger immediately.")
+    @RequiresApproval("This refund posts immediately. Approve?")
+    public String issueRefund(
+            @Param(value = "orderId", description = "The order id to refund (e.g., A-1001)")
+            String orderId) {
+        long amountCents = ORDER_TOTALS_CENTS.getOrDefault(orderId, DEFAULT_REFUND_CENTS);
+        long newTotal = refundLedgerCents.merge(orderId, amountCents, Long::sum);
+        return String.format("Refund of %s posted for order %s (ledger total for order: %s).",
+                formatDollars(amountCents), orderId, formatDollars(newTotal));
+    }
+
+    /**
+     * Total cents refunded so far for an order. Lets callers (and tests) observe
+     * whether {@link #issueRefund(String)} actually posted — the side effect the
+     * {@code @RequiresApproval} gate is supposed to withhold until approval.
+     */
+    public long refundedCents(String orderId) {
+        return refundLedgerCents.getOrDefault(orderId, 0L);
+    }
+
+    /** Number of distinct orders with at least one posted refund. */
+    public int refundCount() {
+        return refundLedgerCents.size();
+    }
+
+    private static String formatDollars(long cents) {
+        return String.format("$%d.%02d", cents / 100, Math.abs(cents % 100));
     }
 
     @AiTool(name = "convert_temperature",

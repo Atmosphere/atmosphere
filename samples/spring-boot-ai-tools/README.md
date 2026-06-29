@@ -4,7 +4,7 @@ Framework-agnostic AI tool calling with **real-time tool events** — tools decl
 
 ## What It Does
 
-The assistant has five tools registered via Atmosphere's `@AiTool` annotation:
+The assistant has six tools registered via Atmosphere's `@AiTool` annotation:
 
 | Tool | Description |
 |------|-------------|
@@ -13,6 +13,30 @@ The assistant has five tools registered via Atmosphere's `@AiTool` annotation:
 | `get_weather` | Returns a weather report for a city |
 | `convert_temperature` | Converts between Celsius and Fahrenheit |
 | `reset_city_data` | Resets cached weather/time data for a city — a destructive operation gated by `@RequiresApproval` |
+| `issue_refund` | **Moves money** — posts a refund to an in-memory ledger, gated by `@RequiresApproval` so it only runs after a human approves |
+
+## Human-in-the-Loop: gating a money-moving tool
+
+`issue_refund` is the canonical "gate a money-moving tool behind a human" example. The
+method is annotated `@RequiresApproval("This refund posts immediately. Approve?")`. When the
+model decides to call it, Atmosphere's pipeline **pauses** (parking the virtual thread),
+emits an approval request to the client, and only invokes the method — which mutates the
+refund ledger — once a human approves.
+
+The gate is enforced in `ToolExecutionHelper.executeWithApproval(...)`, the single seam every
+runtime bridge routes tool calls through. The refund is **withheld** (the ledger is never
+touched) when approval is:
+
+- **denied** — returns `{"status":"cancelled"}`, no money moves;
+- **timed out** — returns `{"status":"timeout"}`, no money moves;
+- **un-wired** (no `ApprovalStrategy` on the path) — fails closed, no money moves.
+
+Only an explicit **approve** runs `issueRefund(...)` and posts the order amount to the ledger.
+
+`RefundApprovalGateTest` proves this on the **observable side effect** (the ledger balance via
+`AssistantTools.refundedCents(orderId)`), not on the mere presence of the annotation: the
+ledger stays empty for denied/timed-out/un-wired approvals and gains exactly the order amount
+only after an approval.
 
 ## Key Features
 
