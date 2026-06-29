@@ -41,9 +41,7 @@ import org.atmosphere.ai.governance.PolicyAsGuardrail;
 import org.atmosphere.ai.governance.memory.MemorySafetyConfig;
 import org.atmosphere.ai.memory.LongTermMemoryInterceptor;
 import org.atmosphere.ai.governance.rag.RagSafetyConfig;
-import org.atmosphere.ai.governance.scope.ScopeConfig;
-import org.atmosphere.ai.governance.scope.ScopeGuardrailResolver;
-import org.atmosphere.ai.governance.scope.ScopePolicy;
+import org.atmosphere.ai.governance.scope.ScopePolicyBuilder;
 import org.atmosphere.ai.tool.DefaultToolRegistry;
 import org.atmosphere.ai.tool.ToolRegistry;
 import org.atmosphere.annotation.AnnotationUtil;
@@ -141,7 +139,8 @@ public class AiEndpointProcessor implements Processor<Object> {
             // unrestricted = true.
             var scopeAnnotation = annotatedClass.getAnnotation(AgentScope.class);
             if (scopeAnnotation != null) {
-                var scopePolicy = buildScopePolicy(scopeAnnotation, annotatedClass, annotation.path());
+                var scopePolicy = ScopePolicyBuilder.build(
+                        scopeAnnotation, annotatedClass, annotation.path()).orElse(null);
                 if (scopePolicy != null) {
                     var extended = new ArrayList<GovernancePolicy>(policies.size() + 1);
                     extended.add(scopePolicy);      // scope runs first — cheapest rejection
@@ -431,46 +430,6 @@ public class AiEndpointProcessor implements Processor<Object> {
             }
         }
         return List.copyOf(merged.values());
-    }
-
-    /**
-     * Build a {@link ScopePolicy} from the {@link AgentScope} annotation on
-     * an endpoint class. Returns {@code null} when the annotation is invalid
-     * (e.g. {@code unrestricted = false} with blank purpose) and logs the
-     * reason — the endpoint keeps working without scope enforcement, which
-     * is the "refuse to break at startup" behaviour callers expect; the
-     * sample-hygiene CI lint catches this class of misconfiguration before
-     * it ships.
-     */
-    private static ScopePolicy buildScopePolicy(AgentScope annotation,
-                                                 Class<?> endpointClass,
-                                                 String endpointPath) {
-        try {
-            var config = ScopeConfig.fromAnnotation(annotation);
-            var guardrail = ScopeGuardrailResolver.resolve(config.tier());
-            if (guardrail.tier() != config.tier()) {
-                logger.warn("No {} ScopeGuardrail impl on the classpath for endpoint {} — "
-                                + "falling back to rule-based tier; install atmosphere-ai-scope-<tier> for the "
-                                + "intended behaviour", config.tier(), endpointPath);
-            }
-            var name = "scope::" + endpointClass.getSimpleName();
-            var source = "annotation:" + endpointClass.getName();
-            return new ScopePolicy(name, source, "1.0",
-                    // rebuild config against the guardrail we actually resolved
-                    // so we don't advertise EMBEDDING_SIMILARITY when only the
-                    // RULE_BASED fallback is installed
-                    new ScopeConfig(config.purpose(), config.forbiddenTopics(),
-                            config.onBreach(), config.redirectMessage(),
-                            guardrail.tier(), config.similarityThreshold(),
-                            config.postResponseCheck(), config.unrestricted(),
-                            config.justification()),
-                    guardrail);
-        } catch (IllegalArgumentException e) {
-            logger.error("Invalid @AgentScope on {} ({}) — endpoint will run WITHOUT scope "
-                    + "enforcement; fix the annotation or add unrestricted = true with a justification",
-                    endpointClass.getName(), endpointPath, e);
-            return null;
-        }
     }
 
     /**

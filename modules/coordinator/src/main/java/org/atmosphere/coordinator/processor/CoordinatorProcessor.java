@@ -31,8 +31,12 @@ import org.atmosphere.ai.ConversationPersistence;
 import org.atmosphere.ai.InMemoryConversationMemory;
 import org.atmosphere.ai.PersistentConversationMemory;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiTool;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.governance.GovernancePolicies;
+import org.atmosphere.ai.governance.GovernancePolicy;
+import org.atmosphere.ai.governance.scope.ScopePolicyBuilder;
 import org.atmosphere.ai.processor.AiEndpointHandler;
 import org.atmosphere.ai.tool.DefaultToolRegistry;
 import org.atmosphere.ai.tool.ToolRegistry;
@@ -318,13 +322,8 @@ public class CoordinatorProcessor implements Processor<Object> {
             var model = settings != null ? settings.model() : null;
             AiPipeline pipeline = null;
             if (runtime != null) {
-                // Install the framework's governance policies so the coordinator
-                // A2A / AG-UI / channel pipelines admit against the same chain as
-                // @AiEndpoint (Mode Parity #7) instead of an empty policy list.
-                pipeline = new AiPipeline(runtime, systemPrompt, model, memory,
-                        toolRegistry, List.of(),
-                        org.atmosphere.ai.governance.GovernancePolicies.installed(framework),
-                        List.of(), metrics, null);
+                pipeline = buildPipeline(framework, annotatedClass, path, runtime,
+                        systemPrompt, model, memory, toolRegistry, metrics);
             } else {
                 logger.warn("Coordinator '{}': no AgentRuntime on classpath — "
                         + "session.stream() will buffer text instead of invoking LLM",
@@ -362,6 +361,40 @@ public class CoordinatorProcessor implements Processor<Object> {
             throw new RuntimeException(
                     "Failed to register Coordinator from " + annotatedClass.getName(), e);
         }
+    }
+
+    /**
+     * Build the coordinator's protocol pipeline (the A2A / AG-UI / channel
+     * surface). The pipeline is seeded with the framework's installed
+     * governance policies so the coordinator admits against the same chain as
+     * a plain {@code @AiEndpoint} instead of an empty policy list (Mode Parity
+     * #7). When the {@code @Coordinator} class also declares {@link AgentScope},
+     * an auto-installed {@link org.atmosphere.ai.governance.scope.ScopePolicy}
+     * is prepended so an off-topic request is rejected at the cheapest gate —
+     * mirroring {@code AiEndpointProcessor}'s {@code @AgentScope} wiring so a
+     * goal-hijacking prompt is confined on the coordinator path too.
+     *
+     * <p>Package-private so {@code CoordinatorScopeConfinementTest} can drive a
+     * request through the real admission gate this method wires.</p>
+     */
+    AiPipeline buildPipeline(AtmosphereFramework framework, Class<?> annotatedClass,
+                             String path, AgentRuntime runtime, String systemPrompt,
+                             String model, AiConversationMemory memory,
+                             ToolRegistry toolRegistry, AiMetrics metrics) {
+        var policies = GovernancePolicies.installed(framework);
+        var scopeAnnotation = annotatedClass.getAnnotation(AgentScope.class);
+        if (scopeAnnotation != null) {
+            var scopePolicy = ScopePolicyBuilder.build(
+                    scopeAnnotation, annotatedClass, path).orElse(null);
+            if (scopePolicy != null) {
+                var extended = new ArrayList<GovernancePolicy>(policies.size() + 1);
+                extended.add(scopePolicy);      // scope runs first — cheapest rejection
+                extended.addAll(policies);
+                policies = List.copyOf(extended);
+            }
+        }
+        return new AiPipeline(runtime, systemPrompt, model, memory,
+                toolRegistry, List.of(), policies, List.of(), metrics, null);
     }
 
     // --- Fleet resolution ---
