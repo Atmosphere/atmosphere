@@ -55,6 +55,19 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Spring Boot auto-configuration for the default CheckpointStore bean
+             (AtmosphereCheckpointAutoConfiguration). Provided/optional so the
+             core SPI stays usable from non-Spring runtimes (Quarkus, plain
+             Servlet) without dragging Spring Boot onto their classpath; Spring
+             Boot apps already have it via the starter. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+            <version>${spring-boot.version}</version>
+            <scope>provided</scope>
+            <optional>true</optional>
+        </dependency>
+
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>

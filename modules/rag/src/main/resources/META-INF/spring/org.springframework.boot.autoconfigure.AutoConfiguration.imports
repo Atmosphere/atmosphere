@@ -1,1 +1,2 @@
 org.atmosphere.ai.rag.spring.AtmosphereRagAutoConfiguration
+org.atmosphere.ai.rag.spring.AtmosphereContextProviderAutoConfiguration

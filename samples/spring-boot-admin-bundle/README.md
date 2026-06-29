@@ -21,34 +21,36 @@ app with `@SpringBootTest` and pulls each bean straight out of the context.
 
 ## What the bundle actually wires
 
-`AdminBundleWiringTest` splits the six families into what the bundle proves at
-two honesty levels:
-
-### Four families auto-configure a live bean from the bundle alone
+All six families auto-configure a **live bean** from the bundle alone.
+`AdminBundleWiringTest` boots the app and pulls each one straight out of the
+context:
 
 | Family | Representative bean asserted | Wired by |
 |--------|------------------------------|----------|
 | Runtime | `org.atmosphere.cpr.AtmosphereFramework` | `AtmosphereAutoConfiguration` |
 | AI | `org.atmosphere.ai.AiConfig.LlmSettings` (AI pipeline config) | `AtmosphereAiAutoConfiguration` |
 | Coordinator | `org.atmosphere.admin.coordinator.CoordinatorController` | `AtmosphereAdminAutoConfiguration` (gated on `AgentFleet`, which rode in on the bundle) |
+| RAG | `org.atmosphere.ai.ContextProvider` (`InMemoryContextProvider` default) | `AtmosphereContextProviderAutoConfiguration` |
+| Checkpoints | `org.atmosphere.checkpoint.CheckpointStore` (`InMemoryCheckpointStore` default) | `AtmosphereCheckpointAutoConfiguration` |
 | Durable sessions | `org.atmosphere.session.SessionStore` + `DurableSessionInterceptor` | `DurableSessionAutoConfiguration` (opt-in via `atmosphere.durable-sessions.enabled=true`) |
 
-### Two families are aggregated as SPIs but need one operator-supplied bean
+### Safe defaults, with a startup warning
 
-RAG and checkpoints are genuinely brought onto the classpath by the bundle —
-their SPI type and a concrete in-tree implementation are loadable — but neither
-**auto-configures a live bean** from the bundle alone:
+RAG and checkpoints have no operator-supplied backing bean in this sample, so
+their auto-configurations contribute **safe in-memory defaults** and log a
+startup `WARN` so the development-grade choice is never mistaken for production:
 
-| Family | SPI on classpath (from bundle) | Why no auto-wired bean |
-|--------|--------------------------------|------------------------|
-| RAG | `org.atmosphere.ai.ContextProvider` + `InMemoryContextProvider` | `AtmosphereRagAutoConfiguration` is gated on Spring AI's `VectorStore` (not pulled by the bundle) **and** a `VectorStore` bean. Supply both and a `ContextProvider` bean appears. |
-| Checkpoints | `org.atmosphere.checkpoint.CheckpointStore` + `InMemoryCheckpointStore` | There is no Spring auto-configuration for `CheckpointStore`. The operator declares a `@Bean CheckpointStore` (exactly as `spring-boot-checkpoint-agent` does). |
+- **ContextProvider** → an empty `InMemoryContextProvider` (retrieves nothing).
+  WARN: *"No ContextProvider configured — using empty in-memory RAG provider…"*
+- **CheckpointStore** → an `InMemoryCheckpointStore` (lost on restart).
+  WARN: *"No CheckpointStore configured — using in-memory…"*
 
-`ragAndCheckpointFamiliesAreAggregatedButNotAutoWired()` asserts that true state
-— the SPI loads from the bundle classpath, and the context holds **zero** beans
-of that type — instead of pretending an auto-configured bean exists. That keeps
-the sample honest about what "wires together" means for these two families: the
-bundle does the aggregation; activation takes one more bean you own.
+Both defaults are gated `@ConditionalOnMissingBean`, so an operator who declares
+their own `ContextProvider` (a Spring AI `VectorStore` bridge, pgvector, Qdrant…)
+or `CheckpointStore` (`SqliteCheckpointStore`, Postgres — exactly as
+`spring-boot-checkpoint-agent` does) **replaces** the default rather than adding a
+second bean. `ragAndCheckpointDefaultsAreSingleConditionalBeans()` asserts exactly
+one bean of each type — the default — confirming that guard.
 
 ## Run the test (the proof)
 
@@ -71,5 +73,5 @@ purpose — the bundle supplies the wiring, and the test is the deliverable.
 ## Files
 
 - `AdminBundleApplication.java` — the entry point; nothing but `@SpringBootApplication`.
-- `AdminBundleWiringTest.java` — boots the context and asserts the wired beans / aggregated SPIs.
+- `AdminBundleWiringTest.java` — boots the context and asserts all six families wire as live beans.
 - `application.properties` — enables durable sessions and boots AI without an LLM key (demo).
