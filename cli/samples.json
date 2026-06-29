@@ -253,6 +253,23 @@
       }
     },
     {
+      "name": "spring-boot-spring-ai-advisors",
+      "description": "Bind your own Spring AI ChatClient via SpringAiAgentRuntime.setChatClient(...) — Atmosphere keeps your defaultAdvisors and you attach more advisors per request",
+      "category": "agent",
+      "tags": [
+        "spring-boot",
+        "ai",
+        "spring-ai",
+        "advisors",
+        "chatclient"
+      ],
+      "port": 8098,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": false,
+      "envVars": {}
+    },
+    {
       "name": "spring-boot-mcp-server",
       "description": "MCP server — expose tools, resources, and prompts to AI agents",
       "category": "mcp",

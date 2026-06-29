@@ -24,6 +24,7 @@ All samples inherit their Atmosphere version from the parent POM. The target sta
 | [spring-boot-ai-classroom](spring-boot-ai-classroom/) | Built-in | — | Multi-room collaborative AI streaming ([Expo client](spring-boot-ai-classroom/expo-client/)) |
 | [spring-boot-rag-chat](spring-boot-rag-chat/) | Built-in + Spring AI VectorStore | `@AiTool` | RAG agent with knowledge base search tools |
 | [spring-boot-browser-agent](spring-boot-browser-agent/) | Cohere (Command) | `code_exec` (sandboxed) | Code-as-action agent — writes Playwright that drives a headless browser in an isolated container; screenshots stream to the Console live (**requires Docker**) |
+| [spring-boot-spring-ai-advisors](spring-boot-spring-ai-advisors/) | Spring AI `ChatClient` (bound, offline) | — | Bind your own `ChatClient` via `SpringAiAgentRuntime.setChatClient(...)` — Atmosphere keeps your `defaultAdvisors(...)` and you attach more advisors per request |
 
 ### Agents (`@Agent` + `@Command`)
 

@@ -630,6 +630,7 @@
         <module>samples/spring-boot-reattach-harness</module>
         <module>samples/spring-boot-ai-tools</module>
         <module>samples/spring-boot-rag-chat</module>
+        <module>samples/spring-boot-spring-ai-advisors</module>
         <module>samples/grpc-chat</module>
         <module>samples/spring-boot-a2a-agent</module>
         <module>samples/spring-boot-agui-chat</module>

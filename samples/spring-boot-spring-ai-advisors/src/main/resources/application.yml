@@ -1,0 +1,15 @@
+server:
+  port: ${SERVER_PORT:8098}
+
+spring:
+  application:
+    name: atmosphere-spring-boot-spring-ai-advisors
+
+atmosphere:
+  packages: org.atmosphere.samples.springboot.springaiadvisors
+
+logging:
+  level:
+    org.atmosphere.samples.springboot.springaiadvisors: INFO
+    # See the advisors announce themselves as they run inside the chain.
+    org.atmosphere.samples.springboot.springaiadvisors.AuditingAdvisor: INFO
