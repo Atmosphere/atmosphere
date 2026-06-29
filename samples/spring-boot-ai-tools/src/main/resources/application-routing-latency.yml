@@ -1,0 +1,34 @@
+# Offline LATENCY-based model-routing demo — proves Atmosphere 4 blog §7
+# ("an agent can route across models by cost or latency").
+#
+# Activate with:
+#   ./mvnw spring-boot:run -pl samples/spring-boot-ai-tools \
+#       -Dspring-boot.run.profiles=routing-latency
+#
+# Same two candidate models as the routing-cost profile, but the latency rule
+# selects the highest-capability model whose average latency fits the budget:
+#   frugal-mini: 900ms -> OVER the 100ms budget (excluded)
+#   swift-pro  :  20ms -> within budget (selected)
+# So the latency ceiling forces the FAST swift-pro — the OPPOSITE choice the
+# cost profile makes from the identical model pool. That contrast is the point:
+# the same agent routes to a different model purely by the chosen objective.
+llm:
+  mode: fake
+  model: demo-router
+
+atmosphere:
+  ai:
+    routing:
+      enabled: true
+      default-model: demo-router
+      latency-rules:
+        - max-latency-ms: 100
+          models:
+            - model: swift-pro            # premium: fast (20ms) + most capable
+              cost-per-streaming-text: 0.05
+              average-latency-ms: 20
+              capability: 10
+            - model: frugal-mini          # budget: cheap but slow (900ms)
+              cost-per-streaming-text: 0.0001
+              average-latency-ms: 900
+              capability: 5

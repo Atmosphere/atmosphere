@@ -38,6 +38,40 @@ Only an explicit **approve** runs `issueRefund(...)` and posts the order amount 
 ledger stays empty for denied/timed-out/un-wired approvals and gains exactly the order amount
 only after an approval.
 
+## Routing across models by cost or latency
+
+The other Atmosphere 4 headline — *"an agent can route across models by cost or latency"* — is
+driven by `RoutingLlmClient`: when `atmosphere.ai.routing.enabled=true`, the auto-configuration
+wraps the resolved LLM client in a router and installs it as the client every `AgentRuntime`
+dispatch reads. The sample ships two **offline** routing profiles so you can watch the routing
+decision without an API key (`llm.mode=fake` resolves a no-network client):
+
+```bash
+# Cost objective: picks the cheaper model that fits the budget
+./mvnw spring-boot:run -pl samples/spring-boot-ai-tools \
+    -Dspring-boot.run.profiles=routing-cost
+
+# Latency objective: picks the faster model that fits the budget
+./mvnw spring-boot:run -pl samples/spring-boot-ai-tools \
+    -Dspring-boot.run.profiles=routing-latency
+```
+
+Both profiles declare the **identical** two-model pool — `swift-pro` (premium: fast + most
+capable, but expensive) and `frugal-mini` (cheap but slow). The objective alone decides:
+
+| Profile | Rule | Excluded | **Selected** |
+|---------|------|----------|--------------|
+| `routing-cost` | `max-cost: 10.0` | `swift-pro` (`0.05 × 2048 = 102.4` over budget) | **`frugal-mini`** |
+| `routing-latency` | `max-latency-ms: 100` | `frugal-mini` (`900ms` over budget) | **`swift-pro`** |
+
+Same agent, same candidate models, opposite pick — purely by the chosen objective.
+
+`CostLatencyRoutingDeliveryTest` proves this on the **observable routing decision**, not on the
+mere presence of a routing bean: it boots the real application under each shipped profile, drives
+a chat turn through the config-installed `RoutingLlmClient`, and asserts the `routing.model`
+frame the router emits carries `frugal-mini` (cost) and `swift-pro` (latency). Swap in real model
+names and drop `llm.mode=fake` to route real traffic.
+
 ## Key Features
 
 - **`@AiEndpoint(tools = AssistantTools.class)`** — `@AiTool` methods auto-bridged to whichever AI backend is active
@@ -76,6 +110,8 @@ Open http://localhost:8090 in your browser.
 | `AssistantTools.java` | `@AiTool`-annotated methods (portable across backends) |
 | `DemoResponseProducer.java` | Fallback with `AiEvent.ToolStart`/`ToolResult` events |
 | `CostMeteringInterceptor.java` | `AiInterceptor` for cost/latency tracking |
+| `application-routing-cost.yml` / `application-routing-latency.yml` | Offline cost/latency model-routing profiles |
+| `CostLatencyRoutingDeliveryTest.java` | Proves the router selects the expected model by cost vs latency |
 | `App.tsx` | React frontend with `ToolActivity` component for live events |
 
 ## Architecture

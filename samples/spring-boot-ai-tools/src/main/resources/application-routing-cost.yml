@@ -1,0 +1,40 @@
+# Offline COST-based model-routing demo — proves Atmosphere 4 blog §7
+# ("an agent can route across models by cost or latency").
+#
+# Activate with:
+#   ./mvnw spring-boot:run -pl samples/spring-boot-ai-tools \
+#       -Dspring-boot.run.profiles=routing-cost
+#
+# No API key is needed: llm.mode=fake resolves a concrete, no-network client so
+# the routing DECISION is observable without an outbound call. The two candidate
+# models below are illustrative — swap in real model names (and drop the fake
+# mode) to route real traffic.
+#
+# The cost rule selects the highest-capability model whose projected cost
+# (cost-per-streaming-text * maxStreamingTexts) fits the budget. With
+# maxStreamingTexts=2048:
+#   swift-pro  : 0.05   * 2048 = 102.4   -> OVER the 10.0 budget (excluded)
+#   frugal-mini: 0.0001 * 2048 =   0.2048 -> within budget (selected)
+# So even though swift-pro is the more capable model, the cost ceiling forces
+# the cheaper frugal-mini. (Compare profile routing-latency, which picks the
+# opposite model from the SAME pool.)
+llm:
+  mode: fake
+  model: demo-router
+
+atmosphere:
+  ai:
+    routing:
+      enabled: true
+      default-model: demo-router
+      cost-rules:
+        - max-cost: 10.0
+          models:
+            - model: swift-pro            # premium: fastest + most capable, but pricey
+              cost-per-streaming-text: 0.05
+              average-latency-ms: 20
+              capability: 10
+            - model: frugal-mini          # budget: cheap, slower, less capable
+              cost-per-streaming-text: 0.0001
+              average-latency-ms: 900
+              capability: 5
