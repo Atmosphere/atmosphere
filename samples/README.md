@@ -103,7 +103,7 @@ patterns, and framework-specific demos.
 |----------|--------|----------|------------------|
 | `rag` | [`spring-boot-rag-chat`](spring-boot-rag-chat) | RAG support bot over a chunked Markdown knowledge base | `ContextProvider` SPI, `RagChunker`, vector-store bridge, slash commands |
 | `ai-tools` | [`spring-boot-ai-tools`](spring-boot-ai-tools) | Internal tool agent — portable `@AiTool` calls, cost metering, audit listener | `@AiTool`, `@RequiresApproval`, `CostMeteringInterceptor`, audit log |
-| `guarded-agent` | [`spring-boot-guarded-email-agent`](spring-boot-guarded-email-agent) | Approval workflow — Plan-and-Verify gate that refuses unsafe LLM-emitted plans before any tool fires | `PlanAndVerifyInterceptor`, durable HITL, `CheckpointStore`, replay |
+| `guarded-agent` | [`spring-boot-guarded-email-agent`](spring-boot-guarded-email-agent) | Approval workflow — Plan-and-Verify gate that refuses unsafe tool-call plans before any tool fires | `PlanAndVerify`, durable HITL, `CheckpointStore`, replay |
 | `coding-agent` | [`spring-boot-coding-agent`](spring-boot-coding-agent) | Coding agent — sandboxed git clone + file edit + AgentResumeHandle reattach | Sandbox SPI, `@Agent` skill files, reattach on disconnect |
 | `ms-governance` | [`spring-boot-ms-governance-chat`](spring-boot-ms-governance-chat) | Governance demo — Microsoft Agent Governance Toolkit alignment, decision viewer, kill switch | `PolicyAdmissionGate`, `ControlAuthorizer`, decision log, mutating-endpoint auth |
 

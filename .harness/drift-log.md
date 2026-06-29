@@ -1801,3 +1801,54 @@ separate default-on from opt-in (A07 + HIPAA-164.312-c-1 honestly downgraded to 
 and hardened the gate to exclude the matrix files and strip import/comment lines
 (`mentionsInCode`) with a regression proving a comment-only mention is detected as zero-consumer.
 Validated live on the rendered console OWASP tab.
+
+## 2026-06-29 — Phantom `PlanAndVerifyInterceptor` in samples/README; OpenClaw extension-files "wired" overstatement on the blog
+
+Two drifts caught while re-auditing the published async-io.live Atmosphere 4 blog and the
+samples catalog, with the verifier paragraph adversarially re-verified (6-agent workflow + a
+self-watched `./mvnw -pl modules/verifier,modules/verifier-smt test` — 127 verifier + 11 SMT
+tests green, the enforcement claim pinned by `PlanAndVerifyTest.verifierViolationAbortsBeforeAnyToolFires`,
+which asserts zero tool dispatch on a rejected plan).
+
+**Claim 1 (`samples/README.md:106`, guarded-email-agent row):** listed `PlanAndVerifyInterceptor`
+as a key API and called the gate one that "refuses unsafe LLM-emitted plans."
+
+**Truth:** `PlanAndVerifyInterceptor` exists nowhere in source — `git grep` finds it only in that
+one README cell. The real mechanism is an explicit `PlanAndVerify` bean
+(`PlanAndVerify.withDefaults(...)` in `GuardedEmailAgentApplication`), invoked by the app; there is
+no auto-interceptor. The shipped default plan source is the deterministic `DemoPlanRuntime` (canned
+JSON, no API key) or opt-in `GoapPlanRuntime`, and the source is any classpath `AgentRuntime` — so
+"LLM-emitted" is false for the default too.
+
+**Slip path:** the README "Key capabilities" column is free prose; no gate checks that backticked
+type names in it resolve to real types.
+
+**Fix:** cell rewritten to `PlanAndVerify` + "unsafe tool-call plans" (this commit).
+**Gate added: `none` (honest).** A grep-gate over the column is the obvious candidate, but three
+prototype attempts produced ~42 false phantoms because `\b` is silently unsupported in
+`git grep -E` on this platform — it flagged even `@AiTool` and `PlanAndVerify` as missing. A gate
+that fragile would self-discredit, exactly the false-positive / self-satisfying-gate trap this log
+has recorded before, so it is honestly left `none` rather than shipped broken. A correct check
+would need a portable boundary plus a curated allowlist for non-type phrases (`durable HITL`,
+`replay`, `audit log`). The corrected README was re-scanned with a portable boundary: no other
+phantom remains.
+
+**Claim 2 (blog, async-io.live OpenClaw section):** "`CHANNELS.md` to put the agent on Telegram or
+Slack, `MCP.md` to wire MCP servers, `PERMISSIONS.md` for the governance layer."
+
+**Truth:** the OpenClaw adapter, the `AgentWorkspace` SPI, the canonical-layout reading
+(AGENTS/SOUL/USER/IDENTITY + `skills/`), and the no-conversion promise are genuinely shipped. But
+the five Atmosphere extension files are parsed into `AgentDefinition.atmosphereExtensions()`
+(a `Map<String,String>`) that has **zero** consumers outside the workspace package — `git grep
+atmosphereExtensions` outside `/workspace/` is empty. The map dead-ends; nothing puts the agent on
+a channel, registers an MCP server, or enforces governance from it. The `AgentDefinition` Javadoc
+even promises "downstream primitives parse these further" — no such consumer exists.
+
+**Slip path:** the narrative inferred active capability from the file names' evident intent; the
+adapter genuinely *reads* the files, so a shallow "are they read?" check passes. Extends
+Invariant #5 (Runtime Truth) and `feedback_primitive_needs_consumer` from SPI presence to
+**parsed-but-unconsumed data**.
+
+**Fix:** blog wording tightened to "Atmosphere reads them and surfaces their contents on the loaded
+agent definition for downstream primitives to pick up," dropping the Telegram/MCP/governance
+implications until real consumers exist (website `658d303`).
