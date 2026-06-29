@@ -258,10 +258,110 @@ class AdminResourceAuthzTest {
         }
     }
 
+    // ── Opt-in role authorization (atmosphere.admin.required-role) ──
+    // Proves the MicroProfile-JWT path: quarkus-smallrye-jwt maps the JWT
+    // `groups` claim onto SecurityContext roles, so a JWT carrying the
+    // configured role is admitted and one without it is rejected. The token
+    // path is deliberately left ungated. Parity with the Spring starter's
+    // AtmosphereAdminEndpointAuthzTest (Correctness Invariant #7).
+
+    /**
+     * A JWT whose {@code groups} claim includes the configured role
+     * (surfaced by Quarkus as {@code SecurityContext.isUserInRole}) is
+     * admitted for writes.
+     */
+    @Test
+    void writeAllowedWhenJakartaPrincipalCarriesRequiredRole() {
+        System.setProperty("atmosphere.admin.required-role", "atmosphere-admin");
+        try {
+            Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
+            resource.writeEnabledOverride = true;
+            var response = resource.broadcast(
+                    securityContextWithRole("alice@example.com", "atmosphere-admin"),
+                    Map.of("broadcasterId", "/chat", "message", "x"));
+            assertEquals(200, response.getStatus(),
+                    "a JWT principal carrying the required role must be admitted");
+        } finally {
+            System.clearProperty("atmosphere.admin.required-role");
+        }
+    }
+
+    /**
+     * A Jakarta-Security principal that does NOT carry the configured
+     * role is rejected with 403 even though the feature flag is on and a
+     * principal is present — the role gate fires before the
+     * ControlAuthorizer.
+     */
+    @Test
+    void writeRejectedWhenJakartaPrincipalLacksRequiredRole() {
+        System.setProperty("atmosphere.admin.required-role", "atmosphere-admin");
+        try {
+            Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
+            resource.writeEnabledOverride = true;
+            // securityContextFor stubs no roles → isUserInRole(...) is false.
+            var response = resource.broadcast(securityContextFor("mallory@example.com"),
+                    Map.of("broadcasterId", "/chat", "message", "x"));
+            assertEquals(403, response.getStatus(),
+                    "a JWT principal lacking the required role must be rejected with 403");
+        } finally {
+            System.clearProperty("atmosphere.admin.required-role");
+        }
+    }
+
+    /**
+     * The role gate is scoped to container-security (JWT) principals: the
+     * X-Atmosphere-Auth operator token path has no roles and must remain
+     * admissible (governed by ControlAuthorizer) even when a role is
+     * required — otherwise enabling the flag would silently break
+     * token-based operator tooling.
+     */
+    @Test
+    void requiredRoleDoesNotGateTheAdminTokenPath() {
+        System.setProperty("atmosphere.admin.required-role", "atmosphere-admin");
+        System.setProperty("atmosphere.admin.auth.token", "demo-token");
+        try {
+            Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
+            resource.writeEnabledOverride = true;
+            resource.jaxrsHeaders = Mockito.mock(jakarta.ws.rs.core.HttpHeaders.class);
+            Mockito.when(resource.jaxrsHeaders.getHeaderString("X-Atmosphere-Auth"))
+                    .thenReturn("demo-token");
+            var response = resource.broadcast(anonymousSecurityContext(),
+                    Map.of("broadcasterId", "/chat", "message", "x"));
+            assertEquals(200, response.getStatus(),
+                    "the role gate constrains JWT principals only; the X-Atmosphere-Auth "
+                            + "operator token stays governed by ControlAuthorizer");
+        } finally {
+            System.clearProperty("atmosphere.admin.required-role");
+            System.clearProperty("atmosphere.admin.auth.token");
+        }
+    }
+
+    /**
+     * Default posture: with no required role configured a Jakarta
+     * principal that carries no roles still writes — proving the gate is
+     * strictly opt-in and does not regress the existing principal-only
+     * posture.
+     */
+    @Test
+    void noRequiredRoleConfigured_jakartaPrincipalWithoutRolesStillWrites() {
+        Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
+        resource.writeEnabledOverride = true;
+        var response = resource.broadcast(securityContextFor("alice@example.com"),
+                Map.of("broadcasterId", "/chat", "message", "x"));
+        assertEquals(200, response.getStatus(),
+                "with atmosphere.admin.required-role unset the role gate must not fire");
+    }
+
     private static SecurityContext securityContextFor(String name) {
         var ctx = Mockito.mock(SecurityContext.class);
         Principal p = () -> name;
         Mockito.when(ctx.getUserPrincipal()).thenReturn(p);
+        return ctx;
+    }
+
+    private static SecurityContext securityContextWithRole(String name, String role) {
+        var ctx = securityContextFor(name);
+        Mockito.when(ctx.isUserInRole(role)).thenReturn(true);
         return ctx;
     }
 

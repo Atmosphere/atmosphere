@@ -135,6 +135,24 @@ public class AtmosphereAdminEndpoint {
             return ResponseEntity.status(401).body(Map.of(
                     "error", "Authentication required for admin write operations"));
         }
+        // Opt-in role authorization (atmosphere.admin.required-role), parity
+        // with the Quarkus admin extension. When set, a caller authenticated by
+        // the servlet security layer (Spring Security / Jakarta Security — e.g. a
+        // JWT whose authorities Spring maps onto isUserInRole) must additionally
+        // carry that role. The X-Atmosphere-Auth token path (which sets the
+        // org.atmosphere.auth.principal attribute when AdminApiAuthFilter wraps
+        // the request) and the ai.userId attribute are not role-bearing and stay
+        // governed by the ControlAuthorizer below, so the gate fires only for a
+        // container-security principal. Default off — existing deployments are
+        // unaffected.
+        var requiredRole = requiredRole();
+        if (requiredRole != null && isContainerSecurityPrincipal(request)
+                && !request.isUserInRole(requiredRole)) {
+            admin.auditLog().record(principalName, action + ".denied.role", target, false,
+                    "missing role: " + requiredRole);
+            return ResponseEntity.status(403).body(Map.of(
+                    "error", "Forbidden: caller lacks required role"));
+        }
         var authorizer = admin.authorizer();
         if (!authorizer.authorize(action, target, principalName)) {
             admin.auditLog().record(principalName, action + ".denied.authz", target, false, null);
@@ -164,6 +182,42 @@ public class AtmosphereAdminEndpoint {
             return s;
         }
         return "unknown";
+    }
+
+    /**
+     * Resolve the opt-in admin role requirement
+     * ({@code atmosphere.admin.required-role}). Returns {@code null} —
+     * meaning no role gate — when the property is unset or blank.
+     * Consulted per request like {@link #writeEnabled()} so an operator
+     * can tighten the gate at runtime without a restart.
+     */
+    String requiredRole() {
+        var role = env.getProperty("atmosphere.admin.required-role", "");
+        return role != null && !role.isBlank() ? role.trim() : null;
+    }
+
+    /**
+     * True when the request was authenticated by the servlet security
+     * layer (Spring Security / Jakarta Security) rather than the
+     * Atmosphere {@code X-Atmosphere-Auth} token path. Only the former
+     * is role-bearing, so only it is subject to the role gate.
+     *
+     * <p>The token path is identified by the
+     * {@code org.atmosphere.auth.principal} request attribute that
+     * {@code AdminApiAuthFilter} sets when it wraps the request — a
+     * container-security principal sets {@code getUserPrincipal()} but
+     * never that attribute.</p>
+     */
+    private static boolean isContainerSecurityPrincipal(HttpServletRequest request) {
+        if (request == null) {
+            return false;
+        }
+        var principal = request.getUserPrincipal();
+        if (principal == null || principal.getName() == null
+                || principal.getName().isBlank()) {
+            return false;
+        }
+        return request.getAttribute("org.atmosphere.auth.principal") == null;
     }
 
     // ── System Overview ──

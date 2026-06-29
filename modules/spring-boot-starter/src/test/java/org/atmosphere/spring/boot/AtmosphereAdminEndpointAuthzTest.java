@@ -48,6 +48,7 @@ class AtmosphereAdminEndpointAuthzTest {
     private AtmosphereAdmin admin;
     private MockMvc mockMvcGateClosed;
     private MockMvc mockMvcGateOpen;
+    private MockMvc mockMvcRoleGated;
 
     @BeforeEach
     void setUp() {
@@ -71,11 +72,25 @@ class AtmosphereAdminEndpointAuthzTest {
         mockMvcGateOpen = MockMvcBuilders.standaloneSetup(
                         new AtmosphereAdminEndpoint(admin, envWithWrite(true)))
                 .build();
+        // Write enabled AND a required role configured — exercises the
+        // opt-in atmosphere.admin.required-role gate.
+        mockMvcRoleGated = MockMvcBuilders.standaloneSetup(
+                        new AtmosphereAdminEndpoint(admin,
+                                envWithWriteAndRole(true, "atmosphere-admin")))
+                .build();
     }
 
     private static org.springframework.core.env.Environment envWithWrite(boolean enabled) {
         var env = new org.springframework.mock.env.MockEnvironment();
         env.setProperty("atmosphere.admin.http-write-enabled", String.valueOf(enabled));
+        return env;
+    }
+
+    private static org.springframework.core.env.Environment envWithWriteAndRole(
+            boolean enabled, String role) {
+        var env = new org.springframework.mock.env.MockEnvironment();
+        env.setProperty("atmosphere.admin.http-write-enabled", String.valueOf(enabled));
+        env.setProperty("atmosphere.admin.required-role", role);
         return env;
     }
 
@@ -131,6 +146,54 @@ class AtmosphereAdminEndpointAuthzTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"broadcasterId\":\"/chat\",\"message\":\"x\"}"))
                 .andExpect(status().isForbidden());
+    }
+
+    // ── Opt-in role authorization (atmosphere.admin.required-role) ──
+    // Parity with the Quarkus AdminResourceAuthzTest (Correctness
+    // Invariant #7). A servlet/Spring Security principal carrying the
+    // configured role writes; one without it is rejected; the
+    // X-Atmosphere-Auth token path stays ungated.
+
+    @Test
+    void writeAllowedWhenContainerPrincipalCarriesRequiredRole() throws Exception {
+        Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
+        Principal alice = () -> "alice@example.com";
+        mockMvcRoleGated.perform(post("/api/admin/broadcasters/broadcast")
+                        .principal(alice)
+                        .with(req -> {
+                            req.addUserRole("atmosphere-admin");
+                            return req;
+                        })
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"broadcasterId\":\"/chat\",\"message\":\"x\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void writeRejectedWhenContainerPrincipalLacksRequiredRole() throws Exception {
+        Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
+        Principal mallory = () -> "mallory@example.com";
+        mockMvcRoleGated.perform(post("/api/admin/broadcasters/broadcast")
+                        .principal(mallory)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"broadcasterId\":\"/chat\",\"message\":\"x\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void requiredRoleDoesNotGateTheAtmosphereTokenPath() throws Exception {
+        // Simulate AdminApiAuthFilter's token wrapper: getUserPrincipal() is
+        // set AND the org.atmosphere.auth.principal attribute is present. The
+        // role gate must treat this as the (role-less) token path and defer to
+        // the ControlAuthorizer rather than 403 it for a missing role.
+        Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
+        Principal token = () -> "atmosphere-admin-token";
+        mockMvcRoleGated.perform(post("/api/admin/broadcasters/broadcast")
+                        .principal(token)
+                        .requestAttr("org.atmosphere.auth.principal", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"broadcasterId\":\"/chat\",\"message\":\"x\"}"))
+                .andExpect(status().isOk());
     }
 
     @Test

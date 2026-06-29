@@ -129,6 +129,34 @@ anonymous readers then receive `401`. Wired by
 (a JAX-RS `@Provider`) on Quarkus. Multi-tenant operators who
 expose `/api/admin/*` on a routable network flip this one flag.
 
+#### Opt-in role authorization (JWT)
+
+For JWT-based identity, set `atmosphere.admin.required-role=<role>` to
+require that **write** callers authenticated by the container security
+layer carry that role. The role is matched through the standard servlet
+`isUserInRole` contract, so it works with whatever maps onto it on each
+runtime — no Atmosphere-specific wiring:
+
+- **Quarkus** — `quarkus-smallrye-jwt` surfaces the JWT `groups` claim as
+  `SecurityContext.isUserInRole(...)`. A token with
+  `"groups": ["atmosphere-admin"]` satisfies
+  `atmosphere.admin.required-role=atmosphere-admin`.
+- **Spring Boot** — Spring Security maps a JWT's granted authorities onto
+  `HttpServletRequest.isUserInRole(...)` (by its `ROLE_` convention, so
+  `required-role=atmosphere-admin` matches the `ROLE_atmosphere-admin`
+  authority). Configure the JWT→authority mapping the usual Spring
+  Security way.
+
+The gate is **default-off** and **purely additive**: it constrains only
+the container-security (JWT) principal. The `X-Atmosphere-Auth` operator
+token and the framework-attribute identities carry no roles and remain
+governed by `ControlAuthorizer`, so enabling the flag never breaks
+existing token-based tooling. A caller that is authenticated but lacks
+the role is denied `403` and the decision is recorded in the audit log
+as `<action>.denied.role`. For finer-grained checks (scopes, tenants,
+per-action rules), install a `ControlAuthorizer` instead of — or in
+addition to — this flag.
+
 #### Spring Boot operator setup
 
 ```java

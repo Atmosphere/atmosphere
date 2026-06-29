@@ -142,6 +142,25 @@ public class AdminResource {
                     .entity(Map.of("error", "Authentication required for admin write operations"))
                     .build();
         }
+        // Opt-in role authorization (atmosphere.admin.required-role). When set,
+        // a caller authenticated via Jakarta Security — e.g. a MicroProfile JWT
+        // whose {@code groups} claim Quarkus maps onto roles — must additionally
+        // carry that role. Gated on a Jakarta-Security principal
+        // ({@code sec.getUserPrincipal()}) because only that path is
+        // role-bearing: the X-Atmosphere-Auth token and the
+        // AuthInterceptor/ai.userId attribute principals have no roles and stay
+        // governed by the ControlAuthorizer below (purely additive — no existing
+        // path changes while the flag is unset). Default off keeps every current
+        // deployment unaffected.
+        var requiredRole = resolveRequiredRole();
+        if (requiredRole != null && hasJakartaPrincipal(sec)
+                && !sec.isUserInRole(requiredRole)) {
+            admin.auditLog().record(principalName, action + ".denied.role", target, false,
+                    "missing role: " + requiredRole);
+            return Response.status(403)
+                    .entity(Map.of("error", "Forbidden: caller lacks required role"))
+                    .build();
+        }
         var authorizer = admin.authorizer();
         if (!authorizer.authorize(action, target, principalName)) {
             admin.auditLog().record(principalName, action + ".denied.authz", target, false, null);
@@ -249,6 +268,40 @@ public class AdminResource {
             result |= a.charAt(i) ^ b.charAt(i);
         }
         return result == 0;
+    }
+
+    /**
+     * Resolve the opt-in admin role requirement
+     * ({@code atmosphere.admin.required-role}). Returns {@code null} —
+     * meaning no role gate — when the property is unset/blank or no
+     * MicroProfile Config backend is available (embedded fixtures).
+     * Resolved per request like {@code writeEnabled()} so an operator
+     * can tighten the gate at runtime without a restart.
+     */
+    private static String resolveRequiredRole() {
+        try {
+            return org.eclipse.microprofile.config.ConfigProvider.getConfig()
+                    .getOptionalValue("atmosphere.admin.required-role", String.class)
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .orElse(null);
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    /**
+     * True when the request carries a Jakarta Security principal
+     * ({@code sec.getUserPrincipal()}) — the only role-bearing auth
+     * surface on Quarkus. The token and request-attribute principals
+     * resolve through {@link #resolvePrincipalName} without ever
+     * setting {@code sec.getUserPrincipal()}, so this cleanly scopes the
+     * role gate to container-authenticated (JWT) callers.
+     */
+    private static boolean hasJakartaPrincipal(SecurityContext sec) {
+        return sec != null && sec.getUserPrincipal() != null
+                && sec.getUserPrincipal().getName() != null
+                && !sec.getUserPrincipal().getName().isBlank();
     }
 
     // ── System Overview ──
