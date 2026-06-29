@@ -81,6 +81,21 @@
             <artifactId>jakarta.inject-api</artifactId>
         </dependency>
 
+        <!-- Test only: the OUTBOUND A2A caller (A2aAgentTransport) lives in the
+             coordinator module. The delivery test boots this sample's own A2A
+             server and calls it back over real JSON-RPC to prove the blog claim
+             "an Atmosphere agent can call other A2A agents over JSON-RPC." -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-coordinator</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Parent POM restricts logback to test scope; override for runtime logging -->
         <dependency>
             <groupId>ch.qos.logback</groupId>

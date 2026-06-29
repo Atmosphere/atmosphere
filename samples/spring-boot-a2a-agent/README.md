@@ -14,6 +14,30 @@ The `WeatherTimeAgent` exposes three skills via `@Agent` (headless A2A mode):
 
 The agent auto-publishes an **Agent Card** describing its capabilities, fetched via the A2A `agent/authenticatedExtendedCard` method. Note: that is the standard A2A method name, but **this sample serves it without authentication** (see [Security](#security) below).
 
+## Calling Another A2A Agent (Outbound)
+
+A2A is bidirectional: an Atmosphere agent can also **call** other A2A agents over
+JSON-RPC. The calling side is the `A2aAgentTransport` from the
+[`atmosphere-coordinator`](../../modules/coordinator/) module — point it at any
+A2A endpoint and `send(agentName, skillId, args)` performs the JSON-RPC
+`message/send` round trip, returning the remote agent's reply as an `AgentResult`:
+
+```java
+try (var transport = new A2aAgentTransport("atmosphere-assistant",
+        "http://localhost:8084/atmosphere/a2a")) {
+    AgentResult reply = transport.send("atmosphere-assistant", "get-time",
+            Map.of("timezone", "America/New_York"));
+    // reply.text() == "Current time in America/New_York: 2026-..."
+}
+```
+
+`A2aOutboundDeliveryTest` proves this end-to-end: it boots this sample's **own**
+A2A server on a random port and drives a real outbound JSON-RPC call back to it
+through `A2aAgentTransport` over a loopback socket, asserting the response content
+came from the remote skill (the timezone we send is echoed in the reply, and an
+unknown skill surfaces as a failed `AgentResult`). Fully offline — no LLM key
+needed, since the deterministic demo path is forced.
+
 ## Running
 
 ```bash
@@ -86,6 +110,7 @@ unguessable capability tokens — neither replaces fronting the endpoint with au
 | `WeatherTimeAgent.java` | `@Agent` with three `@AgentSkill` methods using `TaskContext` (headless mode) |
 | `LlmConfig.java` | Bridges Spring properties to `AiConfig` |
 | `A2aAgentApplication.java` | Spring Boot entry point |
+| `A2aOutboundDeliveryTest.java` | Boots the agent and drives a real **outbound** A2A JSON-RPC call back to it via `A2aAgentTransport` |
 
 ## Architecture
 
