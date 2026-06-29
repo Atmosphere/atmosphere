@@ -151,6 +151,18 @@ Open http://localhost:8080/ in multiple browser tabs to chat.
 | `/actuator/health` | Health check (includes Atmosphere status) |
 | `/actuator/metrics/atmosphere.connections.active` | Connection gauge |
 
+## Tests
+
+```bash
+mvn test -pl samples/spring-boot-chat
+```
+
+| Test | Proves |
+|------|--------|
+| `WAsyncChatIntegrationTest` | Chat broadcast delivery over WebSocket, SSE, and long-polling using the wAsync Java client |
+| `ChatRoomsIntegrationTest` | Room API wiring — lobby pre-created with history, `GET /api/rooms` shape |
+| `RoomPresenceDeliveryTest` | **Presence actually tracks membership.** Two real WebSocket subscribers join/leave over the Room Protocol; a `presence/join` then `presence/leave` frame is delivered to the other member, `Room#size()` / `memberInfo()` and `GET /api/rooms` advance to two members and shrink back, and server-side `PresenceEvent`s fire. The Java/JVM mirror of the browser-side `presence-count.spec.ts` / `rooms-api.spec.ts` Playwright specs. |
+
 ## Project Structure
 
 ```
