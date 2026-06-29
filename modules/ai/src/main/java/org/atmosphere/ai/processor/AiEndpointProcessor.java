@@ -216,6 +216,12 @@ public class AiEndpointProcessor implements Processor<Object> {
             if (annotation.maxToolsPerRequest() > 0) {
                 handler.setMaxToolsPerRequest(annotation.maxToolsPerRequest());
             }
+            // Endpoint-scoped reply fan-out: when broadcastReply is true, the
+            // single reply streams to every subscriber on the per-path
+            // broadcaster (the room) rather than only the originating client.
+            if (annotation.broadcastReply()) {
+                handler.setBroadcastReply(true);
+            }
 
             // Per-endpoint stream cache: set the framework's cache class name
             // before the broadcaster is created so the new broadcaster picks up

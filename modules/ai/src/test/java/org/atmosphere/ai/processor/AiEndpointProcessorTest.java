@@ -331,6 +331,38 @@ public class AiEndpointProcessorTest {
     }
 
     @Test
+    public void testBroadcastReplyWiredToHandlerWhenEnabled() throws Exception {
+        // @AiEndpoint(broadcastReply = true) must flip the handler so the reply
+        // fans out to the whole room instead of only the originating client.
+        when(framework.newClassInstance(eq(Object.class), any()))
+                .thenReturn(new BroadcastReplyEndpoint());
+
+        processor.handle(framework, (Class) BroadcastReplyEndpoint.class);
+
+        var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
+        verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
+        var handler = (AiEndpointHandler) handlerCaptor.getValue();
+        assertTrue(handler.broadcastReply(),
+                "broadcastReply = true on the annotation must enable room fan-out on the handler");
+    }
+
+    @Test
+    public void testBroadcastReplyDefaultsToPerClient() throws Exception {
+        // Default (no broadcastReply) must keep the per-client behavior so
+        // existing endpoints are unaffected.
+        when(framework.newClassInstance(eq(Object.class), any()))
+                .thenReturn(new ValidEndpoint());
+
+        processor.handle(framework, (Class) ValidEndpoint.class);
+
+        var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
+        verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
+        var handler = (AiEndpointHandler) handlerCaptor.getValue();
+        assertFalse(handler.broadcastReply(),
+                "broadcastReply must default to false (per-client reply delivery)");
+    }
+
+    @Test
     public void testHeartbeatOverrideAppliedToInterceptor() throws Exception {
         // Verify @AiEndpoint.heartbeatSeconds reconfigures the per-endpoint
         // HeartbeatInterceptor instance produced by defaultManagedServiceInterceptors.
@@ -592,6 +624,13 @@ public class AiEndpointProcessorTest {
     @AiEndpoint(path = "/atmosphere/stream-cache",
                 streamCache = org.atmosphere.cache.UUIDBroadcasterCache.class)
     public static class StreamCacheEndpoint {
+        @Prompt
+        public void onPrompt(String message, StreamingSession session) {
+        }
+    }
+
+    @AiEndpoint(path = "/atmosphere/room/{room}", broadcastReply = true)
+    public static class BroadcastReplyEndpoint {
         @Prompt
         public void onPrompt(String message, StreamingSession session) {
         }

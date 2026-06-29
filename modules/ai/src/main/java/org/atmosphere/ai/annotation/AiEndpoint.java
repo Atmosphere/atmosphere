@@ -336,6 +336,29 @@ public @interface AiEndpoint {
     int structuredOutputRetries() default 0;
 
     /**
+     * Whether a single AI reply fans out to every subscriber on this endpoint's
+     * (per-path) broadcaster — the room — instead of only the client that sent
+     * the prompt. Use this for shared rooms where one participant's prompt and
+     * the assistant's reply should be visible to everyone in the room.
+     *
+     * <p>The prompt is still dispatched to exactly one {@code @Prompt} handler
+     * (the originating client), so the model is invoked once per prompt — only
+     * the reply delivery changes. This deliberately does <strong>not</strong>
+     * fan the prompt out to every subscriber's {@code @Prompt} method, which
+     * would drive N redundant LLM calls and leak streams into tabs that never
+     * asked anything.</p>
+     *
+     * <p>Defaults to {@code false} (per-client: the reply streams back only to
+     * the originating client). Most useful combined with a path template that
+     * carries a room parameter, which gives each room its own broadcaster:</p>
+     *
+     * <pre>{@code
+     * @AiEndpoint(path = "/atmosphere/room/{room}", broadcastReply = true)
+     * }</pre>
+     */
+    boolean broadcastReply() default false;
+
+    /**
      * Cap on the number of tools handed to the model per turn. When the endpoint
      * registers more tools than this, the set is dynamically pre-filtered to the
      * most relevant for the user's message (lexical token-overlap scoring) before

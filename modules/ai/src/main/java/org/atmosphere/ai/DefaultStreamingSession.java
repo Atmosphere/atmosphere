@@ -34,11 +34,19 @@ import java.util.concurrent.atomic.AtomicLong;
  * Default implementation of {@link StreamingSession} that writes
  * JSON-encoded streaming messages directly to an {@link AtmosphereResource}.
  *
- * <p>Messages are delivered only to the originating resource via
+ * <p>By default, messages are delivered only to the originating resource via
  * {@code broadcaster.broadcast(msg, Set.of(resource))}. This ensures each
  * client receives only its own AI response while still passing through
- * the broadcaster's filter/cache chain. For broadcast-to-all semantics,
- * use {@link BroadcasterStreamingSession}.</p>
+ * the broadcaster's filter/cache chain.</p>
+ *
+ * <p>When constructed in room-broadcast mode (used by
+ * {@code @AiEndpoint(broadcastReply = true)} for shared rooms), the reply is
+ * instead delivered to every subscriber on the resource's (per-path)
+ * broadcaster via {@code broadcaster.broadcast(msg)} — one reply fans out to
+ * the whole room. The prompt is still dispatched to a single {@code @Prompt}
+ * handler upstream, so the model runs exactly once regardless of room size.
+ * For a broadcaster-only session with no originating resource, use
+ * {@link BroadcasterStreamingSession}.</p>
  *
  * <p>Wire protocol:</p>
  * <pre>
@@ -59,13 +67,24 @@ public final class DefaultStreamingSession implements StreamingSession {
 
     private final String sessionId;
     private final AtmosphereResource resource;
+    private final boolean broadcastToRoom;
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final AtomicBoolean errored = new AtomicBoolean(false);
     private final AtomicLong sequence = new AtomicLong(0);
 
     DefaultStreamingSession(String sessionId, AtmosphereResource resource) {
+        this(sessionId, resource, false);
+    }
+
+    /**
+     * @param broadcastToRoom when {@code true}, the reply fans out to every
+     *                        subscriber on the resource's broadcaster (the
+     *                        room) instead of only the originating resource
+     */
+    DefaultStreamingSession(String sessionId, AtmosphereResource resource, boolean broadcastToRoom) {
         this.sessionId = sessionId;
         this.resource = resource;
+        this.broadcastToRoom = broadcastToRoom;
         SESSION_RESOURCES.put(sessionId, resource);
         SESSION_INSTANCES.put(sessionId, this);
     }
@@ -280,10 +299,19 @@ public final class DefaultStreamingSession implements StreamingSession {
     private void broadcast(String json) {
         // Wrap in RawMessage so ManagedAtmosphereHandler.onStateChange()
         // delivers the JSON as-is without re-invoking @Message handlers.
-        // Deliver only to the originating resource (unicast) while still
-        // passing through the broadcaster's filter/cache chain.
         try {
-            resource.getBroadcaster().broadcast(new RawMessage(json), Set.of(resource));
+            var broadcaster = resource.getBroadcaster();
+            if (broadcastToRoom) {
+                // Room fan-out (@AiEndpoint.broadcastReply=true): deliver the
+                // single reply to every subscriber on the per-path broadcaster,
+                // not just the originating resource. The prompt was dispatched
+                // to one @Prompt handler upstream, so the model ran exactly once.
+                broadcaster.broadcast(new RawMessage(json));
+            } else {
+                // Default: deliver only to the originating resource (unicast)
+                // while still passing through the broadcaster's filter/cache chain.
+                broadcaster.broadcast(new RawMessage(json), Set.of(resource));
+            }
         } catch (Exception e) {
             logger.warn("Failed to broadcast from session {}: {}", sessionId, e.getMessage());
         }

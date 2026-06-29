@@ -59,6 +59,26 @@ public final class StreamingSessions {
     }
 
     /**
+     * Start a new streaming session whose reply fans out to <em>every</em>
+     * subscriber on the resource's (per-path) broadcaster — the room — rather
+     * than only the originating resource. Used by
+     * {@code @AiEndpoint(broadcastReply = true)} for shared-room endpoints,
+     * where one participant's prompt and the assistant's reply are delivered
+     * to all participants in the room.
+     *
+     * <p>The prompt itself is still dispatched to a single {@code @Prompt}
+     * handler (the originating resource), so the model is invoked exactly once
+     * per prompt — only the reply delivery changes.</p>
+     *
+     * @param resource the originating atmosphere resource; its broadcaster is
+     *                 the room the reply fans out to
+     * @return a new streaming session that broadcasts room-wide
+     */
+    public static StreamingSession startRoomBroadcast(AtmosphereResource resource) {
+        return new DefaultStreamingSession(UUID.randomUUID().toString(), resource, true);
+    }
+
+    /**
      * Start a new streaming session that broadcasts to a topic.
      * Use this when no specific {@link AtmosphereResource} is available
      * (e.g., from an MCP tool call that needs to stream text to browser clients).

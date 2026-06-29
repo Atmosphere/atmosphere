@@ -251,6 +251,15 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     /** Endpoint-scoped per-turn tool cap from {@code @AiEndpoint.maxToolsPerRequest()}. */
     private volatile int maxToolsPerRequest;
 
+    /**
+     * Endpoint-scoped reply fan-out from {@code @AiEndpoint.broadcastReply()}.
+     * When {@code true}, the single reply streams to every subscriber on the
+     * per-path broadcaster (the room) instead of only the originating resource.
+     * The prompt dispatch is unchanged — it still targets the originating
+     * resource only, so the {@code @Prompt} method runs exactly once.
+     */
+    private volatile boolean broadcastReply;
+
     public void setCachePolicy(org.atmosphere.ai.llm.CacheHint.CachePolicy policy) {
         this.cachePolicy = policy;
     }
@@ -265,6 +274,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
 
     public void setMaxToolsPerRequest(int maxToolsPerRequest) {
         this.maxToolsPerRequest = Math.max(0, maxToolsPerRequest);
+    }
+
+    public void setBroadcastReply(boolean broadcastReply) {
+        this.broadcastReply = broadcastReply;
     }
 
     @Override
@@ -421,7 +434,15 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         var businessMdc = snapshotBusinessMdc(resource);
         logger.info("Received prompt from {}: {}", resource.uuid(), userMessage);
 
-        var delegate = StreamingSessions.start(resource);
+        // Per-client by default: the reply streams back only to the resource
+        // that sent the prompt. When the endpoint opts into broadcastReply, the
+        // single reply instead fans out to every subscriber on the per-path
+        // broadcaster (the room). Either way the prompt was already dispatched
+        // to this one originating resource (see onRequest), so the @Prompt
+        // method — and the LLM call inside it — runs exactly once.
+        var delegate = broadcastReply
+                ? StreamingSessions.startRoomBroadcast(resource)
+                : StreamingSessions.start(resource);
         var settings = AiConfig.get();
         var model = endpointModel != null ? endpointModel
                 : (settings != null ? settings.model() : null);
@@ -871,6 +892,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
 
     String endpointModel() {
         return endpointModel;
+    }
+
+    boolean broadcastReply() {
+        return broadcastReply;
     }
 
     /**
