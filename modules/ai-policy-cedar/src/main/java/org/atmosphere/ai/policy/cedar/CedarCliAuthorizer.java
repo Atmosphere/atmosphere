@@ -34,11 +34,29 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>Builds a temporary policy file + entities file + request JSON,
  * invokes {@code cedar authorize --policies policy.cedar --entities
- * entities.json --request-json request.json}, parses the JSON result.
- * Cedar's decision shape is
- * {@code {"decision": "Allow"|"Deny", "diagnostics": {"reason": [...]}}}.</p>
+ * entities.json --request-json request.json --verbose}, then parses the
+ * decision the binary actually emits.</p>
  *
- * <p>Fail-closed on subprocess error, timeout, or malformed output —
+ * <p><b>Real {@code cedar authorize} contract (verified against
+ * cedar-policy-cli 4.11.x).</b> {@code --entities} is a <i>mandatory</i>
+ * argument — omitting it makes the CLI exit with a usage error, never an
+ * authorization decision. The command prints a plain-text decision token
+ * on stdout — {@code ALLOW} or {@code DENY}, one per line (preceded by a
+ * blank line) — there is <i>no</i> {@code --format json} on
+ * {@code authorize} and no {@code {"decision": ...}} JSON envelope. Exit
+ * codes: {@code 0} on Allow, {@code 2} on Deny, {@code 1} on a
+ * policy/entities/request parse error. {@code --verbose} appends a
+ * {@code note: this decision was due to the following policies:} block
+ * listing the matched policy ids (the {@code @id(...)} annotation when
+ * present, otherwise {@code policyN}).</p>
+ *
+ * <p>Because a real Deny and a CLI usage error both exit {@code 2}, the
+ * decision is read from the stdout token and corroborated against the
+ * exit code; any other combination (empty stdout, parse-error
+ * diagnostic, mismatched exit code) is treated as an error and denied
+ * fail-closed.</p>
+ *
+ * <p>Fail-closed on subprocess error, timeout, or unparseable output —
  * matches the admission-gate contract (Correctness Invariant #2).</p>
  */
 public final class CedarCliAuthorizer implements CedarAuthorizer {
@@ -47,6 +65,16 @@ public final class CedarCliAuthorizer implements CedarAuthorizer {
 
     /** Default timeout per evaluation. */
     public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(5);
+
+    /**
+     * Entity hierarchy passed to the mandatory {@code --entities} argument.
+     * The default policy shape ({@code permit(principal, action, resource)}
+     * keyed on entity UIDs) declares no entities, so an empty hierarchy
+     * {@code []} satisfies the argument. Operators with an entity store
+     * implement their own {@link CedarAuthorizer} (the SPI) and supply a
+     * populated hierarchy.
+     */
+    private static final String ENTITIES_HIERARCHY = "[]";
 
     private final String cedarPath;
     private final Duration timeout;
@@ -70,18 +98,24 @@ public final class CedarCliAuthorizer implements CedarAuthorizer {
                             String resource,
                             Map<String, Object> context) {
         Path policyFile = null;
+        Path entitiesFile = null;
         Path requestFile = null;
         try {
             policyFile = Files.createTempFile("atmosphere-cedar-", ".cedar");
+            entitiesFile = Files.createTempFile("atmosphere-cedar-ent-", ".json");
             requestFile = Files.createTempFile("atmosphere-cedar-req-", ".json");
             Files.writeString(policyFile, cedarSource, StandardCharsets.UTF_8);
+            // cedar authorize REQUIRES --entities; an empty hierarchy is "[]".
+            Files.writeString(entitiesFile, ENTITIES_HIERARCHY, StandardCharsets.UTF_8);
             Files.writeString(requestFile,
                     buildRequestJson(principal, action, resource, context),
                     StandardCharsets.UTF_8);
 
             var pb = new ProcessBuilder(cedarPath, "authorize",
                     "--policies", policyFile.toAbsolutePath().toString(),
-                    "--request-json", requestFile.toAbsolutePath().toString());
+                    "--entities", entitiesFile.toAbsolutePath().toString(),
+                    "--request-json", requestFile.toAbsolutePath().toString(),
+                    "--verbose");
             pb.redirectErrorStream(false);
             var process = pb.start();
             if (!process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
@@ -90,17 +124,11 @@ public final class CedarCliAuthorizer implements CedarAuthorizer {
                         timeout.toMillis());
                 return Result.deny("cedar authorize timeout", List.of());
             }
-            var exit = process.exitValue();
-            if (exit != 0 && exit != 1) {
-                // Cedar CLI returns 0 on Allow, 1 on Deny, anything else is error.
-                var err = new String(process.getErrorStream().readAllBytes(),
-                        StandardCharsets.UTF_8);
-                logger.warn("cedar authorize exited {}: {}", exit, err);
-                return Result.deny("cedar authorize failed: " + err.trim(), List.of());
-            }
             var out = new String(process.getInputStream().readAllBytes(),
                     StandardCharsets.UTF_8);
-            return parseResult(out);
+            var err = new String(process.getErrorStream().readAllBytes(),
+                    StandardCharsets.UTF_8);
+            return parseDecision(process.exitValue(), out, err);
         } catch (IOException e) {
             logger.error("cedar authorize IO failed: {}", e.toString());
             return Result.deny("cedar authorize io failure: " + e.getMessage(), List.of());
@@ -109,6 +137,7 @@ public final class CedarCliAuthorizer implements CedarAuthorizer {
             return Result.deny("cedar authorize interrupted", List.of());
         } finally {
             safeDelete(policyFile);
+            safeDelete(entitiesFile);
             safeDelete(requestFile);
         }
     }
@@ -133,56 +162,86 @@ public final class CedarCliAuthorizer implements CedarAuthorizer {
     }
 
     /**
-     * Parse Cedar CLI JSON output. Shape:
-     * {@code {"decision": "Allow"|"Deny", "diagnostics": {"reason": [...], ...}}}.
-     * Package-private for tests.
+     * Parse the decision the real {@code cedar authorize --verbose} binary
+     * emits. stdout carries a plain-text {@code ALLOW} / {@code DENY} token
+     * (one line, after a leading blank line), optionally followed by a
+     * {@code note: this decision was due to the following policies:} block.
+     * Exit codes: {@code 0} → Allow, {@code 2} → Deny. A real Deny and a CLI
+     * usage error both exit {@code 2}, so the decision is taken from the
+     * stdout token <i>corroborated</i> by the exit code; any inconsistency
+     * (empty stdout, parse-error diagnostic, mismatched code) denies
+     * fail-closed with the diagnostic. Package-private for tests.
+     *
+     * @param exitCode the process exit value
+     * @param stdout   the captured standard output
+     * @param stderr   the captured standard error (diagnostic on failure)
      */
-    static Result parseResult(String json) {
-        if (json == null || json.isBlank()) {
-            return Result.deny("cedar authorize produced no output", List.of());
+    static Result parseDecision(int exitCode, String stdout, String stderr) {
+        var decision = decisionToken(stdout);
+        if ("ALLOW".equals(decision) && exitCode == 0) {
+            return Result.allow(parseMatchedPolicies(stdout));
         }
-        // Find decision field — it's a string literal.
-        var decisionIdx = json.indexOf("\"decision\"");
-        if (decisionIdx < 0) {
-            return Result.deny("cedar output missing 'decision' field", List.of());
+        if ("DENY".equals(decision) && exitCode == 2) {
+            return Result.deny("cedar policy denied", parseMatchedPolicies(stdout));
         }
-        var colon = json.indexOf(':', decisionIdx);
-        if (colon < 0) return Result.deny("cedar output malformed", List.of());
-        int i = colon + 1;
-        while (i < json.length() && Character.isWhitespace(json.charAt(i))) i++;
-        if (i >= json.length() || json.charAt(i) != '"') {
-            return Result.deny("cedar 'decision' value not a string", List.of());
-        }
-        var valueStart = i + 1;
-        var valueEnd = json.indexOf('"', valueStart);
-        if (valueEnd < 0) return Result.deny("cedar decision malformed", List.of());
-        var decision = json.substring(valueStart, valueEnd);
-        var matched = parseMatchedPolicies(json);
-        if ("Allow".equalsIgnoreCase(decision)) {
-            return Result.allow(matched);
-        }
-        return Result.deny("cedar denied", matched);
+        var diag = !stderr.isBlank() ? stderr.trim()
+                : (stdout != null && !stdout.isBlank() ? stdout.trim() : "no output");
+        logger.warn("cedar authorize did not yield a clean decision (exit {}): {}",
+                exitCode, diag);
+        return Result.deny("cedar authorize error (exit " + exitCode + "): " + diag,
+                List.of());
     }
 
-    private static List<String> parseMatchedPolicies(String json) {
-        var idx = json.indexOf("\"reason\"");
-        if (idx < 0) return List.of();
-        var open = json.indexOf('[', idx);
-        if (open < 0) return List.of();
-        var close = json.indexOf(']', open);
-        if (close < 0) return List.of();
-        var list = new java.util.ArrayList<String>();
-        var inner = json.substring(open + 1, close);
-        int p = 0;
-        while (p < inner.length()) {
-            var q1 = inner.indexOf('"', p);
-            if (q1 < 0) break;
-            var q2 = inner.indexOf('"', q1 + 1);
-            if (q2 < 0) break;
-            list.add(inner.substring(q1 + 1, q2));
-            p = q2 + 1;
+    /**
+     * First non-blank line of stdout, upper-cased, when it is exactly
+     * {@code ALLOW} or {@code DENY}; otherwise {@code null}. Parse-error
+     * diagnostics (which start with miette graphics, not a bare token) and
+     * empty output return {@code null}.
+     */
+    private static String decisionToken(String stdout) {
+        if (stdout == null) {
+            return null;
         }
-        return list;
+        for (var line : stdout.split("\n", -1)) {
+            var trimmed = line.strip();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            var upper = trimmed.toUpperCase(java.util.Locale.ROOT);
+            return ("ALLOW".equals(upper) || "DENY".equals(upper)) ? upper : null;
+        }
+        return null;
+    }
+
+    private static final String POLICIES_NOTE =
+            "note: this decision was due to the following policies:";
+
+    /**
+     * Parse the verbose matched-policy block — the indented policy ids that
+     * follow the {@code note: this decision was due to the following
+     * policies:} line, up to the next blank line.
+     */
+    private static List<String> parseMatchedPolicies(String stdout) {
+        if (stdout == null) {
+            return List.of();
+        }
+        var lines = stdout.split("\n", -1);
+        var list = new java.util.ArrayList<String>();
+        var collecting = false;
+        for (var line : lines) {
+            if (!collecting) {
+                if (line.strip().startsWith(POLICIES_NOTE)) {
+                    collecting = true;
+                }
+                continue;
+            }
+            var trimmed = line.strip();
+            if (trimmed.isEmpty()) {
+                break;
+            }
+            list.add(trimmed);
+        }
+        return List.copyOf(list);
     }
 
     private static void appendJson(StringBuilder sb, Object v) {

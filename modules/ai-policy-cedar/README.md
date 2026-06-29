@@ -78,12 +78,21 @@ Decision contract:
 
 ### `CedarCliAuthorizer` (default)
 
-Shells out to `cedar authorize`. No JVM runtime dependency; operators
-install the Cedar CLI the way they would for any other policy-as-code
-tool (`brew install cedar-policy/tap/cedar`,
-`cargo install cedar-policy-cli`, container image, etc.). The reference
-distribution ships `cedar-cli`, so this is the path most operations
-teams take first.
+Shells out to `cedar authorize --policies <file> --entities <file>
+--request-json <file> --verbose`. No JVM runtime dependency; operators
+install the Cedar CLI with `cargo install cedar-policy-cli` (the
+`cedar-policy/cedar` GitHub releases ship no prebuilt CLI binary, so a
+container image that bakes the cargo build, or the cargo install itself,
+is the usual path).
+
+`cedar authorize` emits a plain-text `ALLOW` / `DENY` decision on stdout
+(there is no JSON decision envelope on `authorize`) and exits `0` on
+Allow, `2` on Deny, `1` on a policy/entities/request parse error. The
+adapter reads the stdout token and corroborates it against the exit
+code; `--entities` is mandatory, so the adapter always supplies an
+entity hierarchy (an empty `[]` for the default policy shape — operators
+with an entity store implement their own `CedarAuthorizer` and supply a
+populated one).
 
 ```java
 new CedarCliAuthorizer();                    // cedar on PATH
@@ -112,7 +121,8 @@ new CedarPolicy(name, source, version, cedarSource,
 ## Operational notes
 
 - **Boundary safety:** principal / resource / context are JSON-encoded
-  and passed to the CLI via stdin — no shell interpolation of user
+  into a temp `--request-json` file and the CLI is invoked through a
+  `ProcessBuilder` argv array — no shell, no interpolation of user
   values.
 - **Fail-closed:** authorizer timeout, non-zero exit, or parse error
   denies the turn (Correctness Invariant #2).

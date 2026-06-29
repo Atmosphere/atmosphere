@@ -148,23 +148,43 @@ class CedarPolicyParserTest {
     }
 
     @Test
-    void parseResultAllowDecodes() {
-        var json = "{\"decision\":\"Allow\",\"diagnostics\":{\"reason\":[\"p1\"],\"errors\":[]}}";
-        var result = CedarCliAuthorizer.parseResult(json);
+    void parseDecisionAllowFromRealPlainText() {
+        // Real `cedar authorize --verbose` ALLOW output: a leading blank line,
+        // the bare ALLOW token, then the matched-policy note block. Exit 0.
+        var stdout = "\nALLOW\n\n"
+                + "note: this decision was due to the following policies:\n"
+                + "  support-billing-agent\n";
+        var result = CedarCliAuthorizer.parseDecision(0, stdout, "");
         assertTrue(result.allowed());
-        assertEquals(List.of("p1"), result.matchedPolicies());
+        assertEquals(List.of("support-billing-agent"), result.matchedPolicies());
     }
 
     @Test
-    void parseResultDenyDecodes() {
-        var json = "{\"decision\":\"Deny\",\"diagnostics\":{\"reason\":[]}}";
-        var result = CedarCliAuthorizer.parseResult(json);
+    void parseDecisionDenyFromRealPlainText() {
+        // Real DENY output: bare DENY token on stdout, exit code 2.
+        var result = CedarCliAuthorizer.parseDecision(2, "\nDENY\n", "");
         assertEquals(false, result.allowed());
+        assertEquals("cedar policy denied", result.reason());
     }
 
     @Test
-    void parseResultMissingDecisionDenies() {
-        var result = CedarCliAuthorizer.parseResult("{\"unrelated\":true}");
+    void parseDecisionUsageErrorIsNotMistakenForDeny() {
+        // The missing-`--entities` usage error ALSO exits 2 but emits no
+        // decision token on stdout — it must fail closed as an error, not be
+        // reported as a clean policy Deny.
+        var stderr = "error: the following required arguments were not provided:\n"
+                + "  --entities <FILE>\n";
+        var result = CedarCliAuthorizer.parseDecision(2, "", stderr);
+        assertEquals(false, result.allowed());
+        assertTrue(result.reason().contains("error (exit 2)"),
+                "usage error must surface as an error reason: " + result.reason());
+    }
+
+    @Test
+    void parseDecisionParseErrorFailsClosed() {
+        // Policy/entities/request parse errors exit 1 with a miette diagnostic.
+        var result = CedarCliAuthorizer.parseDecision(1,
+                "  × failed to parse policy set\n  ╰─▶ unexpected token `is`\n", "");
         assertEquals(false, result.allowed());
     }
 

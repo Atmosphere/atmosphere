@@ -1,0 +1,166 @@
+name: "CI: Policy-as-Code Engines (OPA / Cedar)"
+
+# Runs the binary-gated integration tests for the governance policy-as-code
+# adapters against the REAL engines:
+#   - modules/ai-policy-rego  -> OpaSubprocessEvaluatorIntegrationTest (real `opa`)
+#   - modules/ai-policy-cedar -> CedarCliAuthorizerIntegrationTest     (real `cedar`)
+#
+# Both tests self-skip via JUnit `assumeTrue` when the engine is absent, so
+# they are green everywhere else. This workflow installs the engines so the
+# tests actually execute somewhere in CI (the governing requirement) instead
+# of being eternally skipped. Each job asserts the suite RAN (skipped=0), so a
+# silently-skipped integration test fails the lane.
+#
+# Split rationale:
+#   * opa   ships a prebuilt static binary -> cheap, PR-blocking lane.
+#   * cedar ships NO prebuilt CLI (verified: cedar-policy/cedar releases carry
+#     no binary assets) -> must `cargo install cedar-policy-cli`, which compiles
+#     from source (~minutes). That is deliberately a NON-PR-blocking lane:
+#     schedule + manual dispatch + push that touches the cedar module. The
+#     installed binary is cached so reruns are fast. There is no `pull_request`
+#     trigger on the cedar job, so it never gates a PR on a multi-minute build.
+
+on:
+  push:
+    branches: [ '**' ]
+    paths:
+      - 'modules/ai-policy-rego/**'
+      - 'modules/ai-policy-cedar/**'
+      - 'modules/ai/**'
+      - '.github/workflows/policy-as-code-engines.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'modules/ai-policy-rego/**'
+      - 'modules/ai/**'
+      - '.github/workflows/policy-as-code-engines.yml'
+  schedule:
+    # Weekly on Monday 05:30 UTC — keeps the cedar lane (and the slow cargo
+    # build) exercised even when nobody touches the module.
+    - cron: '30 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rego-opa:
+    name: Rego / OPA integration (prebuilt opa)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OPA_VERSION: v0.68.0
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: 21
+          distribution: temurin
+          cache: 'maven'
+
+      - name: Install OPA (prebuilt static binary)
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /usr/local/bin/opa \
+            "https://openpolicyagent.org/downloads/${OPA_VERSION}/opa_linux_amd64_static"
+          chmod +x /usr/local/bin/opa
+          opa version
+
+      - name: Build dependency closure (skip tests)
+        run: ./mvnw -B install -pl modules/ai-policy-rego -am -DskipTests -Dgpg.skip=true
+
+      - name: Run Rego integration test against real opa
+        run: |
+          set -euo pipefail
+          ./mvnw -B test -pl modules/ai-policy-rego \
+            -Dtest=OpaSubprocessEvaluatorIntegrationTest \
+            -Datmosphere.opa.path="$(command -v opa)" \
+            -Dgpg.skip=true
+
+      - name: Assert the integration test actually RAN (skipped=0)
+        run: |
+          set -euo pipefail
+          report=modules/ai-policy-rego/target/surefire-reports/org.atmosphere.ai.policy.rego.OpaSubprocessEvaluatorIntegrationTest.txt
+          test -f "$report" || { echo "::error::no surefire report — test did not run"; exit 1; }
+          grep -q "Tests run: 3, Failures: 0, Errors: 0, Skipped: 0" "$report" \
+            || { echo "::error::opa integration test was skipped or did not pass"; cat "$report"; exit 1; }
+          echo "Rego/OPA integration test ran green against the real binary:"
+          cat "$report"
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rego-opa-surefire-reports
+          path: modules/ai-policy-rego/target/surefire-reports/
+
+  cedar-cli:
+    name: Cedar CLI integration (cargo-built cedar)
+    # Non-PR-blocking: no pull_request trigger reaches this job. It runs on
+    # schedule, manual dispatch, and pushes that touch the cedar module.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CEDAR_CLI_VERSION: 4.11.2
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: 21
+          distribution: temurin
+          cache: 'maven'
+
+      - name: Cache cedar CLI binary
+        id: cedar-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/cedar
+          key: cedar-cli-${{ env.CEDAR_CLI_VERSION }}-${{ runner.os }}
+
+      - name: Install cedar CLI (cargo install from source)
+        if: steps.cedar-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          # cedar-policy/cedar ships no prebuilt CLI binary, so build from
+          # crates.io. --locked keeps the build reproducible. Cached above so
+          # this only pays the compile cost on a cache miss / version bump.
+          cargo install cedar-policy-cli --version "${CEDAR_CLI_VERSION}" --locked
+
+      - name: Verify cedar on PATH
+        run: |
+          set -euo pipefail
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          "$HOME/.cargo/bin/cedar" --version
+
+      - name: Build dependency closure (skip tests)
+        run: ./mvnw -B install -pl modules/ai-policy-cedar -am -DskipTests -Dgpg.skip=true
+
+      - name: Run Cedar integration test against real cedar
+        run: |
+          set -euo pipefail
+          ./mvnw -B test -pl modules/ai-policy-cedar \
+            -Dtest=CedarCliAuthorizerIntegrationTest \
+            -Datmosphere.cedar.path="$HOME/.cargo/bin/cedar" \
+            -Dgpg.skip=true
+
+      - name: Assert the integration test actually RAN (skipped=0)
+        run: |
+          set -euo pipefail
+          report=modules/ai-policy-cedar/target/surefire-reports/org.atmosphere.ai.policy.cedar.CedarCliAuthorizerIntegrationTest.txt
+          test -f "$report" || { echo "::error::no surefire report — test did not run"; exit 1; }
+          grep -q "Tests run: 3, Failures: 0, Errors: 0, Skipped: 0" "$report" \
+            || { echo "::error::cedar integration test was skipped or did not pass"; cat "$report"; exit 1; }
+          echo "Cedar integration test ran green against the real binary:"
+          cat "$report"
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cedar-cli-surefire-reports
+          path: modules/ai-policy-cedar/target/surefire-reports/
