@@ -537,6 +537,23 @@
       "hasFrontend": false,
       "envVars": {},
       "note": "Test harness for the reattach contract — used by Playwright reattach.spec.ts; not a typical user starter."
+    },
+    {
+      "name": "spring-boot-admin-bundle",
+      "description": "Single-dependency proof — pulling only atmosphere-admin-bundle self-wires the six families",
+      "category": "infrastructure",
+      "tags": [
+        "spring-boot",
+        "admin-bundle",
+        "auto-configuration",
+        "wiring"
+      ],
+      "port": 8100,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": false,
+      "envVars": {},
+      "note": "Wiring proof for atmosphere-admin-bundle — @SpringBootTest asserts the auto-configured beans; not a typical user starter."
     }
   ]
 }

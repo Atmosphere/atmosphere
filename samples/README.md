@@ -60,6 +60,7 @@ One agent class — slash commands and AI work on Web, Slack, Telegram, Discord,
 | [spring-boot-otel-chat](spring-boot-otel-chat/) | Spring Boot 4.0.7 | OpenTelemetry observability |
 | [spring-boot-reattach-harness](spring-boot-reattach-harness/) | Spring Boot 4.0.7 | Deterministic harness for the mid-stream reattach contract (`RunRegistry` + `RunEventReplayBuffer`); driven by `e2e/tests/reattach.spec.ts` |
 | [spring-boot-passivation-agent](spring-boot-passivation-agent/) | Spring Boot 4.0.7 + `atmosphere-checkpoint` | Snapshot a paused agent conversation and resume it from where it left off (`AgentPassivation` + `CheckpointStore`); proven offline by `PassivationDeliveryTest` |
+| [spring-boot-admin-bundle](spring-boot-admin-bundle/) | Spring Boot 4.0.7 + `atmosphere-admin-bundle` (sole Atmosphere dep) | Single-dependency wiring proof — `AdminBundleWiringTest` boots a real context and asserts the auto-configured beans the bundle brings in (runtime, AI, coordinator, durable sessions) plus the RAG/checkpoint SPIs it aggregates |
 | [shared-resources](shared-resources/) | — | Shared static assets (CSS, Grafana dashboard). Not a Maven module — no `pom.xml`. |
 
 ## Quick Start
