@@ -15,10 +15,9 @@
  */
 package org.atmosphere.samples.quarkus.aichat;
 
+import org.atmosphere.agent.annotation.Agent;
 import org.atmosphere.ai.Content;
 import org.atmosphere.ai.StreamingSession;
-import org.atmosphere.ai.annotation.AgentScope;
-import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,9 +25,21 @@ import org.slf4j.LoggerFactory;
 import java.util.Base64;
 
 /**
- * Quarkus port of {@code spring-boot-ai-chat#MultiModalChat}. Demonstrates
- * the multi-modal {@link Content.Image} wire protocol identically across
- * Servlet containers.
+ * Quarkus port of {@code spring-boot-ai-chat#MultiModalAgent}. The blog
+ * headline made literal: <em>drop {@code @Agent} on a class with a
+ * {@code @Prompt} method and a {@code SKILL.md} persona and that class
+ * <strong>is</strong> a running, streaming, multi-modal agent.</em> Its
+ * persona comes from a skill file ({@code skill:multimodal-assistant})
+ * instead of an inline system prompt, and it registers a streaming WebSocket
+ * endpoint at {@code /atmosphere/agent/multimodal}.
+ *
+ * <p>{@code @Agent} desugars to the same {@code AiEndpointHandler} a plain
+ * {@code @AiEndpoint} uses, so the injected {@link StreamingSession}, the
+ * {@code @Prompt} method, and the multi-modal input path behave identically
+ * across Servlet containers — the only thing that changed is the headline
+ * annotation a reader sees first. The Quarkus extension processes {@code @Agent}
+ * through the same build-time scan it uses for {@code @AiEndpoint} (see
+ * {@code AtmosphereProcessor}), so this runs unchanged under Quarkus/Undertow.</p>
  *
  * <p>Protocol: prompts of the form {@code "image:<base64>"} (with optional
  * {@code "image:image/<subtype>:<base64>"} prefix to override mime-type) are
@@ -37,13 +48,16 @@ import java.util.Base64;
  * handler then streams a text acknowledgement so the client observes both a
  * binary content frame and a streaming-text frame on the same exchange.
  * Plain text prompts get a plain text fallback.</p>
+ *
+ * <p>The Spring Boot sibling additionally demonstrates {@code audio:} input
+ * forwarded to the runtime; this Quarkus port stays vision-only.</p>
  */
-@AiEndpoint(path = "/atmosphere/ai-chat-multimodal")
-@AgentScope(unrestricted = true,
-        justification = "Multi-modal demo — accepts arbitrary text + image prompts to showcase multimodal streaming.")
-public class MultiModalChat {
+@Agent(name = "multimodal",
+        skillFile = "skill:multimodal-assistant",
+        description = "Multi-modal assistant — accepts image (vision) input over a streaming session.")
+public class MultiModalAgent {
 
-    private static final Logger logger = LoggerFactory.getLogger(MultiModalChat.class);
+    private static final Logger logger = LoggerFactory.getLogger(MultiModalAgent.class);
 
     private static final String IMAGE_PREFIX = "image:";
     private static final String DEFAULT_MIME_TYPE = "image/png";
@@ -51,7 +65,7 @@ public class MultiModalChat {
     @Prompt
     public void onPrompt(String message, StreamingSession session) {
         if (!message.startsWith(IMAGE_PREFIX)) {
-            session.send("MultiModalChat accepts 'image:<base64>' prompts. Got plain text: "
+            session.send("MultiModalAgent accepts 'image:<base64>' prompts. Got plain text: "
                     + message);
             session.complete();
             return;

@@ -1,9 +1,11 @@
 # Quarkus AI Chat
 
-Minimal Quarkus app that exposes an Atmosphere `@AiEndpoint` over WebSocket,
-streaming LLM tokens through `atmosphere-quarkus-langchain4j` → Quarkus
-LangChain4j → an OpenAI-compatible provider (Gemini's compat endpoint by
-default; works with any provider Quarkus LangChain4j supports).
+Minimal Quarkus app that streams LLM tokens over WebSocket through
+`atmosphere-quarkus-langchain4j` → Quarkus LangChain4j → an OpenAI-compatible
+provider (Gemini's compat endpoint by default; works with any provider Quarkus
+LangChain4j supports). It leads with the higher-level `@Agent` annotation
+(`MultiModalAgent`) and keeps `@AiEndpoint` — the building block `@Agent`
+desugars to — for the core chat endpoints.
 
 ## Run
 
@@ -35,10 +37,11 @@ mvn quarkus:dev
 | `AiChat.java` | `/atmosphere/ai-chat` | Basic streaming chat — `@Prompt onPrompt(message, session)` calls `session.stream(message)` |
 | `PromptCacheDemoChat.java` | `/atmosphere/ai-chat-with-cache` | Demonstrates `@AiEndpoint(promptCache = CONSERVATIVE)` — second identical prompt emits `ai.cache.hit=true` and replays from `InMemoryResponseCache` (port of the Spring Boot sibling) |
 | `RetryDemoChat.java` | `/atmosphere/ai-chat-with-retry` | Demonstrates `@AiEndpoint(retry = @Retry(...))` — `fail-once:<id>` prompts trigger a deterministic transient failure / recovery sequence with observable `retry.attempt=N` metadata |
-| `MultiModalChat.java` | `/atmosphere/ai-chat-multimodal` | Demonstrates the multi-modal `Content.Image` wire protocol — `image:<base64>` prompts emit a binary content frame followed by a text acknowledgement |
+| `MultiModalAgent.java` | `/atmosphere/agent/multimodal` | `@Agent` class (persona from `prompts/multimodal-assistant-skill.md`) demonstrating the multi-modal `Content.Image` wire protocol — `image:<base64>` prompts emit a binary content frame followed by a text acknowledgement |
 | `ReviewExtractor.java` + `MovieReview.java` | `/atmosphere/review-extractor` | Demonstrates `@AiEndpoint(responseAs = MovieReview.class)` — framework appends JSON schema to system prompt and emits `EntityStart` / `StructuredField` / `EntityComplete` events |
 | `DemoResponseProducer.java` | — | Helper for demo-mode responses when no `LLM_API_KEY` is configured |
 | `GeminiCompatCustomizer.java` | — | Drops `frequency_penalty` / `presence_penalty` from the OpenAI request — Gemini's compat endpoint rejects unknown fields. Delete for OpenAI proper. |
+| `prompts/multimodal-assistant-skill.md` | — | `@Agent` skill file — the `MultiModalAgent` persona, resolved from `skill:multimodal-assistant` |
 | `application.properties` | — | `quarkus.atmosphere.packages` + `quarkus.langchain4j.openai.*` |
 | `META-INF/resources/index.html` | — | Meta-redirect to the bundled Atmosphere Console SPA at `/atmosphere/console/` (per commit f8930d62f4) — drives all five endpoints from one UI |
 
@@ -46,11 +49,17 @@ Three ported endpoints (`PromptCacheDemoChat`, `RetryDemoChat`,
 `ReviewExtractor`) are byte-for-byte parity with their Spring Boot siblings
 except for the package name — the `AgentRuntime` SPI is platform-portable, so
 the same `@AiEndpoint` source compiles and runs identically under either
-Servlet container. The fourth, `MultiModalChat`, keeps the lower-level
-`@AiEndpoint` form here; its Spring Boot sibling now leads with the higher-level
-`@Agent` annotation (`MultiModalAgent`, registered at
-`/atmosphere/agent/multimodal`), which desugars to the same handler but sources
-its persona from a `SKILL.md` instead of an inline path.
+Servlet container. The fourth, `MultiModalAgent`, leads with the higher-level
+`@Agent` annotation — exactly like its Spring Boot sibling — registered at
+`/atmosphere/agent/multimodal`. `@Agent` desugars to the same `AiEndpointHandler`
+a plain `@AiEndpoint` uses, but sources its persona from a skill file
+(`skill:multimodal-assistant` → `prompts/multimodal-assistant-skill.md`) instead
+of an inline system prompt. The Quarkus extension processes `@Agent` through the
+same build-time annotation scan it uses for `@AiEndpoint` (`AtmosphereProcessor`
+indexes `atmosphere-agent` and registers the class via `AgentProcessor`), so the
+`@Agent` form runs unchanged under Quarkus/Undertow. One honest difference: the
+Spring Boot `MultiModalAgent` also accepts `audio:` input forwarded to the
+runtime; this Quarkus port stays vision-only.
 
 ## How streaming flows end-to-end
 

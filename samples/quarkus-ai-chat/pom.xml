@@ -141,6 +141,16 @@
             <artifactId>atmosphere-ai</artifactId>
         </dependency>
 
+        <!-- @Agent annotation (MultiModalAgent). The Quarkus extension's
+             build-time scan registers @Agent classes via AgentProcessor (same
+             optional-annotation slot as @AiEndpoint), so the sample declares
+             atmosphere-agent explicitly. MCP/A2A protocol modules stay optional;
+             this vision-only agent needs neither. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-agent</artifactId>
+        </dependency>
+
         <!-- Admin console (mounted at /atmosphere/console/) — same UI as
              spring-boot-ai-chat so the chat round-trip can be driven from
              the browser. -->

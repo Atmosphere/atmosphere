@@ -386,7 +386,7 @@
     },
     {
       "name": "quarkus-ai-chat",
-      "description": "Quarkus @AiEndpoint streaming via Quarkus LangChain4j",
+      "description": "Quarkus @Agent + @AiEndpoint streaming via Quarkus LangChain4j",
       "category": "ai",
       "tags": [
         "quarkus",
