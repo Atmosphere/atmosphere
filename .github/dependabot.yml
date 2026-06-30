@@ -14,6 +14,42 @@ updates:
       # the graph self-heals.
       - dependency-name: "org.json:json"
 
+      # ── In-track pins ───────────────────────────────────────────────────
+      # Replaces the AUTO-BUMP tier of the removed dependency-update-check.yml
+      # workflow (Dependabot now owns every Maven update PR). Each tracked
+      # AI/JVM library is held to its current release line so a *version*
+      # update PR can never cross a major/minor boundary (e.g. Spring AI 2.0.x
+      # must not jump to a 3.x line, Netty must not leave 4.2.x). These
+      # update-types ignores apply to version updates only — a Dependabot
+      # *security* update for a CVE still opens a PR regardless of track.
+      - dependency-name: "org.springframework.boot:*"    # hold 4.0.x
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "org.springframework.ai:*"      # hold 2.0.x (and the 1.1.x Alibaba overlay)
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "com.alibaba.cloud.ai:*"        # hold 1.1.x
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "dev.langchain4j:*"             # hold 1.x
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "com.embabel.agent:*"           # hold 0.x
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "com.google.adk:*"              # hold 1.x
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "ai.koog:*"                     # hold 1.x
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "io.agentscope:*"               # hold 1.x
+        update-types: ["version-update:semver-major"]
+      # Quarkus + gRPC + Netty move in lockstep — version skew across the three
+      # triggers AbstractMethodError at runtime. Hold all three to patch-only so
+      # a minor/major bump is a deliberate, coordinated human change rather than
+      # an isolated auto-PR. (Quarkus/gRPC were previously surfaced as watch-only
+      # tracking issues by dependency-update-check.yml, now removed.)
+      - dependency-name: "io.netty:*"                    # hold 4.2.x
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "io.quarkus:*"                  # hold current minor (lockstep)
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "io.grpc:*"                     # hold current minor (lockstep)
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+
   # Sample frontends + atmosphere.js + spring-boot-starter front-end.
   # Without watchers here, postcss/react/etc. CVEs in sample lockfiles
   # accumulate as alerts but never get auto-PR'd. Consolidated under one
