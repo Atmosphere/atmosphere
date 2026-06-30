@@ -510,6 +510,15 @@ public class AiStreamingSession implements StreamingSession {
     /** Publish the runId the {@code RunRegistry} assigned on registration. */
     public void setRunId(String runId) {
         this.runId = runId;
+        // Surface the assigned run id to the client as a metadata frame so a
+        // reconnect carries it back (X-Atmosphere-Run-Id) and a server with
+        // durable runs enabled resumes the in-flight run from its effect journal.
+        // The atmosphere.js streaming client captures this key into request.runId
+        // and re-sends it as the X-Atmosphere-Run-Id query parameter on reconnect.
+        if (runId != null && !runId.isBlank()) {
+            delegate.sendMetadata(
+                    org.atmosphere.ai.resume.RunReattachSupport.RUN_ID_HEADER, runId);
+        }
     }
 
     @Override

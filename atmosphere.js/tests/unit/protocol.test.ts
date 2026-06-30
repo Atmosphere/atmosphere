@@ -144,6 +144,27 @@ describe('AtmosphereProtocol', () => {
       expect(url).toContain('X-Atmosphere-TrackMessageSize=true');
       expect(url).toContain('Authorization=Bearer%20token123');
     });
+
+    it('re-sends the durable run id as X-Atmosphere-Run-Id when request.runId is set', () => {
+      const protocol = new AtmosphereProtocol();
+      const request: AtmosphereRequest = {
+        url: 'http://localhost/test',
+        transport: 'websocket',
+        runId: 'run-42',
+      };
+
+      expect(protocol.buildUrl(request)).toContain('X-Atmosphere-Run-Id=run-42');
+    });
+
+    it('omits X-Atmosphere-Run-Id when no run id is set', () => {
+      const protocol = new AtmosphereProtocol();
+      const request: AtmosphereRequest = {
+        url: 'http://localhost/test',
+        transport: 'websocket',
+      };
+
+      expect(protocol.buildUrl(request)).not.toContain('X-Atmosphere-Run-Id');
+    });
   });
 
   describe('heartbeat', () => {

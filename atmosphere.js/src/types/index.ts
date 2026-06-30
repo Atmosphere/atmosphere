@@ -72,6 +72,16 @@ export interface AtmosphereRequest {
    */
   sessionToken?: string;
   /**
+   * Durable run id for crash-resume. The streaming client sets this when the
+   * server surfaces the assigned run id (as an {@code X-Atmosphere-Run-Id}
+   * metadata frame); it is then re-sent as the {@code X-Atmosphere-Run-Id}
+   * query parameter on every reconnect, so a server with durable runs enabled
+   * resumes the in-flight run from its effect journal. Cleared when the run
+   * reaches a terminal frame (complete/error) so a later reconnect does not
+   * try to resume a finished run.
+   */
+  runId?: string | null;
+  /**
    * Authentication token sent as {@code X-Atmosphere-Auth} query parameter
    * on every request. Works with all transports (WebSocket, SSE, long-polling).
    */

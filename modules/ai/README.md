@@ -315,10 +315,15 @@ the `@Prompt` body dispatches. From there:
   different principal re-executes live rather than inheriting another principal's
   recorded — possibly human-approved — tool outcome (Invariant #6).
 
-**Resume** is reached two ways: a client reconnecting with `X-Atmosphere-Run-Id`
-for a run no longer live auto-re-drives it to the reconnected client; and the
-admin `atmosphere_resume_run` tool (authorizer-gated, default deny) re-drives a
-named run, resolving the run's endpoint from its recorded seed.
+**Resume** is reached two ways. The atmosphere.js streaming client captures the
+run id the server emits — as an `X-Atmosphere-Run-Id` metadata frame at run start
+(`AiStreamingSession.setRunId`) — into `request.runId`, and re-sends it as the
+`X-Atmosphere-Run-Id` parameter on every reconnect (`protocol.buildUrl`). So a
+client that drops mid-run and reconnects to a run no longer live auto-re-drives it
+to the reconnected client (`DurableSessionInterceptor` reads the parameter; the
+handler resumes from the journal). Independently, the admin `atmosphere_resume_run`
+tool (authorizer-gated, default deny) re-drives a named run, resolving the run's
+endpoint from its recorded seed.
 
 ### Not an `AiCapability` flag
 

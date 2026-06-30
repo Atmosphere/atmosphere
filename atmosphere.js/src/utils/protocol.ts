@@ -42,6 +42,9 @@ export class AtmosphereProtocol {
   /** Durable session token for reconnection across server restarts. */
   sessionToken: string | null = null;
 
+  /** Durable run id of the in-flight run, re-sent on reconnect to resume it. */
+  runId: string | null = null;
+
   /** Authentication token for the current connection. */
   authToken: string | null = null;
 
@@ -105,6 +108,14 @@ export class AtmosphereProtocol {
     const token = request.sessionToken ?? this.sessionToken;
     if (token) {
       params.push(`X-Atmosphere-Session-Token=${encodeURIComponent(token)}`);
+    }
+
+    // Send the durable run id if the streaming client captured one (the server
+    // surfaces it as an X-Atmosphere-Run-Id metadata frame) — on a reconnect
+    // this carries it back so the server resumes the in-flight run.
+    const runId = request.runId ?? this.runId;
+    if (runId) {
+      params.push(`X-Atmosphere-Run-Id=${encodeURIComponent(runId)}`);
     }
 
     // Send authentication token if available

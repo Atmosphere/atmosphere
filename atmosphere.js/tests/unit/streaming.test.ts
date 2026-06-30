@@ -19,7 +19,7 @@ import { parseStreamingMessage } from '../../src/streaming/decoder';
 import { subscribeStreaming } from '../../src/streaming';
 import { Atmosphere } from '../../src/core/atmosphere';
 import type { StreamingHandlers, SessionStats, RoutingInfo } from '../../src/streaming/types';
-import type { SubscriptionHandlers, Subscription } from '../../src/types';
+import type { SubscriptionHandlers, Subscription, AtmosphereRequest } from '../../src/types';
 
 describe('parseStreamingMessage', () => {
   it('should parse a valid streaming-text message', () => {
@@ -138,6 +138,42 @@ describe('subscribeStreaming', () => {
     });
 
     expect(onStreamingText).toHaveBeenCalledWith('Hello', 1);
+  });
+
+  it('captures the run id from an X-Atmosphere-Run-Id metadata frame so a reconnect resumes the run', async () => {
+    const request: AtmosphereRequest = { url: '/ai/chat', transport: 'websocket' };
+    await subscribeStreaming(mockAtmosphere, request, {});
+
+    capturedHandlers.message!({
+      responseBody: '{"type":"metadata","key":"X-Atmosphere-Run-Id","value":"run-77","sessionId":"s1","seq":1}',
+      status: 200,
+      reasonPhrase: 'OK',
+      messages: [],
+      headers: {},
+      state: 'messageReceived',
+      transport: 'websocket',
+      error: null,
+    });
+
+    expect(request.runId).toBe('run-77');
+  });
+
+  it('clears the captured run id on a terminal frame so a later reconnect does not resume a finished run', async () => {
+    const request: AtmosphereRequest = { url: '/ai/chat', transport: 'websocket', runId: 'run-77' };
+    await subscribeStreaming(mockAtmosphere, request, {});
+
+    capturedHandlers.message!({
+      responseBody: '{"type":"complete","data":"Done","sessionId":"s1","seq":1}',
+      status: 200,
+      reasonPhrase: 'OK',
+      messages: [],
+      headers: {},
+      state: 'messageReceived',
+      transport: 'websocket',
+      error: null,
+    });
+
+    expect(request.runId).toBeNull();
   });
 
   it('should dispatch progress events', async () => {
