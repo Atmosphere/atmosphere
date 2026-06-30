@@ -38,8 +38,8 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "io.agentscope:*"               # hold 1.x
         update-types: ["version-update:semver-major"]
-      - dependency-name: "io.modelcontextprotocol.sdk:*" # hold 1.x (force-pinned in pom; mcp 1.1.x / mcp-core 1.0.x)
-        update-types: ["version-update:semver-major"]
+      - dependency-name: "io.modelcontextprotocol.sdk:*" # hold mcp-core 1.0.x (force-pinned to the CVE-fixed 1.0.1; paired with mcp 1.1.x)
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
       # Quarkus + gRPC + Netty move in lockstep — version skew across the three
       # triggers AbstractMethodError at runtime. Hold all three to patch-only so
       # a minor/major bump is a deliberate, coordinated human change rather than
