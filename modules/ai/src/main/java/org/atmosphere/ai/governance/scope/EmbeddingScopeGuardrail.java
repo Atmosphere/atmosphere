@@ -57,6 +57,15 @@ public final class EmbeddingScopeGuardrail implements ScopeGuardrail {
 
     private final EmbeddingRuntime runtime;
 
+    /**
+     * Keyword fallback used when embeddings cannot be computed (no runtime, or
+     * the embedding call errors — e.g. the configured provider has no matching
+     * embedding model). Degrading to the rule-based tier keeps the agent usable
+     * AND keeps scope enforced (forbidden topics still block) instead of either
+     * bricking every request or admitting everything.
+     */
+    private final ScopeGuardrail ruleBasedFallback = new RuleBasedScopeGuardrail();
+
     /** Default constructor — resolves an {@link EmbeddingRuntime} via ServiceLoader. */
     public EmbeddingScopeGuardrail() {
         this(EmbeddingRuntimeResolver.resolve().orElse(null));
@@ -82,24 +91,32 @@ public final class EmbeddingScopeGuardrail implements ScopeGuardrail {
         }
         if (runtime == null) {
             // No embedding runtime available — fail-closed on scope would
-            // starve every request; fail-open with a warning and defer to
-            // the rule-based tier at the caller layer. The resolver tests
-            // ensure at least one runtime is present in production wiring.
-            logger.warn("No EmbeddingRuntime available — EmbeddingScopeGuardrail admits all requests. "
-                    + "Install a runtime module (spring-ai/langchain4j/etc.) or switch the tier to RULE_BASED.");
-            return Decision.inScope(Double.NaN);
+            // starve every request; degrade to the rule-based tier so the
+            // agent stays usable and forbidden topics are still enforced.
+            logger.warn("No EmbeddingRuntime available — EmbeddingScopeGuardrail degrading to "
+                    + "RULE_BASED scope enforcement. Install a runtime module "
+                    + "(spring-ai/langchain4j/etc.) or set the tier to RULE_BASED explicitly.");
+            return ruleBasedFallback.evaluate(request, config);
         }
 
         var purposeVector = purposeVectorCache.computeIfAbsent(
                 config.purpose(),
                 p -> safeEmbed(p, "scope purpose"));
         if (purposeVector == null) {
-            return Decision.error("failed to embed purpose");
+            // The runtime is present but the embed call failed (e.g. the
+            // provider has no matching embedding model). Block-everything is
+            // worse than degrading to keyword scope, which still enforces
+            // forbidden topics — so fall back rather than fail closed.
+            logger.warn("Could not embed scope purpose — degrading to RULE_BASED scope "
+                    + "enforcement for this request.");
+            return ruleBasedFallback.evaluate(request, config);
         }
 
         var messageVector = safeEmbed(request.message(), "request message");
         if (messageVector == null) {
-            return Decision.error("failed to embed request message");
+            logger.warn("Could not embed request message — degrading to RULE_BASED scope "
+                    + "enforcement for this request.");
+            return ruleBasedFallback.evaluate(request, config);
         }
 
         var similarity = cosineSimilarity(purposeVector, messageVector);

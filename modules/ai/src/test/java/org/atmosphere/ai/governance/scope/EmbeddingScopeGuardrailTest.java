@@ -36,10 +36,15 @@ class EmbeddingScopeGuardrailTest {
     }
 
     @Test
-    void missingRuntimeAdmitsWithWarning() {
+    void missingRuntimeDegradesToRuleBased() {
         var guardrail = new EmbeddingScopeGuardrail(null);
-        var decision = guardrail.evaluate(new AiRequest("hi"), ruleConfig("support"));
-        assertEquals(ScopeGuardrail.Outcome.IN_SCOPE, decision.outcome());
+        // On-topic is admitted by the rule-based fallback...
+        assertEquals(ScopeGuardrail.Outcome.IN_SCOPE,
+                guardrail.evaluate(new AiRequest("hi"), ruleConfig("support")).outcome());
+        // ...but scope is still enforced — a hijacking probe is blocked, not bypassed.
+        assertEquals(ScopeGuardrail.Outcome.OUT_OF_SCOPE,
+                guardrail.evaluate(new AiRequest("write python code to sort a list"),
+                        ruleConfig("support")).outcome());
     }
 
     @Test
@@ -137,11 +142,18 @@ class EmbeddingScopeGuardrailTest {
     }
 
     @Test
-    void runtimeFailureReportsError() {
-        var runtime = new ThrowingEmbeddingRuntime();
-        var guardrail = new EmbeddingScopeGuardrail(runtime);
-        var decision = guardrail.evaluate(new AiRequest("hi"), ruleConfig("support"));
-        assertEquals(ScopeGuardrail.Outcome.ERROR, decision.outcome());
+    void runtimeFailureDegradesToRuleBased() {
+        // Regression: a failing embed call (e.g. the provider has no matching
+        // embedding model — Gemini 404s on text-embedding-3-small) must NOT
+        // block every request. It degrades to the rule-based tier: on-topic
+        // admitted, hijacking probes still blocked.
+        var guardrail = new EmbeddingScopeGuardrail(new ThrowingEmbeddingRuntime());
+        assertEquals(ScopeGuardrail.Outcome.IN_SCOPE,
+                guardrail.evaluate(new AiRequest("book a dental cleaning"),
+                        ruleConfig("dentistry")).outcome());
+        assertEquals(ScopeGuardrail.Outcome.OUT_OF_SCOPE,
+                guardrail.evaluate(new AiRequest("write a python script for me"),
+                        ruleConfig("dentistry")).outcome());
     }
 
     @Test
