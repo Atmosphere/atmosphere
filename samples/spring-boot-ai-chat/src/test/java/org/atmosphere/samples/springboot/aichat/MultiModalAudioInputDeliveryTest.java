@@ -38,10 +38,10 @@ import static org.mockito.Mockito.when;
 /**
  * Delivery proof for the {@code "make the Atmosphere-4 blog true"} claim that an
  * agent can "take vision and audio input". Vision is already exercised by
- * {@link MultiModalChat}'s {@code image:} branch; this test proves the matching
+ * {@link MultiModalAgent}'s {@code image:} branch; this test proves the matching
  * <em>audio input</em> claim end-to-end.
  *
- * <p>It drives {@link MultiModalChat#onPrompt(String, StreamingSession)} with an
+ * <p>It drives {@link MultiModalAgent#onPrompt(String, StreamingSession)} with an
  * {@code audio:<base64>} prompt and asserts the decoded clip actually
  * <b>reaches the runtime</b> — i.e. the {@link AgentExecutionContext} the runtime
  * executes carries the bytes as a {@link Content.Audio} input part with the
@@ -79,12 +79,12 @@ class MultiModalAudioInputDeliveryTest {
                 List.of(), resource);
 
         var prompt = "audio:" + Base64.getEncoder().encodeToString(AUDIO_BYTES);
-        new MultiModalChat().onPrompt(prompt, session);
+        new MultiModalAgent().onPrompt(prompt, session);
         session.close();
 
         // The runtime was invoked exactly once with the audio-bearing context.
         assertEquals(1, runtime.contexts.size(),
-                "MultiModalChat must dispatch the audio prompt to the runtime exactly once");
+                "MultiModalAgent must dispatch the audio prompt to the runtime exactly once");
 
         var context = runtime.contexts.get(0);
 

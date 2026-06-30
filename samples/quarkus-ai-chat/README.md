@@ -42,11 +42,15 @@ mvn quarkus:dev
 | `application.properties` | — | `quarkus.atmosphere.packages` + `quarkus.langchain4j.openai.*` |
 | `META-INF/resources/index.html` | — | Meta-redirect to the bundled Atmosphere Console SPA at `/atmosphere/console/` (per commit f8930d62f4) — drives all five endpoints from one UI |
 
-The four ported endpoints (`PromptCacheDemoChat`, `RetryDemoChat`,
-`MultiModalChat`, `ReviewExtractor`) are byte-for-byte parity with their
-Spring Boot siblings except for the package name — the `AgentRuntime` SPI
-is platform-portable, so the same `@AiEndpoint` source compiles and runs
-identically under either Servlet container.
+Three ported endpoints (`PromptCacheDemoChat`, `RetryDemoChat`,
+`ReviewExtractor`) are byte-for-byte parity with their Spring Boot siblings
+except for the package name — the `AgentRuntime` SPI is platform-portable, so
+the same `@AiEndpoint` source compiles and runs identically under either
+Servlet container. The fourth, `MultiModalChat`, keeps the lower-level
+`@AiEndpoint` form here; its Spring Boot sibling now leads with the higher-level
+`@Agent` annotation (`MultiModalAgent`, registered at
+`/atmosphere/agent/multimodal`), which desugars to the same handler but sources
+its persona from a `SKILL.md` instead of an inline path.
 
 ## How streaming flows end-to-end
 

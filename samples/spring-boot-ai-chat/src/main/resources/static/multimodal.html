@@ -19,10 +19,10 @@
 <body>
 <h1>Atmosphere Multi-modal Demo</h1>
 <p>Pick an image file and upload it to
-  <code>/atmosphere/ai-chat-multimodal</code>. The sample
-  <code>MultiModalChat</code> endpoint decodes the payload, wraps it in a
-  <code>Content.Image</code>, and streams both a binary frame and a text
-  acknowledgement back over WebSocket.</p>
+  <code>/atmosphere/agent/multimodal</code>. The sample
+  <code>MultiModalAgent</code> (an <code>@Agent</code> class) decodes the
+  payload, wraps it in a <code>Content.Image</code>, and streams both a binary
+  frame and a text acknowledgement back over WebSocket.</p>
 
 <label for="token">Auth token</label>
 <input id="token" type="text" value="demo-token">
@@ -91,7 +91,7 @@
 
     const wsUrl = (location.protocol === 'https:' ? 'wss:' : 'ws:')
       + '//' + location.host
-      + '/atmosphere/ai-chat-multimodal'
+      + '/atmosphere/agent/multimodal'
       + '?X-Atmosphere-Transport=websocket'
       + '&X-Atmosphere-Framework=5.0.0'
       + '&X-Atmosphere-Auth=' + encodeURIComponent(token);

@@ -51,6 +51,13 @@
             <artifactId>${atmosphere.starter}</artifactId>
         </dependency>
 
+        <!-- @Agent annotation (MultiModalAgent) — the starter pulls atmosphere-agent
+             only as an optional dependency, so the sample declares it explicitly. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-agent</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-ai</artifactId>

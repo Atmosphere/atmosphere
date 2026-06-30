@@ -194,15 +194,16 @@ test.describe('Spring Boot AI Chat', () => {
     expect(secondFrames.some((f) => f.type === 'complete')).toBe(true);
   });
 
-  // Gap #10c — multi-modal @AiEndpoint.
+  // Gap #10c — multi-modal @Agent.
   //
-  // MultiModalChat accepts "image:<base64>" prompts, decodes them, and
-  // emits a Content.Image frame on a DefaultStreamingSession bound to the
-  // same AtmosphereResource. The test uploads a 1x1 PNG constant, asserts
-  // the sample echoed its metadata, and verifies at least one streaming
-  // text frame arrives with no error frame.
-  test('@AiEndpoint accepts base64 image upload and streams text reply', async () => {
-    const url = buildWsUrl(server, '/atmosphere/ai-chat-multimodal');
+  // MultiModalAgent is an @Agent class (registered at /atmosphere/agent/multimodal)
+  // that accepts "image:<base64>" prompts, decodes them, and emits a
+  // Content.Image frame on the AiStreamingSession bound to the same
+  // AtmosphereResource. The test uploads a 1x1 PNG constant, asserts the
+  // sample echoed its metadata, and verifies at least one streaming text
+  // frame arrives with no error frame.
+  test('@Agent accepts base64 image upload and streams text reply', async () => {
+    const url = buildWsUrl(server, '/atmosphere/agent/multimodal');
     const frames = await collectFrames(url, `image:image/png:${TINY_PNG_B64}`);
 
     expect(metadataValue(frames, 'multimodal.accepted')).toBe(true);

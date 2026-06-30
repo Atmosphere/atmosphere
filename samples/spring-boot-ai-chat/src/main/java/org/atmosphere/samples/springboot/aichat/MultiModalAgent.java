@@ -15,10 +15,9 @@
  */
 package org.atmosphere.samples.springboot.aichat;
 
+import org.atmosphere.agent.annotation.Agent;
 import org.atmosphere.ai.Content;
 import org.atmosphere.ai.StreamingSession;
-import org.atmosphere.ai.annotation.AgentScope;
-import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,9 +26,18 @@ import java.util.Base64;
 import java.util.List;
 
 /**
- * Demonstrates multi-modal input: {@link Content.Image} (vision) on the wire
- * <em>output</em> protocol and {@link Content.Audio} (audio) as model
- * <em>input</em>.
+ * The blog headline made literal: <em>drop {@code @Agent} on a class and that
+ * class is a running, streaming, multi-modal agent.</em> A single
+ * {@code @Agent} class — its persona supplied by a {@code SKILL.md}
+ * ({@code skill:multimodal-assistant}) instead of an inline system prompt —
+ * registers a streaming WebSocket endpoint at {@code /atmosphere/agent/multimodal}
+ * and accepts both {@link Content.Image} (vision) and {@link Content.Audio}
+ * (audio) input.
+ *
+ * <p>{@code @Agent} desugars to the same {@code AiEndpointHandler} a plain
+ * {@code @AiEndpoint} uses, so the injected {@link StreamingSession}, the
+ * {@code @Prompt} method, and the multi-modal input path behave identically —
+ * the only thing that changed is the headline annotation a reader sees first.</p>
  *
  * <p><b>Vision (output protocol):</b> when the prompt starts with {@code "image:"}
  * the rest of the payload is decoded as base64 image bytes, wrapped in a
@@ -63,12 +71,12 @@ import java.util.List;
  *
  * @see org.atmosphere.integrationtests.ai.MultiModalTestHandler
  */
-@AiEndpoint(path = "/atmosphere/ai-chat-multimodal")
-@AgentScope(unrestricted = true,
-        justification = "Multi-modal demo — accepts arbitrary text + image prompts to showcase multimodal streaming.")
-public class MultiModalChat {
+@Agent(name = "multimodal",
+        skillFile = "skill:multimodal-assistant",
+        description = "Multi-modal assistant — accepts image (vision) and audio input over a streaming session.")
+public class MultiModalAgent {
 
-    private static final Logger logger = LoggerFactory.getLogger(MultiModalChat.class);
+    private static final Logger logger = LoggerFactory.getLogger(MultiModalAgent.class);
 
     private static final String IMAGE_PREFIX = "image:";
     private static final String DEFAULT_MIME_TYPE = "image/png";
@@ -84,7 +92,7 @@ public class MultiModalChat {
             return;
         }
         if (!message.startsWith(IMAGE_PREFIX)) {
-            session.send("MultiModalChat accepts 'image:<base64>' (vision) or "
+            session.send("MultiModalAgent accepts 'image:<base64>' (vision) or "
                     + "'audio:<base64>' (audio) prompts. Got plain text: " + message);
             session.complete();
             return;
@@ -119,7 +127,7 @@ public class MultiModalChat {
 
         // AiStreamingSession now forwards sendContent() to the leaf session,
         // so we can emit the binary frame directly on the same session the
-        // @AiEndpoint lifecycle owns — no secondary DefaultStreamingSession,
+        // @Agent lifecycle owns — no secondary DefaultStreamingSession,
         // no racing complete() frames.
         session.sendContent(new Content.Image(bytes, mimeType));
 

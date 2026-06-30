@@ -4,14 +4,15 @@ A real-time AI chat application that streams LLM responses text-by-text to the b
 
 ## Key Features
 
-- **`@AiEndpoint`** — declarative AI endpoint with system prompt, capability validation, and conversation memory
+- **`@Agent`** — drop `@Agent` on a class with a `@Prompt` method and a `SKILL.md` persona and that class *is* a running, streaming agent. `MultiModalAgent` is exactly that: one `@Agent` class, a `skill:multimodal-assistant` skill file, and a multi-modal chat endpoint at `/atmosphere/agent/multimodal`
+- **`@AiEndpoint`** — the lower-level building block `@Agent` desugars to: a declarative AI endpoint with system prompt, capability validation, and conversation memory (used by `AiChat`)
 - **Capability requirements** — `requires = {TEXT_STREAMING, SYSTEM_PROMPT}` fails fast if the backend can't deliver
 - **Conversation memory** — multi-turn context preserved automatically per client
 - **Structured events** — `AiEvent` wire protocol for tool calls, agent steps, and structured output
 - **Demo mode** — works out-of-the-box without an API key (simulated streaming)
 - **Prompt cache demo** — `PromptCacheDemoChat` at `/atmosphere/ai-chat-with-cache` shows how `@AiEndpoint(promptCache = CONSERVATIVE)` threads a `CacheHint` into every request; the sample routes prompts through a real `AiPipeline` + `InMemoryResponseCache` so the framework emits `ai.cache.hit=false` on the first request and `ai.cache.hit=true` on repeated identical prompts (canonical framework-level wire signal, not a sample shim)
 - **Retry policy demo** — `RetryDemoChat` at `/atmosphere/ai-chat-with-retry` echoes the declared `@AiEndpoint(retry = @Retry(...))` attributes and exposes a deterministic `fail-once:<id>` fault-injection path that recovers on a second request
-- **Multi-modal demo** — `MultiModalChat` at `/atmosphere/ai-chat-multimodal` accepts both vision and audio input:
+- **Multi-modal `@Agent` demo** — `MultiModalAgent` (an `@Agent` class whose persona lives in `prompts/multimodal-assistant-skill.md`) at `/atmosphere/agent/multimodal` accepts both vision and audio input:
   - **Vision** — `image:<base64>` prompts are wrapped in a `Content.Image` and streamed back as a binary content frame next to a text acknowledgement.
   - **Audio input** — `audio:<base64>` prompts are wrapped in a `Content.Audio` and forwarded to the resolved AI runtime as a multi-modal **input** part via `session.stream(prompt, parts)`. The runtime encodes it onto the provider wire request (the built-in OpenAI-compatible client emits an `input_audio` content block), so an audio-capable model such as `gpt-4o-audio-preview` receives the clip. With no API key the demo runtime returns a canned reply, but the audio still reaches the runtime context. Override the media type with `audio:audio/<subtype>:<base64>` (default `audio/wav`).
   - The delivery test `MultiModalAudioInputDeliveryTest` proves the audio reaches the runtime by asserting the captured `AgentExecutionContext.parts()` contains the `Content.Audio` with the right media type.
@@ -128,11 +129,13 @@ spring-boot-ai-chat/
     ├── java/.../aichat/
     │   ├── AiChatApplication.java   # Spring Boot entry point
     │   ├── AiChat.java             # @AiEndpoint with capability validation
+    │   ├── MultiModalAgent.java    # @Agent — vision + audio input, skill-file persona
     │   ├── AuthConfig.java         # Token-based authentication
     │   ├── DemoResponseProducer.java # Simulated streaming for demo mode
     │   └── LlmConfig.java          # Spring properties → AiConfig bridge
     └── resources/
         ├── application.yml          # LLM config (model, mode, API key)
+        ├── prompts/                 # @Agent skill files (multimodal-assistant-skill.md)
         └── static/                  # Built frontend assets
 ```
 
