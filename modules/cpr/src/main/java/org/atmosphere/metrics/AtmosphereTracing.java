@@ -112,37 +112,37 @@ public class AtmosphereTracing extends AtmosphereInterceptorAdapter {
 
     @Override
     public void postInspect(AtmosphereResource r) {
-        if (r.isCancelled()) {
-            return;
-        }
-        Span span = (Span) r.getRequest().getAttribute(SPAN_KEY);
-        if (span != null) {
-            String action = r.getAtmosphereResourceEvent() != null && r.getAtmosphereResourceEvent().isSuspended()
-                    ? "SUSPEND" : "CONTINUE";
-            span.setAttribute(ATTR_ACTION, action);
-
-            // For non-suspended requests, end the span now
-            if (!"SUSPEND".equals(action)) {
-                endSpan(r);
-            }
-            // Suspended requests will be ended by the lifecycle listener
-        }
-    }
-
-    private void endSpan(AtmosphereResource r) {
-        if (r.isCancelled()) {
-            return;
-        }
+        // Always close the thread-local OTel scope opened in inspect() here, on
+        // the same (request-processing) thread, before it returns to the
+        // container pool. Suspended/long-lived connections keep the *span* open
+        // (it is ended later by TracingResourceListener), but the *scope* must
+        // not outlive synchronous request processing — otherwise the span leaks
+        // into unrelated requests that reuse the worker thread, producing mixed
+        // traces (#2643). This close runs unconditionally, including the
+        // cancelled path, which previously returned before closing the scope.
         Scope scope = (Scope) r.getRequest().getAttribute(SCOPE_KEY);
-        Span span = (Span) r.getRequest().getAttribute(SPAN_KEY);
-
         if (scope != null) {
             scope.close();
             r.getRequest().removeAttribute(SCOPE_KEY);
         }
+
+        if (r.isCancelled()) {
+            return;
+        }
+
+        Span span = (Span) r.getRequest().getAttribute(SPAN_KEY);
         if (span != null) {
-            span.end();
-            r.getRequest().removeAttribute(SPAN_KEY);
+            boolean suspended = r.getAtmosphereResourceEvent() != null
+                    && r.getAtmosphereResourceEvent().isSuspended();
+            span.setAttribute(ATTR_ACTION, suspended ? "SUSPEND" : "CONTINUE");
+
+            // Non-suspended requests complete synchronously: end the span now.
+            // Suspended requests are ended by TracingResourceListener on
+            // resume / disconnect / timeout (span.end() is idempotent).
+            if (!suspended) {
+                span.end();
+                r.getRequest().removeAttribute(SPAN_KEY);
+            }
         }
     }
 

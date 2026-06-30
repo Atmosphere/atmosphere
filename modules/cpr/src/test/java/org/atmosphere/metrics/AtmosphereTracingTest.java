@@ -129,6 +129,28 @@ public class AtmosphereTracingTest {
     }
 
     @Test
+    public void testPostInspectClosesScopeButKeepsSpanForSuspended() throws Exception {
+        var tracing = new AtmosphereTracing(tracer);
+        var resource = Mockito.spy(createResource());
+
+        // Simulate a suspended (long-lived) connection: the event reports suspended.
+        var event = mock(AtmosphereResourceEventImpl.class);
+        Mockito.when(event.isSuspended()).thenReturn(true);
+        Mockito.doReturn(event).when(resource).getAtmosphereResourceEvent();
+
+        tracing.inspect(resource);
+        tracing.postInspect(resource);
+
+        // Regression (#2643): the request-thread scope MUST be closed in postInspect
+        // so the OpenTelemetry context does not leak into the worker thread when it
+        // returns to the container pool and serves an unrelated request.
+        Mockito.verify(scope).close();
+        // The span stays open for the suspended connection (ended later by the
+        // lifecycle listener), so it must NOT be ended synchronously here.
+        Mockito.verify(span, Mockito.never()).end();
+    }
+
+    @Test
     public void testConstructorWithOpenTelemetry() {
         var otel = OpenTelemetry.noop();
         var tracing = new AtmosphereTracing(otel);
