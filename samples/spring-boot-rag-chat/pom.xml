@@ -102,6 +102,20 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!--
+            WebTransport / HTTP-3 transport. application.yml enables it
+            (atmosphere.web-transport.enabled=true) and the frontend leads with
+            the 'webtransport' transport; without this dependency
+            AtmosphereWebTransportAutoConfiguration's @ConditionalOnClass
+            (reactor.netty.http.server.HttpServer + io.netty.handler.codec.http3.Http3)
+            fails and the HTTP-3 server never starts, so the declared transport
+            silently no-ops and the client falls back to WebSocket.
+        -->
+        <dependency>
+            <groupId>io.projectreactor.netty</groupId>
+            <artifactId>reactor-netty-http</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
