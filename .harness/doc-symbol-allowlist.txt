@@ -22,6 +22,7 @@ AutoConfiguration
 Autowired
 Bean
 Component
+ConditionalOnClass
 ConditionalOnMissingBean
 ConditionalOnExpression
 Configuration
@@ -33,6 +34,7 @@ PutMapping
 DeleteMapping
 RequestMapping
 SpringBootApplication
+SpringBootTest
 
 # ── Jakarta CDI / EE ──
 Inject
