@@ -176,15 +176,32 @@ class AtmosphereProcessor {
         // Micrometer is present. GraalVM/JDK 25+ eagerly links it.
         runtimeInit.produce(new RuntimeInitializedClassBuildItem(
                 "org.atmosphere.admin.metrics.MetricsController"));
-        // QuarkusSqliteRunJournalFactory has a compile-time import of
-        // org.atmosphere.checkpoint.SqliteEffectJournal. The atmosphere-checkpoint
-        // module is optional — on standard JVM AtmosphereDurableRunsProducer only
-        // loads the factory after confirming the class is present. GraalVM eagerly
-        // verifies build-time-linked classes, so without deferral the native build
-        // fails with "unresolved type SqliteEffectJournal" whenever checkpoint is
-        // absent (e.g. the quarkus-chat sample).
-        runtimeInit.produce(new RuntimeInitializedClassBuildItem(
-                "org.atmosphere.quarkus.runtime.QuarkusSqliteRunJournalFactory"));
+    }
+
+    /**
+     * Registers {@code QuarkusSqliteRunJournalFactory} for reflection only when the
+     * optional {@code atmosphere-checkpoint} module is on the build classpath.
+     *
+     * <p>{@code AtmosphereDurableRunsProducer} reaches the factory reflectively so
+     * its compile-time reference to {@code org.atmosphere.checkpoint.SqliteEffectJournal}
+     * stays off the GraalVM native build-time link graph — otherwise a native build
+     * without checkpoint (e.g. the quarkus-chat sample) fails with "unresolved type
+     * SqliteEffectJournal". When checkpoint <em>is</em> present, the factory must be
+     * reflection-registered so the producer's reflective {@code create(...)} call
+     * resolves in native mode; this step is a no-op when checkpoint is absent.</p>
+     */
+    @BuildStep
+    void registerDurableRunsReflection(BuildProducer<ReflectiveClassBuildItem> reflectiveClasses) {
+        if (!isClassPresent("org.atmosphere.checkpoint.SqliteEffectJournal")) {
+            return;
+        }
+        reflectiveClasses.produce(
+                ReflectiveClassBuildItem.builder(
+                                "org.atmosphere.quarkus.runtime.QuarkusSqliteRunJournalFactory")
+                        .constructors()
+                        .methods()
+                        .reason("Reflectively constructed by AtmosphereDurableRunsProducer for native SQLite journals")
+                        .build());
     }
 
     /**

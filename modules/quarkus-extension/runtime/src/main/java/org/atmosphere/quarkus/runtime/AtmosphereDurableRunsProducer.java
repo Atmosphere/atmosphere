@@ -118,7 +118,7 @@ public class AtmosphereDurableRunsProducer {
             var path = durable.path().replace(
                     "${java.io.tmpdir}", System.getProperty("java.io.tmpdir"));
             try {
-                return QuarkusSqliteRunJournalFactory.create(path, maxRuns, maxEffects);
+                return createSqliteJournal(path, maxRuns, maxEffects);
             } catch (RuntimeException e) {
                 logger.error("Failed to open the SQLite effect journal at {} — falling back to the "
                         + "in-memory journal (NOT crash-durable)", path, e);
@@ -131,6 +131,39 @@ public class AtmosphereDurableRunsProducer {
                     + "atmosphere-checkpoint dependency for crash survival.");
         }
         return new InMemoryEffectJournal(maxRuns, maxEffects);
+    }
+
+    /**
+     * Invokes {@code QuarkusSqliteRunJournalFactory.create(...)} reflectively. A
+     * direct call would make the factory — and its compile-time reference to the
+     * optional {@code org.atmosphere.checkpoint.SqliteEffectJournal} — statically
+     * reachable, which GraalVM native-image rejects at build time when the
+     * checkpoint module is absent (e.g. the quarkus-chat sample). Reflection keeps
+     * the factory off the native build-time link graph; it is reached only after
+     * the {@code sqlitePresent} guard above has confirmed the class is on the
+     * classpath, so on a standard JVM the behaviour is identical to a direct call.
+     * The deployment processor reflection-registers the factory when checkpoint is
+     * present so this call also resolves in native mode.
+     */
+    private static EffectJournal createSqliteJournal(String path, int maxRuns, int maxEffects) {
+        try {
+            var factory = Class.forName(
+                    "org.atmosphere.quarkus.runtime.QuarkusSqliteRunJournalFactory",
+                    true, AtmosphereDurableRunsProducer.class.getClassLoader());
+            var create = factory.getDeclaredMethod("create", String.class, int.class, int.class);
+            create.setAccessible(true);
+            return (EffectJournal) create.invoke(null, path, maxRuns, maxEffects);
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            // Surface the factory's own failure (e.g. missing JDBC driver) so the
+            // caller's RuntimeException handler falls back to the in-memory journal.
+            if (e.getCause() instanceof RuntimeException re) {
+                throw re;
+            }
+            throw new IllegalStateException("Failed to open the bundled SQLite effect journal", e.getCause());
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(
+                    "QuarkusSqliteRunJournalFactory unavailable despite atmosphere-checkpoint on the classpath", e);
+        }
     }
 
     /**
