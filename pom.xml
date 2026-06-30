@@ -1092,16 +1092,27 @@
                 <artifactId>jackson-annotations</artifactId>
                 <version>${jackson-annotations.version}</version>
             </dependency>
-            <!-- Override MCP SDK transitive version to fix CVE-2026-35568 (DNS Rebinding) -->
+            <!-- Override MCP SDK transitive version to fix CVE-2026-35568 (DNS Rebinding).
+                 Held to the 1.0.x line (paired with mcp 1.1.x below); 1.0.1 also closes
+                 the follow-up advisory. Dependabot is pinned to 1.x in dependabot.yml so it
+                 cannot cross-grade to 2.0.0. -->
             <dependency>
                 <groupId>io.modelcontextprotocol.sdk</groupId>
                 <artifactId>mcp-core</artifactId>
-                <version>1.0.0</version>
+                <version>1.0.1</version>
             </dependency>
             <dependency>
                 <groupId>io.modelcontextprotocol.sdk</groupId>
                 <artifactId>mcp</artifactId>
                 <version>1.1.1</version>
+            </dependency>
+            <!-- Handlebars enters transitively via modules/semantic-kernel; 4.5.2
+                 closes GHSA-r4gv-qr8j-p3pg. Force-pin so the leaf module resolves
+                 the patched version reactor-wide. -->
+            <dependency>
+                <groupId>com.github.jknack</groupId>
+                <artifactId>handlebars</artifactId>
+                <version>4.5.2</version>
             </dependency>
             <!-- SnakeYAML — declared here so downstream consumers of
                  atmosphere-ai resolve the version through this BOM-style
