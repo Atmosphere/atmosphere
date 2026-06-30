@@ -51,7 +51,7 @@ jobs:
     env:
       OPA_VERSION: v0.68.0
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5
@@ -106,7 +106,7 @@ jobs:
     env:
       CEDAR_CLI_VERSION: 4.11.2
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5
