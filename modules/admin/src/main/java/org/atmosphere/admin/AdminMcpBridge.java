@@ -170,7 +170,28 @@ public final class AdminMcpBridge {
                     return Map.of("success", success);
                 });
 
-        logger.info("Atmosphere Admin: registered 4 write MCP tools (authorizer-gated)");
+        registry.registerTool("atmosphere_resume_run",
+                "Re-drive a crashed durable agent run from its journal (admin-authorized)",
+                List.of(new ParamEntry("runId", "Run ID to re-drive", true, String.class)),
+                (McpRegistry.IdentityAwareToolHandler) (args, principal) -> {
+                    var runId = (String) args.get("runId");
+                    if (!authorizer.authorize("resume_run", runId, principal)) {
+                        admin.auditLog().record(principal, "resume_run.denied", runId, false, null);
+                        return Map.of("error", "unauthorized");
+                    }
+                    var spine = org.atmosphere.ai.resume.DurableRunSpineHolder.get();
+                    if (!spine.enabled()) {
+                        return Map.of("error", "durable runs are not enabled");
+                    }
+                    var session = new org.atmosphere.ai.resume.CapturingRunSession(runId);
+                    var status = new org.atmosphere.ai.resume.DurableRunResumer(spine)
+                            .resumeAsAdmin(runId, session);
+                    var success = status == org.atmosphere.ai.resume.DurableRunResumer.Status.RESUMED;
+                    admin.auditLog().record(principal, "resume_run", runId, success, status.name());
+                    return Map.of("status", status.name(), "output", session.text());
+                });
+
+        logger.info("Atmosphere Admin: registered 5 write MCP tools (authorizer-gated)");
     }
 
     @SuppressWarnings("unchecked")

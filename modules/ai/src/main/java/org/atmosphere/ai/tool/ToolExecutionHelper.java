@@ -21,6 +21,11 @@ import org.atmosphere.ai.approval.ApprovalRegistry;
 import org.atmosphere.ai.approval.ApprovalStrategy;
 import org.atmosphere.ai.approval.PendingApproval;
 import org.atmosphere.ai.approval.ToolApprovalPolicy;
+import org.atmosphere.ai.resume.DurableRunContext;
+import org.atmosphere.ai.resume.DurableRunScopeHolder;
+import org.atmosphere.ai.resume.EffectJournal;
+import org.atmosphere.ai.resume.EffectKeys;
+import org.atmosphere.ai.resume.EffectKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.databind.ObjectMapper;
@@ -193,6 +198,18 @@ public final class ToolExecutionHelper {
      * injectables map when the caller supplies one keyed by {@code
      * StreamingSession.class}; adding it to {@code injectables} explicitly
      * lets {@code @AiTool} methods declare the concrete type too.
+     *
+     * <p>This is the one cross-runtime tool choke point, so it is also the
+     * durable-execution memo seam. When a {@link DurableRunContext} is installed
+     * for the session's run (durable runs enabled), each tool call is recorded in
+     * the run's {@link EffectJournal} keyed by a content-addressed idempotency key
+     * ({@link EffectKeys#toolCall}). A replay that re-walks the same tool sequence
+     * gets a {@code COMMITTED} hit, skips the executor and every gate, re-emits
+     * both the {@code ToolStart} and {@code ToolResult} frames, and returns the
+     * recorded outcome — so the side effect runs at most once across a crash and
+     * the wire sees an identical round. When durable runs are off (no scope, or
+     * the {@link EffectJournal#NOOP} journal) this takes the byte-identical live
+     * path with no memoization overhead.</p>
      */
     public static String executeWithApproval(String toolName, ToolDefinition tool,
                                              Map<String, Object> args,
@@ -200,6 +217,77 @@ public final class ToolExecutionHelper {
                                              ApprovalStrategy strategy,
                                              ToolApprovalPolicy policy,
                                              Map<Class<?>, Object> injectables) {
+        var ctx = DurableRunScopeHolder.current(session);
+        if (ctx == null || ctx.journal() == EffectJournal.NOOP) {
+            // Durable runs off: byte-identical live path, no memoization.
+            return executeWithApprovalLive(toolName, tool, args, session, strategy, policy, injectables);
+        }
+        var journal = ctx.journal();
+        // Advance the per-(tool,args) occurrence cursor exactly once per call, on
+        // BOTH first-drive and replay, so identical repeated calls get distinct,
+        // reproducible keys (delete_row(7) twice -> ordinals 0, 1).
+        var canonicalArgs = EffectKeys.canonicalJson(args);
+        var occurrence = ctx.nextToolOccurrence(toolName, canonicalArgs);
+        var key = EffectKeys.toolCall(ctx.runId(), toolName, args, occurrence);
+        // The run principal is part of the request digest, so a re-drive under a
+        // different principal sees a digest mismatch on every prior tool effect
+        // and re-executes live (re-running any approval gate) instead of
+        // inheriting this run's recorded — possibly human-approved — outcomes
+        // (Correctness Invariant #6, default-deny on cross-principal replay).
+        var digest = EffectKeys.sha256Hex(toolName, canonicalArgs, ctx.userId());
+
+        var hit = journal.lookupCommitted(ctx.runId(), key);
+        if (hit.isPresent() && digest.equals(hit.get().requestDigest())) {
+            // Replay hit: re-emit both frames and return the recorded outcome
+            // without touching the executor or any gate.
+            var recorded = hit.get().resultPayload();
+            if (session != null) {
+                session.emit(new AiEvent.ToolStart(toolName, args));
+                session.emit(new AiEvent.ToolResult(toolName, recorded));
+            }
+            return recorded;
+        }
+        if (hit.isPresent()) {
+            // Same key, different inputs: a divergence tripwire. Never replay a
+            // stale result — fall through to live execution.
+            logger.warn("Tool {} effect digest mismatch on replay (key {}); "
+                    + "executing live instead of replaying a stale result", toolName, key);
+        }
+
+        // First execution: record PENDING before the side effect, commit the
+        // terminal outcome after. A crash in between leaves it PENDING, so a
+        // resume re-runs it (at-least-once). A RejectedExecutionException from the
+        // per-run effect cap propagates and fails the run (Invariant #3).
+        journal.appendPending(ctx.runId(), EffectKind.TOOL_CALL, key, digest);
+        String result;
+        try {
+            result = executeWithApprovalLive(toolName, tool, args, session, strategy, policy, injectables);
+        } catch (RuntimeException e) {
+            // Helper-level failure (a tool error is encoded as JSON by the live
+            // path, not thrown): record FAILED so a resume re-runs rather than
+            // replaying a non-result.
+            journal.markFailed(ctx.runId(), key, errorMessage(e));
+            throw e;
+        }
+        journal.commit(ctx.runId(), key, result);
+        return result;
+    }
+
+    /**
+     * The live (non-memoized) tool-execution path: argument validation,
+     * governance admission, {@code @Authorize}, the {@code ToolStart} frame, the
+     * permission/approval gates, and the {@code ToolResult} frame on every
+     * terminal path. Wrapped by
+     * {@link #executeWithApproval(String, ToolDefinition, Map, StreamingSession, ApprovalStrategy, ToolApprovalPolicy, Map)}
+     * for durable-run memoization; that wrapper is the only caller on the durable
+     * path, but every non-durable call also routes here unchanged.
+     */
+    static String executeWithApprovalLive(String toolName, ToolDefinition tool,
+                                          Map<String, Object> args,
+                                          StreamingSession session,
+                                          ApprovalStrategy strategy,
+                                          ToolApprovalPolicy policy,
+                                          Map<Class<?>, Object> injectables) {
         var errors = ToolArgumentValidator.validate(tool, args);
         if (!errors.isEmpty()) {
             logger.info("Tool {} argument validation failed: {}", toolName, errors);

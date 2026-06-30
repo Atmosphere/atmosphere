@@ -591,6 +591,114 @@ public class AtmosphereAiAutoConfiguration {
         }
     }
 
+    /**
+     * Installs the durable-execution spine on startup when
+     * {@code atmosphere.durable-runs.enabled=true}. Off by default — turning it on
+     * is the operator's explicit opt-in (Correctness Invariant #6). The journal is
+     * resolved as: a user-supplied {@link org.atmosphere.ai.resume.EffectJournal}
+     * bean, else the bundled crash-durable SQLite store when the optional
+     * {@code atmosphere-checkpoint} module is present, else the in-memory journal
+     * with a NOT-crash-durable warning (Correctness Invariant #5). The spine is
+     * uninstalled and a journal this installer created is closed on shutdown
+     * (Ownership, Correctness Invariant #1).
+     */
+    @Bean
+    @ConditionalOnMissingBean(DurableRunSpineInstaller.class)
+    @ConditionalOnProperty(name = "atmosphere.durable-runs.enabled", havingValue = "true")
+    public DurableRunSpineInstaller atmosphereDurableRunSpineInstaller(
+            AtmosphereProperties properties,
+            org.springframework.beans.factory.ObjectProvider<org.atmosphere.ai.resume.EffectJournal>
+                    journalProvider) {
+        return new DurableRunSpineInstaller(properties.getDurableRuns(), journalProvider);
+    }
+
+    /** Builds the journal, installs the spine, and tears both down symmetrically. */
+    static final class DurableRunSpineInstaller
+            implements org.springframework.beans.factory.SmartInitializingSingleton,
+                       org.springframework.beans.factory.DisposableBean {
+
+        private final AtmosphereProperties.DurableRunsProperties config;
+        private final org.springframework.beans.factory.ObjectProvider<
+                org.atmosphere.ai.resume.EffectJournal> journalProvider;
+        // Non-null only when this installer created the journal — so destroy()
+        // closes a journal we own but never a user-supplied bean (Invariant #1).
+        private org.atmosphere.ai.resume.EffectJournal ownedJournal;
+
+        DurableRunSpineInstaller(AtmosphereProperties.DurableRunsProperties config,
+                                 org.springframework.beans.factory.ObjectProvider<
+                                         org.atmosphere.ai.resume.EffectJournal> journalProvider) {
+            this.config = config;
+            this.journalProvider = journalProvider;
+        }
+
+        @Override
+        public void afterSingletonsInstantiated() {
+            var userJournal = journalProvider.getIfAvailable();
+            org.atmosphere.ai.resume.EffectJournal journal;
+            if (userJournal != null) {
+                journal = userJournal;
+            } else {
+                journal = resolveBundledJournal();
+                ownedJournal = journal;
+            }
+            var spineConfig = new org.atmosphere.ai.resume.DurableRunConfig(
+                    true, config.getLeaseTtl(), config.isRetainOnSuccess());
+            var owner = "atmosphere-" + java.util.UUID.randomUUID();
+            org.atmosphere.ai.resume.DurableRunSpineHolder.install(
+                    new org.atmosphere.ai.resume.DurableRunSpine(journal, spineConfig, owner));
+            if (journal.durable()) {
+                logger.info("Durable agent runs enabled (journal={}, crash-durable, retainOnSuccess={})",
+                        journal.name(), config.isRetainOnSuccess());
+            } else {
+                logger.warn("Durable agent runs enabled but journal '{}' is in-memory — NOT crash-durable. "
+                        + "Add the atmosphere-checkpoint dependency (journal=sqlite) for crash survival "
+                        + "(Correctness Invariant #5).", journal.name());
+            }
+        }
+
+        private org.atmosphere.ai.resume.EffectJournal resolveBundledJournal() {
+            var maxRuns = config.getMaxRuns();
+            var maxEffects = config.getMaxEffectsPerRun();
+            var wantsSqlite = "sqlite".equalsIgnoreCase(config.getJournal());
+            var sqlitePresent = org.springframework.util.ClassUtils.isPresent(
+                    "org.atmosphere.checkpoint.SqliteEffectJournal", getClass().getClassLoader());
+            if (wantsSqlite && sqlitePresent) {
+                var path = config.getPath().replace(
+                        "${java.io.tmpdir}", System.getProperty("java.io.tmpdir"));
+                try {
+                    return SqliteRunJournalFactory.create(path, maxRuns, maxEffects);
+                } catch (RuntimeException e) {
+                    logger.error("Failed to open the SQLite effect journal at {} — falling back to the "
+                            + "in-memory journal (NOT crash-durable)", path, e);
+                    return new org.atmosphere.ai.resume.InMemoryEffectJournal(maxRuns, maxEffects);
+                }
+            }
+            if (wantsSqlite) {
+                logger.warn("atmosphere.durable-runs.journal=sqlite but the atmosphere-checkpoint module is "
+                        + "not on the classpath — using the in-memory journal (NOT crash-durable). Add the "
+                        + "atmosphere-checkpoint dependency for crash survival.");
+            }
+            return new org.atmosphere.ai.resume.InMemoryEffectJournal(maxRuns, maxEffects);
+        }
+
+        @Override
+        public void destroy() {
+            org.atmosphere.ai.resume.DurableRunSpineHolder.reset();
+            if (ownedJournal instanceof AutoCloseable closeable) {
+                try {
+                    closeable.close();
+                } catch (Exception e) {
+                    logger.debug("Error closing the durable-run effect journal on shutdown", e);
+                }
+            }
+        }
+
+        /** Exposed so tests can assert the resolved journal. */
+        org.atmosphere.ai.resume.EffectJournal resolvedJournal() {
+            return ownedJournal != null ? ownedJournal : journalProvider.getIfAvailable();
+        }
+    }
+
 
     /**
      * Opt-in content-based model routing. Off by default — enable with

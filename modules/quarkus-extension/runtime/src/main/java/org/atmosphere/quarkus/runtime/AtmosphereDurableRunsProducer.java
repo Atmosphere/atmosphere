@@ -1,0 +1,176 @@
+/*
+ * Copyright 2008-2026 Async-IO.org
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+package org.atmosphere.quarkus.runtime;
+
+import io.quarkus.runtime.ShutdownEvent;
+import io.quarkus.runtime.StartupEvent;
+import jakarta.annotation.Priority;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.inject.Instance;
+import jakarta.inject.Inject;
+
+import org.atmosphere.ai.resume.DurableRunConfig;
+import org.atmosphere.ai.resume.DurableRunSpine;
+import org.atmosphere.ai.resume.DurableRunSpineHolder;
+import org.atmosphere.ai.resume.EffectJournal;
+import org.atmosphere.ai.resume.InMemoryEffectJournal;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.UUID;
+
+/**
+ * Quarkus port of the Spring Boot starter's {@code DurableRunSpineInstaller}
+ * (in {@code AtmosphereAiAutoConfiguration}). When both {@code atmosphere-ai} is
+ * on the classpath and {@code quarkus.atmosphere.durable-runs.enabled=true}, the
+ * deployment processor registers this bean. On startup it resolves an
+ * {@link EffectJournal} and installs the effect-journal-backed
+ * {@link DurableRunSpine} via {@link DurableRunSpineHolder}, so committed LLM
+ * rounds and tool calls replay deterministically after a crash.
+ *
+ * <p>The journal is resolved as: a user-supplied {@link EffectJournal} CDI bean,
+ * else the bundled crash-durable SQLite store when the optional
+ * {@code atmosphere-checkpoint} module is present, else the in-memory journal
+ * with a NOT-crash-durable warning (Correctness Invariant #5).</p>
+ *
+ * <p>{@link #onShutdown(ShutdownEvent)} resets the holder and closes a journal
+ * this bean created (but never a user-supplied bean) so a Quarkus dev-mode live
+ * reload does not leak the previous journal — symmetric to
+ * {@code DisposableBean.destroy()} in the Spring configuration (Ownership,
+ * Correctness Invariant #1).</p>
+ */
+@ApplicationScoped
+public class AtmosphereDurableRunsProducer {
+
+    private static final Logger logger =
+            LoggerFactory.getLogger(AtmosphereDurableRunsProducer.class);
+
+    @Inject
+    AtmosphereConfig config;
+
+    // Instance<> is always satisfiable, so an absent EffectJournal bean does not
+    // make this producer's injection unresolvable; isResolvable() == exactly one.
+    @Inject
+    Instance<EffectJournal> journalInstance;
+
+    // Non-null only when this bean created the journal — so onShutdown() closes a
+    // journal we own but never a user-supplied bean (Correctness Invariant #1).
+    private volatile EffectJournal ownedJournal;
+    private volatile boolean installed;
+
+    /**
+     * Installs the durable-run spine on application startup when
+     * {@code quarkus.atmosphere.durable-runs.enabled=true}.
+     *
+     * @param event the Quarkus startup event (unused, present so Arc fires the
+     *              observer eagerly)
+     */
+    public void onStart(@Observes @Priority(120) StartupEvent event) {
+        if (installed) {
+            return;
+        }
+        var durable = config.durableRuns();
+        if (!durable.enabled()) {
+            return;
+        }
+        EffectJournal journal;
+        if (journalInstance.isResolvable()) {
+            journal = journalInstance.get();
+        } else {
+            journal = resolveBundledJournal();
+            ownedJournal = journal;
+        }
+        var spineConfig = new DurableRunConfig(true, durable.leaseTtl(), durable.retainOnSuccess());
+        var owner = "atmosphere-" + UUID.randomUUID();
+        DurableRunSpineHolder.install(new DurableRunSpine(journal, spineConfig, owner));
+        installed = true;
+        if (journal.durable()) {
+            logger.info("Durable agent runs enabled (journal={}, crash-durable, retainOnSuccess={})",
+                    journal.name(), durable.retainOnSuccess());
+        } else {
+            logger.warn("Durable agent runs enabled but journal '{}' is in-memory — NOT crash-durable. "
+                    + "Add the atmosphere-checkpoint dependency (journal=sqlite) for crash survival "
+                    + "(Correctness Invariant #5).", journal.name());
+        }
+    }
+
+    private EffectJournal resolveBundledJournal() {
+        var durable = config.durableRuns();
+        var maxRuns = durable.maxRuns();
+        var maxEffects = durable.maxEffectsPerRun();
+        var wantsSqlite = "sqlite".equalsIgnoreCase(durable.journal());
+        var sqlitePresent = isClassPresent("org.atmosphere.checkpoint.SqliteEffectJournal");
+        if (wantsSqlite && sqlitePresent) {
+            var path = durable.path().replace(
+                    "${java.io.tmpdir}", System.getProperty("java.io.tmpdir"));
+            try {
+                return QuarkusSqliteRunJournalFactory.create(path, maxRuns, maxEffects);
+            } catch (RuntimeException e) {
+                logger.error("Failed to open the SQLite effect journal at {} — falling back to the "
+                        + "in-memory journal (NOT crash-durable)", path, e);
+                return new InMemoryEffectJournal(maxRuns, maxEffects);
+            }
+        }
+        if (wantsSqlite) {
+            logger.warn("quarkus.atmosphere.durable-runs.journal=sqlite but the atmosphere-checkpoint module "
+                    + "is not on the classpath — using the in-memory journal (NOT crash-durable). Add the "
+                    + "atmosphere-checkpoint dependency for crash survival.");
+        }
+        return new InMemoryEffectJournal(maxRuns, maxEffects);
+    }
+
+    /**
+     * Resets {@link DurableRunSpineHolder} on shutdown and closes a journal this
+     * bean created, keeping dev-mode live reload from leaking the previous journal.
+     *
+     * @param event the Quarkus shutdown event (unused, present so Arc fires the
+     *              observer)
+     */
+    public void onShutdown(@Observes ShutdownEvent event) {
+        if (!installed) {
+            return;
+        }
+        DurableRunSpineHolder.reset();
+        installed = false;
+        if (ownedJournal instanceof AutoCloseable closeable) {
+            try {
+                closeable.close();
+            } catch (Exception e) {
+                logger.debug("Error closing the durable-run effect journal on shutdown", e);
+            }
+        }
+        ownedJournal = null;
+    }
+
+    /**
+     * Accessor used by tests to confirm the spine was installed during startup.
+     *
+     * @return {@code true} once {@link #onStart(StartupEvent)} has installed the spine
+     */
+    public boolean installed() {
+        return installed;
+    }
+
+    private static boolean isClassPresent(String name) {
+        try {
+            Class.forName(name, false, AtmosphereDurableRunsProducer.class.getClassLoader());
+            return true;
+        } catch (ClassNotFoundException ex) {
+            return false;
+        }
+    }
+}

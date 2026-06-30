@@ -20,6 +20,12 @@ import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.RetryPolicy;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.resume.DurableRunContext;
+import org.atmosphere.ai.resume.DurableRunScopeHolder;
+import org.atmosphere.ai.resume.EffectJournal;
+import org.atmosphere.ai.resume.EffectKeys;
+import org.atmosphere.ai.resume.EffectKind;
+import org.atmosphere.ai.resume.EffectRecord;
 import org.atmosphere.ai.tool.ToolBridgeUtils;
 import org.atmosphere.ai.tool.ToolDefinition;
 import org.atmosphere.ai.tool.ToolExecutionHelper;
@@ -241,8 +247,39 @@ public class OpenAiCompatibleClient implements LlmClient {
                                       java.util.function.Consumer<java.io.Closeable> streamSink)
             throws InterruptedException, java.io.IOException {
 
+        // Durable-run round seam: when a durable scope is installed, each LLM
+        // round is recorded (assistant text + tool calls + usage) and replayed
+        // from the journal on resume with no provider HTTP call. Off this path
+        // (no scope / NOOP journal) the method is byte-identical to before.
+        var durableCtx = DurableRunScopeHolder.current(session);
+        var durable = durableCtx != null && durableCtx.journal() != EffectJournal.NOOP;
+        var roundKey = durable ? EffectKeys.llmRound(durableCtx.runId(), toolRound) : null;
+        if (durable) {
+            if (toolRound == 0) {
+                // Record the run input seed once at dispatch (full assembled
+                // history + model + tool-set digest). A crash-resume re-drives the
+                // runtime directly from this seed; on replay it is already present
+                // so this is a no-op.
+                recordSeedIfAbsent(durableCtx, request);
+            }
+            var recorded = durableCtx.journal().lookupCommitted(durableCtx.runId(), roundKey);
+            if (recorded.isPresent()) {
+                replayRound(recorded.get().resultPayload(), request, session, toolRound,
+                        cancelled, streamSink);
+                return;
+            }
+            // Two-phase: record the round PENDING before dispatch; commit it
+            // after the SSE stream is fully consumed (below).
+            durableCtx.journal().appendPending(durableCtx.runId(), EffectKind.LLM_ROUND,
+                    roundKey, EffectKeys.sha256Hex(request.model(), Integer.toString(toolRound)));
+        }
+
         var conversationId = request.conversationId();
-        var useResponsesApi = isResponsesApiApplicable(conversationId);
+        // Under durable runs, force Chat Completions. The Responses API's
+        // stateful previous_response_id is process-local and lost on crash, so a
+        // re-driven Responses run cannot reuse the provider-side response cache;
+        // full chat-completions history keeps deterministic replay sound.
+        var useResponsesApi = !durable && isResponsesApiApplicable(conversationId);
         String requestBody;
         String endpoint;
 
@@ -311,6 +348,9 @@ public class OpenAiCompatibleClient implements LlmClient {
         var accumulators = new HashMap<Integer, ToolCallAccumulator>();
         var toolCallsRequested = new boolean[]{false};
         var capturedResponseId = new String[]{null};
+        // Accumulates this round's assistant text for the durable record; null
+        // off the durable path so the SSE forwarders add no capture overhead.
+        var roundText = durable ? new StringBuilder() : null;
 
         // D-6 Built-in hard-cancel: hand the caller a reference to the in-flight
         // InputStream BEFORE entering the blocking read loop. When the caller
@@ -337,9 +377,10 @@ public class OpenAiCompatibleClient implements LlmClient {
                 }
                 if (useResponsesApi) {
                     processResponsesApiSSELine(line, session, accumulators,
-                            toolCallsRequested, capturedResponseId, capturedUsage);
+                            toolCallsRequested, capturedResponseId, capturedUsage, roundText);
                 } else {
-                    processSSELine(line, session, accumulators, toolCallsRequested, capturedUsage);
+                    processSSELine(line, session, accumulators, toolCallsRequested,
+                            capturedUsage, roundText);
                 }
             }
         } catch (java.io.IOException e) {
@@ -377,8 +418,33 @@ public class OpenAiCompatibleClient implements LlmClient {
         // consumers see one onModelStart/onModelEnd pair per LLM call.
         modelScope.complete(capturedUsage[0]);
 
+        // Commit the recorded round (two-phase) once the SSE stream is fully
+        // consumed, then continue with tool execution / recursion.
+        if (durable) {
+            durableCtx.journal().commit(durableCtx.runId(), roundKey,
+                    recordRound(roundText, accumulators, capturedUsage[0]));
+        }
+        continueAfterRound(request, session, toolRound, toolCallsRequested[0],
+                accumulators, durable, cancelled, streamSink);
+    }
+
+    /**
+     * Execute the round's tool calls (if any) and recurse for the next round, or
+     * complete the session when the model returned a final answer. Extracted from
+     * {@code doStreamWithToolLoop} so the live path and the durable replay path
+     * share one implementation. On the durable path tool calls are iterated in
+     * model-emitted index order so the per-(tool,args) occurrence ordinals — and
+     * thus the tool idempotency keys — reproduce identically on replay.
+     */
+    private void continueAfterRound(ChatCompletionRequest request, StreamingSession session,
+                                    int toolRound, boolean toolCallsRequested,
+                                    Map<Integer, ToolCallAccumulator> accumulators,
+                                    boolean durable,
+                                    java.util.concurrent.atomic.AtomicBoolean cancelled,
+                                    java.util.function.Consumer<java.io.Closeable> streamSink)
+            throws InterruptedException, java.io.IOException {
         // If the model requested tool calls, execute them and re-submit
-        if (toolCallsRequested[0] && !accumulators.isEmpty() && !request.tools().isEmpty()) {
+        if (toolCallsRequested && !accumulators.isEmpty() && !request.tools().isEmpty()) {
             // Per-request tool-loop policy controls both the iteration cap and
             // the overflow behavior. The canonical-constructor default
             // (ToolLoopPolicy.DEFAULT) preserves the historical 5-iteration
@@ -402,6 +468,15 @@ public class OpenAiCompatibleClient implements LlmClient {
             var toolMap = ToolExecutionHelper.toToolMap(request.tools());
             var updatedMessages = new ArrayList<>(request.messages());
 
+            // Deterministic order on the durable path: iterate tool calls by
+            // their model-emitted index (HashMap iteration order is not stable)
+            // so the occurrence ordinals reproduce on replay. The live path keeps
+            // the existing entry-set order.
+            var orderedEntries = durable
+                    ? accumulators.entrySet().stream()
+                            .sorted(Map.Entry.comparingByKey()).toList()
+                    : new ArrayList<>(accumulators.entrySet());
+
             // Build the assistant message that references every tool_call the
             // model just emitted. Gemini's v1beta/openai compatibility layer
             // needs this to pair each subsequent function_response with the
@@ -409,7 +484,7 @@ public class OpenAiCompatibleClient implements LlmClient {
             // satisfy it. OpenAI itself accepts either shape, so including
             // the tool_calls array broadens interop without regressing.
             var assistantToolCalls = new ArrayList<ChatMessage.ToolCall>();
-            for (var entry : accumulators.entrySet()) {
+            for (var entry : orderedEntries) {
                 var acc = entry.getValue();
                 assistantToolCalls.add(new ChatMessage.ToolCall(
                         acc.id(), acc.functionName(), acc.arguments()));
@@ -420,7 +495,7 @@ public class OpenAiCompatibleClient implements LlmClient {
             // fire the lifecycle listeners attached to the request so
             // {@code @AgentLifecycleListener} consumers see onToolCall /
             // onToolResult events in-order alongside the AiEvent wire frames.
-            for (var entry : accumulators.entrySet()) {
+            for (var entry : orderedEntries) {
                 var acc = entry.getValue();
                 var toolName = acc.functionName();
                 var args = ToolBridgeUtils.parseJsonArgs(acc.arguments());
@@ -481,6 +556,88 @@ public class OpenAiCompatibleClient implements LlmClient {
         } else if (!session.isClosed()) {
             session.complete();
         }
+    }
+
+    /**
+     * Replay a recorded LLM round with no provider HTTP call: re-emit the
+     * recorded assistant text, rebuild the tool-call accumulators from the
+     * record, and continue exactly as the live path would. The tool calls then
+     * resolve to their own recorded outcomes via the {@code executeWithApproval}
+     * memo seam, so a fully-recorded run reconstructs with zero side effects.
+     */
+    private void replayRound(String payload, ChatCompletionRequest request,
+                             StreamingSession session, int toolRound,
+                             java.util.concurrent.atomic.AtomicBoolean cancelled,
+                             java.util.function.Consumer<java.io.Closeable> streamSink)
+            throws InterruptedException, java.io.IOException {
+        var round = deserializeRound(payload);
+        if (round.assistantText() != null && !round.assistantText().isEmpty()) {
+            session.send(round.assistantText());
+        }
+        var accumulators = new HashMap<Integer, ToolCallAccumulator>();
+        int index = 0;
+        for (var tc : round.toolCalls()) {
+            var acc = new ToolCallAccumulator();
+            acc.setId(tc.id());
+            acc.setFunctionName(tc.name());
+            if (tc.argumentsJson() != null) {
+                acc.appendArguments(tc.argumentsJson());
+            }
+            accumulators.put(index++, acc);
+        }
+        logger.debug("Replaying recorded LLM round {} ({} tool calls, no HTTP)",
+                toolRound, round.toolCalls().size());
+        continueAfterRound(request, session, toolRound, !round.toolCalls().isEmpty(),
+                accumulators, true, cancelled, streamSink);
+    }
+
+    /**
+     * Record the run input seed once, at the first round's dispatch — the full
+     * assembled chat history, the model, the conversation id, a stable digest of
+     * the available tool set (a resume tripwire), and the principal + endpoint a
+     * crash-resume needs to refuse a foreign principal and resolve the live tool
+     * set. Idempotent: on replay (or a later round) the seed is already committed
+     * and this returns without a second write.
+     */
+    private void recordSeedIfAbsent(DurableRunContext ctx, ChatCompletionRequest request) {
+        var key = EffectKeys.runInput(ctx.runId());
+        if (ctx.journal().lookupCommitted(ctx.runId(), key).isPresent()) {
+            return;
+        }
+        var toolNames = request.tools().stream()
+                .map(org.atmosphere.ai.tool.ToolDefinition::name)
+                .sorted()
+                .toArray(String[]::new);
+        var toolsDigest = EffectKeys.sha256Hex(toolNames);
+        var seed = new EffectRecord.RunSeed(
+                request.model(), request.messages(), toolsDigest,
+                request.jsonSchema() != null ? "json_schema" : null,
+                request.conversationId(), ctx.userId(), ctx.endpointPath());
+        var digest = EffectKeys.sha256Hex(request.model(), toolsDigest, ctx.userId());
+        ctx.journal().appendPending(ctx.runId(), EffectKind.RUN_INPUT, key, digest);
+        ctx.journal().commit(ctx.runId(), key,
+                org.atmosphere.ai.resume.RunSeeds.serialize(seed));
+    }
+
+    /** Serialize this round's outcome (assistant text + tool calls + usage) for the journal. */
+    private String recordRound(StringBuilder roundText,
+                               Map<Integer, ToolCallAccumulator> accumulators,
+                               org.atmosphere.ai.TokenUsage usage) {
+        var toolCalls = new ArrayList<ChatMessage.ToolCall>();
+        accumulators.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(e -> {
+                    var acc = e.getValue();
+                    toolCalls.add(new ChatMessage.ToolCall(
+                            acc.id(), acc.functionName(), acc.arguments()));
+                });
+        var round = new EffectRecord.RecordedRound(
+                roundText != null ? roundText.toString() : null, toolCalls, usage);
+        return MAPPER.writeValueAsString(round);
+    }
+
+    private EffectRecord.RecordedRound deserializeRound(String payload) {
+        return MAPPER.readValue(payload, EffectRecord.RecordedRound.class);
     }
 
     private HttpResponse<java.io.InputStream> sendWithRetry(String requestBody,
@@ -592,7 +749,8 @@ public class OpenAiCompatibleClient implements LlmClient {
     private void processSSELine(String line, StreamingSession session,
                                 Map<Integer, ToolCallAccumulator> accumulators,
                                 boolean[] toolCallsRequested,
-                                org.atmosphere.ai.TokenUsage[] usageHolder) {
+                                org.atmosphere.ai.TokenUsage[] usageHolder,
+                                StringBuilder roundText) {
         if (line.isBlank() || !line.startsWith(DATA_PREFIX)) {
             return;
         }
@@ -621,6 +779,9 @@ public class OpenAiCompatibleClient implements LlmClient {
                 var text = contentNode.stringValue();
                 if (!text.isEmpty()) {
                     session.send(text);
+                    if (roundText != null) {
+                        roundText.append(text);
+                    }
                 }
             }
 
@@ -1130,7 +1291,8 @@ public class OpenAiCompatibleClient implements LlmClient {
                                             Map<Integer, ToolCallAccumulator> accumulators,
                                             boolean[] toolCallsRequested,
                                             String[] capturedResponseId,
-                                            org.atmosphere.ai.TokenUsage[] usageHolder) {
+                                            org.atmosphere.ai.TokenUsage[] usageHolder,
+                                            StringBuilder roundText) {
         if (line.isBlank() || !line.startsWith(DATA_PREFIX)) {
             return;
         }
@@ -1146,7 +1308,7 @@ public class OpenAiCompatibleClient implements LlmClient {
 
             if (type == null) {
                 // Fallback: treat as Chat Completions format (shouldn't happen normally)
-                processSSELine(line, session, accumulators, toolCallsRequested, usageHolder);
+                processSSELine(line, session, accumulators, toolCallsRequested, usageHolder, roundText);
                 return;
             }
 
@@ -1157,6 +1319,9 @@ public class OpenAiCompatibleClient implements LlmClient {
                         var text = delta.stringValue();
                         if (!text.isEmpty()) {
                             session.send(text);
+                            if (roundText != null) {
+                                roundText.append(text);
+                            }
                         }
                     }
                 }

@@ -317,4 +317,95 @@ public interface AtmosphereConfig {
         @WithDefault("false")
         boolean enabled();
     }
+
+    /**
+     * Durable agent-runs configuration.
+     *
+     * @return the durable-runs sub-configuration block
+     */
+    DurableRuns durableRuns();
+
+    /**
+     * Durable agent-runs sub-configuration. Mirrors the Spring Boot starter's
+     * {@code atmosphere.durable-runs.*} keys; when {@code enabled} the deployment
+     * processor registers {@code AtmosphereDurableRunsProducer}, which installs the
+     * effect-journal-backed {@code DurableRunSpine} so committed LLM rounds and tool
+     * calls replay deterministically after a crash. Off by default — turning it on
+     * is the operator's explicit opt-in (Correctness Invariant #6). Requires
+     * {@code atmosphere-ai} on the classpath; {@code journal=sqlite} additionally
+     * requires {@code atmosphere-checkpoint} for crash survival.
+     */
+    interface DurableRuns {
+
+        /**
+         * Master switch. Defaults to {@code false} (off); set {@code true} to
+         * record and replay agent runs.
+         *
+         * @return {@code true} if the durable-run spine should be installed
+         */
+        @WithDefault("false")
+        boolean enabled();
+
+        /**
+         * Journal backend: {@code sqlite} (crash-durable, bundled in
+         * {@code atmosphere-checkpoint}) or {@code memory} (same-process
+         * idempotency only). Defaults to {@code sqlite}; falls back to the
+         * in-memory journal with a NOT-crash-durable warning when
+         * {@code atmosphere-checkpoint} is absent (Correctness Invariant #5).
+         *
+         * @return the journal backend name
+         */
+        @WithDefault("sqlite")
+        String journal();
+
+        /**
+         * Filesystem path for the SQLite journal. The literal
+         * {@code ${java.io.tmpdir}} is expanded to the JVM temp directory.
+         * Ignored when {@code journal=memory}.
+         *
+         * @return the SQLite database path
+         */
+        @WithDefault("${java.io.tmpdir}/atmosphere-runs.db")
+        String path();
+
+        /**
+         * Single-writer lease TTL. A crashed run's lease expires after this
+         * duration, allowing a reconnect or admin re-drive to claim it. Accepts
+         * ISO-8601 duration or Quarkus shorthand ({@code 30s}, {@code 5m},
+         * {@code 1h}). Defaults to {@code 5m}.
+         *
+         * @return the lease time-to-live
+         */
+        @WithDefault("5m")
+        Duration leaseTtl();
+
+        /**
+         * Whether to keep the effect history of runs that completed successfully
+         * (for audit). Defaults to {@code false} — successful runs are pruned to
+         * bound journal growth (Correctness Invariant #3).
+         *
+         * @return {@code true} to retain successful-run history
+         */
+        @WithDefault("false")
+        boolean retainOnSuccess();
+
+        /**
+         * Maximum number of distinct runs retained in the journal before the
+         * oldest are evicted. Bounds journal growth (Correctness Invariant #3).
+         * Defaults to {@code 10000}.
+         *
+         * @return the maximum retained run count
+         */
+        @WithDefault("10000")
+        int maxRuns();
+
+        /**
+         * Maximum number of effects retained per run. Bounds per-run journal
+         * growth (Correctness Invariant #3). Defaults to {@code 2000}.
+         *
+         * @return the maximum effects retained per run
+         */
+        @WithDefault("2000")
+        int maxEffectsPerRun();
+    }
 }

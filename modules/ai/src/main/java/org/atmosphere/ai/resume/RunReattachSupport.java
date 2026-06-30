@@ -49,6 +49,24 @@ public final class RunReattachSupport {
     private static final Logger logger = LoggerFactory.getLogger(RunReattachSupport.class);
 
     /**
+     * The run id a reconnecting client carries (request attribute set by
+     * {@code DurableSessionInterceptor}, or the {@code X-Atmosphere-Run-Id}
+     * header), or {@code null} when none is present. Shared by the live-replay
+     * path and the crash-resume path so both read the id identically.
+     */
+    public static String pendingRunId(org.atmosphere.cpr.AtmosphereResource resource) {
+        if (resource == null || resource.getRequest() == null) {
+            return null;
+        }
+        var req = resource.getRequest();
+        Object attr = req.getAttribute(RUN_ID_ATTRIBUTE);
+        if (attr == null) {
+            attr = req.getHeader(RUN_ID_HEADER);
+        }
+        return attr instanceof String runId && !runId.isBlank() ? runId : null;
+    }
+
+    /**
      * Marker value AiEndpointHandler uses when no principal has been
      * resolved for the run. A replay request with a matching anonymous
      * caller gets through (open/demo deployments); but the replay of

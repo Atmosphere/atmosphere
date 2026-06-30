@@ -259,6 +259,17 @@ public record ChatCompletionRequest(
             return this;
         }
 
+        /**
+         * Append a full pre-assembled chat history — used when reconstructing a
+         * request from a recorded run seed on crash-resume.
+         */
+        public Builder messages(List<ChatMessage> history) {
+            if (history != null) {
+                messages.addAll(history);
+            }
+            return this;
+        }
+
         public Builder tools(List<ToolDefinition> tools) {
             this.tools = tools;
             return this;

@@ -60,11 +60,30 @@ public final class PostgresCheckpointStore implements CheckpointStore {
     /** Upper bound on registered listeners to keep the collection from growing without limit. */
     private static final int MAX_LISTENERS = 1024;
 
+    /**
+     * Default upper bound on retained snapshots, mirroring
+     * {@code InMemoryCheckpointStore.DEFAULT_MAX_SNAPSHOTS} and
+     * {@code SqliteCheckpointStore}. Beyond this the oldest snapshots are pruned
+     * on save so the table cannot grow without bound (Correctness Invariant #3).
+     *
+     * <p><strong>Resume-anchor caveat:</strong> this is a <em>global</em>
+     * evict-oldest cap, so under sustained write pressure it can evict the
+     * newest snapshot — the resume anchor — of a dormant coordination. Bounding
+     * total size and never evicting a non-terminal run's anchor cannot both hold
+     * without a per-run terminal-status concept this SPI does not model. Durable
+     * agent-run resume therefore does not rely on this store's retention; it
+     * uses the dedicated run journal whose retention is terminal-status-aware.
+     * Reap completed runs via {@link #deleteCoordination(String)} to stay well
+     * under the cap.</p>
+     */
+    public static final int DEFAULT_MAX_SNAPSHOTS = 10_000;
+
     private static final tools.jackson.core.type.TypeReference<Map<String, String>> MAP_TYPE =
             new tools.jackson.core.type.TypeReference<>() { };
 
     private final DataSource dataSource;
     private final String table;
+    private final int maxSnapshots;
     private final ObjectMapper mapper = new ObjectMapper();
     private final CopyOnWriteArrayList<CheckpointListener> listeners = new CopyOnWriteArrayList<>();
 
@@ -78,12 +97,25 @@ public final class PostgresCheckpointStore implements CheckpointStore {
      * @param table      table name; must be a simple identifier
      */
     public PostgresCheckpointStore(DataSource dataSource, String table) {
+        this(dataSource, table, DEFAULT_MAX_SNAPSHOTS);
+    }
+
+    /**
+     * @param dataSource   JDBC source; the store never closes it (owned by caller)
+     * @param table        table name; must be a simple identifier
+     * @param maxSnapshots retain at most this many snapshots (oldest pruned on save)
+     */
+    public PostgresCheckpointStore(DataSource dataSource, String table, int maxSnapshots) {
         this.dataSource = Objects.requireNonNull(dataSource, "dataSource must not be null");
         if (table == null || !table.matches("[A-Za-z_][A-Za-z0-9_]*")) {
             throw new IllegalArgumentException(
                     "table must be a simple identifier (alphanumeric + underscore), got: " + table);
         }
+        if (maxSnapshots <= 0) {
+            throw new IllegalArgumentException("maxSnapshots must be positive, got " + maxSnapshots);
+        }
         this.table = table;
+        this.maxSnapshots = maxSnapshots;
     }
 
     @Override
@@ -98,13 +130,21 @@ public final class PostgresCheckpointStore implements CheckpointStore {
                     + "coordination_id VARCHAR(255) NOT NULL, "
                     + "agent_name VARCHAR(255), "
                     + "state_json TEXT, "
+                    + "state_type VARCHAR(512), "
                     + "metadata_json TEXT, "
                     + "created_at BIGINT NOT NULL)");
+            // Migration for tables created before state_type existed. Postgres
+            // and H2 both support ADD COLUMN IF NOT EXISTS, so start() stays
+            // idempotent with no duplicate-column error.
+            stmt.execute("ALTER TABLE " + table + " ADD COLUMN IF NOT EXISTS state_type VARCHAR(512)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_" + table
                     + "_coord ON " + table + " (coordination_id)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_" + table
                     + "_agent ON " + table + " (agent_name)");
-            logger.info("PostgresCheckpointStore initialized (table={})", table);
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_" + table
+                    + "_created ON " + table + " (created_at)");
+            logger.info("PostgresCheckpointStore initialized (table={}, maxSnapshots={})",
+                    table, maxSnapshots);
         } catch (SQLException e) {
             throw new IllegalStateException("Failed to create checkpoints table " + table, e);
         }
@@ -132,15 +172,17 @@ public final class PostgresCheckpointStore implements CheckpointStore {
                     del.executeUpdate();
                 }
                 try (var ins = conn.prepareStatement("INSERT INTO " + table
-                        + " (id, parent_id, coordination_id, agent_name, state_json, metadata_json,"
-                        + " created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+                        + " (id, parent_id, coordination_id, agent_name, state_json, state_type,"
+                        + " metadata_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
                     ins.setString(1, snapshot.id().value());
                     ins.setString(2, snapshot.parentId() != null ? snapshot.parentId().value() : null);
                     ins.setString(3, snapshot.coordinationId());
                     ins.setString(4, snapshot.agentName());
                     ins.setString(5, mapper.writeValueAsString(snapshot.state()));
-                    ins.setString(6, mapper.writeValueAsString(snapshot.metadata()));
-                    ins.setLong(7, snapshot.createdAt().toEpochMilli());
+                    ins.setString(6, snapshot.state() != null
+                            ? snapshot.state().getClass().getName() : null);
+                    ins.setString(7, mapper.writeValueAsString(snapshot.metadata()));
+                    ins.setLong(8, snapshot.createdAt().toEpochMilli());
                     ins.executeUpdate();
                 }
                 conn.commit();
@@ -150,6 +192,7 @@ public final class PostgresCheckpointStore implements CheckpointStore {
             } finally {
                 conn.setAutoCommit(previousAutoCommit);
             }
+            pruneIfNeeded(conn);
             dispatch(new CheckpointEvent.Saved(
                     snapshot.id(), snapshot.coordinationId(), Instant.now()));
             return snapshot;
@@ -164,7 +207,8 @@ public final class PostgresCheckpointStore implements CheckpointStore {
         Objects.requireNonNull(id, "id must not be null");
         try (var conn = dataSource.getConnection();
              var ps = conn.prepareStatement("SELECT id, parent_id, coordination_id, agent_name,"
-                     + " state_json, metadata_json, created_at FROM " + table + " WHERE id = ?")) {
+                     + " state_json, state_type, metadata_json, created_at FROM " + table
+                     + " WHERE id = ?")) {
             ps.setString(1, id.value());
             try (var rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -206,7 +250,7 @@ public final class PostgresCheckpointStore implements CheckpointStore {
     public List<WorkflowSnapshot<?>> list(CheckpointQuery query) {
         Objects.requireNonNull(query, "query must not be null");
         var sql = new StringBuilder("SELECT id, parent_id, coordination_id, agent_name,"
-                + " state_json, metadata_json, created_at FROM " + table + " WHERE 1=1");
+                + " state_json, state_type, metadata_json, created_at FROM " + table + " WHERE 1=1");
         var params = new ArrayList<Object>();
         if (query.coordinationId() != null) {
             sql.append(" AND coordination_id = ?");
@@ -315,9 +359,10 @@ public final class PostgresCheckpointStore implements CheckpointStore {
     private WorkflowSnapshot<?> fromRow(ResultSet rs) throws Exception {
         var parentIdStr = rs.getString("parent_id");
         var stateJson = rs.getString("state_json");
+        var stateType = rs.getString("state_type");
         var metadataJson = rs.getString("metadata_json");
 
-        Object state = stateJson != null ? mapper.readValue(stateJson, Object.class) : null;
+        Object state = deserializeState(stateJson, stateType);
         Map<String, String> metadata = metadataJson != null
                 ? mapper.readValue(metadataJson, MAP_TYPE) : Map.of();
 
@@ -330,6 +375,82 @@ public final class PostgresCheckpointStore implements CheckpointStore {
                 .metadata(metadata)
                 .createdAt(Instant.ofEpochMilli(rs.getLong("created_at")))
                 .build();
+    }
+
+    /**
+     * Deserialize the persisted state, restoring its original Java type when
+     * {@code stateType} (the class name recorded at save time) is present and
+     * resolvable. Falls back to generic {@code Object} mapping — the pre-fix
+     * behaviour — for legacy rows with no recorded type, for classes no longer
+     * on the classpath ({@code ClassNotFoundException}/{@code LinkageError}),
+     * and for types Jackson cannot reconstruct (e.g. JDK immutable collections).
+     * Keeps structured records faithful (the {@code ClassCastException} case)
+     * while never regressing collection state. A type-loss fallback logs at
+     * {@code WARN} so a record silently degrading to a {@code Map} is observable.
+     *
+     * <p><strong>Fidelity boundary:</strong> only the <em>top-level</em>
+     * concrete/record type round-trips. A raw generic-container state (e.g.
+     * {@code List<Person>}) records as {@code java.util.ArrayList} and its
+     * elements still deserialize generically — wrap such state in a record to
+     * retain element types.</p>
+     *
+     * <p><strong>Trust boundary:</strong> {@code stateType} is honored as a
+     * class selector for {@code Class.forName} + {@code readValue}. No Jackson
+     * default typing is enabled (the mapper is a bare {@code ObjectMapper}), but
+     * a caller able to write the {@code state_type} column could steer
+     * instantiation to any loadable class. The backing database must therefore
+     * be a trusted, application-exclusive store. Do not enable
+     * {@code activateDefaultTyping}.</p>
+     */
+    private Object deserializeState(String stateJson, String stateType) throws Exception {
+        if (stateJson == null) {
+            return null;
+        }
+        if (stateType != null && !stateType.isBlank()) {
+            try {
+                var clazz = Class.forName(stateType, false, stateClassLoader());
+                return mapper.readValue(stateJson, clazz);
+            } catch (Exception | LinkageError typeUnavailable) {
+                logger.warn("Could not deserialize checkpoint state as {} — "
+                        + "falling back to generic mapping: {}", stateType, typeUnavailable.toString());
+            }
+        }
+        return mapper.readValue(stateJson, Object.class);
+    }
+
+    private static ClassLoader stateClassLoader() {
+        var tccl = Thread.currentThread().getContextClassLoader();
+        return tccl != null ? tccl : PostgresCheckpointStore.class.getClassLoader();
+    }
+
+    /**
+     * Bound the table to {@link #maxSnapshots} by deleting the oldest rows
+     * beyond the cap (Correctness Invariant #3), mirroring
+     * {@code InMemoryCheckpointStore}'s evict-oldest policy. The
+     * {@code COUNT(*)} short-circuits the prune when within bounds. Uses the
+     * caller's already-open connection in autocommit mode (post-commit).
+     */
+    private void pruneIfNeeded(java.sql.Connection conn) throws SQLException {
+        int total;
+        try (var ps = conn.prepareStatement("SELECT COUNT(*) FROM " + table);
+             var rs = ps.executeQuery()) {
+            total = rs.next() ? rs.getInt(1) : 0;
+        }
+        if (total <= maxSnapshots) {
+            return;
+        }
+        try (var ps = conn.prepareStatement(
+                "DELETE FROM " + table + " WHERE id IN ("
+                        + "SELECT id FROM " + table + " ORDER BY created_at ASC, id ASC LIMIT ?)")) {
+            ps.setInt(1, total - maxSnapshots);
+            ps.executeUpdate();
+        }
+        // A pool may hand out a connection with autoCommit=false; without an
+        // explicit commit the prune would be rolled back when the connection is
+        // returned (Correctness Invariant #2 — terminal-path completeness).
+        if (!conn.getAutoCommit()) {
+            conn.commit();
+        }
     }
 
     private void dispatch(CheckpointEvent event) {

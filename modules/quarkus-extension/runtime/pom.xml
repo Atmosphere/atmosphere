@@ -94,6 +94,15 @@
             <version>${project.version}</version>
             <optional>true</optional>
         </dependency>
+        <!-- Bundled crash-durable effect journal for durable agent runs
+             (quarkus.atmosphere.durable-runs.journal=sqlite). Optional: absent it,
+             AtmosphereDurableRunsProducer falls back to the in-memory journal. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-checkpoint</artifactId>
+            <version>${project.version}</version>
+            <optional>true</optional>
+        </dependency>
 
     </dependencies>
 

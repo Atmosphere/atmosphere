@@ -77,6 +77,35 @@
         </dependency>
 
         <!--
+            Test-scope only — proves the durable-runs @BuildStep engages the
+            bundled crash-durable SQLite journal on Quarkus (Spring Boot parity
+            for DurableRunSpineInstaller). Brings SqliteEffectJournal and its
+            transitive sqlite-jdbc driver onto the test classpath so
+            AtmosphereDurableRunsProducer resolves the SQLite journal rather than
+            the in-memory fallback.
+        -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-checkpoint</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!--
+            Test-scope only — checkpoint declares sqlite-jdbc OPTIONAL (so it does
+            not transit), and DriverManager needs the driver on the same classloader
+            as SqliteEffectJournal. A real Quarkus app enabling journal=sqlite adds
+            the driver the same way; absent it, AtmosphereDurableRunsProducer logs a
+            NOT-crash-durable warning and falls back to in-memory (Invariant #5).
+        -->
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.50.3.0</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!--
             Test-scope only — the runtime extension does NOT depend on
             atmosphere-mcp / atmosphere-agent (MCP is opt-in on Quarkus, same as
             elsewhere). They are forced onto a single test's app classpath via

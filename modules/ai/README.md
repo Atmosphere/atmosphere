@@ -270,6 +270,72 @@ public class ClusteredChat { ... }
 
 The same shape works with Hazelcast, JGroups, NATS — anything that lets you fan a tiny event out to peers. Pair this with a clustered `AiConversationMemory` SPI (Redis / Postgres-backed implementations are a single class each) and a sticky-session-free deployment is feasible.
 
+## Durable Agent Runs (deterministic replay)
+
+A Temporal/DBOS-style effect journal records what a run *did* so it can be
+re-driven deterministically after a crash — committed LLM rounds and tool calls
+replay from the journal (zero provider HTTP, side effects run at most once);
+only the uncommitted tail executes live.
+
+**Off by default** — turning it on is an explicit opt-in (Correctness Invariant
+#6). Spring Boot:
+
+```properties
+# Defaults shown; enabled=false (off) unless you set it true
+atmosphere.durable-runs.enabled=true
+atmosphere.durable-runs.journal=sqlite          # sqlite (crash-durable) | memory
+atmosphere.durable-runs.path=${java.io.tmpdir}/atmosphere-runs.db
+atmosphere.durable-runs.lease-ttl=5m
+atmosphere.durable-runs.retain-on-success=false # keep history of OK runs (audit)
+atmosphere.durable-runs.max-runs=10000
+atmosphere.durable-runs.max-effects-per-run=2000
+```
+
+Quarkus uses the same keys under the `quarkus.atmosphere.durable-runs.*` prefix
+(`quarkus.atmosphere.durable-runs.enabled=true`, `…journal=sqlite`, etc.).
+
+The bundled crash-durable journal is the SQLite store in `atmosphere-checkpoint`
+(an optional dependency); `journal=sqlite` also needs the `org.xerial:sqlite-jdbc`
+driver on the classpath. With either absent the enablement falls back to an
+in-memory journal and logs that the deployment is **not** crash-durable
+(Correctness Invariant #5) — supply a `durable()==true` `EffectJournal`
+(Spring bean / CDI bean) for crash survival, or keep `journal=memory` for
+same-process idempotency only.
+
+**How it works.** When enabled, `DurableRunSpine` installs a per-run scope (a
+single-writer lease + the journal binding) on the live endpoint run path *before*
+the `@Prompt` body dispatches. From there:
+
+- the cross-runtime tool memo in `ToolExecutionHelper.executeWithApproval` records
+  every tool call (so **all** runtimes get crash-safe, replayed tool execution);
+- the BuiltIn `OpenAiCompatibleClient` records each LLM round (deep round replay
+  is BuiltIn-spine only — framework runtimes get tool replay, and their rounds
+  re-run live on resume);
+- the run principal is bound into each tool effect's digest, so a re-drive under a
+  different principal re-executes live rather than inheriting another principal's
+  recorded — possibly human-approved — tool outcome (Invariant #6).
+
+**Resume** is reached two ways: a client reconnecting with `X-Atmosphere-Run-Id`
+for a run no longer live auto-re-drives it to the reconnected client; and the
+admin `atmosphere_resume_run` tool (authorizer-gated, default deny) re-drives a
+named run, resolving the run's endpoint from its recorded seed.
+
+### Not an `AiCapability` flag
+
+Durable execution is a **framework feature gated on configuration**, not a
+per-runtime capability. It is deliberately *not* advertised through
+`AiCapability` (no `DURABLE_RUN`/`TOOL_REPLAY` enum): the feature is opt-in and
+the resolved journal may be in-memory, so a static capability flag would assert
+crash-durability the runtime cannot confirm (Runtime Truth, Invariant #5). The
+truthful runtime surface is `DurableRunSpineHolder.get().enabled()` plus
+`journal.durable()`.
+
+> **Framework parity:** both Spring Boot (autoconfig + bundled SQLite) and Quarkus
+> (`AtmosphereDurableRunsProducer` registered by a `@BuildStep`, installed on
+> `StartupEvent`) ship enablement. The cross-runtime *runtime* matrix (tool memo
+> across all runtimes, BuiltIn round replay) is framework-agnostic and shared by
+> both.
+
 ## Key Components
 
 | Class | Description |

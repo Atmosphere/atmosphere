@@ -1896,3 +1896,47 @@ record actually read back from real Kafka/Postgres/Redis, a cross-node relay act
 not "the bean/class exists." The section-by-section audit is re-runnable as the pre-release gate
 (`feedback_no_accurate_without_full_audit`). Process lesson banked: **targeted module tests miss
 cross-cutting contract/lint suites — run the full module suite before declaring integration green.**
+---
+
+## 2026-06-29 — Durable-runs: prevented a `DURABLE_RUN` capability-flag overstatement; honest Spring-only enablement
+
+A near-miss caught *before* it shipped, recorded so the reasoning is durable. The durable
+agent-runs feature (effect journal + deterministic replay) was scoped with a work item literally
+named "capability advertisement," which implies adding an `AiCapability` enum entry
+(`DURABLE_RUN` / `TOOL_REPLAY`) the way every prior cross-runtime feature was advertised.
+
+**Why that would have been a drift:** an `AiCapability` enum entry is an always-on, runtime-truth
+assertion — the same load-bearing-`COVERED` shape this log recorded on 2026-06-26 and that burned
+`AgentStateIntegrity` in 4.0.59. Durable runs is **opt-in** (`atmosphere.durable-runs.enabled`
+defaults false) and the resolved journal may be in-memory (`journal=memory`, or the SQLite fallback
+when `atmosphere-checkpoint` is absent), so a static flag would advertise crash-durability the
+runtime cannot confirm (Invariant #5). It is also not a per-runtime trait: tool memo rides the one
+shared `ToolExecutionHelper` seam, deep LLM-round replay is BuiltIn-spine only — a per-runtime
+capability column would misrepresent both facts.
+
+**Decision:** no enum. The feature is documented as a framework feature gated on config
+(`modules/ai/README.md` "Durable Agent Runs" -> "### Not an `AiCapability` flag", this branch). The
+truthful runtime surface is `DurableRunSpineHolder.get().enabled()` plus `journal.durable()`, both
+real and verified to exist.
+
+**Honest status (not drift, stated to avoid a future one):** enablement ships for **Spring Boot
+only** (autoconfig + bundled SQLite journal + on-disk-persistence test). Quarkus enablement parity
+is the remaining framework-binding work and is called out as such in the README blockquote, not
+papered over. The cross-runtime *runtime* matrix (tool memo across all runtimes, BuiltIn round
+replay) is framework-agnostic and already in place; only the per-framework *enablement* binding is
+Spring-first.
+
+**Slip path closed:** because no capability enum was added, `CapabilitySnapshotTest` /
+`validate-capability-claims.sh` cannot drift on this feature — there is nothing to pin. The honest
+status lives next to the feature in the module README rather than in a capability matrix that would
+assert more than the runtime knows. **Gate added: `none`** — the absence of the enum *is* the gate.
+
+**Follow-up (same session):** the "Spring-only enablement" status above was closed in
+the same session — Quarkus enablement now ships (`AtmosphereDurableRunsProducer`
+registered by a `@BuildStep`, installed on `StartupEvent`, with the bundled SQLite
+journal and an in-memory fallback). Proven by a `QuarkusExtensionTest`
+(`DurableRunsBuildStepTest`) that drives a tool call through the real
+`ToolExecutionHelper` seam and asserts the effect lands in a real on-disk `.db`.
+Surfaced here so the point-in-time "remaining work" note above is not later read as
+still-open. The framework-parity blockquote in `modules/ai/README.md` was updated to
+match.

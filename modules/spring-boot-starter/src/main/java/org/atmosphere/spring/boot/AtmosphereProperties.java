@@ -51,6 +51,8 @@ public class AtmosphereProperties {
 
     private DurableSessionsProperties durableSessions = new DurableSessionsProperties();
 
+    private DurableRunsProperties durableRuns = new DurableRunsProperties();
+
     private Map<String, String> initParams = new HashMap<>();
 
     private GrpcProperties grpc = new GrpcProperties();
@@ -147,6 +149,14 @@ public class AtmosphereProperties {
 
     public void setDurableSessions(DurableSessionsProperties durableSessions) {
         this.durableSessions = durableSessions;
+    }
+
+    public DurableRunsProperties getDurableRuns() {
+        return durableRuns;
+    }
+
+    public void setDurableRuns(DurableRunsProperties durableRuns) {
+        this.durableRuns = durableRuns;
     }
 
     public GrpcProperties getGrpc() {
@@ -1040,6 +1050,93 @@ public class AtmosphereProperties {
             public void setPrivateKeyPassword(String privateKeyPassword) {
                 this.privateKeyPassword = privateKeyPassword;
             }
+        }
+    }
+
+    /**
+     * Durable agent-run execution. <strong>Off by default</strong> — turning it on
+     * is the operator's explicit opt-in (Correctness Invariant #6). When enabled,
+     * the default journal is the bundled crash-durable SQLite store; if the
+     * checkpoint module that supplies it is absent the autoconfig falls back to an
+     * in-memory journal and logs that the deployment is NOT crash-durable.
+     */
+    public static class DurableRunsProperties {
+
+        /** Master switch. When false no run scope is ever installed (the default). */
+        private boolean enabled = false;
+
+        /** Journal backend: {@code sqlite} (default, crash-durable) or {@code memory}. */
+        private String journal = "sqlite";
+
+        /** SQLite database file path for the {@code sqlite} journal. */
+        private String path = "${java.io.tmpdir}/atmosphere-runs.db";
+
+        /** How long a single-writer run lease is held before a crash-recovery takeover. */
+        private Duration leaseTtl = Duration.ofMinutes(5);
+
+        /** Keep a run's effect history after it completes successfully (audit/inspection). */
+        private boolean retainOnSuccess = false;
+
+        /** Cap on concurrently retained runs (oldest terminal run evicted past it). */
+        private int maxRuns = 10_000;
+
+        /** Hard per-run effect cap; exceeding it fails the run rather than dropping effects. */
+        private int maxEffectsPerRun = 2_000;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getJournal() {
+            return journal;
+        }
+
+        public void setJournal(String journal) {
+            this.journal = journal;
+        }
+
+        public String getPath() {
+            return path;
+        }
+
+        public void setPath(String path) {
+            this.path = path;
+        }
+
+        public Duration getLeaseTtl() {
+            return leaseTtl;
+        }
+
+        public void setLeaseTtl(Duration leaseTtl) {
+            this.leaseTtl = leaseTtl;
+        }
+
+        public boolean isRetainOnSuccess() {
+            return retainOnSuccess;
+        }
+
+        public void setRetainOnSuccess(boolean retainOnSuccess) {
+            this.retainOnSuccess = retainOnSuccess;
+        }
+
+        public int getMaxRuns() {
+            return maxRuns;
+        }
+
+        public void setMaxRuns(int maxRuns) {
+            this.maxRuns = maxRuns;
+        }
+
+        public int getMaxEffectsPerRun() {
+            return maxEffectsPerRun;
+        }
+
+        public void setMaxEffectsPerRun(int maxEffectsPerRun) {
+            this.maxEffectsPerRun = maxEffectsPerRun;
         }
     }
 }

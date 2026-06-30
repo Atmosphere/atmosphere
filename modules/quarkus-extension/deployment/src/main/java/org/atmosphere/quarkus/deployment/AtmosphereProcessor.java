@@ -563,6 +563,29 @@ class AtmosphereProcessor {
     }
 
     /**
+     * Quarkus parity for the Spring Boot starter's {@code DurableRunSpineInstaller}
+     * (in {@code AtmosphereAiAutoConfiguration}). Requires {@code atmosphere-ai} on
+     * the classpath ({@code DurableRunSpineHolder} lives there). When present the
+     * producer bean is registered; on startup it reads
+     * {@code quarkus.atmosphere.durable-runs.*} and, when {@code enabled=true},
+     * installs the effect-journal-backed {@code DurableRunSpine} so committed LLM
+     * rounds and tool calls replay deterministically after a crash. The bean is a
+     * no-op when durable runs are disabled, so registering it unconditionally (when
+     * {@code atmosphere-ai} is present) carries no runtime cost beyond one startup
+     * observer.
+     */
+    @BuildStep
+    void registerDurableRunsProducer(BuildProducer<AdditionalBeanBuildItem> beans) {
+        if (!isClassPresent("org.atmosphere.ai.resume.DurableRunSpineHolder")) {
+            return;
+        }
+        beans.produce(AdditionalBeanBuildItem.unremovableOf(
+                "org.atmosphere.quarkus.runtime.AtmosphereDurableRunsProducer"));
+        logger.info("Atmosphere durable agent runs producer registered "
+                + "(quarkus.atmosphere.durable-runs.enabled gates installation)");
+    }
+
+    /**
      * Build-time classpath detection for optional integrations. Quarkus
      * extensions resolve dependencies through their own classloader, which
      * matches the build classpath for the extension processor; this is the

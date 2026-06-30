@@ -15,6 +15,9 @@
  */
 package org.atmosphere.checkpoint.workflow;
 
+import org.atmosphere.ai.resume.EffectJournal;
+
+import java.util.Optional;
 import java.util.ServiceLoader;
 
 /**
@@ -44,6 +47,29 @@ public interface DurableExecutionProvider {
      * Hibernated / Failed) on this backend, starting from {@code initialState}.
      */
     <S> WorkflowResult<S> run(Workflow<S> workflow, S initialState);
+
+    /**
+     * Whether this backend can deterministically replay an agent run from a
+     * recorded effect history (the {@link EffectJournal} contract), as opposed to
+     * only checkpointing {@code Workflow<S>} steps. Default {@code false}: a
+     * provider opts in by also returning a journal from {@link #effectJournal()}.
+     * Capability advertisement gates on this AND the resolved journal's
+     * {@link EffectJournal#durable()} (Runtime Truth, Correctness Invariant #5).
+     */
+    default boolean supportsDeterministicReplay() {
+        return false;
+    }
+
+    /**
+     * The effect-history journal this backend supplies for deterministic replay,
+     * or empty when it offers none. An external Temporal/DBOS adapter returns an
+     * {@link EffectJournal} backed by its own event history; the in-tree path
+     * binds the bundled SQLite journal via autoconfiguration. Empty by default so
+     * every existing adapter stays source-compatible.
+     */
+    default Optional<EffectJournal> effectJournal() {
+        return Optional.empty();
+    }
 
     /**
      * Resolve the highest-priority available external provider via

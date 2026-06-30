@@ -233,6 +233,16 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         this.endpointModel = endpointModel;
         this.injectables = injectables != null ? Map.copyOf(injectables) : Map.of();
         this.promptMethod.setAccessible(true);
+        // Register this endpoint's live re-drive context so an admin-triggered
+        // crash-resume (which starts from only a run id) can resolve the runtime
+        // and tool set for the run's endpoint path. The reconnect path has this
+        // context locally and does not need the registry.
+        if (pathTemplate != null && runtime != null) {
+            org.atmosphere.ai.resume.ResumableEndpointRegistry.register(pathTemplate, runtime,
+                    () -> toolRegistry != null
+                            ? java.util.List.copyOf(toolRegistry.allTools())
+                            : java.util.List.of());
+        }
     }
 
     /**
@@ -359,8 +369,71 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * events live).
      */
     private void reattachPendingRun(AtmosphereResource resource) {
-        org.atmosphere.ai.resume.RunReattachSupport.replayPendingRun(
-                resource, org.atmosphere.ai.resume.RunRegistryHolder.get());
+        var registry = org.atmosphere.ai.resume.RunRegistryHolder.get();
+        var replayed = org.atmosphere.ai.resume.RunReattachSupport.replayPendingRun(
+                resource, registry);
+        if (replayed == 0) {
+            // No live run drained — the client may be reconnecting to a run that
+            // crashed (the process died, the registry is empty). When durable
+            // runs are on, re-drive it from the journal to this client.
+            maybeResumeCrashedRun(resource, registry);
+        }
+    }
+
+    /**
+     * Crash-resume consumer: when a client reconnects with a run id that is no
+     * longer live, re-drive that run from the durable journal to the reconnected
+     * client. The spine refuses a resume for a principal other than the run's
+     * owner (Correctness Invariant #6); a disabled spine or absent run id makes
+     * this a no-op. The re-drive runs on a virtual thread so the connect path is
+     * not blocked.
+     */
+    private void maybeResumeCrashedRun(AtmosphereResource resource,
+                                       org.atmosphere.ai.resume.RunRegistry registry) {
+        var spine = org.atmosphere.ai.resume.DurableRunSpineHolder.get();
+        if (!spine.enabled()) {
+            return;
+        }
+        var runId = org.atmosphere.ai.resume.RunReattachSupport.pendingRunId(resource);
+        if (runId == null || registry.lookup(runId).isPresent()) {
+            return;
+        }
+        var principal = resolveResumePrincipal(resource);
+        var tools = toolRegistry != null
+                ? java.util.List.copyOf(toolRegistry.allTools())
+                : java.util.List.<org.atmosphere.ai.tool.ToolDefinition>of();
+        var session = new org.atmosphere.ai.resume.RunIdStreamingSession(
+                StreamingSessions.start(resource), runId);
+        var resumer = new org.atmosphere.ai.resume.DurableRunResumer(spine);
+        Thread.startVirtualThread(() -> {
+            try {
+                var status = resumer.resume(runId, principal, tools, null, runtime, session);
+                logger.info("Durable resume of run {} for resource {}: {}",
+                        runId, resource.uuid(), status);
+            } catch (RuntimeException e) {
+                logger.warn("Durable resume of run {} failed", runId, e);
+            }
+        });
+    }
+
+    /** The reconnecting caller's principal, matched against the run owner on resume. */
+    private String resolveResumePrincipal(AtmosphereResource resource) {
+        if (resource.getRequest() != null) {
+            var attr = resource.getRequest().getAttribute("ai.userId");
+            if (attr != null && !attr.toString().isBlank()) {
+                return attr.toString();
+            }
+            try {
+                var principal = resource.getRequest().getUserPrincipal();
+                if (principal != null && principal.getName() != null
+                        && !principal.getName().isBlank()) {
+                    return principal.getName();
+                }
+            } catch (RuntimeException e) {
+                logger.trace("unable to resolve userPrincipal for resume", e);
+            }
+        }
+        return "anonymous";
     }
 
     @Override
@@ -550,6 +623,15 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 pathTemplate, runUserId, resource.uuid(), runExecutionHandle);
         session.setRunId(handle.runId());
 
+        // Durable-execution spine: when an operator has opted in (a journal is
+        // resolved), install the per-run scope — the single-writer lease plus
+        // the journal binding — BEFORE the @Prompt body dispatches, so the
+        // journaled tool-memo and LLM-round seams record (or, on a re-drive,
+        // replay) against it. Disabled by default: beginDrive returns empty and
+        // the seams take their byte-identical non-durable path.
+        var durableSpine = org.atmosphere.ai.resume.DurableRunSpineHolder.get();
+        var durableScope = durableSpine.beginDrive(handle.runId(), runUserId, pathTemplate);
+
         // Producer side of the reattach wire: wrap the outgoing session so
         // every text / complete / error event the @Prompt method emits also
         // lands in the run's replay buffer. Without this, RunReattachSupport
@@ -559,6 +641,11 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         var capturingSession = new org.atmosphere.ai.resume.RunEventCapturingSession(
                 session, handle.replayBuffer());
 
+        // Single terminal flag for the durable spine: set true only when the
+        // @Prompt body returned normally, read in finally so completeDrive runs
+        // exactly once on every exit path (success, error, Error, timeout-via-
+        // interrupt) — releasing the lease and marking the run terminal.
+        final boolean[] durableSuccess = {false};
         var promptThread = Thread.startVirtualThread(() -> {
             // Apply business.* MDC on the VT so every log record emitted
             // during the turn (pipeline / runtime / tool calls) carries the
@@ -568,6 +655,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             try {
                 invokePrompt(userMessage, capturingSession, resource);
                 runExecutionHandle.complete();
+                durableSuccess[0] = true;
             } catch (Exception e) {
                 Throwable cause = e;
                 if (e instanceof java.lang.reflect.InvocationTargetException ite
@@ -587,6 +675,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 capturingSession.error(cause);
                 runExecutionHandle.completeExceptionally(cause);
             } finally {
+                durableScope.ifPresent(c -> durableSpine.completeDrive(c, durableSuccess[0]));
                 businessMdc.keySet().forEach(org.slf4j.MDC::remove);
             }
         });

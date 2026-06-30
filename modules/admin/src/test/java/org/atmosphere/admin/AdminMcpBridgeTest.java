@@ -96,13 +96,47 @@ class AdminMcpBridgeTest {
     // ── Write tool registration ──
 
     @Test
-    void testRegisterWriteToolsRegisters4Tools() {
+    void testRegisterWriteToolsRegistersAllTools() {
         bridge.registerWriteTools();
         var tools = registry.tools();
         assertTrue(tools.containsKey("atmosphere_broadcast"));
         assertTrue(tools.containsKey("atmosphere_disconnect_resource"));
         assertTrue(tools.containsKey("atmosphere_destroy_broadcaster"));
         assertTrue(tools.containsKey("atmosphere_cancel_task"));
+        assertTrue(tools.containsKey("atmosphere_resume_run"));
+    }
+
+    @Test
+    void testResumeRunToolDeniedByAuthorizer() throws Exception {
+        var denyAll = (ControlAuthorizer) (action, target, principal) -> false;
+        var deniedBridge = new AdminMcpBridge(admin, registry, denyAll);
+        deniedBridge.registerWriteTools();
+
+        var tool = registry.tools().get("atmosphere_resume_run");
+        @SuppressWarnings("unchecked")
+        var result = (Map<String, Object>) tool.handler().execute(Map.of("runId", "r1"));
+        assertEquals("unauthorized", result.get("error"));
+    }
+
+    @Test
+    void testResumeRunToolReportsNotFoundForUnknownRun() throws Exception {
+        // An enabled spine with an empty journal: an unknown run id is not
+        // resumable, so the authorized admin call reports NOT_FOUND (not an error).
+        org.atmosphere.ai.resume.DurableRunSpineHolder.install(
+                new org.atmosphere.ai.resume.DurableRunSpine(
+                        new org.atmosphere.ai.resume.InMemoryEffectJournal(),
+                        new org.atmosphere.ai.resume.DurableRunConfig(
+                                true, java.time.Duration.ofMinutes(5), false),
+                        "test-proc"));
+        try {
+            bridge.registerWriteTools();
+            var tool = registry.tools().get("atmosphere_resume_run");
+            @SuppressWarnings("unchecked")
+            var result = (Map<String, Object>) tool.handler().execute(Map.of("runId", "missing"));
+            assertEquals("NOT_FOUND", result.get("status"));
+        } finally {
+            org.atmosphere.ai.resume.DurableRunSpineHolder.reset();
+        }
     }
 
     // ── Authorizer gating ──

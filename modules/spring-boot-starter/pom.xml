@@ -124,6 +124,17 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Bundled crash-durable SQLite effect journal for durable agent runs.
+             Optional: when absent and durable runs are enabled, the autoconfig
+             falls back to the in-memory journal and logs that it is not
+             crash-durable (Correctness Invariant #5). -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-checkpoint</artifactId>
+            <version>${project.version}</version>
+            <optional>true</optional>
+        </dependency>
+
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-interactions</artifactId>
