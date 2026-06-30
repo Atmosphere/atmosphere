@@ -73,12 +73,29 @@ export class Atmosphere {
     const mergedRequest = { ...request, transport };
     let activeTransport: BaseTransport<T> | null = null;
 
+    // When a fallback transport is configured, a failure of the PRIMARY
+    // transport during its initial connect is recoverable: the client falls
+    // back below and the application never needed to know. The transports
+    // (websocket/sse/webtransport) call their error handler on a failed
+    // initial connect *and* throw, so without this guard a recovered
+    // fallback would still surface a stale "Opening handshake failed" /
+    // transport-error banner. Suppress the primary's error callback until it
+    // actually opens; afterwards (read-loop errors, drops) errors flow
+    // through unchanged. A genuine no-fallback failure still propagates via
+    // the thrown primaryError below, so nothing is swallowed silently.
+    const canFallBack = Boolean(fallback && fallback !== transport);
+    let primaryOpened = false;
+    const primaryHandlers: SubscriptionHandlers<T> = canFallBack
+      ? { ...handlers, error: (err: Error) => { if (primaryOpened) handlers.error?.(err); } }
+      : handlers;
+
     try {
-      activeTransport = this.createTransport(mergedRequest, handlers);
+      activeTransport = this.createTransport(mergedRequest, primaryHandlers);
       if (mergedRequest.offlineQueue) {
         activeTransport.setOfflineQueue(mergedRequest.offlineQueue);
       }
       await activeTransport.connectWithTimeout();
+      primaryOpened = true;
     } catch (primaryError) {
       if (fallback && fallback !== transport) {
         // Ensure the failed primary transport is fully torn down so it
