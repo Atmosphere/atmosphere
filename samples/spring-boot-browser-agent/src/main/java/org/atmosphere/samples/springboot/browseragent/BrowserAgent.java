@@ -37,6 +37,13 @@ import org.slf4j.LoggerFactory;
  * is registered automatically by the framework when code execution is enabled
  * (see {@code BrowserAgentApplication}). Declaring it here would double-register
  * it.</p>
+ *
+ * <p>This sample intentionally leads with the lower-level {@code @AiEndpoint}
+ * rather than {@code @Agent}: {@code @Agent} has no {@code model} element, so
+ * the endpoint-pinned Cohere {@code command-a-03-2025} below — which
+ * {@code effectiveModel()} honors ahead of the global LLM settings — could not
+ * be carried. ({@code @Agent} also fixes {@code maxHistoryMessages} at 20,
+ * dropping this endpoint's 40.)</p>
  */
 @AiEndpoint(
         path = "/atmosphere/ai-chat",
