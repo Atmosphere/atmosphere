@@ -134,27 +134,41 @@ public class AtmosphereDurableRunsProducer {
     }
 
     /**
-     * Invokes {@code QuarkusSqliteRunJournalFactory.create(...)} reflectively. A
-     * direct call would make the factory — and its compile-time reference to the
-     * optional {@code org.atmosphere.checkpoint.SqliteEffectJournal} — statically
-     * reachable, which GraalVM native-image rejects at build time when the
-     * checkpoint module is absent (e.g. the quarkus-chat sample). Reflection keeps
-     * the factory off the native build-time link graph; it is reached only after
-     * the {@code sqlitePresent} guard above has confirmed the class is on the
-     * classpath, so on a standard JVM the behaviour is identical to a direct call.
-     * The deployment processor reflection-registers the factory when checkpoint is
-     * present so this call also resolves in native mode.
+     * Constructs the bundled crash-durable SQLite effect journal
+     * ({@code org.atmosphere.checkpoint.SqliteEffectJournal}) entirely through
+     * reflection, so no reachable bytecode here holds a compile-time reference to
+     * that optional type.
+     *
+     * <p>GraalVM native-image links every reachable class at build time (the global
+     * {@code --link-at-build-time}) and will hard-fail on a {@code new
+     * SqliteEffectJournal(...)} — or any other resolved reference — whenever the
+     * checkpoint module is absent (e.g. the quarkus-chat sample). A direct call into
+     * a helper class does not help: GraalVM's reflection plug-in folds a constant
+     * {@code getDeclaredMethod("create")} and registers that method as an analysis
+     * root, which then parses its {@code new SqliteEffectJournal}. The only robust
+     * shape is to pass every potentially-absent class name to {@link #loadClass} /
+     * {@link #initClass} as a <em>parameter</em> (not a constant) — the same
+     * indirection the {@link #isClassPresent(String)} guard above relies on — and to
+     * instantiate via {@code getConstructor().newInstance()} on the runtime-loaded
+     * {@link Class}. Reached only after the {@code sqlitePresent} guard, so on a
+     * standard JVM this is a plain reflective construction.</p>
+     *
+     * <p>In a native image that <em>does</em> bundle checkpoint, the application must
+     * register {@code SqliteEffectJournal} (constructor) and {@code org.sqlite.JDBC}
+     * for reflection; absent that the call falls back to the in-memory journal,
+     * logged by the caller.</p>
      */
     private static EffectJournal createSqliteJournal(String path, int maxRuns, int maxEffects) {
         try {
-            var factory = Class.forName(
-                    "org.atmosphere.quarkus.runtime.QuarkusSqliteRunJournalFactory",
-                    true, AtmosphereDurableRunsProducer.class.getClassLoader());
-            var create = factory.getDeclaredMethod("create", String.class, int.class, int.class);
-            create.setAccessible(true);
-            return (EffectJournal) create.invoke(null, path, maxRuns, maxEffects);
+            var journalClass = loadClass("org.atmosphere.checkpoint.SqliteEffectJournal");
+            // Quarkus' isolated runtime classloader does not ServiceLoader-discover
+            // the SQLite JDBC driver; initialise it via the journal's own classloader
+            // (which carries the transitive sqlite-jdbc) so DriverManager finds it.
+            initClass("org.sqlite.JDBC", journalClass.getClassLoader());
+            var constructor = journalClass.getConstructor(java.nio.file.Path.class, int.class, int.class);
+            return (EffectJournal) constructor.newInstance(java.nio.file.Path.of(path), maxRuns, maxEffects);
         } catch (java.lang.reflect.InvocationTargetException e) {
-            // Surface the factory's own failure (e.g. missing JDBC driver) so the
+            // Surface the journal's own failure (e.g. unwritable path) so the
             // caller's RuntimeException handler falls back to the in-memory journal.
             if (e.getCause() instanceof RuntimeException re) {
                 throw re;
@@ -162,8 +176,21 @@ public class AtmosphereDurableRunsProducer {
             throw new IllegalStateException("Failed to open the bundled SQLite effect journal", e.getCause());
         } catch (ReflectiveOperationException e) {
             throw new IllegalStateException(
-                    "QuarkusSqliteRunJournalFactory unavailable despite atmosphere-checkpoint on the classpath", e);
+                    "SqliteEffectJournal unavailable despite atmosphere-checkpoint on the classpath", e);
         }
+    }
+
+    // name reaches Class.forName as a parameter (not a compile-time constant at the
+    // call site) with initialize=false, so GraalVM cannot constant-fold the lookup
+    // and link the loaded class at native build time — same pattern as isClassPresent.
+    private static Class<?> loadClass(String name) throws ClassNotFoundException {
+        return Class.forName(name, false, AtmosphereDurableRunsProducer.class.getClassLoader());
+    }
+
+    // As loadClass, but runs the class initializer (here: registers the JDBC driver).
+    // The name is still a parameter so the native build does not link it eagerly.
+    private static void initClass(String name, ClassLoader loader) throws ClassNotFoundException {
+        Class.forName(name, true, loader);
     }
 
     /**
