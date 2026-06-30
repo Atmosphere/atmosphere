@@ -33,8 +33,14 @@ jobs:
       with:
         languages: ${{ matrix.language }}
 
+    # Exclude the kotlin-dsl-chat sample: CodeQL's Kotlin extractor
+    # (KotlinExtractorComponentRegistrar) is incompatible with the Kotlin
+    # 2.1.10 compiler this sample invokes (AbstractMethodError on
+    # registerProjectComponents), which fails the whole analysis build. It's a
+    # leaf demo module (nothing depends on it); modules/kotlin compiles fine, so
+    # Java/Kotlin coverage elsewhere is unaffected.
     - name: Build with Maven
-      run: ./mvnw compile -Pfastinstall -DskipTests
+      run: ./mvnw compile -Pfastinstall -DskipTests -pl '!samples/kotlin-dsl-chat'
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4
