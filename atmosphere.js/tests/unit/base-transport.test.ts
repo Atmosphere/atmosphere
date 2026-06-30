@@ -56,6 +56,16 @@ class TestTransport extends BaseTransport<string> {
   incrementRequestCount() {
     this._requestCount++;
   }
+
+  // Expose the durable run id captured onto the protocol and the URL the
+  // transport would build on (re)connect, so run-id capture/resend is testable.
+  get capturedRunId(): string | null {
+    return this.protocol.runId;
+  }
+
+  buildUrlForTest(): string {
+    return this.protocol.buildUrl(this.request);
+  }
 }
 
 function makeResponse(overrides: Partial<AtmosphereResponse<string>> = {}): AtmosphereResponse<string> {
@@ -142,6 +152,38 @@ describe('BaseTransport', () => {
     transport.suspend();
     transport.doNotifyMessage(makeResponse({ responseBody: 'ignored' }));
     expect(handlers.message).not.toHaveBeenCalled();
+  });
+
+  // ── durable run-id capture (crash-resume) ──
+
+  it('captures the run id from an X-Atmosphere-Run-Id metadata frame and re-sends it on reconnect', () => {
+    transport.doNotifyOpen(makeResponse());
+    transport.doNotifyMessage(makeResponse({
+      responseBody: '{"type":"metadata","key":"X-Atmosphere-Run-Id","value":"run-77","sessionId":"s1","seq":1}',
+    }));
+    expect(transport.capturedRunId).toBe('run-77');
+    // The next connect (a reconnect reuses the same protocol) carries the run id.
+    expect(transport.buildUrlForTest()).toContain('X-Atmosphere-Run-Id=run-77');
+  });
+
+  it('clears the captured run id on a terminal frame so a later reconnect does not resume a finished run', () => {
+    transport.doNotifyOpen(makeResponse());
+    transport.doNotifyMessage(makeResponse({
+      responseBody: '{"type":"metadata","key":"X-Atmosphere-Run-Id","value":"run-77","sessionId":"s1","seq":1}',
+    }));
+    transport.doNotifyMessage(makeResponse({
+      responseBody: '{"type":"complete","sessionId":"s1","seq":2}',
+    }));
+    expect(transport.capturedRunId).toBeNull();
+    expect(transport.buildUrlForTest()).not.toContain('X-Atmosphere-Run-Id');
+  });
+
+  it('ignores non-run-id metadata frames', () => {
+    transport.doNotifyOpen(makeResponse());
+    transport.doNotifyMessage(makeResponse({
+      responseBody: '{"type":"metadata","key":"model","value":"gpt-4","sessionId":"s1","seq":1}',
+    }));
+    expect(transport.capturedRunId).toBeNull();
   });
 
   // ── notifyClose ──

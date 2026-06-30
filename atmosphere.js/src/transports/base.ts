@@ -208,7 +208,43 @@ export abstract class BaseTransport<T = unknown> {
     if (this._state === 'suspended') return;
     logger.debug(`${this.name} message received`);
     this.resetInactivityTimer();
+    this.captureRunId(response.responseBody);
     this.handlers.message?.(response);
+  }
+
+  /**
+   * Capture the durable run id the server surfaces as an
+   * {@code X-Atmosphere-Run-Id} metadata frame onto the protocol (which persists
+   * across reconnects, like the session token) so {@code buildParams} re-sends it
+   * and the server resumes the in-flight run; cleared on a terminal frame so a
+   * later reconnect does not resume a finished run. Done here, at the transport,
+   * so EVERY client benefits — the Atmosphere Console and other direct
+   * {@code subscribe()} callers, not only the {@code subscribeStreaming()} helper.
+   * A cheap string pre-check keeps every streaming chunk off the JSON.parse path.
+   */
+  private captureRunId(body: unknown): void {
+    if (typeof body !== 'string') return;
+    if (body.indexOf('X-Atmosphere-Run-Id') !== -1) {
+      try {
+        const msg = JSON.parse(body);
+        if (msg && msg.type === 'metadata' && msg.key === 'X-Atmosphere-Run-Id'
+            && typeof msg.value === 'string') {
+          this.protocol.runId = msg.value;
+        }
+      } catch {
+        /* not a JSON frame — ignore */
+      }
+    } else if (this.protocol.runId !== null
+        && (body.indexOf('"complete"') !== -1 || body.indexOf('"error"') !== -1)) {
+      try {
+        const msg = JSON.parse(body);
+        if (msg && (msg.type === 'complete' || msg.type === 'error')) {
+          this.protocol.runId = null;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   protected notifyClose(response: AtmosphereResponse<T>): void {

@@ -110,7 +110,7 @@ export class AtmosphereProtocol {
       params.push(`X-Atmosphere-Session-Token=${encodeURIComponent(token)}`);
     }
 
-    // Send the durable run id if the streaming client captured one (the server
+    // Send the durable run id if the transport captured one (the server
     // surfaces it as an X-Atmosphere-Run-Id metadata frame) — on a reconnect
     // this carries it back so the server resumes the in-flight run.
     const runId = request.runId ?? this.runId;

@@ -23,14 +23,6 @@ import { Atmosphere } from '../core/atmosphere';
 import { ConnectionStatus } from '../resilience';
 
 /**
- * Metadata key the server surfaces the assigned durable run id under (see
- * {@code AiStreamingSession.setRunId}). Captured into {@code request.runId} so a
- * reconnect re-sends it as {@code X-Atmosphere-Run-Id} and the server resumes
- * the in-flight run from its effect journal.
- */
-const RUN_ID_METADATA_KEY = 'X-Atmosphere-Run-Id';
-
-/**
  * Creates a streaming subscription to an Atmosphere endpoint that speaks the
  * AI streaming wire protocol.
  *
@@ -112,15 +104,9 @@ export async function subscribeStreaming(
       if (msg.seq <= lastSeq) return;
       lastSeq = msg.seq;
 
-      // Durable crash-resume: capture the run id the server surfaces as an
-      // X-Atmosphere-Run-Id metadata frame so a reconnect re-sends it (see
-      // protocol.buildUrl) and the server resumes the in-flight run; clear it on
-      // a terminal frame so a later reconnect does not resume a finished run.
-      if (msg.type === 'metadata' && msg.key === RUN_ID_METADATA_KEY && typeof msg.value === 'string') {
-        request.runId = msg.value;
-      } else if (msg.type === 'complete' || msg.type === 'error') {
-        request.runId = null;
-      }
+      // Durable crash-resume run-id capture happens universally in the transport
+      // layer (BaseTransport.captureRunId), so it covers direct subscribe()
+      // callers — the Atmosphere Console — as well as this helper.
 
       dispatch(msg, handlers, { streamingTextCount, startTime, routing }, (tc, st, rt) => {
         streamingTextCount = tc;
