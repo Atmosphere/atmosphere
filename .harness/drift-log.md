@@ -1852,3 +1852,47 @@ Invariant #5 (Runtime Truth) and `feedback_primitive_needs_consumer` from SPI pr
 **Fix:** blog wording tightened to "Atmosphere reads them and surfaces their contents on the loaded
 agent definition for downstream primitives to pick up," dropping the Telegram/MCP/governance
 implications until real consumers exist (website `658d303`).
+
+## 2026-06-29 — Atmosphere-4 blog "make it true" build: 14→0 overstatements, 4 real bugs found behind green stub tests
+
+The maintainer asked, after the section-by-section blog audit found **14 overstatements / 16
+unsampled / 0 fabrications**, to *raise the code to the blog* (implement the missing features)
+rather than soften the copy. The build wired the dangerous not-wired primitives (`@Agent`/
+`@Coordinator` scope confinement, an opt-in room-broadcast, contract-test behavioral teeth,
+PASSIVATION), added proving samples/tests for the unsampled capabilities, and a re-audit then
+read **0 overstatements / 0 fabrications** (residual 4 fixed with 3 wording corrections + a new
+`atmosphere-ai-spring-boot-starter`; vault doc `Claude Outputs/Atmosphere-4-Blog-Claim-Audit-CLOSURE-2026-06-29.md`).
+
+**The recurring class it surfaced — green tests over a broken/missing real path** (4 bugs, each
+advertised as working while the real path was non-functional, masked by a stub/in-memory test):
+
+1. **Audio input had no production supplier.** The runtime *consumed* `context.parts()`, but
+   `AgentExecutionContext.withParts(...)` had **zero** production callers — nothing fed audio in.
+   "Vision *and* audio input" was half-true. Fix: added `StreamingSession.stream(String, List<Content>)`
+   as the supply path; delivery test asserts audio reaches the runtime context.
+2. **Cedar policy adapter denied every request.** `CedarCliAuthorizer` omitted the mandatory
+   `--entities` arg, parsed a JSON `{"decision":…}` shape the real `cedar` CLI never emits (it
+   prints plain-text `ALLOW`/`DENY`), and mis-mapped exit codes (real cedar: 0=Allow, 2=Deny).
+   The unit tests fed hand-crafted JSON to a `StubAuthorizer`, so they stayed green while the
+   real-CLI path was dead. Fix: corrected the adapter to the real CLI contract + a binary-backed
+   integration test (verified against real `cedar` 4.11.2 / `opa` 0.68.0).
+3. **Postgres audit sink persisted zero rows.** `JdbcAuditSink` bound the `JSONB` `context_snapshot`
+   column as varchar; real Postgres rejected every insert and the `SQLException` was swallowed.
+   The test used H2 (CLOB column), so it never caught it. Fix: dialect-aware `CAST(? AS JSONB)`;
+   a Testcontainers test reads the persisted row back from real Postgres.
+4. **2 contract/lint regressions from the build itself** — a new `StreamingSession` method without
+   the `DelegatingStreamingSession` forward override, and a new sample `@AiEndpoint` without
+   `@AgentScope`. Caught only by the **full** `modules/ai` suite, not the targeted runs used to
+   verify each change.
+
+**Slip path (common to all):** a stub/in-memory/declaration-only test certified the artifact while
+the real path (real CLI, real Postgres, real supplier, the cross-cutting contract suite) was never
+exercised. Extends the `EvidenceConsumerGrepPinTest` self-satisfying-gate lesson and
+`feedback_primitive_needs_consumer`: SPI/adapter presence and a green stub test are **not** runtime truth.
+
+**Gate:** every blog capability claim now has a delivery test that asserts the content reaches its
+subsystem (off-topic actually rejected, refund actually withheld, snapshot actually restored, a
+record actually read back from real Kafka/Postgres/Redis, a cross-node relay actually delivered) —
+not "the bean/class exists." The section-by-section audit is re-runnable as the pre-release gate
+(`feedback_no_accurate_without_full_audit`). Process lesson banked: **targeted module tests miss
+cross-cutting contract/lint suites — run the full module suite before declaring integration green.**
