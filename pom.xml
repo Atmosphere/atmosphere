@@ -1152,11 +1152,10 @@
                 <artifactId>jackson-databind</artifactId>
                 <version>${jackson2.version}</version>
             </dependency>
-            <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-annotations</artifactId>
-                <version>${jackson2.version}</version>
-            </dependency>
+            <!-- jackson-annotations is pinned above via ${jackson-annotations.version}
+                 (2.22, for Jackson 3.x JsonSerializeAs compat). It is intentionally NOT
+                 re-declared here: a second entry at ${jackson2.version} (2.22.0) made a
+                 duplicate dependencyManagement key Maven warns threatens build stability. -->
             <!-- Force opennlp-tools to 2.5.9 (transitively pulled by langchain4j 1.14.0
                  at 2.5.4). 2.5.9 patches CVE-2026-42027 (ExtensionLoader arbitrary
                  class instantiation, critical), CVE-2026-40682 (DictionaryEntryPersistor
