@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <parent>
+        <groupId>org.atmosphere</groupId>
+        <artifactId>atmosphere-project</artifactId>
+        <version>4.0.60-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>atmosphere-ai-spring-boot-starter</artifactId>
+    <packaging>jar</packaging>
+    <name>atmosphere-ai-spring-boot-starter</name>
+    <description>AI-inclusive Spring Boot starter: one dependency brings the full Atmosphere AI layer
+        (AI pipeline, @Agent processing, @Coordinator) on top of the transport starter and Console,
+        so a single @Agent class runs with no further dependencies.</description>
+    <url>https://github.com/Atmosphere/atmosphere</url>
+
+    <properties>
+        <atmosphere.module.name>org.atmosphere.spring.boot.ai</atmosphere.module.name>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- netty-bom imported BEFORE spring-boot-dependencies so its
+                 first-wins resolution rule pulls the patched netty line across
+                 every transitive netty artifact, matching the base starter. -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- Transport starter: brings the framework runtime, the Spring Boot
+             auto-configuration (incl. the AI + coordinator auto-configs gated on
+             those modules' presence), and the Atmosphere Console static assets.
+             The base starter is the transport-first foundation. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-spring-boot-starter</artifactId>
+        </dependency>
+
+        <!-- The AI layer the base starter declares <optional>true</optional>.
+             Pinned NON-optional here so adding this single starter is enough to
+             run an @Agent: the AI pipeline + AiConfig auto-configure, AgentRuntime
+             discovery works, and @Agent / @Coordinator classes are processed. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-agent</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-coordinator</artifactId>
+        </dependency>
+
+        <!-- Delivery proof: boot a Spring context with ONLY this starter plus a
+             single @Agent class and assert the live beans. No direct dependency
+             on atmosphere-ai / atmosphere-agent here — they must arrive
+             transitively through this starter for the test to compile and pass. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

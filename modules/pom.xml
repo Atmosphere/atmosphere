@@ -50,6 +50,7 @@
         <module>spring-boot3-starter</module>
         <module>agent</module>
         <module>coordinator</module>
+        <module>spring-boot-ai-starter</module>
         <module>verifier</module>
         <module>verifier-smt</module>
         <module>admin</module>
