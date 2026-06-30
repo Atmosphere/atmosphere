@@ -117,7 +117,7 @@ jobs:
 
       - name: Cache cedar CLI binary
         id: cedar-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cargo/bin/cedar
           key: cedar-cli-${{ env.CEDAR_CLI_VERSION }}-${{ runner.os }}
