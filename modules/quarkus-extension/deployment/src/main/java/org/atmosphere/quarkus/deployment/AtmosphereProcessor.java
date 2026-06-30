@@ -176,6 +176,15 @@ class AtmosphereProcessor {
         // Micrometer is present. GraalVM/JDK 25+ eagerly links it.
         runtimeInit.produce(new RuntimeInitializedClassBuildItem(
                 "org.atmosphere.admin.metrics.MetricsController"));
+        // QuarkusSqliteRunJournalFactory has a compile-time import of
+        // org.atmosphere.checkpoint.SqliteEffectJournal. The atmosphere-checkpoint
+        // module is optional — on standard JVM AtmosphereDurableRunsProducer only
+        // loads the factory after confirming the class is present. GraalVM eagerly
+        // verifies build-time-linked classes, so without deferral the native build
+        // fails with "unresolved type SqliteEffectJournal" whenever checkpoint is
+        // absent (e.g. the quarkus-chat sample).
+        runtimeInit.produce(new RuntimeInitializedClassBuildItem(
+                "org.atmosphere.quarkus.runtime.QuarkusSqliteRunJournalFactory"));
     }
 
     /**
