@@ -1,6 +1,22 @@
-# Omnichannel AI Chat
+# Omnichannel AI Chat — one `@Agent`, every channel
 
-Same AI assistant, every channel — powered by Atmosphere.
+Same AI assistant, every channel — built with a single `@Agent`. The persona lives
+in a skill file; the framework wires that one agent to the web console **and** to
+every configured messaging platform (Telegram, Slack, Discord, WhatsApp, Messenger).
+No per-channel delivery code.
+
+## How it works
+
+`OmnichannelChat` is annotated `@Agent(name = "omnichannel", skillFile = "skill:omnichannel-chat")`.
+The skill file `META-INF/skills/omnichannel-chat/SKILL.md` carries the system prompt
+and a `## Channels` section. When `atmosphere-channels` is on the classpath, the
+framework registers the agent's pipeline with `ChannelAiBridge`, which routes inbound
+messages from every listed channel to the agent and sends the reply back through the
+originating platform.
+
+```
+## Channels        <-- in SKILL.md: telegram, slack, discord, whatsapp, messenger
+```
 
 ## Quick start (web only)
 
@@ -8,7 +24,8 @@ Same AI assistant, every channel — powered by Atmosphere.
 ./mvnw spring-boot:run -pl samples/spring-boot-channels-chat
 ```
 
-Open http://localhost:8080 — AI chat with streaming responses via WebSocket.
+Open http://localhost:8080/atmosphere/console/ — AI chat with streaming responses
+via WebSocket. (Demo mode answers with no API key; set `LLM_API_KEY` for a real LLM.)
 
 ## Adding Telegram
 
@@ -25,7 +42,7 @@ Open http://localhost:8080 — AI chat with streaming responses via WebSocket.
    TELEGRAM_BOT_TOKEN=<TOKEN> TELEGRAM_WEBHOOK_SECRET=my-secret \
      ./mvnw spring-boot:run -pl samples/spring-boot-channels-chat
    ```
-5. Message your bot on Telegram
+5. Message your bot on Telegram — the same agent that answers in the browser answers here
 
 ## Adding Slack
 
@@ -58,28 +75,35 @@ LLM_API_KEY=your-gemini-key LLM_MODEL=gemini-2.5-flash \
   ./mvnw spring-boot:run -pl samples/spring-boot-channels-chat
 ```
 
+## Key code
+
+| File | Purpose |
+|------|---------|
+| `OmnichannelChat.java` | The `@Agent` — `@Prompt` streams every message through the pipeline |
+| `META-INF/skills/omnichannel-chat/SKILL.md` | System prompt + `## Channels` the agent serves |
+| `ConsoleEndpointAlias.java` | Aliases the agent handler to `/atmosphere/ai-chat` for the console |
+| `application.yaml` | LLM settings (`atmosphere.ai.*`) and channel credentials (`atmosphere.channels.*`) |
+
 ## Architecture
 
 ```
-Telegram/Slack/Discord/WhatsApp/Messenger
-         |  webhooks
-         v
-   ChannelWebhookController
-         |  IncomingMessage
-         v
-     ChannelBridge
-         |  prompt
-         v
-   @AiEndpoint (OmnichannelChat)
-         |  streaming response
-         v
-     ChannelBridge
-         |  OutgoingMessage
-         v
-   Platform API (sendMessage / chat.postMessage / ...)
-
-Web Browser
-    |  atmosphere.js
-    v
-  @AiEndpoint (same endpoint, WebSocket transport)
+Web browser ──WebSocket──┐
+Telegram ─────webhook────┤
+Slack ────────webhook────┤   @Agent(name = "omnichannel")
+Discord ──────gateway────┤   skill:omnichannel-chat
+WhatsApp ─────webhook────┤            │
+Messenger ────webhook────┘     one AI pipeline
+                                      │
+                          ChannelAiBridge (channels) +
+                          WebSocket handler (web)
+                                      │
+                              streaming response
+                                      v
+                       back through the originating surface
 ```
+
+The same agent and skill serve every surface. Inbound channel messages are routed to
+the agent's pipeline by `ChannelAiBridge` (from `atmosphere-channels`), which handles
+platform format differences (max length, reply threading, markdown) transparently.
+The `## Channels` list in the skill file is the agent's channel allow-list — only the
+listed platforms reach this agent.

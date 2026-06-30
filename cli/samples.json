@@ -107,11 +107,12 @@
     },
     {
       "name": "spring-boot-channels-chat",
-      "description": "Omnichannel AI chat — Web, Telegram, Slack, Discord, WhatsApp, Messenger",
+      "description": "Omnichannel AI chat — one @Agent on Web, Telegram, Slack, Discord, WhatsApp, Messenger",
       "category": "ai",
       "tags": [
         "spring-boot",
         "ai",
+        "agent",
         "channels",
         "telegram",
         "slack",

@@ -15,9 +15,8 @@
  */
 package org.atmosphere.samples.channels;
 
+import org.atmosphere.agent.annotation.Agent;
 import org.atmosphere.ai.StreamingSession;
-import org.atmosphere.ai.annotation.AgentScope;
-import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.config.service.Ready;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -25,17 +24,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Omnichannel AI chat — same endpoint serves:
+ * Omnichannel AI agent — one {@code @Agent} class serves every surface:
  * <ul>
  *   <li>Web clients via Atmosphere (WebSocket/SSE/long-polling)</li>
- *   <li>Telegram, Slack, Discord, WhatsApp, Messenger via {@link ChannelBridge}</li>
+ *   <li>Telegram, Slack, Discord, WhatsApp, Messenger</li>
  * </ul>
+ *
+ * <p>The persona, including the system prompt and the {@code ## Channels} the
+ * agent serves, lives in the skill file {@code skill:omnichannel-chat}
+ * (resolved from {@code META-INF/skills/omnichannel-chat/SKILL.md}). When
+ * {@code atmosphere-channels} is on the classpath, the framework auto-wires
+ * the agent's pipeline to every listed channel via {@code ChannelAiBridge} —
+ * no per-channel delivery code in this sample.</p>
  */
-@AiEndpoint(path = "/atmosphere/ai-chat",
-        systemPrompt = "You are a helpful AI assistant. Keep responses concise and friendly.",
-        conversationMemory = true)
-@AgentScope(unrestricted = true,
-        justification = "Omnichannel demo — accepts arbitrary prompts to showcase channel-bridge delivery across Slack / Telegram / WhatsApp / Discord / Messenger. Production deployments scope per channel.")
+@Agent(name = "omnichannel",
+        skillFile = "skill:omnichannel-chat",
+        description = "Omnichannel AI assistant — one agent on Web, Telegram, Slack, "
+                + "Discord, WhatsApp, and Messenger")
 public class OmnichannelChat {
 
     private static final Logger logger = LoggerFactory.getLogger(OmnichannelChat.class);
@@ -48,8 +53,9 @@ public class OmnichannelChat {
     @Prompt
     public void onPrompt(String message, StreamingSession session) {
         logger.info("Prompt: {}", message);
-        // Always through the pipeline: DemoAgentRuntime answers when no
-        // LLM_API_KEY is set, the real runtime answers when it is.
+        // Always through the pipeline: the no-key fallback runtime answers when no
+        // LLM_API_KEY is set, the real runtime answers when it is. The same pipeline
+        // serves every channel via ChannelAiBridge.
         session.stream(message);
     }
 }

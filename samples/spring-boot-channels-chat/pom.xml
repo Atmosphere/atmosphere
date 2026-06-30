@@ -13,7 +13,7 @@
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-spring-boot-channels-chat</artifactId>
     <name>atmosphere-spring-boot-channels-chat</name>
-    <description>Omnichannel AI chat — same @AiEndpoint on Web + Telegram + Slack + Discord + WhatsApp</description>
+    <description>Omnichannel AI chat — one @Agent on Web + Telegram + Slack + Discord + WhatsApp + Messenger</description>
 
     <properties>
         <!-- Self-contained netty pin: covers samples scaffolded standalone against
@@ -49,6 +49,11 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>${atmosphere.starter}</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-agent</artifactId>
         </dependency>
 
         <dependency>
