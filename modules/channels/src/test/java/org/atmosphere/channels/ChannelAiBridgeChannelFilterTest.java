@@ -15,7 +15,9 @@
  */
 package org.atmosphere.channels;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,7 +32,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>
  * Verifies that the 6-parameter {@code registerAgent()} properly filters
  * agents by allowed channel list and that the 5-parameter overload delegates
- * with an empty list (all channels allowed).
+ * with an empty list (all channels allowed), and — critically — that the
+ * {@code allowedChannels} restriction is <em>enforced at dispatch time</em>:
+ * an inbound message on a channel outside an agent's allow-list never reaches
+ * that agent's {@code CommandRouter} (Correctness Invariant #6 — a channel is a
+ * mutating surface; confinement must hold on the dispatch path, not just in the
+ * stored binding).
  */
 class ChannelAiBridgeChannelFilterTest {
 
@@ -213,6 +220,84 @@ class ChannelAiBridgeChannelFilterTest {
 
         ChannelAiBridge.reset();
         assertTrue(getBindings().isEmpty());
+    }
+
+    // ── Dispatch-time enforcement: the skip actually fires, not just stored ──
+    //
+    // The cases above prove the binding *stores* the right allowedChannels. These
+    // drive the private dispatch path (routeCommandOrAi) so a regression that drops
+    // the channelId guard — letting an agent answer on a channel it was confined
+    // away from — fails the build, even though the stored binding still looks right.
+
+    @Test
+    void dispatchSkipsCommandRouterForChannelOutsideAllowList() {
+        var router = new StubRouter();
+        ChannelAiBridge.registerAgent("slack-only", router, null, "prompt", null, List.of("slack"));
+
+        dispatch(incoming(ChannelType.TELEGRAM, "hello"));
+
+        assertEquals(0, router.callCount(),
+                "router must NOT be invoked for an inbound channel outside the agent's allowedChannels");
+    }
+
+    @Test
+    void dispatchInvokesCommandRouterForAllowedChannel() {
+        var router = new StubRouter();
+        ChannelAiBridge.registerAgent("slack-only", router, null, "prompt", null, List.of("slack"));
+
+        dispatch(incoming(ChannelType.SLACK, "hello"));
+
+        assertEquals(1, router.callCount(),
+                "router MUST be invoked when the inbound channel is in the agent's allowedChannels");
+    }
+
+    @Test
+    void dispatchInvokesCommandRouterWhenAllowListEmpty() {
+        var router = new StubRouter();
+        ChannelAiBridge.registerAgent("all-channels", router, null, "prompt", null, List.of());
+
+        dispatch(incoming(ChannelType.DISCORD, "hello"));
+
+        assertEquals(1, router.callCount(),
+                "an empty allow-list means every channel dispatches to the agent");
+    }
+
+    @Test
+    void dispatchRoutesOnlyToTheAgentAllowedOnTheInboundChannel() {
+        var slackRouter = new StubRouter();
+        var telegramRouter = new StubRouter();
+        ChannelAiBridge.registerAgent("slack-agent", slackRouter, null, "prompt", null, List.of("slack"));
+        ChannelAiBridge.registerAgent("telegram-agent", telegramRouter, null, "prompt", null, List.of("telegram"));
+
+        dispatch(incoming(ChannelType.TELEGRAM, "hello"));
+
+        assertEquals(0, slackRouter.callCount(),
+                "the slack-only agent must be skipped on a telegram message");
+        assertEquals(1, telegramRouter.callCount(),
+                "the telegram agent must still receive the telegram message (skip is per-binding, not global)");
+    }
+
+    /** An inbound message on the given channel. */
+    private static IncomingMessage incoming(ChannelType channel, String text) {
+        return new IncomingMessage(channel, "user-1", Optional.of("Alice"), text,
+                "conv-1", "msg-1", Instant.now());
+    }
+
+    /**
+     * Drives the bridge's private {@code routeCommandOrAi} dispatch path directly,
+     * exercising the dispatch-time channel skip without a live channel adapter,
+     * webhook, or AI key. {@code agentBindings} is static, so any bridge instance
+     * dispatches against the agents registered in the current test.
+     */
+    private static void dispatch(IncomingMessage incoming) {
+        try {
+            var bridge = new ChannelAiBridge(List.of(), new ChannelFilterChain(List.of()));
+            var route = ChannelAiBridge.class.getDeclaredMethod("routeCommandOrAi", IncomingMessage.class);
+            route.setAccessible(true);
+            route.invoke(bridge, incoming);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("Failed to invoke routeCommandOrAi", e);
+        }
     }
 
     /**
