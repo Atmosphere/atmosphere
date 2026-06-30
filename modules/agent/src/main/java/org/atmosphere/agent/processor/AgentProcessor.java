@@ -685,9 +685,34 @@ public class AgentProcessor implements Processor<Object> {
     }
 
     private AgentRuntime resolveRuntime(AiConfig.LlmSettings settings) {
-        var allBackends = AgentRuntimeResolver.resolveAll();
+        return resolveRuntime(settings, AgentRuntimeResolver.resolveAll());
+    }
+
+    /**
+     * Configure every available backend and return the first. Package-visible so
+     * {@code AgentProcessorRuntimeConfigGuardTest} can install a backend whose
+     * {@code configure()} throws and assert registration still completes.
+     */
+    AgentRuntime resolveRuntime(AiConfig.LlmSettings settings, List<AgentRuntime> allBackends) {
         for (var backend : allBackends) {
-            backend.configure(settings);
+            // configure() may throw if a runtime tries to eagerly construct its
+            // native client and the underlying CDI / connection pool / TLS layer
+            // is not yet ready (Quarkus L4j synthetic ChatModel beans pull in
+            // TlsConfigurationRegistry which is not initialised during servlet
+            // init). Swallow the exception with a clear log line so agent
+            // registration completes; the runtime is re-resolved at request time
+            // when the bean graph is fully wired. Mirrors the identical guard in
+            // AiEndpointProcessor#resolveRuntimeWithRouting — @Agent and
+            // @AiEndpoint must tolerate eager-configure failure identically
+            // (Mode Parity), otherwise an @Agent aborts the whole Atmosphere
+            // annotation-scan phase on Quarkus and no endpoints register.
+            try {
+                backend.configure(settings);
+            } catch (RuntimeException e) {
+                logger.warn("Backend {} failed eager configure() — agent registration "
+                                + "will continue and the runtime will be re-resolved at request time. "
+                                + "Reason: {}", backend.name(), e.toString());
+            }
         }
         return allBackends.stream().findFirst()
                 .orElseThrow(() -> new IllegalStateException(
