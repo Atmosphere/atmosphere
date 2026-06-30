@@ -43,6 +43,12 @@ import org.slf4j.LoggerFactory;
  * <p>The {@link RoomContextInterceptor} reads the {@code {room}} path
  * parameter and sets a room-specific system prompt (math tutor, code mentor,
  * science educator).</p>
+ *
+ * <p>This sample intentionally leads with the lower-level {@code @AiEndpoint}
+ * rather than {@code @Agent}: {@code @Agent} has no {@code interceptors}
+ * element and {@code AgentProcessor} wires an empty {@code AiInterceptor} list,
+ * so the per-room {@link RoomContextInterceptor} (persona + scope per
+ * {@code {room}}) could not be installed.</p>
  */
 @AiEndpoint(path = "/atmosphere/classroom/{room}",
         systemPromptResource = "skill:classroom",
