@@ -17,7 +17,7 @@
 
     <properties>
         <atmosphere.module.name>org.atmosphere.interactions.postgres</atmosphere.module.name>
-        <h2.version>2.3.232</h2.version>
+        <h2.version>2.4.240</h2.version>
     </properties>
 
     <dependencies>
