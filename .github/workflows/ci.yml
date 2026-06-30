@@ -80,8 +80,12 @@ jobs:
     - name: Build Core Modules
       run: ./mvnw -B clean install -DskipTests -Dgpg.skip=true ${{ matrix.mvn-extra-args }}
 
-    - name: Run Core Tests
-      run: ./mvnw -B test -Dgpg.skip=true ${{ matrix.mvn-extra-args }} -pl modules/cpr,modules/ai,modules/mcp,modules/kotlin,modules/spring-ai,modules/langchain4j,modules/embabel,modules/redis,modules/kafka,modules/durable-sessions,modules/durable-sessions-sqlite,modules/durable-sessions-redis,modules/integration-tests,modules/quarkus-extension,modules/spring-boot-starter,modules/spring-boot3-starter,modules/coordinator,modules/agent
+    # Full-reactor test — NO -pl. A hand-picked module list silently drops every
+    # new module from CI (60% of modules were untested for weeks). Testing the
+    # whole reactor means a new module is covered the moment it exists, with no
+    # name to remember. Mirrors release-4x.yml's test step (proven to pass).
+    - name: Run All Tests
+      run: ./mvnw -B test -Dgpg.skip=true -Dgroups='!flaky' ${{ matrix.mvn-extra-args }}
 
     - name: Upload Test Results
       if: failure()
