@@ -16,6 +16,15 @@
 
     <properties>
         <atmosphere.module.name>org.atmosphere.spring.boot</atmosphere.module.name>
+        <!-- Node toolchain used to (re)build the Atmosphere Console from source.
+             Node 23.1.0+ is required: node 22.11's bundled npm fails to install
+             vite 8 / rolldown's platform-native binding (optionalDependencies bug),
+             leaving the console build broken. -->
+        <frontend.node.version>v23.1.0</frontend.node.version>
+        <frontend.plugin.version>1.15.1</frontend.plugin.version>
+        <!-- Skip the Console rebuild (fast Java-only iteration). Set true by the
+             fastinstall profile; a normal `./mvnw install` always rebuilds it. -->
+        <skip.frontend>false</skip.frontend>
     </properties>
 
     <dependencyManagement>
@@ -235,4 +244,87 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+              Rebuild the Atmosphere Console from source on every Maven build so the
+              served bundle is always generated from the canonical atmosphere.js — no
+              committed bundle is the source of truth, so a stale bundle can never drift
+              onto the wire. atmosphere.js has no `prepare` script and its dist/ is
+              gitignored, so the dist is (re)built first, then the Vue console bundles it.
+              Output goes to target/classes (see frontend/vite.config.ts), packaged into
+              the JAR at META-INF/resources/atmosphere/console/. Skipped by -Pfastinstall.
+            -->
+            <plugin>
+                <groupId>com.github.eirslett</groupId>
+                <artifactId>frontend-maven-plugin</artifactId>
+                <version>${frontend.plugin.version}</version>
+                <configuration>
+                    <nodeVersion>${frontend.node.version}</nodeVersion>
+                    <installDirectory>${project.build.directory}</installDirectory>
+                    <skip>${skip.frontend}</skip>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>install-node-and-npm</id>
+                        <goals>
+                            <goal>install-node-and-npm</goal>
+                        </goals>
+                        <phase>generate-resources</phase>
+                    </execution>
+                    <execution>
+                        <id>atmosphere-js-install</id>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <phase>generate-resources</phase>
+                        <configuration>
+                            <arguments>ci</arguments>
+                            <workingDirectory>${project.basedir}/../../atmosphere.js</workingDirectory>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>atmosphere-js-build</id>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <phase>generate-resources</phase>
+                        <configuration>
+                            <arguments>run build</arguments>
+                            <workingDirectory>${project.basedir}/../../atmosphere.js</workingDirectory>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>console-install</id>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <phase>generate-resources</phase>
+                        <configuration>
+                            <!--
+                              `ci` gives a clean, lock-faithful install that also resolves vite 8 /
+                              rolldown's platform-native optional binding (requires node 23.1.0+;
+                              see frontend.node.version) and leaves the lock unchanged, so the
+                              build stays reproducible.
+                            -->
+                            <arguments>ci</arguments>
+                            <workingDirectory>${project.basedir}/frontend</workingDirectory>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>console-build</id>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <phase>generate-resources</phase>
+                        <configuration>
+                            <arguments>run build</arguments>
+                            <workingDirectory>${project.basedir}/frontend</workingDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

@@ -398,6 +398,7 @@
                 <maven.test.skip>true</maven.test.skip>
                 <pmd.skip>true</pmd.skip>
                 <checkstyle.skip>true</checkstyle.skip>
+                <skip.frontend>true</skip.frontend>
             </properties>
         </profile>
         <profile>
