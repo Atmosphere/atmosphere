@@ -109,10 +109,16 @@
                  (sample, baggage propagation not enabled, Vert.x enforces
                  the 8 KiB header limit recommended by the advisory).
                  Re-evaluate when Quarkus ships OTel 1.62+. -->
+            <!-- Keep opentelemetry-api pinned to Quarkus's 1.60.1 baseline in
+                 lockstep with -common / -context below. Do NOT bump independently:
+                 api >=1.62 references io.opentelemetry.common.impl.ApiUsageLogger,
+                 which only exists in -common >=1.62, so a lone api bump against the
+                 pinned 1.60.1 -common throws NoClassDefFoundError at startup
+                 (dependabot #2694 did exactly that and broke this sample). -->
             <dependency>
                 <groupId>io.opentelemetry</groupId>
                 <artifactId>opentelemetry-api</artifactId>
-                <version>1.63.0</version>
+                <version>1.60.1</version>
             </dependency>
             <dependency>
                 <groupId>io.opentelemetry</groupId>
