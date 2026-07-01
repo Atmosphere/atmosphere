@@ -49,3 +49,7 @@ claude_docs
 
 # Generated self-signed certs for WebTransport/TLS testing
 samples/*/src/main/resources/certs/
+
+# Local Claude Code MCP config — points at a per-developer machine path
+# (e.g. a local mirroir build); each dev keeps their own, never committed.
+.mcp.json
