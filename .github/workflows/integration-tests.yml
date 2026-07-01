@@ -1,0 +1,57 @@
+name: "CI: Integration Tests"
+
+# Parallel lane for modules/integration-tests' -Pcore-integration tier.
+#
+# modules/integration-tests skips surefire in its default build, and the Core
+# full-reactor `mvn test` (ci.yml) does NOT activate -Pcore-integration — so
+# without this lane its ~63 Java integration tests (WebSocket/SSE/gRPC/long-poll
+# transports, MCP http/stateless/ws/authorization, agent + coordinator WebSocket,
+# structured output) run nowhere. They are infra-free (no Docker, no LLM keys),
+# so they belong in a fast standalone lane rather than serialised into the Core
+# job. The heavier -Pfull-integration tier (Kafka/Redis clustering, real-LLM
+# checkpoint E2E) needs Testcontainers/keys and stays in the e2e-real-llm lanes.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ '**' ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+
+jobs:
+  core-integration:
+    name: Core Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v5
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: 'maven'
+
+    # -am builds modules/integration-tests' upstream dependency closure (cpr, ai,
+    # mcp, agent, coordinator, grpc, wasync, …) so the test step can resolve them.
+    - name: Build integration-tests and dependencies
+      run: ./mvnw -B clean install -pl modules/integration-tests -am -DskipTests -Dgpg.skip=true
+
+    - name: Run core-integration suite
+      run: ./mvnw -B test -pl modules/integration-tests -Pcore-integration -Dgpg.skip=true -Dgroups='!flaky'
+
+    - name: Upload test results
+      if: failure()
+      uses: actions/upload-artifact@v7
+      with:
+        name: core-integration-test-results
+        path: modules/integration-tests/target/surefire-reports/
