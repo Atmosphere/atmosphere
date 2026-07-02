@@ -74,11 +74,18 @@ public final class SkillFileParser {
             return new SkillFileParser("", "", Map.of(), Map.of());
         }
 
+        // Frontmatter is parsed into the map, then excluded from the body view so
+        // systemPrompt() never leaks YAML metadata into the LLM prompt. This makes
+        // the parser safe for raw-loaded content (PromptLoader.resolveRaw), where
+        // frontmatter survives loading precisely so hints like scopeTier work.
+        var frontmatter = parseFrontmatter(content);
+        var body = frontmatter.isEmpty() ? content : stripFrontmatterBlock(content);
+
         String title = "";
         Map<String, String> sections = new LinkedHashMap<>();
         String currentSection = null;
         var sectionContent = new StringBuilder();
-        var lines = content.split("\n");
+        var lines = body.split("\n");
         boolean inCodeBlock = false;
 
         for (var line : lines) {
@@ -123,9 +130,30 @@ public final class SkillFileParser {
             sections.put(currentSection, sectionContent.toString().trim());
         }
 
-        return new SkillFileParser(content, title,
+        return new SkillFileParser(body, title,
                 Collections.unmodifiableMap(new LinkedHashMap<>(sections)),
-                parseFrontmatter(content));
+                frontmatter);
+    }
+
+    /**
+     * Returns the content with its leading well-formed frontmatter block removed.
+     * Only called when {@link #parseFrontmatter(String)} found a well-formed block,
+     * so the closing fence is guaranteed to exist.
+     */
+    private static String stripFrontmatterBlock(String content) {
+        var lines = content.split("\n", -1);
+        int i = 0;
+        while (i < lines.length && lines[i].trim().isEmpty()) {
+            i++;
+        }
+        // lines[i] is the opening fence; find the closing one.
+        for (var j = i + 1; j < lines.length; j++) {
+            if ("---".equals(lines[j].trim())) {
+                return String.join("\n",
+                        java.util.Arrays.copyOfRange(lines, j + 1, lines.length)).strip();
+            }
+        }
+        return content;
     }
 
     /**
@@ -193,7 +221,8 @@ public final class SkillFileParser {
     }
 
     /**
-     * Returns the entire file content, used as the system prompt verbatim.
+     * Returns the file content used as the system prompt: the full markdown body,
+     * with any YAML frontmatter block excluded so metadata never reaches the LLM.
      */
     public String systemPrompt() {
         return rawContent;
@@ -226,10 +255,10 @@ public final class SkillFileParser {
     /**
      * Returns the value of a top-level frontmatter key (e.g. {@code description},
      * {@code scopeTier}), or {@link Optional#empty()} when the key is absent or
-     * blank. Only present for skill files whose frontmatter survived loading —
-     * {@code skill:}-resolved files have their frontmatter stripped upstream by
-     * {@code PromptLoader}, so callers must treat every frontmatter hint as
-     * optional.
+     * blank. Present when the loader preserved the frontmatter
+     * ({@code PromptLoader.resolveRaw}, the path {@code AgentProcessor} uses);
+     * content loaded through the stripping paths has none, so callers must treat
+     * every frontmatter hint as optional.
      *
      * @param key the frontmatter key
      * @return the value, or empty if absent / blank

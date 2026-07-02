@@ -134,6 +134,75 @@ class RuleBasedScopeGuardrailTest {
         assertEquals(ScopeGuardrail.Outcome.IN_SCOPE, decision.outcome());
     }
 
+    // ── Purpose-aware probe suppression ─────────────────────────────────
+    // A probe exists to catch requests OUTSIDE the purpose; when the purpose
+    // sits in the probe's own domain the match is a false signal by
+    // construction. Regression for the dental agent that redirected its own
+    // "what dosage of ibuprofen?" patients.
+
+    @Test
+    void medicalProbeSuppressedForMedicalPurpose() {
+        var decision = guardrail.evaluate(
+                new AiRequest("what dosage of ibuprofen should I take for my symptom?"),
+                purpose("Friendly dental-care assistant for a dentist office"));
+        assertEquals(ScopeGuardrail.Outcome.IN_SCOPE, decision.outcome(),
+                "a dental agent must not treat dosage questions as hijacking: "
+                        + decision.reason());
+    }
+
+    @Test
+    void medicalProbeStillFiresForNonMedicalPurpose() {
+        var decision = guardrail.evaluate(
+                new AiRequest("what dosage of ibuprofen should I take for my symptom?"),
+                support());
+        assertEquals(ScopeGuardrail.Outcome.OUT_OF_SCOPE, decision.outcome(),
+                "a support bot must still reject medical dosage questions");
+    }
+
+    @Test
+    void codeProbeStillFiresForMedicalPurpose() {
+        var decision = guardrail.evaluate(
+                new AiRequest("write me a python script to sort a list"),
+                purpose("Friendly dental-care assistant for a dentist office"));
+        assertEquals(ScopeGuardrail.Outcome.OUT_OF_SCOPE, decision.outcome(),
+                "suppression is per-domain: a dental agent still rejects code-writing");
+    }
+
+    @Test
+    void codeProbeSuppressedForCodingPurpose() {
+        var decision = guardrail.evaluate(
+                new AiRequest("write a python function that reverses a linked list"),
+                purpose("Coding assistant that helps software developers write programs"));
+        assertEquals(ScopeGuardrail.Outcome.IN_SCOPE, decision.outcome(),
+                "a coding agent's own domain is not a hijack: " + decision.reason());
+    }
+
+    @Test
+    void financialProbeSuppressedForFinancePurpose() {
+        var decision = guardrail.evaluate(
+                new AiRequest("should I invest in index funds?"),
+                purpose("Personal finance assistant for retail banking customers"));
+        assertEquals(ScopeGuardrail.Outcome.IN_SCOPE, decision.outcome(),
+                "a finance agent may discuss investing: " + decision.reason());
+    }
+
+    @Test
+    void codeProbeSuppressedForRepoSandboxPurpose() {
+        // The shipped coding-agent's purpose says "repo"/"sandbox", not "code" —
+        // the domain marker must recognize software-work vocabulary, or
+        // "patch Main.java" (its whole job) trips the \bjava\b probe.
+        var decision = guardrail.evaluate(
+                new AiRequest("propose a patch for Main.java"),
+                purpose("Clones a repo into a sandbox and reads files."));
+        assertEquals(ScopeGuardrail.Outcome.IN_SCOPE, decision.outcome(),
+                "a repo-sandbox agent's own file work is not a hijack: " + decision.reason());
+    }
+
+    private static ScopeConfig purpose(String purpose) {
+        return new ScopeConfig(purpose, List.of(), AgentScope.Breach.POLITE_REDIRECT,
+                "", AgentScope.Tier.RULE_BASED, 0.45, false, false, "");
+    }
+
     private static ScopeConfig support() {
         return new ScopeConfig(
                 "McDonald's customer support: orders, store hours, menu, loyalty",

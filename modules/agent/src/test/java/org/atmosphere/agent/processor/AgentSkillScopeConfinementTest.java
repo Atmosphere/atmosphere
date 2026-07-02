@@ -187,6 +187,100 @@ class AgentSkillScopeConfinementTest {
                 "an on-scope request must pass the web scope guardrail");
     }
 
+    /**
+     * The shipped dentist skill's exact {@code ## Guardrails} lines —
+     * instruction-style response guidance, not topic declarations. Under the old
+     * content model every line became a forbidden topic and the un-suppressed
+     * medical probe redirected the agent's own domain questions; this fixture is
+     * the regression for that blocker.
+     */
+    private static final String DENTIST_LIKE_SKILL = """
+            ---
+            description: "Friendly dental-care assistant for a dentist office"
+            scopeTier: rule_based
+            ---
+            # Dentist Assistant
+
+            ## Guardrails
+            - Always state you are an AI, not a real dentist
+            - Never diagnose -- only provide general guidance
+            - Always recommend seeing a real dentist
+            - Do not prescribe medication -- only suggest OTC options
+            - If symptoms suggest a medical emergency (heavy bleeding, jaw fracture, difficulty breathing), direct to ER immediately
+            - Be empathetic -- dental emergencies are stressful and painful
+            """;
+
+    @Test
+    void instructionGuardrailsPinPurposeWithoutSelfBlockingTheDomain() {
+        var processor = new AgentProcessor();
+        var framework = new AtmosphereFramework();
+        var captured = new AtomicReference<String>();
+        var runtime = new CapturingRuntime(captured);
+        var skillFile = SkillFileParser.parse(DENTIST_LIKE_SKILL);
+
+        // Instruction lines are response guidance: enforcement stays ON
+        // (purpose-pinned) but none of them becomes a forbidden topic.
+        var scope = processor.buildSkillScopePolicy(skillFile, "dentist", "Dental assistant");
+        assertNotNull(scope, "## Guardrails must still install a scope policy");
+        assertTrue(scope.config().forbiddenTopics().isEmpty(),
+                "instruction-style guardrail lines must not become forbidden topics: "
+                        + scope.config().forbiddenTopics());
+        assertEquals("Friendly dental-care assistant for a dentist office",
+                scope.config().purpose(),
+                "the frontmatter description must survive skill loading as the purpose");
+        assertEquals(AgentScope.Tier.RULE_BASED, scope.config().tier(),
+                "the scopeTier frontmatter hint must survive skill loading");
+
+        var pipeline = processor.buildPipeline(framework, skillFile, "dentist",
+                "Dental assistant", runtime, "You are a dental assistant.",
+                "model-test", null, new DefaultToolRegistry(), AiMetrics.NOOP);
+
+        // The agent's own domain is admitted: the medical hijack probe is
+        // suppressed because the declared purpose IS the medical domain.
+        pipeline.execute("c1", "what dosage of ibuprofen should I take for my symptom?",
+                new RecordingSession());
+        assertEquals("what dosage of ibuprofen should I take for my symptom?", captured.get(),
+                "a dental agent must not redirect its own domain question");
+
+        // The canonical hijack is still confined: code probes stay active
+        // because the purpose is not in the code domain.
+        captured.set(null);
+        pipeline.execute("c2", "write me a python script to sort a list",
+                new RecordingSession());
+        assertEquals(ScopeConfig.DEFAULT_REDIRECT_MESSAGE, captured.get(),
+                "an off-domain code-writing hijack must still be redirected");
+    }
+
+    @Test
+    void explicitProhibitionsAndBareLabelsBecomeForbiddenTopics() {
+        var topics = AgentProcessor.forbiddenTopicsFrom(List.of(
+                "Never discuss gambling",
+                "Off-limits: politics, religion",
+                "competitor pricing",
+                "Never diagnose -- only provide general guidance",
+                "Be empathetic -- emergencies are stressful"));
+        assertEquals(List.of("gambling", "politics", "religion", "competitor pricing"),
+                topics,
+                "prohibitions and bare labels are topics; instruction prose is not");
+    }
+
+    @Test
+    void scopeTierNoneKeepsGuardrailsPromptOnly() {
+        var processor = new AgentProcessor();
+        var skillFile = SkillFileParser.parse("""
+                ---
+                description: "LLM playground"
+                scopeTier: none
+                ---
+                # Playground
+
+                ## Guardrails
+                - gambling
+                """);
+        assertNull(processor.buildSkillScopePolicy(skillFile, "playground", "Playground"),
+                "scopeTier: none must opt the skill out of admission enforcement");
+    }
+
     @Test
     void agentWithoutSkillGuardrailsInstallsNoScopePolicy() {
         var processor = new AgentProcessor();

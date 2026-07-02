@@ -61,6 +61,31 @@ public class SkillFileParserTest {
     }
 
     @Test
+    public void testFrontmatterExcludedFromSystemPromptButParsed() {
+        var withFrontmatter = """
+                ---
+                description: "Order-status support"
+                scopeTier: rule_based
+                ---
+                # Support Bot
+
+                ## Guardrails
+                - gambling
+                """;
+        var parsed = SkillFileParser.parse(withFrontmatter);
+        // Raw-loaded content (PromptLoader.resolveRaw) keeps the frontmatter so
+        // hints like scopeTier work — but it must never leak into the LLM prompt.
+        assertFalse(parsed.systemPrompt().contains("scopeTier"),
+                "YAML frontmatter must not leak into the LLM system prompt");
+        assertTrue(parsed.systemPrompt().startsWith("# Support Bot"),
+                "the prompt body must start after the frontmatter block");
+        assertEquals("rule_based", parsed.frontmatter("scopeTier").orElseThrow());
+        assertEquals("Order-status support", parsed.frontmatter("description").orElseThrow());
+        assertEquals(List.of("gambling"), parsed.listItems("Guardrails"));
+        assertEquals("Support Bot", parsed.title());
+    }
+
+    @Test
     public void testSectionNames() {
         var parsed = SkillFileParser.parse(FULL_SKILL_FILE);
         assertEquals(List.of("Skills", "Tools", "Channels", "Guardrails"), parsed.sectionNames());

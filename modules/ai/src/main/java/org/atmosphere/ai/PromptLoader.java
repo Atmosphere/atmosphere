@@ -113,6 +113,25 @@ public final class PromptLoader {
         return NOT_FOUND_SENTINEL.equals(cached) ? null : cached;
     }
 
+    /**
+     * Loads a named skill file like {@link #loadSkill(String)} but preserves the
+     * YAML frontmatter block. Callers that parse structured hints out of the
+     * frontmatter (e.g. {@code scopeTier} for guardrail scope confinement) need
+     * the raw form — {@link #loadSkill} strips it so metadata never reaches the
+     * LLM as prompt text, which also silently discarded those hints.
+     *
+     * @param skillName the skill name (e.g. {@code "dentist-agent"})
+     * @return the raw skill file content including frontmatter, or {@code null}
+     *         if not found anywhere
+     */
+    public static String loadSkillRaw(String skillName) {
+        var cached = CACHE.computeIfAbsent("skill-raw:" + skillName, k -> {
+            var result = resolveSkill(skillName);
+            return result != null ? result : NOT_FOUND_SENTINEL;
+        });
+        return NOT_FOUND_SENTINEL.equals(cached) ? null : cached;
+    }
+
     // Strips an agentskills.io SKILL.md YAML frontmatter block from the head of
     // the file so the metadata never reaches the LLM as system-prompt text.
     // Disk cache and integrity verification still operate on the raw bytes.
@@ -168,6 +187,31 @@ public final class PromptLoader {
                         + "Agent will use default LLM behavior. Add the skill to "
                         + "https://github.com/{}/tree/{}/skills/{}",
                         skillName, repo(), branch(), skillName);
+                return "You are a helpful assistant.";
+            }
+            return content;
+        }
+        return load(path);
+    }
+
+    /**
+     * Resolves a skill file path like {@link #resolve(String)} but keeps the YAML
+     * frontmatter intact for {@code skill:} references, so callers can read
+     * structured frontmatter hints (e.g. {@code scopeTier}) that {@link #resolve}
+     * strips. Plain classpath paths are loaded verbatim either way. Falls back to
+     * the same default-assistant prompt when a {@code skill:} reference cannot be
+     * resolved, mirroring {@link #resolve}.
+     *
+     * @param path skill reference ({@code "skill:dentist-agent"}) or classpath path
+     * @return the raw content including any frontmatter
+     */
+    public static String resolveRaw(String path) {
+        if (path != null && path.startsWith("skill:")) {
+            var skillName = path.substring(6);
+            var content = loadSkillRaw(skillName);
+            if (content == null) {
+                logger.warn("Skill '{}' not found on classpath, disk cache, or GitHub. "
+                        + "Agent will use default LLM behavior.", skillName);
                 return "You are a helpful assistant.";
             }
             return content;

@@ -57,6 +57,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.ServiceLoader;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Annotation processor for {@link Agent}. Handles instance creation, skill file
@@ -271,13 +273,23 @@ public class AgentProcessor implements Processor<Object> {
     /**
      * Build the {@link ScopePolicy} an {@code @Agent}'s skill file mandates via
      * its {@code ## Guardrails} section, or {@code null} when the skill declares
-     * none. This is the wiring that makes a skill's free-text guardrails an
-     * <em>enforced</em> admission policy rather than prose the LLM may ignore:
-     * each guardrail line becomes a forbidden topic, the skill (or agent)
-     * description becomes the declared purpose, and the enforcement tier comes
-     * from an optional {@code scopeTier} / {@code scope-tier} frontmatter hint
-     * (default {@link AgentScope.Tier#EMBEDDING_SIMILARITY}, which catches
-     * paraphrased breaches without a per-request LLM call).
+     * none (or opts out with {@code scopeTier: none}). This is the wiring that
+     * makes a skill's guardrails an <em>enforced</em> admission boundary rather
+     * than prose the LLM may ignore: the section's presence pins the agent to its
+     * declared purpose (skill or agent description), explicit topic prohibitions
+     * become enforced forbidden topics, and the enforcement tier comes from an
+     * optional {@code scopeTier} / {@code scope-tier} frontmatter hint (default
+     * {@link AgentScope.Tier#EMBEDDING_SIMILARITY}, which catches paraphrased
+     * breaches without a per-request LLM call).
+     *
+     * <p>Only topic-declaration lines are enforced as forbidden topics: an
+     * explicit prohibition ("Never discuss gambling", "Off-limits: politics,
+     * religion") or a short bare topic label ("gambling"). Instruction-style
+     * lines ("Never diagnose — only provide general guidance", "Be empathetic")
+     * are response guidance — they ship in the system prompt but are NOT
+     * admission topics. Treating them as topics turned an agent's own domain
+     * questions away: a dental patient's pain-relief message embeds closer to
+     * "Never diagnose…" than to the purpose and was silently redirected.</p>
      *
      * <p>Package-private so {@code AgentSkillScopeConfinementTest} can assert the
      * skill content actually reaches the governance subsystem.</p>
@@ -288,28 +300,107 @@ public class AgentProcessor implements Processor<Object> {
         if (guardrails.isEmpty()) {
             return null;
         }
+        var tierHint = skillFile.frontmatter("scopeTier")
+                .or(() -> skillFile.frontmatter("scope-tier"))
+                .orElse("").trim().toLowerCase(Locale.ROOT);
+        if (SCOPE_TIER_OPT_OUT.contains(tierHint)) {
+            logger.info("Agent '{}' skill declares scopeTier: {} — guardrails stay "
+                    + "prompt-only, no admission scope policy installed", agentName, tierHint);
+            return null;
+        }
         var purpose = firstNonBlank(
                 skillFile.frontmatter("description").orElse(null),
                 agentDescription,
                 DEFAULT_SCOPE_PURPOSE);
-        var tier = resolveScopeTier(skillFile);
-        var config = new ScopeConfig(purpose, guardrails,
-                AgentScope.Breach.POLITE_REDIRECT, null, tier,
+        var config = new ScopeConfig(purpose, forbiddenTopicsFrom(guardrails),
+                AgentScope.Breach.POLITE_REDIRECT, null, resolveScopeTier(tierHint),
                 DEFAULT_SCOPE_SIMILARITY_THRESHOLD, false, false, "");
         return ScopePolicyBuilder.build(config,
                 "scope::" + agentName, "skill-guardrails:" + agentName);
     }
 
+    /** Frontmatter {@code scopeTier} values that disable admission enforcement. */
+    private static final Set<String> SCOPE_TIER_OPT_OUT = Set.of("none", "off", "disabled");
+
     /**
-     * Resolve the enforcement tier from an optional {@code scopeTier} /
-     * {@code scope-tier} frontmatter hint, mapped case-insensitively. Unknown or
-     * absent values fall back to {@link AgentScope.Tier#EMBEDDING_SIMILARITY}.
+     * Explicit prohibition forms whose object is an enforceable topic:
+     * "Never discuss X", "Do not mention Y", "Off-limits: a, b", "Forbidden
+     * topics: c". Deliberately verb-specific — "Never diagnose" is response
+     * guidance about how to answer, not a topic ban on the agent's own domain.
      */
-    private static AgentScope.Tier resolveScopeTier(SkillFileParser skillFile) {
-        var hint = skillFile.frontmatter("scopeTier")
-                .or(() -> skillFile.frontmatter("scope-tier"))
-                .orElse("");
-        return switch (hint.trim().toLowerCase(Locale.ROOT)) {
+    private static final Pattern TOPIC_PROHIBITION = Pattern.compile(
+            "(?i)^(?:(?:never|do\\s+not|don't)\\s+"
+                    + "(?:discuss|mention|talk\\s+about|answer\\s+questions\\s+about|engage\\s+(?:in|on|with))"
+                    + "|(?:off[-\\s]?limits|forbidden)(?:\\s+topics?)?\\s*:?"
+                    + "|no\\s+discussion\\s+of)\\s+(.+)$");
+
+    /** Leading words that mark a guardrail line as response guidance, not a topic label. */
+    private static final Pattern INSTRUCTION_LEAD = Pattern.compile(
+            "(?i)^(?:always|never|do|don't|be|if|when|avoid|refuse|state|recommend|use|only|"
+                    + "must|should|provide|direct|suggest|keep|stay|remember|include|explain)\\b");
+
+    /**
+     * Extracts the enforceable forbidden topics from {@code ## Guardrails} lines:
+     * explicit prohibitions contribute their object(s), short bare labels
+     * contribute themselves, and everything else is response guidance left to
+     * the system prompt. Package-private for direct assertion in tests.
+     */
+    static List<String> forbiddenTopicsFrom(List<String> guardrails) {
+        var topics = new ArrayList<String>();
+        for (var line : guardrails) {
+            if (line == null || line.isBlank()) {
+                continue;
+            }
+            var trimmed = line.trim();
+            var prohibition = TOPIC_PROHIBITION.matcher(trimmed);
+            if (prohibition.matches()) {
+                for (var topic : prohibition.group(1).split("\\s*(?:,|;|\\band\\b)\\s*")) {
+                    addTopic(topics, topic);
+                }
+                continue;
+            }
+            if (isBareTopicLabel(trimmed)) {
+                addTopic(topics, trimmed);
+            }
+        }
+        return List.copyOf(topics);
+    }
+
+    private static void addTopic(List<String> topics, String candidate) {
+        var topic = candidate.strip();
+        while (topic.endsWith(".")) {
+            topic = topic.substring(0, topic.length() - 1).strip();
+        }
+        if (!topic.isEmpty()) {
+            topics.add(topic);
+        }
+    }
+
+    /**
+     * A short noun-phrase line ("gambling", "competitor pricing") is a topic
+     * label; anything with sentence punctuation, an instruction lead-in, or more
+     * than four words reads as guidance prose.
+     */
+    private static boolean isBareTopicLabel(String line) {
+        if (INSTRUCTION_LEAD.matcher(line).find()) {
+            return false;
+        }
+        if (line.contains("--") || line.chars().anyMatch(
+                c -> c == '.' || c == ';' || c == ':' || c == '!' || c == '?' || c == '—')) {
+            return false;
+        }
+        return line.split("\\s+").length <= 4;
+    }
+
+    /**
+     * Resolve the enforcement tier from the (lowercased, trimmed) frontmatter
+     * hint. Unknown or absent values fall back to
+     * {@link AgentScope.Tier#EMBEDDING_SIMILARITY}; the opt-out values
+     * ({@code none} / {@code off} / {@code disabled}) are handled by the caller
+     * before this resolves.
+     */
+    private static AgentScope.Tier resolveScopeTier(String hint) {
+        return switch (hint) {
             case "" -> AgentScope.Tier.EMBEDDING_SIMILARITY;
             case "rule_based", "rule-based", "rulebased" -> AgentScope.Tier.RULE_BASED;
             case "embedding", "embedding_similarity", "embedding-similarity" ->
@@ -546,8 +637,11 @@ public class AgentProcessor implements Processor<Object> {
     private SkillFileParser parseSkillFile(Agent annotation) {
         var skillPath = annotation.skillFile();
         if (skillPath != null && !skillPath.isEmpty()) {
-            // skill: prefix loads from atmosphere-skills repo (classpath -> cache -> GitHub)
-            var content = PromptLoader.resolve(skillPath);
+            // skill: prefix loads from atmosphere-skills repo (classpath -> cache -> GitHub).
+            // Raw form: keeps the YAML frontmatter so hints like scopeTier reach the
+            // parser (resolve() strips it); SkillFileParser excludes the block from
+            // systemPrompt() so no metadata leaks into the LLM prompt.
+            var content = PromptLoader.resolveRaw(skillPath);
             if (content == null) {
                 logger.warn("Skill '{}' not found for agent '{}'", skillPath, annotation.name());
                 return SkillFileParser.parse("");
