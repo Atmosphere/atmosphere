@@ -95,6 +95,19 @@ jobs:
         fi
         echo "OK: ${{ inputs.release_version }} is free on Maven Central (404) — safe to publish."
 
+    - name: Gate blog claims against the release candidate tree
+      if: ${{ !inputs.js_only }}
+      # Claims-vs-released-artifact gate (tree half). The Atmosphere-4 blog
+      # was audited against main and passed while the released 4.0.59 tree
+      # lacked ~10 load-bearing claims — nothing in the release asked "is
+      # this claim true in the artifact users can pull?". This step fails
+      # the release if the candidate tree no longer carries the code
+      # evidence behind each public claim in .harness/blog-claims.json.
+      # The Central-existence half runs post-publish (verify-blog-claims
+      # job below). The blog must not be promoted until
+      # scripts/validate-blog-claims.sh passes against the cut tag.
+      run: ./scripts/validate-blog-claims.sh --against-main
+
     - name: Set up JDK 21
       if: ${{ !inputs.js_only }}
       uses: actions/setup-java@v5
@@ -112,7 +125,7 @@ jobs:
       run: ./mvnw -B test -Dgpg.skip=true -Dgroups='!flaky'
 
   # ─────────────────────────────────────────────
-  # Phase 1b: Packaged-sample sweep (Release Gate: Samples E2E)
+  # Packaged-sample sweep (Release Gate: Samples E2E)
   # ─────────────────────────────────────────────
   release-gate-samples:
     name: Release Gate — Samples E2E
@@ -358,6 +371,34 @@ jobs:
 
     outputs:
       tag: atmosphere-${{ inputs.release_version }}
+
+  # ─────────────────────────────────────────────
+  # Verify blog-claim artifacts on Central
+  # ─────────────────────────────────────────────
+  verify-blog-claims:
+    name: Verify blog-claim artifacts on Central
+    needs: [release-maven]
+    if: ${{ !inputs.js_only && inputs.dry_run == false }}
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        ref: main
+
+    - name: Check claim artifacts exist on Maven Central
+      # Claims-vs-released-artifact gate (Central half). Requires every
+      # Maven GAV cited by .harness/blog-claims.json to answer HTTP 200 at
+      # the just-published version — this is the check whose absence let
+      # the blog advertise atmosphere-ai-spring-boot-starter while that
+      # artifact had never existed on Central (readers failed at step one).
+      # Deliberately a separate job so a red here cannot skip the
+      # downstream publish jobs and strand a partial release (the 4.0.52
+      # failure mode); it turns the run red for the operator instead.
+      # Generous retries absorb repo1.maven.org sync lag after the
+      # JReleaser upload.
+      run: |
+        CENTRAL_ATTEMPTS=20 CENTRAL_DELAY=30 \
+          ./scripts/validate-blog-claims.sh --artifacts-only "${{ inputs.release_version }}"
 
   # ─────────────────────────────────────────────
   # Phase 3b: Publish to GitHub Packages

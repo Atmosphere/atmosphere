@@ -1,0 +1,80 @@
+{
+  "description": "Claims manifest for the Atmosphere 4 blog post. Each entry is a load-bearing public claim mapped to greppable code evidence and (optionally) Maven Central artifacts that must exist at the released version. Consumed by scripts/validate-blog-claims.sh. Seeded from the release-gap matrix that reproduced the 4.0.59 incident: the blog was audited against main and passed while the released artifact lacked these claims (worst: the step-one dependency atmosphere-ai-spring-boot-starter had never been published to Central).",
+  "rules": "Evidence symbols must match a NON-comment, non-import source line (the validator strips lines starting with *, //, /*, import, or <!--). Evidence paths must never point into .harness/ — a manifest citing itself is the self-satisfying-gate failure mode this repo was burned by.",
+  "claims": [
+    {
+      "id": "one-dependency-starter",
+      "claim": "One Maven dependency gets you started: org.atmosphere:atmosphere-ai-spring-boot-starter (the blog's step-one entry point)",
+      "evidence": [
+        { "path": "modules/spring-boot-ai-starter/pom.xml", "symbol": "<artifactId>atmosphere-ai-spring-boot-starter</artifactId>" }
+      ],
+      "artifacts": [ "org.atmosphere:atmosphere-ai-spring-boot-starter" ]
+    },
+    {
+      "id": "ai-endpoint-broadcast-reply",
+      "claim": "@AiEndpoint(broadcastReply = true) fan-outs the agent reply to the room",
+      "evidence": [
+        { "path": "modules/ai/src/main/java/org/atmosphere/ai/annotation/AiEndpoint.java", "symbol": "boolean broadcastReply()" }
+      ]
+    },
+    {
+      "id": "skill-guardrails-enforced",
+      "claim": "A skill's '## Guardrails' section is enforced as a runtime scope policy, not just prompt text",
+      "evidence": [
+        { "path": "modules/agent/src/main/java/org/atmosphere/agent/processor/AgentProcessor.java", "symbol": "buildSkillScopePolicy" }
+      ]
+    },
+    {
+      "id": "agent-scope-on-coordinator",
+      "claim": "@AgentScope on a @Coordinator class is honored (scope policy built at processing time)",
+      "evidence": [
+        { "path": "modules/coordinator/src/main/java/org/atmosphere/coordinator/processor/CoordinatorProcessor.java", "symbol": "ScopePolicyBuilder.build(" }
+      ]
+    },
+    {
+      "id": "audio-input-parts",
+      "claim": "Multimodal (audio) input rides the streaming session via stream(message, parts)",
+      "evidence": [
+        { "path": "modules/ai/src/main/java/org/atmosphere/ai/StreamingSession.java", "symbol": "stream(String message, List<Content> parts)" }
+      ]
+    },
+    {
+      "id": "openclaw-extensions-consumed",
+      "claim": "OpenClaw workspace extension files are read and applied to the agent runtime",
+      "evidence": [
+        { "path": "modules/agent/src/main/java/org/atmosphere/agent/processor/AgentProcessor.java", "symbol": "WorkspaceExtensions.applyRuntime(" }
+      ]
+    },
+    {
+      "id": "cedar-cli-enforcement",
+      "claim": "Cedar policies are enforced through the real cedar CLI (mandatory --entities argument supplied)",
+      "evidence": [
+        { "path": "modules/ai-policy-cedar/src/main/java/org/atmosphere/ai/policy/cedar/CedarCliAuthorizer.java", "symbol": "\"--entities\"" }
+      ]
+    },
+    {
+      "id": "postgres-audit-jsonb",
+      "claim": "The Postgres audit sink persists decisions with a real JSONB cast, not a stringly bind",
+      "evidence": [
+        { "path": "modules/ai-audit-postgres/src/main/java/org/atmosphere/ai/audit/postgres/JdbcAuditSink.java", "symbol": "CAST(? AS JSONB)" }
+      ]
+    },
+    {
+      "id": "admin-bundle-self-wiring",
+      "claim": "The admin bundle self-wires a default CheckpointStore (@ConditionalOnMissingBean) via its atmosphere-checkpoint dependency",
+      "evidence": [
+        { "path": "modules/checkpoint/src/main/java/org/atmosphere/checkpoint/spring/AtmosphereCheckpointAutoConfiguration.java", "symbol": "@ConditionalOnMissingBean(CheckpointStore.class)" },
+        { "path": "modules/admin-bundle/pom.xml", "symbol": "<artifactId>atmosphere-checkpoint</artifactId>" }
+      ],
+      "artifacts": [ "org.atmosphere:atmosphere-admin-bundle", "org.atmosphere:atmosphere-checkpoint" ]
+    },
+    {
+      "id": "durable-runs-wired",
+      "claim": "Durable agent runs are wired into the live request path (spine consumed by the endpoint handler, installed by autoconfig)",
+      "evidence": [
+        { "path": "modules/ai/src/main/java/org/atmosphere/ai/processor/AiEndpointHandler.java", "symbol": "DurableRunSpineHolder.get()" },
+        { "path": "modules/spring-boot-starter/src/main/java/org/atmosphere/spring/boot/AtmosphereAiAutoConfiguration.java", "symbol": "DurableRunSpineHolder.install(" }
+      ]
+    }
+  ]
+}
