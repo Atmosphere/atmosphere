@@ -24,3 +24,4 @@ BaseSessionService       # Google ADK
 SessionService           # Google ADK
 AIAgentStrategy          # JetBrains Koog
 KoogStrategy             # JetBrains Koog
+SdkTracerProvider        # OpenTelemetry SDK

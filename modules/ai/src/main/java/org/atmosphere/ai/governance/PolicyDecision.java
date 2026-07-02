@@ -22,8 +22,8 @@ import org.atmosphere.ai.AiRequest;
  *
  * <p>The three cases mirror {@code AiGuardrail.GuardrailResult} intentionally — the
  * two SPIs share the same admission-path semantics so an adapter between them is
- * straightforward (see {@code GuardrailAdapter} / {@code PolicyAdapter} in the same
- * package, added in the wiring commit).</p>
+ * straightforward (see {@link GuardrailAsPolicy} / {@link PolicyAsGuardrail} in the
+ * same package).</p>
  *
  * <p>Vocabulary choice: {@code admit}/{@code deny} matches OPA/Rego and the MS Agent
  * Governance Toolkit at the evaluate-decision level. Interop is at the vocabulary

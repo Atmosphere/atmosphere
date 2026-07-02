@@ -29,7 +29,7 @@ import java.util.Objects;
  * {@link AgentResult} and skips the transport hop.
  *
  * <p>Per-dispatch governance enforcement lives here — a
- * {@code ScopeFleetInterceptor} can deny {@code call("research",
+ * {@link GovernanceFleetInterceptor} can deny {@code call("research",
  * "write_code", …)} the same way {@code PolicyAdmissionGate} denies off-
  * scope user prompts. Same governance surface, agent-to-agent edge.</p>
  *

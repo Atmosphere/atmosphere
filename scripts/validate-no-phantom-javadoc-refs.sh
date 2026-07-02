@@ -5,14 +5,15 @@
 # allowlisted as external (JDK / Spring / third-party) types.
 #
 # Drift caught: Javadoc that names a class as if it exists ("a sibling
-# {@code GatedToolDispatcher} introduced in Phase 2 ...") when no such class
+# {@code GatedToolDispatcher} handles the gated path ...") when no such class
 # is ever implemented — a plan written as documentation. javac/doclint never
 # resolves {@code}, so the compiler stays silent.
 #
 # Scope: {@code Xxx} / {@link [pkg.]Xxx[#member]} in *.java where Xxx is a
 # CamelCase identifier ending in a common type suffix (see SUFFIX). Each must
-# either (1) declare a class/interface/enum/record with that name under
-# modules|samples/**/src, or (2) appear in
+# either (1) declare a class/interface/enum/record/object with that name under
+# modules|samples/**/src (Java or Kotlin — Javadoc legitimately references
+# Kotlin types such as the Koog tool bridge), or (2) appear in
 # .harness/phantom-javadoc-allowlist.txt (external types).
 set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"; cd "$REPO_ROOT"
@@ -21,9 +22,10 @@ SUFFIX='Dispatcher|Handler|Provider|Manager|Service|Store|Registry|Executor|Stra
 
 mapfile -t scan_files < <(git ls-files 'modules/**/src/**/*.java' 'samples/**/src/**/*.java' ':!**/target/**')
 mapfile -t declared < <(
-  git grep -h -E '(class|interface|enum|record)[[:space:]]+([A-Z][A-Za-z0-9_]*)' \
+  git grep -h -E '(class|interface|enum|record|object)[[:space:]]+([A-Z][A-Za-z0-9_]*)' \
     -- 'modules/**/src/**/*.java' 'samples/**/src/**/*.java' \
-    | sed -E 's/.*(class|interface|enum|record)[[:space:]]+([A-Z][A-Za-z0-9_]*).*/\2/' | sort -u)
+       'modules/**/src/**/*.kt' 'samples/**/src/**/*.kt' \
+    | sed -E 's/.*(class|interface|enum|record|object)[[:space:]]+([A-Z][A-Za-z0-9_]*).*/\2/' | sort -u)
 declare -A is_declared; for c in "${declared[@]}"; do is_declared["$c"]=1; done
 declare -A allowed
 [ -f "$ALLOWLIST" ] && while IFS= read -r l; do l="${l%%#*}"; l="${l//[[:space:]]/}"; [ -n "$l" ] && allowed["$l"]=1; done < "$ALLOWLIST"
@@ -43,7 +45,7 @@ for tok in "${!used[@]}"; do
   [ -n "${is_declared[$tok]:-}" ] && continue
   [ -n "${allowed[$tok]:-}" ] && continue
   echo "✗ Phantom Javadoc class ref: {@code/@link $tok} — no such class, not allowlisted"
-  printf "      %s\n" ${used_in[$tok]} | tr ' ' '\n' | sort -u | sed '/^$/d' | head -4
+  printf '%s' "${used_in[$tok]}" | tr ' ' '\n' | sed '/^$/d' | sort -u | head -4 | sed 's/^/      /'
   fail=1
 done
 [ "$fail" -ne 0 ] && { echo; echo "Fix: (a) implement the class, (b) remove the false ref, or (c) if external, add to $ALLOWLIST"; exit 1; }

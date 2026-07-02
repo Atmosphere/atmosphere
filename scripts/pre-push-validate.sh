@@ -168,6 +168,7 @@ OVERLAY_COVERAGE_REGEX='^cli/runtime-overlays\.json$|^bom/pom\.xml$|^\.harness/c
 DANGLING_DOC_REGEX='^(modules|samples)/.*/src/(main|test)/.*\.java$|^scripts/validate-dangling-doc-comments\.sh$'
 DOC_VERSION_REGEX='\.md$|^pom\.xml$|^atmosphere\.js/package\.json$|^scripts/validate-doc-version-alignment\.sh$|^\.harness/doc-version-allowlist\.txt$'
 DOC_SYMBOLS_REGEX='\.md$|^(modules|samples)/.*/src/main/.*\.java$|^scripts/validate-doc-symbols\.sh$|^\.harness/doc-symbol-allowlist\.txt$'
+PHANTOM_JAVADOC_REGEX='^(modules|samples)/.*/src/(main|test)/.*\.(java|kt)$|^scripts/validate-no-phantom-javadoc-refs\.sh$|^\.harness/phantom-javadoc-allowlist\.txt$'
 ORPHAN_CLASS_REGEX='^modules/.*/src/main/.*\.java$|^scripts/validate-no-orphan-classes\.sh$|^\.harness/orphan-class-allowlist\.txt$'
 FACTS_REGISTRY_REGEX='\.md$|^\.harness/facts\.json$|^scripts/validate-facts-registry\.sh$'
 THIRDPARTY_VERSION_REGEX='\.md$|^pom\.xml$|^scripts/validate-doc-thirdparty-versions\.sh$|^\.harness/thirdparty-version-allowlist\.txt$'
@@ -187,6 +188,7 @@ RUN_ORPHAN_CLASS=false
 RUN_DANGLING_DOC=false
 RUN_DOC_VERSION=false
 RUN_DOC_SYMBOLS=false
+RUN_PHANTOM_JAVADOC=false
 RUN_FACTS_REGISTRY=false
 RUN_THIRDPARTY_VERSION=false
 RUN_ATMO_DOC_VERSION=false
@@ -225,6 +227,9 @@ while IFS= read -r file; do
     if echo "$file" | grep -qE "$DOC_SYMBOLS_REGEX"; then
         RUN_DOC_SYMBOLS=true
     fi
+    if echo "$file" | grep -qE "$PHANTOM_JAVADOC_REGEX"; then
+        RUN_PHANTOM_JAVADOC=true
+    fi
     if echo "$file" | grep -qE "$FACTS_REGISTRY_REGEX"; then
         RUN_FACTS_REGISTRY=true
     fi
@@ -261,6 +266,7 @@ if [ "$FORCE_FULL" = true ]; then
     RUN_DANGLING_DOC=true
     RUN_DOC_VERSION=true
     RUN_DOC_SYMBOLS=true
+    RUN_PHANTOM_JAVADOC=true
     RUN_FACTS_REGISTRY=true
     RUN_THIRDPARTY_VERSION=true
     RUN_ATMO_DOC_VERSION=true
@@ -427,6 +433,20 @@ if [ "$DRY_RUN" = false ]; then
     fi
     echo ""
 
+    if [ "$RUN_PHANTOM_JAVADOC" = true ]; then
+        echo "Running phantom-Javadoc-class-ref validation."
+        if ! ./scripts/validate-no-phantom-javadoc-refs.sh; then
+            echo ""
+            echo "A {@code}/{@link} Javadoc ref names a class that exists nowhere in the"
+            echo "reactor. Implement the class, fix the ref, or allowlist a verified"
+            echo "external type in .harness/phantom-javadoc-allowlist.txt."
+            exit 1
+        fi
+    else
+        echo "Skipping phantom-Javadoc-class-ref validation."
+    fi
+    echo ""
+
     if [ "$RUN_FACTS_REGISTRY" = true ]; then
         echo "Running facts-registry (business dates + superlatives) validation."
         if ! ./scripts/validate-facts-registry.sh; then
@@ -481,6 +501,7 @@ else
     echo "  dangling-doc comments    : $RUN_DANGLING_DOC"
     echo "  doc version alignment    : $RUN_DOC_VERSION"
     echo "  doc-symbol (annotations) : $RUN_DOC_SYMBOLS"
+    echo "  phantom Javadoc refs     : $RUN_PHANTOM_JAVADOC"
     echo "  facts registry           : $RUN_FACTS_REGISTRY"
     echo "  third-party dep versions : $RUN_THIRDPARTY_VERSION"
     echo "  atmosphere doc version   : $RUN_ATMO_DOC_VERSION"
