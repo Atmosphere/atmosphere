@@ -22,6 +22,7 @@ on:
       - 'samples/kotlin-dsl-chat/**'
       - 'samples/spring-boot-spring-ai-advisors/**'
       - 'samples/spring-boot-ms-governance-chat/**'
+      - 'samples/spring-boot-ai-classroom/**'
       - 'modules/kotlin/**'
       - 'e2e/**'
       - '.mvn/**'
@@ -61,7 +62,7 @@ jobs:
         # samples can resolve them at run-time.
         run: |
           ./mvnw install -Pfastinstall -DskipTests \
-            -pl samples/spring-boot-personal-assistant,samples/spring-boot-coding-agent,samples/spring-boot-reattach-harness,samples/kotlin-dsl-chat,samples/spring-boot-spring-ai-advisors,samples/spring-boot-ms-governance-chat \
+            -pl samples/spring-boot-personal-assistant,samples/spring-boot-coding-agent,samples/spring-boot-reattach-harness,samples/kotlin-dsl-chat,samples/spring-boot-spring-ai-advisors,samples/spring-boot-ms-governance-chat,samples/spring-boot-ai-classroom \
             -am -q
 
       - name: Install Playwright deps
@@ -274,6 +275,33 @@ jobs:
             kill "$(cat /tmp/msg.pid)" 2>/dev/null || true
           fi
 
+      # ── ai-classroom sample ───────────────────────────────────────
+      # Collaborative room broadcast on port 8080. Runs keyless — the
+      # DemoAgentRuntime reply is deterministic and the fan-out under test
+      # is a transport property independent of which runtime streamed it.
+      - name: Start ai-classroom sample
+        run: |
+          nohup ./mvnw -pl samples/spring-boot-ai-classroom -q \
+              spring-boot:run \
+              > /tmp/cls-run.log 2>&1 &
+          echo $! > /tmp/cls.pid
+
+      - name: Wait for ai-classroom readiness
+        run: npx --yes wait-on --timeout 120000 http://localhost:8080/
+
+      - name: Run ai-classroom spec
+        working-directory: e2e
+        env:
+          ATMO_E2E_BASE_URL: http://localhost:8080
+        run: npx playwright test tests/ai-classroom.spec.ts --reporter=list
+
+      - name: Stop ai-classroom
+        if: always()
+        run: |
+          if [ -f /tmp/cls.pid ]; then
+            kill "$(cat /tmp/cls.pid)" 2>/dev/null || true
+          fi
+
       - name: Dump sample logs on failure
         if: failure()
         run: |
@@ -289,3 +317,5 @@ jobs:
           cat /tmp/saa-run.log || true
           echo '=== msg-run.log ==='
           cat /tmp/msg-run.log || true
+          echo '=== cls-run.log ==='
+          cat /tmp/cls-run.log || true

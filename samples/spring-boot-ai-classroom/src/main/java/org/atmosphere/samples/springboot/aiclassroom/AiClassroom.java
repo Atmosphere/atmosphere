@@ -52,6 +52,12 @@ import org.slf4j.LoggerFactory;
  */
 @AiEndpoint(path = "/atmosphere/classroom/{room}",
         systemPromptResource = "skill:classroom",
+        // The collaborative headline: one student asks, EVERYONE in the room
+        // sees the reply stream. Without broadcastReply the streamed frames
+        // go only to the asking resource (presence still fans out, which is
+        // how the 4.0.60 release-gate caught the gap: "2 online" synced while
+        // answers stayed private).
+        broadcastReply = true,
         interceptors = { RoomContextInterceptor.class })
 @AgentScope(unrestricted = true,
         justification = "Endpoint-level scope is intentionally unrestricted — the actual scope is "
