@@ -19,6 +19,8 @@ on:
       - 'samples/spring-boot-personal-assistant/**'
       - 'samples/spring-boot-coding-agent/**'
       - 'samples/spring-boot-reattach-harness/**'
+      - 'samples/kotlin-dsl-chat/**'
+      - 'modules/kotlin/**'
       - 'e2e/**'
       - '.mvn/**'
       - 'pom.xml'
@@ -57,7 +59,7 @@ jobs:
         # samples can resolve them at run-time.
         run: |
           ./mvnw install -Pfastinstall -DskipTests \
-            -pl samples/spring-boot-personal-assistant,samples/spring-boot-coding-agent,samples/spring-boot-reattach-harness \
+            -pl samples/spring-boot-personal-assistant,samples/spring-boot-coding-agent,samples/spring-boot-reattach-harness,samples/kotlin-dsl-chat \
             -am -q
 
       - name: Install Playwright deps
@@ -173,6 +175,45 @@ jobs:
             kill "$(cat /tmp/rh.pid)" 2>/dev/null || true
           fi
 
+      # ── kotlin-dsl-chat sample ────────────────────────────────────
+      # Shaded-jar Kotlin DSL endpoint on port 8099. Runs from the fat
+      # jar ON PURPOSE: the 4.0.60 release-gate regressions this spec
+      # pins (WS 501 from missing jakarta.websocket container, silent
+      # raw-HTTP broadcast loss, logback-core dropped by the shade
+      # plugin) only exist in the packaged artifact, so exercising
+      # spring-boot:run or unit tests here would prove nothing.
+      - name: Start kotlin-dsl-chat sample
+        run: |
+          nohup java -jar samples/kotlin-dsl-chat/target/atmosphere-kotlin-dsl-chat-*.jar \
+              > /tmp/kdsl-run.log 2>&1 &
+          echo $! > /tmp/kdsl.pid
+
+      - name: Wait for kotlin-dsl-chat readiness
+        # A GET on /chat suspends (that is the feature), so probe with a
+        # POST, which the DSL handler answers immediately.
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf -X POST -d readiness-probe http://localhost:8099/chat >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo 'kotlin-dsl-chat never became ready' >&2
+          exit 1
+
+      - name: Run kotlin-dsl-chat spec
+        working-directory: e2e
+        env:
+          ATMO_E2E_BASE_URL: http://localhost:8099
+        run: npx playwright test tests/kotlin-dsl-chat.spec.ts --reporter=list
+
+      - name: Stop kotlin-dsl-chat
+        if: always()
+        run: |
+          if [ -f /tmp/kdsl.pid ]; then
+            kill "$(cat /tmp/kdsl.pid)" 2>/dev/null || true
+          fi
+
       - name: Dump sample logs on failure
         if: failure()
         run: |
@@ -182,3 +223,5 @@ jobs:
           cat /tmp/ca-run.log || true
           echo '=== rh-run.log ==='
           cat /tmp/rh-run.log || true
+          echo '=== kdsl-run.log ==='
+          cat /tmp/kdsl-run.log || true

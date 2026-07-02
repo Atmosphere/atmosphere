@@ -27,15 +27,22 @@ import kotlin.test.assertNotNull
 
 class AtmosphereDslTest {
 
-    private fun mockResource(method: String = "GET", body: String = ""): AtmosphereResource {
+    private fun mockResource(
+        method: String = "GET",
+        body: String = "",
+        transport: AtmosphereResource.TRANSPORT = AtmosphereResource.TRANSPORT.UNDEFINED
+    ): AtmosphereResource {
         val request = mock<org.atmosphere.cpr.AtmosphereRequest> {
             on { getMethod() } doReturn method
             on { reader } doReturn BufferedReader(StringReader(body))
         }
+        val response = mock<org.atmosphere.cpr.AtmosphereResponse>()
         val broadcaster = mock<Broadcaster>()
         return mock<AtmosphereResource> {
             on { getRequest() } doReturn request
+            on { getResponse() } doReturn response
             on { getBroadcaster() } doReturn broadcaster
+            on { transport() } doReturn transport
         }
     }
 
@@ -134,6 +141,52 @@ class AtmosphereDslTest {
         handler.onStateChange(event)
 
         verify(resource).write("broadcast msg")
+    }
+
+    private fun messageEvent(resource: AtmosphereResource, msg: String = "m"): AtmosphereResourceEvent =
+        mock<AtmosphereResourceEvent> {
+            on { isClosedByClient } doReturn false
+            on { isClosedByApplication } doReturn false
+            on { isResumedOnTimeout } doReturn false
+            on { isResuming } doReturn false
+            on { message } doReturn msg
+            on { getResource() } doReturn resource
+        }
+
+    @Test
+    fun `raw HTTP subscriber (UNDEFINED transport) is flushed, not resumed`() {
+        val handler = atmosphere { }
+        val resource = mockResource(transport = AtmosphereResource.TRANSPORT.UNDEFINED)
+
+        handler.onStateChange(messageEvent(resource))
+
+        verify(resource).write("m")
+        verify(resource.response).flushBuffer()
+        verify(resource, never()).resume()
+    }
+
+    @Test
+    fun `long-polling subscriber is resumed on first message`() {
+        val handler = atmosphere { }
+        val resource = mockResource(transport = AtmosphereResource.TRANSPORT.LONG_POLLING)
+
+        handler.onStateChange(messageEvent(resource))
+
+        verify(resource).write("m")
+        verify(resource).resume()
+        verify(resource.response, never()).flushBuffer()
+    }
+
+    @Test
+    fun `websocket subscriber is neither flushed nor resumed`() {
+        val handler = atmosphere { }
+        val resource = mockResource(transport = AtmosphereResource.TRANSPORT.WEBSOCKET)
+
+        handler.onStateChange(messageEvent(resource))
+
+        verify(resource).write("m")
+        verify(resource, never()).resume()
+        verify(resource.response, never()).flushBuffer()
     }
 
     @Test

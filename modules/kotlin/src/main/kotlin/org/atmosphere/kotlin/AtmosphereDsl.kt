@@ -128,6 +128,18 @@ private class DslAtmosphereHandler(
             }
             event.message != null -> {
                 resource.write(event.message.toString())
+                // Terminal delivery is transport-specific: long-polling
+                // completes the request on the first message, WebSocket and
+                // gRPC frames flush themselves, and every other suspended HTTP
+                // subscriber (streaming, SSE, raw `curl -N` with no
+                // X-Atmosphere-Transport header = UNDEFINED) needs an explicit
+                // flush or the bytes stay in the response buffer forever.
+                when (resource.transport()) {
+                    AtmosphereResource.TRANSPORT.LONG_POLLING -> resource.resume()
+                    AtmosphereResource.TRANSPORT.WEBSOCKET,
+                    AtmosphereResource.TRANSPORT.GRPC -> Unit
+                    else -> resource.response.flushBuffer()
+                }
             }
         }
     }

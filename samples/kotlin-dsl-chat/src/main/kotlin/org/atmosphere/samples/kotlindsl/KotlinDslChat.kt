@@ -25,6 +25,7 @@ import org.atmosphere.kotlin.atmosphere
 import org.atmosphere.kotlin.broadcastSuspend
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler
 import org.eclipse.jetty.ee10.servlet.ServletHolder
+import org.eclipse.jetty.ee10.websocket.jakarta.server.config.JakartaWebSocketServletContainerInitializer
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.ServerConnector
 import org.slf4j.LoggerFactory
@@ -90,6 +91,12 @@ object KotlinDslChat {
 
         val context = ServletContextHandler(ServletContextHandler.SESSIONS)
         context.contextPath = "/"
+
+        // Provision the jakarta.websocket ServerContainer BEFORE Atmosphere
+        // starts: the jetty-ee10-websocket-jakarta-server dependency alone does
+        // nothing in embedded Jetty, and without the container Atmosphere's
+        // JSR356 support cannot deploy — WebSocket upgrades then fail with 501.
+        JakartaWebSocketServletContainerInitializer.configure(context, null)
 
         // Register the DSL-built handler programmatically: there is no annotation
         // scanning here — the endpoint is created by code in chatHandler().

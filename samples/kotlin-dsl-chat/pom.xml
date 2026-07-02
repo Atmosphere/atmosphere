@@ -74,6 +74,16 @@
             <artifactId>logback-classic</artifactId>
             <version>${logback-version}</version>
         </dependency>
+        <!-- The parent pom pins logback-core to test scope (library modules must
+             not impose a logging backend); this runnable sample ships one, so
+             compile scope must be restated here or the shaded jar bundles
+             logback-classic without logback-core and SLF4J falls back to NOP. -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <version>${logback-version}</version>
+            <scope>compile</scope>
+        </dependency>
 
         <!-- Test -->
         <dependency>
