@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783019817515,
+  "lastUpdate": 1783022628243,
   "repoUrl": "https://github.com/Atmosphere/atmosphere",
   "entries": {
     "Atmosphere JMH Benchmarks": [
@@ -63966,6 +63966,276 @@ window.BENCHMARK_DATA = {
           {
             "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.listByCoordination ( {\"snapshotCount\":\"10000\"} )",
             "value": 2387.700798727129,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ab9bed25d8cabf7fac7a5558f1925482c2b9b0cd",
+          "message": "chore(deps-dev): bump the maven group across 62 directories with 1 update (#2701)\n\nBumps the maven group with 1 update in the /assembly directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /assembly/cpr directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /bom directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/a2a directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/adk directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/admin directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/admin-bundle directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/agent directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/agentscope directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/agui directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/ai directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/ai-audit-kafka directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/ai-audit-postgres directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/ai-policy-cedar directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/ai-policy-rego directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/ai-test directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/anthropic directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/channels directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/checkpoint directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/checkpoint-postgres directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/cohere directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/coordinator directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/cpr directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/crewai directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/durable-sessions directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/durable-sessions-redis directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/durable-sessions-sqlite directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/embabel directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/grpc directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/integration-tests directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/interactions directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/interactions-postgres directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/kafka directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/koog directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/kotlin directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/langchain4j directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/mcp directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/mcp-client directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/protocol-common directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/quarkus-admin-extension directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/quarkus-extension directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/quarkus-grpc directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/quarkus-langchain4j directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/rag directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/redis directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/sandbox directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/semantic-kernel directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/spring-ai directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/spring-ai-alibaba directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/spring-boot-ai-starter directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/spring-boot-starter directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/spring-boot3-starter directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/verifier directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/verifier-smt directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /modules/wasync directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /samples/chat directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /samples/embedded-jetty-websocket-chat directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /samples/grpc-chat directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /samples/kotlin-dsl-chat directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /samples/quarkus-ai-chat directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\nBumps the maven group with 1 update in the /samples/quarkus-chat directory: [ch.qos.logback:logback-core](https://github.com/qos-ch/logback).\n\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\nUpdates `ch.qos.logback:logback-core` from 1.5.32 to 1.5.33\n- [Release notes](https://github.com/qos-ch/logback/releases)\n- [Commits](https://github.com/qos-ch/logback/compare/v_1.5.32...v_1.5.33)\n\n---\nupdated-dependencies:\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n- dependency-name: ch.qos.logback:logback-core\n  dependency-version: 1.5.33\n  dependency-type: direct:development\n  dependency-group: maven\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-07-02T15:58:03-04:00",
+          "tree_id": "2436c06f8b5a41199b0d008e56a8f6bcfecc430e",
+          "url": "https://github.com/Atmosphere/atmosphere/commit/ab9bed25d8cabf7fac7a5558f1925482c2b9b0cd"
+        },
+        "date": 1783022625725,
+        "tool": "jmh",
+        "benches": [
+          {
+            "name": "org.atmosphere.benchmarks.jmh.BroadcasterDispatchBenchmark.broadcastToAll ( {\"subscriberCount\":\"1\"} )",
+            "value": 6718422.296840434,
+            "unit": "ops/s",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.BroadcasterDispatchBenchmark.broadcastToAll ( {\"subscriberCount\":\"10\"} )",
+            "value": 2896576.8368587387,
+            "unit": "ops/s",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.BroadcasterDispatchBenchmark.broadcastToAll ( {\"subscriberCount\":\"100\"} )",
+            "value": 489060.56044918235,
+            "unit": "ops/s",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.BroadcasterDispatchBenchmark.broadcastToAll ( {\"subscriberCount\":\"1000\"} )",
+            "value": 276176.35082015215,
+            "unit": "ops/s",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.saveHot ( {\"snapshotCount\":\"100\"} )",
+            "value": 304543.1394289147,
+            "unit": "ops/s",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.saveHot ( {\"snapshotCount\":\"1000\"} )",
+            "value": 320264.81474207464,
+            "unit": "ops/s",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.saveHot ( {\"snapshotCount\":\"10000\"} )",
+            "value": 283347.13206083357,
+            "unit": "ops/s",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AgentRuntimeResolverBenchmark.resolveAllSorted",
+            "value": 0.5784095071701382,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AgentRuntimeResolverBenchmark.resolveFirst",
+            "value": 1.017343326061211,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.postProcessChain ( {\"chainLength\":\"0\"} )",
+            "value": 0.8681870730624955,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.postProcessChain ( {\"chainLength\":\"1\"} )",
+            "value": 2.110201567266191,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.postProcessChain ( {\"chainLength\":\"4\"} )",
+            "value": 4.177976584496455,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.postProcessChain ( {\"chainLength\":\"16\"} )",
+            "value": 9.156138758498328,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.postProcessChain ( {\"chainLength\":\"64\"} )",
+            "value": 25.959132151759786,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.preProcessChain ( {\"chainLength\":\"0\"} )",
+            "value": 1.012471365581214,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.preProcessChain ( {\"chainLength\":\"1\"} )",
+            "value": 3.428306672124432,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.preProcessChain ( {\"chainLength\":\"4\"} )",
+            "value": 5.981866359457768,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.preProcessChain ( {\"chainLength\":\"16\"} )",
+            "value": 10.874321852377738,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.AiInterceptorChainBenchmark.preProcessChain ( {\"chainLength\":\"64\"} )",
+            "value": 27.871690460196515,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.BusinessMdcBenchmark.baseline",
+            "value": 0.4330506364439535,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.BusinessMdcBenchmark.snapshotApplyClear",
+            "value": 15.557554850166909,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.BusinessMdcBenchmark.snapshotEmptyThenApplyClear",
+            "value": 2.0309909369220933,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.forkChain ( {\"snapshotCount\":\"100\"} )",
+            "value": 6.873612211015977,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.forkChain ( {\"snapshotCount\":\"1000\"} )",
+            "value": 6.796383184415951,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.forkChain ( {\"snapshotCount\":\"10000\"} )",
+            "value": 6.8466770307454725,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.loadRandom ( {\"snapshotCount\":\"100\"} )",
+            "value": 52.19693480927051,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.loadRandom ( {\"snapshotCount\":\"1000\"} )",
+            "value": 59.471349808896754,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.loadRandom ( {\"snapshotCount\":\"10000\"} )",
+            "value": 88.81077084705406,
+            "unit": "ns/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CoordinatorFanOutBenchmark.parallelFanOut ( {\"fanOutCount\":\"2\"} )",
+            "value": 25.71572512582091,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CoordinatorFanOutBenchmark.parallelFanOut ( {\"fanOutCount\":\"4\"} )",
+            "value": 26.811489808815974,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CoordinatorFanOutBenchmark.parallelFanOut ( {\"fanOutCount\":\"8\"} )",
+            "value": 27.331074844682007,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CoordinatorFanOutBenchmark.parallelFanOut ( {\"fanOutCount\":\"16\"} )",
+            "value": 40.84007283932607,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.PolicyEvalBenchmark.msAgentOsRuleMatch",
+            "value": 0.08719023993308339,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.PolicyEvalBenchmark.ruleBasedInjectionFlagged",
+            "value": 0.7632429458629533,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.PolicyEvalBenchmark.ruleBasedInjectionSafe",
+            "value": 4.23273650390166,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.PolicyEvalBenchmark.ruleBasedScopeAdmit",
+            "value": 7.710300808995419,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.PolicyEvalBenchmark.ruleBasedScopeDeny",
+            "value": 1.7031286432124013,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.PolicyEvalBenchmark.semanticIntentScopeAdmit",
+            "value": 0.09113976978646438,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.listByCoordination ( {\"snapshotCount\":\"100\"} )",
+            "value": 6.416768224270962,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.listByCoordination ( {\"snapshotCount\":\"1000\"} )",
+            "value": 85.08419488926775,
+            "unit": "us/op",
+            "extra": "iterations: 3\nforks: 1\nthreads: 1"
+          },
+          {
+            "name": "org.atmosphere.benchmarks.jmh.CheckpointStoreBenchmark.listByCoordination ( {\"snapshotCount\":\"10000\"} )",
+            "value": 2603.4743411255404,
             "unit": "us/op",
             "extra": "iterations: 3\nforks: 1\nthreads: 1"
           }
