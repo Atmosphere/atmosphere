@@ -1,9 +1,11 @@
 services:
   jaeger:
-    image: jaegertracing/jaeger:2
+    # Pin a real published tag: jaegertracing/jaeger has no floating ":2"
+    # tag (only 2.x.y + latest), so ":2" fails to pull. The v2 image is built
+    # on the OpenTelemetry Collector and enables the OTLP receivers on
+    # 4317/4318 by default, so no COLLECTOR_OTLP_ENABLED env is needed.
+    image: jaegertracing/jaeger:2.19.0
     ports:
       - "16686:16686"   # Jaeger UI
       - "4317:4317"     # OTLP gRPC receiver
       - "4318:4318"     # OTLP HTTP receiver
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true

@@ -27,6 +27,21 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- opentelemetry-bom imported FIRST so every OTel artifact (api,
+                 sdk, exporters, sender) aligns to one version. The parent pom
+                 manages only opentelemetry-api (to ${opentelemetry-api.version});
+                 without this BOM the sdk/exporter/sender fall to an older line
+                 and the OTLP exporter dies at runtime with
+                 NoClassDefFoundError io/opentelemetry/api/internal/InstrumentationUtil
+                 (the api moved that class between the two versions), so no span
+                 ever reaches Jaeger. -->
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-bom</artifactId>
+                <version>${opentelemetry-api.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
 <!-- netty-bom imported BEFORE spring-boot-dependencies so its
                  first-wins rule pulls patched netty 4.x for this sample,
                  overriding Spring Boot's transitively-pinned vulnerable line. -->
