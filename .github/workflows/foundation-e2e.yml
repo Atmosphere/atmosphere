@@ -24,6 +24,7 @@ on:
       - 'samples/spring-boot-ms-governance-chat/**'
       - 'samples/spring-boot-ai-classroom/**'
       - 'samples/spring-boot-channels-chat/**'
+      - 'samples/spring-boot-rag-chat/**'
       - 'modules/kotlin/**'
       - 'e2e/**'
       - '.mvn/**'
@@ -63,7 +64,7 @@ jobs:
         # samples can resolve them at run-time.
         run: |
           ./mvnw install -Pfastinstall -DskipTests \
-            -pl samples/spring-boot-personal-assistant,samples/spring-boot-coding-agent,samples/spring-boot-reattach-harness,samples/kotlin-dsl-chat,samples/spring-boot-spring-ai-advisors,samples/spring-boot-ms-governance-chat,samples/spring-boot-ai-classroom,samples/spring-boot-channels-chat \
+            -pl samples/spring-boot-personal-assistant,samples/spring-boot-coding-agent,samples/spring-boot-reattach-harness,samples/kotlin-dsl-chat,samples/spring-boot-spring-ai-advisors,samples/spring-boot-ms-governance-chat,samples/spring-boot-ai-classroom,samples/spring-boot-channels-chat,samples/spring-boot-rag-chat \
             -am -q
 
       - name: Install Playwright deps
@@ -332,6 +333,34 @@ jobs:
             kill "$(cat /tmp/chn.pid)" 2>/dev/null || true
           fi
 
+      # ── rag-chat sample ───────────────────────────────────────────
+      # RAG console on port 8080, keyless. Proves @Command slash commands
+      # route on an @AiEndpoint (via the AiHandlerDecorator SPI): /sources
+      # is an instant KB listing while a plain question still flows through
+      # RAG retrieval. Keyless → deterministic DemoAgentRuntime.
+      - name: Start rag-chat sample
+        run: |
+          nohup ./mvnw -pl samples/spring-boot-rag-chat -q \
+              spring-boot:run \
+              > /tmp/rag-run.log 2>&1 &
+          echo $! > /tmp/rag.pid
+
+      - name: Wait for rag-chat readiness
+        run: npx --yes wait-on --timeout 120000 http://localhost:8080/atmosphere/console/
+
+      - name: Run rag-chat commands spec
+        working-directory: e2e
+        env:
+          ATMO_E2E_BASE_URL: http://localhost:8080
+        run: npx playwright test tests/rag-chat-commands.spec.ts --reporter=list
+
+      - name: Stop rag-chat
+        if: always()
+        run: |
+          if [ -f /tmp/rag.pid ]; then
+            kill "$(cat /tmp/rag.pid)" 2>/dev/null || true
+          fi
+
       - name: Dump sample logs on failure
         if: failure()
         run: |
@@ -351,3 +380,5 @@ jobs:
           cat /tmp/cls-run.log || true
           echo '=== chn-run.log ==='
           cat /tmp/chn-run.log || true
+          echo '=== rag-run.log ==='
+          cat /tmp/rag-run.log || true

@@ -75,6 +75,53 @@ public class AiEndpointProcessor implements Processor<Object> {
 
     private static final Logger logger = LoggerFactory.getLogger(AiEndpointProcessor.class);
 
+    // Handler decorators discovered once from the classpath. The set is stable
+    // at runtime (a ServiceLoader over a fixed classpath), so resolve lazily and
+    // cache — every @AiEndpoint registration reuses the same immutable list.
+    private static volatile java.util.List<AiHandlerDecorator> handlerDecorators;
+
+    private static java.util.List<AiHandlerDecorator> handlerDecorators() {
+        var cached = handlerDecorators;
+        if (cached != null) {
+            return cached;
+        }
+        var found = new java.util.ArrayList<AiHandlerDecorator>();
+        try {
+            for (var d : ServiceLoader.load(AiHandlerDecorator.class)) {
+                found.add(d);
+            }
+        } catch (java.util.ServiceConfigurationError e) {
+            logger.debug("AiHandlerDecorator discovery error: {}", e.getMessage());
+        }
+        cached = java.util.List.copyOf(found);
+        handlerDecorators = cached;
+        return cached;
+    }
+
+    /**
+     * Apply every discovered {@link AiHandlerDecorator} to a freshly built AI
+     * endpoint handler before it is registered. Returns the handler unchanged
+     * when no decorators are on the classpath.
+     */
+    private static org.atmosphere.cpr.AtmosphereHandler applyDecorators(
+            org.atmosphere.cpr.AtmosphereHandler handler, Object target,
+            AtmosphereFramework framework, String path) {
+        var decorated = handler;
+        for (var decorator : handlerDecorators()) {
+            try {
+                var next = decorator.decorate(decorated,
+                        new AiHandlerDecorator.Context(target, target.getClass(), framework, path));
+                if (next != null) {
+                    decorated = next;
+                }
+            } catch (RuntimeException e) {
+                logger.warn("AiHandlerDecorator {} failed for endpoint {} — registering undecorated: {}",
+                        decorator.getClass().getName(), path, e.toString());
+            }
+        }
+        return decorated;
+    }
+
     @Override
     public void handle(AtmosphereFramework framework, Class<Object> annotatedClass) {
         try {
@@ -239,7 +286,12 @@ public class AiEndpointProcessor implements Processor<Object> {
             // out a @RequiresApproval that takes minutes to resolve.
             applyHeartbeatOverride(annotation.heartbeatSeconds(), annotation.path(),
                     framework, frameworkInterceptors);
-            framework.addAtmosphereHandler(annotation.path(), handler, frameworkInterceptors);
+            // Apply handler decorators (e.g. slash-command routing from
+            // atmosphere-agent) AFTER all endpoint-scoped config is set on the
+            // AiEndpointHandler, so a decorator wraps a fully-configured handler.
+            // No-op when no decorators are on the classpath.
+            var registeredHandler = applyDecorators(handler, instance, framework, annotation.path());
+            framework.addAtmosphereHandler(annotation.path(), registeredHandler, frameworkInterceptors);
 
             logger.info("AI endpoint registered at {} (class: {}, runtime: {}, interceptors: {}, "
                             + "memory: {}, tools: {}, guardrails: {}, contextProviders: {}, "
