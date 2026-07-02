@@ -17,7 +17,11 @@ import { AiWsClient } from './helpers/ai-ws-client';
  *   3. The chat UI loads and atmosphere.js negotiates a transport to the
  *      `@AiEndpoint` over WebSocket — i.e. the Quarkus extension scanned
  *      the `@AiEndpoint` annotation and registered the AI servlet path.
- *   4. (Tier-1 real-LLM only) A prompt sent over WebSocket produces at least
+ *   4. The `@Agent`-registered multi-modal endpoint
+ *      (`/atmosphere/agent/multimodal`) round-trips a base64 image in the
+ *      default keyless lane — proof the build-time scan registers `@Agent`
+ *      classes, not just `@AiEndpoint` ones.
+ *   5. (Tier-1 real-LLM only) A prompt sent over WebSocket produces at least
  *      one `streaming-text` frame, ends with a `complete` frame, and emits no
  *      `error` frames — proving the bridge actually streams tokens through
  *      Quarkus L4j → `LangChain4jAgentRuntime` → Atmosphere broadcaster
@@ -34,6 +38,13 @@ import { AiWsClient } from './helpers/ai-ws-client';
 const REAL_LLM = process.env.LLM_MODE === 'real-ollama'
   || process.env.LLM_MODE === 'real-openai'
   || process.env.LLM_MODE === 'real-gemini';
+
+// 1x1 transparent PNG (68 bytes) — base64 constant so the spec does not
+// depend on any filesystem asset or native image library. Same fixture the
+// spring-boot-ai-chat sibling uses for its multimodal test.
+const TINY_PNG_B64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Z12' +
+  'l4sAAAAASUVORK5CYII=';
 
 /**
  * In real-LLM mode, propagate LLM_BASE_URL / LLM_MODEL / LLM_API_KEY into the
@@ -104,6 +115,53 @@ test.describe('Quarkus AI Chat', () => {
     // SPA actually mounted Vue, not just shipped HTML.
     await expect(page.locator('[data-testid="chat-layout"]')).toBeVisible();
     await expect(page.locator('[data-testid="message-list"]')).toBeVisible();
+  });
+
+  // Multi-modal @Agent — Quarkus parity for the spring-boot-ai-chat sibling.
+  //
+  // MultiModalAgent is an @Agent class registered at /atmosphere/agent/multimodal
+  // by the same AtmosphereProcessor build-time scan that handles @AiEndpoint.
+  // It accepts "image:<base64>" prompts, decodes them, echoes the image
+  // metadata, emits a Content.Image frame, and streams a text acknowledgement
+  // on the AtmosphereResource-bound StreamingSession. The handler never
+  // touches the LangChain4j model, so — exactly like the Spring sibling's
+  // multimodal test — this runs in the default keyless (dummy API key) lane
+  // with no LLM_MODE gate.
+  test('@Agent accepts base64 image upload and streams text reply', async () => {
+    const wsUrl = server.baseUrl.replace('http', 'ws');
+    const client = new AiWsClient(wsUrl, '/atmosphere/agent/multimodal');
+    try {
+      await client.connect();
+      client.send(`image:image/png:${TINY_PNG_B64}`);
+      await client.waitForDone(15_000);
+
+      expect(client.metadata.get('multimodal.accepted')).toBe(true);
+      expect(client.metadata.get('multimodal.mimeType')).toBe('image/png');
+      const byteCount = client.metadata.get('multimodal.bytes');
+      expect(typeof byteCount).toBe('number');
+      expect(byteCount as number).toBeGreaterThan(0);
+
+      const textFrames = client.events.filter(
+        (e) => e.type === 'streaming-text' || e.event === 'text-delta');
+      expect(textFrames.length,
+        'expected >= 1 text frame from the multimodal @Agent — got '
+        + JSON.stringify(client.events.map(e => e.type || e.event)))
+        .toBeGreaterThanOrEqual(1);
+
+      const errorFrames = client.events.filter(
+        (e) => e.type === 'error' || e.event === 'error');
+      expect(errorFrames.length,
+        `multimodal @Agent must not surface error frames; got ${JSON.stringify(errorFrames)}`)
+        .toBe(0);
+
+      const completeFrames = client.events.filter(
+        (e) => e.type === 'complete' || e.event === 'complete');
+      expect(completeFrames.length,
+        'expected a terminal complete frame after the image acknowledgement')
+        .toBeGreaterThanOrEqual(1);
+    } finally {
+      client.close();
+    }
   });
 
   // Real-LLM streaming test — runs only when LLM_MODE=real-ollama (or the
