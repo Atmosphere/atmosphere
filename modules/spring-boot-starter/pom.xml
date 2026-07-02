@@ -22,9 +22,6 @@
              leaving the console build broken. -->
         <frontend.node.version>v23.1.0</frontend.node.version>
         <frontend.plugin.version>1.15.1</frontend.plugin.version>
-        <!-- Skip the Console rebuild (fast Java-only iteration). Set true by the
-             fastinstall profile; a normal `./mvnw install` always rebuilds it. -->
-        <skip.frontend>false</skip.frontend>
     </properties>
 
     <dependencyManagement>
@@ -254,7 +251,10 @@
               onto the wire. atmosphere.js has no `prepare` script and its dist/ is
               gitignored, so the dist is (re)built first, then the Vue console bundles it.
               Output goes to target/classes (see frontend/vite.config.ts), packaged into
-              the JAR at META-INF/resources/atmosphere/console/. Skipped by -Pfastinstall.
+              the JAR at META-INF/resources/atmosphere/console/. Never skipped — not
+              even by -Pfastinstall: three publish channels build with that profile,
+              and the packaged starter jar must always contain the console. The
+              verify-console-packaged check below fails the build if it is missing.
             -->
             <plugin>
                 <groupId>com.github.eirslett</groupId>
@@ -263,7 +263,6 @@
                 <configuration>
                     <nodeVersion>${frontend.node.version}</nodeVersion>
                     <installDirectory>${project.build.directory}</installDirectory>
-                    <skip>${skip.frontend}</skip>
                 </configuration>
                 <executions>
                     <execution>
@@ -321,6 +320,39 @@
                         <configuration>
                             <arguments>run build</arguments>
                             <workingDirectory>${project.basedir}/frontend</workingDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+              Packaging gate: the starter jar must always contain the Atmosphere Console.
+              No committed bundle exists (the console is rebuilt from source above), so a
+              skipped/broken frontend build would otherwise ship a console-less jar
+              undetected through the publish channels. Bound to `package` (after the
+              default maven-jar-plugin binding) so install/deploy/release all hit it.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>verify-console-packaged</id>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <phase>package</phase>
+                        <configuration>
+                            <target>
+                                <condition property="console.packaged">
+                                    <resourceexists>
+                                        <zipentry zipfile="${project.build.directory}/${project.build.finalName}.jar"
+                                                  name="META-INF/resources/atmosphere/console/index.html"/>
+                                    </resourceexists>
+                                </condition>
+                                <fail unless="console.packaged"
+                                      message="Atmosphere Console missing from ${project.build.finalName}.jar: META-INF/resources/atmosphere/console/index.html was not packaged. The frontend build must run on every build — do not skip it."/>
+                            </target>
                         </configuration>
                     </execution>
                 </executions>

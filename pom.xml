@@ -393,12 +393,15 @@
             </properties>
         </profile>
         <profile>
+            <!-- Skips tests and static analysis only. The Atmosphere Console build in
+                 modules/spring-boot-starter is NOT skipped: three publish channels
+                 (snapshot-deploy, publish-github-packages, release-4x) build with this
+                 profile, and the packaged starter jar must always contain the console. -->
             <id>fastinstall</id>
             <properties>
                 <maven.test.skip>true</maven.test.skip>
                 <pmd.skip>true</pmd.skip>
                 <checkstyle.skip>true</checkstyle.skip>
-                <skip.frontend>true</skip.frontend>
             </properties>
         </profile>
         <profile>
