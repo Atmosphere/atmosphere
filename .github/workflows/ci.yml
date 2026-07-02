@@ -103,5 +103,44 @@ jobs:
           **/target/surefire-reports/
           **/target/failsafe-reports/
 
+  # Boot gate for dependency bumps. A dependency bump can compile and pass
+  # every unit test yet still kill sample startup: 7e04f919c0 (dependabot
+  # #2694, opentelemetry-api 1.62->1.63) broke quarkus-ai-chat with a
+  # NoClassDefFoundError that only manifested at boot, and nothing in CI
+  # caught it — "CI: Samples" builds and tests samples but never boots one.
+  # This job lives here (not samples-ci.yml) because ci.yml's near-universal
+  # triggers are exactly the surface dependabot PRs hit; it packages the two
+  # most dependency-sensitive samples (the Quarkus one that broke plus a
+  # Spring Boot canary), boots each keyless, and asserts the chat page
+  # returns HTTP 200 before tearing the JVM down by PID.
+  sample-startup-smoke:
+    name: Sample Startup Smoke (quarkus-ai-chat, spring-boot-ai-chat)
+    runs-on: ubuntu-latest
+    needs: architectural-validation
+    timeout-minutes: 30
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v5
+      with:
+        java-version: 21
+        distribution: temurin
+        cache: 'maven'
+
+    - name: Build & Package Samples
+      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl samples/quarkus-ai-chat,samples/spring-boot-ai-chat -am
+
+    - name: Boot Samples & Assert Endpoints
+      run: ./scripts/sample-startup-smoke.sh
+
+    - name: Upload Boot Logs
+      if: failure()
+      uses: actions/upload-artifact@v7
+      with:
+        name: sample-startup-smoke-logs
+        path: target/sample-startup-smoke/
+
   # E2E tests run in a separate workflow (e2e.yml) so failures
   # don't block build results and individual groups can be re-run independently.
