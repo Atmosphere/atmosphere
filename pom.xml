@@ -1278,7 +1278,7 @@
         <opentelemetry-api.version>1.63.0</opentelemetry-api.version>
         <slf4j-impl-version>2.0.17</slf4j-impl-version>
         <slf4j-version>2.0.17</slf4j-version>
-        <logback-version>1.5.32</logback-version>
+        <logback-version>1.5.33</logback-version>
         <commons-pool2>2.12.0</commons-pool2>
         <junit-jupiter.version>5.11.4</junit-jupiter.version>
         <jackson.version>3.1.4</jackson.version>
