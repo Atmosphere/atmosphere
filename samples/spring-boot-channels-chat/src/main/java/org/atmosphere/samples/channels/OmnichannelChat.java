@@ -16,6 +16,7 @@
 package org.atmosphere.samples.channels;
 
 import org.atmosphere.agent.annotation.Agent;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.config.service.Ready;
@@ -37,6 +38,8 @@ import org.slf4j.LoggerFactory;
  * the agent's pipeline to every listed channel via {@code ChannelAiBridge} —
  * no per-channel delivery code in this sample.</p>
  */
+@AgentScope(unrestricted = true,
+        justification = "Omnichannel bridge demo; relays arbitrary chat from web and messaging channels by design")
 @Agent(name = "omnichannel",
         skillFile = "skill:omnichannel-chat",
         description = "Omnichannel AI assistant — one agent on Web, Telegram, Slack, "

@@ -16,6 +16,7 @@
 package org.atmosphere.samples.springboot.aichat;
 
 import org.atmosphere.agent.annotation.Agent;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.Content;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.Prompt;
@@ -71,6 +72,8 @@ import java.util.List;
  *
  * @see org.atmosphere.integrationtests.ai.MultiModalTestHandler
  */
+@AgentScope(unrestricted = true,
+        justification = "Multimodal demo; accepts arbitrary image and audio prompts to exercise Content parts")
 @Agent(name = "multimodal",
         skillFile = "skill:multimodal-assistant",
         description = "Multi-modal assistant — accepts image (vision) and audio input over a streaming session.")

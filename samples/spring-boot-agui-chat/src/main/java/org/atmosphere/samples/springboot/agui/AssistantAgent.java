@@ -16,6 +16,7 @@
 package org.atmosphere.samples.springboot.agui;
 
 import org.atmosphere.agent.annotation.Agent;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiTool;
@@ -51,6 +52,8 @@ import java.time.format.DateTimeFormatter;
  * out of the box. Set {@code LLM_API_KEY} (or {@code GEMINI_API_KEY} /
  * {@code OPENAI_API_KEY}) to drive a real model and exercise tool calling.</p>
  */
+@AgentScope(unrestricted = true,
+        justification = "AG-UI protocol demo assistant; accepts arbitrary prompts to showcase RunStarted/RunFinished streaming")
 @Agent(
         name = "assistant",
         skillFile = "skill:agui-assistant",

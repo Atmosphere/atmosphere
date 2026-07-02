@@ -22,6 +22,7 @@ import org.atmosphere.mcp.annotation.McpParam;
 import org.atmosphere.mcp.annotation.McpPrompt;
 import org.atmosphere.mcp.annotation.McpResource;
 import org.atmosphere.agent.annotation.Agent;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.mcp.annotation.McpTool;
 import org.atmosphere.mcp.protocol.McpMessage;
 import org.atmosphere.util.Version;
@@ -38,6 +39,8 @@ import java.util.Map;
  * Includes chat administration tools that interact with the live {@code /atmosphere/chat} broadcaster.
  * Connect an MCP client (e.g., Claude Desktop) to {@code ws://localhost:8083/mcp}.
  */
+@AgentScope(unrestricted = true,
+        justification = "MCP server demo; exposes tools to arbitrary prompts from any connected MCP client")
 @Agent(name = "atmosphere-demo", version = "1.0.0", endpoint = "/atmosphere/mcp", headless = true)
 public class DemoMcpServer {
 

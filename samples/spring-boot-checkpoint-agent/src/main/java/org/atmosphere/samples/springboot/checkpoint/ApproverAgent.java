@@ -16,6 +16,7 @@
 package org.atmosphere.samples.springboot.checkpoint;
 
 import org.atmosphere.agent.annotation.Agent;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiTool;
 import org.atmosphere.ai.annotation.Param;
 import org.springframework.stereotype.Component;
@@ -26,6 +27,8 @@ import org.springframework.stereotype.Component;
  * an automated gate) approves a checkpoint written by the analyzer; its
  * {@code String} return is surfaced as the approval result.
  */
+@AgentScope(unrestricted = true,
+        justification = "Checkpoint demo; reviews whatever the analyzer produced — input is the demo's own pipeline")
 @Agent(name = "approver",
         description = "Executes an approved action")
 @Component

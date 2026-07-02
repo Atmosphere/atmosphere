@@ -22,7 +22,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Declares the allowed purpose of an {@link AiEndpoint} so the framework can
+ * Declares the allowed purpose of an {@link AiEndpoint}, {@code @Coordinator}
+ * or {@code @Agent} class so the framework can
  * architecturally prevent goal hijacking — the failure mode in which a
  * general-purpose LLM helpfully answers off-topic requests (the McDonald's
  * support bot writing Python linked-list code, April 2026).
@@ -44,10 +45,15 @@ import java.lang.annotation.Target;
  *       slipped past the input check.</li>
  * </ol>
  *
- * <p>Sample-hygiene CI lint: every {@code @AiEndpoint} in {@code samples/}
- * must declare {@code @AgentScope} or explicitly opt out via
- * {@code @AgentScope(unrestricted = true, justification = "...")}. The
- * build fails if a sample endpoint is missing the annotation.</p>
+ * <p>On an {@code @Agent} class the annotation is the fallback: a skill file's
+ * {@code ## Guardrails} section is the agent-native declaration and wins when
+ * present; a skill-level {@code scopeTier: none} opts out entirely.</p>
+ *
+ * <p>Sample-hygiene CI lint: every {@code @AiEndpoint} / {@code @Coordinator}
+ * in {@code samples/} must declare {@code @AgentScope} or explicitly opt out via
+ * {@code @AgentScope(unrestricted = true, justification = "...")}; an
+ * {@code @Agent} must have a {@code ## Guardrails} skill section or the same
+ * annotation. The build fails if a sample agent class declares neither.</p>
  *
  * <h2>Example</h2>
  *

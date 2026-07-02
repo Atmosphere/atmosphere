@@ -16,6 +16,7 @@
 package org.atmosphere.samples.springboot.orchestration;
 
 import org.atmosphere.agent.annotation.Agent;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.agent.annotation.Command;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
@@ -37,6 +38,8 @@ import org.slf4j.LoggerFactory;
  *   <li>{@code @AiTool} — AI-callable tools</li>
  * </ul>
  */
+@AgentScope(unrestricted = true,
+        justification = "Handoff demo; deliberately accepts off-domain requests so the billing handoff can trigger")
 @Agent(name = "support",
         skillFile = "skill:support-agent",
         description = "Support desk agent — handles general queries, hands off billing questions")

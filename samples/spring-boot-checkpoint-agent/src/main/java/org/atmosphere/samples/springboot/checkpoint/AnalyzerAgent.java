@@ -21,6 +21,7 @@ import org.atmosphere.a2a.annotation.AgentSkillParam;
 import org.atmosphere.a2a.runtime.TaskContext;
 import org.atmosphere.a2a.types.Artifact;
 import org.atmosphere.agent.annotation.Agent;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.springframework.stereotype.Component;
 
 /**
@@ -34,6 +35,8 @@ import org.springframework.stereotype.Component;
  * checkpoint snapshot captures, which is what lets {@code approve?by=alice}
  * recover the original request without an explicit {@code ?request=} override.
  */
+@AgentScope(unrestricted = true,
+        justification = "Checkpoint demo; analyzes arbitrary text so pause, fork and resume can be exercised on any conversation")
 @Agent(name = "analyzer",
         description = "Analyzes a request and produces a structured recommendation")
 @Component

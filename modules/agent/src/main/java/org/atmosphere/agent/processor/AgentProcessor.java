@@ -207,8 +207,8 @@ public class AgentProcessor implements Processor<Object> {
             // installed on the A2A / AG-UI / channel pipeline below so confinement
             // is the same across every invocation mode (Correctness Invariant #7,
             // Mode Parity).
-            var webGuardrails = buildWebGuardrails(framework, skillFile, agentName,
-                    annotation.description());
+            var webGuardrails = buildWebGuardrails(framework, skillFile, annotatedClass,
+                    agentName, annotation.description());
             var aiHandler = new AiEndpointHandler(
                     promptTarget, promptMethod, 120_000L,
                     systemPrompt, path, runtime, List.of(),
@@ -232,7 +232,7 @@ public class AgentProcessor implements Processor<Object> {
             // channel pipelines admit against the same chain as the web path
             // above (Mode Parity #7). Previously these pipelines were built with
             // an empty policy list, leaving governance absent on those surfaces.
-            var pipeline = buildPipeline(framework, skillFile, agentName,
+            var pipeline = buildPipeline(framework, skillFile, annotatedClass, agentName,
                     annotation.description(), runtime, systemPrompt, settings.model(),
                     memory, toolRegistry, metrics);
             registerA2a(framework, annotation, skillFile, commandRegistry,
@@ -440,9 +440,10 @@ public class AgentProcessor implements Processor<Object> {
      * scope guardrail is installed first on the web path too.</p>
      */
     List<org.atmosphere.ai.AiGuardrail> buildWebGuardrails(AtmosphereFramework framework,
-            SkillFileParser skillFile, String agentName, String agentDescription) {
+            SkillFileParser skillFile, Class<?> agentClass, String agentName,
+            String agentDescription) {
         var guardrails = new ArrayList<org.atmosphere.ai.AiGuardrail>();
-        var scopePolicy = buildSkillScopePolicy(skillFile, agentName, agentDescription);
+        var scopePolicy = resolveScopePolicy(skillFile, agentClass, agentName, agentDescription);
         if (scopePolicy != null) {
             // Scope first — cheapest rejection, before any framework policy.
             guardrails.add(new org.atmosphere.ai.governance.PolicyAsGuardrail(scopePolicy));
@@ -451,6 +452,39 @@ public class AgentProcessor implements Processor<Object> {
             guardrails.add(new org.atmosphere.ai.governance.PolicyAsGuardrail(policy));
         }
         return guardrails;
+    }
+
+    /**
+     * Resolve the {@code @Agent}'s scope policy with explicit precedence:
+     * a skill-level {@code scopeTier: none} opt-out beats everything (the skill
+     * is the agent's own artifact); a {@code ## Guardrails}-derived policy wins
+     * next ({@link #buildSkillScopePolicy}); otherwise an {@link AgentScope}
+     * annotation on the class is honored exactly as it is on
+     * {@code @AiEndpoint} / {@code @Coordinator} classes — including the
+     * {@code unrestricted = true, justification = "..."} opt-out, which makes an
+     * intentionally open agent an <em>explicit, lintable declaration</em> instead
+     * of a silent gap (Correctness Invariant #5 — a declared posture must match
+     * runtime behavior, so the annotation must be enforced, not just present).
+     */
+    ScopePolicy resolveScopePolicy(SkillFileParser skillFile, Class<?> agentClass,
+                                   String agentName, String agentDescription) {
+        var tierHint = skillFile.frontmatter("scopeTier")
+                .or(() -> skillFile.frontmatter("scope-tier"))
+                .orElse("").trim().toLowerCase(Locale.ROOT);
+        if (SCOPE_TIER_OPT_OUT.contains(tierHint)) {
+            return null;    // explicit skill-level opt-out — no annotation fallback
+        }
+        var skillPolicy = buildSkillScopePolicy(skillFile, agentName, agentDescription);
+        if (skillPolicy != null) {
+            return skillPolicy;
+        }
+        var scopeAnnotation = agentClass == null
+                ? null : agentClass.getAnnotation(AgentScope.class);
+        if (scopeAnnotation == null) {
+            return null;
+        }
+        return ScopePolicyBuilder.build(scopeAnnotation, agentClass,
+                "/atmosphere/agent/" + agentName).orElse(null);
     }
 
     /**
@@ -466,12 +500,12 @@ public class AgentProcessor implements Processor<Object> {
      * request through the real admission gate this method wires.</p>
      */
     org.atmosphere.ai.AiPipeline buildPipeline(AtmosphereFramework framework,
-            SkillFileParser skillFile, String agentName, String agentDescription,
-            AgentRuntime runtime, String systemPrompt, String model,
+            SkillFileParser skillFile, Class<?> agentClass, String agentName,
+            String agentDescription, AgentRuntime runtime, String systemPrompt, String model,
             AiConversationMemory memory, ToolRegistry toolRegistry, AiMetrics metrics) {
         List<org.atmosphere.ai.governance.GovernancePolicy> policies =
                 org.atmosphere.ai.governance.GovernancePolicies.installed(framework);
-        var scopePolicy = buildSkillScopePolicy(skillFile, agentName, agentDescription);
+        var scopePolicy = resolveScopePolicy(skillFile, agentClass, agentName, agentDescription);
         if (scopePolicy != null) {
             var extended = new ArrayList<org.atmosphere.ai.governance.GovernancePolicy>(
                     policies.size() + 1);

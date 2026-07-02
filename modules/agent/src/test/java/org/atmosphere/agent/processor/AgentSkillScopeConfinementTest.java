@@ -108,7 +108,7 @@ class AgentSkillScopeConfinementTest {
         var runtime = new CapturingRuntime(captured);
         var skillFile = SkillFileParser.parse(SCOPED_SKILL);
 
-        var pipeline = processor.buildPipeline(framework, skillFile, "support-bot",
+        var pipeline = processor.buildPipeline(framework, skillFile, null, "support-bot",
                 "Order-status support assistant", runtime,
                 "You are a support bot.", "model-test", null,
                 new DefaultToolRegistry(), AiMetrics.NOOP);
@@ -162,7 +162,7 @@ class AgentSkillScopeConfinementTest {
         // The web streaming path (AiEndpointHandler) is wired with the guardrail
         // chain buildWebGuardrails produces. Mode Parity #7: a scoped agent must
         // confine off-topic requests here too, not only on the pipeline.
-        var guardrails = processor.buildWebGuardrails(framework, skillFile,
+        var guardrails = processor.buildWebGuardrails(framework, skillFile, null,
                 "support-bot", "Order-status support assistant");
 
         assertFalse(guardrails.isEmpty(),
@@ -231,7 +231,7 @@ class AgentSkillScopeConfinementTest {
         assertEquals(AgentScope.Tier.RULE_BASED, scope.config().tier(),
                 "the scopeTier frontmatter hint must survive skill loading");
 
-        var pipeline = processor.buildPipeline(framework, skillFile, "dentist",
+        var pipeline = processor.buildPipeline(framework, skillFile, null, "dentist",
                 "Dental assistant", runtime, "You are a dental assistant.",
                 "model-test", null, new DefaultToolRegistry(), AiMetrics.NOOP);
 
@@ -281,6 +281,55 @@ class AgentSkillScopeConfinementTest {
                 "scopeTier: none must opt the skill out of admission enforcement");
     }
 
+    // ── @AgentScope on @Agent classes: honored as fallback, skill wins ──
+
+    @AgentScope(purpose = "Annotation-declared purpose",
+            forbiddenTopics = "gambling", tier = AgentScope.Tier.RULE_BASED)
+    private static final class AnnotationScopedAgent {
+    }
+
+    @Test
+    void agentScopeAnnotationHonoredWhenSkillHasNoGuardrails() {
+        var processor = new AgentProcessor();
+        var skillFile = SkillFileParser.parse(UNSCOPED_SKILL);
+        var policy = processor.resolveScopePolicy(skillFile, AnnotationScopedAgent.class,
+                "support-bot", "Support");
+        assertNotNull(policy,
+                "@AgentScope on an @Agent class must be honored when the skill "
+                        + "declares no ## Guardrails — a declared posture must be enforced");
+        assertEquals("Annotation-declared purpose", policy.config().purpose());
+        assertEquals(List.of("gambling"), policy.config().forbiddenTopics());
+        assertEquals(AgentScope.Tier.RULE_BASED, policy.config().tier());
+    }
+
+    @Test
+    void skillGuardrailsWinOverAgentScopeAnnotation() {
+        var processor = new AgentProcessor();
+        var skillFile = SkillFileParser.parse(SCOPED_SKILL);
+        var policy = processor.resolveScopePolicy(skillFile, AnnotationScopedAgent.class,
+                "support-bot", "Support");
+        assertNotNull(policy);
+        assertEquals("Order-status support for an online store", policy.config().purpose(),
+                "the skill's ## Guardrails scope must win over the class annotation");
+    }
+
+    @Test
+    void scopeTierNoneSuppressesAnnotationFallbackToo() {
+        var processor = new AgentProcessor();
+        var skillFile = SkillFileParser.parse("""
+                ---
+                scopeTier: none
+                ---
+                # Playground
+
+                ## Guardrails
+                - gambling
+                """);
+        assertNull(processor.resolveScopePolicy(skillFile, AnnotationScopedAgent.class,
+                        "playground", "Playground"),
+                "an explicit skill-level scopeTier: none must not fall back to the annotation");
+    }
+
     @Test
     void agentWithoutSkillGuardrailsInstallsNoScopePolicy() {
         var processor = new AgentProcessor();
@@ -292,7 +341,7 @@ class AgentSkillScopeConfinementTest {
         assertNull(processor.buildSkillScopePolicy(skillFile, "support-bot", "Support"),
                 "a skill without ## Guardrails must yield no ScopePolicy");
 
-        var pipeline = processor.buildPipeline(framework, skillFile, "support-bot",
+        var pipeline = processor.buildPipeline(framework, skillFile, null, "support-bot",
                 "Support", runtime, "", "model-test", null,
                 new DefaultToolRegistry(), AiMetrics.NOOP);
         assertTrue(pipeline.policies().stream().noneMatch(p -> p instanceof ScopePolicy),
@@ -306,7 +355,7 @@ class AgentSkillScopeConfinementTest {
                 "without ## Guardrails the off-topic request must reach the runtime unchanged");
 
         // Web path control: no guardrail blocks/modifies the off-topic prompt.
-        var guardrails = processor.buildWebGuardrails(framework, skillFile,
+        var guardrails = processor.buildWebGuardrails(framework, skillFile, null,
                 "support-bot", "Support");
         for (var guardrail : guardrails) {
             var result = guardrail.inspectRequest(new AiRequest("what are the best gambling strategies"));

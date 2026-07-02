@@ -80,6 +80,12 @@ class SampleAgentScopeLintTest {
         }
     }
 
+    private static final Pattern AGENT = Pattern.compile("(?m)^@Agent\\b");
+    private static final Pattern SKILL_FILE_ATTR =
+            Pattern.compile("skillFile\\s*=\\s*\"([^\"]+)\"");
+    private static final Pattern AGENT_NAME_ATTR =
+            Pattern.compile("(?s)@Agent\\s*\\([^)]*?name\\s*=\\s*\"([^\"]+)\"");
+
     private static void checkOne(Path repoRoot, Path source, List<String> offenders) {
         String text;
         try {
@@ -89,20 +95,90 @@ class SampleAgentScopeLintTest {
         }
         var isAiEndpoint = AI_ENDPOINT.matcher(text).find();
         var isCoordinator = COORDINATOR.matcher(text).find();
-        if (!isAiEndpoint && !isCoordinator) {
+        var isAgent = AGENT.matcher(text).find();
+        if (!isAiEndpoint && !isCoordinator && !isAgent) {
+            return;
+        }
+        var hasScope = AGENT_SCOPE.matcher(text).find();
+        if (hasScope && containsUnrestrictedTrue(text) && !UNRESTRICTED_OK.matcher(text).find()) {
+            offenders.add(repoRoot.relativize(source).toString()
+                    + " — @AgentScope(unrestricted = true) requires a non-blank justification");
+            return;
+        }
+        if (hasScope) {
+            return;
+        }
+        // @Agent classes may declare their boundary in the skill file instead —
+        // a ## Guardrails section is the blog-native form the processor enforces;
+        // @AgentScope is the honored fallback (AgentProcessor.resolveScopePolicy).
+        if (isAgent && !isAiEndpoint && !isCoordinator) {
+            if (skillDeclaresGuardrails(repoRoot, source, text)) {
+                return;
+            }
+            offenders.add(repoRoot.relativize(source).toString()
+                    + " — @Agent whose skill has no ## Guardrails section and no @AgentScope");
             return;
         }
         var kind = isAiEndpoint ? "@AiEndpoint" : "@Coordinator";
-        var hasScope = AGENT_SCOPE.matcher(text).find();
-        if (!hasScope) {
-            offenders.add(repoRoot.relativize(source).toString()
-                    + " — " + kind + " without @AgentScope");
-            return;
+        offenders.add(repoRoot.relativize(source).toString()
+                + " — " + kind + " without @AgentScope");
+    }
+
+    /**
+     * Mirrors {@code AgentProcessor.parseSkillFile}'s resolution order (sample-local
+     * resources first — Boot puts {@code BOOT-INF/classes} ahead of dependency jars —
+     * then the bundled {@code atmosphere-skills} module) and reports whether the
+     * first skill file found declares a {@code ## Guardrails} section.
+     */
+    private static boolean skillDeclaresGuardrails(Path repoRoot, Path source, String text) {
+        // Walk up to the sample's module root. Compare against the actual
+        // samples/ directory path — matching by the NAME "samples" stops at the
+        // org/atmosphere/samples/... package directory instead.
+        var samplesDir = repoRoot.resolve("samples");
+        var sampleRoot = source;
+        while (sampleRoot != null && sampleRoot.getParent() != null
+                && !samplesDir.equals(sampleRoot.getParent())) {
+            sampleRoot = sampleRoot.getParent();
         }
-        if (containsUnrestrictedTrue(text) && !UNRESTRICTED_OK.matcher(text).find()) {
-            offenders.add(repoRoot.relativize(source).toString()
-                    + " — @AgentScope(unrestricted = true) requires a non-blank justification");
+        if (sampleRoot == null || sampleRoot.getParent() == null) {
+            return false;
         }
+        var res = sampleRoot.resolve("src/main/resources");
+        var skillRef = firstGroup(SKILL_FILE_ATTR, text);
+        var agentName = firstGroup(AGENT_NAME_ATTR, text);
+        var candidates = new ArrayList<Path>();
+        if (skillRef != null && skillRef.startsWith("skill:")) {
+            var n = skillRef.substring(6);
+            candidates.add(res.resolve("META-INF/skills/" + n + "/SKILL.md"));
+            candidates.add(res.resolve("prompts/" + n + "-skill.md"));
+            candidates.add(res.resolve("prompts/" + n + ".md"));
+            candidates.add(repoRoot.resolve(
+                    "modules/skills/src/main/resources/META-INF/skills/" + n + "/SKILL.md"));
+        } else if (skillRef != null) {
+            candidates.add(res.resolve(skillRef));
+        } else if (agentName != null) {
+            candidates.add(res.resolve("META-INF/skills/" + agentName + "/SKILL.md"));
+            candidates.add(res.resolve("prompts/" + agentName + ".md"));
+            candidates.add(res.resolve("prompts/" + agentName + "-skill.md"));
+            candidates.add(res.resolve("prompts/skill.md"));
+        }
+        for (var candidate : candidates) {
+            if (!Files.isRegularFile(candidate)) {
+                continue;
+            }
+            try {
+                return Files.readAllLines(candidate).stream()
+                        .anyMatch(l -> l.strip().startsWith("## Guardrails"));
+            } catch (IOException e) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    private static String firstGroup(Pattern pattern, String text) {
+        var m = pattern.matcher(text);
+        return m.find() ? m.group(1) : null;
     }
 
     private static boolean containsUnrestrictedTrue(String text) {

@@ -16,6 +16,7 @@
 package org.atmosphere.samples.springboot.orchestration;
 
 import org.atmosphere.agent.annotation.Agent;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiTool;
@@ -30,6 +31,8 @@ import org.slf4j.LoggerFactory;
  * Billing agent — receives handoffs from the support agent for
  * billing-related questions.
  */
+@AgentScope(unrestricted = true,
+        justification = "Handoff demo; receives cross-domain conversations handed off from the support agent")
 @Agent(name = "billing",
         skillFile = "skill:billing-agent",
         description = "Billing specialist — handles invoices, payments, and refunds")

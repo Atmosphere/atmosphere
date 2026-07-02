@@ -16,6 +16,7 @@
 package org.atmosphere.samples.quarkus.aichat;
 
 import org.atmosphere.agent.annotation.Agent;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.Content;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.Prompt;
@@ -52,6 +53,8 @@ import java.util.Base64;
  * <p>The Spring Boot sibling additionally demonstrates {@code audio:} input
  * forwarded to the runtime; this Quarkus port stays vision-only.</p>
  */
+@AgentScope(unrestricted = true,
+        justification = "Multimodal demo; accepts arbitrary image prompts to exercise Content parts")
 @Agent(name = "multimodal",
         skillFile = "skill:multimodal-assistant",
         description = "Multi-modal assistant — accepts image (vision) input over a streaming session.")
