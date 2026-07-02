@@ -127,6 +127,30 @@
             <scope>test</scope>
         </dependency>
 
+        <!--
+            Test-scope only — the runtime extension does NOT depend on
+            atmosphere-coordinator (fleets are opt-in on Quarkus, same as
+            elsewhere). It is forced onto a single test's app classpath via
+            setForcedDependencies(...) to prove @Coordinator registration works
+            on Quarkus (mode parity with Spring Boot / plain servlet).
+            coordinator declares a2a OPTIONAL, but LocalAgentTransport's
+            fleet dispatch resolves handlers through a2a's LocalDispatchable
+            seam, so a2a is part of the supported fleet topology (both
+            coordinator samples declare it) and is forced alongside.
+        -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-coordinator</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-a2a</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Test-scope: the observability build-step tests pull these in
              via setForcedDependencies on the per-test QuarkusExtensionTest
              instance rather than relying on the flat reactor classpath

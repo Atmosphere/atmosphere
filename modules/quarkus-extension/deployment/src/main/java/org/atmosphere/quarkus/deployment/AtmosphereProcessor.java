@@ -69,13 +69,18 @@ class AtmosphereProcessor {
     // optional annotations resolved by string so the extension keeps no hard
     // dependency on the modules that declare them. If a module is absent the
     // index returns no instances and the slot is simply dropped.
-    //   - @AiEndpoint (atmosphere-ai)
-    //   - @Agent      (atmosphere-agent) — drives MCP / A2A / AG-UI registration
-    //                 via AgentProcessor; without it @Agent-based endpoints
-    //                 (including MCP) never register on Quarkus.
+    //   - @AiEndpoint  (atmosphere-ai)
+    //   - @Agent       (atmosphere-agent) — drives MCP / A2A / AG-UI registration
+    //                  via AgentProcessor; without it @Agent-based endpoints
+    //                  (including MCP) never register on Quarkus.
+    //   - @Coordinator (atmosphere-coordinator) — drives fleet wiring via
+    //                  CoordinatorProcessor; without it @Coordinator classes
+    //                  silently never register on Quarkus while the same class
+    //                  works on Spring Boot / plain servlet (Invariant #7).
     private static final List<String> OPTIONAL_ANNOTATIONS = List.of(
             "org.atmosphere.ai.annotation.AiEndpoint",
-            "org.atmosphere.agent.annotation.Agent");
+            "org.atmosphere.agent.annotation.Agent",
+            "org.atmosphere.coordinator.annotation.Coordinator");
 
     private static final DotName[] ATMOSPHERE_ANNOTATIONS =
             java.util.stream.Stream.concat(
@@ -114,6 +119,28 @@ class AtmosphereProcessor {
         }
         indexDependency.produce(new IndexDependencyBuildItem("org.atmosphere", "atmosphere-agent"));
         indexDependency.produce(new IndexDependencyBuildItem("org.atmosphere", "atmosphere-mcp"));
+    }
+
+    /**
+     * Index the optional {@code atmosphere-coordinator} jar so its
+     * {@code @AtmosphereAnnotation} processor — {@code CoordinatorProcessor},
+     * which turns an {@code @Coordinator} class into an agent endpoint with
+     * fleet wiring — is in the Jandex index and registered as an annotation
+     * handler. Gated on the application actually declaring an
+     * {@code @Coordinator} class, for the same reason {@code atmosphere-agent}
+     * indexing is gated above: {@code CoordinatorProcessor} references optional
+     * sibling modules (a2a transport, mcp, agui, channels) that may be absent,
+     * which fails native image analysis when pulled into link-at-build-time
+     * unconditionally.
+     */
+    @BuildStep
+    void indexOptionalCoordinatorModule(ApplicationIndexBuildItem applicationIndex,
+                                        BuildProducer<IndexDependencyBuildItem> indexDependency) {
+        var coordinator = DotName.createSimple("org.atmosphere.coordinator.annotation.Coordinator");
+        if (applicationIndex.getIndex().getAnnotations(coordinator).isEmpty()) {
+            return;
+        }
+        indexDependency.produce(new IndexDependencyBuildItem("org.atmosphere", "atmosphere-coordinator"));
     }
 
 
