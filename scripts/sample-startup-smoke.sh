@@ -10,7 +10,10 @@
 # one, so nothing gated that merge. This script IS the boot gate — CI runs it
 # from ci.yml (sample-startup-smoke job) and it can be run locally as-is
 # after: ./mvnw install -DskipTests -Dgpg.skip=true \
-#            -pl samples/quarkus-ai-chat,samples/spring-boot-ai-chat -am
+#            -pl samples/quarkus-ai-chat,samples/spring-boot-ai-chat,modules/quarkus-extension/deployment,modules/quarkus-admin-extension/deployment,modules/quarkus-grpc/deployment,modules/quarkus-langchain4j/deployment -am
+# (the quarkus-*/deployment modules must be in the reactor: -am only follows
+# dependencies, nothing depends on a deployment module, and without it the
+# extension-descriptor goal validates against a stale/absent repo artifact)
 #
 # Keyless by design: both samples fall back to their demo LLM provider when
 # no real API key is configured — startup is what we're gating, not LLM

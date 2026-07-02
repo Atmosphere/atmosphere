@@ -130,7 +130,14 @@ jobs:
         cache: 'maven'
 
     - name: Build & Package Samples
-      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl samples/quarkus-ai-chat,samples/spring-boot-ai-chat -am
+      # Full-reactor prime, then package — the same proven pattern as
+      # samples-ci.yml. A scoped -pl ... -am build fails Quarkus's extension
+      # dependency verification on a cold ~/.m2 (the deployment artifact
+      # resolves in-reactor instead of from the repo), which is exactly how
+      # this job's first run went red while "CI: Samples" stayed green.
+      run: |
+        ./mvnw -B install -DskipTests -Dgpg.skip=true
+        ./mvnw -B package -DskipTests -Dgpg.skip=true -pl samples/quarkus-ai-chat,samples/spring-boot-ai-chat
 
     - name: Boot Samples & Assert Endpoints
       run: ./scripts/sample-startup-smoke.sh
