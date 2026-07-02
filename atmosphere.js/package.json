@@ -132,7 +132,7 @@
   },
   "homepage": "https://github.com/Atmosphere/atmosphere#readme",
   "overrides": {
-    "esbuild": ">=0.25.0"
+    "esbuild": ">=0.28.1"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.2",

@@ -24,6 +24,7 @@
     "vue-tsc": "^3.3.6"
   },
   "overrides": {
+    "esbuild": ">=0.28.1",
     "happy-dom": ">=20.0.0"
   }
 }
