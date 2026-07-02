@@ -17,6 +17,7 @@ package org.atmosphere.ai.facts;
 
 import java.time.Clock;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 
 /**
@@ -47,7 +48,16 @@ public final class DefaultFactResolver implements FactResolver {
         var facts = new LinkedHashMap<String, Object>();
         for (var key : request.keys()) {
             switch (key) {
-                case FactKeys.TIME_NOW -> facts.put(key, clock.instant().toString());
+                // MINUTE granularity, deliberately: the fact block lands in the
+                // system prompt, so a seconds-precision timestamp would make
+                // every request byte-unique and defeat provider prompt-prefix
+                // caches (and the framework's own ResponseCache key). Truncating
+                // keeps consecutive requests within the same minute
+                // byte-identical while staying useful for grounding. A richer
+                // application resolver can override TIME_NOW with finer
+                // precision when it genuinely needs it.
+                case FactKeys.TIME_NOW -> facts.put(key,
+                        clock.instant().truncatedTo(ChronoUnit.MINUTES).toString());
                 case FactKeys.TIME_TIMEZONE -> facts.put(key, defaultZone.getId());
                 case FactKeys.USER_ID -> {
                     if (request.userId() != null) {

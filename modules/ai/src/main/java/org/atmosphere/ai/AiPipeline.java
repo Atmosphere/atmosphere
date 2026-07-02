@@ -549,8 +549,13 @@ public class AiPipeline {
             var parser = StructuredOutputParser.resolve();
             target = new StructuredOutputCapturingSession(target, parser, effectiveResponseType);
             structuredSchemaText = parser.schemaInstructions(effectiveResponseType);
+            // appendStableText keeps a trailing grounded-facts block the
+            // absolute suffix: schema text is stable per endpoint, so it must
+            // land inside the provider's cacheable prompt prefix, not after
+            // the volatile facts (cache-prefix contract).
             request = request.withSystemPrompt(
-                    request.systemPrompt() + "\n\n" + structuredSchemaText);
+                    org.atmosphere.ai.facts.FactResolver.FactBundle.appendStableText(
+                            request.systemPrompt(), structuredSchemaText));
         }
 
         // Confidence elicitation — model-reported-field path. Skipped when
@@ -565,8 +570,11 @@ public class AiPipeline {
                 && (effectiveResponseType == null || effectiveResponseType == Void.class)) {
             target = new ConfidenceCapturingSession(target, requestElicitation);
             confidenceCueText = requestElicitation.effectiveCue();
+            // Same cache-prefix splice as the schema branch above: the cue is
+            // stable, so keep it ahead of any trailing grounded-facts block.
             request = request.withSystemPrompt(
-                    request.systemPrompt() + "\n\n" + confidenceCueText);
+                    org.atmosphere.ai.facts.FactResolver.FactBundle.appendStableText(
+                            request.systemPrompt(), confidenceCueText));
         }
 
         // Build execution context from the (potentially guardrail-modified) request

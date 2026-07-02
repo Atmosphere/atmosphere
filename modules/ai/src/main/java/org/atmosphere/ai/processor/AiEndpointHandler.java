@@ -528,12 +528,16 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         }
 
         var responseType = injectables.get(Class.class) instanceof Class<?> c ? c : null;
-        // Prepend grounded facts to the system prompt via FactResolver.
+        // Append grounded facts to the END of the system prompt via
+        // FactResolver. Appending (not prepending) keeps the stable
+        // persona/skills text a byte-identical prefix across turns so
+        // provider prompt-prefix caches keep hitting while volatile facts
+        // (time.now changes every minute) ride in a trailing block.
         // DefaultFactResolver supplies time.now + time.timezone; apps can
         // install a richer resolver via FactResolverHolder.install(). Every
         // turn pays one resolver call per endpoint — no ThreadLocal, no
         // per-@AiTool wiring.
-        var effectivePrompt = prependResolvedFacts(systemPrompt, resource);
+        var effectivePrompt = appendResolvedFacts(systemPrompt, resource);
         var session = new AiStreamingSession(traced, runtime,
                 effectivePrompt, model, interceptors, resource, memory,
                 toolRegistry, guardrails, contextProviders, metrics, responseType);
@@ -782,8 +786,12 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     }
 
     /**
-     * Resolve the live {@link org.atmosphere.ai.facts.FactResolver} and prepend
-     * its output as a {@code facts} block to the base system prompt.
+     * Resolve the live {@link org.atmosphere.ai.facts.FactResolver} and append
+     * its output as a {@code facts} block to the END of the base system prompt
+     * (cache-prefix contract — see
+     * {@link org.atmosphere.ai.facts.FactResolver.FactBundle#appendToSystemPrompt(String)}:
+     * volatile facts at the front would change the first tokens of every
+     * request and defeat provider prompt-prefix caches framework-wide).
      * Framework-scoped resolution mirrors {@code CoordinatorProcessor.resolveJournal}
      * — check {@code framework.properties()}, then {@link java.util.ServiceLoader},
      * then {@link org.atmosphere.ai.facts.FactResolverHolder} (legacy), then
@@ -791,7 +799,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * original prompt unchanged when the bundle is empty so this never
      * regresses the text path when the feature is not in use.
      */
-    private String prependResolvedFacts(String basePrompt, AtmosphereResource resource) {
+    private String appendResolvedFacts(String basePrompt, AtmosphereResource resource) {
         var resolver = resolveFactResolver(resource);
         if (resolver == null) {
             return basePrompt != null ? basePrompt : "";
@@ -834,11 +842,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         if (bundle == null || bundle.facts().isEmpty()) {
             return basePrompt != null ? basePrompt : "";
         }
-        var block = bundle.asSystemPromptBlock();
-        if (basePrompt == null || basePrompt.isBlank()) {
-            return block;
-        }
-        return block + "\n" + basePrompt;
+        return bundle.appendToSystemPrompt(basePrompt);
     }
 
     private void handleDisconnect(AtmosphereResource resource, AtmosphereResourceEvent event,

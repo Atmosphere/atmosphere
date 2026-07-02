@@ -39,7 +39,10 @@ class FactResolverTest {
 
     @Test
     void defaultResolverFillsTimeAndTimezone() {
-        var clock = Clock.fixed(Instant.parse("2026-04-18T21:00:00Z"), ZoneId.of("UTC"));
+        // 21:00:42Z on the clock — TIME_NOW renders at MINUTE granularity
+        // (seconds truncated) so same-minute requests produce byte-identical
+        // fact blocks and provider prompt-prefix caches keep hitting.
+        var clock = Clock.fixed(Instant.parse("2026-04-18T21:00:42Z"), ZoneId.of("UTC"));
         var resolver = new DefaultFactResolver(clock, ZoneId.of("America/Montreal"));
         var bundle = resolver.resolve(new FactResolver.FactRequest(
                 "alice", "sess-1", "agent-1",
@@ -47,6 +50,27 @@ class FactResolverTest {
 
         assertEquals("2026-04-18T21:00:00Z", bundle.get(FactKeys.TIME_NOW).orElse(null));
         assertEquals("America/Montreal", bundle.get(FactKeys.TIME_TIMEZONE).orElse(null));
+    }
+
+    /**
+     * Cache-friendliness contract: two resolutions within the same wall-clock
+     * minute must render byte-identical fact blocks. Seconds-precision
+     * timestamps would make every request unique and zero out provider
+     * prompt-prefix cache hits (and the framework ResponseCache, whose key
+     * hashes the system prompt).
+     */
+    @Test
+    void sameMinuteResolutionsProduceByteIdenticalFactBlocks() {
+        var keys = Set.of(FactKeys.TIME_NOW, FactKeys.TIME_TIMEZONE);
+        var early = new DefaultFactResolver(
+                Clock.fixed(Instant.parse("2026-04-18T21:07:03Z"), ZoneId.of("UTC")), ZoneId.of("UTC"))
+                .resolve(new FactResolver.FactRequest("alice", "s", "a", keys));
+        var late = new DefaultFactResolver(
+                Clock.fixed(Instant.parse("2026-04-18T21:07:59Z"), ZoneId.of("UTC")), ZoneId.of("UTC"))
+                .resolve(new FactResolver.FactRequest("alice", "s", "a", keys));
+
+        assertEquals(early.asSystemPromptBlock(), late.asSystemPromptBlock(),
+                "requests 56s apart within the same minute must render identical blocks");
     }
 
     @Test
@@ -81,6 +105,77 @@ class FactResolverTest {
     @Test
     void asSystemPromptBlockReturnsEmptyForEmptyMap() {
         assertEquals("", FactResolver.FactBundle.empty().asSystemPromptBlock());
+    }
+
+    /**
+     * Cache-prefix contract: the effective prompt STARTS with the stable
+     * developer-authored system prompt and the volatile fact block is the
+     * trailing suffix. Facts used to be PREPENDED, which put a changing
+     * {@code time.now} in the first tokens of every request and defeated
+     * provider prompt-prefix caches framework-wide — the placement flipped
+     * to append precisely so the stable prefix stays byte-identical.
+     */
+    @Test
+    void appendToSystemPromptKeepsStablePromptAsCachePrefix() {
+        var bundle = new FactResolver.FactBundle(Map.of(
+                FactKeys.TIME_NOW, "2026-04-18T21:00:00Z"));
+        var persona = "You are a helpful travel agent.\nAlways cite sources.";
+
+        var effective = bundle.appendToSystemPrompt(persona);
+
+        assertTrue(effective.startsWith(persona),
+                "stable system prompt must be the byte-identical leading prefix: " + effective);
+        var idx = effective.indexOf(FactResolver.FactBundle.SYSTEM_PROMPT_BLOCK_HEADER);
+        assertTrue(idx > persona.length(), "fact block must come after the stable prompt");
+        assertEquals(bundle.asSystemPromptBlock(), effective.substring(idx),
+                "fact block must be the absolute suffix of the system prompt");
+    }
+
+    @Test
+    void appendToSystemPromptHandlesEmptyBaseAndEmptyBundle() {
+        var bundle = new FactResolver.FactBundle(Map.of(FactKeys.USER_ID, "alice"));
+        assertEquals(bundle.asSystemPromptBlock(), bundle.appendToSystemPrompt(null));
+        assertEquals(bundle.asSystemPromptBlock(), bundle.appendToSystemPrompt("  "));
+        assertEquals("persona", FactResolver.FactBundle.empty().appendToSystemPrompt("persona"));
+    }
+
+    /**
+     * Stable additions (structured-output schema, confidence cue) appended
+     * after fact injection must splice in BEFORE a trailing fact block, so
+     * the volatile facts stay the absolute suffix and the stable schema text
+     * remains inside the provider's cacheable prompt prefix.
+     */
+    @Test
+    void appendStableTextSplicesBeforeTrailingFactBlock() {
+        var bundle = new FactResolver.FactBundle(Map.of(
+                FactKeys.TIME_NOW, "2026-04-18T21:00:00Z"));
+        var withFacts = bundle.appendToSystemPrompt("persona text");
+        var schema = "Respond with ONLY valid JSON matching this JSON Schema:\n{}";
+
+        var spliced = FactResolver.FactBundle.appendStableText(withFacts, schema);
+
+        var personaIdx = spliced.indexOf("persona text");
+        var schemaIdx = spliced.indexOf(schema);
+        var factsIdx = spliced.indexOf(FactResolver.FactBundle.SYSTEM_PROMPT_BLOCK_HEADER);
+        assertEquals(0, personaIdx, "persona still leads");
+        assertTrue(schemaIdx > personaIdx, "schema lands after persona");
+        assertTrue(factsIdx > schemaIdx, "fact block stays after the stable schema text");
+        assertEquals(bundle.asSystemPromptBlock(), spliced.substring(factsIdx),
+                "fact block must remain the absolute suffix after the splice");
+    }
+
+    @Test
+    void appendStableTextPlainAppendsWhenNoTrailingFactBlock() {
+        assertEquals("persona\n\nschema",
+                FactResolver.FactBundle.appendStableText("persona", "schema"));
+        assertEquals("schema", FactResolver.FactBundle.appendStableText("", "schema"));
+        assertEquals("persona", FactResolver.FactBundle.appendStableText("persona", null));
+        // Header-lookalike text followed by non-fact lines is NOT a fact
+        // block — stable text must go after it, not get spliced into it.
+        var lookalike = "persona\n" + FactResolver.FactBundle.SYSTEM_PROMPT_BLOCK_HEADER
+                + "\njust prose, not a fact line";
+        assertEquals(lookalike + "\n\nschema",
+                FactResolver.FactBundle.appendStableText(lookalike, "schema"));
     }
 
     @Test

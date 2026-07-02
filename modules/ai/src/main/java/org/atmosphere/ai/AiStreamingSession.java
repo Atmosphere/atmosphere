@@ -791,8 +791,13 @@ public class AiStreamingSession implements StreamingSession {
             var parser = StructuredOutputParser.resolve();
             target = new StructuredOutputCapturingSession(target, parser, effectiveResponseType);
             structuredSchemaText = parser.schemaInstructions(effectiveResponseType);
+            // appendStableText keeps a trailing grounded-facts block the
+            // absolute suffix: schema text is stable per endpoint, so it must
+            // land inside the provider's cacheable prompt prefix, not after
+            // the volatile facts (cache-prefix contract).
             request = request.withSystemPrompt(
-                    request.systemPrompt() + "\n\n" + structuredSchemaText);
+                    org.atmosphere.ai.facts.FactResolver.FactBundle.appendStableText(
+                            request.systemPrompt(), structuredSchemaText));
         }
 
         // Expose the session to interceptors via request attribute

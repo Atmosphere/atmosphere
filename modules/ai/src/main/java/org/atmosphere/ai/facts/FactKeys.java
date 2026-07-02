@@ -28,7 +28,12 @@ public final class FactKeys {
 
     // --- time -------------------------------------------------------------
 
-    /** Current wall-clock instant, ISO-8601. Server time, not request-relative. */
+    /**
+     * Current wall-clock instant, ISO-8601. Server time, not request-relative.
+     * {@link DefaultFactResolver} renders it at MINUTE granularity so
+     * same-minute requests produce byte-identical fact blocks (prompt-prefix
+     * cache friendliness); a richer resolver may supply finer precision.
+     */
     public static final String TIME_NOW = "time.now";
 
     /** IANA timezone for rendering dates/times back to the user. */

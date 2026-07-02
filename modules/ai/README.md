@@ -1023,15 +1023,21 @@ public final class UserProfileFactResolver implements FactResolver {
 ```
 
 `AiEndpointHandler` calls the resolver on every `@Prompt` turn and
-prepends the bundle to the system prompt via
-`FactBundle.asSystemPromptBlock()`. Newline / tab / control characters
-in values are escaped so fact values cannot reshape the instruction
-context.
+appends the bundle to the **end** of the system prompt via
+`FactBundle.appendToSystemPrompt()`. The block goes at the end — never
+the front — so the stable persona/skills/schema text stays a
+byte-identical prefix across turns and provider prompt-prefix caches
+(Anthropic prompt caching, OpenAI/Gemini prefix caches) keep hitting
+even though volatile facts like `time.now` change per turn (the
+default resolver additionally renders `time.now` at minute granularity
+so same-minute requests are byte-identical). Newline / tab / control
+characters in values are escaped so fact values cannot reshape the
+instruction context.
 
 Resolution order inside the handler:
 1. Spring-bridged bean at `FactResolver.FACT_RESOLVER_PROPERTY`
 2. `ServiceLoader.load(FactResolver.class)` — plain servlet / Quarkus
-3. `DefaultFactResolver` — supplies `time.now` + `time.timezone` only
+3. `DefaultFactResolver` — supplies `time.now` (minute granularity) + `time.timezone` only
 
 ### Guardrails — PII redaction, drift, cost ceiling, moderation
 
