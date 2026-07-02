@@ -68,6 +68,47 @@ class PolicyAdmissionGateTest {
     }
 
     @Test
+    void postResponseReleasesTheConcurrencySlotAcquiredAtAdmission() {
+        // Terminal-path pairing for MANUAL admission callers: admit()
+        // acquires the in-flight slot, postResponse() is its release. Without
+        // the release, a 3-max policy denies the subject after three turns —
+        // the 4.0.60 ms-governance-chat regression.
+        var concurrency = new ConcurrencyLimitPolicy("limit", 3);
+        properties.put(GovernancePolicy.POLICIES_PROPERTY, List.of(concurrency));
+        var request = new AiRequest("hi");
+
+        assertInstanceOf(PolicyAdmissionGate.Result.Admitted.class,
+                PolicyAdmissionGate.admit(framework, request));
+        assertEquals(1, concurrency.inFlightFor("anonymous"),
+                "admission must acquire one in-flight slot");
+
+        PolicyAdmissionGate.postResponse(framework, request, "done");
+        assertEquals(0, concurrency.inFlightFor("anonymous"),
+                "post-response must release the slot acquired at admission");
+    }
+
+    @Test
+    void postResponseRunsEveryPolicyEvenWhenOneDenies() {
+        // Chain: concurrency acquires first, then a downstream policy denies
+        // the turn. The acquired slot is leaked unless postResponse still
+        // reaches the concurrency policy — and the denying policy denies
+        // again at post-response, which must not halt the chain.
+        var concurrency = new ConcurrencyLimitPolicy("limit", 3);
+        properties.put(GovernancePolicy.POLICIES_PROPERTY, List.of(
+                concurrency,
+                new FixedPolicy("strict-pii", PolicyDecision.deny("PII present"))));
+        var request = new AiRequest("hi");
+        assertInstanceOf(PolicyAdmissionGate.Result.Denied.class,
+                PolicyAdmissionGate.admit(framework, request));
+        assertEquals(1, concurrency.inFlightFor("anonymous"),
+                "the slot acquired before the denier is held");
+
+        PolicyAdmissionGate.postResponse(framework, request, "");
+        assertEquals(0, concurrency.inFlightFor("anonymous"),
+                "a post-response deny must not starve later policies of their release");
+    }
+
+    @Test
     void denialHaltsTheChainAndReportsPolicyIdentity() {
         properties.put(GovernancePolicy.POLICIES_PROPERTY, List.of(
                 new FixedPolicy("strict-pii", PolicyDecision.deny("PII present"))));

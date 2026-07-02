@@ -182,11 +182,42 @@ public class AtmosphereAiAutoConfiguration {
         }
         var policies = policyProvider.orderedStream().toList();
         if (!policies.isEmpty()) {
-            framework.getAtmosphereConfig().properties()
-                    .put(GovernancePolicy.POLICIES_PROPERTY, policies);
-            logger.info("Bridged {} Spring GovernancePolicy bean(s) into framework properties: {}",
-                    policies.size(),
-                    policies.stream().map(GovernancePolicy::name).toList());
+            var props = framework.getAtmosphereConfig().properties();
+            var existing = props.get(GovernancePolicy.POLICIES_PROPERTY);
+            if (existing instanceof java.util.List<?> published && !published.isEmpty()) {
+                // An application already published a composed policy chain —
+                // ordering, phase scoping, Timed/Counting wrappers, YAML rule
+                // layers that are not Spring beans. Bridge only the beans the
+                // chain does not already carry (matched by policy name, which
+                // every decorator delegates): a blind put() would replace the
+                // composition with the raw bean list and silently drop the
+                // non-bean layers (exactly how the ms-governance sample lost
+                // its MS-schema YAML rules).
+                var publishedNames = published.stream()
+                        .filter(GovernancePolicy.class::isInstance)
+                        .map(p -> ((GovernancePolicy) p).name())
+                        .collect(java.util.stream.Collectors.toSet());
+                var missing = policies.stream()
+                        .filter(p -> !publishedNames.contains(p.name()))
+                        .toList();
+                if (missing.isEmpty()) {
+                    logger.info("GovernancePolicy chain already published ({} policies) — "
+                            + "all {} Spring bean(s) present, nothing to bridge",
+                            published.size(), policies.size());
+                } else {
+                    var merged = new java.util.ArrayList<Object>(published);
+                    merged.addAll(missing);
+                    props.put(GovernancePolicy.POLICIES_PROPERTY, java.util.List.copyOf(merged));
+                    logger.info("Appended {} Spring GovernancePolicy bean(s) to the published "
+                            + "chain ({} total): {}", missing.size(), merged.size(),
+                            missing.stream().map(GovernancePolicy::name).toList());
+                }
+            } else {
+                props.put(GovernancePolicy.POLICIES_PROPERTY, policies);
+                logger.info("Bridged {} Spring GovernancePolicy bean(s) into framework properties: {}",
+                        policies.size(),
+                        policies.stream().map(GovernancePolicy::name).toList());
+            }
         }
         // Bridge the RAG injection-safety policy into framework init-params so
         // AiEndpointProcessor wraps every @AiEndpoint ContextProvider. On by

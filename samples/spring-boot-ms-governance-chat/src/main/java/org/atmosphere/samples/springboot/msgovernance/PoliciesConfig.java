@@ -29,6 +29,7 @@ import org.atmosphere.ai.governance.YamlPolicyParser;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
@@ -96,7 +97,22 @@ public class PoliciesConfig {
      * denial shape without coupling to any specific wall-clock assumption.
      */
     @Bean
-    public TimeWindowPolicy businessHours() {
+    public TimeWindowPolicy businessHours(
+            @Value("${demo.support-hours.always-open:false}") boolean alwaysOpen) {
+        // The 08:00–20:00 Mon–Sat window is the honest production shape, but
+        // it denies every out-of-box turn on Sundays and at night. The
+        // always-open switch (demo.support-hours.always-open=true, or env
+        // DEMO_SUPPORTHOURS_ALWAYSOPEN=true) widens the window to 24/7 for
+        // off-hours demos and the deterministic E2E lane — the policy stays
+        // installed and evaluated either way.
+        if (alwaysOpen) {
+            return new TimeWindowPolicy(
+                    "support-business-hours", "code:" + getClass().getName(), "1",
+                    LocalTime.MIN, LocalTime.MAX,
+                    EnumSet.allOf(DayOfWeek.class),
+                    ZoneId.of("America/New_York"),
+                    Clock.systemUTC());
+        }
         return new TimeWindowPolicy(
                 "support-business-hours", "code:" + getClass().getName(), "1",
                 LocalTime.of(8, 0), LocalTime.of(20, 0),
@@ -178,9 +194,15 @@ public class PoliciesConfig {
         composed.add(TimedPolicy.of(requireSupportRole));
         composed.add(TimedPolicy.of(requireTenantId));
         composed.add(TimedPolicy.of(rateLimit));
-        composed.add(TimedPolicy.of(concurrencyLimit));
         composed.add(TimedPolicy.of(PhaseScopedPolicy.preAdmissionOnly(businessHours)));
         yamlPolicies.forEach(p -> composed.add(TimedPolicy.of(p)));
+        // Concurrency guard runs LAST on purpose: its pre-admission phase
+        // ACQUIRES an in-flight slot that must be paired with a release
+        // (post-response phase). Last place means a deny by any other policy
+        // never acquires — so only admitted turns hold slots, and the
+        // @Prompt handler's finally-block PolicyAdmissionGate.postResponse
+        // releases exactly those (Correctness Invariant #2).
+        composed.add(TimedPolicy.of(concurrencyLimit));
 
         framework.getAtmosphereConfig().properties()
                 .put(GovernancePolicy.POLICIES_PROPERTY, composed);

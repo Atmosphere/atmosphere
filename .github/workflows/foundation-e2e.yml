@@ -21,6 +21,7 @@ on:
       - 'samples/spring-boot-reattach-harness/**'
       - 'samples/kotlin-dsl-chat/**'
       - 'samples/spring-boot-spring-ai-advisors/**'
+      - 'samples/spring-boot-ms-governance-chat/**'
       - 'modules/kotlin/**'
       - 'e2e/**'
       - '.mvn/**'
@@ -60,7 +61,7 @@ jobs:
         # samples can resolve them at run-time.
         run: |
           ./mvnw install -Pfastinstall -DskipTests \
-            -pl samples/spring-boot-personal-assistant,samples/spring-boot-coding-agent,samples/spring-boot-reattach-harness,samples/kotlin-dsl-chat,samples/spring-boot-spring-ai-advisors \
+            -pl samples/spring-boot-personal-assistant,samples/spring-boot-coding-agent,samples/spring-boot-reattach-harness,samples/kotlin-dsl-chat,samples/spring-boot-spring-ai-advisors,samples/spring-boot-ms-governance-chat \
             -am -q
 
       - name: Install Playwright deps
@@ -245,6 +246,34 @@ jobs:
             kill "$(cat /tmp/saa.pid)" 2>/dev/null || true
           fi
 
+      # ── ms-governance-chat sample ─────────────────────────────────
+      # MS-schema rules-over-context demo on port 8090. always-open widens
+      # the support-business-hours window so the spec is deterministic at
+      # any CI wall-clock (the policy stays installed and evaluated).
+      - name: Start ms-governance-chat sample
+        run: |
+          nohup ./mvnw -pl samples/spring-boot-ms-governance-chat -q \
+              spring-boot:run \
+              -Dspring-boot.run.arguments='--demo.support-hours.always-open=true' \
+              > /tmp/msg-run.log 2>&1 &
+          echo $! > /tmp/msg.pid
+
+      - name: Wait for ms-governance-chat readiness
+        run: npx --yes wait-on --timeout 120000 http://localhost:8090/atmosphere/console/
+
+      - name: Run ms-governance-chat spec
+        working-directory: e2e
+        env:
+          ATMO_E2E_BASE_URL: http://localhost:8090
+        run: npx playwright test tests/ms-governance-chat.spec.ts --reporter=list
+
+      - name: Stop ms-governance-chat
+        if: always()
+        run: |
+          if [ -f /tmp/msg.pid ]; then
+            kill "$(cat /tmp/msg.pid)" 2>/dev/null || true
+          fi
+
       - name: Dump sample logs on failure
         if: failure()
         run: |
@@ -258,3 +287,5 @@ jobs:
           cat /tmp/kdsl-run.log || true
           echo '=== saa-run.log ==='
           cat /tmp/saa-run.log || true
+          echo '=== msg-run.log ==='
+          cat /tmp/msg-run.log || true

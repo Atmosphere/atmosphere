@@ -172,6 +172,72 @@ public final class PolicyAdmissionGate {
     }
 
     /**
+     * Run the {@link PolicyContext.Phase#POST_RESPONSE} phase across the
+     * published policy chain — the terminal half of
+     * {@link #admit(AtmosphereFramework, AiRequest)}. Stateful policies pair
+     * their pre-admission acquire with a release here (e.g.
+     * {@link ConcurrencyLimitPolicy}'s in-flight slot); response-inspecting
+     * policies see the accumulated text.
+     *
+     * <p>Callers that drive admission manually MUST invoke this on EVERY
+     * terminal path — success, error, cancel — or acquired state leaks
+     * (Correctness Invariant #2: after three leaked slots a 3-max concurrency
+     * policy denies the subject forever). The streaming pipeline runs this
+     * phase itself; only manual {@code admit(...)} call sites need it.</p>
+     *
+     * <p>Denials are recorded and logged, not returned: by this phase the
+     * response has already been delivered, so the value of a deny is the
+     * audit record — and the chain always runs to the end so every stateful
+     * policy gets its release regardless of earlier outcomes.</p>
+     */
+    public static void postResponse(AtmosphereFramework framework, AiRequest request,
+                                    String accumulatedResponse) {
+        if (framework == null || request == null) {
+            return;
+        }
+        var config = framework.getAtmosphereConfig();
+        if (config == null) {
+            return;
+        }
+        var raw = config.properties().get(GovernancePolicy.POLICIES_PROPERTY);
+        if (!(raw instanceof List<?> installedPolicies) || installedPolicies.isEmpty()) {
+            return;
+        }
+        var ctx = PolicyContext.postResponse(request,
+                accumulatedResponse == null ? "" : accumulatedResponse);
+        for (var entry : installedPolicies) {
+            if (!(entry instanceof GovernancePolicy policy)) {
+                continue;
+            }
+            var startNs = System.nanoTime();
+            try {
+                var decision = policy.evaluate(ctx);
+                if (decision instanceof PolicyDecision.Deny deny) {
+                    var evalMs = (System.nanoTime() - startNs) / 1_000_000.0;
+                    logger.warn("Post-response deny by policy {} (source={}, version={}): {}",
+                            policy.name(), policy.source(), policy.version(), deny.reason());
+                    GovernanceDecisionLog.installed().record(
+                            GovernanceDecisionLog.entry(policy, ctx, "deny", deny.reason(), evalMs));
+                }
+            } catch (Exception e) {
+                logger.warn("GovernancePolicy.evaluate failed in post-response phase "
+                        + "(policy={}): continuing so remaining policies release state",
+                        policy.name(), e);
+            }
+        }
+    }
+
+    /** Resource-aware overload — reads the framework off the resource. */
+    public static void postResponse(AtmosphereResource resource, AiRequest request,
+                                    String accumulatedResponse) {
+        if (resource == null) {
+            return;
+        }
+        var config = resource.getAtmosphereConfig();
+        postResponse(config == null ? null : config.framework(), request, accumulatedResponse);
+    }
+
+    /**
      * Run the admission chain against a tool-call intent. Builds a synthetic
      * {@link AiRequest} whose metadata carries {@code tool_name}, {@code action},
      * and (when present) a preview of the tool arguments so MS-schema rules like

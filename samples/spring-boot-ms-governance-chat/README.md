@@ -16,13 +16,31 @@ samples/spring-boot-ms-governance-chat/
     ├── java/org/atmosphere/samples/springboot/msgovernance/
     │   ├── MsGovernanceChatApplication.java    # @SpringBootApplication entrypoint
     │   ├── MsGovernanceChat.java               # @AiEndpoint("/atmosphere/ms-governance")
-    │   └── PoliciesConfig.java                 # loads MS-schema YAML at startup
+    │   ├── PoliciesConfig.java                 # loads MS-schema YAML + operator policy beans
+    │   ├── DemoIdentityInterceptor.java        # stamps demo tenant-id + roles (auth-layer stand-in)
+    │   ├── FaqRetrievalInterceptor.java        # RAG-lite: FAQ snippet into request metadata
+    │   ├── TicketClassifierInterceptor.java    # category classification into metadata
+    │   └── FaqKnowledgeBase.java               # bundled Example Corp FAQ
     └── resources/
         ├── application.yml                     # console-subtitle + console-endpoint
         └── atmosphere-policies.yaml            # MS schema, priority-sorted rule set
 ```
 
-**Three Java files, two YAML files, zero custom frontend code.** The UI is the Vue chat console shipped with `atmosphere-spring-boot-starter`.
+**Seven Java files, two YAML files, zero custom frontend code.** The UI is the Vue chat console shipped with `atmosphere-spring-boot-starter`.
+
+**Demo identity:** the policy plane requires a `tenant-id` and the
+`support-chat-user` role on every request (the shape a multi-tenant SaaS
+support bot needs). The bundled console carries no identity, so
+`DemoIdentityInterceptor` stamps `tenant-id=demo-tenant` and
+`roles=support-chat-user` onto any turn that doesn't already have them —
+production deployments delete that interceptor and stamp both keys from
+their auth layer (JWT claims, session).
+
+**Business hours:** `support-business-hours` denies outside 08:00–20:00
+America/New_York, Mon–Sat — by design. Demoing on a Sunday or at night?
+Start with `DEMO_SUPPORTHOURS_ALWAYSOPEN=true` (or
+`--demo.support-hours.always-open=true`) to widen the window to 24/7; the
+policy stays installed and evaluated.
 
 ---
 
