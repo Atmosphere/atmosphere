@@ -112,6 +112,18 @@ jobs:
       run: ./mvnw -B test -Dgpg.skip=true -Dgroups='!flaky'
 
   # ─────────────────────────────────────────────
+  # Phase 1b: Packaged-sample sweep (Release Gate: Samples E2E)
+  # ─────────────────────────────────────────────
+  release-gate-samples:
+    name: Release Gate — Samples E2E
+    if: ${{ !inputs.js_only }}
+    # Boots every runnable sample from its packaged artifact (java -jar, not
+    # spring-boot:run) and runs its Playwright/smoke coverage — the layer
+    # where the 2026-07 sweep found failures push-CI never saw. release-maven
+    # depends on this job, so a release cannot be cut without a green sweep.
+    uses: ./.github/workflows/release-gate-samples.yml
+
+  # ─────────────────────────────────────────────
   # Phase 2: Build atmosphere.js
   # ─────────────────────────────────────────────
   build-js:
@@ -150,7 +162,10 @@ jobs:
   # ─────────────────────────────────────────────
   release-maven:
     name: Release to Maven Central
-    needs: [validate]
+    # release-gate-samples is the packaged-artifact sweep — a release cannot
+    # publish unless every runnable sample boots from its jar and passes its
+    # Playwright/smoke coverage (see scripts/release-gate-samples.sh --list).
+    needs: [validate, release-gate-samples]
     if: ${{ !inputs.js_only }}
     runs-on: ubuntu-latest
     permissions:

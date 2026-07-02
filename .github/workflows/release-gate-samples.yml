@@ -1,0 +1,157 @@
+name: "Release Gate: Samples E2E"
+
+# Standing release gate at the PACKAGED-ARTIFACT level. A 2026-07 manual
+# sweep of the sample matrix found failures push-CI never saw because they
+# only exist in the packaged/config layer (shaded jar missing its WS
+# container + logback-core, demo-mode config swallowing web messages,
+# sample policies denying all console traffic, a compose file pinning a
+# nonexistent image) — unit tests and dev-mode specs were green throughout.
+#
+# This lane builds the full reactor once, then boots every runnable sample
+# FROM ITS PACKAGED ARTIFACT (java -jar the boot/runner jar — never
+# spring-boot:run / quarkus:dev) and asserts against that process. The
+# authoritative sample -> {spec projects | smoke-only | excluded} coverage
+# map lives in scripts/release-gate-samples.sh (run --list to print it;
+# the map fails the gate if a samples/ directory is ever left unmapped).
+#
+# Triggers: nightly + manual + workflow_call (release-4x.yml requires a
+# green run before release-maven can publish). Deliberately NOT per-push —
+# the per-push e2e.yml matrix already covers feature depth; this lane is
+# the packaged-sweep gate.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_call:
+
+jobs:
+  build:
+    name: Build reactor + print coverage map
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v5
+      with:
+        java-version: 21
+        distribution: 'temurin'
+        cache: 'maven'
+
+    - name: Print coverage map (no silent caps)
+      run: ./scripts/release-gate-samples.sh --list
+
+    - name: Build all modules and package all samples
+      run: ./mvnw -B clean install -DskipTests -Dgpg.skip=true
+
+    - name: Package build output
+      run: |
+        tar czf /tmp/release-gate-targets.tar.gz \
+          samples/*/target \
+          modules/*/target \
+          -C "$HOME" .m2/repository/org/atmosphere
+
+    - name: Upload build output
+      uses: actions/upload-artifact@v7
+      with:
+        name: release-gate-targets
+        path: /tmp/release-gate-targets.tar.gz
+        retention-days: 1
+
+  gate:
+    name: Gate — ${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    needs: [build]
+    timeout-minutes: 40
+    strategy:
+      # Shard names must match shard_samples() in scripts/release-gate-samples.sh.
+      fail-fast: false
+      matrix:
+        shard: [core, ai-core, ai-extra, agents, coordination, foundation, smoke]
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v5
+      with:
+        java-version: 21
+        distribution: 'temurin'
+        cache: 'maven'
+
+    - name: Download build output
+      uses: actions/download-artifact@v8
+      with:
+        name: release-gate-targets
+
+    - name: Restore build output
+      run: |
+        tar xzmf release-gate-targets.tar.gz
+        # Restore atmosphere SNAPSHOT artifacts to the local Maven repo so
+        # dev-mode boots (chat via jetty:run) and lazy repackaging resolve.
+        if [ -d .m2/repository/org/atmosphere ]; then
+          mkdir -p ~/.m2/repository/org
+          cp -r .m2/repository/org/atmosphere ~/.m2/repository/org/
+          rm -rf .m2
+        fi
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: 22
+        cache: 'npm'
+        cache-dependency-path: modules/integration-tests/package-lock.json
+
+    - name: Cache Playwright browsers
+      id: playwright-cache
+      uses: actions/cache@v6
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ hashFiles('modules/integration-tests/package-lock.json') }}
+
+    - name: Install npm dependencies
+      run: |
+        (cd modules/integration-tests && npm ci)
+        (cd e2e && npm ci)
+
+    - name: Install Playwright browsers
+      working-directory: modules/integration-tests
+      run: |
+        # Same hardened install as e2e.yml: bounded attempts, timeout converts
+        # a stalled download/apt mirror into exit 124 so the retry advances.
+        if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
+          cmd="npx playwright install-deps chromium"
+        else
+          cmd="npx playwright install --with-deps chromium"
+        fi
+        for attempt in 1 2 3; do
+          if timeout 300 $cmd; then
+            break
+          fi
+          if [ "$attempt" = "3" ]; then
+            echo "playwright install failed after 3 attempts" >&2
+            exit 1
+          fi
+          echo "playwright install attempt $attempt failed, retrying in ${attempt}0s..." >&2
+          sleep "${attempt}0"
+        done
+
+    - name: Run release gate shard
+      env:
+        LLM_MODE: fake
+      run: ./scripts/release-gate-samples.sh --shard ${{ matrix.shard }}
+
+    - name: Upload failure artifacts (boot logs + reports)
+      if: failure()
+      uses: actions/upload-artifact@v7
+      with:
+        name: release-gate-${{ matrix.shard }}-failure
+        path: |
+          target/release-gate-samples/
+          modules/integration-tests/playwright-report/
+          modules/integration-tests/test-results/
+          e2e/playwright-report/
+          e2e/test-results/
+        retention-days: 14
+        if-no-files-found: ignore
