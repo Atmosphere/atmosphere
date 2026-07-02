@@ -1,15 +1,26 @@
 name: "CI: Integration Tests"
 
-# Parallel lane for modules/integration-tests' -Pcore-integration tier.
+# Isolation lane for modules/integration-tests — NOT recovered coverage.
 #
-# modules/integration-tests skips surefire in its default build, and the Core
-# full-reactor `mvn test` (ci.yml) does NOT activate -Pcore-integration — so
-# without this lane its ~63 Java integration tests (WebSocket/SSE/gRPC/long-poll
-# transports, MCP http/stateless/ws/authorization, agent + coordinator WebSocket,
-# structured output) run nowhere. They are infra-free (no Docker, no LLM keys),
-# so they belong in a fast standalone lane rather than serialised into the Core
-# job. The heavier -Pfull-integration tier (Kafka/Redis clustering, real-LLM
-# checkpoint E2E) needs Testcontainers/keys and stays in the e2e-real-llm lanes.
+# ci.yml's Core "Run All Tests" step excludes this module (-pl
+# '!modules/integration-tests') so its integration suites run here in
+# parallel instead of serializing the Core job. When this lane was first
+# added it claimed the module's tests "ran nowhere"; that was wrong — the
+# Core full-reactor `mvn test` already ran them unfiltered, because
+# ${test.groups} is only bound by the -Pcore-integration /
+# -Pfull-integration profiles and the default build leaves surefire's
+# <groups> filter empty (see .harness/drift-log.md, 2026-07-01).
+#
+# The test step runs the default build (no profile), which applies no tag
+# filter — the FULL suite executes: transports (WebSocket/SSE/gRPC/
+# long-poll), MCP (http/stateless/ws/authorization), agent + coordinator
+# WebSocket, structured output, long-term memory backends, Kafka/Redis
+# clustering, and checkpoint E2E. ubuntu-latest provides Docker for the
+# Testcontainers suites; the checkpoint E2E tests fabricate journal events
+# and need no LLM keys. No -Dgroups flag: the module POM pins surefire's
+# <groups> to ${test.groups}, and explicit POM configuration shadows the
+# `groups` CLI user property, so a -Dgroups here is dead (verified: a
+# flaky-tagged test still runs under -Dgroups='!flaky' with this config).
 
 on:
   workflow_dispatch:
@@ -27,8 +38,8 @@ on:
       - 'LICENSE'
 
 jobs:
-  core-integration:
-    name: Core Integration Tests
+  integration-tests:
+    name: Integration Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -46,12 +57,12 @@ jobs:
     - name: Build integration-tests and dependencies
       run: ./mvnw -B clean install -pl modules/integration-tests -am -DskipTests -Dgpg.skip=true
 
-    - name: Run core-integration suite
-      run: ./mvnw -B test -pl modules/integration-tests -Pcore-integration -Dgpg.skip=true -Dgroups='!flaky'
+    - name: Run full integration suite
+      run: ./mvnw -B test -pl modules/integration-tests -Dgpg.skip=true
 
     - name: Upload test results
       if: failure()
       uses: actions/upload-artifact@v7
       with:
-        name: core-integration-test-results
+        name: integration-test-results
         path: modules/integration-tests/target/surefire-reports/

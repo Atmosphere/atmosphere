@@ -80,12 +80,19 @@ jobs:
     - name: Build Core Modules
       run: ./mvnw -B clean install -DskipTests -Dgpg.skip=true ${{ matrix.mvn-extra-args }}
 
-    # Full-reactor test — NO -pl. A hand-picked module list silently drops every
-    # new module from CI (60% of modules were untested for weeks). Testing the
-    # whole reactor means a new module is covered the moment it exists, with no
-    # name to remember. Mirrors release-4x.yml's test step (proven to pass).
+    # Full-reactor test — no hand-picked module allow-list. A hand-picked list
+    # silently drops every new module from CI (60% of modules were untested for
+    # weeks). Testing the whole reactor means a new module is covered the moment
+    # it exists, with no name to remember.
+    #
+    # Single exclusion: modules/integration-tests. Its integration suites
+    # (WebSocket/SSE/gRPC/long-poll transports, MCP, Kafka/Redis clustering,
+    # checkpoint E2E) run unfiltered in the dedicated parallel "CI: Integration
+    # Tests" lane (integration-tests.yml) so they don't serialize this job.
+    # Everything else still runs full-reactor here; the release gate
+    # (release-4x.yml test step) keeps the module in its full-reactor run.
     - name: Run All Tests
-      run: ./mvnw -B test -Dgpg.skip=true -Dgroups='!flaky' ${{ matrix.mvn-extra-args }}
+      run: ./mvnw -B test -pl '!modules/integration-tests' -Dgpg.skip=true -Dgroups='!flaky' ${{ matrix.mvn-extra-args }}
 
     - name: Upload Test Results
       if: failure()

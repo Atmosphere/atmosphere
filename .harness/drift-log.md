@@ -1940,3 +1940,38 @@ journal and an in-memory fallback). Proven by a `QuarkusExtensionTest`
 Surfaced here so the point-in-time "remaining work" note above is not later read as
 still-open. The framework-parity blockquote in `modules/ai/README.md` was updated to
 match.
+
+---
+
+## 2026-07-01 — Integration-tests CI lane added on the false premise that its tests "ran nowhere"
+
+**Claim (a8f5e24870, integration-tests.yml header + commit rationale):** "modules/integration-tests
+skips surefire in its default build, and the Core full-reactor `mvn test` (ci.yml) does NOT
+activate -Pcore-integration — so without this lane its ~63 Java integration tests … run nowhere."
+
+**Truth:** the Core full-reactor job already ran them. The module POM pins surefire's
+`<groups>${test.groups}</groups>` (pom line 203), and `test.groups` is only bound inside the
+`-Pcore-integration` / `-Pfull-integration` profiles (lines 235/242) — in the default build the
+property is unresolved and surefire applies **no tag filter**, so all 23 test classes execute.
+The green Core log for that very push shows `KafkaClusteringTest` etc. executing. Reproduced
+locally with a minimal surefire-3.5.4 project: default build + `-Dgroups='!flaky'` ran every
+test including a flaky-tagged one, proving both "no filter" and that explicit POM `<groups>`
+configuration shadows the `groups` CLI user property — the lane's `-Dgroups='!flaky'` was dead
+too. Worse, the lane's `-Pcore-integration` (`<groups>core</groups>`) *narrowed* coverage to
+17 of 23 classes (dropping the coordinator/ai/kafka/redis-tagged suites), so the "recovered"
+lane covered strictly less than Core already did. The header's companion claim that the
+`-Pfull-integration` tier "stays in the e2e-real-llm lanes" was also false — those lanes
+`install -DskipTests` the module and run Playwright specs, never the Java profile.
+
+**Slip path:** verified that the tests CAN run under `-Pcore-integration`, never checked whether
+they ALSO ran in Core — read the POM's profile/skip config and inferred "skips surefire in the
+default build" instead of grepping the passing Core CI log for the module's test class names.
+
+**Fix (this commit):** the lane is made real as a true isolation lane — ci.yml's "Run All Tests"
+now excludes the module (`-pl '!modules/integration-tests'`) and the lane runs the module's full
+unfiltered suite (no profile, no dead `-Dgroups`), with the header rewritten to say isolation,
+not recovered coverage. Zero coverage loss; the release-4x test gate still runs the full reactor.
+
+**Gate:** before claiming "X runs nowhere / is skipped", grep a passing CI run's log for X
+(`gh run view --log | grep <TestClass>`) — POM reading tells you what *can* run; only the log
+of the lane you claim is missing X tells you what *does* run.
