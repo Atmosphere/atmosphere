@@ -42,7 +42,45 @@ public final class AgentRuntimeResolver {
     // acceptable (both threads produce the same ServiceLoader result).
     private static volatile List<AgentRuntime> cachedAll;
 
+    // True once application code has explicitly bound a native client to a
+    // runtime adapter (SpringAiAgentRuntime.setChatClient,
+    // LangChain4jAgentRuntime.setModel, ...). The demo fallback keys its
+    // availability off "no API key configured"; a bound client means a real
+    // runtime can serve without any key, so demo must yield.
+    private static volatile boolean explicitClientBinding;
+
     private AgentRuntimeResolver() {}
+
+    /**
+     * Records that application code explicitly bound a native client to a
+     * runtime adapter, and drops the cached resolution so the next
+     * {@link #resolveAll()} re-evaluates availability. Called by the runtime
+     * adapters' static binder methods — never by auto-configuration paths,
+     * which must offer rather than bind.
+     */
+    public static void markExplicitClientBinding() {
+        explicitClientBinding = true;
+        reset();
+    }
+
+    /**
+     * Whether application code has explicitly bound a native client to any
+     * runtime adapter in this JVM.
+     *
+     * @return {@code true} once {@link #markExplicitClientBinding()} ran
+     */
+    public static boolean hasExplicitClientBinding() {
+        return explicitClientBinding;
+    }
+
+    /**
+     * Test hook: clears the {@link #markExplicitClientBinding()} mark and the
+     * cached resolution, restoring the pristine no-binding state.
+     */
+    public static void clearExplicitClientBinding() {
+        explicitClientBinding = false;
+        reset();
+    }
 
     /**
      * Returns the highest-priority available runtime, or
@@ -102,6 +140,9 @@ public final class AgentRuntimeResolver {
             all.add(new BuiltInAgentRuntime());
             logger.debug("No AgentRuntime on classpath, using built-in");
         }
+
+        logger.info("AgentRuntime resolution: {} (explicitClientBinding={})",
+                all.stream().map(AgentRuntime::name).toList(), explicitClientBinding);
 
         result = List.copyOf(all);
         cachedAll = result;

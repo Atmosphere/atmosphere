@@ -20,6 +20,7 @@ on:
       - 'samples/spring-boot-coding-agent/**'
       - 'samples/spring-boot-reattach-harness/**'
       - 'samples/kotlin-dsl-chat/**'
+      - 'samples/spring-boot-spring-ai-advisors/**'
       - 'modules/kotlin/**'
       - 'e2e/**'
       - '.mvn/**'
@@ -59,7 +60,7 @@ jobs:
         # samples can resolve them at run-time.
         run: |
           ./mvnw install -Pfastinstall -DskipTests \
-            -pl samples/spring-boot-personal-assistant,samples/spring-boot-coding-agent,samples/spring-boot-reattach-harness,samples/kotlin-dsl-chat \
+            -pl samples/spring-boot-personal-assistant,samples/spring-boot-coding-agent,samples/spring-boot-reattach-harness,samples/kotlin-dsl-chat,samples/spring-boot-spring-ai-advisors \
             -am -q
 
       - name: Install Playwright deps
@@ -214,6 +215,36 @@ jobs:
             kill "$(cat /tmp/kdsl.pid)" 2>/dev/null || true
           fi
 
+      # ── spring-ai-advisors sample ─────────────────────────────────
+      # Bound-ChatClient contract on port 8098. Runs KEYLESS on purpose —
+      # that is the regression under test: the resolver must pick the
+      # runtime carrying the explicitly bound (offline LocalEchoChatModel)
+      # client over the no-key demo fallback, and the bound client's
+      # defaultAdvisors must fire on every turn (auto-configuration used
+      # to clobber the binding, silencing them).
+      - name: Start spring-ai-advisors sample
+        run: |
+          nohup ./mvnw -pl samples/spring-boot-spring-ai-advisors -q \
+              spring-boot:run \
+              > /tmp/saa-run.log 2>&1 &
+          echo $! > /tmp/saa.pid
+
+      - name: Wait for spring-ai-advisors readiness
+        run: npx --yes wait-on --timeout 120000 http://localhost:8098/atmosphere/console/
+
+      - name: Run spring-ai-advisors spec
+        working-directory: e2e
+        env:
+          ATMO_E2E_BASE_URL: http://localhost:8098
+        run: npx playwright test tests/spring-ai-advisors.spec.ts --reporter=list
+
+      - name: Stop spring-ai-advisors
+        if: always()
+        run: |
+          if [ -f /tmp/saa.pid ]; then
+            kill "$(cat /tmp/saa.pid)" 2>/dev/null || true
+          fi
+
       - name: Dump sample logs on failure
         if: failure()
         run: |
@@ -225,3 +256,5 @@ jobs:
           cat /tmp/rh-run.log || true
           echo '=== kdsl-run.log ==='
           cat /tmp/kdsl-run.log || true
+          echo '=== saa-run.log ==='
+          cat /tmp/saa-run.log || true

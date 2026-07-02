@@ -119,10 +119,28 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
     }
 
     /**
-     * Set the {@link StreamingChatModel} to use for streaming.
+     * Binds the {@link StreamingChatModel} to use for streaming. This is the
+     * application-facing binder: calling it marks an explicit client binding
+     * so the resolver prefers this runtime over the no-key demo fallback (a
+     * bound model serves without any API key) and protects the binding from
+     * auto-configuration, which must go through {@link #offerModel}.
      */
     public static void setModel(StreamingChatModel streamingModel) {
         staticModel = streamingModel;
+        if (streamingModel != null) {
+            org.atmosphere.ai.AgentRuntimeResolver.markExplicitClientBinding();
+        }
+    }
+
+    /**
+     * Auto-configuration seam: binds {@code streamingModel} only when the
+     * application has not already bound one — auto-detected context beans
+     * must never overwrite an explicit {@link #setModel} call.
+     */
+    public static void offerModel(StreamingChatModel streamingModel) {
+        if (staticModel == null && streamingModel != null) {
+            setModel(streamingModel);
+        }
     }
 
     // Held for static setter compatibility with Spring auto-configuration

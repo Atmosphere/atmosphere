@@ -43,8 +43,42 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
 
     private static volatile ChatClient staticClient;
 
+    /**
+     * Binds the {@link ChatClient} every Atmosphere AI request dispatches
+     * through. This is the application-facing binder: calling it marks an
+     * explicit client binding, which (a) makes the resolver prefer this
+     * runtime over the no-key demo fallback — a bound client serves without
+     * any API key — and (b) protects the binding from being clobbered by
+     * auto-configuration, which must go through {@link #offerChatClient}.
+     */
     public static void setChatClient(ChatClient client) {
         staticClient = client;
+        if (client != null) {
+            org.atmosphere.ai.AgentRuntimeResolver.markExplicitClientBinding();
+        }
+    }
+
+    /**
+     * Auto-configuration seam: binds {@code client} only when the
+     * application has not already bound one. Auto-detected context beans
+     * must never overwrite an explicit {@link #setChatClient} call — the
+     * binder owns the binding (that clobbering is exactly how a bound
+     * client's {@code defaultAdvisors(...)} silently stopped firing).
+     */
+    public static void offerChatClient(ChatClient client) {
+        if (staticClient == null && client != null) {
+            setChatClient(client);
+        }
+    }
+
+    /** The currently bound client, if any. Package-private for tests. */
+    static ChatClient boundClient() {
+        return staticClient;
+    }
+
+    /** Test hook: drops the bound client so each test starts unbound. */
+    static void clearChatClientBinding() {
+        staticClient = null;
     }
 
     @Override

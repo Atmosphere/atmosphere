@@ -108,7 +108,11 @@ public class AtmosphereSpringAiAutoConfiguration {
             logger.info("No ChatClient available — Spring AI AgentRuntime runs in demo mode");
             return new SpringAiAgentRuntime();
         }
-        SpringAiAgentRuntime.setChatClient(chatClient);
+        // Offer, never bind: an application that already called
+        // setChatClient(...) (e.g. a caller-built client carrying
+        // defaultAdvisors) owns the binding; the context bean is only the
+        // default when no explicit binding exists.
+        SpringAiAgentRuntime.offerChatClient(chatClient);
         return new SpringAiAgentRuntime();
     }
 

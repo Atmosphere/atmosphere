@@ -15,11 +15,18 @@
  */
 package org.atmosphere.ai.spring;
 
+import org.atmosphere.ai.AgentRuntimeResolver;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.ObjectProvider;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Regression test for the Spring AI 2.0.0-M5+ bean-wiring drift: building an
@@ -41,6 +48,56 @@ class AtmosphereSpringAiAutoConfigurationTest {
 
     private final AtmosphereSpringAiAutoConfiguration autoConfig =
             new AtmosphereSpringAiAutoConfiguration();
+
+    @BeforeEach
+    @AfterEach
+    void clearStaticBindings() {
+        SpringAiAgentRuntime.clearChatClientBinding();
+        AgentRuntimeResolver.clearExplicitClientBinding();
+    }
+
+    @Test
+    void runtimeBeanDoesNotClobberAnExplicitlyBoundClient() {
+        // 4.0.60 release-gate regression: an app that binds a caller-built
+        // ChatClient (carrying defaultAdvisors) had it silently replaced by
+        // the auto-detected context bean, so the default advisors never
+        // fired. The bean factory must offer, never bind.
+        var boundByApp = Mockito.mock(ChatClient.class);
+        SpringAiAgentRuntime.setChatClient(boundByApp);
+
+        var contextBean = Mockito.mock(ChatClient.class);
+        @SuppressWarnings("unchecked") // Mockito cannot mock the generic type reified
+        ObjectProvider<ChatClient> provider = Mockito.mock(ObjectProvider.class);
+        Mockito.when(provider.getIfAvailable()).thenReturn(contextBean);
+
+        autoConfig.springAiAgentRuntime(provider);
+
+        assertSame(boundByApp, SpringAiAgentRuntime.boundClient(),
+                "auto-configuration must not replace an explicitly bound ChatClient");
+    }
+
+    @Test
+    void runtimeBeanBindsTheContextClientWhenNothingIsBound() {
+        var contextBean = Mockito.mock(ChatClient.class);
+        @SuppressWarnings("unchecked") // Mockito cannot mock the generic type reified
+        ObjectProvider<ChatClient> provider = Mockito.mock(ObjectProvider.class);
+        Mockito.when(provider.getIfAvailable()).thenReturn(contextBean);
+
+        autoConfig.springAiAgentRuntime(provider);
+
+        assertSame(contextBean, SpringAiAgentRuntime.boundClient(),
+                "with no explicit binding the context ChatClient is the default");
+    }
+
+    @Test
+    void explicitBindingMarksTheResolverSoDemoStepsAside() {
+        SpringAiAgentRuntime.setChatClient(Mockito.mock(ChatClient.class));
+
+        assertTrue(AgentRuntimeResolver.hasExplicitClientBinding(),
+                "setChatClient must record the explicit binding — the demo "
+                        + "fallback keys availability off it so a bound offline "
+                        + "client is not shadowed by canned responses");
+    }
 
     @Test
     void atmosphereChatClient_returnsNullWhenApiKeyMissing() {

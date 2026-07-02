@@ -34,7 +34,9 @@ import java.util.function.Function;
  * <p>Runs when {@link AiConfig#get()} has no API key, so samples work
  * out-of-the-box without an {@code LLM_API_KEY}. It wins over every real
  * runtime only in that no-key state (via {@link #isAvailable()}); when a key
- * is configured the runtime is invisible to the resolver and
+ * is configured — or when application code explicitly bound a native client
+ * to a runtime adapter (e.g. {@code SpringAiAgentRuntime.setChatClient}),
+ * which serves without any key — the runtime is invisible to the resolver and
  * LangChain4j / Spring AI / the Built-in runtime take over as usual.</p>
  *
  * <p>Crucially this goes through the same {@code AiStreamingSession} pipeline
@@ -80,11 +82,19 @@ public final class DemoAgentRuntime implements AgentRuntime {
     }
 
     /**
-     * Available only when no API key is configured. Real runtimes remain
-     * the resolver's first choice the moment a key is present.
+     * Available only when no API key is configured AND no native client was
+     * explicitly bound to a runtime adapter. Real runtimes remain the
+     * resolver's first choice the moment a key is present, and a bound
+     * client (e.g. an offline {@code ChatClient} handed to
+     * {@code SpringAiAgentRuntime.setChatClient}) serves without any key —
+     * shadowing it with the demo canned response would discard the
+     * application's explicit wiring.
      */
     @Override
     public boolean isAvailable() {
+        if (org.atmosphere.ai.AgentRuntimeResolver.hasExplicitClientBinding()) {
+            return false;
+        }
         var cfg = AiConfig.get();
         return cfg == null || cfg.apiKey() == null || cfg.apiKey().isBlank();
     }

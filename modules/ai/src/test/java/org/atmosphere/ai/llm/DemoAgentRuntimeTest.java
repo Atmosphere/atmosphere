@@ -42,14 +42,14 @@ class DemoAgentRuntimeTest {
     void resetConfig() {
         // No-key state for the default test scenario.
         AiConfig.configure("remote", "demo-model", null, null);
-        AgentRuntimeResolver.reset();
+        AgentRuntimeResolver.clearExplicitClientBinding();
         DemoAgentRuntime.setResponseStrategy(null);
     }
 
     @AfterEach
     void tearDown() {
         AiConfig.configure("remote", "demo-model", null, null);
-        AgentRuntimeResolver.reset();
+        AgentRuntimeResolver.clearExplicitClientBinding();
         DemoAgentRuntime.setResponseStrategy(null);
     }
 
@@ -78,6 +78,27 @@ class DemoAgentRuntimeTest {
         var runtime = new DemoAgentRuntime();
         assertTrue(runtime.isAvailable(),
                 "Blank keys count as no-key — demo should take over");
+    }
+
+    @Test
+    void isNotAvailableWhenApplicationBoundAClient() {
+        // An app that hands a native client to a runtime adapter (e.g.
+        // SpringAiAgentRuntime.setChatClient with an offline ChatClient) can
+        // serve keyless; the demo canned response must not shadow it.
+        AgentRuntimeResolver.markExplicitClientBinding();
+
+        var runtime = new DemoAgentRuntime();
+        assertFalse(runtime.isAvailable(),
+                "Demo runtime must step aside when a native client was explicitly bound");
+    }
+
+    @Test
+    void demoStepsAsideInResolutionWhenClientExplicitlyBound() {
+        AgentRuntimeResolver.markExplicitClientBinding();
+
+        var runtime = AgentRuntimeResolver.resolve();
+        assertFalse("demo".equals(runtime.name()),
+                "Resolution must not pick demo once an explicit client binding exists");
     }
 
     @Test

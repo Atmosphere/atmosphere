@@ -77,7 +77,9 @@ public class AtmosphereLangChain4jAutoConfiguration {
     @Bean
     @ConditionalOnBean(StreamingChatModel.class)
     LangChain4jAgentRuntime langChain4jAiSupportBridge(StreamingChatModel model) {
-        LangChain4jAgentRuntime.setModel(model);
+        // Offer, never bind: an explicit setModel(...) call from application
+        // code owns the binding; the context bean is only the default.
+        LangChain4jAgentRuntime.offerModel(model);
         return new LangChain4jAgentRuntime();
     }
 }
