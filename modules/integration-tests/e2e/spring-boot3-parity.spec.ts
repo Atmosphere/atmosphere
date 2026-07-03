@@ -4,7 +4,10 @@ import { connectWebSocket, waitFor } from './helpers/transport-helper';
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
-const ROOT = resolve(__dirname, '..', '..', '..', '..');
+// Three ups reaches the repo root from modules/integration-tests/e2e; a four-up
+// path here overshot it, so hasSB3Module was always false and this parity suite
+// dead-skipped in CI even though modules/spring-boot3-starter exists.
+const ROOT = resolve(__dirname, '..', '..', '..');
 const SB3_MODULE = resolve(ROOT, 'modules', 'spring-boot3-starter');
 const SB4_MODULE = resolve(ROOT, 'modules', 'spring-boot-starter');
 
