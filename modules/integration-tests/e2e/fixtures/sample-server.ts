@@ -66,9 +66,10 @@ export const SAMPLES: Record<string, SampleConfig> = {
     type: 'spring-boot',
     readyPath: '/atmosphere/ai-chat',
     // Sample defaults to atmosphere.auth.enabled=false (out-of-box demo
-     // posture per its application.properties). Auth-enforcement specs
+     // posture, set in application.yml). Auth-enforcement specs
      // (auth-token.spec, auth-oauth-jwt.spec) require it on, so flip it
-     // back here for every e2e run; tests that don't care still pass.
+     // back here for every e2e run; the unified-console spec presents the
+     // demo token via ?token= so it still connects under this forced auth.
     env: {
       ATMOSPHERE_AUTH_ENABLED: 'true',
       ATMOSPHERE_AUTH_TOKEN: 'demo-token',

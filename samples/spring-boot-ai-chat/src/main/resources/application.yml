@@ -7,12 +7,13 @@ atmosphere:
   web-transport:
     enabled: true
     port: 4443
-  # Auth is enabled by default (fail-closed). Override token via env var:
-  #   export ATMOSPHERE_AUTH_TOKEN=my-secret-token
-  # To disable auth entirely:
-  #   atmosphere.auth.enabled=false
+  # Token auth is OFF by default so the bundled AI Console connects out-of-box
+  # (this sample's headline is AI streaming, not auth). The framework default is
+  # fail-closed (Correctness Invariant #6); this sample-level override is
+  # explicit and documented in README.md. Demo the AuthConfig token flow with:
+  #   --atmosphere.auth.enabled=true   (then send X-Atmosphere-Auth: demo-token)
   auth:
-    enabled: true
+    enabled: false
     demo-token: ${ATMOSPHERE_AUTH_TOKEN:demo-token}
   cache:
     enabled: true
