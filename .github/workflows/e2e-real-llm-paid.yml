@@ -11,16 +11,14 @@ name: "CI: E2E (Real LLM — Paid nightly)"
 #
 # Secrets required: OPENAI_API_KEY, GEMINI_API_KEY
 #
-# ADVISORY / NON-GATING (per the project maintainer, 4.0.37 release cycle):
-# Paid-API hiccups (OpenAI/Gemini transient 5xx, rate limits, model
-# deprecations) must NEVER block a release. This nightly canary surfaces
-# real wire-protocol regressions, but `continue-on-error: true` at the job
-# level forces the workflow conclusion to "success" so release-4x.yml and
-# main branch CI are never gated on it. Failures still appear as red on
-# the job page itself — that is the signal we watch.
-#
-# NOTE: these jobs are NOT in main's required status checks. Do NOT add
-# them to branch protection without checking with the project maintainer first.
+# NOT ON THE PER-PUSH GATING PATH — this nightly canary only runs on a
+# schedule and on demand, never on push, so a paid-API hiccup (OpenAI/Gemini
+# transient 5xx, rate limit, model deprecation) can never block a merge or a
+# release. Because it is already off the push path there is no reason to mask
+# its result with `continue-on-error` (a red X that doesn't count — a hack):
+# when it runs it reports HONESTLY, and a real wire-protocol regression shows
+# as a genuine failure to investigate. Not in main's required status checks;
+# do not add these jobs to branch protection without asking the maintainer.
 
 on:
   schedule:
@@ -33,13 +31,8 @@ concurrency:
 
 jobs:
   paid-e2e:
-    name: Paid ${{ matrix.provider.name }} (advisory)
+    name: Paid ${{ matrix.provider.name }}
     runs-on: ubuntu-latest
-    # Advisory: paid provider transients must not gate releases (see
-    # header comment). `continue-on-error: true` keeps the workflow
-    # conclusion green even when a matrix leg fails, so release-4x.yml
-    # and main branch CI are never blocked by an OpenAI/Gemini hiccup.
-    continue-on-error: true
     timeout-minutes: 10
     if: github.repository == 'Atmosphere/atmosphere'
     strategy:

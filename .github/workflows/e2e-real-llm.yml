@@ -1,39 +1,26 @@
 name: "CI: E2E (Real LLM — Ollama)"
 
-# Wave 1-6 close-out: real-LLM tier running against a local Ollama
-# service container with a small model (qwen2.5:0.5b). Fires on every
-# push to main so regressions in the Built-in / Spring AI / LC4j OpenAI
+# Real-LLM tier: runs against a local Ollama service container with a small
+# model (qwen2.5:0.5b) so regressions in the Built-in / Spring AI / LC4j OpenAI
 # bridges are caught against a real provider, not just FakeLlmClient.
 #
 # Cost: $0 — Ollama is local to the runner.
 # Coverage: basic chat, structured output, embeddings across 3 runtimes.
 #
-# ADVISORY / NON-GATING (per the project maintainer, 4.0.37 release cycle):
-# Ollama on GitHub-hosted runners is unreliable — the warm-up loop in this
-# workflow is best-effort and the model-load latency on a cold CPU runner
-# routinely blows past the spec's 30s waitForDone, producing flaky red runs
-# that pass on re-run with no code change. The release cut MUST proceed
-# regardless of this workflow's outcome, and "main" CI must not turn red on
-# its failures. We keep the job alive so it still surfaces wire-protocol
-# regressions as warnings, but `continue-on-error: true` at the job level
-# forces the workflow conclusion to "success" even when Playwright fails.
-#
-# NOTE: this job is NOT in main's required status checks. Do NOT add it
-# to branch protection without checking with the project maintainer first. The Tier-2
-# paid workflow (e2e-real-llm-paid.yml) is advisory for the same reason.
+# NOT ON THE PER-PUSH GATING PATH — runs nightly and on demand. Ollama on
+# GitHub-hosted CPU runners is slow: model-load latency routinely overruns the
+# spec waits, so making this a required per-push check would gate merges on a
+# flaky external service. Rather than run it on every push and mask the result
+# with `continue-on-error` (a red X that doesn't count — a hack), we keep it off
+# the push path and let it report HONESTLY: when it runs, a failure is a real
+# signal to re-run or investigate, not a silent "success". Not in main's
+# required status checks; do not add it to branch protection without asking the
+# maintainer. (The Tier-2 paid workflow e2e-real-llm-paid.yml is scheduled for
+# the same reason.)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'modules/ai/**'
-      - 'modules/spring-ai/**'
-      - 'modules/langchain4j/**'
-      - 'modules/quarkus-langchain4j/**'
-      - 'modules/quarkus-extension/**'
-      - 'modules/integration-tests/**'
-      - 'samples/quarkus-ai-chat/**'
-      - '.github/workflows/e2e-real-llm.yml'
+  schedule:
+    - cron: '0 4 * * *'  # 04:00 UTC nightly
   workflow_dispatch:
 
 concurrency:
@@ -42,14 +29,8 @@ concurrency:
 
 jobs:
   ollama-e2e:
-    name: Ollama real-llm-chat (advisory)
+    name: Ollama real-llm-chat
     runs-on: ubuntu-latest
-    # Advisory: Ollama warm-up on GH runners is flaky (see header comment).
-    # `continue-on-error: true` keeps the workflow conclusion green even
-    # when this job fails, so release-4x.yml + main branch CI are never
-    # gated on a transient Ollama hiccup. Failures still appear as red on
-    # the job page itself, which is the canary signal we want.
-    continue-on-error: true
     timeout-minutes: 30
     services:
       ollama:

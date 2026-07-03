@@ -58,7 +58,11 @@ jobs:
         files: ./atmosphere.js/coverage/coverage-final.json
         flags: atmosphere-js
         name: atmosphere-js-coverage
-      continue-on-error: true
+        # A Codecov upload hiccup (service 5xx, missing token) must not fail the
+        # JS build — coverage upload is non-essential. Use the action's own knob
+        # instead of a blanket continue-on-error: this scopes the tolerance to
+        # upload errors only, so a genuine step failure still surfaces.
+        fail_ci_if_error: false
     
     - name: Upload Build Artifacts
       if: matrix.node-version == 20
