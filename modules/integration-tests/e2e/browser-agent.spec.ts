@@ -18,6 +18,25 @@ test.describe('Browser agent', () => {
     await expect(page.getByTestId('chat-send')).toBeVisible();
   });
 
+  // Runtime truth for the headline capability: this sample is a "code-as-action"
+  // agent — the model writes Playwright/JS that the framework runs in an
+  // isolated container via the code_exec tool. Driving a full browse to a live
+  // site needs both a real LLM (the sample pins Cohere) and a container engine,
+  // neither of which the keyless e2e lane has. But the sample must at least BOOT
+  // with the capability actually wired — the code_exec tool registered and
+  // code-as-action enabled on the endpoint — not merely declared. The startup
+  // log is the runtime-truth surface; the container EXECUTION path itself is
+  // covered by CodeExecSandboxIntegrationTest (Docker-gated) in modules/ai.
+  test('boots with code-as-action wired: code_exec tool registered and enabled', async () => {
+    const out = server.getOutput();
+    expect(out, "code-as-action must be enabled on the @AiEndpoint")
+      .toContain("Code-as-action enabled: registered 'code_exec' tool");
+    expect(out, 'the code_exec tool must be registered in the tool registry')
+      .toMatch(/Registered AI tool: code_exec/);
+    expect(out, 'code execution must be enabled (container sandbox advertised)')
+      .toMatch(/Code execution ENABLED/);
+  });
+
   // Regression for the browser-agent key handling. The sample pins the Cohere
   // runtime; the generic key resolver falls back to LLM_API_KEY / OPENAI_API_KEY
   // / GEMINI_API_KEY, so before the fix a stray non-Cohere key was sent to
