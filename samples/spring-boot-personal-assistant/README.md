@@ -148,17 +148,33 @@ The `UpstreamMcpAgent` endpoint is also a real consumer of the
 across separate WebSocket connections — exactly what a "long-lived,
 memory-bearing assistant" should do.
 
-Three small sample classes wire it, mirroring the `RemoteToolsConfig` /
-`McpToolSourceHolder` / `McpToolsInterceptor` pattern used for outbound MCP
-tools (the `@AiEndpoint(interceptors=...)` scanner instantiates interceptors
-via their no-arg constructor, so a Spring `@Configuration` builds the
-backend and hands it to the interceptor through a static holder):
+The sample contains **zero memory wiring**. One switch in
+`application.yml` enables the deep-agent preset:
 
-| Class | Role |
-|-------|------|
-| `LongTermMemoryConfig` | `@Configuration` — builds `InMemoryLongTermMemory(20)` + a `LongTermMemoryInterceptor` using the resolved `AgentRuntime` (`AgentRuntimeResolver.resolve()`) and the `onSessionClose` extraction strategy, then publishes both into the holder. |
-| `LongTermMemoryHolder` | Static handoff from the Spring bean to the reflectively-created interceptor. |
-| `PersonalAssistantMemoryInterceptor` | No-arg `AiInterceptor` registered on `UpstreamMcpAgent`; delegates `preProcess`/`postProcess`/`onDisconnect` to the held `LongTermMemoryInterceptor`. |
+```yaml
+atmosphere:
+  ai:
+    deep-agent:
+      enabled: true
+```
+
+and the framework attaches a `LongTermMemoryInterceptor`
+(`InMemoryLongTermMemory` store, `onSessionClose` extraction via the
+resolved `AgentRuntime`, 20-fact recall budget) to every AI endpoint,
+alongside conversation memory, a conservative prompt-cache default, the
+built-in `delegate_task` fleet tool on the `@Coordinator`, and durable
+runs. Per-primitive runtime state is published at
+`/api/console/info` under `deepAgent` — the console shows what actually
+activated, not what was configured.
+
+> **History note:** before the preset existed this sample wired long-term
+> memory by hand — a `@Configuration`, a static holder, and a no-arg
+> delegating interceptor (213 lines across three classes), forced by the
+> `@AiEndpoint(interceptors=...)` scanner's no-arg instantiation. The
+> preset deleted all of it; an app that needs a custom store now bridges a
+> `LongTermMemory` bean instead (the container stashes it under the
+> `org.atmosphere.ai.memory.store` framework property), or declares its
+> own `LongTermMemoryInterceptor`, which suppresses the preset's.
 
 How it runs on the user-message path:
 
@@ -172,9 +188,10 @@ How it runs on the user-message path:
 
 `InMemoryLongTermMemory` keeps facts for the JVM's lifetime (lost on
 restart) with zero external dependencies. For persistence across restarts,
-swap in `SqliteLongTermMemory` (`atmosphere-durable-sessions-sqlite`) or
-`RedisLongTermMemory` (`atmosphere-durable-sessions-redis`) — the
-interceptor wiring is identical.
+register a `LongTermMemoryProvider` (ServiceLoader) or bridge a
+`SqliteLongTermMemory` (`atmosphere-durable-sessions-sqlite`) /
+`RedisLongTermMemory` (`atmosphere-durable-sessions-redis`) bean — the
+preset picks it up through the same resolution chain.
 
 > Facts are keyed by `userId`. The recall block only appears once an
 > authenticated `userId` is present on the request and facts have been

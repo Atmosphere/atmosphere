@@ -128,6 +128,20 @@ public @interface Agent {
     boolean headless() default false;
 
     /**
+     * When {@code true}, the deep-agent preset is forced on for this one agent —
+     * long-term memory is attached and a prompt-cache default is seeded —
+     * regardless of the global {@code org.atmosphere.ai.deep-agent.enabled}
+     * (Spring: {@code atmosphere.ai.deep-agent.enabled}) switch. These are the
+     * same primitives the flag turns on app-wide, opted in for a single agent.
+     *
+     * <p>An {@code @Agent} always has conversation memory, so this attribute adds
+     * the remaining deep-agent primitives on top of it. Leave it {@code false} to
+     * let the global switch decide (the default), or set it {@code true} to make
+     * one agent deep without flipping the switch for every endpoint.</p>
+     */
+    boolean deepAgent() default false;
+
+    /**
      * Target Java type for structured output from this agent.
      * See {@link org.atmosphere.ai.annotation.AiEndpoint#responseAs()} for details.
      */

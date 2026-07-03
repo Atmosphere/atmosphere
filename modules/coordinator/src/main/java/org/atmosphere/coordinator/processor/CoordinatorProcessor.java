@@ -27,6 +27,7 @@ import org.atmosphere.ai.AiMetrics;
 import org.atmosphere.ai.AiPipeline;
 import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.AgentRuntimeResolver;
+import org.atmosphere.ai.CompactionConfig;
 import org.atmosphere.ai.ConversationPersistence;
 import org.atmosphere.ai.InMemoryConversationMemory;
 import org.atmosphere.ai.PersistentConversationMemory;
@@ -38,7 +39,12 @@ import org.atmosphere.ai.annotation.AiTool;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.ai.governance.GovernancePolicies;
 import org.atmosphere.ai.governance.GovernancePolicy;
+import org.atmosphere.ai.governance.memory.MemorySafetyConfig;
 import org.atmosphere.ai.governance.scope.ScopePolicyBuilder;
+import org.atmosphere.ai.llm.CacheHint;
+import org.atmosphere.ai.llm.PromptCacheDefaults;
+import org.atmosphere.ai.memory.LongTermMemories;
+import org.atmosphere.ai.preset.DeepAgentPreset;
 import org.atmosphere.ai.processor.AiEndpointHandler;
 import org.atmosphere.ai.tool.DefaultToolRegistry;
 import org.atmosphere.ai.tool.ToolRegistry;
@@ -57,6 +63,8 @@ import org.atmosphere.coordinator.fleet.AgentProxy;
 import org.atmosphere.coordinator.fleet.DefaultAgentFleet;
 import org.atmosphere.coordinator.fleet.DefaultAgentProxy;
 import org.atmosphere.coordinator.fleet.DefaultCircuitBreaker;
+import org.atmosphere.coordinator.fleet.DelegateTaskTool;
+import org.atmosphere.coordinator.fleet.GovernanceFleetInterceptor;
 import org.atmosphere.coordinator.fleet.ResilientAgentProxy;
 import org.atmosphere.coordinator.journal.CoordinationJournal;
 import org.atmosphere.coordinator.journal.JournalFormat;
@@ -186,6 +194,12 @@ public class CoordinatorProcessor implements Processor<Object> {
             var coordinatorName = annotation.name();
             var path = "/atmosphere/agent/" + coordinatorName;
 
+            // Deep-agent preset: one-shot install per framework (same marker
+            // pattern as the @AiEndpoint path — Mode Parity). Gates the
+            // delegate_task tool and the outbound governance wrap below.
+            var preset = DeepAgentPreset.install(framework);
+            var presetOn = preset.enabledFor(path);
+
             // Step 1: Create instance and inject fields
             var instance = framework.newClassInstance(Object.class, annotatedClass);
             AnnotatedLifecycle.injectFields(framework, instance);
@@ -220,8 +234,10 @@ public class CoordinatorProcessor implements Processor<Object> {
             // Step 5: Resolve AI infrastructure
             var settings = resolveSettings();
             var runtime = resolveRuntime(settings);
-            var memory = resolveMemory(DEFAULT_MAX_HISTORY);
+            var memory = resolveMemory(DEFAULT_MAX_HISTORY, framework);
             var toolRegistry = registerTools(instance);
+
+            registerPresetDelegation(toolRegistry, preset, presetOn, coordinatorName);
 
             // MCP.md: connect the coordinator's outbound MCP servers and
             // register their remote tools (mode parity with AgentProcessor).
@@ -276,6 +292,7 @@ public class CoordinatorProcessor implements Processor<Object> {
                 }
                 fleet = new JournalingAgentFleet(fleet, journal, coordinatorName);
             }
+            fleet = applyPresetGovernance(fleet, presetOn, framework, coordinatorName);
             var responseType = annotation.responseAs() == Void.class
                     ? null : annotation.responseAs();
             var journalHook = resolveJournalHook(framework, annotation, fleet, journal);
@@ -299,11 +316,25 @@ public class CoordinatorProcessor implements Processor<Object> {
             // the web streaming path here and the A2A/AG-UI/channel pipeline in
             // buildPipeline below (Correctness Invariant #7 — Mode Parity).
             var webGuardrails = buildWebGuardrails(framework, annotatedClass, path);
+            // Deep-agent preset: same long-term-memory attach and prompt-cache
+            // default seeding as the @AiEndpoint / @Agent paths (Correctness
+            // Invariant #7, Mode Parity) — @Coordinator has no interceptors /
+            // promptCache attributes either.
+            var aiInterceptors = LongTermMemories.withPresetLongTermMemory(
+                    List.of(), preset, presetOn, path, framework);
+            if (!aiInterceptors.isEmpty()) {
+                MemorySafetyConfig.installedDefault().publishActive(framework);
+            }
             var aiHandler = new AiEndpointHandler(
                     promptTarget, promptMethod, 120_000L,
-                    systemPrompt, path, runtime, List.of(),
+                    systemPrompt, path, runtime, aiInterceptors,
                     memory, lifecycle, toolRegistry,
                     webGuardrails, List.of(), metrics, List.of(), null, injectables);
+            var cachePolicy = PromptCacheDefaults.effective(
+                    null, framework.getAtmosphereConfig(), presetOn);
+            if (cachePolicy != CacheHint.CachePolicy.NONE) {
+                aiHandler.setCachePolicy(cachePolicy);
+            }
 
             // Step 9: Register handler
             var commandRouter = new CommandRouter(commandRegistry, instance);
@@ -422,6 +453,55 @@ public class CoordinatorProcessor implements Processor<Object> {
             guardrails.add(new PolicyAsGuardrail(policy));
         }
         return guardrails;
+    }
+
+    // --- Deep-agent preset wiring ---
+
+    /**
+     * Deep-agent preset: register the built-in LLM-callable
+     * {@code delegate_task} tool. The tool's {@link AgentFleet} parameter
+     * resolves from the session injectables at dispatch time, so it always
+     * sees the final (journal / governance) wrapped fleet published into the
+     * handler. Default-deny: absent the preset, delegation stays reachable
+     * only via hand-written {@code @AiTool} wrappers.
+     *
+     * <p>Package-private so {@code CoordinatorProcessorDeepAgentPresetTest}
+     * can pin the gating without driving a full annotation scan.</p>
+     */
+    void registerPresetDelegation(ToolRegistry toolRegistry, DeepAgentPreset preset,
+                                  boolean presetOn, String coordinatorName) {
+        if (!presetOn) {
+            return;
+        }
+        toolRegistry.register(new DelegateTaskTool());
+        preset.updateRuntimeState(DeepAgentPreset.PRIMITIVE_DELEGATION, "ACTIVE");
+        logger.info("Deep-agent preset registered delegate_task for coordinator '{}'",
+                coordinatorName);
+    }
+
+    /**
+     * Deep-agent preset: govern the outbound dispatch edge with the same
+     * installed policy chain the inbound pipeline admits against
+     * ({@link GovernancePolicies#installed} — resolved here, not re-parsed
+     * from policy files). Composed AFTER the journal wrap so admitted
+     * dispatches are journaled and auto-evaluated exactly once, while a
+     * denied dispatch short-circuits before the transport hop. Must run
+     * BEFORE the fleet goes into injectables so {@code @Prompt} /
+     * {@code @AiTool} methods see the governed instance.
+     *
+     * <p>Package-private so {@code CoordinatorProcessorDeepAgentPresetTest}
+     * can pin the wrap composition.</p>
+     */
+    AgentFleet applyPresetGovernance(AgentFleet fleet, boolean presetOn,
+                                     AtmosphereFramework framework, String coordinatorName) {
+        if (!presetOn) {
+            return fleet;
+        }
+        var governed = fleet.withInterceptor(
+                new GovernanceFleetInterceptor(GovernancePolicies.installed(framework)));
+        logger.info("Deep-agent preset governed the fleet dispatch edge for '{}'",
+                coordinatorName);
+        return governed;
     }
 
     // --- Fleet resolution ---
@@ -634,17 +714,23 @@ public class CoordinatorProcessor implements Processor<Object> {
         }
     }
 
-    private AiConversationMemory resolveMemory(int maxHistory) {
+    // Package-visible so CoordinatorProcessorCompactionTest can pin the
+    // org.atmosphere.ai.compaction seam on the @Coordinator path (Mode Parity).
+    AiConversationMemory resolveMemory(int maxHistory, AtmosphereFramework framework) {
+        var cfg = framework != null ? framework.getAtmosphereConfig() : null;
         try {
             var persistence = ServiceLoader.load(ConversationPersistence.class)
                     .findFirst().orElse(null);
             if (persistence != null) {
+                // PersistentConversationMemory hard-wires sliding-window
+                // eviction; the compaction seam applies to the in-memory path.
+                CompactionConfig.warnIfIgnoredByPersistence(cfg, "CoordinatorProcessor");
                 return new PersistentConversationMemory(persistence, maxHistory);
             }
         } catch (Exception | ServiceConfigurationError e) {
             logger.debug("No ConversationPersistence provider: {}", e.getMessage());
         }
-        return new InMemoryConversationMemory(maxHistory);
+        return new InMemoryConversationMemory(maxHistory, CompactionConfig.resolve(cfg));
     }
 
     private ToolRegistry registerTools(Object instance) {

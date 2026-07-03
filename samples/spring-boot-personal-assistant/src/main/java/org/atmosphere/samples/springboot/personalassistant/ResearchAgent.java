@@ -35,7 +35,9 @@ import org.atmosphere.agent.annotation.Agent;
         description = "Summarizes background context on a topic so the primary assistant "
                 + "can speak to it confidently.",
         version = "1.0.0",
-        endpoint = "/atmosphere/a2a/research"
+        endpoint = "/atmosphere/a2a/research",
+        // opt this agent into the deep-agent harness (long-term memory + prompt-cache) without the app-wide flag
+        deepAgent = true
 )
 public class ResearchAgent {
 

@@ -26,6 +26,7 @@ import org.atmosphere.ai.AiConversationMemory;
 import org.atmosphere.ai.AiMetrics;
 import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.AgentRuntimeResolver;
+import org.atmosphere.ai.CompactionConfig;
 import org.atmosphere.ai.ConversationPersistence;
 import org.atmosphere.ai.InMemoryConversationMemory;
 import org.atmosphere.ai.PersistentConversationMemory;
@@ -33,9 +34,14 @@ import org.atmosphere.ai.PromptLoader;
 import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiTool;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.governance.memory.MemorySafetyConfig;
 import org.atmosphere.ai.governance.scope.ScopeConfig;
 import org.atmosphere.ai.governance.scope.ScopePolicy;
 import org.atmosphere.ai.governance.scope.ScopePolicyBuilder;
+import org.atmosphere.ai.llm.CacheHint;
+import org.atmosphere.ai.llm.PromptCacheDefaults;
+import org.atmosphere.ai.memory.LongTermMemories;
+import org.atmosphere.ai.preset.DeepAgentPreset;
 import org.atmosphere.ai.processor.AiEndpointHandler;
 import org.atmosphere.ai.tool.DefaultToolRegistry;
 import org.atmosphere.ai.tool.ToolRegistry;
@@ -158,7 +164,7 @@ public class AgentProcessor implements Processor<Object> {
             // Step 5: Resolve AI infrastructure
             var settings = resolveSettings();
             var runtime = resolveRuntime(settings);
-            AiConversationMemory memory = resolveMemory(DEFAULT_MAX_HISTORY);
+            AiConversationMemory memory = resolveMemory(DEFAULT_MAX_HISTORY, framework);
             var toolRegistry = registerTools(instance);
 
             // MCP.md: connect the workspace's outbound MCP servers and register
@@ -209,11 +215,43 @@ public class AgentProcessor implements Processor<Object> {
             // Mode Parity).
             var webGuardrails = buildWebGuardrails(framework, skillFile, annotatedClass,
                     agentName, annotation.description());
+            // Deep-agent preset: same long-term-memory attach and prompt-cache
+            // default seeding as the @AiEndpoint path (Correctness Invariant #7,
+            // Mode Parity). @Agent has no interceptors/promptCache attributes,
+            // so the preset is the only source of both on this path.
+            // @Agent(deepAgent=true) forces the preset for this one agent even
+            // when the global org.atmosphere.ai.deep-agent.enabled switch is off,
+            // mirroring the forced-preset path on @AiEndpoint.
+            var preset = DeepAgentPreset.install(framework);
+            var presetOn = annotation.deepAgent() || preset.enabledFor(path);
+            var aiInterceptors = LongTermMemories.withPresetLongTermMemory(
+                    List.of(), preset, presetOn, path, framework);
+            if (!aiInterceptors.isEmpty()) {
+                MemorySafetyConfig.installedDefault().publishActive(framework);
+            }
+            if (presetOn) {
+                // An @Agent always resolves conversation memory (Step 5), so the
+                // preset's conversation-memory primitive is genuinely ACTIVE here.
+                // Publish it as runtime truth so the console reflects the forced
+                // preset even when the global switch is off (Invariant #5). The
+                // long-term-memory state is updated inside withPresetLongTermMemory.
+                preset.updateRuntimeState(DeepAgentPreset.PRIMITIVE_CONVERSATION_MEMORY, "ACTIVE");
+            }
             var aiHandler = new AiEndpointHandler(
                     promptTarget, promptMethod, 120_000L,
-                    systemPrompt, path, runtime, List.of(),
+                    systemPrompt, path, runtime, aiInterceptors,
                     memory, lifecycle, toolRegistry,
                     webGuardrails, List.of(), metrics, List.of(), null, agentInjectables);
+            var cachePolicy = PromptCacheDefaults.effective(
+                    null, framework.getAtmosphereConfig(), presetOn);
+            if (cachePolicy != CacheHint.CachePolicy.NONE) {
+                aiHandler.setCachePolicy(cachePolicy);
+                // Upgrade the console runtime-state to the policy this agent
+                // actually seeds (Runtime Truth) — the global seed may read
+                // "none" when @Agent(deepAgent=true) forced the preset.
+                preset.updateRuntimeState(DeepAgentPreset.PRIMITIVE_PROMPT_CACHE_DEFAULT,
+                        cachePolicy.name().toLowerCase(Locale.ROOT));
+            }
 
             var commandRouter = new CommandRouter(commandRegistry, instance);
             var handler = new AgentHandler(aiHandler, commandRouter,
@@ -848,7 +886,10 @@ public class AgentProcessor implements Processor<Object> {
                                 + "(e.g. atmosphere-langchain4j) to the classpath."));
     }
 
-    private AiConversationMemory resolveMemory(int maxHistory) {
+    // Package-visible so AgentProcessorCompactionTest can pin the
+    // org.atmosphere.ai.compaction seam on the @Agent path (Mode Parity).
+    AiConversationMemory resolveMemory(int maxHistory, AtmosphereFramework framework) {
+        var cfg = framework != null ? framework.getAtmosphereConfig() : null;
         var persistence = ServiceLoader.load(ConversationPersistence.class).stream()
                 .map(ServiceLoader.Provider::get)
                 .filter(ConversationPersistence::isAvailable)
@@ -856,9 +897,12 @@ public class AgentProcessor implements Processor<Object> {
         if (persistence.isPresent()) {
             logger.info("Auto-detected ConversationPersistence: {}",
                     persistence.get().getClass().getName());
+            // PersistentConversationMemory hard-wires sliding-window eviction;
+            // the compaction seam applies only to the in-memory path.
+            CompactionConfig.warnIfIgnoredByPersistence(cfg, "AgentProcessor");
             return new PersistentConversationMemory(persistence.get(), maxHistory);
         }
-        return new InMemoryConversationMemory(maxHistory);
+        return new InMemoryConversationMemory(maxHistory, CompactionConfig.resolve(cfg));
     }
 
     private ToolRegistry registerTools(Object instance) {
@@ -1115,12 +1159,14 @@ public class AgentProcessor implements Processor<Object> {
     // can reflectively invoke onAction across the package/module boundary —
     // a public method on a package-private class is not cross-package accessible.
     public static class AgUiAgentBridge {
-        private final Object promptTarget;
-        private final Method bridgedPromptMethod;
+        private final org.atmosphere.ai.processor.PromptMethodInvoker promptInvoker;
 
         AgUiAgentBridge(Object promptTarget, Method promptMethod) {
-            this.promptTarget = promptTarget;
-            this.bridgedPromptMethod = promptMethod;
+            // Shared @Prompt dispatch seam — same binding (and @SandboxTool
+            // scope) as the web path, so AG-UI keeps Mode Parity (#7) for
+            // prompt methods with framework-injected parameters.
+            this.promptInvoker = org.atmosphere.ai.processor.PromptMethodInvoker
+                    .forMethod(promptTarget, promptMethod);
         }
 
         @SuppressWarnings("unused") // invoked reflectively by AgUiHandler
@@ -1129,7 +1175,7 @@ public class AgentProcessor implements Processor<Object> {
             var message = context.lastUserMessage();
             if (message != null && !message.isBlank()) {
                 try {
-                    bridgedPromptMethod.invoke(promptTarget, message, session);
+                    promptInvoker.invoke(message, session, null, java.util.Map.of());
                 } catch (java.lang.reflect.InvocationTargetException e) {
                     session.error(e.getCause() != null ? e.getCause() : e);
                 } catch (Exception e) {
@@ -1148,24 +1194,25 @@ public class AgentProcessor implements Processor<Object> {
      */
     static class SkillBridge {
         private final CommandRouter commandRouter;
-        private final Object promptTarget;
-        private final Method bridgedPromptMethod;
+        private final org.atmosphere.ai.processor.PromptMethodInvoker promptInvoker;
         private final String commandPrefix;
         private volatile org.atmosphere.ai.AiPipeline pipeline;
 
         /** Primary constructor for the default (NL) bridge. */
         SkillBridge(CommandRouter commandRouter, Object promptTarget, Method promptMethod) {
             this.commandRouter = commandRouter;
-            this.promptTarget = promptTarget;
-            this.bridgedPromptMethod = promptMethod;
+            // Shared @Prompt dispatch seam — same binding (and @SandboxTool
+            // scope) as the web path, so A2A keeps Mode Parity (#7) for
+            // prompt methods with framework-injected parameters.
+            this.promptInvoker = org.atmosphere.ai.processor.PromptMethodInvoker
+                    .forMethod(promptTarget, promptMethod);
             this.commandPrefix = null;
         }
 
         /** Command-specific constructor that wraps a parent bridge with a fixed prefix. */
         SkillBridge(SkillBridge parent, String commandPrefix) {
             this.commandRouter = parent.commandRouter;
-            this.promptTarget = parent.promptTarget;
-            this.bridgedPromptMethod = parent.bridgedPromptMethod;
+            this.promptInvoker = parent.promptInvoker;
             this.commandPrefix = commandPrefix;
             this.pipeline = parent.pipeline;
         }
@@ -1219,12 +1266,12 @@ public class AgentProcessor implements Processor<Object> {
             }
 
             try {
-                bridgedPromptMethod.setAccessible(true);
-                // The @Prompt method signature is (String, StreamingSession). For A2A we
-                // capture the output synchronously by invoking with a simple adapter
-                // that collects the response text.
+                // For A2A we capture the output synchronously by invoking with
+                // a simple adapter that collects the response text; the shared
+                // invoker binds it to the @Prompt method's StreamingSession
+                // parameter (there is no AtmosphereResource on this path).
                 var collector = new A2aStreamCollector(taskCtx, pipeline);
-                bridgedPromptMethod.invoke(promptTarget, message, collector);
+                promptInvoker.invoke(message, collector, null, java.util.Map.of());
                 collector.awaitAndFinalize(120_000L);
             } catch (java.lang.reflect.InvocationTargetException e) {
                 var cause = e.getCause() != null ? e.getCause() : e;

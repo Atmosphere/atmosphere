@@ -946,6 +946,11 @@
                 <artifactId>atmosphere-skills</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-sandbox</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
             <!-- Third-party -->
             <!-- Pin plexus-utils to patched version (CVE GHSA-4gpf-vj5f-4c6h, Dependabot #171).

@@ -354,12 +354,32 @@ public class AtmosphereProperties {
 
         private Memory memory = new Memory();
 
+        private DeepAgentProperties deepAgent = new DeepAgentProperties();
+
+        private CodeProperties code = new CodeProperties();
+
         public boolean isEnabled() {
             return enabled;
         }
 
         public void setEnabled(boolean enabled) {
             this.enabled = enabled;
+        }
+
+        public DeepAgentProperties getDeepAgent() {
+            return deepAgent;
+        }
+
+        public void setDeepAgent(DeepAgentProperties deepAgent) {
+            this.deepAgent = deepAgent;
+        }
+
+        public CodeProperties getCode() {
+            return code;
+        }
+
+        public void setCode(CodeProperties code) {
+            this.code = code;
         }
 
         public RoutingProperties getRouting() {
@@ -616,6 +636,208 @@ public class AtmosphereProperties {
             public void setFailOpen(boolean failOpen) {
                 this.failOpen = failOpen;
             }
+        }
+    }
+
+    /**
+     * Deep-agent preset, bound to {@code atmosphere.ai.deep-agent.*}.
+     * <strong>Off by default</strong> — turning it on is the operator's explicit
+     * opt-in. When enabled, the starter bridges the preset switches into
+     * framework init-params ({@code org.atmosphere.ai.deep-agent.*},
+     * {@code org.atmosphere.ai.compaction},
+     * {@code org.atmosphere.ai.prompt-cache.default}) read by the AI endpoint
+     * processors, and implies {@code atmosphere.durable-runs.enabled} when the
+     * operator did not set that property explicitly (an explicit {@code false}
+     * is honoured). The preset never enables code execution — see
+     * {@link CodeProperties}.
+     */
+    public static class DeepAgentProperties {
+
+        /** Master switch. Default {@code false} — the preset is explicit opt-in. */
+        private boolean enabled = false;
+
+        /** Endpoint paths excluded from the preset's default-on conversation memory. */
+        private java.util.List<String> excludePaths = new java.util.ArrayList<>();
+
+        /**
+         * Conversation-memory compaction strategy: {@code sliding-window} or
+         * {@code summarizing}. Unset = the framework default (sliding-window).
+         */
+        private String compaction;
+
+        /**
+         * Default prompt-cache policy seeded on endpoints whose annotation
+         * declares none: {@code none}, {@code conservative}, or
+         * {@code aggressive}. Unset = the framework default.
+         */
+        private String promptCacheDefault;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public java.util.List<String> getExcludePaths() {
+            return excludePaths;
+        }
+
+        public void setExcludePaths(java.util.List<String> excludePaths) {
+            this.excludePaths = excludePaths;
+        }
+
+        public String getCompaction() {
+            return compaction;
+        }
+
+        public void setCompaction(String compaction) {
+            this.compaction = compaction;
+        }
+
+        public String getPromptCacheDefault() {
+            return promptCacheDefault;
+        }
+
+        public void setPromptCacheDefault(String promptCacheDefault) {
+            this.promptCacheDefault = promptCacheDefault;
+        }
+    }
+
+    /**
+     * Code-exec (code-as-action) property bridge, bound to
+     * {@code atmosphere.ai.code.*}. Each property that is set is bridged to its
+     * {@code org.atmosphere.ai.code.*} JVM system property before the
+     * Atmosphere framework initializes, so the sysprop-only code-exec keys
+     * become reachable from {@code application.yml}. A system property the
+     * operator already set on the JVM always wins (it is never overridden).
+     * <strong>Off by default and never enabled by the deep-agent preset</strong>
+     * — executing model-generated code stays an explicit opt-in (Correctness
+     * Invariant #6). Nullable wrapper types mean "unset = don't bridge, the
+     * hardened framework defaults apply".
+     */
+    public static class CodeProperties {
+
+        /** Master switch for the {@code code_exec} tool. Default {@code false} (default-deny). */
+        private boolean enabled = false;
+
+        /** Container engine: {@code auto} (framework default), {@code docker}, or {@code podman}. */
+        private String engine;
+
+        /** Container image providing the interpreters; framework default is the pinned Playwright image. */
+        private String image;
+
+        /** Container network mode. Framework default {@code none} (no network). */
+        private String network;
+
+        /** Memory cap in container-engine syntax (e.g. {@code 512m}). */
+        private String memory;
+
+        /** CPU cap (e.g. {@code 1.0}). */
+        private Double cpus;
+
+        /** Max processes inside the sandbox. */
+        private Integer pidsLimit;
+
+        /** Per-command wall-clock budget in seconds. */
+        private Long execTimeoutSeconds;
+
+        /** Max total sandbox lifetime in seconds before it is force-closed. */
+        private Long sandboxTtlSeconds;
+
+        /** Per-command stdout/stderr capture cap in bytes. */
+        private Integer maxOutputBytes;
+
+        /** Optional one-time bootstrap command run once when the sandbox starts. */
+        private String setup;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getEngine() {
+            return engine;
+        }
+
+        public void setEngine(String engine) {
+            this.engine = engine;
+        }
+
+        public String getImage() {
+            return image;
+        }
+
+        public void setImage(String image) {
+            this.image = image;
+        }
+
+        public String getNetwork() {
+            return network;
+        }
+
+        public void setNetwork(String network) {
+            this.network = network;
+        }
+
+        public String getMemory() {
+            return memory;
+        }
+
+        public void setMemory(String memory) {
+            this.memory = memory;
+        }
+
+        public Double getCpus() {
+            return cpus;
+        }
+
+        public void setCpus(Double cpus) {
+            this.cpus = cpus;
+        }
+
+        public Integer getPidsLimit() {
+            return pidsLimit;
+        }
+
+        public void setPidsLimit(Integer pidsLimit) {
+            this.pidsLimit = pidsLimit;
+        }
+
+        public Long getExecTimeoutSeconds() {
+            return execTimeoutSeconds;
+        }
+
+        public void setExecTimeoutSeconds(Long execTimeoutSeconds) {
+            this.execTimeoutSeconds = execTimeoutSeconds;
+        }
+
+        public Long getSandboxTtlSeconds() {
+            return sandboxTtlSeconds;
+        }
+
+        public void setSandboxTtlSeconds(Long sandboxTtlSeconds) {
+            this.sandboxTtlSeconds = sandboxTtlSeconds;
+        }
+
+        public Integer getMaxOutputBytes() {
+            return maxOutputBytes;
+        }
+
+        public void setMaxOutputBytes(Integer maxOutputBytes) {
+            this.maxOutputBytes = maxOutputBytes;
+        }
+
+        public String getSetup() {
+            return setup;
+        }
+
+        public void setSetup(String setup) {
+            this.setup = setup;
         }
     }
 

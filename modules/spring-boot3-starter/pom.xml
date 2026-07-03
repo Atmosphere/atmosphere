@@ -143,6 +143,16 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Bundled crash-durable SQLite effect journal for durable agent runs.
+             Optional: when absent and durable runs are enabled, the autoconfig
+             falls back to the in-memory journal and logs that it is not
+             crash-durable (Correctness Invariant #5). -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-checkpoint</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-coordinator</artifactId>
@@ -176,6 +186,17 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- atmosphere-checkpoint declares sqlite-jdbc <optional> so it does not
+             transit; the durable-run SQLite journal test needs the driver. Same
+             version modules/checkpoint compiles against (not centrally managed —
+             keep in sync with modules/checkpoint/pom.xml). -->
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.53.2.0</version>
             <scope>test</scope>
         </dependency>
 

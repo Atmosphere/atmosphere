@@ -24,7 +24,6 @@ import org.atmosphere.ai.memory.LongTermMemory;
 import org.atmosphere.ai.memory.LongTermMemoryInterceptor;
 import org.atmosphere.ai.memory.MemoryExtractionStrategy;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.InvocationHandler;
@@ -32,7 +31,6 @@ import java.lang.reflect.Proxy;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -40,23 +38,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * consumer: a fact extracted when one "session" closes is recalled and
  * injected into the system prompt of a later session for the same user.
  *
- * <p>The test drives the exact production wire — the no-arg
- * {@link PersonalAssistantMemoryInterceptor} that the
- * {@code @AiEndpoint(interceptors=...)} scanner instantiates, delegating
- * through {@link LongTermMemoryHolder} to the framework
- * {@link LongTermMemoryInterceptor} and a real
- * {@link InMemoryLongTermMemory} — exactly the objects
- * {@link LongTermMemoryConfig} builds at startup. Only the extraction
- * {@link AgentRuntime} is a deterministic stub so the test needs no LLM key.</p>
+ * <p>The sample carries no memory wiring of its own — the deep-agent preset
+ * ({@code atmosphere.ai.deep-agent.enabled=true} in {@code application.yml})
+ * makes the framework attach a {@link LongTermMemoryInterceptor} built as
+ * {@code (resolved store, onSessionClose, resolved runtime, 20)} to every AI
+ * endpoint. This test drives an interceptor built exactly that way; only the
+ * extraction {@link AgentRuntime} is a deterministic stub so the test needs
+ * no LLM key.</p>
  */
 class LongTermMemoryConsumerTest {
 
     private static final String USER = "alice";
-
-    @AfterEach
-    void tearDown() {
-        LongTermMemoryHolder.clear();
-    }
 
     /**
      * Stub runtime that returns a fixed JSON fact array on extraction, so the
@@ -120,31 +112,28 @@ class LongTermMemoryConsumerTest {
                 });
     }
 
+    private final InMemoryLongTermMemory memory = new InMemoryLongTermMemory(20);
+
     /**
-     * Build the real interceptor + backend the way {@link LongTermMemoryConfig}
-     * does, but with the stub extraction runtime, and publish into the holder
-     * so {@link PersonalAssistantMemoryInterceptor} (the registered no-arg
-     * interceptor) delegates through it.
+     * Build the interceptor exactly the way the deep-agent preset does —
+     * {@code (store, onSessionClose, extraction runtime, maxFacts 20)} — with
+     * the stub extraction runtime standing in for the resolved one.
      */
-    private LongTermMemory wireMemory(AgentRuntime runtime) {
-        var memory = new InMemoryLongTermMemory(20);
-        var delegate = new LongTermMemoryInterceptor(
-                memory, MemoryExtractionStrategy.onSessionClose(), runtime, 20);
-        LongTermMemoryHolder.set(delegate, memory);
-        return memory;
+    private LongTermMemoryInterceptor presetShapedInterceptor(String factsJson) {
+        return new LongTermMemoryInterceptor(
+                memory, MemoryExtractionStrategy.onSessionClose(), stubRuntime(factsJson), 20);
     }
 
     @Test
     void factExtractedAtSessionCloseIsRecalledInLaterSession() {
-        var memory = wireMemory(stubRuntime("[\"Has a golden retriever named Max\"]"));
-        var registered = new PersonalAssistantMemoryInterceptor();
+        var interceptor = presetShapedInterceptor("[\"Has a golden retriever named Max\"]");
         var resource = noopResource();
 
         // --- Session 1: user mentions their dog; session closes -> extract+store.
         var session1History = List.of(
                 ChatMessage.user("My dog Max is a golden retriever"),
                 ChatMessage.assistant("Noted — Max sounds lovely!"));
-        registered.onDisconnect(USER, "conv-session-1", session1History);
+        interceptor.onDisconnect(USER, "conv-session-1", session1History);
 
         assertTrue(memory.factCount(USER) > 0,
                 "session-close extraction should have stored at least one fact for " + USER);
@@ -155,7 +144,7 @@ class LongTermMemoryConsumerTest {
         var session2Request = new AiRequest("What pet do I have?", "You are a helpful assistant.")
                 .withUserId(USER)
                 .withConversationId("conv-session-2");
-        var recalled = registered.preProcess(session2Request, resource);
+        var recalled = interceptor.preProcess(session2Request, resource);
 
         assertTrue(recalled.systemPrompt().contains("Has a golden retriever named Max"),
                 "the fact stored in session 1 must be recalled into session 2's system prompt; "
@@ -169,11 +158,10 @@ class LongTermMemoryConsumerTest {
 
     @Test
     void factsDoNotLeakAcrossUsers() {
-        var memory = wireMemory(stubRuntime("[\"Lives in Montreal\"]"));
-        var registered = new PersonalAssistantMemoryInterceptor();
+        var interceptor = presetShapedInterceptor("[\"Lives in Montreal\"]");
         var resource = noopResource();
 
-        registered.onDisconnect(USER, "conv-a",
+        interceptor.onDisconnect(USER, "conv-a",
                 List.of(ChatMessage.user("I live in Montreal")));
         assertTrue(memory.factCount(USER) > 0, "alice should have a stored fact");
 
@@ -181,29 +169,11 @@ class LongTermMemoryConsumerTest {
         var bobRequest = new AiRequest("Where do I live?", "You are a helpful assistant.")
                 .withUserId("bob")
                 .withConversationId("conv-b");
-        var recalled = registered.preProcess(bobRequest, resource);
+        var recalled = interceptor.preProcess(bobRequest, resource);
 
         assertFalse(recalled.systemPrompt().contains("Lives in Montreal"),
                 "alice's fact must not appear in bob's recalled prompt");
         assertTrue(recalled.systemPrompt().equals("You are a helpful assistant."),
                 "with no stored facts the system prompt is returned unchanged");
-    }
-
-    @Test
-    void emptyHolderFallsThroughUntouched() {
-        // Holder never set (or cleared) -> the no-arg interceptor must be a no-op.
-        LongTermMemoryHolder.clear();
-        var registered = new PersonalAssistantMemoryInterceptor();
-        var resource = noopResource();
-
-        var request = new AiRequest("hi", "base prompt").withUserId(USER);
-        var result = registered.preProcess(request, resource);
-
-        assertTrue(result.systemPrompt().equals("base prompt"),
-                "with no backend wired, preProcess returns the request unchanged");
-        // postProcess / onDisconnect must not throw with an empty holder.
-        registered.postProcess(request, resource);
-        registered.onDisconnect(USER, "conv", List.of(ChatMessage.user("x")));
-        assertNull(LongTermMemoryHolder.memory(), "holder remains empty");
     }
 }

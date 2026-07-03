@@ -21,16 +21,26 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marks a method as a tool that must run inside a {@link Sandbox} instead
- * of in the hosting JVM. The tool registration layer reads this annotation
- * to decide whether to route the invocation through a sandbox. When no
- * sandbox backend is available the tool fails fast with a descriptive
- * error — there is no silent fallback to in-JVM execution (per v0.6
- * plan open question #2).
+ * Marks a method as a tool that must run against a {@link Sandbox} instead
+ * of touching the hosting JVM. The tool layer reads this annotation through
+ * the {@code org.atmosphere.ai.tool.ToolSandboxBinding} SPI (implemented
+ * here by {@link SandboxToolBinding}): at each invocation the framework
+ * provisions a {@link Sandbox} from the members below — provider chosen by
+ * {@link #backend()} name, {@link SandboxLimits} from image / CPU / memory /
+ * wall-time / network — injects it into the method as a parameter of type
+ * {@link Sandbox}, and closes it when the invocation completes (success,
+ * exception, or timeout alike). The injected sandbox is framework-owned: the
+ * method must not close it.
  *
- * <p>Use alongside {@code @AiTool} for tool metadata.</p>
+ * <p>When the named backend is not available the invocation fails fast with
+ * a descriptive error naming the backend and how to enable it — there is no
+ * silent fallback to in-JVM execution (per v0.6 plan open question #2).</p>
+ *
+ * <p>Use alongside {@code @AiTool} for tool metadata, or on a
+ * {@code @Prompt} method.</p>
  *
  * @see Sandbox
+ * @see SandboxToolBinding
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
@@ -59,6 +69,12 @@ public @interface SandboxTool {
     /** Wall-time seconds. Defaults to 300 (5 minutes). */
     long wallTimeSeconds() default 300L;
 
-    /** Whether the sandbox may reach the network. Default {@code false}. */
+    /**
+     * Whether the sandbox may reach the network. Default {@code false}.
+     * Maps to {@link NetworkPolicy#NONE} ({@code false}) or
+     * {@link NetworkPolicy#FULL} ({@code true}) — the two modes the Docker
+     * backend actually enforces; the label-only {@code GIT_ONLY} /
+     * {@code ALLOWLIST} tiers are not reachable from this annotation.
+     */
     boolean network() default false;
 }

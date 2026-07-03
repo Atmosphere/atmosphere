@@ -97,6 +97,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     private final List<BroadcastFilter> broadcastFilters;
     private final String endpointModel;
     private final Map<Class<?>, Object> injectables;
+    private final PromptMethodInvoker promptInvoker;
 
     /**
      * @param target       the user's @AiEndpoint instance
@@ -233,6 +234,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         this.endpointModel = endpointModel;
         this.injectables = injectables != null ? Map.copyOf(injectables) : Map.of();
         this.promptMethod.setAccessible(true);
+        // Shared dispatch seam: binds framework parameters and, when a
+        // ToolSandboxBinding claims the @Prompt method (@SandboxTool), wraps
+        // each invocation in a framework-owned sandbox scope.
+        this.promptInvoker = PromptMethodInvoker.forMethod(target, promptMethod);
         // Register this endpoint's live re-drive context so an admin-triggered
         // crash-resume (which starts from only a run id) can resolve the runtime
         // and tool set for the run's endpoint path. The reconnect path has this
@@ -896,38 +901,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
 
     private void invokePrompt(String message, StreamingSession session, AtmosphereResource resource)
             throws InvocationTargetException, IllegalAccessException {
-        var paramTypes = promptMethod.getParameterTypes();
-        var args = new Object[paramTypes.length];
-        for (var i = 0; i < paramTypes.length; i++) {
-            if (paramTypes[i] == String.class) {
-                args[i] = message;
-            } else if (StreamingSession.class.isAssignableFrom(paramTypes[i])) {
-                args[i] = session;
-            } else if (AtmosphereResource.class.isAssignableFrom(paramTypes[i])) {
-                args[i] = resource;
-            } else {
-                // Exact-key match first (O(1)); assignable-from scan as a
-                // fallback so a @Prompt method can declare an SPI interface
-                // (AgentState, AgentIdentity, AgentWorkspace) and receive the
-                // concrete impl the endpoint processor registered.
-                var injectable = injectables.get(paramTypes[i]);
-                if (injectable == null) {
-                    for (var entry : injectables.entrySet()) {
-                        if (paramTypes[i].isAssignableFrom(entry.getKey())) {
-                            injectable = entry.getValue();
-                            break;
-                        }
-                    }
-                }
-                if (injectable != null) {
-                    args[i] = injectable;
-                } else {
-                    throw new IllegalStateException(
-                            "Unsupported parameter type in @Prompt method: " + paramTypes[i].getName());
-                }
-            }
-        }
-        promptMethod.invoke(target, args);
+        // Parameter binding and the optional @SandboxTool scope live in
+        // PromptMethodInvoker, shared with the A2A / AG-UI bridges so every
+        // invocation mode dispatches @Prompt identically (Invariant #7).
+        promptInvoker.invoke(message, session, resource, injectables);
     }
 
     // visible for testing
@@ -989,6 +966,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
 
     boolean broadcastReply() {
         return broadcastReply;
+    }
+
+    org.atmosphere.ai.llm.CacheHint.CachePolicy cachePolicy() {
+        return cachePolicy;
     }
 
     /**

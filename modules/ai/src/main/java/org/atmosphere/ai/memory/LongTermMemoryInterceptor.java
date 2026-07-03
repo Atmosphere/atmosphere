@@ -94,6 +94,8 @@ public class LongTermMemoryInterceptor implements AiInterceptor {
     public AiRequest preProcess(AiRequest request, AtmosphereResource resource) {
         var userId = request.userId();
         if (userId == null || userId.isBlank()) {
+            logger.debug("Long-term memory: no ai.userId on the request — no recall "
+                    + "(anonymous session)");
             return request;
         }
 
@@ -153,7 +155,16 @@ public class LongTermMemoryInterceptor implements AiInterceptor {
      */
     public void onDisconnect(String userId, String conversationId,
                              java.util.List<org.atmosphere.ai.llm.ChatMessage> history) {
-        if (userId == null || userId.isBlank() || history.isEmpty()) {
+        // Observability for the two silent skips that make "memory does nothing"
+        // hard to diagnose: no identity (anonymous connection) and no history.
+        if (userId == null || userId.isBlank()) {
+            logger.debug("Long-term memory: skipping on-close extraction, no ai.userId on "
+                    + "the request (anonymous session — set ai.userId to persist facts)");
+            return;
+        }
+        if (history.isEmpty()) {
+            logger.debug("Long-term memory: skipping on-close extraction for user {}, "
+                    + "no conversation history captured for this session", userId);
             return;
         }
 
@@ -170,6 +181,9 @@ public class LongTermMemoryInterceptor implements AiInterceptor {
                 logger.info("Extracted {} facts for user {} on disconnect",
                         facts.size(), userId);
                 maybeConsolidate(userId);
+            } else {
+                logger.debug("Long-term memory: on-close extraction for user {} returned no "
+                        + "facts from {} history message(s)", userId, history.size());
             }
         } catch (Exception e) {
             logger.warn("Fact extraction on disconnect failed for user {}: {}",

@@ -19,6 +19,15 @@
     </properties>
 
     <dependencies>
+        <!-- ToolSandboxBinding SPI: this module implements the tool layer's
+             sandbox-routing seam. Direction is sandbox -> ai only; atmosphere-ai
+             references the Sandbox type by class-name string and never depends
+             on this module. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>

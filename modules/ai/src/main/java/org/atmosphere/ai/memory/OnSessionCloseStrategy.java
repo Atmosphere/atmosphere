@@ -18,6 +18,8 @@ package org.atmosphere.ai.memory;
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.StreamingSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +33,8 @@ import java.util.concurrent.TimeUnit;
  * externally by the interceptor's disconnect handler, not per-message).
  */
 final class OnSessionCloseStrategy implements MemoryExtractionStrategy {
+
+    private static final Logger logger = LoggerFactory.getLogger(OnSessionCloseStrategy.class);
 
     private static final String EXTRACTION_PROMPT = """
             Extract key facts about the user from this conversation.
@@ -55,12 +59,16 @@ final class OnSessionCloseStrategy implements MemoryExtractionStrategy {
 
         // Fact extraction has no tool list so HITL gating is a no-op here; use the
         // 15-arg form with a null ApprovalStrategy explicitly to stay off the
-        // deprecated 14-arg shim.
+        // deprecated 14-arg shim. Pass the configured model explicitly so the
+        // extraction call works on runtimes that do not fall back to the
+        // AiConfig model when the context model is null.
+        var settings = org.atmosphere.ai.AiConfig.get();
+        var model = settings != null ? settings.model() : null;
         var prompt = EXTRACTION_PROMPT.formatted(conversationText);
         var context = new AgentExecutionContext(
                 prompt,
                 "You are a fact extraction assistant. Respond with JSON only.",
-                null, null, null, null, null,
+                model, null, null, null, null,
                 List.of(), null, null, List.of(), Map.of(), List.of(), null,
                 (org.atmosphere.ai.approval.ApprovalStrategy) null);
 
@@ -88,9 +96,27 @@ final class OnSessionCloseStrategy implements MemoryExtractionStrategy {
             return List.of();
         }
 
-        return parseJsonArray(text.toString());
+        var raw = text.toString();
+        var facts = parseJsonArray(raw);
+        if (facts.isEmpty()) {
+            // Distinguish "model returned nothing" (call failed / empty) from
+            // "model ignored the JSON-only instruction" so memory-does-nothing
+            // is diagnosable rather than silent.
+            logger.debug("Fact extraction produced no facts (raw response length {}): {}",
+                    raw.length(),
+                    raw.isBlank() ? "<blank>"
+                            : (raw.length() > 300 ? raw.substring(0, 300) + "…" : raw));
+        }
+        return facts;
     }
 
+    /**
+     * Parse a JSON string-array of facts out of a model response. Lenient by
+     * design: models often wrap the array in prose ("Here are the facts: […]")
+     * or a ```json fence, so we locate the outermost {@code [ … ]} span
+     * anywhere in the text rather than requiring the whole response to be the
+     * array. Returns an empty list when no bracketed span is present.
+     */
     static List<String> parseJsonArray(String json) {
         if (json == null || json.isBlank()) {
             return List.of();
@@ -100,9 +126,14 @@ final class OnSessionCloseStrategy implements MemoryExtractionStrategy {
         if (trimmed.startsWith("```")) {
             trimmed = trimmed.replaceAll("```json\\s*", "").replaceAll("```\\s*", "").trim();
         }
-        if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) {
+        // Locate the array span anywhere in the response (tolerate a preamble
+        // or trailing commentary the model may add despite the JSON-only ask).
+        int lb = trimmed.indexOf('[');
+        int rb = trimmed.lastIndexOf(']');
+        if (lb < 0 || rb <= lb) {
             return List.of();
         }
+        trimmed = trimmed.substring(lb, rb + 1);
         // Simple JSON array parser for string arrays
         var inner = trimmed.substring(1, trimmed.length() - 1).trim();
         if (inner.isEmpty()) {

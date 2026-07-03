@@ -14,6 +14,19 @@ atmosphere:
   workspace: classpath:agent-workspace
 
   ai:
+    # Deep-agent harness, turned on APP-WIDE by the deep-agent.enabled flag
+    # below: every @AiEndpoint and @Agent in this app is completed with
+    # conversation memory, long-term memory (facts extracted at session close,
+    # recalled on the next connection), and a conservative prompt-cache default
+    # with no per-class wiring. The plain @AiEndpoint UpstreamMcpAgent relies on
+    # this flag for its long-term memory — it replaced the sample's former
+    # three-class static-holder wiring. Per-primitive runtime state is visible
+    # in the console (/api/console/info, "deepAgent" section). A single full
+    # agent can instead opt in on its own with @Agent(deepAgent = true) (see
+    # ResearchAgent) rather than flipping this app-wide flag.
+    deep-agent:
+      enabled: true
+
     # Any of the seven runtime artifacts on the classpath is picked up by
     # AgentRuntime ServiceLoader discovery. Switching runtimes is a Maven
     # dependency swap plus setting this to the runtime name.

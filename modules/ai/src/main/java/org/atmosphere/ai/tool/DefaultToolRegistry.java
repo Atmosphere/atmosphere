@@ -24,6 +24,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -36,6 +37,14 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DefaultToolRegistry implements ToolRegistry {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultToolRegistry.class);
+
+    /**
+     * Referenced by name, never by class — {@code atmosphere-ai} must not
+     * depend on {@code atmosphere-sandbox} (see
+     * {@link #isFrameworkInjectableType}). The instance itself is supplied at
+     * dispatch time by the method's {@link ToolSandboxBinding} scope.
+     */
+    private static final String SANDBOX_CLASS_NAME = "org.atmosphere.ai.sandbox.Sandbox";
 
     private final ConcurrentHashMap<String, ToolDefinition> tools = new ConcurrentHashMap<>();
 
@@ -111,6 +120,12 @@ public class DefaultToolRegistry implements ToolRegistry {
     private ToolDefinition buildFromMethod(Object instance, Method method, AiTool annotation) {
         method.setAccessible(true);
 
+        // Resolved once at registration; per-invocation work (provisioning the
+        // sandbox) happens in the executor below. Empty on classpaths without
+        // atmosphere-sandbox — the executor then takes the exact pre-existing
+        // dispatch path.
+        var sandboxBinding = ToolSandboxBindings.find(method).orElse(null);
+
         // Framework-scoped parameter types don't appear in the JSON schema —
         // the LLM must never be asked for them. DefaultToolRegistry excludes
         // any method parameter whose declared type is likely to be supplied by
@@ -156,15 +171,45 @@ public class DefaultToolRegistry implements ToolRegistry {
             @Override
             public Object execute(Map<String, Object> args,
                                   Map<Class<?>, Object> injectables) throws Exception {
+                var scope = injectables != null ? injectables : Map.<Class<?>, Object>of();
+                if (sandboxBinding == null) {
+                    return invokeMethod(args, scope);
+                }
+                // @SandboxTool dispatch: provision the sandbox for this one
+                // invocation, expose it to the method as an injectable, and
+                // close it on every terminal path — success, tool exception,
+                // interrupt (Correctness Invariants #1/#2: framework-created,
+                // framework-closed; the tool method must not close it). A
+                // provisioning failure (backend unavailable) propagates as
+                // this tool call's error — there is no in-JVM fallback.
+                try (var sandboxScope = sandboxBinding.open(method)) {
+                    var extended = new LinkedHashMap<Class<?>, Object>(scope);
+                    extended.put(sandboxScope.injectableType(), sandboxScope.injectable());
+                    return invokeMethod(args, extended);
+                }
+            }
+
+            private Object invokeMethod(Map<String, Object> args,
+                                        Map<Class<?>, Object> scope) throws Exception {
                 var methodParams = method.getParameters();
                 var invokeArgs = new Object[methodParams.length];
-                var scope = injectables != null ? injectables : Map.<Class<?>, Object>of();
                 for (int i = 0; i < methodParams.length; i++) {
                     var p = methodParams[i];
                     var injected = resolveInjectable(p.getType(), scope);
                     if (injected.present()) {
                         invokeArgs[i] = injected.value();
                         continue;
+                    }
+                    if (SANDBOX_CLASS_NAME.equals(p.getType().getName())) {
+                        // Fail closed: a sandbox-typed parameter with no
+                        // claiming ToolSandboxBinding must never be invoked
+                        // with null — the method's body expects isolation
+                        // (Invariant #6, no silent in-JVM execution).
+                        throw new IllegalStateException("Tool method '" + method.getName()
+                                + "' declares a " + SANDBOX_CLASS_NAME + " parameter but no "
+                                + "ToolSandboxBinding claimed the method. Annotate it with "
+                                + "@SandboxTool and put atmosphere-sandbox on the classpath — "
+                                + "sandboxed tools never fall back to in-JVM execution.");
                     }
                     var paramAnnotation = p.getAnnotation(Param.class);
                     var paramName = paramAnnotation != null
@@ -263,7 +308,8 @@ public class DefaultToolRegistry implements ToolRegistry {
                 || name.equals("org.atmosphere.coordinator.fleet.AgentFleet")
                 || name.equals("org.atmosphere.ai.identity.AgentIdentity")
                 || name.equals("org.atmosphere.ai.state.AgentState")
-                || name.equals("org.atmosphere.ai.workspace.AgentWorkspace");
+                || name.equals("org.atmosphere.ai.workspace.AgentWorkspace")
+                || name.equals(SANDBOX_CLASS_NAME);
     }
 
     @SuppressWarnings("unchecked")

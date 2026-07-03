@@ -16,6 +16,7 @@
 package org.atmosphere.quarkus.runtime;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -150,8 +151,8 @@ public interface AtmosphereConfig {
     Ai ai();
 
     /**
-     * AI sub-configuration. Currently carries the RAG injection-safety screen
-     * ({@code quarkus.atmosphere.ai.rag.safety.*}).
+     * AI sub-configuration: the RAG and long-term-memory injection-safety
+     * screens plus the deep-agent preset.
      */
     interface Ai {
 
@@ -289,6 +290,81 @@ public interface AtmosphereConfig {
                 boolean failOpen();
             }
         }
+
+        /**
+         * Deep-agent preset configuration block.
+         *
+         * @return the deep-agent sub-configuration block
+         */
+        DeepAgent deepAgent();
+
+        /**
+         * Deep-agent preset, bound to {@code quarkus.atmosphere.ai.deep-agent.*}.
+         * One switch that enables Atmosphere's existing deep-agent primitives
+         * (default-on conversation memory, long-term memory, subagent
+         * delegation, prompt-cache seeding) instead of manual per-endpoint
+         * wiring. The deployment processor bridges these keys to the
+         * {@code org.atmosphere.ai.deep-agent.*} framework init-params read
+         * once per framework by {@code AiEndpointProcessor} in
+         * {@code atmosphere-ai}. Off by default — turning it on is the
+         * operator's explicit opt-in (Correctness Invariant #6).
+         */
+        interface DeepAgent {
+
+            /**
+             * Master switch. Defaults to {@code false} (off); set {@code true}
+             * to enable the deep-agent preset. On Quarkus an enabled preset
+             * also implies the durable-run spine unless {@code durable-runs}
+             * below is set to {@code false}.
+             *
+             * @return {@code true} if the deep-agent preset is enabled
+             */
+            @WithDefault("false")
+            boolean enabled();
+
+            /**
+             * Endpoint paths excluded from the preset's default-on
+             * conversation memory. Bridged (comma-joined) to the
+             * {@code org.atmosphere.ai.deep-agent.exclude-paths} init-param.
+             *
+             * @return the excluded endpoint paths
+             */
+            Optional<List<String>> excludePaths();
+
+            /**
+             * Conversation-memory compaction strategy: {@code sliding-window}
+             * (default) or {@code summarizing}. Bridged to the
+             * {@code org.atmosphere.ai.compaction} init-param; honored whether
+             * or not the preset is enabled.
+             *
+             * @return the compaction strategy name
+             */
+            Optional<String> compaction();
+
+            /**
+             * Default prompt-cache policy seeded on endpoints whose
+             * {@code @AiEndpoint} {@code promptCache()} is {@code NONE}:
+             * {@code none}, {@code conservative}, or {@code aggressive}.
+             * Bridged to the {@code org.atmosphere.ai.prompt-cache.default}
+             * init-param; honored whether or not the preset is enabled.
+             *
+             * @return the prompt-cache default policy name
+             */
+            Optional<String> promptCacheDefault();
+
+            /**
+             * Whether an enabled preset implies the durable-run spine (as if
+             * {@code quarkus.atmosphere.durable-runs.enabled=true}). A
+             * {@code @WithDefault} mapping cannot distinguish an unset
+             * {@code durable-runs.enabled} from an explicit {@code false}, so
+             * this key is the preset's explicit opt-out; it never blocks an
+             * explicit {@code quarkus.atmosphere.durable-runs.enabled=true}.
+             *
+             * @return {@code true} if the preset should install the durable-run spine
+             */
+            @WithDefault("true")
+            boolean durableRuns();
+        }
     }
 
     /**
@@ -339,7 +415,9 @@ public interface AtmosphereConfig {
 
         /**
          * Master switch. Defaults to {@code false} (off); set {@code true} to
-         * record and replay agent runs.
+         * record and replay agent runs. The deep-agent preset
+         * ({@code quarkus.atmosphere.ai.deep-agent.enabled=true}) also installs
+         * the spine unless {@code quarkus.atmosphere.ai.deep-agent.durable-runs=false}.
          *
          * @return {@code true} if the durable-run spine should be installed
          */

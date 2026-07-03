@@ -269,6 +269,12 @@
                 <artifactId>atmosphere-skills</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <!-- Sandbox (SandboxProvider SPI + @SandboxTool binding) -->
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-sandbox</artifactId>
+                <version>${project.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 </project>

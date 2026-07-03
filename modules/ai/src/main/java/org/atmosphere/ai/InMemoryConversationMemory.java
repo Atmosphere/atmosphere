@@ -111,4 +111,13 @@ public class InMemoryConversationMemory implements AiConversationMemory {
     public int maxMessages() {
         return maxMessages;
     }
+
+    /**
+     * The compaction strategy this memory evicts with. Exposed so the
+     * processors' config-seam wiring ({@code org.atmosphere.ai.compaction})
+     * is observable as runtime truth.
+     */
+    public AiCompactionStrategy compactionStrategy() {
+        return compactionStrategy;
+    }
 }

@@ -22,6 +22,7 @@ import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.AiMetrics;
 import org.atmosphere.ai.AgentRuntime;
+import org.atmosphere.ai.CompactionConfig;
 import org.atmosphere.ai.ContextProvider;
 import org.atmosphere.ai.ConversationPersistence;
 import org.atmosphere.ai.AgentRuntimeResolver;
@@ -39,7 +40,10 @@ import org.atmosphere.ai.governance.GovernancePolicies;
 import org.atmosphere.ai.governance.GovernancePolicy;
 import org.atmosphere.ai.governance.PolicyAsGuardrail;
 import org.atmosphere.ai.governance.memory.MemorySafetyConfig;
+import org.atmosphere.ai.llm.PromptCacheDefaults;
+import org.atmosphere.ai.memory.LongTermMemories;
 import org.atmosphere.ai.memory.LongTermMemoryInterceptor;
+import org.atmosphere.ai.preset.DeepAgentPreset;
 import org.atmosphere.ai.governance.rag.RagSafetyConfig;
 import org.atmosphere.ai.governance.scope.ScopePolicyBuilder;
 import org.atmosphere.ai.tool.DefaultToolRegistry;
@@ -138,6 +142,12 @@ public class AiEndpointProcessor implements Processor<Object> {
             // agnostic — the same call serves the @AiEndpoint path on every runtime.
             installMemorySafetyOnce(framework);
 
+            // Deep-agent preset: one-shot install per framework (same marker
+            // pattern as installMemorySafetyOnce). Parses the enabled /
+            // exclude-paths init-params and publishes the per-primitive
+            // runtime-state map for the console (Invariant #5).
+            var preset = DeepAgentPreset.install(framework);
+
             var promptMethod = findPromptMethod(annotatedClass);
             if (promptMethod == null) {
                 logger.error("@AiEndpoint class {} has no @Prompt method", annotatedClass.getName());
@@ -157,6 +167,14 @@ public class AiEndpointProcessor implements Processor<Object> {
             var runtime = resolveRuntimeWithRouting(fallbackStrategy, settings,
                     annotation.requires());
             var interceptors = instantiateInterceptors(annotation.interceptors(), framework);
+            var presetOn = preset.enabledFor(annotation.path());
+            // Deep-agent preset: shared attach point appends a framework-built
+            // long-term-memory interceptor AFTER the user's interceptors (FIFO/
+            // LIFO ordering preserved); a user-declared LongTermMemoryInterceptor
+            // is authoritative and suppresses it. The same helper runs on the
+            // @Agent / @Coordinator paths (Mode Parity).
+            interceptors = LongTermMemories.withPresetLongTermMemory(
+                    interceptors, preset, presetOn, annotation.path(), framework);
             // Publish memory injection-safety as runtime truth only when this
             // endpoint actually wires long-term memory — symmetric to ragSafety,
             // which publishes only once a ContextProvider is wrapped. Advertising
@@ -167,7 +185,19 @@ public class AiEndpointProcessor implements Processor<Object> {
             }
             AiConversationMemory memory = null;
             if (annotation.conversationMemory()) {
-                memory = resolveMemory(annotation.maxHistoryMessages());
+                memory = resolveMemory(annotation.maxHistoryMessages(), framework);
+            } else if (presetOn) {
+                // Preset default-on gate: annotation true always wins above;
+                // false is flipped on here (maxHistoryMessages still honors
+                // the annotation). One INFO per flipped endpoint, and the
+                // console runtime-state is upgraded to ACTIVE so it reflects
+                // what the endpoint actually got — not the global switch, which
+                // may be off when an @Agent(deepAgent=true) endpoint forced the
+                // preset (Runtime Truth — Invariant #5).
+                memory = resolveMemory(annotation.maxHistoryMessages(), framework);
+                preset.updateRuntimeState(DeepAgentPreset.PRIMITIVE_CONVERSATION_MEMORY, "ACTIVE");
+                logger.info("Deep-agent preset enabled conversation memory for {} "
+                        + "(max {} messages)", annotation.path(), annotation.maxHistoryMessages());
             }
 
             // Register tools from @AiEndpoint(tools = {...})
@@ -239,10 +269,20 @@ public class AiEndpointProcessor implements Processor<Object> {
                     toolRegistry, guardrails, contextProviders, metrics,
                     broadcastFilters, endpointModel, injectables);
 
-            // Endpoint-scoped prompt cache policy.
-            var cachePolicy = annotation.promptCache();
+            // Endpoint-scoped prompt cache policy: the annotation wins, then
+            // the org.atmosphere.ai.prompt-cache.default init-param, then the
+            // deep-agent preset's CONSERVATIVE default. This only seeds the
+            // CacheHint — wire emission stays gated by the tri-state
+            // prompt-cache-key mode and its default-deny host allow-list.
+            var cachePolicy = PromptCacheDefaults.effective(
+                    annotation.promptCache(), framework.getAtmosphereConfig(), presetOn);
             if (cachePolicy != org.atmosphere.ai.llm.CacheHint.CachePolicy.NONE) {
                 handler.setCachePolicy(cachePolicy);
+                // Upgrade the console runtime-state to the policy this endpoint
+                // actually seeds (Runtime Truth) — the global seed may read
+                // "none" when an @Agent(deepAgent=true) endpoint forced the preset.
+                preset.updateRuntimeState(DeepAgentPreset.PRIMITIVE_PROMPT_CACHE_DEFAULT,
+                        cachePolicy.name().toLowerCase(java.util.Locale.ROOT));
             }
             // Endpoint-scoped retry policy. maxRetries = -1 sentinel means
             // "inherit client default" — do not thread anything.
@@ -641,7 +681,8 @@ public class AiEndpointProcessor implements Processor<Object> {
         }
     }
 
-    private AiConversationMemory resolveMemory(int maxHistory) {
+    private AiConversationMemory resolveMemory(int maxHistory, AtmosphereFramework framework) {
+        var cfg = framework != null ? framework.getAtmosphereConfig() : null;
         var persistence = ServiceLoader.load(ConversationPersistence.class).stream()
                 .map(ServiceLoader.Provider::get)
                 .filter(ConversationPersistence::isAvailable)
@@ -649,9 +690,12 @@ public class AiEndpointProcessor implements Processor<Object> {
         if (persistence.isPresent()) {
             logger.info("Auto-detected ConversationPersistence: {}",
                     persistence.get().getClass().getName());
+            // PersistentConversationMemory hard-wires sliding-window eviction;
+            // the compaction seam applies only to the in-memory path.
+            CompactionConfig.warnIfIgnoredByPersistence(cfg, "AiEndpointProcessor");
             return new PersistentConversationMemory(persistence.get(), maxHistory);
         }
-        return new InMemoryConversationMemory(maxHistory);
+        return new InMemoryConversationMemory(maxHistory, CompactionConfig.resolve(cfg));
     }
 
     private AiMetrics resolveMetrics() {

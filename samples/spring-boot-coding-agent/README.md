@@ -3,10 +3,12 @@
 Clones a Git repository into a sandbox and reads files. Exercises the primitives the personal-assistant sample does not
 touch:
 
-- **`Sandbox`** — every file and command goes through the SPI. Docker is
-  the production default; the in-process provider is the dev fallback. The
-  sample clones a Git repository into the sandbox and reads the first ~800
-  characters of its README.
+- **`@SandboxTool` + `Sandbox`** — the `@Prompt` method is annotated
+  `@SandboxTool(image = "alpine:3.20", network = true)`; the framework
+  provisions a Docker sandbox per invocation, injects it as the method's
+  `Sandbox` parameter, and closes it when the method returns. Every file
+  and command goes through the SPI. The sample clones a Git repository
+  into the sandbox and reads the first ~800 characters of its README.
 - **`RunRegistry` reattach** — not wired in this sample. The primitive that
   lets a disconnected client reattach by `runId` lives in `modules/agent`.
 
@@ -28,20 +30,26 @@ export OPENAI_API_KEY=sk-your-key
 
 ## Sandbox requirements
 
-The sample prefers the Docker sandbox backend. If `docker` is on PATH and
-the daemon is reachable, operations run inside a fresh `alpine:3.20`
-container with 1 CPU / 512 MB / 5 min / no network beyond the initial
-clone.
+The sample requires the Docker sandbox backend: `@SandboxTool` defaults to
+`backend = "docker"` and fails fast — by design, with no in-JVM fallback —
+when the backend is unavailable. If `docker` is on PATH and the daemon is
+reachable, each prompt runs inside a fresh `alpine:3.20` container with
+1 CPU / 512 MB / 5 min limits and network egress enabled for the clone.
 
-When Docker is absent, the sample falls back to the in-process provider
-for demonstration purposes only. **The in-process provider is NOT a
-security boundary** — never expose the in-process backend to untrusted
-input in production.
+When Docker is absent, the prompt fails with a descriptive error naming
+the backend and how to enable it; the endpoint keeps running. The dev-only
+in-process provider can be selected explicitly with
+`@SandboxTool(backend = "in-process", ...)` plus
+`-Datmosphere.sandbox.insecure=true`, but **it is NOT a security
+boundary** — never expose it to untrusted input in production.
 
 ## What the agent does
 
-1. Extracts the repo URL from the user message.
-2. Provisions a sandbox with default limits.
+1. The framework provisions the `@SandboxTool` sandbox and injects it into
+   the `@Prompt` method (the method never creates or closes it — the
+   sandbox is framework-owned).
+2. The agent extracts the repo URL from the user message (strict GitHub
+   URL allowlist).
 3. Clones the repository at depth 1.
 4. Reads `README.md` (or `README`) and returns the first 800 characters.
 
@@ -56,10 +64,11 @@ would build on.
   coding agent pairs this flow with `PermissionMode.PLAN` from the
   `AgentIdentity` primitive so the user approves before the commit
   lands.
-- The sample sets `NetworkPolicy.FULL` so the clone step can reach GitHub.
-  A tighter egress posture uses `SandboxLimits.network` as a
-  `NetworkPolicy` (`NONE` / `GIT_ONLY` / `ALLOWLIST`) so the clone can
-  reach GitHub while downstream tool calls cannot reach the wider internet.
+- The sample sets `@SandboxTool(network = true)` (`NetworkPolicy.FULL`) so
+  the clone step can reach GitHub. The annotation exposes only the two
+  enforced modes (`false` → `NONE`, `true` → `FULL`); a tighter egress
+  posture (`GIT_ONLY` / `ALLOWLIST`) requires manual `SandboxLimits`
+  wiring plus an external egress firewall that honors the policy labels.
 
 ## Stateful Interactions (Console → Interactions tab)
 

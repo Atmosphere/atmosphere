@@ -28,6 +28,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiGuardrail;
+import org.atmosphere.ai.code.CodeSandboxConfig;
 import org.atmosphere.ai.facts.FactResolver;
 import org.atmosphere.ai.filter.PiiRedactionFilter;
 import org.atmosphere.ai.governance.GovernancePolicy;
@@ -69,6 +70,14 @@ public class AtmosphereAiAutoConfiguration {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereAiAutoConfiguration.class);
 
+    // Framework init-param keys read by the core deep-agent preset installer in
+    // modules/ai. Bridged as string literals so this starter keeps compiling
+    // against atmosphere-ai versions that predate the preset classes.
+    static final String DEEP_AGENT_ENABLED_PARAM = "org.atmosphere.ai.deep-agent.enabled";
+    static final String DEEP_AGENT_EXCLUDE_PATHS_PARAM = "org.atmosphere.ai.deep-agent.exclude-paths";
+    static final String COMPACTION_PARAM = "org.atmosphere.ai.compaction";
+    static final String PROMPT_CACHE_DEFAULT_PARAM = "org.atmosphere.ai.prompt-cache.default";
+
     @Bean
     @ConditionalOnMissingBean(AiConfig.LlmSettings.class)
     public AiConfig.LlmSettings atmosphereAiSettings(AtmosphereProperties properties) {
@@ -93,7 +102,11 @@ public class AtmosphereAiAutoConfiguration {
             AtmosphereFramework framework,
             AtmosphereProperties properties,
             org.springframework.beans.factory.ObjectProvider<AiGuardrail> guardrailProvider,
-            org.springframework.beans.factory.ObjectProvider<GovernancePolicy> policyProvider) {
+            org.springframework.beans.factory.ObjectProvider<GovernancePolicy> policyProvider,
+            org.springframework.beans.factory.ObjectProvider<AiConfig.LlmSettings> settingsProvider,
+            // Injected for ordering only: the code-exec sysprop bridge must run
+            // before anything that could initialize the framework's endpoint scan.
+            CodeExecPropertyBridge codeExecPropertyBridge) {
         var guardrails = guardrailProvider.orderedStream().toList();
         // Bridge the bean list into framework properties so user-defined
         // @AiEndpoint classes (which go through AiEndpointProcessor, not this
@@ -146,7 +159,160 @@ public class AtmosphereAiAutoConfiguration {
         // bridge only needs to seed the init-params above.
         logger.info("Memory injection-safety: enabled={}, tier={}, onBreach={}, failOpen={}",
                 mem.isEnabled(), mem.getTier(), mem.getOnBreach(), mem.isFailOpen());
+        // Bridge the deep-agent preset into framework init-params so the core
+        // preset installer (modules/ai) turns the primitives on at endpoint
+        // scan. Off by default; nothing is bridged when disabled.
+        var deepAgent = properties.getAi().getDeepAgent();
+        if (deepAgent.isEnabled()) {
+            framework.addInitParameter(DEEP_AGENT_ENABLED_PARAM, "true");
+            var excludePaths = deepAgent.getExcludePaths();
+            if (excludePaths != null && !excludePaths.isEmpty()) {
+                framework.addInitParameter(DEEP_AGENT_EXCLUDE_PATHS_PARAM,
+                        String.join(",", excludePaths));
+            }
+            if (deepAgent.getCompaction() != null && !deepAgent.getCompaction().isBlank()) {
+                framework.addInitParameter(COMPACTION_PARAM, deepAgent.getCompaction());
+            }
+            if (deepAgent.getPromptCacheDefault() != null
+                    && !deepAgent.getPromptCacheDefault().isBlank()) {
+                framework.addInitParameter(PROMPT_CACHE_DEFAULT_PARAM,
+                        deepAgent.getPromptCacheDefault());
+            }
+            // Force LLM settings resolution before naming the runtime so the log
+            // reflects the configured client, not a stale pre-configure cache —
+            // with no API key DemoAgentRuntime masks every primitive with canned
+            // replies, and this line is where that must become visible.
+            settingsProvider.getIfAvailable();
+            String runtimeName;
+            try {
+                runtimeName = org.atmosphere.ai.AgentRuntimeResolver.resolve().name();
+            } catch (LinkageError | RuntimeException e) {
+                logger.debug("Could not resolve the AgentRuntime for the deep-agent preset log", e);
+                runtimeName = "unknown";
+            }
+            logger.info("Deep-agent preset enabled (AgentRuntime={}): excludePaths={}, "
+                    + "compaction={}, promptCacheDefault={}, durable runs implied unless "
+                    + "atmosphere.durable-runs.enabled is set explicitly",
+                    runtimeName,
+                    excludePaths == null ? java.util.List.of() : excludePaths,
+                    deepAgent.getCompaction(), deepAgent.getPromptCacheDefault());
+        }
         return new AtmosphereAiEndpointRegistrar(framework, properties, guardrails);
+    }
+
+    /**
+     * Bridges the {@code atmosphere.ai.code.*} Spring properties to the
+     * {@code org.atmosphere.ai.code.*} JVM system properties
+     * {@link CodeSandboxConfig} reads, making the sysprop-only code-exec keys
+     * reachable from {@code application.yml}. Bean creation happens while
+     * singletons are instantiated — before the servlet container's deferred
+     * load-on-startup initializes the Atmosphere servlet, whose endpoint scan
+     * consults the once-per-JVM {@code CodeExecSupport.shared()} gate — and the
+     * {@code atmosphereAiEndpointRegistrar} bean depends on this bridge so the
+     * ordering is explicit in the bean graph.
+     *
+     * <p>A system property the operator already set on the JVM is never
+     * overridden (the JVM wins), and on shutdown only the properties this
+     * bridge itself set are cleared (Ownership, Correctness Invariant #1).
+     * This bridge does NOT enable code execution by itself and the deep-agent
+     * preset never sets {@code atmosphere.ai.code.enabled} — executing
+     * model-generated code stays an explicit opt-in (Correctness
+     * Invariant #6).</p>
+     */
+    @Bean
+    @ConditionalOnMissingBean(CodeExecPropertyBridge.class)
+    public CodeExecPropertyBridge atmosphereCodeExecPropertyBridge(AtmosphereProperties properties) {
+        var bridge = CodeExecPropertyBridge.install(properties.getAi().getCode());
+        if (!bridge.ownedKeys().isEmpty()) {
+            logger.info("Bridged {} atmosphere.ai.code.* propert{} to system properties: {}",
+                    bridge.ownedKeys().size(), bridge.ownedKeys().size() == 1 ? "y" : "ies",
+                    bridge.ownedKeys());
+        }
+        if (!bridge.skippedKeys().isEmpty()) {
+            logger.info("JVM system propert{} already set — not overridden (JVM wins): {}",
+                    bridge.skippedKeys().size() == 1 ? "y" : "ies", bridge.skippedKeys());
+        }
+        return bridge;
+    }
+
+    /**
+     * Records which {@code org.atmosphere.ai.code.*} system properties the
+     * bridge set (owned) and which it left untouched because the operator had
+     * already set them on the JVM (skipped). {@code destroy()} clears only the
+     * owned keys so context restarts don't leak bridged config and never
+     * clobber operator-set JVM properties.
+     */
+    static final class CodeExecPropertyBridge
+            implements org.springframework.beans.factory.DisposableBean {
+
+        private final java.util.List<String> ownedKeys;
+        private final java.util.List<String> skippedKeys;
+
+        private CodeExecPropertyBridge(java.util.List<String> ownedKeys,
+                java.util.List<String> skippedKeys) {
+            this.ownedKeys = ownedKeys;
+            this.skippedKeys = skippedKeys;
+        }
+
+        static CodeExecPropertyBridge install(AtmosphereProperties.CodeProperties code) {
+            var owned = new java.util.ArrayList<String>();
+            var skipped = new java.util.ArrayList<String>();
+            // enabled is only bridged when true — an absent sysprop already
+            // means disabled, and a JVM-set value wins either way.
+            bridge(CodeSandboxConfig.ENABLED, code.isEnabled() ? "true" : null, owned, skipped);
+            bridge(CodeSandboxConfig.ENGINE, code.getEngine(), owned, skipped);
+            bridge(CodeSandboxConfig.IMAGE, code.getImage(), owned, skipped);
+            bridge(CodeSandboxConfig.NETWORK, code.getNetwork(), owned, skipped);
+            bridge(CodeSandboxConfig.MEMORY, code.getMemory(), owned, skipped);
+            bridge(CodeSandboxConfig.CPUS,
+                    code.getCpus() == null ? null : String.valueOf(code.getCpus()), owned, skipped);
+            bridge(CodeSandboxConfig.PIDS_LIMIT,
+                    code.getPidsLimit() == null ? null : String.valueOf(code.getPidsLimit()),
+                    owned, skipped);
+            bridge(CodeSandboxConfig.EXEC_TIMEOUT_SECONDS,
+                    code.getExecTimeoutSeconds() == null
+                            ? null : String.valueOf(code.getExecTimeoutSeconds()),
+                    owned, skipped);
+            bridge(CodeSandboxConfig.SANDBOX_TTL_SECONDS,
+                    code.getSandboxTtlSeconds() == null
+                            ? null : String.valueOf(code.getSandboxTtlSeconds()),
+                    owned, skipped);
+            bridge(CodeSandboxConfig.MAX_OUTPUT_BYTES,
+                    code.getMaxOutputBytes() == null
+                            ? null : String.valueOf(code.getMaxOutputBytes()),
+                    owned, skipped);
+            bridge(CodeSandboxConfig.SETUP, code.getSetup(), owned, skipped);
+            return new CodeExecPropertyBridge(
+                    java.util.List.copyOf(owned), java.util.List.copyOf(skipped));
+        }
+
+        private static void bridge(String key, String value,
+                java.util.List<String> owned, java.util.List<String> skipped) {
+            if (value == null || value.isBlank()) {
+                return;
+            }
+            if (System.getProperty(key) != null) {
+                skipped.add(key);
+                return;
+            }
+            System.setProperty(key, value);
+            owned.add(key);
+        }
+
+        @Override
+        public void destroy() {
+            ownedKeys.forEach(System::clearProperty);
+        }
+
+        /** Exposed so tests can assert which keys this bridge set. */
+        java.util.List<String> ownedKeys() {
+            return ownedKeys;
+        }
+
+        /** Exposed so tests can assert which keys the JVM already owned. */
+        java.util.List<String> skippedKeys() {
+            return skippedKeys;
+        }
     }
 
     /**
@@ -442,6 +608,151 @@ public class AtmosphereAiAutoConfiguration {
         /** Exposed so tests can assert the resolved journal. */
         org.atmosphere.ai.resume.RunJournal journal() {
             return journal;
+        }
+    }
+
+    /**
+     * Installs the durable-execution spine on startup when
+     * {@code atmosphere.durable-runs.enabled=true}, or when the property is
+     * unset and the deep-agent preset
+     * ({@code atmosphere.ai.deep-agent.enabled=true}) implies it — see
+     * {@link OnDurableRunsEnabled}. Off by default — turning it on is the
+     * operator's explicit opt-in (Correctness Invariant #6). The journal is
+     * resolved as: a user-supplied {@link org.atmosphere.ai.resume.EffectJournal}
+     * bean, else the bundled crash-durable SQLite store when the optional
+     * {@code atmosphere-checkpoint} module is present, else the in-memory journal
+     * with a NOT-crash-durable warning (Correctness Invariant #5). The spine is
+     * uninstalled and a journal this installer created is closed on shutdown
+     * (Ownership, Correctness Invariant #1).
+     */
+    @Bean
+    @ConditionalOnMissingBean(DurableRunSpineInstaller.class)
+    @org.springframework.context.annotation.Conditional(OnDurableRunsEnabled.class)
+    public DurableRunSpineInstaller atmosphereDurableRunSpineInstaller(
+            AtmosphereProperties properties,
+            org.springframework.beans.factory.ObjectProvider<org.atmosphere.ai.resume.EffectJournal>
+                    journalProvider) {
+        return new DurableRunSpineInstaller(properties.getDurableRuns(), journalProvider);
+    }
+
+    /**
+     * Durable-runs gate honouring the deep-agent implication: matches on an
+     * explicit {@code atmosphere.durable-runs.enabled=true}; when that property
+     * is unset, {@code atmosphere.ai.deep-agent.enabled=true} implies it. An
+     * explicit {@code false} always wins, so the operator opt-out survives the
+     * preset (same semantics as {@code @ConditionalOnProperty} plus the
+     * implication).
+     */
+    static final class OnDurableRunsEnabled
+            extends org.springframework.boot.autoconfigure.condition.SpringBootCondition {
+
+        @Override
+        public org.springframework.boot.autoconfigure.condition.ConditionOutcome getMatchOutcome(
+                org.springframework.context.annotation.ConditionContext context,
+                org.springframework.core.type.AnnotatedTypeMetadata metadata) {
+            var env = context.getEnvironment();
+            var explicit = env.getProperty("atmosphere.durable-runs.enabled");
+            if (explicit != null) {
+                return "true".equalsIgnoreCase(explicit)
+                        ? org.springframework.boot.autoconfigure.condition.ConditionOutcome
+                                .match("atmosphere.durable-runs.enabled=true")
+                        : org.springframework.boot.autoconfigure.condition.ConditionOutcome
+                                .noMatch("atmosphere.durable-runs.enabled=" + explicit);
+            }
+            if ("true".equalsIgnoreCase(env.getProperty("atmosphere.ai.deep-agent.enabled"))) {
+                return org.springframework.boot.autoconfigure.condition.ConditionOutcome.match(
+                        "atmosphere.ai.deep-agent.enabled=true implies durable runs "
+                                + "(atmosphere.durable-runs.enabled unset)");
+            }
+            return org.springframework.boot.autoconfigure.condition.ConditionOutcome.noMatch(
+                    "neither atmosphere.durable-runs.enabled nor the deep-agent preset is set");
+        }
+    }
+
+    /** Builds the journal, installs the spine, and tears both down symmetrically. */
+    static final class DurableRunSpineInstaller
+            implements org.springframework.beans.factory.SmartInitializingSingleton,
+                       org.springframework.beans.factory.DisposableBean {
+
+        private final AtmosphereProperties.DurableRunsProperties config;
+        private final org.springframework.beans.factory.ObjectProvider<
+                org.atmosphere.ai.resume.EffectJournal> journalProvider;
+        // Non-null only when this installer created the journal — so destroy()
+        // closes a journal we own but never a user-supplied bean (Invariant #1).
+        private org.atmosphere.ai.resume.EffectJournal ownedJournal;
+
+        DurableRunSpineInstaller(AtmosphereProperties.DurableRunsProperties config,
+                                 org.springframework.beans.factory.ObjectProvider<
+                                         org.atmosphere.ai.resume.EffectJournal> journalProvider) {
+            this.config = config;
+            this.journalProvider = journalProvider;
+        }
+
+        @Override
+        public void afterSingletonsInstantiated() {
+            var userJournal = journalProvider.getIfAvailable();
+            org.atmosphere.ai.resume.EffectJournal journal;
+            if (userJournal != null) {
+                journal = userJournal;
+            } else {
+                journal = resolveBundledJournal();
+                ownedJournal = journal;
+            }
+            var spineConfig = new org.atmosphere.ai.resume.DurableRunConfig(
+                    true, config.getLeaseTtl(), config.isRetainOnSuccess());
+            var owner = "atmosphere-" + java.util.UUID.randomUUID();
+            org.atmosphere.ai.resume.DurableRunSpineHolder.install(
+                    new org.atmosphere.ai.resume.DurableRunSpine(journal, spineConfig, owner));
+            if (journal.durable()) {
+                logger.info("Durable agent runs enabled (journal={}, crash-durable, retainOnSuccess={})",
+                        journal.name(), config.isRetainOnSuccess());
+            } else {
+                logger.warn("Durable agent runs enabled but journal '{}' is in-memory — NOT crash-durable. "
+                        + "Add the atmosphere-checkpoint dependency (journal=sqlite) for crash survival "
+                        + "(Correctness Invariant #5).", journal.name());
+            }
+        }
+
+        private org.atmosphere.ai.resume.EffectJournal resolveBundledJournal() {
+            var maxRuns = config.getMaxRuns();
+            var maxEffects = config.getMaxEffectsPerRun();
+            var wantsSqlite = "sqlite".equalsIgnoreCase(config.getJournal());
+            var sqlitePresent = org.springframework.util.ClassUtils.isPresent(
+                    "org.atmosphere.checkpoint.SqliteEffectJournal", getClass().getClassLoader());
+            if (wantsSqlite && sqlitePresent) {
+                var path = config.getPath().replace(
+                        "${java.io.tmpdir}", System.getProperty("java.io.tmpdir"));
+                try {
+                    return SqliteRunJournalFactory.create(path, maxRuns, maxEffects);
+                } catch (RuntimeException e) {
+                    logger.error("Failed to open the SQLite effect journal at {} — falling back to the "
+                            + "in-memory journal (NOT crash-durable)", path, e);
+                    return new org.atmosphere.ai.resume.InMemoryEffectJournal(maxRuns, maxEffects);
+                }
+            }
+            if (wantsSqlite) {
+                logger.warn("atmosphere.durable-runs.journal=sqlite but the atmosphere-checkpoint module is "
+                        + "not on the classpath — using the in-memory journal (NOT crash-durable). Add the "
+                        + "atmosphere-checkpoint dependency for crash survival.");
+            }
+            return new org.atmosphere.ai.resume.InMemoryEffectJournal(maxRuns, maxEffects);
+        }
+
+        @Override
+        public void destroy() {
+            org.atmosphere.ai.resume.DurableRunSpineHolder.reset();
+            if (ownedJournal instanceof AutoCloseable closeable) {
+                try {
+                    closeable.close();
+                } catch (Exception e) {
+                    logger.debug("Error closing the durable-run effect journal on shutdown", e);
+                }
+            }
+        }
+
+        /** Exposed so tests can assert the resolved journal. */
+        org.atmosphere.ai.resume.EffectJournal resolvedJournal() {
+            return ownedJournal != null ? ownedJournal : journalProvider.getIfAvailable();
         }
     }
 
@@ -830,5 +1141,37 @@ public class AtmosphereAiAutoConfiguration {
             if (path.endsWith(".ico")) return "image/x-icon";
             return "application/octet-stream";
         }
+    }
+
+    /**
+     * Bridges the application's {@link org.atmosphere.ai.memory.LongTermMemory}
+     * bean (if any) into the framework property bag so the deep-agent preset's
+     * store resolution ({@code LongTermMemories.resolve}) prefers it over
+     * ServiceLoader providers and the in-memory fallback. Mirrors the
+     * {@code CoordinationJournal} bridge: the bean-graph dependency on both the
+     * framework and the store guarantees the property write happens before the
+     * embedded servlet container starts and triggers annotation scanning.
+     * Lifecycle stays Spring-owned — the framework never closes the store.
+     */
+    @Bean
+    @ConditionalOnBean(org.atmosphere.ai.memory.LongTermMemory.class)
+    @ConditionalOnMissingBean(LongTermMemoryBridge.class)
+    public LongTermMemoryBridge atmosphereLongTermMemoryBridge(
+            AtmosphereFramework framework, org.atmosphere.ai.memory.LongTermMemory store) {
+        framework.getAtmosphereConfig().properties()
+                .put(org.atmosphere.ai.memory.LongTermMemories.STORE_PROPERTY, store);
+        logger.info("Bridged Spring LongTermMemory bean {} into the deep-agent "
+                + "preset store resolution (lifecycle: Spring-owned)",
+                store.getClass().getName());
+        return new LongTermMemoryBridge(store);
+    }
+
+    /**
+     * Marker bean recording that a Spring-managed long-term-memory store has
+     * been bridged into the preset's resolution chain.
+     *
+     * @param store the Spring-managed store that was bridged
+     */
+    public record LongTermMemoryBridge(org.atmosphere.ai.memory.LongTermMemory store) {
     }
 }

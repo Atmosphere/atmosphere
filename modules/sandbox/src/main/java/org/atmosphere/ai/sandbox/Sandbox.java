@@ -42,7 +42,7 @@ import java.util.Map;
  *
  * <p>Third-party backends (Firecracker, Kata, Vercel Sandbox, E2B, Modal,
  * Blaxel) implement this SPI in their own modules. This keeps the
- * foundation dependency-free.</p>
+ * foundation free of third-party SDK dependencies.</p>
  *
  * <h2>Terminal-path discipline</h2>
  *

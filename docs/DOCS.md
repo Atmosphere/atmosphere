@@ -9,6 +9,7 @@ All documentation has moved to the Atmosphere documentation site:
 | Topic | Link |
 |-------|------|
 | Tutorial | [Getting Started](https://atmosphere.github.io/docs/tutorial/01-introduction/) |
+| Deep-Agent Harness | [In-tree detailed docs](deep-agent.md) |
 | @Agent Reference | [Agents](https://atmosphere.github.io/docs/agents/agent/) |
 | @Coordinator | [Multi-Agent Orchestration](https://atmosphere.github.io/docs/agents/coordinator/) |
 | Skill Files | [Skills](https://atmosphere.github.io/docs/agents/skills/) |

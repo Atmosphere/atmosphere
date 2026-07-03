@@ -18,19 +18,14 @@ package org.atmosphere.samples.springboot.codingagent;
 import org.atmosphere.agent.annotation.Agent;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.Prompt;
-import org.atmosphere.ai.sandbox.NetworkPolicy;
-import org.atmosphere.ai.sandbox.IsolationTier;
 import org.atmosphere.ai.sandbox.Sandbox;
-import org.atmosphere.ai.sandbox.SandboxLimits;
-import org.atmosphere.ai.sandbox.SandboxProvider;
-import org.atmosphere.ai.sandbox.Sandboxes;
+import org.atmosphere.ai.sandbox.SandboxTool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Coding agent that clones a repository into a sandbox and reads files,
@@ -38,13 +33,15 @@ import java.util.Map;
  * end-to-end without requiring an LLM key — the sample uses a
  * deterministic read strategy so it runs on CI.
  *
- * <h2>Sandbox discovery</h2>
+ * <h2>Sandbox provisioning</h2>
  *
- * The agent picks the first available {@code SandboxProvider} in priority
- * order: Docker if a daemon is running, in-process otherwise. In production
- * you would pin the Docker provider and fail hard when it is unavailable;
- * the sample is permissive on purpose so it demonstrates the shape on any
- * developer machine.
+ * {@code @SandboxTool} on the {@code @Prompt} method drives provisioning:
+ * before the method runs, the framework creates an {@code alpine:3.20}
+ * sandbox from the Docker backend (default limits — 1 CPU · 512 MB · 5 min —
+ * with network egress enabled for the clone), injects it as the
+ * {@link Sandbox} parameter, and closes it when the method returns. When
+ * Docker is unavailable the invocation fails fast with a descriptive error —
+ * there is no in-JVM fallback.
  *
  * <h2>AgentResumeHandle</h2>
  *
@@ -60,10 +57,14 @@ public class CodingAgent {
 
     private static final Logger logger = LoggerFactory.getLogger(CodingAgent.class);
 
+    // Clone + apk need network, so network = true (NetworkPolicy.FULL). A
+    // production coding agent would narrow this to GIT_ONLY once the
+    // sandbox runtime enforces the labeled allowlist.
     @Prompt
-    public void onPrompt(String message, StreamingSession session) {
+    @SandboxTool(image = "alpine:3.20", network = true)
+    public void onPrompt(String message, StreamingSession session, Sandbox sandbox) {
         try {
-            runSandboxFlow(message, session);
+            runSandboxFlow(message, session, sandbox);
         } finally {
             if (!session.isClosed()) {
                 session.complete();
@@ -74,17 +75,11 @@ public class CodingAgent {
     // session.send() pushes a text chunk to the client; session.stream() would
     // dispatch the argument to the LLM as a fresh user turn instead, which is
     // not what this sample wants — it is driving the sandbox directly.
-    private void runSandboxFlow(String message, StreamingSession session) {
-        var provider = resolveProvider();
-        if (provider == null) {
-            session.send(
-                    "No sandbox provider is available. Install Docker or include the "
-                            + "in-process provider to run this sample.");
-            return;
-        }
-
-        session.progress("Provisioning " + provider.name() + " sandbox...");
-
+    //
+    // The sandbox parameter is provisioned by the framework from @SandboxTool
+    // and closed by the framework after onPrompt returns — this method must
+    // never close it (Ownership, Correctness Invariant #1).
+    private void runSandboxFlow(String message, StreamingSession session, Sandbox sandbox) {
         // Parse the user intent. Keyword-based — an LLM-driven version
         // would map natural language to the tool calls below.
         var lower = message.toLowerCase();
@@ -96,18 +91,7 @@ public class CodingAgent {
             return;
         }
 
-        // Clone + apk need network; override the default NONE policy. A
-        // production coding agent would narrow this to GIT_ONLY once the
-        // sandbox runtime enforces the labeled allowlist.
-        var limits = new SandboxLimits(
-                SandboxLimits.DEFAULT.cpuFraction(),
-                SandboxLimits.DEFAULT.memoryBytes(),
-                SandboxLimits.DEFAULT.wallTime(),
-                NetworkPolicy.FULL);
-        try (Sandbox sandbox = provider.create("alpine:3.20",
-                limits,
-                Map.of("owner", "coding-agent-sample", "repo", repo))) {
-
+        try {
             // Install git + clone as two separate exec calls with argv-form
             // commands — NEVER concatenate `repo` into an `sh -c` string, or
             // a repo URL containing shell metacharacters turns the sandbox
@@ -115,11 +99,11 @@ public class CodingAgent {
             // allowlists the URL shape; argv separation is the belt to its
             // suspenders (Correctness Invariant #4 — Boundary Safety).
             session.progress("Installing git...");
-            var aptget = sandbox.exec(
+            var installGit = sandbox.exec(
                     List.of("apk", "add", "--no-cache", "git"),
                     Duration.ofMinutes(1));
-            if (!aptget.succeeded()) {
-                session.send("Failed to install git in sandbox:\n" + aptget.stderr());
+            if (!installGit.succeeded()) {
+                session.send("Failed to install git in sandbox:\n" + installGit.stderr());
                 return;
             }
 
@@ -157,15 +141,6 @@ public class CodingAgent {
             logger.warn("coding-agent run failed: {}", e.getMessage(), e);
             session.send("Sandbox operation failed: " + e.getMessage());
         }
-    }
-
-    private static SandboxProvider resolveProvider() {
-        // Tier-aware selection: a PROCESS floor keeps the in-process dev opt-in
-        // usable while preferring the strongest available isolation (Docker's
-        // CONTAINER tier when the daemon is reachable). A deployment running
-        // fully untrusted code should raise the floor to
-        // {@link IsolationTier#CONTAINER} so the in-process backend is excluded.
-        return Sandboxes.select(IsolationTier.PROCESS).orElse(null);
     }
 
     /**

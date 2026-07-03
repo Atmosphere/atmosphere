@@ -200,6 +200,83 @@
       "type": "java.lang.Long",
       "description": "Suspend timeout in milliseconds for the AI chat endpoint.",
       "defaultValue": 120000
+    },
+    {
+      "name": "atmosphere.ai.deep-agent.enabled",
+      "type": "java.lang.Boolean",
+      "description": "One-switch deep-agent preset: bridges the preset switches into framework init-params and implies atmosphere.durable-runs.enabled when that property is unset (an explicit false is honoured). Off by default; never enables code execution.",
+      "defaultValue": false
+    },
+    {
+      "name": "atmosphere.ai.deep-agent.exclude-paths",
+      "type": "java.util.List<java.lang.String>",
+      "description": "Endpoint paths excluded from the deep-agent preset's default-on conversation memory."
+    },
+    {
+      "name": "atmosphere.ai.deep-agent.compaction",
+      "type": "java.lang.String",
+      "description": "Conversation-memory compaction strategy bridged to the org.atmosphere.ai.compaction init-param: sliding-window or summarizing. Unset = framework default (sliding-window)."
+    },
+    {
+      "name": "atmosphere.ai.deep-agent.prompt-cache-default",
+      "type": "java.lang.String",
+      "description": "Default prompt-cache policy bridged to the org.atmosphere.ai.prompt-cache.default init-param, seeding endpoints whose annotation declares none: none, conservative, or aggressive. Unset = framework default."
+    },
+    {
+      "name": "atmosphere.ai.code.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Bridge for the org.atmosphere.ai.code.enabled system property (code_exec tool master switch). Off by default and NOT enabled by the deep-agent preset; a system property already set on the JVM wins.",
+      "defaultValue": false
+    },
+    {
+      "name": "atmosphere.ai.code.engine",
+      "type": "java.lang.String",
+      "description": "Bridge for org.atmosphere.ai.code.engine: auto (framework default), docker, or podman. Unset = don't bridge; a JVM-set system property wins."
+    },
+    {
+      "name": "atmosphere.ai.code.image",
+      "type": "java.lang.String",
+      "description": "Bridge for org.atmosphere.ai.code.image (sandbox container image). Framework default is the pinned Playwright image. Unset = don't bridge; a JVM-set system property wins."
+    },
+    {
+      "name": "atmosphere.ai.code.network",
+      "type": "java.lang.String",
+      "description": "Bridge for org.atmosphere.ai.code.network (container network mode). Framework default none (no network). Unset = don't bridge; a JVM-set system property wins."
+    },
+    {
+      "name": "atmosphere.ai.code.memory",
+      "type": "java.lang.String",
+      "description": "Bridge for org.atmosphere.ai.code.memory (memory cap, container-engine syntax, framework default 512m). Unset = don't bridge; a JVM-set system property wins."
+    },
+    {
+      "name": "atmosphere.ai.code.cpus",
+      "type": "java.lang.Double",
+      "description": "Bridge for org.atmosphere.ai.code.cpus (CPU cap, framework default 1.0). Unset = don't bridge; a JVM-set system property wins."
+    },
+    {
+      "name": "atmosphere.ai.code.pids-limit",
+      "type": "java.lang.Integer",
+      "description": "Bridge for org.atmosphere.ai.code.pidsLimit (max processes in the sandbox, framework default 256). Unset = don't bridge; a JVM-set system property wins."
+    },
+    {
+      "name": "atmosphere.ai.code.exec-timeout-seconds",
+      "type": "java.lang.Long",
+      "description": "Bridge for org.atmosphere.ai.code.execTimeoutSeconds (per-command wall-clock budget, framework default 60). Unset = don't bridge; a JVM-set system property wins."
+    },
+    {
+      "name": "atmosphere.ai.code.sandbox-ttl-seconds",
+      "type": "java.lang.Long",
+      "description": "Bridge for org.atmosphere.ai.code.sandboxTtlSeconds (max sandbox lifetime, framework default 300). Unset = don't bridge; a JVM-set system property wins."
+    },
+    {
+      "name": "atmosphere.ai.code.max-output-bytes",
+      "type": "java.lang.Integer",
+      "description": "Bridge for org.atmosphere.ai.code.maxOutputBytes (per-command stdout/stderr cap, framework default 262144). Unset = don't bridge; a JVM-set system property wins."
+    },
+    {
+      "name": "atmosphere.ai.code.setup",
+      "type": "java.lang.String",
+      "description": "Bridge for org.atmosphere.ai.code.setup (optional one-time bootstrap command run via bash -lc when the sandbox starts; operator-supplied only). Unset = don't bridge; a JVM-set system property wins."
     }
   ],
   "hints": [

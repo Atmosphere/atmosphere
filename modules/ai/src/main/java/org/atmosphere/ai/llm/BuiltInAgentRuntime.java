@@ -128,7 +128,12 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
     }
 
     private ChatCompletionRequest buildRequest(AgentExecutionContext context) {
-        var builder = ChatCompletionRequest.builder(context.model());
+        // Resolve the effective model: an explicit context.model() wins, else
+        // the framework-configured AiConfig model. Without this fallback a
+        // caller that builds a context with a null model (e.g. long-term-memory
+        // fact extraction) would send model=null and get an empty/failed
+        // completion, silently storing no memory.
+        var builder = ChatCompletionRequest.builder(effectiveModel(context, null));
         for (var msg : assembleMessages(context)) {
             builder.message(msg);
         }

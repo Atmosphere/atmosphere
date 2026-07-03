@@ -98,6 +98,12 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
         if (memorySafety != null) {
             payload.put("memorySafety", memorySafety);
         }
+        // Deep-agent preset runtime truth (Invariant #5): the per-primitive
+        // ACTIVE / INACTIVE(reason) / CONVENTION map the core preset publishes.
+        var deepAgent = detectDeepAgentState(framework);
+        if (deepAgent != null) {
+            payload.put("deepAgent", deepAgent);
+        }
 
         resp.setStatus(HttpServletResponse.SC_OK);
         resp.setContentType("application/json;charset=UTF-8");
@@ -260,6 +266,35 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
             logger.debug("Memory injection-safety state not available", e);
             return null;
         }
+    }
+
+    /**
+     * Runtime-truth view of the deep-agent preset, read duck-typed (a plain
+     * {@code Map} in the framework property bag) so this servlet keeps no hard
+     * compile-time link to {@code atmosphere-ai}. The core preset publishes a
+     * per-primitive state map (ACTIVE / INACTIVE(reason) / CONVENTION); when
+     * absent — preset off, {@code atmosphere-ai} missing, or nothing installed
+     * yet — the payload simply omits the key rather than reporting intent.
+     * Key literal mirrors the {@code org.atmosphere.ai.deep-agent.*} namespace
+     * in {@code atmosphere-ai}.
+     */
+    private static Map<String, Object> detectDeepAgentState(AtmosphereFramework framework) {
+        if (framework == null) {
+            return null;
+        }
+        var cfg = framework.getAtmosphereConfig();
+        if (cfg == null) {
+            return null;
+        }
+        var state = cfg.properties().get("org.atmosphere.ai.deep-agent.runtime-state");
+        if (!(state instanceof Map<?, ?> states)) {
+            return null;
+        }
+        var map = new LinkedHashMap<String, Object>();
+        for (var e : states.entrySet()) {
+            map.put(String.valueOf(e.getKey()), String.valueOf(e.getValue()));
+        }
+        return map;
     }
 
     private static String orDefault(String s, String fallback) {

@@ -45,6 +45,13 @@ public class AtmosphereConsoleInfoEndpoint {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereConsoleInfoEndpoint.class);
 
+    // Framework property published by the core deep-agent preset installer
+    // (modules/ai): a Map<String, String> of primitive → ACTIVE / INACTIVE(reason)
+    // / CONVENTION. String-bridged so this controller keeps compiling against
+    // atmosphere-ai versions that predate the preset classes.
+    static final String DEEP_AGENT_RUNTIME_STATE_PROPERTY =
+            "org.atmosphere.ai.deep-agent.runtime-state";
+
     private final AtmosphereProperties properties;
     private final AtmosphereFramework framework;
     private final ApplicationContext context;
@@ -115,7 +122,44 @@ public class AtmosphereConsoleInfoEndpoint {
         if (memorySafety != null) {
             result.put("memorySafety", memorySafety);
         }
+        // Deep-agent preset: reported only when the core preset installer
+        // published its per-primitive runtime states into the framework property
+        // bag — i.e. the preset actually ran, not merely that it was configured
+        // (Runtime Truth — Invariant #5).
+        var deepAgent = detectDeepAgentState();
+        if (deepAgent != null) {
+            result.put("deepAgent", deepAgent);
+        }
         return result;
+    }
+
+    /**
+     * Runtime-truth view of the deep-agent preset: the per-primitive
+     * ACTIVE / INACTIVE(reason) / CONVENTION states the core preset installer
+     * published into the framework property bag. Returns {@code null} when the
+     * preset never ran (property absent or empty), so the console omits the
+     * section instead of echoing configuration intent.
+     */
+    private Map<String, String> detectDeepAgentState() {
+        try {
+            var cfg = framework.getAtmosphereConfig();
+            if (cfg == null) {
+                return null;
+            }
+            if (cfg.properties().get(DEEP_AGENT_RUNTIME_STATE_PROPERTY) instanceof Map<?, ?> states
+                    && !states.isEmpty()) {
+                var map = new LinkedHashMap<String, String>();
+                for (var e : states.entrySet()) {
+                    if (e.getKey() instanceof String key && e.getValue() instanceof String value) {
+                        map.put(key, value);
+                    }
+                }
+                return map.isEmpty() ? null : map;
+            }
+        } catch (Exception e) {
+            logger.debug("Deep-agent runtime state not available", e);
+        }
+        return null;
     }
 
     /**

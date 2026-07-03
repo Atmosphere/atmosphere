@@ -131,6 +131,23 @@ public final class InterceptingAgentFleet implements AgentFleet {
         return last;
     }
 
+    @Override
+    public org.atmosphere.coordinator.journal.CoordinationJournal journal() {
+        // Delegate instead of inheriting the NOOP default — wrapping a
+        // JournalingAgentFleet must not hide its journal from @Prompt code or
+        // the journal-format PostPromptHook (Mode Parity: the governed fleet
+        // behaves identically apart from the dispatch gate).
+        return delegate.journal();
+    }
+
+    @Override
+    public List<org.atmosphere.coordinator.evaluation.Evaluation> evaluate(
+            AgentResult result, AgentCall originalCall) {
+        // Same rationale as journal(): keep the delegate's evaluator chain
+        // reachable through the wrapper.
+        return delegate.evaluate(result, originalCall);
+    }
+
     public AgentFleet unwrap() {
         return delegate;
     }
