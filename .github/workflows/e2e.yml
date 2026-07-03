@@ -111,7 +111,7 @@ jobs:
           - name: gap-protocols-agent
             projects: "a2a-multi-hop,concurrent-protocol-access"
           - name: gap-coordinator
-            projects: "coordinator-remote,coordinator-journal,coordinator-activity,durable-session-restart,session-token-expiry,auth-oauth-jwt,checkpoint-agent,orchestration-primitives"
+            projects: "coordinator-remote,coordinator-journal,coordinator-activity,durable-session-restart,session-token-expiry,auth-oauth-jwt,checkpoint-agent,orchestration-primitives,passivation-agent"
           - name: gap-compat
             projects: "spring-boot3-parity,backpressure-bounded-queue,webtransport-raw,webtransport"
           - name: gap-admin-core

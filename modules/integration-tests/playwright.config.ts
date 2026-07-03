@@ -159,6 +159,10 @@ export default defineConfig({
       testMatch: /a2a-agent\.spec\.ts/,
     },
     {
+      name: 'passivation-agent',
+      testMatch: /passivation-agent\.spec\.ts/,
+    },
+    {
       name: 'agui-chat',
       testMatch: /agui-chat\.spec\.ts/,
     },

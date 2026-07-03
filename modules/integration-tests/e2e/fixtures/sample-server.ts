@@ -144,6 +144,14 @@ export const SAMPLES: Record<string, SampleConfig> = {
     port: 8093,
     type: 'spring-boot',
   },
+  'spring-boot-passivation-agent': {
+    name: 'spring-boot-passivation-agent',
+    dir: 'spring-boot-passivation-agent',
+    port: 8097,
+    // Headless REST sample (POST /api/agent/pause|resume, GET /checkpoints/{id});
+    // no chat endpoint. The '/' probe (status < 500) is enough for readiness.
+    type: 'spring-boot',
+  },
   'spring-boot-agui-chat': {
     name: 'spring-boot-agui-chat',
     dir: 'spring-boot-agui-chat',
