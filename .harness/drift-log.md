@@ -1975,3 +1975,35 @@ not recovered coverage. Zero coverage loss; the release-4x test gate still runs 
 **Gate:** before claiming "X runs nowhere / is skipped", grep a passing CI run's log for X
 (`gh run view --log | grep <TestClass>`) — POM reading tells you what *can* run; only the log
 of the lane you claim is missing X tells you what *does* run.
+
+## 2026-07-02 — Release-gate sample lane shipped with a Playwright-browser hole its local validation couldn't see
+
+**Claim (af588221a7, workflow agent validation evidence):** the new "Release Gate: Samples E2E"
+lane was "locally validated end-to-end" — boots each runnable sample from its packaged jar and
+runs its Playwright/smoke coverage; wired as a release-4x precondition. The agent honestly noted
+it had only run the smoke shard + the quarkus-ai-chat Playwright leg locally and to "watch the
+first workflow_dispatch run to confirm shard wall-clocks."
+
+**Truth:** the first dispatched run (28627737243) failed the `foundation` shard — but NOT for any
+sample defect: every sample booted green (all `ready — returned 200`). The specs failed with
+`browserType.launch: Executable doesn't exist at .../chromium_headless_shell-1217`. Root cause:
+`modules/integration-tests` resolves Playwright 1.58.2 (browser build 1208) and `e2e` resolves
+1.59.1 (build 1217); the workflow installed browsers only in `modules/integration-tests` and keyed
+the browser cache on that one lockfile, while `run_fnd` runs the foundation specs from `e2e/`
+(1217). Proven at the binary level: `cd e2e && npx playwright install --dry-run` reports exactly
+`chromium_headless_shell-1217`, the build CI said was missing; `modules/integration-tests` reports
+1208.
+
+**Slip path:** the lane's local validation exercised the tier whose browser happened to be
+installed (`pw:` from modules/integration-tests + `smoke`), never the `fnd:` tier from `e2e/` that
+uses a second, independently-versioned Playwright — the exact meta-failure this session's own
+post-mortem named: "the agent never grades the path it didn't run." Two Playwright projects with
+separate lockfiles were treated as one browser-install surface.
+
+**Fix (bed4859f66):** install `chromium chromium-headless-shell --with-deps` for BOTH `e2e` and
+`modules/integration-tests`, and key the browser cache on both lockfiles. Re-dispatched to confirm.
+
+**Gate:** when a CI lane runs specs from more than one Node/Playwright project dir, the browser +
+deps install and the cache key MUST cover every dir (each has its own resolved version/build); and
+local validation of a multi-tier lane must exercise the actual tier that will run in CI, not the
+first tier that boots.
