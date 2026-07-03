@@ -37,26 +37,26 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Verifies the deep-agent preset config surface on Quarkus:
- * {@code quarkus.atmosphere.ai.deep-agent.*} keys bridge to the
+ * Verifies the agent-harness preset config surface on Quarkus:
+ * {@code quarkus.atmosphere.ai.harness.*} keys bridge to the
  * {@code org.atmosphere.ai.*} framework init-params read by
- * {@code AiEndpointProcessor}, an enabled preset implies the durable-run
- * spine (no explicit {@code durable-runs.enabled} needed), and the
+ * {@code AiEndpointProcessor}, an explicitly enabled harness implies the
+ * durable-run spine (no explicit {@code durable-runs.enabled} needed), and the
  * {@code /api/console/info} servlet surfaces the preset's published
  * per-primitive runtime-state map (Invariant #5). Every key asserted here has
  * its production reader exercised in the same boot — no dead config keys.
  */
-public class DeepAgentBuildStepTest {
+public class HarnessBuildStepTest {
 
     @RegisterExtension
     static final QuarkusExtensionTest unitTest = new QuarkusExtensionTest()
-            .withApplicationRoot(jar -> jar.addClass(DeepAgentBuildStepTest.class))
+            .withApplicationRoot(jar -> jar.addClass(HarnessBuildStepTest.class))
             .overrideConfigKey("quarkus.http.test-port", "0")
-            .overrideConfigKey("quarkus.atmosphere.ai.deep-agent.enabled", "true")
-            .overrideConfigKey("quarkus.atmosphere.ai.deep-agent.exclude-paths",
+            .overrideConfigKey("quarkus.atmosphere.ai.harness.enabled", "true")
+            .overrideConfigKey("quarkus.atmosphere.ai.harness.exclude-paths",
                     "/atmosphere/support,/atmosphere/ops")
-            .overrideConfigKey("quarkus.atmosphere.ai.deep-agent.compaction", "summarizing")
-            .overrideConfigKey("quarkus.atmosphere.ai.deep-agent.prompt-cache-default", "conservative")
+            .overrideConfigKey("quarkus.atmosphere.ai.harness.compaction", "summarizing")
+            .overrideConfigKey("quarkus.atmosphere.ai.harness.prompt-cache-default", "conservative")
             // Keep the implied spine hermetic — no on-disk SQLite journal.
             .overrideConfigKey("quarkus.atmosphere.durable-runs.journal", "memory");
 
@@ -67,14 +67,14 @@ public class DeepAgentBuildStepTest {
     URL consoleInfoUrl;
 
     @Test
-    public void deepAgentInitParamsReachTheDeployedFramework() {
+    public void harnessInitParamsReachTheDeployedFramework() {
         var framework = LazyAtmosphereConfigurator.getFramework();
         assertNotNull(framework, "the Atmosphere framework must be initialized at startup");
         var cfg = framework.getAtmosphereConfig();
-        assertEquals("true", cfg.getInitParameter("org.atmosphere.ai.deep-agent.enabled"),
-                "quarkus.atmosphere.ai.deep-agent.enabled must bridge to the framework init-param");
+        assertEquals("true", cfg.getInitParameter("org.atmosphere.ai.harness.enabled"),
+                "quarkus.atmosphere.ai.harness.enabled must bridge to the framework init-param");
         assertEquals("/atmosphere/support,/atmosphere/ops",
-                cfg.getInitParameter("org.atmosphere.ai.deep-agent.exclude-paths"),
+                cfg.getInitParameter("org.atmosphere.ai.harness.exclude-paths"),
                 "exclude-paths must bridge comma-joined");
         assertEquals("summarizing", cfg.getInitParameter("org.atmosphere.ai.compaction"),
                 "compaction must bridge to org.atmosphere.ai.compaction");
@@ -83,31 +83,31 @@ public class DeepAgentBuildStepTest {
     }
 
     @Test
-    public void deepAgentImpliesTheDurableRunSpine() {
+    public void harnessImpliesTheDurableRunSpine() {
         assertNotNull(producer, "AtmosphereDurableRunsProducer must be CDI-resolvable");
         assertTrue(producer.installed(),
-                "deep-agent.enabled=true must install the durable-run spine without an "
+                "harness.enabled=true must install the durable-run spine without an "
                         + "explicit quarkus.atmosphere.durable-runs.enabled=true");
         assertTrue(DurableRunSpineHolder.get().enabled(),
                 "DurableRunSpineHolder must report an enabled spine");
     }
 
     @Test
-    public void consoleInfoPublishesTheDeepAgentRuntimeStateMap() throws Exception {
+    public void consoleInfoPublishesTheHarnessRuntimeStateMap() throws Exception {
         var framework = LazyAtmosphereConfigurator.getFramework();
         assertNotNull(framework, "the Atmosphere framework must be initialized at startup");
         // Publish the per-primitive state map exactly where the core preset
         // does; the servlet must relay it verbatim (runtime truth, not intent).
         framework.getAtmosphereConfig().properties().put(
-                "org.atmosphere.ai.deep-agent.runtime-state",
+                "org.atmosphere.ai.harness.runtime-state",
                 Map.of("durable-runs", "ACTIVE"));
 
         var response = HttpClient.newHttpClient().send(
                 HttpRequest.newBuilder().uri(URI.create(consoleInfoUrl.toString())).GET().build(),
                 HttpResponse.BodyHandlers.ofString());
         assertEquals(200, response.statusCode(), "/api/console/info must respond");
-        assertTrue(response.body().contains("\"deepAgent\":{\"durable-runs\":\"ACTIVE\"}"),
-                "the console info payload must carry the published deep-agent runtime-state map: "
+        assertTrue(response.body().contains("\"harness\":{\"durable-runs\":\"ACTIVE\"}"),
+                "the console info payload must carry the published harness runtime-state map: "
                         + response.body());
     }
 }

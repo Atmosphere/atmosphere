@@ -22,8 +22,10 @@ import org.atmosphere.ai.SlidingWindowCompaction;
 import org.atmosphere.ai.governance.GovernancePolicy;
 import org.atmosphere.ai.governance.PolicyContext;
 import org.atmosphere.ai.governance.PolicyDecision;
-import org.atmosphere.ai.preset.DeepAgentPreset;
+import org.atmosphere.ai.preset.Harness;
+import org.atmosphere.ai.preset.HarnessPreset;
 import org.atmosphere.ai.tool.DefaultToolRegistry;
+import org.atmosphere.coordinator.annotation.Coordinator;
 import org.atmosphere.coordinator.fleet.AgentFleet;
 import org.atmosphere.coordinator.fleet.InterceptingAgentFleet;
 import org.atmosphere.coordinator.test.StubAgentFleet;
@@ -45,11 +47,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Pins the deep-agent preset's {@code @Coordinator} seams: delegate_task
- * registration gating, the governance wrap on the outbound dispatch edge, and
- * the compaction seam on the coordinator memory path.
+ * Pins the harness {@code @Coordinator} seams: delegate_task registration
+ * gating on the DELEGATION feature, the governance wrap on the outbound
+ * dispatch edge, and the compaction seam on the coordinator memory path.
  */
-public class CoordinatorProcessorDeepAgentPresetTest {
+public class CoordinatorProcessorHarnessPresetTest {
 
     private CoordinatorProcessor processor;
     private AtmosphereFramework framework;
@@ -66,52 +68,69 @@ public class CoordinatorProcessorDeepAgentPresetTest {
         when(framework.getAtmosphereConfig()).thenReturn(cfg);
     }
 
-    private DeepAgentPreset enabledPreset() {
-        when(cfg.getInitParameter(DeepAgentPreset.ENABLED_KEY, false)).thenReturn(true);
-        return DeepAgentPreset.install(framework);
+    private HarnessPreset appWidePreset() {
+        when(cfg.getInitParameter(HarnessPreset.ENABLED_KEY)).thenReturn("true");
+        return HarnessPreset.install(framework);
     }
 
     // ---- delegate_task registration gating ----
 
     @Test
-    public void delegateTaskRegisteredWhenPresetOn() {
-        var preset = enabledPreset();
+    public void delegateTaskRegisteredWhenDelegationOn() {
+        var preset = appWidePreset();
         var registry = new DefaultToolRegistry();
 
         processor.registerPresetDelegation(registry, preset, true, "coord");
 
         assertTrue(registry.getTool("delegate_task").isPresent(),
-                "the preset must register the built-in delegation tool");
+                "the harness must register the built-in delegation tool");
         assertEquals("ACTIVE",
-                preset.runtimeState().get(DeepAgentPreset.PRIMITIVE_DELEGATION),
+                preset.runtimeState().get(HarnessPreset.PRIMITIVE_DELEGATION),
                 "runtime-state must report delegation as genuinely registered");
     }
 
     @Test
-    public void delegateTaskAbsentWhenPresetOff() {
-        var preset = DeepAgentPreset.install(framework);
+    public void delegateTaskAbsentWhenDelegationOff() {
+        var preset = HarnessPreset.install(framework);
         var registry = new DefaultToolRegistry();
 
         processor.registerPresetDelegation(registry, preset, false, "coord");
 
         assertFalse(registry.getTool("delegate_task").isPresent(),
-                "without the preset, delegation must stay opt-in via user @AiTool wrappers");
+                "without the DELEGATION feature, delegation must stay opt-in via user @AiTool wrappers");
         assertEquals("INACTIVE(disabled)",
-                preset.runtimeState().get(DeepAgentPreset.PRIMITIVE_DELEGATION));
+                preset.runtimeState().get(HarnessPreset.PRIMITIVE_DELEGATION));
+    }
+
+    @Test
+    public void coordinatorAnnotationDefaultsToTheFullHarness() throws Exception {
+        // @Coordinator subsumes @Agent, so it shares the batteries-on default:
+        // a bare annotation must resolve to the full feature set under an
+        // UNSET app-wide flag (no config at all), keeping declared fleets'
+        // delegation on without the old global switch.
+        var defaults = (Harness[]) Coordinator.class.getMethod("harness").getDefaultValue();
+        var preset = HarnessPreset.install(framework);
+
+        var features = preset.featuresFor("/atmosphere/agent/coord", defaults, true);
+
+        assertTrue(features.contains(Harness.DELEGATION),
+                "a bare @Coordinator must keep fleet delegation on by default");
+        assertTrue(features.contains(Harness.MEMORY),
+                "a bare @Coordinator must carry the full batteries-on default");
     }
 
     // ---- outbound governance wrap ----
 
     @Test
-    public void presetOffLeavesFleetUnwrapped() {
+    public void delegationOffLeavesFleetUnwrapped() {
         var fleet = StubAgentFleet.builder().agent("worker", "ok").build();
 
         assertSame(fleet, processor.applyPresetGovernance(fleet, false, framework, "coord"),
-                "without the preset the fleet must pass through untouched");
+                "without the DELEGATION feature the fleet must pass through untouched");
     }
 
     @Test
-    public void presetWrapsFleetWithInstalledPolicies() {
+    public void delegationWrapsFleetWithInstalledPolicies() {
         // The wrap must consume the SAME installed policy chain the inbound
         // pipeline resolves (GovernancePolicies.installed reads this bag).
         props.put(GovernancePolicy.POLICIES_PROPERTY, List.<GovernancePolicy>of(denyAll()));
@@ -120,7 +139,7 @@ public class CoordinatorProcessorDeepAgentPresetTest {
         var governed = processor.applyPresetGovernance(fleet, true, framework, "coord");
 
         assertInstanceOf(InterceptingAgentFleet.class, governed,
-                "the preset must return the interceptor-enforcing wrapper");
+                "the harness must return the interceptor-enforcing wrapper");
         var result = governed.agent("worker").call("default", Map.of("message", "hi"));
         assertFalse(result.success(), "an installed Deny policy must block the dispatch");
         assertTrue(result.text().contains("denied"), result.text());
@@ -129,7 +148,7 @@ public class CoordinatorProcessorDeepAgentPresetTest {
     }
 
     @Test
-    public void presetGovernanceKeepsJournalVisible() {
+    public void delegationGovernanceKeepsJournalVisible() {
         // The governance wrap composes AFTER the journal wrap; the governed
         // fleet must still expose the journal for @Prompt code and the
         // journal-format PostPromptHook (delegating journal(), not the NOOP
@@ -181,7 +200,7 @@ public class CoordinatorProcessorDeepAgentPresetTest {
 
             @Override
             public String source() {
-                return "code:" + CoordinatorProcessorDeepAgentPresetTest.class.getName();
+                return "code:" + CoordinatorProcessorHarnessPresetTest.class.getName();
             }
 
             @Override

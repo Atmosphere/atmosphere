@@ -26,13 +26,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Pins relaxed (kebab → camel) binding of
- * {@link AtmosphereProperties.DeepAgentProperties} and
+ * {@link AtmosphereProperties.HarnessProperties} and
  * {@link AtmosphereProperties.CodeProperties}, plus their default contract:
- * both presets are off by default, list defaults are empty-not-null, and every
- * code-exec hardening bound is a nullable wrapper meaning "unset = don't
- * bridge".
+ * the harness switch is tri-state (unset by default — {@code null}, never
+ * {@code false}), list defaults are empty-not-null, code exec is off by
+ * default, and every code-exec hardening bound is a nullable wrapper meaning
+ * "unset = don't bridge". Mirrors the SB4 starter's
+ * {@code HarnessPropertiesBindingTest}.
  */
-class DeepAgentPropertiesBindingTest {
+class HarnessPropertiesBindingTest {
 
     private static AtmosphereProperties bind(Map<String, String> props) {
         var source = new MapConfigurationPropertySource(props);
@@ -42,32 +44,46 @@ class DeepAgentPropertiesBindingTest {
     }
 
     @Test
-    void deepAgentBindsViaRelaxedKebabToCamel() {
+    void harnessBindsViaRelaxedKebabToCamel() {
         var props = new HashMap<String, String>();
-        props.put("atmosphere.ai.deep-agent.enabled", "true");
+        props.put("atmosphere.ai.harness.enabled", "true");
         // Comma form — what users type in application.properties; the bridge
         // re-joins the bound list with "," for the init-param.
-        props.put("atmosphere.ai.deep-agent.exclude-paths", "/atmosphere/ops,/atmosphere/health");
-        props.put("atmosphere.ai.deep-agent.compaction", "summarizing");
-        props.put("atmosphere.ai.deep-agent.prompt-cache-default", "conservative");
+        props.put("atmosphere.ai.harness.exclude-paths", "/atmosphere/ops,/atmosphere/health");
+        props.put("atmosphere.ai.harness.compaction", "summarizing");
+        props.put("atmosphere.ai.harness.prompt-cache-default", "conservative");
 
-        var deepAgent = bind(props).getAi().getDeepAgent();
+        var harness = bind(props).getAi().getHarness();
 
-        assertThat(deepAgent.isEnabled()).isTrue();
-        assertThat(deepAgent.getExcludePaths())
+        assertThat(harness.getEnabled()).isTrue();
+        assertThat(harness.getExcludePaths())
                 .containsExactly("/atmosphere/ops", "/atmosphere/health");
-        assertThat(deepAgent.getCompaction()).isEqualTo("summarizing");
-        assertThat(deepAgent.getPromptCacheDefault()).isEqualTo("conservative");
+        assertThat(harness.getCompaction()).isEqualTo("summarizing");
+        assertThat(harness.getPromptCacheDefault()).isEqualTo("conservative");
     }
 
     @Test
-    void deepAgentDefaultsAreOffAndEmpty() {
-        var deepAgent = new AtmosphereProperties().getAi().getDeepAgent();
+    void harnessExplicitFalseBindsAsTheKillSwitch() {
+        var props = new HashMap<String, String>();
+        props.put("atmosphere.ai.harness.enabled", "false");
 
-        assertThat(deepAgent.isEnabled()).as("the preset is explicit opt-in").isFalse();
-        assertThat(deepAgent.getExcludePaths()).isNotNull().isEmpty();
-        assertThat(deepAgent.getCompaction()).isNull();
-        assertThat(deepAgent.getPromptCacheDefault()).isNull();
+        var harness = bind(props).getAi().getHarness();
+
+        assertThat(harness.getEnabled())
+                .as("an explicit false must bind as FALSE, not collapse to unset")
+                .isFalse();
+    }
+
+    @Test
+    void harnessDefaultsAreUnsetAndEmpty() {
+        var harness = new AtmosphereProperties().getAi().getHarness();
+
+        assertThat(harness.getEnabled())
+                .as("the switch is tri-state: unset by default, not false")
+                .isNull();
+        assertThat(harness.getExcludePaths()).isNotNull().isEmpty();
+        assertThat(harness.getCompaction()).isNull();
+        assertThat(harness.getPromptCacheDefault()).isNull();
     }
 
     @Test

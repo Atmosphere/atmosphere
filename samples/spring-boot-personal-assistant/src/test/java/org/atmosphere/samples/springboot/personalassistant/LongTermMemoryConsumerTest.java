@@ -38,13 +38,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * consumer: a fact extracted when one "session" closes is recalled and
  * injected into the system prompt of a later session for the same user.
  *
- * <p>The sample carries no memory wiring of its own — the deep-agent preset
- * ({@code atmosphere.ai.deep-agent.enabled=true} in {@code application.yml})
- * makes the framework attach a {@link LongTermMemoryInterceptor} built as
- * {@code (resolved store, onSessionClose, resolved runtime, 20)} to every AI
- * endpoint. This test drives an interceptor built exactly that way; only the
- * extraction {@link AgentRuntime} is a deterministic stub so the test needs
- * no LLM key.</p>
+ * <p>The sample carries no memory wiring of its own — the harness preset
+ * ({@code harness = {Harness.ALL}} on the {@code UpstreamMcpAgent}
+ * annotation) makes the framework attach a {@link LongTermMemoryInterceptor}
+ * built as {@code (resolved store, onSessionClose, resolved runtime, 20)} to
+ * the endpoint. This test drives an interceptor built exactly that way; only
+ * the extraction {@link AgentRuntime} is a deterministic stub so the test
+ * needs no LLM key.</p>
  */
 class LongTermMemoryConsumerTest {
 
@@ -115,7 +115,7 @@ class LongTermMemoryConsumerTest {
     private final InMemoryLongTermMemory memory = new InMemoryLongTermMemory(20);
 
     /**
-     * Build the interceptor exactly the way the deep-agent preset does —
+     * Build the interceptor exactly the way the harness preset does —
      * {@code (store, onSessionClose, extraction runtime, maxFacts 20)} — with
      * the stub extraction runtime standing in for the resolved one.
      */

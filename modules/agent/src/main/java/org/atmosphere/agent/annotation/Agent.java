@@ -15,6 +15,8 @@
  */
 package org.atmosphere.agent.annotation;
 
+import org.atmosphere.ai.preset.Harness;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -128,18 +130,20 @@ public @interface Agent {
     boolean headless() default false;
 
     /**
-     * When {@code true}, the deep-agent preset is forced on for this one agent —
-     * long-term memory is attached and a prompt-cache default is seeded —
-     * regardless of the global {@code org.atmosphere.ai.deep-agent.enabled}
-     * (Spring: {@code atmosphere.ai.deep-agent.enabled}) switch. These are the
-     * same primitives the flag turns on app-wide, opted in for a single agent.
+     * The harness features attached to this agent — the deep-agent category
+     * of primitives, batteries-included by default: {@link Harness#ALL}
+     * expands to long-term memory (+ compaction), prompt-cache default
+     * seeding and the delegation primitive. Narrow the set to pick individual
+     * features (e.g. {@code harness = {Harness.MEMORY}}), or declare
+     * {@code harness = {}} to opt this agent down to a bare loop.
      *
-     * <p>An {@code @Agent} always has conversation memory, so this attribute adds
-     * the remaining deep-agent primitives on top of it. Leave it {@code false} to
-     * let the global switch decide (the default), or set it {@code true} to make
-     * one agent deep without flipping the switch for every endpoint.</p>
+     * <p>The app-wide {@code org.atmosphere.ai.harness.enabled} init-param
+     * (Spring: {@code atmosphere.ai.harness.enabled}) refines this:
+     * {@code false} is the kill switch that beats every annotation, and
+     * {@code org.atmosphere.ai.harness.exclude-paths} opts individual paths
+     * out. See {@code HarnessPreset.featuresFor} for the exact precedence.</p>
      */
-    boolean deepAgent() default false;
+    Harness[] harness() default {Harness.ALL};
 
     /**
      * Target Java type for structured output from this agent.

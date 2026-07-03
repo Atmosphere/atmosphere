@@ -43,7 +43,8 @@ import org.atmosphere.ai.governance.memory.MemorySafetyConfig;
 import org.atmosphere.ai.llm.PromptCacheDefaults;
 import org.atmosphere.ai.memory.LongTermMemories;
 import org.atmosphere.ai.memory.LongTermMemoryInterceptor;
-import org.atmosphere.ai.preset.DeepAgentPreset;
+import org.atmosphere.ai.preset.Harness;
+import org.atmosphere.ai.preset.HarnessPreset;
 import org.atmosphere.ai.governance.rag.RagSafetyConfig;
 import org.atmosphere.ai.governance.scope.ScopePolicyBuilder;
 import org.atmosphere.ai.tool.DefaultToolRegistry;
@@ -142,11 +143,11 @@ public class AiEndpointProcessor implements Processor<Object> {
             // agnostic — the same call serves the @AiEndpoint path on every runtime.
             installMemorySafetyOnce(framework);
 
-            // Deep-agent preset: one-shot install per framework (same marker
-            // pattern as installMemorySafetyOnce). Parses the enabled /
-            // exclude-paths init-params and publishes the per-primitive
-            // runtime-state map for the console (Invariant #5).
-            var preset = DeepAgentPreset.install(framework);
+            // Harness preset: one-shot install per framework (same marker
+            // pattern as installMemorySafetyOnce). Parses the tri-state
+            // enabled / exclude-paths init-params and publishes the
+            // per-primitive runtime-state map for the console (Invariant #5).
+            var preset = HarnessPreset.install(framework);
 
             var promptMethod = findPromptMethod(annotatedClass);
             if (promptMethod == null) {
@@ -167,14 +168,19 @@ public class AiEndpointProcessor implements Processor<Object> {
             var runtime = resolveRuntimeWithRouting(fallbackStrategy, settings,
                     annotation.requires());
             var interceptors = instantiateInterceptors(annotation.interceptors(), framework);
-            var presetOn = preset.enabledFor(annotation.path());
-            // Deep-agent preset: shared attach point appends a framework-built
+            // Resolve the endpoint's harness features once: the annotation's
+            // harness() (bare by default), upgraded to ALL by the app-wide
+            // true flag, beaten by exclude-paths and the kill switch.
+            var features = preset.featuresFor(
+                    annotation.path(), annotation.harness(), false);
+            // Harness MEMORY: shared attach point appends a framework-built
             // long-term-memory interceptor AFTER the user's interceptors (FIFO/
             // LIFO ordering preserved); a user-declared LongTermMemoryInterceptor
             // is authoritative and suppresses it. The same helper runs on the
             // @Agent / @Coordinator paths (Mode Parity).
             interceptors = LongTermMemories.withPresetLongTermMemory(
-                    interceptors, preset, presetOn, annotation.path(), framework);
+                    interceptors, preset, features.contains(Harness.MEMORY),
+                    annotation.path(), framework);
             // Publish memory injection-safety as runtime truth only when this
             // endpoint actually wires long-term memory — symmetric to ragSafety,
             // which publishes only once a ContextProvider is wrapped. Advertising
@@ -186,17 +192,17 @@ public class AiEndpointProcessor implements Processor<Object> {
             AiConversationMemory memory = null;
             if (annotation.conversationMemory()) {
                 memory = resolveMemory(annotation.maxHistoryMessages(), framework);
-            } else if (presetOn) {
-                // Preset default-on gate: annotation true always wins above;
+            } else if (features.contains(Harness.MEMORY)) {
+                // Harness MEMORY gate: annotation true always wins above;
                 // false is flipped on here (maxHistoryMessages still honors
                 // the annotation). One INFO per flipped endpoint, and the
                 // console runtime-state is upgraded to ACTIVE so it reflects
                 // what the endpoint actually got — not the global switch, which
-                // may be off when an @Agent(deepAgent=true) endpoint forced the
-                // preset (Runtime Truth — Invariant #5).
+                // may be off when the annotation's harness() opted this
+                // endpoint in (Runtime Truth — Invariant #5).
                 memory = resolveMemory(annotation.maxHistoryMessages(), framework);
-                preset.updateRuntimeState(DeepAgentPreset.PRIMITIVE_CONVERSATION_MEMORY, "ACTIVE");
-                logger.info("Deep-agent preset enabled conversation memory for {} "
+                preset.updateRuntimeState(HarnessPreset.PRIMITIVE_CONVERSATION_MEMORY, "ACTIVE");
+                logger.info("Harness enabled conversation memory for {} "
                         + "(max {} messages)", annotation.path(), annotation.maxHistoryMessages());
             }
 
@@ -271,17 +277,18 @@ public class AiEndpointProcessor implements Processor<Object> {
 
             // Endpoint-scoped prompt cache policy: the annotation wins, then
             // the org.atmosphere.ai.prompt-cache.default init-param, then the
-            // deep-agent preset's CONSERVATIVE default. This only seeds the
-            // CacheHint — wire emission stays gated by the tri-state
+            // harness CACHE feature's CONSERVATIVE default. This only seeds
+            // the CacheHint — wire emission stays gated by the tri-state
             // prompt-cache-key mode and its default-deny host allow-list.
             var cachePolicy = PromptCacheDefaults.effective(
-                    annotation.promptCache(), framework.getAtmosphereConfig(), presetOn);
+                    annotation.promptCache(), framework.getAtmosphereConfig(),
+                    features.contains(Harness.CACHE));
             if (cachePolicy != org.atmosphere.ai.llm.CacheHint.CachePolicy.NONE) {
                 handler.setCachePolicy(cachePolicy);
                 // Upgrade the console runtime-state to the policy this endpoint
                 // actually seeds (Runtime Truth) — the global seed may read
-                // "none" when an @Agent(deepAgent=true) endpoint forced the preset.
-                preset.updateRuntimeState(DeepAgentPreset.PRIMITIVE_PROMPT_CACHE_DEFAULT,
+                // "none" when the annotation's harness() opted this endpoint in.
+                preset.updateRuntimeState(HarnessPreset.PRIMITIVE_PROMPT_CACHE_DEFAULT,
                         cachePolicy.name().toLowerCase(java.util.Locale.ROOT));
             }
             // Endpoint-scoped retry policy. maxRetries = -1 sentinel means

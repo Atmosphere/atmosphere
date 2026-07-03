@@ -44,7 +44,8 @@ import org.atmosphere.ai.governance.scope.ScopePolicyBuilder;
 import org.atmosphere.ai.llm.CacheHint;
 import org.atmosphere.ai.llm.PromptCacheDefaults;
 import org.atmosphere.ai.memory.LongTermMemories;
-import org.atmosphere.ai.preset.DeepAgentPreset;
+import org.atmosphere.ai.preset.Harness;
+import org.atmosphere.ai.preset.HarnessPreset;
 import org.atmosphere.ai.processor.AiEndpointHandler;
 import org.atmosphere.ai.tool.DefaultToolRegistry;
 import org.atmosphere.ai.tool.ToolRegistry;
@@ -194,11 +195,15 @@ public class CoordinatorProcessor implements Processor<Object> {
             var coordinatorName = annotation.name();
             var path = "/atmosphere/agent/" + coordinatorName;
 
-            // Deep-agent preset: one-shot install per framework (same marker
+            // Harness preset: one-shot install per framework (same marker
             // pattern as the @AiEndpoint path — Mode Parity). Gates the
             // delegate_task tool and the outbound governance wrap below.
-            var preset = DeepAgentPreset.install(framework);
-            var presetOn = preset.enabledFor(path);
+            // @Coordinator subsumes @Agent, so it shares the batteries-on
+            // default ({Harness.ALL}): a declared fleet wants delegation.
+            // harness = {} opts down; the kill switch and exclude-paths
+            // beat the annotation.
+            var preset = HarnessPreset.install(framework);
+            var features = preset.featuresFor(path, annotation.harness(), true);
 
             // Step 1: Create instance and inject fields
             var instance = framework.newClassInstance(Object.class, annotatedClass);
@@ -237,7 +242,8 @@ public class CoordinatorProcessor implements Processor<Object> {
             var memory = resolveMemory(DEFAULT_MAX_HISTORY, framework);
             var toolRegistry = registerTools(instance);
 
-            registerPresetDelegation(toolRegistry, preset, presetOn, coordinatorName);
+            registerPresetDelegation(toolRegistry, preset,
+                    features.contains(Harness.DELEGATION), coordinatorName);
 
             // MCP.md: connect the coordinator's outbound MCP servers and
             // register their remote tools (mode parity with AgentProcessor).
@@ -292,7 +298,8 @@ public class CoordinatorProcessor implements Processor<Object> {
                 }
                 fleet = new JournalingAgentFleet(fleet, journal, coordinatorName);
             }
-            fleet = applyPresetGovernance(fleet, presetOn, framework, coordinatorName);
+            fleet = applyPresetGovernance(fleet,
+                    features.contains(Harness.DELEGATION), framework, coordinatorName);
             var responseType = annotation.responseAs() == Void.class
                     ? null : annotation.responseAs();
             var journalHook = resolveJournalHook(framework, annotation, fleet, journal);
@@ -316,12 +323,12 @@ public class CoordinatorProcessor implements Processor<Object> {
             // the web streaming path here and the A2A/AG-UI/channel pipeline in
             // buildPipeline below (Correctness Invariant #7 — Mode Parity).
             var webGuardrails = buildWebGuardrails(framework, annotatedClass, path);
-            // Deep-agent preset: same long-term-memory attach and prompt-cache
+            // Harness MEMORY: same long-term-memory attach and prompt-cache
             // default seeding as the @AiEndpoint / @Agent paths (Correctness
             // Invariant #7, Mode Parity) — @Coordinator has no interceptors /
             // promptCache attributes either.
             var aiInterceptors = LongTermMemories.withPresetLongTermMemory(
-                    List.of(), preset, presetOn, path, framework);
+                    List.of(), preset, features.contains(Harness.MEMORY), path, framework);
             if (!aiInterceptors.isEmpty()) {
                 MemorySafetyConfig.installedDefault().publishActive(framework);
             }
@@ -331,7 +338,7 @@ public class CoordinatorProcessor implements Processor<Object> {
                     memory, lifecycle, toolRegistry,
                     webGuardrails, List.of(), metrics, List.of(), null, injectables);
             var cachePolicy = PromptCacheDefaults.effective(
-                    null, framework.getAtmosphereConfig(), presetOn);
+                    null, framework.getAtmosphereConfig(), features.contains(Harness.CACHE));
             if (cachePolicy != CacheHint.CachePolicy.NONE) {
                 aiHandler.setCachePolicy(cachePolicy);
             }
@@ -455,32 +462,32 @@ public class CoordinatorProcessor implements Processor<Object> {
         return guardrails;
     }
 
-    // --- Deep-agent preset wiring ---
+    // --- Harness wiring ---
 
     /**
-     * Deep-agent preset: register the built-in LLM-callable
+     * Harness DELEGATION: register the built-in LLM-callable
      * {@code delegate_task} tool. The tool's {@link AgentFleet} parameter
      * resolves from the session injectables at dispatch time, so it always
      * sees the final (journal / governance) wrapped fleet published into the
-     * handler. Default-deny: absent the preset, delegation stays reachable
+     * handler. Default-deny: absent the feature, delegation stays reachable
      * only via hand-written {@code @AiTool} wrappers.
      *
-     * <p>Package-private so {@code CoordinatorProcessorDeepAgentPresetTest}
+     * <p>Package-private so {@code CoordinatorProcessorHarnessPresetTest}
      * can pin the gating without driving a full annotation scan.</p>
      */
-    void registerPresetDelegation(ToolRegistry toolRegistry, DeepAgentPreset preset,
-                                  boolean presetOn, String coordinatorName) {
-        if (!presetOn) {
+    void registerPresetDelegation(ToolRegistry toolRegistry, HarnessPreset preset,
+                                  boolean delegationOn, String coordinatorName) {
+        if (!delegationOn) {
             return;
         }
         toolRegistry.register(new DelegateTaskTool());
-        preset.updateRuntimeState(DeepAgentPreset.PRIMITIVE_DELEGATION, "ACTIVE");
-        logger.info("Deep-agent preset registered delegate_task for coordinator '{}'",
+        preset.updateRuntimeState(HarnessPreset.PRIMITIVE_DELEGATION, "ACTIVE");
+        logger.info("Harness registered delegate_task for coordinator '{}'",
                 coordinatorName);
     }
 
     /**
-     * Deep-agent preset: govern the outbound dispatch edge with the same
+     * Harness DELEGATION: govern the outbound dispatch edge with the same
      * installed policy chain the inbound pipeline admits against
      * ({@link GovernancePolicies#installed} — resolved here, not re-parsed
      * from policy files). Composed AFTER the journal wrap so admitted
@@ -489,17 +496,17 @@ public class CoordinatorProcessor implements Processor<Object> {
      * BEFORE the fleet goes into injectables so {@code @Prompt} /
      * {@code @AiTool} methods see the governed instance.
      *
-     * <p>Package-private so {@code CoordinatorProcessorDeepAgentPresetTest}
+     * <p>Package-private so {@code CoordinatorProcessorHarnessPresetTest}
      * can pin the wrap composition.</p>
      */
-    AgentFleet applyPresetGovernance(AgentFleet fleet, boolean presetOn,
+    AgentFleet applyPresetGovernance(AgentFleet fleet, boolean delegationOn,
                                      AtmosphereFramework framework, String coordinatorName) {
-        if (!presetOn) {
+        if (!delegationOn) {
             return fleet;
         }
         var governed = fleet.withInterceptor(
                 new GovernanceFleetInterceptor(GovernancePolicies.installed(framework)));
-        logger.info("Deep-agent preset governed the fleet dispatch edge for '{}'",
+        logger.info("Harness governed the fleet dispatch edge for '{}'",
                 coordinatorName);
         return governed;
     }

@@ -152,7 +152,7 @@ public interface AtmosphereConfig {
 
     /**
      * AI sub-configuration: the RAG and long-term-memory injection-safety
-     * screens plus the deep-agent preset.
+     * screens plus the agent-harness preset.
      */
     interface Ai {
 
@@ -292,40 +292,42 @@ public interface AtmosphereConfig {
         }
 
         /**
-         * Deep-agent preset configuration block.
+         * Agent-harness preset configuration block.
          *
-         * @return the deep-agent sub-configuration block
+         * @return the harness sub-configuration block
          */
-        DeepAgent deepAgent();
+        Harness harness();
 
         /**
-         * Deep-agent preset, bound to {@code quarkus.atmosphere.ai.deep-agent.*}.
-         * One switch that enables Atmosphere's existing deep-agent primitives
-         * (default-on conversation memory, long-term memory, subagent
-         * delegation, prompt-cache seeding) instead of manual per-endpoint
-         * wiring. The deployment processor bridges these keys to the
-         * {@code org.atmosphere.ai.deep-agent.*} framework init-params read
+         * Agent-harness preset, bound to {@code quarkus.atmosphere.ai.harness.*}.
+         * Governs Atmosphere's deep-agent primitives (default-on conversation
+         * memory, long-term memory, subagent delegation, prompt-cache seeding)
+         * app-wide instead of manual per-endpoint wiring. The deployment
+         * processor bridges these keys to the
+         * {@code org.atmosphere.ai.harness.*} framework init-params read
          * once per framework by {@code AiEndpointProcessor} in
-         * {@code atmosphere-ai}. Off by default — turning it on is the
-         * operator's explicit opt-in (Correctness Invariant #6).
+         * {@code atmosphere-ai}.
          */
-        interface DeepAgent {
+        interface Harness {
 
             /**
-             * Master switch. Defaults to {@code false} (off); set {@code true}
-             * to enable the deep-agent preset. On Quarkus an enabled preset
-             * also implies the durable-run spine unless {@code durable-runs}
-             * below is set to {@code false}.
+             * Tri-state app-wide switch. Unset (the default) leaves the
+             * decision to each annotation's {@code harness()} attribute;
+             * {@code true} turns the full harness on for every
+             * {@code @AiEndpoint} whose annotation stays bare; {@code false}
+             * is the operational kill switch — harness features stay off
+             * everywhere, beating every annotation. On Quarkus an explicit
+             * {@code true} also implies the durable-run spine unless
+             * {@code durable-runs} below is set to {@code false}.
              *
-             * @return {@code true} if the deep-agent preset is enabled
+             * @return the explicit app-wide switch, empty when unset
              */
-            @WithDefault("false")
-            boolean enabled();
+            Optional<Boolean> enabled();
 
             /**
-             * Endpoint paths excluded from the preset's default-on
+             * Endpoint paths excluded from the harness's default-on
              * conversation memory. Bridged (comma-joined) to the
-             * {@code org.atmosphere.ai.deep-agent.exclude-paths} init-param.
+             * {@code org.atmosphere.ai.harness.exclude-paths} init-param.
              *
              * @return the excluded endpoint paths
              */
@@ -334,8 +336,8 @@ public interface AtmosphereConfig {
             /**
              * Conversation-memory compaction strategy: {@code sliding-window}
              * (default) or {@code summarizing}. Bridged to the
-             * {@code org.atmosphere.ai.compaction} init-param; honored whether
-             * or not the preset is enabled.
+             * {@code org.atmosphere.ai.compaction} init-param; honored whatever
+             * the app-wide switch says.
              *
              * @return the compaction strategy name
              */
@@ -346,21 +348,22 @@ public interface AtmosphereConfig {
              * {@code @AiEndpoint} {@code promptCache()} is {@code NONE}:
              * {@code none}, {@code conservative}, or {@code aggressive}.
              * Bridged to the {@code org.atmosphere.ai.prompt-cache.default}
-             * init-param; honored whether or not the preset is enabled.
+             * init-param; honored whatever the app-wide switch says.
              *
              * @return the prompt-cache default policy name
              */
             Optional<String> promptCacheDefault();
 
             /**
-             * Whether an enabled preset implies the durable-run spine (as if
+             * Whether an explicitly enabled harness ({@code enabled=true})
+             * implies the durable-run spine (as if
              * {@code quarkus.atmosphere.durable-runs.enabled=true}). A
              * {@code @WithDefault} mapping cannot distinguish an unset
              * {@code durable-runs.enabled} from an explicit {@code false}, so
-             * this key is the preset's explicit opt-out; it never blocks an
+             * this key is the harness's explicit opt-out; it never blocks an
              * explicit {@code quarkus.atmosphere.durable-runs.enabled=true}.
              *
-             * @return {@code true} if the preset should install the durable-run spine
+             * @return {@code true} if the enabled harness should install the durable-run spine
              */
             @WithDefault("true")
             boolean durableRuns();
@@ -415,9 +418,9 @@ public interface AtmosphereConfig {
 
         /**
          * Master switch. Defaults to {@code false} (off); set {@code true} to
-         * record and replay agent runs. The deep-agent preset
-         * ({@code quarkus.atmosphere.ai.deep-agent.enabled=true}) also installs
-         * the spine unless {@code quarkus.atmosphere.ai.deep-agent.durable-runs=false}.
+         * record and replay agent runs. The agent-harness preset
+         * ({@code quarkus.atmosphere.ai.harness.enabled=true}) also installs
+         * the spine unless {@code quarkus.atmosphere.ai.harness.durable-runs=false}.
          *
          * @return {@code true} if the durable-run spine should be installed
          */

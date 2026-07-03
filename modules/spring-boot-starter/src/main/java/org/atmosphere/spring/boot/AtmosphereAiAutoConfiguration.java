@@ -58,11 +58,11 @@ public class AtmosphereAiAutoConfiguration {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereAiAutoConfiguration.class);
 
-    // Framework init-param keys read by the core deep-agent preset installer in
+    // Framework init-param keys read by the core harness preset installer in
     // modules/ai. Bridged as string literals so this starter keeps compiling
     // against atmosphere-ai versions that predate the preset classes.
-    static final String DEEP_AGENT_ENABLED_PARAM = "org.atmosphere.ai.deep-agent.enabled";
-    static final String DEEP_AGENT_EXCLUDE_PATHS_PARAM = "org.atmosphere.ai.deep-agent.exclude-paths";
+    static final String HARNESS_ENABLED_PARAM = "org.atmosphere.ai.harness.enabled";
+    static final String HARNESS_EXCLUDE_PATHS_PARAM = "org.atmosphere.ai.harness.exclude-paths";
     static final String COMPACTION_PARAM = "org.atmosphere.ai.compaction";
     static final String PROMPT_CACHE_DEFAULT_PARAM = "org.atmosphere.ai.prompt-cache.default";
 
@@ -274,25 +274,32 @@ public class AtmosphereAiAutoConfiguration {
                     org.atmosphere.ai.workspace.WorkspaceExtensions.WORKSPACE_PROPERTY, workspace);
             logger.info("Agent-as-artifact workspace configured: {}", workspace);
         }
-        // Bridge the deep-agent preset into framework init-params so the core
-        // preset installer (modules/ai) turns the primitives on at endpoint
-        // scan. Off by default; nothing is bridged when disabled.
-        var deepAgent = properties.getAi().getDeepAgent();
-        if (deepAgent.isEnabled()) {
-            framework.addInitParameter(DEEP_AGENT_ENABLED_PARAM, "true");
-            var excludePaths = deepAgent.getExcludePaths();
-            if (excludePaths != null && !excludePaths.isEmpty()) {
-                framework.addInitParameter(DEEP_AGENT_EXCLUDE_PATHS_PARAM,
-                        String.join(",", excludePaths));
-            }
-            if (deepAgent.getCompaction() != null && !deepAgent.getCompaction().isBlank()) {
-                framework.addInitParameter(COMPACTION_PARAM, deepAgent.getCompaction());
-            }
-            if (deepAgent.getPromptCacheDefault() != null
-                    && !deepAgent.getPromptCacheDefault().isBlank()) {
-                framework.addInitParameter(PROMPT_CACHE_DEFAULT_PARAM,
-                        deepAgent.getPromptCacheDefault());
-            }
+        // Bridge the harness preset into framework init-params so the core
+        // preset installer (modules/ai) resolves the primitives at endpoint
+        // scan. The enabled switch is tri-state: only a non-null value is
+        // bridged, so an explicit false reaches the runtime as the kill switch
+        // while an absent property stays absent (annotation defaults apply).
+        // Exclude-paths, compaction and the prompt-cache default bridge
+        // whenever set — they matter under the unset default too, where
+        // @Agent endpoints carry the full harness.
+        var harness = properties.getAi().getHarness();
+        if (harness.getEnabled() != null) {
+            framework.addInitParameter(HARNESS_ENABLED_PARAM, String.valueOf(harness.getEnabled()));
+        }
+        var excludePaths = harness.getExcludePaths();
+        if (excludePaths != null && !excludePaths.isEmpty()) {
+            framework.addInitParameter(HARNESS_EXCLUDE_PATHS_PARAM,
+                    String.join(",", excludePaths));
+        }
+        if (harness.getCompaction() != null && !harness.getCompaction().isBlank()) {
+            framework.addInitParameter(COMPACTION_PARAM, harness.getCompaction());
+        }
+        if (harness.getPromptCacheDefault() != null
+                && !harness.getPromptCacheDefault().isBlank()) {
+            framework.addInitParameter(PROMPT_CACHE_DEFAULT_PARAM,
+                    harness.getPromptCacheDefault());
+        }
+        if (Boolean.TRUE.equals(harness.getEnabled())) {
             // Force LLM settings resolution before naming the runtime so the log
             // reflects the configured client, not a stale pre-configure cache —
             // with no API key DemoAgentRuntime masks every primitive with canned
@@ -302,15 +309,18 @@ public class AtmosphereAiAutoConfiguration {
             try {
                 runtimeName = org.atmosphere.ai.AgentRuntimeResolver.resolve().name();
             } catch (LinkageError | RuntimeException e) {
-                logger.debug("Could not resolve the AgentRuntime for the deep-agent preset log", e);
+                logger.debug("Could not resolve the AgentRuntime for the harness preset log", e);
                 runtimeName = "unknown";
             }
-            logger.info("Deep-agent preset enabled (AgentRuntime={}): excludePaths={}, "
+            logger.info("Harness enabled app-wide (AgentRuntime={}): excludePaths={}, "
                     + "compaction={}, promptCacheDefault={}, durable runs implied unless "
                     + "atmosphere.durable-runs.enabled is set explicitly",
                     runtimeName,
                     excludePaths == null ? java.util.List.of() : excludePaths,
-                    deepAgent.getCompaction(), deepAgent.getPromptCacheDefault());
+                    harness.getCompaction(), harness.getPromptCacheDefault());
+        } else if (Boolean.FALSE.equals(harness.getEnabled())) {
+            logger.info("Harness kill switch active (atmosphere.ai.harness.enabled=false) — "
+                    + "harness primitives disabled everywhere, beating annotations");
         }
         return new AtmosphereAiEndpointRegistrar(framework, properties, guardrails);
     }
@@ -329,7 +339,7 @@ public class AtmosphereAiAutoConfiguration {
      * <p>A system property the operator already set on the JVM is never
      * overridden (the JVM wins), and on shutdown only the properties this
      * bridge itself set are cleared (Ownership, Correctness Invariant #1).
-     * This bridge does NOT enable code execution by itself and the deep-agent
+     * This bridge does NOT enable code execution by itself and the harness
      * preset never sets {@code atmosphere.ai.code.enabled} — executing
      * model-generated code stays an explicit opt-in (Correctness
      * Invariant #6).</p>
@@ -791,8 +801,8 @@ public class AtmosphereAiAutoConfiguration {
     /**
      * Installs the durable-execution spine on startup when
      * {@code atmosphere.durable-runs.enabled=true}, or when the property is
-     * unset and the deep-agent preset
-     * ({@code atmosphere.ai.deep-agent.enabled=true}) implies it — see
+     * unset and the harness preset
+     * ({@code atmosphere.ai.harness.enabled=true}) implies it — see
      * {@link OnDurableRunsEnabled}. Off by default — turning it on is the
      * operator's explicit opt-in (Correctness Invariant #6). The journal is
      * resolved as: a user-supplied {@link org.atmosphere.ai.resume.EffectJournal}
@@ -813,12 +823,13 @@ public class AtmosphereAiAutoConfiguration {
     }
 
     /**
-     * Durable-runs gate honouring the deep-agent implication: matches on an
+     * Durable-runs gate honouring the harness implication: matches on an
      * explicit {@code atmosphere.durable-runs.enabled=true}; when that property
-     * is unset, {@code atmosphere.ai.deep-agent.enabled=true} implies it. An
+     * is unset, {@code atmosphere.ai.harness.enabled=true} implies it. An
      * explicit {@code false} always wins, so the operator opt-out survives the
      * preset (same semantics as {@code @ConditionalOnProperty} plus the
-     * implication).
+     * implication). The unset harness default and the {@code false} kill
+     * switch imply nothing.
      */
     static final class OnDurableRunsEnabled
             extends org.springframework.boot.autoconfigure.condition.SpringBootCondition {
@@ -836,13 +847,13 @@ public class AtmosphereAiAutoConfiguration {
                         : org.springframework.boot.autoconfigure.condition.ConditionOutcome
                                 .noMatch("atmosphere.durable-runs.enabled=" + explicit);
             }
-            if ("true".equalsIgnoreCase(env.getProperty("atmosphere.ai.deep-agent.enabled"))) {
+            if ("true".equalsIgnoreCase(env.getProperty("atmosphere.ai.harness.enabled"))) {
                 return org.springframework.boot.autoconfigure.condition.ConditionOutcome.match(
-                        "atmosphere.ai.deep-agent.enabled=true implies durable runs "
+                        "atmosphere.ai.harness.enabled=true implies durable runs "
                                 + "(atmosphere.durable-runs.enabled unset)");
             }
             return org.springframework.boot.autoconfigure.condition.ConditionOutcome.noMatch(
-                    "neither atmosphere.durable-runs.enabled nor the deep-agent preset is set");
+                    "neither atmosphere.durable-runs.enabled nor the harness preset is set");
         }
     }
 
@@ -1293,7 +1304,7 @@ public class AtmosphereAiAutoConfiguration {
 
     /**
      * Bridges the application's {@link org.atmosphere.ai.memory.LongTermMemory}
-     * bean (if any) into the framework property bag so the deep-agent preset's
+     * bean (if any) into the framework property bag so the harness preset's
      * store resolution ({@code LongTermMemories.resolve}) prefers it over
      * ServiceLoader providers and the in-memory fallback. Mirrors the
      * {@code CoordinationJournal} bridge: the bean-graph dependency on both the
@@ -1308,7 +1319,7 @@ public class AtmosphereAiAutoConfiguration {
             AtmosphereFramework framework, org.atmosphere.ai.memory.LongTermMemory store) {
         framework.getAtmosphereConfig().properties()
                 .put(org.atmosphere.ai.memory.LongTermMemories.STORE_PROPERTY, store);
-        logger.info("Bridged Spring LongTermMemory bean {} into the deep-agent "
+        logger.info("Bridged Spring LongTermMemory bean {} into the harness "
                 + "preset store resolution (lifecycle: Spring-owned)",
                 store.getClass().getName());
         return new LongTermMemoryBridge(store);

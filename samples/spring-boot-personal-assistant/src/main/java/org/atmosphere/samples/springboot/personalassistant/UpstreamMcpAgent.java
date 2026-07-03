@@ -19,6 +19,7 @@ import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.preset.Harness;
 import org.atmosphere.config.service.Ready;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
@@ -47,10 +48,10 @@ import org.slf4j.LoggerFactory;
  * {@link org.atmosphere.ai.AiInterceptor}.</p>
  *
  * <p>This endpoint also carries the assistant's <b>long-term memory</b> —
- * with zero wiring in this sample. It is a plain {@link AiEndpoint} that opts
- * into the deep-agent harness via the app-wide
- * {@code atmosphere.ai.deep-agent.enabled} flag (set in {@code application.yml}):
- * the flag makes the framework attach a
+ * with zero wiring in this sample. A plain {@link AiEndpoint} is bare by
+ * default; this one opts into the deep-agent harness per endpoint with
+ * {@code harness = {Harness.ALL}} on the annotation (no app-wide flag
+ * needed): the harness makes the framework attach a
  * {@link org.atmosphere.ai.memory.LongTermMemoryInterceptor} and enable
  * conversation memory (plus a conservative prompt-cache default), so stored
  * user facts are recalled into the system prompt before each turn and new
@@ -84,7 +85,8 @@ import org.slf4j.LoggerFactory;
                 + "prefer atmosphere_version. Only call chat-state tools when the user "
                 + "specifically asks about chat users or messages. Never invent users, "
                 + "versions, or values — only report what the tools return.",
-        interceptors = {McpToolsInterceptor.class})
+        interceptors = {McpToolsInterceptor.class},
+        harness = {Harness.ALL})
 @AgentScope(unrestricted = true,
         justification = "Outbound-MCP demo endpoint — accepts arbitrary prompts to exercise remote tool dispatch.")
 public class UpstreamMcpAgent {

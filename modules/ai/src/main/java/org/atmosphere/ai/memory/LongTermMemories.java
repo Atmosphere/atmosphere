@@ -17,7 +17,7 @@ package org.atmosphere.ai.memory;
 
 import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.AiInterceptor;
-import org.atmosphere.ai.preset.DeepAgentPreset;
+import org.atmosphere.ai.preset.HarnessPreset;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,29 +101,29 @@ public final class LongTermMemories {
     }
 
     /**
-     * Deep-agent preset attach point, shared by the {@code @AiEndpoint},
+     * Harness attach point, shared by the {@code @AiEndpoint},
      * {@code @Agent} and {@code @Coordinator} processors (Correctness
-     * Invariant #7, Mode Parity). When the preset applies to {@code path} and
-     * no {@link LongTermMemoryInterceptor} is already present, appends a
-     * framework-built interceptor AFTER the existing ones so user preProcess
-     * (FIFO) and postProcess (LIFO) ordering is preserved; a user-declared
-     * interceptor is authoritative and suppresses the preset's. Updates the
-     * preset runtime-state with the resolved store class either way the
-     * attach happens.
+     * Invariant #7, Mode Parity). When the MEMORY feature applies to
+     * {@code path} and no {@link LongTermMemoryInterceptor} is already
+     * present, appends a framework-built interceptor AFTER the existing ones
+     * so user preProcess (FIFO) and postProcess (LIFO) ordering is preserved;
+     * a user-declared interceptor is authoritative and suppresses the
+     * preset's. Updates the preset runtime-state with the resolved store
+     * class either way the attach happens.
      *
      * @param interceptors  the endpoint's interceptors so far (never mutated)
      * @param preset        the installed preset for this framework
-     * @param presetApplies whether the preset applies to this endpoint — the
-     *                      caller's effective decision (the global switch via
-     *                      {@code preset.enabledFor(path)} OR a forced preset,
-     *                      e.g. {@code @Agent(deepAgent=true)}); passed in rather
-     *                      than re-derived so a forced preset attaches memory too
+     * @param presetApplies whether the MEMORY feature applies to this
+     *                      endpoint — the caller's resolved decision
+     *                      ({@code featuresFor(...).contains(Harness.MEMORY)});
+     *                      passed in rather than re-derived so annotation-driven
+     *                      and app-wide activation attach memory identically
      * @param path          the endpoint path (for the runtime-state log)
      * @param framework     the framework whose property bag may bridge a store
      * @return the original list, or a copy with the memory interceptor appended
      */
     public static List<AiInterceptor> withPresetLongTermMemory(List<AiInterceptor> interceptors,
-                                                               DeepAgentPreset preset,
+                                                               HarnessPreset preset,
                                                                boolean presetApplies,
                                                                String path,
                                                                AtmosphereFramework framework) {
@@ -136,9 +136,9 @@ public final class LongTermMemories {
         extended.add(new LongTermMemoryInterceptor(store,
                 MemoryExtractionStrategy.onSessionClose(),
                 AgentRuntimeResolver.resolve(), 20));
-        preset.updateRuntimeState(DeepAgentPreset.PRIMITIVE_LONG_TERM_MEMORY,
+        preset.updateRuntimeState(HarnessPreset.PRIMITIVE_LONG_TERM_MEMORY,
                 "ACTIVE(" + store.getClass().getName() + ")");
-        logger.info("Deep-agent preset attached long-term memory to {} (store: {})",
+        logger.info("Harness attached long-term memory to {} (store: {})",
                 path, store.getClass().getName());
         return List.copyOf(extended);
     }

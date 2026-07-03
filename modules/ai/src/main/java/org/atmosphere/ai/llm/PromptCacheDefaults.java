@@ -32,8 +32,8 @@ import java.util.Locale;
  *       {@link CacheHint.CachePolicy#NONE};</li>
  *   <li>the {@link #DEFAULT_KEY} init-param when set — including an explicit
  *       {@code none}, which suppresses the preset default below;</li>
- *   <li>{@link CacheHint.CachePolicy#CONSERVATIVE} when the deep-agent preset
- *       is enabled for the endpoint;</li>
+ *   <li>{@link CacheHint.CachePolicy#CONSERVATIVE} when the harness CACHE
+ *       feature applies to the endpoint;</li>
  *   <li>{@link CacheHint.CachePolicy#NONE}.</li>
  * </ol>
  *
@@ -56,7 +56,7 @@ public final class PromptCacheDefaults {
      *
      * @param annotationPolicy the endpoint's {@code promptCache()} value
      * @param cfg              the framework config (may be {@code null})
-     * @param presetEnabled    whether the deep-agent preset applies to the endpoint
+     * @param presetEnabled    whether the harness CACHE feature applies to the endpoint
      * @return the effective policy — never {@code null}
      */
     public static CacheHint.CachePolicy effective(CacheHint.CachePolicy annotationPolicy,

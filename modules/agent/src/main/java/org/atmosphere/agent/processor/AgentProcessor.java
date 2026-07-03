@@ -41,7 +41,8 @@ import org.atmosphere.ai.governance.scope.ScopePolicyBuilder;
 import org.atmosphere.ai.llm.CacheHint;
 import org.atmosphere.ai.llm.PromptCacheDefaults;
 import org.atmosphere.ai.memory.LongTermMemories;
-import org.atmosphere.ai.preset.DeepAgentPreset;
+import org.atmosphere.ai.preset.Harness;
+import org.atmosphere.ai.preset.HarnessPreset;
 import org.atmosphere.ai.processor.AiEndpointHandler;
 import org.atmosphere.ai.tool.DefaultToolRegistry;
 import org.atmosphere.ai.tool.ToolRegistry;
@@ -215,27 +216,28 @@ public class AgentProcessor implements Processor<Object> {
             // Mode Parity).
             var webGuardrails = buildWebGuardrails(framework, skillFile, annotatedClass,
                     agentName, annotation.description());
-            // Deep-agent preset: same long-term-memory attach and prompt-cache
-            // default seeding as the @AiEndpoint path (Correctness Invariant #7,
+            // Harness: same long-term-memory attach and prompt-cache default
+            // seeding as the @AiEndpoint path (Correctness Invariant #7,
             // Mode Parity). @Agent has no interceptors/promptCache attributes,
-            // so the preset is the only source of both on this path.
-            // @Agent(deepAgent=true) forces the preset for this one agent even
-            // when the global org.atmosphere.ai.deep-agent.enabled switch is off,
-            // mirroring the forced-preset path on @AiEndpoint.
-            var preset = DeepAgentPreset.install(framework);
-            var presetOn = annotation.deepAgent() || preset.enabledFor(path);
+            // so the harness is the only source of both on this path.
+            // @Agent's harness() default is batteries-included ({ALL}); the
+            // org.atmosphere.ai.harness.enabled=false kill switch and
+            // exclude-paths beat it, harness = {} opts one agent down.
+            var preset = HarnessPreset.install(framework);
+            var features = preset.featuresFor(path, annotation.harness(), true);
             var aiInterceptors = LongTermMemories.withPresetLongTermMemory(
-                    List.of(), preset, presetOn, path, framework);
+                    List.of(), preset, features.contains(Harness.MEMORY), path, framework);
             if (!aiInterceptors.isEmpty()) {
                 MemorySafetyConfig.installedDefault().publishActive(framework);
             }
-            if (presetOn) {
+            if (features.contains(Harness.MEMORY)) {
                 // An @Agent always resolves conversation memory (Step 5), so the
-                // preset's conversation-memory primitive is genuinely ACTIVE here.
-                // Publish it as runtime truth so the console reflects the forced
-                // preset even when the global switch is off (Invariant #5). The
-                // long-term-memory state is updated inside withPresetLongTermMemory.
-                preset.updateRuntimeState(DeepAgentPreset.PRIMITIVE_CONVERSATION_MEMORY, "ACTIVE");
+                // harness conversation-memory primitive is genuinely ACTIVE here.
+                // Publish it as runtime truth so the console reflects the
+                // annotation-driven attach even when the app-wide switch is unset
+                // (Invariant #5). The long-term-memory state is updated inside
+                // withPresetLongTermMemory.
+                preset.updateRuntimeState(HarnessPreset.PRIMITIVE_CONVERSATION_MEMORY, "ACTIVE");
             }
             var aiHandler = new AiEndpointHandler(
                     promptTarget, promptMethod, 120_000L,
@@ -243,13 +245,13 @@ public class AgentProcessor implements Processor<Object> {
                     memory, lifecycle, toolRegistry,
                     webGuardrails, List.of(), metrics, List.of(), null, agentInjectables);
             var cachePolicy = PromptCacheDefaults.effective(
-                    null, framework.getAtmosphereConfig(), presetOn);
+                    null, framework.getAtmosphereConfig(), features.contains(Harness.CACHE));
             if (cachePolicy != CacheHint.CachePolicy.NONE) {
                 aiHandler.setCachePolicy(cachePolicy);
                 // Upgrade the console runtime-state to the policy this agent
                 // actually seeds (Runtime Truth) — the global seed may read
-                // "none" when @Agent(deepAgent=true) forced the preset.
-                preset.updateRuntimeState(DeepAgentPreset.PRIMITIVE_PROMPT_CACHE_DEFAULT,
+                // "none" when the annotation's harness() opted this agent in.
+                preset.updateRuntimeState(HarnessPreset.PRIMITIVE_PROMPT_CACHE_DEFAULT,
                         cachePolicy.name().toLowerCase(Locale.ROOT));
             }
 

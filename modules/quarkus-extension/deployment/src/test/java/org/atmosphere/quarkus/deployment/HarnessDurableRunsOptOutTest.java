@@ -27,21 +27,21 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * Pins the deep-agent preset's durable-runs opt-out: because a
+ * Pins the agent-harness preset's durable-runs opt-out: because a
  * {@code @WithDefault} mapping cannot distinguish an unset
  * {@code quarkus.atmosphere.durable-runs.enabled} from an explicit
- * {@code false}, the preset's opt-out is its own key —
- * {@code quarkus.atmosphere.ai.deep-agent.durable-runs=false} must keep the
- * spine at the disabled default even with the preset on.
+ * {@code false}, the harness's opt-out is its own key —
+ * {@code quarkus.atmosphere.ai.harness.durable-runs=false} must keep the
+ * spine at the disabled default even with the harness explicitly on.
  */
-public class DeepAgentDurableRunsOptOutTest {
+public class HarnessDurableRunsOptOutTest {
 
     @RegisterExtension
     static final QuarkusExtensionTest unitTest = new QuarkusExtensionTest()
-            .withApplicationRoot(jar -> jar.addClass(DeepAgentDurableRunsOptOutTest.class))
+            .withApplicationRoot(jar -> jar.addClass(HarnessDurableRunsOptOutTest.class))
             .overrideConfigKey("quarkus.http.test-port", "0")
-            .overrideConfigKey("quarkus.atmosphere.ai.deep-agent.enabled", "true")
-            .overrideConfigKey("quarkus.atmosphere.ai.deep-agent.durable-runs", "false");
+            .overrideConfigKey("quarkus.atmosphere.ai.harness.enabled", "true")
+            .overrideConfigKey("quarkus.atmosphere.ai.harness.durable-runs", "false");
 
     @Inject
     AtmosphereDurableRunsProducer producer;
@@ -50,7 +50,7 @@ public class DeepAgentDurableRunsOptOutTest {
     public void optOutKeyBlocksTheImpliedDurableRunSpine() {
         assertNotNull(producer, "AtmosphereDurableRunsProducer must be CDI-resolvable");
         assertFalse(producer.installed(),
-                "ai.deep-agent.durable-runs=false must block the preset's durable-runs implication");
+                "ai.harness.durable-runs=false must block the harness's durable-runs implication");
         assertFalse(DurableRunSpineHolder.get().enabled(),
                 "the spine must stay at the disabled default when the opt-out key is set");
     }

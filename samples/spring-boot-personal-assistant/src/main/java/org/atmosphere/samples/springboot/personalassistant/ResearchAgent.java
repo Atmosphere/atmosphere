@@ -35,9 +35,10 @@ import org.atmosphere.agent.annotation.Agent;
         description = "Summarizes background context on a topic so the primary assistant "
                 + "can speak to it confidently.",
         version = "1.0.0",
-        endpoint = "/atmosphere/a2a/research",
-        // opt this agent into the deep-agent harness (long-term memory + prompt-cache) without the app-wide flag
-        deepAgent = true
+        endpoint = "/atmosphere/a2a/research"
+        // the harness is on by default for @Agent (harness() defaults to
+        // {Harness.ALL}: long-term memory + prompt-cache + delegation);
+        // declare harness = {} to opt an agent down to a bare loop
 )
 public class ResearchAgent {
 

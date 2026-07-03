@@ -14,18 +14,23 @@ atmosphere:
   workspace: classpath:agent-workspace
 
   ai:
-    # Deep-agent harness, turned on APP-WIDE by the deep-agent.enabled flag
-    # below: every @AiEndpoint and @Agent in this app is completed with
-    # conversation memory, long-term memory (facts extracted at session close,
-    # recalled on the next connection), and a conservative prompt-cache default
-    # with no per-class wiring. The plain @AiEndpoint UpstreamMcpAgent relies on
-    # this flag for its long-term memory — it replaced the sample's former
-    # three-class static-holder wiring. Per-primitive runtime state is visible
-    # in the console (/api/console/info, "deepAgent" section). A single full
-    # agent can instead opt in on its own with @Agent(deepAgent = true) (see
-    # ResearchAgent) rather than flipping this app-wide flag.
-    deep-agent:
-      enabled: true
+    # Deep-agent harness — three surfaces, no app-wide flag needed here:
+    #   1. @Agent and @Coordinator classes are batteries-included by default
+    #      (harness() defaults to {Harness.ALL}) — the PrimaryAssistant
+    #      coordinator keeps fleet delegation on this way; harness = {} opts
+    #      an agent down to a bare loop. See ResearchAgent.
+    #   2. A plain @AiEndpoint is bare by default and opts in per endpoint:
+    #      UpstreamMcpAgent declares harness = {Harness.ALL} for its
+    #      conversation + long-term memory (facts extracted at session close,
+    #      recalled on the next connection) and prompt-cache default — it
+    #      replaced the sample's former three-class static-holder wiring.
+    #   3. The app-wide atmosphere.ai.harness.enabled flag is tri-state:
+    #      unset (this sample) defers to the annotations, true gives every
+    #      bare @AiEndpoint the full harness, false is the kill switch that
+    #      beats every annotation; atmosphere.ai.harness.exclude-paths carves
+    #      out individual endpoint paths.
+    # Per-primitive runtime state is visible in the console
+    # (/api/console/info, "harness" section).
 
     # Any of the seven runtime artifacts on the classpath is picked up by
     # AgentRuntime ServiceLoader discovery. Switching runtimes is a Maven

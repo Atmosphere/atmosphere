@@ -30,15 +30,17 @@ import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Spring Boot 3 parity for the deep-agent preset bridge: the
- * {@code atmosphere.ai.deep-agent.*} properties land as
- * {@code org.atmosphere.ai.*} framework init-params only when the preset is
- * enabled, and the preset implies {@code atmosphere.durable-runs.enabled}
- * unless the operator set that property explicitly (explicit {@code false}
- * wins, explicit {@code true} still works without the preset). Mirrors the
- * SB4 starter's {@code DeepAgentAutoConfigurationTest}.
+ * Spring Boot 3 parity for the harness preset bridge: the
+ * {@code atmosphere.ai.harness.*} properties land as
+ * {@code org.atmosphere.ai.*} framework init-params. The enabled switch is
+ * tri-state — an absent property bridges nothing (annotation defaults apply),
+ * an explicit {@code false} bridges as the kill switch, and {@code true}
+ * implies {@code atmosphere.durable-runs.enabled} unless the operator set
+ * that property explicitly (explicit {@code false} wins, explicit
+ * {@code true} still works without the preset). Mirrors the SB4 starter's
+ * {@code HarnessAutoConfigurationTest}.
  */
-class DeepAgentAutoConfigurationTest {
+class HarnessAutoConfigurationTest {
 
     private final WebApplicationContextRunner aiOnlyRunner = new WebApplicationContextRunner()
             .withBean(RecordingFramework.class)
@@ -62,10 +64,10 @@ class DeepAgentAutoConfigurationTest {
     void enabledPresetBridgesAllInitParams() {
         aiOnlyRunner
                 .withPropertyValues(
-                        "atmosphere.ai.deep-agent.enabled=true",
-                        "atmosphere.ai.deep-agent.exclude-paths=/atmosphere/ops,/atmosphere/health",
-                        "atmosphere.ai.deep-agent.compaction=summarizing",
-                        "atmosphere.ai.deep-agent.prompt-cache-default=conservative",
+                        "atmosphere.ai.harness.enabled=true",
+                        "atmosphere.ai.harness.exclude-paths=/atmosphere/ops,/atmosphere/health",
+                        "atmosphere.ai.harness.compaction=summarizing",
+                        "atmosphere.ai.harness.prompt-cache-default=conservative",
                         // Keep the implied durable-runs spine off disk in tests.
                         "atmosphere.durable-runs.journal=memory")
                 .run(context -> {
@@ -73,8 +75,8 @@ class DeepAgentAutoConfigurationTest {
                     // Exact strings from the spec — shared with the Quarkus and
                     // plain-servlet bridges (the cross-container contract).
                     assertThat(recorded)
-                            .containsEntry("org.atmosphere.ai.deep-agent.enabled", "true")
-                            .containsEntry("org.atmosphere.ai.deep-agent.exclude-paths",
+                            .containsEntry("org.atmosphere.ai.harness.enabled", "true")
+                            .containsEntry("org.atmosphere.ai.harness.exclude-paths",
                                     "/atmosphere/ops,/atmosphere/health")
                             .containsEntry("org.atmosphere.ai.compaction", "summarizing")
                             .containsEntry("org.atmosphere.ai.prompt-cache.default", "conservative");
@@ -85,15 +87,15 @@ class DeepAgentAutoConfigurationTest {
     void enabledPresetWithoutOptionalValuesBridgesOnlyTheSwitch() {
         aiOnlyRunner
                 .withPropertyValues(
-                        "atmosphere.ai.deep-agent.enabled=true",
+                        "atmosphere.ai.harness.enabled=true",
                         "atmosphere.durable-runs.journal=memory")
                 .run(context -> {
                     var recorded = context.getBean(RecordingFramework.class).recorded;
                     assertThat(recorded)
-                            .containsEntry(AtmosphereAiAutoConfiguration.DEEP_AGENT_ENABLED_PARAM,
+                            .containsEntry(AtmosphereAiAutoConfiguration.HARNESS_ENABLED_PARAM,
                                     "true")
                             .doesNotContainKey(
-                                    AtmosphereAiAutoConfiguration.DEEP_AGENT_EXCLUDE_PATHS_PARAM)
+                                    AtmosphereAiAutoConfiguration.HARNESS_EXCLUDE_PATHS_PARAM)
                             .doesNotContainKey(AtmosphereAiAutoConfiguration.COMPACTION_PARAM)
                             .doesNotContainKey(
                                     AtmosphereAiAutoConfiguration.PROMPT_CACHE_DEFAULT_PARAM);
@@ -101,22 +103,59 @@ class DeepAgentAutoConfigurationTest {
     }
 
     @Test
-    void disabledPresetBridgesNoDeepAgentInitParams() {
+    void unsetSwitchBridgesNoHarnessInitParams() {
         aiOnlyRunner.run(context -> {
             var recorded = context.getBean(RecordingFramework.class).recorded;
             assertThat(recorded)
-                    .doesNotContainKey(AtmosphereAiAutoConfiguration.DEEP_AGENT_ENABLED_PARAM)
-                    .doesNotContainKey(AtmosphereAiAutoConfiguration.DEEP_AGENT_EXCLUDE_PATHS_PARAM)
+                    .doesNotContainKey(AtmosphereAiAutoConfiguration.HARNESS_ENABLED_PARAM)
+                    .doesNotContainKey(AtmosphereAiAutoConfiguration.HARNESS_EXCLUDE_PATHS_PARAM)
                     .doesNotContainKey(AtmosphereAiAutoConfiguration.COMPACTION_PARAM)
                     .doesNotContainKey(AtmosphereAiAutoConfiguration.PROMPT_CACHE_DEFAULT_PARAM);
         });
     }
 
     @Test
+    void explicitFalseBridgesTheKillSwitch() {
+        aiOnlyRunner
+                .withPropertyValues("atmosphere.ai.harness.enabled=false")
+                .run(context -> {
+                    var recorded = context.getBean(RecordingFramework.class).recorded;
+                    assertThat(recorded)
+                            .as("an explicit false must reach the runtime as the kill switch")
+                            .containsEntry(AtmosphereAiAutoConfiguration.HARNESS_ENABLED_PARAM,
+                                    "false");
+                });
+    }
+
+    @Test
+    void excludePathsAndSeamsBridgeUnderTheUnsetDefault() {
+        // Exclude-paths beat the @Agent batteries-included default, and the
+        // compaction / prompt-cache seams are independent of the switch — all
+        // three must reach the runtime while the tri-state switch stays absent.
+        aiOnlyRunner
+                .withPropertyValues(
+                        "atmosphere.ai.harness.exclude-paths=/atmosphere/ops",
+                        "atmosphere.ai.harness.compaction=summarizing",
+                        "atmosphere.ai.harness.prompt-cache-default=conservative")
+                .run(context -> {
+                    var recorded = context.getBean(RecordingFramework.class).recorded;
+                    assertThat(recorded)
+                            .doesNotContainKey(AtmosphereAiAutoConfiguration.HARNESS_ENABLED_PARAM)
+                            .containsEntry(
+                                    AtmosphereAiAutoConfiguration.HARNESS_EXCLUDE_PATHS_PARAM,
+                                    "/atmosphere/ops")
+                            .containsEntry(AtmosphereAiAutoConfiguration.COMPACTION_PARAM,
+                                    "summarizing")
+                            .containsEntry(AtmosphereAiAutoConfiguration.PROMPT_CACHE_DEFAULT_PARAM,
+                                    "conservative");
+                });
+    }
+
+    @Test
     void presetImpliesDurableRunsWhenPropertyUnset() {
         fullRunner
                 .withPropertyValues(
-                        "atmosphere.ai.deep-agent.enabled=true",
+                        "atmosphere.ai.harness.enabled=true",
                         "atmosphere.durable-runs.journal=memory")
                 .run(context -> {
                     assertThat(context).hasSingleBean(
@@ -131,7 +170,7 @@ class DeepAgentAutoConfigurationTest {
     void explicitFalseBeatsThePresetImplication() {
         fullRunner
                 .withPropertyValues(
-                        "atmosphere.ai.deep-agent.enabled=true",
+                        "atmosphere.ai.harness.enabled=true",
                         "atmosphere.durable-runs.enabled=false")
                 .run(context -> {
                     assertThat(context).doesNotHaveBean(
@@ -139,6 +178,17 @@ class DeepAgentAutoConfigurationTest {
                     assertThat(DurableRunSpineHolder.get().enabled())
                             .as("an explicit operator opt-out survives the preset")
                             .isFalse();
+                });
+    }
+
+    @Test
+    void killSwitchDoesNotImplyDurableRuns() {
+        fullRunner
+                .withPropertyValues("atmosphere.ai.harness.enabled=false")
+                .run(context -> {
+                    assertThat(context).doesNotHaveBean(
+                            AtmosphereAiAutoConfiguration.DurableRunSpineInstaller.class);
+                    assertThat(DurableRunSpineHolder.get().enabled()).isFalse();
                 });
     }
 

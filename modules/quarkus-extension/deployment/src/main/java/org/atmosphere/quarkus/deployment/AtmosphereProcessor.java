@@ -437,21 +437,24 @@ class AtmosphereProcessor {
         builder.addInitParam("org.atmosphere.ai.memory.safety.on-breach", memorySafety.onBreach());
         builder.addInitParam("org.atmosphere.ai.memory.safety.fail-open", String.valueOf(memorySafety.failOpen()));
 
-        // Deep-agent preset: one switch enabling Atmosphere's deep-agent
-        // primitives, read once per framework by AiEndpointProcessor. Off by
-        // default (explicit opt-in, Correctness Invariant #6). Keys are
-        // literals mirroring the org.atmosphere.ai.deep-agent.* namespace in
-        // atmosphere-ai so this build-time deployment module needs no compile
-        // dep on the AI runtime module. The compaction and prompt-cache
-        // seams work independent of the preset, so they bridge when set even
-        // if the preset itself stays off.
-        var deepAgent = config.ai().deepAgent();
-        builder.addInitParam("org.atmosphere.ai.deep-agent.enabled", String.valueOf(deepAgent.enabled()));
-        deepAgent.excludePaths().ifPresent(paths ->
-                builder.addInitParam("org.atmosphere.ai.deep-agent.exclude-paths", String.join(",", paths)));
-        deepAgent.compaction().ifPresent(strategy ->
+        // Agent-harness preset: the app-wide switch governing Atmosphere's
+        // deep-agent primitives, read once per framework by AiEndpointProcessor.
+        // The switch is tri-state, so the init-param bridges only when the
+        // operator set it: absent leaves the annotation-governed default in
+        // charge, while an explicit false must reach the runtime as "false" —
+        // the kill switch that beats every annotation. Keys are literals
+        // mirroring the org.atmosphere.ai.harness.* namespace in atmosphere-ai
+        // so this build-time deployment module needs no compile dep on the AI
+        // runtime module. The compaction and prompt-cache seams work
+        // independent of the harness, so they bridge whenever set.
+        var harness = config.ai().harness();
+        harness.enabled().ifPresent(enabled ->
+                builder.addInitParam("org.atmosphere.ai.harness.enabled", String.valueOf(enabled)));
+        harness.excludePaths().ifPresent(paths ->
+                builder.addInitParam("org.atmosphere.ai.harness.exclude-paths", String.join(",", paths)));
+        harness.compaction().ifPresent(strategy ->
                 builder.addInitParam("org.atmosphere.ai.compaction", strategy));
-        deepAgent.promptCacheDefault().ifPresent(policy ->
+        harness.promptCacheDefault().ifPresent(policy ->
                 builder.addInitParam("org.atmosphere.ai.prompt-cache.default", policy));
 
         for (Map.Entry<String, String> entry : config.initParams().entrySet()) {
@@ -612,7 +615,7 @@ class AtmosphereProcessor {
      * the classpath ({@code DurableRunSpineHolder} lives there). When present the
      * producer bean is registered; on startup it reads
      * {@code quarkus.atmosphere.durable-runs.*} and, when {@code enabled=true}
-     * (or the deep-agent preset implies it — see {@code AtmosphereConfig.Ai.DeepAgent}),
+     * (or the agent-harness preset implies it — see {@code AtmosphereConfig.Ai.Harness}),
      * installs the effect-journal-backed {@code DurableRunSpine} so committed LLM
      * rounds and tool calls replay deterministically after a crash. The bean is a
      * no-op when durable runs are disabled, so registering it unconditionally (when

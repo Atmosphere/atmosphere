@@ -26,9 +26,9 @@ import java.util.Map;
  * Built-in LLM-callable delegation tool for {@code @Coordinator} fleets:
  * {@code delegate_task(agent, message)} dispatches a natural-language task to
  * a named fleet member and returns its reply. Registered by
- * {@code CoordinatorProcessor} only when the deep-agent preset applies to the
- * coordinator's path — without it, the model can reach sub-agents only
- * through hand-written per-crew {@code @AiTool} wrappers.
+ * {@code CoordinatorProcessor} only when the harness DELEGATION feature
+ * applies to the coordinator's path — without it, the model can reach
+ * sub-agents only through hand-written per-crew {@code @AiTool} wrappers.
  *
  * <p>The {@link AgentFleet} parameter is framework-injected from the session's
  * injectables map ({@code DefaultToolRegistry.isFrameworkInjectableType}

@@ -20,22 +20,17 @@ import java.util.Map;
 
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.junit.jupiter.api.Test;
-import org.springframework.context.ApplicationContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
- * Pins {@code /api/console/info}'s {@code deepAgent} field — the runtime-truth
- * view of the deep-agent preset. The section appears only when the core preset
+ * Pins {@code /api/console/info}'s {@code harness} field — the runtime-truth
+ * view of the harness preset. The section appears only when the core preset
  * installer published its per-primitive states into the framework property bag
  * (i.e. the preset actually ran); configuration intent alone must never
  * surface it (Runtime Truth — Invariant #5).
  */
-class AtmosphereConsoleInfoEndpointDeepAgentTest {
+class AtmosphereConsoleInfoEndpointHarnessTest {
 
     @Test
     void publishedRuntimeStateAppearsInPayload() {
@@ -45,49 +40,45 @@ class AtmosphereConsoleInfoEndpointDeepAgentTest {
         states.put("durable-runs", "INACTIVE(no-journal)");
         states.put("skills", "CONVENTION");
         framework.getAtmosphereConfig().properties()
-                .put(AtmosphereConsoleInfoEndpoint.DEEP_AGENT_RUNTIME_STATE_PROPERTY, states);
+                .put(AtmosphereConsoleInfoEndpoint.HARNESS_RUNTIME_STATE_PROPERTY, states);
 
         var result = newEndpoint(framework).info();
 
-        assertThat(result.get("deepAgent")).isEqualTo(states);
+        assertThat(result.get("harness")).isEqualTo(states);
     }
 
     @Test
     void absentWhenThePresetNeverRan() {
         var result = newEndpoint(new AtmosphereFramework()).info();
-        assertThat(result).doesNotContainKey("deepAgent");
+        assertThat(result).doesNotContainKey("harness");
     }
 
     @Test
     void emptyStateMapIsOmitted() {
         var framework = new AtmosphereFramework();
         framework.getAtmosphereConfig().properties()
-                .put(AtmosphereConsoleInfoEndpoint.DEEP_AGENT_RUNTIME_STATE_PROPERTY, Map.of());
+                .put(AtmosphereConsoleInfoEndpoint.HARNESS_RUNTIME_STATE_PROPERTY, Map.of());
 
         var result = newEndpoint(framework).info();
 
-        assertThat(result).doesNotContainKey("deepAgent");
+        assertThat(result).doesNotContainKey("harness");
     }
 
     @Test
     void nonStringEntriesAreFilteredOut() {
         var framework = new AtmosphereFramework();
         framework.getAtmosphereConfig().properties()
-                .put(AtmosphereConsoleInfoEndpoint.DEEP_AGENT_RUNTIME_STATE_PROPERTY,
+                .put(AtmosphereConsoleInfoEndpoint.HARNESS_RUNTIME_STATE_PROPERTY,
                         Map.of("rounds", 5));
 
         var result = newEndpoint(framework).info();
 
-        assertThat(result).doesNotContainKey("deepAgent");
+        assertThat(result).doesNotContainKey("harness");
     }
 
     private AtmosphereConsoleInfoEndpoint newEndpoint(AtmosphereFramework framework) {
-        // These tests pin the deepAgent section; stub the Spring context so the
-        // hasInteractions/hasVerifier capability flags resolve to false.
-        var context = mock(ApplicationContext.class);
-        when(context.getClassLoader()).thenReturn(getClass().getClassLoader());
-        when(context.getBeanNamesForType(any(Class.class), anyBoolean(), anyBoolean()))
-                .thenReturn(new String[0]);
-        return new AtmosphereConsoleInfoEndpoint(new AtmosphereProperties(), framework, context);
+        // Mirrors the SB4 starter's pin; the boot3 endpoint takes no
+        // ApplicationContext (no capability-flag detection on this starter).
+        return new AtmosphereConsoleInfoEndpoint(new AtmosphereProperties(), framework);
     }
 }

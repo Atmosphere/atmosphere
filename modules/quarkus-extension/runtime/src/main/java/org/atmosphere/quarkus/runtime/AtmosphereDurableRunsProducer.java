@@ -37,10 +37,10 @@ import java.util.UUID;
  * Quarkus port of the Spring Boot starter's {@code DurableRunSpineInstaller}
  * (in {@code AtmosphereAiAutoConfiguration}). When {@code atmosphere-ai} is on
  * the classpath the deployment processor registers this bean. On startup, when
- * {@code quarkus.atmosphere.durable-runs.enabled=true} — or the deep-agent
- * preset implies it ({@code quarkus.atmosphere.ai.deep-agent.enabled=true}
+ * {@code quarkus.atmosphere.durable-runs.enabled=true} — or the agent-harness
+ * preset implies it ({@code quarkus.atmosphere.ai.harness.enabled=true}
  * unless the operator opts out with
- * {@code quarkus.atmosphere.ai.deep-agent.durable-runs=false}) — it resolves an
+ * {@code quarkus.atmosphere.ai.harness.durable-runs=false}) — it resolves an
  * {@link EffectJournal} and installs the effect-journal-backed
  * {@link DurableRunSpine} via {@link DurableRunSpineHolder}, so committed LLM
  * rounds and tool calls replay deterministically after a crash.
@@ -77,7 +77,7 @@ public class AtmosphereDurableRunsProducer {
 
     /**
      * Installs the durable-run spine on application startup when
-     * {@code quarkus.atmosphere.durable-runs.enabled=true} or the deep-agent
+     * {@code quarkus.atmosphere.durable-runs.enabled=true} or the agent-harness
      * preset implies it (see the class Javadoc).
      *
      * @param event the Quarkus startup event (unused, present so Arc fires the
@@ -88,19 +88,21 @@ public class AtmosphereDurableRunsProducer {
             return;
         }
         var durable = config.durableRuns();
-        // The deep-agent preset implies durable runs: @WithDefault cannot
-        // distinguish an unset durable-runs.enabled from an explicit false, so
-        // the preset's opt-out is its own key (ai.deep-agent.durable-runs) and
-        // an explicit durable-runs.enabled=true always wins — see
-        // AtmosphereConfig.Ai.DeepAgent.
-        var deepAgent = config.ai().deepAgent();
-        var impliedByPreset = deepAgent.enabled() && deepAgent.durableRuns();
-        if (!durable.enabled() && !impliedByPreset) {
+        // An explicitly enabled harness implies durable runs: @WithDefault
+        // cannot distinguish an unset durable-runs.enabled from an explicit
+        // false, so the harness's opt-out is its own key
+        // (ai.harness.durable-runs) and an explicit durable-runs.enabled=true
+        // always wins — see AtmosphereConfig.Ai.Harness. The tri-state switch
+        // implies the spine only on a literal true; unset and the false kill
+        // switch both leave durable runs at their own default.
+        var harness = config.ai().harness();
+        var impliedByHarness = harness.enabled().orElse(false) && harness.durableRuns();
+        if (!durable.enabled() && !impliedByHarness) {
             return;
         }
         if (!durable.enabled()) {
-            logger.info("Durable agent runs implied by the deep-agent preset "
-                    + "(opt out with quarkus.atmosphere.ai.deep-agent.durable-runs=false)");
+            logger.info("Durable agent runs implied by the agent-harness preset "
+                    + "(opt out with quarkus.atmosphere.ai.harness.durable-runs=false)");
         }
         EffectJournal journal;
         if (journalInstance.isResolvable()) {

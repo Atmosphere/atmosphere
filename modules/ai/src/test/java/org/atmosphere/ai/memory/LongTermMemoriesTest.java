@@ -16,7 +16,8 @@
 package org.atmosphere.ai.memory;
 
 import org.atmosphere.ai.AiInterceptor;
-import org.atmosphere.ai.preset.DeepAgentPreset;
+import org.atmosphere.ai.preset.Harness;
+import org.atmosphere.ai.preset.HarnessPreset;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.junit.jupiter.api.AfterEach;
@@ -105,41 +106,42 @@ public class LongTermMemoriesTest {
     // --- withPresetLongTermMemory: the shared @AiEndpoint/@Agent/@Coordinator
     // attach point (Mode Parity) ---
 
-    private DeepAgentPreset enabledPreset() {
+    private HarnessPreset enabledPreset() {
         var cfg = framework.getAtmosphereConfig();
-        when(cfg.getInitParameter(DeepAgentPreset.ENABLED_KEY, false)).thenReturn(true);
-        return DeepAgentPreset.install(framework);
+        when(cfg.getInitParameter(HarnessPreset.ENABLED_KEY)).thenReturn("true");
+        return HarnessPreset.install(framework);
     }
 
     @Test
     public void presetAttachAppendsInterceptorAndPublishesState() {
         var preset = enabledPreset();
 
-        // presetApplies=true: the caller's effective decision (global switch or
-        // a forced @Agent(deepAgent=true) preset) — the helper attaches on that alone.
+        // presetApplies=true: the caller's resolved decision
+        // (featuresFor(...).contains(MEMORY)) — the helper attaches on that alone.
         var result = LongTermMemories.withPresetLongTermMemory(
                 List.of(), preset, true, "/chat", framework);
 
         assertEquals(1, result.size());
         assertInstanceOf(LongTermMemoryInterceptor.class, result.get(0));
-        assertTrue(preset.runtimeState().get(DeepAgentPreset.PRIMITIVE_LONG_TERM_MEMORY)
+        assertTrue(preset.runtimeState().get(HarnessPreset.PRIMITIVE_LONG_TERM_MEMORY)
                         .startsWith("ACTIVE("),
                 "attach must upgrade the published long-term-memory state");
     }
 
     @Test
-    public void presetAttachAppendsWhenForcedEvenThoughGlobalSwitchOff() {
-        // The @Agent(deepAgent=true) case: the global switch is OFF (default
-        // preset), but the caller forces the preset for this endpoint — memory
-        // must attach.
-        var preset = DeepAgentPreset.install(framework);
-        assertFalse(preset.enabledFor("/deep"), "global switch is off in this setup");
+    public void presetAttachAppendsWhenAnnotationDrivenEvenThoughAppWideUnset() {
+        // The @Agent {ALL} default / harness={MEMORY} case: the app-wide switch
+        // is UNSET (default preset), but the caller resolved MEMORY from the
+        // annotation for this endpoint — memory must attach.
+        var preset = HarnessPreset.install(framework);
+        assertFalse(preset.featuresFor("/deep", new Harness[0], false).contains(Harness.MEMORY),
+                "the app-wide switch is unset in this setup");
 
         var result = LongTermMemories.withPresetLongTermMemory(
                 List.of(), preset, true, "/deep", framework);
 
         assertEquals(1, result.size(),
-                "a forced preset must attach memory even with the global switch off");
+                "an annotation-driven attach must work with the app-wide switch unset");
         assertInstanceOf(LongTermMemoryInterceptor.class, result.get(0));
     }
 
@@ -157,7 +159,7 @@ public class LongTermMemoriesTest {
 
     @Test
     public void presetAttachNoOpWhenPresetDoesNotApply() {
-        var preset = DeepAgentPreset.install(framework);
+        var preset = HarnessPreset.install(framework);
 
         List<AiInterceptor> none = List.of();
         assertSame(none, LongTermMemories.withPresetLongTermMemory(

@@ -202,30 +202,29 @@
       "defaultValue": 120000
     },
     {
-      "name": "atmosphere.ai.deep-agent.enabled",
+      "name": "atmosphere.ai.harness.enabled",
       "type": "java.lang.Boolean",
-      "description": "One-switch deep-agent preset: bridges the preset switches into framework init-params and implies atmosphere.durable-runs.enabled when that property is unset (an explicit false is honoured). Off by default; never enables code execution.",
-      "defaultValue": false
+      "description": "Tri-state app-wide harness switch bridged to the org.atmosphere.ai.harness.enabled init-param. Unset (default): @Agent endpoints carry the full harness, bare @AiEndpoints stay off. true: everything on — bare @AiEndpoints get the full harness too, and durable runs are implied unless atmosphere.durable-runs.enabled is set explicitly. false: kill switch — harness primitives off everywhere, beating annotations. Never enables code execution."
     },
     {
-      "name": "atmosphere.ai.deep-agent.exclude-paths",
+      "name": "atmosphere.ai.harness.exclude-paths",
       "type": "java.util.List<java.lang.String>",
-      "description": "Endpoint paths excluded from the deep-agent preset's default-on conversation memory."
+      "description": "Endpoint paths excluded from the harness; beats annotations (only the false kill switch is stronger)."
     },
     {
-      "name": "atmosphere.ai.deep-agent.compaction",
+      "name": "atmosphere.ai.harness.compaction",
       "type": "java.lang.String",
       "description": "Conversation-memory compaction strategy bridged to the org.atmosphere.ai.compaction init-param: sliding-window or summarizing. Unset = framework default (sliding-window)."
     },
     {
-      "name": "atmosphere.ai.deep-agent.prompt-cache-default",
+      "name": "atmosphere.ai.harness.prompt-cache-default",
       "type": "java.lang.String",
       "description": "Default prompt-cache policy bridged to the org.atmosphere.ai.prompt-cache.default init-param, seeding endpoints whose annotation declares none: none, conservative, or aggressive. Unset = framework default."
     },
     {
       "name": "atmosphere.ai.code.enabled",
       "type": "java.lang.Boolean",
-      "description": "Bridge for the org.atmosphere.ai.code.enabled system property (code_exec tool master switch). Off by default and NOT enabled by the deep-agent preset; a system property already set on the JVM wins.",
+      "description": "Bridge for the org.atmosphere.ai.code.enabled system property (code_exec tool master switch). Off by default and NOT enabled by the harness preset; a system property already set on the JVM wins.",
       "defaultValue": false
     },
     {

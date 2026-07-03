@@ -15,6 +15,7 @@
  */
 package org.atmosphere.coordinator.annotation;
 
+import org.atmosphere.ai.preset.Harness;
 import org.atmosphere.coordinator.journal.JournalFormat;
 
 import java.lang.annotation.Documented;
@@ -61,6 +62,19 @@ public @interface Coordinator {
 
     /** Coordinator version for Agent Card metadata. */
     String version() default "1.0.0";
+
+    /**
+     * Harness features attached to this coordinator. Like {@code @Agent} —
+     * which this annotation subsumes — a coordinator is batteries-included
+     * by default: a declared fleet almost always wants the
+     * {@code delegate_task} tool and the governed dispatch edge, so
+     * {@link Harness#ALL} is the default. Opt down with {@code harness = {}}
+     * (bare loop) or narrow to specific features
+     * ({@code harness = {Harness.DELEGATION}}). The app-wide kill switch
+     * ({@code org.atmosphere.ai.harness.enabled=false}) and
+     * {@code exclude-paths} beat this attribute.
+     */
+    Harness[] harness() default {Harness.ALL};
 
     /**
      * Target Java type for structured output from the coordinator's LLM synthesis.

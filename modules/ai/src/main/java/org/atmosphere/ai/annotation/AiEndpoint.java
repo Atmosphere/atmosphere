@@ -254,6 +254,20 @@ public @interface AiEndpoint {
             default org.atmosphere.ai.llm.CacheHint.CachePolicy.NONE;
 
     /**
+     * The harness features attached to this endpoint — bare by default.
+     * Opt in per endpoint, e.g. {@code harness = {Harness.MEMORY}} for
+     * conversation + long-term memory, or {@code harness = {Harness.ALL}}
+     * for the full deep-agent primitive set (memory, prompt-cache default
+     * seeding, delegation).
+     *
+     * <p>The app-wide {@code org.atmosphere.ai.harness.enabled} init-param
+     * refines this: {@code true} gives every bare endpoint the full harness,
+     * and {@code false} is the kill switch that beats every annotation. See
+     * {@code HarnessPreset.featuresFor} for the exact precedence.</p>
+     */
+    org.atmosphere.ai.preset.Harness[] harness() default {};
+
+    /**
      * Per-request retry policy override. When set to anything other than
      * the {@link Retry} default ({@code maxRetries = -1} sentinel), the
      * pipeline threads a fresh {@link org.atmosphere.ai.RetryPolicy} into

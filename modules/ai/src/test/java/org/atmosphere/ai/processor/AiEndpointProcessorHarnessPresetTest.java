@@ -28,7 +28,8 @@ import org.atmosphere.ai.llm.PromptCacheDefaults;
 import org.atmosphere.ai.memory.InMemoryLongTermMemory;
 import org.atmosphere.ai.memory.LongTermMemoryInterceptor;
 import org.atmosphere.ai.memory.MemoryExtractionStrategy;
-import org.atmosphere.ai.preset.DeepAgentPreset;
+import org.atmosphere.ai.preset.Harness;
+import org.atmosphere.ai.preset.HarnessPreset;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereHandler;
@@ -53,13 +54,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Pins the deep-agent preset's {@code @AiEndpoint} seams end-to-end through
+ * Pins the harness {@code @AiEndpoint} seams end-to-end through
  * {@link AiEndpointProcessor#handle}: the conversation-memory gate, the
- * long-term-memory auto-attach (+ no-duplicate rule), the exclude-paths
- * opt-out, the prompt-cache default precedence, and the compaction seam.
+ * long-term-memory auto-attach (+ no-duplicate rule), the per-endpoint
+ * {@code harness()} opt-in, the exclude-paths opt-out, the kill switch, the
+ * prompt-cache default precedence, and the compaction seam.
  */
 @SuppressWarnings({"unchecked", "rawtypes"})
-public class AiEndpointProcessorDeepAgentPresetTest {
+public class AiEndpointProcessorHarnessPresetTest {
 
     private AiEndpointProcessor processor;
     private AtmosphereFramework framework;
@@ -76,8 +78,12 @@ public class AiEndpointProcessorDeepAgentPresetTest {
         when(framework.getAtmosphereConfig()).thenReturn(cfg);
     }
 
-    private void enablePreset() {
-        when(cfg.getInitParameter(DeepAgentPreset.ENABLED_KEY, false)).thenReturn(true);
+    private void enableAppWide() {
+        when(cfg.getInitParameter(HarnessPreset.ENABLED_KEY)).thenReturn("true");
+    }
+
+    private void killSwitch() {
+        when(cfg.getInitParameter(HarnessPreset.ENABLED_KEY)).thenReturn("false");
     }
 
     private AiEndpointHandler handle(Class<?> endpointClass, Object instance) throws Exception {
@@ -89,29 +95,29 @@ public class AiEndpointProcessorDeepAgentPresetTest {
         return (AiEndpointHandler) handlerCaptor.getValue();
     }
 
-    private DeepAgentPreset installedPreset() {
-        var preset = props.get(DeepAgentPreset.PRESET_PROPERTY);
-        assertInstanceOf(DeepAgentPreset.class, preset);
-        return (DeepAgentPreset) preset;
+    private HarnessPreset installedPreset() {
+        var preset = props.get(HarnessPreset.PRESET_PROPERTY);
+        assertInstanceOf(HarnessPreset.class, preset);
+        return (HarnessPreset) preset;
     }
 
     // ---- conversation-memory gate ----
 
     @Test
-    public void presetFlipsConversationMemoryOn() throws Exception {
-        enablePreset();
+    public void appWideTrueFlipsConversationMemoryOn() throws Exception {
+        enableAppWide();
 
         var handler = handle(PlainEndpoint.class, new PlainEndpoint());
 
         assertNotNull(handler.memory(),
-                "preset on + annotation conversationMemory=false must still resolve memory");
+                "app-wide true + annotation conversationMemory=false must still resolve memory");
         assertEquals(20, handler.memory().maxMessages(),
                 "maxHistoryMessages must come from the annotation default");
     }
 
     @Test
     public void annotationMemoryAlwaysWins() throws Exception {
-        enablePreset();
+        enableAppWide();
 
         var handler = handle(MemoryOnEndpoint.class, new MemoryOnEndpoint());
 
@@ -121,18 +127,57 @@ public class AiEndpointProcessorDeepAgentPresetTest {
     }
 
     @Test
-    public void memoryStaysOffWithoutPreset() throws Exception {
+    public void bareEndpointStaysBareByDefault() throws Exception {
         var handler = handle(PlainEndpoint.class, new PlainEndpoint());
 
         assertNull(handler.memory(), "default-off endpoints must keep memory off");
+        assertTrue(handler.interceptors().isEmpty(),
+                "a bare endpoint must not gain the long-term-memory interceptor");
+    }
+
+    // ---- per-endpoint harness() opt-in ----
+
+    @Test
+    public void memoryHarnessOptsInWithoutTheAppWideFlag() throws Exception {
+        var handler = handle(MemoryHarnessEndpoint.class, new MemoryHarnessEndpoint());
+
+        assertNotNull(handler.memory(),
+                "harness = {MEMORY} must resolve conversation memory without the app-wide flag");
+        assertEquals(1, handler.interceptors().size());
+        assertInstanceOf(LongTermMemoryInterceptor.class, handler.interceptors().get(0),
+                "harness = {MEMORY} must attach the long-term-memory interceptor");
+        assertNull(handler.cachePolicy(),
+                "harness = {MEMORY} must not seed a prompt-cache default");
+        assertEquals("ACTIVE",
+                installedPreset().runtimeState()
+                        .get(HarnessPreset.PRIMITIVE_CONVERSATION_MEMORY),
+                "the annotation-driven attach must publish conversation memory as ACTIVE");
+    }
+
+    // ---- kill switch ----
+
+    @Test
+    public void killSwitchBeatsThePerEndpointAnnotation() throws Exception {
+        killSwitch();
+
+        var handler = handle(MemoryHarnessEndpoint.class, new MemoryHarnessEndpoint());
+
+        assertNull(handler.memory(), "the kill switch must beat harness = {MEMORY}");
+        assertTrue(handler.interceptors().isEmpty(),
+                "the kill switch must suppress the long-term-memory attach");
+        assertNull(handler.cachePolicy());
+        assertEquals("INACTIVE(disabled)",
+                installedPreset().runtimeState()
+                        .get(HarnessPreset.PRIMITIVE_LONG_TERM_MEMORY),
+                "an unresolved primitive must stay INACTIVE(disabled)");
     }
 
     // ---- exclude-paths ----
 
     @Test
-    public void excludedPathGetsNoPresetPrimitives() throws Exception {
-        enablePreset();
-        when(cfg.getInitParameter(DeepAgentPreset.EXCLUDE_PATHS_KEY))
+    public void excludedPathGetsNoHarnessPrimitives() throws Exception {
+        enableAppWide();
+        when(cfg.getInitParameter(HarnessPreset.EXCLUDE_PATHS_KEY))
                 .thenReturn("/atmosphere/preset-plain");
 
         var handler = handle(PlainEndpoint.class, new PlainEndpoint());
@@ -146,8 +191,8 @@ public class AiEndpointProcessorDeepAgentPresetTest {
     // ---- long-term-memory auto-attach ----
 
     @Test
-    public void presetAppendsLtmInterceptorAfterUserInterceptors() throws Exception {
-        enablePreset();
+    public void harnessAppendsLtmInterceptorAfterUserInterceptors() throws Exception {
+        enableAppWide();
         when(framework.newClassInstance(eq(AiInterceptor.class), eq(PassThroughInterceptor.class)))
                 .thenReturn(new PassThroughInterceptor());
 
@@ -157,17 +202,17 @@ public class AiEndpointProcessorDeepAgentPresetTest {
         assertInstanceOf(PassThroughInterceptor.class, handler.interceptors().get(0),
                 "user interceptors must keep FIFO precedence");
         assertInstanceOf(LongTermMemoryInterceptor.class, handler.interceptors().get(1),
-                "the preset LTM interceptor must be appended AFTER user interceptors");
+                "the harness LTM interceptor must be appended AFTER user interceptors");
 
         var state = installedPreset().runtimeState();
         assertEquals("ACTIVE(" + InMemoryLongTermMemory.class.getName() + ")",
-                state.get(DeepAgentPreset.PRIMITIVE_LONG_TERM_MEMORY),
+                state.get(HarnessPreset.PRIMITIVE_LONG_TERM_MEMORY),
                 "runtime-state must report the resolved store class");
     }
 
     @Test
-    public void presetSkipsLtmWhenUserAlreadyDeclaresOne() throws Exception {
-        enablePreset();
+    public void harnessSkipsLtmWhenUserAlreadyDeclaresOne() throws Exception {
+        enableAppWide();
         var userLtm = new UserLtmInterceptor();
         when(framework.newClassInstance(eq(AiInterceptor.class), eq(UserLtmInterceptor.class)))
                 .thenReturn(userLtm);
@@ -177,15 +222,15 @@ public class AiEndpointProcessorDeepAgentPresetTest {
         var ltms = handler.interceptors().stream()
                 .filter(i -> i instanceof LongTermMemoryInterceptor)
                 .toList();
-        assertEquals(1, ltms.size(), "the preset must not double-attach long-term memory");
+        assertEquals(1, ltms.size(), "the harness must not double-attach long-term memory");
         assertSame(userLtm, ltms.get(0), "the user's interceptor is authoritative");
     }
 
     // ---- prompt-cache default precedence ----
 
     @Test
-    public void annotationCachePolicyWinsOverInitParamAndPreset() throws Exception {
-        enablePreset();
+    public void annotationCachePolicyWinsOverInitParamAndHarness() throws Exception {
+        enableAppWide();
         when(cfg.getInitParameter(PromptCacheDefaults.DEFAULT_KEY)).thenReturn("conservative");
 
         var handler = handle(AggressiveCacheEndpoint.class, new AggressiveCacheEndpoint());
@@ -194,8 +239,8 @@ public class AiEndpointProcessorDeepAgentPresetTest {
     }
 
     @Test
-    public void initParamBeatsPresetDefault() throws Exception {
-        enablePreset();
+    public void initParamBeatsHarnessDefault() throws Exception {
+        enableAppWide();
         when(cfg.getInitParameter(PromptCacheDefaults.DEFAULT_KEY)).thenReturn("aggressive");
 
         var handler = handle(PlainEndpoint.class, new PlainEndpoint());
@@ -204,19 +249,19 @@ public class AiEndpointProcessorDeepAgentPresetTest {
     }
 
     @Test
-    public void explicitNoneInitParamSuppressesPresetDefault() throws Exception {
-        enablePreset();
+    public void explicitNoneInitParamSuppressesHarnessDefault() throws Exception {
+        enableAppWide();
         when(cfg.getInitParameter(PromptCacheDefaults.DEFAULT_KEY)).thenReturn("none");
 
         var handler = handle(PlainEndpoint.class, new PlainEndpoint());
 
         assertNull(handler.cachePolicy(),
-                "an explicit 'none' must beat the preset's conservative default");
+                "an explicit 'none' must beat the harness conservative default");
     }
 
     @Test
-    public void presetSeedsConservativeWhenNothingElseConfigured() throws Exception {
-        enablePreset();
+    public void harnessSeedsConservativeWhenNothingElseConfigured() throws Exception {
+        enableAppWide();
 
         var handler = handle(PlainEndpoint.class, new PlainEndpoint());
 
@@ -224,7 +269,7 @@ public class AiEndpointProcessorDeepAgentPresetTest {
     }
 
     @Test
-    public void initParamWorksIndependentlyOfPreset() throws Exception {
+    public void initParamWorksIndependentlyOfHarness() throws Exception {
         when(cfg.getInitParameter(PromptCacheDefaults.DEFAULT_KEY)).thenReturn("conservative");
 
         var handler = handle(PlainEndpoint.class, new PlainEndpoint());
@@ -266,6 +311,13 @@ public class AiEndpointProcessorDeepAgentPresetTest {
     @AiEndpoint(path = "/atmosphere/preset-memory-on",
             conversationMemory = true, maxHistoryMessages = 7)
     public static class MemoryOnEndpoint {
+        @Prompt
+        public void onPrompt(String message, StreamingSession session) {
+        }
+    }
+
+    @AiEndpoint(path = "/atmosphere/harness-memory", harness = {Harness.MEMORY})
+    public static class MemoryHarnessEndpoint {
         @Prompt
         public void onPrompt(String message, StreamingSession session) {
         }

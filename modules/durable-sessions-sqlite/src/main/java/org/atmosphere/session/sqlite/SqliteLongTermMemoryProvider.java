@@ -20,7 +20,7 @@ import org.atmosphere.ai.memory.LongTermMemoryProvider;
 
 /**
  * {@link LongTermMemoryProvider} that makes long-term memory durable the
- * moment this jar is on the classpath: the deep-agent preset's resolution
+ * moment this jar is on the classpath: the harness preset's resolution
  * chain ({@code LongTermMemories.resolve}) picks it over the JVM-lifetime
  * in-memory fallback. Uses {@link SqliteLongTermMemory}'s default database
  * file; apps that need a custom path bridge their own store instead (the

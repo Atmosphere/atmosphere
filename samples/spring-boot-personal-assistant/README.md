@@ -148,24 +148,26 @@ The `UpstreamMcpAgent` endpoint is also a real consumer of the
 across separate WebSocket connections — exactly what a "long-lived,
 memory-bearing assistant" should do.
 
-The sample contains **zero memory wiring**. One switch in
-`application.yml` enables the deep-agent preset:
+The sample contains **zero memory wiring**. One annotation attribute
+opts the endpoint into the deep-agent harness:
 
-```yaml
-atmosphere:
-  ai:
-    deep-agent:
-      enabled: true
+```java
+@AiEndpoint(path = "/atmosphere/personal-assistant/upstream-tools",
+        harness = {Harness.ALL})
 ```
 
 and the framework attaches a `LongTermMemoryInterceptor`
 (`InMemoryLongTermMemory` store, `onSessionClose` extraction via the
-resolved `AgentRuntime`, 20-fact recall budget) to every AI endpoint,
-alongside conversation memory, a conservative prompt-cache default, the
-built-in `delegate_task` fleet tool on the `@Coordinator`, and durable
-runs. Per-primitive runtime state is published at
-`/api/console/info` under `deepAgent` — the console shows what actually
-activated, not what was configured.
+resolved `AgentRuntime`, 20-fact recall budget) to the endpoint,
+alongside conversation memory and a conservative prompt-cache default.
+`@Agent` classes get the same harness without any attribute — their
+`harness()` defaults to `{Harness.ALL}` (see `ResearchAgent`; declare
+`harness = {}` to opt an agent down) — and the app-wide tri-state
+`atmosphere.ai.harness.enabled` flag can still turn every bare
+`@AiEndpoint` on (`true`) or kill the harness everywhere (`false`).
+Per-primitive runtime state is published at `/api/console/info` under
+`harness` — the console shows what actually activated, not what was
+configured.
 
 > **History note:** before the preset existed this sample wired long-term
 > memory by hand — a `@Configuration`, a static holder, and a no-arg

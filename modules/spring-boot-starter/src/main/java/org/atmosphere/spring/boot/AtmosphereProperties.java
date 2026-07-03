@@ -354,7 +354,7 @@ public class AtmosphereProperties {
 
         private Memory memory = new Memory();
 
-        private DeepAgentProperties deepAgent = new DeepAgentProperties();
+        private HarnessProperties harness = new HarnessProperties();
 
         private CodeProperties code = new CodeProperties();
 
@@ -366,12 +366,12 @@ public class AtmosphereProperties {
             this.enabled = enabled;
         }
 
-        public DeepAgentProperties getDeepAgent() {
-            return deepAgent;
+        public HarnessProperties getHarness() {
+            return harness;
         }
 
-        public void setDeepAgent(DeepAgentProperties deepAgent) {
-            this.deepAgent = deepAgent;
+        public void setHarness(HarnessProperties harness) {
+            this.harness = harness;
         }
 
         public CodeProperties getCode() {
@@ -640,23 +640,31 @@ public class AtmosphereProperties {
     }
 
     /**
-     * Deep-agent preset, bound to {@code atmosphere.ai.deep-agent.*}.
-     * <strong>Off by default</strong> — turning it on is the operator's explicit
-     * opt-in. When enabled, the starter bridges the preset switches into
-     * framework init-params ({@code org.atmosphere.ai.deep-agent.*},
-     * {@code org.atmosphere.ai.compaction},
+     * Harness preset, bound to {@code atmosphere.ai.harness.*}. The starter
+     * bridges the preset switches into framework init-params
+     * ({@code org.atmosphere.ai.harness.*}, {@code org.atmosphere.ai.compaction},
      * {@code org.atmosphere.ai.prompt-cache.default}) read by the AI endpoint
-     * processors, and implies {@code atmosphere.durable-runs.enabled} when the
-     * operator did not set that property explicitly (an explicit {@code false}
-     * is honoured). The preset never enables code execution — see
-     * {@link CodeProperties}.
+     * processors. The {@code enabled} switch is tri-state: unset (the default)
+     * leaves the decision to each annotation's {@code harness()} attribute
+     * ({@code @Agent} defaults to the full harness, {@code @AiEndpoint} stays
+     * bare), {@code true} turns the full harness on for bare
+     * {@code @AiEndpoint}s too and implies {@code atmosphere.durable-runs.enabled}
+     * when the operator did not set that property explicitly (an explicit
+     * {@code false} is honoured), and {@code false} is the operational kill
+     * switch — harness features stay off everywhere, beating every annotation.
+     * The preset never enables code execution — see {@link CodeProperties}.
      */
-    public static class DeepAgentProperties {
+    public static class HarnessProperties {
 
-        /** Master switch. Default {@code false} — the preset is explicit opt-in. */
-        private boolean enabled = false;
+        /**
+         * Tri-state app-wide switch. {@code null} (the default) = unset — only
+         * a non-null value is bridged to the framework, so an explicit
+         * {@code false} reaches the runtime as the kill switch while an absent
+         * property stays absent (annotation defaults apply).
+         */
+        private Boolean enabled;
 
-        /** Endpoint paths excluded from the preset's default-on conversation memory. */
+        /** Endpoint paths excluded from the harness; beats annotations (only the kill switch is stronger). */
         private java.util.List<String> excludePaths = new java.util.ArrayList<>();
 
         /**
@@ -672,11 +680,11 @@ public class AtmosphereProperties {
          */
         private String promptCacheDefault;
 
-        public boolean isEnabled() {
+        public Boolean getEnabled() {
             return enabled;
         }
 
-        public void setEnabled(boolean enabled) {
+        public void setEnabled(Boolean enabled) {
             this.enabled = enabled;
         }
 
@@ -712,7 +720,7 @@ public class AtmosphereProperties {
      * Atmosphere framework initializes, so the sysprop-only code-exec keys
      * become reachable from {@code application.yml}. A system property the
      * operator already set on the JVM always wins (it is never overridden).
-     * <strong>Off by default and never enabled by the deep-agent preset</strong>
+     * <strong>Off by default and never enabled by the harness preset</strong>
      * — executing model-generated code stays an explicit opt-in (Correctness
      * Invariant #6). Nullable wrapper types mean "unset = don't bridge, the
      * hardened framework defaults apply".

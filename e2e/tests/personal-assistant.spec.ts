@@ -148,4 +148,35 @@ test.describe('Personal assistant sample', () => {
     await expect(page.getByText(/intent/i).first())
       .toBeVisible({ timeout: 60_000 });
   });
+
+  /**
+   * Harness runtime truth through the full stack. The sample activates the
+   * harness through all three agent-family surfaces without any app-wide
+   * flag: @Agent crew members and the @Coordinator primary are
+   * batteries-included by default (harness() defaults to {Harness.ALL}),
+   * and UpstreamMcpAgent opts its bare @AiEndpoint in per-endpoint with
+   * harness = {Harness.ALL}. The console info endpoint must report each
+   * primitive genuinely ACTIVE — not config intent, but confirmed attach
+   * (Correctness Invariant #5). If the batteries-on default regresses, or
+   * the per-feature gating drops a primitive, these assertions go red.
+   */
+  test('console info reports the harness batteries genuinely ACTIVE', async ({
+    request,
+  }) => {
+    const res = await request.get('/api/console/info');
+    expect(res.status()).toBe(200);
+    const info = await res.json();
+
+    expect(info.harness, 'harness runtime-truth block must be published')
+      .toBeDefined();
+    expect(info.harness['conversation-memory']).toBe('ACTIVE');
+    // Long-term memory reports the resolved store class alongside the state,
+    // e.g. ACTIVE(org.atmosphere.ai.memory.InMemoryLongTermMemory).
+    expect(info.harness['long-term-memory']).toMatch(/^ACTIVE/);
+    expect(info.harness['prompt-cache-default']).toBe('conservative');
+    expect(info.harness['delegation'], 'a declared fleet keeps delegation on by default')
+      .toBe('ACTIVE');
+    expect(info.harness['compaction'], 'a compaction strategy must be selected')
+      .toBeTruthy();
+  });
 });

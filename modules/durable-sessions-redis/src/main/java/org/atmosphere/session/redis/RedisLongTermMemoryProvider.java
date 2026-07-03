@@ -22,7 +22,7 @@ import org.atmosphere.ai.memory.LongTermMemoryProvider;
  * {@link LongTermMemoryProvider} gated on the {@code REDIS_URL} environment
  * variable — the same runtime-truth signal {@link RedisConversationPersistence}
  * uses: no URL, not available, no connection attempt. When available, the
- * deep-agent preset's resolution chain ({@code LongTermMemories.resolve})
+ * harness preset's resolution chain ({@code LongTermMemories.resolve})
  * prefers it over the SQLite provider (an external shared store beats a
  * node-local file for multi-instance deployments).
  *

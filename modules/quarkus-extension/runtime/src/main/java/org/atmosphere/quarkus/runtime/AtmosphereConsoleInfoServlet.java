@@ -98,11 +98,11 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
         if (memorySafety != null) {
             payload.put("memorySafety", memorySafety);
         }
-        // Deep-agent preset runtime truth (Invariant #5): the per-primitive
+        // Agent-harness preset runtime truth (Invariant #5): the per-primitive
         // ACTIVE / INACTIVE(reason) / CONVENTION map the core preset publishes.
-        var deepAgent = detectDeepAgentState(framework);
-        if (deepAgent != null) {
-            payload.put("deepAgent", deepAgent);
+        var harness = detectHarnessState(framework);
+        if (harness != null) {
+            payload.put("harness", harness);
         }
 
         resp.setStatus(HttpServletResponse.SC_OK);
@@ -269,16 +269,16 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
     }
 
     /**
-     * Runtime-truth view of the deep-agent preset, read duck-typed (a plain
+     * Runtime-truth view of the agent-harness preset, read duck-typed (a plain
      * {@code Map} in the framework property bag) so this servlet keeps no hard
      * compile-time link to {@code atmosphere-ai}. The core preset publishes a
      * per-primitive state map (ACTIVE / INACTIVE(reason) / CONVENTION); when
-     * absent — preset off, {@code atmosphere-ai} missing, or nothing installed
+     * absent — harness off, {@code atmosphere-ai} missing, or nothing installed
      * yet — the payload simply omits the key rather than reporting intent.
-     * Key literal mirrors the {@code org.atmosphere.ai.deep-agent.*} namespace
+     * Key literal mirrors the {@code org.atmosphere.ai.harness.*} namespace
      * in {@code atmosphere-ai}.
      */
-    private static Map<String, Object> detectDeepAgentState(AtmosphereFramework framework) {
+    private static Map<String, Object> detectHarnessState(AtmosphereFramework framework) {
         if (framework == null) {
             return null;
         }
@@ -286,7 +286,7 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
         if (cfg == null) {
             return null;
         }
-        var state = cfg.properties().get("org.atmosphere.ai.deep-agent.runtime-state");
+        var state = cfg.properties().get("org.atmosphere.ai.harness.runtime-state");
         if (!(state instanceof Map<?, ?> states)) {
             return null;
         }
