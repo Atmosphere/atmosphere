@@ -108,7 +108,11 @@ jobs:
       uses: actions/cache@v6
       with:
         path: ~/.cache/ms-playwright
-        key: playwright-${{ runner.os }}-${{ hashFiles('modules/integration-tests/package-lock.json') }}
+        # BOTH lockfiles: modules/integration-tests and e2e resolve DIFFERENT
+        # Playwright versions (1.58.x vs 1.59.x) with different bundled browser
+        # builds — keying on only one silently serves a stale browser set to the
+        # other project's specs ("Executable doesn't exist at ...-<build>").
+        key: playwright-${{ runner.os }}-${{ hashFiles('modules/integration-tests/package-lock.json', 'e2e/package-lock.json') }}
 
     - name: Install npm dependencies
       run: |
@@ -116,26 +120,30 @@ jobs:
         (cd e2e && npm ci)
 
     - name: Install Playwright browsers
-      working-directory: modules/integration-tests
       run: |
-        # Same hardened install as e2e.yml: bounded attempts, timeout converts
-        # a stalled download/apt mirror into exit 124 so the retry advances.
-        if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
-          cmd="npx playwright install-deps chromium"
-        else
-          cmd="npx playwright install --with-deps chromium"
-        fi
-        for attempt in 1 2 3; do
-          if timeout 300 $cmd; then
-            break
-          fi
-          if [ "$attempt" = "3" ]; then
-            echo "playwright install failed after 3 attempts" >&2
-            exit 1
-          fi
-          echo "playwright install attempt $attempt failed, retrying in ${attempt}0s..." >&2
-          sleep "${attempt}0"
-        done
+        # Two Playwright projects live in this repo with DIFFERENT resolved
+        # versions: modules/integration-tests (~1.58) runs the pw:boot specs,
+        # e2e (~1.59) runs the fnd: foundation specs (run_fnd cd's into e2e/).
+        # Each version needs ITS OWN browser build, so install for BOTH dirs
+        # (shared ~/.cache/ms-playwright, idempotent). Install the headless shell
+        # explicitly — 1.59 uses chromium-headless-shell for headless runs.
+        # Hardened like e2e.yml: bounded attempts, timeout turns a stalled
+        # mirror into exit 124 so the retry advances.
+        install_browsers() {
+          for attempt in 1 2 3; do
+            if (cd "$1" && timeout 300 npx playwright install --with-deps chromium chromium-headless-shell); then
+              return 0
+            fi
+            if [ "$attempt" = "3" ]; then
+              echo "playwright install failed in $1 after 3 attempts" >&2
+              return 1
+            fi
+            echo "playwright install ($1) attempt $attempt failed, retrying in ${attempt}0s..." >&2
+            sleep "${attempt}0"
+          done
+        }
+        install_browsers modules/integration-tests
+        install_browsers e2e
 
     - name: Run release gate shard
       env:
