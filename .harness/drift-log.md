@@ -2007,3 +2007,34 @@ separate lockfiles were treated as one browser-install surface.
 deps install and the cache key MUST cover every dir (each has its own resolved version/build); and
 local validation of a multi-tier lane must exercise the actual tier that will run in CI, not the
 first tier that boots.
+
+## 2026-07-03 — Release-gate `fnd:` tier wired a dormant spec suite that asserted a REST endpoint the sample never had
+
+**Claim (e2e/tests/guarded-email-agent.spec.ts, pre-existing; surfaced by release-gate af588221a7):**
+the guarded-email sample's REST contract lives at `POST /agent` — benign goal → 200, malicious
+goal → 403 with a taint violation, empty goal → 400. The spec's own comment called the UI "a thin
+shell over POST /agent."
+
+**Truth:** the sample has no `/agent` endpoint at all — no `@RestController`/`@PostMapping` maps it,
+and `POST /agent` returns 404 (reproduced against the packaged jar). The real surface is
+`POST /api/admin/verifier/check`, an admin write that requires the `demo-operator` operator token
+(anonymous → 401 by Invariant #6). The spec had never run in ANY CI lane — the live e2e specs are in
+`modules/integration-tests/e2e/`, while `e2e/tests/` was a parallel, un-wired directory — so it rotted
+against the sample undetected. The release-gate `fnd:` tier was the first CI to execute it, and it
+correctly went red.
+
+**Slip path:** wiring `e2e/tests/*.spec.ts` into the release-gate `fnd:` tier without first
+confirming each spec's target endpoint still existed on its sample. A spec suite that no CI lane
+runs is DARK, not passing — its assertions drift from the code silently, and "red on first
+activation" looks like a regression when it is really years of undetected rot surfacing at once.
+
+**Fix (3dd287830f, maintainer):** rewrote the spec against the real `/api/admin/verifier/check` —
+asserting the anonymous-write 401, the authenticated benign `executed`, the authenticated
+exfiltration `refused` + taint violation, and the empty-goal 400. Verified locally against the
+packaged jar (401 / 200-executed / 200-refused / 400) and end-to-end via the re-dispatched
+release-gate foundation shard.
+
+**Gate:** before wiring a dormant spec suite into a gate, grep each spec's target endpoint against
+the sample's actual REST surface (`git grep '@PostMapping\|@RequestMapping' samples/<name>`) — a
+green/red signal from a spec whose endpoint doesn't exist is meaningless. The release-gate `fnd:`
+tier now runs these specs every release, so they can no longer rot dark.
