@@ -1331,7 +1331,7 @@
         <spring-ai-alibaba.version>1.1.2.3</spring-ai-alibaba.version>
         <!-- Quarkus LangChain4j 1.9.2 ships LangChain4j 1.13.0 transitively;
              our parent already pins langchain4j 1.12.2 (compatible minor). -->
-        <quarkus-langchain4j.version>1.9.2</quarkus-langchain4j.version>
+        <quarkus-langchain4j.version>1.11.2</quarkus-langchain4j.version>
         <!-- Spring AI Alibaba 1.1.2.0 is compiled against Spring AI 1.1.2 (the
              current stable line, distinct from the unreleased 2.0.0-Mx
              milestones we use elsewhere). The overlay pins the OpenAI starter
