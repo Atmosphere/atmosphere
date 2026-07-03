@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
 
 /**
@@ -6,6 +6,17 @@ import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-serve
  * Verifies that the shared console (logo, subtitle, connection, messaging)
  * works identically for all samples that use `/atmosphere/ai-chat`.
  */
+
+/**
+ * Wait for the console WebSocket to report "Connected". The handshake can take
+ * >15s on a loaded CI runner (sample boot + /api/console/info fetch + WS
+ * upgrade), so use a generous timeout — a slow-but-successful connect must not
+ * read as a flake. (This is why spring-boot-ai-chat is excluded below: its
+ * console WS never connects in CI at all, which is a different problem.)
+ */
+async function waitForConnected(page: Page): Promise<void> {
+  await expect(page.getByText('Connected')).toBeVisible({ timeout: 30_000 });
+}
 
 // spring-boot-ai-chat excluded: its browser console WebSocket never connects in CI.
 const UNIFIED_SAMPLES = [
@@ -45,7 +56,7 @@ for (const sampleName of UNIFIED_SAMPLES) {
 
     test('connects via WebSocket and shows Connected', async ({ page }) => {
       await page.goto(server.baseUrl + '/atmosphere/console/');
-      await expect(page.getByText('Connected')).toBeVisible({ timeout: 15_000 });
+      await waitForConnected(page);
     });
 
     test('send button is disabled when input is empty', async ({ page }) => {
@@ -55,7 +66,7 @@ for (const sampleName of UNIFIED_SAMPLES) {
 
     test('@flaky user can send a message and receive a response', async ({ page }) => {
       await page.goto(server.baseUrl + '/atmosphere/console/');
-      await expect(page.getByText('Connected')).toBeVisible({ timeout: 15_000 });
+      await waitForConnected(page);
 
       await page.getByTestId('chat-input').fill('Hello');
       await page.getByTestId('chat-send').click();
@@ -73,18 +84,18 @@ for (const sampleName of UNIFIED_SAMPLES) {
 
     test('clear button removes messages', async ({ page }) => {
       await page.goto(server.baseUrl + '/atmosphere/console/');
-      await expect(page.getByText('Connected')).toBeVisible({ timeout: 15_000 });
+      await waitForConnected(page);
 
       // Send a message
       await page.getByTestId('chat-input').fill('Test');
       await page.getByTestId('chat-send').click();
-      await expect(page.getByText('Test')).toBeVisible();
+      await expect(page.getByText('Test')).toBeVisible({ timeout: 10_000 });
 
       // Clear
       await page.getByRole('button', { name: /clear/i }).click();
 
       // Should show empty state
-      await expect(page.getByText('Start a conversation')).toBeVisible();
+      await expect(page.getByText('Start a conversation')).toBeVisible({ timeout: 10_000 });
     });
   });
 }
