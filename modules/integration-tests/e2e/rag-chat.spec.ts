@@ -24,7 +24,7 @@ test.describe('RAG Chat', () => {
     await expect(page.getByTestId('chat-send')).toBeDisabled();
   });
 
-  test('@flaky user can send a prompt and receive streaming response', async ({ page }) => {
+  test('user can send a prompt and receive streaming response', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
     await page.getByTestId('chat-input').fill('What is Atmosphere?');
     await page.getByTestId('chat-send').click();
@@ -33,7 +33,7 @@ test.describe('RAG Chat', () => {
     await expect(page.getByText('What is Atmosphere?')).toBeVisible();
 
     // Should receive a response (demo or real API)
-    await expect(page.locator('[class*="assistant"], [class*="message"]').last())
+    await expect(page.locator('.message--assistant').last())
       .not.toBeEmpty({ timeout: 30_000 });
   });
 
@@ -45,33 +45,33 @@ test.describe('RAG Chat', () => {
     await expect(page.getByTestId('chat-input')).toHaveValue('');
   });
 
-  test('@flaky RAG-specific prompt receives a response', async ({ page }) => {
+  test('RAG-specific prompt receives a response', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
     await page.getByTestId('chat-input').fill('Tell me about RAG');
     await page.getByTestId('chat-send').click();
 
     // Should receive a response (demo or real API)
-    await expect(page.locator('[class*="assistant"], [class*="message"]').last())
+    await expect(page.locator('.message--assistant').last())
       .not.toBeEmpty({ timeout: 30_000 });
   });
 
-  test('@flaky transport-specific prompt receives a response', async ({ page }) => {
+  test('transport-specific prompt receives a response', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
     await page.getByTestId('chat-input').fill('What about WebSocket transports?');
     await page.getByTestId('chat-send').click();
 
     // Should receive a response (demo or real API)
-    await expect(page.locator('[class*="assistant"], [class*="message"]').last())
+    await expect(page.locator('.message--assistant').last())
       .not.toBeEmpty({ timeout: 30_000 });
   });
 
-  test('@flaky multi-turn conversation preserves history', async ({ page }) => {
+  test('multi-turn conversation preserves history', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
 
     // First message
     await page.getByTestId('chat-input').fill('What is Atmosphere?');
     await page.getByTestId('chat-send').click();
-    await expect(page.locator('[class*="assistant"], [class*="message"]').last())
+    await expect(page.locator('.message--assistant').last())
       .not.toBeEmpty({ timeout: 30_000 });
 
     // Wait for streaming to finish (input re-enabled)
@@ -80,7 +80,7 @@ test.describe('RAG Chat', () => {
     // Second message
     await page.getByTestId('chat-input').fill('Tell me about RAG');
     await page.getByTestId('chat-send').click();
-    await expect(page.locator('[class*="assistant"], [class*="message"]').last())
+    await expect(page.locator('.message--assistant').last())
       .not.toBeEmpty({ timeout: 30_000 });
 
     // Both user messages should still be visible
@@ -100,7 +100,7 @@ test.describe('RAG Chat', () => {
     await page.getByTestId('chat-input').fill('What does the Atmosphere RAG agent do?');
     await page.getByTestId('chat-send').click();
 
-    await expect(page.locator('[class*="assistant"], [class*="message"]').last())
+    await expect(page.locator('.message--assistant').last())
       .not.toBeEmpty({ timeout: 30_000 });
   });
 
