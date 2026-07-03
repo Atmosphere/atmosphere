@@ -72,7 +72,13 @@ test.describe('Durable Session Identity', () => {
     conn2.close();
   });
 
-  test('session state survives server restart', async () => {
+  // NOTE: this only verifies the endpoint RECOVERS after a restart — a fresh
+  // connection can send and receive again. It does NOT prove any prior session
+  // state survived (it was previously mislabeled "session state survives server
+  // restart", which stayed green even if durability was broken). Actual survival
+  // — reconnecting with the issued token restores the same session — is asserted
+  // in durable-session-restart.spec.ts via the token round-trip.
+  test('endpoint accepts fresh connections after a server restart', async () => {
     test.setTimeout(120_000);
 
     const conn1 = await connectDurable(server.baseUrl);
