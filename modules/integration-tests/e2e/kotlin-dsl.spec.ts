@@ -56,6 +56,15 @@ function waitForPort(port: number, timeoutMs: number): Promise<void> {
 
 const jar = shadedJar();
 
+// Self-guard: in CI the shaded jar MUST exist (the reactor build packages it),
+// so a missing jar is a build wiring bug. Fail loud rather than silently skip —
+// a silent skip is exactly the false-confidence trap this spec was rescued from.
+if (process.env.CI && !jar) {
+  throw new Error(
+    'kotlin-dsl-chat shaded jar not found in CI — the reactor build must package it; ' +
+    'refusing to skip silently (see TARGET: ' + TARGET + ')');
+}
+
 (jar ? test.describe : test.describe.skip)('Kotlin DSL chat (shaded jar)', () => {
   let proc: ChildProcess;
   let output = '';

@@ -105,7 +105,7 @@ jobs:
           - name: stress
             projects: "message-ordering,large-payload,slow-consumer,connection-timeout"
           - name: gap-infra
-            projects: "redis-clustering,kafka-clustering,kotlin-dsl,wasync-client,mcp-bidirectional,cross-transport-interop"
+            projects: "kotlin-dsl,mcp-bidirectional,cross-transport-interop"
           - name: gap-protocols-events
             projects: "agui-sse-lifecycle,channel-gateway,otel-span-correlation"
           - name: gap-protocols-agent

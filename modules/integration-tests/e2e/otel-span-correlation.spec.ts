@@ -14,6 +14,14 @@ const hasJar = existsSync(OTEL_TARGET) &&
   require('fs').readdirSync(OTEL_TARGET).some((f: string) =>
     f.endsWith('.jar') && !f.endsWith('-sources.jar') && !f.endsWith('-javadoc.jar'));
 
+// Self-guard: a missing jar in CI is a build wiring bug, not a skip reason.
+// Fail loud rather than silently skip (the dead-skip false-confidence trap).
+if (process.env.CI && !hasJar) {
+  throw new Error(
+    'spring-boot-otel-chat jar not found in CI — the e2e build must package it; ' +
+    'refusing to skip silently (see OTEL_TARGET: ' + OTEL_TARGET + ')');
+}
+
 (hasJar ? test.describe : test.describe.skip)('OpenTelemetry Span Correlation', () => {
   let server: SampleServer;
 

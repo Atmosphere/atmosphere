@@ -387,21 +387,14 @@ export default defineConfig({
       testMatch: /sample-matrix-smoke\.spec\.ts/,
     },
     // ── P0: Gap analysis coverage ──
-    {
-      name: 'redis-clustering',
-      testMatch: /redis-clustering\.spec\.ts/,
-    },
-    {
-      name: 'kafka-clustering',
-      testMatch: /kafka-clustering\.spec\.ts/,
-    },
+    // redis-clustering / kafka-clustering / wasync-client were browser-suite
+    // no-op placeholders (test.skip). Their real coverage lives in the Java
+    // integration-tests lane — RedisClusteringTest, KafkaClusteringTest (both
+    // Testcontainers), and wasync ChatIntegrationTest/ClientTest — so the empty
+    // Playwright specs were false confidence and were removed.
     {
       name: 'kotlin-dsl',
       testMatch: /kotlin-dsl\.spec\.ts/,
-    },
-    {
-      name: 'wasync-client',
-      testMatch: /wasync-client\.spec\.ts/,
     },
     {
       name: 'cross-transport-interop',
