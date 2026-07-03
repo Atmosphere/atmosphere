@@ -29,8 +29,11 @@ test.describe('RAG Chat', () => {
     await page.getByTestId('chat-input').fill('What is Atmosphere?');
     await page.getByTestId('chat-send').click();
 
-    // User message should appear
-    await expect(page.getByText('What is Atmosphere?')).toBeVisible();
+    // The user's message renders in its own bubble. Target .message--user so the
+    // assertion is unique — the keyless demo reply echoes the prompt text, so a
+    // bare getByText matches both the user bubble and the assistant reply
+    // (strict-mode violation).
+    await expect(page.locator('.message--user').filter({ hasText: 'What is Atmosphere?' })).toBeVisible();
 
     // Should receive a response (demo or real API)
     await expect(page.locator('.message--assistant').last())
@@ -83,9 +86,11 @@ test.describe('RAG Chat', () => {
     await expect(page.locator('.message--assistant').last())
       .not.toBeEmpty({ timeout: 30_000 });
 
-    // Both user messages should still be visible
-    await expect(page.getByText('What is Atmosphere?')).toBeVisible();
-    await expect(page.getByText('Tell me about RAG')).toBeVisible();
+    // Both user messages must still be visible (history preserved). Target the
+    // user bubbles specifically — the demo reply echoes the prompt text, so a
+    // bare getByText would match two elements.
+    await expect(page.locator('.message--user').filter({ hasText: 'What is Atmosphere?' })).toBeVisible();
+    await expect(page.locator('.message--user').filter({ hasText: 'Tell me about RAG' })).toBeVisible();
   });
 
   // Non-flaky regression for the rag-chat failure: a prompt must produce an

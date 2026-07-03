@@ -106,7 +106,9 @@ for (const sampleName of UNIFIED_SAMPLES) {
       // Send a message
       await page.getByTestId('chat-input').fill('Test');
       await page.getByTestId('chat-send').click();
-      await expect(page.getByText('Test')).toBeVisible({ timeout: 10_000 });
+      // Target the user bubble — the demo reply can echo the prompt, which would
+      // make a bare getByText('Test') match two elements (strict-mode violation).
+      await expect(page.locator('.message--user').filter({ hasText: 'Test' })).toBeVisible({ timeout: 10_000 });
 
       // Clear
       await page.getByRole('button', { name: /clear/i }).click();
