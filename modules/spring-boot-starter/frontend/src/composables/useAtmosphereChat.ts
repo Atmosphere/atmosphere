@@ -1,6 +1,7 @@
 import { ref, onMounted, onUnmounted, type Ref } from 'vue'
 import { Atmosphere, ConnectionStatus } from 'atmosphere.js'
 import { resolveAuthToken } from '../lib/authToken'
+import { recordPlanUpdate } from '../lib/workspaceStore'
 import type {
   Subscription,
   AtmosphereResponse,
@@ -43,6 +44,16 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
   const isStreaming = ref(false)
   const connectionState = ref<string>('disconnected')
   const stats = ref<SessionStats | null>(null)
+
+  // Broadcast-mode endpoints (@ManagedService chat rooms) decode a JSON
+  // {author, message, time} envelope, not the raw prompt string the AI
+  // pipeline accepts — resolved once from the console info endpoint so
+  // send() can speak the right dialect (mode is runtime truth, not a guess).
+  const broadcastMode = ref(false)
+  fetch('/api/console/info')
+    .then(r => (r.ok ? r.json() : null))
+    .then(info => { broadcastMode.value = info?.mode === 'broadcast' })
+    .catch(() => { /* AI dialect stays the default */ })
 
   // Resilience tracker — surfaces fallback, reconnect-attempts and the
   // terminal "lost" state to the operator UI via ConnectionStatusBadge.
@@ -162,6 +173,16 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
   function handleStreamingEvent(msg: Record<string, unknown>) {
     const type = (msg.type as string) || (msg.event as string)
 
+    if (!type && typeof msg.message === 'string' && msg.message) {
+      // Event-less frame: a broadcast-mode payload ({author?, message, time?})
+      // from a @ManagedService/Broadcaster endpoint. Render it as its own
+      // bubble instead of dropping it — this is how another client's message
+      // (and the sender's own echo) reaches the console in broadcast mode.
+      const author = typeof msg.author === 'string' && msg.author ? `${msg.author}: ` : ''
+      appendBroadcastMessage(author + (msg.message as string))
+      return
+    }
+
     switch (type) {
       case 'streaming-text':
       case 'text-delta':
@@ -229,6 +250,12 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
         }
         break
       }
+      case 'plan-update':
+        // The agent's plan changed (write_todos / native plan bridge). Full-
+        // list replace semantics — the event carries the whole plan, rendered
+        // live by the Workspace tab via the shared workspaceStore.
+        recordPlanUpdate(msg.data)
+        break
       case 'approval-required': {
         const data = msg.data as Record<string, unknown> | undefined
         if (!data) break
@@ -302,6 +329,18 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
           appendToAssistant(msg.data)
         }
     }
+  }
+
+  function appendBroadcastMessage(text: string) {
+    // A discrete broadcast message: always its own bubble, never merged into
+    // an in-flight streaming reply (leaves currentAssistantMessage untouched).
+    if (!text) return
+    messages.value = [...messages.value, {
+      id: crypto.randomUUID(),
+      role: 'assistant',
+      content: text,
+      timestamp: Date.now(),
+    }]
   }
 
   function appendToAssistant(text: string) {
@@ -454,6 +493,20 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
     stats.value = null
     streamStartedAt = Date.now()
     streamTokenCount = 0
+
+    if (broadcastMode.value) {
+      // Broadcast rooms decode {author, message, time} (see the chat
+      // sample's JacksonDecoder); a raw string would fail the decoder and
+      // be dropped server-side. The echo renders via the event-less-frame
+      // branch in handleStreamingEvent, confirming delivery.
+      isStreaming.value = false
+      subscription.push(JSON.stringify({
+        author: 'console',
+        message: text.trim(),
+        time: Date.now(),
+      }))
+      return
+    }
 
     subscription.push(text.trim())
   }

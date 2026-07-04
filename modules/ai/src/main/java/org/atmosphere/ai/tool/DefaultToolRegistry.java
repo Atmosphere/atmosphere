@@ -309,6 +309,8 @@ public class DefaultToolRegistry implements ToolRegistry {
                 || name.equals("org.atmosphere.ai.identity.AgentIdentity")
                 || name.equals("org.atmosphere.ai.state.AgentState")
                 || name.equals("org.atmosphere.ai.workspace.AgentWorkspace")
+                || name.equals("org.atmosphere.ai.fs.AgentFileSystem")
+                || name.equals("org.atmosphere.ai.plan.AgentPlanStore")
                 || name.equals(SANDBOX_CLASS_NAME);
     }
 

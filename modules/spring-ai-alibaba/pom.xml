@@ -68,10 +68,17 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- Compile against the same Spring AI line the Alibaba agent
+             framework hard-pins (1.1.x, managed up to 1.1.8 above) instead of
+             ${spring-ai.version} (2.0.x). Mixing spring-ai-model 2.0 with the
+             1.1.x commons the framework needs breaks its tool machinery at
+             runtime (FunctionToolCallback 2.0 requires the 2.0-only
+             JsonHelper), and a real Spring AI Alibaba app always runs the
+             consistent 1.1.x stack. -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-client-chat</artifactId>
-            <version>${spring-ai.version}</version>
+            <version>${spring-ai-alibaba-spring-ai.version}</version>
             <scope>provided</scope>
         </dependency>
 

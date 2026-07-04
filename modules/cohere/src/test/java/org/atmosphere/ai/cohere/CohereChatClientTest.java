@@ -117,6 +117,31 @@ class CohereChatClientTest {
 
             """;
 
+    /**
+     * Tool-call round preceded by a three-fragment {@code tool-plan-delta}
+     * preamble — the free-text plan Cohere streams before its tool calls
+     * ({@code delta.message.tool_plan}, shape verified against cohere-java
+     * 1.7.0's {@code ChatToolPlanDeltaEventDeltaMessage}).
+     */
+    private static final String TOOL_PLAN_ROUND = """
+            data: {"type":"message-start","id":"msg_p1"}
+
+            data: {"type":"tool-plan-delta","delta":{"message":{"tool_plan":"I will use"}}}
+
+            data: {"type":"tool-plan-delta","delta":{"message":{"tool_plan":" the calculator"}}}
+
+            data: {"type":"tool-plan-delta","delta":{"message":{"tool_plan":" to compute 2+2."}}}
+
+            data: {"type":"tool-call-start","index":0,"delta":{"message":{"tool_calls":{"id":"call_p1","type":"function","function":{"name":"calculator","arguments":""}}}}}
+
+            data: {"type":"tool-call-delta","index":0,"delta":{"message":{"tool_calls":{"function":{"arguments":"{\\"expression\\":\\"2+2\\"}"}}}}}
+
+            data: {"type":"tool-call-end","index":0}
+
+            data: {"type":"message-end","delta":{"finish_reason":"TOOL_CALL","usage":{"tokens":{"input_tokens":15,"output_tokens":8}}}}
+
+            """;
+
     private static final String FINAL_AFTER_DELTA = """
             data: {"type":"message-start","id":"msg_d2"}
 
@@ -308,6 +333,46 @@ class CohereChatClientTest {
         // The accumulator must still reconstruct the full JSON for tool
         // dispatch — sanity-check via the final text round.
         assertEquals("done", session.text());
+    }
+
+    @Test
+    void toolPlanDeltaSurfacesAsSingleProgressBeforeToolStart() throws Exception {
+        // Cohere's tool_plan is a read-only, per-turn free-text preamble —
+        // NOT a maintained plan with steps/statuses — so the client forwards
+        // it as one AiEvent.Progress frame (never AiEvent.PlanUpdate; the
+        // runtime does not declare AiCapability.PLANNING). Pin that the
+        // fragments accumulate into the full text, surface exactly once, and
+        // land before the tool-start frame, mirroring the wire order.
+        var httpClient = mockTwoRoundResponse(TOOL_PLAN_ROUND, FINAL_TEXT_ROUND);
+        var client = CohereChatClient.builder()
+                .apiKey("test-key")
+                .httpClient(httpClient)
+                .build();
+        var calculator = ToolDefinition.builder("calculator", "Evaluate an expression")
+                .parameter("expression", "math expression", "string")
+                .executor(args -> "4")
+                .build();
+        var context = toolContext(calculator);
+        var session = new ProgressRecordingSession();
+        client.stream("command-a-plus-05-2026", List.of(), context.systemPrompt(),
+                context.message(), context, session, null);
+        session.await(java.time.Duration.ofSeconds(5));
+
+        assertEquals(null, session.failure(), "session must complete without an error");
+        assertEquals(List.of("I will use the calculator to compute 2+2."),
+                session.progressMessages,
+                "the three tool-plan-delta fragments must surface as exactly one "
+                        + "accumulated progress message (the final text round has no "
+                        + "tool plan, so no second frame)");
+        var planIndex = session.frames.indexOf("progress");
+        var toolStartIndex = session.frames.indexOf("event.tool-start");
+        assertTrue(planIndex >= 0 && toolStartIndex >= 0,
+                "both the plan progress and the tool-start frame must surface: "
+                        + session.frames);
+        assertTrue(planIndex < toolStartIndex,
+                "the plan preamble must land before the tool-start frame "
+                        + "(wire order): " + session.frames);
+        assertEquals("4", session.text(), "session must carry the final text");
     }
 
     @Test
@@ -646,6 +711,90 @@ class CohereChatClientTest {
 
         @Override
         public void progress(String message) { /* no-op */ }
+
+        @Override
+        public void complete() {
+            if (!closed) {
+                closed = true;
+                latch.countDown();
+            }
+        }
+
+        @Override
+        public void complete(String summary) {
+            if (summary != null) {
+                buffer.append(summary);
+            }
+            complete();
+        }
+
+        @Override
+        public void error(Throwable t) {
+            if (!closed) {
+                closed = true;
+                failure = t;
+                latch.countDown();
+            }
+        }
+
+        @Override
+        public boolean isClosed() { return closed; }
+
+        void await(java.time.Duration timeout) {
+            try {
+                latch.await(timeout.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        String text() { return buffer.toString(); }
+
+        Throwable failure() { return failure; }
+    }
+
+    /**
+     * Minimal {@link org.atmosphere.ai.StreamingSession} that records every
+     * {@code progress(message)} call plus an ordered frame trace ("progress"
+     * and each {@code sendMetadata} key — the default {@code emit} routes
+     * {@link org.atmosphere.ai.AiEvent.ToolStart} to
+     * {@code sendMetadata("event.tool-start", ...)}), so the tool-plan
+     * preamble's content and its ordering relative to tool dispatch can both
+     * be asserted.
+     */
+    private static final class ProgressRecordingSession
+            implements org.atmosphere.ai.StreamingSession {
+        final java.util.List<String> progressMessages =
+                java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        final java.util.List<String> frames =
+                java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        private final StringBuffer buffer = new StringBuffer();
+        private final java.util.concurrent.CountDownLatch latch =
+                new java.util.concurrent.CountDownLatch(1);
+        private volatile boolean closed;
+        private volatile Throwable failure;
+        private final String sessionId = "progress-recording-" + System.nanoTime();
+
+        @Override
+        public String sessionId() { return sessionId; }
+
+        @Override
+        public void send(String text) {
+            if (text != null) {
+                buffer.append(text);
+            }
+        }
+
+        @Override
+        public void sendMetadata(String key, Object value) {
+            frames.add(key);
+        }
+
+        @Override
+        public void progress(String message) {
+            progressMessages.add(message);
+            frames.add("progress");
+        }
 
         @Override
         public void complete() {

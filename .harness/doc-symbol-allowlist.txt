@@ -77,3 +77,5 @@ MeteorService
 # @McpServer: mcp/README explicitly states no @McpServer annotation is needed
 #   (MCP auto-registers); also a historical CHANGELOG mention.
 McpServer
+# Embabel GOAP action annotation (com.embabel.agent.api.annotation) — referenced in modules/embabel/README.md
+Action

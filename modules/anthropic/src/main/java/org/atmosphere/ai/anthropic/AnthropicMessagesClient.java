@@ -61,6 +61,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *       {@code stream}, {@code temperature}.</li>
  *   <li>Content block types: {@code text}, {@code tool_use},
  *       {@code tool_result}.</li>
+ *   <li>Native virtual filesystem: the {@code memory_20250818} tool is
+ *       declared (as {@code {"type":"memory_20250818","name":"memory"}},
+ *       no beta header) when the harness FILESYSTEM feature scoped an
+ *       {@link org.atmosphere.ai.fs.AgentFileSystem} onto the session and
+ *       {@link org.atmosphere.ai.fs.FilesystemMode} allows a native
+ *       surface; its six commands are serviced by
+ *       {@link AnthropicMemoryTool} against Atmosphere's bounded store.</li>
  *   <li>SSE events: {@code message_start}, {@code content_block_start},
  *       {@code content_block_delta} (with {@code text_delta} or
  *       {@code input_json_delta}), {@code content_block_stop},
@@ -189,6 +196,17 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
                 && org.atmosphere.ai.NativeStructuredOutput.shouldApply(context)
                 ? org.atmosphere.ai.NativeStructuredOutput.schema(context) : null;
 
+        // Native VFS (AiCapability.VIRTUAL_FILESYSTEM): the harness FILESYSTEM
+        // feature reaches this runtime through the session's injectables —
+        // AiEndpointHandler scopes an AgentFileSystem per conversation at
+        // dispatch, and the AgentFileSystemProvider fallback covers
+        // resource-free paths. When the store is present (and FilesystemMode
+        // allows a native surface) the memory_20250818 tool is declared on
+        // every round of this request and its commands are serviced against
+        // the store. Resolved per request, from the live session — never from
+        // configuration intent (Correctness Invariant #5, Runtime Truth).
+        var memoryFs = resolveMemoryFileSystem(context, session);
+
         while (true) {
             if (effectiveCancel.get()) {
                 session.error(new InterruptedException("Cancelled before round " + rounds));
@@ -205,7 +223,8 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
                     return;
                 }
             }
-            var requestBody = buildRequestBody(model, working, system, context.tools(), nativeSchema);
+            var requestBody = buildRequestBody(model, working, system, context.tools(),
+                    nativeSchema, memoryFs != null);
             HttpRequest httpRequest;
             try {
                 httpRequest = buildHttpRequest(requestBody);
@@ -214,7 +233,7 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
                 return;
             }
 
-            var roundOutcome = parseRound(httpRequest, context, session, effectiveCancel);
+            var roundOutcome = parseRound(httpRequest, context, session, effectiveCancel, memoryFs);
             if (roundOutcome.errored()) {
                 // The round already emitted session.error / session.complete.
                 return;
@@ -234,7 +253,8 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
     private RoundOutcome parseRound(HttpRequest httpRequest,
                                     AgentExecutionContext context,
                                     StreamingSession session,
-                                    AtomicBoolean cancelled) {
+                                    AtomicBoolean cancelled,
+                                    org.atmosphere.ai.fs.AgentFileSystem memoryFs) {
         // Per-content-block accumulators keyed by SSE index (Anthropic
         // assigns a stable index per content_block_start within a message).
         // text_delta entries accumulate into a single text buffer; tool_use
@@ -300,8 +320,17 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
         var toolResults = new ArrayList<ObjectNode>();
         for (var entry : toolBuffers.entrySet()) {
             var acc = entry.getValue();
-            session.emit(new AiEvent.ToolStart(acc.functionName(), acc.argumentsAsMap(MAPPER)));
-            var resultText = dispatchTool(context, session, acc);
+            var args = acc.argumentsAsMap(MAPPER);
+            session.emit(new AiEvent.ToolStart(acc.functionName(), args));
+            String resultText;
+            if (memoryFs != null && AnthropicMemoryTool.TOOL_NAME.equals(acc.functionName())) {
+                // The native memory_20250818 surface owns this call —
+                // resolveMemoryFileSystem() already yielded to any
+                // caller-registered tool named "memory".
+                resultText = AnthropicMemoryTool.execute(memoryFs, args);
+            } else {
+                resultText = dispatchTool(context, session, acc);
+            }
             session.emit(new AiEvent.ToolResult(acc.functionName(), resultText));
             toolResults.add(toolResultBlock(acc.id(), resultText));
         }
@@ -385,6 +414,39 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
                 ? usage.get("cache_read_input_tokens").asLong()
                 : (prior != null ? prior.cachedInput() : 0L);
         return TokenUsage.fromCounts(input, output, cached, null);
+    }
+
+    /**
+     * Resolve the {@link org.atmosphere.ai.fs.AgentFileSystem} that backs
+     * the native memory tool for this request, or {@code null} when the
+     * surface must stay inactive:
+     * <ul>
+     *   <li>{@link org.atmosphere.ai.fs.FilesystemMode#BUILTIN} pins the
+     *       portable six-tool floor — the native memory surface never
+     *       registers alongside it (no duplicate file surfaces; mirrors
+     *       {@code FilesystemPreset}'s registration-time decision).</li>
+     *   <li>A caller-registered tool named {@code memory} wins — declaring
+     *       the native tool too would put two tools with one name on the
+     *       wire.</li>
+     *   <li>Otherwise the store comes from the session's injectables (see
+     *       {@link AnthropicMemoryTool#resolve}); absent injectables mean
+     *       the harness FILESYSTEM feature is off for this session and no
+     *       tool is declared.</li>
+     * </ul>
+     */
+    private org.atmosphere.ai.fs.AgentFileSystem resolveMemoryFileSystem(
+            AgentExecutionContext context, StreamingSession session) {
+        if (org.atmosphere.ai.AiConfig.resolveFilesystemMode()
+                == org.atmosphere.ai.fs.FilesystemMode.BUILTIN) {
+            return null;
+        }
+        if (context != null
+                && findToolDefinition(context.tools(), AnthropicMemoryTool.TOOL_NAME) != null) {
+            logger.debug("Native memory tool suppressed — a caller-registered tool "
+                    + "named '{}' takes precedence", AnthropicMemoryTool.TOOL_NAME);
+            return null;
+        }
+        return AnthropicMemoryTool.resolve(session);
     }
 
     private String dispatchTool(AgentExecutionContext context, StreamingSession session,
@@ -536,7 +598,7 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
 
     private String buildRequestBody(String model, List<ObjectNode> messages,
                                     String system, List<ToolDefinition> tools,
-                                    String jsonSchema) {
+                                    String jsonSchema, boolean withMemoryTool) {
         var root = MAPPER.createObjectNode();
         root.put("model", model);
         root.put("max_tokens", maxTokens);
@@ -566,10 +628,21 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
         for (var m : messages) {
             msgs.add(m);
         }
-        if (tools != null && !tools.isEmpty()) {
+        if ((tools != null && !tools.isEmpty()) || withMemoryTool) {
             var toolArray = root.putArray("tools");
-            for (var t : tools) {
-                toolArray.add(toolDefinitionNode(t));
+            if (tools != null) {
+                for (var t : tools) {
+                    toolArray.add(toolDefinitionNode(t));
+                }
+            }
+            if (withMemoryTool) {
+                // Anthropic-defined tool: type + name only, no input_schema
+                // (the schema is built into the model). GA namespace — no
+                // beta header required.
+                var memory = MAPPER.createObjectNode();
+                memory.put("type", AnthropicMemoryTool.TOOL_TYPE);
+                memory.put("name", AnthropicMemoryTool.TOOL_NAME);
+                toolArray.add(memory);
             }
         }
         if (jsonSchema != null && !jsonSchema.isBlank()) {

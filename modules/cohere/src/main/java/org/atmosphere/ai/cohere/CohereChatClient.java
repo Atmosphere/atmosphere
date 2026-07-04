@@ -65,8 +65,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *       {@code content}).</li>
  *   <li>SSE events: {@code message-start}, {@code content-start},
  *       {@code content-delta} (text in {@code delta.message.content.text}),
- *       {@code content-end}, {@code tool-plan-delta},
- *       {@code tool-call-start} (carries
+ *       {@code content-end}, {@code tool-plan-delta} (free-text plan
+ *       preamble fragments in {@code delta.message.tool_plan},
+ *       accumulated per round and forwarded as one
+ *       {@link AiEvent.Progress} frame — see
+ *       {@link #handleToolPlanDelta}), {@code tool-call-start} (carries
  *       {@code delta.message.tool_calls[N]} with {@code id}, {@code function.name}),
  *       {@code tool-call-delta} (argument fragment in
  *       {@code delta.message.tool_calls[N].function.arguments}),
@@ -218,6 +221,10 @@ public final class CohereChatClient extends AbstractSseLlmClient {
                                     StreamingSession session,
                                     AtomicBoolean cancelled) {
         var assistantText = new StringBuilder();
+        // Cohere emits a free-text "tool plan" preamble before its tool
+        // calls, streamed as tool-plan-delta fragments. Accumulated here per
+        // round; forwarded once the round parses (see below).
+        var toolPlan = new StringBuilder();
         // Tool-call accumulators keyed by tool-call index (Cohere assigns
         // a stable index on tool-call-start within a stream).
         var toolBuffers = new LinkedHashMap<Integer, ToolCallAccumulator>();
@@ -234,6 +241,7 @@ public final class CohereChatClient extends AbstractSseLlmClient {
             var type = event.path("type").asString("");
             switch (type) {
                 case "content-delta" -> handleContentDelta(event, session, assistantText);
+                case "tool-plan-delta" -> handleToolPlanDelta(event, toolPlan);
                 case "tool-call-start" -> handleToolCallStart(event, toolBuffers);
                 case "tool-call-delta" -> handleToolCallDelta(event, session, toolBuffers);
                 case "message-end" -> {
@@ -245,7 +253,7 @@ public final class CohereChatClient extends AbstractSseLlmClient {
                 // Lifecycle / RAG events with no SPI mapping yet — silently
                 // tracked so future capability passes can wire them up.
                 case "message-start", "content-start", "content-end",
-                        "tool-plan-delta", "tool-call-end",
+                        "tool-call-end",
                         "citation-start", "citation-end" -> { /* no-op */ }
                 default -> logger.trace("Unhandled Cohere SSE event: {}", type);
             }
@@ -254,6 +262,18 @@ public final class CohereChatClient extends AbstractSseLlmClient {
             // runRound already emitted session.error for the IO/non-2xx paths;
             // the cancel path leaves the session untouched (matches original).
             return RoundOutcome.failure();
+        }
+
+        var plan = toolPlan.toString();
+        if (!plan.isBlank()) {
+            // Cohere's tool_plan is a read-only, per-turn preamble — free
+            // text the model emits before its tool calls, NOT a maintained
+            // plan with steps and statuses. Forwarding it as Progress (and
+            // not AiEvent.PlanUpdate) keeps runtime truth: this runtime does
+            // not declare AiCapability.PLANNING, and a synthetic plan step
+            // would carry a fabricated status no later event ever completes.
+            // Emitted before the ToolStart frames, mirroring the wire order.
+            session.emit(new AiEvent.Progress(plan, null));
         }
 
         var usage = usageHolder[0];
@@ -295,6 +315,22 @@ public final class CohereChatClient extends AbstractSseLlmClient {
         if (!chunk.isEmpty()) {
             session.send(chunk);
             assistantText.append(chunk);
+        }
+    }
+
+    /**
+     * Accumulate one {@code tool-plan-delta} fragment. Cohere streams the
+     * tool-plan preamble as text fragments under
+     * {@code delta.message.tool_plan} (shape verified against cohere-java
+     * 1.7.0's {@code ChatToolPlanDeltaEventDeltaMessage#getToolPlan}); the
+     * complete text is forwarded as a single {@link AiEvent.Progress} frame
+     * once the round parses, so consoles show what the model is about to do
+     * without rendering partial-sentence fragments.
+     */
+    private void handleToolPlanDelta(JsonNode event, StringBuilder toolPlan) {
+        var chunk = event.path("delta").path("message").path("tool_plan").asString("");
+        if (!chunk.isEmpty()) {
+            toolPlan.append(chunk);
         }
     }
 

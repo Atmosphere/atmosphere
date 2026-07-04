@@ -99,7 +99,8 @@ class AdkRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 AiCapability.BUDGET_ENFORCEMENT,
                 AiCapability.CONFIDENCE_SCORES,
                 AiCapability.PASSIVATION,
-                AiCapability.CANCELLATION);
+                AiCapability.CANCELLATION,
+                AiCapability.VIRTUAL_FILESYSTEM);
     }
 
     /**

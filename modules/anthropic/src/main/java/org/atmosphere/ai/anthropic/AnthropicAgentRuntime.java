@@ -220,7 +220,18 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
         //                            enforces the schema at the provider level;
         //                            AUTO mode falls back to prompt injection on
         //                            a provider rejection.
+        //   VIRTUAL_FILESYSTEM   — AnthropicMessagesClient declares the
+        //                            memory_20250818 tool when the harness
+        //                            FILESYSTEM feature scoped an
+        //                            AgentFileSystem onto the session, and
+        //                            AnthropicMemoryTool services all six
+        //                            commands (view/create/str_replace/
+        //                            insert/delete/rename) against
+        //                            Atmosphere's bounded store.
         // NOT claimed:
+        //   PLANNING              — the Anthropic API has no plan object to
+        //                            delegate to; the harness PLANNING floor
+        //                            (write_todos) covers this runtime.
         //   TOOL_CALL_DELTA       — input_json_delta arrives but is not
         //                            forwarded via session.toolCallDelta yet
         //   AUDIO                 — Anthropic Messages has no audio block
@@ -241,6 +252,7 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
                 AiCapability.PER_REQUEST_RETRY,
                 AiCapability.VISION,
                 AiCapability.MULTI_MODAL,
+                AiCapability.VIRTUAL_FILESYSTEM,
                 // CANCELLATION: doExecuteWithHandle returns a live handle whose
                 // cancel() flips a `cancelled` flag the streaming worker polls,
                 // stopping token forwarding and settling whenDone().

@@ -25,6 +25,29 @@ test.describe('Coding agent sample', () => {
     ).toBe(true);
   });
 
+  /**
+   * Harness runtime truth, keyless. CodingAgent declares no harness
+   * attribute, so PLANNING + FILESYSTEM attach by default (harness()
+   * defaults to {Harness.ALL}); no runtime on this sample's classpath
+   * advertises a native plan or file surface, so the AUTO knobs must land
+   * on the built-in floors (write_todos + the six file tools) and the
+   * console info endpoint must report the attach-time truth — never the
+   * INACTIVE seed (Correctness Invariant #5).
+   */
+  test('console info reports planning and filesystem genuinely ACTIVE', async ({
+    request,
+  }) => {
+    const res = await request.get('/api/console/info');
+    expect(res.status()).toBe(200);
+    const info = await res.json();
+    expect(info.harness, 'harness runtime-truth block must be published')
+      .toBeDefined();
+    expect(info.harness['planning'], 'the write_todos floor must genuinely attach')
+      .toMatch(/^ACTIVE\(builtin/);
+    expect(info.harness['filesystem'], 'the file-tool floor must genuinely attach')
+      .toMatch(/^ACTIVE\(builtin/);
+  });
+
   test('sandbox provider is reachable', async ({ page }) => {
     // The sample does not expose a dedicated sandbox status endpoint;
     // we assert the bundled UI loads, which confirms the backend is up

@@ -102,6 +102,65 @@ public class CoordinatorProcessorHarnessPresetTest {
                 preset.runtimeState().get(HarnessPreset.PRIMITIVE_DELEGATION));
     }
 
+    // ---- planning / filesystem registration gating ----
+
+    @Test
+    public void planningAndFilesystemFloorsRegisterWhenFeaturesOn() {
+        var preset = appWidePreset();
+        var registry = new DefaultToolRegistry();
+        var injectables = new java.util.LinkedHashMap<Class<?>, Object>();
+
+        processor.registerPresetPlanning(registry, preset, true, null, injectables, "coord");
+        processor.registerPresetFilesystem(registry, preset, true, null, injectables, "coord");
+
+        assertTrue(registry.getTool("write_todos").isPresent(),
+                "the harness must register the built-in planning floor");
+        for (var name : new String[]{"ls", "read_file", "write_file",
+                "edit_file", "glob", "grep"}) {
+            assertTrue(registry.getTool(name).isPresent(),
+                    "the harness must register the '" + name + "' file tool");
+        }
+        assertTrue(injectables.containsKey(org.atmosphere.ai.plan.AgentPlanStore.class),
+                "the plan store must be injectable on the coordinator path");
+        assertTrue(injectables.containsKey(org.atmosphere.ai.fs.AgentFileSystemProvider.class),
+                "the filesystem provider must be injectable on the coordinator path");
+        assertEquals("ACTIVE(builtin)",
+                preset.runtimeState().get(HarnessPreset.PRIMITIVE_PLANNING));
+        assertEquals("ACTIVE(builtin)",
+                preset.runtimeState().get(HarnessPreset.PRIMITIVE_FILESYSTEM));
+    }
+
+    @Test
+    public void planningAndFilesystemStayOffWhenFeaturesOff() {
+        var preset = HarnessPreset.install(framework);
+        var registry = new DefaultToolRegistry();
+        var injectables = new java.util.LinkedHashMap<Class<?>, Object>();
+
+        processor.registerPresetPlanning(registry, preset, false, null, injectables, "coord");
+        processor.registerPresetFilesystem(registry, preset, false, null, injectables, "coord");
+
+        assertTrue(registry.allTools().isEmpty(),
+                "without the features, no planning / filesystem tools may register");
+        assertTrue(injectables.isEmpty());
+        assertEquals("INACTIVE(disabled)",
+                preset.runtimeState().get(HarnessPreset.PRIMITIVE_PLANNING));
+        assertEquals("INACTIVE(disabled)",
+                preset.runtimeState().get(HarnessPreset.PRIMITIVE_FILESYSTEM));
+    }
+
+    @Test
+    public void coordinatorDefaultHarnessIncludesPlanningAndFilesystem() throws Exception {
+        var defaults = (Harness[]) Coordinator.class.getMethod("harness").getDefaultValue();
+        var preset = HarnessPreset.install(framework);
+
+        var features = preset.featuresFor("/atmosphere/agent/coord", defaults, true);
+
+        assertTrue(features.contains(Harness.PLANNING),
+                "a bare @Coordinator must carry the planning primitive by default");
+        assertTrue(features.contains(Harness.FILESYSTEM),
+                "a bare @Coordinator must carry the filesystem primitive by default");
+    }
+
     @Test
     public void userDeclaredDelegateTaskWinsOverThePresetTool() {
         // Regression: with DELEGATION now on by default, a coordinator that

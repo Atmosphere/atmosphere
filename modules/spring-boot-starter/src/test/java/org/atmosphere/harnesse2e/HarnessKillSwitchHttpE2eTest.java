@@ -68,6 +68,27 @@ class HarnessKillSwitchHttpE2eTest {
                 "the kill switch must not seed the prompt-cache default, got: " + body);
     }
 
+    @Test
+    void killSwitchSuppressesThePlanningAndFilesystemPrimitives() throws Exception {
+        var body = HarnessRuntimeTruthHttpE2eTest.consoleInfo(port);
+
+        // The @Agent default is {ALL}, which includes PLANNING and FILESYSTEM
+        // — the kill switch must beat it so neither the write_todos floor nor
+        // the file-tool floor attaches, and the console must report the
+        // suppression as runtime truth (INACTIVE, never the ACTIVE upgrade —
+        // Invariant #5).
+        assertTrue(body.contains("\"planning\":\"INACTIVE"),
+                "the kill switch must suppress the planning primitive despite the "
+                        + "@Agent default, got: " + body);
+        assertFalse(body.contains("\"planning\":\"ACTIVE"),
+                "planning must not report ACTIVE under the kill switch, got: " + body);
+        assertTrue(body.contains("\"filesystem\":\"INACTIVE"),
+                "the kill switch must suppress the filesystem primitive despite the "
+                        + "@Agent default, got: " + body);
+        assertFalse(body.contains("\"filesystem\":\"ACTIVE"),
+                "filesystem must not report ACTIVE under the kill switch, got: " + body);
+    }
+
     @SpringBootApplication
     static class TestApp {
     }

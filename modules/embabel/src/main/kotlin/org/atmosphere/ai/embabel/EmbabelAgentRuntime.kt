@@ -326,7 +326,16 @@ class EmbabelAgentRuntime : AgentRuntime {
     ) {
         val channel = AtmosphereOutputChannel(session)
         val process = try {
-            val options = ProcessOptions.DEFAULT.withOutputChannel(channel)
+            var options = ProcessOptions.DEFAULT.withOutputChannel(channel)
+            // Harness PLANNING (native, read-only): observe the GOAP plan the
+            // A* planner formulates for this process and mirror it into
+            // AiEvent.PlanUpdate frames (EmbabelGoapPlanBridge). Skipped under
+            // PlanningMode.BUILTIN — the operator asked for the portable
+            // write_todos floor only, and two plan sources on one console
+            // surface would conflict (no duplicate plan surfaces).
+            if (AiConfig.resolvePlanningMode() != org.atmosphere.ai.plan.PlanningMode.BUILTIN) {
+                options = options.withListener(EmbabelGoapPlanBridge(session))
+            }
             platform.runAgentFrom(agent, options, mapOf("userMessage" to context.message()))
         } catch (e: Exception) {
             logger.error("Agent execution failed", e)
@@ -639,6 +648,18 @@ class EmbabelAgentRuntime : AgentRuntime {
         // and whenDone settles, but the upstream call may finish in the
         // background). "Cooperative" cancellation per the capability's
         // contract. Pinned by EmbabelAgentRuntimeCancelTest.
-        AiCapability.CANCELLATION
+        AiCapability.CANCELLATION,
+        // PLANNING: honest on the deployed-agent path — executeDeployedAgent
+        // registers EmbabelGoapPlanBridge (an AgenticEventListener) on the
+        // ProcessOptions, mirroring every AgentProcessPlanFormulatedEvent /
+        // ReplanRequestedEvent into AiEvent.PlanUpdate frames. The plan is
+        // read-only and framework-computed (A* GOAP from @Action pre/post-
+        // conditions, re-planned per action — the model never authors it);
+        // the emitted goal carries a "GOAP" marker so consoles show that.
+        // The Atmosphere-native fallback path (executeAtmosphereNative)
+        // drives a direct PromptRunner with no planner, so no plan surface
+        // exists there — same path asymmetry as TOKEN_USAGE above. Pinned
+        // by EmbabelGoapPlanBridgeTest.
+        AiCapability.PLANNING
     )
 }

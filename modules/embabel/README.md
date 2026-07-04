@@ -40,6 +40,7 @@ embabelAdapter.stream(AgentRequest("assistant") { channel ->
 |-------|---------|
 | `EmbabelStreamingAdapter` | Bridges Embabel agents to `StreamingSession` |
 | `AtmosphereOutputChannel` | Routes Embabel `OutputChannelEvent` to `StreamingSession` |
+| `EmbabelGoapPlanBridge` | Read-only `AgenticEventListener` mirroring the GOAP plan into `AiEvent.PlanUpdate` frames |
 | `EmbabelAgentRuntime` | `AgentRuntime` SPI implementation (priority 100) |
 | `EmbabelEmbeddingRuntime` | `EmbeddingRuntime` SPI wrapping Embabel `EmbeddingService` (priority 170) |
 | `EmbabelPromptRunner` | Per-request bridge for stacking framework-native customizers (`withTemperature`, `withModel`, `withGuardrails`, ...) on the runtime's pre-configured `PromptRunner` |
@@ -98,6 +99,32 @@ dispatch path — the deployed-`@Agent` path bypasses `PromptRunner`
 entirely (the deployed agent owns its own configuration). The bridge is
 exclusive (one customizer per request); compose multiple customizers
 into one before attaching if needed.
+
+## Native Planning (GOAP Plan Observation)
+
+`EmbabelAgentRuntime` declares `AiCapability.PLANNING` on the basis of the
+deployed-agent dispatch path: `executeDeployedAgent` registers an
+`EmbabelGoapPlanBridge` (an Embabel `AgenticEventListener`) on the
+`ProcessOptions`, and every `AgentProcessPlanFormulatedEvent` /
+`ReplanRequestedEvent` is mirrored into an `AiEvent.PlanUpdate` frame so the
+console renders the live plan — executed `ActionInvocation`s as completed
+steps, the freshly formulated plan's actions as pending steps.
+
+Two honesty caveats, by design:
+
+- **The plan is framework-computed, read-only.** Embabel's plan is a
+  deterministic A* GOAP plan derived from `@Action` pre/post-conditions,
+  re-planned after every action — the model never authors or updates it.
+  The emitted plan goal carries a `GOAP:` marker so consoles show it is
+  framework-computed, not a model-maintained todo list.
+- **Deployed-agent path only.** The Atmosphere-native fallback path drives a
+  direct `PromptRunner` with no planner, so no plan surface exists there
+  (the same path asymmetry as `TOKEN_USAGE`).
+
+Activation follows `atmosphere.ai.planning` (`PlanningMode`): under `AUTO`
+(default) and `NATIVE` the bridge attaches and the harness skips the built-in
+`write_todos` floor; under `BUILTIN` the bridge is not registered and only
+the portable floor is used — never both.
 
 ## Samples
 

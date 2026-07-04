@@ -90,7 +90,8 @@ public class AgentProcessorHarnessTest {
 
         var path = "/atmosphere/agent/x";
         var features = featuresOf(DefaultAgentClass.class, preset, path);
-        assertEquals(Set.of(Harness.MEMORY, Harness.CACHE, Harness.DELEGATION), features,
+        assertEquals(Set.of(Harness.MEMORY, Harness.CACHE, Harness.DELEGATION,
+                        Harness.PLANNING, Harness.FILESYSTEM), features,
                 "the {ALL} default must resolve batteries-included with the switch unset");
 
         var interceptors = LongTermMemories.withPresetLongTermMemory(
@@ -158,5 +159,67 @@ public class AgentProcessorHarnessTest {
                 List.of(), preset, features.contains(Harness.MEMORY), path, framework);
         assertFalse(interceptors.stream().anyMatch(i -> i instanceof LongTermMemoryInterceptor),
                 "the kill switch must suppress the long-term-memory attach");
+    }
+
+    // ---- planning / filesystem seams (registerPresetPlanning / -Filesystem) ----
+
+    @Test
+    public void defaultAgentAttachesThePlanningAndFilesystemFloors() {
+        var framework = framework(null);
+        var preset = HarnessPreset.install(framework);
+        var features = featuresOf(DefaultAgentClass.class, preset, "/atmosphere/agent/x");
+        assertTrue(features.contains(Harness.PLANNING),
+                "the {ALL} default must include PLANNING");
+        assertTrue(features.contains(Harness.FILESYSTEM),
+                "the {ALL} default must include FILESYSTEM");
+
+        var processor = new AgentProcessor();
+        var registry = new org.atmosphere.ai.tool.DefaultToolRegistry();
+        var injectables = new java.util.LinkedHashMap<Class<?>, Object>();
+        processor.registerPresetPlanning(registry, preset,
+                features.contains(Harness.PLANNING), null, injectables, "x");
+        processor.registerPresetFilesystem(registry, preset,
+                features.contains(Harness.FILESYSTEM), null, injectables, "x");
+
+        assertTrue(registry.getTool("write_todos").isPresent(),
+                "the default harness must register the write_todos floor");
+        for (var name : new String[]{"ls", "read_file", "write_file",
+                "edit_file", "glob", "grep"}) {
+            assertTrue(registry.getTool(name).isPresent(),
+                    "the default harness must register the '" + name + "' file tool");
+        }
+        assertTrue(injectables.get(org.atmosphere.ai.plan.AgentPlanStore.class)
+                        instanceof org.atmosphere.ai.plan.FileSystemAgentPlanStore,
+                "the plan store must be injectable for @Prompt / @AiTool methods");
+        assertTrue(injectables.containsKey(org.atmosphere.ai.fs.AgentFileSystemProvider.class),
+                "the filesystem provider must be injectable for conversation scoping");
+        assertEquals("ACTIVE(builtin)",
+                preset.runtimeState().get(HarnessPreset.PRIMITIVE_PLANNING));
+        assertEquals("ACTIVE(builtin)",
+                preset.runtimeState().get(HarnessPreset.PRIMITIVE_FILESYSTEM));
+    }
+
+    @Test
+    public void bareAgentAttachesNoPlanningOrFilesystem() {
+        var framework = framework(null);
+        var preset = HarnessPreset.install(framework);
+        var features = featuresOf(BareAgentClass.class, preset, "/atmosphere/agent/y");
+
+        var processor = new AgentProcessor();
+        var registry = new org.atmosphere.ai.tool.DefaultToolRegistry();
+        var injectables = new java.util.LinkedHashMap<Class<?>, Object>();
+        processor.registerPresetPlanning(registry, preset,
+                features.contains(Harness.PLANNING), null, injectables, "y");
+        processor.registerPresetFilesystem(registry, preset,
+                features.contains(Harness.FILESYSTEM), null, injectables, "y");
+
+        assertTrue(registry.allTools().isEmpty(),
+                "harness = {} must register no planning / filesystem tools");
+        assertTrue(injectables.isEmpty(),
+                "harness = {} must not wire the plan store or filesystem provider");
+        assertEquals("INACTIVE(disabled)",
+                preset.runtimeState().get(HarnessPreset.PRIMITIVE_PLANNING));
+        assertEquals("INACTIVE(disabled)",
+                preset.runtimeState().get(HarnessPreset.PRIMITIVE_FILESYSTEM));
     }
 }

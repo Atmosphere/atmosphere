@@ -243,6 +243,14 @@ public class AgentProcessor implements Processor<Object> {
                 // withPresetLongTermMemory.
                 preset.updateRuntimeState(HarnessPreset.PRIMITIVE_CONVERSATION_MEMORY, "ACTIVE");
             }
+            // Harness PLANNING / FILESYSTEM: attach the plan store + file
+            // provider (same workspace subtree as buildFoundationPrimitives)
+            // and register the built-in tool floors, unless the resolved
+            // runtime's native surface wins under the AUTO mode knobs.
+            registerPresetPlanning(toolRegistry, preset,
+                    features.contains(Harness.PLANNING), runtime, agentInjectables, agentName);
+            registerPresetFilesystem(toolRegistry, preset,
+                    features.contains(Harness.FILESYSTEM), runtime, agentInjectables, agentName);
             var aiHandler = new AiEndpointHandler(
                     promptTarget, promptMethod, 120_000L,
                     systemPrompt, path, runtime, aiInterceptors,
@@ -279,6 +287,12 @@ public class AgentProcessor implements Processor<Object> {
             var pipeline = buildPipeline(framework, skillFile, annotatedClass, agentName,
                     annotation.description(), runtime, systemPrompt, settings.model(),
                     memory, toolRegistry, metrics);
+            // Thread the same injectables the web handler publishes into the
+            // pipeline's tool scope so the registered tools (write_todos, the
+            // file tools, user @AiTool methods) resolve their framework
+            // parameters identically on the A2A / AG-UI / channel paths
+            // (Correctness Invariant #7, Mode Parity).
+            pipeline.setToolInjectables(agentInjectables);
             registerA2a(framework, annotation, skillFile, commandRegistry,
                     commandRouter, promptTarget, promptMethod, pipeline,
                     path, protocols);
@@ -807,6 +821,49 @@ public class AgentProcessor implements Processor<Object> {
         } catch (Exception e) {
             logger.warn("AgentWorkspace not wired for '{}': {}", agentName, e.getMessage());
         }
+    }
+
+    /**
+     * Harness PLANNING: attach the plan surface for one {@code @Agent} —
+     * {@link org.atmosphere.ai.plan.AgentPlanStore} into the injectables and
+     * the built-in {@code write_todos} floor into the registry unless the
+     * resolved runtime's native plan machinery wins under
+     * {@link org.atmosphere.ai.plan.PlanningMode} (registration-time truth:
+     * the same resolved {@link AgentRuntime} the handler dispatches through
+     * declares, or does not declare, {@code AiCapability.PLANNING}). Mirrors
+     * {@code CoordinatorProcessor.registerPresetDelegation}'s seam shape.
+     *
+     * <p>Package-private so {@code AgentProcessorHarnessTest} can pin the
+     * gating without driving a full annotation scan.</p>
+     */
+    void registerPresetPlanning(ToolRegistry toolRegistry, HarnessPreset preset,
+                                boolean planningOn, AgentRuntime runtime,
+                                java.util.Map<Class<?>, Object> injectables, String agentName) {
+        org.atmosphere.ai.plan.PlanningPreset.register(toolRegistry, preset, planningOn,
+                runtime, injectables,
+                org.atmosphere.ai.preset.HarnessWorkspace.ownerRoot("agents", agentName),
+                agentName);
+    }
+
+    /**
+     * Harness FILESYSTEM: attach the conversation-scoped file surface for one
+     * {@code @Agent} — {@link org.atmosphere.ai.fs.AgentFileSystemProvider}
+     * into the injectables (scoped per conversation at dispatch) and the
+     * built-in six-tool floor into the registry unless the resolved runtime's
+     * native file surface wins under
+     * {@link org.atmosphere.ai.fs.FilesystemMode}. Same runtime-truth check
+     * as {@link #registerPresetPlanning}.
+     *
+     * <p>Package-private so {@code AgentProcessorHarnessTest} can pin the
+     * gating without driving a full annotation scan.</p>
+     */
+    void registerPresetFilesystem(ToolRegistry toolRegistry, HarnessPreset preset,
+                                  boolean filesystemOn, AgentRuntime runtime,
+                                  java.util.Map<Class<?>, Object> injectables, String agentName) {
+        org.atmosphere.ai.fs.FilesystemPreset.register(toolRegistry, preset, filesystemOn,
+                runtime, injectables,
+                org.atmosphere.ai.preset.HarnessWorkspace.ownerRoot("agents", agentName),
+                agentName);
     }
 
     /**

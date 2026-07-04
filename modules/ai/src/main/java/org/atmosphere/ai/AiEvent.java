@@ -245,6 +245,28 @@ public sealed interface AiEvent {
     }
 
     /**
+     * The agent's plan changed — emitted on every {@code write_todos} call
+     * (and by native plan bridges) so consoles render the live plan. Steps
+     * are wire-friendly {@code {content, status, activeForm}} maps with
+     * lower-cased statuses ({@code pending} / {@code in_progress} /
+     * {@code completed} / {@code abandoned}) — the exact shape
+     * {@link org.atmosphere.ai.plan.AgentPlan#toWireSteps()} produces.
+     *
+     * @param steps the full ordered step list (full-list replace semantics)
+     * @param goal  the plan's goal, or {@code null} when none was declared
+     */
+    record PlanUpdate(java.util.List<Map<String, Object>> steps, String goal) implements AiEvent {
+        public PlanUpdate {
+            steps = steps != null ? java.util.List.copyOf(steps) : java.util.List.of();
+        }
+
+        @Override
+        public String eventType() {
+            return "plan-update";
+        }
+    }
+
+    /**
      * A tool execution requires human approval before proceeding.
      * The client should render an approve/deny UI and respond with
      * {@code /__approval/<approvalId>/approve} or {@code /__approval/<approvalId>/deny}.

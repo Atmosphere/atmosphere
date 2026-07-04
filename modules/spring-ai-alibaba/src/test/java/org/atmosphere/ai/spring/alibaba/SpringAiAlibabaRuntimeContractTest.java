@@ -112,7 +112,8 @@ class SpringAiAlibabaRuntimeContractTest extends AbstractAgentRuntimeContractTes
                 AiCapability.VISION,
                 AiCapability.AUDIO,
                 AiCapability.MULTI_MODAL,
-                AiCapability.CANCELLATION);
+                AiCapability.CANCELLATION,
+                AiCapability.PLANNING);
     }
 
     static class TestableSpringAiAlibabaRuntime extends SpringAiAlibabaAgentRuntime {

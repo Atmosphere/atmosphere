@@ -37,8 +37,9 @@ public class HarnessPresetTest {
 
     private static final Harness[] BARE = {};
     private static final Harness[] AGENT_DEFAULT = {Harness.ALL};
-    private static final Set<Harness> FULL =
-            Set.of(Harness.MEMORY, Harness.CACHE, Harness.DELEGATION);
+    private static final Set<Harness> FULL = Set.of(
+            Harness.MEMORY, Harness.CACHE, Harness.DELEGATION,
+            Harness.PLANNING, Harness.FILESYSTEM);
 
     private AtmosphereFramework framework;
     private AtmosphereConfig cfg;
@@ -180,6 +181,8 @@ public class HarnessPresetTest {
         assertEquals("INACTIVE(no-endpoint)", state.get(HarnessPreset.PRIMITIVE_CONVERSATION_MEMORY));
         assertEquals("INACTIVE(no-endpoint)", state.get(HarnessPreset.PRIMITIVE_LONG_TERM_MEMORY));
         assertEquals("INACTIVE(no-coordinator)", state.get(HarnessPreset.PRIMITIVE_DELEGATION));
+        assertEquals("INACTIVE(no-endpoint)", state.get(HarnessPreset.PRIMITIVE_PLANNING));
+        assertEquals("INACTIVE(no-endpoint)", state.get(HarnessPreset.PRIMITIVE_FILESYSTEM));
         assertEquals("sliding-window", state.get(HarnessPreset.PRIMITIVE_COMPACTION));
         assertEquals("conservative", state.get(HarnessPreset.PRIMITIVE_PROMPT_CACHE_DEFAULT));
         assertEquals("CONVENTION", state.get(HarnessPreset.PRIMITIVE_SKILLS));
@@ -194,6 +197,8 @@ public class HarnessPresetTest {
         assertEquals("INACTIVE(disabled)", state.get(HarnessPreset.PRIMITIVE_CONVERSATION_MEMORY));
         assertEquals("INACTIVE(disabled)", state.get(HarnessPreset.PRIMITIVE_LONG_TERM_MEMORY));
         assertEquals("INACTIVE(disabled)", state.get(HarnessPreset.PRIMITIVE_DELEGATION));
+        assertEquals("INACTIVE(disabled)", state.get(HarnessPreset.PRIMITIVE_PLANNING));
+        assertEquals("INACTIVE(disabled)", state.get(HarnessPreset.PRIMITIVE_FILESYSTEM));
         assertEquals("none", state.get(HarnessPreset.PRIMITIVE_PROMPT_CACHE_DEFAULT));
     }
 

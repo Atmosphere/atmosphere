@@ -247,6 +247,15 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         // user-provided root: orchestration shells do not call models, so
         // attaching tools to them silently no-ops, and re-attaching tools to
         // unknown sub-agents would mutate the user's topology.
+        // Native virtual-filesystem surface (AiCapability.VIRTUAL_FILESYSTEM):
+        // when the harness FILESYSTEM primitive resolved for this dispatch, the
+        // conversation-scoped AgentFileSystem is in the session's tool scope and
+        // the mode allows native delegation. The store is exposed through ADK's
+        // own machinery — a Runner-level AdkArtifactService bridge plus the
+        // load_artifacts / save_artifact tool pair — instead of the built-in
+        // portable file tools (which FilesystemPreset did not register).
+        var agentFs = resolveAgentFileSystem(session);
+
         var customRoot = AdkRootAgent.from(context);
         com.google.adk.agents.BaseAgent rootAgent;
         int toolCount;
@@ -258,14 +267,26 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                         + "{} context.tools() ignored (attach tools to leaf LlmAgents instead)",
                         context.tools().size());
             }
+            if (agentFs != null) {
+                // The Runner-level artifact service below still bridges the
+                // store for the user's leaf-agent tools (ToolContext.save/
+                // loadArtifact), but no tools are attached to the supplied
+                // topology — orchestration roots are treated as opaque.
+                logger.debug("ADK custom root: artifact-service bridge wired; "
+                        + "register LoadArtifactsTool/AdkSaveArtifactTool on your "
+                        + "leaf LlmAgents to give the model direct file access");
+            }
         } else {
             var modelName = (context.model() != null && !context.model().isBlank())
                     ? context.model() : settings.model();
             var gemini = new Gemini(modelName, settings.apiKey());
 
-            var adkTools = AdkToolBridge.toAdkTools(
+            var adkTools = new java.util.ArrayList<>(AdkToolBridge.toAdkTools(
                     context.tools(), session, context.approvalStrategy(), context.listeners(),
-                    context.approvalPolicy());
+                    context.approvalPolicy()));
+            if (agentFs != null) {
+                addNativeFileTools(adkTools);
+            }
             var instruction = context.systemPrompt() != null && !context.systemPrompt().isEmpty()
                     ? context.systemPrompt() : "You are a helpful assistant.";
 
@@ -307,9 +328,68 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         if (cacheConfig != null) {
             appBuilder.contextCacheConfig(cacheConfig);
         }
-        logger.debug("ADK per-request runner built (customRoot={}, tools={}, cacheConfig={})",
-                customRoot != null, toolCount, cacheConfig != null);
-        return Runner.builder().app(appBuilder.build()).build();
+        logger.debug("ADK per-request runner built (customRoot={}, tools={}, cacheConfig={}, "
+                + "nativeFs={})", customRoot != null, toolCount, cacheConfig != null,
+                agentFs != null);
+        var runnerBuilder = Runner.builder().app(appBuilder.build());
+        if (agentFs != null) {
+            runnerBuilder.artifactService(new AdkArtifactService(agentFs));
+        }
+        return runnerBuilder.build();
+    }
+
+    /**
+     * Resolve the conversation-scoped {@link org.atmosphere.ai.fs.AgentFileSystem}
+     * for this dispatch, mirroring the built-in file tools' resolution: the
+     * dispatch seam publishes the scoped store under the interface key, and
+     * resource-free pipeline paths carry the registration-time
+     * {@link org.atmosphere.ai.fs.AgentFileSystemProvider} instead. Returns
+     * {@code null} when the harness FILESYSTEM primitive did not resolve for
+     * this session (no store in scope) or the operator forced
+     * {@link org.atmosphere.ai.fs.FilesystemMode#BUILTIN} — in that mode the
+     * portable tool floor owns the surface and attaching the native bridge too
+     * would duplicate the file tools.
+     */
+    static org.atmosphere.ai.fs.AgentFileSystem resolveAgentFileSystem(StreamingSession session) {
+        if (AiConfig.resolveFilesystemMode() == org.atmosphere.ai.fs.FilesystemMode.BUILTIN) {
+            return null;
+        }
+        var injectables = session != null ? session.injectables() : Map.<Class<?>, Object>of();
+        if (injectables.get(org.atmosphere.ai.fs.AgentFileSystem.class)
+                instanceof org.atmosphere.ai.fs.AgentFileSystem fs) {
+            return fs;
+        }
+        if (injectables.get(org.atmosphere.ai.fs.AgentFileSystemProvider.class)
+                instanceof org.atmosphere.ai.fs.AgentFileSystemProvider provider) {
+            return provider.forConversation(
+                    org.atmosphere.ai.tool.ToolScopes.conversationId(injectables));
+        }
+        return null;
+    }
+
+    /**
+     * Append the native file-tool pair — ADK's shipped read tool
+     * ({@code load_artifacts}) and Atmosphere's write complement
+     * ({@link AdkSaveArtifactTool}) — skipping any name a user tool already
+     * claims (user tool wins, same posture as the built-in floor).
+     */
+    private static void addNativeFileTools(List<com.google.adk.tools.BaseTool> adkTools) {
+        var names = adkTools.stream()
+                .map(com.google.adk.tools.BaseTool::name)
+                .collect(java.util.stream.Collectors.toSet());
+        var loadTool = com.google.adk.tools.LoadArtifactsTool.INSTANCE;
+        if (names.contains(loadTool.name())) {
+            logger.warn("ADK native file tool '{}' skipped: a user tool already claims "
+                    + "the name", loadTool.name());
+        } else {
+            adkTools.add(loadTool);
+        }
+        if (names.contains(AdkSaveArtifactTool.NAME)) {
+            logger.warn("ADK native file tool '{}' skipped: a user tool already claims "
+                    + "the name", AdkSaveArtifactTool.NAME);
+        } else {
+            adkTools.add(new AdkSaveArtifactTool());
+        }
     }
 
     @Override
@@ -348,7 +428,13 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         // on the cached default runner. Without this guard the user's custom
         // BaseAgent sub-tree would be silently ignored.
         var customRootPresent = AdkRootAgent.from(context) != null;
-        var needsPerRequestRunner = !tools.isEmpty() || adkHint.enabled() || customRootPresent;
+        // A conversation-scoped AgentFileSystem in the session's tool scope
+        // forces a fresh Runner too: the AdkArtifactService bridge is wired at
+        // Runner.Builder time (artifactService is not mutable per request), so
+        // the cached tool-less runner cannot carry the native file surface.
+        var nativeFsActive = resolveAgentFileSystem(session) != null;
+        var needsPerRequestRunner = !tools.isEmpty() || adkHint.enabled() || customRootPresent
+                || nativeFsActive;
         Runner requestRunner = needsPerRequestRunner
                 ? buildRequestRunner(context, session)
                 : adkRunner;
@@ -621,7 +707,17 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                 // per-request Runner path cancel() also closes that Runner
                 // (Runner.close releases compute since the request owns it).
                 // Pinned by AdkAgentRuntimeCancelTest.
-                AiCapability.CANCELLATION
+                AiCapability.CANCELLATION,
+                // VIRTUAL_FILESYSTEM: buildRequestRunner injects an
+                // AdkArtifactService (bridging Atmosphere's conversation-scoped
+                // AgentFileSystem) via Runner.Builder.artifactService and
+                // registers ADK's load_artifacts read tool plus the
+                // save_artifact write complement, so the model reads and writes
+                // Atmosphere's bounded store through ADK's own artifact
+                // machinery. Overwrite semantics (the store keeps no version
+                // history — every save reports version 0). Pinned by
+                // AdkAgentRuntimeVfsTest / AdkArtifactServiceTest.
+                AiCapability.VIRTUAL_FILESYSTEM
         );
     }
 }

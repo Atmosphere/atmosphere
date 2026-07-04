@@ -87,6 +87,8 @@ adapter.stream(new AdkRequest(runner, userId, sessionId, "Tell me about Java 25"
 | `AdkBroadcastTool` | ADK `BaseTool` that broadcasts messages via Atmosphere `Broadcaster` |
 | `AdkStreamingAdapter` | `AiStreamingAdapter` SPI impl bridging ADK Runner to StreamingSession |
 | `AdkRootAgent` | Per-request override for the `App.rootAgent` slot — wires `SequentialAgent` / `ParallelAgent` / `LoopAgent` topologies |
+| `AdkArtifactService` | ADK `BaseArtifactService` bridging the native artifact store onto Atmosphere's bounded `AgentFileSystem` |
+| `AdkSaveArtifactTool` | Model-facing `save_artifact` write tool (ADK ships `load_artifacts` but no write counterpart) |
 
 ## Multi-Agent Composition (`AdkRootAgent`)
 
@@ -133,6 +135,38 @@ When a custom root is attached, the runtime:
 
 For a process-wide custom root, supply your own pre-built `Runner` via
 `AdkAgentRuntime.setRunner(Runner)` instead.
+
+## Native Virtual Filesystem (`AiCapability.VIRTUAL_FILESYSTEM`)
+
+When the harness `FILESYSTEM` primitive resolves for a dispatch (a
+conversation-scoped `AgentFileSystem` is in the session's tool scope and
+`atmosphere.ai.filesystem` is `AUTO` or `NATIVE`), the runtime exposes
+Atmosphere's bounded `files/{conversationId}/` store through ADK's **own**
+artifact machinery instead of the portable file tools:
+
+- `AdkArtifactService` is injected via `Runner.Builder.artifactService(...)`,
+  so `ToolContext.saveArtifact(...)` / `loadArtifact(...)` in any user tool
+  read and write the Atmosphere store.
+- ADK's shipped `load_artifacts` read tool plus Atmosphere's `save_artifact`
+  write complement (`AdkSaveArtifactTool`) are registered on the built
+  `LlmAgent` — a user tool claiming either name wins and the native tool is
+  skipped.
+
+Semantics: ADK artifacts are integer-versioned but `AgentFileSystem` keeps no
+history, so versions collapse to **overwrite semantics** — every save reports
+version `0`, `listVersions` returns at most `[0]`, and loading any other
+version completes empty. `deleteArtifact` signals
+`UnsupportedOperationException` (the store exposes no delete). The store is
+UTF-8 text only: text `Part`s pass through, inline-data parts must decode as
+strict UTF-8, and bounds/traversal rejections surface to the model as clear
+tool-result errors.
+
+With a custom root (`AdkRootAgent`), the artifact-service bridge is still
+wired at Runner level, but no tools are attached to the user's topology —
+register `LoadArtifactsTool.INSTANCE` / `new AdkSaveArtifactTool()` on your
+leaf `LlmAgent`s to give the model direct file access. Set
+`atmosphere.ai.filesystem=builtin` to keep the portable file-tool floor and
+suppress the native surface entirely.
 
 ## Reuse from atmosphere-ai
 

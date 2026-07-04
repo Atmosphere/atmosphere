@@ -93,6 +93,8 @@ authoritative cross-runtime view. Honest declared set:
 - **Per-request retry** — `RetryPolicy.fromOrDefault(ctx)` is honored by
   the bridge-wrapper `executeWithOuterRetry` path inherited from
   `AbstractAgentRuntime`.
+- **Planning** — native delegation to AgentScope's `PlanNotebook`
+  (see [Native Planning](#native-planning-plannotebook-delegation) below).
 
 ## Streaming Bridge
 
@@ -136,6 +138,44 @@ When attached, the runtime dispatches `planner.stream(messages, options)`
 instead of the default; cancellation still calls `interrupt()` on the
 active agent. When absent, the runtime falls back to the installed
 default — preserving prior behavior.
+
+## Native Planning (`PlanNotebook` delegation)
+
+When an endpoint enables the harness PLANNING primitive
+(`Harness.PLANNING`) and `atmosphere.ai.planning` is `AUTO` (default) or
+`NATIVE`, this runtime delegates the plan surface to AgentScope's native
+`PlanNotebook` instead of the built-in `write_todos` floor — the model
+maintains its plan through AgentScope's own `create_plan` /
+`update_subtask_state` / `finish_subtask` / `finish_plan` tools, with
+per-step hint injection guiding execution. The bridge keeps Atmosphere
+authoritative:
+
+- **Persistence** — `AtmospherePlanStorage` implements AgentScope's
+  `PlanStorage` SPI backed by Atmosphere's `AgentPlanStore`, keyed
+  `agentId × conversationId` (the same slot the built-in floor uses, so
+  switching modes keeps reading the same plan).
+- **Observability** — a `PlanNotebook.addChangeHook` bridge mirrors every
+  plan mutation into the store and emits `AiEvent.PlanUpdate` on the live
+  `StreamingSession`; `SubTaskState` maps 1:1 to `PlanStatus`
+  (`TODO → PENDING`, `IN_PROGRESS → IN_PROGRESS`, `DONE → COMPLETED`,
+  `ABANDONED → ABANDONED`), and `finish_plan` coerces open steps to the
+  plan's terminal state.
+- **Continuity** — the notebook is provisioned per request; a plan with
+  open steps is re-hydrated from the store via
+  `recover_historical_plan`, so per-request rebuilds never lose the
+  conversation's plan. Finished plans are not resurrected.
+- **No duplicate surfaces** — with the native notebook active the
+  built-in `write_todos` tool is not registered (`PlanningPreset` reports
+  `ACTIVE(native:agentscope)`); in `BUILTIN` mode the notebook is not
+  provisioned.
+- **Bounds** — the notebook's `maxSubtasks` mirrors
+  `FileSystemAgentPlanStore.MAX_STEPS`, so over-limit plans are rejected
+  at the model-tool boundary with AgentScope's clear message.
+
+A user-supplied `ReActAgent` bean built with `enablePlan()` /
+`planNotebook(...)` keeps its own notebook whenever the harness primitive
+is not active — per-request tool rebuilds carry it over instead of
+clobbering it.
 
 ## Capabilities NOT declared (and why)
 

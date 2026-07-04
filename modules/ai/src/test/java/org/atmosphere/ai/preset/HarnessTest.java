@@ -25,13 +25,30 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class HarnessTest {
 
+    /** Every concrete feature {@link Harness#ALL} must expand to — now five. */
+    private static final Set<Harness> ALL_CONCRETE = Set.of(
+            Harness.MEMORY, Harness.CACHE, Harness.DELEGATION,
+            Harness.PLANNING, Harness.FILESYSTEM);
+
     @Test
     public void allExpandsToEveryConcreteFeature() {
         var expanded = Harness.expand(new Harness[]{Harness.ALL});
 
-        assertEquals(Set.of(Harness.MEMORY, Harness.CACHE, Harness.DELEGATION), expanded);
+        assertEquals(ALL_CONCRETE, expanded);
         assertFalse(expanded.contains(Harness.ALL),
                 "the ALL sentinel must never appear in an expanded set");
+    }
+
+    @Test
+    public void allExpansionCoversEveryEnumConstantExceptTheSentinel() {
+        // Guards the expansion against drift: adding a Harness constant
+        // without teaching expand() about it must fail here, not in prod.
+        var expanded = Harness.expand(new Harness[]{Harness.ALL});
+        var everyConcrete = java.util.EnumSet.allOf(Harness.class);
+        everyConcrete.remove(Harness.ALL);
+
+        assertEquals(everyConcrete, expanded,
+                "ALL must expand to every concrete Harness constant");
     }
 
     @Test
@@ -39,7 +56,7 @@ public class HarnessTest {
         var expanded = Harness.expand(
                 new Harness[]{Harness.MEMORY, Harness.MEMORY, Harness.ALL, Harness.CACHE});
 
-        assertEquals(Set.of(Harness.MEMORY, Harness.CACHE, Harness.DELEGATION), expanded);
+        assertEquals(ALL_CONCRETE, expanded);
     }
 
     @Test

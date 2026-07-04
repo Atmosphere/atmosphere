@@ -321,6 +321,14 @@ public class CoordinatorProcessor implements Processor<Object> {
             // receive them as typed parameters. Same semantics as
             // AgentProcessor.buildFoundationPrimitives.
             wireFoundationPrimitives(coordinatorName, injectables);
+            // Harness PLANNING / FILESYSTEM: attach the plan store + file
+            // provider (same workspace subtree as wireFoundationPrimitives)
+            // and register the built-in tool floors, unless the resolved
+            // runtime's native surface wins under the AUTO mode knobs.
+            registerPresetPlanning(toolRegistry, preset,
+                    features.contains(Harness.PLANNING), runtime, injectables, coordinatorName);
+            registerPresetFilesystem(toolRegistry, preset,
+                    features.contains(Harness.FILESYSTEM), runtime, injectables, coordinatorName);
             if (workspaceDef != null) {
                 injectables.put(org.atmosphere.ai.workspace.AgentDefinition.class, workspaceDef);
             }
@@ -376,6 +384,13 @@ public class CoordinatorProcessor implements Processor<Object> {
             if (runtime != null) {
                 pipeline = buildPipeline(framework, annotatedClass, path, runtime,
                         systemPrompt, model, memory, toolRegistry, metrics);
+                // Thread the same injectables the web handler publishes into
+                // the pipeline's tool scope so the registered tools
+                // (delegate_task's AgentFleet, write_todos' plan store, the
+                // file tools' provider) resolve their framework parameters
+                // identically on the A2A / AG-UI / channel paths
+                // (Correctness Invariant #7, Mode Parity).
+                pipeline.setToolInjectables(injectables);
             } else {
                 logger.warn("Coordinator '{}': no AgentRuntime on classpath — "
                         + "session.stream() will buffer text instead of invoking LLM",
@@ -509,6 +524,53 @@ public class CoordinatorProcessor implements Processor<Object> {
         toolRegistry.register(new DelegateTaskTool());
         preset.updateRuntimeState(HarnessPreset.PRIMITIVE_DELEGATION, "ACTIVE");
         logger.info("Harness registered delegate_task for coordinator '{}'",
+                coordinatorName);
+    }
+
+    /**
+     * Harness PLANNING: attach the plan surface for one {@code @Coordinator} —
+     * {@link org.atmosphere.ai.plan.AgentPlanStore} into the injectables and
+     * the built-in {@code write_todos} floor into the registry unless the
+     * resolved runtime's native plan machinery wins under
+     * {@link org.atmosphere.ai.plan.PlanningMode} (registration-time truth:
+     * the same resolved {@link AgentRuntime} the handler dispatches through
+     * declares, or does not declare, {@code AiCapability.PLANNING}). Mirrors
+     * {@link #registerPresetDelegation}'s seam shape.
+     *
+     * <p>Package-private so {@code CoordinatorProcessorHarnessPresetTest}
+     * can pin the gating without driving a full annotation scan.</p>
+     */
+    void registerPresetPlanning(ToolRegistry toolRegistry, HarnessPreset preset,
+                                boolean planningOn, AgentRuntime runtime,
+                                java.util.Map<Class<?>, Object> injectables,
+                                String coordinatorName) {
+        org.atmosphere.ai.plan.PlanningPreset.register(toolRegistry, preset, planningOn,
+                runtime, injectables,
+                org.atmosphere.ai.preset.HarnessWorkspace.ownerRoot(
+                        "coordinators", coordinatorName),
+                coordinatorName);
+    }
+
+    /**
+     * Harness FILESYSTEM: attach the conversation-scoped file surface for one
+     * {@code @Coordinator} —
+     * {@link org.atmosphere.ai.fs.AgentFileSystemProvider} into the
+     * injectables (scoped per conversation at dispatch) and the built-in
+     * six-tool floor into the registry unless the resolved runtime's native
+     * file surface wins under {@link org.atmosphere.ai.fs.FilesystemMode}.
+     * Same runtime-truth check as {@link #registerPresetPlanning}.
+     *
+     * <p>Package-private so {@code CoordinatorProcessorHarnessPresetTest}
+     * can pin the gating without driving a full annotation scan.</p>
+     */
+    void registerPresetFilesystem(ToolRegistry toolRegistry, HarnessPreset preset,
+                                  boolean filesystemOn, AgentRuntime runtime,
+                                  java.util.Map<Class<?>, Object> injectables,
+                                  String coordinatorName) {
+        org.atmosphere.ai.fs.FilesystemPreset.register(toolRegistry, preset, filesystemOn,
+                runtime, injectables,
+                org.atmosphere.ai.preset.HarnessWorkspace.ownerRoot(
+                        "coordinators", coordinatorName),
                 coordinatorName);
     }
 

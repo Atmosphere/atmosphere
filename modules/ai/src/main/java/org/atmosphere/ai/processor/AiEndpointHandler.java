@@ -583,6 +583,24 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                     toolScope.put(org.atmosphere.ai.code.CodeSandbox.class, sandbox);
                 }
             }
+            // Harness FILESYSTEM: the processor registered a per-agent
+            // provider (the conversation id is unknown at registration time);
+            // scope it here so built-in file tools and user @AiTool methods
+            // declaring AgentFileSystem both receive the store rooted at
+            // files/{conversationId}/ — the same conversation identity the
+            // memory path uses (ai.conversationId attribute, else the
+            // resource uuid). Non-fatal on failure: the tools then report
+            // "no agent filesystem is bound" instead of breaking dispatch.
+            if (injectables.get(org.atmosphere.ai.fs.AgentFileSystemProvider.class)
+                    instanceof org.atmosphere.ai.fs.AgentFileSystemProvider fsProvider) {
+                try {
+                    toolScope.putIfAbsent(org.atmosphere.ai.fs.AgentFileSystem.class,
+                            fsProvider.forConversation(conversationId(resource)));
+                } catch (RuntimeException e) {
+                    logger.warn("Agent filesystem not scoped for resource {}: {}",
+                            resource.uuid(), e.getMessage());
+                }
+            }
             session.setInjectables(toolScope);
         }
 
@@ -905,6 +923,26 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // PromptMethodInvoker, shared with the A2A / AG-UI bridges so every
         // invocation mode dispatches @Prompt identically (Invariant #7).
         promptInvoker.invoke(message, session, resource, injectables);
+    }
+
+    /**
+     * The conversation identity the harness filesystem scopes by — the same
+     * derivation {@code AiStreamingSession.stream} uses for
+     * {@code AiRequest.conversationId()}: the {@code ai.conversationId}
+     * request attribute wins, else the resource uuid.
+     */
+    private static String conversationId(AtmosphereResource resource) {
+        try {
+            var request = resource.getRequest();
+            if (request != null
+                    && request.getAttribute("ai.conversationId") instanceof String s
+                    && !s.isBlank()) {
+                return s;
+            }
+        } catch (RuntimeException e) {
+            logger.trace("unable to resolve ai.conversationId attribute", e);
+        }
+        return resource.uuid();
     }
 
     // visible for testing

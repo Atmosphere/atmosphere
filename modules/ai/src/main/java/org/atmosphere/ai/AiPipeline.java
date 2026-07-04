@@ -67,6 +67,12 @@ public class AiPipeline {
     /** Pipeline-level response cache. Null by default (cache disabled). */
     private volatile org.atmosphere.ai.cache.ResponseCache responseCache;
     private volatile java.time.Duration responseCacheTtl = java.time.Duration.ofMinutes(5);
+
+    /**
+     * Registration-time injectables threaded into the tool-execution scope of
+     * the resource-free dispatch paths — see {@link #setToolInjectables}.
+     */
+    private volatile java.util.Map<Class<?>, Object> toolInjectables = java.util.Map.of();
     /**
      * Default pipeline-level caching policy. When non-null and non-NONE,
      * every {@link #execute(String, String, StreamingSession)} call seeds a
@@ -311,6 +317,29 @@ public class AiPipeline {
     /** Exposed so callers can share the registry for cross-pipeline deduplication. */
     public ApprovalRegistry approvalRegistry() {
         return approvalRegistry;
+    }
+
+    /**
+     * Thread the endpoint's registration-time injectables (AgentFleet,
+     * AgentState, AgentPlanStore, AgentFileSystemProvider, ...) through the
+     * tool-execution scope of this pipeline's resource-free dispatch paths
+     * (channel bridges, A2A, AG-UI, coordinator-local). The web path gets the
+     * same map from {@code AiEndpointHandler}; setting it here keeps the
+     * registered tools working identically on every invocation mode
+     * (Correctness Invariant #7, Mode Parity). Dispatch-time session entries
+     * win on key conflict.
+     *
+     * @param injectables type-to-instance map, defensively copied;
+     *                    {@code null} clears
+     */
+    public void setToolInjectables(java.util.Map<Class<?>, Object> injectables) {
+        this.toolInjectables = injectables == null
+                ? java.util.Map.of() : java.util.Map.copyOf(injectables);
+    }
+
+    /** The configured tool injectables (never {@code null}, may be empty). */
+    public java.util.Map<Class<?>, Object> toolInjectables() {
+        return toolInjectables;
     }
 
     /**
@@ -704,6 +733,17 @@ public class AiPipeline {
             effectiveTarget = new GovernancePolicyInjectingSession(
                     effectiveTarget,
                     new org.atmosphere.ai.governance.GovernancePolicyChain(effectivePolicies));
+        }
+
+        // Thread the endpoint's registration-time injectables (AgentFleet,
+        // AgentState, AgentPlanStore, AgentFileSystemProvider, ...) through
+        // the tool-execution scope on this resource-free path, exactly as
+        // AiEndpointHandler publishes them on the web path — the same
+        // registered tools must resolve their framework parameters on every
+        // invocation mode (Mode Parity #7). Dispatch-time entries win on
+        // key conflict.
+        if (!toolInjectables.isEmpty()) {
+            effectiveTarget = new ToolInjectablesSession(effectiveTarget, toolInjectables);
         }
 
         // Per-stage input breakdown — only emitted on the path that actually

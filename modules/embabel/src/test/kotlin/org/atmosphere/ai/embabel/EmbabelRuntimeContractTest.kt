@@ -115,6 +115,7 @@ internal class EmbabelRuntimeContractTest : AbstractAgentRuntimeContractTest() {
         AiCapability.CONFIDENCE_SCORES,
         AiCapability.PASSIVATION,
         AiCapability.CANCELLATION,
+        AiCapability.PLANNING,
     )
 
     /**

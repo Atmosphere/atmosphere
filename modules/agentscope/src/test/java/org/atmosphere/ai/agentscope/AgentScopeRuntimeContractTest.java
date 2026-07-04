@@ -129,7 +129,8 @@ class AgentScopeRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 AiCapability.PASSIVATION,
                 AiCapability.VISION,
                 AiCapability.AUDIO,
-                AiCapability.MULTI_MODAL);
+                AiCapability.MULTI_MODAL,
+                AiCapability.PLANNING);
     }
 
     static class TestableAgentScopeRuntime extends AgentScopeAgentRuntime {

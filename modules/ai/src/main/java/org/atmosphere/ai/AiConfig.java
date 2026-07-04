@@ -117,6 +117,43 @@ public final class AiConfig {
      */
     public static final String NATIVE_STRUCTURED_OUTPUT_ENV = "LLM_NATIVE_STRUCTURED_OUTPUT";
 
+    /**
+     * Tri-state control of the harness PLANNING surface: {@code auto} (native
+     * plan machinery when the resolved runtime advertises
+     * {@link AiCapability#PLANNING}, built-in {@code write_todos} floor
+     * otherwise), {@code builtin}, or {@code native}. Parsed leniently — see
+     * {@link org.atmosphere.ai.plan.PlanningMode#parse(String)} — so malformed
+     * values fall back to {@code auto} instead of throwing.
+     * <p>Default: {@code auto}</p>
+     * <p>Sysprop: {@code atmosphere.ai.planning}; env: {@code LLM_PLANNING}</p>
+     */
+    public static final String PLANNING_PROPERTY = "atmosphere.ai.planning";
+
+    /**
+     * Environment-variable name for the tri-state planning control. See
+     * {@link #PLANNING_PROPERTY}.
+     */
+    public static final String PLANNING_ENV = "LLM_PLANNING";
+
+    /**
+     * Tri-state control of the harness FILESYSTEM surface: {@code auto}
+     * (native file machinery when the resolved runtime advertises
+     * {@link AiCapability#VIRTUAL_FILESYSTEM}, built-in
+     * {@code ls}/{@code read_file}/... floor otherwise), {@code builtin}, or
+     * {@code native}. Parsed leniently — see
+     * {@link org.atmosphere.ai.fs.FilesystemMode#parse(String)} — so malformed
+     * values fall back to {@code auto} instead of throwing.
+     * <p>Default: {@code auto}</p>
+     * <p>Sysprop: {@code atmosphere.ai.filesystem}; env: {@code LLM_FILESYSTEM}</p>
+     */
+    public static final String FILESYSTEM_PROPERTY = "atmosphere.ai.filesystem";
+
+    /**
+     * Environment-variable name for the tri-state filesystem control. See
+     * {@link #FILESYSTEM_PROPERTY}.
+     */
+    public static final String FILESYSTEM_ENV = "LLM_FILESYSTEM";
+
     // -- Generation parameter knobs (sysprop / env) --
     //
     // All four are opt-in: when unset the resolved GenerationParams collapses to
@@ -436,6 +473,42 @@ public final class AiConfig {
             raw = System.getenv(NATIVE_STRUCTURED_OUTPUT_ENV);
         }
         return NativeStructuredOutputMode.parse(raw);
+    }
+
+    /**
+     * Resolve the tri-state planning control from the
+     * {@code atmosphere.ai.planning} system property, falling back to the
+     * {@code LLM_PLANNING} environment variable, then to
+     * {@link org.atmosphere.ai.plan.PlanningMode#AUTO}. Parsing is lenient and
+     * never throws; the sysprop wins over the env var, mirroring
+     * {@link #resolvePromptCacheKeyMode()}.
+     *
+     * @return the resolved mode, never {@code null}
+     */
+    public static org.atmosphere.ai.plan.PlanningMode resolvePlanningMode() {
+        var raw = System.getProperty(PLANNING_PROPERTY);
+        if (raw == null || raw.isBlank()) {
+            raw = System.getenv(PLANNING_ENV);
+        }
+        return org.atmosphere.ai.plan.PlanningMode.parse(raw);
+    }
+
+    /**
+     * Resolve the tri-state filesystem control from the
+     * {@code atmosphere.ai.filesystem} system property, falling back to the
+     * {@code LLM_FILESYSTEM} environment variable, then to
+     * {@link org.atmosphere.ai.fs.FilesystemMode#AUTO}. Parsing is lenient and
+     * never throws; the sysprop wins over the env var, mirroring
+     * {@link #resolvePromptCacheKeyMode()}.
+     *
+     * @return the resolved mode, never {@code null}
+     */
+    public static org.atmosphere.ai.fs.FilesystemMode resolveFilesystemMode() {
+        var raw = System.getProperty(FILESYSTEM_PROPERTY);
+        if (raw == null || raw.isBlank()) {
+            raw = System.getenv(FILESYSTEM_ENV);
+        }
+        return org.atmosphere.ai.fs.FilesystemMode.parse(raw);
     }
 
     /**

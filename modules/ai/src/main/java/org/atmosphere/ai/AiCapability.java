@@ -192,5 +192,48 @@ public enum AiCapability {
      * Closes the long-pause human-in-the-loop gap — agents waiting on human
      * approval can drop out of RAM, then rehydrate with full context.
      */
-    PASSIVATION
+    PASSIVATION,
+
+    /**
+     * Runtime exposes a <em>native, model-maintained plan surface</em> the
+     * adapter genuinely wires end-to-end: plan mutations made through the
+     * framework's own machinery (e.g. AgentScope {@code PlanNotebook},
+     * Spring AI Alibaba {@code TodoListInterceptor}, Embabel GOAP plan
+     * events) are mirrored into Atmosphere's
+     * {@link org.atmosphere.ai.plan.AgentPlan} model and emitted as
+     * {@link AiEvent.PlanUpdate} frames.
+     *
+     * <p>Runtime-Truth boundary (Correctness Invariant #5): declare this
+     * ONLY when the adapter's dispatch path actually attaches the native
+     * plan machinery and bridges its updates — not because the wrapped
+     * framework ships a planner class somewhere on the classpath. Runtimes
+     * without it still get the portable plan surface: the harness
+     * {@code PLANNING} feature registers the built-in {@code write_todos}
+     * tool floor instead. Activation is governed by
+     * {@link org.atmosphere.ai.plan.PlanningMode} (AUTO default — native
+     * wins only when this capability is declared).</p>
+     */
+    PLANNING,
+
+    /**
+     * Runtime exposes a <em>native file-tool surface</em> the adapter
+     * genuinely bridges to Atmosphere's
+     * {@link org.atmosphere.ai.fs.AgentFileSystem} store (e.g. Spring AI
+     * Alibaba {@code FilesystemBackend}, ADK {@code BaseArtifactService},
+     * Anthropic {@code memory_20250818} commands) — the model reads and
+     * writes Atmosphere's bounded, conversation-scoped store through tools
+     * the framework itself defines.
+     *
+     * <p>Runtime-Truth boundary (Correctness Invariant #5): declare this
+     * ONLY when the adapter installs the bridge on its dispatch path — the
+     * mere presence of file-tool classes in the wrapped SDK does not
+     * qualify. Runtimes without it still get the portable file surface: the
+     * harness {@code FILESYSTEM} feature registers the built-in
+     * {@code ls}/{@code read_file}/{@code write_file}/{@code edit_file}/
+     * {@code glob}/{@code grep} tool floor instead. When a native bridge is
+     * active the built-in floor is NOT registered (no duplicate tools);
+     * activation is governed by
+     * {@link org.atmosphere.ai.fs.FilesystemMode} (AUTO default).</p>
+     */
+    VIRTUAL_FILESYSTEM
 }

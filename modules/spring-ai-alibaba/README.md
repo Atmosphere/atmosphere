@@ -121,6 +121,21 @@ authoritative cross-runtime view. Honest declared set:
 - **Token usage** — `ReactAgent.call(...)` returns a usage-less
   `AssistantMessage`, so a per-dispatch `UsageCollector` captures token counts
   and reports them via `StreamingSession.usage(TokenUsage)`.
+- **Planning** — the harness PLANNING primitive delegates to Alibaba's native
+  `TodoListInterceptor`: the framework's own model-facing `write_todos` tool
+  (plus its todo-usage prompt guidance) maintains the plan, and
+  `SpringAiAlibabaPlanBridge` bridges it back to Atmosphere — every todo write
+  persists through `AgentPlanStore` (bounds enforced; over-limit plans come
+  back to the model as a clear tool-error reply) and emits
+  `AiEvent.PlanUpdate` for the console. Because Alibaba stores todos in
+  per-invocation graph state and this adapter rebuilds the agent per request,
+  the previous turn's live plan re-hydrates through the system prompt at
+  each dispatch. Alibaba's `TodoStatus` (`PENDING` / `IN_PROGRESS` /
+  `COMPLETED`) maps 1:1 onto the same-named `PlanStatus` values; the
+  framework has no `ABANDONED` state or plan-goal field, so the stored goal
+  is carried forward across writes. Native surface applies under
+  `atmosphere.ai.planning=AUTO|NATIVE`; `BUILTIN` keeps the portable
+  `write_todos` floor instead (never both).
 - **Cancellation, budget enforcement, confidence scores, passivation** —
   provided by the shared `AbstractAgentRuntime` base and the AI pipeline.
 
@@ -161,6 +176,20 @@ behavior.
 - `PROMPT_CACHING` — would need threading `CacheHint` into Spring AI
   Alibaba's per-request `RunnableConfig`; the framework does not
   expose a portable cache-control primitive at the agent level today.
+- `VIRTUAL_FILESYSTEM` — Alibaba ships a `FilesystemBackend` SPI
+  (`read`/`write`/`edit`/`lsInfo`/`globInfo`/`grepRaw`) that looks like the
+  perfect seam for exposing Atmosphere's bounded `AgentFileSystem`, but in
+  `spring-ai-alibaba-agent-framework` 1.1.2.3 no model-facing tool consumes
+  it: `FilesystemInterceptor.Builder` carries a `backend` field with **no
+  setter**, its tool callbacks (`ReadFileTool`, `WriteFileTool`, ...) operate
+  on the raw host disk via `java.nio` directly, and `FileSystemTools` only
+  takes `rootDir`/`virtualMode`/`maxFileSizeMb` (real-disk sandbox — routing
+  the model around Atmosphere's file-count/total-bytes bounds would violate
+  the harness FILESYSTEM contract). The only `backend(...)` seam in the jar
+  is `LargeResultEvictionInterceptor` — tool-result eviction, not a file
+  surface. Until upstream wires the SPI into its tools, the portable
+  built-in file-tool floor (`ls`/`read_file`/`write_file`/`edit_file`/
+  `glob`/`grep`) serves this runtime through the standard tool bridge.
 
 `TOOL_CALL_DELTA`, `AGENT_ORCHESTRATION`, `MODEL_ENUMERATION`, and
 `MULTI_AGENT_HANDOFF` are likewise not declared — see the

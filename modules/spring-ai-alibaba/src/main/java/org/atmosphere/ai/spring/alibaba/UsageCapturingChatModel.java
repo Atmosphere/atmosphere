@@ -88,10 +88,11 @@ public final class UsageCapturingChatModel implements ChatModel {
     }
 
     @Override
-    public ChatOptions getOptions() {
-        // Spring AI 2.0.0 GA: getDefaultOptions() is deprecated for removal in
-        // favour of getOptions(); the decorator passes the delegate's through.
-        return delegate.getOptions();
+    public ChatOptions getDefaultOptions() {
+        // Spring AI 1.1.x (the line the Alibaba agent framework hard-pins):
+        // the decorator passes the delegate's options through instead of the
+        // interface default (an empty ChatOptions).
+        return delegate.getDefaultOptions();
     }
 
     private void recordUsage(ChatResponse response) {

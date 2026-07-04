@@ -20,6 +20,7 @@ import io.agentscope.core.agent.Event;
 import io.agentscope.core.agent.StreamOptions;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.MsgRole;
+import io.agentscope.core.plan.PlanNotebook;
 import org.atmosphere.ai.AbstractAgentRuntime;
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AiCapability;
@@ -27,6 +28,9 @@ import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.ExecutionHandle;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.TokenUsage;
+import org.atmosphere.ai.plan.AgentPlanStore;
+import org.atmosphere.ai.plan.PlanningMode;
+import org.atmosphere.ai.tool.ToolScopes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -55,7 +59,11 @@ import java.util.concurrent.CompletableFuture;
  * {@link AiCapability#TOKEN_USAGE}, {@link AiCapability#TOOL_CALLING}, and
  * {@link AiCapability#TOOL_APPROVAL}. Tools are bridged per request into an
  * AgentScope {@code Toolkit} through {@link AgentScopeToolBridge}, so
- * Atmosphere's validation and HITL gate remain authoritative.</p>
+ * Atmosphere's validation and HITL gate remain authoritative.
+ * {@link AiCapability#PLANNING} delegates the harness planning primitive to
+ * AgentScope's native {@code PlanNotebook} through
+ * {@link AgentScopePlanBridge} — persisted in Atmosphere's
+ * {@link AgentPlanStore}, surfaced as {@code AiEvent.PlanUpdate}.</p>
  */
 public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
 
@@ -147,8 +155,16 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
         } else {
             resolvedAgent = agent;
         }
-        if (!context.tools().isEmpty()) {
-            resolvedAgent = agentWithTools(resolvedAgent, context, session);
+        // Harness PLANNING delegation: when the endpoint attached an
+        // AgentPlanStore (Harness.PLANNING resolved) and the mode allows a
+        // native surface, provision a per-request PlanNotebook bridged to
+        // Atmosphere's store + PlanUpdate events. The rebuild below merges it
+        // with the bridged toolkit — ReActAgent.Builder registers the plan
+        // tools into the same toolkit copy, so per-request tool rebuilds
+        // never clobber the plan surface.
+        var planNotebook = provisionPlanNotebook(context, session);
+        if (!context.tools().isEmpty() || planNotebook != null) {
+            resolvedAgent = rebuildAgent(resolvedAgent, context, session, planNotebook);
         }
         final ReActAgent activeAgent = resolvedAgent;
 
@@ -274,19 +290,63 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
         }
     }
 
-    private static ReActAgent agentWithTools(
-            ReActAgent baseAgent, AgentExecutionContext context, StreamingSession session) {
-        var toolkit = AgentScopeToolBridge.toToolkit(
-                context.tools(), session, context.approvalStrategy(), context.approvalPolicy());
-        return ReActAgent.builder()
+    /**
+     * Resolve the native plan surface for this request, or {@code null} when
+     * the built-in floor (or no plan surface at all) governs. Native applies
+     * only when the endpoint's injectables carry the {@link AgentPlanStore}
+     * ({@code Harness.PLANNING} resolved for the path — plain endpoints never
+     * see plan machinery) and {@code atmosphere.ai.planning} is not
+     * {@code BUILTIN} (in BUILTIN the {@code write_todos} floor is already
+     * registered; provisioning the notebook too would duplicate plan tools).
+     * Keys mirror {@link ToolScopes} so the native surface reads and writes
+     * the exact plan slot the floor uses. Package-private so
+     * {@code AgentScopePlanBridgeTest} pins the gating.
+     */
+    static PlanNotebook provisionPlanNotebook(
+            AgentExecutionContext context, StreamingSession session) {
+        var injectables = session.injectables();
+        if (injectables == null
+                || !(injectables.get(AgentPlanStore.class) instanceof AgentPlanStore store)) {
+            return null;
+        }
+        if (AiConfig.resolvePlanningMode() == PlanningMode.BUILTIN) {
+            return null;
+        }
+        var agentId = ToolScopes.agentId(injectables, context.agentId());
+        var conversationId = ToolScopes.conversationId(injectables);
+        return AgentScopePlanBridge.provision(store, agentId, conversationId, session);
+    }
+
+    /**
+     * Rebuild the dispatch agent for this request, merging the per-request
+     * surfaces: the bridged toolkit (when the context carries tools) and the
+     * plan notebook. {@code ReActAgent.Builder.build()} registers the plan
+     * tools into its copy of the provided toolkit, so both surfaces land on
+     * the same agent — never one clobbering the other. When the harness did
+     * not provision a notebook, the base agent's own {@code planNotebook}
+     * (e.g. a user bean built with {@code enablePlan()}) is carried over so
+     * a tools-only rebuild does not silently drop the user's plan surface.
+     */
+    private static ReActAgent rebuildAgent(
+            ReActAgent baseAgent, AgentExecutionContext context, StreamingSession session,
+            PlanNotebook planNotebook) {
+        var builder = ReActAgent.builder()
                 .name(baseAgent.getClass().getSimpleName())
                 .sysPrompt(baseAgent.getSysPrompt())
                 .model(baseAgent.getModel())
-                .toolkit(toolkit)
                 .memory(baseAgent.getMemory())
                 .maxIters(baseAgent.getMaxIters())
-                .generateOptions(baseAgent.getGenerateOptions())
-                .build();
+                .generateOptions(baseAgent.getGenerateOptions());
+        if (!context.tools().isEmpty()) {
+            builder.toolkit(AgentScopeToolBridge.toToolkit(
+                    context.tools(), session, context.approvalStrategy(),
+                    context.approvalPolicy()));
+        }
+        var notebook = planNotebook != null ? planNotebook : baseAgent.getPlanNotebook();
+        if (notebook != null) {
+            builder.planNotebook(notebook);
+        }
+        return builder.build();
     }
 
     private static MsgRole toRole(String role) {
@@ -420,6 +480,14 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
                 // underlying ChatModel for vision-capable providers.
                 AiCapability.VISION,
                 AiCapability.AUDIO,
-                AiCapability.MULTI_MODAL);
+                AiCapability.MULTI_MODAL,
+                // PLANNING: provisionPlanNotebook attaches AgentScope's native
+                // PlanNotebook per request when Harness.PLANNING resolved —
+                // model-facing create_plan / update_subtask_state /
+                // finish_subtask / finish_plan tools plus per-step hint
+                // injection — with AtmospherePlanStorage persisting through
+                // Atmosphere's AgentPlanStore and a change hook emitting
+                // AiEvent.PlanUpdate on every mutation (AgentScopePlanBridge).
+                AiCapability.PLANNING);
     }
 }

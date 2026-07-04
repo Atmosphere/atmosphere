@@ -183,12 +183,11 @@ final class CapabilitySnapshotTest {
         TreeSet<String> caps = new TreeSet<>();
         try {
             String body = Files.readString(testFile);
-            int start = body.indexOf("expectedCapabilities");
-            if (start < 0) {
+            if (!body.contains("expectedCapabilities")) {
                 throw new IllegalStateException(
                         testFile + " has no expectedCapabilities()");
             }
-            Matcher m = AI_CAPABILITY_REF.matcher(body.substring(start));
+            Matcher m = AI_CAPABILITY_REF.matcher(expectedCapabilitiesBody(body));
             while (m.find()) {
                 caps.add(m.group(1));
             }
@@ -196,6 +195,34 @@ final class CapabilitySnapshotTest {
             throw new IllegalStateException("read " + testFile, e);
         }
         return new RuntimeEntry(runtimeName, modulePath, language, relTest, new ArrayList<>(caps));
+    }
+
+    /**
+     * The lines the snapshot regen script attributes to
+     * {@code expectedCapabilities()} — an exact mirror of
+     * {@code scripts/regen-capability-snapshot.sh}'s awk: capture starts on
+     * every line containing {@code expectedCapabilities} and stops on the
+     * first line opening with {@code )} or containing only {@code }}.
+     * Without the bound, an {@code AiCapability} reference in a later test
+     * method (e.g. a negative assertion that a capability is deliberately NOT
+     * declared, as in {@code AnthropicRuntimeContractTest}) leaks into the
+     * parsed set and the two parsers drift apart.
+     */
+    private static String expectedCapabilitiesBody(String body) {
+        StringBuilder slice = new StringBuilder();
+        boolean capturing = false;
+        for (String line : body.split("\n", -1)) {
+            if (line.contains("expectedCapabilities")) {
+                capturing = true;
+            }
+            if (capturing) {
+                slice.append(line).append('\n');
+                if (line.stripLeading().startsWith(")") || line.strip().equals("}")) {
+                    capturing = false;
+                }
+            }
+        }
+        return slice.toString();
     }
 
     private static List<RuntimeEntry> parseSnapshotRuntimes(JsonNode items) {

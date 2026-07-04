@@ -77,6 +77,41 @@ class HarnessRuntimeTruthHttpE2eTest {
                 "the ALL default must seed the conservative prompt-cache policy, got: " + body);
     }
 
+    @Test
+    void planningAndFilesystemPrimitivesReportGenuineAttachment() throws Exception {
+        var body = consoleInfo(port);
+
+        // The starter test classpath resolves a runtime without native
+        // PLANNING / VIRTUAL_FILESYSTEM capabilities, so the AUTO default must
+        // land on the built-in floors — and the reported state must be the
+        // attach-time truth, not the INACTIVE seed (Invariant #5).
+        assertTrue(body.contains("\"planning\":\"ACTIVE(builtin)\""),
+                "a bare @Agent must attach the built-in write_todos plan floor, got: " + body);
+        assertTrue(body.contains("\"filesystem\":\"ACTIVE(builtin)\""),
+                "a bare @Agent must attach the built-in file-tool floor, got: " + body);
+    }
+
+    @Test
+    void workspaceOwnersEndpointServesTheAttachedSurfaces() throws Exception {
+        // The console Workspace tab's discovery endpoint: the same attach that
+        // flipped the runtime state must have registered the agent's plan store
+        // and filesystem provider for admin resolution.
+        try (var client = HttpClient.newHttpClient()) {
+            var request = HttpRequest.newBuilder(
+                    URI.create("http://localhost:" + port + "/api/admin/workspace/owners"))
+                    .GET().build();
+            var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, response.statusCode(), "workspace owners endpoint must respond");
+            var body = response.body();
+            assertTrue(body.contains("\"owner\":\"harness-truth-agent\""),
+                    "the attached agent must be discoverable, got: " + body);
+            assertTrue(body.contains("\"plan\":true"),
+                    "the agent's plan surface must be registered, got: " + body);
+            assertTrue(body.contains("\"filesystem\":true"),
+                    "the agent's filesystem surface must be registered, got: " + body);
+        }
+    }
+
     static String consoleInfo(int port) throws Exception {
         try (var client = HttpClient.newHttpClient()) {
             var request = HttpRequest.newBuilder(

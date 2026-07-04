@@ -67,7 +67,11 @@ import java.util.Set;
  * {@link AiCapability#TOOL_CALLING} / {@link AiCapability#TOOL_APPROVAL}
  * (via {@link SpringAiAlibabaToolBridge} attached to a per-request
  * {@code ReactAgent} built around the configured Spring AI
- * {@code ChatModel}), and {@link AiCapability#TOKEN_USAGE}.</p>
+ * {@code ChatModel}), {@link AiCapability#PLANNING} (harness planning
+ * delegated to Alibaba's native {@code TodoListInterceptor} via
+ * {@link SpringAiAlibabaPlanBridge} — persisted in Atmosphere's
+ * {@link org.atmosphere.ai.plan.AgentPlanStore}, surfaced as
+ * {@code AiEvent.PlanUpdate}), and {@link AiCapability#TOKEN_USAGE}.</p>
  *
  * <p><b>How TOKEN_USAGE works.</b> {@code ReactAgent.call} returns an
  * {@link AssistantMessage} that does not surface the underlying
@@ -152,6 +156,30 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
         // DashScope vision models) see the Media attachments natively.
         attachMediaToTrailingUserMessage(messages, context.parts());
 
+        // Native planning surface (AiCapability.PLANNING): when the endpoint's
+        // injectables carry the AgentPlanStore (Harness.PLANNING resolved) and
+        // the mode allows a native surface, provision a per-request
+        // TodoListInterceptor bridged to Atmosphere's store + PlanUpdate
+        // events. Alibaba's todos live in per-invocation graph state and this
+        // adapter rebuilds the agent per request, so the previous turn's live
+        // plan re-hydrates through the system prompt (see
+        // SpringAiAlibabaPlanBridge).
+        var planning = provisionPlanSurface(context, session);
+        var effectiveSystemPrompt = context.systemPrompt();
+        if (planning != null && planning.rehydrationBlock() != null) {
+            var block = planning.rehydrationBlock();
+            effectiveSystemPrompt = effectiveSystemPrompt == null || effectiveSystemPrompt.isBlank()
+                    ? block : effectiveSystemPrompt + "\n\n" + block;
+            // assembleMessages placed the system prompt as the first
+            // SystemMessage — keep the message list and the agent-level
+            // prompt telling the same story.
+            if (!messages.isEmpty() && messages.get(0) instanceof SystemMessage sys) {
+                messages.set(0, new SystemMessage(sys.getText() + "\n\n" + block));
+            } else {
+                messages.add(0, new SystemMessage(block));
+            }
+        }
+
         // Model-lifecycle hooks: same posture as Spring AI / LC4j / ADK / Koog
         // / Embabel / SK / AgentScope. Spring AI Alibaba is buffered (no
         // incremental token deltas), so onModelEnd fires once at completion
@@ -163,21 +191,30 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
                 messages.size(), context.tools().size());
 
         var activeAgent = agent;
-        if (!context.tools().isEmpty()) {
+        if (!context.tools().isEmpty() || planning != null) {
             if (staticChatModel == null) {
                 throw new IllegalStateException(
-                        "Spring AI Alibaba runtime received an @AiTool-bearing request but no "
-                                + "Spring AI ChatModel bean is configured. "
-                                + configurationHint());
+                        "Spring AI Alibaba runtime received an @AiTool-bearing or "
+                                + "planning-enabled request but no Spring AI ChatModel bean "
+                                + "is configured. " + configurationHint());
             }
-            activeAgent = ReactAgent.builder()
+            var agentBuilder = ReactAgent.builder()
                     .name("atmosphere-spring-ai-alibaba-tools")
                     .model(staticChatModel)
-                    .systemPrompt(context.systemPrompt())
-                    .tools(SpringAiAlibabaToolBridge.toToolCallbacks(
-                            context.tools(), session, context.approvalStrategy(),
-                            context.listeners(), context.approvalPolicy()))
-                    .build();
+                    .systemPrompt(effectiveSystemPrompt);
+            if (!context.tools().isEmpty()) {
+                agentBuilder.tools(SpringAiAlibabaToolBridge.toToolCallbacks(
+                        context.tools(), session, context.approvalStrategy(),
+                        context.listeners(), context.approvalPolicy()));
+            }
+            if (planning != null) {
+                // ReactAgent.Builder.build() registers the interceptor's
+                // write_todos ToolCallback alongside the bridged user tools —
+                // both surfaces land on the same agent, neither clobbering
+                // the other.
+                agentBuilder.interceptors(planning.interceptor());
+            }
+            activeAgent = agentBuilder.build();
         }
 
         // TOKEN_USAGE capture: scope a UsageCollector to this dispatch.
@@ -208,9 +245,9 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
             // setSystemPrompt is kept because Alibaba's ReactAgent reads its own
             // field in addition to the input messages.
             synchronized (activeAgent) {
-                if (context.systemPrompt() != null && !context.systemPrompt().isBlank()) {
+                if (effectiveSystemPrompt != null && !effectiveSystemPrompt.isBlank()) {
                     try {
-                        activeAgent.setSystemPrompt(context.systemPrompt());
+                        activeAgent.setSystemPrompt(effectiveSystemPrompt);
                     } catch (RuntimeException re) {
                         logger.trace(
                                 "ReactAgent.setSystemPrompt threw — falling back to message-level system role",
@@ -360,6 +397,44 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
         };
     }
 
+    /**
+     * Resolve the native plan surface for this request, or {@code null} when
+     * the built-in floor (or no plan surface at all) governs. Native applies
+     * only when the endpoint's injectables carry the
+     * {@link org.atmosphere.ai.plan.AgentPlanStore} ({@code Harness.PLANNING}
+     * resolved for the path — plain endpoints never see plan machinery),
+     * {@code atmosphere.ai.planning} is not {@code BUILTIN} (in BUILTIN the
+     * {@code write_todos} floor is already registered; provisioning the
+     * interceptor too would duplicate plan tools), and no user tool already
+     * claims the {@code write_todos} name (user tool wins, same posture as
+     * the floor). Keys mirror {@link org.atmosphere.ai.tool.ToolScopes} so
+     * the native surface reads and writes the exact plan slot the floor
+     * uses. Package-private so {@code SpringAiAlibabaPlanBridgeTest} pins
+     * the gating.
+     */
+    static SpringAiAlibabaPlanBridge.Provision provisionPlanSurface(
+            AgentExecutionContext context, StreamingSession session) {
+        var injectables = session.injectables();
+        if (injectables == null
+                || !(injectables.get(org.atmosphere.ai.plan.AgentPlanStore.class)
+                        instanceof org.atmosphere.ai.plan.AgentPlanStore store)) {
+            return null;
+        }
+        if (AiConfig.resolvePlanningMode() == org.atmosphere.ai.plan.PlanningMode.BUILTIN) {
+            return null;
+        }
+        for (var tool : context.tools()) {
+            if (org.atmosphere.ai.plan.PlanningTools.WRITE_TODOS.equals(tool.name())) {
+                logger.warn("Native Alibaba plan surface skipped: a user tool already "
+                        + "claims the '{}' name", tool.name());
+                return null;
+            }
+        }
+        var agentId = org.atmosphere.ai.tool.ToolScopes.agentId(injectables, context.agentId());
+        var conversationId = org.atmosphere.ai.tool.ToolScopes.conversationId(injectables);
+        return SpringAiAlibabaPlanBridge.provision(store, agentId, conversationId, session);
+    }
+
     private static Message toSpringMessage(org.atmosphere.ai.llm.ChatMessage msg) {
         return switch (msg.role()) {
             case "system" -> new SystemMessage(msg.content());
@@ -497,6 +572,26 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
                 // output lands on the closed session as a no-op). See the
                 // doExecuteWithHandle Javadoc; pinned by
                 // SpringAiAlibabaAgentRuntimeCancelTest.
-                AiCapability.CANCELLATION);
+                AiCapability.CANCELLATION,
+                // PLANNING: provisionPlanSurface attaches Alibaba's native
+                // TodoListInterceptor per request when Harness.PLANNING
+                // resolved — the framework's model-facing write_todos tool
+                // plus its todo-usage prompt guidance — with the interceptor's
+                // todoEventHandler persisting every write through Atmosphere's
+                // AgentPlanStore and emitting AiEvent.PlanUpdate, and the
+                // previous turn's live plan re-hydrated through the system
+                // prompt (todos live in per-invocation graph state; the
+                // adapter rebuilds the agent per request). See
+                // SpringAiAlibabaPlanBridge; pinned by
+                // SpringAiAlibabaPlanBridgeTest.
+                // Deliberately NOT declared: VIRTUAL_FILESYSTEM. Alibaba's
+                // FilesystemBackend SPI has no model-facing consumer in
+                // agent-framework 1.1.2.3 (FilesystemInterceptor's Builder
+                // carries a backend field with no setter, and its file tools
+                // hit the raw host disk via java.nio directly), so the store
+                // cannot be bridged behind the framework's tool surface —
+                // the portable built-in file-tool floor governs instead
+                // (Correctness Invariant #5, Runtime Truth).
+                AiCapability.PLANNING);
     }
 }

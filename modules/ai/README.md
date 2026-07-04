@@ -37,16 +37,16 @@ The `AgentRuntime` interface is the AI-layer equivalent of `AsyncSupport`. Imple
 | Adapter JAR | `AgentRuntime` implementation | Priority | Capabilities |
 |-------------|-------------------------------|----------|-------------|
 | `atmosphere-ai` (built-in) | `BuiltInAgentRuntime` (OpenAI-compatible) | 0 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, PER_REQUEST_RETRY, TOKEN_USAGE, CONVERSATION_MEMORY, TOOL_CALL_DELTA, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
-| `atmosphere-anthropic` | `AnthropicAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, MULTI_MODAL, PER_REQUEST_RETRY, TOKEN_USAGE, CONVERSATION_MEMORY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
+| `atmosphere-anthropic` | `AnthropicAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, MULTI_MODAL, PER_REQUEST_RETRY, TOKEN_USAGE, CONVERSATION_MEMORY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION, VIRTUAL_FILESYSTEM (native `memory_20250818` tool surface backed by Atmosphere's AgentFileSystem) |
 | `atmosphere-cohere` | `CohereAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, MULTI_MODAL, PER_REQUEST_RETRY, TOKEN_USAGE, CONVERSATION_MEMORY, TOOL_CALL_DELTA, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
 | `atmosphere-crewai`³ (requires external Python sidecar) | `CrewAiAgentRuntime` | 50 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, AGENT_ORCHESTRATION, CANCELLATION, PER_REQUEST_RETRY, TOKEN_USAGE |
 | `atmosphere-spring-ai` | `SpringAiAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, TOKEN_USAGE, CONVERSATION_MEMORY, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
 | `atmosphere-langchain4j` | `LangChain4jAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, TOKEN_USAGE, CONVERSATION_MEMORY, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
-| `atmosphere-adk` | `AdkAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, TOKEN_USAGE, PER_REQUEST_RETRY, PROMPT_CACHING, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
-| `atmosphere-embabel` | `EmbabelAgentRuntime` | 100 | TEXT_STREAMING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, SYSTEM_PROMPT, CONVERSATION_MEMORY, TOKEN_USAGE, PER_REQUEST_RETRY, TOOL_CALLING, TOOL_APPROVAL, VISION, MULTI_MODAL, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
+| `atmosphere-adk` | `AdkAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, TOKEN_USAGE, PER_REQUEST_RETRY, PROMPT_CACHING, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION, VIRTUAL_FILESYSTEM (native artifact-service bridge: `load_artifacts`/`save_artifact` over Atmosphere's AgentFileSystem) |
+| `atmosphere-embabel` | `EmbabelAgentRuntime` | 100 | TEXT_STREAMING, STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, SYSTEM_PROMPT, CONVERSATION_MEMORY, TOKEN_USAGE, PER_REQUEST_RETRY, TOOL_CALLING, TOOL_APPROVAL, VISION, MULTI_MODAL, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION, PLANNING (framework-computed goal-oriented-action-planning observation; read-only, deployed-agent path) |
 | `atmosphere-koog` | `KoogAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, AGENT_ORCHESTRATION, CONVERSATION_MEMORY, SYSTEM_PROMPT, TOOL_APPROVAL, TOKEN_USAGE, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, CANCELLATION, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION |
-| `atmosphere-agentscope` | `AgentScopeAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, CANCELLATION, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, VISION, AUDIO, MULTI_MODAL |
-| `atmosphere-spring-ai-alibaba` | `SpringAiAlibabaAgentRuntime` | 100 | TEXT_STREAMING (buffered), SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOOL_CALLING, TOOL_APPROVAL, TOKEN_USAGE, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, VISION, AUDIO, MULTI_MODAL, CANCELLATION (cooperative) *(see runtime caveats below)* |
+| `atmosphere-agentscope` | `AgentScopeAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, CANCELLATION, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, VISION, AUDIO, MULTI_MODAL, PLANNING (native PlanNotebook delegation: model-maintained plan tools, persisted through AgentPlanStore, PlanUpdate events) |
+| `atmosphere-spring-ai-alibaba` | `SpringAiAlibabaAgentRuntime` | 100 | TEXT_STREAMING (buffered), SYSTEM_PROMPT, STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOOL_CALLING, TOOL_APPROVAL, TOKEN_USAGE, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, VISION, AUDIO, MULTI_MODAL, CANCELLATION (cooperative), PLANNING (native TodoListInterceptor `write_todos` delegation, persisted through AgentPlanStore, PlanUpdate events) *(see runtime caveats below)* |
 | `atmosphere-semantic-kernel` | `SemanticKernelAgentRuntime` | 100 | TEXT_STREAMING, SYSTEM_PROMPT, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, CONVERSATION_MEMORY, TOKEN_USAGE, TOOL_CALLING, TOOL_APPROVAL, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, VISION, MULTI_MODAL, CANCELLATION |
 
 Every runtime emits `TokenUsage` via `StreamingSession.usage()` when the underlying API provides token counts, feeding `ai.tokens.*` metadata into `MetricsCapturingSession` and `MicrometerAiMetrics`. Capability declarations are pinned in each runtime's contract test (`AbstractAgentRuntimeContractTest.expectedCapabilities()`), so the table above cannot drift from the running code without breaking the build. The aggregate counts ("12 runtimes") and the per-row capability lists are additionally pinned against `.harness/capabilities.snapshot.json` by `CapabilitySnapshotTest` and `scripts/validate-capability-claims.sh` (run from pre-push). That enforcement covers the structured table rows and the tight count claims (`All N runtimes`, `N AiCapability`/`N capabilities total`) only; free-form per-runtime narrative below is **not** machine-checked, so keep that prose in sync with the table by hand.
@@ -1571,6 +1571,47 @@ prevention, dynamic routing, and long-pause human-in-the-loop:
   APIs surface only consolidated tool calls, and the negative assertion in
   `modules/integration-tests/e2e/ai-tool-call-delta.spec.ts` pins the gap
   (Correctness Invariant #5 — Runtime Truth).
+
+### Deep-agent harness primitives (`PLANNING`, `VIRTUAL_FILESYSTEM`)
+
+Two capabilities added for the harness planning / virtual-filesystem
+primitives. Both follow the same honesty contract as
+`NATIVE_STRUCTURED_OUTPUT`: a runtime declares the flag **only** when its
+adapter genuinely wires the native machinery end-to-end (pinned by the
+runtime's contract test), never because the wrapped SDK ships a planner or
+file-tool class somewhere on the classpath.
+
+- **`PLANNING`** — the agent maintains a plan it exposes and updates. The
+  portable floor is the built-in `write_todos` tool (deepagents parity:
+  full-list replace of `{content, status, activeForm}` items), persisted per
+  agent × conversation through `AgentPlanStore`
+  (`{workspace}/…/plans/{agentId}/{conversationId}.json` by default) and
+  emitted as `AiEvent.PlanUpdate` (`plan-update` wire frames) on every change.
+  Runtimes that declare `PLANNING` mirror their native plan surface into the
+  same model and events; under the `atmosphere.ai.planning` knob
+  (`auto`/`builtin`/`native`, AUTO default) native wins and the floor is not
+  registered — never both.
+- **`VIRTUAL_FILESYSTEM`** — a bounded, conversation-scoped file store the
+  model reads and writes through tools. The portable floor is the built-in
+  `ls` / `read_file` / `write_file` / `edit_file` / `glob` / `grep` tool set
+  over `AgentFileSystem` (default `WorkspaceAgentFileSystem`, rooted at
+  `files/{conversationId}/` under the agent workspace with strict traversal
+  guards and hard bounds — 512 KiB/file, 256 files, 16 MiB total; over-limit
+  writes are rejected with a clear message). Runtimes that declare
+  `VIRTUAL_FILESYSTEM` bridge a native file surface to the same store; under
+  the `atmosphere.ai.filesystem` knob (AUTO default) native wins and the
+  built-in tools are not registered — no duplicate tools.
+
+Both surfaces attach through the harness preset (`Harness.PLANNING` /
+`Harness.FILESYSTEM`, included in `Harness.ALL` — so `@Agent` /
+`@Coordinator` get them batteries-included, `@AiEndpoint` opts in via
+`harness = {...}` or the app-wide `org.atmosphere.ai.harness.enabled=true`),
+and the console runtime-state reports the confirmed surface
+(`ACTIVE(builtin)` / `ACTIVE(native:<runtime>)` / `INACTIVE(...)`) per
+Correctness Invariant #5. Which runtimes declare the flags is pinned by the
+capability snapshot (`.harness/capabilities.snapshot.json`) and each
+runtime's contract test — consult those, not this prose, for the current
+native-delegation set.
 
 ### EmbeddingRuntime SPI
 

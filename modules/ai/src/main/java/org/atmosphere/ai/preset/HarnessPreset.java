@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -62,6 +63,18 @@ import java.util.concurrent.ConcurrentHashMap;
  *       {@code CoordinatorProcessor} registers the built-in
  *       {@code delegate_task} tool and wraps the fleet with the installed
  *       governance policies.</li>
+ *   <li><b>planning</b> ({@link Harness#PLANNING}) — the processors attach
+ *       the plan surface: the built-in {@code write_todos} tool floor, or
+ *       the runtime's native plan machinery when it advertises
+ *       {@code AiCapability.PLANNING} under the
+ *       {@code atmosphere.ai.planning} AUTO default (never both).</li>
+ *   <li><b>filesystem</b> ({@link Harness#FILESYSTEM}) — the processors
+ *       attach the conversation-scoped file surface: the built-in
+ *       {@code ls}/{@code read_file}/{@code write_file}/{@code edit_file}/
+ *       {@code glob}/{@code grep} floor, or the runtime's native file
+ *       surface when it advertises {@code AiCapability.VIRTUAL_FILESYSTEM}
+ *       under the {@code atmosphere.ai.filesystem} AUTO default
+ *       (never both).</li>
  *   <li><b>compaction</b> ({@link Harness#MEMORY}) — reported from the
  *       independent {@link CompactionConfig} seam (the harness keeps the
  *       sliding-window default; it does not force summarizing).</li>
@@ -102,13 +115,32 @@ public final class HarnessPreset {
     public static final String PRIMITIVE_LONG_TERM_MEMORY = "long-term-memory";
     public static final String PRIMITIVE_PROMPT_CACHE_DEFAULT = "prompt-cache-default";
     public static final String PRIMITIVE_DELEGATION = "delegation";
+    public static final String PRIMITIVE_PLANNING = "planning";
+    public static final String PRIMITIVE_FILESYSTEM = "filesystem";
     public static final String PRIMITIVE_SKILLS = "skills";
     public static final String PRIMITIVE_DURABLE_RUNS = "durable-runs";
+
+    /**
+     * Upper bound on the per-owner surface registries. Owner names come from
+     * annotation scanning at registration time (agent names, sanitized
+     * endpoint paths) — bounded by the deployed app's endpoint count, not by
+     * external input — so the cap is belt-and-braces against a pathological
+     * deployment, never LRU-evicting a live surface (Correctness Invariant #3).
+     */
+    public static final int MAX_REGISTERED_OWNERS = 1024;
 
     /** {@code null} = unset, {@code TRUE} = app-wide on, {@code FALSE} = kill switch. */
     private final Boolean explicitEnabled;
     private final Set<String> excludePaths;
     private final ConcurrentHashMap<String, String> runtimeState = new ConcurrentHashMap<>();
+    // Per-owner harness surfaces, populated by PlanningPreset / FilesystemPreset
+    // exactly when a surface genuinely attaches (Invariant #5) so control planes
+    // (the Spring admin REST endpoints, the console Workspace tab) resolve the
+    // same instances the tools write through — never a reconstructed twin.
+    private final ConcurrentHashMap<String, org.atmosphere.ai.plan.AgentPlanStore> planStores =
+            new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, org.atmosphere.ai.fs.AgentFileSystemProvider> fileSystemProviders =
+            new ConcurrentHashMap<>();
 
     private HarnessPreset(Boolean explicitEnabled, Set<String> excludePaths) {
         this.explicitEnabled = explicitEnabled;
@@ -194,6 +226,13 @@ public final class HarnessPreset {
                 enabled() ? "INACTIVE(no-endpoint)" : disabledState);
         runtimeState.put(PRIMITIVE_DELEGATION,
                 enabled() ? "INACTIVE(no-coordinator)" : disabledState);
+        // Planning / filesystem seed INACTIVE and are upgraded to
+        // ACTIVE(builtin) / ACTIVE(native:<runtime>) only on a genuine
+        // attach by the processors (Invariant #5 — never config intent).
+        runtimeState.put(PRIMITIVE_PLANNING,
+                enabled() ? "INACTIVE(no-endpoint)" : disabledState);
+        runtimeState.put(PRIMITIVE_FILESYSTEM,
+                enabled() ? "INACTIVE(no-endpoint)" : disabledState);
         runtimeState.put(PRIMITIVE_COMPACTION, CompactionConfig.resolve(cfg).name());
         runtimeState.put(PRIMITIVE_PROMPT_CACHE_DEFAULT,
                 PromptCacheDefaults.effective(CacheHint.CachePolicy.NONE, cfg, enabled())
@@ -280,5 +319,81 @@ public final class HarnessPreset {
     /** Immutable snapshot of the published runtime-state map (test / console use). */
     public Map<String, String> runtimeState() {
         return Map.copyOf(runtimeState);
+    }
+
+    /**
+     * Record the plan store attached for one owner so control planes resolve
+     * the exact instance the {@code write_todos} tool (or a native bridge)
+     * persists through. Called by {@code PlanningPreset.register} only when
+     * the PLANNING feature resolved for the owner's path.
+     *
+     * @param ownerName the registration-time owner — the agent name for
+     *                  {@code @Agent} / {@code @Coordinator}, the sanitized
+     *                  endpoint path for {@code @AiEndpoint}
+     * @param store     the attached store
+     */
+    public void registerPlanStore(String ownerName, org.atmosphere.ai.plan.AgentPlanStore store) {
+        registerSurface(planStores, ownerName, store, "plan store");
+    }
+
+    /**
+     * The plan store attached for an owner, or empty when the PLANNING
+     * primitive never resolved for it.
+     *
+     * @param ownerName the registration-time owner name
+     * @return the store the owner's plan surface persists through
+     */
+    public Optional<org.atmosphere.ai.plan.AgentPlanStore> planStore(String ownerName) {
+        return ownerName == null ? Optional.empty() : Optional.ofNullable(planStores.get(ownerName));
+    }
+
+    /**
+     * Record the conversation-scoped filesystem provider attached for one
+     * owner so control planes browse the exact store the built-in file tools
+     * (or a native bridge) write into. Called by
+     * {@code FilesystemPreset.register} only when the FILESYSTEM feature
+     * resolved for the owner's path.
+     *
+     * @param ownerName the registration-time owner name
+     * @param provider  the attached provider
+     */
+    public void registerFileSystemProvider(String ownerName,
+                                           org.atmosphere.ai.fs.AgentFileSystemProvider provider) {
+        registerSurface(fileSystemProviders, ownerName, provider, "filesystem provider");
+    }
+
+    /**
+     * The filesystem provider attached for an owner, or empty when the
+     * FILESYSTEM primitive never resolved for it.
+     *
+     * @param ownerName the registration-time owner name
+     * @return the provider the owner's file surface scopes conversations through
+     */
+    public Optional<org.atmosphere.ai.fs.AgentFileSystemProvider> fileSystemProvider(String ownerName) {
+        return ownerName == null
+                ? Optional.empty() : Optional.ofNullable(fileSystemProviders.get(ownerName));
+    }
+
+    /** Owner names with a registered plan store (console discovery). */
+    public Set<String> planOwners() {
+        return Set.copyOf(planStores.keySet());
+    }
+
+    /** Owner names with a registered filesystem provider (console discovery). */
+    public Set<String> fileSystemOwners() {
+        return Set.copyOf(fileSystemProviders.keySet());
+    }
+
+    private <T> void registerSurface(ConcurrentHashMap<String, T> registry,
+                                     String ownerName, T surface, String label) {
+        if (ownerName == null || ownerName.isBlank() || surface == null) {
+            return;
+        }
+        if (registry.size() >= MAX_REGISTERED_OWNERS && !registry.containsKey(ownerName)) {
+            logger.warn("Harness {} registry full ({} owners) — '{}' not registered "
+                    + "for admin resolution", label, MAX_REGISTERED_OWNERS, ownerName);
+            return;
+        }
+        registry.put(ownerName, surface);
     }
 }

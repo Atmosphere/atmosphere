@@ -178,5 +178,43 @@ test.describe('Personal assistant sample', () => {
       .toBe('ACTIVE');
     expect(info.harness['compaction'], 'a compaction strategy must be selected')
       .toBeTruthy();
+    // The sample ships no framework runtime adapter with a native plan or
+    // file surface, so the AUTO mode knobs must land on the built-in floors
+    // (write_todos + the six file tools) — and the state must be the
+    // attach-time truth, never the INACTIVE seed (Invariant #5).
+    expect(info.harness['planning'], 'the write_todos floor must genuinely attach')
+      .toMatch(/^ACTIVE\(builtin/);
+    expect(info.harness['filesystem'], 'the file-tool floor must genuinely attach')
+      .toMatch(/^ACTIVE\(builtin/);
+  });
+
+  /**
+   * The admin plan surface for the harness PLANNING primitive. The endpoint
+   * resolves the exact AgentPlanStore the coordinator's attach registered, so
+   * a fresh probe session answers 404 (surface attached, no plan written yet)
+   * or 200 with the plan-update wire shape — never 500. The traversal probe
+   * pins that the route is genuinely mapped (an unmapped path would 404, not
+   * 400) and that session ids are validated at the boundary (Invariant #4).
+   */
+  test('admin plan endpoint serves the harness plan surface', async ({ request }) => {
+    const probe = await request.get(
+      '/api/admin/agents/primary-assistant/plan?sessionId=e2e-plan-probe'
+    );
+    expect(
+      [200, 404],
+      `plan endpoint must answer 404 (no plan yet) or 200 (plan), got ${probe.status()}`
+    ).toContain(probe.status());
+    if (probe.status() === 200) {
+      const plan = await probe.json();
+      expect(plan.agent).toBe('primary-assistant');
+      expect(Array.isArray(plan.steps), 'a served plan must carry wire steps').toBe(true);
+    }
+
+    const traversal = await request.get(
+      '/api/admin/agents/primary-assistant/plan?sessionId=..'
+    );
+    expect(traversal.status(), 'a traversal session id must be rejected with 400').toBe(400);
+    const err = await traversal.json();
+    expect(err.error, 'the rejection must carry a clear message').toBeTruthy();
   });
 });

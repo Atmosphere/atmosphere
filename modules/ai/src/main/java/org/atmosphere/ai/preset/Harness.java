@@ -49,8 +49,29 @@ public enum Harness {
     DELEGATION,
 
     /**
-     * Sentinel that expands to {@link #MEMORY}, {@link #CACHE} and
-     * {@link #DELEGATION} — the full harness.
+     * The planning primitive — the agent maintains a plan it exposes and
+     * updates: the built-in {@code write_todos} tool floor (or a native plan
+     * surface when the resolved runtime advertises
+     * {@code AiCapability.PLANNING} under the
+     * {@code atmosphere.ai.planning} AUTO default), persisted per
+     * conversation and streamed as {@code plan-update} events.
+     */
+    PLANNING,
+
+    /**
+     * The virtual-filesystem primitive — a bounded, conversation-scoped file
+     * store under the agent workspace: the built-in {@code ls} /
+     * {@code read_file} / {@code write_file} / {@code edit_file} /
+     * {@code glob} / {@code grep} tool floor (or a native file surface when
+     * the resolved runtime advertises {@code AiCapability.VIRTUAL_FILESYSTEM}
+     * under the {@code atmosphere.ai.filesystem} AUTO default).
+     */
+    FILESYSTEM,
+
+    /**
+     * Sentinel that expands to {@link #MEMORY}, {@link #CACHE},
+     * {@link #DELEGATION}, {@link #PLANNING} and {@link #FILESYSTEM} — the
+     * full harness.
      */
     ALL;
 
@@ -73,6 +94,8 @@ public enum Harness {
                 resolved.add(MEMORY);
                 resolved.add(CACHE);
                 resolved.add(DELEGATION);
+                resolved.add(PLANNING);
+                resolved.add(FILESYSTEM);
             } else {
                 resolved.add(feature);
             }

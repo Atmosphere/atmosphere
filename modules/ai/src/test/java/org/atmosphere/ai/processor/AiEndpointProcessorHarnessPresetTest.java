@@ -289,6 +289,71 @@ public class AiEndpointProcessorHarnessPresetTest {
         assertNull(handler.cachePolicy());
     }
 
+    // ---- planning / filesystem floors ----
+
+    private static final String[] FS_TOOL_NAMES = {
+            "ls", "read_file", "write_file", "edit_file", "glob", "grep"};
+
+    @Test
+    public void appWideTrueRegistersThePlanningAndFilesystemFloors() throws Exception {
+        enableAppWide();
+
+        var handler = handle(PlainEndpoint.class, new PlainEndpoint());
+
+        var tools = handler.toolRegistry();
+        assertTrue(tools.getTool("write_todos").isPresent(),
+                "the full harness must register the write_todos floor");
+        for (var name : FS_TOOL_NAMES) {
+            assertTrue(tools.getTool(name).isPresent(),
+                    "the full harness must register the '" + name + "' file tool");
+        }
+        var state = installedPreset().runtimeState();
+        assertEquals("ACTIVE(builtin)", state.get(HarnessPreset.PRIMITIVE_PLANNING),
+                "a genuine builtin attach must publish ACTIVE(builtin)");
+        assertEquals("ACTIVE(builtin)", state.get(HarnessPreset.PRIMITIVE_FILESYSTEM),
+                "a genuine builtin attach must publish ACTIVE(builtin)");
+    }
+
+    @Test
+    public void planningOnlyHarnessRegistersNoFileTools() throws Exception {
+        var handler = handle(PlanningOnlyEndpoint.class, new PlanningOnlyEndpoint());
+
+        var tools = handler.toolRegistry();
+        assertTrue(tools.getTool("write_todos").isPresent(),
+                "harness = {PLANNING} must opt in without the app-wide flag");
+        for (var name : FS_TOOL_NAMES) {
+            assertTrue(tools.getTool(name).isEmpty(),
+                    "harness = {PLANNING} must not drag in the '" + name + "' file tool");
+        }
+        var state = installedPreset().runtimeState();
+        assertEquals("ACTIVE(builtin)", state.get(HarnessPreset.PRIMITIVE_PLANNING));
+        assertEquals("INACTIVE(disabled)", state.get(HarnessPreset.PRIMITIVE_FILESYSTEM));
+    }
+
+    @Test
+    public void bareEndpointGetsNoPlanningOrFilesystemFloor() throws Exception {
+        var handler = handle(PlainEndpoint.class, new PlainEndpoint());
+
+        assertTrue(handler.toolRegistry().allTools().isEmpty(),
+                "a bare endpoint must register no harness tools");
+        var state = installedPreset().runtimeState();
+        assertEquals("INACTIVE(disabled)", state.get(HarnessPreset.PRIMITIVE_PLANNING));
+        assertEquals("INACTIVE(disabled)", state.get(HarnessPreset.PRIMITIVE_FILESYSTEM));
+    }
+
+    @Test
+    public void killSwitchSuppressesPlanningAndFilesystem() throws Exception {
+        killSwitch();
+
+        var handler = handle(FullHarnessEndpoint.class, new FullHarnessEndpoint());
+
+        assertTrue(handler.toolRegistry().allTools().isEmpty(),
+                "the kill switch must beat harness = {ALL} for the tool floors");
+        var state = installedPreset().runtimeState();
+        assertEquals("INACTIVE(disabled)", state.get(HarnessPreset.PRIMITIVE_PLANNING));
+        assertEquals("INACTIVE(disabled)", state.get(HarnessPreset.PRIMITIVE_FILESYSTEM));
+    }
+
     // ---- compaction seam ----
 
     @Test
@@ -323,6 +388,20 @@ public class AiEndpointProcessorHarnessPresetTest {
 
     @AiEndpoint(path = "/atmosphere/harness-memory", harness = {Harness.MEMORY})
     public static class MemoryHarnessEndpoint {
+        @Prompt
+        public void onPrompt(String message, StreamingSession session) {
+        }
+    }
+
+    @AiEndpoint(path = "/atmosphere/harness-planning", harness = {Harness.PLANNING})
+    public static class PlanningOnlyEndpoint {
+        @Prompt
+        public void onPrompt(String message, StreamingSession session) {
+        }
+    }
+
+    @AiEndpoint(path = "/atmosphere/harness-all", harness = {Harness.ALL})
+    public static class FullHarnessEndpoint {
         @Prompt
         public void onPrompt(String message, StreamingSession session) {
         }

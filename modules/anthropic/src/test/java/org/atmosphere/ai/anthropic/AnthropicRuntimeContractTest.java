@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -117,6 +118,7 @@ class AnthropicRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 AiCapability.PER_REQUEST_RETRY,
                 AiCapability.VISION,
                 AiCapability.MULTI_MODAL,
+                AiCapability.VIRTUAL_FILESYSTEM,
                 AiCapability.CANCELLATION);
     }
 
@@ -137,6 +139,21 @@ class AnthropicRuntimeContractTest extends AbstractAgentRuntimeContractTest {
     @Test
     void runtimeDeclaresToolCalling() {
         assertTrue(createRuntime().capabilities().contains(AiCapability.TOOL_CALLING));
+    }
+
+    @Test
+    void runtimeDeclaresVirtualFilesystemButNotPlanning() {
+        // VIRTUAL_FILESYSTEM is genuinely wired: AnthropicMessagesClient
+        // declares memory_20250818 when the harness FILESYSTEM feature scoped
+        // an AgentFileSystem onto the session, and AnthropicMemoryTool
+        // services the six commands (round-trips pinned in
+        // AnthropicMemoryToolTest). PLANNING is honestly NOT declared — the
+        // Anthropic API has no plan object to delegate to, so the built-in
+        // write_todos floor covers this runtime (Correctness Invariant #5).
+        var caps = createRuntime().capabilities();
+        assertTrue(caps.contains(AiCapability.VIRTUAL_FILESYSTEM));
+        assertFalse(caps.contains(AiCapability.PLANNING),
+                "anthropic must not claim PLANNING — no native plan machinery exists");
     }
 
 

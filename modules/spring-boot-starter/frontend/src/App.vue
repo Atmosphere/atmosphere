@@ -6,12 +6,14 @@ import GovernanceDecisions from './components/GovernanceDecisions.vue'
 import GovernanceOwasp from './components/GovernanceOwasp.vue'
 import GovernanceCommitments from './components/GovernanceCommitments.vue'
 import Sessions from './components/Sessions.vue'
+import Workspace from './components/Workspace.vue'
 import Interactions from './components/Interactions.vue'
 import Validation from './components/Validation.vue'
 import McpApps from './components/McpApps.vue'
+import { livePlan } from './lib/workspaceStore'
 import logoUrl from './assets/logo.svg'
 
-type Tab = 'chat' | 'sessions' | 'interactions' | 'validation' | 'apps' | 'policies' | 'decisions' | 'owasp' | 'commitments'
+type Tab = 'chat' | 'sessions' | 'workspace' | 'interactions' | 'validation' | 'apps' | 'policies' | 'decisions' | 'owasp' | 'commitments'
 
 const subtitle = ref('')
 const endpoint = ref('/atmosphere/ai-chat')
@@ -28,6 +30,7 @@ const mcpSandboxOrigin = ref<string | null>(null)
 const governanceAvailable = ref(false)
 const governancePolicyCount = ref<number | null>(null)
 const agentsAvailable = ref(false)
+const workspaceAvailable = ref(false)
 const interactionsAvailable = ref(false)
 const validationAvailable = ref(false)
 
@@ -57,6 +60,26 @@ async function probeAgents() {
   }
 }
 
+async function probeWorkspace() {
+  // The Workspace tab shows only when at least one plan / filesystem surface
+  // genuinely attached — the owners list is populated by the harness attach
+  // engines at registration time, never from config intent (Runtime Truth).
+  // Only called when the console-info harness block exists AND the agents
+  // probe succeeded, which together guarantee the endpoint is mapped — so
+  // this fetch can never 404-spam the browser console on slim samples.
+  try {
+    const res = await fetch('/api/admin/workspace/owners', {
+      headers: { Accept: 'application/json' },
+    })
+    if (res.ok) {
+      const list = await res.json()
+      workspaceAvailable.value = Array.isArray(list) && list.length > 0
+    }
+  } catch {
+    // /api/admin/workspace/owners not wired — hide the Workspace tab.
+  }
+}
+
 // Interactions + Validation availability are read from /api/console/info's
 // runtime-resolved capability flags (hasInteractions / hasVerifier) in
 // onMounted — NOT probed. A speculative fetch to /api/interactions or
@@ -64,12 +87,21 @@ async function probeAgents() {
 // which the browser logs as a red console error that JS cannot suppress.
 // Gating on the server-confirmed flag keeps the console quiet (Runtime Truth).
 
+// The Workspace tab renders when a plan / filesystem surface is browsable via
+// the admin API, or as soon as a live plan-update event arrived on the chat
+// connection (covers deployments whose admin reads are token-gated).
+const workspaceVisible = computed(() =>
+  workspaceAvailable.value || livePlan.value !== null)
+
 const tabs = computed(() => {
   const list: Array<{ id: Tab; label: string; badge?: string }> = [
     { id: 'chat', label: 'Chat' },
   ]
   if (agentsAvailable.value) {
     list.push({ id: 'sessions', label: 'Sessions' })
+  }
+  if (workspaceVisible.value) {
+    list.push({ id: 'workspace', label: 'Workspace' })
   }
   if (interactionsAvailable.value) {
     list.push({ id: 'interactions', label: 'Interactions' })
@@ -95,6 +127,10 @@ const tabs = computed(() => {
 })
 
 onMounted(async () => {
+  // Truthy only when the harness preset genuinely ran on this server — the
+  // console-info harness block is runtime state, not config intent. Used to
+  // gate the workspace probe below.
+  let harnessPresent = false
   try {
     const res = await fetch('/api/console/info')
     if (res.ok) {
@@ -108,11 +144,18 @@ onMounted(async () => {
       // 404-producing probe. Absent/false means the module isn't wired here.
       interactionsAvailable.value = data.hasInteractions === true
       validationAvailable.value = data.hasVerifier === true
+      harnessPresent = data.harness != null && typeof data.harness === 'object'
     }
   } catch {
     // Console info not available — use defaults
   }
   await Promise.all([probeGovernance(), probeAgents()])
+  // harness block ⇒ atmosphere-ai (and the workspace endpoint class) is on
+  // the classpath; agents probe OK ⇒ the AtmosphereAdmin bean is live. Both
+  // together mean /api/admin/workspace/owners is mapped — no 404 probe spam.
+  if (harnessPresent && agentsAvailable.value) {
+    await probeWorkspace()
+  }
   ready.value = true
 })
 </script>
@@ -145,6 +188,8 @@ onMounted(async () => {
       <ChatContainer v-if="ready && activeTab === 'chat'" :endpoint="endpoint" :mode="mode" />
       <Sessions v-if="ready && agentsAvailable" v-show="activeTab === 'sessions'"
                 :active="activeTab === 'sessions'" />
+      <Workspace v-if="ready && workspaceVisible" v-show="activeTab === 'workspace'"
+                 :active="activeTab === 'workspace'" />
       <Interactions v-if="ready && interactionsAvailable" v-show="activeTab === 'interactions'"
                     :active="activeTab === 'interactions'" />
       <Validation v-if="ready && validationAvailable" v-show="activeTab === 'validation'"

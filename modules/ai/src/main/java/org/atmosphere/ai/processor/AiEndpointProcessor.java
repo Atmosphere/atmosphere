@@ -273,9 +273,20 @@ public class AiEndpointProcessor implements Processor<Object> {
 
             var responseType = annotation.responseAs() == Void.class
                     ? null : annotation.responseAs();
-            var injectables = responseType != null
-                    ? java.util.Map.<Class<?>, Object>of(Class.class, responseType)
-                    : java.util.Map.<Class<?>, Object>of();
+            var injectables = new java.util.LinkedHashMap<Class<?>, Object>();
+            if (responseType != null) {
+                injectables.put(Class.class, responseType);
+            }
+            // Harness PLANNING / FILESYSTEM: attach the plan store + file
+            // provider and register the built-in tool floors (or defer to a
+            // native runtime surface) before the handler snapshots the
+            // injectables. The @AiEndpoint path has no
+            // buildFoundationPrimitives, so the workspace subtree is derived
+            // from the endpoint path name.
+            registerPresetPlanning(toolRegistry, preset,
+                    features.contains(Harness.PLANNING), runtime, injectables, annotation.path());
+            registerPresetFilesystem(toolRegistry, preset,
+                    features.contains(Harness.FILESYSTEM), runtime, injectables, annotation.path());
             var handler = new AiEndpointHandler(instance, promptMethod,
                     annotation.timeout(), systemPrompt, annotation.path(),
                     runtime, interceptors, memory, lifecycle,
@@ -365,6 +376,50 @@ public class AiEndpointProcessor implements Processor<Object> {
         } catch (Exception e) {
             logger.error("Failed to register AI endpoint from {}", annotatedClass.getName(), e);
         }
+    }
+
+    /**
+     * Harness PLANNING: attach the plan surface for one endpoint —
+     * {@link org.atmosphere.ai.plan.AgentPlanStore} into the injectables and
+     * the built-in {@code write_todos} floor into the registry unless the
+     * resolved runtime's native plan machinery wins under
+     * {@link org.atmosphere.ai.plan.PlanningMode}. The runtime check is
+     * registration-time truth: the same resolved {@link AgentRuntime}
+     * instance the handler dispatches through declares (or does not declare)
+     * {@link AiCapability#PLANNING}. Mirrors
+     * {@code CoordinatorProcessor.registerPresetDelegation}'s seam shape.
+     *
+     * <p>Package-private so {@code AiEndpointProcessorHarnessPresetTest} can
+     * pin the gating without driving a full annotation scan.</p>
+     */
+    void registerPresetPlanning(ToolRegistry toolRegistry, HarnessPreset preset,
+                                boolean planningOn, AgentRuntime runtime,
+                                java.util.Map<Class<?>, Object> injectables, String path) {
+        org.atmosphere.ai.plan.PlanningPreset.register(toolRegistry, preset, planningOn,
+                runtime, injectables,
+                org.atmosphere.ai.preset.HarnessWorkspace.ownerRoot("endpoints", path),
+                org.atmosphere.ai.preset.HarnessWorkspace.sanitize(path));
+    }
+
+    /**
+     * Harness FILESYSTEM: attach the conversation-scoped file surface for one
+     * endpoint — {@link org.atmosphere.ai.fs.AgentFileSystemProvider} into
+     * the injectables (scoped per conversation at dispatch by
+     * {@code AiEndpointHandler}) and the built-in six-tool floor into the
+     * registry unless the resolved runtime's native file surface wins under
+     * {@link org.atmosphere.ai.fs.FilesystemMode}. Same runtime-truth check
+     * as {@link #registerPresetPlanning}.
+     *
+     * <p>Package-private so {@code AiEndpointProcessorHarnessPresetTest} can
+     * pin the gating without driving a full annotation scan.</p>
+     */
+    void registerPresetFilesystem(ToolRegistry toolRegistry, HarnessPreset preset,
+                                  boolean filesystemOn, AgentRuntime runtime,
+                                  java.util.Map<Class<?>, Object> injectables, String path) {
+        org.atmosphere.ai.fs.FilesystemPreset.register(toolRegistry, preset, filesystemOn,
+                runtime, injectables,
+                org.atmosphere.ai.preset.HarnessWorkspace.ownerRoot("endpoints", path),
+                org.atmosphere.ai.preset.HarnessWorkspace.sanitize(path));
     }
 
     private Method findPromptMethod(Class<?> clazz) {
