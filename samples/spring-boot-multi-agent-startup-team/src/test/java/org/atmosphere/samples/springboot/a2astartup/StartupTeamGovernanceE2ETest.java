@@ -116,7 +116,10 @@ class StartupTeamGovernanceE2ETest {
 
     @Test
     void goal1_rateLimitBoundsAreEnforced() {
-        assertEquals(30, rateLimit.limit());
+        // 150/60s: governed fleet dispatch meters every A2A hop, so one user
+        // prompt spends five tickets — the cap covers ~6 prompts/minute of
+        // full crew fan-out (see GovernanceConfig#rateLimit).
+        assertEquals(150, rateLimit.limit());
         assertEquals(60, rateLimit.window().toSeconds());
     }
 

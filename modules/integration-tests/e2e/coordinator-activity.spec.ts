@@ -122,19 +122,38 @@ test.describe('Agent Activity Streaming', () => {
   // ── Browser UI test ──
 
   test('frontend shows agent status bar with activity', async ({ page }) => {
+    // Four sequential keyless crew stages + browser render: needs more than
+    // the global 90s per-test budget on CI runners.
+    test.setTimeout(300_000);
     await page.goto(server.baseUrl + '/');
-    // Wait for WebSocket fallback to connect
-    await page.waitForTimeout(12_000);
+    // Wait for the transport to GENUINELY connect (ConnectionStatusBadge
+    // flips to "Connected") instead of a blind sleep — the first-attempt
+    // flake was a race where the prompt was submitted before the socket
+    // opened, so the pipeline never ran and no cards could ever appear.
+    await expect(page.getByText(/^Connected/).first()).toBeVisible({ timeout: 30_000 });
 
     const input = page.getByPlaceholder(/ask about/i);
     await input.fill('AI fitness apps');
     await input.press('Enter');
 
-    // Wait for agent collaboration cards to appear
-    await expect(page.getByText(/Research Agent/i).first()).toBeVisible({ timeout: 30_000 });
+    // The sample meters EVERY policy-governed hop (one prompt = five tickets:
+    // the prompt + four A2A crew calls). Earlier tests in this file spend the
+    // shared per-session budget legitimately; if this prompt inherited a
+    // rate-limit denial, wait out the 60s sliding window and resend once.
+    const denial = page.getByText(/rate-limited/i).first();
+    if (await denial.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await page.waitForTimeout(61_000);
+      await input.fill('AI fitness apps');
+      await input.press('Enter');
+    }
+
+    // Wait for agent collaboration cards to appear. The keyless pipeline is
+    // deterministic but slow (four sequential crew stages on a cold JIT) —
+    // CI runners need real headroom or this reads as flaky (2026-07-04).
+    await expect(page.getByText(/Research Agent/i).first()).toBeVisible({ timeout: 90_000 });
 
     // Wait for the CEO synthesis to appear
-    await expect(page.getByText(/CEO/).first()).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText(/CEO/).first()).toBeVisible({ timeout: 120_000 });
 
     // Agent status bar should show checkmarks for completed agents
     const statusBar = page.locator('text=/✓/');

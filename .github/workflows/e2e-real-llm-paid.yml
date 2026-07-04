@@ -68,7 +68,7 @@ jobs:
           # integration-tests -am closure above does NOT build — without it
           # this step only resolves when a stale Maven cache still holds
           # yesterday's SNAPSHOT jars (2026-07-04 nightly failure).
-          ./mvnw -q package -pl samples/quarkus-ai-chat -am -DskipTests
+          ./mvnw -q install -pl samples/quarkus-ai-chat -am -DskipTests
 
       - name: Set up Node
         uses: actions/setup-node@v4

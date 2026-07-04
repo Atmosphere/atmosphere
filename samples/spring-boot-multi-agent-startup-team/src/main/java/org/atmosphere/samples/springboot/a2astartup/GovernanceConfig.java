@@ -77,11 +77,17 @@ public class GovernanceConfig {
         return new KillSwitchPolicy();
     }
 
-    /** Per-session sliding-window cap — 30 requests per 60 seconds. */
+    /**
+     * Per-session sliding-window cap. The batteries-included harness governs
+     * the outbound fleet dispatch too, so one user prompt spends five policy
+     * tickets (the prompt itself plus the four metered A2A crew hops) — the
+     * cap is sized for that fan-out at a human pace (~6 prompts/minute), not
+     * for raw connection counts.
+     */
     @Bean
     public RateLimitPolicy rateLimit() {
         return new RateLimitPolicy("startup-team-rate-limit",
-                30, Duration.ofSeconds(60));
+                150, Duration.ofSeconds(60));
     }
 
     /** Cap per-turn prompt size so a pathological input can't explode cost. */

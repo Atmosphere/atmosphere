@@ -100,7 +100,7 @@ jobs:
           # JAR (target/quarkus-app/quarkus-run.jar). The previous step's
           # install does not run the package phase, so the runnable artifact
           # would not exist; package once explicitly here.
-          ./mvnw -q package -pl samples/quarkus-ai-chat -am -DskipTests
+          ./mvnw -q install -pl samples/quarkus-ai-chat -am -DskipTests
 
       - name: Set up Node
         uses: actions/setup-node@v4
