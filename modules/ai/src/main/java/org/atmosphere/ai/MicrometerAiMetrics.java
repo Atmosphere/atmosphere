@@ -21,6 +21,9 @@ import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.Timer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -64,9 +67,19 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class MicrometerAiMetrics implements AiMetrics {
 
+    private static final Logger logger = LoggerFactory.getLogger(MicrometerAiMetrics.class);
+
     private final MeterRegistry registry;
     private final String provider;
     private final AtomicInteger activeSessions = new AtomicInteger(0);
+
+    /**
+     * Set once if a co-resident instrumentation (e.g. quarkus-langchain4j)
+     * already owns an OpenTelemetry GenAI metric name with a different tag-key
+     * set — Micrometer rejects the second registration. Guards {@link
+     * #otelDualEmit(Runnable)} so observability never breaks the request path.
+     */
+    private volatile boolean otelDualEmitDisabled = false;
 
     /**
      * Creates an instance using the Micrometer global registry with provider "atmosphere".
@@ -106,7 +119,8 @@ public final class MicrometerAiMetrics implements AiMetrics {
         // OTel GenAI convention: gen_ai.client.operation.duration. Micrometer
         // exporters emit Timer durations in seconds, matching the convention's
         // unit, so this surfaces directly in GenAI dashboards.
-        timer("gen_ai.client.operation.duration", genAiTags(model)).record(totalDuration);
+        otelDualEmit(() ->
+                timer("gen_ai.client.operation.duration", genAiTags(model)).record(totalDuration));
     }
 
     @Override
@@ -156,14 +170,16 @@ public final class MicrometerAiMetrics implements AiMetrics {
         // tag is the resolved runtime name (Runtime Truth), and the response
         // model is added when the runtime reported one.
         var genAiTags = genAiTags(genAiProvider, requestModel, responseModel);
-        if (inputTokens > 0) {
-            registry.summary("gen_ai.client.token.usage", genAiTags.and("gen_ai.token.type", "input"))
-                    .record(inputTokens);
-        }
-        if (outputTokens > 0) {
-            registry.summary("gen_ai.client.token.usage", genAiTags.and("gen_ai.token.type", "output"))
-                    .record(outputTokens);
-        }
+        otelDualEmit(() -> {
+            if (inputTokens > 0) {
+                registry.summary("gen_ai.client.token.usage", genAiTags.and("gen_ai.token.type", "input"))
+                        .record(inputTokens);
+            }
+            if (outputTokens > 0) {
+                registry.summary("gen_ai.client.token.usage", genAiTags.and("gen_ai.token.type", "output"))
+                        .record(outputTokens);
+            }
+        });
     }
 
     @Override
@@ -258,5 +274,28 @@ public final class MicrometerAiMetrics implements AiMetrics {
 
     private Timer timer(String name, Tags tags) {
         return registry.timer(name, tags);
+    }
+
+    /**
+     * Record an OpenTelemetry GenAI-convention instrument, backing off
+     * permanently the first time Micrometer rejects the registration because a
+     * co-resident instrumentation (e.g. quarkus-langchain4j) already owns the
+     * metric name with a different tag-key set. Observability must never break
+     * the request path (Correctness Invariant #2), so on conflict we disable
+     * Atmosphere's dual-emit and keep recording the {@code atmosphere.ai.*}
+     * series, which uses a private namespace and cannot collide.
+     */
+    private void otelDualEmit(Runnable emit) {
+        if (otelDualEmitDisabled) {
+            return;
+        }
+        try {
+            emit.run();
+        } catch (RuntimeException e) {
+            otelDualEmitDisabled = true;
+            logger.debug("Disabling Atmosphere's OpenTelemetry GenAI dual-emit; a co-resident "
+                    + "instrumentation already registered the metric with different tag keys: {}",
+                    e.getMessage());
+        }
     }
 }

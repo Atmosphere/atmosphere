@@ -15,6 +15,10 @@
  */
 package org.atmosphere.ai;
 
+import io.micrometer.core.instrument.Meter;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.distribution.DistributionStatisticConfig;
+import io.micrometer.core.instrument.distribution.pause.PauseDetector;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -387,5 +391,45 @@ public class MicrometerAiMetricsTest {
         assertNotNull(timer, "gen_ai.client.operation.duration missing");
         assertEquals(1, timer.count());
         assertEquals(1000.0, timer.totalTime(TimeUnit.MILLISECONDS), 1.0);
+    }
+
+    @Test
+    public void testGenAiDualEmitConflictDoesNotBreakRecording() {
+        // Simulate a co-resident instrumentation (e.g. quarkus-langchain4j) that
+        // already owns the OTel metric name with a different tag-key set, so the
+        // registry rejects Atmosphere's registration of that name. Prometheus
+        // does exactly this on a tag-key mismatch — the paid-nightly Gemini
+        // disconnect-recovery leg relayed it as an in-stream error frame.
+        // Observability must never break the request path (Correctness
+        // Invariant #2): recordLatency must swallow it and keep the
+        // atmosphere.ai.* series (private namespace, cannot collide).
+        var strictRegistry = new SimpleMeterRegistry() {
+            @Override
+            protected Timer newTimer(Meter.Id id, DistributionStatisticConfig config,
+                                     PauseDetector pauseDetector) {
+                if ("gen_ai.client.operation.duration".equals(id.getName())) {
+                    throw new IllegalArgumentException("simulated meter conflict: "
+                            + "gen_ai.client.operation.duration already registered with different tag keys");
+                }
+                return super.newTimer(id, config, pauseDetector);
+            }
+        };
+        var guardedMetrics = new MicrometerAiMetrics(strictRegistry, "spring-ai");
+
+        assertDoesNotThrow(
+                () -> guardedMetrics.recordLatency("gpt-4", Duration.ofMillis(200), Duration.ofMillis(1000)),
+                "a co-resident OTel meter conflict must not propagate to the request path");
+
+        var responseTimer = strictRegistry.find("atmosphere.ai.response.duration")
+                .tag("model", "gpt-4").tag("provider", "spring-ai").timer();
+        assertNotNull(responseTimer,
+                "atmosphere.ai.response.duration must still record after an OTel conflict");
+        assertEquals(1, responseTimer.count());
+
+        // Second call stays silent too — the guard latches after the first conflict.
+        assertDoesNotThrow(
+                () -> guardedMetrics.recordLatency("gpt-4", Duration.ofMillis(150), Duration.ofMillis(800)));
+        assertEquals(2, strictRegistry.find("atmosphere.ai.response.duration")
+                .tag("model", "gpt-4").tag("provider", "spring-ai").timer().count());
     }
 }
