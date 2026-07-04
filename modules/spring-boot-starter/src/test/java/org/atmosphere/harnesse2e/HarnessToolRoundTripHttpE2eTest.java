@@ -142,6 +142,16 @@ class HarnessToolRoundTripHttpE2eTest {
                 "every plan change must emit an AiEvent.PlanUpdate for the console");
         assertEquals("completed", session.planUpdates.get(1).steps().get(0).get("status"),
                 "the last PlanUpdate must carry the replaced wire steps");
+        // One-click correlation: every PlanUpdate carries the EXACT store
+        // scope the admin endpoint below is queried with — the console's
+        // Workspace tab loads the stored view from these fields instead of
+        // requiring manual session entry.
+        for (var update : session.planUpdates) {
+            assertEquals(conversationId, update.conversationId(),
+                    "PlanUpdate must carry the conversation id the store keyed on");
+            assertEquals(AGENT, update.agentId(),
+                    "PlanUpdate must carry the owner the store keyed on");
+        }
 
         // The admin REST endpoint must serve the exact state the tool wrote —
         // same store instance, no reconstructed twin (Invariant #5).

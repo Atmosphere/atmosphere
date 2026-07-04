@@ -200,6 +200,10 @@ class AgentScopePlanBridgeTest {
         assertEquals(1, updates.size());
         assertEquals("Ship feature", updates.get(0).goal());
         assertEquals(List.of("pending", "pending"), statuses(updates.get(0)));
+        // The update carries the exact store scope so the console's Workspace
+        // tab correlates the live plan without manual session entry.
+        assertEquals("conv-9", updates.get(0).conversationId());
+        assertEquals("agent-1", updates.get(0).agentId());
         assertEquals("Ship feature", store.get("agent-1", "conv-9").orElseThrow().goal());
 
         notebook.updateSubtaskState(0, "in_progress").block();
@@ -246,10 +250,13 @@ class AgentScopePlanBridgeTest {
         assertEquals("Ship feature", current.getName());
         assertEquals(SubTaskState.IN_PROGRESS, current.getSubtasks().get(0).getState());
         assertEquals(SubTaskState.TODO, current.getSubtasks().get(1).getState());
-        // Re-hydration announces the current plan to the console.
+        // Re-hydration announces the current plan to the console, carrying
+        // the store scope for one-click correlation.
         assertEquals(1, secondSession.planUpdates().size());
         assertEquals(List.of("in_progress", "pending"),
                 statuses(secondSession.planUpdates().get(0)));
+        assertEquals("conv-9", secondSession.planUpdates().get(0).conversationId());
+        assertEquals("agent-1", secondSession.planUpdates().get(0).agentId());
     }
 
     @Test

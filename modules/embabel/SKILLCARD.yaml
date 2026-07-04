@@ -41,7 +41,7 @@ spi:
   service_loader: META-INF/services/org.atmosphere.ai.AgentRuntime
 
 capabilities:
-  count: 16
+  count: 17
   declared:
     - AGENT_ORCHESTRATION
     - BUDGET_ENFORCEMENT
@@ -58,6 +58,7 @@ capabilities:
     - TOKEN_USAGE
     - TOOL_APPROVAL
     - TOOL_CALLING
+    - VIRTUAL_FILESYSTEM
     - VISION
 
 contract_test:

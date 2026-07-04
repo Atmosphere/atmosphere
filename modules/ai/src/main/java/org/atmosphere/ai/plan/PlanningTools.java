@@ -123,7 +123,12 @@ public final class PlanningTools {
         }
         StreamingSession session = ToolScopes.session(scope);
         if (session != null) {
-            session.emit(new AiEvent.PlanUpdate(plan.toWireSteps(), plan.goal()));
+            // Carry the exact store scope on the event so consoles correlate
+            // the live plan with the stored-plan browser (the frame's
+            // top-level sessionId is the per-prompt streaming id, not the
+            // conversation id the store keys on).
+            session.emit(new AiEvent.PlanUpdate(
+                    plan.toWireSteps(), plan.goal(), conversationId, agentId));
         }
         return plan.toMarkdown();
     }

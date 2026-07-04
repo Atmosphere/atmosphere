@@ -15,6 +15,15 @@ export interface PlanStep {
 export interface LivePlan {
   goal: string | null
   steps: PlanStep[]
+  /**
+   * The conversation scope the plan store keyed this plan on — carried on the
+   * `plan-update` event itself (the frame's top-level sessionId is the
+   * per-prompt streaming id, not the store key). Null on events from servers
+   * that do not send it.
+   */
+  conversationId: string | null
+  /** The plan owner (agent / endpoint name) the store keyed this plan on. */
+  agentId: string | null
   updatedAt: number
 }
 
@@ -41,8 +50,10 @@ function parseStep(raw: unknown): PlanStep | null {
 }
 
 /**
- * Record a `plan-update` event payload (`{steps, goal}` — full-list replace
- * semantics, so each event overwrites the previous plan wholesale).
+ * Record a `plan-update` event payload (`{steps, goal, conversationId,
+ * agentId}` — full-list replace semantics, so each event overwrites the
+ * previous plan wholesale). `conversationId`/`agentId` are the store scope
+ * the Workspace tab uses for one-click correlation with the stored browser.
  */
 export function recordPlanUpdate(data: unknown): void {
   if (!data || typeof data !== 'object') return
@@ -53,6 +64,10 @@ export function recordPlanUpdate(data: unknown): void {
   livePlan.value = {
     goal: typeof obj.goal === 'string' && obj.goal ? obj.goal : null,
     steps,
+    conversationId: typeof obj.conversationId === 'string' && obj.conversationId
+      ? obj.conversationId
+      : null,
+    agentId: typeof obj.agentId === 'string' && obj.agentId ? obj.agentId : null,
     updatedAt: Date.now(),
   }
 }

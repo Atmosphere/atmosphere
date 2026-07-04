@@ -95,7 +95,7 @@ public final class AgentScopePlanBridge {
                 .needUserConfirm(false)
                 .build();
         notebook.addChangeHook(CHANGE_HOOK_ID,
-                (source, plan) -> onPlanChanged(storage, session, plan));
+                (source, plan) -> onPlanChanged(storage, session, plan, agentId, conversationId));
         // Re-hydrate the previous turn's live plan (the notebook is rebuilt
         // per request, so continuity comes from the store, not the instance).
         // recover_historical_plan resolves synchronously against the store,
@@ -112,10 +112,13 @@ public final class AgentScopePlanBridge {
      * closed its plan ({@code finish_plan} persisted the terminal snapshot
      * through {@link AtmospherePlanStorage#addPlan} before this hook fired)
      * — emit the persisted terminal snapshot so the console renders the
-     * plan's final state instead of a silent disappearance.
+     * plan's final state instead of a silent disappearance. The emitted
+     * update carries the {@code agentId × conversationId} store scope so
+     * consoles correlate the live plan with the stored-plan browser.
      */
     private static void onPlanChanged(AtmospherePlanStorage storage,
-                                      StreamingSession session, Plan plan) {
+                                      StreamingSession session, Plan plan,
+                                      String agentId, String conversationId) {
         AgentPlan snapshot;
         if (plan != null) {
             snapshot = AtmospherePlanStorage.toAgentPlan(plan);
@@ -123,6 +126,7 @@ public final class AgentScopePlanBridge {
         } else {
             snapshot = storage.storedPlan().orElseGet(AgentPlan::empty);
         }
-        session.emit(new AiEvent.PlanUpdate(snapshot.toWireSteps(), snapshot.goal()));
+        session.emit(new AiEvent.PlanUpdate(
+                snapshot.toWireSteps(), snapshot.goal(), conversationId, agentId));
     }
 }

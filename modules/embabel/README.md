@@ -126,6 +126,49 @@ Activation follows `atmosphere.ai.planning` (`PlanningMode`): under `AUTO`
 `write_todos` floor; under `BUILTIN` the bridge is not registered and only
 the portable floor is used — never both.
 
+## Native Virtual Filesystem (Embabel FileTools)
+
+`EmbabelAgentRuntime` declares `AiCapability.VIRTUAL_FILESYSTEM` on the basis
+of the Atmosphere-native dispatch path: when the harness FILESYSTEM primitive
+scopes an `AgentFileSystem` onto the session, `executeAtmosphereNative`
+attaches `AtmosphereFileTools` — Embabel's own `FileTools` tool surface
+(`createFile` / `writeFile` / `editFile` / `appendFile` / `delete` /
+`createDirectory` / `readFile`, plus the native read helpers `listFiles` /
+`findFiles` / `fileSize` / `fileCount`) — rooted at the **same**
+conversation-scoped directory (`files/{conversationId}/`) the built-in tool
+floor and the console Workspace tab read. The per-run `FileChangeLog` audit
+is mirrored onto the wire as one `ai.embabel.file_changes` metadata frame
+(one net entry per path — Embabel's `DefaultFileChangeLog` contract).
+
+Honesty notes, by design:
+
+- **Bounds are enforced, not bypassed.** A raw `FileTools.readWrite(root)`
+  would skip `AgentFileSystem.Limits` (Embabel's default write methods hit
+  the disk directly). `AtmosphereFileTools` keeps Embabel's tool surface but
+  routes every mutation — and the model-facing `readFile` — back through the
+  `WorkspaceAgentFileSystem`, so the per-file / file-count / total-byte caps
+  and traversal guards hold identically to the built-in floor. `editFile`
+  follows the store's exactly-once-match contract (the built-in `edit_file`
+  semantics) instead of Embabel's default replace-all; its tool description
+  says so.
+- **Atmosphere-native path only.** Embabel's `ProcessOptions` has no
+  per-process tool surface, so a deployed `@Agent` dispatch cannot receive
+  the bridged tools — deployed agents own their own tool configuration (the
+  same path asymmetry as `TOOL_CALLING` / `VISION`). The runtime logs a WARN
+  and emits `ai.embabel.dropped_features` when a deployed dispatch would
+  silently lose a scoped file store.
+- **Real-disk stores only.** Embabel's `FileTools` contract requires a disk
+  root; the shipped `WorkspaceAgentFileSystem` (and the
+  `AgentFileSystemProvider` views derived from it) qualifies. A custom
+  `AgentFileSystem` implementation without a disk root is skipped loudly —
+  force `atmosphere.ai.filesystem=builtin` to restore a file surface there.
+
+Activation follows `atmosphere.ai.filesystem` (`FilesystemMode`): under
+`AUTO` (default) and `NATIVE` the native surface owns the file tools and the
+harness skips the built-in six-tool floor; under `BUILTIN` only the portable
+floor registers — never both. Pinned by `EmbabelAgentRuntimeVfsTest`
+(round-trips both directions through the shared directory).
+
 ## Samples
 
 - [Spring Boot AI Chat](../../samples/spring-boot-ai-chat/) -- swap to `atmosphere-embabel` dependency for Embabel support

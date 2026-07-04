@@ -184,10 +184,13 @@ class SpringAiAlibabaPlanBridgeTest {
                 stored.steps().stream().map(AgentPlan.Step::status).toList());
         assertEquals("Writing code", stored.steps().get(0).activeForm());
 
-        // ...and the console saw the update.
+        // ...and the console saw the update, carrying the exact store scope
+        // so the Workspace tab correlates it without manual session entry.
         var updates = session.planUpdates();
         assertEquals(1, updates.size());
         assertEquals(List.of("in_progress", "pending"), statuses(updates.get(0)));
+        assertEquals("conv-9", updates.get(0).conversationId());
+        assertEquals("agent-1", updates.get(0).agentId());
 
         // Second write replaces the full list (deepagents parity).
         callWriteTodos(writeTodosCallback(provision), """
@@ -279,6 +282,9 @@ class SpringAiAlibabaPlanBridgeTest {
         assertEquals(1, secondSession.planUpdates().size());
         assertEquals(List.of("in_progress", "pending"),
                 statuses(secondSession.planUpdates().get(0)));
+        // The turn-start announcement carries the store scope too.
+        assertEquals("conv-9", secondSession.planUpdates().get(0).conversationId());
+        assertEquals("agent-1", secondSession.planUpdates().get(0).agentId());
     }
 
     @Test

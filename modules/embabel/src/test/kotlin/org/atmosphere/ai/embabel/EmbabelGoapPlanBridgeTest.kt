@@ -77,7 +77,7 @@ internal class EmbabelGoapPlanBridgeTest {
     @Test
     fun `plan formulated event emits PlanUpdate with GOAP-labeled goal and pending steps`() {
         val session = RecordingSession()
-        val bridge = EmbabelGoapPlanBridge(session)
+        val bridge = EmbabelGoapPlanBridge(session, "conv-goap", "agent-goap")
         val process = stubProcess(history = emptyList())
         val plan = Plan(listOf(stubAction("search flights"), stubAction("book flight")),
             stubGoal("flight booked"))
@@ -90,12 +90,16 @@ internal class EmbabelGoapPlanBridgeTest {
         assertEquals(
             listOf("search flights" to "pending", "book flight" to "pending"),
             update.steps().map { it["content"] to it["status"] })
+        // The construction-time scope rides every frame so consoles correlate
+        // the live plan with the workspace browser.
+        assertEquals("conv-goap", update.conversationId())
+        assertEquals("agent-goap", update.agentId())
     }
 
     @Test
     fun `executed history maps to completed steps ahead of pending plan actions`() {
         val session = RecordingSession()
-        val bridge = EmbabelGoapPlanBridge(session)
+        val bridge = EmbabelGoapPlanBridge(session, "conv-goap", "agent-goap")
         val process = stubProcess(history = listOf(
             ActionInvocation("search flights", Instant.now(), Duration.ZERO)))
         val plan = Plan(listOf(stubAction("book flight")), stubGoal("flight booked"))
@@ -111,7 +115,7 @@ internal class EmbabelGoapPlanBridgeTest {
     @Test
     fun `replan event emits completed history only with the reason on the goal label`() {
         val session = RecordingSession()
-        val bridge = EmbabelGoapPlanBridge(session)
+        val bridge = EmbabelGoapPlanBridge(session, "conv-goap", "agent-goap")
         val formulated = stubProcess(history = emptyList())
         bridge.onProcessEvent(AgentProcessPlanFormulatedEvent(
             formulated, mock(WorldState::class.java),
@@ -134,7 +138,7 @@ internal class EmbabelGoapPlanBridgeTest {
     @Test
     fun `closed session receives no plan updates`() {
         val session = RecordingSession(closed = true)
-        val bridge = EmbabelGoapPlanBridge(session)
+        val bridge = EmbabelGoapPlanBridge(session, "conv-goap", "agent-goap")
         val plan = Plan(listOf(stubAction("book flight")), stubGoal("flight booked"))
 
         bridge.onProcessEvent(AgentProcessPlanFormulatedEvent(
@@ -146,7 +150,7 @@ internal class EmbabelGoapPlanBridgeTest {
     @Test
     fun `a failing emit does not propagate into the Embabel event multicast`() {
         val session = RecordingSession(failOnEmit = true)
-        val bridge = EmbabelGoapPlanBridge(session)
+        val bridge = EmbabelGoapPlanBridge(session, "conv-goap", "agent-goap")
         val plan = Plan(listOf(stubAction("book flight")), stubGoal("flight booked"))
 
         // Must not throw — plan observability is best-effort.

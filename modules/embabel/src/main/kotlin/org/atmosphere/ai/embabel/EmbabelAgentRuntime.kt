@@ -33,6 +33,7 @@ import org.atmosphere.ai.AgentRuntime
 import org.atmosphere.ai.ExecutionHandle
 import org.atmosphere.ai.StreamingSession
 import org.atmosphere.ai.TokenUsage
+import org.atmosphere.ai.tool.ToolScopes
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicBoolean
@@ -82,6 +83,74 @@ class EmbabelAgentRuntime : AgentRuntime {
         @JvmStatic
         fun setAgentName(name: String) {
             agentName = name
+        }
+
+        /** Cap on entries in one `ai.embabel.file_changes` metadata frame. */
+        private const val MAX_AUDITED_CHANGES = 32
+
+        /**
+         * Resolve the conversation-scoped [org.atmosphere.ai.fs.AgentFileSystem]
+         * for this dispatch, mirroring the built-in file tools' resolution
+         * (and `AdkAgentRuntime.resolveAgentFileSystem`): the dispatch seam
+         * publishes the scoped store under the interface key, and
+         * resource-free pipeline paths carry the registration-time
+         * [org.atmosphere.ai.fs.AgentFileSystemProvider] instead. Returns
+         * `null` when the harness FILESYSTEM primitive did not resolve for
+         * this session (no store in scope) or the operator forced
+         * [org.atmosphere.ai.fs.FilesystemMode.BUILTIN] — in that mode the
+         * portable tool floor owns the surface and attaching the native
+         * bridge too would duplicate the file tools.
+         */
+        @JvmStatic
+        internal fun resolveAgentFileSystem(
+            session: StreamingSession?
+        ): org.atmosphere.ai.fs.AgentFileSystem? {
+            if (AiConfig.resolveFilesystemMode() == org.atmosphere.ai.fs.FilesystemMode.BUILTIN) {
+                return null
+            }
+            val injectables = session?.injectables() ?: emptyMap<Class<*>, Any>()
+            val direct = injectables[org.atmosphere.ai.fs.AgentFileSystem::class.java]
+            if (direct is org.atmosphere.ai.fs.AgentFileSystem) {
+                return direct
+            }
+            val provider = injectables[org.atmosphere.ai.fs.AgentFileSystemProvider::class.java]
+            if (provider is org.atmosphere.ai.fs.AgentFileSystemProvider) {
+                return provider.forConversation(ToolScopes.conversationId(injectables))
+            }
+            return null
+        }
+
+        /**
+         * Mirror the per-run [com.embabel.agent.tools.file.FileChangeLog]
+         * audit accumulated by [AtmosphereFileTools] onto the wire as one
+         * `ai.embabel.file_changes` metadata frame (`TYPE:path` entries,
+         * capped at [MAX_AUDITED_CHANGES]) so consoles can show what the
+         * model touched. The log holds one NET entry per path — Embabel's
+         * `DefaultFileChangeLog` contract replaces an earlier entry when the
+         * same path changes again. Best-effort observability: no frame when
+         * nothing changed or the session already closed.
+         */
+        @JvmStatic
+        internal fun emitFileChangeAudit(fileTools: AtmosphereFileTools?, session: StreamingSession) {
+            if (fileTools == null || session.isClosed) {
+                return
+            }
+            val changes = fileTools.getChanges()
+            if (changes.isEmpty()) {
+                return
+            }
+            val summary = buildString {
+                changes.take(MAX_AUDITED_CHANGES).forEachIndexed { i, change ->
+                    if (i > 0) append(", ")
+                    append(change.type).append(':').append(change.path)
+                }
+                if (changes.size > MAX_AUDITED_CHANGES) {
+                    append(" (+").append(changes.size - MAX_AUDITED_CHANGES).append(" more)")
+                }
+            }
+            session.sendMetadata("ai.embabel.file_changes", summary)
+            logger.debug("Mirrored {} Embabel file change(s) to session {}",
+                changes.size, session.sessionId())
         }
     }
 
@@ -291,7 +360,14 @@ class EmbabelAgentRuntime : AgentRuntime {
     ) {
         val droppedTools = context.tools().isNotEmpty()
         val droppedImages = context.parts().any { it is org.atmosphere.ai.Content.Image }
-        if (!droppedTools && !droppedImages) {
+        // The native file surface (AiCapability.VIRTUAL_FILESYSTEM) also only
+        // exists on the Atmosphere-native path: ProcessOptions has no tool
+        // surface, so a deployed dispatch cannot receive AtmosphereFileTools —
+        // and when the runtime's declared capability suppressed the built-in
+        // floor (FilesystemMode.AUTO), the deployed run has no file tools at
+        // all. Surface that loudly instead of silently.
+        val droppedFileStore = hasFileStoreInScope(session)
+        if (!droppedTools && !droppedImages && !droppedFileStore) {
             return
         }
         val dropped = buildList {
@@ -300,14 +376,31 @@ class EmbabelAgentRuntime : AgentRuntime {
                 val n = context.parts().count { it is org.atmosphere.ai.Content.Image }
                 add("$n image part(s)")
             }
+            if (droppedFileStore) add("the conversation file store")
         }.joinToString(", ")
         logger.warn(
             "Embabel deployed-agent dispatch [{}] ignores {} — deployed @Agent classes " +
-                "own their own tool/image configuration. Invoke without agentId() " +
+                "own their own tool/image/file configuration. Invoke without agentId() " +
                 "(Atmosphere-native path) to honor request-level features.",
             agent.name, dropped
         )
         session.sendMetadata("ai.embabel.dropped_features", dropped)
+    }
+
+    /**
+     * Whether the harness FILESYSTEM primitive scoped a store onto this
+     * session that the native surface could expose — a presence check only
+     * (no provider materialization, so no directory side effects). `false`
+     * under [org.atmosphere.ai.fs.FilesystemMode.BUILTIN], where the portable
+     * tool floor owns the surface and already flows through `context.tools()`.
+     */
+    private fun hasFileStoreInScope(session: StreamingSession): Boolean {
+        if (AiConfig.resolveFilesystemMode() == org.atmosphere.ai.fs.FilesystemMode.BUILTIN) {
+            return false
+        }
+        val injectables = session.injectables()
+        return injectables.containsKey(org.atmosphere.ai.fs.AgentFileSystem::class.java)
+            || injectables.containsKey(org.atmosphere.ai.fs.AgentFileSystemProvider::class.java)
     }
 
     /**
@@ -332,9 +425,15 @@ class EmbabelAgentRuntime : AgentRuntime {
             // AiEvent.PlanUpdate frames (EmbabelGoapPlanBridge). Skipped under
             // PlanningMode.BUILTIN — the operator asked for the portable
             // write_todos floor only, and two plan sources on one console
-            // surface would conflict (no duplicate plan surfaces).
+            // surface would conflict (no duplicate plan surfaces). The bridge
+            // carries the ToolScopes-derived conversation/agent scope so its
+            // PlanUpdate frames correlate exactly like the write_todos floor's.
             if (AiConfig.resolvePlanningMode() != org.atmosphere.ai.plan.PlanningMode.BUILTIN) {
-                options = options.withListener(EmbabelGoapPlanBridge(session))
+                val injectables = session.injectables()
+                options = options.withListener(EmbabelGoapPlanBridge(
+                    session,
+                    ToolScopes.conversationId(injectables),
+                    ToolScopes.agentId(injectables, context.agentId())))
             }
             platform.runAgentFrom(agent, options, mapOf("userMessage" to context.message()))
         } catch (e: Exception) {
@@ -413,6 +512,14 @@ class EmbabelAgentRuntime : AgentRuntime {
      * require `ai.tokens.*` telemetry should either (a) use a deployed
      * `@Agent` class (which routes through runAgentFrom) or (b) select a
      * non-Embabel runtime.
+     *
+     * **Virtual filesystem**: when the harness FILESYSTEM primitive scoped an
+     * [org.atmosphere.ai.fs.AgentFileSystem] with a disk root onto the
+     * session, this path attaches [AtmosphereFileTools] — Embabel's native
+     * `FileTools` tool surface rooted at the same conversation directory,
+     * with every mutation routed back through the store so
+     * `AgentFileSystem.Limits` hold — the wiring behind
+     * [AiCapability.VIRTUAL_FILESYSTEM]. See `resolveNativeFileTools`.
      */
     @Suppress("UNUSED_PARAMETER")
     private fun executeAtmosphereNative(
@@ -461,6 +568,14 @@ class EmbabelAgentRuntime : AgentRuntime {
         )
         val embabelImages = EmbabelToolBridge.toEmbabelImages(context.parts())
 
+        // Harness FILESYSTEM (native surface, AiCapability.VIRTUAL_FILESYSTEM):
+        // when the dispatch scoped an AgentFileSystem with a disk root, expose
+        // it through Embabel's own FileTools tool surface — AtmosphereFileTools
+        // self-publishes the @LlmTool file methods rooted at the SAME
+        // conversation directory, with every mutation routed back through the
+        // store so AgentFileSystem.Limits stay enforced (Invariant #3).
+        val nativeFileTools = resolveNativeFileTools(session)
+
         // Build the configured PromptRunner once — both the streaming and
         // blocking dispatch paths reuse the same withSystemPrompt /
         // withMessages / withTools / withImages wiring, so the only branch
@@ -481,6 +596,24 @@ class EmbabelAgentRuntime : AgentRuntime {
             }
             if (embabelImages.isNotEmpty()) {
                 r = r.withImages(embabelImages)
+            }
+            if (nativeFileTools != null) {
+                // User tools win on a name collision, same posture as the
+                // built-in floor and the ADK native file-tool pair.
+                val userToolNames = embabelTools.map { it.definition.name }.toSet()
+                val published = nativeFileTools.tools.filter { tool ->
+                    val claimed = tool.definition.name in userToolNames
+                    if (claimed) {
+                        logger.warn("Embabel native file tool '{}' skipped: a user tool " +
+                            "already claims the name", tool.definition.name)
+                    }
+                    !claimed
+                }
+                if (published.isNotEmpty()) {
+                    r = r.withTools(published)
+                    logger.debug("Attached {} Embabel native file tool(s) rooted at the " +
+                        "conversation store", published.size)
+                }
             }
             // Native ToolLoopPolicy enforcement is NOT yet wired against
             // Embabel 0.3.5 (the pinned version): PromptRunner does not
@@ -539,6 +672,7 @@ class EmbabelAgentRuntime : AgentRuntime {
                     }
                     .doOnComplete {
                         if (!session.isClosed) {
+                            emitFileChangeAudit(nativeFileTools, session)
                             session.complete()
                         }
                     }
@@ -573,8 +707,32 @@ class EmbabelAgentRuntime : AgentRuntime {
             if (result.isNotBlank()) {
                 session.send(result)
             }
+            emitFileChangeAudit(nativeFileTools, session)
             session.complete()
         }
+    }
+
+    /**
+     * Build the dispatch-scoped [AtmosphereFileTools] when the harness
+     * FILESYSTEM primitive resolved an [org.atmosphere.ai.fs.AgentFileSystem]
+     * with a disk root for this session. A scoped store *without* a disk root
+     * (a custom [org.atmosphere.ai.fs.AgentFileSystem] implementation) cannot
+     * be bridged — Embabel's `FileTools` contract is real-disk only — so the
+     * skip is logged loudly rather than faking a surface (Invariant #5).
+     */
+    private fun resolveNativeFileTools(session: StreamingSession): AtmosphereFileTools? {
+        val fs = resolveAgentFileSystem(session) ?: return null
+        val fileTools = AtmosphereFileTools.forStore(fs)
+        if (fileTools == null) {
+            logger.warn(
+                "Embabel native file surface skipped: the scoped AgentFileSystem ({}) " +
+                    "exposes no disk root — Embabel FileTools is real-disk only. Force " +
+                    "atmosphere.ai.filesystem=builtin to restore a file surface for " +
+                    "custom stores.",
+                fs.javaClass.name
+            )
+        }
+        return fileTools
     }
 
     override fun capabilities(): Set<AiCapability> = setOf(
@@ -660,6 +818,20 @@ class EmbabelAgentRuntime : AgentRuntime {
         // drives a direct PromptRunner with no planner, so no plan surface
         // exists there — same path asymmetry as TOKEN_USAGE above. Pinned
         // by EmbabelGoapPlanBridgeTest.
-        AiCapability.PLANNING
+        AiCapability.PLANNING,
+        // VIRTUAL_FILESYSTEM: honest on the Atmosphere-native path —
+        // executeAtmosphereNative attaches AtmosphereFileTools (Embabel's
+        // FileTools tool surface: createFile/writeFile/editFile/appendFile/
+        // delete/createDirectory/readFile plus the native read helpers)
+        // rooted at the SAME conversation-scoped directory the harness
+        // AgentFileSystem manages. Every mutation routes back through the
+        // WorkspaceAgentFileSystem so Limits (per-file/count/total bytes)
+        // and traversal guards hold on the native surface too (Invariant
+        // #3/#4). The deployed-agent path cannot receive per-process tools
+        // (ProcessOptions has no tool surface) — the drop is warned loudly
+        // in warnIfDeployedAgentDropsRequestFeatures, same path asymmetry
+        // as TOOL_CALLING / VISION above. Pinned by
+        // EmbabelAgentRuntimeVfsTest.
+        AiCapability.VIRTUAL_FILESYSTEM
     )
 }

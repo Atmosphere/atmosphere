@@ -61,9 +61,17 @@ import org.slf4j.LoggerFactory
  * The bridge is dispatch-scoped: [EmbabelAgentRuntime] creates one per
  * request and it dies with the request's [StreamingSession] — no
  * registration outlives the dispatch (Correctness Invariant #1).
+ *
+ * [conversationId] / [agentId] ride every emitted [AiEvent.PlanUpdate] so
+ * consoles correlate the live plan with the workspace browser. The runtime
+ * derives them with the same [org.atmosphere.ai.tool.ToolScopes] resolution
+ * the built-in `write_todos` floor keys its store with (Mode Parity) — the
+ * bridge itself never re-derives identity.
  */
 internal class EmbabelGoapPlanBridge(
-    private val session: StreamingSession
+    private val session: StreamingSession,
+    private val conversationId: String,
+    private val agentId: String
 ) : AgenticEventListener {
 
     companion object {
@@ -141,7 +149,7 @@ internal class EmbabelGoapPlanBridge(
 
     private fun emitPlanUpdate(goal: String, steps: List<AgentPlan.Step>) {
         val plan = AgentPlan(goal, steps)
-        session.emit(AiEvent.PlanUpdate(plan.toWireSteps(), plan.goal()))
+        session.emit(AiEvent.PlanUpdate(plan.toWireSteps(), plan.goal(), conversationId, agentId))
         logger.debug("Mirrored Embabel GOAP plan to session {}: goal='{}', {} step(s)",
             session.sessionId(), goal, steps.size)
     }

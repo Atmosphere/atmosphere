@@ -17,7 +17,13 @@ package org.atmosphere.ai.koog
 
 import ai.koog.agents.core.agent.AIAgent
 import ai.koog.agents.core.agent.GraphAIAgent
+import ai.koog.agents.core.agent.config.AIAgentConfig
+import ai.koog.agents.core.planner.AIAgentPlanner
+import ai.koog.agents.core.planner.AIAgentPlannerStrategy
+import ai.koog.agents.core.planner.PlannerAIAgent
 import ai.koog.agents.ext.agent.chatAgentStrategy
+import ai.koog.agents.features.eventHandler.feature.EventHandler
+import ai.koog.agents.features.eventHandler.feature.EventHandlerConfig
 import ai.koog.agents.features.eventHandler.feature.handleEvents
 import ai.koog.prompt.Prompt
 import ai.koog.prompt.dsl.prompt
@@ -72,6 +78,49 @@ class KoogAgentRuntime : AgentRuntime {
         @JvmStatic
         fun setDefaultModel(model: LLModel) {
             defaultModel = model
+        }
+
+        /**
+         * Gate for installing the [KoogPlanBridge] plan-observation feature
+         * on a planner dispatch. Mirrors the posture of the other native
+         * plan bridges (Embabel, Spring AI Alibaba): under
+         * [org.atmosphere.ai.plan.PlanningMode.BUILTIN] the operator asked
+         * for the portable `write_todos` floor only, and when the floor's
+         * tool is already on the request (the endpoint registered it because
+         * this runtime does not statically declare
+         * [AiCapability.PLANNING]), the floor owns the plan surface — two
+         * plan sources on one console surface would conflict (no duplicate
+         * plan surfaces). The planner itself still executes either way;
+         * only the observation mirror is gated.
+         */
+        internal fun shouldObservePlan(context: AgentExecutionContext): Boolean {
+            if (org.atmosphere.ai.AiConfig.resolvePlanningMode()
+                == org.atmosphere.ai.plan.PlanningMode.BUILTIN
+            ) {
+                return false
+            }
+            for (tool in context.tools()) {
+                if (org.atmosphere.ai.plan.PlanningTools.WRITE_TODOS == tool.name()) {
+                    return false
+                }
+            }
+            return true
+        }
+
+        /**
+         * Plan goal label for [KoogPlanBridge] frames: the Koog planner
+         * surface has no goal concept in 1.0 GA, so the user's message
+         * (bounded to 120 chars) stands in behind the [KoogPlanBridge.KOOG_MARKER]
+         * marker — consoles see what the plan works toward and that the
+         * plan is planner-maintained, not a model todo list.
+         */
+        internal fun planGoal(message: String?): String {
+            val trimmed = message?.trim().orEmpty()
+            if (trimmed.isEmpty()) {
+                return KoogPlanBridge.KOOG_MARKER
+            }
+            val label = if (trimmed.length > 120) trimmed.take(117) + "..." else trimmed
+            return "${KoogPlanBridge.KOOG_MARKER}: $label"
         }
     }
 
@@ -261,7 +310,16 @@ class KoogAgentRuntime : AgentRuntime {
             )
         }
 
-        if (context.tools().isNotEmpty()) {
+        // Planner dispatch wins over the default paths: when the caller
+        // attached a Koog AIAgentPlanner via KoogPlanner.attach(...), the
+        // request runs through a PlannerAIAgent (plan → execute one step →
+        // evaluate → replan). Koog 1.0 GA ships only the abstract planner
+        // surface, so this branch only ever fires with a caller-supplied
+        // planner — there is no framework default to fall back to.
+        val planner = KoogPlanner.from(context)
+        if (planner != null) {
+            executeWithPlannerAgent(executor, model, planner, context, session, cancelled, activeJob)
+        } else if (context.tools().isNotEmpty()) {
             executeWithAgent(executor, model, context, session, cancelled, activeJob)
         } else {
             executeWithExecutor(executor, model, context, session, cancelled, activeJob)
@@ -421,6 +479,132 @@ class KoogAgentRuntime : AgentRuntime {
                 lifecycleListeners, lifecycleModelName, e
             )
             logger.error("Koog agent execution failed", e)
+            if (!session.isClosed) session.error(e)
+        }
+    }
+
+    /**
+     * Planner-agent dispatch for requests carrying a caller-supplied
+     * [AIAgentPlanner] (attached via [KoogPlanner.attach]). Builds a
+     * per-request [PlannerAIAgent] around the planner and the same
+     * tool-registry / system-prompt / iteration-cap assembly the
+     * [executeWithAgent] path uses (Correctness Invariant #7 — Mode
+     * Parity), then:
+     *
+     *  - installs the standard Atmosphere event handlers (LLM streaming
+     *    frames, tool events, token usage, lifecycle spans) through the
+     *    [EventHandler] feature — Koog registers its common pipeline
+     *    handlers on the planner pipeline, so streaming/TOKEN_USAGE
+     *    behavior matches the graph-agent path;
+     *  - installs [KoogPlanBridge] when [shouldObservePlan] allows it,
+     *    mirroring every plan the planner maintains into
+     *    [AiEvent.PlanUpdate] frames keyed with the same
+     *    [org.atmosphere.ai.tool.ToolScopes] resolution the built-in
+     *    `write_todos` floor uses;
+     *  - emits the planner's final output as a terminal
+     *    [AiEvent.TextComplete] (planner LLM calls stream through the
+     *    event handlers, but the planner's own String output has no
+     *    streaming source).
+     *
+     * Cancellation, terminal-path and error semantics are byte-for-byte the
+     * [executeWithAgent] posture: cooperative Job cancel completes cleanly,
+     * unexpected cancellation and failures surface via `session.error`
+     * after firing the model-error lifecycle event.
+     */
+    private fun executeWithPlannerAgent(
+        executor: PromptExecutor, model: LLModel,
+        planner: AIAgentPlanner<String, String, *, *>,
+        context: AgentExecutionContext, session: StreamingSession,
+        cancelled: AtomicBoolean,
+        activeJob: java.util.concurrent.atomic.AtomicReference<kotlinx.coroutines.Job?> =
+            java.util.concurrent.atomic.AtomicReference()
+    ) {
+        // Same boundary honesty as the tool-loop path: the planner runs on
+        // the user's plain text message, so multi-modal parts cannot reach
+        // it — log the drop instead of silently truncating (Invariant #7).
+        if (context.parts().any { it !is org.atmosphere.ai.Content.Text }) {
+            logger.warn(
+                "Koog planner dispatch accepts a plain text input; dropping {} non-text " +
+                    "parts. Use a non-planner dispatch or a different runtime for " +
+                    "multi-modal input.",
+                context.parts().count { it !is org.atmosphere.ai.Content.Text }
+            )
+        }
+        val toolRegistry = AtmosphereToolBridge.buildRegistry(
+            context.tools(), session, context.approvalStrategy(), context.listeners(),
+            context.approvalPolicy()
+        )
+        val systemPrompt = buildSystemPrompt(context)
+        // Iteration cap parity with executeWithAgent: the planner loop
+        // increments the agent iteration counter once per plan→step→evaluate
+        // round, and Koog throws AIAgentMaxNumberOfIterationsReachedException
+        // on overflow — surfaced via session.error by the catch arm below.
+        val toolLoopPolicy = org.atmosphere.ai.llm.ToolLoopPolicies.fromOrDefault(context)
+        val maxIterations = toolLoopPolicy.maxIterations() * 2
+
+        val lifecycleListeners = context.listeners()
+        val lifecycleModelName = context.model() ?: name()
+        val observePlan = shouldObservePlan(context)
+        val injectables = session.injectables()
+        val streamingSession = session
+        val planGoalLabel = planGoal(context.message())
+        val planConversationId = org.atmosphere.ai.tool.ToolScopes.conversationId(injectables)
+        val planAgentId = org.atmosphere.ai.tool.ToolScopes.agentId(injectables, context.agentId())
+
+        val agent = PlannerAIAgent(
+            promptExecutor = executor,
+            agentConfig = AIAgentConfig(
+                prompt = prompt("atmosphere-planner") {
+                    if (systemPrompt.isNotBlank()) {
+                        system(systemPrompt)
+                    }
+                },
+                model = model,
+                maxAgentIterations = maxIterations
+            ),
+            strategy = AIAgentPlannerStrategy("atmosphere-planner", planner),
+            toolRegistry = toolRegistry
+        ) {
+            install(EventHandler.Feature) {
+                wireAtmosphereEventHandlers(cancelled, streamingSession,
+                    lifecycleListeners, lifecycleModelName)
+            }
+            if (observePlan) {
+                install(KoogPlanBridge.Feature) {
+                    // `this.` — the outer dispatch's `session` parameter
+                    // lexically shadows the Config receiver's property.
+                    this.session = streamingSession
+                    this.goal = planGoalLabel
+                    this.conversationId = planConversationId
+                    this.agentId = planAgentId
+                }
+            }
+        }
+
+        try {
+            runBlocking {
+                activeJob.set(coroutineContext[kotlinx.coroutines.Job])
+                val result = agent.run(context.message())
+                if (!cancelled.get() && !session.isClosed && result.isNotBlank()) {
+                    session.emit(AiEvent.TextComplete(result))
+                }
+                agent.close()
+            }
+            if (!session.isClosed) session.complete()
+        } catch (ce: java.util.concurrent.CancellationException) {
+            if (cancelled.get()) {
+                logger.debug("Koog planner agent cancelled by caller")
+                if (!session.isClosed) session.complete()
+            } else {
+                logger.warn("Koog planner agent cancelled unexpectedly", ce)
+                if (!session.isClosed) session.error(ce)
+            }
+            throw ce
+        } catch (e: Exception) {
+            org.atmosphere.ai.AgentLifecycleListener.fireModelError(
+                lifecycleListeners, lifecycleModelName, e
+            )
+            logger.error("Koog planner agent execution failed", e)
             if (!session.isClosed) session.error(e)
         }
     }
@@ -724,6 +908,24 @@ class KoogAgentRuntime : AgentRuntime {
         // a CheckpointStore. Honest because Koog's buildPrompt DSL threads
         // history into the Message list on every dispatch.
         AiCapability.PASSIVATION
+        // Deliberately NOT declared: PLANNING. Koog 1.0.0 GA (agents-core)
+        // ships only the ABSTRACT planner surface — AIAgentPlanner /
+        // PlannerAIAgent plus the plan lifecycle events; the concrete
+        // planners (SimpleLLMPlanner, GOAPPlanner) are beta-only in the
+        // separate agents-planner artifact, which is not a dependency. The
+        // adapter therefore has no native plan machinery to attach on its
+        // default dispatch: a planner exists only when the caller supplies
+        // one per request via KoogPlanner.attach(...). PlanningPreset
+        // consumes this flag at endpoint registration, and AUTO mode
+        // suppresses the built-in write_todos floor when it is declared —
+        // a static declaration would leave every planner-less Koog dispatch
+        // (the default) with no plan surface at all (Correctness Invariant
+        // #5, Runtime Truth: "declare ONLY when the adapter's dispatch path
+        // actually attaches the native plan machinery"). Planner-attached
+        // requests still get the native observation surface: KoogPlanBridge
+        // mirrors the plan lifecycle into AiEvent.PlanUpdate frames, gated
+        // by shouldObservePlan against the floor (no duplicate plan
+        // surfaces). Pinned end-to-end by KoogPlanBridgeTest.
     )
 
     override fun models(): List<String> {
@@ -741,13 +943,31 @@ class KoogAgentRuntime : AgentRuntime {
  * verbatim inside both branches of the `if (customStrategy != null)` choice
  * in [KoogAgentRuntime.executeWithAgent], where any future event-handler
  * change would have to be applied twice and would silently drift.
+ */
+private fun GraphAIAgent.FeatureContext.wireFeatureHandlers(
+    cancelled: AtomicBoolean,
+    session: StreamingSession,
+    listeners: List<org.atmosphere.ai.AgentLifecycleListener> = emptyList(),
+    modelName: String = "koog"
+) {
+    handleEvents {
+        wireAtmosphereEventHandlers(cancelled, session, listeners, modelName)
+    }
+}
+
+/**
+ * The shared [EventHandlerConfig] body behind [wireFeatureHandlers]: the
+ * graph-agent path reaches it through Koog's `handleEvents` sugar and the
+ * planner path ([KoogAgentRuntime.executeWithPlannerAgent]) installs the
+ * same [EventHandler] feature on the planner pipeline directly — one source
+ * of truth for both dispatch families (Correctness Invariant #7).
  *
  * Translates Koog's [StreamFrame] / tool / LLM-call events into Atmosphere
  * [AiEvent] frames on the supplied [StreamingSession]. Honors the
  * [cancelled] flag at every emission boundary so a caller-initiated cancel
  * stops emitting promptly.
  */
-private fun GraphAIAgent.FeatureContext.wireFeatureHandlers(
+private fun EventHandlerConfig.wireAtmosphereEventHandlers(
     cancelled: AtomicBoolean,
     session: StreamingSession,
     listeners: List<org.atmosphere.ai.AgentLifecycleListener> = emptyList(),
@@ -761,75 +981,73 @@ private fun GraphAIAgent.FeatureContext.wireFeatureHandlers(
     // the same dispatcher).
     val callScope =
         java.util.concurrent.atomic.AtomicReference<org.atmosphere.ai.ModelCallScope?>()
-    handleEvents {
-        onLLMStreamingFrameReceived { ctx ->
-            if (cancelled.get() || session.isClosed) return@onLLMStreamingFrameReceived
-            when (val frame = ctx.streamFrame) {
-                is StreamFrame.TextDelta -> session.emit(AiEvent.TextDelta(frame.text))
-                is StreamFrame.TextComplete -> session.emit(AiEvent.TextComplete(frame.text))
-                is StreamFrame.ReasoningDelta -> {
-                    val text = frame.text
-                    if (text != null) session.emit(AiEvent.Progress(text, null))
-                }
-                else -> {}
+    onLLMStreamingFrameReceived { ctx ->
+        if (cancelled.get() || session.isClosed) return@onLLMStreamingFrameReceived
+        when (val frame = ctx.streamFrame) {
+            is StreamFrame.TextDelta -> session.emit(AiEvent.TextDelta(frame.text))
+            is StreamFrame.TextComplete -> session.emit(AiEvent.TextComplete(frame.text))
+            is StreamFrame.ReasoningDelta -> {
+                val text = frame.text
+                if (text != null) session.emit(AiEvent.Progress(text, null))
             }
+            else -> {}
         }
-        onToolCallStarting { ctx ->
-            session.emit(AiEvent.ToolStart(ctx.toolName, unwrapJsonObject(ctx.toolArgs)))
-        }
-        onToolCallCompleted { ctx ->
-            session.emit(AiEvent.ToolResult(ctx.toolName, ctx.toolResult?.toString()))
-        }
-        onToolCallFailed { ctx ->
-            session.emit(AiEvent.ToolError(ctx.toolName, ctx.error?.message ?: "Tool failed"))
-        }
-        onLLMCallStarting { ctx ->
-            // Open the model-call span per LLM call. Koog's tool loop issues one
-            // ctx per dispatch, so callers see one start/end pair per round —
-            // matching the Built-in OpenAiCompatibleClient posture (one
-            // fireModelStart per HTTP attempt). ModelCallScope.open captures the
-            // start time and fires onModelStart in one step.
-            val messageCount = ctx.prompt.messages.size
-            val toolCount = ctx.tools.size
-            callScope.set(
-                org.atmosphere.ai.ModelCallScope.open(
-                    listeners, modelName, messageCount, toolCount
-                )
+    }
+    onToolCallStarting { ctx ->
+        session.emit(AiEvent.ToolStart(ctx.toolName, unwrapJsonObject(ctx.toolArgs)))
+    }
+    onToolCallCompleted { ctx ->
+        session.emit(AiEvent.ToolResult(ctx.toolName, ctx.toolResult?.toString()))
+    }
+    onToolCallFailed { ctx ->
+        session.emit(AiEvent.ToolError(ctx.toolName, ctx.error?.message ?: "Tool failed"))
+    }
+    onLLMCallStarting { ctx ->
+        // Open the model-call span per LLM call. Koog's tool loop issues one
+        // ctx per dispatch, so callers see one start/end pair per round —
+        // matching the Built-in OpenAiCompatibleClient posture (one
+        // fireModelStart per HTTP attempt). ModelCallScope.open captures the
+        // start time and fires onModelStart in one step.
+        val messageCount = ctx.prompt.messages.size
+        val toolCount = ctx.tools.size
+        callScope.set(
+            org.atmosphere.ai.ModelCallScope.open(
+                listeners, modelName, messageCount, toolCount
             )
+        )
+    }
+    onLLMCallCompleted { ctx ->
+        // Report typed token usage once per LLM call. The default
+        // StreamingSession.usage() sink re-emits legacy ai.tokens.* metadata keys
+        // so existing Micrometer / budget consumers keep working. Koog 1.0
+        // collapsed the per-call response list into a single (nullable)
+        // Message.Assistant on LLMCallCompletedContext — null on failure
+        // paths where the model never produced an Assistant message.
+        var atmoUsage: TokenUsage? = null
+        val meta = ctx.response?.metaInfo
+        if (meta != null) {
+            val input = meta.inputTokensCount?.toLong() ?: 0L
+            val output = meta.outputTokensCount?.toLong() ?: 0L
+            val total = meta.totalTokensCount?.toLong() ?: (input + output)
+            val usage = TokenUsage(input, output, 0L, total, null)
+            if (usage.hasCounts()) {
+                session.usage(usage)
+                atmoUsage = usage
+            }
         }
-        onLLMCallCompleted { ctx ->
-            // Phase 1: report typed token usage once per LLM call. The default
-            // StreamingSession.usage() sink re-emits legacy ai.tokens.* metadata keys
-            // so existing Micrometer / budget consumers keep working. Koog 1.0
-            // collapsed the per-call response list into a single (nullable)
-            // Message.Assistant on LLMCallCompletedContext — null on failure
-            // paths where the model never produced an Assistant message.
-            var atmoUsage: TokenUsage? = null
-            val meta = ctx.response?.metaInfo
-            if (meta != null) {
-                val input = meta.inputTokensCount?.toLong() ?: 0L
-                val output = meta.outputTokensCount?.toLong() ?: 0L
-                val total = meta.totalTokensCount?.toLong() ?: (input + output)
-                val usage = TokenUsage(input, output, 0L, total, null)
-                if (usage.hasCounts()) {
-                    session.usage(usage)
-                    atmoUsage = usage
-                }
-            }
-            // Complete the model-call span with the captured TokenUsage and
-            // wall-clock duration. If the start hook did not fire (defensive —
-            // shouldn't happen but Koog's event ordering is its own) the scope
-            // is null; fall back to firing onModelEnd directly with duration 0L
-            // so the end event still fires, matching the prior floor-at-0
-            // behavior bit-for-bit.
-            val scope = callScope.getAndSet(null)
-            if (scope != null) {
-                scope.complete(atmoUsage)
-            } else {
-                org.atmosphere.ai.AgentLifecycleListener.fireModelEnd(
-                    listeners, modelName, atmoUsage, 0L
-                )
-            }
+        // Complete the model-call span with the captured TokenUsage and
+        // wall-clock duration. If the start hook did not fire (defensive —
+        // shouldn't happen but Koog's event ordering is its own) the scope
+        // is null; fall back to firing onModelEnd directly with duration 0L
+        // so the end event still fires, matching the prior floor-at-0
+        // behavior bit-for-bit.
+        val scope = callScope.getAndSet(null)
+        if (scope != null) {
+            scope.complete(atmoUsage)
+        } else {
+            org.atmosphere.ai.AgentLifecycleListener.fireModelEnd(
+                listeners, modelName, atmoUsage, 0L
+            )
         }
     }
 }

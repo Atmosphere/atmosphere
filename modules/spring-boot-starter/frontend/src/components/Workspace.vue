@@ -29,6 +29,11 @@ const sessionId = ref('')
 const error = ref<string | null>(null)
 const loading = ref(false)
 
+// True once the operator manually picked/typed a session — from then on the
+// live plan's conversation id no longer overwrites their choice (manual
+// entry stays the fallback for token-gated or cross-conversation browsing).
+const manualSession = ref(false)
+
 // Plan snapshot (persisted state from the admin endpoint, per owner × session)
 const snapshot = ref<PlanSnapshot | null>(null)
 const snapshotStatus = ref<string | null>(null)
@@ -207,11 +212,37 @@ async function loadWorkspace() {
   await Promise.all([loadSnapshot(), loadFiles('')])
 }
 
+/**
+ * One-click correlation: live `plan-update` events carry the exact
+ * conversation id (and owner) the plan/file stores key on, so the stored
+ * view can be pre-filled and loaded without manual session entry. Adopts
+ * only while the operator has not manually picked a session. Returns true
+ * when the selection changed and the stored view needs a reload.
+ */
+function adoptLiveConversation(): boolean {
+  const lp = livePlan.value
+  if (!lp?.conversationId || manualSession.value) return false
+  let changed = false
+  if (lp.agentId && lp.agentId !== selectedOwner.value
+      && owners.value.some((o) => o.owner === lp.agentId)) {
+    selectedOwner.value = lp.agentId
+    changed = true
+  }
+  if (sessionId.value !== lp.conversationId) {
+    sessionId.value = lp.conversationId
+    changed = true
+  }
+  return changed
+}
+
 async function refresh() {
   loading.value = true
   error.value = null
   try {
     await loadOwners()
+    // Adopt the live conversation before the sessions fallback so the chat's
+    // own conversation wins over "first active session" auto-selection.
+    adoptLiveConversation()
     await loadSessions()
     await loadWorkspace()
   } finally {
@@ -223,9 +254,25 @@ async function refresh() {
 // loadOwners cannot race refresh()'s own loadSessions/loadWorkspace sequence.
 async function onOwnerChange() {
   sessionId.value = ''
+  manualSession.value = false
   await loadSessions()
   await loadWorkspace()
 }
+
+// The operator explicitly chose a session — stop auto-adopting the live one.
+async function onManualSessionPick() {
+  manualSession.value = true
+  await loadWorkspace()
+}
+
+// Follow the live plan's conversation while the tab is open: a new
+// conversation id on the stream re-targets the stored view automatically
+// (unless the operator manually picked a session).
+watch(() => livePlan.value?.conversationId, async () => {
+  if (active.value && adoptLiveConversation()) {
+    await loadWorkspace()
+  }
+})
 
 watch(active, (a) => { if (a) refresh() })
 onMounted(() => { if (active.value) refresh() })
@@ -297,7 +344,7 @@ onMounted(() => { if (active.value) refresh() })
             v-model="sessionId"
             class="owner-select"
             data-testid="workspace-session-select"
-            @change="loadWorkspace"
+            @change="onManualSessionPick"
           >
             <option v-for="s in knownSessions" :key="s" :value="s">{{ s }}</option>
           </select>
@@ -306,6 +353,7 @@ onMounted(() => { if (active.value) refresh() })
             class="session-input"
             placeholder="session id"
             data-testid="workspace-session"
+            @input="manualSession = true"
             @keyup.enter="loadWorkspace"
           />
           <button class="refresh-btn" :disabled="!sessionId || !selectedOwner" @click="loadWorkspace">

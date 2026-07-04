@@ -144,7 +144,8 @@ public final class SpringAiAlibabaPlanBridge {
         if (stored == null || stored.steps().isEmpty() || !hasOpenSteps(stored)) {
             return null;
         }
-        session.emit(new AiEvent.PlanUpdate(stored.toWireSteps(), stored.goal()));
+        session.emit(new AiEvent.PlanUpdate(
+                stored.toWireSteps(), stored.goal(), conversationId, agentId));
         return "## Current todo list (restored from the previous turn)\n"
                 + stored.toMarkdown()
                 + "\nKeep maintaining this list with the write_todos tool — every call "
@@ -172,7 +173,8 @@ public final class SpringAiAlibabaPlanBridge {
         var goal = store.get(agentId, conversationId).map(AgentPlan::goal).orElse(null);
         var plan = toAgentPlan(todos, goal);
         store.put(agentId, conversationId, plan);
-        session.emit(new AiEvent.PlanUpdate(plan.toWireSteps(), plan.goal()));
+        session.emit(new AiEvent.PlanUpdate(
+                plan.toWireSteps(), plan.goal(), conversationId, agentId));
     }
 
     /**

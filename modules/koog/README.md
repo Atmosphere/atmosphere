@@ -68,6 +68,8 @@ KoogAgentRuntime.setPromptExecutor(executor)
 | `KoogAgentRuntime` | `AgentRuntime` SPI implementation (priority 100) |
 | `AtmosphereToolBridge` | Translates Atmosphere `ToolDefinition` to Koog `Tool` with HITL approval gating |
 | `KoogStrategy` | Per-request bridge for swapping the default `chatAgentStrategy()` with a custom `AIAgentGraphStrategy` |
+| `KoogPlanner` | Per-request bridge for dispatching through a caller-supplied `AIAgentPlanner` (Koog's `PlannerAIAgent`) |
+| `KoogPlanBridge` | Read-only observation feature mirroring planner lifecycle events into `AiEvent.PlanUpdate` frames |
 | `AtmosphereKoogAutoConfiguration` | Spring Boot auto-configuration |
 
 ## Per-Request Strategy (`KoogStrategy`)
@@ -102,6 +104,50 @@ allow multi-step graphs); when absent, the default chat-agent fast path is
 unchanged. Feature handlers (`onAfterLLMCall`, `onToolCall`, `onAgentBeforeClosed`,
 …) are wired identically in both paths via a shared `wireFeatureHandlers`
 extension.
+
+## Per-Request Planner (`KoogPlanner`)
+
+Koog 1.0 GA (`agents-core`) ships the *abstract* planner surface —
+`AIAgentPlanner` / `JavaAIAgentPlanner`, the `PlannerAIAgent` runner, and the
+plan lifecycle events — while the concrete planners (`SimpleLLMPlanner`,
+`GOAPPlanner`) are beta-only in the separate `agents-planner` artifact, which
+is **not** a dependency of this adapter. A planner is therefore always
+caller-supplied: subclass `AIAgentPlanner` and attach it per request:
+
+```kotlin
+class ResearchPlanner : AIAgentPlanner<String, String, MyState, List<String>>() {
+    override fun initializeState(input: String) = MyState(input)
+    override fun provideOutput(state: MyState) = state.render()
+    override suspend fun buildPlan(context: AIAgentPlannerContext, state: MyState, plan: List<String>?) =
+        state.remainingSteps()
+    override suspend fun executeStep(context: AIAgentPlannerContext, state: MyState, plan: List<String>) =
+        state.execute(plan.first())
+    override suspend fun isPlanCompleted(context: AIAgentPlannerContext, state: MyState, plan: List<String>) =
+        state.done()
+}
+
+val ctx = KoogPlanner.attach(baseContext, ResearchPlanner())
+runtime.execute(ctx, session)
+```
+
+The runtime builds a per-request `PlannerAIAgent` around the planner (same
+tool registry, system prompt, and iteration cap as the tool-loop path, with
+LLM/tool/usage events wired through the shared `EventHandler` handlers), and
+— unless the built-in `write_todos` floor already owns the request's plan
+surface, or `atmosphere.ai.planning=builtin` — installs `KoogPlanBridge`,
+which mirrors every plan the planner maintains into `AiEvent.PlanUpdate`
+frames (`pending` / `in_progress` / `completed` / `abandoned` statuses,
+scope-keyed like the floor's store writes).
+
+> **Why `AiCapability.PLANNING` is deliberately not declared:** the harness
+> consumes the flag at endpoint registration and suppresses the portable
+> `write_todos` floor when a runtime declares it (AUTO mode, native wins).
+> Koog's native plan machinery only exists on requests that attach a
+> caller-supplied planner — the default chat dispatch has none — so a static
+> declaration would leave planner-less dispatches with no plan surface at
+> all (Runtime Truth). Planner-attached requests still get the full native
+> observation surface described above, pinned end-to-end by
+> `KoogPlanBridgeTest`.
 
 ## Per-Request Tool-Loop Cap (`ToolLoopPolicy`)
 

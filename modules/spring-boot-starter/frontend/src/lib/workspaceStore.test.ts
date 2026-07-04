@@ -55,6 +55,30 @@ describe('recordPlanUpdate', () => {
     expect(livePlan.value!.steps).toEqual([])
   })
 
+  it('records the store scope (conversationId/agentId) for one-click correlation', () => {
+    recordPlanUpdate({
+      steps: [{ content: 'Step', status: 'pending' }],
+      conversationId: 'conv-42',
+      agentId: 'coding-agent',
+    })
+    expect(livePlan.value!.conversationId).toBe('conv-42')
+    expect(livePlan.value!.agentId).toBe('coding-agent')
+  })
+
+  it('treats a missing or malformed store scope as null (older servers)', () => {
+    recordPlanUpdate({ steps: [{ content: 'Step', status: 'pending' }] })
+    expect(livePlan.value!.conversationId).toBeNull()
+    expect(livePlan.value!.agentId).toBeNull()
+
+    recordPlanUpdate({
+      steps: [{ content: 'Step', status: 'pending' }],
+      conversationId: 42,
+      agentId: { nested: true },
+    })
+    expect(livePlan.value!.conversationId).toBeNull()
+    expect(livePlan.value!.agentId).toBeNull()
+  })
+
   it('ignores non-object payloads entirely', () => {
     recordPlanUpdate('garbage')
     recordPlanUpdate(null)

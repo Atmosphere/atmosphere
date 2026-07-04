@@ -143,7 +143,7 @@ public class AgentPlanTest {
         // PlanUpdate survives it without custom serializers.
         var plan = new AgentPlan("g", List.of(
                 new AgentPlan.Step("a", PlanStatus.IN_PROGRESS, "doing a")));
-        var event = new AiEvent.PlanUpdate(plan.toWireSteps(), plan.goal());
+        var event = new AiEvent.PlanUpdate(plan.toWireSteps(), plan.goal(), "conv-7", "agent-7");
 
         assertEquals("plan-update", event.eventType());
 
@@ -156,18 +156,23 @@ public class AgentPlanTest {
         assertTrue(json.contains("\"goal\":\"g\""), json);
         assertTrue(json.contains("\"status\":\"in_progress\""), json);
         assertTrue(json.contains("\"activeForm\":\"doing a\""), json);
+        // The store scope must ride the wire so consoles correlate the live
+        // plan with the stored-plan browser (the frame's top-level sessionId
+        // is the per-prompt streaming id, not the conversation id).
+        assertTrue(json.contains("\"conversationId\":\"conv-7\""), json);
+        assertTrue(json.contains("\"agentId\":\"agent-7\""), json);
     }
 
     @Test
     public void planUpdateStepsAreDefensivelyCopied() {
         var steps = new java.util.ArrayList<Map<String, Object>>();
         steps.add(Map.of("content", "a", "status", "pending"));
-        var event = new AiEvent.PlanUpdate(steps, null);
+        var event = new AiEvent.PlanUpdate(steps, null, null, null);
 
         steps.add(Map.of("content", "b", "status", "pending"));
 
         assertEquals(1, event.steps().size());
-        assertTrue(new AiEvent.PlanUpdate(null, null).steps().isEmpty(),
+        assertTrue(new AiEvent.PlanUpdate(null, null, null, null).steps().isEmpty(),
                 "null steps must collapse to an empty list");
     }
 }

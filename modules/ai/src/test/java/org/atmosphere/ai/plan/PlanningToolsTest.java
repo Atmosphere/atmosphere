@@ -155,6 +155,14 @@ public class PlanningToolsTest {
         assertEquals("Ship the feature", update.goal());
         assertEquals(3, update.steps().size());
         assertEquals("in_progress", update.steps().get(1).get("status"));
+
+        // 4. One-click correlation: the event carries the EXACT keys the
+        // plan was stored under, so the console's Workspace tab can load the
+        // stored view without manual session entry.
+        assertEquals("conv-42", update.conversationId(),
+                "the event must carry the conversation id the store keyed on");
+        assertEquals("agent-x", update.agentId(),
+                "the event must carry the owner the store keyed on");
     }
 
     @Test

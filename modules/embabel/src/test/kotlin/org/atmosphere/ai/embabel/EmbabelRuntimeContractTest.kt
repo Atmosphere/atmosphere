@@ -116,6 +116,7 @@ internal class EmbabelRuntimeContractTest : AbstractAgentRuntimeContractTest() {
         AiCapability.PASSIVATION,
         AiCapability.CANCELLATION,
         AiCapability.PLANNING,
+        AiCapability.VIRTUAL_FILESYSTEM,
     )
 
     /**

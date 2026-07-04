@@ -252,10 +252,23 @@ public sealed interface AiEvent {
      * {@code completed} / {@code abandoned}) — the exact shape
      * {@link org.atmosphere.ai.plan.AgentPlan#toWireSteps()} produces.
      *
-     * @param steps the full ordered step list (full-list replace semantics)
-     * @param goal  the plan's goal, or {@code null} when none was declared
+     * <p>The frame's top-level {@code sessionId} is the per-prompt streaming
+     * id, so the event itself carries the store scope: {@code conversationId}
+     * / {@code agentId} are the exact keys the emitter used against the
+     * {@link org.atmosphere.ai.plan.AgentPlanStore} (the {@code ToolScopes}
+     * derivation: {@code ai.conversationId} attribute, else resource uuid,
+     * else session id). Consoles use them to correlate the live plan with the
+     * stored-plan browser without manual session entry.</p>
+     *
+     * @param steps          the full ordered step list (full-list replace semantics)
+     * @param goal           the plan's goal, or {@code null} when none was declared
+     * @param conversationId the conversation scope the plan is keyed on, or
+     *                       {@code null} when the emitter has no scope
+     * @param agentId        the plan owner (agent / endpoint name), or
+     *                       {@code null} when the emitter has no owner scope
      */
-    record PlanUpdate(java.util.List<Map<String, Object>> steps, String goal) implements AiEvent {
+    record PlanUpdate(java.util.List<Map<String, Object>> steps, String goal,
+                      String conversationId, String agentId) implements AiEvent {
         public PlanUpdate {
             steps = steps != null ? java.util.List.copyOf(steps) : java.util.List.of();
         }
