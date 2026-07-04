@@ -81,7 +81,15 @@ test.describe('Chat over WebTransport', () => {
     await input.fill('Hello over HTTP/3!');
     await page.getByTestId('chat-send').click();
 
-    await expect(page.getByText('Hello over HTTP/3!')).toBeVisible({ timeout: 10_000 });
+    // Two bubbles prove the FULL round-trip: the local user bubble (exact
+    // match) and the server's broadcast echo the console now renders
+    // (author-prefixed) — the echo only exists if the frame came back over
+    // the wire, so this is strictly stronger than the old single assertion
+    // (which also became ambiguous once the echo rendered).
+    await expect(page.getByText('Hello over HTTP/3!', { exact: true }))
+      .toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('console: Hello over HTTP/3!'))
+      .toBeVisible({ timeout: 10_000 });
   });
 
   test('no handshake errors persist after connection', async ({ page }) => {

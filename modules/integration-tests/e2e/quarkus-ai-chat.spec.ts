@@ -322,15 +322,15 @@ test.describe('Quarkus AI Chat', () => {
   //
   // Both clients subscribe to the same Atmosphere broadcaster
   // (/atmosphere/ai-chat). Atmosphere's default DefaultBroadcaster fans out
-  // every published frame to every subscribed AtmosphereResource — so when
-  // client A's @Prompt fires session.send(...), client B should observe the
-  // same streaming-text frames tagged with A's sessionId. This is the
-  // canonical channel-style behavior of the framework; if a regression
-  // narrows it to per-resource emit (or worse, drops the second subscriber),
-  // multi-tenant chat layouts that assume fanout would break silently.
-  // The assertion is symmetrical: both clients must see at least one
-  // streaming-text frame after A sends a prompt.
-  test('broadcaster fanout: second client receives frames from first client\'s prompt',
+  // @AiEndpoint prompt replies are PER-SESSION: session.stream targets the
+  // requesting resource, not a broadcast room (the same contract the
+  // ai-tools multi-client spec pins — a second client must NOT receive
+  // another user's private AI reply). This test originally asserted the
+  // opposite (broadcaster fanout) but never ran in CI — the lane's package
+  // step failed behind an advisory continue-on-error mask — and the
+  // fanout premise fails on pre-harness builds too (verified 2026-07-04
+  // against the 2026-07-02 jar: A streamed 9 frames, B received zero).
+  test('per-session isolation: second client must not receive first client\'s reply',
     async ({}, testInfo) => {
       test.skip(!REAL_LLM, 'Fanout test requires LLM_MODE=real-ollama');
       testInfo.setTimeout(90_000);
@@ -359,9 +359,10 @@ test.describe('Quarkus AI Chat', () => {
         const bText = b.events.filter(
           (e) => e.type === 'streaming-text' || e.event === 'text-delta');
         expect(bText.length,
-          'observer (B) must see streaming-text frames via broadcaster fanout — '
-          + 'a regression here would break multi-tenant chat broadcasts')
-          .toBeGreaterThanOrEqual(1);
+          'observer (B) must NOT receive another session\'s streaming reply — '
+          + 'leaking frames across resources would broadcast private AI '
+          + 'answers to every connected client')
+          .toBe(0);
       } finally {
         a.close();
         b.close();
