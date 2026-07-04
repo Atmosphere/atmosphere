@@ -73,6 +73,25 @@ export class AiWsClient {
     this.ws.send(prompt);
   }
 
+  /**
+   * Send a prompt, resending ONCE if no event arrives within resendAfterMs.
+   * A cold-start WebSocket upgrade can lose the very first data frame (the
+   * raw test handler reads one line per onRequest dispatch; a frame landing
+   * while the upgrade dispatch is still arming suspend() is dropped) — a
+   * single resend makes the first turn deterministic without masking real
+   * streaming failures (a broken stream still produces zero events twice).
+   */
+  sendResilient(prompt: string, resendAfterMs = 8_000): void {
+    this.send(prompt);
+    const initialCount = this.events.length;
+    setTimeout(() => {
+      if (this.events.length === initialCount
+          && this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.send(prompt);
+      }
+    }, resendAfterMs);
+  }
+
   /** Wait for a complete or error event. */
   async waitForDone(timeoutMs = 30_000): Promise<void> {
     if (this.events.some(e => e.type === 'complete' || e.type === 'error')) {

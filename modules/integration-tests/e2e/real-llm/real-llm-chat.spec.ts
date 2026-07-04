@@ -51,7 +51,7 @@ test.describe('Real LLM — basic chat (Tier 1/2)', () => {
     const client = new AiWsClient(server.wsUrl, '/ai/real/chat');
     try {
       await client.connect();
-      client.send('Say hello in one short sentence.');
+      client.sendResilient('Say hello in one short sentence.');
       await client.waitForDone(30_000);
 
       // Atmosphere emits text in two wire formats depending on which code
