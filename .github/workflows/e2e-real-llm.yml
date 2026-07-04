@@ -86,21 +86,23 @@ jobs:
             }' | head -c 500 || echo "Warm-up curl exited non-zero (will still run spec)"
           echo
 
-      - name: Build atmosphere-ai + integration-tests
+      - name: Build reactor (full install, tests skipped)
         run: |
-          # integration-tests is required so mvnw exec:java can load
-          # AiFeatureTestServer (the Playwright fixture spawns it). -am
-          # pulls all transitive modules including ai, ai-test, and the
-          # runtime bridges the real-LLM handler touches at startup.
-          ./mvnw -q install -pl modules/integration-tests -am -DskipTests
+          # Full-reactor install, exactly like ci.yml's boot gate: a scoped
+          # -pl ... -am build fails Quarkus's extension dependency
+          # verification on a cold ~/.m2 (the deployment artifact resolves
+          # in-reactor instead of from the repo). This also provides
+          # integration-tests (the Playwright fixture spawns
+          # AiFeatureTestServer from it) and every sample the lane boots.
+          ./mvnw -B -q install -DskipTests -Dgpg.skip=true
 
       - name: Package quarkus-ai-chat sample
         run: |
-          # The quarkus-ai-chat playwright project drives the packaged Quarkus
-          # JAR (target/quarkus-app/quarkus-run.jar). The previous step's
-          # install does not run the package phase, so the runnable artifact
-          # would not exist; package once explicitly here.
-          ./mvnw -q install -pl samples/quarkus-ai-chat -am -DskipTests
+          # The quarkus-ai-chat playwright project drives the packaged
+          # quarkus-run.jar. The full-reactor install above already built and
+          # installed every dependency; this scoped package just (re)produces
+          # target/quarkus-app/quarkus-run.jar for the fixture to boot.
+          ./mvnw -q package -pl samples/quarkus-ai-chat -DskipTests
 
       - name: Set up Node
         uses: actions/setup-node@v4
