@@ -63,7 +63,12 @@ jobs:
         run: |
           # The quarkus-ai-chat playwright project drives the packaged
           # quarkus-run.jar, which install -DskipTests does not produce.
-          ./mvnw -q package -pl samples/quarkus-ai-chat -DskipTests
+          # -am is load-bearing: the sample depends on the quarkus extension
+          # modules (extension, admin-extension, langchain4j, grpc) which the
+          # integration-tests -am closure above does NOT build — without it
+          # this step only resolves when a stale Maven cache still holds
+          # yesterday's SNAPSHOT jars (2026-07-04 nightly failure).
+          ./mvnw -q package -pl samples/quarkus-ai-chat -am -DskipTests
 
       - name: Set up Node
         uses: actions/setup-node@v4
