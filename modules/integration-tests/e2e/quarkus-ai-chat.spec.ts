@@ -332,7 +332,12 @@ test.describe('Quarkus AI Chat', () => {
   // against the 2026-07-02 jar: A streamed 9 frames, B received zero).
   test('per-session isolation: second client must not receive first client\'s reply',
     async ({}, testInfo) => {
-      test.skip(!REAL_LLM, 'Fanout test requires LLM_MODE=real-ollama');
+      // Session-isolation semantics are provider-independent; run this only
+      // on local Ollama — the spec's rapid back-to-back prompts trip remote
+      // free-tier per-minute rate limits (Gemini 429s turned A's stream into
+      // an instant error frame on the 2026-07-04 paid dispatch).
+      test.skip(process.env.LLM_MODE !== 'real-ollama',
+        'isolation test runs on LLM_MODE=real-ollama only');
       testInfo.setTimeout(90_000);
 
       const wsUrl = server.baseUrl.replace('http', 'ws');
@@ -343,9 +348,8 @@ test.describe('Quarkus AI Chat', () => {
         await b.connect();
 
         a.send('Say hello in one short sentence.');
-        // Both clients race to collect frames; A drives the prompt, B
-        // observes via broadcaster fanout. We wait on A's terminal frame as
-        // the rendezvous, then sample B's collected events.
+        // A drives the prompt; B observes. We wait on A's terminal frame as
+        // the rendezvous, then assert B saw none of A's private reply.
         await a.waitForDone(45_000);
         // Give B a brief settling window for any in-flight frames.
         await new Promise((r) => setTimeout(r, 500));
