@@ -124,6 +124,11 @@ public class AiEndpointProcessorHarnessPresetTest {
         assertNotNull(handler.memory());
         assertEquals(7, handler.memory().maxMessages(),
                 "annotation-configured history budget must be preserved");
+        assertEquals("ACTIVE",
+                installedPreset().runtimeState()
+                        .get(HarnessPreset.PRIMITIVE_CONVERSATION_MEMORY),
+                "an annotation-attached memory on a harness-resolved path must publish "
+                        + "ACTIVE — the seed alone stays INACTIVE(no-endpoint) (Invariant #5)");
     }
 
     @Test

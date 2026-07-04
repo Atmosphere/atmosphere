@@ -6,12 +6,12 @@ long-term memory, a prompt-cache default, selectable conversation compaction
 and the fleet delegation primitive — and reports each primitive's *actual*
 runtime state (never configuration intent) at `/api/console/info`. The engine
 is `org.atmosphere.ai.preset.HarnessPreset`, driven by one granular attribute:
-`harness()` on `@Agent` and `@AiEndpoint`, typed by the
+`harness()` on `@Agent`, `@Coordinator` and `@AiEndpoint`, typed by the
 `org.atmosphere.ai.preset.Harness` enum:
 
 | Feature | What it turns on |
 |---|---|
-| `Harness.MEMORY` | Conversation memory, the auto-attached long-term-memory interceptor, and the compaction seam. |
+| `Harness.MEMORY` | The auto-attached long-term-memory interceptor, the compaction seam, and — on `@AiEndpoint` paths that keep `conversationMemory = false` — flipping conversation memory on (`@Agent`/`@Coordinator` resolve conversation memory unconditionally). |
 | `Harness.CACHE` | Prompt-cache default seeding — endpoints whose annotation keeps `promptCache = NONE` are seeded with a `CONSERVATIVE` policy. |
 | `Harness.DELEGATION` | The fleet delegation primitive — the built-in `delegate_task` tool plus the governance wrap on the outbound dispatch edge. |
 | `Harness.ALL` | Sentinel that expands to `{MEMORY, CACHE, DELEGATION}` — the full harness. |
@@ -23,14 +23,26 @@ is `org.atmosphere.ai.preset.HarnessPreset`, driven by one granular attribute:
   attribute at all:
 
   ```java
-  @Agent(name = "research-agent", endpoint = "/atmosphere/a2a/research")
-  public class ResearchAgent { /* @AgentSkill handlers */ }
+  @Agent(name = "support-agent")
+  public class SupportAgent {
+      @Prompt
+      public void onPrompt(String message, StreamingSession session) { /* ... */ }
+  }
   ```
 
   Narrow the set to pick individual features — `@Agent(harness =
   {Harness.MEMORY})` keeps memory but skips prompt-cache seeding and
   delegation — or opt an agent down to a bare loop with
-  `@Agent(harness = {})`.
+  `@Agent(harness = {})`. **Headless agents are outside the harness**: an
+  agent with protocol skill handlers but no `@Prompt` method (or
+  `headless = true`) has no prompt loop for the harness to complete, so
+  `harness()` does not apply there (a boot-time INFO log says so).
+
+- **`@Coordinator` — batteries-included by default, like `@Agent`.**
+  `harness()` defaults to `{Harness.ALL}`; narrow it the same way
+  (`@Coordinator(harness = {Harness.DELEGATION})` keeps the `delegate_task`
+  tool and governance wrap but skips memory and cache seeding) or opt down
+  with `harness = {}`.
 
 - **`@AiEndpoint` — bare by default, per-endpoint opt-in.** `harness()`
   defaults to `{}`; an endpoint opts in explicitly:
@@ -47,15 +59,16 @@ is `org.atmosphere.ai.preset.HarnessPreset`, driven by one granular attribute:
 - **App-wide flag — tri-state.** `atmosphere.ai.harness.enabled` refines the
   annotations:
 
-  | `atmosphere.ai.harness.enabled` | `@Agent` (default `{ALL}`) | `@AiEndpoint` (default `{}`) |
+  | `atmosphere.ai.harness.enabled` | `@Agent` / `@Coordinator` (default `{ALL}`) | `@AiEndpoint` (default `{}`) |
   |---|---|---|
   | unset (the default) | full harness | bare — opts in via `harness = {...}` |
   | `true` | full harness | full harness even when the annotation stays empty |
   | `false` (kill switch) | off | off |
 
   `false` is the operational / compliance kill switch: harness features stay
-  off everywhere, beating every annotation. `@Agent(harness = {})` is an
-  explicit per-agent opt-down that even `true` does not override.
+  off everywhere, beating every annotation. `@Agent(harness = {})` /
+  `@Coordinator(harness = {})` is an explicit per-class opt-down that even
+  `true` does not override.
 
 - **Path carve-outs.** `atmosphere.ai.harness.exclude-paths` is a
   comma-separated list of exact endpoint paths the harness skips:
@@ -69,11 +82,8 @@ is `org.atmosphere.ai.preset.HarnessPreset`, driven by one granular attribute:
   ```
 
 Precedence, strongest first: kill switch (`false`) → `exclude-paths` → the
-annotation's `harness()` (any non-empty value, including `@Agent`'s
-batteries-included default) → app-wide `true` → off.
-
-`@Coordinator` carries no `harness()` attribute; its delegation primitive
-resolves from the app-wide flag.
+annotation's `harness()` (any non-empty value, including the
+batteries-included `@Agent`/`@Coordinator` default) → app-wide `true` → off.
 
 ## What the preset completes
 
@@ -146,6 +156,13 @@ Quarkus binds `quarkus.atmosphere.ai.harness.*`; plain servlet reads the
 `org.atmosphere.ai.harness.*` init-params. The `harness()` annotation
 attribute behaves identically on all three.
 
+One container caveat: the Quarkus config root is `BUILD_AND_RUN_TIME_FIXED`
+(the flag is baked into servlet init-params by a `@BuildStep`), so changing
+`quarkus.atmosphere.ai.harness.*` — including the `enabled=false` kill
+switch — requires a **rebuild**, not just a restart; Quarkus ignores runtime
+overrides of build-time-fixed properties. On Spring Boot and plain servlet
+the flag is read at startup, so a restart suffices.
+
 ## Batteries-included dependency
 
 `atmosphere-ai-spring-boot-starter` bundles the modules the primitives resolve
@@ -155,10 +172,15 @@ dark for a missing jar.
 
 ## Example
 
-`samples/spring-boot-personal-assistant` exercises both annotation surfaces:
-its plain `@AiEndpoint` `UpstreamMcpAgent` opts in with
+`samples/spring-boot-personal-assistant` exercises the opt-in surface: its
+plain `@AiEndpoint` `UpstreamMcpAgent` opts in with
 `harness = {Harness.ALL}` and gains long-term memory with no per-class
-wiring — replacing the sample's former three-class static-holder wiring —
-while its `ResearchAgent` crew member rides the `@Agent` batteries-included
-default. The sample's `LongTermMemoryConsumerTest` pins cross-session fact
-recall through the preset, and its README walks the full flow.
+wiring — replacing the sample's former three-class static-holder wiring.
+(Its `ResearchAgent` crew member is headless — skill handlers, no
+`@Prompt` — so the harness does not apply to it; the booted default-on
+truth for a prompt-loop `@Agent` is pinned by the starter's
+`HarnessRuntimeTruthHttpE2eTest`.)
+The sample's `LongTermMemoryConsumerTest` pins cross-session fact
+recall against a preset-shaped interceptor (the preset attach path itself is
+pinned by `AiEndpointProcessorHarnessPresetTest`), and its README walks the
+full flow.

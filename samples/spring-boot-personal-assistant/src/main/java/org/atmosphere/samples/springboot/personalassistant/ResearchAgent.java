@@ -36,9 +36,10 @@ import org.atmosphere.agent.annotation.Agent;
                 + "can speak to it confidently.",
         version = "1.0.0",
         endpoint = "/atmosphere/a2a/research"
-        // the harness is on by default for @Agent (harness() defaults to
-        // {Harness.ALL}: long-term memory + prompt-cache + delegation);
-        // declare harness = {} to opt an agent down to a bare loop
+        // This agent is headless (@AgentSkill handlers, no @Prompt), so the
+        // batteries-included harness() default does NOT apply here — the
+        // harness completes prompt-loop agents only. The sample's harness
+        // consumer is the UpstreamMcpAgent @AiEndpoint (harness = {ALL}).
 )
 public class ResearchAgent {
 

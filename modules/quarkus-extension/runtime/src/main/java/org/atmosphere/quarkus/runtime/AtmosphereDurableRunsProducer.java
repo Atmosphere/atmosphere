@@ -88,21 +88,24 @@ public class AtmosphereDurableRunsProducer {
             return;
         }
         var durable = config.durableRuns();
-        // An explicitly enabled harness implies durable runs: @WithDefault
-        // cannot distinguish an unset durable-runs.enabled from an explicit
-        // false, so the harness's opt-out is its own key
-        // (ai.harness.durable-runs) and an explicit durable-runs.enabled=true
-        // always wins — see AtmosphereConfig.Ai.Harness. The tri-state switch
-        // implies the spine only on a literal true; unset and the false kill
-        // switch both leave durable runs at their own default.
+        // An explicit durable-runs.enabled always wins — false keeps the
+        // spine out even when the harness implies it (the operator's opt-out
+        // survives the preset, mirroring the Spring starter — Invariant #7).
+        // Only while it stays unset does an explicitly enabled harness imply
+        // the spine, with ai.harness.durable-runs=false as the
+        // harness-scoped opt-out — see AtmosphereConfig.Ai.Harness. The
+        // harness tri-state implies only on a literal true; unset and the
+        // false kill switch imply nothing.
         var harness = config.ai().harness();
         var impliedByHarness = harness.enabled().orElse(false) && harness.durableRuns();
-        if (!durable.enabled() && !impliedByHarness) {
+        var explicit = durable.enabled();
+        if (explicit.isPresent() ? !explicit.get() : !impliedByHarness) {
             return;
         }
-        if (!durable.enabled()) {
+        if (explicit.isEmpty()) {
             logger.info("Durable agent runs implied by the agent-harness preset "
-                    + "(opt out with quarkus.atmosphere.ai.harness.durable-runs=false)");
+                    + "(opt out with quarkus.atmosphere.ai.harness.durable-runs=false "
+                    + "or quarkus.atmosphere.durable-runs.enabled=false)");
         }
         EffectJournal journal;
         if (journalInstance.isResolvable()) {

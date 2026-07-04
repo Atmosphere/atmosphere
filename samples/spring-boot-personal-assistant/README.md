@@ -160,9 +160,11 @@ and the framework attaches a `LongTermMemoryInterceptor`
 (`InMemoryLongTermMemory` store, `onSessionClose` extraction via the
 resolved `AgentRuntime`, 20-fact recall budget) to the endpoint,
 alongside conversation memory and a conservative prompt-cache default.
-`@Agent` classes get the same harness without any attribute — their
-`harness()` defaults to `{Harness.ALL}` (see `ResearchAgent`; declare
-`harness = {}` to opt an agent down) — and the app-wide tri-state
+Prompt-driven `@Agent` and `@Coordinator` classes get the same harness
+without any attribute — their `harness()` defaults to `{Harness.ALL}`;
+declare `harness = {}` to opt one down. (This sample's `ResearchAgent`
+is *headless* — skill handlers, no `@Prompt` loop — so the harness does
+not apply to it.) The app-wide tri-state
 `atmosphere.ai.harness.enabled` flag can still turn every bare
 `@AiEndpoint` on (`true`) or kill the harness everywhere (`false`).
 Per-primitive runtime state is published at `/api/console/info` under

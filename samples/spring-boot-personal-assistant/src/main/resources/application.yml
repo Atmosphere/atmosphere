@@ -32,7 +32,7 @@ atmosphere:
     # Per-primitive runtime state is visible in the console
     # (/api/console/info, "harness" section).
 
-    # Any of the seven runtime artifacts on the classpath is picked up by
+    # Any runtime adapter artifact on the classpath is picked up by
     # AgentRuntime ServiceLoader discovery. Switching runtimes is a Maven
     # dependency swap plus setting this to the runtime name.
     runtime: spring-ai

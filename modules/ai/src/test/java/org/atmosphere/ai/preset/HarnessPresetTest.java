@@ -174,7 +174,10 @@ public class HarnessPresetTest {
         assertNotNull(published, "runtime-state map must be published to the property bag");
         assertTrue(published instanceof Map<?, ?>);
         var state = preset.runtimeState();
-        assertEquals("ACTIVE", state.get(HarnessPreset.PRIMITIVE_CONVERSATION_MEMORY));
+        // Even under the app-wide true switch the seed stays INACTIVE — the
+        // switch alone attaches nothing; ACTIVE is an attach-time truth the
+        // processors publish per genuinely attached endpoint (Invariant #5).
+        assertEquals("INACTIVE(no-endpoint)", state.get(HarnessPreset.PRIMITIVE_CONVERSATION_MEMORY));
         assertEquals("INACTIVE(no-endpoint)", state.get(HarnessPreset.PRIMITIVE_LONG_TERM_MEMORY));
         assertEquals("INACTIVE(no-coordinator)", state.get(HarnessPreset.PRIMITIVE_DELEGATION));
         assertEquals("sliding-window", state.get(HarnessPreset.PRIMITIVE_COMPACTION));

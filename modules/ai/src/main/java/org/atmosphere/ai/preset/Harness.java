@@ -27,8 +27,12 @@ import java.util.Set;
 public enum Harness {
 
     /**
-     * Conversation memory, the auto-attached long-term-memory interceptor,
-     * and the compaction seam on the resolved memory.
+     * The auto-attached long-term-memory interceptor, the compaction seam on
+     * the resolved memory, and — on {@code @AiEndpoint} paths whose
+     * annotation keeps {@code conversationMemory = false} — flipping
+     * conversation memory on. {@code @Agent} and {@code @Coordinator}
+     * resolve conversation memory unconditionally; the harness never turns
+     * it off there.
      */
     MEMORY,
 

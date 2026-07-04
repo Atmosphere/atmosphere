@@ -31,8 +31,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * {@code atmosphere.ai.harness.enabled=false}, and asserts the switch beats
  * the annotation through the real stack: the Spring bridge must deliver the
  * explicit {@code false} as an init-param (not drop it as falsy), and
- * {@code /api/console/info} must report the primitives INACTIVE while the
- * agent itself still boots and serves.
+ * {@code /api/console/info} must report the primitives INACTIVE on a boot
+ * that still completes (the 200 below proves the boot; the agent's serving
+ * path is not driven here).
  *
  * <p>This is the operational/compliance posture the tri-state was designed
  * for: one property turns the batteries off fleet-wide without touching

@@ -43,8 +43,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * {@code AiEndpointProcessor}, an explicitly enabled harness implies the
  * durable-run spine (no explicit {@code durable-runs.enabled} needed), and the
  * {@code /api/console/info} servlet surfaces the preset's published
- * per-primitive runtime-state map (Invariant #5). Every key asserted here has
- * its production reader exercised in the same boot — no dead config keys.
+ * per-primitive runtime-state map (Invariant #5). This boot deploys no
+ * annotated endpoint, so the assertions pin init-param <em>arrival</em> at
+ * the framework seam; the readers' behavior behind those params is pinned by
+ * the core {@code HarnessPresetTest} / {@code AiEndpointProcessorHarnessPresetTest}.
  */
 public class HarnessBuildStepTest {
 

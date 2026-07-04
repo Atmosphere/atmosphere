@@ -315,18 +315,26 @@ public interface AtmosphereConfig {
              * decision to each annotation's {@code harness()} attribute;
              * {@code true} turns the full harness on for every
              * {@code @AiEndpoint} whose annotation stays bare; {@code false}
-             * is the operational kill switch — harness features stay off
-             * everywhere, beating every annotation. On Quarkus an explicit
-             * {@code true} also implies the durable-run spine unless
-             * {@code durable-runs} below is set to {@code false}.
+             * is the kill switch — harness features stay off everywhere,
+             * beating every annotation. On Quarkus an explicit {@code true}
+             * also implies the durable-run spine unless {@code durable-runs}
+             * below is set to {@code false}.
+             *
+             * <p>This config root is {@code BUILD_AND_RUN_TIME_FIXED} (the
+             * value is baked into servlet init-params by a build step), so
+             * flipping the switch — including the {@code false} kill switch —
+             * requires a <b>rebuild</b>, not just a restart: Quarkus ignores
+             * runtime overrides of build-time-fixed properties. On Spring
+             * Boot and plain servlet the flag is read at startup.</p>
              *
              * @return the explicit app-wide switch, empty when unset
              */
             Optional<Boolean> enabled();
 
             /**
-             * Endpoint paths excluded from the harness's default-on
-             * conversation memory. Bridged (comma-joined) to the
+             * Endpoint paths the harness skips entirely — no feature from the
+             * annotation's {@code harness()} or the app-wide switch applies
+             * to them. Bridged (comma-joined) to the
              * {@code org.atmosphere.ai.harness.exclude-paths} init-param.
              *
              * @return the excluded endpoint paths
@@ -357,11 +365,11 @@ public interface AtmosphereConfig {
             /**
              * Whether an explicitly enabled harness ({@code enabled=true})
              * implies the durable-run spine (as if
-             * {@code quarkus.atmosphere.durable-runs.enabled=true}). A
-             * {@code @WithDefault} mapping cannot distinguish an unset
-             * {@code durable-runs.enabled} from an explicit {@code false}, so
-             * this key is the harness's explicit opt-out; it never blocks an
-             * explicit {@code quarkus.atmosphere.durable-runs.enabled=true}.
+             * {@code quarkus.atmosphere.durable-runs.enabled=true}). The
+             * implication applies only while {@code durable-runs.enabled}
+             * stays unset: an explicit {@code durable-runs.enabled} value —
+             * {@code true} or {@code false} — always wins over both this key
+             * and the implication.
              *
              * @return {@code true} if the enabled harness should install the durable-run spine
              */
@@ -417,15 +425,17 @@ public interface AtmosphereConfig {
     interface DurableRuns {
 
         /**
-         * Master switch. Defaults to {@code false} (off); set {@code true} to
-         * record and replay agent runs. The agent-harness preset
+         * Tri-state master switch, off when unset. Set {@code true} to record
+         * and replay agent runs. While unset, the agent-harness preset
          * ({@code quarkus.atmosphere.ai.harness.enabled=true}) also installs
          * the spine unless {@code quarkus.atmosphere.ai.harness.durable-runs=false}.
+         * An explicit value always wins: {@code false} keeps the spine out even
+         * when the harness implies it — mirroring the Spring starter, where the
+         * operator's explicit opt-out survives the preset (Invariant #7).
          *
-         * @return {@code true} if the durable-run spine should be installed
+         * @return the explicit switch, empty when unset
          */
-        @WithDefault("false")
-        boolean enabled();
+        Optional<Boolean> enabled();
 
         /**
          * Journal backend: {@code sqlite} (crash-durable, bundled in

@@ -158,6 +158,11 @@ public final class HarnessPreset {
         var rawEnabled = cfg.getInitParameter(ENABLED_KEY);
         var explicit = rawEnabled == null || rawEnabled.isBlank()
                 ? null : Boolean.valueOf(rawEnabled.trim());
+        if (explicit != null && !"true".equalsIgnoreCase(rawEnabled.trim())
+                && !"false".equalsIgnoreCase(rawEnabled.trim())) {
+            logger.warn("Unrecognized value '{}' for {} — treating it as the "
+                    + "kill switch (fail-closed); use true or false", rawEnabled.trim(), ENABLED_KEY);
+        }
         var raw = cfg.getInitParameter(EXCLUDE_PATHS_KEY);
         var excludes = new java.util.LinkedHashSet<String>();
         if (raw != null && !raw.isBlank()) {
@@ -180,7 +185,11 @@ public final class HarnessPreset {
      */
     private void seedRuntimeState(AtmosphereConfig cfg) {
         var disabledState = "INACTIVE(disabled)";
-        runtimeState.put(PRIMITIVE_CONVERSATION_MEMORY, enabled() ? "ACTIVE" : disabledState);
+        // Seed INACTIVE even under the app-wide true switch — ACTIVE is an
+        // attach-time truth the processors publish per genuinely attached
+        // endpoint (Invariant #5); the switch alone attaches nothing.
+        runtimeState.put(PRIMITIVE_CONVERSATION_MEMORY,
+                enabled() ? "INACTIVE(no-endpoint)" : disabledState);
         runtimeState.put(PRIMITIVE_LONG_TERM_MEMORY,
                 enabled() ? "INACTIVE(no-endpoint)" : disabledState);
         runtimeState.put(PRIMITIVE_DELEGATION,
@@ -229,14 +238,14 @@ public final class HarnessPreset {
      * @param path                    the endpoint path as declared on the annotation
      * @param annotationValue         the annotation's {@code harness()} value
      * @param annotationIsAgentDefault {@code true} when resolving an
-     *                                {@code @Agent}, whose annotation default is
+     *                                {@code @Agent} or {@code @Coordinator},
+     *                                whose annotation default is
      *                                batteries-included — an empty array is then
-     *                                a deliberate per-agent opt-down that even
+     *                                a deliberate per-class opt-down that even
      *                                the app-wide {@code true} flag does not
      *                                override; {@code false} when resolving an
-     *                                {@code @AiEndpoint} / {@code @Coordinator},
-     *                                whose bare default falls through to the
-     *                                app-wide flag
+     *                                {@code @AiEndpoint}, whose bare default
+     *                                falls through to the app-wide flag
      * @return the features that apply to this path — never {@code null}
      */
     public Set<Harness> featuresFor(String path, Harness[] annotationValue,

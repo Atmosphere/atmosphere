@@ -192,6 +192,13 @@ public class AiEndpointProcessor implements Processor<Object> {
             AiConversationMemory memory = null;
             if (annotation.conversationMemory()) {
                 memory = resolveMemory(annotation.maxHistoryMessages(), framework);
+                if (features.contains(Harness.MEMORY)) {
+                    // The annotation attached memory on a path the harness
+                    // also resolved MEMORY for — publish the attach-time
+                    // truth; the install-time seed stays INACTIVE(no-endpoint)
+                    // until an endpoint genuinely attaches (Invariant #5).
+                    preset.updateRuntimeState(HarnessPreset.PRIMITIVE_CONVERSATION_MEMORY, "ACTIVE");
+                }
             } else if (features.contains(Harness.MEMORY)) {
                 // Harness MEMORY gate: annotation true always wins above;
                 // false is flipped on here (maxHistoryMessages still honors

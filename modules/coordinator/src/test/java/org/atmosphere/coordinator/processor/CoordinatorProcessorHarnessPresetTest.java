@@ -103,6 +103,37 @@ public class CoordinatorProcessorHarnessPresetTest {
     }
 
     @Test
+    public void userDeclaredDelegateTaskWinsOverThePresetTool() {
+        // Regression: with DELEGATION now on by default, a coordinator that
+        // hand-writes its own delegate_task wrapper collided with the preset's
+        // registration — DefaultToolRegistry.register throws on a duplicate
+        // name, which aborted the remaining deferred annotation processing.
+        // The user tool is authoritative (same convention as the MEMORY path
+        // deferring to a user-declared interceptor).
+        var preset = appWidePreset();
+        var registry = new DefaultToolRegistry();
+        registry.register(new UserDelegateTaskWrapper());
+        var userTool = registry.getTool("delegate_task").orElseThrow();
+
+        processor.registerPresetDelegation(registry, preset, true, "coord");
+
+        assertSame(userTool, registry.getTool("delegate_task").orElseThrow(),
+                "the user-declared delegate_task must survive the preset registration");
+        assertEquals("ACTIVE(user-tool)",
+                preset.runtimeState().get(HarnessPreset.PRIMITIVE_DELEGATION),
+                "runtime-state must report the user-provided delegation attach");
+    }
+
+    /** Hand-written delegation wrapper mirroring the documented pattern. */
+    public static final class UserDelegateTaskWrapper {
+        @org.atmosphere.ai.annotation.AiTool(name = "delegate_task",
+                description = "user-declared delegation wrapper")
+        public String delegate(String agent, String message) {
+            return "user-tool: " + agent + " <- " + message;
+        }
+    }
+
+    @Test
     public void coordinatorAnnotationDefaultsToTheFullHarness() throws Exception {
         // @Coordinator subsumes @Agent, so it shares the batteries-on default:
         // a bare annotation must resolve to the full feature set under an

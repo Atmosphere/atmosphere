@@ -88,6 +88,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
@@ -242,9 +243,6 @@ public class CoordinatorProcessor implements Processor<Object> {
             var memory = resolveMemory(DEFAULT_MAX_HISTORY, framework);
             var toolRegistry = registerTools(instance);
 
-            registerPresetDelegation(toolRegistry, preset,
-                    features.contains(Harness.DELEGATION), coordinatorName);
-
             // MCP.md: connect the coordinator's outbound MCP servers and
             // register their remote tools (mode parity with AgentProcessor).
             // Guarded behind the optional mcp-client module; live connections
@@ -275,6 +273,13 @@ public class CoordinatorProcessor implements Processor<Object> {
 
             // Step 7: Validate fleet
             detectCircularDependencies(coordinatorName, proxies.keySet());
+
+            // Harness DELEGATION — registered only after the @Fleet presence,
+            // duplicate-ref and cycle validations above, so the console never
+            // reports delegation ACTIVE for a coordinator that failed to
+            // register (Invariant #5).
+            registerPresetDelegation(toolRegistry, preset,
+                    features.contains(Harness.DELEGATION), coordinatorName);
 
             // Step 8: Create AgentFleet and AiEndpointHandler with injectable
             var evaluators = resolveEvaluators();
@@ -332,6 +337,12 @@ public class CoordinatorProcessor implements Processor<Object> {
             if (!aiInterceptors.isEmpty()) {
                 MemorySafetyConfig.installedDefault().publishActive(framework);
             }
+            if (features.contains(Harness.MEMORY)) {
+                // A @Coordinator always resolves conversation memory (Step 5),
+                // so the primitive is genuinely ACTIVE here — publish it like
+                // AgentProcessor does (Invariants #5 and #7).
+                preset.updateRuntimeState(HarnessPreset.PRIMITIVE_CONVERSATION_MEMORY, "ACTIVE");
+            }
             var aiHandler = new AiEndpointHandler(
                     promptTarget, promptMethod, 120_000L,
                     systemPrompt, path, runtime, aiInterceptors,
@@ -341,6 +352,11 @@ public class CoordinatorProcessor implements Processor<Object> {
                     null, framework.getAtmosphereConfig(), features.contains(Harness.CACHE));
             if (cachePolicy != CacheHint.CachePolicy.NONE) {
                 aiHandler.setCachePolicy(cachePolicy);
+                // Upgrade the console runtime-state to the policy this
+                // coordinator actually seeds — mode parity with the
+                // AgentProcessor / AiEndpointProcessor paths (Invariant #7).
+                preset.updateRuntimeState(HarnessPreset.PRIMITIVE_PROMPT_CACHE_DEFAULT,
+                        cachePolicy.name().toLowerCase(Locale.ROOT));
             }
 
             // Step 9: Register handler
@@ -478,6 +494,16 @@ public class CoordinatorProcessor implements Processor<Object> {
     void registerPresetDelegation(ToolRegistry toolRegistry, HarnessPreset preset,
                                   boolean delegationOn, String coordinatorName) {
         if (!delegationOn) {
+            return;
+        }
+        // A user-declared delegate_task wrapper is authoritative — same
+        // convention as the MEMORY path deferring to a user-declared
+        // interceptor. Registering the preset's tool anyway would throw
+        // (duplicate name) and abort the remaining annotation scan.
+        if (toolRegistry.getTool("delegate_task").isPresent()) {
+            preset.updateRuntimeState(HarnessPreset.PRIMITIVE_DELEGATION, "ACTIVE(user-tool)");
+            logger.info("Harness kept the user-declared delegate_task for coordinator '{}' "
+                    + "— the preset tool is not registered", coordinatorName);
             return;
         }
         toolRegistry.register(new DelegateTaskTool());

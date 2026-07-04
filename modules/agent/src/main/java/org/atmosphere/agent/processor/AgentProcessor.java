@@ -128,6 +128,10 @@ public class AgentProcessor implements Processor<Object> {
             // Headless mode: if the class has @Skill methods but no @Prompt,
             // or headless=true is set, register only protocol endpoints (no WebSocket UI).
             if (isHeadless(annotation, annotatedClass)) {
+                // No prompt loop means no harness surface: the batteries-included
+                // harness() default (memory, cache seeding) never applies here.
+                logger.info("Agent '{}' is headless — harness features do not apply "
+                        + "(no prompt loop)", agentName);
                 handleHeadless(framework, annotation, instance, agentName);
                 return;
             }

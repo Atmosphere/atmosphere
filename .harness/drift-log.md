@@ -2038,3 +2038,66 @@ release-gate foundation shard.
 the sample's actual REST surface (`git grep '@PostMapping\|@RequestMapping' samples/<name>`) — a
 green/red signal from a spec whose endpoint doesn't exist is meaningless. The release-gate `fnd:`
 tier now runs these specs every release, so they can no longer rot dark.
+
+## 2026-07-03 — Harness merge shipped a doc that contradicts the annotation it landed with
+
+**Session:** agent building the Harness feature set (squash-merged as `17fd375a83`); caught in the
+project maintainer's post-merge review sweep of that commit.
+
+**Claim (docs/deep-agent.md:75-76, same commit):** "`@Coordinator` carries no `harness()` attribute;
+its delegation primitive resolves from the app-wide flag." The doc's opening (lines 8-10) likewise
+scopes the granular attribute to "`@Agent` and `@AiEndpoint`" only, and the tri-state table has no
+`@Coordinator` column. The `HarnessPreset.featuresFor` param Javadoc (:236-238) repeats it:
+`annotationIsAgentDefault` is "`false` when resolving an `@AiEndpoint` / `@Coordinator`".
+
+**Truth:** the very same commit added `Harness[] harness() default {Harness.ALL};` to
+`Coordinator.java:77` and wired it: `CoordinatorProcessor.java:206` calls
+`preset.featuresFor(path, annotation.harness(), true)` — batteries-included default, opt-down
+honored, exactly like `@Agent` and as the commit message itself says ("@Agent and @Coordinator are
+batteries-included by default"). The commit's own Playwright test asserts `delegation: 'ACTIVE'`
+with the app-wide flag unset — red under the doc's claimed mechanism. The sibling site's
+harness page already told the correct story.
+
+**Slip path:** the doc was drafted against an earlier design iteration (Coordinator without the
+attribute) and never re-read after the annotation landed; nothing gates in-tree doc prose against
+annotation surfaces, and the e2e/unit pins all assert code behavior, not doc claims.
+
+**Fix (this commit):** rewrote docs/deep-agent.md (opening, precedence section, tri-state table) to
+include `@Coordinator`, and corrected the `HarnessPreset.featuresFor` Javadoc to name `@Agent` and
+`@Coordinator` as the `true` callers.
+
+**Gate:** doc-drift-audit checklist addition — any doc sentence of the form "X carries no Y
+attribute/method" is a capability-contradiction claim: verify by reading the annotation/class
+source before it ships, same rule as capability matrices. No automated gate — annotation-surface
+prose in free-form docs doesn't admit a cheap grep pin; recorded as procedural.
+
+## 2026-07-03 — "Batteries-included" showcased on a headless agent the harness never touches
+
+**Session:** same harness merge (`17fd375a83`), same post-merge review sweep.
+
+**Claim:** `docs/deep-agent.md`'s flagship example — `@Agent(name = "research-agent",
+endpoint = "/atmosphere/a2a/research") { /* @AgentSkill handlers */ }` — was captioned "a plain
+`@Agent` gets the full harness with no attribute at all"; the doc's Example section said the
+sample's `ResearchAgent` "rides the `@Agent` batteries-included default"; the sample's own
+annotation comment and README repeated it ("the harness is on by default for @Agent — see
+`ResearchAgent`").
+
+**Truth:** that exact shape — `@AgentSkill`/`@AgentSkillHandler` methods, no `@Prompt` — is
+auto-detected headless (`AgentProcessor.isHeadless`), and `handleHeadless` returns **before**
+`HarnessPreset.install` ever runs: a headless agent gets no harness at all, silently. The doc's
+flagship example and the sample it pointed at were both the one `@Agent` shape the feature does
+not apply to.
+
+**Slip path:** the example was lifted from the sample's most visually distinctive agent without
+tracing which processor branch that shape takes; nothing logged the headless harness skip, so
+even a booted-app check would not have surfaced the discard.
+
+**Fix (this commit):** flagship example replaced with a `@Prompt`-bearing agent + an explicit
+"headless agents are outside the harness" caveat; sample comment/README/Example section rewritten
+to name `UpstreamMcpAgent` as the harness consumer; `AgentProcessor` now logs an INFO when a
+headless agent skips the harness, so the discard is observable at boot.
+
+**Gate:** when a doc claims an annotation default applies to an example, trace the example's
+shape through the processor's dispatch branches (headless vs prompt-loop here) before shipping —
+an example is a claim about a code path, not prose. Boot-time log added so the skip is no longer
+silent; recorded otherwise as procedural.
