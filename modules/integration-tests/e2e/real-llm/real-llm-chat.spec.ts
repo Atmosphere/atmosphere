@@ -14,6 +14,7 @@
 import { test, expect } from '@playwright/test';
 import { startAiTestServer, type AiTestServer } from '../fixtures/ai-test-server';
 import { AiWsClient } from '../helpers/ai-ws-client';
+import { llmBudget } from '../helpers/llm-rate-budget';
 
 const PORT = 8199;
 let server: AiTestServer;
@@ -51,6 +52,7 @@ test.describe('Real LLM — basic chat (Tier 1/2)', () => {
     const client = new AiWsClient(server.wsUrl, '/ai/real/chat');
     try {
       await client.connect();
+      await llmBudget();
       client.sendResilient('Say hello in one short sentence.');
       await client.waitForDone(30_000);
 

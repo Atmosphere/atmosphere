@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer, type SampleConfig } from './fixtures/sample-server';
 import { AiWsClient } from './helpers/ai-ws-client';
+import { llmBudget } from './helpers/llm-rate-budget';
 
 /**
  * E2E coverage for `samples/quarkus-ai-chat` and the underlying
@@ -132,6 +133,7 @@ test.describe('Quarkus AI Chat', () => {
     const client = new AiWsClient(wsUrl, '/atmosphere/agent/multimodal');
     try {
       await client.connect();
+      await llmBudget();
       client.send(`image:image/png:${TINY_PNG_B64}`);
       await client.waitForDone(15_000);
 
@@ -183,6 +185,7 @@ test.describe('Quarkus AI Chat', () => {
       const client = new AiWsClient(wsUrl, '/atmosphere/ai-chat');
       try {
         await client.connect();
+        await llmBudget();
         client.send('Say hello in one short sentence.');
         await client.waitForDone(45_000);
 
@@ -244,6 +247,7 @@ test.describe('Quarkus AI Chat', () => {
 
         for (let i = 0; i < prompts.length; i++) {
           client.reset();
+          await llmBudget();
           client.send(prompts[i]);
           await client.waitForDone(45_000);
 
@@ -282,6 +286,7 @@ test.describe('Quarkus AI Chat', () => {
       const a = new AiWsClient(wsUrl, '/atmosphere/ai-chat');
       try {
         await a.connect();
+        await llmBudget();
         a.send('Count slowly from one to twenty.');
         // Wait for the first text frame to confirm we are mid-stream — if we
         // close before the bridge has even started writing, this collapses
@@ -299,6 +304,7 @@ test.describe('Quarkus AI Chat', () => {
       const b = new AiWsClient(wsUrl, '/atmosphere/ai-chat');
       try {
         await b.connect();
+        await llmBudget();
         b.send('Say hello in one short sentence.');
         await b.waitForDone(45_000);
 

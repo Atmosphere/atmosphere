@@ -39,8 +39,11 @@ jobs:
       fail-fast: false
       matrix:
         provider:
-          - { name: openai, base_url: 'https://api.openai.com/v1', model: 'gpt-4o-mini', secret: OPENAI_API_KEY }
-          - { name: gemini, base_url: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.5-flash', secret: GEMINI_API_KEY }
+          # rpm: per-minute request budget for the free/low tier. 0 = unthrottled.
+          # Gemini free tier caps generate_content at 5 req/min/model, so throttle
+          # to 4 (headroom for the occasional resilient resend). See llm-rate-budget.ts.
+          - { name: openai, base_url: 'https://api.openai.com/v1', model: 'gpt-4o-mini', secret: OPENAI_API_KEY, rpm: 0 }
+          - { name: gemini, base_url: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.5-flash', secret: GEMINI_API_KEY, rpm: 4 }
     steps:
       - uses: actions/checkout@v7
 
@@ -93,6 +96,10 @@ jobs:
           LLM_BASE_URL: ${{ matrix.provider.base_url }}
           LLM_MODEL: ${{ matrix.provider.model }}
           LLM_API_KEY: ${{ secrets[matrix.provider.secret] }}
+          # Shared across BOTH run steps of this leg so the file-backed rolling
+          # window spans them (they are separate processes hitting one quota).
+          LLM_RPM: ${{ matrix.provider.rpm }}
+          LLM_BUDGET_FILE: ${{ runner.temp }}/llm-budget-${{ matrix.provider.name }}.jsonl
         run: |
           if [ -z "$LLM_API_KEY" ]; then
             echo "${{ matrix.provider.secret }} secret not set — skipping" >&2
@@ -107,6 +114,10 @@ jobs:
           LLM_BASE_URL: ${{ matrix.provider.base_url }}
           LLM_MODEL: ${{ matrix.provider.model }}
           LLM_API_KEY: ${{ secrets[matrix.provider.secret] }}
+          # Shared across BOTH run steps of this leg so the file-backed rolling
+          # window spans them (they are separate processes hitting one quota).
+          LLM_RPM: ${{ matrix.provider.rpm }}
+          LLM_BUDGET_FILE: ${{ runner.temp }}/llm-budget-${{ matrix.provider.name }}.jsonl
         run: |
           if [ -z "$LLM_API_KEY" ]; then
             echo "${{ matrix.provider.secret }} secret not set — skipping" >&2
