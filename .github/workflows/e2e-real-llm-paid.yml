@@ -11,6 +11,12 @@ name: "CI: E2E (Real LLM — Paid nightly)"
 #
 # Secrets required: OPENAI_API_KEY, GEMINI_API_KEY
 #
+# Gemini model note: flash-lite, not flash — the configured key's project is
+# free-tier for gemini-2.5-flash (20 requests/day/model, verified from the
+# 429 QuotaFailure payload on 2026-07-05), which one nightly plus any manual
+# dispatch exhausts. flash-lite's free tier sustains the schedule; a
+# billing-enabled project would also unlock flash.
+#
 # NOT ON THE PER-PUSH GATING PATH — this nightly canary only runs on a
 # schedule and on demand, never on push, so a paid-API hiccup (OpenAI/Gemini
 # transient 5xx, rate limit, model deprecation) can never block a merge or a
@@ -43,7 +49,7 @@ jobs:
           # Gemini free tier caps generate_content at 5 req/min/model, so throttle
           # to 4 (headroom for the occasional resilient resend). See llm-rate-budget.ts.
           - { name: openai, base_url: 'https://api.openai.com/v1', model: 'gpt-4o-mini', secret: OPENAI_API_KEY, rpm: 0 }
-          - { name: gemini, base_url: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.5-flash', secret: GEMINI_API_KEY, rpm: 4 }
+          - { name: gemini, base_url: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.5-flash-lite', secret: GEMINI_API_KEY, rpm: 4 }
     steps:
       - uses: actions/checkout@v7
 
