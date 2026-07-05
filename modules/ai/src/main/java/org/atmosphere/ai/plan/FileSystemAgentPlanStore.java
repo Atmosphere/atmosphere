@@ -26,7 +26,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Stream;
 
@@ -63,12 +62,29 @@ public final class FileSystemAgentPlanStore implements AgentPlanStore {
     /** Maximum serialized size of one plan document, in bytes. */
     public static final int MAX_PLAN_BYTES = 128 * 1024;
 
-    /** Maximum number of plan documents one store keeps before rejecting new keys. */
+    /** Maximum number of plan documents one store keeps before evicting the oldest. */
     public static final int MAX_PLAN_FILES = 1024;
+
+    /** Upper bound on cached per-file locks (keys arrive from external input). */
+    static final int MAX_CACHED_LOCKS = 256;
 
     private final Path root;
     private final Path plansDir;
-    private final Map<Path, ReentrantLock> locks = new ConcurrentHashMap<>();
+    /**
+     * Per-file write locks, LRU-bounded — conversation ids arrive from
+     * external input, and an unbounded map fed by external input is a DoS
+     * vector (Invariant #3). An evicted-while-held lock can at worst let two
+     * concurrent writers race one file: full-document writes are atomic
+     * (temp + move), so the loser's document simply wins last — never a torn
+     * read.
+     */
+    private final Map<Path, ReentrantLock> locks =
+            java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<>(16, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<Path, ReentrantLock> eldest) {
+                    return size() > MAX_CACHED_LOCKS;
+                }
+            });
 
     /**
      * Create a store rooted at the given workspace directory. The
@@ -115,12 +131,31 @@ public final class FileSystemAgentPlanStore implements AgentPlanStore {
         var lock = locks.computeIfAbsent(path, k -> new ReentrantLock());
         lock.lock();
         try {
-            if (!Files.exists(path) && countPlanFiles() >= MAX_PLAN_FILES) {
-                throw new IllegalArgumentException("plan rejected: store already holds "
-                        + MAX_PLAN_FILES + " plans (per-store file cap)");
+            if (!Files.exists(path)) {
+                // Bounded store, never bricked: evict the least-recently
+                // modified plan documents to make room instead of rejecting
+                // every new conversation forever once the cap fills
+                // (Invariants #3 and #2 — external input must not grow the
+                // store unboundedly, and hitting the cap must not be a
+                // permanent terminal state).
+                evictOldestPlans();
             }
             Files.createDirectories(path.getParent());
-            Files.write(path, bytes);
+            // Same-directory temp + atomic move: lock-free readers (the admin
+            // plan endpoint, console polling) must never observe a torn
+            // document, and a crash mid-write must not lose the previous plan.
+            var temp = Files.createTempFile(path.getParent(), ".plan-", ".tmp");
+            try {
+                Files.write(temp, bytes);
+                try {
+                    Files.move(temp, path, java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                            java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+                } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+                    Files.move(temp, path, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
+            } finally {
+                Files.deleteIfExists(temp);
+            }
         } catch (IOException e) {
             throw new IllegalStateException("Failed to persist plan " + path, e);
         } finally {
@@ -128,12 +163,38 @@ public final class FileSystemAgentPlanStore implements AgentPlanStore {
         }
     }
 
-    private long countPlanFiles() throws IOException {
+    /** Delete least-recently-modified plan documents until under the cap. */
+    private void evictOldestPlans() throws IOException {
         if (!Files.isDirectory(plansDir)) {
-            return 0;
+            return;
         }
+        java.util.List<Path> plans;
         try (Stream<Path> walk = Files.walk(plansDir)) {
-            return walk.filter(Files::isRegularFile).count();
+            plans = walk.filter(Files::isRegularFile)
+                    .sorted(java.util.Comparator.comparingLong(FileSystemAgentPlanStore::lastModified))
+                    .toList();
+        }
+        var excess = plans.size() - (MAX_PLAN_FILES - 1);
+        for (var plan : plans) {
+            if (excess <= 0) {
+                return;
+            }
+            try {
+                Files.deleteIfExists(plan);
+                logger.info("Evicted plan document {} (over the {}-plan cap)",
+                        plan, MAX_PLAN_FILES);
+                excess--;
+            } catch (IOException e) {
+                logger.warn("Could not evict plan document {}: {}", plan, e.getMessage());
+            }
+        }
+    }
+
+    private static long lastModified(Path path) {
+        try {
+            return Files.getLastModifiedTime(path).toMillis();
+        } catch (IOException e) {
+            return 0L;
         }
     }
 

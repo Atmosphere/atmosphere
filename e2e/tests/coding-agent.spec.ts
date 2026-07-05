@@ -13,6 +13,27 @@ import { expect, test } from '@playwright/test';
 test.describe('Coding agent sample', () => {
   test.use({ baseURL: process.env.ATMO_E2E_BASE_URL ?? 'http://localhost:8081' });
 
+  /**
+   * The console Workspace tab, driven in the real browser: the owners probe
+   * (this sample opts its workspace reads open for the keyless demo) must
+   * surface the tab, and activating it must render the plan panel and the
+   * conversation file browser — the UI seam over the same admin endpoints
+   * the HTTP probes below pin. Keyless and deterministic: the tab renders
+   * its (empty) surfaces without any model turn.
+   */
+  test('console Workspace tab renders the plan and file surfaces', async ({ page }) => {
+    await page.goto('/atmosphere/console/');
+    const workspaceTab = page.getByTestId('tab-workspace');
+    await expect(workspaceTab, 'workspace tab must appear once the owners probe succeeds')
+      .toBeVisible({ timeout: 10_000 });
+    await workspaceTab.click();
+    await expect(page.getByTestId('workspace-view')).toBeVisible();
+    await expect(page.getByTestId('workspace-owner').filter({ hasText: 'coding-agent' }),
+      'the attached agent must be listed as a workspace owner').toBeVisible();
+    await expect(page.getByTestId('workspace-plan')).toBeVisible();
+    await expect(page.getByTestId('workspace-browser')).toBeVisible();
+  });
+
   test('admin control plane registers the coding-agent', async ({ request }) => {
     // Admin REST API is mounted at /api/admin/*; /atmosphere/admin/* is the
     // WS/UI namespace and returns 500 when hit as a plain HTTP GET.

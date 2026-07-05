@@ -15,8 +15,12 @@
  */
 package org.atmosphere.ai.fs;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.lang.ref.WeakReference;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -24,6 +28,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -57,6 +62,35 @@ public final class WorkspaceAgentFileSystem implements AgentFileSystem {
 
     /** Hard cap on {@link #grep} results so tool output stays bounded. */
     public static final int MAX_GREP_HITS = 500;
+
+    /** Hard cap on one {@link #grep} hit's line text, in chars. */
+    public static final int MAX_GREP_LINE_CHARS = 500;
+
+    /** Hard cap on a {@link #grep} regex pattern's length, in chars. */
+    public static final int MAX_GREP_PATTERN_CHARS = 512;
+
+    /**
+     * Wall-clock budget for one {@link #grep} call. The pattern is
+     * model-supplied and {@code java.util.regex} backtracking is not
+     * interruptible, so without a deadline a catastrophic pattern pins a
+     * carrier thread forever (Correctness Invariant #3).
+     */
+    static final long GREP_DEADLINE_NANOS = 2_000_000_000L;
+
+    private static final Logger logger =
+            LoggerFactory.getLogger(WorkspaceAgentFileSystem.class);
+
+    /**
+     * Canonical live instance per root. The bounds accounting is only sound
+     * while every writer to one root shares one {@link #writeLock}; the
+     * provider's LRU cache can evict a conversation whose instance is still
+     * held by an in-flight request, and a naive rebuild would introduce a
+     * second lock over the same directory. Weak values: an entry lives
+     * exactly as long as someone still references the instance — the precise
+     * condition under which a second instance would be unsafe.
+     */
+    private static final ConcurrentHashMap<Path, WeakReference<WorkspaceAgentFileSystem>>
+            LIVE = new ConcurrentHashMap<>();
 
     private final Path root;
     private final Limits limits;
@@ -102,8 +136,76 @@ public final class WorkspaceAgentFileSystem implements AgentFileSystem {
             throw new IllegalArgumentException(
                     "conversationId contains illegal path characters: " + conversationId);
         }
-        return new WorkspaceAgentFileSystem(
-                agentRoot.resolve("files").resolve(conversationId), limits);
+        var conversationsRoot = agentRoot.resolve("files").toAbsolutePath().normalize();
+        var storeRoot = conversationsRoot.resolve(conversationId).normalize();
+        if (!Files.isDirectory(storeRoot)) {
+            evictOldestConversations(conversationsRoot, limits.maxConversations());
+        }
+        // Canonical instance per root: while any caller still holds the
+        // store, everyone else must share it (one write lock, one bounds
+        // accounting). The weak value clears only when nobody does.
+        LIVE.entrySet().removeIf(e -> e.getValue().get() == null);
+        while (true) {
+            var ref = LIVE.computeIfAbsent(storeRoot,
+                    k -> new WeakReference<>(new WorkspaceAgentFileSystem(k, limits)));
+            var live = ref.get();
+            if (live != null) {
+                return live;
+            }
+            LIVE.remove(storeRoot, ref);
+        }
+    }
+
+    /**
+     * Keep the on-disk conversation-store count under the cap before a new
+     * store directory is created: delete the least-recently-modified
+     * conversation subtrees, skipping any store that is still live (a held
+     * instance whose directory vanished underneath it would turn every
+     * subsequent write into an error). Conversation ids arrive from external
+     * input — without this sweep, disk use is unbounded (Invariant #3).
+     */
+    private static void evictOldestConversations(Path conversationsRoot, int maxConversations) {
+        if (!Files.isDirectory(conversationsRoot)) {
+            return;
+        }
+        List<Path> conversations;
+        try (Stream<Path> entries = Files.list(conversationsRoot)) {
+            conversations = entries.filter(Files::isDirectory)
+                    .sorted(Comparator.comparingLong(WorkspaceAgentFileSystem::lastModified))
+                    .toList();
+        } catch (IOException e) {
+            logger.warn("Could not scan conversation stores under {}: {}",
+                    conversationsRoot, e.getMessage());
+            return;
+        }
+        var excess = conversations.size() - (maxConversations - 1);
+        for (var conversation : conversations) {
+            if (excess <= 0) {
+                break;
+            }
+            if (LIVE.containsKey(conversation.toAbsolutePath().normalize())) {
+                continue;
+            }
+            try (Stream<Path> walk = Files.walk(conversation)) {
+                for (var p : walk.sorted(Comparator.reverseOrder()).toList()) {
+                    Files.delete(p);
+                }
+                logger.info("Evicted conversation store {} (over the {}-conversation cap)",
+                        conversation, maxConversations);
+                excess--;
+            } catch (IOException e) {
+                logger.warn("Could not evict conversation store {}: {}",
+                        conversation, e.getMessage());
+            }
+        }
+    }
+
+    private static long lastModified(Path path) {
+        try {
+            return Files.getLastModifiedTime(path).toMillis();
+        } catch (IOException e) {
+            return 0L;
+        }
     }
 
     /** The store's root directory (test / bridge use). */
@@ -238,6 +340,10 @@ public final class WorkspaceAgentFileSystem implements AgentFileSystem {
         if (pattern == null || pattern.isBlank()) {
             throw new IllegalArgumentException("pattern must not be blank");
         }
+        if (pattern.length() > MAX_GREP_PATTERN_CHARS) {
+            throw new IllegalArgumentException("Pattern too long: " + pattern.length()
+                    + " chars (limit " + MAX_GREP_PATTERN_CHARS + ")");
+        }
         Pattern regex;
         try {
             regex = Pattern.compile(pattern);
@@ -248,16 +354,22 @@ public final class WorkspaceAgentFileSystem implements AgentFileSystem {
         if (!Files.isDirectory(target)) {
             return List.of();
         }
+        var deadline = System.nanoTime() + GREP_DEADLINE_NANOS;
         var hits = new ArrayList<GrepHit>();
         try (Stream<Path> walk = Files.walk(target)) {
-            for (var file : walk.filter(Files::isRegularFile).sorted().toList()) {
-                grepFile(file, regex, hits);
+            for (var file : walk.filter(p -> Files.isRegularFile(p)
+                    && !Files.isSymbolicLink(p)).sorted().toList()) {
+                grepFile(file, regex, hits, deadline);
                 if (hits.size() >= MAX_GREP_HITS) {
                     break;
                 }
             }
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to grep " + pattern, e);
+        } catch (GrepDeadlineExceeded e) {
+            throw new IllegalArgumentException("grep timed out on pattern '" + pattern
+                    + "' — simplify the pattern (catastrophic backtracking is cut off after "
+                    + GREP_DEADLINE_NANOS / 1_000_000 + " ms)");
         }
         return List.copyOf(hits);
     }
@@ -316,7 +428,7 @@ public final class WorkspaceAgentFileSystem implements AgentFileSystem {
 
     // ---------- Helpers ----------
 
-    private void grepFile(Path file, Pattern regex, List<GrepHit> hits) {
+    private void grepFile(Path file, Pattern regex, List<GrepHit> hits, long deadline) {
         List<String> lines;
         try {
             lines = Files.readAllLines(file, StandardCharsets.UTF_8);
@@ -327,9 +439,64 @@ public final class WorkspaceAgentFileSystem implements AgentFileSystem {
         }
         var relative = relativize(file);
         for (int i = 0; i < lines.size() && hits.size() < MAX_GREP_HITS; i++) {
-            if (regex.matcher(lines.get(i)).find()) {
-                hits.add(new GrepHit(relative, i + 1, lines.get(i)));
+            // The matcher sees a deadline-checking view of the line: regex
+            // backtracking is not interruptible, and both the pattern and the
+            // file content are model-supplied, so a catastrophic pattern must
+            // be cut off by charAt itself (Invariant #3).
+            if (regex.matcher(new DeadlineCharSequence(lines.get(i), deadline)).find()) {
+                var text = lines.get(i);
+                if (text.length() > MAX_GREP_LINE_CHARS) {
+                    text = text.substring(0, MAX_GREP_LINE_CHARS) + "…";
+                }
+                hits.add(new GrepHit(relative, i + 1, text));
             }
+        }
+    }
+
+    /** Thrown by {@link DeadlineCharSequence} when the grep budget is spent. */
+    private static final class GrepDeadlineExceeded extends RuntimeException {
+        GrepDeadlineExceeded() {
+            super(null, null, false, false);
+        }
+    }
+
+    /**
+     * A char view that enforces the grep deadline from inside the regex
+     * engine: {@code java.util.regex} polls neither interrupts nor time, so
+     * the only way to bound a backtracking blowup is to make every
+     * {@code charAt} access check the clock (amortized — every 2048 reads).
+     */
+    private static final class DeadlineCharSequence implements CharSequence {
+        private final String value;
+        private final long deadline;
+        private int reads;
+
+        DeadlineCharSequence(String value, long deadline) {
+            this.value = value;
+            this.deadline = deadline;
+        }
+
+        @Override
+        public char charAt(int index) {
+            if ((++reads & 0x7FF) == 0 && System.nanoTime() > deadline) {
+                throw new GrepDeadlineExceeded();
+            }
+            return value.charAt(index);
+        }
+
+        @Override
+        public int length() {
+            return value.length();
+        }
+
+        @Override
+        public CharSequence subSequence(int start, int end) {
+            return new DeadlineCharSequence(value.substring(start, end), deadline);
+        }
+
+        @Override
+        public String toString() {
+            return value;
         }
     }
 
@@ -413,6 +580,20 @@ public final class WorkspaceAgentFileSystem implements AgentFileSystem {
         var resolved = root.resolve(validated).normalize();
         if (!resolved.startsWith(root)) {
             throw new IllegalArgumentException("Path escapes the store root: " + validated);
+        }
+        // Defence in depth: the lexical check above cannot see symlinks. The
+        // tools never create them, but an external process could place one in
+        // the tree — re-check containment on the real path for anything that
+        // already exists (Invariant #4).
+        if (Files.exists(resolved)) {
+            try {
+                if (!resolved.toRealPath().startsWith(root.toRealPath())) {
+                    throw new IllegalArgumentException(
+                            "Path escapes the store root via a link: " + validated);
+                }
+            } catch (IOException e) {
+                throw new UncheckedIOException("Failed to resolve " + validated, e);
+            }
         }
         return resolved;
     }

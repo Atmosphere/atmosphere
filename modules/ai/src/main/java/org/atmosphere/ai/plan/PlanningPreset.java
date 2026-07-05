@@ -116,7 +116,11 @@ public final class PlanningPreset {
     private static void registerBuiltin(ToolRegistry toolRegistry, HarnessPreset preset,
                                         String ownerName) {
         if (toolRegistry.getTool(PlanningTools.WRITE_TODOS).isPresent()) {
-            logger.warn("Harness planning skipped for '{}': a '{}' tool is already "
+            // A plan surface exists — the user's own tool. Report it as such
+            // (same convention as the coordinator's ACTIVE(user-tool) for a
+            // hand-written delegate_task) instead of leaving the INACTIVE seed.
+            preset.updateRuntimeState(HarnessPreset.PRIMITIVE_PLANNING, "ACTIVE(user-tool)");
+            logger.warn("Harness planning floor skipped for '{}': a '{}' tool is already "
                     + "registered (user tool wins)", ownerName, PlanningTools.WRITE_TODOS);
             return;
         }

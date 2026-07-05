@@ -133,7 +133,8 @@ public @interface Agent {
      * The harness features attached to this agent — the deep-agent category
      * of primitives, batteries-included by default: {@link Harness#ALL}
      * expands to long-term memory (+ compaction), prompt-cache default
-     * seeding and the delegation primitive. Narrow the set to pick individual
+     * seeding, the delegation primitive, the plan surface and the
+     * conversation-scoped file workspace. Narrow the set to pick individual
      * features (e.g. {@code harness = {Harness.MEMORY}}), or declare
      * {@code harness = {}} to opt this agent down to a bare loop.
      *

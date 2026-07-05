@@ -104,6 +104,78 @@ class AdminApiAuthFilterReadGateTest {
     }
 
     @Test
+    void workspaceFileContentIsDenyByDefaultEvenWithTheReadGateOff() throws Exception {
+        // Agent-workspace surfaces hold model-written file contents and
+        // plans — default-DENY regardless of the general read plane
+        // (Invariant #6). Regression for the review finding that the
+        // Workspace endpoints shipped riding the default-open read plane.
+        var env = new MockEnvironment();
+        var filter = new AtmosphereAdminAutoConfiguration.AdminApiAuthFilter(
+                tokenValidatorRejectingEverything(), env);
+        for (var path : new String[]{
+                "/api/admin/workspace/owners",
+                "/api/admin/agents/coding-agent/plan",
+                "/api/admin/agents/coding-agent/files",
+                "/api/admin/agents/coding-agent/files/content"}) {
+            var res = new MockHttpServletResponse();
+            var chain = Mockito.mock(FilterChain.class);
+            filter.doFilter(new MockHttpServletRequest("GET", path), res, chain);
+            assertEquals(401, res.getStatus(),
+                    "anonymous workspace read must be denied by default: " + path);
+            verify(chain, never()).doFilter(any(), any());
+        }
+    }
+
+    @Test
+    void workspaceOptOutFlagReopensTheWorkspaceReads() throws Exception {
+        var env = new MockEnvironment()
+                .withProperty("atmosphere.admin.workspace-read-auth-required", "false");
+        var filter = new AtmosphereAdminAutoConfiguration.AdminApiAuthFilter(
+                tokenValidatorRejectingEverything(), env);
+        var res = new MockHttpServletResponse();
+        var chain = Mockito.mock(FilterChain.class);
+
+        filter.doFilter(new MockHttpServletRequest(
+                "GET", "/api/admin/agents/coding-agent/files/content"), res, chain);
+
+        assertEquals(200, res.getStatus(),
+                "the explicit demo opt-out must reopen the workspace reads");
+        verify(chain, times(1)).doFilter(any(), any());
+    }
+
+    @Test
+    void workspaceGateDoesNotTouchTheGeneralReadPlane() throws Exception {
+        var env = new MockEnvironment();
+        var filter = new AtmosphereAdminAutoConfiguration.AdminApiAuthFilter(
+                tokenValidatorRejectingEverything(), env);
+        var res = new MockHttpServletResponse();
+        var chain = Mockito.mock(FilterChain.class);
+
+        filter.doFilter(new MockHttpServletRequest("GET", "/api/admin/overview"), res, chain);
+
+        assertEquals(200, res.getStatus(),
+                "non-workspace admin reads keep the pre-existing default-open posture");
+        verify(chain, times(1)).doFilter(any(), any());
+    }
+
+    @Test
+    void workspaceReadWithAValidTokenPassesUnderTheDefaultGate() throws Exception {
+        var env = new MockEnvironment();
+        var filter = new AtmosphereAdminAutoConfiguration.AdminApiAuthFilter(
+                tokenValidatorAccepting("demo-token", "demo-user"), env);
+        var req = new MockHttpServletRequest("GET", "/api/admin/agents/coding-agent/plan");
+        req.addHeader("X-Atmosphere-Auth", "demo-token");
+        var res = new MockHttpServletResponse();
+        var chain = Mockito.mock(FilterChain.class);
+
+        filter.doFilter(req, res, chain);
+
+        assertEquals(200, res.getStatus(),
+                "an authenticated workspace read must pass the default gate");
+        verify(chain, times(1)).doFilter(any(), any());
+    }
+
+    @Test
     void readAuthEnabled_writeAnonymousStillPassesToEndpointGuard() throws Exception {
         // Writes have their own guardWrite gate on the endpoint; the filter
         // only gates reads when the flag is on. An anonymous POST must

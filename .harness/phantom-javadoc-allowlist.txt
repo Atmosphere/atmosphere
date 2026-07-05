@@ -25,7 +25,7 @@ SessionService           # Google ADK
 AIAgentStrategy          # JetBrains Koog
 KoogStrategy             # JetBrains Koog
 SdkTracerProvider        # OpenTelemetry SDK
-# Spring AI Alibaba GA todo interceptor (com.alibaba.cloud.ai.graph.agent, javap-verified 1.1.2.3) — planning bridge docs
+# Spring AI Alibaba GA todo interceptor (com.alibaba.cloud.ai.graph.agent.interceptor.todolist, javap-verified 1.1.2.3) — planning bridge docs
 TodoListInterceptor
 # Google ADK artifact service (com.google.adk.artifacts, javap-verified 1.5.0) — VFS bridge docs
 BaseArtifactService

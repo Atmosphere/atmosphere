@@ -182,4 +182,81 @@ class ToolExecutionHelperTest {
                         org.atmosphere.ai.identity.PermissionMode.BYPASS));
         assertEquals("ran", result);
     }
+
+    @Test
+    void sixArgOverloadThreadsTheSessionInjectablesToTheExecutor() {
+        // Regression: every runtime tool bridge (LangChain4j, Spring AI, ADK,
+        // Koog, ...) funnels through the 6-arg overload, which used to
+        // hardwire Map.of() — leaving the harness plan/file tool floors dead
+        // ("write_todos unavailable: no plan store is bound") on all of them
+        // while the console reported ACTIVE(builtin). The session's own
+        // injectables are the tool scope on those paths.
+        var plans = new java.util.concurrent.ConcurrentHashMap<String, org.atmosphere.ai.plan.AgentPlan>();
+        var store = new org.atmosphere.ai.plan.AgentPlanStore() {
+            @Override
+            public java.util.Optional<org.atmosphere.ai.plan.AgentPlan> get(
+                    String agentId, String conversationId) {
+                return java.util.Optional.ofNullable(plans.get(agentId + "/" + conversationId));
+            }
+
+            @Override
+            public void put(String agentId, String conversationId,
+                            org.atmosphere.ai.plan.AgentPlan plan) {
+                plans.put(agentId + "/" + conversationId, plan);
+            }
+        };
+        var scope = Map.<Class<?>, Object>of(
+                org.atmosphere.ai.plan.AgentPlanStore.class, store);
+        var session = new org.atmosphere.ai.StreamingSession() {
+            @Override
+            public String sessionId() {
+                return "bridge-session";
+            }
+
+            @Override
+            public void send(String text) {
+            }
+
+            @Override
+            public void sendMetadata(String key, Object value) {
+            }
+
+            @Override
+            public void progress(String message) {
+            }
+
+            @Override
+            public void complete() {
+            }
+
+            @Override
+            public void complete(String summary) {
+            }
+
+            @Override
+            public void error(Throwable t) {
+            }
+
+            @Override
+            public boolean isClosed() {
+                return false;
+            }
+
+            @Override
+            public Map<Class<?>, Object> injectables() {
+                return scope;
+            }
+        };
+        var tool = org.atmosphere.ai.plan.PlanningTools.writeTodosTool("bridge-agent");
+
+        var result = ToolExecutionHelper.executeWithApproval(
+                "write_todos", tool,
+                Map.of("todos", java.util.List.of(
+                        Map.of("content", "step one", "status", "pending"))),
+                session, null, null);
+
+        assertFalse(result.contains("unavailable"),
+                "the bridge overload must see the session's plan store, got: " + result);
+        assertEquals(1, plans.size(), "the plan must be persisted through the session scope");
+    }
 }

@@ -164,6 +164,19 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
         // never clobber the plan surface.
         var planNotebook = provisionPlanNotebook(context, session);
         if (!context.tools().isEmpty() || planNotebook != null) {
+            if (context.tools().isEmpty()) {
+                // Planning-only rebuild of a tool-less dispatch: the rebuild
+                // cannot carry over a Toolkit registered on the user's agent
+                // bean — agentscope-core 1.0.12 exposes no toolkit accessor —
+                // so native AgentScope tools on the bean are not available on
+                // this dispatch. Loud, not silent: register tools via @AiTool
+                // (the rebuild bridges those), or disable the native plan
+                // surface with atmosphere.ai.planning=builtin.
+                logger.warn("Rebuilding the ReActAgent to attach the native plan surface; "
+                        + "a Toolkit registered on the agent bean is not carried over "
+                        + "(no accessor in agentscope-core). Use @AiTool tools or "
+                        + "atmosphere.ai.planning=builtin if the bean's own tools are needed.");
+            }
             resolvedAgent = rebuildAgent(resolvedAgent, context, session, planNotebook);
         }
         final ReActAgent activeAgent = resolvedAgent;

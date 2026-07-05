@@ -41,6 +41,13 @@ atmosphere:
     # fail-fast default. Production apps should leave fail-fast on.
     fail-fast: false
 
+  # DEMO-ONLY: open the console Workspace tab's read surfaces (plan, workspace
+  # files) without a token. The default is deny — model-written file contents
+  # are sensitive (Correctness Invariant #6); production deployments remove
+  # this and authenticate with X-Atmosphere-Auth.
+  admin:
+    workspace-read-auth-required: false
+
   # Outbound-MCP demo: UpstreamMcpAgent connects to a remote MCP server at
   # this URL on startup and surfaces its tools to the agent loop via
   # McpToolsInterceptor. Default points at the bundled spring-boot-mcp-server

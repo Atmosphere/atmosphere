@@ -187,7 +187,15 @@ public final class ToolExecutionHelper {
                                              StreamingSession session,
                                              ApprovalStrategy strategy,
                                              ToolApprovalPolicy policy) {
-        return executeWithApproval(toolName, tool, args, session, strategy, policy, Map.of());
+        // The session's own injectables ARE the tool scope on the runtime
+        // bridge paths: every bridge funnels through this overload, and the
+        // pipeline threads the harness stores (AgentPlanStore,
+        // AgentFileSystemProvider, ...) into the session via
+        // ToolInjectablesSession. Dropping them here left the builtin
+        // plan/file tool floors dead on every non-builtin runtime while the
+        // console reported ACTIVE(builtin) (Invariants #5/#7).
+        return executeWithApproval(toolName, tool, args, session, strategy, policy,
+                session != null ? session.injectables() : Map.of());
     }
 
     /**

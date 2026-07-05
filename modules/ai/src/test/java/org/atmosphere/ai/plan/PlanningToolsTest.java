@@ -276,4 +276,44 @@ public class PlanningToolsTest {
         assertTrue(result.toString().contains("todos"),
                 "garbage must still produce the clear structure error, got: " + result);
     }
+
+    @Test
+    public void conversationScopeBeatsThePerMessageSessionId() throws Exception {
+        // Regression: channel bridges and AG-UI mint a fresh collector
+        // session per message; scoping plans by session id silently reset the
+        // plan every turn. The pipeline now stamps the stable client/thread
+        // id as a ToolScopes.ConversationScope, which must win the scope
+        // resolution so consecutive turns hit the same plan slot.
+        var store = new FileSystemAgentPlanStore(root);
+        var tool = PlanningTools.writeTodosTool("channel-agent");
+
+        var turn1 = new LinkedHashMap<Class<?>, Object>();
+        turn1.put(AgentPlanStore.class, store);
+        turn1.put(StreamingSession.class, new EventRecordingSession("uuid-turn-1"));
+        turn1.put(org.atmosphere.ai.tool.ToolScopes.ConversationScope.class,
+                new org.atmosphere.ai.tool.ToolScopes.ConversationScope("slack-channel-42"));
+        tool.executor().execute(Map.of(
+                "goal", "turn one",
+                "todos", List.of(todo("first", "pending", null))), turn1);
+
+        var turn2 = new LinkedHashMap<Class<?>, Object>();
+        turn2.put(AgentPlanStore.class, store);
+        turn2.put(StreamingSession.class, new EventRecordingSession("uuid-turn-2"));
+        turn2.put(org.atmosphere.ai.tool.ToolScopes.ConversationScope.class,
+                new org.atmosphere.ai.tool.ToolScopes.ConversationScope("slack-channel-42"));
+
+        assertEquals("turn one",
+                store.get("channel-agent", "slack-channel-42").orElseThrow().goal(),
+                "turn 1 must persist under the stable conversation scope");
+        assertTrue(store.get("channel-agent", "uuid-turn-1").isEmpty(),
+                "nothing may be scoped by the per-message session id");
+
+        tool.executor().execute(Map.of(
+                "goal", "turn two",
+                "todos", List.of(todo("second", "pending", null))), turn2);
+
+        assertEquals("turn two",
+                store.get("channel-agent", "slack-channel-42").orElseThrow().goal(),
+                "turn 2 must land in the SAME plan slot as turn 1");
+    }
 }

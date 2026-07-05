@@ -165,6 +165,19 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
         // plan re-hydrates through the system prompt (see
         // SpringAiAlibabaPlanBridge).
         var planning = provisionPlanSurface(context, session);
+        if (planning != null && staticChatModel == null && context.tools().isEmpty()) {
+            // Graceful degradation: a user-supplied ReactAgent without a
+            // ChatModel bean is a documented setup that dispatched fine
+            // before planning existed — a default-on harness primitive must
+            // not turn it into a hard failure. The dispatch proceeds without
+            // a plan surface (the tools-bearing branch below still fails
+            // loudly, as it always has).
+            logger.warn("Native Alibaba plan surface skipped: the planning agent rebuild "
+                    + "needs a Spring AI ChatModel bean and none is configured. Set "
+                    + "atmosphere.ai.planning=builtin to use the portable write_todos "
+                    + "floor instead. {}", configurationHint());
+            planning = null;
+        }
         var effectiveSystemPrompt = context.systemPrompt();
         if (planning != null && planning.rehydrationBlock() != null) {
             var block = planning.rehydrationBlock();

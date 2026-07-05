@@ -128,10 +128,16 @@ public final class FilesystemPreset {
             registered++;
         }
         if (registered == 0) {
+            // Every tool name is user-claimed — a file surface exists, just
+            // not the framework's. Report it (Invariant #5), matching the
+            // delegate_task / write_todos user-tool convention.
+            preset.updateRuntimeState(HarnessPreset.PRIMITIVE_FILESYSTEM, "ACTIVE(user-tool)");
             return;
         }
         preset.updateRuntimeState(HarnessPreset.PRIMITIVE_FILESYSTEM,
                 registered == tools.size() ? "ACTIVE(builtin)" : "ACTIVE(builtin,partial)");
-        logger.info("Harness registered {} file tool(s) for '{}'", registered, ownerName);
+        logger.info("Harness registered {} file tool(s) for '{}' (workspace root: {})",
+                registered, ownerName, preset.fileSystemProvider(ownerName)
+                        .map(p -> p.agentRoot().toString()).orElse("?"));
     }
 }

@@ -17,7 +17,7 @@ const props = defineProps<{
   mode?: 'ai' | 'broadcast'
 }>()
 
-const { messages, toolCalls, isConnected, isStreaming, connectionState, connectionStatus, send, clearMessages, respondToApproval, stats } = useAtmosphereChat(props.endpoint)
+const { messages, toolCalls, isConnected, isStreaming, connectionState, connectionStatus, send, clearMessages, respondToApproval, stats } = useAtmosphereChat(props.endpoint, props.mode)
 const messagesContainer = ref<HTMLElement | null>(null)
 
 function scrollToBottom() {

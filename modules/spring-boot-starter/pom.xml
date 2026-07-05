@@ -312,6 +312,23 @@
                         </configuration>
                     </execution>
                     <execution>
+                        <!--
+                          Type-check + unit-test the console source before bundling.
+                          `vite build` does NOT type-check, and the vitest suite (plan
+                          parsing, markdown XSS pins) previously ran in no CI lane —
+                          a regression would have shipped silently in the bundle.
+                        -->
+                        <id>console-check</id>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <phase>generate-resources</phase>
+                        <configuration>
+                            <arguments>run check</arguments>
+                            <workingDirectory>${project.basedir}/frontend</workingDirectory>
+                        </configuration>
+                    </execution>
+                    <execution>
                         <id>console-build</id>
                         <goals>
                             <goal>npm</goal>

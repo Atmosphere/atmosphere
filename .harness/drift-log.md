@@ -2101,3 +2101,32 @@ headless agent skips the harness, so the discard is observable at boot.
 shape through the processor's dispatch branches (headless vs prompt-loop here) before shipping —
 an example is a claim about a code path, not prose. Boot-time log added so the skip is no longer
 silent; recorded otherwise as procedural.
+
+## 2026-07-04 — The planning-vfs merge left docs/deep-agent.md still claiming ALL = {MEMORY, CACHE, DELEGATION}
+
+**Session:** post-merge review sweep of `850b41da7d` (planning + virtual-filesystem harness
+primitives), the day after the same file was patched for the @Coordinator contradiction.
+
+**Claim (docs/deep-agent.md, unchanged by the merge):** the Harness feature table had four rows
+and said "`Harness.ALL` | Sentinel that expands to `{MEMORY, CACHE, DELEGATION}` — the full
+harness"; the intro enumerated the completed primitives without the plan surface or file
+workspace; the runtime-truth JSON example lacked the `planning`/`filesystem` keys the preset now
+always publishes. Annotation Javadoc (`Agent.harness()`, `AiEndpoint.harness()`, the Quarkus
+harness config root) carried the same stale three-primitive enumerations.
+
+**Truth:** `Harness.java` now has PLANNING and FILESYSTEM; `expand()` maps ALL to all five;
+`HarnessPreset.install` seeds `planning`/`filesystem` runtime-truth keys unconditionally. The
+sibling site was updated in the same push; the in-tree doc the repo routes users to
+(`docs/DOCS.md`) was not.
+
+**Slip path:** recurring class — the merge updated every doc it *added* but not the pre-existing
+in-tree doc that enumerates the enum. Closed enumerations ("expands to {…}") in prose are
+capability matrices in disguise: every enum change must sweep them, and nothing gates them.
+
+**Fix (this commit):** deep-agent.md feature table, intro, preset table and JSON example updated;
+Agent/AiEndpoint/Quarkus-config Javadoc enumerations extended to the five primitives.
+
+**Gate:** added to the doc-drift-audit checklist yesterday for "X carries no Y" claims; extended
+here: any prose of the form "expands to {LIST}" or a parenthetical primitive enumeration is a
+capability matrix and MUST be swept when the enum changes — grep `deep-agent.md` + annotation
+Javadoc for "expands to" on every Harness enum edit. Procedural; no cheap automated pin exists.

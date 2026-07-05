@@ -102,6 +102,11 @@ plan as a checklist that ticks live (every `write_todos` call emits a
 backed by the read-only admin endpoints
 `GET /api/admin/agents/coding-agent/plan?sessionId=...`,
 `.../files?sessionId=...` and `.../files/content?sessionId=...&path=...`.
+These workspace reads are **deny-by-default** (model-written file contents
+are sensitive); this sample opts out for the keyless demo with
+`atmosphere.admin.workspace-read-auth-required: false` in
+`application.yml` — production deployments remove that line and send
+`X-Atmosphere-Auth`.
 The skill file (`prompts/coding-agent.md`) instructs the model to plan
 multi-step work with `write_todos` first and stage cross-step results with
 the file tools. Note the sample's built-in clone flow is deterministic (the
@@ -112,7 +117,7 @@ keylessly, and the tools fire on any model-driven turn.
 **Storage & bounds.** Plans persist per conversation under the agent
 workspace's `plans/` directory; files under `files/{conversationId}/`.
 Every write is bounds-checked with a clear rejection message (defaults:
-512 KB per file, 256 files, 16 MB total), `grep` output is capped at
+512 KiB per file, 256 files, 16 MiB total), `grep` output is capped at
 500 hits, and model-supplied paths are validated at the boundary (relative
 only — no `..`, no absolute paths).
 

@@ -21,6 +21,13 @@ atmosphere:
     http-write-enabled: true
     demo-principal: demo-user
 
+  # DEMO-ONLY: open the console Workspace tab's read surfaces (plan, workspace
+  # files) without a token. The default is deny — model-written file contents
+  # are sensitive (Correctness Invariant #6); production deployments remove
+  # this and authenticate with X-Atmosphere-Auth.
+  admin:
+    workspace-read-auth-required: false
+
 spring:
   application:
     name: atmosphere-coding-agent

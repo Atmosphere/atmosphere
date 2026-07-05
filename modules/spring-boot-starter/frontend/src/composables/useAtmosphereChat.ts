@@ -1,7 +1,7 @@
 import { ref, onMounted, onUnmounted, type Ref } from 'vue'
 import { Atmosphere, ConnectionStatus } from 'atmosphere.js'
 import { resolveAuthToken } from '../lib/authToken'
-import { recordPlanUpdate } from '../lib/workspaceStore'
+import { recordPlanUpdate, resetLivePlan } from '../lib/workspaceStore'
 import type {
   Subscription,
   AtmosphereResponse,
@@ -37,7 +37,8 @@ export interface SessionStats {
   streamingTextsPerSecond: number
 }
 
-export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
+export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
+                                  mode?: 'ai' | 'broadcast') {
   const messages = ref<ChatMessage[]>([])
   const toolCalls = ref<ToolCall[]>([])
   const isConnected = ref(false)
@@ -47,13 +48,19 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
 
   // Broadcast-mode endpoints (@ManagedService chat rooms) decode a JSON
   // {author, message, time} envelope, not the raw prompt string the AI
-  // pipeline accepts — resolved once from the console info endpoint so
-  // send() can speak the right dialect (mode is runtime truth, not a guess).
-  const broadcastMode = ref(false)
-  fetch('/api/console/info')
-    .then(r => (r.ok ? r.json() : null))
-    .then(info => { broadcastMode.value = info?.mode === 'broadcast' })
-    .catch(() => { /* AI dialect stays the default */ })
+  // pipeline accepts. The caller (App.vue → ChatContainer) already resolved
+  // the mode from the console info endpoint before mounting, so prefer the
+  // prop — a second unawaited fetch here could lose the race with the first
+  // send() and push the wrong dialect, permanently locking isStreaming on a
+  // broadcast console. The fetch remains only as a fallback for callers that
+  // don't pass the mode.
+  const broadcastMode = ref(mode === 'broadcast')
+  if (mode === undefined) {
+    fetch('/api/console/info')
+      .then(r => (r.ok ? r.json() : null))
+      .then(info => { broadcastMode.value = info?.mode === 'broadcast' })
+      .catch(() => { /* AI dialect stays the default */ })
+  }
 
   // Resilience tracker — surfaces fallback, reconnect-attempts and the
   // terminal "lost" state to the operator UI via ConnectionStatusBadge.
@@ -527,6 +534,10 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat') {
     messages.value = []
     toolCalls.value = []
     currentAssistantMessage = null
+    // The Workspace tab's live plan belongs to the conversation being
+    // cleared — keeping it would render the previous conversation's plan
+    // against the new chat.
+    resetLivePlan()
   }
 
   onMounted(() => {

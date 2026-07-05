@@ -67,7 +67,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         classes = HarnessToolRoundTripHttpE2eTest.TestApp.class,
         properties = {
-                "atmosphere.packages=org.atmosphere.harnesse2e"
+                "atmosphere.packages=org.atmosphere.harnesse2e",
+                // This test pins the tool round trip, not the auth gate — the
+                // workspace reads are default-DENY (see
+                // AdminApiAuthFilterReadGateTest for the gate pins).
+                "atmosphere.admin.workspace-read-auth-required=false"
         })
 class HarnessToolRoundTripHttpE2eTest {
 

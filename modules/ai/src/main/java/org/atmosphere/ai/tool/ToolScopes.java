@@ -41,6 +41,26 @@ public final class ToolScopes {
     }
 
     /**
+     * Explicit conversation identity for resource-free dispatch paths.
+     * Channel bridges and AG-UI build a fresh collector session per message —
+     * its {@code sessionId()} is a new UUID every turn, so scoping by it
+     * resets plans and workspace files each turn and steadily fills the plan
+     * store's file cap (Invariants #7/#3). The pipeline stamps this record
+     * with its stable {@code clientId} (channel client / AG-UI thread id) so
+     * tool-persisted state survives turns with the same identity conversation
+     * memory uses.
+     *
+     * @param id the stable conversation identity, never {@code null} or blank
+     */
+    public record ConversationScope(String id) {
+        public ConversationScope {
+            if (id == null || id.isBlank()) {
+                throw new IllegalArgumentException("conversation id must not be blank");
+            }
+        }
+    }
+
+    /**
      * Derive the conversation id from a tool invocation's injectables scope.
      *
      * @param injectables the dispatch-time injectables map (may be {@code null})
@@ -49,6 +69,9 @@ public final class ToolScopes {
     public static String conversationId(Map<Class<?>, Object> injectables) {
         if (injectables == null) {
             return DEFAULT_SCOPE;
+        }
+        if (injectables.get(ConversationScope.class) instanceof ConversationScope scope) {
+            return scope.id();
         }
         if (injectables.get(AtmosphereResource.class) instanceof AtmosphereResource resource) {
             var attr = attribute(resource, "ai.conversationId");

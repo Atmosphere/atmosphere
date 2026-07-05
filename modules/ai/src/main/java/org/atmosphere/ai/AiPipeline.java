@@ -741,9 +741,17 @@ public class AiPipeline {
         // AiEndpointHandler publishes them on the web path — the same
         // registered tools must resolve their framework parameters on every
         // invocation mode (Mode Parity #7). Dispatch-time entries win on
-        // key conflict.
+        // key conflict. The stable clientId (channel client / AG-UI thread)
+        // rides along as the ConversationScope: collector sessions mint a
+        // fresh sessionId per message, so without it plans and workspace
+        // files would silently reset every turn (Invariants #7/#3).
         if (!toolInjectables.isEmpty()) {
-            effectiveTarget = new ToolInjectablesSession(effectiveTarget, toolInjectables);
+            var scoped = new java.util.LinkedHashMap<Class<?>, Object>(toolInjectables);
+            if (clientId != null && !clientId.isBlank()) {
+                scoped.putIfAbsent(org.atmosphere.ai.tool.ToolScopes.ConversationScope.class,
+                        new org.atmosphere.ai.tool.ToolScopes.ConversationScope(clientId));
+            }
+            effectiveTarget = new ToolInjectablesSession(effectiveTarget, scoped);
         }
 
         // Per-stage input breakdown — only emitted on the path that actually

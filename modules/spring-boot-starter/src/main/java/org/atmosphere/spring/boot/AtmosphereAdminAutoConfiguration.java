@@ -269,7 +269,16 @@ public class AtmosphereAdminAutoConfiguration {
             // existing demo consoles keep working; production operators
             // flip the flag. Writes go through guardWrite on the
             // endpoint and aren't double-gated here.
-            if (principal == null && isReadAuthRequired() && isReadMethod(httpReq)) {
+            //
+            // Exception: the agent-workspace surfaces (model-written file
+            // contents, plans) are default-DENY regardless of the general
+            // read gate — they hold arbitrary model/user content, materially
+            // more sensitive than the metrics the open read plane exposes
+            // (Correctness Invariant #6). Demos that want the console
+            // Workspace tab without a token opt out explicitly with
+            // atmosphere.admin.workspace-read-auth-required=false.
+            if (principal == null && isReadMethod(httpReq)
+                    && (isReadAuthRequired() || isSensitiveWorkspaceRead(httpReq))) {
                 var httpRes = (HttpServletResponse) response;
                 httpRes.setStatus(401);
                 httpRes.setContentType("application/json");
@@ -290,6 +299,23 @@ public class AtmosphereAdminAutoConfiguration {
         private boolean isReadAuthRequired() {
             return Boolean.parseBoolean(
                     env.getProperty("atmosphere.admin.http-read-auth-required", "false"));
+        }
+
+        /**
+         * Whether this request reads an agent-workspace surface — the
+         * owner listing, a plan document, the file listing or a file's
+         * content — and that surface still requires authentication (the
+         * default; {@code atmosphere.admin.workspace-read-auth-required=false}
+         * opts a demo out, loudly at its own risk).
+         */
+        private boolean isSensitiveWorkspaceRead(HttpServletRequest req) {
+            if (!Boolean.parseBoolean(env.getProperty(
+                    "atmosphere.admin.workspace-read-auth-required", "true"))) {
+                return false;
+            }
+            var uri = req.getRequestURI();
+            return uri != null && (uri.endsWith("/api/admin/workspace/owners")
+                    || uri.matches(".*/api/admin/agents/[^/]+/(plan|files|files/content)$"));
         }
 
         private static boolean isReadMethod(HttpServletRequest req) {

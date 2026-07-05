@@ -49,6 +49,11 @@ function parseStep(raw: unknown): PlanStep | null {
   }
 }
 
+/** Clear the live plan — a new conversation must not inherit the old one. */
+export function resetLivePlan(): void {
+  livePlan.value = null
+}
+
 /**
  * Record a `plan-update` event payload (`{steps, goal, conversationId,
  * agentId}` — full-list replace semantics, so each event overwrites the

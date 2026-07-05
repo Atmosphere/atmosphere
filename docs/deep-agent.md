@@ -2,8 +2,9 @@
 
 Atmosphere agents are deep agents out of the box — the harness *completes* an
 agent: on top of whatever endpoint or agent you already have, it adds
-long-term memory, a prompt-cache default, selectable conversation compaction
-and the fleet delegation primitive — and reports each primitive's *actual*
+long-term memory, a prompt-cache default, selectable conversation compaction,
+the fleet delegation primitive, a persistent plan surface and a bounded
+conversation-scoped file workspace — and reports each primitive's *actual*
 runtime state (never configuration intent) at `/api/console/info`. The engine
 is `org.atmosphere.ai.preset.HarnessPreset`, driven by one granular attribute:
 `harness()` on `@Agent`, `@Coordinator` and `@AiEndpoint`, typed by the
@@ -14,7 +15,9 @@ is `org.atmosphere.ai.preset.HarnessPreset`, driven by one granular attribute:
 | `Harness.MEMORY` | The auto-attached long-term-memory interceptor, the compaction seam, and — on `@AiEndpoint` paths that keep `conversationMemory = false` — flipping conversation memory on (`@Agent`/`@Coordinator` resolve conversation memory unconditionally). |
 | `Harness.CACHE` | Prompt-cache default seeding — endpoints whose annotation keeps `promptCache = NONE` are seeded with a `CONSERVATIVE` policy. |
 | `Harness.DELEGATION` | The fleet delegation primitive — the built-in `delegate_task` tool plus the governance wrap on the outbound dispatch edge. |
-| `Harness.ALL` | Sentinel that expands to `{MEMORY, CACHE, DELEGATION}` — the full harness. |
+| `Harness.PLANNING` | The planning primitive — the built-in `write_todos` tool floor (or a native plan surface when the resolved runtime declares `AiCapability.PLANNING` under the `atmosphere.ai.planning` AUTO default), persisted per conversation and streamed as `plan-update` events. |
+| `Harness.FILESYSTEM` | The virtual-filesystem primitive — a bounded, conversation-scoped file store under the agent workspace: the built-in `ls`/`read_file`/`write_file`/`edit_file`/`glob`/`grep` tool floor (or a native file surface when the runtime declares `AiCapability.VIRTUAL_FILESYSTEM` under the `atmosphere.ai.filesystem` AUTO default). |
+| `Harness.ALL` | Sentinel that expands to `{MEMORY, CACHE, DELEGATION, PLANNING, FILESYSTEM}` — the full harness. |
 
 ## The API surface
 
@@ -95,6 +98,8 @@ With a feature resolved for a path, the preset completes the agent with:
 | Long-term memory | `MEMORY` | Attaches a `LongTermMemoryInterceptor`: facts extracted at session close, recalled into the system prompt on the next connection. Store resolution: a bridged `LongTermMemory` bean → a `ServiceLoader` `LongTermMemoryProvider` → the zero-dep `InMemoryLongTermMemory` fallback. |
 | Prompt-cache default | `CACHE` | Seeds a `CONSERVATIVE` `CacheHint` (wire emission still gated by the tri-state `atmosphere.ai.prompt-cache-key` mode and its default-deny host allow-list). |
 | Delegation | `DELEGATION` | On a `@Coordinator`, a built-in `delegate_task` tool plus default-on outbound-dispatch governance. |
+| Planning | `PLANNING` | Binds an `AgentPlanStore` into the endpoint's injectables and picks *one* plan surface by `atmosphere.ai.planning` mode: the runtime's native plan machinery when it declares `AiCapability.PLANNING`, else the built-in `write_todos` tool — never both. |
+| Virtual filesystem | `FILESYSTEM` | Binds an `AgentFileSystemProvider` into the endpoint's injectables and picks *one* file surface by `atmosphere.ai.filesystem` mode: the runtime's native file machinery when it declares `AiCapability.VIRTUAL_FILESYSTEM`, else the built-in six-tool floor — never both. |
 | Durable runs | — | Consumed when a container installs the journal spine. |
 | Skills | — | `META-INF/skills/<name>/SKILL.md` convention loading. |
 
@@ -110,6 +115,8 @@ the console surfaces at `/api/console/info` under `harness`:
   "long-term-memory": "ACTIVE(org.atmosphere.ai.memory.InMemoryLongTermMemory)",
   "prompt-cache-default": "conservative",
   "compaction": "sliding-window",
+  "planning": "ACTIVE(builtin)",
+  "filesystem": "ACTIVE(builtin)",
   "skills": "CONVENTION",
   "durable-runs": "CONTAINER-MANAGED",
   "delegation": "INACTIVE(disabled)"

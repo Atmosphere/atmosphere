@@ -50,6 +50,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         })
 class HarnessOptInHttpE2eTest {
 
+    static {
+        // Isolate the workspace substrate (plans/ + files/ subtrees) from the
+        // developer's ~/.atmosphere/workspace — the harness attach creates
+        // real directories at annotation-scan time (same pattern as
+        // HarnessToolRoundTripHttpE2eTest).
+        try {
+            System.setProperty("atmosphere.workspace.root",
+                    java.nio.file.Files.createTempDirectory("atmosphere-harness-e2e").toString());
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException("Could not create isolated workspace root", e);
+        }
+    }
+
     @LocalServerPort
     private int port;
 

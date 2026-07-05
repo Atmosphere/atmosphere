@@ -258,7 +258,7 @@ public @interface AiEndpoint {
      * Opt in per endpoint, e.g. {@code harness = {Harness.MEMORY}} for
      * conversation + long-term memory, or {@code harness = {Harness.ALL}}
      * for the full deep-agent primitive set (memory, prompt-cache default
-     * seeding, delegation).
+     * seeding, delegation, planning, the file workspace).
      *
      * <p>The app-wide {@code org.atmosphere.ai.harness.enabled} init-param
      * refines this: {@code true} gives every bare endpoint the full harness,

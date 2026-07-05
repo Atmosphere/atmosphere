@@ -169,7 +169,10 @@ not apply to it.) The app-wide tri-state
 `@AiEndpoint` on (`true`) or kill the harness everywhere (`false`).
 Per-primitive runtime state is published at `/api/console/info` under
 `harness` — the console shows what actually activated, not what was
-configured.
+configured. The console Workspace tab's plan/file reads are deny-by-default;
+this sample opts out for the keyless demo with
+`atmosphere.admin.workspace-read-auth-required: false` (see
+`application.yml`) — production deployments remove that and authenticate.
 
 > **History note:** before the preset existed this sample wired long-term
 > memory by hand — a `@Configuration`, a static holder, and a no-arg

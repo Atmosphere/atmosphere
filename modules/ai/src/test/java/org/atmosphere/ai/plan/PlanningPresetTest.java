@@ -201,7 +201,7 @@ public class PlanningPresetTest {
     }
 
     @Test
-    public void userToolCollisionSkipsTheFloorWithoutFlippingState() {
+    public void userToolCollisionKeepsTheUserToolAndReportsUserToolState() {
         registry.register(ToolDefinition.builder(PlanningTools.WRITE_TODOS, "user's own")
                 .executor(args -> "user")
                 .kind(ToolKind.EDIT)
@@ -212,8 +212,15 @@ public class PlanningPresetTest {
         assertEquals("user's own",
                 registry.getTool(PlanningTools.WRITE_TODOS).orElseThrow().description(),
                 "the user's tool must win the name");
-        assertEquals("INACTIVE(no-endpoint)",
+        // A plan surface genuinely exists — the user's own write_todos tool —
+        // so the honest runtime state is ACTIVE(user-tool), matching the
+        // delegation convention (CoordinatorProcessor.registerPresetDelegation
+        // reports the same for a hand-written delegate_task). Leaving it
+        // INACTIVE would under-report a surface the model can actually call
+        // (Invariant #5 cuts both ways: no over-claim, but no under-claim of a
+        // confirmed surface either).
+        assertEquals("ACTIVE(user-tool)",
                 preset.runtimeState().get(HarnessPreset.PRIMITIVE_PLANNING),
-                "a skipped attach must not report ACTIVE (Invariant #5)");
+                "a user-provided plan tool is a genuine surface — report it");
     }
 }

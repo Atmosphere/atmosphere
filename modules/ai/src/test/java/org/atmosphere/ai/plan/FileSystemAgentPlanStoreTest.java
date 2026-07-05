@@ -143,4 +143,35 @@ public class FileSystemAgentPlanStoreTest {
 
         assertEquals(plan, store.get("agent", "conv").orElseThrow());
     }
+
+    @Test
+    public void capEvictsTheOldestPlanInsteadOfBrickingTheStore() throws Exception {
+        // Regression: the cap used to reject every NEW key forever once
+        // reached — on channel paths (a fresh conversation id per turn, at
+        // the time) that permanently disabled planning for the owner until
+        // an operator deleted files by hand (Invariant #2: a cap is a bound,
+        // not a terminal state).
+        var store = store();
+        var plansDir = root.resolve("plans").resolve("agent");
+        java.nio.file.Files.createDirectories(plansDir);
+        var doc = "{\"goal\":\"g\",\"steps\":[]}";
+        for (int i = 0; i < FileSystemAgentPlanStore.MAX_PLAN_FILES; i++) {
+            java.nio.file.Files.writeString(plansDir.resolve("conv-" + i + ".json"), doc);
+        }
+        var oldest = plansDir.resolve("conv-0.json");
+        java.nio.file.Files.setLastModifiedTime(oldest,
+                java.nio.file.attribute.FileTime.fromMillis(1_000L));
+
+        store.put("agent", "fresh-conversation", plan("new goal", "step"));
+
+        assertFalse(java.nio.file.Files.exists(oldest),
+                "the least-recently-modified plan must be evicted to make room");
+        assertEquals("new goal",
+                store.get("agent", "fresh-conversation").orElseThrow().goal());
+        try (var walk = java.nio.file.Files.walk(root.resolve("plans"))) {
+            var count = walk.filter(java.nio.file.Files::isRegularFile).count();
+            assertTrue(count <= FileSystemAgentPlanStore.MAX_PLAN_FILES,
+                    "store must stay within the cap, got " + count);
+        }
+    }
 }

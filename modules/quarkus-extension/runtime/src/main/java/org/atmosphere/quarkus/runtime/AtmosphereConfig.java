@@ -301,7 +301,8 @@ public interface AtmosphereConfig {
         /**
          * Agent-harness preset, bound to {@code quarkus.atmosphere.ai.harness.*}.
          * Governs Atmosphere's deep-agent primitives (default-on conversation
-         * memory, long-term memory, subagent delegation, prompt-cache seeding)
+         * memory, long-term memory, subagent delegation, prompt-cache seeding,
+         * the plan surface, the conversation-scoped file workspace)
          * app-wide instead of manual per-endpoint wiring. The deployment
          * processor bridges these keys to the
          * {@code org.atmosphere.ai.harness.*} framework init-params read

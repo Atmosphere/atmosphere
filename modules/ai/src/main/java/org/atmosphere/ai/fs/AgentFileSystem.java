@@ -59,11 +59,17 @@ public interface AgentFileSystem {
      * model-writable store without bounds is a DoS vector). Over-limit
      * operations are rejected with a clear {@link IllegalArgumentException}.
      *
-     * @param maxFileBytes  maximum size of one file, in bytes
-     * @param maxFiles      maximum number of files in the store
-     * @param maxTotalBytes maximum cumulative size of all files, in bytes
+     * @param maxFileBytes     maximum size of one file, in bytes
+     * @param maxFiles         maximum number of files in the store
+     * @param maxTotalBytes    maximum cumulative size of all files, in bytes
+     * @param maxConversations maximum number of conversation stores kept on
+     *                         disk per owner — conversation ids arrive from
+     *                         external input, so without this cap total disk
+     *                         use is unbounded at {@code N × maxTotalBytes};
+     *                         the oldest conversation directories are deleted
+     *                         to make room (Correctness Invariant #3)
      */
-    record Limits(int maxFileBytes, int maxFiles, long maxTotalBytes) {
+    record Limits(int maxFileBytes, int maxFiles, long maxTotalBytes, int maxConversations) {
 
         /** Default per-file cap: 512 KiB. */
         public static final int DEFAULT_MAX_FILE_BYTES = 512 * 1024;
@@ -74,17 +80,31 @@ public interface AgentFileSystem {
         /** Default total-bytes cap: 16 MiB. */
         public static final long DEFAULT_MAX_TOTAL_BYTES = 16L * 1024 * 1024;
 
+        /**
+         * Default on-disk conversation-store cap per owner: 256 directories
+         * (worst-case disk per owner = 256 × {@link #DEFAULT_MAX_TOTAL_BYTES}
+         * = 4 GiB).
+         */
+        public static final int DEFAULT_MAX_CONVERSATIONS = 256;
+
         public Limits {
-            if (maxFileBytes <= 0 || maxFiles <= 0 || maxTotalBytes <= 0) {
+            if (maxFileBytes <= 0 || maxFiles <= 0 || maxTotalBytes <= 0
+                    || maxConversations <= 0) {
                 throw new IllegalArgumentException("limits must be positive: "
-                        + maxFileBytes + "/" + maxFiles + "/" + maxTotalBytes);
+                        + maxFileBytes + "/" + maxFiles + "/" + maxTotalBytes
+                        + "/" + maxConversations);
             }
         }
 
-        /** The default bounds: 512 KiB per file, 256 files, 16 MiB total. */
+        /** Bounds with the default conversation-store cap. */
+        public Limits(int maxFileBytes, int maxFiles, long maxTotalBytes) {
+            this(maxFileBytes, maxFiles, maxTotalBytes, DEFAULT_MAX_CONVERSATIONS);
+        }
+
+        /** The default bounds: 512 KiB per file, 256 files, 16 MiB total, 256 conversations. */
         public static Limits defaults() {
             return new Limits(DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_FILES,
-                    DEFAULT_MAX_TOTAL_BYTES);
+                    DEFAULT_MAX_TOTAL_BYTES, DEFAULT_MAX_CONVERSATIONS);
         }
     }
 
