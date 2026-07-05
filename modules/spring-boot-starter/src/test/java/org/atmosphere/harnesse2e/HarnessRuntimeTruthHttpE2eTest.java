@@ -58,11 +58,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         classes = HarnessRuntimeTruthHttpE2eTest.TestApp.class,
         properties = {
-                "atmosphere.packages=org.atmosphere.harnesse2e",
-                // This boot pins the owners-listing CONTENT, not the auth
-                // gate — workspace reads are default-DENY; the gate itself
-                // is pinned by AdminApiAuthFilterReadGateTest.
-                "atmosphere.admin.workspace-read-auth-required=false"
+                "atmosphere.packages=org.atmosphere.harnesse2e"
+                // No workspace-read opt-out: the owners discovery endpoint is
+                // open by default (only plan/files/content are gated), so this
+                // proves the default-posture probe the console fires on load.
         })
 class HarnessRuntimeTruthHttpE2eTest {
 

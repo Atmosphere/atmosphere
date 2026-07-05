@@ -302,11 +302,20 @@ public class AtmosphereAdminAutoConfiguration {
         }
 
         /**
-         * Whether this request reads an agent-workspace surface — the
-         * owner listing, a plan document, the file listing or a file's
+         * Whether this request reads an agent-workspace surface that exposes
+         * workspace internals — a plan document, the file listing or a file's
          * content — and that surface still requires authentication (the
          * default; {@code atmosphere.admin.workspace-read-auth-required=false}
          * opts a demo out, loudly at its own risk).
+         *
+         * <p>The {@code /api/admin/workspace/owners} discovery endpoint is
+         * deliberately NOT gated: it returns only agent names plus
+         * plan/filesystem booleans — the same existence information already
+         * exposed by {@code /api/admin/agents} and the console itself — and
+         * the console probes it on load for every app, so gating it would
+         * emit a spurious 401 resource error on consoles that never open the
+         * Workspace tab. The sensitive data (plan text, file names, file
+         * bodies) stays default-deny.</p>
          */
         private boolean isSensitiveWorkspaceRead(HttpServletRequest req) {
             if (!Boolean.parseBoolean(env.getProperty(
@@ -314,8 +323,8 @@ public class AtmosphereAdminAutoConfiguration {
                 return false;
             }
             var uri = req.getRequestURI();
-            return uri != null && (uri.endsWith("/api/admin/workspace/owners")
-                    || uri.matches(".*/api/admin/agents/[^/]+/(plan|files|files/content)$"));
+            return uri != null
+                    && uri.matches(".*/api/admin/agents/[^/]+/(plan|files|files/content)$");
         }
 
         private static boolean isReadMethod(HttpServletRequest req) {

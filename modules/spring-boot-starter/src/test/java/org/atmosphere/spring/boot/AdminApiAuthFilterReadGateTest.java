@@ -104,16 +104,15 @@ class AdminApiAuthFilterReadGateTest {
     }
 
     @Test
-    void workspaceFileContentIsDenyByDefaultEvenWithTheReadGateOff() throws Exception {
-        // Agent-workspace surfaces hold model-written file contents and
-        // plans — default-DENY regardless of the general read plane
-        // (Invariant #6). Regression for the review finding that the
+    void workspaceContentSurfacesAreDenyByDefaultEvenWithTheReadGateOff() throws Exception {
+        // The plan, file-listing and file-content surfaces hold model-written
+        // workspace internals — default-DENY regardless of the general read
+        // plane (Invariant #6). Regression for the review finding that the
         // Workspace endpoints shipped riding the default-open read plane.
         var env = new MockEnvironment();
         var filter = new AtmosphereAdminAutoConfiguration.AdminApiAuthFilter(
                 tokenValidatorRejectingEverything(), env);
         for (var path : new String[]{
-                "/api/admin/workspace/owners",
                 "/api/admin/agents/coding-agent/plan",
                 "/api/admin/agents/coding-agent/files",
                 "/api/admin/agents/coding-agent/files/content"}) {
@@ -121,9 +120,30 @@ class AdminApiAuthFilterReadGateTest {
             var chain = Mockito.mock(FilterChain.class);
             filter.doFilter(new MockHttpServletRequest("GET", path), res, chain);
             assertEquals(401, res.getStatus(),
-                    "anonymous workspace read must be denied by default: " + path);
+                    "anonymous workspace content read must be denied by default: " + path);
             verify(chain, never()).doFilter(any(), any());
         }
+    }
+
+    @Test
+    void workspaceOwnersDiscoveryStaysOpenSoTheConsoleProbeDoesNotError() throws Exception {
+        // The owners endpoint returns only agent names + plan/fs booleans —
+        // the same existence info /api/admin/agents already exposes — and the
+        // console probes it on load for EVERY app. Gating it emitted a
+        // spurious 401 resource error on consoles that never open the
+        // Workspace tab (broke orchestration-primitives' no-JS-errors e2e).
+        var env = new MockEnvironment();
+        var filter = new AtmosphereAdminAutoConfiguration.AdminApiAuthFilter(
+                tokenValidatorRejectingEverything(), env);
+        var res = new MockHttpServletResponse();
+        var chain = Mockito.mock(FilterChain.class);
+
+        filter.doFilter(new MockHttpServletRequest(
+                "GET", "/api/admin/workspace/owners"), res, chain);
+
+        assertEquals(200, res.getStatus(),
+                "the workspace owners discovery probe must stay open by default");
+        verify(chain, times(1)).doFilter(any(), any());
     }
 
     @Test
