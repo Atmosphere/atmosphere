@@ -102,8 +102,10 @@ into one before attaching if needed.
 
 ## Native Planning (GOAP Plan Observation)
 
-`EmbabelAgentRuntime` declares `AiCapability.PLANNING` on the basis of the
-deployed-agent dispatch path: `executeDeployedAgent` registers an
+GOAP plan observation is an **explicit opt-in** (`atmosphere.ai.planning=native`);
+`EmbabelAgentRuntime` deliberately does **not** declare `AiCapability.PLANNING`
+(see "Why the capability is not declared" below). When opted in, the
+deployed-agent dispatch path (`executeDeployedAgent`) registers an
 `EmbabelGoapPlanBridge` (an Embabel `AgenticEventListener`) on the
 `ProcessOptions`, and every `AgentProcessPlanFormulatedEvent` /
 `ReplanRequestedEvent` is mirrored into an `AiEvent.PlanUpdate` frame so the
@@ -121,15 +123,25 @@ Two honesty caveats, by design:
   direct `PromptRunner` with no planner, so no plan surface exists there
   (the same path asymmetry as `TOKEN_USAGE`).
 
-Activation follows `atmosphere.ai.planning` (`PlanningMode`): under `AUTO`
-(default) and `NATIVE` the bridge attaches and the harness skips the built-in
-`write_todos` floor; under `BUILTIN` the bridge is not registered and only
-the portable floor is used — never both.
+**Why the capability is not declared.** Each native surface here is real on
+exactly one of the two dispatch paths — the GOAP bridge only on the
+deployed-agent path, `AtmosphereFileTools` only on the Atmosphere-native
+path. A static `AiCapability` declaration makes the harness presets suppress
+the portable floors on *every* path (AUTO picks one surface, never both), so
+the uncovered path would have no plan / file surface at all while the console
+reported `ACTIVE(native:embabel)` — a Runtime-Truth violation (Invariant #5).
+Under the `AUTO` default the portable floors therefore own the surface on all
+paths; `atmosphere.ai.planning=native` attaches the GOAP bridge instead
+(deployed path only, and the floor is skipped — never both).
 
 ## Native Virtual Filesystem (Embabel FileTools)
 
-`EmbabelAgentRuntime` declares `AiCapability.VIRTUAL_FILESYSTEM` on the basis
-of the Atmosphere-native dispatch path: when the harness FILESYSTEM primitive
+The Embabel `FileTools` surface is an **explicit opt-in**
+(`atmosphere.ai.filesystem=native`); `AiCapability.VIRTUAL_FILESYSTEM` is
+deliberately **not** declared for the same path-asymmetry reason as PLANNING
+above (the deployed-agent path cannot receive per-process tools, so a
+declaration would leave it with no file surface while suppressing the
+built-in floor). When opted in and the harness FILESYSTEM primitive
 scopes an `AgentFileSystem` onto the session, `executeAtmosphereNative`
 attaches `AtmosphereFileTools` — Embabel's own `FileTools` tool surface
 (`createFile` / `writeFile` / `editFile` / `appendFile` / `delete` /

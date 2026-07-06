@@ -105,7 +105,11 @@ class EmbabelAgentRuntime : AgentRuntime {
         internal fun resolveAgentFileSystem(
             session: StreamingSession?
         ): org.atmosphere.ai.fs.AgentFileSystem? {
-            if (AiConfig.resolveFilesystemMode() == org.atmosphere.ai.fs.FilesystemMode.BUILTIN) {
+            if (AiConfig.resolveFilesystemMode() != org.atmosphere.ai.fs.FilesystemMode.NATIVE) {
+                // Explicit opt-in only (atmosphere.ai.filesystem=native): the
+                // runtime does not declare VIRTUAL_FILESYSTEM (the deployed
+                // path cannot receive per-process tools), so under AUTO the
+                // portable six-tool floor owns the surface on every path.
                 return null
             }
             val injectables = session?.injectables() ?: emptyMap<Class<*>, Any>()
@@ -395,7 +399,7 @@ class EmbabelAgentRuntime : AgentRuntime {
      * tool floor owns the surface and already flows through `context.tools()`.
      */
     private fun hasFileStoreInScope(session: StreamingSession): Boolean {
-        if (AiConfig.resolveFilesystemMode() == org.atmosphere.ai.fs.FilesystemMode.BUILTIN) {
+        if (AiConfig.resolveFilesystemMode() != org.atmosphere.ai.fs.FilesystemMode.NATIVE) {
             return false
         }
         val injectables = session.injectables()
@@ -420,15 +424,15 @@ class EmbabelAgentRuntime : AgentRuntime {
         val channel = AtmosphereOutputChannel(session)
         val process = try {
             var options = ProcessOptions.DEFAULT.withOutputChannel(channel)
-            // Harness PLANNING (native, read-only): observe the GOAP plan the
-            // A* planner formulates for this process and mirror it into
-            // AiEvent.PlanUpdate frames (EmbabelGoapPlanBridge). Skipped under
-            // PlanningMode.BUILTIN — the operator asked for the portable
-            // write_todos floor only, and two plan sources on one console
-            // surface would conflict (no duplicate plan surfaces). The bridge
-            // carries the ToolScopes-derived conversation/agent scope so its
-            // PlanUpdate frames correlate exactly like the write_todos floor's.
-            if (AiConfig.resolvePlanningMode() != org.atmosphere.ai.plan.PlanningMode.BUILTIN) {
+            // GOAP plan observation (read-only) is an EXPLICIT opt-in
+            // (atmosphere.ai.planning=native). The runtime does not declare
+            // AiCapability.PLANNING: the bridge exists only on this deployed
+            // path (executeAtmosphereNative has no planner), and a static
+            // declaration would suppress the portable write_todos floor on
+            // dispatches that never see a plan — the same path-asymmetry
+            // reasoning that keeps Koog's capability undeclared. Under the
+            // AUTO default the floor owns the surface everywhere.
+            if (AiConfig.resolvePlanningMode() == org.atmosphere.ai.plan.PlanningMode.NATIVE) {
                 val injectables = session.injectables()
                 options = options.withListener(EmbabelGoapPlanBridge(
                     session,
@@ -806,32 +810,24 @@ class EmbabelAgentRuntime : AgentRuntime {
         // and whenDone settles, but the upstream call may finish in the
         // background). "Cooperative" cancellation per the capability's
         // contract. Pinned by EmbabelAgentRuntimeCancelTest.
-        AiCapability.CANCELLATION,
-        // PLANNING: honest on the deployed-agent path — executeDeployedAgent
-        // registers EmbabelGoapPlanBridge (an AgenticEventListener) on the
-        // ProcessOptions, mirroring every AgentProcessPlanFormulatedEvent /
-        // ReplanRequestedEvent into AiEvent.PlanUpdate frames. The plan is
-        // read-only and framework-computed (A* GOAP from @Action pre/post-
-        // conditions, re-planned per action — the model never authors it);
-        // the emitted goal carries a "GOAP" marker so consoles show that.
-        // The Atmosphere-native fallback path (executeAtmosphereNative)
-        // drives a direct PromptRunner with no planner, so no plan surface
-        // exists there — same path asymmetry as TOKEN_USAGE above. Pinned
-        // by EmbabelGoapPlanBridgeTest.
-        AiCapability.PLANNING,
-        // VIRTUAL_FILESYSTEM: honest on the Atmosphere-native path —
-        // executeAtmosphereNative attaches AtmosphereFileTools (Embabel's
-        // FileTools tool surface: createFile/writeFile/editFile/appendFile/
-        // delete/createDirectory/readFile plus the native read helpers)
-        // rooted at the SAME conversation-scoped directory the harness
-        // AgentFileSystem manages. Every mutation routes back through the
-        // WorkspaceAgentFileSystem so Limits (per-file/count/total bytes)
-        // and traversal guards hold on the native surface too (Invariant
-        // #3/#4). The deployed-agent path cannot receive per-process tools
-        // (ProcessOptions has no tool surface) — the drop is warned loudly
-        // in warnIfDeployedAgentDropsRequestFeatures, same path asymmetry
-        // as TOOL_CALLING / VISION above. Pinned by
-        // EmbabelAgentRuntimeVfsTest.
-        AiCapability.VIRTUAL_FILESYSTEM
+        AiCapability.CANCELLATION
+        // PLANNING and VIRTUAL_FILESYSTEM are deliberately NOT declared,
+        // although native surfaces exist behind explicit opt-ins:
+        //
+        // Each surface is real on exactly ONE of the two dispatch paths —
+        // the GOAP plan bridge only on executeDeployedAgent (the native
+        // fallback drives a plain PromptRunner with no planner), and
+        // AtmosphereFileTools only on executeAtmosphereNative (ProcessOptions
+        // has no per-process tool surface for deployed agents). A static
+        // capability declaration makes PlanningPreset / FilesystemPreset
+        // suppress the portable floors on EVERY path (AUTO picks one surface,
+        // never both), so the uncovered path would have no plan / file
+        // surface at all while the console reported ACTIVE(native:embabel) —
+        // a Runtime-Truth violation (Invariant #5). Same reasoning that keeps
+        // Koog's planner capability undeclared. Operators opt into the native
+        // surfaces explicitly with atmosphere.ai.planning=native /
+        // atmosphere.ai.filesystem=native, accepting the per-path coverage.
+        // Pinned by EmbabelGoapPlanBridgeTest / EmbabelAgentRuntimeVfsTest
+        // and the contract test's expected-capabilities equality.
     )
 }

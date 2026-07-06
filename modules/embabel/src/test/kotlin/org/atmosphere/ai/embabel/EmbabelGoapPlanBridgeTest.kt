@@ -161,11 +161,16 @@ internal class EmbabelGoapPlanBridgeTest {
     }
 
     // ------------------------------------------------------------------
-    // Dispatch wiring (runtime truth for AiCapability.PLANNING)
+    // Dispatch wiring: GOAP observation is an EXPLICIT native opt-in.
+    // The runtime does not declare AiCapability.PLANNING (the bridge only
+    // exists on the deployed path; a declaration would suppress the
+    // write_todos floor on the planner-less native path — Invariant #5),
+    // so under the AUTO default the floor owns every dispatch and the
+    // bridge stays off.
     // ------------------------------------------------------------------
 
     @Test
-    fun `deployed-agent dispatch registers the bridge on ProcessOptions`() {
+    fun `AUTO default keeps the native bridge off the dispatch`() {
         val platform = mockPlatform()
         EmbabelAgentRuntime.setAgentPlatform(platform)
 
@@ -173,14 +178,15 @@ internal class EmbabelGoapPlanBridgeTest {
 
         val captor = argumentCaptor<ProcessOptions>()
         verify(platform).runAgentFrom(any<Agent>(), captor.capture(), any<Map<String, Any>>())
-        assertTrue(captor.firstValue.listeners.any { it is EmbabelGoapPlanBridge },
-            "executeDeployedAgent must register EmbabelGoapPlanBridge under PlanningMode.AUTO")
+        assertFalse(captor.firstValue.listeners.any { it is EmbabelGoapPlanBridge },
+            "under PlanningMode.AUTO the write_todos floor owns the plan surface — " +
+                "the GOAP bridge must not attach")
     }
 
     @Test
-    fun `PlanningMode BUILTIN skips the native bridge`() {
+    fun `explicit PlanningMode NATIVE registers the bridge on ProcessOptions`() {
         val previous = System.getProperty(AiConfig.PLANNING_PROPERTY)
-        System.setProperty(AiConfig.PLANNING_PROPERTY, "builtin")
+        System.setProperty(AiConfig.PLANNING_PROPERTY, "native")
         try {
             val platform = mockPlatform()
             EmbabelAgentRuntime.setAgentPlatform(platform)
@@ -189,8 +195,8 @@ internal class EmbabelGoapPlanBridgeTest {
 
             val captor = argumentCaptor<ProcessOptions>()
             verify(platform).runAgentFrom(any<Agent>(), captor.capture(), any<Map<String, Any>>())
-            assertFalse(captor.firstValue.listeners.any { it is EmbabelGoapPlanBridge },
-                "PlanningMode.BUILTIN must keep the native GOAP bridge off the dispatch")
+            assertTrue(captor.firstValue.listeners.any { it is EmbabelGoapPlanBridge },
+                "atmosphere.ai.planning=native must attach the GOAP observation bridge")
         } finally {
             if (previous == null) {
                 System.clearProperty(AiConfig.PLANNING_PROPERTY)

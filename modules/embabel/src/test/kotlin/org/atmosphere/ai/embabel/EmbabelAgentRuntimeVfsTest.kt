@@ -281,6 +281,17 @@ internal class EmbabelAgentRuntimeVfsTest {
     }
 
     @Test
+    fun autoDefaultSuppressesTheNativeSurface() {
+        // The runtime does not declare VIRTUAL_FILESYSTEM (the deployed path
+        // has no per-process tool surface), so the native bridge is an
+        // explicit atmosphere.ai.filesystem=native opt-in — under the AUTO
+        // default the six-tool floor owns every dispatch path.
+        assertNull(EmbabelAgentRuntime.resolveAgentFileSystem(
+                sessionWith(mapOf(AgentFileSystem::class.java to fileSystem))),
+            "AUTO default: the portable tool floor owns the surface")
+    }
+
+    @Test
     fun fsFreeSessionResolvesNoStore() {
         assertNull(EmbabelAgentRuntime.resolveAgentFileSystem(sessionWith(mapOf())),
             "harness FILESYSTEM off: nothing in the tool scope, no native surface")
@@ -289,6 +300,7 @@ internal class EmbabelAgentRuntimeVfsTest {
 
     @Test
     fun directStoreWinsOverProvider() {
+        System.setProperty(AiConfig.FILESYSTEM_PROPERTY, "native")
         val provider = AgentFileSystemProvider(tempDir, AgentFileSystem.Limits.defaults())
 
         val resolved = EmbabelAgentRuntime.resolveAgentFileSystem(sessionWith(mapOf(
@@ -301,6 +313,7 @@ internal class EmbabelAgentRuntimeVfsTest {
 
     @Test
     fun providerFallbackDerivesConversationScopedStore() {
+        System.setProperty(AiConfig.FILESYSTEM_PROPERTY, "native")
         val provider = AgentFileSystemProvider(tempDir, AgentFileSystem.Limits.defaults())
 
         val resolved = EmbabelAgentRuntime.resolveAgentFileSystem(sessionWith(mapOf(
