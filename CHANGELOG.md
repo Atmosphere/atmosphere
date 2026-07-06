@@ -7,6 +7,146 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.60] - 2026-07-06
+
+### Added
+
+- native plan bridges persist to AgentPlanStore under the floor's key Embabel GOAP and Koog planner mirrors now also put() every plan under the same (agentId, conversationId) the write_todos floor uses, so the admin plan endpoint and Workspace stored view work for opted-in native surfaces; best-effort with WARN on store failure, pinned by persistence + failure-isolation tests in both bridges.
+- koog native plan observation, embabel bounded file tools, plan-event correlation KoogPlanner dispatch branch + KoogPlanBridge mirror planner lifecycle into PlanUpdate (capability deliberately undeclared: koog plans exist only when the caller supplies a planner, so the write_todos floor must stay); AtmosphereFileTools implements Embabel's FileTools over the bounded conversation store (VIRTUAL_FILESYSTEM declared); PlanUpdate now carries conversationId/agentId at every emitter so the console Workspace tab correlates live plans to stored state one-click.
+- planning + virtual-filesystem harness primitives; console broadcast fix write_todos and bounded ls/read/write/edit/glob/grep tools attach by default on every tool-calling runtime (Harness PLANNING/FILESYSTEM); AgentScope PlanNotebook, Embabel GOAP and Alibaba todos delegate via AiCapability.PLANNING while ADK artifacts and the Anthropic memory tool expose the store via VIRTUAL_FILESYSTEM; console gains a Workspace tab plus a broadcast-mode fix from a 29-sample browser sweep (outbound {author,message} envelope, event-less inbound frames render, cross-client Playwright regression); browser-proven with a real model.
+- Harness feature set on @Agent/@Coordinator/@AiEndpoint replaces the deep-agent boolean @Agent and @Coordinator are batteries-included by default (harness() = {ALL}; empty array opts down to a bare loop) while a bare @AiEndpoint opts in per endpoint; the app-wide atmosphere.ai.harness.enabled flag is tri-state with explicit false as a kill switch beating every annotation; user-facing config keys and the console runtime-truth block rename deep-agent to harness; HTTP + Playwright e2e pin default-on, opt-in and kill-switch on booted apps.
+- deep-agent harness on @Agent(deepAgent) + wired @SandboxTool @Agent(deepAgent=true) — or atmosphere.ai.deep-agent.enabled app-wide — attaches long-term memory, a prompt-cache default, selectable compaction and fleet delegation with per-primitive runtime-truth at /api/console/info; @SandboxTool routes a tool method through a framework-owned Sandbox; fixed the built-in runtime model fallback so LTM fact extraction works (browser-proven cross-session recall); Spring/Quarkus/servlet parity; personal-assistant + coding-agent samples converted.
+- @Command slash commands work on @AiEndpoint, not only @Agent New AiHandlerDecorator SPI lets atmosphere-agent wrap any @AiEndpoint that declares @Command methods with the same command router the @Agent path uses; rag-chat console /sources is now an instant KB listing instead of falling through to the LLM.
+- honor @AgentScope on @Agent classes and lint their scope posture
+- client-reachable durable crash-resume via X-Atmosphere-Run-Id reconnect
+- lead quarkus-ai-chat with @Agent instead of @AiEndpoint
+- lead spring-boot-ai-chat with @Agent instead of @AiEndpoint
+- lead spring-boot-channels-chat with @Agent instead of @AiEndpoint
+- add atmosphere-ai-spring-boot-starter for one-dependency @Agent apps
+- durable agent runs with deterministic replay across runtimes
+- auto-wire default CheckpointStore and ContextProvider beans in-memory defaults via @ConditionalOnMissingBean with startup warnings; all six families now self-wire
+- prove atmosphere-admin-bundle self-wires the six families
+- add kotlin-dsl-chat proving the Kotlin DSL + coroutine extensions
+- prove Spring AI setChatClient + defaultAdvisors + per-request advisors
+- deliver audio input to the runtime via stream(message, parts) MultiModalChat forwards audio: prompts as Content.Audio input; delivery test asserts the runtime context carries the audio part
+- add @AiEndpoint(broadcastReply) to fan one reply out to a room
+- add passivation-agent sample proving pause/resume Snapshots a paused conversation to a CheckpointStore and resumes it from the restored history; PassivationDeliveryTest asserts the round-trip.
+- gate a money-moving refund tool behind @RequiresApproval
+- enforce @Agent scope from skill ## Guardrails on web and pipeline paths A skill's ## Guardrails lines become an enforced ScopePolicy (tier from optional scopeTier frontmatter, default embedding-similarity), prepended on both the web streaming and A2A/AG-UI/channel pipeline paths.
+- confine @AgentScope on the web streaming path too (Mode Parity #7)
+- enforce @AgentScope confinement on the @Coordinator pipeline Extract reusable ScopePolicyBuilder; prepend the scope policy ahead of installed policies.
+- wire OpenClaw workspace extension files into the processors AgentProcessor/CoordinatorProcessor consume RUNTIME/PERMISSIONS/SKILLS/CHANNELS/MCP; PERMISSIONS denials enforced on web, A2A and channel paths
+- gate admin writes on atmosphere.admin.required-role (JWT roles)
+
+### Fixed
+
+- undeclare PLANNING/VIRTUAL_FILESYSTEM — native surfaces become explicit opt-ins Each surface exists on only one of the two dispatch paths (GOAP bridge: deployed-agent; FileTools: Atmosphere-native); a static declaration suppressed the portable floors everywhere, leaving the uncovered path with no plan/file surface behind an ACTIVE(native:embabel) label. Floors now own AUTO on every path; planning/filesystem=native attach the native surfaces (same reasoning as Koog). Snapshot+SKILLCARD+contract pins updated.
+- keep the workspace owners probe open, gate only plan/file content
+- harden planning + virtual-filesystem harness — bounds, scoping, runtime truth, auth
+- don't let an OTel GenAI meter conflict crash the request path MicrometerAiMetrics dual-emits gen_ai.client.operation.duration and token.usage; when a co-resident instrumentation (quarkus-langchain4j) already owns those OTel names with different tag keys, Micrometer/Prometheus rejects the registration and the exception surfaced as an in-stream error frame (paid-nightly Gemini disconnect-recovery). Back off the dual-emit once on conflict, keeping the atmosphere.ai.* series; regression test drives a registry that rejects the registration.
+- harness-aware CI lanes, tool-count truth, governed-dispatch rate budget Real-LLM lanes install the quarkus-ai-chat module closure (deployment verification needs installed artifacts, not a stale cache); orchestration spec pins the new 9-tool truth (2 user + 7 harness); the startup-team rate policy is sized for governed fan-out (one prompt = five metered tickets) and the activity spec waits for genuine connection and tolerates a spent window.
+- harness review — attach-time runtime truth, delegate_task user guard, mode parity
+- append grounded facts after the system prompt so provider prefix caches keep hitting time.now renders at minute granularity; schema/confidence appends splice in before the trailing fact block so volatile facts stay the suffix.
+- @Coordinator classes now register on Quarkus (Mode Parity) Add @Coordinator to the build-time annotation scan and index atmosphere-coordinator when the app declares one, so CoordinatorProcessor is discovered and fleet coordinators register like on Spring Boot.
+- align OpenTelemetry deps so spans reach Jaeger; pin a real Jaeger image The parent pom managed only opentelemetry-api (1.63) while sdk/exporter fell to 1.55, so the OTLP exporter died with NoClassDefFoundError InstrumentationUtil and no span exported; import opentelemetry-bom to align all artifacts and pin jaegertracing/jaeger:2.19.0 (the :2 tag does not exist). New OtlpExporterLinkageTest reproduces the export-path skew without Docker.
+- broadcast the reply to the whole room, not just the asker The @AiEndpoint was missing broadcastReply=true, so streamed frames unicast to the origin while presence fanned out; a foundation-e2e spec pins fan-out to same-room members and isolation from other rooms.
+- ms-governance-chat out-of-box + policy bridge merge + manual-gate postResponse
+- explicit client bindings beat the demo runtime and survive auto-configuration setChatClient/setModel now mark an explicit binding (demo fallback yields keyless) and autoconfig offers instead of clobbering, so a caller-built ChatClient keeps its defaultAdvisors; new keyless foundation-e2e spec pins the advisors sample contract.
+- per-transport DSL broadcast delivery; kotlin-dsl-chat WS container + logback-core Raw HTTP subscribers were never flushed, WS upgrades 501'd (no jakarta.websocket container) and the shaded jar dropped logback-core; new foundation-e2e Playwright spec pins all three from the packaged jar.
+- guardrail scope no longer self-blocks an agent's own domain
+- pin opentelemetry-api to 1.60.1 to match -common
+- capture durable run-id in transport for reconnect resume
+- close OpenTelemetry scope in postInspect to stop context leak Suspended/cancelled requests left the span thread-local-current on pooled threads (#2643).
+- pin mcp-core 1.0.1 + handlebars 4.5.2, hold MCP SDK to 1.x Closes GHSA-r4gv-qr8j-p3pg (handlebars) and the mcp-core follow-up advisory; 9 alerts.
+- construct SQLite run journal reflectively for native image
+- reach SQLite run-journal factory reflectively for native image
+- defer QuarkusSqliteRunJournalFactory to runtime init for native image
+- remove duplicate jackson-annotations dependencyManagement entry The Jackson CVE pin re-declared jackson-annotations at ${jackson2.version} (2.22.0) alongside the existing ${jackson-annotations.version} (2.22) entry, a duplicate key Maven warns threatens build stability; keep the proven 2.22 pin (resolves; Jackson-3.x >=2.21 compat) and drop the redundant 2.22.0 one.
+- allowlist ConditionalOnClass/SpringBootTest for cherry-picked READMEs
+- embedding scope guardrail degrades to rule-based when embeddings fail A failed embed call (e.g. the provider has no matching embedding model — Gemini 404s on text-embedding-3-small) previously errored and blocked every request, bricking any @Agent with a restrictive EMBEDDING_SIMILARITY scope; it now falls back to keyword rule-based enforcement so the agent stays usable and forbidden topics are still blocked.
+- add reactor-netty-http so declared WebTransport actually starts Five samples set atmosphere.web-transport.enabled=true but omitted the HTTP/3 dependency, so AtmosphereWebTransportAutoConfiguration's @ConditionalOnClass failed and the server silently no-oped while the client fell back to WebSocket; frontends rebuilt against the fixed client.
+- don't surface a recovered transport-fallback as a fatal error subscribe() now suppresses the primary transport's error callback until it actually opens, so a websocket fallback that recovers a failed webtransport handshake no longer shows a stale "Opening handshake failed" banner; a genuine no-fallback failure still propagates. 608 tests green.
+- guard eager runtime configure() so @Agent registers on Quarkus AgentProcessor.resolveRuntime now swallows a backend's configure() failure like AiEndpointProcessor already does, so an unready Quarkus TLS bean no longer aborts the annotation scan and drops every endpoint.
+- allowlist PostgreSQLContainer for the backend-class-ref gate
+- cast context_snapshot to JSONB so Postgres persists decisions
+- forward stream(String,List) on DelegatingStreamingSession; scope advisors endpoint
+- enforce real Cedar authorize decisions; add OPA/Cedar engine ITs Add mandatory --entities, parse plain-text ALLOW/DENY, map exit 0/2; gated real-binary integration tests + CI lane that installs the engines
+- pin Jackson 3.1.4 / 2.22.0 to close CVE-2026-54512..54518 Transitive jackson-databind batch (511 alerts); annotations to 2.22.
+
+### Changed
+
+- skip request-heavy transport tests on the Gemini free-tier leg Gemini free tier caps at ~20 requests/day, which the multi-turn, disconnect-recovery and long-polling transport tests blow through. They are provider-independent (their own skip messages say 'requires real-ollama'), so gate them behind LLM_SKIP_REQUEST_HEAVY (set on the gemini matrix leg); they keep running on Ollama every push and OpenAI nightly. A billing-enabled Gemini key flips the flag off to run them here too.
+- paid lane drives gemini-2.5-flash-lite The configured key's project is free-tier for gemini-2.5-flash (20 req/day/model per the 429 QuotaFailure payload) — one nightly plus a manual dispatch exhausts it; flash-lite's free tier sustains the schedule and stays a production Gemini model.
+- rate-budget real-LLM sends so the free-tier Gemini leg stays under quota Gemini free tier caps generate_content at 5 req/min/model; the paid nightly's multi-turn and recovery specs fire ~9 prompts back-to-back and 429 (relayed as an in-stream error frame). Add a file-backed rolling-window limiter (llm-rate-budget.ts, no-op unless LLM_RPM is set) awaited before each real-LLM send; the gemini leg sets LLM_RPM=4 and a shared budget file spanning both playwright steps. Ollama and OpenAI legs run unthrottled.
+- scope the session-isolation spec to local Ollama Session semantics are provider-independent; the spec's rapid back-to-back prompts trip remote free-tier per-minute limits (Gemini 429 turned the sender's stream into an instant error frame on the paid dispatch), so the remote legs skip it and keep their own streaming coverage.
+- pin per-session isolation and the console echo round-trip The fanout test asserted broadcast semantics @AiEndpoint never had (never ran in CI behind the advisory mask; fails identically on the 2026-07-02 pre-harness jar) — rewritten to the ai-tools-pinned contract that another client must NOT receive a private reply; the webtransport round-trip now asserts both the user bubble and the server echo the console renders.
+- dentist spec pins the harness tool count Same default-on truth as the orchestration spec: 2 user tools + 7 batteries-included harness tools = 9; grep confirms no other spec pins raw tool counts.
+- resilient first send in the real-LLM ws client A cold WebSocket upgrade can drop the first data frame (the raw test handler reads one line per onRequest dispatch); a single opt-in resend makes the first turn deterministic — a genuinely broken stream still yields zero events twice and fails loudly. 3x/no-retries green locally against Ollama.
+- full-reactor install in real-LLM lanes (Quarkus verification on cold cache) Scoped -pl/-am builds fail Quarkus extension dependency verification when the deployment artifact resolves in-reactor on a cold ~/.m2 (same trap ci.yml's boot gate documents); install the reactor once, then package only the runnable quarkus-run.jar.
+- build the quarkus module closure when packaging quarkus-ai-chat Both real-LLM lanes packaged the sample without -am, resolving its quarkus extension deps only from a stale Maven cache; the 2026-07-04 paid nightly failed the moment the cache rotated.
+- assert the omnichannel channel-bridge wiring in channels-chat Replace the shallow 'Starting service [Tomcat]' check (every Spring Boot app prints it) with the headline runtime-truth: ChannelAiBridge registers the 'omnichannel' @Agent with its AI pipeline and binds it to all five messaging channels (telegram/slack/discord/whatsapp/messenger). Deterministic + keyless; external delivery still needs bot tokens.
+- drop the advisory continue-on-error hack from the real-LLM + JS lanes Take the Ollama lane off the per-push path (nightly + dispatch) so it reports honestly instead of masking failures green with a red-X-that-doesn't-count; the paid lane was already scheduled; the JS coverage upload uses codecov fail_ci_if_error:false instead of a blanket mask. Only the allowlisted release-4x website-sync dispatch keeps continue-on-error.
+- add headline coverage for the passivation-agent sample Drive POST /api/agent/pause -> checkpoint -> GET inspect -> POST resume; assert the keyless DemoContinuationRuntime resumes WARM (quotes the restored history, continued=true, restoredHistorySize=2) not cold, plus 404/400 boundaries. Wire the sample into the fixture, playwright config and e2e.yml.
+- assert real durable-session survival across restart The restart specs only checked a fresh connection works post-restart — green even if SQLite persistence broke. Capture the issued session token via long-polling (WS doesn't expose it), restart the JVM, assert reconnecting with it restores the SAME session + sessions.db non-empty, with an unknown-token negative control; relabel the identity test that only proved the endpoint recovers.
+- fix strict-mode violation in de-flaked history assertions The keyless demo reply echoes the prompt text, so getByText(prompt) matched both the user bubble and the reply (2 elements) once the @flaky tag was removed and the tests ran strict. Target .message--user by text so the user-history assertions are unique in rag-chat and unified-console.
+- de-flake the console tests with a precise assistant selector Replace the broad [class*=assistant],[class*=message] locator (which also matched user bubbles, avatars and the toolbar) with the precise .message--assistant in rag-chat and ai-tools and drop the @flaky tags; the imprecise selector also let ai-tools' multi-client test pass spuriously, so rewrite it to assert the real per-session isolation (session.stream, not a broadcast room).
+- validate code-as-action wiring + real sandbox execution Assert the sample boots with code_exec registered and code-as-action enabled (keyless runtime-truth); add a Docker-gated CodeExecSandboxIntegrationTest that runs real JS/bash in a container and proves the sandbox is stateful across execs — the code-as-action substrate the full browse builds on. Full LLM-driven browse still needs a paid key + container engine (infra-gated).
+- include spring-boot-ai-chat in unified-console (unmask the exclusion) ai-chat was skipped as 'WS never connects in CI'; real cause was the fixture forcing auth ON while the console sent no token, so the AuthInterceptor closed every socket. Load the console with ?token= (resolveAuthToken sends it as X-Atmosphere-Auth); consolidate ai-chat auth config to application.yml (auth off default, no properties/yml conflict); de-flake the send test with a precise assistant-bubble selector.
+- release-gate fnd tier ran a dormant spec hitting a nonexistent endpoint
+- harden unified-console flake + rewrite stale guarded-email spec Extract a 30s WS-connect wait so a slow-but-successful console connect isn't a flake; repoint the guarded-email spec at the real Console Validation tab + POST /api/admin/verifier/check (the sample has no /agent), asserting the @Sink taint refusal and the anonymous-write 401.
+- reframe as real-time event-driven framework, tighten wording
+- self-guard revived specs + drop redundant clustering/wasync no-ops Fail loud (not silent-skip) when a sample jar is missing in CI; remove the kafka/redis/wasync-client test.skip placeholders — real coverage is the Java Testcontainers lane (RedisClusteringTest, KafkaClusteringTest, wasync ChatIntegrationTest).
+- revive dead-skipping integration specs + add fat-jar packaging smoke Fix wrong four-up ROOT that silently skipped otel/kotlin-dsl/parity specs; assert real behavior (WS-101, logback-active, OTLP export-health); boot shade/BOM samples from their jars in sample-startup-smoke.
+- release-gate lane's dual-Playwright browser-install hole (bed4859f66)
+- install Playwright browsers for both e2e and integration-tests
+- bump esbuild to 0.28.1 via npm overrides Resolves Dependabot GHSA-g7r4-m6w7-qqqr (dev-server arbitrary file read) in atmosphere.js and the console frontend lockfiles; logback 1.5.33 landed separately via Dependabot PR #2701.
+- bump the maven group across 62 directories with 1 update (#2701)
+- guard keyless web-channel answers with a foundation-e2e spec The release-gate 'swallowed messages' was a stale-socket artifact, not a defect; this spec locks in that consecutive web turns each get a demo reply.
+- gate public blog claims against the released artifact blog-claims.json manifest + validate-blog-claims.sh check non-comment code evidence at the release tag and GAV existence on Central; wired into release-4x validate + post-publish; reproduces the 4.0.59 gap (10/10 claims fail, starter GAV 404)
+- packaged-artifact sample E2E gate (nightly + release-4x precondition) Boots every runnable sample from its boot/runner jar and runs its Playwright or smoke coverage; release-maven now requires the sweep green.
+- prime the full reactor before packaging the smoke samples
+- add sample-startup smoke job booting quarkus-ai-chat and spring-boot-ai-chat
+- make integration-tests lane a real isolation lane, not duplicated coverage
+- wire phantom-Javadoc validator into pre-push and index Kotlin declarations Fixes the real phantoms it caught: Javadoc misnamed GuardrailAsPolicy/PolicyAsGuardrail and GovernanceFleetInterceptor; SdkTracerProvider allowlisted as OpenTelemetry SDK.
+- add phantom-Javadoc-class-ref validator (allowlist-filtered)
+- bump actions/upload-artifact to v7 in sign-skillcards workflow
+- cover the @Agent multimodal endpoint in the quarkus-ai-chat spec
+- fail packaging if the jar lacks the Console Remove dead skip.frontend wiring; the Console is always built, including under -Pfastinstall.
+- add parallel Core Integration Tests lane
+- gitignore .mcp.json (per-developer local MCP config)
+- rebuild Console from source via frontend-maven-plugin
+- assert channel allow-list is enforced at dispatch, not just stored
+- bump actions/cache from 4 to 6 (#2692)
+- bump actions/checkout from 4 to 7 (#2691)
+- bump org.apache.maven.plugins:maven-deploy-plugin (#2698)
+- bump org.xerial:sqlite-jdbc from 3.49.1.0 to 3.53.2.0 (#2699)
+- bump com.h2database:h2 from 2.3.232 to 2.4.240 (#2697)
+- bump undici from 7.25.0 to 7.28.0 in /atmosphere.js (#2680)
+- bump protobufjs (#2676)
+- bump the sample-frontend group across 15 directories with 21 updates (#2687)
+- bump opentelemetry-api.version from 1.62.0 to 1.63.0 (#2694)
+- bump org.mockito.kotlin:mockito-kotlin from 5.4.0 to 6.3.0 (#2646)
+- bump org.apache.maven.plugins:maven-gpg-plugin (#2644)
+- hold mcp-core to 1.0.x in dependabot (block minor, not just major) Keeps it on the CVE-fixed 1.0.1 force-pin; stops the recurring 1.1.x bump PRs.
+- exclude kotlin-dsl-chat — its Kotlin 2.1.10 breaks the CQL extractor CodeQL's KotlinExtractorComponentRegistrar is incompatible with the Kotlin 2.1.10 compiler the sample invokes (AbstractMethodError), failing the whole analysis build; the module is a leaf demo so excluding it from the scan build loses no real coverage.
+- test the full reactor instead of a hand-picked 18-module list A -pl allowlist silently dropped every new module from per-push CI — ~29 of 47 test-bearing modules (admin, channels, rag, verifier, the *-postgres modules, etc.) were built but tested nowhere except the release job. Testing the whole reactor (like release-4x.yml) means a new module is covered the moment it exists.
+- end-to-end durable crash-resume cycle across reconnect and admin
+- note why browser-agent keeps @AiEndpoint over @Agent
+- note why ai-classroom keeps @AiEndpoint over @Agent
+- drift-log the blog make-it-true closure (4 real bugs behind green stub tests)
+- prove cross-node stream relay over a real Redis backplane
+- prove rooms presence tracks membership over the wire Two wAsync subscribers join/leave; presence frames delivered and Room/REST membership updates
+- prove WebTransport/HTTP3 wiring in startup-team sample
+- prove cost/latency model routing selects the expected model Adds offline routing-cost/routing-latency profiles and a delivery test asserting the router picks frugal-mini by cost and swift-pro by latency
+- prove outbound A2A JSON-RPC call from a2a-agent sample Boots the sample's own A2A server and drives a real A2aAgentTransport round trip
+- prove built-in runtime threads native schema to response_format
+- remove duplicate dependency-update workflow, pin tracks in dependabot Dependabot now owns all Maven PRs; in-track ignores replace the AUTO-BUMP tier.
+- correct guarded-agent sample API (PlanAndVerify, not interceptor) + drift-log
+- drop false MEMORY.md/memory reads from OpenClaw adapter docs
+- tighten guardrail count, PII block-vs-redact, compliance-row scope
+- bump version to 4.0.59
+- prepare for next development iteration 4.0.60-SNAPSHOT
+
 ## [4.0.59] - 2026-06-27
 
 ### Added
