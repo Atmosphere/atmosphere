@@ -48,8 +48,12 @@ jobs:
           # rpm: per-minute request budget for the free/low tier. 0 = unthrottled.
           # Gemini free tier caps generate_content at 5 req/min/model, so throttle
           # to 4 (headroom for the occasional resilient resend). See llm-rate-budget.ts.
-          - { name: openai, base_url: 'https://api.openai.com/v1', model: 'gpt-4o-mini', secret: OPENAI_API_KEY, rpm: 0 }
-          - { name: gemini, base_url: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.5-flash-lite', secret: GEMINI_API_KEY, rpm: 4 }
+          # skipHeavy: skip the request-heavy transport tests (multi-turn,
+          # disconnect-recovery, long-polling) on this leg. Gemini free tier
+          # caps at ~20 requests/day, so those provider-independent tests run on
+          # Ollama + OpenAI instead; flip to false with a billing-enabled key.
+          - { name: openai, base_url: 'https://api.openai.com/v1', model: 'gpt-4o-mini', secret: OPENAI_API_KEY, rpm: 0, skipHeavy: false }
+          - { name: gemini, base_url: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.5-flash-lite', secret: GEMINI_API_KEY, rpm: 4, skipHeavy: true }
     steps:
       - uses: actions/checkout@v7
 
@@ -106,6 +110,7 @@ jobs:
           # window spans them (they are separate processes hitting one quota).
           LLM_RPM: ${{ matrix.provider.rpm }}
           LLM_BUDGET_FILE: ${{ runner.temp }}/llm-budget-${{ matrix.provider.name }}.jsonl
+          LLM_SKIP_REQUEST_HEAVY: ${{ matrix.provider.skipHeavy }}
         run: |
           if [ -z "$LLM_API_KEY" ]; then
             echo "${{ matrix.provider.secret }} secret not set — skipping" >&2
@@ -124,6 +129,7 @@ jobs:
           # window spans them (they are separate processes hitting one quota).
           LLM_RPM: ${{ matrix.provider.rpm }}
           LLM_BUDGET_FILE: ${{ runner.temp }}/llm-budget-${{ matrix.provider.name }}.jsonl
+          LLM_SKIP_REQUEST_HEAVY: ${{ matrix.provider.skipHeavy }}
         run: |
           if [ -z "$LLM_API_KEY" ]; then
             echo "${{ matrix.provider.secret }} secret not set — skipping" >&2

@@ -40,6 +40,15 @@ const REAL_LLM = process.env.LLM_MODE === 'real-ollama'
   || process.env.LLM_MODE === 'real-openai'
   || process.env.LLM_MODE === 'real-gemini';
 
+// Request-heavy transport tests (multi-turn, disconnect-recovery, long-polling)
+// exercise Atmosphere's own session/transport behaviour, not a specific
+// provider — their own skip messages say "requires real-ollama". On a
+// daily-quota-constrained free-tier leg (Gemini free tier caps at 20
+// requests/day) they blow the budget, so that leg sets LLM_SKIP_REQUEST_HEAVY;
+// the behaviours stay covered on Ollama (every push) and OpenAI (nightly). A
+// billing-enabled Gemini key just flips the flag off to run them here too.
+const SKIP_REQUEST_HEAVY = process.env.LLM_SKIP_REQUEST_HEAVY === 'true';
+
 // 1x1 transparent PNG (68 bytes) — base64 constant so the spec does not
 // depend on any filesystem asset or native image library. Same fixture the
 // spring-boot-ai-chat sibling uses for its multimodal test.
@@ -232,6 +241,8 @@ test.describe('Quarkus AI Chat', () => {
   test('multi-turn conversation: 3 sequential prompts each complete cleanly',
     async ({}, testInfo) => {
       test.skip(!REAL_LLM, 'Multi-turn memory test requires LLM_MODE=real-ollama');
+      test.skip(SKIP_REQUEST_HEAVY,
+        'request-heavy: skipped on the Gemini free-tier leg (20 req/day cap); covered on Ollama + OpenAI');
       testInfo.setTimeout(180_000);
 
       const wsUrl = server.baseUrl.replace('http', 'ws');
@@ -280,6 +291,8 @@ test.describe('Quarkus AI Chat', () => {
   test('disconnect mid-stream: server recovers and accepts new connections',
     async ({}, testInfo) => {
       test.skip(!REAL_LLM, 'Disconnect-mid-stream test requires LLM_MODE=real-ollama');
+      test.skip(SKIP_REQUEST_HEAVY,
+        'request-heavy: skipped on the Gemini free-tier leg (20 req/day cap); covered on Ollama + OpenAI');
       testInfo.setTimeout(120_000);
 
       const wsUrl = server.baseUrl.replace('http', 'ws');
@@ -400,6 +413,8 @@ test.describe('Quarkus AI Chat', () => {
   test.fixme('long-polling transport: prompt round-trips with same wire envelope',
     async ({ page }, testInfo) => {
       test.skip(!REAL_LLM, 'Long-polling transport test requires LLM_MODE=real-ollama');
+      test.skip(SKIP_REQUEST_HEAVY,
+        'request-heavy: skipped on the Gemini free-tier leg (20 req/day cap); covered on Ollama + OpenAI');
       testInfo.setTimeout(90_000);
 
       await page.goto(server.baseUrl + '/?transport=long-polling');
