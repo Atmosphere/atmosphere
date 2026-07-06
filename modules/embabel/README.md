@@ -186,6 +186,36 @@ harness skips the built-in six-tool floor; under `BUILTIN` only the portable
 floor registers — never both. Pinned by `EmbabelAgentRuntimeVfsTest`
 (round-trips both directions through the shared directory).
 
+## Native Tool-Loop Enforcement (`ToolLoopPolicy`)
+
+A per-request `ToolLoopPolicy` (`ai.toolLoop.policy` metadata, e.g.
+`ToolLoopPolicy.strict(3)`) is enforced **inside** Embabel's own tool loop on
+the Atmosphere-native path. Embabel 0.5.0's `PromptRunner` exposes
+`withToolLoopInspectors` / `withToolLoopTransformers`, and `EmbabelToolLoopBridge`
+registers on both:
+
+- **Transformer seam (the genuine stop).** Embabel's `DefaultToolLoop` /
+  `ParallelToolLoop` continue only while the transformed LLM response still
+  carries tool calls. At the cap the bridge returns a plain `AssistantMessage`
+  with the tool calls stripped, so no further model→tool round dispatches. The
+  replacement text is guaranteed non-blank (stripped response's own text → last
+  non-blank assistant text → a fixed cap notice) so Embabel's `EmptyResponsePolicy`
+  does not re-enter the loop.
+- **Inspector seam (a backstop).** `ToolLoopInspector` is observe-only by
+  contract (Embabel swallows inspector exceptions), so it cannot stop the loop;
+  it mirrors the wire-layer `ToolLoopGuard.onModelStart` — if a dispatch somehow
+  runs past the cap, a `FAIL` policy still aborts via `session.error(...)`.
+
+Breach reporting matches the wire guard exactly: `OnMaxIterations.FAIL` fires a
+single `ToolLoopExhaustedException` frame; `COMPLETE_WITHOUT_TOOLS` — a no-op
+for the wire guard, which sits outside the loop — is honored natively here, the
+loop completing with the model's last text. The cross-runtime `ToolLoopGuard`
+from `execute()` stays installed as defense-in-depth. This is the
+Atmosphere-native path only: the deployed-agent path
+(`AgentPlatform.runAgentFrom`) exposes no per-request `PromptRunner` seam and
+keeps the wire guard alone — the same path asymmetry documented for
+`TOKEN_USAGE`. Pinned by `EmbabelToolLoopBridgeTest`.
+
 ## Samples
 
 - [Spring Boot AI Chat](../../samples/spring-boot-ai-chat/) -- swap to `atmosphere-embabel` dependency for Embabel support

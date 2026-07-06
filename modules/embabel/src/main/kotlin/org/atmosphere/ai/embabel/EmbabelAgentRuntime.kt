@@ -621,13 +621,25 @@ class EmbabelAgentRuntime : AgentRuntime {
                         "conversation store", published.size)
                 }
             }
-            // Native ToolLoopPolicy enforcement is NOT yet wired against
-            // Embabel 0.3.5 (the pinned version): PromptRunner does not
-            // expose withToolLoopInspectors / ToolLoopInspector on the
-            // 0.3.x line. The cross-runtime ToolLoopGuard installed in
-            // execute() provides strict() cap semantics at the wire layer.
-            // Native upstream enforcement awaits the Embabel release that
-            // adds the inspector API (tracked in modules/embabel/README.md).
+            // Native ToolLoopPolicy enforcement: Embabel 0.5.0's PromptRunner
+            // exposes withToolLoopInspectors / withToolLoopTransformers, so a
+            // per-request policy is enforced inside Embabel's own loop —
+            // EmbabelToolLoopBridge strips tool calls on the transformer seam
+            // at the cap so no further round dispatches, and honors
+            // COMPLETE_WITHOUT_TOOLS natively (which the wire guard cannot,
+            // being outside the loop). The cross-runtime ToolLoopGuard from
+            // execute() stays installed as a defense-in-depth backstop. This
+            // is the Atmosphere-native path only: the deployed-agent path
+            // (executeDeployedAgent) drives AgentPlatform.runAgentFrom, which
+            // exposes no per-request PromptRunner seam, so it keeps the wire
+            // guard alone — the same path asymmetry documented for TOKEN_USAGE.
+            val toolLoopPolicy = org.atmosphere.ai.llm.ToolLoopPolicies.from(context)
+            if (toolLoopPolicy != null) {
+                val bridge = EmbabelToolLoopBridge(toolLoopPolicy, session)
+                r = r.withToolLoopInspectors(bridge).withToolLoopTransformers(bridge)
+                logger.debug("Attached native Embabel tool-loop enforcement (cap={}, onMax={})",
+                    toolLoopPolicy.maxIterations(), toolLoopPolicy.onMaxIterations())
+            }
             val customizer = EmbabelPromptRunner.from(context)
             if (customizer != null) {
                 r = customizer.apply(r)
