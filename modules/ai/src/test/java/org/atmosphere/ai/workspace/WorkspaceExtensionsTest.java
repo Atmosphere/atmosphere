@@ -21,6 +21,7 @@ import org.atmosphere.ai.governance.GovernancePolicy;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -48,6 +49,20 @@ import static org.mockito.Mockito.when;
  */
 class WorkspaceExtensionsTest {
 
+    @BeforeEach
+    void neutralizeAmbientEnv() {
+        // applyRuntime consults LLM_MODE/LLM_MODEL/... as operator overrides;
+        // stub the env so a developer shell that exports them (e.g. via .envrc)
+        // cannot leak into these RUNTIME.md-precedence assertions. Tests that
+        // exercise an override set it via system property (checked first).
+        WorkspaceExtensions.envReader = key -> null;
+    }
+
+    @AfterEach
+    void restoreEnvReader() {
+        WorkspaceExtensions.envReader = System::getenv;
+    }
+
     @AfterEach
     void clearGenerationSysprops() {
         // applyRuntime feeds generation knobs through these sysprops; clear them
@@ -56,6 +71,12 @@ class WorkspaceExtensionsTest {
         System.clearProperty(AiConfig.MAX_TOKENS_PROPERTY);
         System.clearProperty(AiConfig.TOP_P_PROPERTY);
         System.clearProperty(AiConfig.STOP_PROPERTY);
+        // applyRuntime now defers to these operator-override knobs; clear them
+        // so an override set by one test cannot leak into another.
+        System.clearProperty(AiConfig.LLM_MODE);
+        System.clearProperty(AiConfig.LLM_MODEL);
+        System.clearProperty(AiConfig.LLM_API_KEY);
+        System.clearProperty(AiConfig.LLM_BASE_URL);
     }
 
     private static void write(Path dir, String name, String content) throws IOException {
@@ -105,6 +126,23 @@ class WorkspaceExtensionsTest {
         assertEquals("fake", settings.mode());
         assertEquals(0.3, settings.generation().temperature());
         assertEquals(1234, settings.generation().maxTokens());
+    }
+
+    @Test
+    void operatorModelOverrideBeatsRuntimeMdPin(@TempDir Path root) throws IOException {
+        // An explicit LLM_MODEL override (system property here, the env var in
+        // production) must win over a workspace RUNTIME.md model pin — otherwise
+        // a shipped RUNTIME.md silently overrides an operator pointing the app
+        // at a different model/endpoint (e.g. Ollama), producing a confusing
+        // upstream 404 for the pinned (absent) model name.
+        System.setProperty(AiConfig.LLM_MODEL, "qwen2.5:3b");
+        write(root, "RUNTIME.md", "model: gemini-2.5-flash");
+        var def = loadFixture(root);
+
+        assertTrue(WorkspaceExtensions.applyRuntime(def), "RUNTIME.md should apply");
+
+        assertEquals("qwen2.5:3b", AiConfig.get().model(),
+                "operator LLM_MODEL override must win over the RUNTIME.md model pin");
     }
 
     @Test

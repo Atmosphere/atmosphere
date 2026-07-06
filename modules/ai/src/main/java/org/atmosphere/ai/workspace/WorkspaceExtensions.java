@@ -234,6 +234,14 @@ public final class WorkspaceExtensions {
      * {@code temperature}, {@code max-tokens}, {@code top-p}, {@code stop}.
      * Unspecified keys inherit the current settings (or framework defaults).
      *
+     * <p><strong>Environment variables win.</strong> An explicit
+     * {@code LLM_MODE} / {@code LLM_MODEL} / {@code LLM_API_KEY} (or
+     * {@code OPENAI_API_KEY} / {@code GEMINI_API_KEY}) / {@code LLM_BASE_URL}
+     * override takes precedence over the matching {@code RUNTIME.md} pin — the
+     * workspace value is a <em>default</em>, not an override, so an operator
+     * pointing the app at a different model/endpoint via env is not silently
+     * overridden by a shipped {@code RUNTIME.md}.</p>
+     *
      * <p><strong>Process-global, last-write-wins.</strong> {@link AiConfig} is a
      * single framework-wide singleton — there is no per-agent settings override
      * today — so when several agents each ship a {@code RUNTIME.md}, the last
@@ -258,12 +266,25 @@ public final class WorkspaceExtensions {
                     + "runtime config NOT changed", def.name());
             return false;
         }
+        // Precedence per key: explicit operator override (system property,
+        // then environment variable — the same dual resolution AiConfig uses)
+        // → RUNTIME.md pin → already-resolved AiConfig value → default. An
+        // operator override must win, so a workspace that ships a RUNTIME.md
+        // model pin does not silently override it — otherwise pointing the app
+        // at Ollama via LLM_MODEL fails with a confusing upstream 404 for the
+        // pinned (absent) model name.
+        var overrideMode = knobOverride(AiConfig.LLM_MODE, "LLM_MODE");
+        var overrideModel = knobOverride(AiConfig.LLM_MODEL, "LLM_MODEL");
+        var overrideApiKey = firstNonBlank(knobOverride(AiConfig.LLM_API_KEY, "LLM_API_KEY"),
+                envReader.apply("OPENAI_API_KEY"), envReader.apply("GEMINI_API_KEY"));
+        var overrideBaseUrl = knobOverride(AiConfig.LLM_BASE_URL, "LLM_BASE_URL");
+
         var current = AiConfig.get();
-        var mode = firstNonBlank(kv.get("mode"), current != null ? current.mode() : null, AiConfig.DEFAULT_MODE);
-        var model = firstNonBlank(kv.get("model"), current != null ? current.model() : null, AiConfig.DEFAULT_MODEL);
-        var apiKey = firstNonBlank(kv.get("api-key"), kv.get("apikey"),
+        var mode = firstNonBlank(overrideMode, kv.get("mode"), current != null ? current.mode() : null, AiConfig.DEFAULT_MODE);
+        var model = firstNonBlank(overrideModel, kv.get("model"), current != null ? current.model() : null, AiConfig.DEFAULT_MODEL);
+        var apiKey = firstNonBlank(overrideApiKey, kv.get("api-key"), kv.get("apikey"),
                 current != null ? current.apiKey() : null);
-        var baseUrl = firstNonBlank(kv.get("base-url"), kv.get("baseurl"),
+        var baseUrl = firstNonBlank(overrideBaseUrl, kv.get("base-url"), kv.get("baseurl"),
                 current != null ? current.baseUrl() : null);
 
         // Generation knobs ride the sysprops AiConfig.configure() already
@@ -542,5 +563,23 @@ public final class WorkspaceExtensions {
             }
         }
         return null;
+    }
+
+    /** Environment lookup, indirected so tests can control ambient variables. */
+    static java.util.function.UnaryOperator<String> envReader = System::getenv;
+
+    /**
+     * An operator's explicit override for an LLM knob: the system property
+     * wins over the environment variable, matching the dual resolution the
+     * rest of {@link AiConfig} uses. Returns {@code null} when neither is set,
+     * so a {@code RUNTIME.md} pin applies as the default.
+     */
+    private static String knobOverride(String property, String env) {
+        var prop = System.getProperty(property);
+        if (prop != null && !prop.isBlank()) {
+            return prop;
+        }
+        var value = envReader.apply(env);
+        return (value != null && !value.isBlank()) ? value : null;
     }
 }
