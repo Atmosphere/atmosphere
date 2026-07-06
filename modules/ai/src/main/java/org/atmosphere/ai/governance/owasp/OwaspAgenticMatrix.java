@@ -139,8 +139,10 @@ public final class OwaspAgenticMatrix {
                             Evidence.selfGate("org.atmosphere.ai.governance.scope.SampleAgentScopeLintTest",
                                     "org.atmosphere.ai.governance.scope.SampleAgentScopeLintTest",
                                     "Sample-hygiene CI lint — build fails if an @AiEndpoint lacks @AgentScope")),
-                    "Full defense-in-depth: pre-admission classification, system-prompt hardening, "
-                            + "sample lint. Default tier is embedding-similarity."),
+                    "On by default. Once you state what the agent is for, off-topic requests — a "
+                            + "support bot asked to write code — are caught and refused before they "
+                            + "reach the model, and the model's own instructions are hardened so it "
+                            + "can't be talked out of its role."),
 
             new Row("A02", "Tool Misuse / Over-Privileged Tool Use",
                     "Agent invokes a tool it shouldn't, or with unsafe arguments.",
@@ -161,13 +163,10 @@ public final class OwaspAgenticMatrix {
                                             + "rules (e.g. {field: tool_name, operator: eq, "
                                             + "value: delete_database, action: deny}), parsed by "
                                             + "YamlPolicyParser; no code, but not on by default")),
-                    "COVERED by two default-on layers: the @RequiresApproval HITL gate parks the "
-                            + "virtual thread on a privileged @AiTool until a human approves, and "
-                            + "PolicyAdmissionGate.admitToolCall runs on every tool dispatch "
-                            + "(ToolExecutionHelper calls it before the executor), auto-injecting "
-                            + "tool_name + action into the admission context. MS-schema YAML rules "
-                            + "over tool_name are an opt-in third layer — the operator supplies the "
-                            + "rule (no code), but there are no default deny rules."),
+                    "On by default: every tool call is checked before it runs, and tools you mark "
+                            + "as sensitive pause for a human to approve them. You can add rules to "
+                            + "block specific tools by name — there are no blanket blocks out of the "
+                            + "box, so decide which tools to gate."),
 
             new Row("A03", "Memory Poisoning",
                     "Adversary writes malicious content into long-term memory or RAG store.",
@@ -197,19 +196,12 @@ public final class OwaspAgenticMatrix {
                                     "RagSafetyConfig",
                                     "Default-on read-path wiring that wraps every @AiEndpoint "
                                             + "ContextProvider with SafetyContextProvider")),
-                    "COVERED — on by default on both halves of A03. The write path screens every "
-                            + "fact extracted into a LongTermMemory store (MemorySafetyConfig wraps "
-                            + "the store with ScreenedLongTermMemory) before it is persisted and "
-                            + "re-injected; the read path screens every retrieved RAG document "
-                            + "(RagSafetyConfig wraps the ContextProvider with SafetyContextProvider). "
-                            + "Both are fail-closed, rule-based, zero-dependency; disable with "
-                            + "atmosphere.ai.memory.safety.enabled=false / "
-                            + "atmosphere.ai.rag.safety.enabled=false. Opt-in tamper-evidence is "
-                            + "available on the coordinator dispatch path for deployments that "
-                            + "additionally require signed memory snapshots: Ed25519-signed "
-                            + "CommitmentRecords (flag-off by default) and the AgentStateIntegrity "
-                            + "seal utility (API + reference impl; not yet wired to a default "
-                            + "consumer). Both need a durable operator key, so they stay opt-in."),
+                    "On by default on both paths. Anything the agent saves to long-term memory, "
+                            + "and every document it pulls from a knowledge base, is scanned for "
+                            + "hidden malicious instructions before it is stored or shown to the "
+                            + "model — so an attacker can't plant commands in the agent's memory or "
+                            + "its sources. Deployments that need cryptographically signed memory can "
+                            + "turn that on separately."),
 
             new Row("A04", "Indirect Prompt Injection",
                     "Attacker plants instructions in RAG docs / tool outputs / web content the agent ingests.",
@@ -240,14 +232,11 @@ public final class OwaspAgenticMatrix {
                                     "org.atmosphere.ai.AiPipelineScopeHardeningTest",
                                     "ScopePolicy",
                                     "Scope-confinement preamble blunts injected instructions")),
-                    "COVERED — on by default. AiEndpointProcessor wraps every @AiEndpoint "
-                            + "ContextProvider with SafetyContextProvider unless "
-                            + "atmosphere.ai.rag.safety.enabled=false, so retrieved documents are "
-                            + "screened with no opt-in. Default rule-based tier requires no runtime; "
-                            + "embedding-similarity and LLM-classifier tiers leverage any installed "
-                            + "EmbeddingRuntime / AgentRuntime and downgrade to rule-based (never "
-                            + "fail open) when absent. Every flagged document is audited through "
-                            + "GovernanceDecisionLog and honours drop / flag / sanitize breach policies."),
+                    "On by default. Instructions hidden inside retrieved documents, tool outputs, "
+                            + "or web content are detected and stripped before they reach the model, "
+                            + "so an attacker can't smuggle commands in through the data the agent "
+                            + "reads. It works with no setup; adding an embedding or classifier model "
+                            + "makes detection stronger but isn't required."),
 
             new Row("A05", "Cascading Failures / Runaway Agent Loops",
                     "Multi-agent loop spirals out of control; one agent's failure triggers another.",
@@ -275,11 +264,10 @@ public final class OwaspAgenticMatrix {
                                     "",
                                     "CoordinationJournal",
                                     "Cross-agent dispatch log — observable + rate-inspectable")),
-                    "Default-on bounds cap runaway loops: a 120s parallel-fan-out timeout "
-                            + "(DefaultAgentFleet) and a 5-round tool-loop cap (ToolLoopPolicy). The "
-                            + "backpressure invariant (#3 in CLAUDE.md) is enforced framework-wide. "
-                            + "Opt-in cost + output-drift guardrails add a per-tenant budget and "
-                            + "length-anomaly blocking on top when enabled."),
+                    "On by default. A stalled sub-agent can't hang the whole fleet (work is capped "
+                            + "at 120 seconds) and a tool-calling loop can't spin forever (capped at "
+                            + "five rounds per turn). You can optionally add a spend ceiling and "
+                            + "runaway-length detection on top."),
 
             new Row("A06", "Unauthorized Action / Privilege Escalation",
                     "Agent performs an action beyond its principal's authorization.",
@@ -297,8 +285,10 @@ public final class OwaspAgenticMatrix {
                                     "org.atmosphere.ai.tool.ToolExecutionHelperTest",
                                     "@RequiresApproval",
                                     "HITL gate for privileged actions")),
-                    "Correctness Invariant #6 ('every mutating surface requires explicit authorization, "
-                            + "default deny') is framework-wide."),
+                    "On by default. Every action that changes state or touches an admin surface "
+                            + "requires an authenticated, authorized caller — the default is to deny. "
+                            + "Each user carries their own identity and permissions, and privileged "
+                            + "actions can also require human approval."),
 
             new Row("A07", "Output Leakage / Sensitive Information Disclosure",
                     "Agent reveals secrets, PII, or internal data through generated text.",
@@ -312,23 +302,24 @@ public final class OwaspAgenticMatrix {
                                     "org.atmosphere.ai.guardrails.GuardrailsTest",
                                     "PiiRedactionGuardrail",
                                     "Opt-in pre-admission + response-side PII detector")),
-                    "PARTIAL — PII redaction ships as a stream-level filter (PiiRedactionFilter, "
-                            + "wire-level token rewrite) and a turn-level guardrail "
-                            + "(PiiRedactionGuardrail, response-side block), with regex for email / "
-                            + "phone / credit-card / SSN / IPv4. Both are OPT-IN, not default-on: a "
-                            + "default response block would terminate any legitimate answer that "
-                            + "contains a customer's own email or IP, so the operator enables them "
-                            + "explicitly (the Spring starter beans, an @AiEndpoint(filters=...) "
-                            + "declaration, or PolicyRegistry YAML) and extends patterns via "
-                            + "withPatterns()."),
+                    "You must turn this on. Atmosphere can detect and remove emails, phone "
+                            + "numbers, credit-card numbers, SSNs, and IP addresses from the agent's "
+                            + "replies. It is off by default on purpose: automatically blocking every "
+                            + "reply that contains an email or IP would break legitimate answers — "
+                            + "like reading a customer their own address back. Enable PII redaction in "
+                            + "your configuration to switch it on, and add your own patterns if you "
+                            + "need them."),
 
             new Row("A08", "Supply Chain Compromise (Plugin / MCP)",
                     "Malicious or tampered plugin / MCP server injected into the agent runtime.",
                     Coverage.NOT_ADDRESSED,
                     List.of(),
-                    "Out of current scope. Ed25519 plugin signing + IATP trust scoring (MS Agent Mesh "
-                            + "parity) live in Phase C — parked per v4 §4 until a named enterprise ask "
-                            + "or concrete partner-integration trigger fires."),
+                    "Not covered. Atmosphere does not check that the plugins or MCP servers you "
+                            + "connect are genuine or untampered — if you load a malicious one, "
+                            + "nothing here will stop it, so vet the plugins and MCP servers you "
+                            + "install yourself. (Atmosphere does sign coordinator state with "
+                            + "Ed25519, but that protection has not been extended to the plugin "
+                            + "path.)"),
 
             new Row("A09", "Denial of Service (Cost / Resource Exhaustion)",
                     "Attacker pumps expensive prompts, exhausts API budget, or forces large token generations.",
@@ -349,14 +340,12 @@ public final class OwaspAgenticMatrix {
                                     "org.atmosphere.ai.guardrails.GuardrailsTest",
                                     "OutputLengthZScoreGuardrail",
                                     "Opt-in cap on runaway generations via length-drift detection")),
-                    "Default-on: a per-user rate limiter sits on the AiGateway admission path that "
-                            + "every runtime call passes through (AbstractAgentRuntime → "
-                            + "AiGatewayHolder), at a permissive 1M-calls/hour backstop — the "
-                            + "framework warns at startup that the default is permissive and "
-                            + "production should call AiGatewayHolder.install(...) to tighten it. "
-                            + "Opt-in cost + length-drift guardrails add a per-tenant dollar ceiling "
-                            + "and runaway-generation caps; cost + rate are observable in real time "
-                            + "through Micrometer / OTel."),
+                    "On by default. Every request passes a per-user rate limit, so one caller "
+                            + "can't exhaust your budget or hammer the model. The default limit is "
+                            + "deliberately generous — a safety backstop, not a real budget — and the "
+                            + "framework warns you at startup to tighten it for production. You can "
+                            + "optionally add a hard per-tenant spend ceiling and caps on "
+                            + "runaway-length responses."),
 
             new Row("A10", "Lack of Accountability / No Audit Trail",
                     "Agent decisions cannot be traced back to policies, principals, or turn context.",
@@ -374,9 +363,11 @@ public final class OwaspAgenticMatrix {
                                     "org.atmosphere.admin.ai.GovernanceControllerTest",
                                     "GovernanceController",
                                     "/api/admin/governance/decisions surfaces the ring buffer over HTTP")),
-                    "Every GovernancePolicy.evaluate decision generates an AuditEntry (context_snapshot "
-                            + "redaction-safe) and an OTel span. Ring-buffered for post-incident triage; "
-                            + "operators ship to Kafka/Postgres via a custom sink for long-term retention.")
+                    "On by default. Every governance decision is recorded — who asked, what was "
+                            + "decided, and the context at the time — and exposed for review, so an "
+                            + "agent's actions can always be traced back to the policy and principal "
+                            + "behind them. Recent history is kept in memory for incident triage; "
+                            + "send it to your own datastore for long-term retention.")
     );
 
     /** Shorthand — lookup by ID (A01 through A10). */
