@@ -75,6 +75,41 @@ internal class EmbabelGoapPlanBridgeTest {
     // ------------------------------------------------------------------
 
     @Test
+    fun `mirrored plan persists to the scoped AgentPlanStore under the floor's key`() {
+        val session = RecordingSession()
+        val store = RecordingPlanStore()
+        val bridge = EmbabelGoapPlanBridge(session, "conv-goap", "agent-goap", store)
+        val process = stubProcess(history = emptyList())
+        val plan = Plan(listOf(stubAction("search flights")), stubGoal("flight booked"))
+
+        bridge.onProcessEvent(AgentProcessPlanFormulatedEvent(process, mock(WorldState::class.java), plan))
+
+        val stored = store.get("agent-goap", "conv-goap").orElseThrow()
+        assertEquals("${EmbabelGoapPlanBridge.GOAP_MARKER}: flight booked", stored.goal())
+        assertEquals(1, stored.steps().size)
+    }
+
+    @Test
+    fun `a failing store never propagates into the planner loop`() {
+        val session = RecordingSession()
+        val bridge = EmbabelGoapPlanBridge(session, "conv-goap", "agent-goap",
+            object : org.atmosphere.ai.plan.AgentPlanStore {
+                override fun get(agentId: String, conversationId: String) =
+                    java.util.Optional.empty<org.atmosphere.ai.plan.AgentPlan>()
+                override fun put(agentId: String, conversationId: String,
+                                 plan: org.atmosphere.ai.plan.AgentPlan) =
+                    throw IllegalStateException("store down")
+            })
+        val process = stubProcess(history = emptyList())
+        val plan = Plan(listOf(stubAction("step")), stubGoal("goal"))
+
+        bridge.onProcessEvent(AgentProcessPlanFormulatedEvent(process, mock(WorldState::class.java), plan))
+
+        assertEquals(1, session.planUpdates.size,
+            "the live frame must still emit when persistence fails")
+    }
+
+    @Test
     fun `plan formulated event emits PlanUpdate with GOAP-labeled goal and pending steps`() {
         val session = RecordingSession()
         val bridge = EmbabelGoapPlanBridge(session, "conv-goap", "agent-goap")
@@ -283,6 +318,17 @@ internal class EmbabelGoapPlanBridgeTest {
             if (event is AiEvent.PlanUpdate) {
                 planUpdates.add(event)
             }
+        }
+    }
+
+    private class RecordingPlanStore : org.atmosphere.ai.plan.AgentPlanStore {
+        private val plans = mutableMapOf<String, org.atmosphere.ai.plan.AgentPlan>()
+        override fun get(agentId: String, conversationId: String):
+            java.util.Optional<org.atmosphere.ai.plan.AgentPlan> =
+            java.util.Optional.ofNullable(plans["$agentId/$conversationId"])
+        override fun put(agentId: String, conversationId: String,
+                         plan: org.atmosphere.ai.plan.AgentPlan) {
+            plans["$agentId/$conversationId"] = plan
         }
     }
 }

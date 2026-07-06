@@ -86,7 +86,8 @@ internal class KoogPlanBridge(
     private val session: StreamingSession,
     private val goal: String,
     private val conversationId: String,
-    private val agentId: String
+    private val agentId: String,
+    private val planStore: org.atmosphere.ai.plan.AgentPlanStore? = null
 ) {
 
     /** Executed step labels, in execution order (rendered COMPLETED). */
@@ -111,6 +112,7 @@ internal class KoogPlanBridge(
         var goal: String = KOOG_MARKER
         var conversationId: String = ToolScopes.DEFAULT_SCOPE
         var agentId: String = ToolScopes.DEFAULT_SCOPE
+        var planStore: org.atmosphere.ai.plan.AgentPlanStore? = null
     }
 
     /**
@@ -139,7 +141,8 @@ internal class KoogPlanBridge(
             val session = requireNotNull(config.session) {
                 "KoogPlanBridge requires a StreamingSession on its Config"
             }
-            val bridge = KoogPlanBridge(session, config.goal, config.conversationId, config.agentId)
+            val bridge = KoogPlanBridge(
+                session, config.goal, config.conversationId, config.agentId, config.planStore)
             pipeline.interceptPlanCreationCompleted(this) { ctx -> bridge.onPlanCreated(ctx) }
             pipeline.interceptStepExecutionStarting(this) { ctx -> bridge.onStepStarting(ctx) }
             pipeline.interceptStepExecutionCompleted(this) { ctx -> bridge.onStepCompleted(ctx) }
@@ -258,7 +261,18 @@ internal class KoogPlanBridge(
         }
         val plan = AgentPlan(goal, steps)
         session.emit(AiEvent.PlanUpdate(plan.toWireSteps(), plan.goal(), conversationId, agentId))
+        persist(plan)
         logger.debug("Mirrored Koog planner plan to session {}: goal='{}', {} step(s)",
             session.sessionId(), goal, steps.size)
+    }
+
+    private fun persist(plan: AgentPlan) {
+        val store = planStore ?: return
+        try {
+            store.put(agentId, conversationId, plan)
+        } catch (e: RuntimeException) {
+            logger.warn("Koog plan persistence skipped for {}/{}: {}",
+                agentId, conversationId, e.message)
+        }
     }
 }

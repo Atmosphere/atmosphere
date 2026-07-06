@@ -196,6 +196,43 @@ internal class KoogPlanBridgeTest {
     }
 
     @Test
+    fun `mirrored plan persists to the scoped AgentPlanStore under the floor's key`() {
+        val session = RecordingSession()
+        val plans = mutableMapOf<String, org.atmosphere.ai.plan.AgentPlan>()
+        val store = object : org.atmosphere.ai.plan.AgentPlanStore {
+            override fun get(agentId: String, conversationId: String) =
+                java.util.Optional.ofNullable(plans["$agentId/$conversationId"])
+            override fun put(agentId: String, conversationId: String,
+                             plan: org.atmosphere.ai.plan.AgentPlan) {
+                plans["$agentId/$conversationId"] = plan
+            }
+        }
+        val bridge = KoogPlanBridge(session, "goal", "conv", "agent", store)
+
+        bridge.onPlanCreated(planCreated(OpaquePlan("verify the invoice"), stepIndex = 1))
+
+        val stored = store.get("agent", "conv").orElseThrow()
+        assertEquals(1, stored.steps().size)
+    }
+
+    @Test
+    fun `a failing store never propagates and the live frame still emits`() {
+        val session = RecordingSession()
+        val store = object : org.atmosphere.ai.plan.AgentPlanStore {
+            override fun get(agentId: String, conversationId: String) =
+                java.util.Optional.empty<org.atmosphere.ai.plan.AgentPlan>()
+            override fun put(agentId: String, conversationId: String,
+                             plan: org.atmosphere.ai.plan.AgentPlan) =
+                throw IllegalStateException("store down")
+        }
+        val bridge = KoogPlanBridge(session, "goal", "conv", "agent", store)
+
+        bridge.onPlanCreated(planCreated(OpaquePlan("step"), stepIndex = 1))
+
+        assertEquals(1, session.planUpdates.size)
+    }
+
+    @Test
     fun `a non-iterable plan decomposes to a single toString step`() {
         val session = RecordingSession()
         val bridge = KoogPlanBridge(session, "goal", "conv", "agent")

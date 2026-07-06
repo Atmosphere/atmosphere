@@ -550,6 +550,8 @@ class KoogAgentRuntime : AgentRuntime {
         val planGoalLabel = planGoal(context.message())
         val planConversationId = org.atmosphere.ai.tool.ToolScopes.conversationId(injectables)
         val planAgentId = org.atmosphere.ai.tool.ToolScopes.agentId(injectables, context.agentId())
+        val planStoreInScope = injectables[org.atmosphere.ai.plan.AgentPlanStore::class.java]
+            as? org.atmosphere.ai.plan.AgentPlanStore
 
         val agent = PlannerAIAgent(
             promptExecutor = executor,
@@ -577,6 +579,7 @@ class KoogAgentRuntime : AgentRuntime {
                     this.goal = planGoalLabel
                     this.conversationId = planConversationId
                     this.agentId = planAgentId
+                    this.planStore = planStoreInScope
                 }
             }
         }

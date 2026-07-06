@@ -67,11 +67,19 @@ import org.slf4j.LoggerFactory
  * derives them with the same [org.atmosphere.ai.tool.ToolScopes] resolution
  * the built-in `write_todos` floor keys its store with (Mode Parity) — the
  * bridge itself never re-derives identity.
+ *
+ * When an [org.atmosphere.ai.plan.AgentPlanStore] is in the dispatch scope,
+ * every mirrored plan is also persisted under the same (agentId,
+ * conversationId) key the floor writes — so the admin plan endpoint and the
+ * console Workspace tab's stored view work for the native surface too.
+ * Persistence is best-effort like the rest of the bridge: a store failure is
+ * WARN-logged and never aborts the run.
  */
 internal class EmbabelGoapPlanBridge(
     private val session: StreamingSession,
     private val conversationId: String,
-    private val agentId: String
+    private val agentId: String,
+    private val planStore: org.atmosphere.ai.plan.AgentPlanStore? = null
 ) : AgenticEventListener {
 
     companion object {
@@ -150,7 +158,18 @@ internal class EmbabelGoapPlanBridge(
     private fun emitPlanUpdate(goal: String, steps: List<AgentPlan.Step>) {
         val plan = AgentPlan(goal, steps)
         session.emit(AiEvent.PlanUpdate(plan.toWireSteps(), plan.goal(), conversationId, agentId))
+        persist(plan)
         logger.debug("Mirrored Embabel GOAP plan to session {}: goal='{}', {} step(s)",
             session.sessionId(), goal, steps.size)
+    }
+
+    private fun persist(plan: AgentPlan) {
+        val store = planStore ?: return
+        try {
+            store.put(agentId, conversationId, plan)
+        } catch (e: RuntimeException) {
+            logger.warn("GOAP plan persistence skipped for {}/{}: {}",
+                agentId, conversationId, e.message)
+        }
     }
 }

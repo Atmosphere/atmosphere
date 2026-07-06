@@ -437,7 +437,9 @@ class EmbabelAgentRuntime : AgentRuntime {
                 options = options.withListener(EmbabelGoapPlanBridge(
                     session,
                     ToolScopes.conversationId(injectables),
-                    ToolScopes.agentId(injectables, context.agentId())))
+                    ToolScopes.agentId(injectables, context.agentId()),
+                    injectables[org.atmosphere.ai.plan.AgentPlanStore::class.java]
+                        as? org.atmosphere.ai.plan.AgentPlanStore))
             }
             platform.runAgentFrom(agent, options, mapOf("userMessage" to context.message()))
         } catch (e: Exception) {

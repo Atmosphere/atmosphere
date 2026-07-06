@@ -110,7 +110,12 @@ deployed-agent dispatch path (`executeDeployedAgent`) registers an
 `ProcessOptions`, and every `AgentProcessPlanFormulatedEvent` /
 `ReplanRequestedEvent` is mirrored into an `AiEvent.PlanUpdate` frame so the
 console renders the live plan — executed `ActionInvocation`s as completed
-steps, the freshly formulated plan's actions as pending steps.
+steps, the freshly formulated plan's actions as pending steps. When an
+`AgentPlanStore` is in the dispatch scope the mirrored plan is also persisted
+under the same `(agentId, conversationId)` key the `write_todos` floor uses,
+so the admin plan endpoint and the console Workspace tab's stored view work
+for the native surface too (best-effort: a store failure is WARN-logged and
+never aborts the run).
 
 Two honesty caveats, by design:
 
