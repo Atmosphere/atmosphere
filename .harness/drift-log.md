@@ -2183,3 +2183,33 @@ learning-signal section) and `tutorial/30` updated + published (atmosphere.githu
 extends (here `PolicyDecision` cases + the policy `type:` list) — the sibling atmosphere.github.io
 `reference/` + `tutorial/` enumerate them and nothing gates the cross-repo sync. Extends the
 doc-drift-audit checklist: shipped API change ⇒ sweep the published reference.
+
+## 2026-07-07 — A false "pinned version" fact in a Kotlin code comment shipped in 4.0.60 and 4.0.61 (ungated: version guard scans only *.md)
+
+**Claim (modules/embabel/.../EmbabelAgentRuntime.kt:625, code comment):**
+`// Embabel 0.3.5 (the pinned version): PromptRunner does not ...` — asserts, present tense, that
+0.3.5 is the currently-pinned Embabel version.
+
+**Truth:** `pom.xml:1332` pins `<embabel.version>0.5.0</embabel.version>`. The parenthetical "(the
+pinned version)" is a live false fact — 0.3.5 has not been the pinned version since the 0.5.0 bump
+(shipped in 4.0.59 per MEMORY). The comment (and thus the false claim) is present in the code
+released as **4.0.60 and 4.0.61** — both jars are live on Central (200). The PromptRunner-limitation
+note may still hold; only the version-pin claim is wrong.
+
+**Slip path:** the doc-version drift gate (`validate-atmosphere-doc-version.sh`) scans only tracked
+`*.md`, and the release version-bump sweep (`update-doc-versions.sh`) rewrites docs, POMs, and
+`cli/samples.json` — never `.java`/`.kt` comments. So a dependency-version fact asserted inside a
+runtime adapter's code comment drifts undetected across every release. Caught this session only
+because the status-since-4.0.59 verification workflow's deferral sweep read the comment against the
+pinned pom, not because any gate flagged it.
+
+**Fix status:** NOT fixed on main as of 4.0.61. An active `fix/embabel-capability-truth` worktree
+owns the Embabel capability-truth work; the version string in this comment must be corrected to
+0.5.0 (or the "(the pinned version)" parenthetical dropped) as part of or alongside that branch —
+this entry records the drift and the gate gap, not a fix I made (the file is in another session's
+active worktree; not touched).
+
+**Gate:** extend the version-drift check (or the capability-claims gate) to scan runtime-adapter
+code comments for `<dependency> X.Y.Z (the pinned version)` assertions and fail when the cited
+version != the pinned `<*.version>` in the reactor POM. Until then, "version fact in a code comment"
+is an ungated drift class — the third distinct place (after `*.md` and CHANGELOG) a version can rot.
