@@ -65,6 +65,7 @@ import org.atmosphere.coordinator.fleet.DefaultAgentFleet;
 import org.atmosphere.coordinator.fleet.DefaultAgentProxy;
 import org.atmosphere.coordinator.fleet.DefaultCircuitBreaker;
 import org.atmosphere.coordinator.fleet.DelegateTaskTool;
+import org.atmosphere.coordinator.fleet.SpawnSubagentTool;
 import org.atmosphere.coordinator.fleet.GovernanceFleetInterceptor;
 import org.atmosphere.coordinator.fleet.ResilientAgentProxy;
 import org.atmosphere.coordinator.journal.CoordinationJournal;
@@ -279,7 +280,8 @@ public class CoordinatorProcessor implements Processor<Object> {
             // reports delegation ACTIVE for a coordinator that failed to
             // register (Invariant #5).
             registerPresetDelegation(toolRegistry, preset,
-                    features.contains(Harness.DELEGATION), coordinatorName);
+                    features.contains(Harness.DELEGATION), coordinatorName,
+                    GovernancePolicies.installed(framework));
 
             // Step 8: Create AgentFleet and AiEndpointHandler with injectable
             var evaluators = resolveEvaluators();
@@ -507,7 +509,8 @@ public class CoordinatorProcessor implements Processor<Object> {
      * can pin the gating without driving a full annotation scan.</p>
      */
     void registerPresetDelegation(ToolRegistry toolRegistry, HarnessPreset preset,
-                                  boolean delegationOn, String coordinatorName) {
+                                  boolean delegationOn, String coordinatorName,
+                                  List<GovernancePolicy> policies) {
         if (!delegationOn) {
             return;
         }
@@ -519,12 +522,20 @@ public class CoordinatorProcessor implements Processor<Object> {
             preset.updateRuntimeState(HarnessPreset.PRIMITIVE_DELEGATION, "ACTIVE(user-tool)");
             logger.info("Harness kept the user-declared delegate_task for coordinator '{}' "
                     + "— the preset tool is not registered", coordinatorName);
-            return;
+        } else {
+            toolRegistry.register(new DelegateTaskTool());
+            preset.updateRuntimeState(HarnessPreset.PRIMITIVE_DELEGATION, "ACTIVE");
+            logger.info("Harness registered delegate_task for coordinator '{}'",
+                    coordinatorName);
         }
-        toolRegistry.register(new DelegateTaskTool());
-        preset.updateRuntimeState(HarnessPreset.PRIMITIVE_DELEGATION, "ACTIVE");
-        logger.info("Harness registered delegate_task for coordinator '{}'",
-                coordinatorName);
+        // The dynamic counterpart: spawn an ephemeral general-purpose subagent
+        // on demand (deepagents' `task` tool). Governed by the same installed
+        // policies as the fleet dispatch edge; a user-declared `task` wins.
+        if (toolRegistry.getTool("task").isEmpty()) {
+            toolRegistry.register(new SpawnSubagentTool(policies));
+            logger.info("Harness registered task (dynamic subagent spawn) for coordinator '{}'",
+                    coordinatorName);
+        }
     }
 
     /**

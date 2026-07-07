@@ -80,10 +80,12 @@ public class CoordinatorProcessorHarnessPresetTest {
         var preset = appWidePreset();
         var registry = new DefaultToolRegistry();
 
-        processor.registerPresetDelegation(registry, preset, true, "coord");
+        processor.registerPresetDelegation(registry, preset, true, "coord", java.util.List.of());
 
         assertTrue(registry.getTool("delegate_task").isPresent(),
                 "the harness must register the built-in delegation tool");
+        assertTrue(registry.getTool("task").isPresent(),
+                "the harness must also register the dynamic subagent-spawn tool (task)");
         assertEquals("ACTIVE",
                 preset.runtimeState().get(HarnessPreset.PRIMITIVE_DELEGATION),
                 "runtime-state must report delegation as genuinely registered");
@@ -94,7 +96,7 @@ public class CoordinatorProcessorHarnessPresetTest {
         var preset = HarnessPreset.install(framework);
         var registry = new DefaultToolRegistry();
 
-        processor.registerPresetDelegation(registry, preset, false, "coord");
+        processor.registerPresetDelegation(registry, preset, false, "coord", java.util.List.of());
 
         assertFalse(registry.getTool("delegate_task").isPresent(),
                 "without the DELEGATION feature, delegation must stay opt-in via user @AiTool wrappers");
@@ -174,7 +176,7 @@ public class CoordinatorProcessorHarnessPresetTest {
         registry.register(new UserDelegateTaskWrapper());
         var userTool = registry.getTool("delegate_task").orElseThrow();
 
-        processor.registerPresetDelegation(registry, preset, true, "coord");
+        processor.registerPresetDelegation(registry, preset, true, "coord", java.util.List.of());
 
         assertSame(userTool, registry.getTool("delegate_task").orElseThrow(),
                 "the user-declared delegate_task must survive the preset registration");

@@ -35,6 +35,24 @@ public class CeoCoordinator {
 
 `@Coordinator` requires `@Fleet` — startup fails with a clear error if the annotation is missing.
 
+## Harness delegation tools
+
+When the harness `DELEGATION` feature resolves for a `@Coordinator` (on by default; see [`docs/deep-agent.md`](../../docs/deep-agent.md)), two LLM-callable tools are registered so the model can hand off work:
+
+| Tool | Target | Use |
+|------|--------|-----|
+| `delegate_task(agent, message)` | a **pre-declared** `@Fleet` member by name | route to a known specialist |
+| `task(description, subagent_type)` | a fresh **ephemeral** general-purpose subagent, spawned on demand | a self-contained subtask that should not clutter the main conversation |
+
+`task` is the dynamic counterpart to `delegate_task` (the parity primitive for LangChain deepagents' `task` tool): it spawns a general-purpose subagent with an **isolated context and workspace** — a fresh conversation id, its own plan store, and a bounded file workspace under a per-spawn temp root — runs one self-contained subtask with the built-in harness floor (`write_todos` + the six file tools), and returns only the subagent's final report. The isolated workspace is removed when the subagent returns.
+
+Safety rails (each pinned by `SpawnSubagentToolTest`):
+- **Governed** — the subtask prompt is evaluated against the installed governance policies (pre-admission, fail-closed) before any dispatch, the same chain `GovernanceFleetInterceptor` applies to the fleet dispatch edge.
+- **Bounded** — recursion depth (`MAX_DEPTH`) and the worker-thread budget cap how deep spawns can nest; a subagent at max depth is refused rather than spawning again.
+- **Time-bounded** — a hung subagent is cancelled after `SPAWN_TIMEOUT` and the workspace is cleaned on every exit path.
+
+Only `general-purpose` is spawned dynamically; for a named specialist that already exists in the fleet, the model uses `delegate_task`. A user-declared `@AiTool` named `task` (or `delegate_task`) is authoritative and suppresses the preset tool.
+
 ## Parallel Fan-out and Sequential Pipeline
 
 `AgentFleet` provides two execution patterns. `parallel()` dispatches all calls concurrently on virtual threads and waits for all results. `pipeline()` executes calls in declaration order and aborts immediately on the first failure.
