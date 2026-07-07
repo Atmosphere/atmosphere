@@ -54,6 +54,39 @@ public final class ToolExecutionHelper {
     /** Serializes reviewer-supplied structured approval responses to JSON. */
     private static final ObjectMapper RESPONSE_JSON = JsonMapper.builder().build();
 
+    /**
+     * Default tool-output offload threshold, in characters. A tool result
+     * longer than this is written in full to the agent workspace and only a
+     * truncated preview is returned to the model, keeping large outputs out of
+     * the context window (deepagents-style disk offload). Overridable via
+     * {@link #TOOL_OUTPUT_OFFLOAD_THRESHOLD_PROPERTY} /
+     * {@link #TOOL_OUTPUT_OFFLOAD_THRESHOLD_ENV}; a resolved value {@code <= 0}
+     * disables offload entirely.
+     */
+    public static final int DEFAULT_TOOL_OUTPUT_OFFLOAD_THRESHOLD = 8000;
+
+    /**
+     * System property overriding {@link #DEFAULT_TOOL_OUTPUT_OFFLOAD_THRESHOLD}.
+     * Resolved sysprop-first, then {@link #TOOL_OUTPUT_OFFLOAD_THRESHOLD_ENV},
+     * mirroring {@code AiConfig}'s dual-resolution knobs.
+     */
+    public static final String TOOL_OUTPUT_OFFLOAD_THRESHOLD_PROPERTY =
+            "org.atmosphere.ai.toolOutputOffloadThreshold";
+
+    /**
+     * Environment variable overriding {@link #DEFAULT_TOOL_OUTPUT_OFFLOAD_THRESHOLD}.
+     * See {@link #TOOL_OUTPUT_OFFLOAD_THRESHOLD_PROPERTY}.
+     */
+    public static final String TOOL_OUTPUT_OFFLOAD_THRESHOLD_ENV =
+            "LLM_TOOL_OUTPUT_OFFLOAD_THRESHOLD";
+
+    /** Characters of the full result kept in the preview returned to the model when offloading. */
+    private static final int OFFLOAD_PREVIEW_CHARS = 1500;
+
+    /** Characters not permitted in an offload file name (replaced with {@code _}). */
+    private static final java.util.regex.Pattern UNSAFE_OFFLOAD_NAME_CHARS =
+            java.util.regex.Pattern.compile("[^A-Za-z0-9_.-]");
+
     private ToolExecutionHelper() {
     }
 
@@ -351,7 +384,7 @@ public final class ToolExecutionHelper {
                                 + "required permissions={}, caller roles={}, caller permissions={}",
                         toolName, authorization.requiredRoles(), authorization.requiredPermissions(),
                         callerRoles, callerPermissions);
-                return finishAndEmit(toolName, session,
+                return finishAndEmit(toolName, session, scope,
                         "{\"status\":\"cancelled\",\"message\":\"Tool execution denied: insufficient authorization\"}");
             }
         }
@@ -381,12 +414,12 @@ public final class ToolExecutionHelper {
         switch (permissionMode) {
             case DENY_ALL -> {
                 logger.info("Tool {} blocked by AgentIdentity PermissionMode.DENY_ALL", toolName);
-                return finishAndEmit(toolName, session,
+                return finishAndEmit(toolName, session, scope,
                         "{\"status\":\"cancelled\",\"message\":\"Tool execution denied by PermissionMode.DENY_ALL\"}");
             }
             case BYPASS -> {
                 // Auto-approve every tool. Explicit opt-in only.
-                return finishAndEmit(toolName, session,
+                return finishAndEmit(toolName, session, scope,
                         executeAndFormat(toolName, tool.executor(), args, scope));
             }
             case PLAN -> {
@@ -421,7 +454,7 @@ public final class ToolExecutionHelper {
             case DENY -> {
                 logger.info("Tool {} denied by ToolPermissionPolicy", toolName);
                 emitDeniedJfrEvent(toolName);
-                return finishAndEmit(toolName, session,
+                return finishAndEmit(toolName, session, scope,
                         "{\"status\":\"cancelled\",\"message\":\"Tool execution denied by ToolPermissionPolicy\"}");
             }
             case CONFIRM -> forceApproval = true;
@@ -444,7 +477,7 @@ public final class ToolExecutionHelper {
             if (acceptEditAutoApprove && effectivePolicy.requiresApproval(tool)) {
                 logger.info("Tool {} auto-approved under PermissionMode.ACCEPT_EDITS (kind=EDIT)", toolName);
             }
-            return finishAndEmit(toolName, session,
+            return finishAndEmit(toolName, session, scope,
                     executeAndFormat(toolName, tool.executor(), args, scope));
         }
         // DenyAll is evaluated BEFORE the strategy-null fall-through so that
@@ -455,7 +488,7 @@ public final class ToolExecutionHelper {
         // violation.
         if (effectivePolicy instanceof ToolApprovalPolicy.DenyAll) {
             logger.info("Tool {} blocked by DenyAll policy", toolName);
-            return finishAndEmit(toolName, session,
+            return finishAndEmit(toolName, session, scope,
                     "{\"status\":\"cancelled\",\"message\":\"Tool execution denied by policy\"}");
         }
         // Fail-closed when a tool needs approval but no strategy is available.
@@ -469,7 +502,7 @@ public final class ToolExecutionHelper {
             logger.warn("Tool {} requires approval but no ApprovalStrategy is wired — "
                     + "failing closed. Wire an ApprovalStrategy on the pipeline/session "
                     + "to honor @RequiresApproval tools.", toolName);
-            return finishAndEmit(toolName, session,
+            return finishAndEmit(toolName, session, scope,
                     "{\"status\":\"cancelled\",\"message\":\"Tool requires approval but no "
                     + "ApprovalStrategy is configured on this execution path\"}");
         }
@@ -485,7 +518,7 @@ public final class ToolExecutionHelper {
         );
 
         var resolution = strategy.awaitApprovalDetailed(approval, session);
-        return finishAndEmit(toolName, session, switch (resolution.outcome()) {
+        return finishAndEmit(toolName, session, scope, switch (resolution.outcome()) {
             case APPROVED -> {
                 if (resolution.hasResponsePayload()) {
                     // Reviewer answered on the tool's behalf — do NOT run the
@@ -534,11 +567,116 @@ public final class ToolExecutionHelper {
         }
     }
 
-    private static String finishAndEmit(String toolName, StreamingSession session, String result) {
+    /**
+     * Emit the terminal {@link AiEvent.ToolResult} frame and return the tool
+     * result. Large results are first disk-offloaded (see
+     * {@link #maybeOffload}); the emitted frame carries the SAME value that is
+     * returned to the model (the preview when offloaded), so the console shows
+     * exactly what the model saw — the emit and the return never diverge.
+     */
+    private static String finishAndEmit(String toolName, StreamingSession session,
+                                        Map<Class<?>, Object> scope, String result) {
+        var effective = maybeOffload(toolName, result, scope);
         if (session != null) {
-            session.emit(new AiEvent.ToolResult(toolName, result));
+            session.emit(new AiEvent.ToolResult(toolName, effective));
         }
-        return result;
+        return effective;
+    }
+
+    /**
+     * Disk-offload a large tool result (deepagents-style context management):
+     * when the result exceeds the configured threshold AND an
+     * {@link org.atmosphere.ai.fs.AgentFileSystem} is bound to the tool scope,
+     * write the FULL result to a stable
+     * {@code tool-output/{toolName}-{shortId}.txt} path in the agent workspace
+     * and return a truncated preview that points the model at the saved file
+     * (it can {@code read_file} the full output on demand). This keeps a
+     * multi-kilobyte tool result out of the model's context window without
+     * ever losing data.
+     *
+     * <p>Never throws and never loses data: a disabled threshold
+     * ({@code <= 0}), a below-threshold result, no filesystem in scope, or a
+     * rejected write (e.g. the workspace {@code AgentFileSystem.Limits} bounds
+     * — Correctness Invariant #3) all return the original result unchanged.
+     * The write failure is logged at debug, never surfaced to the model.</p>
+     */
+    private static String maybeOffload(String toolName, String result,
+                                       Map<Class<?>, Object> scope) {
+        if (result == null) {
+            return null;
+        }
+        var threshold = resolveOffloadThreshold();
+        if (threshold <= 0 || result.length() <= threshold) {
+            return result;
+        }
+        var fs = org.atmosphere.ai.fs.FileSystemTools
+                .resolveFileSystem(scope != null ? scope : Map.<Class<?>, Object>of())
+                .orElse(null);
+        if (fs == null) {
+            logger.trace("Tool {} produced a {}-char result but no AgentFileSystem is in "
+                    + "scope — returning it inline (no offload)", toolName, result.length());
+            return result;
+        }
+        var path = offloadPath(toolName);
+        try {
+            fs.write(path, result);
+        } catch (RuntimeException e) {
+            // A bounds rejection (Invariant #3) or any other write failure must
+            // never lose the result and never throw out of the offload path —
+            // fall back to returning the full result inline.
+            logger.debug("Tool {} output offload to {} failed ({}); returning the result inline",
+                    toolName, path, e.toString());
+            return result;
+        }
+        var previewLength = Math.min(OFFLOAD_PREVIEW_CHARS, result.length());
+        var truncated = result.length() - previewLength;
+        var preview = result.substring(0, previewLength)
+                + "\n\n[... " + truncated + " chars truncated. Full output saved to "
+                + path + " — use " + org.atmosphere.ai.fs.FileSystemTools.READ_FILE
+                + " to read it.]";
+        logger.debug("Tool {} output ({} chars) offloaded to {}; returning a {}-char preview",
+                toolName, result.length(), path, preview.length());
+        return preview;
+    }
+
+    /**
+     * Build the workspace path a large tool output is offloaded to. The tool
+     * name is sanitized to a single safe file-name segment (Correctness
+     * Invariant #4, Boundary Safety) and disambiguated with a short random id
+     * so repeated large results from the same tool never collide.
+     */
+    private static String offloadPath(String toolName) {
+        var base = (toolName == null || toolName.isBlank()) ? "tool"
+                : UNSAFE_OFFLOAD_NAME_CHARS.matcher(toolName).replaceAll("_");
+        var shortId = java.util.UUID.randomUUID().toString().substring(0, 8);
+        return "tool-output/" + base + "-" + shortId + ".txt";
+    }
+
+    /**
+     * Resolve the tool-output offload threshold from the
+     * {@code org.atmosphere.ai.toolOutputOffloadThreshold} system property,
+     * falling back to the {@code LLM_TOOL_OUTPUT_OFFLOAD_THRESHOLD} environment
+     * variable, then to {@link #DEFAULT_TOOL_OUTPUT_OFFLOAD_THRESHOLD}. The
+     * sysprop wins over the env var, mirroring {@code AiConfig}'s dual
+     * resolution. Parsing is lenient — a malformed value falls back to the
+     * default rather than throwing (Correctness Invariant #4). A resolved value
+     * {@code <= 0} disables offload.
+     */
+    private static int resolveOffloadThreshold() {
+        var raw = System.getProperty(TOOL_OUTPUT_OFFLOAD_THRESHOLD_PROPERTY);
+        if (raw == null || raw.isBlank()) {
+            raw = System.getenv(TOOL_OUTPUT_OFFLOAD_THRESHOLD_ENV);
+        }
+        if (raw == null || raw.isBlank()) {
+            return DEFAULT_TOOL_OUTPUT_OFFLOAD_THRESHOLD;
+        }
+        try {
+            return Integer.parseInt(raw.trim());
+        } catch (NumberFormatException e) {
+            logger.warn("Ignoring malformed tool-output offload threshold '{}' (expected an integer)",
+                    raw);
+            return DEFAULT_TOOL_OUTPUT_OFFLOAD_THRESHOLD;
+        }
     }
 
     /**

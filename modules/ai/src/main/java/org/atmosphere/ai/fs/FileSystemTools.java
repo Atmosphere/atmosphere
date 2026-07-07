@@ -22,6 +22,7 @@ import org.atmosphere.ai.tool.ToolScopes;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.StringJoiner;
 
 /**
@@ -233,6 +234,24 @@ public final class FileSystemTools {
             return provider.forConversation(ToolScopes.conversationId(scope));
         }
         return null;
+    }
+
+    /**
+     * Resolve the conversation-scoped {@link AgentFileSystem} for a tool
+     * invocation from the injectables seam — the same resolution the built-in
+     * file tools use: an explicit {@link AgentFileSystem} entry wins, else it
+     * is derived from a registered {@link AgentFileSystemProvider} and the
+     * scope's {@link ToolScopes#conversationId(Map) conversation id}. Exposed
+     * so other tool-execution machinery (e.g. large-tool-output disk offload
+     * in {@code ToolExecutionHelper}) resolves the identical store without
+     * duplicating the lookup.
+     *
+     * @param scope the dispatch-time injectables map (may be {@code null})
+     * @return the resolved filesystem, or {@link Optional#empty()} when none
+     *         is bound to this scope
+     */
+    public static Optional<AgentFileSystem> resolveFileSystem(Map<Class<?>, Object> scope) {
+        return Optional.ofNullable(scope == null ? null : resolve(scope));
     }
 
     private static String required(Map<String, Object> args, String name) {
