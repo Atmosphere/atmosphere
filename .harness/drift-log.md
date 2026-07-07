@@ -2157,3 +2157,29 @@ state the same-turn (`Prefer`) / next-turn (`Deny`) split explicitly.
 **Gate:** the committed e2e `e2e/tests/governance-feedback-chat.spec.ts` pins the actual behavior
 — a single production-deploy turn must surface the injected `release-bot` guidance — so a
 regression to the mis-stated two-turn model fails the spec.
+
+## 2026-07-07 — Feature merged + called "documented" while the PUBLISHED docs were stale
+
+**Claim:** after merging the governance learning-signal feature to main (CI 13/13 green), framed it
+as "complete + documented" on the strength of the in-repo `docs/governance-policy-plane.md` + sample
+README updates.
+
+**Truth:** the PUBLISHED external docs (`atmosphere.github.io reference/governance.md`) still listed
+`PolicyDecision` as only `Admit`/`Transform`/`Deny` — no `Prefer`, no `prefer()` — so the API
+reference users actually read UNDER-documented the shipped API; neither the reference nor tutorial 30
+mentioned the loop / `preference` type / durable memory. Surfaced only when the maintainer asked
+"have you updated the documentation" (real completion was ~8/10, not the implied done). Per
+[[reference_atmosphere_github_io]] the external site is release-gating / "as critical as the main repo".
+
+**Slip path:** completion-overstatement (honesty anti-pattern #6) — treated the in-repo canonical doc
+as "the docs" and never audited the separate published site. A feature that extends a documented API
+silently invalidates every external doc that enumerates that API.
+
+**Fix (this commit):** external `reference/governance.md` (Prefer + prefer() + preference row +
+learning-signal section) and `tutorial/30` updated + published (atmosphere.github.io `7b4cf1c`);
+`modules/ai/README.md` pointer added. This drift-log entry.
+
+**Gate:** before calling a feature "documented," grep BOTH repos for every enum/API the feature
+extends (here `PolicyDecision` cases + the policy `type:` list) — the sibling atmosphere.github.io
+`reference/` + `tutorial/` enumerate them and nothing gates the cross-repo sync. Extends the
+doc-drift-audit checklist: shipped API change ⇒ sweep the published reference.
