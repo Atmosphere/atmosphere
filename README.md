@@ -24,6 +24,7 @@ Atmosphere is built for teams that need AI agents to behave like production serv
 
 | Need | What Atmosphere provides |
 |---|---|
+| Ship a deep agent | A plain `@Agent` is batteries-included — memory, a plan (`write_todos`), a virtual filesystem, and sub-agent delegation (`task`), on by default via the [harness](https://atmosphere.github.io/docs/agents/harness/); the same capability set as LangChain deepagents, [hosted by a JVM framework](https://atmosphere.github.io/docs/agents/deep-agents-vs-langchain/) |
 | Stream to real clients | WebSocket, SSE, long-polling, and gRPC run through one broadcaster pipeline as always-on defaults; WebTransport over HTTP/3 is optional (needs `jetty-http3-server` or `reactor-netty-http` on the classpath plus a dev cert) |
 | Swap AI integrations | One `AgentRuntime` SPI with twelve runtime adapters and contract-tested capability flags |
 | Govern execution | Policy admission, `@AgentScope`, human approval, plan-and-verify, cost ceilings, PII rewriting, and admin kill switches |
@@ -137,6 +138,18 @@ public class MyAgent {
 | [`atmosphere-channels`](https://atmosphere.github.io/docs/tutorial/23-channels/) | Slack, Telegram, Discord, WhatsApp, and Messenger dispatch |
 | [`atmosphere-admin`](https://atmosphere.github.io/docs/reference/admin/) | Admin dashboard and `/api/admin/*` control surfaces |
 | built-in console | Console UI at `/atmosphere/console/` |
+
+### Deep agents, batteries-included
+
+A plain `@Agent` is a *deep agent* out of the box. The [harness](https://atmosphere.github.io/docs/agents/harness/) defaults to the full set, so a bare annotation already carries:
+
+- **Memory** — long-term facts recalled across sessions, plus conversation history with a compaction seam.
+- **A plan it maintains** — the built-in `write_todos` tool (or a runtime's native plan surface), streamed to the client as it changes.
+- **A virtual filesystem** — six bounded, conversation-scoped tools (`ls`, `read_file`, `write_file`, `edit_file`, `glob`, `grep`).
+- **Sub-agent delegation** — on a `@Coordinator`, `delegate_task` for pre-declared fleet members and `task` to spawn an ephemeral, isolated sub-agent on demand.
+- **Prompt caching, skills, and large-tool-output disk offload** — on by default, tuned by config.
+
+Narrow the set per agent (`@Agent(harness = {Harness.MEMORY})`) or opt down to a bare loop (`harness = {}`); `@AiEndpoint` is opt-in. Every primitive reports its *actual* attached state at `/api/console/info` — runtime truth, never configuration intent. This is the same deep-agent capability set as LangChain deepagents, hosted by a JVM framework — [see the comparison](https://atmosphere.github.io/docs/agents/deep-agents-vs-langchain/).
 
 ## AI Runtime Adapters
 
