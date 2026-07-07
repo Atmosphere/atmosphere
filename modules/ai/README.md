@@ -1120,7 +1120,16 @@ separate, ungoverned code path.
 A declarative layer over the guardrail SPI. Policies carry stable
 identity (`name` / `source` / `version`) for audit-trail pinning and
 use the `admit` / `transform` / `deny` vocabulary from OPA/Rego and
-MS Agent OS.
+MS Agent OS, plus an Atmosphere-native `prefer` — a soft-preference
+advisory that admits the turn but records a preferred alternative.
+
+**Governance as a learning signal:** `prefer` (the native `preference`
+policy type) + `GovernanceFeedbackInterceptor` re-inject recent
+deny/prefer decisions into the agent's context so it follows the
+guidance without retraining; opt into durable, provenance-gated recall
+with `atmosphere.ai.governance.memory.enabled=true`. See
+[`docs/governance-policy-plane.md`](../../docs/governance-policy-plane.md#governance-as-a-learning-signal)
+and the `spring-boot-ai-chat` sample.
 
 Drop `atmosphere-policies.yaml` on the classpath:
 
