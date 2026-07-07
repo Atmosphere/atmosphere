@@ -135,9 +135,10 @@ public final class ComplianceMatrix {
                                     "OwaspAgenticMatrix",
                                     "OWASP Agentic Top-10 mapping supplies the risk inventory "
                                             + "that feeds the operator's Article 9 risk register")),
-                    "Primitives exist to implement risk controls (scope, tool admission, drift, "
-                            + "cost ceiling); the Article 9 process obligations (periodic review, "
-                            + "documentation) are the operator's."),
+                    "Atmosphere gives you the technical risk controls — scope limits, tool-call "
+                            + "gating, output-drift detection and cost caps. The Article 9 process "
+                            + "itself — periodically reviewing and documenting those risks — is your "
+                            + "responsibility."),
 
             new Row("EU-AIA-12", "Automatic logging of events",
                     "Article 12 — logging of events throughout the AI system's lifecycle to "
@@ -160,10 +161,10 @@ public final class ComplianceMatrix {
                                     "CommitmentRecord",
                                     "Opt-in Ed25519-signed dispatch records (flag-off) — "
                                             + "tamper-evidence for mutations routed through the coordinator")),
-                    "Every policy decision is logged to an in-memory ring buffer that the Spring "
-                            + "starter installs by default (capacity 500). Long-term retention "
-                            + "(Kafka/Postgres AuditSinks) and Ed25519 tamper-evidence "
-                            + "(CommitmentRecord) are opt-in on top."),
+                    "On by default. Every governance decision is written to an audit log out of "
+                            + "the box (kept in memory, most recent 500). Connect a durable store to "
+                            + "retain records long-term, or enable signed records for tamper-proof "
+                            + "evidence — both are opt-in on top."),
 
             new Row("EU-AIA-13", "Transparency + information to deployers",
                     "Article 13 — information that enables deployers to interpret and use "
@@ -180,8 +181,10 @@ public final class ComplianceMatrix {
                                     "OwaspAgenticMatrix",
                                     "Admin /api/admin/governance/owasp surface documents the "
                                             + "deployed controls to auditors")),
-                    "Deployers read the admin console's Policies + OWASP tabs + the @AgentScope "
-                            + "declarations to produce their Article 13 documentation."),
+                    "The information deployers need is available to read directly: each agent's "
+                            + "declared purpose and limits, plus the controls shown in the admin "
+                            + "console. Deployers use these to write their Article 13 "
+                            + "documentation."),
 
             new Row("EU-AIA-14", "Human oversight",
                     "Article 14 — AI systems must be designed for effective oversight by "
@@ -198,8 +201,9 @@ public final class ComplianceMatrix {
                                     "PolicyAdmissionGate",
                                     "Admission seam where a human reviewer can intervene on any "
                                             + "tool call prior to execution")),
-                    "Two integration points for human oversight: the @RequiresApproval HITL "
-                            + "gate on tools, and the admission gate on the pipeline."),
+                    "A human can be placed in the loop two ways: sensitive tools can pause for "
+                            + "explicit approval before they run, and any request can be reviewed at "
+                            + "the admission point before it proceeds."),
 
             new Row("EU-AIA-15", "Accuracy, robustness, cybersecurity",
                     "Article 15 — appropriate level of accuracy, robustness, and cybersecurity "
@@ -221,12 +225,11 @@ public final class ComplianceMatrix {
                                     "MemorySafetyConfig",
                                     "Default-on long-term-memory injection screen — cybersecurity "
                                             + "layer that keeps poisoned facts out of the store")),
-                    "Defense in depth, on by default: RAG read-path injection filtering, long-term-"
-                            + "memory write-path injection screening, scope confinement + "
-                            + "system-prompt hardening, HITL approvals on privileged actions. Opt-in "
-                            + "Ed25519 memory seals (AgentStateIntegrity — API + reference impl, not "
-                            + "yet wired to a default consumer) add cryptographic tamper-evidence "
-                            + "for deployments that require it."));
+                    "On by default, in layers: retrieved documents and anything written to "
+                            + "long-term memory are screened for hidden malicious instructions, the "
+                            + "agent is confined to its declared scope, and sensitive actions can "
+                            + "require human approval. Deployments that need cryptographically "
+                            + "signed, tamper-evident memory can add that separately."));
 
     /** HIPAA Security Rule — 5 safeguards most directly mapped to Atmosphere primitives. */
     public static final List<Row> HIPAA = List.of(
@@ -241,8 +244,8 @@ public final class ComplianceMatrix {
                                     "OwaspAgenticMatrix",
                                     "OWASP risk catalog feeds the operator's HIPAA risk analysis "
                                             + "for AI-specific threats")),
-                    "Atmosphere ships the controls; the risk analysis process is the "
-                            + "covered entity's obligation."),
+                    "Atmosphere ships the technical controls; performing and documenting the risk "
+                            + "analysis itself is the covered entity's obligation."),
 
             new Row("HIPAA-164.312-a-1", "Access control — unique user identification",
                     "§164.312(a)(1) — assign a unique name / number for identifying and "
@@ -258,7 +261,8 @@ public final class ComplianceMatrix {
                                     "@AgentScope",
                                     "Scope decisions are authenticated against the resolved "
                                             + "userId / agentId context")),
-                    "Identity fields flow through every turn and surface on every AuditEntry."),
+                    "On by default. Every request carries user, session, and agent identity, and "
+                            + "that identity is recorded on every audit entry."),
 
             new Row("HIPAA-164.312-b", "Audit controls",
                     "§164.312(b) — hardware / software / procedural mechanisms that record "
@@ -275,9 +279,9 @@ public final class ComplianceMatrix {
                                     "AuditSink",
                                     "Opt-in persistent sinks (Kafka, JDBC) retain audit records "
                                             + "beyond the default in-memory ring buffer")),
-                    "Every admission decision is recorded to the in-memory ring buffer the Spring "
-                            + "starter installs by default; persistent Kafka/JDBC sinks for "
-                            + "long-term retention are opt-in."),
+                    "On by default. Every access decision is recorded to an audit log out of the "
+                            + "box (kept in memory). Connect a durable store to retain records "
+                            + "long-term — that part is opt-in."),
 
             new Row("HIPAA-164.312-c-1", "Integrity — protect ePHI from alteration",
                     "§164.312(c)(1) — electronic protected health information is not "
@@ -295,13 +299,10 @@ public final class ComplianceMatrix {
                                     "CommitmentRecord",
                                     "Opt-in Ed25519-signed dispatch records (flag-off) — prevent "
                                             + "replay / forgery of coordinator decisions")),
-                    "PARTIAL — the long-term-memory injection screen (MemorySafetyConfig, "
-                            + "default-on) prevents an attacker from writing poisoned facts, "
-                            + "protecting the integrity of what is stored. Cryptographic "
-                            + "tamper-evidence on already-stored snapshots is opt-in: Ed25519-signed "
-                            + "CommitmentRecords (flag-off) and the AgentStateIntegrity seal utility "
-                            + "(API + reference impl, not yet wired to a default consumer), both "
-                            + "requiring a durable operator key."),
+                    "Partly covered. By default, anything written to long-term memory is screened "
+                            + "so an attacker can't poison what gets stored. Cryptographic "
+                            + "tamper-evidence on already-stored data is an extra you turn on — it "
+                            + "needs a signing key you manage, so it stays opt-in."),
 
             new Row("HIPAA-164.312-e-1", "Transmission security",
                     "§164.312(e)(1) — technical security measures to guard against "
@@ -314,8 +315,9 @@ public final class ComplianceMatrix {
                                     "TLS termination is the deployment's concern; Atmosphere "
                                             + "runs on servlet / WebTransport / WebSocket stacks "
                                             + "that inherit the container's TLS configuration")),
-                    "TLS is delegated to the deployment stack (Tomcat / Netty / Jetty). "
-                            + "Atmosphere does not mandate a specific cipher suite."));
+                    "You configure this at the deployment layer. Atmosphere runs on your "
+                            + "servlet / WebSocket stack and inherits its TLS; it doesn't impose or "
+                            + "manage encryption settings itself."));
 
     /** SOC 2 Trust Services Criteria — 5 Common Criteria rows most relevant to AI. */
     public static final List<Row> SOC2 = List.of(
@@ -329,7 +331,9 @@ public final class ComplianceMatrix {
                                     "PolicyAdmissionGate",
                                     "Central admission point with default-deny on mutating "
                                             + "operations")),
-                    "Every tool call / admission decision flows through the same policy chain."),
+                    "On by default. Every tool call and access decision passes through the same "
+                            + "policy checkpoint, which denies sensitive operations unless "
+                            + "explicitly allowed."),
 
             new Row("SOC2-CC6.6", "Access control — credentials revocation",
                     "CC6.6 — implement logical access security measures to protect against "
@@ -345,8 +349,9 @@ public final class ComplianceMatrix {
                                     "SafetyContextProvider",
                                     "Filters external RAG content that could otherwise exfiltrate "
                                             + "or redirect agent behavior")),
-                    "Credential-based access (rotation, revocation) is the operator's auth "
-                            + "layer; Atmosphere provides the scope + content controls."),
+                    "Atmosphere provides the scope limits and screens external content that could "
+                            + "redirect the agent. Credential handling itself — rotation and "
+                            + "revocation — lives in your authentication layer, not here."),
 
             new Row("SOC2-CC7.2", "System operations — monitoring",
                     "CC7.2 — monitor system components to detect anomalies indicative of "
@@ -363,8 +368,9 @@ public final class ComplianceMatrix {
                                     "GovernanceDecisionLog",
                                     "Ring-buffered decision log + persistent sinks for SIEM "
                                             + "streaming")),
-                    "Metrics + audit stream together cover detection of anomalous admission "
-                            + "patterns."),
+                    "On by default. Governance metrics and the audit stream together let you "
+                            + "monitor for and alert on unusual access patterns, and both can feed "
+                            + "your existing monitoring tools."),
 
             new Row("SOC2-CC7.3", "System operations — incident response",
                     "CC7.3 — evaluate security events to determine whether they could or "
@@ -380,9 +386,9 @@ public final class ComplianceMatrix {
                                     "CommitmentRecord",
                                     "Opt-in signed dispatch records (flag-off) survive "
                                             + "post-incident verification when enabled")),
-                    "The in-memory decision log the Spring starter installs by default drives "
-                            + "incident triage through the admin console; opt-in Ed25519 "
-                            + "CommitmentRecords add verifiable post-incident evidence when enabled."),
+                    "On by default. The audit log — viewable in the admin console — gives you the "
+                            + "timeline needed to triage an incident. For verifiable, tamper-proof "
+                            + "post-incident evidence, enable the optional signed records."),
 
             new Row("SOC2-CC8.1", "Change management",
                     "CC8.1 — authorize, design, develop, configure, document, test, approve, "
@@ -394,8 +400,9 @@ public final class ComplianceMatrix {
                                     "GovernancePolicy",
                                     "Identity fields (name / source / version) on every policy "
                                             + "feed the operator's change-management audit")),
-                    "Policy-side change management is supplied by the identity fields. "
-                            + "Source-control + release-process obligations are the operator's."));
+                    "Each policy carries a name, source, and version, giving you an audit trail "
+                            + "for policy changes. The broader change-management process — source "
+                            + "control, release approvals — remains your responsibility."));
 
     /** Framework → rows lookup; used by admin controller. */
     public static final Map<Framework, List<Row>> MATRICES = Map.of(
