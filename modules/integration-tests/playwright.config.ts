@@ -491,6 +491,11 @@ export default defineConfig({
       name: 'orchestration-primitives',
       testMatch: /orchestration-primitives\.spec\.ts/,
     },
+    // ── Deep-agent harness primitives (task spawn, floors, runtime truth) ──
+    {
+      name: 'deep-agent-harness',
+      testMatch: /deep-agent-harness\.spec\.ts/,
+    },
     // ── Cross-tab isolation regression (commit 1fbb0958f0) ──
     // One project, one spec file, ~12 sample boots in sequence inside the spec.
     // Pins that two simultaneous Console tabs against any @AiEndpoint/@Agent
