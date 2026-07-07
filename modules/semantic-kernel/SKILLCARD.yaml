@@ -31,7 +31,7 @@ license:
 artifact:
   group_id: org.atmosphere
   artifact_id: atmosphere-semantic-kernel
-  version: 4.0.61-SNAPSHOT
+  version: 4.0.61
   packaging: jar
   module_path: modules/semantic-kernel
 

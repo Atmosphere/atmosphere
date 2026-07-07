@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.61] - 2026-07-07
+
+### Added
+
+- governance as a learning signal — Prefer decision, feedback loop, durable recall PolicyDecision.Prefer soft-preference + native preference type + GovernanceFeedbackInterceptor (re-injects deny/prefer guidance into the turn) + opt-in durable provenance memory across Spring/Quarkus/bare-JVM; real-LLM sample (spring-boot-ai-chat) + Ollama e2e; console PREFER view; real-LLM CI consolidated on Ollama.
+- tool-output disk offload + composite AgentFileSystem routing Large built-in tool results (>8000 chars, threshold-gated, sysprop/env overridable) spill to the agent workspace and the model gets a preview + read_file pointer — default-on at the tool choke point, fail-safe (never throws/loses data, honors workspace bounds). AgentFileSystemProvider composes a CompositeAgentFileSystem over the per-conversation workspace when durable prefix routes are configured (atmosphere.ai.filesystem.routes, off by default), routing the eight ops by longest-prefix with per-route bounds. Closes the two minor deepagents parity gaps. 3+15+2 tests.
+- task tool — dynamic ephemeral subagent spawn (deepagents parity) The @Coordinator harness now registers a 'task' tool alongside delegate_task: it spawns a general-purpose subagent with an isolated context/workspace (fresh conversation, own plan store + bounded file store), runs one subtask with the harness floor, and returns its final report. Governed (pre-admission, fail-closed), depth-bounded across the spawn thread, time-bounded with cleanup; 7 tests + preset pin. Closes the last parity gap vs LangChain deepagents.
+- native tool-loop enforcement via Embabel 0.5.0 inspector/transformer API The stale comment claimed 0.3.5 lacked the seam; 0.5.0 ships withToolLoopInspectors/withToolLoopTransformers, so EmbabelToolLoopBridge strips tool calls on the transformer seam at the cap (the real stop) and mirrors ToolLoopGuard's breach on FAIL, honoring COMPLETE_WITHOUT_TOOLS natively; wire guard kept as backstop, native path only, 7 tests.
+
+### Fixed
+
+- env/sysprop LLM knobs win over RUNTIME.md pins A workspace RUNTIME.md model/mode/base-url/api-key pin was overriding an operator's explicit LLM_MODEL/LLM_MODE/... env (or system property), so pointing the personal-assistant sample at Ollama 404'd on the pinned gemini model; pins are now defaults an env override beats. Regression + env-lookup seam keep the test hermetic against ambient .envrc vars.
+
+### Changed
+
+- log drift — feature called 'documented' while published docs were stale Governance learning-signal PolicyDecision.Prefer shipped but atmosphere.github.io reference listed only Admit/Transform/Deny; caught on the completion-number question, external docs now published.
+- surface the batteries-included deep-agent harness A plain @Agent is a deep agent out of the box (memory, write_todos plan, virtual filesystem, task sub-agent spawn) — add a Why-Atmosphere row and a dedicated subsection linking the harness docs and the LangChain deepagents comparison.
+- note governance learning-signal loop in module README Points at governance-policy-plane.md + the spring-boot-ai-chat sample; adds the native prefer vocabulary + durable-recall flag.
+- rewrite compliance matrix notes in plain operator language EU AI Act / HIPAA / SOC2 rows; class names and config move to the evidence disclosure
+- deep-agent harness primitives on a @Coordinator Deterministic Playwright spec (demo mode, no live LLM) pinning that the personal-assistant coordinator registers the dynamic subagent-spawn task tool + delegate_task + the write_todos floor, and /api/console/info reports planning/filesystem/delegation ACTIVE — the wiring a real turn depends on, guarded in the always-on lane.
+- rewrite OWASP matrix notes in plain operator language class names, config keys and roadmap labels move to the evidence disclosure
+- bump version to 4.0.60
+- prepare next development version 5.0.36
+- prepare for next development iteration 4.0.61-SNAPSHOT
+
 ## [4.0.60] - 2026-07-06
 
 ### Added
