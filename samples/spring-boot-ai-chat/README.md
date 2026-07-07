@@ -12,6 +12,7 @@ A real-time AI chat application that streams LLM responses text-by-text to the b
 - **Demo mode** — works out-of-the-box without an API key (simulated streaming)
 - **Prompt cache demo** — `PromptCacheDemoChat` at `/atmosphere/ai-chat-with-cache` shows how `@AiEndpoint(promptCache = CONSERVATIVE)` threads a `CacheHint` into every request; the sample routes prompts through a real `AiPipeline` + `InMemoryResponseCache` so the framework emits `ai.cache.hit=false` on the first request and `ai.cache.hit=true` on repeated identical prompts (canonical framework-level wire signal, not a sample shim)
 - **Retry policy demo** — `RetryDemoChat` at `/atmosphere/ai-chat-with-retry` echoes the declared `@AiEndpoint(retry = @Retry(...))` attributes and exposes a deterministic `fail-once:<id>` fault-injection path that recovers on a second request
+- **Governance as a learning signal** — a soft-preference `Prefer` policy + `GovernanceFeedbackInterceptor` steer the model with an org-specific process the base model can't know (see below)
 - **Multi-modal `@Agent` demo** — `MultiModalAgent` (an `@Agent` class whose persona lives in `prompts/multimodal-assistant-skill.md`) at `/atmosphere/agent/multimodal` accepts both vision and audio input:
   - **Vision** — `image:<base64>` prompts are wrapped in a `Content.Image` and streamed back as a binary content frame next to a text acknowledgement.
   - **Audio input** — `audio:<base64>` prompts are wrapped in a `Content.Audio` and forwarded to the resolved AI runtime as a multi-modal **input** part via `session.stream(prompt, parts)`. The runtime encodes it onto the provider wire request (the built-in OpenAI-compatible client emits an `input_audio` content block), so an audio-capable model such as `gpt-4o-audio-preview` receives the clip. With no API key the demo runtime returns a canned reply, but the audio still reaches the runtime context. Override the media type with `audio:audio/<subtype>:<base64>` (default `audio/wav`).
@@ -52,6 +53,41 @@ Uses the `useChat` hook from `atmosphere.js/react`:
 - Keeps optimistic user and assistant message state in one hook
 - Renders streaming texts as they arrive with markdown support
 - Shows model name, cost, and latency badges
+
+## Governance as a learning signal
+
+Governance decisions usually flow one way — into an audit log the agent never sees. This sample
+closes the loop (the idea from Jason Stanley's *[Governance as a Learning Signal](https://jasonstanley.substack.com/p/governance-as-a-learning-signal)*):
+a governance decision is fed back into the model's context, with no retraining.
+
+Two pieces cooperate (`GovernanceFeedbackConfig.java` + the `interceptors` on `AiChat`):
+
+1. **Produce** — `productionReleaseAdvisor`, a native `PreferencePolicy`, matches a
+   *"deploy … to production"* question and returns a soft **`Prefer`** advisory — it admits the
+   turn but records that Example Corp's release runbook (`release-bot` / `#prod-releases`, CHG
+   ticket, second approver) is the preferred path. It is *soft* governance: no hard `Deny`.
+2. **Carry** — `GovernanceFeedbackInterceptor` re-injects that advisory into the request's system
+   prompt, so the assistant answers with the org process.
+
+On the streaming `@AiEndpoint` path the policy plane runs *before* the interceptor, so a `Prefer`
+steers the **same** turn that triggered it (a hard `Deny` terminates its turn, so a denial is
+surfaced on the **next** turn from the decision-log ring buffer instead).
+
+**Try it (needs a real LLM — demo mode bypasses the pipeline):**
+
+```bash
+LLM_MODE=local LLM_MODEL=qwen2.5:3b LLM_BASE_URL=http://localhost:11434/v1 \
+  LLM_API_KEY=ollama ./mvnw spring-boot:run -pl samples/spring-boot-ai-chat
+```
+
+Ask **"How do I deploy the billing service to production?"** The answer names the Example Corp
+`release-bot` / `#prod-releases` process — tokens the base model cannot know, so they appear
+*only* because the advisory was injected. The console's **Decisions** tab shows a `PREFER` from
+`production-release-advisor`. The end-to-end proof is `e2e/tests/governance-feedback-chat.spec.ts`.
+
+> Durable recall (opt-in): set `atmosphere.ai.governance.memory.enabled=true` with a
+> `LongTermMemory` bean to persist deny/prefer guidance (provenance-tagged, expiry-gated) so it
+> survives restarts — off by default, which keeps the loop ephemeral and never persists lessons.
 
 ## Configuration
 

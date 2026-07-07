@@ -231,6 +231,13 @@ public interface AtmosphereConfig {
         Memory memory();
 
         /**
+         * Governance-plane configuration block.
+         *
+         * @return the governance sub-configuration block
+         */
+        Governance governance();
+
+        /**
          * Long-term-memory sub-configuration. Currently carries the
          * injection-safety screen for the memory write path.
          */
@@ -288,6 +295,66 @@ public interface AtmosphereConfig {
                  */
                 @WithDefault("false")
                 boolean failOpen();
+            }
+        }
+
+        /**
+         * Governance-plane sub-configuration. Currently carries the durable
+         * governance-feedback settings.
+         */
+        interface Governance {
+
+            /**
+             * Durable governance-feedback settings.
+             *
+             * @return the durable-memory sub-configuration block
+             */
+            Memory memory();
+
+            /**
+             * Durable governance feedback, bound to
+             * {@code quarkus.atmosphere.ai.governance.memory.*}. Opt-in (off by default):
+             * when on, deny/prefer decisions are persisted to the resolved
+             * {@code LongTermMemory} (provenance-tagged) so the feedback interceptor recalls
+             * them across sessions and restarts. The deployment processor bridges these keys
+             * to the {@code org.atmosphere.ai.governance.memory.*} framework init-params read
+             * once per framework by {@code AiEndpointProcessor} in {@code atmosphere-ai}.
+             */
+            interface Memory {
+
+                /**
+                 * Master switch for durable recall. Defaults to {@code false}
+                 * (ephemeral loop only, no persistence).
+                 *
+                 * @return {@code true} to persist governance guidance durably
+                 */
+                @WithDefault("false")
+                boolean enabled();
+
+                /**
+                 * Lesson time-to-live in seconds; {@code 0} (default) means no expiry.
+                 *
+                 * @return the lesson TTL in seconds
+                 */
+                @WithDefault("0")
+                long ttlSeconds();
+
+                /**
+                 * Confidence stamped on each persisted lesson (0.0–1.0). Default {@code 1.0}.
+                 *
+                 * @return the stamped confidence
+                 */
+                @WithDefault("1.0")
+                double confidence();
+
+                /**
+                 * Read-gate floor: lessons below this confidence are dropped on read.
+                 * Default {@code 0.0}.
+                 *
+                 * @return the minimum confidence to recall a lesson
+                 */
+                @WithDefault("0.0")
+                double minConfidence();
             }
         }
 

@@ -207,6 +207,12 @@ public final class SpawnSubagentTool {
             }
             switch (decision) {
                 case PolicyDecision.Admit ignored -> { /* next policy */ }
+                case PolicyDecision.Prefer prefer -> {
+                    // Soft governance: advisory only — the spawn proceeds (logged, not enforced;
+                    // a hard block would use Deny). Mirrors GovernanceFleetInterceptor.
+                    logger.debug("Subagent spawn preferred alternative from {} ({}): {}",
+                            policy.name(), prefer.reason(), prefer.preferred());
+                }
                 case PolicyDecision.Deny deny -> {
                     logger.info("Subagent spawn denied by {}: {}", policy.name(), deny.reason());
                     return deny.reason();

@@ -76,6 +76,11 @@ public final class PolicyAsGuardrail implements AiGuardrail {
                     record(ctx, "transform", "request rewritten", evalMs);
                     yield GuardrailResult.modify(transform.modifiedRequest());
                 }
+                case PolicyDecision.Prefer prefer -> {
+                    // Soft governance: admit unchanged, record the preferred path.
+                    recordPrefer(ctx, prefer.preferred(), prefer.reason(), evalMs);
+                    yield GuardrailResult.pass();
+                }
                 case PolicyDecision.Deny deny -> {
                     record(ctx, "deny", deny.reason(), evalMs);
                     yield GuardrailResult.block(deny.reason());
@@ -118,6 +123,12 @@ public final class PolicyAsGuardrail implements AiGuardrail {
                             policy.name());
                     yield GuardrailResult.pass();
                 }
+                case PolicyDecision.Prefer prefer -> {
+                    // Advisory on the response path: recorded for the audit trail, but the
+                    // response has already streamed so there is no next action to steer here.
+                    recordPrefer(ctx, prefer.preferred(), prefer.reason(), evalMs);
+                    yield GuardrailResult.pass();
+                }
                 case PolicyDecision.Deny deny -> {
                     record(ctx, "deny", deny.reason(), evalMs);
                     yield GuardrailResult.block(deny.reason());
@@ -139,5 +150,14 @@ public final class PolicyAsGuardrail implements AiGuardrail {
     private void record(PolicyContext ctx, String decision, String reason, double evalMs) {
         GovernanceDecisionLog.installed().record(
                 GovernanceDecisionLog.entry(policy, ctx, decision, reason, evalMs));
+    }
+
+    /**
+     * Record a {@link PolicyDecision.Prefer} advisory, stamping the preferred
+     * alternative into the audit snapshot so it can be fed back to the agent.
+     */
+    private void recordPrefer(PolicyContext ctx, String preferred, String reason, double evalMs) {
+        GovernanceDecisionLog.installed().record(
+                GovernanceDecisionLog.preferEntry(policy, ctx, preferred, reason, evalMs));
     }
 }

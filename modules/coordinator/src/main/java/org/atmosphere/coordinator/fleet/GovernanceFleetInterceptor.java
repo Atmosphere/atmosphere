@@ -84,6 +84,12 @@ public final class GovernanceFleetInterceptor implements FleetInterceptor {
             }
             switch (decision) {
                 case PolicyDecision.Admit ignored -> { /* next policy */ }
+                case PolicyDecision.Prefer prefer -> {
+                    // Soft governance on the dispatch edge: advisory only — the call
+                    // proceeds. Logged, not enforced (a hard block would use Deny).
+                    logger.debug("Fleet dispatch preferred alternative from {} ({}): {}",
+                            policy.name(), prefer.reason(), prefer.preferred());
+                }
                 case PolicyDecision.Deny deny -> {
                     logger.info("Fleet dispatch denied by {}: {}", policy.name(), deny.reason());
                     return Decision.deny(deny.reason());

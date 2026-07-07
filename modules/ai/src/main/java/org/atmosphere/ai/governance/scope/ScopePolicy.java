@@ -199,6 +199,7 @@ public final class ScopePolicy implements GovernancePolicy {
             case PolicyDecision.Admit ignored -> "admit";
             case PolicyDecision.Deny ignored -> "deny";
             case PolicyDecision.Transform ignored -> "transform";
+            case PolicyDecision.Prefer ignored -> "prefer";
         };
     }
 

@@ -68,6 +68,11 @@ public final class PolicyRing implements GovernancePolicy {
     @Override
     public PolicyDecision evaluate(PolicyContext context) {
         var current = context;
+        // The ring is the sole recording point for its inner policies, so an inner
+        // Prefer advisory must be surfaced in the composite return value or it is lost.
+        // Keep the first one seen; a Deny short-circuits and a Transform takes
+        // precedence in the return (the rewrite must be surfaced to be applied).
+        PolicyDecision.Prefer firstPrefer = null;
         for (var ring : ringsInOrder) {
             for (var policy : ring.policies()) {
                 var decision = policy.evaluate(current);
@@ -80,19 +85,25 @@ public final class PolicyRing implements GovernancePolicy {
                                     current.phase(),
                                     transform.modifiedRequest(),
                                     current.accumulatedResponse());
+                    case PolicyDecision.Prefer prefer -> {
+                        if (firstPrefer == null) {
+                            firstPrefer = prefer;
+                        }
+                        // advisory, non-terminal — continue to the next policy / ring
+                    }
                     case PolicyDecision.Admit ignored -> {
                         // continue to the next policy / ring
                     }
                 }
             }
         }
-        // Every ring admitted (or transformed). If the final context differs
-        // from the input, surface the transform so callers see the rewrite;
-        // otherwise plain Admit keeps the return shape predictable.
+        // Every ring admitted (or transformed). A rewrite must be surfaced so callers
+        // apply it; otherwise surface any advisory; otherwise plain Admit keeps the
+        // return shape predictable.
         if (current.request() != context.request()) {
             return PolicyDecision.transform(current.request());
         }
-        return PolicyDecision.admit();
+        return firstPrefer != null ? firstPrefer : PolicyDecision.admit();
     }
 
     /** Immutable view of the configured rings, sorted by ring index. */

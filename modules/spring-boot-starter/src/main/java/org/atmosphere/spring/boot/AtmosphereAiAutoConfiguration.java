@@ -1334,4 +1334,55 @@ public class AtmosphereAiAutoConfiguration {
     public record LongTermMemoryBridge(org.atmosphere.ai.memory.LongTermMemory store) {
     }
 
+    /**
+     * Wires the <em>durable</em> governance-feedback path when
+     * {@code atmosphere.ai.governance.memory.enabled=true} (opt-in; off by default). Persists
+     * deny/prefer decisions to the application's {@link org.atmosphere.ai.memory.LongTermMemory}
+     * — provenance-tagged via {@code GovernanceMemorySink} — and publishes a
+     * {@code GovernanceProvenanceMemory} the {@code GovernanceFeedbackInterceptor} recalls
+     * across sessions and restarts. Off keeps the always-on ephemeral (ring-buffer-only) loop.
+     *
+     * <p>Delegates to the shared, one-shot {@code GovernanceMemoryInstaller} — the same wiring
+     * the framework-agnostic {@code AiEndpointProcessor} uses on Quarkus / bare-JVM (Correctness
+     * Invariant #7, mode parity). Uses the application's {@code LongTermMemory} bean when present,
+     * else the resolved fallback store (logged so a non-persistent fallback is visible —
+     * Invariant #5). Self-sufficient: the installer installs the decision log if nothing else
+     * has. Lifecycle stays Spring-owned: the sink never closes the store (Invariant #1).</p>
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "atmosphere.ai.governance.memory", name = "enabled",
+            havingValue = "true")
+    public GovernanceMemoryWiring atmosphereGovernanceMemoryWiring(
+            AtmosphereFramework framework,
+            AtmosphereProperties properties,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.governance.decision-log.capacity:500}") int decisionLogCapacity,
+            org.springframework.beans.factory.ObjectProvider<
+                    org.atmosphere.ai.memory.LongTermMemory> storeProvider) {
+        var props = properties.getAi().getGovernance().getMemory();
+        var cfg = new org.atmosphere.ai.governance.memory.GovernanceMemoryConfig(
+                props.isEnabled(),
+                props.getTtlSeconds() > 0 ? java.time.Duration.ofSeconds(props.getTtlSeconds()) : null,
+                props.getConfidence(), props.getMinConfidence());
+        var store = storeProvider.getIfAvailable();
+        if (store == null) {
+            store = org.atmosphere.ai.memory.LongTermMemories.resolve(framework);
+            logger.info("atmosphere.ai.governance.memory.enabled=true with no LongTermMemory bean "
+                    + "— using resolved fallback store {} (not durable across restart unless a "
+                    + "persistent provider is on the classpath)", store.getClass().getName());
+        }
+        var active = org.atmosphere.ai.governance.memory.GovernanceMemoryInstaller.install(
+                framework, cfg, store, decisionLogCapacity);
+        return new GovernanceMemoryWiring(active);
+    }
+
+    /**
+     * Marker bean recording whether durable governance recall was activated (the sink +
+     * provenance store were installed for this framework).
+     *
+     * @param active true when the durable path is live
+     */
+    public record GovernanceMemoryWiring(boolean active) {
+    }
+
 }

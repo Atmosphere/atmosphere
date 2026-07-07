@@ -354,6 +354,8 @@ public class AtmosphereProperties {
 
         private Memory memory = new Memory();
 
+        private Governance governance = new Governance();
+
         private HarnessProperties harness = new HarnessProperties();
 
         private CodeProperties code = new CodeProperties();
@@ -404,6 +406,14 @@ public class AtmosphereProperties {
 
         public void setMemory(Memory memory) {
             this.memory = memory;
+        }
+
+        public Governance getGovernance() {
+            return governance;
+        }
+
+        public void setGovernance(Governance governance) {
+            this.governance = governance;
         }
 
         public boolean isFailFast() {
@@ -635,6 +645,76 @@ public class AtmosphereProperties {
 
             public void setFailOpen(boolean failOpen) {
                 this.failOpen = failOpen;
+            }
+        }
+    }
+
+    /**
+     * Governance-plane settings bound to {@code atmosphere.ai.governance.*}.
+     */
+    public static class Governance {
+
+        private GovernanceMemory memory = new GovernanceMemory();
+
+        public GovernanceMemory getMemory() {
+            return memory;
+        }
+
+        public void setMemory(GovernanceMemory memory) {
+            this.memory = memory;
+        }
+
+        /**
+         * Durable governance feedback, bound to {@code atmosphere.ai.governance.memory.*}.
+         * Opt-in ({@code enabled=false} by default): when on, deny/prefer decisions are
+         * persisted to the application's {@code LongTermMemory} (provenance-tagged) so the
+         * {@code GovernanceFeedbackInterceptor} recalls them across sessions and restarts.
+         * Off keeps the always-on ephemeral (ring-buffer-only) loop, which never persists.
+         */
+        public static class GovernanceMemory {
+
+            /** Master switch for durable recall. Default {@code false} (ephemeral-only). */
+            private boolean enabled;
+
+            /** Lesson TTL in seconds; {@code 0} (default) means no expiry. */
+            private long ttlSeconds;
+
+            /** Confidence stamped on each persisted lesson (0.0–1.0). Default {@code 1.0}. */
+            private double confidence = 1.0;
+
+            /** Read-gate floor: lessons below this confidence are dropped. Default {@code 0.0}. */
+            private double minConfidence;
+
+            public boolean isEnabled() {
+                return enabled;
+            }
+
+            public void setEnabled(boolean enabled) {
+                this.enabled = enabled;
+            }
+
+            public long getTtlSeconds() {
+                return ttlSeconds;
+            }
+
+            public void setTtlSeconds(long ttlSeconds) {
+                this.ttlSeconds = ttlSeconds;
+            }
+
+            public double getConfidence() {
+                return confidence;
+            }
+
+            public void setConfidence(double confidence) {
+                this.confidence = confidence;
+            }
+
+            public double getMinConfidence() {
+                return minConfidence;
+            }
+
+            public void setMinConfidence(double minConfidence) {
+                this.minConfidence = minConfidence;
             }
         }
     }

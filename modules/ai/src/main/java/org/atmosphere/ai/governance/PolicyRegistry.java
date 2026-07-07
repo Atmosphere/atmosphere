@@ -83,6 +83,7 @@ public final class PolicyRegistry {
         register("output-length-zscore", PolicyRegistry::buildOutputLengthZScore);
         register("deny-list", PolicyRegistry::buildDenyList);
         register("allow-list", PolicyRegistry::buildAllowList);
+        register("preference", PolicyRegistry::buildPreference);
         register("message-length", PolicyRegistry::buildMessageLength);
         register("rate-limit", PolicyRegistry::buildRateLimit);
         register("concurrency-limit", PolicyRegistry::buildConcurrencyLimit);
@@ -203,6 +204,35 @@ public final class PolicyRegistry {
                     java.util.regex.Pattern.CASE_INSENSITIVE));
         }
         return new AllowListPolicy(d.name(), d.source(), d.version(), patterns);
+    }
+
+    private static GovernancePolicy buildPreference(PolicyDescriptor d) {
+        var phrases = asStringList(d.config().get("phrases"));
+        var regex = asStringList(d.config().get("regex"));
+        if (phrases.isEmpty() && regex.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "preference requires 'phrases' or 'regex' under config");
+        }
+        var preferred = asString(d.config().get("prefer"), "");
+        if (preferred.isBlank()) {
+            throw new IllegalArgumentException(
+                    "preference requires a non-blank 'prefer' (the preferred alternative) under config");
+        }
+        var reason = asString(d.config().get("reason"), "");
+        if (reason.isBlank()) {
+            throw new IllegalArgumentException(
+                    "preference requires a non-blank 'reason' under config");
+        }
+        var patterns = new java.util.ArrayList<java.util.regex.Pattern>();
+        for (var p : phrases) {
+            patterns.add(java.util.regex.Pattern.compile(java.util.regex.Pattern.quote(p),
+                    java.util.regex.Pattern.CASE_INSENSITIVE));
+        }
+        for (var r : regex) {
+            patterns.add(java.util.regex.Pattern.compile(r,
+                    java.util.regex.Pattern.CASE_INSENSITIVE));
+        }
+        return new PreferencePolicy(d.name(), d.source(), d.version(), patterns, preferred, reason);
     }
 
     private static GovernancePolicy buildMessageLength(PolicyDescriptor d) {

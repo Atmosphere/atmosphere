@@ -511,6 +511,15 @@ public class AiPipeline {
                         tracer.end("transform", "request rewritten");
                         request = transform.modifiedRequest();
                     }
+                    case PolicyDecision.Prefer prefer -> {
+                        // Soft governance: admit unchanged (flow identical to Admit) but
+                        // record the preferred alternative so it can be fed back to the
+                        // agent on a later turn (GovernanceFeedbackInterceptor).
+                        GovernanceDecisionLog.installed().record(
+                                GovernanceDecisionLog.preferEntry(policy, ctx,
+                                        prefer.preferred(), prefer.reason(), evalMs));
+                        tracer.end("prefer", prefer.reason());
+                    }
                     case PolicyDecision.Admit ignored -> {
                         GovernanceDecisionLog.installed().record(
                                 GovernanceDecisionLog.entry(policy, ctx, "admit", "", evalMs));

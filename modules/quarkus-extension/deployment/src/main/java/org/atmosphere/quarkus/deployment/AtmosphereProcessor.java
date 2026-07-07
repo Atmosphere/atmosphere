@@ -437,6 +437,23 @@ class AtmosphereProcessor {
         builder.addInitParam("org.atmosphere.ai.memory.safety.on-breach", memorySafety.onBreach());
         builder.addInitParam("org.atmosphere.ai.memory.safety.fail-open", String.valueOf(memorySafety.failOpen()));
 
+        // Durable governance feedback (opt-in, off by default): when enabled,
+        // AiEndpointProcessor persists deny/prefer decisions to the resolved
+        // LongTermMemory (provenance-tagged) so the feedback interceptor recalls them
+        // across sessions and restarts. Enable with
+        // quarkus.atmosphere.ai.governance.memory.enabled=true. Keys are literals
+        // mirroring GovernanceMemoryConfig in atmosphere-ai so this build-time module
+        // needs no compile dep on the AI runtime module.
+        var governanceMemory = config.ai().governance().memory();
+        builder.addInitParam("org.atmosphere.ai.governance.memory.enabled",
+                String.valueOf(governanceMemory.enabled()));
+        builder.addInitParam("org.atmosphere.ai.governance.memory.ttl-seconds",
+                String.valueOf(governanceMemory.ttlSeconds()));
+        builder.addInitParam("org.atmosphere.ai.governance.memory.confidence",
+                String.valueOf(governanceMemory.confidence()));
+        builder.addInitParam("org.atmosphere.ai.governance.memory.min-confidence",
+                String.valueOf(governanceMemory.minConfidence()));
+
         // Agent-harness preset: the app-wide switch governing Atmosphere's
         // deep-agent primitives, read once per framework by AiEndpointProcessor.
         // The switch is tri-state, so the init-param bridges only when the

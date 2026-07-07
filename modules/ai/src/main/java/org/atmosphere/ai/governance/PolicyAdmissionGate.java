@@ -141,6 +141,13 @@ public final class PolicyAdmissionGate {
                         tracer.end("transform", "request rewritten");
                         current = transform.modifiedRequest();
                     }
+                    case PolicyDecision.Prefer prefer -> {
+                        // Soft governance: admit unchanged, record the preferred path.
+                        GovernanceDecisionLog.installed().record(
+                                GovernanceDecisionLog.preferEntry(policy, ctx,
+                                        prefer.preferred(), prefer.reason(), evalMs));
+                        tracer.end("prefer", prefer.reason());
+                    }
                     case PolicyDecision.Admit ignored -> {
                         GovernanceDecisionLog.installed().record(
                                 GovernanceDecisionLog.entry(policy, ctx, "admit", "", evalMs));

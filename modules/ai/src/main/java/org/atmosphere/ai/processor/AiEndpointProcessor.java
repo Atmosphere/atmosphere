@@ -143,6 +143,12 @@ public class AiEndpointProcessor implements Processor<Object> {
             // agnostic — the same call serves the @AiEndpoint path on every runtime.
             installMemorySafetyOnce(framework);
 
+            // Resolve + install the durable governance-feedback path (opt-in, off by
+            // default) once per framework, framework-agnostic so Quarkus / bare-JVM get the
+            // same wiring the Spring auto-config provides. One-shot marker inside the
+            // installer makes whichever runtime wires first win (no double sink).
+            org.atmosphere.ai.governance.memory.GovernanceMemoryInstaller.install(framework);
+
             // Harness preset: one-shot install per framework (same marker
             // pattern as installMemorySafetyOnce). Parses the tri-state
             // enabled / exclude-paths init-params and publishes the

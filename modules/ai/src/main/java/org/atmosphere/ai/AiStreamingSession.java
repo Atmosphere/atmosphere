@@ -682,6 +682,14 @@ public class AiStreamingSession implements StreamingSession {
                         tracer.end("transform", "request rewritten");
                         request = transform.modifiedRequest();
                     }
+                    case org.atmosphere.ai.governance.PolicyDecision.Prefer prefer -> {
+                        // Soft governance: admit unchanged, record the preferred path.
+                        org.atmosphere.ai.governance.GovernanceDecisionLog.installed().record(
+                                org.atmosphere.ai.governance.GovernanceDecisionLog.preferEntry(
+                                        requestScopePolicy, ctx, prefer.preferred(),
+                                        prefer.reason(), evalMs));
+                        tracer.end("prefer", prefer.reason());
+                    }
                     case org.atmosphere.ai.governance.PolicyDecision.Admit ignored -> {
                         org.atmosphere.ai.governance.GovernanceDecisionLog.installed().record(
                                 org.atmosphere.ai.governance.GovernanceDecisionLog.entry(

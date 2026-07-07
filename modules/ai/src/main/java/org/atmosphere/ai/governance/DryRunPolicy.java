@@ -53,6 +53,7 @@ public final class DryRunPolicy implements GovernancePolicy {
     private final AtomicLong shadowAdmits = new AtomicLong();
     private final AtomicLong shadowDenies = new AtomicLong();
     private final AtomicLong shadowTransforms = new AtomicLong();
+    private final AtomicLong shadowPrefers = new AtomicLong();
     private final AtomicLong delegateErrors = new AtomicLong();
 
     public DryRunPolicy(GovernancePolicy delegate) {
@@ -105,6 +106,10 @@ public final class DryRunPolicy implements GovernancePolicy {
                 shadowTransforms.incrementAndGet();
                 recordShadow("transform", "would-rewrite", context);
             }
+            case PolicyDecision.Prefer prefer -> {
+                shadowPrefers.incrementAndGet();
+                recordShadow("prefer", prefer.reason(), context);
+            }
         }
 
         // Always admit — that's the whole point of dry-run.
@@ -114,11 +119,13 @@ public final class DryRunPolicy implements GovernancePolicy {
     public long shadowAdmits() { return shadowAdmits.get(); }
     public long shadowDenies() { return shadowDenies.get(); }
     public long shadowTransforms() { return shadowTransforms.get(); }
+    public long shadowPrefers() { return shadowPrefers.get(); }
     public long delegateErrors() { return delegateErrors.get(); }
 
-    /** Total shadow evaluations (admit + deny + transform + error). */
+    /** Total shadow evaluations (admit + deny + transform + prefer + error). */
     public long totalEvaluations() {
-        return shadowAdmits.get() + shadowDenies.get() + shadowTransforms.get() + delegateErrors.get();
+        return shadowAdmits.get() + shadowDenies.get() + shadowTransforms.get()
+                + shadowPrefers.get() + delegateErrors.get();
     }
 
     /**
@@ -129,6 +136,7 @@ public final class DryRunPolicy implements GovernancePolicy {
         shadowAdmits.set(0);
         shadowDenies.set(0);
         shadowTransforms.set(0);
+        shadowPrefers.set(0);
         delegateErrors.set(0);
     }
 

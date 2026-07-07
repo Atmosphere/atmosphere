@@ -19,7 +19,7 @@ const filtered = computed(() => {
 })
 
 const counts = computed(() => {
-  const acc: Record<string, number> = { admit: 0, deny: 0, transform: 0, error: 0 }
+  const acc: Record<string, number> = { admit: 0, prefer: 0, transform: 0, deny: 0, error: 0 }
   for (const entry of data.value) {
     acc[entry.decision] = (acc[entry.decision] ?? 0) + 1
   }
@@ -47,12 +47,14 @@ function decisionClass(d: string) {
       <h2 class="gov-title">Recent decisions</h2>
       <div class="toolbar-actions">
         <span class="count-chip admit">admit {{ counts.admit ?? 0 }}</span>
+        <span class="count-chip prefer">prefer {{ counts.prefer ?? 0 }}</span>
         <span class="count-chip deny">deny {{ counts.deny ?? 0 }}</span>
         <span class="count-chip transform">xform {{ counts.transform ?? 0 }}</span>
         <span class="count-chip error">error {{ counts.error ?? 0 }}</span>
         <select v-model="filterDecision" class="filter-select">
           <option value="all">All</option>
           <option value="admit">Admit</option>
+          <option value="prefer">Prefer</option>
           <option value="deny">Deny</option>
           <option value="transform">Transform</option>
           <option value="error">Error</option>
@@ -129,6 +131,7 @@ function decisionClass(d: string) {
   font-weight: 600;
 }
 .count-chip.admit { color: #2e7d32; border-color: #2e7d3233; }
+.count-chip.prefer { color: #1565c0; border-color: #1565c033; }
 .count-chip.deny { color: #c62828; border-color: #c6282833; }
 .count-chip.transform { color: #6a1b9a; border-color: #6a1b9a33; }
 .count-chip.error { color: #ef6c00; border-color: #ef6c0033; }
@@ -187,11 +190,13 @@ function decisionClass(d: string) {
   letter-spacing: 0.05em;
 }
 .badge-admit { background: #e8f5e9; color: #2e7d32; }
+.badge-prefer { background: #e3f2fd; color: #1565c0; }
 .badge-deny { background: #ffebee; color: #c62828; }
 .badge-transform { background: #f3e5f5; color: #6a1b9a; }
 .badge-error { background: #fff3e0; color: #ef6c00; }
 @media (prefers-color-scheme: dark) {
   .badge-admit { background: rgba(46, 125, 50, 0.18); }
+  .badge-prefer { background: rgba(21, 101, 192, 0.2); }
   .badge-deny { background: rgba(198, 40, 40, 0.18); }
   .badge-transform { background: rgba(106, 27, 154, 0.2); }
   .badge-error { background: rgba(239, 108, 0, 0.2); }

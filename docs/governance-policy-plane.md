@@ -96,7 +96,7 @@ The audit-sink family follows the same posture: `AsyncAuditSink` ships in `modul
 
 ### `PolicyRegistry` and built-in types
 
-`org.atmosphere.ai.governance.PolicyRegistry` maps YAML `type:` names to factory functions. Eleven built-in types ship (`PolicyRegistry.java:80-91`):
+`org.atmosphere.ai.governance.PolicyRegistry` maps YAML `type:` names to factory functions. Twelve built-in types ship (`PolicyRegistry.java:81-92`):
 
 | `type:` | Wraps / produces | Required config keys |
 |---|---|---|
@@ -105,6 +105,7 @@ The audit-sink family follows the same posture: `AsyncAuditSink` ships in `modul
 | `output-length-zscore` | `OutputLengthZScoreGuardrail` | `window-size`, `z-threshold`, `min-samples` |
 | `deny-list` | `DenyListPolicy` | at least one of `phrases: [...]`, `regex: [...]` |
 | `allow-list` | `AllowListPolicy` | at least one of `phrases: [...]`, `regex: [...]` |
+| `preference` | `PreferencePolicy` (emits a soft `Prefer` advisory) | at least one of `phrases: [...]`, `regex: [...]`, plus `prefer: <text>`, `reason: <text>` |
 | `message-length` | `MessageLengthPolicy` | `max-chars: <positive int>` |
 | `rate-limit` | `RateLimitPolicy` | `limit: <positive int>`, `window-seconds: <positive int>` |
 | `concurrency-limit` | `ConcurrencyLimitPolicy` | `max-concurrent: <positive int>` |
@@ -402,6 +403,111 @@ spring-boot-multi-agent-startup-team: the same prompt that admitted at
 Hot-reload a policy wrapped in `SwappablePolicy`. Request body carries
 `{swapName, yaml}`; response carries the outgoing + incoming delegate
 identity so the admin trail can log the swap.
+
+---
+
+## Governance as a learning signal
+
+Governance decisions already flow **outward** — every admit / deny / transform / prefer is
+recorded to `GovernanceDecisionLog` and fanned out to audit sinks and the admin console. On
+their own they never reach the agent: it observes a block but never the reasoning or the
+allowed alternative, so a task-success-only agent keeps probing the same wall. This section
+closes that loop — the idea from Jason Stanley's
+[*Governance as a Learning Signal*](https://jasonstanley.substack.com/p/governance-as-a-learning-signal):
+reshape the control-plane signal from *negative + logged-only* into *contrastive +
+back-in-the-loop*, with **no model retraining** — the signal simply re-enters the prompt each
+turn, so even a non-learning agent gets the lesson.
+
+### The soft-preference tier — `PolicyDecision.Prefer`
+
+`PolicyDecision` gains a fourth, **advisory** case alongside `Admit` / `Transform` / `Deny`:
+
+```java
+PolicyDecision.prefer("request a scoped, time-boxed credential for the single function",
+                      "standing admin grants violate least-privilege for this ticket type");
+```
+
+`Prefer` admits the turn **unchanged** — admission-flow call sites treat it exactly like
+`Admit` — but records that a *preferred* path exists. It is the "soft governance" tier the
+article calls the missing middle: "scoped access is preferred over standing access", where
+both paths are permitted but one is better, expressed without a hard `Deny`. Author it in YAML
+with the native `preference` type (phrase/regex match → advisory):
+
+```yaml
+policies:
+  - name: least-privilege-advisor
+    type: preference
+    config:
+      phrases: ["standing admin", "full access"]
+      prefer: "request a scoped, time-boxed credential for the single function"
+      reason: "standing admin grants violate least-privilege for this ticket type"
+```
+
+`Prefer` is an Atmosphere-native extension with **no Microsoft counterpart**, so the MS-rules
+bridge never emits it (the byte-for-byte MS conformance fixtures are unaffected). It records
+`decision="prefer"` with the reason and stamps the preferred alternative under
+`GovernanceDecisionLog.PREFERRED_KEY` in the audit snapshot.
+
+### Closing the loop — `GovernanceFeedbackInterceptor` (ephemeral, default)
+
+`org.atmosphere.ai.governance.GovernanceFeedbackInterceptor` is an `AiInterceptor` that, on
+`preProcess`, reads recent `deny` / `prefer` decisions from the `GovernanceDecisionLog` ring
+buffer and injects a contrastive guidance block into the next turn's system prompt:
+
+> *Governance guidance from earlier in this session — follow it:*
+> *- Prefer: request a scoped, time-boxed credential for the single function (least-privilege…)*
+> *- A prior action was denied: … — do not repeat it.*
+
+```java
+@AiEndpoint(path = "/chat", interceptors = GovernanceFeedbackInterceptor.class)
+```
+
+- **Scoped, no cross-subject leak.** Guidance is matched on the tightest identity the request
+  carries — `conversation_id`, else `session_id`, else `user_id` — against the same dimension
+  in the audit snapshot. An anonymous turn injects nothing.
+- **Bounded & fail-open.** The scan and the injected block are capped (`scanWindow` /
+  `maxItems`, deduped by rendered line); a failure returns the request unchanged — feedback is
+  advisory and never breaks a turn. Dry-run shadow entries (`dry-run:*`) are excluded.
+- **Requires an installed decision log.** The loop reads `GovernanceDecisionLog`; the admin
+  auto-config installs it out-of-box (or call `GovernanceDecisionLog.install(capacity)`
+  yourself). Against the NOOP default it is inert.
+
+### Durable recall — opt-in, provenance-gated
+
+By default the source is the in-memory ring buffer: the loop closes **within a session** and
+governance lessons **never touch long-term memory** — the article's "wrong lesson compounds in
+memory" hazard is side-stepped, not merely defended. Opt in to make recall survive restarts
+and the ring window:
+
+```properties
+atmosphere.ai.governance.memory.enabled        = true   # Spring Boot starter
+atmosphere.ai.governance.memory.ttl-seconds    = 0       # 0 = no expiry; >0 = lessons lapse
+atmosphere.ai.governance.memory.min-confidence = 0.0     # read gate: drop lessons below this
+```
+
+When enabled with a `LongTermMemory` bean present, `GovernanceMemorySink` persists each
+deny/prefer as a provenance-tagged `GovernanceFact` (policy identity + confidence + optional
+expiry) under a reserved per-user namespace, and `GovernanceProvenanceMemory` **drops expired
+or below-confidence lessons on read** before they are re-injected. The same primitives wire
+programmatically in any runtime:
+
+```java
+GovernanceMemoryConfig.installStore(new GovernanceProvenanceMemory(store, 0.0, Clock.systemUTC()));
+GovernanceDecisionLog.installed().addSink(new GovernanceMemorySink(store, ttl, 1.0, Clock.systemUTC()));
+```
+
+Both paths render through one `GovernanceGuidance` renderer, so ephemeral and durable guidance
+read identically (Correctness Invariant #7 — mode parity). The ephemeral (this-session) lines
+are listed first; durable lines fill the remainder up to `maxItems`.
+
+### How the signal is reshaped
+
+| Dimension | Before (logged-only) | After |
+|---|---|---|
+| **Polarity** | negative ("denied") | contrastive — the preferred alternative is surfaced |
+| **Format** | audit-log event | re-enters the prompt each turn |
+| **Scope** | one decision | session-trajectory (recent decisions for this subject) |
+| **Density** | violations only | deny **and** prefer surfaced (admit/transform stay silent) |
 
 ---
 

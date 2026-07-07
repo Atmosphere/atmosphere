@@ -263,6 +263,29 @@ public final class GovernanceDecisionLog {
                 decision, reason, snapshotContext(context), evaluationMs);
     }
 
+    /**
+     * Key under which a {@link PolicyDecision.Prefer} advisory records its preferred
+     * alternative in {@link AuditEntry#contextSnapshot()}. Read back by
+     * {@code GovernanceFeedbackInterceptor} to surface the preferred path to the agent.
+     */
+    public static final String PREFERRED_KEY = "preferred";
+
+    /**
+     * Convenience — build an {@code AuditEntry} for a {@link PolicyDecision.Prefer}
+     * advisory. Records {@code decision="prefer"} with the reason and stamps the
+     * preferred alternative under {@link #PREFERRED_KEY} in the context snapshot, so the
+     * signal (both why and the better path) can be fed back to the agent on a later turn.
+     */
+    public static AuditEntry preferEntry(GovernancePolicy policy,
+                                         PolicyContext context,
+                                         String preferred,
+                                         String reason,
+                                         double evaluationMs) {
+        var snapshot = new LinkedHashMap<>(snapshotContext(context));
+        snapshot.put(PREFERRED_KEY, preferred);
+        return entryWithSnapshot(policy, snapshot, "prefer", reason, evaluationMs);
+    }
+
     /** Build an {@link AuditEntry} with an explicit context snapshot (tests). */
     public static AuditEntry entryWithSnapshot(GovernancePolicy policy,
                                                  Map<String, Object> snapshot,

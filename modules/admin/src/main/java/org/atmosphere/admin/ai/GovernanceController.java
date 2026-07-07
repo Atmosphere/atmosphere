@@ -211,6 +211,16 @@ public final class GovernanceController {
                             matchedName = policy.name();
                             matchedSource = policy.source();
                         }
+                        case PolicyDecision.Prefer prefer -> {
+                            // Soft governance: allowed, but the policy records a preferred
+                            // alternative. Native Atmosphere extension with no MS counterpart,
+                            // so MS YAML never produces it — evaluation continues.
+                            allowed = true;
+                            action_outcome = "prefer";
+                            reason = prefer.reason();
+                            matchedName = policy.name();
+                            matchedSource = policy.source();
+                        }
                         case PolicyDecision.Admit ignored -> { }
                     }
                 } catch (Exception e) {

@@ -44,6 +44,7 @@ public final class CountingPolicy implements GovernancePolicy {
     private final AtomicLong admits = new AtomicLong();
     private final AtomicLong denies = new AtomicLong();
     private final AtomicLong transforms = new AtomicLong();
+    private final AtomicLong prefers = new AtomicLong();
     private final AtomicLong errors = new AtomicLong();
 
     public CountingPolicy(GovernancePolicy delegate) {
@@ -67,17 +68,19 @@ public final class CountingPolicy implements GovernancePolicy {
     public long admits() { return admits.get(); }
     public long denies() { return denies.get(); }
     public long transforms() { return transforms.get(); }
+    public long prefers() { return prefers.get(); }
     public long errors() { return errors.get(); }
 
-    /** Total evaluations — admits + denies + transforms + errors. */
+    /** Total evaluations — admits + denies + transforms + prefers + errors. */
     public long total() {
-        return admits.get() + denies.get() + transforms.get() + errors.get();
+        return admits.get() + denies.get() + transforms.get() + prefers.get() + errors.get();
     }
 
     public void reset() {
         admits.set(0);
         denies.set(0);
         transforms.set(0);
+        prefers.set(0);
         errors.set(0);
     }
 
@@ -89,6 +92,7 @@ public final class CountingPolicy implements GovernancePolicy {
                 case PolicyDecision.Admit ignored -> admits.incrementAndGet();
                 case PolicyDecision.Deny ignored -> denies.incrementAndGet();
                 case PolicyDecision.Transform ignored -> transforms.incrementAndGet();
+                case PolicyDecision.Prefer ignored -> prefers.incrementAndGet();
             }
             return decision;
         } catch (RuntimeException e) {

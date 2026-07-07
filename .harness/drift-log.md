@@ -2130,3 +2130,30 @@ Agent/AiEndpoint/Quarkus-config Javadoc enumerations extended to the five primit
 here: any prose of the form "expands to {LIST}" or a parenthetical primitive enumeration is a
 capability matrix and MUST be swept when the enum changes — grep `deep-agent.md` + annotation
 Javadoc for "expands to" on every Harness enum edit. Procedural; no cheap automated pin exists.
+
+## 2026-07-07 — Governance feedback loop documented as "next turn"; actually same-turn for Prefer
+
+**Claim:** The `GovernanceFeedbackInterceptor` re-injects governance decisions on the agent's
+*next* turn — and the `spring-boot-ai-chat` `GovernanceFeedbackConfig` sample doc first described
+a two-turn demo (turn 1 generic advice; turn 2, after the advisory is recorded, the org-specific
+answer).
+
+**Truth:** On the `@AiEndpoint` streaming path (`AiStreamingSession`), the guardrail loop — which
+includes the policy plane that RECORDS the `Prefer` — runs BEFORE the interceptor that INJECTS
+(`inspectRequest` guardrails ~L569, interceptor `preProcess` ~L632). So a `Prefer` advisory steers
+the SAME turn that triggered it; only a hard `Deny` (which terminates its turn) is surfaced on the
+NEXT turn from the decision-log ring buffer. Driving the sample end-to-end on a real LLM showed
+the org-specific `release-bot` tokens in the turn-1 answer, contradicting "generic first, specific
+next".
+
+**Slip path:** the "next turn" framing was inferred from the interceptor's stated intent
+("re-inject recent decisions") without tracing the intra-turn ordering of guardrail-record vs
+interceptor-inject on the actual streaming path — a runtime-truth-vs-declaration gap. Caught
+pre-commit by running the system, not by reading the code alone.
+
+**Fix (this commit):** `GovernanceFeedbackConfig` javadoc and `docs/governance-policy-plane.md`
+state the same-turn (`Prefer`) / next-turn (`Deny`) split explicitly.
+
+**Gate:** the committed e2e `e2e/tests/governance-feedback-chat.spec.ts` pins the actual behavior
+— a single production-deploy turn must surface the injected `release-bot` guidance — so a
+regression to the mis-stated two-turn model fails the spec.

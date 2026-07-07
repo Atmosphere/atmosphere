@@ -21,6 +21,7 @@ import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.governance.GovernanceFeedbackInterceptor;
 import org.atmosphere.ai.llm.CacheHint;
 import org.atmosphere.config.service.Disconnect;
 import org.atmosphere.config.service.Ready;
@@ -45,6 +46,10 @@ import org.slf4j.LoggerFactory;
         systemPromptResource = "skill:ai-assistant",
         requires = {AiCapability.TEXT_STREAMING, AiCapability.SYSTEM_PROMPT},
         conversationMemory = true,
+        // Governance as a learning signal: re-injects recent deny/prefer decisions for this
+        // conversation into the next turn's system prompt (see GovernanceFeedbackConfig's
+        // least-privilege PreferencePolicy). The loop closes with no model retraining.
+        interceptors = GovernanceFeedbackInterceptor.class,
         // Wave 4 prompt caching: emits OpenAI prompt_cache_key on providers that
         // support it (Spring AI / LC4j / Built-in OpenAI path), and short-circuits
         // at the pipeline level via ResponseCache on identical subsequent requests.
