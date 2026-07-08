@@ -70,7 +70,7 @@ class AtmosphereAdminEndpointGovernanceAuthzTest {
         // Default happy-path stubs — individual tests override only what
         // they exercise. Returning sensible defaults means a missing stub
         // doesn't silently deny (which would mask an authz bypass).
-        Mockito.when(governance.reloadSwappable(Mockito.any(), Mockito.any()))
+        Mockito.when(governance.reloadSwappable(Mockito.any(), Mockito.any(), Mockito.any()))
                 .thenReturn(Map.of("swapName", "x"));
         Mockito.when(governance.armKillSwitch(Mockito.any(), Mockito.any()))
                 .thenReturn(Map.of("armed", true));
