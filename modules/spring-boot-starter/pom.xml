@@ -130,6 +130,23 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Governance decision-log audit sinks. Optional: the JDBC/Postgres
+             and Kafka auto-configurations only activate when the matching module
+             is present AND a connection target is configured (default OFF). -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai-audit-postgres</artifactId>
+            <version>${project.version}</version>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai-audit-kafka</artifactId>
+            <version>${project.version}</version>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Bundled crash-durable SQLite effect journal for durable agent runs.
              Optional: when absent and durable runs are enabled, the autoconfig
              falls back to the in-memory journal and logs that it is not
@@ -233,6 +250,17 @@
         <dependency>
             <groupId>org.awaitility</groupId>
             <artifactId>awaitility</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- In-process JDBC store for the governance audit-sink auto-config test:
+             drives admit + deny through the decision log and asserts both rows
+             persist. H2's test scope in atmosphere-ai-audit-postgres is not
+             transitive through the optional dep, so it is declared here too. -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>2.4.240</version>
             <scope>test</scope>
         </dependency>
         <dependency>
