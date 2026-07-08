@@ -110,9 +110,22 @@ test.describe('Quarkus Admin REST API', () => {
   });
 
   test('audit endpoint returns empty list initially', async ({ request }) => {
-    const res = await request.get(`${server.baseUrl}/api/admin/audit`);
+    // Audit carries message bodies + principals — default-DENY, authenticate.
+    const res = await request.get(`${server.baseUrl}/api/admin/audit`, { headers: AUTH_HEADER });
     expect(res.ok()).toBeTruthy();
     expect(Array.isArray(await res.json())).toBeTruthy();
+  });
+
+  test('recorded-content reads are denied without auth (Invariant #6 + #7 parity)', async ({ request }) => {
+    for (const path of [
+      '/api/admin/governance/decisions',
+      '/api/admin/audit',
+      '/api/admin/journal',
+    ]) {
+      const res = await request.get(`${server.baseUrl}${path}`);
+      expect(res.status(),
+        `anonymous recorded-content read must be 401 on Quarkus too: ${path}`).toBe(401);
+    }
   });
 });
 
@@ -135,7 +148,7 @@ test.describe('Quarkus Admin Write Operations', () => {
     expect(body.status).toBe('broadcast sent');
 
     // Verify audit log
-    const auditRes = await request.get(`${server.baseUrl}/api/admin/audit`);
+    const auditRes = await request.get(`${server.baseUrl}/api/admin/audit`, { headers: AUTH_HEADER });
     const entries = await auditRes.json();
     const entry = entries.find(
       (e: any) => e.action === 'broadcast' && e.target === '/atmosphere/chat',

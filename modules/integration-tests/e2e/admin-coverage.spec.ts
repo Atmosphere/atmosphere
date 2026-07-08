@@ -208,7 +208,7 @@ test.describe('Admin REST — Unicast', () => {
     expect(conn.messages.length).toBeGreaterThan(before);
 
     // Verify audit log recorded the unicast
-    const auditRes = await request.get(`${server.baseUrl}/api/admin/audit`);
+    const auditRes = await request.get(`${server.baseUrl}/api/admin/audit`, { headers: AUTH });
     const entries = await auditRes.json();
     const unicastEntry = entries.find((e: any) => e.action === 'unicast');
     expect(unicastEntry).toBeDefined();
@@ -280,13 +280,13 @@ test.describe('Admin REST — Audit Log Filtering', () => {
     }
 
     // Fetch with limit=1
-    const limitedRes = await request.get(`${server.baseUrl}/api/admin/audit?limit=1`);
+    const limitedRes = await request.get(`${server.baseUrl}/api/admin/audit?limit=1`, { headers: AUTH });
     expect(limitedRes.ok()).toBeTruthy();
     const limited = await limitedRes.json();
     expect(limited.length).toBe(1);
 
     // Fetch without limit — should have more
-    const allRes = await request.get(`${server.baseUrl}/api/admin/audit`);
+    const allRes = await request.get(`${server.baseUrl}/api/admin/audit`, { headers: AUTH });
     expect(allRes.ok()).toBeTruthy();
     const all = await allRes.json();
     expect(all.length).toBeGreaterThan(1);
@@ -297,7 +297,7 @@ test.describe('Admin REST — Audit Log Filtering', () => {
     // addLast; entries() / entries(limit) return "most recent last" per
     // its javadoc. Timestamps therefore monotonically non-decrease across
     // the returned list.
-    const res = await request.get(`${server.baseUrl}/api/admin/audit`);
+    const res = await request.get(`${server.baseUrl}/api/admin/audit`, { headers: AUTH });
     const entries = await res.json();
 
     if (entries.length < 2) return; // not enough data to check ordering
@@ -347,7 +347,7 @@ test.describe('Admin REST — Broadcaster Destroy', () => {
     }
 
     // Audit should record the destruction
-    const auditRes = await request.get(`${server.baseUrl}/api/admin/audit`);
+    const auditRes = await request.get(`${server.baseUrl}/api/admin/audit`, { headers: AUTH });
     const entries = await auditRes.json();
     const destroyEntry = entries.find(
       (e: any) => e.action === 'destroy_broadcaster' && e.target === '/atmosphere/ai-chat',
@@ -376,7 +376,7 @@ test.describe('Admin REST — Optional Controllers', () => {
   });
 
   test('journal returns empty list when no coordinator module', async ({ request }) => {
-    const res = await request.get(`${server.baseUrl}/api/admin/journal`);
+    const res = await request.get(`${server.baseUrl}/api/admin/journal`, { headers: AUTH });
     expect(res.ok()).toBeTruthy();
     const events = await res.json();
     expect(Array.isArray(events)).toBeTruthy();

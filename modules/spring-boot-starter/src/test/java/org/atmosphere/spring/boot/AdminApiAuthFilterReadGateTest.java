@@ -257,6 +257,89 @@ class AdminApiAuthFilterReadGateTest {
         verify(chain, times(1)).doFilter(any(), any());
     }
 
+    @Test
+    void contentSurfacesAreDenyByDefaultEvenWithTheReadGateOff() throws Exception {
+        // governance/decisions embeds a 200-char preview of the request message
+        // AND response plus user/session ids (GovernanceDecisionLog#snapshot);
+        // the audit log carries broadcast/unicast message bodies + principals;
+        // the coordination journal carries agent-to-agent content. All hold
+        // arbitrary user/model content, so — like the workspace surfaces — they
+        // are default-DENY regardless of the general read plane (Invariant #6).
+        var env = new MockEnvironment();
+        var filter = new AtmosphereAdminAutoConfiguration.AdminApiAuthFilter(
+                tokenValidatorRejectingEverything(), env);
+        for (var path : new String[]{
+                "/api/admin/governance/decisions",
+                "/api/admin/audit",
+                "/api/admin/journal",
+                "/api/admin/journal/coord-123",
+                "/api/admin/journal/coord-123/log"}) {
+            var res = new MockHttpServletResponse();
+            var chain = Mockito.mock(FilterChain.class);
+            filter.doFilter(new MockHttpServletRequest("GET", path), res, chain);
+            assertEquals(401, res.getStatus(),
+                    "anonymous recorded-content read must be denied by default: " + path);
+            verify(chain, never()).doFilter(any(), any());
+        }
+    }
+
+    @Test
+    void governanceMetadataSurfacesStayOpenSoTheConsoleAndSiemKeepWorking() throws Exception {
+        // Policy metadata and the Ed25519-signed commitment stream carry no
+        // user/model content — they must stay on the open read plane so the
+        // console governance summary renders and external SIEMs can pull the
+        // verifiable commitment records without a token.
+        var env = new MockEnvironment();
+        var filter = new AtmosphereAdminAutoConfiguration.AdminApiAuthFilter(
+                tokenValidatorRejectingEverything(), env);
+        for (var path : new String[]{
+                "/api/admin/governance/summary",
+                "/api/admin/governance/health",
+                "/api/admin/governance/policies",
+                "/api/admin/governance/commitments"}) {
+            var res = new MockHttpServletResponse();
+            var chain = Mockito.mock(FilterChain.class);
+            filter.doFilter(new MockHttpServletRequest("GET", path), res, chain);
+            assertEquals(200, res.getStatus(),
+                    "governance metadata must stay open by default: " + path);
+            verify(chain, times(1)).doFilter(any(), any());
+        }
+    }
+
+    @Test
+    void contentOptOutFlagReopensTheContentReads() throws Exception {
+        var env = new MockEnvironment()
+                .withProperty("atmosphere.admin.content-read-auth-required", "false");
+        var filter = new AtmosphereAdminAutoConfiguration.AdminApiAuthFilter(
+                tokenValidatorRejectingEverything(), env);
+        var res = new MockHttpServletResponse();
+        var chain = Mockito.mock(FilterChain.class);
+
+        filter.doFilter(new MockHttpServletRequest(
+                "GET", "/api/admin/governance/decisions"), res, chain);
+
+        assertEquals(200, res.getStatus(),
+                "the explicit demo opt-out must reopen the recorded-content reads");
+        verify(chain, times(1)).doFilter(any(), any());
+    }
+
+    @Test
+    void contentReadWithAValidTokenPassesUnderTheDefaultGate() throws Exception {
+        var env = new MockEnvironment();
+        var filter = new AtmosphereAdminAutoConfiguration.AdminApiAuthFilter(
+                tokenValidatorAccepting("demo-token", "demo-user"), env);
+        var req = new MockHttpServletRequest("GET", "/api/admin/governance/decisions");
+        req.addHeader("X-Atmosphere-Auth", "demo-token");
+        var res = new MockHttpServletResponse();
+        var chain = Mockito.mock(FilterChain.class);
+
+        filter.doFilter(req, res, chain);
+
+        assertEquals(200, res.getStatus(),
+                "an authenticated recorded-content read must pass the default gate");
+        verify(chain, times(1)).doFilter(any(), any());
+    }
+
     private static TokenValidator tokenValidatorRejectingEverything() {
         var v = Mockito.mock(TokenValidator.class);
         when(v.validate(Mockito.anyString()))

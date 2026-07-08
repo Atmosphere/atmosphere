@@ -155,7 +155,10 @@ test.describe('Admin REST API', () => {
   });
 
   test('journal endpoint returns empty list when no coordinations', async ({ request }) => {
-    const res = await request.get(`${server.baseUrl}/api/admin/journal`);
+    // The journal carries agent-to-agent coordination content, so it is
+    // default-DENY — authenticate the read (Invariant #6).
+    const res = await request.get(`${server.baseUrl}/api/admin/journal`,
+      { headers: { 'X-Atmosphere-Auth': AUTH_TOKEN } });
     expect(res.ok()).toBeTruthy();
 
     const events = await res.json();
@@ -171,11 +174,30 @@ test.describe('Admin REST API', () => {
   });
 
   test('audit endpoint returns empty list initially', async ({ request }) => {
-    const res = await request.get(`${server.baseUrl}/api/admin/audit`);
+    // The audit log carries broadcast/unicast message bodies + principals, so
+    // it is default-DENY — authenticate the read (Invariant #6).
+    const res = await request.get(`${server.baseUrl}/api/admin/audit`,
+      { headers: { 'X-Atmosphere-Auth': AUTH_TOKEN } });
     expect(res.ok()).toBeTruthy();
 
     const entries = await res.json();
     expect(Array.isArray(entries)).toBeTruthy();
+  });
+
+  test('recorded-content reads are denied without auth (Invariant #6)', async ({ request }) => {
+    // Regression: governance/decisions embeds prompt + response previews and
+    // session ids; audit + journal carry message/coordination content. All
+    // must reject anonymous callers by default even with the general read
+    // gate off.
+    for (const path of [
+      '/api/admin/governance/decisions',
+      '/api/admin/audit',
+      '/api/admin/journal',
+    ]) {
+      const res = await request.get(`${server.baseUrl}${path}`);
+      expect(res.status(),
+        `anonymous recorded-content read must be 401: ${path}`).toBe(401);
+    }
   });
 });
 
@@ -199,7 +221,7 @@ test.describe('Admin Write Operations', () => {
     expect(body.status).toBe('broadcast sent');
 
     // Verify audit log recorded the action
-    const auditRes = await request.get(`${server.baseUrl}/api/admin/audit`);
+    const auditRes = await request.get(`${server.baseUrl}/api/admin/audit`, { headers: AUTH_HEADER });
     const entries = await auditRes.json();
     const broadcastEntry = entries.find(
       (e: any) => e.action === 'broadcast' && e.target === '/atmosphere/ai-chat',

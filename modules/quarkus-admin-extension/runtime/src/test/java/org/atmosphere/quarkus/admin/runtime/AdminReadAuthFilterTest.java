@@ -44,6 +44,7 @@ class AdminReadAuthFilterTest {
     @AfterEach
     void clearProps() {
         System.clearProperty("atmosphere.admin.http-read-auth-required");
+        System.clearProperty("atmosphere.admin.content-read-auth-required");
         System.clearProperty("atmosphere.admin.auth.token");
     }
 
@@ -126,6 +127,63 @@ class AdminReadAuthFilterTest {
         System.setProperty("atmosphere.admin.http-read-auth-required", "true");
         var filter = new AdminReadAuthFilter();
         var ctx = mockReadRequest("/public/agents", null, null);
+
+        filter.filter(ctx);
+
+        verify(ctx, never()).abortWith(Mockito.any());
+    }
+
+    @Test
+    void contentSurfacesDenyByDefaultEvenWithReadGateOff() throws Exception {
+        // Parity with Spring: governance/decisions (message + response previews
+        // + session ids), audit (message bodies + principals) and the journal
+        // (coordination content) carry user/model content and are default-DENY
+        // even with the general read gate off (Invariant #6 + #7).
+        var filter = new AdminReadAuthFilter();
+        for (var path : new String[]{
+                "/api/admin/governance/decisions",
+                "/api/admin/audit",
+                "/api/admin/journal",
+                "/api/admin/journal/coord-123",
+                "/api/admin/journal/coord-123/log"}) {
+            var ctx = mockReadRequest(path, null, null);
+            filter.filter(ctx);
+            var captor = ArgumentCaptor.forClass(Response.class);
+            verify(ctx).abortWith(captor.capture());
+            assertEquals(401, captor.getValue().getStatus(),
+                    "anonymous recorded-content read must be denied by default: " + path);
+        }
+    }
+
+    @Test
+    void governanceMetadataStaysOpenByDefault() throws Exception {
+        var filter = new AdminReadAuthFilter();
+        for (var path : new String[]{
+                "/api/admin/governance/summary",
+                "/api/admin/governance/commitments",
+                "/api/admin/overview"}) {
+            var ctx = mockReadRequest(path, null, null);
+            filter.filter(ctx);
+            verify(ctx, never()).abortWith(Mockito.any());
+        }
+    }
+
+    @Test
+    void contentOptOutFlagReopensTheContentReads() throws Exception {
+        System.setProperty("atmosphere.admin.content-read-auth-required", "false");
+        var filter = new AdminReadAuthFilter();
+        var ctx = mockReadRequest("/api/admin/governance/decisions", null, null);
+
+        filter.filter(ctx);
+
+        verify(ctx, never()).abortWith(Mockito.any());
+    }
+
+    @Test
+    void contentReadWithValidTokenPasses() throws Exception {
+        System.setProperty("atmosphere.admin.auth.token", "demo-token");
+        var filter = new AdminReadAuthFilter();
+        var ctx = mockReadRequest("/api/admin/governance/decisions", null, "demo-token");
 
         filter.filter(ctx);
 
