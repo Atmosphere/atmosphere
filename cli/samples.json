@@ -555,6 +555,26 @@
       "hasFrontend": false,
       "envVars": {},
       "note": "Wiring proof for atmosphere-admin-bundle — @SpringBootTest asserts the auto-configured beans; not a typical user starter."
+    },
+    {
+      "name": "spring-boot-one-dep-agent",
+      "description": "One dependency + a single @Agent class = a running streaming chat app (keyless demo runtime)",
+      "category": "ai",
+      "tags": [
+        "spring-boot",
+        "ai",
+        "streaming",
+        "agent",
+        "one-dependency",
+        "starter"
+      ],
+      "port": 8101,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": false,
+      "envVars": {
+        "LLM_API_KEY": "Optional — stream from a real OpenAI-compatible provider; omit for the keyless demo runtime"
+      }
     }
   ]
 }

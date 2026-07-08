@@ -1,0 +1,28 @@
+# One dependency + a single @Agent class = a running streaming chat app.
+#
+# Everything below is optional tuning; the app runs with an empty config. The
+# only load-bearing line is atmosphere.packages, which points the framework's
+# annotation scanner at the package holding the single @Agent class so
+# AgentProcessor registers its streaming handler at /atmosphere/agent/chat.
+
+atmosphere:
+  console-subtitle: One dependency, one @Agent class — keyless streaming chat
+  packages: org.atmosphere.samples.springboot.onedepagent
+  # Token auth is OFF so the bundled AI Console connects out-of-box; this
+  # sample's headline is the one-dependency streaming chat, not auth. The
+  # framework default is fail-closed (Correctness Invariant #6); this
+  # sample-level override is explicit and documented in README.md.
+  auth:
+    enabled: false
+
+# LLM configuration is entirely optional and needs no entry here. With no key
+# the framework's built-in demo runtime streams a canned response token-by-token,
+# so the app is a running streaming chat app out of the box. The AI auto-config
+# reads LLM_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY (and LLM_MODEL /
+# LLM_BASE_URL / LLM_MODE) straight from the environment, so exporting
+# LLM_API_KEY is enough to stream from a real OpenAI-compatible provider — no
+# code and no config change. To set them here instead, use atmosphere.ai.api-key
+# / atmosphere.ai.model / atmosphere.ai.base-url.
+
+server:
+  port: 8101

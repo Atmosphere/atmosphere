@@ -20,6 +20,7 @@ All samples inherit their Atmosphere version from the parent POM. The target sta
 
 | Sample | AI Backend | Tool Calling | Description |
 |--------|-----------|-------------|-------------|
+| [spring-boot-one-dep-agent](spring-boot-one-dep-agent/) | Built-in (keyless demo runtime) | — | Minimal proof: one Atmosphere dependency + a single `@Agent` class is a running streaming chat app |
 | [spring-boot-ai-chat](spring-boot-ai-chat/) | Built-in (Gemini/OpenAI/Ollama) | — | Basic AI streaming with `@AiEndpoint` |
 | [spring-boot-ai-tools](spring-boot-ai-tools/) | Built-in / any `AgentRuntime` | `@AiTool` (portable) | Framework-agnostic tool calling pipeline with live `AiEvent` tool activity |
 | [spring-boot-ai-classroom](spring-boot-ai-classroom/) | Built-in | — | Multi-room collaborative AI streaming ([Expo client](spring-boot-ai-classroom/expo-client/)) |
