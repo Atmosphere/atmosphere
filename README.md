@@ -5,7 +5,7 @@
 <h1 align="center">Atmosphere</h1>
 
 <p align="center">
-  The real-time engine for streaming, governable AI agents. Atmosphere's broadcaster transport — WebSocket, SSE, long-polling, gRPC — is the foundation; declare behavior with <code>@Agent</code> and Atmosphere owns runtime dispatch, reconnect, authorization, observability, and the governance path.
+  The real-time engine for AI agents on the JVM. Tokens flow from the LLM runtime to the client through a broadcaster you can filter, gate, and observe — over WebSocket, SSE, long-polling, or gRPC, and out through MCP, A2A, and AG-UI. A plain <code>@Agent</code> is a full deep agent — memory, planning, a virtual filesystem, and sub-agent delegation, batteries-included — and Atmosphere handles reconnect, authorization, and governance.
 </p>
 
 <p align="center">
