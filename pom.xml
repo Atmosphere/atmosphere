@@ -649,6 +649,7 @@
         <module>samples/spring-boot-coding-agent</module>
         <module>samples/spring-boot-guarded-email-agent</module>
         <module>samples/spring-boot-admin-bundle</module>
+        <module>samples/spring-boot-one-dep-agent</module>
         <module>modules/integration-tests</module>
     </modules>
     <reporting>

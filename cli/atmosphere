@@ -1091,6 +1091,7 @@ cmd_new() {
     # sparse-clone path used by `atmosphere install`.
     case "$template" in
         chat)          source_sample="spring-boot-chat" ;;
+        one-dep-agent) source_sample="spring-boot-one-dep-agent" ;;
         ai-chat)       source_sample="spring-boot-ai-chat" ;;
         ai-tools)      source_sample="spring-boot-ai-tools" ;;
         mcp-server)    source_sample="spring-boot-mcp-server" ;;
@@ -1103,7 +1104,7 @@ cmd_new() {
         guarded-agent) source_sample="spring-boot-guarded-email-agent" ;;
         assistant)     source_sample="spring-boot-personal-assistant" ;;
         browser-agent) source_sample="spring-boot-browser-agent" ;;
-        *)             die "Unknown template: $template (chat, ai-chat, ai-tools, mcp-server, rag, agent, multi-agent, classroom, ms-governance, coding-agent, guarded-agent, assistant, browser-agent)" ;;
+        *)             die "Unknown template: $template (chat, one-dep-agent, ai-chat, ai-tools, mcp-server, rag, agent, multi-agent, classroom, ms-governance, coding-agent, guarded-agent, assistant, browser-agent)" ;;
     esac
 
     # --routing is only meaningful for AI templates that ship an application.yml.

@@ -100,6 +100,18 @@
             <version>3.53.2.0</version>
         </dependency>
 
+        <!-- Embedded servlet container + Spring MVC, pinned NON-optionally so a
+             downstream app that declares ONLY this starter boots a running web
+             server out of the box (the base starter keeps spring-boot-web-server
+             <optional>true</optional> for embeddable/transport-first use). This
+             is what makes "one dependency + a single @Agent class is a running
+             streaming chat app" true end to end: without it the AtmosphereServlet
+             has no container to register against and the app never serves. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
         <!-- Delivery proof: boot a Spring context with ONLY this starter plus a
              single @Agent class and assert the live beans. No direct dependency
              on atmosphere-ai / atmosphere-agent here — they must arrive
@@ -107,11 +119,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
