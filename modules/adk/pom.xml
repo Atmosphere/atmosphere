@@ -31,6 +31,18 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- Pin org.json to a CVE-clean release. google-cloud-bigquery
+                 (pulled transitively via google-adk) drags in org.json, which
+                 has a history of DoS CVEs (CVE-2022-45688 stack overflow patched
+                 in 20230227, CVE-2023-5072 DoS patched in 20231013). The resolved
+                 20240303 already clears both, but pin explicitly so a future
+                 transitive bump can't regress below the fix and the dependency
+                 graph reports a declared safe version. -->
+            <dependency>
+                <groupId>org.json</groupId>
+                <artifactId>json</artifactId>
+                <version>20250517</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

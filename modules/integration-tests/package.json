@@ -14,13 +14,13 @@
     "report": "npx playwright show-report"
   },
   "devDependencies": {
-    "@grpc/grpc-js": "^1.14.3",
+    "@grpc/grpc-js": "^1.14.4",
     "@grpc/proto-loader": "^0.8.0",
     "@playwright/test": "^1.50.0",
     "@types/eventsource": "^1.1.15",
     "@types/ws": "^8.18.1",
     "eventsource": "^4.1.0",
-    "ws": "^8.19.0"
+    "ws": "^8.21.0"
   },
   "dependencies": {
     "protobufjs": "7.6.3"
