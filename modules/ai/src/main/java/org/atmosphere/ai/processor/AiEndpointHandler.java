@@ -504,13 +504,28 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             return;
         }
 
+        // Multi-modal input: when inbound decoding is enabled, an uploaded
+        // image / audio / file arrives as a {"type":"content",...} envelope.
+        // Decode it into the accompanying text prompt plus typed Content parts;
+        // the parts are stashed on the session below so the @Prompt method's
+        // session.stream(text) threads them onto the model request (e.g. the
+        // OpenAI image_url block). Off by default and byte-identical to the
+        // text-only path when disabled or when the frame is a plain prompt.
+        var multiModal = org.atmosphere.ai.MultiModalInput.decode(userMessage);
+        var promptText = multiModal.text();
+
         // Snapshot business.* request attributes so the VT dispatch below
         // can re-apply them on the virtual-thread's own MDC. MDC is
         // thread-local — setting it on the servlet thread does nothing for
         // logs produced by the VT. Apply + clear is wrapped around the VT
         // body (see promptThread below).
         var businessMdc = snapshotBusinessMdc(resource);
-        logger.info("Received prompt from {}: {}", resource.uuid(), userMessage);
+        if (multiModal.parts().isEmpty()) {
+            logger.info("Received prompt from {}: {}", resource.uuid(), promptText);
+        } else {
+            logger.info("Received multi-modal prompt from {} ({} part(s)): {}",
+                    resource.uuid(), multiModal.parts().size(), promptText);
+        }
 
         // Per-client by default: the reply streams back only to the resource
         // that sent the prompt. When the endpoint opts into broadcastReply, the
@@ -547,6 +562,13 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 effectivePrompt, model, interceptors, resource, memory,
                 toolRegistry, guardrails, contextProviders, metrics, responseType);
         AiStreamingSession.registerActive(session);
+
+        // Thread the decoded multi-modal parts into the session so the next
+        // stream(text) call (typically from the @Prompt method) encodes them
+        // onto the outbound model request. No-op when the frame was plain text.
+        if (!multiModal.parts().isEmpty()) {
+            session.setPendingInputParts(multiModal.parts());
+        }
 
         // Propagate endpoint-scoped cache / retry policies from @AiEndpoint.
         if (cachePolicy != null) {
@@ -680,7 +702,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             // the VT pool leaks keys across turns.
             businessMdc.forEach(org.slf4j.MDC::put);
             try {
-                invokePrompt(userMessage, capturingSession, resource);
+                invokePrompt(promptText, capturingSession, resource);
                 runExecutionHandle.complete();
                 durableSuccess[0] = true;
             } catch (Exception e) {

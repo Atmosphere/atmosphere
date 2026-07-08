@@ -69,7 +69,7 @@ atmosphere new my-ai-app --template ai-tools --runtime spring-ai --force
 atmosphere new my-ai-app --template ai-chat --routing
 ```
 
-Available templates: `chat`, `ai-chat`, `ai-tools`, `mcp-server`, `rag`, `agent`, `multi-agent`, `classroom`, `ms-governance`, `coding-agent`, `guarded-agent`, `assistant`, `browser-agent`. Each template sparse-clones the matching sample from `cli/samples.json` into a directory you name.
+Available templates: `chat`, `one-dep-agent`, `ai-chat`, `ai-tools`, `mcp-server`, `rag`, `agent`, `multi-agent`, `classroom`, `ms-governance`, `coding-agent`, `guarded-agent`, `assistant`, `browser-agent`. Each template sparse-clones the matching sample from `cli/samples.json` into a directory you name.
 
 Available runtimes (`--runtime`): `builtin` (default — no extra deps), `spring-ai`, `langchain4j`, `adk`, `koog`, `semantic-kernel`, `agentscope`, `anthropic`, `cohere`, `crewai`, `embabel`, `spring-ai-alibaba`. The CLI appends the matching adapter dependencies (and any required repository, such as Embabel's release repository) to the scaffolded `pom.xml` — Atmosphere's `AgentRuntime` SPI then picks the highest-priority runtime present, so transparent templates like `ai-chat` swap runtime adapters without code changes. `embabel` and `spring-ai-alibaba` currently target the Spring Boot 3.5 profile.
 
@@ -186,6 +186,7 @@ Every template sparse-clones the matching sample from `cli/samples.json` into th
 | Template | Source sample | Description |
 |---|---|---|
 | `chat` (default) | `spring-boot-chat` | Real-time WebSocket chat with rooms, observability, integration tests |
+| `one-dep-agent` | `spring-boot-one-dep-agent` | Minimal proof: one Atmosphere dependency + a single `@Agent` class is a running keyless streaming chat app |
 | `ai-chat` | `spring-boot-ai-chat` | AI streaming chat (Spring AI / LangChain4j / Gemini / Ollama) with structured-output demo |
 | `ai-tools` ⭐ | `spring-boot-ai-tools` | Enterprise starter: `@AiTool` function calling, HITL approval, cost metering, audit listener |
 | `mcp-server` | `spring-boot-mcp-server` | MCP server exposing tools, resources, and prompts to AI agents |

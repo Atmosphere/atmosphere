@@ -666,10 +666,15 @@ public class AdminResource {
         var denied = guardWrite(sec, "governance.reload", swapName);
         if (denied != null) return denied;
 
-        var yaml = stringField(body, "yaml");
+        var format = stringField(body, "format");
+        var content = stringField(body, "content");
+        if (content == null || content.isBlank()) {
+            content = stringField(body, "yaml");
+        }
         var principalName = resolvePrincipalName(sec);
         try {
-            var result = controller.reloadSwappable(swapName, yaml);
+            var result = controller.reloadSwappable(swapName, content,
+                    (format == null || format.isBlank()) ? "yaml" : format);
             admin.auditLog().record(principalName, "governance.reload", swapName, true, null);
             return Response.ok(result).build();
         } catch (IllegalArgumentException e) {

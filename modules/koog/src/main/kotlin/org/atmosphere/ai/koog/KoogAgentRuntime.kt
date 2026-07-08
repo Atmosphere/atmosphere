@@ -865,6 +865,10 @@ class KoogAgentRuntime : AgentRuntime {
         // totals; wireFeatureHandlers converts them to TokenUsage and
         // emits them via session.usage().
         AiCapability.TOKEN_USAGE,
+        // MODEL_ENUMERATION: this runtime overrides models() to return the
+        // provider's configured/discovered model list, surfaced by the admin
+        // runtime-info endpoint — so it genuinely backs the capability.
+        AiCapability.MODEL_ENUMERATION,
         // VISION / AUDIO / MULTI_MODAL are honest on the no-tools path:
         // atmosphereContentsToKoogParts translates Content.Image /
         // Content.Audio into Koog's native ContentPart.Image /

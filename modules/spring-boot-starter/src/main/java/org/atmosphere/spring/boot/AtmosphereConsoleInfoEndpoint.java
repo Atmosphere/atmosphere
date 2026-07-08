@@ -108,6 +108,13 @@ public class AtmosphereConsoleInfoEndpoint {
         // VerifierController bean is wired (Runtime Truth — Invariant #5).
         result.put("hasInteractions", hasBean("org.atmosphere.interactions.InteractionService"));
         result.put("hasVerifier", hasBean("org.atmosphere.admin.ai.VerifierController"));
+        // Durable-run checkpoints: true only when a live CheckpointStore bean is
+        // present, which is exactly the condition under which
+        // AtmosphereCheckpointEndpoint maps /api/admin/checkpoints. Gating the
+        // console tab on the bean (not the classpath) keeps the Checkpoints tab
+        // off samples that carry no store, and off a 404 probe (Runtime Truth —
+        // Invariant #5).
+        result.put("hasCheckpoints", hasBean("org.atmosphere.checkpoint.CheckpointStore"));
         // RAG injection-safety: reported only when a ContextProvider was actually
         // wrapped at endpoint registration (Runtime Truth — Invariant #5), with
         // the effective classifier tier after any runtime-absent downgrade.

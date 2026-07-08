@@ -82,6 +82,24 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Cedar / Rego policy adapters — test-only, so the reload path's
+             ServiceLoader-based PolicyParser discovery can be driven end-to-end
+             (GovernancePolicyParserDiscoveryTest). Not a runtime dependency of
+             the admin plane: operators add these modules themselves. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai-policy-cedar</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai-policy-rego</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>

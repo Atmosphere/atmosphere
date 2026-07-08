@@ -24,6 +24,7 @@ import org.atmosphere.ai.governance.GovernancePolicy;
 import org.atmosphere.ai.governance.KillSwitchPolicy;
 import org.atmosphere.ai.governance.PolicyContext;
 import org.atmosphere.ai.governance.PolicyDecision;
+import org.atmosphere.ai.governance.PolicyParser;
 import org.atmosphere.ai.governance.SwappablePolicy;
 import org.atmosphere.ai.governance.TimedPolicy;
 import org.atmosphere.ai.governance.YamlPolicyParser;
@@ -34,7 +35,9 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.ServiceLoader;
 
 /**
  * Admin-plane controller for the Atmosphere governance policy stack. Mixed
@@ -573,30 +576,70 @@ public final class GovernanceController {
      * authorized by the HTTP layer (Correctness Invariant #6). Returns
      * a summary of the swap: outgoing + incoming delegate identity.</p>
      *
+     * <p>Equivalent to {@link #reloadSwappable(String, String, String)} with
+     * the {@code yaml} format — the default that keeps every existing YAML
+     * reload working unchanged.</p>
+     *
      * @throws IllegalArgumentException when no SwappablePolicy with that
      *         name is installed, or the YAML yields zero policies
      */
     public Map<String, Object> reloadSwappable(String swapName, String yaml) {
+        return reloadSwappable(swapName, yaml, "yaml");
+    }
+
+    /**
+     * Hot-reload a {@link SwappablePolicy} from a policy artifact in the
+     * declared {@code format}. The {@link PolicyParser} that handles the
+     * format is discovered via {@link ServiceLoader} keyed by
+     * {@link PolicyParser#format()} (case-insensitive), so a Cedar or Rego
+     * policy file — supplied by the corresponding {@code atmosphere-ai-policy-*}
+     * module on the classpath — is actually parsed into an enforceable
+     * {@link GovernancePolicy} and swapped into the running chain. This is the
+     * production consumer that makes "policies in AWS Cedar or OPA Rego via
+     * adapters over the engines' own CLIs" reachable at runtime; the bare
+     * {@code yaml} default is served by the always-present
+     * {@link YamlPolicyParser} without any ServiceLoader lookup so existing
+     * YAML reloads are byte-for-byte unaffected.
+     *
+     * <p>Mutating surface — callers are expected to be authenticated and
+     * authorized by the HTTP layer (Correctness Invariant #6). Fail-closed on
+     * an unknown {@code format}: an
+     * {@link IllegalArgumentException} is raised (surfaced as HTTP 400) rather
+     * than silently falling back to YAML.</p>
+     *
+     * @param swapName the {@link SwappablePolicy#name()} to hot-reload
+     * @param content  the policy artifact source in {@code format}
+     * @param format   {@code yaml} (default), {@code cedar}, {@code rego}, or
+     *                 any format a {@link PolicyParser} SPI advertises
+     * @throws IllegalArgumentException when no SwappablePolicy with that name
+     *         is installed, no parser handles {@code format}, or the artifact
+     *         yields zero policies
+     */
+    public Map<String, Object> reloadSwappable(String swapName, String content, String format) {
         if (swapName == null || swapName.isBlank()) {
             throw new IllegalArgumentException("swapName must not be blank");
         }
-        if (yaml == null || yaml.isBlank()) {
-            throw new IllegalArgumentException("yaml must not be blank");
+        if (content == null || content.isBlank()) {
+            throw new IllegalArgumentException("policy content must not be blank");
         }
         var target = findSwappable(swapName);
         if (target == null) {
             throw new IllegalArgumentException("no SwappablePolicy named '" + swapName + "' is installed");
         }
 
+        var parser = resolveParser(format);
+        var source = parser.format() + ":admin-reload:" + swapName;
         List<GovernancePolicy> parsed;
         try (var in = new java.io.ByteArrayInputStream(
-                yaml.getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
-            parsed = new YamlPolicyParser().parse("admin-reload:" + swapName, in);
+                content.getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
+            parsed = parser.parse(source, in);
         } catch (java.io.IOException e) {
-            throw new IllegalArgumentException("YAML parse failed: " + e.getMessage(), e);
+            throw new IllegalArgumentException(
+                    parser.format() + " parse failed: " + e.getMessage(), e);
         }
         if (parsed.isEmpty()) {
-            throw new IllegalArgumentException("YAML yielded zero policies — reload aborted");
+            throw new IllegalArgumentException(
+                    parser.format() + " artifact yielded zero policies — reload aborted");
         }
 
         var outgoing = target.replace(parsed.get(0));
@@ -610,7 +653,37 @@ public final class GovernanceController {
                 "name", parsed.get(0).name(),
                 "version", parsed.get(0).version(),
                 "source", parsed.get(0).source()));
+        result.put("format", parser.format());
         return result;
+    }
+
+    /**
+     * Resolve the {@link PolicyParser} for a declared policy {@code format}.
+     * {@code yaml} (also {@code null}/blank) is served by the always-present
+     * {@link YamlPolicyParser} directly — no ServiceLoader lookup — so YAML
+     * reloads never depend on SPI wiring. Any other format is resolved by
+     * scanning {@link ServiceLoader#load(Class, ClassLoader)} for a parser
+     * whose {@link PolicyParser#format()} matches case-insensitively, letting
+     * the {@code atmosphere-ai-policy-cedar} / {@code atmosphere-ai-policy-rego}
+     * adapters (or any operator-supplied SPI) take over when present. An
+     * unresolved format fails closed (Correctness Invariant #6) rather than
+     * degrading to YAML.
+     */
+    private PolicyParser resolveParser(String format) {
+        var fmt = (format == null || format.isBlank())
+                ? "yaml" : format.trim().toLowerCase(Locale.ROOT);
+        if (fmt.equals("yaml")) {
+            return new YamlPolicyParser();
+        }
+        for (var parser : ServiceLoader.load(PolicyParser.class,
+                GovernanceController.class.getClassLoader())) {
+            if (fmt.equalsIgnoreCase(parser.format())) {
+                return parser;
+            }
+        }
+        throw new IllegalArgumentException("no PolicyParser registered for format '" + fmt
+                + "' — add the atmosphere-ai-policy-" + fmt
+                + " module to the classpath (or use format 'yaml')");
     }
 
     /**

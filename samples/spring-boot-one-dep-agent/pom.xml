@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.atmosphere</groupId>
+        <artifactId>atmosphere-project</artifactId>
+        <version>4.0.62-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <groupId>org.atmosphere.samples</groupId>
+    <artifactId>atmosphere-spring-boot-one-dep-agent</artifactId>
+    <name>atmosphere-spring-boot-one-dep-agent</name>
+    <description>One dependency + a single @Agent class = a running streaming chat app</description>
+
+    <properties>
+        <!-- Self-contained netty pin: covers samples scaffolded standalone against
+             a released parent POM that may not yet declare netty.version. -->
+        <netty.version>4.2.15.Final</netty.version>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <atmosphere.starter>atmosphere-ai-spring-boot-starter</atmosphere.starter>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- netty-bom imported BEFORE spring-boot-dependencies so its
+                 first-wins rule pulls patched netty 4.x for this sample,
+                 overriding Spring Boot's transitively-pinned vulnerable line. -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- THE ONE DEPENDENCY. It transitively brings the transport runtime,
+             the Spring Boot auto-configuration, an embedded servlet container +
+             Spring MVC, the Atmosphere Console, the AI pipeline, @Agent
+             processing and the demo (no-key) runtime. Nothing else Atmosphere-
+             or Spring-related is declared below — the single @Agent class in
+             src/main/java runs off this artifact alone. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>${atmosphere.starter}</artifactId>
+        </dependency>
+
+        <!-- Logging backend only. The parent POM inherits logback at <scope>test</scope>
+             (see root pom.xml), which shadows the runtime copy Spring Boot's starter
+             would otherwise transit; re-declaring it at runtime scope restores console
+             logging. This is a logging implementation, not an application dependency —
+             the "one dependency" claim is about the Atmosphere/Spring layer above. -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Delivery proof: OneDepAgentStreamingE2ETest boots this app on a random
+             port and drives one streaming chat turn end to end over WebSocket,
+             asserting streamed tokens arrive. spring-boot-starter-test rides in
+             transitively (test scope) via the starter, but is declared here so the
+             test source compiles when the sample is scaffolded standalone. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <!-- No spring-boot3 profile: the one-dependency promise is realised by the
+         Spring Boot 4 artifact atmosphere-ai-spring-boot-starter, which pulls the
+         web server + AI layer non-optionally. There is no AI-inclusive SB3 starter
+         (the SB3 base starter keeps the AI layer optional), so this sample is
+         Spring Boot 4 only — the SB3 CI axis excludes it. -->
+</project>

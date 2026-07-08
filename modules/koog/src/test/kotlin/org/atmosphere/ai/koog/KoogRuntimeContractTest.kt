@@ -108,6 +108,7 @@ internal class KoogRuntimeContractTest : AbstractAgentRuntimeContractTest() {
         AiCapability.SYSTEM_PROMPT,
         AiCapability.TOOL_APPROVAL,
         AiCapability.TOKEN_USAGE,
+        AiCapability.MODEL_ENUMERATION,
         AiCapability.VISION,
         AiCapability.AUDIO,
         AiCapability.MULTI_MODAL,
