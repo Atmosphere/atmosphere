@@ -17,6 +17,7 @@ package org.atmosphere.samples.springboot.onedepagent;
 
 import org.atmosphere.agent.annotation.Agent;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.Prompt;
 
 /**
@@ -37,6 +38,10 @@ import org.atmosphere.ai.annotation.Prompt;
  * {@code atmosphere-ai-spring-boot-starter} dependency in {@code pom.xml}.</p>
  */
 @Agent(name = "chat", description = "One-dependency streaming chat agent")
+@AgentScope(unrestricted = true,
+        justification = "Minimal one-dependency demo: a general-purpose chat agent with no "
+                + "restricted domain. A real app should replace this with a scoped @AgentScope "
+                + "declaring purpose + forbiddenTopics.")
 public class ChatAgent {
 
     @Prompt
