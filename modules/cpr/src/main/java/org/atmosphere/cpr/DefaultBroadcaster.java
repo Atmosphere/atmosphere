@@ -19,6 +19,7 @@ package org.atmosphere.cpr;
 import org.atmosphere.cache.BroadcastMessage;
 import org.atmosphere.cache.CacheMessage;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
+import org.atmosphere.interceptor.BackpressureInterceptor;
 import org.atmosphere.lifecycle.LifecycleHandler;
 import org.atmosphere.pool.PoolableBroadcasterFactory;
 import org.atmosphere.util.Utils;
@@ -52,6 +53,8 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 import static org.atmosphere.cpr.ApplicationConfig.BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR;
+import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_BACKPRESSURE_HIGH_WATER_MARK;
+import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_BACKPRESSURE_POLICY;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CACHE_STRATEGY;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_SHAREABLE_LISTENERS;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_WAIT_TIME;
@@ -140,6 +143,9 @@ public class DefaultBroadcaster implements Broadcaster {
     protected volatile int waitTime = POLLING_DEFAULT;
     private volatile boolean backwardCompatible;
     private volatile boolean cacheOnIOFlushException = true;
+    // Optional, config-gated backpressure drop policy applied on the per-resource async write path.
+    // Null (the default) means no drop policy — the write queue is allowed to backlog and no message is dropped.
+    private volatile BackpressureInterceptor backpressure;
     protected boolean sharedListeners;
     protected boolean candidateForPoolable;
     protected final String usingTokenIdForAttribute = UUID.randomUUID().toString();
@@ -174,6 +180,9 @@ public class DefaultBroadcaster implements Broadcaster {
         if (outOfOrderBroadcastSupported.get()) {
             logger.trace("{} supports Out Of Order Broadcast: {}", name, outOfOrderBroadcastSupported.get());
         }
+
+        configureBackpressure(config);
+
         initialized.set(true);
         backwardCompatible = Boolean.parseBoolean(config.getInitParameter(BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR));
         cacheOnIOFlushException = config.getInitParameter(CACHE_MESSAGE_ON_IO_FLUSH_EXCEPTION, true);
@@ -192,6 +201,32 @@ public class DefaultBroadcaster implements Broadcaster {
 
     public Broadcaster initialize(String name, AtmosphereConfig config) {
         return initialize(name, URI.create("http://localhost"), config);
+    }
+
+    /**
+     * Resolve the optional, config-gated backpressure drop policy. When
+     * {@link ApplicationConfig#BROADCASTER_BACKPRESSURE_POLICY} is unset (the default) the write queue is allowed
+     * to backlog and no message is ever dropped — this preserves the historical behavior and honors Correctness
+     * Invariant #3 (never silently drop by default). When an operator explicitly configures a policy, the resolved
+     * {@link BackpressureInterceptor} becomes the decision authority applied on the per-resource async write path.
+     */
+    private void configureBackpressure(AtmosphereConfig config) {
+        String policyStr = config.getInitParameter(BROADCASTER_BACKPRESSURE_POLICY);
+        if (policyStr == null || policyStr.trim().isEmpty()) {
+            backpressure = null;
+            return;
+        }
+        if (outOfOrderBroadcastSupported.get()) {
+            logger.warn("{} ignores {}={}: the drop policy applies only to the per-resource (in-order) write queue",
+                    name, BROADCASTER_BACKPRESSURE_POLICY, policyStr);
+            backpressure = null;
+            return;
+        }
+        int highWaterMark = config.getInitParameter(BROADCASTER_BACKPRESSURE_HIGH_WATER_MARK, 1000);
+        BackpressureInterceptor bp = new BackpressureInterceptor();
+        bp.configure(highWaterMark, BackpressureInterceptor.policyFromString(policyStr));
+        backpressure = bp;
+        logger.info("{} backpressure drop policy enabled: policy={}, highWaterMark={}", name, bp.policy(), bp.highWaterMark());
     }
 
     /**
@@ -520,6 +555,13 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
                 }
 
+                // A message left the per-resource write queue — balance the backpressure pending count so a
+                // configured drop policy tracks the live queue depth rather than leaking upward.
+                BackpressureInterceptor bp = backpressure;
+                if (bp != null && token != null && token.resource != null && !outOfOrderBroadcastSupported.get()) {
+                    bp.messageDelivered(token.resource.uuid());
+                }
+
                 // Shield us from https://github.com/Atmosphere/atmosphere/issues/1187
                 if (token != null && token.resource != null) {
                     ReentrantLock rLock = resourceLocks.computeIfAbsent(token.resource, k -> new ReentrantLock());
@@ -818,6 +860,10 @@ public class DefaultBroadcaster implements Broadcaster {
             if (!outOfOrderBroadcastSupported.get()) {
                 WriteQueue writeQueue = writeQueues.computeIfAbsent(r.uuid(), k -> new WriteQueue(r.uuid()));
 
+                if (!applyBackpressure(r, writeQueue)) {
+                    // DROP_NEWEST / DISCONNECT: the incoming message is rejected and must not be queued.
+                    return;
+                }
                 writeQueue.queue.put(w);
                 writeQueue.lock.lock();
                 try {
@@ -834,6 +880,65 @@ public class DefaultBroadcaster implements Broadcaster {
         } else {
             executeBlockingWrite(r, deliver, count);
         }
+    }
+
+    /**
+     * Apply the configured backpressure drop policy (if any) to an incoming message for the given resource's
+     * per-resource write queue. Returns {@code true} if the incoming message should be enqueued (the default and
+     * the DROP_OLDEST case, after evicting the oldest queued message), {@code false} if the incoming message must be
+     * dropped (DROP_NEWEST) or the slow client disconnected (DISCONNECT).
+     * <p>
+     * When no policy is configured this always returns {@code true} — the write queue is allowed to backlog and no
+     * message is dropped (Correctness Invariant #3: never silently drop by default).
+     *
+     * @param r          the target resource
+     * @param writeQueue the resource's per-resource write queue
+     * @return whether the incoming message should be enqueued
+     */
+    boolean applyBackpressure(AtmosphereResource r, WriteQueue writeQueue) {
+        BackpressureInterceptor bp = backpressure;
+        if (bp == null) {
+            return true;
+        }
+
+        String uuid = r.uuid();
+        if (bp.allowMessage(uuid)) {
+            // Under the mark, or DROP_OLDEST over the mark (allowMessage keeps the newest). For DROP_OLDEST we must
+            // physically evict the oldest queued message so the queue stays bounded and the pending count balances.
+            if (bp.policy() == BackpressureInterceptor.Policy.DROP_OLDEST
+                    && writeQueue.queue.size() >= bp.highWaterMark()) {
+                AsyncWriteToken oldest = writeQueue.queue.poll();
+                if (oldest != null) {
+                    bp.messageDelivered(uuid);
+                    logger.warn("Backpressure DROP_OLDEST on Broadcaster {}: evicted oldest queued message for "
+                                    + "AtmosphereResource {} (queueDepth={}, highWaterMark={})",
+                            name, uuid, writeQueue.queue.size(), bp.highWaterMark());
+                }
+            }
+            return true;
+        }
+
+        // allowMessage() returned false: DROP_NEWEST or DISCONNECT.
+        if (bp.policy() == BackpressureInterceptor.Policy.DISCONNECT) {
+            logger.warn("Backpressure DISCONNECT on Broadcaster {}: disconnecting slow AtmosphereResource {} "
+                    + "(highWaterMark={})", name, uuid, bp.highWaterMark());
+            try {
+                r.close();
+            } catch (IOException e) {
+                logger.trace("Error closing slow AtmosphereResource {} for Broadcaster {}", uuid, name, e);
+            }
+        } else {
+            logger.warn("Backpressure DROP_NEWEST on Broadcaster {}: dropped incoming message for "
+                    + "AtmosphereResource {} (highWaterMark={})", name, uuid, bp.highWaterMark());
+        }
+        return false;
+    }
+
+    /**
+     * @return the resolved backpressure drop-policy engine, or {@code null} when no policy is configured
+     */
+    BackpressureInterceptor backpressurePolicy() {
+        return backpressure;
     }
 
     protected void executeBlockingWrite(AtmosphereResource r, Deliver deliver, AtomicInteger count) throws InterruptedException {
@@ -853,7 +958,7 @@ public class DefaultBroadcaster implements Broadcaster {
         final ReentrantLock lock = new ReentrantLock();
         final String uuid;
 
-        private WriteQueue(String uuid) {
+        WriteQueue(String uuid) {
             this.uuid = uuid;
         }
 

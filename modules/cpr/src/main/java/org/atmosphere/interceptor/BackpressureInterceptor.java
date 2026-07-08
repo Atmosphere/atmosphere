@@ -71,12 +71,39 @@ public class BackpressureInterceptor extends AtmosphereInterceptorAdapter {
         highWaterMark = Integer.parseInt(
                 config.getInitParameter(HIGH_WATER_MARK_PARAM, "1000"));
         String policyStr = config.getInitParameter(POLICY_PARAM, "drop-oldest");
-        policy = switch (policyStr.toLowerCase()) {
+        configure(highWaterMark, policyFromString(policyStr));
+    }
+
+    /**
+     * Programmatically configure the high water mark and drop policy. Used by consumers (such as the
+     * {@link org.atmosphere.cpr.DefaultBroadcaster} write path) that resolve the policy from their own
+     * configuration rather than from interceptor init parameters.
+     *
+     * @param highWaterMark the per-client pending high water mark (values &lt; 1 are clamped to 1)
+     * @param policy        the drop policy to apply once the high water mark is exceeded
+     */
+    public void configure(int highWaterMark, Policy policy) {
+        this.highWaterMark = Math.max(1, highWaterMark);
+        this.policy = policy;
+        logger.info("Backpressure interceptor configured: highWaterMark={}, policy={}", this.highWaterMark, this.policy);
+    }
+
+    /**
+     * Parse a policy string (case-insensitive) into a {@link Policy}. Unknown values fall back to
+     * {@link Policy#DROP_OLDEST}.
+     *
+     * @param policyStr the policy string, e.g. {@code drop-oldest}, {@code drop-newest}, {@code disconnect}
+     * @return the resolved policy
+     */
+    public static Policy policyFromString(String policyStr) {
+        if (policyStr == null) {
+            return Policy.DROP_OLDEST;
+        }
+        return switch (policyStr.toLowerCase()) {
             case "drop-newest" -> Policy.DROP_NEWEST;
             case "disconnect" -> Policy.DISCONNECT;
             default -> Policy.DROP_OLDEST;
         };
-        logger.info("Backpressure interceptor configured: highWaterMark={}, policy={}", highWaterMark, policy);
     }
 
     @Override
@@ -92,10 +119,7 @@ public class BackpressureInterceptor extends AtmosphereInterceptorAdapter {
                 @Override
                 public void onBroadcast(AtmosphereResourceEvent event) {
                     // Message delivered — decrement pending count
-                    AtomicInteger count = pendingCounts.get(uuid);
-                    if (count != null && count.get() > 0) {
-                        count.decrementAndGet();
-                    }
+                    messageDelivered(uuid);
                 }
 
                 @Override
@@ -149,6 +173,21 @@ public class BackpressureInterceptor extends AtmosphereInterceptorAdapter {
                 yield false;
             }
         };
+    }
+
+    /**
+     * Signal that a previously counted pending message has left the write queue (delivered to the client or
+     * evicted by a drop policy). Decrements the per-client pending count, never below zero. Consumers wiring
+     * {@link #allowMessage(String)} into a real write/queue path MUST call this once per message removed from the
+     * queue, otherwise the pending count leaks upward and every message is eventually treated as over-limit.
+     *
+     * @param uuid the resource UUID
+     */
+    public void messageDelivered(String uuid) {
+        AtomicInteger count = pendingCounts.get(uuid);
+        if (count != null && count.get() > 0) {
+            count.decrementAndGet();
+        }
     }
 
     /**
