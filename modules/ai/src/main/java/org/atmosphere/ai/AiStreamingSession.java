@@ -89,6 +89,13 @@ public class AiStreamingSession implements StreamingSession {
     private final AiMetrics metrics;
     private final Class<?> responseType;
     private final AtomicReference<PostPromptHook> preStreamHook = new AtomicReference<>();
+    // Multi-modal input parts decoded from the inbound frame by the @AiEndpoint
+    // handler (MultiModalInput.decode). Consumed once by the next stream(message)
+    // call so a @Prompt method that simply calls session.stream(text) still
+    // threads the uploaded image/audio onto the model request. One-shot: reset to
+    // empty on read so parts never leak into a subsequent turn on the same session.
+    private final AtomicReference<List<Content>> pendingInputParts =
+            new AtomicReference<>(List.of());
     private final AtomicBoolean handoffInProgress = new AtomicBoolean();
     private final ApprovalRegistry approvalRegistry = new ApprovalRegistry();
     /**
@@ -528,7 +535,27 @@ public class AiStreamingSession implements StreamingSession {
 
     @Override
     public void stream(String message) {
-        stream(message, List.of());
+        // Drain any multi-modal parts the @AiEndpoint handler decoded from the
+        // inbound frame and stashed via setPendingInputParts. getAndSet keeps the
+        // consumption one-shot: the next plain stream(message) turn on this
+        // session starts clean (no stale image bleeding across prompts).
+        stream(message, pendingInputParts.getAndSet(List.of()));
+    }
+
+    /**
+     * Stash the multi-modal input parts decoded from the inbound frame so the
+     * next {@link #stream(String)} call threads them onto the model request.
+     * Set by the {@code @AiEndpoint} handler after
+     * {@link MultiModalInput#decode(String)} yields image/audio/file parts; the
+     * {@code @Prompt} method then only has to call {@code session.stream(text)}
+     * for the upload to reach the model (e.g. the OpenAI {@code image_url}
+     * block). A {@code null} or empty list clears the stash.
+     *
+     * @param parts the decoded parts, or {@code null}/empty to clear
+     */
+    public void setPendingInputParts(List<Content> parts) {
+        this.pendingInputParts.set(parts == null || parts.isEmpty()
+                ? List.of() : List.copyOf(parts));
     }
 
     @Override
