@@ -2213,3 +2213,35 @@ active worktree; not touched).
 code comments for `<dependency> X.Y.Z (the pinned version)` assertions and fail when the cited
 version != the pinned `<*.version>` in the reactor POM. Until then, "version fact in a code comment"
 is an ungated drift class — the third distinct place (after `*.md` and CHANGELOG) a version can rot.
+
+## 2026-07-08 — Concluded "qwen2.5:3b is too weak to drive T3MP3ST" from 0 findings, without verifying the operators ever reached the LLM
+
+**Claim (spoken to the maintainer across several messages during the T3MP3ST red-team evaluation):**
+"qwen2.5:3b is too weak to operate T3MP3ST's 8-operator kill chain — the harness works, the model
+didn't." A recommendation (switch to a stronger backend / stop the autonomous-offense path) was
+built on this conclusion.
+
+**Truth:** the operators never reached *any* LLM. T3MP3ST's `createTempestCommandInstance` and
+`resolveGeneralLLMConfig` (src/server.ts, in the elder-plinius/T3MP3ST clone) both dropped `baseUrl`
+from the local-provider LLM config, so its `LocalAdapter` fell back to the default
+`http://localhost:11434` instead of the configured `TEMPEST_LOCAL_BASE_URL` (the ollama/embacle
+container service name) → connection refused, zero completions. Confirmed by 0 completion requests
+in the backend container logs during the mission window, and reproduced identically with a frontier
+model (claude-sonnet-5 via Copilot) — proving the model was never the variable. The real failure was
+a plumbing bug, later patched in the clone.
+
+**Slip path:** inferred a causal conclusion ("model too weak") from a surface symptom (0 findings)
+without first checking whether the LLM backend received any request at all. The evidence to falsify
+it — the backend's request logs and the config→adapter→fetch-URL path — was available but not
+consulted before stating the conclusion. "Zero output" has two causes (component ran and failed vs.
+component never ran); I attributed to the first without ruling out the second.
+
+**Fix status:** the T3MP3ST plumbing bug was patched in the scratchpad clone (baseUrl preserved in
+both construction sites) — not an Atmosphere-repo change. The wrong conclusion was retracted to the
+maintainer in-session the moment the baseUrl bug was found. This entry records the reasoning miss,
+not a repo fix.
+
+**Gate:** before concluding "component X is too weak / too slow / broken" from an *absent-output*
+symptom, verify X was actually invoked — check the downstream service's request count / logs / wire
+capture. Distinguish "ran and failed" from "never ran" before attributing the failure to X. Process
+discipline, not an automatable repo gate.
