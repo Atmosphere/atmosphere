@@ -88,6 +88,7 @@ public final class PolicyRegistry {
         register("rate-limit", PolicyRegistry::buildRateLimit);
         register("concurrency-limit", PolicyRegistry::buildConcurrencyLimit);
         register("time-window", PolicyRegistry::buildTimeWindow);
+        register("kill-switch", PolicyRegistry::buildKillSwitch);
         register("metadata-presence", PolicyRegistry::buildMetadataPresence);
         register("authorization", PolicyRegistry::buildAuthorization);
     }
@@ -304,6 +305,19 @@ public final class PolicyRegistry {
             throw new IllegalArgumentException("time-window 'days' must be non-empty");
         }
         return days;
+    }
+
+    /**
+     * Build a break-glass {@link KillSwitchPolicy}. The switch is installed
+     * <b>disarmed</b> — it admits all traffic until an operator arms it via the
+     * authenticated admin endpoint ({@code POST /governance/kill-switch/arm}).
+     * The {@code config} block is intentionally empty: a kill switch has no
+     * per-request tuning, only runtime arm/disarm state. This keeps the config
+     * surface safe (Correctness Invariant #6 — no deny-all forced on at
+     * startup) while making the stage genuinely present and armable.
+     */
+    private static GovernancePolicy buildKillSwitch(PolicyDescriptor d) {
+        return new KillSwitchPolicy(d.name(), d.source(), d.version());
     }
 
     private static GovernancePolicy buildAuthorization(PolicyDescriptor d) {
