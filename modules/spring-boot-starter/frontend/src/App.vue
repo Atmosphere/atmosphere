@@ -9,11 +9,12 @@ import Sessions from './components/Sessions.vue'
 import Workspace from './components/Workspace.vue'
 import Interactions from './components/Interactions.vue'
 import Validation from './components/Validation.vue'
+import Checkpoints from './components/Checkpoints.vue'
 import McpApps from './components/McpApps.vue'
 import { livePlan } from './lib/workspaceStore'
 import logoUrl from './assets/logo.svg'
 
-type Tab = 'chat' | 'sessions' | 'workspace' | 'interactions' | 'validation' | 'apps' | 'policies' | 'decisions' | 'owasp' | 'commitments'
+type Tab = 'chat' | 'sessions' | 'workspace' | 'interactions' | 'validation' | 'checkpoints' | 'apps' | 'policies' | 'decisions' | 'owasp' | 'commitments'
 
 const subtitle = ref('')
 const endpoint = ref('/atmosphere/ai-chat')
@@ -33,6 +34,7 @@ const agentsAvailable = ref(false)
 const workspaceAvailable = ref(false)
 const interactionsAvailable = ref(false)
 const validationAvailable = ref(false)
+const checkpointsAvailable = ref(false)
 
 async function probeGovernance() {
   try {
@@ -109,6 +111,9 @@ const tabs = computed(() => {
   if (validationAvailable.value) {
     list.push({ id: 'validation', label: 'Validation' })
   }
+  if (checkpointsAvailable.value) {
+    list.push({ id: 'checkpoints', label: 'Checkpoints' })
+  }
   if (mcpEndpoint.value) {
     list.push({ id: 'apps', label: 'MCP Apps' })
   }
@@ -144,6 +149,7 @@ onMounted(async () => {
       // 404-producing probe. Absent/false means the module isn't wired here.
       interactionsAvailable.value = data.hasInteractions === true
       validationAvailable.value = data.hasVerifier === true
+      checkpointsAvailable.value = data.hasCheckpoints === true
       harnessPresent = data.harness != null && typeof data.harness === 'object'
     }
   } catch {
@@ -194,6 +200,8 @@ onMounted(async () => {
                     :active="activeTab === 'interactions'" />
       <Validation v-if="ready && validationAvailable" v-show="activeTab === 'validation'"
                   :active="activeTab === 'validation'" />
+      <Checkpoints v-if="ready && checkpointsAvailable" v-show="activeTab === 'checkpoints'"
+                   :active="activeTab === 'checkpoints'" />
       <McpApps v-if="ready && mcpEndpoint" v-show="activeTab === 'apps'"
                :endpoint="mcpEndpoint" :active="activeTab === 'apps'"
                :sandbox-origin="mcpSandboxOrigin ?? undefined" />
