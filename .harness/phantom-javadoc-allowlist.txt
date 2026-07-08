@@ -18,6 +18,8 @@ ClassPathScanningCandidateComponentProvider # Spring
 HTTP3ServerConnectionFactory   # Jetty
 TlsConfigurationRegistry       # Jetty
 PooledObjectFactory      # Apache Commons Pool
+ClassShutter             # Mozilla Rhino
+ContextFactory           # Mozilla Rhino
 SimpleVectorStore        # Spring AI
 StreamingChatResponseHandler # LangChain4j
 ThreadPoolExecutor       # java.util.concurrent

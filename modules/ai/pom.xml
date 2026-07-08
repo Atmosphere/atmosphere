@@ -40,6 +40,18 @@
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>
         </dependency>
+        <!--
+            Mozilla Rhino backs the optional, default-off in-process 'eval' tool.
+            Declared optional so it does NOT bloat consumers that never enable
+            eval; EvalSupport probes for it at runtime (Class.forName) and reports
+            the tool INACTIVE when absent. Present here so the module compiles and
+            its own tests exercise the sandbox.
+        -->
+        <dependency>
+            <groupId>org.mozilla</groupId>
+            <artifactId>rhino</artifactId>
+            <optional>true</optional>
+        </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>

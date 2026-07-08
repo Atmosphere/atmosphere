@@ -559,6 +559,15 @@ public class AiEndpointProcessor implements Processor<Object> {
             logger.info("Code-as-action enabled: registered '{}' tool",
                     org.atmosphere.ai.code.CodeExecTool.TOOL_NAME);
         }
+        // Offer the in-process 'eval' tool only when enabled and the Rhino engine
+        // is confirmed on the classpath (Correctness Invariant #5). Unlike
+        // code_exec it is stateless, so there is no per-session sandbox to install.
+        var eval = org.atmosphere.ai.code.EvalSupport.shared();
+        if (eval.isEnabled()) {
+            registry.register(eval.tool());
+            logger.info("In-process eval enabled: registered '{}' tool",
+                    org.atmosphere.ai.code.EvalTool.TOOL_NAME);
+        }
         return registry;
     }
 

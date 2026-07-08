@@ -1211,6 +1211,11 @@
                  the Spring Boot 4 BOM resolves 7.x webflux which is
                  unaffected. If a sample/test pulls in 6.2.x via a different
                  BOM, fix it by upgrading that BOM, not by force-pinning here. -->
+            <dependency>
+                <groupId>org.mozilla</groupId>
+                <artifactId>rhino</artifactId>
+                <version>${rhino.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <!-- All dependencies are available on Maven Central. Legacy repositories
@@ -1288,6 +1293,10 @@
         <commons-pool2>2.12.0</commons-pool2>
         <junit-jupiter.version>5.11.4</junit-jupiter.version>
         <jackson.version>3.1.4</jackson.version>
+        <!-- Mozilla Rhino: pure-Java JS engine backing the optional, default-off
+             in-process 'eval' tool (org.atmosphere.ai.code). Sandboxed via a
+             deny-all ClassShutter + interpreted-mode instruction budget. -->
+        <rhino.version>1.7.15</rhino.version>
         <!-- Jackson 2 force-pin (CVE force-pin block in dependencyManagement).
              Jackson 2 enters the dep tree transitively via Spring/Quarkus/AWS;
              we don't compile against it. 2.22.0 closes the jackson-databind

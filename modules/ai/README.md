@@ -562,6 +562,37 @@ with Playwright, live in the Console.
 > policy deliberately (`none`, an allowlisted proxy, or `bridge`), pin the image,
 > and size the resource caps for your workload before enabling it in production.
 
+### In-process `eval` (container-free JavaScript)
+
+Where `code_exec` spins a container, the `eval` tool (`org.atmosphere.ai.code`)
+runs pure ECMAScript **in-process** via a sandboxed Mozilla Rhino scope — for
+calculation, data shaping, and JSON/string work with no container, network, or
+Docker required. It is the lightweight counterpart to `code_exec`, not a
+replacement: no filesystem or host access, and no state persists between calls.
+
+**Default-deny and runtime-truth.** Off unless enabled, and offered only when
+Rhino is confirmed on the classpath (it is an *optional* dependency, so it does
+not bloat consumers that never use it):
+
+```bash
+org.atmosphere.ai.eval.enabled=true                 # master switch (default false)
+org.atmosphere.ai.eval.instructionBudget=10000000   # CPU guard — runaway loops abort
+org.atmosphere.ai.eval.timeoutMillis=5000           # wall-clock ceiling per call
+org.atmosphere.ai.eval.maxOutputChars=8000          # returned-text cap
+```
+
+```xml
+<dependency><groupId>org.mozilla</groupId><artifactId>rhino</artifactId></dependency>
+```
+
+Isolation (`RhinoEvalEngine`): the scope is built with `initSafeStandardObjects()`
+(ECMAScript built-ins, **no** `java`/`Packages`/`getClass` bridge) plus a
+deny-all `ClassShutter`, so no Java class resolves even via a reflective escape;
+interpreted mode with an instruction observer bounds CPU on a stock JVM (the
+abort is a Java `Error`, so a script `try/catch` cannot swallow it); each call
+gets a fresh scope. Tagged `ToolKind.EXECUTE` so approval/governance policies
+gate it like `code_exec`.
+
 ## Per-Request Retry Architecture
 
 Every runtime that advertises `PER_REQUEST_RETRY` honors
