@@ -49,7 +49,7 @@ class AdminResourceGovernanceAuthzTest {
         governance = Mockito.mock(GovernanceController.class);
         Mockito.when(admin.auditLog()).thenReturn(new ControlAuditLog(100));
         Mockito.when(admin.governanceController()).thenReturn(governance);
-        Mockito.when(governance.reloadSwappable(Mockito.any(), Mockito.any()))
+        Mockito.when(governance.reloadSwappable(Mockito.any(), Mockito.any(), Mockito.any()))
                 .thenReturn(Map.of("swapName", "x"));
         Mockito.when(governance.armKillSwitch(Mockito.any(), Mockito.any()))
                 .thenReturn(Map.of("armed", true));

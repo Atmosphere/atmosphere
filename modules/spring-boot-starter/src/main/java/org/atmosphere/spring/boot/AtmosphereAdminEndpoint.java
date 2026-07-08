@@ -938,12 +938,17 @@ public class AtmosphereAdminEndpoint {
 
     /**
      * Hot-reload a policy wrapped in {@code SwappablePolicy}. Request body
-     * carries {@code {swapName, yaml}}; response carries the outgoing /
-     * incoming delegate identity. MUTATING — requires authenticated +
+     * carries {@code {swapName, content, format}} — {@code format} is one of
+     * {@code yaml} (default), {@code cedar}, or {@code rego} and selects the
+     * {@code PolicyParser} SPI that parses {@code content}; the legacy
+     * {@code yaml} field is still accepted as the content when {@code content}
+     * is absent. Response carries the outgoing / incoming delegate identity
+     * plus the resolved {@code format}. MUTATING — requires authenticated +
      * authorized caller at the HTTP layer.
      *
-     * <p>400 on malformed YAML or unknown swap name; 200 with swap summary
-     * on success.</p>
+     * <p>400 on a malformed artifact, an unknown swap name, or an unknown
+     * {@code format} (fail-closed — no silent YAML fallback); 200 with swap
+     * summary on success.</p>
      */
     @PostMapping("/governance/reload")
     public ResponseEntity<Map<String, Object>> governanceReload(
@@ -957,10 +962,15 @@ public class AtmosphereAdminEndpoint {
         var denied = guardWrite(request, "governance.reload", swapName);
         if (denied != null) return denied;
 
-        var yaml = stringField(body, "yaml");
+        var format = stringField(body, "format");
+        var content = stringField(body, "content");
+        if (content == null || content.isBlank()) {
+            content = stringField(body, "yaml");
+        }
         var principalName = resolvePrincipalName(request);
         try {
-            var result = controller.reloadSwappable(swapName, yaml);
+            var result = controller.reloadSwappable(swapName, content,
+                    (format == null || format.isBlank()) ? "yaml" : format);
             admin.auditLog().record(principalName, "governance.reload", swapName, true, null);
             return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
