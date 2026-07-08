@@ -621,6 +621,25 @@ public interface ApplicationConfig {
      */
     String BROADCASTER_WAIT_TIME = "org.atmosphere.cpr.Broadcaster.threadWaitTime";
     /**
+     * The backpressure drop policy applied by the {@link DefaultBroadcaster} when a slow client's per-resource write
+     * queue exceeds {@link #BROADCASTER_BACKPRESSURE_HIGH_WATER_MARK}. When unset (the default) no drop policy is
+     * applied and the write queue is allowed to backlog (no messages are ever dropped).
+     * <p/>
+     * Accepted values (case-insensitive): {@code drop-oldest}, {@code drop-newest}, {@code disconnect}.
+     * <p/>
+     * Default: unset (no drop, backlog)<br>
+     * Value: org.atmosphere.cpr.Broadcaster.backpressurePolicy
+     */
+    String BROADCASTER_BACKPRESSURE_POLICY = "org.atmosphere.cpr.Broadcaster.backpressurePolicy";
+    /**
+     * The per-resource pending-message high water mark that triggers the configured
+     * {@link #BROADCASTER_BACKPRESSURE_POLICY}. Only honored when a drop policy is configured.
+     * <p/>
+     * Default: 1000<br>
+     * Value: org.atmosphere.cpr.Broadcaster.backpressureHighWaterMark
+     */
+    String BROADCASTER_BACKPRESSURE_HIGH_WATER_MARK = "org.atmosphere.cpr.Broadcaster.backpressureHighWaterMark";
+    /**
      * Before 1.0.12, WebSocket's AtmosphereResource manually added to {@link Broadcaster} were added without checking
      * if the parent, e.g the AtmosphereResource's created on the first request was already added to the Broadcaster. That caused
      * some messages to be written twice instead of once.
