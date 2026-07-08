@@ -4,6 +4,7 @@
 ExecutorService          # java.util.concurrent
 ScheduledExecutorService # java.util.concurrent
 InvocationHandler        # java.lang.reflect
+DriverManager            # java.sql
 MeterRegistry            # Micrometer
 VectorStore              # Spring AI
 ChatCompletionService    # Semantic Kernel
