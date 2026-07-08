@@ -92,9 +92,6 @@ public enum AiCapability {
      */
     PROMPT_CACHING,
 
-    /** Runtime participates in multi-agent handoff / delegation. */
-    MULTI_AGENT_HANDOFF,
-
     /**
      * Runtime exposes cooperative cancellation via
      * {@link AgentRuntime#executeWithHandle(AgentExecutionContext, StreamingSession)}.

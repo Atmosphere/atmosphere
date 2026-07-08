@@ -99,9 +99,4 @@ class AiExceptionCapabilityTest {
     void toolCallDeltaCapability() {
         assertEquals(AiCapability.TOOL_CALL_DELTA, AiCapability.valueOf("TOOL_CALL_DELTA"));
     }
-
-    @Test
-    void multiAgentHandoffCapability() {
-        assertEquals(AiCapability.MULTI_AGENT_HANDOFF, AiCapability.valueOf("MULTI_AGENT_HANDOFF"));
-    }
 }

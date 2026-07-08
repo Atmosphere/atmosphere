@@ -191,8 +191,8 @@ behavior.
   built-in file-tool floor (`ls`/`read_file`/`write_file`/`edit_file`/
   `glob`/`grep`) serves this runtime through the standard tool bridge.
 
-`TOOL_CALL_DELTA`, `AGENT_ORCHESTRATION`, `MODEL_ENUMERATION`, and
-`MULTI_AGENT_HANDOFF` are likewise not declared — see the
+`TOOL_CALL_DELTA`, `AGENT_ORCHESTRATION`, and `MODEL_ENUMERATION` are
+likewise not declared — see the
 [capability matrix](../ai/README.md#capability-matrix) for the authoritative
 cross-runtime view.
 

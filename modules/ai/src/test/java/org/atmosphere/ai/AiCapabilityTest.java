@@ -31,7 +31,7 @@ class AiCapabilityTest {
                 "TEXT_STREAMING", "TOOL_CALLING", "STRUCTURED_OUTPUT",
                 "VISION", "AUDIO", "MULTI_MODAL", "CONVERSATION_MEMORY",
                 "SYSTEM_PROMPT", "AGENT_ORCHESTRATION", "TOOL_APPROVAL",
-                "PROMPT_CACHING", "MULTI_AGENT_HANDOFF", "CANCELLATION",
+                "PROMPT_CACHING", "CANCELLATION",
                 "MODEL_ENUMERATION", "TOKEN_USAGE", "TOOL_CALL_DELTA",
                 "PER_REQUEST_RETRY", "PLANNING", "VIRTUAL_FILESYSTEM"
         };
@@ -42,14 +42,15 @@ class AiCapabilityTest {
 
     @Test
     void totalCapabilityCount() {
-        // 17 baseline + 3 (BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION)
+        // 16 baseline + 3 (BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION)
         // added for the predictable-AI primitives + NATIVE_STRUCTURED_OUTPUT
         // (provider-enforced JSON-schema structured output) + 2 deep-agent
         // native-delegation capabilities (PLANNING, VIRTUAL_FILESYSTEM).
-        // Bump this number when a new capability lands; the test exists so
-        // capability changes are reviewed deliberately rather than slipped in
-        // without thought.
-        assertEquals(23, AiCapability.values().length);
+        // MULTI_AGENT_HANDOFF was dropped as redundant with AGENT_ORCHESTRATION
+        // (no runtime declared it). Bump this number when a new capability
+        // lands; the test exists so capability changes are reviewed
+        // deliberately rather than slipped in without thought.
+        assertEquals(22, AiCapability.values().length);
     }
 
     @Test
