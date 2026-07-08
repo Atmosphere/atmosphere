@@ -319,10 +319,27 @@ public final class WorkspaceExtensions {
      *       an {@code allow-list} policy</li>
      *   <li>{@code require-role: <role>} (or {@code role:}) →
      *       an {@code authorization} policy</li>
+     *   <li>{@code message-length: <maxChars>} → a {@code message-length}
+     *       policy denying over-cap prompts</li>
+     *   <li>{@code rate-limit: <limit>/<windowSeconds>} (e.g.
+     *       {@code 10/60}) → a sliding-window {@code rate-limit} policy</li>
+     *   <li>{@code concurrency-limit: <maxConcurrent>} → an in-flight
+     *       {@code concurrency-limit} policy</li>
+     *   <li>{@code time-window: <start>-<end> [zone]} (e.g.
+     *       {@code 09:00-17:00 America/New_York}) → a business-hours
+     *       {@code time-window} policy (days default Mon–Fri)</li>
+     *   <li>{@code kill-switch: <anything>} → installs a break-glass
+     *       {@code kill-switch} policy <b>disarmed</b>; an operator arms it via
+     *       {@code POST /governance/kill-switch/arm}. Safe default (Invariant
+     *       #6): it admits all traffic until explicitly armed.</li>
      * </ul>
+     * The five limit directives (message-length, rate-limit, concurrency-limit,
+     * time-window, kill-switch) are single-valued — the last occurrence wins.
      * Other lines are treated as prose and ignored. A non-blank file that
      * yields no policies is logged at WARN — it must not silently disable
-     * governance (Correctness Invariant #4).
+     * governance (Correctness Invariant #4). A malformed limit directive throws
+     * {@link IllegalArgumentException} so startup fails loudly rather than
+     * silently dropping a governance control.
      *
      * @param def the loaded workspace definition, may be {@code null}
      * @return the parsed policies (never {@code null}; empty when none)
@@ -340,6 +357,11 @@ public final class WorkspaceExtensions {
         var allowPhrases = new ArrayList<String>();
         var allowRegex = new ArrayList<String>();
         var roles = new ArrayList<String>();
+        String messageLength = null;
+        String rateLimit = null;
+        String concurrencyLimit = null;
+        String timeWindow = null;
+        boolean killSwitch = false;
         for (var raw : md.lines().toList()) {
             var line = stripBullet(raw).strip();
             if (line.isEmpty() || line.startsWith("#")) {
@@ -360,6 +382,11 @@ public final class WorkspaceExtensions {
                 case "allow" -> allowPhrases.add(value);
                 case "allow-regex" -> allowRegex.add(value);
                 case "require-role", "role" -> roles.add(value);
+                case "message-length" -> messageLength = value;
+                case "rate-limit" -> rateLimit = value;
+                case "concurrency-limit" -> concurrencyLimit = value;
+                case "time-window" -> timeWindow = value;
+                case "kill-switch" -> killSwitch = true;
                 default -> {
                     // prose / unrelated key — ignored
                 }
@@ -383,12 +410,80 @@ public final class WorkspaceExtensions {
                     "workspace-authz-" + def.name(), "authorization", "embedded", source,
                     Map.of("required-roles", List.copyOf(roles)))));
         }
+        if (messageLength != null) {
+            policies.add(registry.build(new PolicyRegistry.PolicyDescriptor(
+                    "workspace-message-length-" + def.name(), "message-length", "embedded", source,
+                    Map.of("max-chars", messageLength))));
+        }
+        if (rateLimit != null) {
+            policies.add(registry.build(new PolicyRegistry.PolicyDescriptor(
+                    "workspace-rate-limit-" + def.name(), "rate-limit", "embedded", source,
+                    parseRateLimit(rateLimit))));
+        }
+        if (concurrencyLimit != null) {
+            policies.add(registry.build(new PolicyRegistry.PolicyDescriptor(
+                    "workspace-concurrency-limit-" + def.name(), "concurrency-limit", "embedded", source,
+                    Map.of("max-concurrent", concurrencyLimit))));
+        }
+        if (timeWindow != null) {
+            policies.add(registry.build(new PolicyRegistry.PolicyDescriptor(
+                    "workspace-time-window-" + def.name(), "time-window", "embedded", source,
+                    parseTimeWindow(timeWindow))));
+        }
+        if (killSwitch) {
+            policies.add(registry.build(new PolicyRegistry.PolicyDescriptor(
+                    org.atmosphere.ai.governance.KillSwitchPolicy.DEFAULT_NAME,
+                    "kill-switch", "embedded", source, Map.of())));
+        }
         if (policies.isEmpty()) {
             logger.warn("PERMISSIONS.md in workspace '{}' produced no policies — expected 'allow:', "
-                    + "'deny:', 'deny-regex:', 'allow-regex:', or 'require-role:' directives. "
-                    + "Governance NOT changed for this agent.", def.name());
+                    + "'deny:', 'deny-regex:', 'allow-regex:', 'require-role:', 'message-length:', "
+                    + "'rate-limit:', 'concurrency-limit:', 'time-window:', or 'kill-switch:' "
+                    + "directives. Governance NOT changed for this agent.", def.name());
         }
         return List.copyOf(policies);
+    }
+
+    /**
+     * Parse a {@code rate-limit: <limit>/<windowSeconds>} directive (e.g.
+     * {@code 10/60}) into the {@code rate-limit} factory's config block.
+     * Throws {@link IllegalArgumentException} on a malformed value so a
+     * broken governance control fails startup rather than being silently
+     * dropped (Correctness Invariant #4/#6).
+     */
+    private static Map<String, Object> parseRateLimit(String value) {
+        var slash = value.indexOf('/');
+        if (slash <= 0 || slash == value.length() - 1) {
+            throw new IllegalArgumentException(
+                    "rate-limit must be '<limit>/<windowSeconds>' (e.g. 10/60), got: " + value);
+        }
+        return Map.of(
+                "limit", value.substring(0, slash).strip(),
+                "window-seconds", value.substring(slash + 1).strip());
+    }
+
+    /**
+     * Parse a {@code time-window: <start>-<end> [zone]} directive (e.g.
+     * {@code 09:00-17:00 America/New_York}) into the {@code time-window}
+     * factory's config block. The zone token is optional (defaults to UTC via
+     * the factory); days default to Mon–Fri. Throws
+     * {@link IllegalArgumentException} on a malformed value.
+     */
+    private static Map<String, Object> parseTimeWindow(String value) {
+        var parts = value.split("\\s+", 2);
+        var range = parts[0];
+        var dash = range.indexOf('-');
+        if (dash <= 0 || dash == range.length() - 1) {
+            throw new IllegalArgumentException(
+                    "time-window must be '<start>-<end> [zone]' (e.g. 09:00-17:00 UTC), got: " + value);
+        }
+        var config = new LinkedHashMap<String, Object>();
+        config.put("start", range.substring(0, dash).strip());
+        config.put("end", range.substring(dash + 1).strip());
+        if (parts.length == 2 && !parts[1].isBlank()) {
+            config.put("zone", parts[1].strip());
+        }
+        return Map.copyOf(config);
     }
 
     /**
