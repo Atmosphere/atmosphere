@@ -46,7 +46,7 @@ import static org.mockito.Mockito.when;
 /**
  * Pins the {@link FilesystemPreset} attach engine the three processors'
  * {@code registerPresetFilesystem} seams share: feature-off inertness, the
- * built-in six-tool floor under AUTO with a non-capable runtime, native-wins
+ * built-in eight-tool floor under AUTO with a non-capable runtime, native-wins
  * under AUTO with a capable runtime (no duplicate tools), the BUILTIN /
  * NATIVE mode overrides, the partial-collision state honesty, and the
  * runtime-truth state transitions.
@@ -86,7 +86,7 @@ public class FilesystemPresetTest {
         System.clearProperty(AiConfig.FILESYSTEM_PROPERTY);
     }
 
-    private void assertAllSixRegistered() {
+    private void assertFloorRegistered() {
         for (var name : new String[]{
                 FileSystemTools.LS, FileSystemTools.READ_FILE, FileSystemTools.WRITE_FILE,
                 FileSystemTools.EDIT_FILE, FileSystemTools.GLOB, FileSystemTools.GREP}) {
@@ -105,10 +105,10 @@ public class FilesystemPresetTest {
     }
 
     @Test
-    public void autoWithPlainRuntimeRegistersAllSixTools() {
+    public void autoWithPlainRuntimeRegistersTheFloorTools() {
         FilesystemPreset.register(registry, preset, true, plain(), injectables, root, "x");
 
-        assertAllSixRegistered();
+        assertFloorRegistered();
         assertInstanceOf(AgentFileSystemProvider.class,
                 injectables.get(AgentFileSystemProvider.class),
                 "the provider must enter the injectables for conversation scoping");
@@ -138,7 +138,7 @@ public class FilesystemPresetTest {
 
         FilesystemPreset.register(registry, preset, true, fsCapable(), injectables, root, "x");
 
-        assertAllSixRegistered();
+        assertFloorRegistered();
         assertEquals("ACTIVE(builtin)",
                 preset.runtimeState().get(HarnessPreset.PRIMITIVE_FILESYSTEM));
     }

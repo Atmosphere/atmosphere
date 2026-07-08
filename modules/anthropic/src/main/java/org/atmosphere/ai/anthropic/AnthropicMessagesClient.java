@@ -422,7 +422,7 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
      * surface must stay inactive:
      * <ul>
      *   <li>{@link org.atmosphere.ai.fs.FilesystemMode#BUILTIN} pins the
-     *       portable six-tool floor — the native memory surface never
+     *       portable eight-tool floor — the native memory surface never
      *       registers alongside it (no duplicate file surfaces; mirrors
      *       {@code FilesystemPreset}'s registration-time decision).</li>
      *   <li>A caller-registered tool named {@code memory} wins — declaring

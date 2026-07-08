@@ -1605,7 +1605,8 @@ file-tool class somewhere on the classpath.
   registered — never both.
 - **`VIRTUAL_FILESYSTEM`** — a bounded, conversation-scoped file store the
   model reads and writes through tools. The portable floor is the built-in
-  `ls` / `read_file` / `write_file` / `edit_file` / `glob` / `grep` tool set
+  `ls` / `read_file` / `write_file` / `edit_file` / `glob` / `grep` / `delete`
+  / `rename` tool set
   over `AgentFileSystem` (default `WorkspaceAgentFileSystem`, rooted at
   `files/{conversationId}/` under the agent workspace with strict traversal
   guards and hard bounds — 512 KiB/file, 256 files, 16 MiB total; over-limit

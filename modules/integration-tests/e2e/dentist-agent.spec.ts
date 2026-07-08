@@ -64,9 +64,10 @@ test.describe('Dentist Agent', () => {
     const output = server.getOutput();
     expect(output).toContain("Agent 'dentist' registered");
     expect(output).toContain('commands: 3');
-    // 2 user tools + 7 batteries-included harness tools (write_todos + the
-    // six bounded file tools) — the default-on @Agent harness registers them.
-    expect(output).toContain('tools: 9');
+    // 2 user tools + 9 batteries-included harness tools (write_todos + the
+    // eight bounded file tools: ls, read_file, write_file, edit_file, glob,
+    // grep, delete, rename) — the default-on @Agent harness registers them.
+    expect(output).toContain('tools: 11');
   });
 
   test('MCP endpoint registered', () => {

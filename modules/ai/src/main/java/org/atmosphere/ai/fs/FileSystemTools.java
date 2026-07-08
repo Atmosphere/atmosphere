@@ -29,8 +29,9 @@ import java.util.StringJoiner;
  * Builds the built-in file tools — the portable virtual-filesystem floor
  * every runtime gets when the harness FILESYSTEM feature resolves and no
  * native file surface wins (see {@link FilesystemMode}): {@code ls},
- * {@code read_file}, {@code glob}, {@code grep} ({@link ToolKind#READ}) and
- * {@code write_file}, {@code edit_file} ({@link ToolKind#EDIT}).
+ * {@code read_file}, {@code glob}, {@code grep} ({@link ToolKind#READ}),
+ * {@code write_file}, {@code edit_file}, {@code rename} ({@link ToolKind#EDIT})
+ * and {@code delete} ({@link ToolKind#DELETE}).
  *
  * <p>Each executor is a thin wrapper over the conversation-scoped
  * {@link AgentFileSystem} resolved from the injectables seam. Bounds and
@@ -58,16 +59,23 @@ public final class FileSystemTools {
     /** The {@code grep} tool name. */
     public static final String GREP = "grep";
 
+    /** The {@code delete} tool name. */
+    public static final String DELETE = "delete";
+
+    /** The {@code rename} tool name. */
+    public static final String RENAME = "rename";
+
     private FileSystemTools() {
     }
 
     /**
-     * All six built-in file tools, in registration order.
+     * All eight built-in file tools, in registration order.
      *
      * @return the tool definitions, never empty
      */
     public static List<ToolDefinition> all() {
-        return List.of(ls(), readFile(), writeFile(), editFile(), glob(), grep());
+        return List.of(ls(), readFile(), writeFile(), editFile(), glob(), grep(),
+                delete(), rename());
     }
 
     /** The {@code ls} tool: list a directory in the agent workspace. */
@@ -141,6 +149,50 @@ public final class FileSystemTools {
                     fs.edit(path, required(args, "old_text"),
                             newText == null ? "" : newText.toString());
                     return "Edited " + path;
+                }))
+                .kind(ToolKind.EDIT)
+                .build();
+    }
+
+    /**
+     * The {@code delete} tool: remove a file from the workspace. Tagged
+     * {@link ToolKind#DELETE} so a {@code ToolApprovalPolicy} can gate it —
+     * the blast radius is bounded to the conversation-scoped workspace, but
+     * deletion is destructive, so operators may choose to require approval.
+     */
+    public static ToolDefinition delete() {
+        return ToolDefinition.builder(DELETE,
+                        "Delete a file from your workspace. The path is validated at the "
+                        + "boundary and must be relative to the workspace root.")
+                .parameter("path", "File path relative to the workspace root", "string", true)
+                .returnType("string")
+                .executor(fsExecutor((fs, args) -> {
+                    var path = required(args, "path");
+                    fs.delete(path);
+                    return "Deleted " + path;
+                }))
+                .kind(ToolKind.DELETE)
+                .build();
+    }
+
+    /**
+     * The {@code rename} tool: move a file within the workspace. Both paths
+     * are validated at the boundary.
+     */
+    public static ToolDefinition rename() {
+        return ToolDefinition.builder(RENAME,
+                        "Rename or move a file within your workspace. Both paths are "
+                        + "validated and must be relative to the workspace root.")
+                .parameter("old_path", "Current file path relative to the workspace root",
+                        "string", true)
+                .parameter("new_path", "New file path relative to the workspace root",
+                        "string", true)
+                .returnType("string")
+                .executor(fsExecutor((fs, args) -> {
+                    var oldPath = required(args, "old_path");
+                    var newPath = required(args, "new_path");
+                    fs.rename(oldPath, newPath);
+                    return "Renamed " + oldPath + " to " + newPath;
                 }))
                 .kind(ToolKind.EDIT)
                 .build();

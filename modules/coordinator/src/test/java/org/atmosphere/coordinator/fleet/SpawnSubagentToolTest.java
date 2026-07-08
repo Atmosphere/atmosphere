@@ -63,11 +63,12 @@ class SpawnSubagentToolTest {
         // Isolated identity: a fresh conversation id, not the caller's.
         assertNotNull(ctx.conversationId());
         assertEquals(ctx.conversationId(), ctx.sessionId());
-        // Harness floor: write_todos + the six file tools, self-contained.
+        // Harness floor: write_todos + the eight file tools, self-contained.
         var toolNames = ctx.tools().stream().map(t -> t.name()).toList();
         assertTrue(toolNames.contains("write_todos"), "floor must include write_todos");
         assertTrue(toolNames.containsAll(List.of("ls", "read_file", "write_file",
-                "edit_file", "glob", "grep")), "floor must include the six file tools: " + toolNames);
+                "edit_file", "glob", "grep", "delete", "rename")),
+                "floor must include the eight file tools: " + toolNames);
     }
 
     @Test

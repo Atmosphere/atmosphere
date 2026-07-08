@@ -44,7 +44,7 @@ When the harness `DELEGATION` feature resolves for a `@Coordinator` (on by defau
 | `delegate_task(agent, message)` | a **pre-declared** `@Fleet` member by name | route to a known specialist |
 | `task(description, subagent_type)` | a fresh **ephemeral** general-purpose subagent, spawned on demand | a self-contained subtask that should not clutter the main conversation |
 
-`task` is the dynamic counterpart to `delegate_task` (the parity primitive for LangChain deepagents' `task` tool): it spawns a general-purpose subagent with an **isolated context and workspace** — a fresh conversation id, its own plan store, and a bounded file workspace under a per-spawn temp root — runs one self-contained subtask with the built-in harness floor (`write_todos` + the six file tools), and returns only the subagent's final report. The isolated workspace is removed when the subagent returns.
+`task` is the dynamic counterpart to `delegate_task` (the parity primitive for LangChain deepagents' `task` tool): it spawns a general-purpose subagent with an **isolated context and workspace** — a fresh conversation id, its own plan store, and a bounded file workspace under a per-spawn temp root — runs one self-contained subtask with the built-in harness floor (`write_todos` + the eight file tools, including `delete` and `rename`), and returns only the subagent's final report. The isolated workspace is removed when the subagent returns.
 
 Safety rails (each pinned by `SpawnSubagentToolTest`):
 - **Governed** — the subtask prompt is evaluated against the installed governance policies (pre-admission, fail-closed) before any dispatch, the same chain `GovernanceFleetInterceptor` applies to the fleet dispatch edge.

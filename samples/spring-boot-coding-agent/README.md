@@ -81,12 +81,13 @@ registers the built-in plan tool
   (`{content, status, activeForm}` items; statuses `pending` /
   `in_progress` / `completed` / `abandoned`), replacing the previous list
 
-and the six built-in file tools over a bounded, conversation-scoped
+and the eight built-in file tools over a bounded, conversation-scoped
 workspace store:
 
 - `ls`, `read_file`, `glob`, `grep` (read)
 - `write_file`, `edit_file` (write — `edit_file` requires `old_text` to
   match exactly once)
+- `delete` (remove a file), `rename` (move a file)
 
 No runtime on this sample's classpath advertises a native plan or file
 surface, so the `AUTO` mode default lands on the built-in floors and

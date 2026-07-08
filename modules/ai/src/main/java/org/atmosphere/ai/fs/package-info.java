@@ -17,13 +17,13 @@
  * The harness FILESYSTEM primitive — a bounded, conversation-scoped virtual
  * filesystem the model reads and writes through tools.
  * {@link org.atmosphere.ai.fs.AgentFileSystem} is the store SPI
- * (ls / read / write / edit / glob / grep with hard
+ * (ls / read / write / edit / glob / grep / delete / rename with hard
  * {@link org.atmosphere.ai.fs.AgentFileSystem.Limits}); the default
  * {@link org.atmosphere.ai.fs.WorkspaceAgentFileSystem} roots each
  * conversation at {@code files/{conversationId}/} under the agent workspace
  * with strict traversal guards.
  *
- * <p>The portable floor is the built-in six-tool surface
+ * <p>The portable floor is the built-in eight-tool surface
  * ({@link org.atmosphere.ai.fs.FileSystemTools}); runtimes that genuinely
  * bridge a native file surface to this store declare
  * {@link org.atmosphere.ai.AiCapability#VIRTUAL_FILESYSTEM} and win under

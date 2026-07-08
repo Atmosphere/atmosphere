@@ -71,14 +71,14 @@ test.describe('Orchestration Demo — Support + Billing Agents', () => {
     expect(output).toContain("Agent 'billing' registered");
   });
 
-  test('support agent has 3 commands and 9 tools (2 user + 7 harness)', () => {
+  test('support agent has 3 commands and 11 tools (2 user + 9 harness)', () => {
     // SupportAgent annotates /status, /hours, /purge + lookup_account, cancel_account.
     // The batteries-included harness (Harness.PLANNING + FILESYSTEM, on by
-    // default for @Agent) adds write_todos plus the six bounded file tools
-    // (ls, read_file, write_file, edit_file, glob, grep), so AgentProcessor
-    // now logs "commands: 3, tools: 9".
+    // default for @Agent) adds write_todos plus the eight bounded file tools
+    // (ls, read_file, write_file, edit_file, glob, grep, delete, rename), so
+    // AgentProcessor now logs "commands: 3, tools: 11".
     const output = server.getOutput();
-    expect(output).toContain('commands: 3, tools: 9');
+    expect(output).toContain('commands: 3, tools: 11');
   });
 
   test('console info points to support agent', async () => {

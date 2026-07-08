@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Pins the six built-in file tools: thin wrappers over the
+ * Pins the eight built-in file tools: thin wrappers over the
  * conversation-scoped {@link AgentFileSystem} from the injectables seam, with
  * bounded-error messages surfaced as tool results (never stack traces), the
  * provider fallback on resource-free paths, and the READ / EDIT
@@ -59,7 +59,9 @@ public class FileSystemToolsTest {
         assertEquals(ToolKind.READ, FileSystemTools.grep().kind());
         assertEquals(ToolKind.EDIT, FileSystemTools.writeFile().kind());
         assertEquals(ToolKind.EDIT, FileSystemTools.editFile().kind());
-        assertEquals(6, FileSystemTools.all().size());
+        assertEquals(ToolKind.EDIT, FileSystemTools.rename().kind());
+        assertEquals(ToolKind.DELETE, FileSystemTools.delete().kind());
+        assertEquals(8, FileSystemTools.all().size());
     }
 
     @Test
@@ -78,6 +80,24 @@ public class FileSystemToolsTest {
 
         var lsNotes = exec(FileSystemTools.ls(), Map.of("dir", "notes"), scope).toString();
         assertTrue(lsNotes.contains("notes/a.md (5 bytes)"), lsNotes);
+    }
+
+    @Test
+    public void deleteAndRenameRoundTripThroughTheTools() throws Exception {
+        var scope = scopeWithFs();
+        exec(FileSystemTools.writeFile(), Map.of("path", "old.md", "content", "keep"), scope);
+
+        var renamed = exec(FileSystemTools.rename(),
+                Map.of("old_path", "old.md", "new_path", "new.md"), scope);
+        assertEquals("Renamed old.md to new.md", renamed);
+        assertEquals("keep", exec(FileSystemTools.readFile(), Map.of("path", "new.md"), scope));
+
+        var deleted = exec(FileSystemTools.delete(), Map.of("path", "new.md"), scope);
+        assertEquals("Deleted new.md", deleted);
+        // Reading a deleted file surfaces the error as the tool result, not a throw.
+        var afterDelete = exec(FileSystemTools.readFile(), Map.of("path", "new.md"), scope).toString();
+        assertTrue(afterDelete.toLowerCase().contains("not found")
+                || afterDelete.startsWith("Error:"), afterDelete);
     }
 
     @Test

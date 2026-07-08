@@ -109,7 +109,7 @@ class EmbabelAgentRuntime : AgentRuntime {
                 // Explicit opt-in only (atmosphere.ai.filesystem=native): the
                 // runtime does not declare VIRTUAL_FILESYSTEM (the deployed
                 // path cannot receive per-process tools), so under AUTO the
-                // portable six-tool floor owns the surface on every path.
+                // portable eight-tool floor owns the surface on every path.
                 return null
             }
             val injectables = session?.injectables() ?: emptyMap<Class<*>, Any>()

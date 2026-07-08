@@ -411,7 +411,7 @@ public class AiEndpointProcessor implements Processor<Object> {
      * Harness FILESYSTEM: attach the conversation-scoped file surface for one
      * endpoint — {@link org.atmosphere.ai.fs.AgentFileSystemProvider} into
      * the injectables (scoped per conversation at dispatch by
-     * {@code AiEndpointHandler}) and the built-in six-tool floor into the
+     * {@code AiEndpointHandler}) and the built-in eight-tool floor into the
      * registry unless the resolved runtime's native file surface wins under
      * {@link org.atmosphere.ai.fs.FilesystemMode}. Same runtime-truth check
      * as {@link #registerPresetPlanning}.

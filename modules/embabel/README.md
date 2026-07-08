@@ -182,7 +182,7 @@ Honesty notes, by design:
 
 Activation follows `atmosphere.ai.filesystem` (`FilesystemMode`): under
 `AUTO` (default) and `NATIVE` the native surface owns the file tools and the
-harness skips the built-in six-tool floor; under `BUILTIN` only the portable
+harness skips the built-in eight-tool floor; under `BUILTIN` only the portable
 floor registers — never both. Pinned by `EmbabelAgentRuntimeVfsTest`
 (round-trips both directions through the shared directory).
 

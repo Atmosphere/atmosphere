@@ -40,7 +40,7 @@ import java.util.Map;
  * <em>declared</em> capabilities —
  * {@link AiCapability#VIRTUAL_FILESYSTEM} is itself a runtime-truth
  * contract, so the registration-time check reflects genuine native wiring,
- * not classpath guessing. Native wins in AUTO; the built-in six-tool floor
+ * not classpath guessing. Native wins in AUTO; the built-in eight-tool floor
  * registers otherwise. Never both (no duplicate file tools). Runtime-state
  * flips only on a genuine attach (Invariant #5).</p>
  */

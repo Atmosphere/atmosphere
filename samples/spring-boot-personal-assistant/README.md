@@ -46,7 +46,7 @@ crew (scheduler, research, drafter) dispatched through
 - **The deep-agent harness** — `PrimaryAssistant` is a `@Coordinator`, so it
   is batteries-included: `harness()` defaults to `{Harness.ALL}`. Without any
   extra wiring it carries a plan (`write_todos`), a bounded virtual filesystem
-  (`ls`/`read_file`/`write_file`/`edit_file`/`glob`/`grep`), and **two**
+  (eight tools: `ls`/`read_file`/`write_file`/`edit_file`/`glob`/`grep`/`delete`/`rename`), and **two**
   delegation tools — `delegate_task` (route to the pre-declared crew) and
   `task` (spawn a fresh general-purpose sub-agent on demand). See
   [Deep-agent harness in action](#deep-agent-harness-in-action).
