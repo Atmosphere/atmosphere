@@ -43,6 +43,13 @@ crew (scheduler, research, drafter) dispatched through
   assistant remembers a user across reconnects. Backed by the in-tree
   `InMemoryLongTermMemory` + `LongTermMemoryInterceptor`; see
   [Long-term memory](#long-term-memory--cross-session-fact-recall).
+- **The deep-agent harness** — `PrimaryAssistant` is a `@Coordinator`, so it
+  is batteries-included: `harness()` defaults to `{Harness.ALL}`. Without any
+  extra wiring it carries a plan (`write_todos`), a bounded virtual filesystem
+  (`ls`/`read_file`/`write_file`/`edit_file`/`glob`/`grep`), and **two**
+  delegation tools — `delegate_task` (route to the pre-declared crew) and
+  `task` (spawn a fresh general-purpose sub-agent on demand). See
+  [Deep-agent harness in action](#deep-agent-harness-in-action).
 
 ## Running
 
@@ -96,6 +103,77 @@ Maven dependency and every primitive still wires the same way.
    produces a short draft matching the tone from `SOUL.md`.
 5. Inspect what the assistant remembers via the admin control plane at
    `http://localhost:8080/atmosphere/admin/` (memory tab).
+
+## Deep-agent harness in action
+
+`PrimaryAssistant` is a `@Coordinator`, so the harness attaches the full
+deep-agent tool set with no attribute at all. The primitives light up when a
+**tool-calling model** drives them — set an OpenAI-compatible key, or point the
+sample at a local Ollama model:
+
+```bash
+LLM_MODE=local LLM_MODEL=qwen2.5:3b LLM_BASE_URL=http://localhost:11434/v1 \
+LLM_API_KEY=ollama ./mvnw spring-boot:run -pl samples/spring-boot-personal-assistant
+```
+
+Open `http://localhost:8080/atmosphere/console/` and try each primitive:
+
+- **Planning + filesystem.** Ask: *"Use write_todos to plan a 3-step release
+  checklist, then save it to release.md."* The console **Workspace tab** shows
+  the live plan (checkboxes) and the file the model wrote — persisted to a
+  bounded, conversation-scoped store.
+- **Dynamic sub-agent spawn — the `task` tool.** Ask: *"Use the task tool to
+  spawn a general-purpose subagent to brainstorm three team-building
+  activities, then give me its report."* The console renders a `task` tool
+  card: the sub-agent runs in an **isolated context and workspace** (its own
+  conversation id, plan store, and file store under a per-spawn temp root),
+  and only its **final report** crosses back — the parent conversation stays
+  clean. The workspace is removed on return.
+
+Two delegation tools, two shapes: `delegate_task` routes to the *pre-declared*
+scheduler / research / drafter crew; `task` creates an *ephemeral*
+general-purpose worker for a self-contained subtask that no crew member owns.
+The spawn is governance-checked before dispatch (fail-closed), depth- and
+time-bounded, and its workspace is always cleaned up — see the
+[harness reference](https://atmosphere.github.io/docs/agents/harness/) and the
+[LangChain deepagents comparison](https://atmosphere.github.io/docs/agents/deep-agents-vs-langchain/).
+
+### Tool-output disk offload
+
+Any built-in tool result over the offload threshold (8 000 chars by default) is
+written to `tool-output/{tool}-{id}.txt` in the workspace, and the model gets a
+short preview plus a `read_file` pointer instead of the whole blob — large
+outputs stay out of the context window. To see it on a small demo, lower the
+threshold and boot with:
+
+```bash
+LLM_TOOL_OUTPUT_OFFLOAD_THRESHOLD=200 \
+LLM_MODE=local LLM_MODEL=qwen2.5:3b LLM_BASE_URL=http://localhost:11434/v1 \
+LLM_API_KEY=ollama ./mvnw spring-boot:run -pl samples/spring-boot-personal-assistant
+```
+
+Then ask: *"Use write_file to save a couple of paragraphs about virtual threads
+to report.md, then read report.md back."* The `read_file` result exceeds the
+200-char threshold, so it is offloaded — the **Workspace tab** shows a new
+`tool-output/read_file-….txt` holding the full text, while the model saw only a
+preview + pointer. (`LLM_TOOL_OUTPUT_OFFLOAD_THRESHOLD=0` disables offload.)
+
+### Composite filesystem routing
+
+By default every path lives in the per-conversation workspace. Route a prefix
+to a durable backend shared across conversations with `LLM_FILESYSTEM_ROUTES`:
+
+```bash
+LLM_FILESYSTEM_ROUTES=memory/=/tmp/agent-memory \
+LLM_MODE=local LLM_MODEL=qwen2.5:3b LLM_BASE_URL=http://localhost:11434/v1 \
+LLM_API_KEY=ollama ./mvnw spring-boot:run -pl samples/spring-boot-personal-assistant
+```
+
+Then ask: *"Call write_file twice — path `memory/pref.md` content `user prefers
+tea`, then path `scratch.md` content `temporary note`."* `memory/pref.md` lands
+in `/tmp/agent-memory` (durable, shared across conversations) while `scratch.md`
+stays in the per-conversation workspace — longest-prefix routing, each backend
+keeping its own bounds and traversal guards.
 
 ## Outbound MCP — `UpstreamMcpAgent`
 

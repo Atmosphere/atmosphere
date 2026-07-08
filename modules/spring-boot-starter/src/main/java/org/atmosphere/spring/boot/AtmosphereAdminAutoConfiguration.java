@@ -278,7 +278,8 @@ public class AtmosphereAdminAutoConfiguration {
             // Workspace tab without a token opt out explicitly with
             // atmosphere.admin.workspace-read-auth-required=false.
             if (principal == null && isReadMethod(httpReq)
-                    && (isReadAuthRequired() || isSensitiveWorkspaceRead(httpReq))) {
+                    && (isReadAuthRequired() || isSensitiveWorkspaceRead(httpReq)
+                            || isSensitiveContentRead(httpReq))) {
                 var httpRes = (HttpServletResponse) response;
                 httpRes.setStatus(401);
                 httpRes.setContentType("application/json");
@@ -325,6 +326,37 @@ public class AtmosphereAdminAutoConfiguration {
             var uri = req.getRequestURI();
             return uri != null
                     && uri.matches(".*/api/admin/agents/[^/]+/(plan|files|files/content)$");
+        }
+
+        /**
+         * Whether this request reads a recorded-content observability surface
+         * that carries arbitrary user/model content — the governance decision
+         * log ({@code context_snapshot} embeds a 200-char preview of the
+         * request message AND the response, plus user/session/agent/
+         * conversation ids — see {@code GovernanceDecisionLog#snapshot}), the
+         * control audit log (broadcast/unicast message bodies + principals),
+         * and the coordination journal (agent-to-agent message content). These
+         * are the same "arbitrary model/user content" class the workspace
+         * surfaces guard, so they are default-DENY too, independent of the
+         * general read gate (Correctness Invariant #6). A demo that wants these
+         * console tabs open without a token opts out explicitly, at its own
+         * risk, with {@code atmosphere.admin.content-read-auth-required=false}.
+         *
+         * <p>Deliberately NOT gated: {@code /governance/summary},
+         * {@code /governance/health}, {@code /governance/policies} (policy
+         * metadata, no request content) and {@code /governance/commitments}
+         * (Ed25519-signed records meant for external SIEM verification against
+         * the published key) — those carry no user/model content and stay on
+         * the open read plane.</p>
+         */
+        private boolean isSensitiveContentRead(HttpServletRequest req) {
+            if (!Boolean.parseBoolean(env.getProperty(
+                    "atmosphere.admin.content-read-auth-required", "true"))) {
+                return false;
+            }
+            var uri = req.getRequestURI();
+            return uri != null
+                    && uri.matches(".*/api/admin/(governance/decisions|audit|journal(/[^/]+(/log)?)?)$");
         }
 
         private static boolean isReadMethod(HttpServletRequest req) {

@@ -121,6 +121,34 @@ Every write is bounds-checked with a clear rejection message (defaults:
 500 hits, and model-supplied paths are validated at the boundary (relative
 only — no `..`, no absolute paths).
 
+**Tool-output disk offload (on by default).** When any built-in tool returns
+more than 8 000 characters — a `read_file` of a big source file, a wide
+`grep` — the full result is written to `tool-output/{tool}-{id}.txt` in the
+same workspace and the model receives a short preview plus a `read_file`
+pointer instead of the whole blob. This keeps a large tool result out of the
+context window without losing data; the model reads the saved file on demand.
+Fail-safe: a below-threshold result, no filesystem in scope, or a bounds
+rejection all return the result inline unchanged. Tune the threshold with
+`-Dorg.atmosphere.ai.toolOutputOffloadThreshold=<chars>` (or the
+`LLM_TOOL_OUTPUT_OFFLOAD_THRESHOLD` env var); `0` disables it.
+
+**Composite filesystem routing (opt-in).** By default every path lives in the
+per-conversation workspace. Set `atmosphere.ai.filesystem.routes` (or the
+`LLM_FILESYSTEM_ROUTES` env var) to a comma-separated `prefix=dir` list to
+route a prefix to a durable backend shared across conversations while
+everything else stays per-conversation:
+
+```bash
+# Reads/writes under memory/ land in a durable shared store; all other
+# paths stay isolated to the current conversation.
+LLM_FILESYSTEM_ROUTES=memory/=/var/atmosphere/agent-memory \
+  ./mvnw spring-boot:run -pl samples/spring-boot-coding-agent
+```
+
+Each routed backend is itself a bounded workspace, so the per-file / count /
+total-byte limits and traversal guards hold on every route (longest-prefix
+match; a cross-backend `rename` fails loud).
+
 **Opting down.** Declare `harness = {}` on the `@Agent` to strip the agent
 back to a bare loop, or narrow to individual features (e.g.
 `harness = {Harness.PLANNING}`). The app-wide kill switch

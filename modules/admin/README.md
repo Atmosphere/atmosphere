@@ -129,6 +129,29 @@ anonymous readers then receive `401`. Wired by
 (a JAX-RS `@Provider`) on Quarkus. Multi-tenant operators who
 expose `/api/admin/*` on a routable network flip this one flag.
 
+#### Default-deny content reads
+
+Some read endpoints carry **arbitrary user/model content**, not just
+operational metadata, so they are **default-DENY** regardless of the
+opt-in read gate above — an anonymous reader gets `401` out of the box:
+
+| Endpoint(s) | Content exposed | Opt-out flag (default `true`) |
+|---|---|---|
+| `GET /api/admin/agents/{name}/plan`, `/files`, `/files/content` | model-written workspace plan + file bodies | `atmosphere.admin.workspace-read-auth-required` |
+| `GET /api/admin/governance/decisions` | 200-char preview of each request **message** and **response** + user/session/agent/conversation ids (`GovernanceDecisionLog#snapshot`) | `atmosphere.admin.content-read-auth-required` |
+| `GET /api/admin/audit` | broadcast/unicast message bodies + principals | `atmosphere.admin.content-read-auth-required` |
+| `GET /api/admin/journal`, `/journal/{id}`, `/journal/{id}/log` | agent-to-agent coordination content | `atmosphere.admin.content-read-auth-required` |
+
+Governance **metadata** (`/governance/summary`, `/health`, `/policies`)
+and the Ed25519-signed `/governance/commitments` stream carry no user
+content and stay on the open read plane. A demo that wants the
+corresponding console tabs without a token opts out explicitly — e.g.
+`atmosphere.admin.content-read-auth-required: false` — accepting that it
+exposes recorded prompt/response previews to anonymous callers. Enforced
+identically on Spring (`AdminApiAuthFilter`) and Quarkus
+(`AdminReadAuthFilter`) — Correctness Invariant #6 (default deny) and #7
+(mode parity).
+
 #### Opt-in role authorization (JWT)
 
 For JWT-based identity, set `atmosphere.admin.required-role=<role>` to

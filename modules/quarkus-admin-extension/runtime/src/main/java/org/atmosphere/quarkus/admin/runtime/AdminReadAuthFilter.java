@@ -55,9 +55,6 @@ public class AdminReadAuthFilter implements ContainerRequestFilter {
 
     @Override
     public void filter(ContainerRequestContext requestContext) {
-        if (!isReadAuthRequired()) {
-            return;
-        }
         var method = requestContext.getMethod();
         if (!"GET".equalsIgnoreCase(method)
                 && !"HEAD".equalsIgnoreCase(method)
@@ -71,6 +68,17 @@ public class AdminReadAuthFilter implements ContainerRequestFilter {
         // resources; only intervene for admin URIs.
         if (!path.startsWith("api/admin") && !path.startsWith("/api/admin")
                 && !path.startsWith(ADMIN_PREFIX.substring(1))) {
+            return;
+        }
+        // The general read gate is opt-in (http-read-auth-required), but the
+        // recorded-content surfaces — governance/decisions (200-char request +
+        // response previews and user/session ids), the audit log (broadcast
+        // message bodies + principals) and the coordination journal
+        // (agent-to-agent content) — hold arbitrary user/model content and are
+        // default-DENY regardless, mirroring the Spring starter's
+        // AdminApiAuthFilter (Correctness Invariant #6 + #7 mode parity). A demo
+        // reopens them with content-read-auth-required=false.
+        if (!isReadAuthRequired() && !isSensitiveContentRead(path)) {
             return;
         }
         if (hasPrincipal(requestContext)) {
@@ -99,6 +107,34 @@ public class AdminReadAuthFilter implements ContainerRequestFilter {
             // safe — the flag is opt-in, so missing config means off.
             return false;
         }
+    }
+
+    /**
+     * Whether this admin read hits a recorded-content surface that carries
+     * arbitrary user/model content — {@code /governance/decisions} (message +
+     * response previews and session ids), {@code /audit} (message bodies +
+     * principals) and {@code /journal} (+ {@code /journal/{id}} and
+     * {@code /journal/{id}/log}, coordination content). Default-DENY (returns
+     * true) unless a demo opts out with
+     * {@code atmosphere.admin.content-read-auth-required=false}. Metadata
+     * surfaces ({@code governance/summary|health|policies|commitments}) are NOT
+     * matched and stay on the open read plane.
+     */
+    private static boolean isSensitiveContentRead(String path) {
+        try {
+            var required = Boolean.parseBoolean(
+                    org.eclipse.microprofile.config.ConfigProvider.getConfig()
+                            .getOptionalValue("atmosphere.admin.content-read-auth-required",
+                                    String.class)
+                            .orElse("true"));
+            if (!required) {
+                return false;
+            }
+        } catch (RuntimeException e) {
+            // No config backend (embedded test) — keep the secure default (on).
+        }
+        return path != null
+                && path.matches(".*api/admin/(governance/decisions|audit|journal(/[^/]+(/log)?)?)$");
     }
 
     /**
