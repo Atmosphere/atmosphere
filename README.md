@@ -5,7 +5,7 @@
 <h1 align="center">Atmosphere</h1>
 
 <p align="center">
-  The real-time engine for AI agents on the JVM. Tokens flow from the LLM runtime to the client through a broadcaster you can filter, gate, and observe — over WebSocket, SSE, long-polling, or gRPC, and out through MCP, A2A, and AG-UI. A plain <code>@Agent</code> is a full deep agent — memory, planning, a virtual filesystem, and sub-agent delegation, batteries-included — and Atmosphere handles reconnect, authorization, and governance.
+  The real-time engine for AI agents on the JVM. Tokens flow from the LLM runtime to the client through a broadcaster you can filter, gate, and observe — over WebSocket, SSE, long-polling, or gRPC, and out through MCP, A2A, and AG-UI. A plain <code>@Agent</code> is a full deep agent, batteries-included, and Atmosphere handles reconnect, authorization, and governance.
 </p>
 
 <p align="center">
@@ -24,9 +24,9 @@ Atmosphere is built for teams that need AI agents to behave like production serv
 
 | Need | What Atmosphere provides |
 |---|---|
-| Ship a deep agent | A plain `@Agent` is batteries-included — memory, a plan (`write_todos`), a virtual filesystem, and sub-agent delegation (`task`), on by default via the [harness](https://atmosphere.github.io/docs/agents/harness/); the same capability set as LangChain deepagents, [hosted by a JVM framework](https://atmosphere.github.io/docs/agents/deep-agents-vs-langchain/) |
 | Stream to real clients | WebSocket, SSE, long-polling, and gRPC run through one broadcaster pipeline as always-on defaults; WebTransport over HTTP/3 is optional (needs `jetty-http3-server` or `reactor-netty-http` on the classpath plus a dev cert) |
 | Swap AI integrations | One `AgentRuntime` SPI with twelve runtime adapters and contract-tested capability flags |
+| Ship a deep agent | A plain `@Agent` is batteries-included — memory, a plan (`write_todos`), a virtual filesystem, and sub-agent delegation (`task`), on by default via the [harness](https://atmosphere.github.io/docs/agents/harness/) |
 | Govern execution | Policy admission, `@AgentScope`, human approval, plan-and-verify, cost ceilings, PII rewriting, and admin kill switches |
 | Pause for humans | Durable HITL approvals hibernate without holding a thread, persist workflow state, and resume through REST approval surfaces |
 | Resume long runs | Durable sessions, run IDs, replay buffers, checkpoints, and reconnect-safe continuation |
