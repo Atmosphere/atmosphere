@@ -10,6 +10,7 @@ on:
       - 'cli/**'
       - 'pom.xml'
       - '.mvn/**'
+      - 'scripts/release-gate-samples.sh'
       - '.github/workflows/samples-ci.yml'
   pull_request:
     branches: [ main ]
@@ -20,10 +21,23 @@ on:
       - 'cli/**'
       - 'pom.xml'
       - '.mvn/**'
+      - 'scripts/release-gate-samples.sh'
       - '.github/workflows/samples-ci.yml'
   workflow_dispatch:
 
 jobs:
+  # Fast, build-free gate: fail the PR/push that adds a samples/ directory
+  # without a release-gate coverage-map entry — instead of the nightly
+  # release-gate catching it up to a day later. Mirrors the "Print coverage
+  # map (no silent caps)" step in release-gate-samples.yml.
+  coverage-map:
+    name: Sample coverage map (no silent caps)
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+    - name: Every samples/ directory must be mapped in the release gate
+      run: ./scripts/release-gate-samples.sh --list
+
   test-samples:
     name: Test Sample - ${{ matrix.sample }} (SB${{ matrix.spring-boot-version }})
     runs-on: ubuntu-latest
