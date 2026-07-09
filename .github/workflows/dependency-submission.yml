@@ -22,6 +22,10 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
+          # Supply-chain hardening: GPG-verify the JDK archive before install
+          # (setup-java >= v5.5.0, Temurin-supported). Piloted on this lane
+          # before fanning out to the other setup-java steps.
+          verify-signature: true
           cache: 'maven'
 
       - name: Build reactor (install SNAPSHOTs locally)
