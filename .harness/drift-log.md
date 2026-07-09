@@ -2245,3 +2245,27 @@ not a repo fix.
 symptom, verify X was actually invoked — check the downstream service's request count / logs / wire
 capture. Distinguish "ran and failed" from "never ran" before attributing the failure to X. Process
 discipline, not an automatable repo gate.
+
+## 2026-07-08 — Same-session RECURRENCE: read a `-q dependency:tree` empty result as "org.json absent" when `-q` had suppressed the tree
+
+**Claim:** "org.json:json is NOT in the current dependency tree" — inferred from
+`./mvnw -o -q dependency:tree -Dincludes=org.json:json` returning zero grep hits, used to argue the
+two org.json Dependabot alerts were stale/phantom.
+
+**Truth:** `-q` suppresses the dependency-tree output itself (the tree prints at INFO level), so "0
+hits" reflected hidden output, not an absent dependency. Re-running WITHOUT `-q` showed
+`org.json:json:20240303` IS present — transitively in `atmosphere-adk` via `google-cloud-bigquery`.
+Caught in-session before any wrong action shipped.
+
+**Slip path:** this is the SAME gate logged immediately above (the "verify the component produced
+output before concluding from an absent-output symptom" entry, committed `36155f5691` only ~hours
+earlier) — and it still recurred. I grepped a quiet command's output and treated empty as absent.
+
+**Fix status:** self-caught and re-verified non-quiet; org.json was in fact already safe (20240303)
+and was then pinned to 20250517. No wrong conclusion was acted on.
+
+**Gate:** reinforce the existing gate to a reflex — never pass `-q`/quiet to a tool whose OUTPUT is
+the very thing being grepped, and when an empty result drives an "X is absent" conclusion, first
+confirm the command actually EMITTED the expected output (non-suppressed, nonzero). A same-session
+recurrence shows the earlier note wasn't enough; the discipline is "the command must be proven to
+have spoken before its silence means anything."
