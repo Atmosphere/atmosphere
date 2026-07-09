@@ -565,10 +565,23 @@ with Playwright, live in the Console.
 ### In-process `eval` (container-free JavaScript)
 
 Where `code_exec` spins a container, the `eval` tool (`org.atmosphere.ai.code`)
-runs pure ECMAScript **in-process** via a sandboxed Mozilla Rhino scope — for
+runs model-authored code **in-process** in a sandboxed interpreter — for
 calculation, data shaping, and JSON/string work with no container, network, or
 Docker required. It is the lightweight counterpart to `code_exec`, not a
 replacement: no filesystem or host access, and no state persists between calls.
+
+The interpreter is **pluggable** via the `EvalEngine` SPI (`ServiceLoader`,
+highest-`priority()`-available wins — the same resolution as `AgentRuntime`).
+JavaScript via Mozilla Rhino (`RhinoEvalEngine`) ships as the default; another
+engine (GraalJS, a Python interpreter, a WASM runtime) plugs in with a
+`META-INF/services/org.atmosphere.ai.code.EvalEngine` entry, no in-tree change.
+
+Why an interpreter rather than "pure Java": the model emits JS/Python code
+strings at runtime, not Java, and — decisively — arbitrary Java cannot be
+sandboxed in-process (JShell/Compiler-API bytecode has full JVM authority, and
+`SecurityManager` is gone from JDK 24). In-process *and* sandboxed requires a
+language with a language-level sandbox; OS-level isolation is what `code_exec`'s
+container is for.
 
 **Default-deny and runtime-truth.** Off unless enabled, and offered only when
 Rhino is confirmed on the classpath (it is an *optional* dependency, so it does
@@ -585,7 +598,7 @@ org.atmosphere.ai.eval.maxOutputChars=8000          # returned-text cap
 <dependency><groupId>org.mozilla</groupId><artifactId>rhino</artifactId></dependency>
 ```
 
-Isolation (`RhinoEvalEngine`): the scope is built with `initSafeStandardObjects()`
+Isolation (the default engine, `RhinoScriptSandbox`): the scope is built with `initSafeStandardObjects()`
 (ECMAScript built-ins, **no** `java`/`Packages`/`getClass` bridge) plus a
 deny-all `ClassShutter`, so no Java class resolves even via a reflective escape;
 interpreted mode with an instruction observer bounds CPU on a stock JVM (the

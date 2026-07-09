@@ -17,6 +17,7 @@ package org.atmosphere.ai.code;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
@@ -162,6 +163,75 @@ public class EvalToolTest {
         assertTrue(eval.isEnabled());
         assertEquals(EvalTool.TOOL_NAME, eval.tool().name());
         assertEquals("eval", eval.tool().name());
+    }
+
+    // ── Pluggable engine SPI ──
+
+    @Test
+    public void serviceLoaderResolvesTheJavaScriptEngineByDefault() {
+        // enabled() resolves an EvalEngine via ServiceLoader; Rhino is on the
+        // classpath, so the default JavaScript engine wins.
+        assertTrue(enabled().isEnabled());
+        assertEquals("javascript", enabled().language());
+    }
+
+    @Test
+    public void rhinoEngineReportsAvailableAndEvaluates() {
+        var rhino = new RhinoEvalEngine();
+        assertEquals("javascript", rhino.language());
+        assertTrue(rhino.isAvailable());
+        assertEquals(0, rhino.priority());
+        var r = rhino.evaluate("40 + 2", new EvalLimits(2_000_000, 2_000L, 100));
+        assertTrue(r.ok(), r.error());
+        assertEquals("42", r.value());
+    }
+
+    @Test
+    public void higherPriorityEngineOverridesTheDefault() {
+        EvalEngine custom = new EvalEngine() {
+            @Override public String language() {
+                return "python";
+            }
+            @Override public boolean isAvailable() {
+                return true;
+            }
+            @Override public int priority() {
+                return 10;
+            }
+            @Override public EvalResult evaluate(String code, EvalLimits limits) {
+                return EvalResult.ok("py:" + code, false);
+            }
+        };
+        var winner = EvalSupport.select(java.util.List.of(new RhinoEvalEngine(), custom));
+        assertEquals("python", winner.language());
+        // With only the default present, Rhino wins.
+        assertEquals("javascript",
+                EvalSupport.select(java.util.List.of(new RhinoEvalEngine())).language());
+    }
+
+    @Test
+    public void unavailableEngineIsSkippedRegardlessOfPriority() {
+        EvalEngine down = new EvalEngine() {
+            @Override public String language() {
+                return "wasm";
+            }
+            @Override public boolean isAvailable() {
+                return false;   // dependency absent
+            }
+            @Override public int priority() {
+                return 100;     // would win if it were available
+            }
+            @Override public EvalResult evaluate(String code, EvalLimits limits) {
+                return EvalResult.error("unreachable");
+            }
+        };
+        var winner = EvalSupport.select(java.util.List.of(down, new RhinoEvalEngine()));
+        assertEquals("javascript", winner.language());
+    }
+
+    @Test
+    public void selectReturnsNullWhenNoEngineAvailable() {
+        assertNull(EvalSupport.select(java.util.List.of()));
     }
 
     @Test

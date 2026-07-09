@@ -1,0 +1,3 @@
+# Default in-process eval engine: sandboxed JavaScript via Mozilla Rhino
+# (priority 0). Add another EvalEngine on the classpath to override it.
+org.atmosphere.ai.code.RhinoEvalEngine
