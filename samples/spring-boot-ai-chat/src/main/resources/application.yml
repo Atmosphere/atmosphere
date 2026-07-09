@@ -15,14 +15,12 @@ atmosphere:
   auth:
     enabled: false
     demo-token: ${ATMOSPHERE_AUTH_TOKEN:demo-token}
-  admin:
-    # The governance-feedback demo showcases the Decisions tab (PREFER decisions +
-    # the org policy name) in the out-of-box, no-token console. Those recorded-
-    # content reads (/api/admin/governance/decisions) are default-DENY under
-    # Correctness Invariant #6 because they expose request/response previews;
-    # opt this demo out explicitly — consistent with auth.enabled=false above —
-    # so the console renders the loop without a token.
-    content-read-auth-required: false
+  # NOTE: this sample keeps the framework's fail-closed default for recorded-
+  # content admin reads (/api/admin/governance/decisions etc., Inv #6) — the
+  # gap-admin-core e2e asserts that default here. The governance-feedback demo,
+  # which needs the token-less console to render the Decisions tab, opts out at
+  # RUN time (see .github/workflows/e2e-real-llm.yml and the spec's REQUIRES
+  # note): --atmosphere.admin.content-read-auth-required=false.
   cache:
     enabled: true
 

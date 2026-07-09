@@ -22,7 +22,12 @@ import { test, expect } from '@playwright/test';
  * REQUIRES: samples/spring-boot-ai-chat running on port 8080 WITH A REAL LLM
  * (Ollama lane), e.g.:
  *   LLM_MODE=local LLM_MODEL=qwen2.5:3b LLM_BASE_URL=http://localhost:11434/v1 \
- *   LLM_API_KEY=ollama ./mvnw spring-boot:run -pl samples/spring-boot-ai-chat
+ *   LLM_API_KEY=ollama ./mvnw spring-boot:run -pl samples/spring-boot-ai-chat \
+ *     -Dspring-boot.run.arguments=--atmosphere.admin.content-read-auth-required=false
+ *
+ * The content-read opt-out is REQUIRED: the sample keeps the framework's
+ * fail-closed default for /api/admin/governance/decisions (Inv #6), so the
+ * token-less console needs this flag to render the Decisions tab it asserts on.
  *
  * A real LLM is mandatory: demo mode (no key) bypasses the pipeline entirely
  * (AiChat.onPrompt streams a canned response and returns), so neither the

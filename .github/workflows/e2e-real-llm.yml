@@ -189,7 +189,11 @@ jobs:
           sleep 2
           # Backgrounded spring-boot:run; torn down via PID file below. The
           # reactor install above already built the sample.
+          # The token-less console must render the Decisions tab, so this demo
+          # run opts out of the fail-closed recorded-content read gate (Inv #6);
+          # the sample keeps the secure default out-of-box (see application.yml).
           nohup ./mvnw -pl samples/spring-boot-ai-chat -q spring-boot:run \
+              -Dspring-boot.run.arguments=--atmosphere.admin.content-read-auth-required=false \
               > /tmp/ai-chat-run.log 2>&1 &
           echo $! > /tmp/ai-chat.pid
 
