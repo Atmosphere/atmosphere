@@ -1318,7 +1318,7 @@
         <bouncycastle.version>1.84</bouncycastle.version>
         <micrometer.version>1.16.5</micrometer.version>
         <jakarta-enterprise-cdi-api.version>4.1.0</jakarta-enterprise-cdi-api.version>
-        <testcontainers.version>1.20.6</testcontainers.version>
+        <testcontainers.version>1.21.4</testcontainers.version>
         <awaitility.version>4.2.2</awaitility.version>
         <grpc.version>1.81.0</grpc.version>
         <protobuf.version>4.34.1</protobuf.version>
