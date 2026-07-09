@@ -1,4 +1,5 @@
 import { ref, onMounted, onUnmounted, watch, type Ref } from 'vue'
+import { authHeaders } from '../lib/authToken'
 
 export interface Policy {
   name: string
@@ -86,7 +87,13 @@ export function usePollingResource<T>(
   async function load() {
     loading.value = true
     try {
-      const res = await fetch(url, { headers: { Accept: 'application/json' } })
+      // Authenticate the poll: /api/admin/governance/decisions is a
+      // default-DENY recorded-content read (it exposes request/response
+      // previews), so the console must send X-Atmosphere-Auth or it 401s and
+      // the Decisions tab renders empty. authHeaders() is a no-op when the
+      // console is anonymous (no token), preserving the open-demo behaviour
+      // for the metadata resources this composable also polls.
+      const res = await fetch(url, { headers: authHeaders({ Accept: 'application/json' }) })
       if (!res.ok) {
         throw new Error(`HTTP ${res.status} ${res.statusText}`)
       }
