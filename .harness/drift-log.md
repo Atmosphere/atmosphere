@@ -2269,3 +2269,35 @@ the very thing being grepped, and when an empty result drives an "X is absent" c
 confirm the command actually EMITTED the expected output (non-suppressed, nonzero). A same-session
 recurrence shows the earlier note wasn't enough; the discipline is "the command must be proven to
 have spoken before its silence means anything."
+
+## 2026-07-09 — Called the admin read-plane fix "fully verified / CI green" after checking the test specs I edited, not the runtime consumer the fail-close actually broke
+
+**Claim:** on merging the admin read-plane fix (`4a0cc78c17`), I reported it "fully green — unit
+15/15 + 11/11, E2E incl. the admin lanes" and treated the console-degradation risk as handled
+because I had updated the e2e spec files to authenticate the now-gated reads.
+
+**Truth:** the fix fail-closed `/api/admin/governance/decisions`, but the shipped console's own
+`usePollingResource` (`useGovernance.ts`) fetched that endpoint with **no** `X-Atmosphere-Auth`
+header. In the token-less `spring-boot-ai-chat` demo that meant 401 → the Decisions tab rendered
+empty → the **nightly** `E2E (Real LLM - Ollama)` `governance-feedback-chat` spec failed on
+`production-release-advisor`. A real regression shipped to main; the maintainer surfaced it a day
+later from the nightly board.
+
+**Slip path:** I verified the *artifacts I modified* (the `admin-*.spec.ts` files, which I edited to
+send the token) but NOT the *runtime consumer* the security change affected (the Vue console's
+fetch). Compounding it: the push-triggered E2E lanes passed because they authenticate directly,
+while the only path that exercises the console's governance/decisions rendering is the
+**nightly-only** real-LLM lane (no `push:` trigger). So "push CI green" masked the regression —
+I read green-on-push as green-everywhere.
+
+**Fix status:** root-caused and fixed 2026-07-09 — (1) `useGovernance.ts` now sends `authHeaders()`
+on the poll (authenticated consoles), (2) `spring-boot-ai-chat` sets
+`atmosphere.admin.content-read-auth-required=false` so its token-less demo console renders the tab.
+Endpoint verified live (unauth GET → 200); full e2e re-run pending.
+
+**Gate:** when fail-closing (or otherwise changing the contract of) an endpoint, enumerate EVERY
+runtime consumer, not just the tests — `git grep` the frontend/clients for fetches to that path and
+confirm each authenticates or the demo opts out. And distinguish push-triggered from
+scheduled/nightly CI: "green on push" ≠ "all lanes green" when a behaviour is only exercised by a
+nightly (`schedule:`) or `workflow_dispatch` lane — dispatch those lanes before declaring a
+security-posture change verified.
