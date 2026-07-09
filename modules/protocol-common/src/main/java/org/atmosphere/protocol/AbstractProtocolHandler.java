@@ -117,6 +117,7 @@ public abstract class AbstractProtocolHandler<S extends ProtocolSession>
                 var response = resource.getResponse();
                 response.setStatus(413);
                 response.setContentType(APPLICATION_JSON);
+                response.setCharacterEncoding("UTF-8");
                 response.getWriter().write(
                         "{\"error\":\"Request body exceeds " + MAX_BODY_CHARS + " characters\"}");
                 return null;
@@ -248,6 +249,9 @@ public abstract class AbstractProtocolHandler<S extends ProtocolSession>
         } else {
             response.setStatus(200);
             response.setContentType(APPLICATION_JSON);
+            // JSON is UTF-8 (RFC 8259); without this the container defaults to
+            // ISO-8859-1, mangling non-ASCII. The SSE branch above already does.
+            response.setCharacterEncoding("UTF-8");
             response.getWriter().write(jsonResponse);
             response.getWriter().flush();
         }

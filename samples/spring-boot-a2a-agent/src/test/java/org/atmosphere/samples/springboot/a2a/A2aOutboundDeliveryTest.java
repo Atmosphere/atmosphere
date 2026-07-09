@@ -136,4 +136,27 @@ class A2aOutboundDeliveryTest {
                     "failure must carry the remote agent's reason; got: " + result.text());
         }
     }
+
+    @Test
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    void invalidTimezoneFailureDoesNotReflectRawInput() {
+        try (var transport = new A2aAgentTransport("atmosphere-assistant", a2aEndpoint())) {
+            // A reflected-XSS probe: an invalid timezone carrying HTML/script markup.
+            var xss = "<script>alert(document.cookie)</script>";
+            AgentResult result = transport.send("atmosphere-assistant", "get-time",
+                    Map.of("timezone", xss));
+
+            assertFalse(result.success(),
+                    "an invalid timezone must surface as a failed AgentResult; got: " + result.text());
+            // The remote failure message must NOT echo the attacker-controlled input
+            // verbatim — that is the reflected-XSS sink this test guards.
+            assertFalse(result.text().contains("<script>"),
+                    "failure message must not reflect untrusted input verbatim; got: " + result.text());
+            assertFalse(result.text().contains(xss),
+                    "the raw untrusted timezone must not appear in the reply; got: " + result.text());
+            // ...but it must still be a helpful, generic hint.
+            assertTrue(result.text().contains("Invalid timezone"),
+                    "failure must still carry a generic IANA-format hint; got: " + result.text());
+        }
+    }
 }

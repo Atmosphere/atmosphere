@@ -218,6 +218,8 @@ class AbstractProtocolHandlerTest {
 
         handler.writeResponse(resource, "{\"ok\":true}");
         verify(response).setContentType("application/json");
+        // JSON must be UTF-8 (RFC 8259), not the container-default ISO-8859-1.
+        verify(response).setCharacterEncoding("UTF-8");
         assertEquals("{\"ok\":true}", sw.toString());
     }
 

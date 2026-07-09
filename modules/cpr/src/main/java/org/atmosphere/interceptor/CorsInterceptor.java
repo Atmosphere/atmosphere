@@ -80,7 +80,13 @@ public class CorsInterceptor extends AtmosphereInterceptorAdapter {
             if (isOriginAllowed(origin)) {
                 res.addHeader("Access-Control-Allow-Origin", origin);
                 res.addHeader("Access-Control-Expose-Headers", exposeHeaders);
-                res.setHeader("Access-Control-Allow-Credentials", "true");
+                // Only advertise credentials support when the origin was explicitly
+                // allowlisted. Reflecting an arbitrary Origin together with
+                // Access-Control-Allow-Credentials: true lets any site issue
+                // credentialed cross-origin requests, defeating same-origin protection.
+                if (allowedOrigins != null) {
+                    res.setHeader("Access-Control-Allow-Credentials", "true");
+                }
             }
         }
 

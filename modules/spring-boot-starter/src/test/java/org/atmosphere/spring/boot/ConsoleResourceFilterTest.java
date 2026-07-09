@@ -255,4 +255,55 @@ class ConsoleResourceFilterTest {
         assertThat(AtmosphereAutoConfiguration.ConsoleResourceFilter
                 .siblingOrigin("http", null)).isNull();
     }
+
+    // ── Clickjacking + response hardening on console responses. ──
+
+    @Test
+    void emitsClickjackingAndHardeningHeadersOnIndex() throws Exception {
+        when(request.getRequestURI()).thenReturn("/atmosphere/console/");
+        when(request.getScheme()).thenReturn("http");
+        when(request.getHeader("Host")).thenReturn("localhost:8083");
+
+        filter.doFilter(request, response, chain);
+
+        verify(response).setHeader("X-Frame-Options", "SAMEORIGIN");
+        verify(response).setHeader("X-Content-Type-Options", "nosniff");
+        verify(response).setHeader("Referrer-Policy", "no-referrer");
+        var csp = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(response).setHeader(org.mockito.ArgumentMatchers.eq("Content-Security-Policy"),
+                csp.capture());
+        assertThat(csp.getValue()).contains("frame-ancestors 'self'");
+    }
+
+    @Test
+    void doesNotEmitXFrameOptionsOnSandboxHtml() throws Exception {
+        // sandbox.html is deliberately framed from a distinct sibling origin for
+        // MCP Apps isolation — X-Frame-Options: SAMEORIGIN would break it.
+        when(request.getRequestURI()).thenReturn("/atmosphere/console/sandbox.html");
+        filter.doFilter(request, response, chain);
+
+        verify(response, never()).setHeader(
+                org.mockito.ArgumentMatchers.eq("X-Frame-Options"),
+                org.mockito.ArgumentMatchers.anyString());
+        // The MIME-sniffing guard is still applied cross-origin.
+        verify(response).setHeader("X-Content-Type-Options", "nosniff");
+    }
+
+    @Test
+    void emitsNosniffButNoXFrameOptionsOnAssets() throws Exception {
+        when(request.getRequestURI()).thenReturn("/atmosphere/console/app.js");
+        filter.doFilter(request, response, chain);
+
+        verify(response).setHeader("X-Content-Type-Options", "nosniff");
+        verify(response, never()).setHeader(
+                org.mockito.ArgumentMatchers.eq("X-Frame-Options"),
+                org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void buildConsoleCspIncludesFrameAncestorsSelf() {
+        var csp = AtmosphereAutoConfiguration.ConsoleResourceFilter
+                .buildConsoleCsp("http", "localhost:8083", "");
+        assertThat(csp).contains("frame-ancestors 'self'");
+    }
 }

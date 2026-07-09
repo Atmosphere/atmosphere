@@ -136,7 +136,11 @@ public class WeatherTimeAgent {
             task.addArtifact(Artifact.text("Current time in " + timezone + ": " + formatted));
             task.complete("Time retrieved for " + timezone);
         } catch (DateTimeException e) {
-            task.fail("Invalid timezone: " + timezone + ". Use IANA format like America/New_York");
+            // Do not echo the raw, untrusted timezone back to the caller. Reflecting
+            // attacker-controlled input verbatim into the response is a reflected-XSS
+            // vector when a client (e.g. the Atmosphere console) renders the failure
+            // message. Return a generic, self-contained hint that never carries input.
+            task.fail("Invalid timezone. Use IANA format like America/New_York, Europe/Paris, or Asia/Tokyo.");
         }
     }
 

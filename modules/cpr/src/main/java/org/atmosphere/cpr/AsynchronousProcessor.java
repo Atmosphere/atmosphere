@@ -185,7 +185,11 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             // /atmosphere/* probe arrives before any handler is registered.
             logger.debug("Returning 404 for unmapped path {}: {}", req.getRequestURI(), unmapped.getMessage());
             res.setStatus(404);
-            res.addHeader(X_ATMOSPHERE_ERROR, unmapped.getMessage());
+            // Do not reflect the internal mapping-failure detail (which echoes the
+            // caller's request URI) into a response header the client never consumes;
+            // the full detail is retained in the DEBUG log above. Keep the header
+            // present with a generic value so presence-based tooling is unaffected.
+            res.addHeader(X_ATMOSPHERE_ERROR, "Not Found");
             res.flushBuffer();
             return new Action();
         }

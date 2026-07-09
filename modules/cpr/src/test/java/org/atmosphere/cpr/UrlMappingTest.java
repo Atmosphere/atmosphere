@@ -194,6 +194,10 @@ public class UrlMappingTest {
                 "Unmapped /atmosphere/* path must return 404, not 500");
         assertNotNull(res.getHeader(HeaderConfig.X_ATMOSPHERE_ERROR),
                 "404 response must carry X-Atmosphere-error explaining the miss");
+        // The header must not reflect the internal mapping-failure detail (which
+        // echoes the caller's request URI) — it carries a generic value only.
+        assertEquals("Not Found", res.getHeader(HeaderConfig.X_ATMOSPHERE_ERROR),
+                "X-Atmosphere-error must not leak the request path / internal detail");
     }
 
     @Test

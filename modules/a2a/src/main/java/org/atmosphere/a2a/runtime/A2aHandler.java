@@ -94,6 +94,7 @@ public final class A2aHandler extends AbstractProtocolHandler<A2aSession>
         if (jsonRpcBody.isEmpty()) {
             response.setStatus(400);
             response.setContentType(APPLICATION_JSON);
+            response.setCharacterEncoding("UTF-8");
             response.getWriter().write(
                     "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32700,\"message\":\"Empty body\"}}");
             return;

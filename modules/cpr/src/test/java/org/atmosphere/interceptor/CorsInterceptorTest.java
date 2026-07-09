@@ -127,6 +127,19 @@ class CorsInterceptorTest {
     }
 
     @Test
+    void inspectDoesNotSetCredentialsWhenReflectingArbitraryOrigin() {
+        // No configure() call — no allowlist, so the Origin is echoed for backward
+        // compatibility, but credentials MUST NOT be enabled for a reflected origin.
+        var response = mock(AtmosphereResponse.class);
+        when(response.getHeader("Access-Control-Allow-Origin")).thenReturn(null);
+        var resource = mockResourceWithResponse("GET", "http://evil.example", response);
+
+        interceptor.inspect(resource);
+        verify(response).addHeader("Access-Control-Allow-Origin", "http://evil.example");
+        verify(response, never()).setHeader("Access-Control-Allow-Credentials", "true");
+    }
+
+    @Test
     void inspectSkipsWhenOriginHeaderAlreadySet() {
         var response = mock(AtmosphereResponse.class);
         when(response.getHeader("Access-Control-Allow-Origin")).thenReturn("http://existing.com");

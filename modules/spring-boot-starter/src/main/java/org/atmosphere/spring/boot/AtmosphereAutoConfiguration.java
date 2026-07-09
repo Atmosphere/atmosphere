@@ -195,6 +195,11 @@ public class AtmosphereAutoConfiguration {
             if (resource != null) {
                 try (resource) {
                     httpRes.setContentType(guessContentType(resourceName));
+                    // Baseline hardening on every console resource: block MIME
+                    // sniffing and suppress referrer leakage. Safe on the
+                    // cross-origin-framed sandbox.html and on static assets.
+                    httpRes.setHeader("X-Content-Type-Options", "nosniff");
+                    httpRes.setHeader("Referrer-Policy", "no-referrer");
                     // The console SPA shell (index.html) carries no static <meta>
                     // CSP: the MCP Apps sandbox frames a DISTINCT sibling origin
                     // (localhost<->127.0.0.1, or atmosphere.mcp-sandbox-origin) for
@@ -212,6 +217,13 @@ public class AtmosphereAutoConfiguration {
                         httpRes.setHeader("Content-Security-Policy",
                                 buildConsoleCsp(httpReq.getScheme(),
                                         httpReq.getHeader("Host"), configuredSandboxOrigin));
+                        // Clickjacking defense for the top-level console page.
+                        // Deliberately NOT set on sandbox.html, which the MCP Apps
+                        // proxy frames from a distinct sibling origin
+                        // (localhost<->127.0.0.1) for isolation — SAMEORIGIN there
+                        // would break the sandbox. frame-ancestors 'self' lives in
+                        // the CSP above; this covers legacy browsers.
+                        httpRes.setHeader("X-Frame-Options", "SAMEORIGIN");
                     }
                     resource.transferTo(httpRes.getOutputStream());
                 }
@@ -246,7 +258,7 @@ public class AtmosphereAutoConfiguration {
                     + "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
                     + "font-src 'self' data:; connect-src 'self' ws: wss:; "
                     + "frame-src " + frameSrc + "; object-src 'none'; "
-                    + "base-uri 'self'; form-action 'self'";
+                    + "base-uri 'self'; form-action 'self'; frame-ancestors 'self'";
         }
 
         /**
