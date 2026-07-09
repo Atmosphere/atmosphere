@@ -15,6 +15,14 @@ atmosphere:
   auth:
     enabled: false
     demo-token: ${ATMOSPHERE_AUTH_TOKEN:demo-token}
+  admin:
+    # The governance-feedback demo showcases the Decisions tab (PREFER decisions +
+    # the org policy name) in the out-of-box, no-token console. Those recorded-
+    # content reads (/api/admin/governance/decisions) are default-DENY under
+    # Correctness Invariant #6 because they expose request/response previews;
+    # opt this demo out explicitly — consistent with auth.enabled=false above —
+    # so the console renders the loop without a token.
+    content-read-auth-required: false
   cache:
     enabled: true
 
