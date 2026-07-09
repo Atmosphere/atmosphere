@@ -58,7 +58,7 @@ jobs:
 
       - name: Fetch Sigstore OIDC token
         id: oidc
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             // Request a GitHub OIDC token scoped to the sigstore audience
