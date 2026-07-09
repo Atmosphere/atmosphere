@@ -2301,3 +2301,31 @@ confirm each authenticates or the demo opts out. And distinguish push-triggered 
 scheduled/nightly CI: "green on push" ≠ "all lanes green" when a behaviour is only exercised by a
 nightly (`schedule:`) or `workflow_dispatch` lane — dispatch those lanes before declaring a
 security-posture change verified.
+
+## 2026-07-09 — Changed a shared sample's config to fix one e2e; broke a second e2e that runs against the same fixture
+
+**Claim:** to fix the nightly governance-feedback regression, I set
+`atmosphere.admin.content-read-auth-required=false` in `spring-boot-ai-chat`'s **committed**
+`application.yml` and treated the console regression as closed.
+
+**Truth:** `spring-boot-ai-chat` is the fixture for **two** e2e lanes with opposite expectations of
+that endpoint: the nightly real-LLM `governance-feedback` spec needs
+`/api/admin/governance/decisions` OPEN (200, token-less console renders the Decisions tab), while
+the push-triggered `gap-admin-core` `admin-dashboard.spec.ts` — a test **I myself added** — asserts
+it is DENIED (401) by default. The application.yml opt-out satisfied the first and **broke the
+second**, turning `E2E (Playwright)` red on the very push that fixed the nightly.
+
+**Slip path:** I changed a shared fixture's baked-in config to satisfy the test in front of me
+without enumerating the OTHER specs that run against that same fixture. A sample's `application.yml`
+is a shared contract across every lane that boots it; I treated it as local to one demo.
+
+**Fix status:** resolved 2026-07-09 without weakening either test — reverted the ai-chat
+`application.yml` to the secure default (so `gap-admin-core`'s 401 assertion holds) and moved the
+opt-out to RUN time in `e2e-real-llm.yml` (so governance-feedback still renders). Both lanes verified
+green on the fix HEAD.
+
+**Gate:** before changing a sample/fixture's committed config to make one test pass, `git grep` the
+fixture name across all e2e specs + workflow fixtures and reconcile every lane's expectation. When
+two lanes need opposite config on the same fixture, keep the *secure* default in the committed file
+and override at *run time* in the lane that needs the non-default — never bake a security-relaxing
+override into a shared sample to satisfy a single demo, and never delete the conflicting assertion.
