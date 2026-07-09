@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -63,9 +64,37 @@ class PushNotificationServiceTest {
     }
 
     @Test
+    void rejectsInternalTargetsByDefault() {
+        var tm = new TaskManager();
+        try (var svc = new PushNotificationService(tm)) { // secure default: deny internal
+            for (var host : List.of("127.0.0.1", "10.0.0.1", "172.16.0.1", "192.168.1.1",
+                    "169.254.169.254", "0.0.0.0", "[::1]")) {
+                assertThrows(IllegalArgumentException.class,
+                        () -> svc.create(new TaskPushNotificationConfig("t1", "http://" + host + "/hook")),
+                        host + " is a non-routable/internal address and must be rejected (SSRF)");
+            }
+            // a routable public literal is accepted under the secure default
+            assertNotNull(svc.create(
+                    new TaskPushNotificationConfig("t-pub", "http://93.184.216.34/hook")).id(),
+                    "a public webhook target is still allowed");
+        }
+    }
+
+    @Test
+    void allowsInternalTargetsWhenOptedIn() {
+        var tm = new TaskManager();
+        try (var svc = new PushNotificationService(tm, true)) { // explicit opt-in
+            assertNotNull(svc.create(
+                    new TaskPushNotificationConfig("t1", "http://127.0.0.1/hook")).id());
+            assertNotNull(svc.create(
+                    new TaskPushNotificationConfig("t2", "http://169.254.169.254/latest/meta-data/")).id());
+        }
+    }
+
+    @Test
     void boundedConfigsPerTask() {
         var tm = new TaskManager();
-        try (var svc = new PushNotificationService(tm)) {
+        try (var svc = new PushNotificationService(tm, true)) {
             for (var i = 0; i < PushNotificationService.MAX_CONFIGS_PER_TASK; i++) {
                 svc.create(new TaskPushNotificationConfig(null, "id-" + i, "t1", "https://h/" + i, null, null));
             }
@@ -92,7 +121,7 @@ class PushNotificationServiceTest {
         server.start();
         try {
             var tm = new TaskManager();
-            try (var svc = new PushNotificationService(tm)) {
+            try (var svc = new PushNotificationService(tm, true)) {
                 var url = "http://127.0.0.1:" + server.getAddress().getPort() + "/hook";
                 var task = tm.createTask("ctx-1");
                 svc.create(new TaskPushNotificationConfig(
@@ -122,7 +151,7 @@ class PushNotificationServiceTest {
         server.start();
         try {
             var tm = new TaskManager();
-            try (var svc = new PushNotificationService(tm)) {
+            try (var svc = new PushNotificationService(tm, true)) {
                 var url = "http://127.0.0.1:" + server.getAddress().getPort() + "/hook";
                 var task = tm.createTask("ctx-1");
                 svc.create(new TaskPushNotificationConfig(null, null, task.taskId(), url, null, null));
@@ -149,7 +178,7 @@ class PushNotificationServiceTest {
         server.start();
         try {
             var tm = new TaskManager();
-            var svc = new PushNotificationService(tm);
+            var svc = new PushNotificationService(tm, true);
             var url = "http://127.0.0.1:" + server.getAddress().getPort() + "/hook";
             var task = tm.createTask("ctx-1");
             svc.create(new TaskPushNotificationConfig(null, null, task.taskId(), url, null, null));

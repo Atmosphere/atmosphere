@@ -139,7 +139,15 @@ final class A2aCardDecorations {
      */
     static void wirePush(AtmosphereFramework framework, A2aProtocolHandler handler,
                          TaskManager taskManager, String agentName) {
-        var service = new PushNotificationService(taskManager);
+        var allowPrivate = Boolean.parseBoolean(framework.getAtmosphereConfig()
+                .getInitParameter("org.atmosphere.a2a.pushAllowPrivateTargets", "false"));
+        var service = new PushNotificationService(taskManager, allowPrivate);
+        if (allowPrivate) {
+            logger.warn("A2A push notifications for '{}' may target private/loopback/link-local "
+                    + "addresses (org.atmosphere.a2a.pushAllowPrivateTargets=true) — this permits "
+                    + "SSRF-style delivery to internal endpoints; enable only on trusted networks",
+                    agentName);
+        }
         framework.getAtmosphereConfig().shutdownHook(service::close);
         handler.setPushNotificationService(service);
         logger.info("A2A push notifications enabled for '{}' (webhook delivery on terminal task state)",

@@ -21,7 +21,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.databind.ObjectMapper;
 
+import java.net.InetAddress;
 import java.net.URI;
+import java.net.UnknownHostException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -52,7 +54,14 @@ import java.util.function.Consumer;
  *
  * A registered URL is validated to be an absolute {@code http}/{@code https}
  * URI before it is stored; other schemes are rejected at the boundary rather
- * than dereferenced. The config {@code token} (when present) is sent as the
+ * than dereferenced. To prevent the endpoint being turned into an SSRF proxy,
+ * a webhook whose host resolves to a non-routable / internal address
+ * (loopback, private, link-local — including the {@code 169.254.169.254} cloud
+ * metadata range — wildcard, multicast, or IPv6 unique-local) is refused by
+ * default, and the resolved address is re-checked at delivery time to fail
+ * closed against DNS rebinding. Delivery to internal hosts is possible only by
+ * explicit opt-in ({@code allowPrivateTargets}), intended for trusted networks.
+ * The config {@code token} (when present) is sent as the
  * {@code X-A2A-Notification-Token} header so the receiver can authenticate
  * the callback.
  */
@@ -76,16 +85,28 @@ public final class PushNotificationService implements AutoCloseable {
     private final boolean ownsHttp;
     private final int maxTasks;
     private final Duration requestTimeout;
+    private final boolean allowPrivateTargets;
     private volatile boolean closed;
 
     public PushNotificationService(TaskManager taskManager) {
+        this(taskManager, false);
+    }
+
+    /**
+     * @param allowPrivateTargets when {@code false} (the secure default) a
+     *     webhook URL whose host resolves to a loopback, private, link-local,
+     *     wildcard, multicast, or IPv6 unique-local address is rejected to
+     *     prevent SSRF; set {@code true} only on trusted networks where
+     *     delivery to internal hosts is intended.
+     */
+    public PushNotificationService(TaskManager taskManager, boolean allowPrivateTargets) {
         this(taskManager, HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5)).build(), true,
-                DEFAULT_MAX_TASKS, Duration.ofSeconds(10));
+                DEFAULT_MAX_TASKS, Duration.ofSeconds(10), allowPrivateTargets);
     }
 
     public PushNotificationService(TaskManager taskManager, HttpClient http, boolean ownsHttp,
-                                   int maxTasks, Duration requestTimeout) {
+                                   int maxTasks, Duration requestTimeout, boolean allowPrivateTargets) {
         this.taskManager = taskManager;
         this.http = http;
         this.ownsHttp = ownsHttp;
@@ -94,6 +115,7 @@ public final class PushNotificationService implements AutoCloseable {
         }
         this.maxTasks = maxTasks;
         this.requestTimeout = requestTimeout;
+        this.allowPrivateTargets = allowPrivateTargets;
         taskManager.onStatusUpdate(listener);
     }
 
@@ -165,8 +187,17 @@ public final class PushNotificationService implements AutoCloseable {
 
     private void deliver(TaskPushNotificationConfig config, TaskStatusUpdateEvent event) {
         try {
+            var target = URI.create(config.url());
+            if (!allowPrivateTargets && resolvesToInternalOrUnknown(target.getHost())) {
+                // DNS-rebinding / late-flip defence: the host passed the guard
+                // at registration but now resolves to an internal address (or no
+                // longer resolves). Fail closed (Correctness Invariant #4).
+                logger.warn("Skipping push notification for task {}: {} resolves to a "
+                        + "non-routable/internal address", config.taskId(), config.url());
+                return;
+            }
             var body = MAPPER.writeValueAsString(event);
-            var builder = HttpRequest.newBuilder(URI.create(config.url()))
+            var builder = HttpRequest.newBuilder(target)
                     .timeout(requestTimeout)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(body));
@@ -194,7 +225,7 @@ public final class PushNotificationService implements AutoCloseable {
         }
     }
 
-    private static void validateUrl(String url) {
+    private void validateUrl(String url) {
         if (url == null || url.isBlank()) {
             throw new IllegalArgumentException("push notification url must not be empty");
         }
@@ -210,6 +241,65 @@ public final class PushNotificationService implements AutoCloseable {
             throw new IllegalArgumentException(
                     "push notification url must be an absolute http(s) URL: " + url);
         }
+        if (allowPrivateTargets) {
+            return;
+        }
+        // SSRF egress guard: reject a webhook that resolves to a non-routable /
+        // internal address. A host that cannot be resolved now is allowed
+        // through here and re-checked (fail closed) at delivery time.
+        var host = unbracket(uri.getHost());
+        try {
+            for (var address : InetAddress.getAllByName(host)) {
+                if (isInternalAddress(address)) {
+                    throw new IllegalArgumentException(
+                            "push notification url resolves to a non-routable/internal address ("
+                                    + address.getHostAddress() + "); refusing to store: " + url);
+                }
+            }
+        } catch (UnknownHostException e) {
+            logger.debug("push notification host {} did not resolve at registration; "
+                    + "it will be re-validated at delivery time", host);
+        }
+    }
+
+    /**
+     * Resolve {@code host} and report whether it maps to an internal address or
+     * cannot be resolved. Used at delivery time to fail closed against DNS
+     * rebinding — an unresolvable host returns {@code true} (do not deliver).
+     */
+    private static boolean resolvesToInternalOrUnknown(String host) {
+        if (host == null) {
+            return true;
+        }
+        try {
+            for (var address : InetAddress.getAllByName(unbracket(host))) {
+                if (isInternalAddress(address)) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (UnknownHostException e) {
+            return true;
+        }
+    }
+
+    private static boolean isInternalAddress(InetAddress address) {
+        if (address.isLoopbackAddress() || address.isAnyLocalAddress()
+                || address.isLinkLocalAddress() || address.isSiteLocalAddress()
+                || address.isMulticastAddress()) {
+            return true;
+        }
+        // IPv6 unique-local addresses (fc00::/7) are not covered by
+        // isSiteLocalAddress and are used by some cloud metadata services.
+        var octets = address.getAddress();
+        return octets.length == 16 && (octets[0] & 0xfe) == 0xfc;
+    }
+
+    private static String unbracket(String host) {
+        if (host.length() > 1 && host.charAt(0) == '[' && host.charAt(host.length() - 1) == ']') {
+            return host.substring(1, host.length() - 1);
+        }
+        return host;
     }
 
     private void evictOldestIfOverCapacity() {
