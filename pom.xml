@@ -1296,7 +1296,7 @@
         <!-- Mozilla Rhino: pure-Java JS engine backing the optional, default-off
              in-process 'eval' tool (org.atmosphere.ai.code). Sandboxed via a
              deny-all ClassShutter + interpreted-mode instruction budget. -->
-        <rhino.version>1.7.15</rhino.version>
+        <rhino.version>1.7.15.1</rhino.version>
         <!-- Jackson 2 force-pin (CVE force-pin block in dependencyManagement).
              Jackson 2 enters the dep tree transitively via Spring/Quarkus/AWS;
              we don't compile against it. 2.22.0 closes the jackson-databind
