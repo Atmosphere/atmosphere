@@ -8,6 +8,12 @@ atmosphere:
     enabled: true
     http-write-enabled: false
     require-principal: false
+    # This sample's headline IS the governance decision chain in the built-in
+    # console (Decisions tab), and the console carries no identity. That tab
+    # reads /api/admin/governance/decisions, which is default-DENY under
+    # Correctness Invariant #6 (it exposes request/response previews). Opt out
+    # explicitly so the token-less demo renders the decisions it exists to show.
+    content-read-auth-required: false
 
 server:
   port: 8090
