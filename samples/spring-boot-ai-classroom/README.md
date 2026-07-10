@@ -174,3 +174,20 @@ The `session.stream(message)` call is **framework-agnostic**. To switch AI backe
 ## Mobile Client
 
 A React Native / Expo client is available at [expo-client](expo-client/). It connects to this backend via WebSocket, streams AI responses text-by-text with markdown rendering, and includes AppState/NetInfo lifecycle integration. See the [React Native client docs](https://atmosphere.github.io/docs/clients/react-native/) for details.
+
+## Security
+
+⚠️ **This sample ships without authentication for local demonstration.** The
+real-time channel at `/atmosphere/classroom` accepts anonymous joins: any client
+can connect, receive presence events (member ids, join/leave), and broadcast
+messages into a room. The `atmosphere-policies.yaml` policy plane governs the
+**LLM** turn (time-window, metadata-presence, authorization *of the agent
+action*) — it is **not** a channel-access control and does not authenticate
+peers.
+
+**Do not expose this endpoint beyond localhost without adding authentication.**
+In production, front `/atmosphere/classroom` with Spring Security (or a gateway),
+authenticate joins, and scope presence/broadcast to authorized room members.
+Broadcast message content is rendered through the console's DOMPurify-sanitized
+markdown sink, but a server-side encode/validate step is still recommended for
+any non-console consumer.
