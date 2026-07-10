@@ -22,9 +22,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          # Supply-chain hardening: GPG-verify the JDK archive before install
-          # (setup-java >= v5.5.0, Temurin-supported). Piloted on this lane
-          # before fanning out to the other setup-java steps.
+          # Supply-chain hardening: GPG-verify the Temurin JDK archive (setup-java >= v5.5.0)
           verify-signature: true
           cache: 'maven'
 

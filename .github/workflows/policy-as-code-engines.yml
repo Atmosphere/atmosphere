@@ -58,6 +58,8 @@ jobs:
         with:
           java-version: 21
           distribution: temurin
+          # Supply-chain hardening: GPG-verify the Temurin JDK archive (setup-java >= v5.5.0)
+          verify-signature: true
           cache: 'maven'
 
       - name: Install OPA (prebuilt static binary)
@@ -113,6 +115,8 @@ jobs:
         with:
           java-version: 21
           distribution: temurin
+          # Supply-chain hardening: GPG-verify the Temurin JDK archive (setup-java >= v5.5.0)
+          verify-signature: true
           cache: 'maven'
 
       - name: Cache cedar CLI binary

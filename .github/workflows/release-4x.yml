@@ -114,6 +114,8 @@ jobs:
       with:
         java-version: 21
         distribution: 'temurin'
+        # Supply-chain hardening: GPG-verify the Temurin JDK archive (setup-java >= v5.5.0)
+        verify-signature: true
         cache: 'maven'
 
     - name: Install all modules (skip tests)
@@ -195,6 +197,8 @@ jobs:
       with:
         java-version: 21
         distribution: 'temurin'
+        # Supply-chain hardening: GPG-verify the Temurin JDK archive (setup-java >= v5.5.0)
+        verify-signature: true
         cache: 'maven'
         server-id: central
         server-username: CENTRAL_USERNAME
@@ -421,6 +425,8 @@ jobs:
       with:
         java-version: 21
         distribution: 'temurin'
+        # Supply-chain hardening: GPG-verify the Temurin JDK archive (setup-java >= v5.5.0)
+        verify-signature: true
         cache: 'maven'
 
     - name: Configure Maven settings

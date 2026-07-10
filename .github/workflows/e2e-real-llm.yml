@@ -57,6 +57,8 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: temurin
+          # Supply-chain hardening: GPG-verify the Temurin JDK archive (setup-java >= v5.5.0)
+          verify-signature: true
           java-version: '21'
           cache: maven
 

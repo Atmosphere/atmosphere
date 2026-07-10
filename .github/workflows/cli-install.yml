@@ -32,6 +32,8 @@ jobs:
       with:
         java-version: 21
         distribution: 'temurin'
+        # Supply-chain hardening: GPG-verify the Temurin JDK archive (setup-java >= v5.5.0)
+        verify-signature: true
 
     - name: Run curl installer
       run: sh cli/install.sh
@@ -75,6 +77,8 @@ jobs:
       with:
         java-version: 21
         distribution: 'temurin'
+        # Supply-chain hardening: GPG-verify the Temurin JDK archive (setup-java >= v5.5.0)
+        verify-signature: true
 
     # The npx wrapper delegates to the `atmosphere` CLI on PATH; install
     # the in-repo CLI before invoking npx so the PATH check passes.

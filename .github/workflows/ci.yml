@@ -75,6 +75,10 @@ jobs:
       with:
         java-version: ${{ matrix.java-version }}
         distribution: ${{ matrix.distribution }}
+        # Supply-chain hardening: GPG-verify the JDK archive (setup-java >= v5.5.0).
+        # Only Temurin/Microsoft support signature verification, so gate on the
+        # matrix distribution — the Oracle JDK 26 leg must NOT set this.
+        verify-signature: ${{ matrix.distribution == 'temurin' }}
         cache: 'maven'
 
     - name: Build Core Modules
@@ -127,6 +131,8 @@ jobs:
       with:
         java-version: 21
         distribution: temurin
+        # Supply-chain hardening: GPG-verify the Temurin JDK archive (setup-java >= v5.5.0)
+        verify-signature: true
         cache: 'maven'
 
     - name: Build & Package Samples
