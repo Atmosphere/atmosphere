@@ -2329,3 +2329,32 @@ fixture name across all e2e specs + workflow fixtures and reconcile every lane's
 two lanes need opposite config on the same fixture, keep the *secure* default in the committed file
 and override at *run time* in the lane that needs the non-default — never bake a security-relaxing
 override into a shared sample to satisfy a single demo, and never delete the conflicting assertion.
+
+## 2026-07-10 — Enumerated a repo-wide setup-java sweep against a STALE local checkout; a fast-forward push would have shipped an incomplete fan-out
+
+**Claim:** having grepped every `setup-java@v5` step and inserted `verify-signature: true` on each
+Temurin one, I treated the fan-out as complete ("24 steps across 16 files, every Temurin lane
+hardened") and stamped the pre-push marker.
+
+**Truth:** my local `main` was behind `origin/main` — it predated the 7 Dependabot merges AND the
+two CI commits the maintainer had pushed, which included **new** workflow files (`ci-js.yml`,
+`ms-yaml-conformance.yml`, `sign-skillcards.yml`) and edits to `samples-ci.yml`. My enumeration ran
+against the stale tree, so it could not have covered any Temurin `setup-java` step introduced in
+those new files. The sweep was "complete" only relative to a tree I was never going to push.
+
+**Slip path:** I fetched `origin/main` earlier in the session (to check CI) but never rebased local
+`main` onto it, then enumerated + edited on the stale base. The only thing that forced a re-check was
+the non-fast-forward **push rejection** — luck, not process. Had my local `main` happened to be a
+fast-forward ancestor, the push would have succeeded and I'd have shipped a fan-out that silently
+skipped any new-file setup-java steps, believing "every Temurin lane hardened."
+
+**Fix status:** resolved same session — rebased onto `origin/main`, then RE-RAN the enumeration
+against the rebased tree and confirmed the three new upstream workflows have **no** setup-java steps
+to harden (so no gap this time). Pushed `d3ebde9ecc`; all 17 lanes green including the matrix Core
+job (Oracle JDK 26 leg correctly gated off).
+
+**Gate:** before enumerating targets for any repo-wide sweep whose result will be pushed,
+`git fetch && git rebase origin/main` (or reset to it) FIRST so the enumeration reflects the tree you
+will actually push — never sweep on a base you have only fetched but not integrated. After any rebase
+that moves the base, RE-RUN the enumeration (grep the freshly-rebased tree), because upstream may have
+added new files in the swept category. A clean rebase does not imply a complete sweep.
