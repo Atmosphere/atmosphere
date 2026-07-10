@@ -104,6 +104,9 @@ class AdminMcpBridgeTest {
         assertTrue(tools.containsKey("atmosphere_destroy_broadcaster"));
         assertTrue(tools.containsKey("atmosphere_cancel_task"));
         assertTrue(tools.containsKey("atmosphere_resume_run"));
+        // The tape read tool rides the authorizer-gated surface because tape
+        // content is pre-redaction; the ai module is on the test classpath.
+        assertTrue(tools.containsKey("atmosphere_read_tape"));
     }
 
     @Test
@@ -136,6 +139,119 @@ class AdminMcpBridgeTest {
             assertEquals("NOT_FOUND", result.get("status"));
         } finally {
             org.atmosphere.ai.resume.DurableRunSpineHolder.reset();
+        }
+    }
+
+    // ── Session tape read tool ──
+
+    @Test
+    void testReadTapeToolDeniedByAuthorizerAndAuditLogged() throws Exception {
+        var denyAll = (ControlAuthorizer) (action, target, principal) -> false;
+        var deniedBridge = new AdminMcpBridge(admin, registry, denyAll);
+        deniedBridge.registerWriteTools();
+
+        var tool = registry.tools().get("atmosphere_read_tape");
+        @SuppressWarnings("unchecked")
+        var result = (Map<String, Object>) tool.handler().execute(Map.of("runId", "run-1"));
+        assertEquals("unauthorized", result.get("error"));
+
+        var entries = admin.auditLog().entries();
+        assertEquals(1, entries.size());
+        assertEquals("read_tape.denied", entries.getFirst().action());
+        assertEquals("run-1", entries.getFirst().target());
+        assertFalse(entries.getFirst().success());
+    }
+
+    @Test
+    void testReadTapeToolReportsDisabledWhenNoTapeInstalled() throws Exception {
+        bridge.registerWriteTools();
+        var tool = registry.tools().get("atmosphere_read_tape");
+        @SuppressWarnings("unchecked")
+        var result = (Map<String, Object>) tool.handler().execute(Map.of());
+        assertEquals("session tape is not enabled", result.get("error"));
+    }
+
+    @Test
+    void testReadTapeToolListsRunsAndCursorReadsSteps() throws Exception {
+        var store = new org.atmosphere.ai.tape.InMemoryTapeStore();
+        var recorder = org.atmosphere.ai.tape.TapeSupport.install(store);
+        try {
+            store.begin(new org.atmosphere.ai.tape.TapeRun(
+                    "run-1", "tape-a", null, null, "alice", "/ai/chat", "model-1",
+                    "runtime-1", 1000L, org.atmosphere.ai.tape.TapeStatus.OPEN,
+                    null, 0, 0, false, null));
+            store.append("run-1", List.of(
+                    new org.atmosphere.ai.tape.TapeStep(
+                            "run-1", 0, "text", "{\"v\":1,\"text\":\"hel\"}", 1L),
+                    new org.atmosphere.ai.tape.TapeStep(
+                            "run-1", 1, "text", "{\"v\":1,\"text\":\"lo\"}", 2L),
+                    new org.atmosphere.ai.tape.TapeStep(
+                            "run-1", 2, "complete", "{\"v\":1}", 3L)));
+            store.markTerminal("run-1", org.atmosphere.ai.tape.TapeStatus.COMPLETED,
+                    org.atmosphere.ai.tape.TapeStore.Counters.NONE);
+
+            bridge.registerWriteTools();
+            var tool = registry.tools().get("atmosphere_read_tape");
+
+            // List mode, filtered by tapeId.
+            @SuppressWarnings("unchecked")
+            var listed = (Map<String, Object>) tool.handler().execute(Map.of("tapeId", "tape-a"));
+            @SuppressWarnings("unchecked")
+            var runs = (List<Map<String, Object>>) listed.get("runs");
+            assertEquals(1, runs.size());
+            assertEquals("run-1", runs.getFirst().get("runId"));
+            assertEquals("COMPLETED", runs.getFirst().get("status"));
+            assertEquals(3L, runs.getFirst().get("stepCount"));
+
+            // Cursor read: from seq 1, one step — and the cursor to resume at.
+            @SuppressWarnings("unchecked")
+            var page1 = (Map<String, Object>) tool.handler().execute(
+                    Map.of("runId", "run-1", "fromSeq", "1", "max", "1"));
+            @SuppressWarnings("unchecked")
+            var page1Steps = (List<Map<String, Object>>) page1.get("steps");
+            assertEquals(1, page1Steps.size());
+            assertEquals(1L, page1Steps.getFirst().get("seq"));
+            assertEquals("{\"v\":1,\"text\":\"lo\"}", page1Steps.getFirst().get("payload"));
+            assertEquals(2L, page1.get("nextSeq"));
+
+            // Resume from the returned cursor; max <= 0 means no cap.
+            @SuppressWarnings("unchecked")
+            var page2 = (Map<String, Object>) tool.handler().execute(
+                    Map.of("runId", "run-1", "fromSeq", "2", "max", "0"));
+            @SuppressWarnings("unchecked")
+            var page2Steps = (List<Map<String, Object>>) page2.get("steps");
+            assertEquals(1, page2Steps.size());
+            assertEquals("complete", page2Steps.getFirst().get("kind"));
+            assertEquals(3L, page2.get("nextSeq"));
+
+            // Every authorized read is audit-logged.
+            var entries = admin.auditLog().entries();
+            assertEquals(3, entries.size());
+            assertTrue(entries.stream().allMatch(
+                    e -> "read_tape".equals(e.action()) && e.success()));
+            assertEquals("runs=1", entries.getFirst().message());
+            assertEquals("steps=1", entries.getLast().message());
+        } finally {
+            org.atmosphere.ai.tape.TapeSupport.uninstall(recorder);
+        }
+    }
+
+    @Test
+    void testReadTapeToolRejectsMalformedStatusAsCallerError() throws Exception {
+        var store = new org.atmosphere.ai.tape.InMemoryTapeStore();
+        var recorder = org.atmosphere.ai.tape.TapeSupport.install(store);
+        try {
+            bridge.registerWriteTools();
+            var tool = registry.tools().get("atmosphere_read_tape");
+            @SuppressWarnings("unchecked")
+            var result = (Map<String, Object>) tool.handler().execute(
+                    Map.of("status", "NOT_A_STATUS"));
+            var error = (String) result.get("error");
+            assertNotNull(error);
+            assertTrue(error.startsWith("invalid argument"),
+                    "malformed status must be reported as caller input, got: " + error);
+        } finally {
+            org.atmosphere.ai.tape.TapeSupport.uninstall(recorder);
         }
     }
 

@@ -370,6 +370,8 @@ public class AtmosphereProperties {
 
         private CodeProperties code = new CodeProperties();
 
+        private TapeProperties tape = new TapeProperties();
+
         public boolean isEnabled() {
             return enabled;
         }
@@ -392,6 +394,14 @@ public class AtmosphereProperties {
 
         public void setCode(CodeProperties code) {
             this.code = code;
+        }
+
+        public TapeProperties getTape() {
+            return tape;
+        }
+
+        public void setTape(TapeProperties tape) {
+            this.tape = tape;
         }
 
         public RoutingProperties getRouting() {
@@ -1487,6 +1497,114 @@ public class AtmosphereProperties {
 
         public void setMaxEffectsPerRun(int maxEffectsPerRun) {
             this.maxEffectsPerRun = maxEffectsPerRun;
+        }
+    }
+
+    /**
+     * Session-tape configuration, bound to {@code atmosphere.ai.tape.*}. When
+     * {@code enabled}, every AI streaming session crossing the endpoint or
+     * pipeline dispatch path is recorded as an append-only per-run step log —
+     * as-produced at the session boundary, post-decorator.
+     */
+    public static class TapeProperties {
+
+        /** Master switch. When false no recorder is ever installed (the default). */
+        private boolean enabled = false;
+
+        /** Store backend: {@code sqlite} (default, crash-durable) or {@code memory}. */
+        private String store = "sqlite";
+
+        /** SQLite database file path for the {@code sqlite} store. */
+        private String path = "${java.io.tmpdir}/atmosphere-tape.db";
+
+        /** Cap on retained runs (oldest terminal run evicted past it). */
+        private int maxRuns = 10_000;
+
+        /** Per-run step cap; past it recording stops and the run is flagged truncated. */
+        private int maxStepsPerRun = 5_000;
+
+        /** Per-run text accumulator cap in characters before a forced TEXT-step flush. */
+        private int maxTextChars = 262_144;
+
+        /** Bounded step-queue capacity; overflow drops steps (never terminals). */
+        private int queueCapacity = 8192;
+
+        /** OPEN runs with no append for this long are marked ABANDONED. */
+        private Duration idleTimeout = Duration.ofMinutes(30);
+
+        /** Minimum age before the writer tick flushes accumulated text as a TEXT step. */
+        private Duration textFlushInterval = Duration.ofSeconds(10);
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getStore() {
+            return store;
+        }
+
+        public void setStore(String store) {
+            this.store = store;
+        }
+
+        public String getPath() {
+            return path;
+        }
+
+        public void setPath(String path) {
+            this.path = path;
+        }
+
+        public int getMaxRuns() {
+            return maxRuns;
+        }
+
+        public void setMaxRuns(int maxRuns) {
+            this.maxRuns = maxRuns;
+        }
+
+        public int getMaxStepsPerRun() {
+            return maxStepsPerRun;
+        }
+
+        public void setMaxStepsPerRun(int maxStepsPerRun) {
+            this.maxStepsPerRun = maxStepsPerRun;
+        }
+
+        public int getMaxTextChars() {
+            return maxTextChars;
+        }
+
+        public void setMaxTextChars(int maxTextChars) {
+            this.maxTextChars = maxTextChars;
+        }
+
+        public int getQueueCapacity() {
+            return queueCapacity;
+        }
+
+        public void setQueueCapacity(int queueCapacity) {
+            this.queueCapacity = queueCapacity;
+        }
+
+        public Duration getIdleTimeout() {
+            return idleTimeout;
+        }
+
+        public void setIdleTimeout(Duration idleTimeout) {
+            this.idleTimeout = idleTimeout;
+        }
+
+        public Duration getTextFlushInterval() {
+            return textFlushInterval;
+        }
+
+        public void setTextFlushInterval(Duration textFlushInterval) {
+            this.textFlushInterval = textFlushInterval;
         }
     }
 }

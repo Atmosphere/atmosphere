@@ -288,6 +288,60 @@
       "name": "atmosphere.ai.code.setup",
       "type": "java.lang.String",
       "description": "Bridge for org.atmosphere.ai.code.setup (optional one-time bootstrap command run via bash -lc when the sandbox starts; operator-supplied only). Unset = don't bridge; a JVM-set system property wins."
+    },
+    {
+      "name": "atmosphere.ai.tape.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether to record every AI streaming session as an append-only session tape (as-produced at the session boundary, post-decorator). Off by default.",
+      "defaultValue": false
+    },
+    {
+      "name": "atmosphere.ai.tape.store",
+      "type": "java.lang.String",
+      "description": "Tape store backend: sqlite (crash-durable, requires atmosphere-checkpoint) or memory. Falls back to the in-memory store with a NOT-crash-durable warning when atmosphere-checkpoint is absent.",
+      "defaultValue": "sqlite"
+    },
+    {
+      "name": "atmosphere.ai.tape.path",
+      "type": "java.lang.String",
+      "description": "SQLite database file path for the sqlite tape store. The literal ${java.io.tmpdir} is expanded to the JVM temp directory.",
+      "defaultValue": "${java.io.tmpdir}/atmosphere-tape.db"
+    },
+    {
+      "name": "atmosphere.ai.tape.max-runs",
+      "type": "java.lang.Integer",
+      "description": "Maximum retained tape runs before the oldest terminal runs are evicted.",
+      "defaultValue": 10000
+    },
+    {
+      "name": "atmosphere.ai.tape.max-steps-per-run",
+      "type": "java.lang.Integer",
+      "description": "Per-run step cap; past it recording stops and the run is flagged truncated (the stream itself is never failed).",
+      "defaultValue": 5000
+    },
+    {
+      "name": "atmosphere.ai.tape.max-text-chars",
+      "type": "java.lang.Integer",
+      "description": "Per-run text accumulator cap in characters before a forced TEXT-step flush.",
+      "defaultValue": 262144
+    },
+    {
+      "name": "atmosphere.ai.tape.queue-capacity",
+      "type": "java.lang.Integer",
+      "description": "Bounded step-queue capacity between recording sessions and the tape writer; overflow drops steps (never terminals) and counts them.",
+      "defaultValue": 8192
+    },
+    {
+      "name": "atmosphere.ai.tape.idle-timeout",
+      "type": "java.time.Duration",
+      "description": "OPEN runs with no append for this long are marked ABANDONED.",
+      "defaultValue": "30m"
+    },
+    {
+      "name": "atmosphere.ai.tape.text-flush-interval",
+      "type": "java.time.Duration",
+      "description": "Minimum age before the tape writer tick flushes accumulated text as a TEXT step.",
+      "defaultValue": "10s"
     }
   ],
   "hints": [

@@ -191,7 +191,123 @@ public final class AdminMcpBridge {
                     return Map.of("status", status.name(), "output", session.text());
                 });
 
+        // Session tape read tool — optional AI module, registered like the
+        // other optional-module tools.
+        registerTapeReadTool();
+
         logger.info("Atmosphere Admin: registered 5 write MCP tools (authorizer-gated)");
+    }
+
+    /**
+     * Register the {@code atmosphere_read_tape} tool. The tool is read-only,
+     * but tape content is recorded pre-redaction, so it stays on the
+     * authorizer-gated surface (default deny — Correctness Invariant #6)
+     * rather than the ALLOW_ALL read surface. The store is resolved at call
+     * time from the AI module's {@code TapeSupport} holder; when no tape is
+     * installed the tool reports it as disabled (runtime truth — Correctness
+     * Invariant #5). Registration is skipped when the optional AI module is
+     * not on the classpath. AI types appear only inside handler bodies, never
+     * in method signatures, so reflecting over this class without the AI
+     * module present cannot trigger a {@code NoClassDefFoundError}.
+     */
+    private void registerTapeReadTool() {
+        try {
+            Class.forName("org.atmosphere.ai.tape.TapeSupport");
+        } catch (ClassNotFoundException e) {
+            logger.trace("Could not register tape MCP tool", e);
+            return;
+        }
+
+        registry.registerTool("atmosphere_read_tape",
+                "Read the session tape: list recorded AI runs by tapeId/status, or cursor-read "
+                        + "one run's steps with (runId, fromSeq, max)",
+                List.of(
+                        new ParamEntry("runId", "Run ID to read steps from (omit to list runs)",
+                                false, String.class),
+                        new ParamEntry("fromSeq", "First step sequence number to read (default 0)",
+                                false, String.class),
+                        new ParamEntry("max", "Max steps to return; <= 0 for no cap (default 100)",
+                                false, String.class),
+                        new ParamEntry("tapeId", "Filter runs by conversation tape ID",
+                                false, String.class),
+                        new ParamEntry("status", "Filter runs by status: OPEN, COMPLETED, ERROR, "
+                                + "CANCELLED or ABANDONED", false, String.class),
+                        new ParamEntry("limit", "Max runs to list (default 50)",
+                                false, String.class)),
+                (McpRegistry.IdentityAwareToolHandler) (args, principal) -> {
+                    var runId = (String) args.get("runId");
+                    var tapeId = (String) args.get("tapeId");
+                    var target = runId != null ? runId : (tapeId != null ? tapeId : "*");
+                    if (!authorizer.authorize("read_tape", target, principal)) {
+                        admin.auditLog().record(principal, "read_tape.denied", target, false, null);
+                        return Map.of("error", "unauthorized");
+                    }
+                    var store = org.atmosphere.ai.tape.TapeSupport.installedStore();
+                    if (store.isEmpty()) {
+                        return Map.of("error", "session tape is not enabled");
+                    }
+                    try {
+                        if (runId != null) {
+                            var fromSeqStr = (String) args.get("fromSeq");
+                            var maxStr = (String) args.get("max");
+                            long fromSeq = fromSeqStr != null ? Long.parseLong(fromSeqStr) : 0L;
+                            int max = maxStr != null ? Integer.parseInt(maxStr) : 100;
+                            var steps = store.get().readSteps(runId, fromSeq, max);
+                            var stepList = new java.util.ArrayList<Map<String, Object>>(steps.size());
+                            long nextSeq = fromSeq;
+                            for (var step : steps) {
+                                stepList.add(Map.of(
+                                        "seq", step.seq(),
+                                        "kind", step.kind(),
+                                        "payload", step.payload(),
+                                        "ts", step.ts()));
+                                nextSeq = step.seq() + 1;
+                            }
+                            admin.auditLog().record(principal, "read_tape", runId, true,
+                                    "steps=" + stepList.size());
+                            return Map.of("runId", runId, "steps", stepList, "nextSeq", nextSeq);
+                        }
+                        var statusStr = (String) args.get("status");
+                        var limitStr = (String) args.get("limit");
+                        var status = statusStr != null
+                                ? org.atmosphere.ai.tape.TapeStatus.valueOf(
+                                        statusStr.trim().toUpperCase(java.util.Locale.ROOT))
+                                : null;
+                        int limit = limitStr != null ? Integer.parseInt(limitStr) : 50;
+                        var runs = store.get().listRuns(
+                                new org.atmosphere.ai.tape.TapeQuery(tapeId, status, limit));
+                        var runList = new java.util.ArrayList<Map<String, Object>>(runs.size());
+                        for (var run : runs) {
+                            // TapeRun has nullable fields (Map.of rejects nulls).
+                            var row = new java.util.LinkedHashMap<String, Object>();
+                            row.put("runId", run.runId());
+                            row.put("tapeId", run.tapeId());
+                            row.put("sessionId", run.sessionId());
+                            row.put("resourceUuid", run.resourceUuid());
+                            row.put("userId", run.userId());
+                            row.put("endpoint", run.endpoint());
+                            row.put("model", run.model());
+                            row.put("runtimeName", run.runtimeName());
+                            row.put("startedAt", run.startedAt());
+                            row.put("status", run.status().name());
+                            row.put("endedAt", run.endedAt());
+                            row.put("stepCount", run.stepCount());
+                            row.put("droppedSteps", run.droppedSteps());
+                            row.put("truncated", run.truncated());
+                            row.put("parentRunId", run.parentRunId());
+                            runList.add(row);
+                        }
+                        admin.auditLog().record(principal, "read_tape", target, true,
+                                "runs=" + runList.size());
+                        return Map.of("runs", runList);
+                    } catch (IllegalArgumentException e) {
+                        // Malformed cursor number or unknown status — caller
+                        // input, reported as such (Correctness Invariant #4).
+                        return Map.of("error", "invalid argument: " + e.getMessage());
+                    }
+                });
+
+        logger.debug("Atmosphere Admin: registered tape read MCP tool (authorizer-gated)");
     }
 
     @SuppressWarnings("unchecked")

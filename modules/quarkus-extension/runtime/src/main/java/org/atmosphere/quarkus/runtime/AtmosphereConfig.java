@@ -444,6 +444,119 @@ public interface AtmosphereConfig {
             @WithDefault("true")
             boolean durableRuns();
         }
+
+        /**
+         * Session-tape configuration block.
+         *
+         * @return the tape sub-configuration block
+         */
+        Tape tape();
+
+        /**
+         * Session-tape sub-configuration, bound to
+         * {@code quarkus.atmosphere.ai.tape.*}. Mirrors the Spring Boot
+         * starters' {@code atmosphere.ai.tape.*} keys; when {@code enabled}
+         * the {@code AtmosphereTapeProducer} installs a {@code TapeRecorder}
+         * so every AI streaming session crossing the endpoint or pipeline
+         * dispatch path is recorded as an append-only per-run step log —
+         * as-produced at the session boundary, post-decorator. Off by default
+         * — turning it on is the operator's explicit opt-in (Correctness
+         * Invariant #6). Requires {@code atmosphere-ai} on the classpath;
+         * {@code store=sqlite} additionally requires
+         * {@code atmosphere-checkpoint} for crash survival.
+         */
+        interface Tape {
+
+            /**
+             * Tri-state master switch, off when unset. Set {@code true} to
+             * record every AI streaming session; no preset implies the tape,
+             * so unset and an explicit {@code false} behave identically —
+             * the shape mirrors {@code durable-runs.enabled} so the config
+             * surfaces read the same way across both features.
+             *
+             * @return the explicit switch, empty when unset
+             */
+            Optional<Boolean> enabled();
+
+            /**
+             * Store backend: {@code sqlite} (crash-durable, bundled in
+             * {@code atmosphere-checkpoint}) or {@code memory}. Defaults to
+             * {@code sqlite}; falls back to the in-memory store with a
+             * NOT-crash-durable warning when {@code atmosphere-checkpoint}
+             * is absent (Correctness Invariant #5).
+             *
+             * @return the store backend name
+             */
+            @WithDefault("sqlite")
+            String store();
+
+            /**
+             * Filesystem path for the SQLite tape store. The literal
+             * {@code ${java.io.tmpdir}} is expanded to the JVM temp
+             * directory. Ignored when {@code store=memory}.
+             *
+             * @return the SQLite database path
+             */
+            @WithDefault("${java.io.tmpdir}/atmosphere-tape.db")
+            String path();
+
+            /**
+             * Maximum retained tape runs before the oldest terminal runs are
+             * evicted. Bounds store growth (Correctness Invariant #3).
+             *
+             * @return the maximum retained run count
+             */
+            @WithDefault("10000")
+            int maxRuns();
+
+            /**
+             * Per-run step cap; past it recording stops and the run is
+             * flagged truncated — the stream itself is never failed. Bounds
+             * per-run store growth (Correctness Invariant #3).
+             *
+             * @return the maximum steps retained per run
+             */
+            @WithDefault("5000")
+            int maxStepsPerRun();
+
+            /**
+             * Per-run text accumulator cap in characters before a forced
+             * TEXT-step flush.
+             *
+             * @return the text accumulator cap
+             */
+            @WithDefault("262144")
+            int maxTextChars();
+
+            /**
+             * Bounded step-queue capacity between recording sessions and the
+             * tape writer; overflow drops steps (never terminals) and counts
+             * them (Correctness Invariant #3).
+             *
+             * @return the step-queue capacity
+             */
+            @WithDefault("8192")
+            int queueCapacity();
+
+            /**
+             * OPEN runs with no append for this long are marked ABANDONED.
+             * Accepts ISO-8601 duration or Quarkus shorthand ({@code 30s},
+             * {@code 5m}, {@code 1h}). Defaults to {@code 30m}.
+             *
+             * @return the idle timeout
+             */
+            @WithDefault("30m")
+            Duration idleTimeout();
+
+            /**
+             * Minimum age before the writer tick flushes accumulated text as
+             * a TEXT step. Defaults to {@code 10s}.
+             *
+             * @return the text flush interval
+             */
+            @WithDefault("10s")
+            Duration textFlushInterval();
+        }
     }
 
     /**

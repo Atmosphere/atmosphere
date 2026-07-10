@@ -388,6 +388,18 @@ public class AiPipeline {
      */
     public void execute(String clientId, String message, StreamingSession session,
                         Map<String, Object> extraMetadata) {
+        // Session tape: wrap at METHOD ENTRY — before the guardrail / policy
+        // admission loops — so pre-admission session.error() denials are taped
+        // as ERROR runs (endpoint-path parity: AiStreamingSession routes
+        // denials through its delegate, which the endpoint tape wraps). The
+        // pipeline has no RunRegistry, so a tape-scoped run id is minted at
+        // wrap and the conversation key is the clientId. Zero-cost no-op when
+        // nothing is installed.
+        if (org.atmosphere.ai.tape.TapeSupport.installed()) {
+            session = org.atmosphere.ai.tape.TapeSupport.wrap(session,
+                    org.atmosphere.ai.tape.TapeRunInfo.pipeline(clientId, model,
+                            runtime != null ? runtime.name() : null));
+        }
         var history = memory != null
                 ? memory.getHistory(clientId)
                 : List.<org.atmosphere.ai.llm.ChatMessage>of();

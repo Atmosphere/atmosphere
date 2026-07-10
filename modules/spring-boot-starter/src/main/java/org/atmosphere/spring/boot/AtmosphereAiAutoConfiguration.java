@@ -944,6 +944,140 @@ public class AtmosphereAiAutoConfiguration {
         }
     }
 
+    /**
+     * Installs the session tape on startup when
+     * {@code atmosphere.ai.tape.enabled=true}. Off by default — persisting
+     * every session-boundary event is the operator's explicit opt-in
+     * (Correctness Invariant #6). The store is resolved as: a user-supplied
+     * {@link org.atmosphere.ai.tape.TapeStore} bean, else the bundled
+     * crash-durable SQLite store when the optional {@code atmosphere-checkpoint}
+     * module is present, else the in-memory store with a NOT-crash-durable
+     * warning (Correctness Invariant #5). The recorder is uninstalled and a
+     * store this installer created is closed on shutdown (Ownership,
+     * Correctness Invariant #1).
+     */
+    @Bean
+    @ConditionalOnMissingBean(TapeInstaller.class)
+    @ConditionalOnProperty(name = "atmosphere.ai.tape.enabled", havingValue = "true")
+    public TapeInstaller atmosphereTapeInstaller(
+            AtmosphereProperties properties,
+            org.springframework.beans.factory.ObjectProvider<org.atmosphere.ai.tape.TapeStore>
+                    storeProvider) {
+        return new TapeInstaller(properties.getAi().getTape(), storeProvider);
+    }
+
+    /** Builds the tape store, installs the recorder, and tears both down symmetrically. */
+    static final class TapeInstaller
+            implements org.springframework.beans.factory.SmartInitializingSingleton,
+                       org.springframework.beans.factory.DisposableBean {
+
+        private final AtmosphereProperties.TapeProperties config;
+        private final org.springframework.beans.factory.ObjectProvider<
+                org.atmosphere.ai.tape.TapeStore> storeProvider;
+        // Non-null only when this installer created the store — so destroy()
+        // closes a store we own but never a user-supplied bean (Invariant #1).
+        private org.atmosphere.ai.tape.TapeStore ownedStore;
+        // Non-null only when this installer's install won the holder — a refused
+        // double-install must not uninstall the other owner's recorder.
+        private org.atmosphere.ai.tape.TapeRecorder recorder;
+
+        TapeInstaller(AtmosphereProperties.TapeProperties config,
+                      org.springframework.beans.factory.ObjectProvider<
+                              org.atmosphere.ai.tape.TapeStore> storeProvider) {
+            this.config = config;
+            this.storeProvider = storeProvider;
+        }
+
+        @Override
+        public void afterSingletonsInstantiated() {
+            var userStore = storeProvider.getIfAvailable();
+            org.atmosphere.ai.tape.TapeStore store;
+            boolean created;
+            if (userStore != null) {
+                store = userStore;
+                created = false;
+            } else {
+                store = resolveBundledStore();
+                created = true;
+            }
+            var recorderConfig = new org.atmosphere.ai.tape.TapeRecorder.Config(
+                    config.getQueueCapacity(), config.getMaxTextChars(),
+                    config.getIdleTimeout(), config.getTextFlushInterval());
+            var installed = org.atmosphere.ai.tape.TapeSupport.install(store, recorderConfig);
+            if (installed.store() != store) {
+                // TapeSupport refused a double-install (the @SpringBootTest
+                // context-caching scenario) and returned the earlier recorder.
+                // This installer owns neither that recorder nor its store, so
+                // destroy() must leave both alone; the store created for the
+                // refused install would leak otherwise — close it now
+                // (Terminal Path Completeness, Invariant #2).
+                if (created) {
+                    closeQuietly(store);
+                }
+                return;
+            }
+            this.recorder = installed;
+            if (created) {
+                this.ownedStore = store;
+            }
+            if (store.durable()) {
+                logger.info("Session tape enabled (store={}, crash-durable, maxRuns={}, "
+                        + "maxStepsPerRun={})", store.name(), store.maxRuns(), store.maxStepsPerRun());
+            } else {
+                logger.warn("Session tape enabled but store '{}' is in-memory — NOT crash-durable. "
+                        + "Add the atmosphere-checkpoint dependency (store=sqlite) for crash survival "
+                        + "(Correctness Invariant #5).", store.name());
+            }
+        }
+
+        private org.atmosphere.ai.tape.TapeStore resolveBundledStore() {
+            var maxRuns = config.getMaxRuns();
+            var maxSteps = config.getMaxStepsPerRun();
+            var wantsSqlite = "sqlite".equalsIgnoreCase(config.getStore());
+            var sqlitePresent = org.springframework.util.ClassUtils.isPresent(
+                    "org.atmosphere.checkpoint.SqliteTapeStore", getClass().getClassLoader());
+            if (wantsSqlite && sqlitePresent) {
+                var path = config.getPath().replace(
+                        "${java.io.tmpdir}", System.getProperty("java.io.tmpdir"));
+                try {
+                    return SqliteTapeStoreFactory.create(path, maxRuns, maxSteps);
+                } catch (RuntimeException e) {
+                    logger.error("Failed to open the SQLite tape store at {} — falling back to the "
+                            + "in-memory store (NOT crash-durable)", path, e);
+                    return new org.atmosphere.ai.tape.InMemoryTapeStore(maxRuns, maxSteps);
+                }
+            }
+            if (wantsSqlite) {
+                logger.warn("atmosphere.ai.tape.store=sqlite but the atmosphere-checkpoint module is "
+                        + "not on the classpath — using the in-memory store (NOT crash-durable). Add "
+                        + "the atmosphere-checkpoint dependency for crash survival.");
+            }
+            return new org.atmosphere.ai.tape.InMemoryTapeStore(maxRuns, maxSteps);
+        }
+
+        @Override
+        public void destroy() {
+            if (recorder != null) {
+                org.atmosphere.ai.tape.TapeSupport.uninstall(recorder);
+            }
+            if (ownedStore != null) {
+                closeQuietly(ownedStore);
+            }
+        }
+
+        private static void closeQuietly(org.atmosphere.ai.tape.TapeStore store) {
+            try {
+                store.close();
+            } catch (Exception e) {
+                logger.debug("Error closing the session-tape store on shutdown", e);
+            }
+        }
+
+        /** Exposed so tests can assert the resolved store. */
+        org.atmosphere.ai.tape.TapeStore resolvedStore() {
+            return ownedStore != null ? ownedStore : storeProvider.getIfAvailable();
+        }
+    }
 
     /**
      * Opt-in content-based model routing. Off by default — enable with

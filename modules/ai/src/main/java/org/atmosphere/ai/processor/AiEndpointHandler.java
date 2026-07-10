@@ -407,8 +407,17 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         var tools = toolRegistry != null
                 ? java.util.List.copyOf(toolRegistry.allTools())
                 : java.util.List.<org.atmosphere.ai.tool.ToolDefinition>of();
-        var session = new org.atmosphere.ai.resume.RunIdStreamingSession(
+        var leaf = new org.atmosphere.ai.resume.RunIdStreamingSession(
                 StreamingSessions.start(resource), runId);
+        // Session tape: the resumed re-drive appends to the SAME tape run
+        // (begin is an idempotent upsert), with a RESUMED marker step first,
+        // so the run reaches a true terminal instead of dangling OPEN.
+        // Zero-cost no-op when nothing is installed.
+        var session = !org.atmosphere.ai.tape.TapeSupport.installed() ? leaf
+                : org.atmosphere.ai.tape.TapeSupport.wrap(leaf,
+                        org.atmosphere.ai.tape.TapeRunInfo.resumed(conversationId(resource),
+                                resource.uuid(), pathTemplate, resumeModel(),
+                                runtime != null ? runtime.name() : null, runId, principal));
         var resumer = new org.atmosphere.ai.resume.DurableRunResumer(spine);
         Thread.startVirtualThread(() -> {
             try {
@@ -419,6 +428,19 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 logger.warn("Durable resume of run {} failed", runId, e);
             }
         });
+    }
+
+    /**
+     * The model a crash-resume tape run is attributed to — the same
+     * resolution the live prompt path uses (endpoint override, else the
+     * framework-wide {@link AiConfig} model).
+     */
+    private String resumeModel() {
+        if (endpointModel != null) {
+            return endpointModel;
+        }
+        var settings = AiConfig.get();
+        return settings != null ? settings.model() : null;
     }
 
     /** The reconnecting caller's principal, matched against the run owner on resume. */
@@ -547,6 +569,19 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             traced = new TracingCapturingSession(delegate, metrics, model);
         }
 
+        // Session tape: wrap the traced leaf so the tape becomes
+        // AiStreamingSession's delegate and records everything crossing the
+        // session boundary post-decorator (runtime writes, chain-originated
+        // events, @Prompt-body sends, handler error/timeout routing). Run
+        // identity is late-bound — bindRun fires right after setRunId below.
+        // Zero-cost no-op when nothing is installed.
+        if (org.atmosphere.ai.tape.TapeSupport.installed()) {
+            traced = org.atmosphere.ai.tape.TapeSupport.wrap(traced,
+                    org.atmosphere.ai.tape.TapeRunInfo.endpoint(conversationId(resource),
+                            resource.uuid(), pathTemplate, model,
+                            runtime != null ? runtime.name() : null));
+        }
+
         var responseType = injectables.get(Class.class) instanceof Class<?> c ? c : null;
         // Append grounded facts to the END of the system prompt via
         // FactResolver. Appending (not prepending) keeps the stable
@@ -671,6 +706,12 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         var handle = org.atmosphere.ai.resume.RunRegistryHolder.get().register(
                 pathTemplate, runUserId, resource.uuid(), runExecutionHandle);
         session.setRunId(handle.runId());
+        // Late-bind the tape run to the registry-minted identity so the taped
+        // run joins the RunRegistry / EffectJournal runId (provenance). The
+        // setRunId metadata frame above buffered pre-bind and is re-keyed here.
+        if (traced instanceof org.atmosphere.ai.tape.TapeRecordingSession tape) {
+            tape.bindRun(handle.runId(), runUserId);
+        }
 
         // Durable-execution spine: when an operator has opted in (a journal is
         // resolved), install the per-run scope — the single-writer lease plus
@@ -911,6 +952,11 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         }
         DefaultStreamingSession.cleanupResource(resource);
         AiStreamingSession.removeAllForResource(resource.uuid());
+        // Session tape: cancel-mark every open taped run of this resource
+        // (reconnects get a fresh uuid, so this never races a live run). The
+        // writer drains already-queued steps before CANCELLED lands. No-op
+        // when nothing is installed.
+        org.atmosphere.ai.tape.TapeSupport.resourceDisconnected(resource.uuid());
         lifecycle.onDisconnect(target, event);
         logger.info(logMessage, resource.uuid());
     }

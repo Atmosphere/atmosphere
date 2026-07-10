@@ -651,6 +651,28 @@ class AtmosphereProcessor {
     }
 
     /**
+     * Quarkus parity for the Spring Boot starters' {@code TapeInstaller} (in
+     * {@code AtmosphereAiAutoConfiguration}). Requires {@code atmosphere-ai} on
+     * the classpath ({@code TapeSupport} lives there). When present the producer
+     * bean is registered; on startup it reads {@code quarkus.atmosphere.ai.tape.*}
+     * and, when {@code enabled=true}, installs a {@code TapeRecorder} via
+     * {@code TapeSupport} so every AI streaming session is recorded as an
+     * append-only per-run step log. The bean is a no-op when the tape is
+     * disabled, so registering it unconditionally (when {@code atmosphere-ai} is
+     * present) carries no runtime cost beyond one startup observer.
+     */
+    @BuildStep
+    void registerTapeProducer(BuildProducer<AdditionalBeanBuildItem> beans) {
+        if (!isClassPresent("org.atmosphere.ai.tape.TapeSupport")) {
+            return;
+        }
+        beans.produce(AdditionalBeanBuildItem.unremovableOf(
+                "org.atmosphere.quarkus.runtime.AtmosphereTapeProducer"));
+        logger.info("Atmosphere session tape producer registered "
+                + "(quarkus.atmosphere.ai.tape.enabled gates installation)");
+    }
+
+    /**
      * Build-time classpath detection for optional integrations. Quarkus
      * extensions resolve dependencies through their own classloader, which
      * matches the build classpath for the extension processor; this is the
