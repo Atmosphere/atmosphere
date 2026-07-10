@@ -214,18 +214,31 @@ public class AtmosphereAutoConfiguration {
                     // isolation is the sandboxed opaque origin, so a script-src 'self'
                     // header would break the proxy bridge.
                     if (resourceName.equals("index.html")) {
+                        // Per-request nonce -> nonce-based strict CSP (no
+                        // 'unsafe-inline'). The Vite build stamps a placeholder on
+                        // the meta/script/link tags; we mint a fresh 128-bit value
+                        // per response, substitute it into the served HTML, and
+                        // match it in the CSP header. index.html is served no-store
+                        // so a nonce is never reused; the hashed assets carry no
+                        // nonce and stay cacheable.
+                        var nonce = freshNonce();
+                        var html = new String(resource.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)
+                                .replace(NONCE_PLACEHOLDER, nonce);
                         httpRes.setHeader("Content-Security-Policy",
                                 buildConsoleCsp(httpReq.getScheme(),
-                                        httpReq.getHeader("Host"), configuredSandboxOrigin));
-                        // Clickjacking defense for the top-level console page.
-                        // Deliberately NOT set on sandbox.html, which the MCP Apps
-                        // proxy frames from a distinct sibling origin
-                        // (localhost<->127.0.0.1) for isolation — SAMEORIGIN there
-                        // would break the sandbox. frame-ancestors 'self' lives in
-                        // the CSP above; this covers legacy browsers.
-                        httpRes.setHeader("X-Frame-Options", "SAMEORIGIN");
+                                        httpReq.getHeader("Host"), configuredSandboxOrigin, nonce));
+                        // Anti-clickjacking: the console is always the top frame (it
+                        // frames the sandbox; nothing frames it). frame-ancestors
+                        // 'none' in the CSP is the modern control; X-Frame-Options
+                        // DENY covers legacy browsers. Deliberately NOT set on
+                        // sandbox.html, which the MCP Apps proxy frames from a
+                        // distinct sibling origin (localhost<->127.0.0.1).
+                        httpRes.setHeader("X-Frame-Options", "DENY");
+                        httpRes.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+                        httpRes.getOutputStream().write(html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    } else {
+                        resource.transferTo(httpRes.getOutputStream());
                     }
-                    resource.transferTo(httpRes.getOutputStream());
                 }
                 return;
             }
@@ -233,15 +246,28 @@ public class AtmosphereAutoConfiguration {
             chain.doFilter(request, response);
         }
 
+        /** The literal nonce sentinel the Vite build stamps onto meta/script/link tags. */
+        static final String NONCE_PLACEHOLDER = "__ATMO_CSP_NONCE__";
+        private static final java.security.SecureRandom NONCE_RNG = new java.security.SecureRandom();
+
+        /** A fresh, base64-encoded 128-bit CSP nonce for a single response. */
+        static String freshNonce() {
+            var b = new byte[16];
+            NONCE_RNG.nextBytes(b);
+            return java.util.Base64.getEncoder().encodeToString(b);
+        }
+
         /**
-         * The console's Content-Security-Policy. Mirrors the former static
-         * {@code <meta>} XSS hardening, but {@code frame-src} additionally
-         * lists the resolvable MCP Apps sandbox origins: {@code 'self'}, the
-         * dev loopback sibling ({@code localhost}<->{@code 127.0.0.1}, same
-         * port/scheme), and the configured origin when set and not the current
-         * origin. Package-visible for unit testing.
+         * The console's nonce-based strict Content-Security-Policy. {@code script-src}
+         * and {@code style-src} carry the per-request {@code nonce}; {@code script-src}
+         * adds {@code 'strict-dynamic'} so the nonced Vite entry propagates trust to its
+         * hashed ES-module chunks (no {@code 'self'}, no {@code 'unsafe-inline'}).
+         * {@code frame-src} lists the resolvable MCP Apps sandbox origins: {@code 'self'},
+         * the dev loopback sibling ({@code localhost}<->{@code 127.0.0.1}, same
+         * port/scheme), and the configured origin when set and not the current origin.
+         * Package-visible for unit testing.
          */
-        static String buildConsoleCsp(String scheme, String host, String configuredOrigin) {
+        static String buildConsoleCsp(String scheme, String host, String configuredOrigin, String nonce) {
             var frameSrc = new StringBuilder("'self'");
             var sibling = siblingOrigin(scheme, host);
             if (sibling != null) {
@@ -254,11 +280,13 @@ public class AtmosphereAutoConfiguration {
                     frameSrc.append(' ').append(trimmed);
                 }
             }
-            return "default-src 'self'; script-src 'self'; "
-                    + "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
-                    + "font-src 'self' data:; connect-src 'self' ws: wss:; "
+            return "default-src 'self'; "
+                    + "script-src 'nonce-" + nonce + "' 'strict-dynamic'; "
+                    + "style-src 'self' 'nonce-" + nonce + "'; "
+                    + "img-src 'self' data:; font-src 'self' data:; "
+                    + "connect-src 'self' ws: wss:; "
                     + "frame-src " + frameSrc + "; object-src 'none'; "
-                    + "base-uri 'self'; form-action 'self'; frame-ancestors 'self'";
+                    + "base-uri 'none'; frame-ancestors 'none'; form-action 'self'";
         }
 
         /**

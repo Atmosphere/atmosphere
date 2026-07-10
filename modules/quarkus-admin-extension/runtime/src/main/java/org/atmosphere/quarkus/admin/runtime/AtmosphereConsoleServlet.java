@@ -88,6 +88,25 @@ public class AtmosphereConsoleServlet extends HttpServlet {
                 return;
             }
             resp.setContentType(contentTypeFor(relative));
+            // Baseline hardening on every console resource (mode parity with the
+            // Spring Boot ConsoleResourceFilter): block MIME sniffing and referrer
+            // leakage.
+            resp.setHeader("X-Content-Type-Options", "nosniff");
+            resp.setHeader("Referrer-Policy", "no-referrer");
+            if ("/index.html".equals(relative)) {
+                // The admin bundle here is a committed artifact, not the
+                // nonce-stamped Vite output the Spring Boot console serves, so this
+                // uses a non-nonce CSP. It is still strict: the shell has no inline
+                // scripts, so script-src 'self' blocks injected inline script and
+                // event handlers; object-src/base-uri close the script-src bypasses
+                // and frame-ancestors 'none' is the anti-clickjacking control.
+                resp.setHeader("Content-Security-Policy",
+                        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+                                + "img-src 'self' data:; font-src 'self' data:; "
+                                + "connect-src 'self' ws: wss:; object-src 'none'; "
+                                + "base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
+                resp.setHeader("X-Frame-Options", "DENY");
+            }
             // Long cache for hashed assets; short for the index entrypoint.
             if (relative.startsWith("/assets/")) {
                 resp.setHeader("Cache-Control", "public, max-age=31536000, immutable");

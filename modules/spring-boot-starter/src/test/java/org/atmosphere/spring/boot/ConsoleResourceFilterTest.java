@@ -182,8 +182,10 @@ class ConsoleResourceFilterTest {
         verify(response).setHeader(org.mockito.ArgumentMatchers.eq("Content-Security-Policy"),
                 csp.capture());
         assertThat(csp.getValue()).contains("frame-src 'self' http://127.0.0.1:8083");
-        // The XSS hardening is preserved — no 'unsafe-inline' in script-src.
-        assertThat(csp.getValue()).contains("script-src 'self';");
+        // Nonce-based strict CSP: per-request nonce + strict-dynamic, no 'unsafe-inline' anywhere.
+        assertThat(csp.getValue()).contains("script-src 'nonce-");
+        assertThat(csp.getValue()).contains("'strict-dynamic'");
+        assertThat(csp.getValue()).doesNotContain("'unsafe-inline'");
         assertThat(csp.getValue()).contains("object-src 'none'");
     }
 
@@ -214,21 +216,21 @@ class ConsoleResourceFilterTest {
     @Test
     void buildConsoleCspSwapsLocalhostToLoopback() {
         var csp = AtmosphereAutoConfiguration.ConsoleResourceFilter
-                .buildConsoleCsp("http", "localhost:8083", "");
+                .buildConsoleCsp("http", "localhost:8083", "", "n0nce");
         assertThat(csp).contains("frame-src 'self' http://127.0.0.1:8083;");
     }
 
     @Test
     void buildConsoleCspSwapsLoopbackToLocalhost() {
         var csp = AtmosphereAutoConfiguration.ConsoleResourceFilter
-                .buildConsoleCsp("http", "127.0.0.1:8083", "");
+                .buildConsoleCsp("http", "127.0.0.1:8083", "", "n0nce");
         assertThat(csp).contains("frame-src 'self' http://localhost:8083;");
     }
 
     @Test
     void buildConsoleCspAddsConfiguredOrigin() {
         var csp = AtmosphereAutoConfiguration.ConsoleResourceFilter
-                .buildConsoleCsp("https", "console.example.com", "https://sandbox.example.com");
+                .buildConsoleCsp("https", "console.example.com", "https://sandbox.example.com", "n0nce");
         // Non-loopback host → no dev sibling, but the configured origin is allowed.
         assertThat(csp).contains("frame-src 'self' https://sandbox.example.com;");
     }
@@ -236,7 +238,7 @@ class ConsoleResourceFilterTest {
     @Test
     void buildConsoleCspSkipsConfiguredOriginWhenSameAsCurrent() {
         var csp = AtmosphereAutoConfiguration.ConsoleResourceFilter
-                .buildConsoleCsp("http", "localhost:8083", "http://localhost:8083");
+                .buildConsoleCsp("http", "localhost:8083", "http://localhost:8083", "n0nce");
         // Configured == current origin → only the dev sibling is added, not a self-frame dup.
         assertThat(csp).contains("frame-src 'self' http://127.0.0.1:8083;");
     }
@@ -244,7 +246,7 @@ class ConsoleResourceFilterTest {
     @Test
     void buildConsoleCspNonLoopbackHasNoSibling() {
         var csp = AtmosphereAutoConfiguration.ConsoleResourceFilter
-                .buildConsoleCsp("https", "console.example.com", "");
+                .buildConsoleCsp("https", "console.example.com", "", "n0nce");
         assertThat(csp).contains("frame-src 'self';");
     }
 
@@ -266,19 +268,43 @@ class ConsoleResourceFilterTest {
 
         filter.doFilter(request, response, chain);
 
-        verify(response).setHeader("X-Frame-Options", "SAMEORIGIN");
+        verify(response).setHeader("X-Frame-Options", "DENY");
         verify(response).setHeader("X-Content-Type-Options", "nosniff");
         verify(response).setHeader("Referrer-Policy", "no-referrer");
+        // index.html is served no-store so the per-request nonce is never reused.
+        verify(response).setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
         var csp = org.mockito.ArgumentCaptor.forClass(String.class);
         verify(response).setHeader(org.mockito.ArgumentMatchers.eq("Content-Security-Policy"),
                 csp.capture());
-        assertThat(csp.getValue()).contains("frame-ancestors 'self'");
+        assertThat(csp.getValue()).contains("frame-ancestors 'none'");
+        assertThat(csp.getValue()).contains("script-src 'nonce-");
+    }
+
+    @Test
+    void injectedNonceInHtmlMatchesCspHeaderNonce() throws Exception {
+        when(request.getRequestURI()).thenReturn("/atmosphere/console/");
+        when(request.getScheme()).thenReturn("http");
+        when(request.getHeader("Host")).thenReturn("localhost:8083");
+
+        filter.doFilter(request, response, chain);
+
+        var csp = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(response).setHeader(org.mockito.ArgumentMatchers.eq("Content-Security-Policy"),
+                csp.capture());
+        var m = java.util.regex.Pattern.compile("script-src 'nonce-([^']+)'").matcher(csp.getValue());
+        assertThat(m.find()).isTrue();
+        var nonce = m.group(1);
+        var body = capturedOutput.toString();
+        // The placeholder must be substituted, and the HTML nonce must byte-match
+        // the header nonce — any drift blocks every script/style in the browser.
+        assertThat(body).doesNotContain("__ATMO_CSP_NONCE__");
+        assertThat(body).contains("nonce=\"" + nonce + "\"");
     }
 
     @Test
     void doesNotEmitXFrameOptionsOnSandboxHtml() throws Exception {
         // sandbox.html is deliberately framed from a distinct sibling origin for
-        // MCP Apps isolation — X-Frame-Options: SAMEORIGIN would break it.
+        // MCP Apps isolation — X-Frame-Options: DENY would break it.
         when(request.getRequestURI()).thenReturn("/atmosphere/console/sandbox.html");
         filter.doFilter(request, response, chain);
 
@@ -301,9 +327,13 @@ class ConsoleResourceFilterTest {
     }
 
     @Test
-    void buildConsoleCspIncludesFrameAncestorsSelf() {
+    void buildConsoleCspIsNonceBasedStrict() {
         var csp = AtmosphereAutoConfiguration.ConsoleResourceFilter
-                .buildConsoleCsp("http", "localhost:8083", "");
-        assertThat(csp).contains("frame-ancestors 'self'");
+                .buildConsoleCsp("http", "localhost:8083", "", "n0nce");
+        assertThat(csp).contains("script-src 'nonce-n0nce' 'strict-dynamic'");
+        assertThat(csp).contains("style-src 'self' 'nonce-n0nce'");
+        assertThat(csp).contains("base-uri 'none'");
+        assertThat(csp).contains("frame-ancestors 'none'");
+        assertThat(csp).doesNotContain("'unsafe-inline'");
     }
 }
