@@ -61,6 +61,8 @@ public class AtmosphereProperties {
 
     private WebTransportProperties webTransport = new WebTransportProperties();
 
+    private SecurityHeadersProperties securityHeaders = new SecurityHeadersProperties();
+
     /**
      * Agent-as-artifact workspace directory (OpenClaw or Atmosphere-native
      * layout). A filesystem path or a {@code classpath:} resource that resolves
@@ -181,6 +183,14 @@ public class AtmosphereProperties {
 
     public void setWebTransport(WebTransportProperties webTransport) {
         this.webTransport = webTransport;
+    }
+
+    public SecurityHeadersProperties getSecurityHeaders() {
+        return securityHeaders;
+    }
+
+    public void setSecurityHeaders(SecurityHeadersProperties securityHeaders) {
+        this.securityHeaders = securityHeaders;
     }
 
     public String getWorkspace() {
@@ -1270,6 +1280,36 @@ public class AtmosphereProperties {
                     costPerStreamingText != null ? costPerStreamingText : 0.0,
                     averageLatencyMs != null ? averageLatencyMs : 0L,
                     capability != null ? capability : 0);
+        }
+    }
+
+    /**
+     * Opt-in baseline security response headers for an application's own routes
+     * (its root SPA and static assets). {@code /atmosphere/*} is never touched —
+     * the console/MCP/A2A/transport paths carry their own policies.
+     */
+    public static class SecurityHeadersProperties {
+
+        /** Enable the baseline hardening filter. Off by default (opt-in). */
+        private boolean enabled = false;
+
+        /** {@code X-Frame-Options} value; {@code frame-ancestors} is derived from it. */
+        private String frameOptions = "DENY";
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getFrameOptions() {
+            return frameOptions;
+        }
+
+        public void setFrameOptions(String frameOptions) {
+            this.frameOptions = frameOptions;
         }
     }
 

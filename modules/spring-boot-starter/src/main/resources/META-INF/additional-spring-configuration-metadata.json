@@ -7,6 +7,18 @@
       "defaultValue": true
     },
     {
+      "name": "atmosphere.security-headers.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable a baseline security-headers filter (X-Frame-Options, X-Content-Type-Options, Referrer-Policy, CSP frame-ancestors) on the application's own routes. Skips /atmosphere/* so the console keeps its own strict CSP. Off by default (opt-in).",
+      "defaultValue": false
+    },
+    {
+      "name": "atmosphere.security-headers.frame-options",
+      "type": "java.lang.String",
+      "description": "The X-Frame-Options value emitted by the security-headers filter; the CSP frame-ancestors directive is derived from it (DENY -> 'none', SAMEORIGIN -> 'self').",
+      "defaultValue": "DENY"
+    },
+    {
       "name": "atmosphere.ai.rag.safety.enabled",
       "type": "java.lang.Boolean",
       "description": "Whether to wrap every @AiEndpoint ContextProvider with the RAG injection-safety screen (OWASP Agentic A04). On by default; set false to disable.",

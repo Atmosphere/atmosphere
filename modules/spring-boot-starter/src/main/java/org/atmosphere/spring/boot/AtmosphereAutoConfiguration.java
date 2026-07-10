@@ -146,6 +146,70 @@ public class AtmosphereAutoConfiguration {
     }
 
     /**
+     * Opt-in baseline security response headers for an application's own routes
+     * (its root SPA + static assets). Off by default; enable with
+     * {@code atmosphere.security-headers.enabled=true} (Correctness Invariant #6).
+     *
+     * <p>Deliberately skips {@code /atmosphere/*} so it never overwrites the
+     * console's own strict CSP ({@link ConsoleResourceFilter#buildConsoleCsp}),
+     * and emits ONLY {@code Content-Security-Policy: frame-ancestors ...} — no
+     * {@code connect-src}/{@code script-src}. A {@code connect-src 'self' ws: wss:}
+     * policy would block the different-origin WebTransport/HTTP-3 endpoint
+     * (Alt-Svc, separate port) and force a transport downgrade.</p>
+     */
+    @Bean
+    @ConditionalOnMissingBean(name = "atmosphereSecurityHeadersFilter")
+    @ConditionalOnProperty(name = "atmosphere.security-headers.enabled", havingValue = "true")
+    org.springframework.boot.web.servlet.FilterRegistrationBean<jakarta.servlet.Filter> atmosphereSecurityHeadersFilter(
+            AtmosphereProperties properties) {
+        var registration = new org.springframework.boot.web.servlet.FilterRegistrationBean<jakarta.servlet.Filter>(
+                new SecurityHeadersFilter(properties.getSecurityHeaders().getFrameOptions()));
+        registration.addUrlPatterns("/*");
+        // Run early so headers are set before the app's root response commits; the
+        // /atmosphere/* skip makes ordering vs. the console filter immaterial.
+        registration.setOrder(-100);
+        return registration;
+    }
+
+    /**
+     * Emits baseline hardening headers on an application's own routes, skipping
+     * {@code /atmosphere/*} (console/MCP/A2A/transport carry their own policies).
+     * Plain {@link jakarta.servlet.Filter} — not {@code OncePerRequestFilter} —
+     * because {@code spring-web} is only test-scoped in this module.
+     */
+    static class SecurityHeadersFilter implements jakarta.servlet.Filter {
+
+        private final String frameOptions;
+        private final String csp;
+
+        SecurityHeadersFilter(String frameOptions) {
+            this.frameOptions = (frameOptions == null || frameOptions.isBlank())
+                    ? "DENY" : frameOptions.trim();
+            // Keep X-Frame-Options and CSP frame-ancestors coherent so the two
+            // anti-framing headers never contradict each other.
+            var frameAncestors = "SAMEORIGIN".equalsIgnoreCase(this.frameOptions) ? "'self'" : "'none'";
+            this.csp = "frame-ancestors " + frameAncestors;
+        }
+
+        @Override
+        public void doFilter(jakarta.servlet.ServletRequest request,
+                jakarta.servlet.ServletResponse response, jakarta.servlet.FilterChain chain)
+                throws java.io.IOException, jakarta.servlet.ServletException {
+            var httpReq = (jakarta.servlet.http.HttpServletRequest) request;
+            var httpRes = (jakarta.servlet.http.HttpServletResponse) response;
+            var path = httpReq.getRequestURI();
+            // Only decorate the app's own routes; /atmosphere/* keeps its own policy.
+            if (path == null || !path.startsWith("/atmosphere/")) {
+                httpRes.setHeader("X-Content-Type-Options", "nosniff");
+                httpRes.setHeader("Referrer-Policy", "no-referrer");
+                httpRes.setHeader("X-Frame-Options", frameOptions);
+                httpRes.setHeader("Content-Security-Policy", csp);
+            }
+            chain.doFilter(request, response);
+        }
+    }
+
+    /**
      * Serves built-in console static assets from {@code META-INF/resources/atmosphere/console/}
      * before the Atmosphere servlet (mapped to {@code /atmosphere/*}) can intercept them.
      */

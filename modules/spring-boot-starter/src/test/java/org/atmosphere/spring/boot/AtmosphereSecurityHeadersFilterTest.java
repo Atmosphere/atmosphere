@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.samples.mcp;
+package org.atmosphere.spring.boot;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -26,12 +26,13 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.junit.jupiter.api.Test;
 
-class SecurityHeadersFilterTest {
+class AtmosphereSecurityHeadersFilterTest {
 
-    private final SecurityHeadersFilter filter = new SecurityHeadersFilter();
+    private final AtmosphereAutoConfiguration.SecurityHeadersFilter filter =
+            new AtmosphereAutoConfiguration.SecurityHeadersFilter("DENY");
 
     @Test
-    void hardensTheRootReactApp() throws Exception {
+    void hardensTheApplicationsOwnRoot() throws Exception {
         var req = mock(HttpServletRequest.class);
         var res = mock(HttpServletResponse.class);
         var chain = mock(FilterChain.class);
@@ -42,15 +43,13 @@ class SecurityHeadersFilterTest {
         verify(res).setHeader("X-Frame-Options", "DENY");
         verify(res).setHeader("X-Content-Type-Options", "nosniff");
         verify(res).setHeader("Referrer-Policy", "no-referrer");
-        verify(res).setHeader(org.mockito.ArgumentMatchers.eq("Content-Security-Policy"),
-                org.mockito.ArgumentMatchers.contains("frame-ancestors 'none'"));
+        verify(res).setHeader("Content-Security-Policy", "frame-ancestors 'none'");
         verify(chain).doFilter(req, res);
     }
 
     @Test
-    void doesNotClobberFrameworkConsoleHardening() throws Exception {
-        // /atmosphere/console/* carries the framework's nonce-based strict CSP;
-        // this sample filter must not overwrite it.
+    void doesNotTouchAtmospherePaths() throws Exception {
+        // /atmosphere/* (console nonce CSP, MCP, A2A, transports) must be left alone.
         var req = mock(HttpServletRequest.class);
         var res = mock(HttpServletResponse.class);
         var chain = mock(FilterChain.class);
@@ -65,5 +64,19 @@ class SecurityHeadersFilterTest {
                 org.mockito.ArgumentMatchers.eq("X-Frame-Options"),
                 org.mockito.ArgumentMatchers.anyString());
         verify(chain).doFilter(req, res);
+    }
+
+    @Test
+    void frameAncestorsStayCoherentWithSameoriginFrameOptions() throws Exception {
+        var sameOrigin = new AtmosphereAutoConfiguration.SecurityHeadersFilter("SAMEORIGIN");
+        var req = mock(HttpServletRequest.class);
+        var res = mock(HttpServletResponse.class);
+        var chain = mock(FilterChain.class);
+        when(req.getRequestURI()).thenReturn("/app.js");
+
+        sameOrigin.doFilter(req, res, chain);
+
+        verify(res).setHeader("X-Frame-Options", "SAMEORIGIN");
+        verify(res).setHeader("Content-Security-Policy", "frame-ancestors 'self'");
     }
 }
