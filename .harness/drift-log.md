@@ -2358,3 +2358,36 @@ job (Oracle JDK 26 leg correctly gated off).
 will actually push — never sweep on a base you have only fetched but not integrated. After any rebase
 that moves the base, RE-RUN the enumeration (grep the freshly-rebased tree), because upstream may have
 added new files in the swept category. A clean rebase does not imply a complete sweep.
+
+---
+
+## 2026-07-10 — Overstated tempest campaign coverage ("21 samples missioned")
+
+**Claim:** Reported the tempest red-team campaign "ran 21 of ~25 bootable samples as full
+missions" and framed the 13 zero-finding results as samples that "genuinely completed clean once
+the framework was hardened" — implying broad, validated cross-sample coverage.
+
+**Truth:** Only **7** samples were genuinely tested (missions whose findings actually reference the
+intended target `sample-target:8084`: admin-bundle, ai-chat, ai-classroom, chat, guarded-email,
+mcp-server, ms-governance), plus the original a2a-agent run (=8). One sample (ai-tools) mis-targeted
+`dravr-target:8081` (tempest's built-in default) and only found "target unreachable". The 13
+"0 findings" missions ran their full ~20-minute duration but captured nothing — and a correctly
+targeted web recon *always* yields at least open-ports/DNS findings, so 0 findings means the mission
+never reached `sample-target:8084`, not that the app is clean. Net real coverage was ~8/32 sample
+dirs, not 21.
+
+**Slip path:** I trusted the campaign's own "DONE — N findings" log lines and the presence of a
+per-sample result file as proof a mission happened, without checking that the findings referenced the
+*intended target host*. A degenerate/mis-targeted mission produces the same "DONE" line and a
+(empty or dravr-target) result file as a real one. I generalized "framework findings validated across
+samples" from the 7 that worked to the whole set.
+
+**Fix status:** the security *fixes* are unaffected — the 7 genuine samples surfaced every real
+framework finding (CORS, CSP/clickjacking, charset, headers), all fixed + chrome-devtools-verified +
+CI-green. Only the coverage claim was inflated; corrected in-session. A proper re-run (fixing the
+target-readiness race so every mission provably hits sample-target) is offered but not yet done.
+
+**Gate:** a campaign/e2e result counts as "tested" only when its output references the *intended
+target* (assert the target host/port appears in the findings), never merely because a "DONE" line or
+a result file exists. Zero findings from a live web recon is a RED flag (mission didn't connect), not
+a clean bill of health — treat it as a failed run, not a pass.
