@@ -275,6 +275,15 @@ public class AtmosphereProperties {
      *  When set, the console uses this path instead of auto-detecting. */
     private String consoleEndpoint = "";
 
+    /** Wire transport the console chat should speak to reach this sample's
+     *  endpoint. Defaults to {@code atmosphere} (WebSocket + long-polling
+     *  fallback over the Atmosphere AI-chat protocol). Samples that expose a
+     *  non-Atmosphere transport set this so the console loads the matching
+     *  adapter: {@code grpc} (Connect-RPC), {@code a2a} (A2A JSON-RPC over SSE),
+     *  or {@code ag-ui} (AG-UI named SSE). Unrecognized values fall back to
+     *  {@code atmosphere} in {@code /api/console/info} (Runtime Truth). */
+    private String consoleTransport = "atmosphere";
+
     /** Whether to register admin write tools as MCP tools (default false). */
     private String adminMcpWriteTools = "false";
 
@@ -301,6 +310,14 @@ public class AtmosphereProperties {
 
     public void setConsoleEndpoint(String consoleEndpoint) {
         this.consoleEndpoint = consoleEndpoint;
+    }
+
+    public String getConsoleTransport() {
+        return consoleTransport;
+    }
+
+    public void setConsoleTransport(String consoleTransport) {
+        this.consoleTransport = consoleTransport;
     }
 
     public String getMcpSandboxOrigin() {

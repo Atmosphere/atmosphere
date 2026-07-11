@@ -83,6 +83,13 @@ public class AtmosphereConsoleInfoEndpoint {
         result.put("endpoint", endpoint);
         result.put("runtime", detectRuntime());
         result.put("mode", mode);
+        // Wire transport the console client should use to reach this endpoint.
+        // "atmosphere" (WS + long-polling) for every AI/broadcast sample; samples
+        // exposing a foreign transport (grpc / a2a / ag-ui) opt in via
+        // atmosphere.console-transport so the console lazy-loads the matching
+        // adapter. Validated against the known set — an unrecognized value is
+        // reported as "atmosphere" rather than echoed back (Runtime Truth #5).
+        result.put("transport", detectTransport());
         // Report the live MCP endpoint (if any) so the console can host MCP Apps
         // (SEP-1865) against it. Omitted when no MCP handler is registered, so
         // the console only surfaces the Apps tab when there's truly one to talk
@@ -324,6 +331,25 @@ public class AtmosphereConsoleInfoEndpoint {
             logger.debug("Could not classify handler mode for {}", endpoint, e);
             return "ai";
         }
+    }
+
+    /**
+     * The wire transport the console client should use, validated against the
+     * set of transports the console actually ships an adapter for. Any value
+     * outside {@code atmosphere | grpc | a2a | ag-ui} (including blank) is
+     * reported as {@code atmosphere} so a typo can never make the console load
+     * an adapter that doesn't exist and silently fail to connect (Runtime Truth
+     * — Invariant #5: advertise only confirmed capability).
+     */
+    private String detectTransport() {
+        var configured = properties.getConsoleTransport();
+        if (configured == null) {
+            return "atmosphere";
+        }
+        return switch (configured.trim().toLowerCase(java.util.Locale.ROOT)) {
+            case "grpc", "a2a", "ag-ui" -> configured.trim().toLowerCase(java.util.Locale.ROOT);
+            default -> "atmosphere";
+        };
     }
 
     private String detectRuntime() {

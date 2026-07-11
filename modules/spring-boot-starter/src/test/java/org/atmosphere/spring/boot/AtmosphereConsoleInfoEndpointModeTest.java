@@ -102,6 +102,42 @@ class AtmosphereConsoleInfoEndpointModeTest {
     }
 
     @Test
+    void transportDefaultsToAtmosphereWhenUnset() {
+        // Every AI/broadcast sample leaves atmosphere.console-transport at its
+        // default, so the console loads its built-in WS transport.
+        assertThat(newEndpoint(Map.of()).info()).containsEntry("transport", "atmosphere");
+    }
+
+    @Test
+    void transportReflectsConfiguredForeignAdapter() {
+        // A sample exposing a foreign transport opts in; the console lazy-loads
+        // the matching adapter. Each recognized value is passed through.
+        for (var t : java.util.List.of("grpc", "a2a", "ag-ui")) {
+            var props = new AtmosphereProperties();
+            props.setConsoleTransport(t);
+            assertThat(newEndpoint(props, Map.of()).info())
+                    .as("transport %s", t)
+                    .containsEntry("transport", t);
+        }
+    }
+
+    @Test
+    void transportNormalizesCaseAndWhitespace() {
+        var props = new AtmosphereProperties();
+        props.setConsoleTransport("  AG-UI  ");
+        assertThat(newEndpoint(props, Map.of()).info()).containsEntry("transport", "ag-ui");
+    }
+
+    @Test
+    void unknownTransportFallsBackToAtmosphere() {
+        // Runtime Truth (#5): a typo must not make the console try to load an
+        // adapter that doesn't exist and silently fail to connect.
+        var props = new AtmosphereProperties();
+        props.setConsoleTransport("websocket-turbo");
+        assertThat(newEndpoint(props, Map.of()).info()).containsEntry("transport", "atmosphere");
+    }
+
+    @Test
     void capabilityFlagsEmittedAsBooleansDefaultFalse() {
         // The frontend gates the Interactions/Validation tabs on these flags
         // instead of probing (which 404s on samples without those modules).
