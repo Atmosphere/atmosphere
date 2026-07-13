@@ -27,6 +27,7 @@ import org.atmosphere.admin.metrics.MetricsController;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.ClassUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -1088,11 +1089,35 @@ public class AtmosphereAdminEndpoint {
     }
 
     /**
+     * Whether the optional {@code atmosphere-ai} tape package is on the
+     * classpath. Probed once, without force-loading the tape types, so this
+     * always-active admin controller ({@code @ConditionalOnBean(AtmosphereAdmin)})
+     * registers even on samples that don't carry {@code atmosphere-ai} (an
+     * optional starter dependency). A direct reference to a tape type in a
+     * controller method signature would make Spring's {@code getDeclaredMethods}
+     * reflection force-load the tape package at bean registration and crash
+     * those samples with {@link NoClassDefFoundError}. The tape reads live in
+     * {@link TapeAdminSupport}, reached only through the guarded bodies below.
+     */
+    private static final boolean TAPE_ON_CLASSPATH = tapeOnClasspath();
+
+    private static boolean tapeOnClasspath() {
+        try {
+            ClassUtils.forName("org.atmosphere.ai.tape.TapeSupport",
+                    AtmosphereAdminEndpoint.class.getClassLoader());
+            return true;
+        } catch (ClassNotFoundException | LinkageError absent) {
+            return false; // atmosphere-ai not on this sample's classpath
+        }
+    }
+
+    /**
      * Session tape — list recorded AI runs (newest first), optionally filtered
      * by {@code tapeId} / {@code status}. Reads the installed
-     * {@link org.atmosphere.ai.tape.TapeStore}; returns an empty list when the
-     * tape is disabled (runtime truth). The tape holds pre-redaction content, so
-     * this endpoint sits behind the content-read-auth gate (see
+     * {@link org.atmosphere.ai.tape.TapeStore} via {@link TapeAdminSupport};
+     * returns an empty list when the tape is disabled or {@code atmosphere-ai}
+     * is absent (runtime truth). The tape holds pre-redaction content, so this
+     * endpoint sits behind the content-read-auth gate (see
      * {@code AtmosphereAdminAutoConfiguration.AdminApiAuthFilter} — Invariant #6).
      */
     @GetMapping("/tape/runs")
@@ -1100,14 +1125,10 @@ public class AtmosphereAdminEndpoint {
             @RequestParam(value = "tapeId", required = false) String tapeId,
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "limit", defaultValue = "100") int limit) {
-        var store = org.atmosphere.ai.tape.TapeSupport.installedStore();
-        if (store.isEmpty()) {
+        if (!TAPE_ON_CLASSPATH) {
             return ResponseEntity.ok(List.of());
         }
-        var query = new org.atmosphere.ai.tape.TapeQuery(
-                tapeId != null && !tapeId.isBlank() ? tapeId : null, parseTapeStatus(status), limit);
-        return ResponseEntity.ok(store.get().listRuns(query).stream()
-                .map(AtmosphereAdminEndpoint::tapeRunToMap).toList());
+        return ResponseEntity.ok(TapeAdminSupport.runs(tapeId, status, limit));
     }
 
     /**
@@ -1120,49 +1141,10 @@ public class AtmosphereAdminEndpoint {
             @PathVariable("runId") String runId,
             @RequestParam(value = "fromSeq", defaultValue = "0") long fromSeq,
             @RequestParam(value = "max", defaultValue = "500") int max) {
-        var store = org.atmosphere.ai.tape.TapeSupport.installedStore();
-        if (store.isEmpty()) {
+        if (!TAPE_ON_CLASSPATH) {
             return ResponseEntity.ok(Map.of("runId", runId, "steps", List.of()));
         }
-        var steps = store.get().readSteps(runId, fromSeq, max).stream()
-                .map(AtmosphereAdminEndpoint::tapeStepToMap).toList();
-        return ResponseEntity.ok(Map.of("runId", runId, "steps", steps, "count", steps.size()));
-    }
-
-    private static org.atmosphere.ai.tape.TapeStatus parseTapeStatus(String status) {
-        if (status == null || status.isBlank()) {
-            return null;
-        }
-        try {
-            return org.atmosphere.ai.tape.TapeStatus.valueOf(
-                    status.trim().toUpperCase(java.util.Locale.ROOT));
-        } catch (IllegalArgumentException unknown) {
-            return null; // lenient read: an unknown status filters nothing
-        }
-    }
-
-    private static Map<String, Object> tapeRunToMap(org.atmosphere.ai.tape.TapeRun r) {
-        var m = new java.util.LinkedHashMap<String, Object>();
-        m.put("runId", r.runId());
-        m.put("tapeId", r.tapeId());
-        m.put("status", r.status().name());
-        m.put("model", r.model());
-        m.put("runtime", r.runtimeName());
-        m.put("endpoint", r.endpoint());
-        m.put("startedAt", r.startedAt());
-        m.put("endedAt", r.endedAt());
-        m.put("stepCount", r.stepCount());
-        m.put("droppedSteps", r.droppedSteps());
-        return m;
-    }
-
-    private static Map<String, Object> tapeStepToMap(org.atmosphere.ai.tape.TapeStep s) {
-        var m = new java.util.LinkedHashMap<String, Object>();
-        m.put("seq", s.seq());
-        m.put("kind", s.kind());
-        m.put("payload", s.payload());
-        m.put("ts", s.ts());
-        return m;
+        return ResponseEntity.ok(TapeAdminSupport.steps(runId, fromSeq, max));
     }
 
     /**

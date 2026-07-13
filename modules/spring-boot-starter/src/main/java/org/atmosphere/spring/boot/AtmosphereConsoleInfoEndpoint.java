@@ -115,11 +115,14 @@ public class AtmosphereConsoleInfoEndpoint {
         // off samples that carry no store, and off a 404 probe (Runtime Truth —
         // Invariant #5).
         result.put("hasCheckpoints", hasBean("org.atmosphere.checkpoint.CheckpointStore"));
-        // Session tape: true only when a recorder is actually installed
-        // (TapeSupport.installed()), not merely on the classpath — so the Tape
-        // tab and its /api/admin/tape reads appear only when the opt-in tape is
-        // live (Runtime Truth — Invariant #5).
-        result.put("hasTape", org.atmosphere.ai.tape.TapeSupport.installed());
+        // Session tape: true only when a recorder is actually installed, not
+        // merely on the classpath — so the Tape tab and its /api/admin/tape
+        // reads appear only when the opt-in tape is live (Runtime Truth —
+        // Invariant #5). Probed reflectively because atmosphere-ai is an
+        // optional dependency: a direct TapeSupport.installed() call would
+        // NoClassDefFoundError when info is requested on a sample that doesn't
+        // carry the tape package.
+        result.put("hasTape", hasInstalledTape());
         // RAG injection-safety: reported only when a ContextProvider was actually
         // wrapped at endpoint registration (Runtime Truth — Invariant #5), with
         // the effective classifier tier after any runtime-absent downgrade.
@@ -240,6 +243,28 @@ public class AtmosphereConsoleInfoEndpoint {
             var type = ClassUtils.forName(fqcn, context.getClassLoader());
             return context.getBeanNamesForType(type, true, false).length > 0;
         } catch (ClassNotFoundException | LinkageError e) {
+            return false;
+        }
+    }
+
+    /**
+     * Whether a session-tape store is installed at runtime
+     * ({@code TapeSupport.installed()}). Probed reflectively so this
+     * always-active endpoint keeps no compile-time link to the optional
+     * {@code atmosphere-ai} tape package — a direct call would throw
+     * {@link NoClassDefFoundError} when info is requested on a sample that
+     * doesn't carry atmosphere-ai. Absent package and absent store both read
+     * as {@code false} (Runtime Truth — Invariant #5).
+     */
+    private boolean hasInstalledTape() {
+        try {
+            var type = ClassUtils.forName("org.atmosphere.ai.tape.TapeSupport",
+                    context.getClassLoader());
+            return Boolean.TRUE.equals(type.getMethod("installed").invoke(null));
+        } catch (ClassNotFoundException | LinkageError absent) {
+            return false;
+        } catch (ReflectiveOperationException e) {
+            logger.trace("tape installed() probe failed", e);
             return false;
         }
     }
