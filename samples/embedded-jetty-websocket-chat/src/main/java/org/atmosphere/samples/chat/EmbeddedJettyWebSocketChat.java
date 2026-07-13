@@ -51,6 +51,12 @@ public class EmbeddedJettyWebSocketChat {
 
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
+        // A plain ServletContextHandler (unlike a WAR's WebAppContext) does NOT hide the
+        // reserved WEB-INF/META-INF directories, so the DefaultServlet below would happily
+        // serve /WEB-INF/web.xml and the /META-INF/maven/**/pom.properties tree to any
+        // unauthenticated client (broken access control + exact-version disclosure). Mark
+        // them as protected targets so Jetty returns 404 for those paths.
+        context.setProtectedTargets(new String[]{"/WEB-INF", "/META-INF"});
 
         // Use target/webapp first (contains all dependencies), fallback to src/main/webapp,
         // then classpath (fat JAR). Bind the ResourceFactory to the server's lifecycle so
@@ -78,7 +84,7 @@ public class EmbeddedJettyWebSocketChat {
 
         // Add DefaultServlet to serve static content
         ServletHolder defaultServlet = new ServletHolder("default", DefaultServlet.class);
-        defaultServlet.setInitParameter("dirAllowed", "true");
+        defaultServlet.setInitParameter("dirAllowed", "false");
         defaultServlet.setInitParameter("welcomeServlets", "true");
         defaultServlet.setInitParameter("redirectWelcome", "true");
         context.addServlet(defaultServlet, "/*");
