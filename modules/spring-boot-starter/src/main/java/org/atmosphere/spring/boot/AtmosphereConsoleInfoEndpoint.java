@@ -115,6 +115,11 @@ public class AtmosphereConsoleInfoEndpoint {
         // off samples that carry no store, and off a 404 probe (Runtime Truth —
         // Invariant #5).
         result.put("hasCheckpoints", hasBean("org.atmosphere.checkpoint.CheckpointStore"));
+        // Session tape: true only when a recorder is actually installed
+        // (TapeSupport.installed()), not merely on the classpath — so the Tape
+        // tab and its /api/admin/tape reads appear only when the opt-in tape is
+        // live (Runtime Truth — Invariant #5).
+        result.put("hasTape", org.atmosphere.ai.tape.TapeSupport.installed());
         // RAG injection-safety: reported only when a ContextProvider was actually
         // wrapped at endpoint registration (Runtime Truth — Invariant #5), with
         // the effective classifier tier after any runtime-absent downgrade.

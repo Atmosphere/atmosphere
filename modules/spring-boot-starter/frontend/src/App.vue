@@ -10,11 +10,12 @@ import Workspace from './components/Workspace.vue'
 import Interactions from './components/Interactions.vue'
 import Validation from './components/Validation.vue'
 import Checkpoints from './components/Checkpoints.vue'
+import Tape from './components/Tape.vue'
 import McpApps from './components/McpApps.vue'
 import { livePlan } from './lib/workspaceStore'
 import logoUrl from './assets/logo.svg'
 
-type Tab = 'chat' | 'sessions' | 'workspace' | 'interactions' | 'validation' | 'checkpoints' | 'apps' | 'policies' | 'decisions' | 'owasp' | 'commitments'
+type Tab = 'chat' | 'sessions' | 'workspace' | 'interactions' | 'validation' | 'checkpoints' | 'tape' | 'apps' | 'policies' | 'decisions' | 'owasp' | 'commitments'
 
 const subtitle = ref('')
 const endpoint = ref('/atmosphere/ai-chat')
@@ -35,6 +36,7 @@ const workspaceAvailable = ref(false)
 const interactionsAvailable = ref(false)
 const validationAvailable = ref(false)
 const checkpointsAvailable = ref(false)
+const tapeAvailable = ref(false)
 
 async function probeGovernance() {
   try {
@@ -114,6 +116,9 @@ const tabs = computed(() => {
   if (checkpointsAvailable.value) {
     list.push({ id: 'checkpoints', label: 'Checkpoints' })
   }
+  if (tapeAvailable.value) {
+    list.push({ id: 'tape', label: 'Tape' })
+  }
   if (mcpEndpoint.value) {
     list.push({ id: 'apps', label: 'MCP Apps' })
   }
@@ -150,6 +155,7 @@ onMounted(async () => {
       interactionsAvailable.value = data.hasInteractions === true
       validationAvailable.value = data.hasVerifier === true
       checkpointsAvailable.value = data.hasCheckpoints === true
+      tapeAvailable.value = data.hasTape === true
       harnessPresent = data.harness != null && typeof data.harness === 'object'
     }
   } catch {
@@ -202,6 +208,8 @@ onMounted(async () => {
                   :active="activeTab === 'validation'" />
       <Checkpoints v-if="ready && checkpointsAvailable" v-show="activeTab === 'checkpoints'"
                    :active="activeTab === 'checkpoints'" />
+      <Tape v-if="ready && tapeAvailable" v-show="activeTab === 'tape'"
+            :active="activeTab === 'tape'" />
       <McpApps v-if="ready && mcpEndpoint" v-show="activeTab === 'apps'"
                :endpoint="mcpEndpoint" :active="activeTab === 'apps'"
                :sandbox-origin="mcpSandboxOrigin ?? undefined" />
