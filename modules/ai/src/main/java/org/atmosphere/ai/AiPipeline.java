@@ -652,6 +652,14 @@ public class AiPipeline {
             context = context.withListeners(List.of(new AiEventForwardingListener(target)));
         }
 
+        // Session tape mode parity (Invariant #7): record the input prompt as an
+        // `input` step BEFORE the cache gate, so both cache-miss and cache-hit
+        // turns produce the same self-contained (prompt → completion) tape. The
+        // tape is `session` (wrapped at method entry); no-op when not installed.
+        if (session instanceof org.atmosphere.ai.tape.TapeRecordingSession tape) {
+            tape.recordInput(request.systemPrompt(), history, request.message());
+        }
+
         // Pipeline-level response cache: when the request opts in via
         // CacheHint and a ResponseCache is installed, check for a prior
         // identical response first. On hit, replay through the session

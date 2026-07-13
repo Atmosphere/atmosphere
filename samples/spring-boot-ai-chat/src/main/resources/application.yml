@@ -23,6 +23,16 @@ atmosphere:
   # note): --atmosphere.admin.content-read-auth-required=false.
   cache:
     enabled: true
+  # Session tape: record every AI turn (typed AiEvent steps: text, tool calls,
+  # structured output, terminals) as a durable, replayable, resumable artifact.
+  # The atmosphere-checkpoint dependency (pom.xml) supplies the crash-durable
+  # SqliteTapeStore; without it the tape falls back to the in-memory store with
+  # a startup warning. Override the file with ATMOSPHERE_TAPE_PATH.
+  ai:
+    tape:
+      enabled: true
+      store: sqlite
+      path: ${ATMOSPHERE_TAPE_PATH:${java.io.tmpdir}/atmosphere-ai-chat-tape.db}
 
 # LLM Configuration
 # Set via .envrc, environment variables, or override here.

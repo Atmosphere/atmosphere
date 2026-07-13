@@ -131,30 +131,34 @@ class TapeIntegrationTest {
         session.stream("tell me a story");
 
         var steps = awaitTerminalSteps("run-endpoint-1", TapeStatus.COMPLETED);
-        assertEquals(List.of("metadata", "metadata", "progress", "text", "tool-start",
+        assertEquals(List.of("metadata", "input", "metadata", "progress", "text", "tool-start",
                         "tool-result", "metadata", "metadata", "metadata", "text", "complete"),
                 kinds(steps),
-                "exact ordered tape expected — text coalesced, flushed at the tool "
-                        + "boundary and at the terminal, typed usage normalized to "
-                        + "ai.tokens.* metadata: " + steps);
+                "exact ordered tape expected — the input prompt recorded at dispatch, "
+                        + "text coalesced, flushed at the tool boundary and at the terminal, "
+                        + "typed usage normalized to ai.tokens.* metadata: " + steps);
         assertTrue(steps.get(0).payload().contains("\"key\":\"X-Atmosphere-Run-Id\""),
                 "the pre-bind setRunId frame must be re-keyed under the bound run: "
                         + steps.get(0).payload());
-        assertTrue(steps.get(1).payload().contains("\"key\":\"custom.note\""),
-                steps.get(1).payload());
-        assertTrue(steps.get(3).payload().contains("\"text\":\"Once upon a time\""),
+        assertTrue(steps.get(1).payload().contains("\"messages\":[")
+                        && steps.get(1).payload().contains("\"tell me a story\""),
+                "the input step records the prompt (system + user) at dispatch: "
+                        + steps.get(1).payload());
+        assertTrue(steps.get(2).payload().contains("\"key\":\"custom.note\""),
+                steps.get(2).payload());
+        assertTrue(steps.get(4).payload().contains("\"text\":\"Once upon a time\""),
                 "send + emit(TextDelta) must coalesce into ONE segment: "
-                        + steps.get(3).payload());
-        assertTrue(steps.get(4).payload().contains("\"toolName\":\"search\""),
-                steps.get(4).payload());
-        assertTrue(steps.get(6).payload().contains("\"key\":\"ai.tokens.input\",\"value\":10"),
-                steps.get(6).payload());
-        assertTrue(steps.get(7).payload().contains("\"key\":\"ai.tokens.output\",\"value\":20"),
+                        + steps.get(4).payload());
+        assertTrue(steps.get(5).payload().contains("\"toolName\":\"search\""),
+                steps.get(5).payload());
+        assertTrue(steps.get(7).payload().contains("\"key\":\"ai.tokens.input\",\"value\":10"),
                 steps.get(7).payload());
-        assertTrue(steps.get(8).payload().contains("\"key\":\"ai.tokens.total\",\"value\":30"),
+        assertTrue(steps.get(8).payload().contains("\"key\":\"ai.tokens.output\",\"value\":20"),
                 steps.get(8).payload());
-        assertTrue(steps.get(9).payload().contains("\"text\":\"The end\""),
+        assertTrue(steps.get(9).payload().contains("\"key\":\"ai.tokens.total\",\"value\":30"),
                 steps.get(9).payload());
+        assertTrue(steps.get(10).payload().contains("\"text\":\"The end\""),
+                steps.get(10).payload());
 
         var runs = store.listRuns(TapeQuery.byTapeId("conv-int", 0));
         assertEquals(1, runs.size(), "one endpoint run expected: " + runs);
@@ -223,11 +227,11 @@ class TapeIntegrationTest {
         pipeline.execute("client-cache", "hello world", new RecordingLeaf());
         var missRun = awaitRun("client-cache", TapeStatus.COMPLETED);
         var missSteps = store.readSteps(missRun.runId(), 0, 0);
-        assertEquals(List.of("metadata", "text", "complete"), kinds(missSteps),
+        assertEquals(List.of("input", "metadata", "text", "complete"), kinds(missSteps),
                 "miss turn tape: " + missSteps);
-        assertTrue(missSteps.get(0).payload()
+        assertTrue(missSteps.get(1).payload()
                         .contains("\"key\":\"ai.cache.hit\",\"value\":false"),
-                missSteps.get(0).payload());
+                missSteps.get(1).payload());
 
         // Hit turn: the runtime does NOT fire, yet the replayed turn is a
         // fully taped run of its own — the tape wraps at execute() entry,
@@ -236,12 +240,14 @@ class TapeIntegrationTest {
         assertEquals(1, runtime.calls.get(), "second turn must be served from cache");
         var hitRun = awaitOtherRun("client-cache", missRun.runId());
         var hitSteps = store.readSteps(hitRun.runId(), 0, 0);
-        assertEquals(List.of("metadata", "text", "complete"), kinds(hitSteps),
+        assertEquals(List.of("input", "metadata", "text", "complete"), kinds(hitSteps),
                 "hit turn tape: " + hitSteps);
-        assertTrue(hitSteps.get(0).payload()
+        assertTrue(hitSteps.get(1).payload()
                         .contains("\"key\":\"ai.cache.hit\",\"value\":true"),
-                hitSteps.get(0).payload());
-        assertEquals(missSteps.get(1).payload(), hitSteps.get(1).payload(),
+                hitSteps.get(1).payload());
+        assertEquals(missSteps.get(0).payload(), hitSteps.get(0).payload(),
+                "the recorded input prompt must be identical on the miss and the replay");
+        assertEquals(missSteps.get(2).payload(), hitSteps.get(2).payload(),
                 "the replayed text segment must match the miss-path response");
     }
 
@@ -286,7 +292,7 @@ class TapeIntegrationTest {
         assertEquals(payloadsOf(endpointSteps), payloadsOf(pipelineSteps),
                 "MODE PARITY: identical payloads modulo run ids / timestamps "
                         + "(neither appears inside step payloads)");
-        assertEquals(List.of("metadata", "metadata", "metadata", "metadata", "metadata",
+        assertEquals(List.of("input", "metadata", "metadata", "metadata", "metadata", "metadata",
                         "text", "tool-start", "text", "complete"),
                 kinds(pipelineSteps), "expected parity shape: " + pipelineSteps);
         // Pins the must-fix normalization: typed usage/confidence became the

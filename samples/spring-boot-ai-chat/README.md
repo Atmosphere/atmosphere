@@ -89,6 +89,28 @@ Ask **"How do I deploy the billing service to production?"** The answer names th
 > `LongTermMemory` bean to persist deny/prefer guidance (provenance-tagged, expiry-gated) so it
 > survives restarts — off by default, which keeps the loop ephemeral and never persists lessons.
 
+## Session tape (record → train)
+
+This sample turns the **session tape** on (`atmosphere.ai.tape.*` in `application.yml`, with the
+`atmosphere-checkpoint` + `sqlite-jdbc` dependencies). Every AI turn is recorded to a durable
+SQLite file as an ordered, typed step stream — the input prompt (`input` step), the streamed
+text, tool calls, structured output, and the terminal — so each run is a self-contained
+`(prompt → completion)` record.
+
+That makes the tape a training set. Extract chat-format JSONL from it with the shipped CLI:
+
+```bash
+java -cp <classpath> org.atmosphere.checkpoint.TapeDatasetCli \
+  "${TMPDIR}/atmosphere-ai-chat-tape.db" train.jsonl
+# -> one {"messages":[{system},{user},{assistant}]} line per COMPLETED run;
+#    non-terminal / input-less / output-less runs are skipped and COUNTED (never dropped silently)
+```
+
+The JSONL feeds any chat fine-tuner (e.g. MLX-LM `lora`, HuggingFace TRL) to distill a small
+local student from a larger teacher's tapes, then serve the student back through the same
+`AgentRuntime` SPI by pointing `LLM_BASE_URL` at it. The tape is off by default framework-wide;
+this sample opts in to demonstrate it.
+
 ## Configuration
 
 Set environment variables before running:

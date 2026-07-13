@@ -63,6 +63,24 @@
             <artifactId>atmosphere-ai</artifactId>
         </dependency>
 
+        <!-- Durable session tape: brings the crash-durable SqliteTapeStore onto
+             the classpath so atmosphere.ai.tape.store=sqlite records the AI
+             session as a replayable, resumable artifact instead of falling back
+             to the in-memory store. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-checkpoint</artifactId>
+        </dependency>
+        <!-- SQLite JDBC driver: atmosphere-checkpoint declares it optional (so
+             non-SQLite users don't pull it), so a sample using store=sqlite must
+             bring it explicitly — same contract as SqliteCheckpointStore. -->
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.53.2.0</version>
+            <scope>runtime</scope>
+        </dependency>
+
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-channels</artifactId>

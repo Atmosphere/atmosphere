@@ -902,6 +902,14 @@ public class AiStreamingSession implements StreamingSession {
                 tools, request.history(), request.message());
 
         var streamingTarget = target;
+        // Session tape: record the final input prompt (system + history + user)
+        // as an `input` step so the tape captures both sides of the turn — the
+        // self-contained (prompt → completion) record the distillation extractor
+        // reads. The tape sits at `delegate`; no-op when the tape is not installed.
+        if (delegate instanceof org.atmosphere.ai.tape.TapeRecordingSession tape) {
+            tape.recordInput(request.systemPrompt(), request.history(), request.message());
+        }
+
         var turnEvent = new org.atmosphere.ai.jfr.AgentTurnEvent();
         turnEvent.runtime = runtime != null ? runtime.name() : "unknown";
         turnEvent.model = request.model() != null ? request.model() : (model != null ? model : "unknown");

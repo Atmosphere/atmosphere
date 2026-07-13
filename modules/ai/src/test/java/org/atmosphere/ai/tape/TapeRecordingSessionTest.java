@@ -139,6 +139,29 @@ class TapeRecordingSessionTest {
     }
 
     @Test
+    void cumulativeTextCompleteAfterABoundaryFlushIsNotDoubleCounted() throws Exception {
+        var session = newPipelineSession(new RecordingDelegate());
+        session.send("AB");
+        // Tool boundary flushes the pending "AB" as its own text step.
+        session.emit(new AiEvent.ToolStart("search", Map.of("q", "x")));
+        // TextComplete carries the CUMULATIVE response ("ABCD"). Only the
+        // un-flushed suffix ("CD") must be recorded, so the two text steps
+        // reconstruct the answer once — not "ABABCD".
+        session.emit(new AiEvent.TextComplete("ABCD"));
+        session.complete();
+
+        var steps = awaitTerminalSteps(session.tapeRunId(), TapeStatus.COMPLETED);
+        assertEquals(List.of("text", "tool-start", "text", "complete"), kinds(steps),
+                "boundary flush then terminal full text: " + steps);
+        assertTrue(steps.get(0).payload().contains("\"text\":\"AB\""), steps.get(0).payload());
+        assertTrue(steps.get(2).payload().contains("\"text\":\"CD\""),
+                "the cumulative TextComplete must record only the un-flushed suffix: "
+                        + steps.get(2).payload());
+        assertFalse(steps.get(2).payload().contains("ABCD"),
+                "the already-flushed prefix must not be re-recorded: " + steps.get(2).payload());
+    }
+
+    @Test
     void everyTerminalFormReachesItsWriteOnceStatus() throws Exception {
         var complete = newPipelineSession(new RecordingDelegate());
         complete.complete();

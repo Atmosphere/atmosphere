@@ -120,6 +120,14 @@ public final class TapeRecordingSession extends DelegatingStreamingSession {
     private final AtomicReference<TapeStatus> localTerminal = new AtomicReference<>();
     private final Object lock = new Object();
     private final StringBuilder accumulator = new StringBuilder();
+    /**
+     * Total characters already emitted as {@code text} steps this run. Used to
+     * subtract the already-flushed prefix from a cumulative
+     * {@code emit(TextComplete)} so the extractor's concatenation reconstructs
+     * the response once, not twice, when text was flushed at a mid-stream tool
+     * boundary before the terminal full-text event.
+     */
+    private long flushedChars;
     private final List<PendingStep> preBind = new ArrayList<>();
     private long accumulatedSinceNanos;
     private boolean bound;
@@ -392,11 +400,51 @@ public final class TapeRecordingSession extends DelegatingStreamingSession {
         if (recorder.isClosed() || dropIfTerminal()) {
             return;
         }
-        var json = toJson(payload("text", fullText != null ? fullText : ""), fullText);
+        var full = fullText != null ? fullText : "";
         synchronized (lock) {
             accumulator.setLength(0);
-            offerLocked("text", json);
+            // TextComplete carries the CUMULATIVE response. Emit only the part
+            // not already flushed as text steps at earlier semantic boundaries,
+            // so the tape holds the response exactly once (no double-count when a
+            // tool boundary split the stream before the terminal full text).
+            if (flushedChars < full.length()) {
+                var suffix = full.substring((int) flushedChars);
+                flushedChars += suffix.length();
+                offerLocked("text", toJson(payload("text", suffix), suffix));
+            }
         }
+    }
+
+    /**
+     * Record the turn's input prompt (system + history + user message) as a
+     * single {@code input} step, so the tape is a self-contained
+     * (prompt&nbsp;→&nbsp;completion) record rather than an output-only stream.
+     * Called once at dispatch by {@link org.atmosphere.ai.AiStreamingSession}
+     * before the runtime produces any output. Best-effort like every other
+     * recording path; never throws into the live turn.
+     */
+    public void recordInput(String systemPrompt, List<org.atmosphere.ai.llm.ChatMessage> history,
+                            String userMessage) {
+        var msgs = new ArrayList<Map<String, Object>>();
+        if (systemPrompt != null && !systemPrompt.isBlank()) {
+            msgs.add(Map.of("role", "system", "content", systemPrompt));
+        }
+        if (history != null) {
+            for (var m : history) {
+                if (m == null) {
+                    continue;
+                }
+                msgs.add(Map.of("role", m.role() == null ? "user" : m.role(),
+                        "content", m.content() == null ? "" : m.content()));
+            }
+        }
+        if (userMessage != null && !userMessage.isBlank()) {
+            msgs.add(Map.of("role", "user", "content", userMessage));
+        }
+        if (msgs.isEmpty()) {
+            return;
+        }
+        record("input", payload("messages", msgs), msgs);
     }
 
     private void record(String kind, Map<String, Object> payloadMap, Object source) {
@@ -468,6 +516,7 @@ public final class TapeRecordingSession extends DelegatingStreamingSession {
         }
         var text = accumulator.toString();
         accumulator.setLength(0);
+        flushedChars += text.length();
         var map = payload("text", text);
         if (sizeCapped) {
             map.put("truncated", Boolean.TRUE);
