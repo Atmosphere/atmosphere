@@ -41,7 +41,12 @@ public class EmbeddedJettyWebSocketChat {
     private void run() throws Exception {
         Server server = new Server();
         ServerConnector connector = new ServerConnector(server);
-        connector.setPort(Integer.getInteger("server.port", 8080));
+        // Honor the SERVER_PORT env var (the convention the Spring Boot samples
+        // use), then the -Dserver.port system property, then the default.
+        String envPort = System.getenv("SERVER_PORT");
+        connector.setPort(envPort != null && !envPort.isBlank()
+                ? Integer.parseInt(envPort.trim())
+                : Integer.getInteger("server.port", 8080));
         server.addConnector(connector);
 
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);

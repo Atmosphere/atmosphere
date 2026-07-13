@@ -82,7 +82,10 @@ object KotlinDslChat {
 
     @JvmStatic
     fun main(args: Array<String>) {
-        val port = Integer.getInteger("server.port", 8099)
+        // Honor the SERVER_PORT env var (the convention the Spring Boot samples use),
+        // then the -Dserver.port system property, then the default.
+        val port = System.getenv("SERVER_PORT")?.trim()?.toIntOrNull()
+            ?: Integer.getInteger("server.port", 8099)
 
         val server = Server()
         val connector = ServerConnector(server)
