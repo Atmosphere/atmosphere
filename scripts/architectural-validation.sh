@@ -721,6 +721,37 @@ else
 fi
 
 # ============================================================================
+# 11. EMBEDDED JETTY STATIC SERVING — PROTECTED TARGETS
+# ============================================================================
+
+echo ""
+echo -e "${BLUE}--- Embedded Jetty Protected Targets ---${NC}"
+
+# A plain Jetty ServletContextHandler (not a WAR WebAppContext) does NOT hide
+# the reserved WEB-INF/META-INF directories. A sample that serves a static base
+# resource through the DefaultServlet must therefore call setProtectedTargets(),
+# or those dirs (web.xml, META-INF/maven/**/pom.properties) leak to any
+# unauthenticated client — broken access control + exact-version disclosure.
+# Scope is samples/ (the shipped, user-facing Jetty bootstraps).
+JETTY_UNPROTECTED=""
+while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    if rg -q 'ServletContextHandler' "$f" 2>/dev/null \
+        && rg -q 'setBaseResource|setResourceBase' "$f" 2>/dev/null \
+        && ! rg -q 'setProtectedTargets' "$f" 2>/dev/null; then
+        JETTY_UNPROTECTED="${JETTY_UNPROTECTED}${f}"$'\n'
+    fi
+done < <(rg -l 'DefaultServlet' samples/ --type java -g '!*/target/*' 2>/dev/null)
+
+if [ -n "$JETTY_UNPROTECTED" ]; then
+    fail_validation "Embedded-Jetty sample serves a static base via DefaultServlet without setProtectedTargets({\"/WEB-INF\",\"/META-INF\"}):"
+    echo "$JETTY_UNPROTECTED" | sed '/^$/d; s/^/  /'
+    echo "  (see samples/embedded-jetty-websocket-chat for the reference pattern)"
+else
+    pass_validation "Embedded-Jetty static-serving samples all set protected targets (WEB-INF/META-INF)"
+fi
+
+# ============================================================================
 # RESULTS SUMMARY
 # ============================================================================
 

@@ -72,6 +72,12 @@ public class GrpcChatServer {
 
         var context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
+        // A plain ServletContextHandler (unlike a WAR's WebAppContext) does NOT hide the
+        // reserved WEB-INF/META-INF directories, so the DefaultServlet below would serve
+        // any /WEB-INF or /META-INF entry under the frontend base to an unauthenticated
+        // client (broken access control + version disclosure). Mark them protected so
+        // Jetty returns 404 for those paths — matching embedded-jetty-websocket-chat.
+        context.setProtectedTargets(new String[]{"/WEB-INF", "/META-INF"});
 
         // Resolve the built frontend directory
         var webappPath = resolveWebappPath();
