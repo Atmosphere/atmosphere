@@ -7,6 +7,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.62] - 2026-07-14
+
+### Added
+
+- session-tape replay — reconstruct a run and a multi-agent coordination tree TapeReplay reconstruct/reconstructTree (no model) + parentRunId linkage (withParentRun→A2A metadata) + tool-agent dispatch tape; gated /api/admin/tape/runs/{id}/replay + Console Replay tab; fixes A2A metadata-inherit and Resilient/Intercepting proxy propagation; docs (tutorial 36 + reference/tape + READMEs)
+- Tape tab — browse recorded session tapes in the Atmosphere Console Adds gated /api/admin/tape read endpoints (runs + steps, content-read-auth per Inv#6) + hasTape runtime-truth flag + a Vue Tape tab (runs list + step detail) in the spring-boot-starter console
+- tape → training data — self-contained tape + TapeTrainingExtractor Record the input prompt as a tape step on both dispatch paths so the tape is a (prompt→completion) record; TapeTrainingExtractor folds runs to chat-JSONL, TapeDatasetCli emits it; spring-boot-ai-chat demos the durable tape
+- session tape — durable typed AiEvent stream, resume, admin read Records the AiEndpointHandler + AiPipeline session seams to SQLite/in-memory TapeStore; late-bound runId, crash-resume segments, atmosphere_read_tape gated REQUIRE_PRINCIPAL; opt-in (atmosphere.ai.tape.enabled) across both Spring starters + Quarkus
+- opt-in security-headers filter for app routes; mcp-server consumes it
+- in-process sandboxed eval tool (Rhino) — deepagents eval parity Container-free 'eval' JS tool: sandboxed Rhino scope (deny-all ClassShutter, no java/Packages bridge, interpreted-mode instruction + wall-clock budget, fresh scope per call), default-off and runtime-truth gated via an optional dependency, registered at the shared agent/endpoint tool site. Closes the last deepagents capability gap; 14 tests pin the sandbox.
+- add delete + rename file tools — deepagents file-tool parity The built-in filesystem floor grows from six to eight tools: delete (ToolKind.DELETE, approval-gateable) and rename, both bounds/traversal-guarded over the conversation-scoped AgentFileSystem, closing the delete gap vs LangChain deepagents. Updates every count/phrasing across code, tests, READMEs (six→eight), and the e2e tool-count pins (dentist + orchestration now log tools: 11 = 2 user + 9 harness) — both verified empirically from a booted sample.
+- wire governance decision log to Postgres/Kafka audit sinks Config-gated auto-config installs JdbcAuditSink/KafkaAuditSink so admit+deny persist
+- thread inbound image input onto the model request (vision)
+- discover Cedar/Rego PolicyParser SPIs on the governance reload path
+- wire configurable backpressure drop-policy into the broadcaster write path
+- install path for the 5 missing governance admission stages PERMISSIONS.md now wires all 7 stages (rate-limit, concurrency, message-length, time-window, kill-switch)
+- one-dependency streaming @Agent chat sample proving the blog claim Add spring-boot-one-dep-agent; make atmosphere-ai-spring-boot-starter pull the web server non-optionally so one dependency boots a running streaming chat app.
+- add Checkpoints tab to admin Console over durable-run store
+
+### Fixed
+
+- isolate optional tape types from always-active admin/console signatures Direct atmosphere-ai tape refs were force-loaded by Spring getDeclaredMethods, crashing non-AI samples at startup; reads move to TapeAdminSupport + reflective hasTape probe
+- protect WEB-INF/META-INF in embedded-jetty chat sample
+- honor SERVER_PORT env in kotlin-dsl-chat + embedded-jetty-websocket-chat
+- nonce-based strict CSP for the console + harden mcp-server root SPA
+- harden CORS credentials, console headers, A2A JSON charset, error disclosure
+- map spring-boot-one-dep-agent into the release-gate smoke shard Unmapped sample tripped the no-silent-caps gate; smoke tier (boot jar + GET /atmosphere/console/ == 200) verified locally
+- keep ai-chat content-read secure by default; opt out only in the real-LLM demo run
+- ms-governance-chat opts out content-read-auth so its Decisions tab renders token-less
+- reject SSRF to internal targets in push-notification webhooks Deny loopback/private/link-local/metadata by default (delivery-time re-check for DNS rebinding); opt in via org.atmosphere.a2a.pushAllowPrivateTargets on trusted networks
+- ai-chat opts out content-read-auth so the console Decisions tab renders token-less
+- auth the governance/decisions poll (read-plane fail-close regression)
+- bump rhino 1.7.15 to 1.7.15.1 (CVE-2025-66453)
+- pin logback 1.5.37 in sample poms (CVE-2026-10532) samples re-import the Spring Boot BOM (logback 1.5.34); a direct version pin forces the patched line
+- bump logback 1.5.33 to 1.5.37 (CVE-2026-10532 object injection)
+- patch DoS vulns in test deps + pin org.json (Dependabot) ws 8.19→8.21 (CVE-2026-48779), @grpc/grpc-js 1.14.3→1.14.4 (GHSA-5375-pq7m-f5r2), org.json pinned 20250517
+- add justified unrestricted @AgentScope to one-dep ChatAgent
+- require auth for recorded-content admin reads by default governance/decisions, audit, journal expose prompt/response + coordination content — default-deny, Spring+Quarkus parity, opt-out content-read-auth-required
+- sync capability skillcards + README to the 22-capability set
+
+### Changed
+
+- make compose-with-native-frameworks layering explicit across READMEs
+- tempest campaign coverage overstated — ~8/32 genuinely tested, not 21
+- document the unauthenticated channel posture and production hardening
+- log drift — swept setup-java hardening on a stale local tree Enumerated verify-signature targets before rebasing onto origin/main; gate is fetch+rebase then re-enumerate before any push-bound sweep.
+- GPG-verify Temurin JDK archives across all setup-java steps Fan out the dependency-submission verify-signature pilot; Oracle JDK 26 matrix leg gated off, graalvm skipped (both unsupported).
+- run the coverage-map gate on push/PR, not just nightly A new samples/ dir missing its release-gate map entry now fails the introducing PR (build-free --list check) instead of the next nightly run
+- bump the maven group across 26 directories with 1 update (#2712)
+- bump testcontainers.version from 1.20.6 to 1.21.4 (#2702)
+- bump quarkus-langchain4j.version from 1.9.2 to 1.11.2 (#2704)
+- bump tools.jackson.core:jackson-databind (#2703)
+- bump the sample-frontend group across 15 directories with 2 updates (#2707)
+- bump actions/github-script from 7 to 9 (#2706)
+- bump codecov/codecov-action from 6 to 7 (#2705)
+- pilot verify-signature on the dependency-submission lane
+- shared sample config change to fix one e2e broke another on the same fixture
+- admin read-plane fix verified via edited specs, not the console consumer it broke
+- lead with streaming again — demote deep-agent row, tighten hero Deep-agent Why row moves below streaming/adapters; LangChain deepagents comparison stays only in the harness subsection.
+- same-session recurrence — read -q dependency:tree empty result as dependency absent
+- make the eval interpreter pluggable via the EvalEngine SPI Extracts a ServiceLoader EvalEngine SPI (highest-priority-available wins, like AgentRuntime); Rhino/JavaScript ships as the default at priority 0, alternatives plug in by adding a jar. Rhino internals move to RhinoScriptSandbox so the adapter signature stays optional-dep-clean. 5 tests pin priority-override + availability-gating.
+- wrong 'qwen too weak' call from 0 findings without checking the LLM was reached
+- click-through demos for tool-output offload + composite FS routing personal-assistant README now has reproducible offload (LLM_TOOL_OUTPUT_OFFLOAD_THRESHOLD=200 → read_file result offloads to tool-output/) and composite-routing (LLM_FILESYSTEM_ROUTES=memory/=dir → prefix lands in durable backend, rest stays per-conversation) walkthroughs — both browser+disk-proven on Ollama, matching what a user will see in the Workspace tab.
+- showcase the task tool, offload, and composite FS routing personal-assistant README documents the dynamic subagent-spawn task tool (the @Coordinator harness registers it alongside delegate_task) with a copy-paste Ollama flow — browser-proven end to end; coding-agent README adds tool-output disk offload (default-on) and composite filesystem routing (atmosphere.ai.filesystem.routes) so users can run the newest deep-agent features, not just read about them.
+- allowlist java.sql.DriverManager Javadoc ref in the audit DataSource
+- drop redundant MULTI_AGENT_HANDOFF, wire Koog MODEL_ENUMERATION
+- restore broadcaster tagline, surface deep-agent harness + MCP/A2A/AG-UI
+- false 'pinned version' fact in Embabel comment shipped in 4.0.60/4.0.61
+- bump version to 4.0.61
+- prepare next development version 5.0.37
+- prepare for next development iteration 4.0.62-SNAPSHOT
+
 ## [4.0.61] - 2026-07-07
 
 ### Added
