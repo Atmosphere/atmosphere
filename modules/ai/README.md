@@ -341,6 +341,45 @@ truthful runtime surface is `DurableRunSpineHolder.get().enabled()` plus
 > across all runtimes, BuiltIn round replay) is framework-agnostic and shared by
 > both.
 
+## Session Tape & Replay
+
+The **session tape** (`org.atmosphere.ai.tape`) records a streaming run's typed
+`AiEvent` stream — the `input` prompt, streamed `text`, `tool-start` calls, and a
+terminal — *as produced at the session boundary*, as an append-only, per-run
+artifact (crash-durable with the SQLite store; sync `generate`, in-process
+fan-out branches, and reattach replay are excluded). Distinct from the durable
+agent runs above (which exist to *re-drive* a crashed run): the tape is a
+**record** of what happened, doubling as an observability surface, a test oracle,
+a training set, and — via replay — a way to reconstruct a past session with no
+model call. **Off by default:**
+
+```yaml
+atmosphere:
+  ai:
+    tape:
+      enabled: true
+      store: sqlite        # crash-durable via atmosphere-checkpoint + sqlite-jdbc
+      path: ${ATMOSPHERE_TAPE_PATH:${java.io.tmpdir}/atmosphere-tape.db}
+```
+
+`TapeReplay` reconstructs a run deterministically — no model in the loop:
+
+```java
+var store = TapeSupport.installedStore().orElseThrow();
+TapeReplay.reconstruct(store, runId);            // one run: input, output, tools
+TapeReplay.reconstructTree(store, coordinatorId); // a multi-agent coordination tree
+```
+
+For a `@Coordinator`, `AgentFleet.withParentRun(session.runId())` stamps the
+coordinator's run id onto the fan-out; each child (LLM-agent *or* tool-agent)
+records it as `parentRunId`, so the whole team session replays as a tree. Custom
+stores implement the `TapeStore` SPI; `InMemoryTapeStore` ships here and
+`SqliteTapeStore` in `atmosphere-checkpoint`. Reads are exposed (gated) at
+`/api/admin/tape/runs[/{id}/{steps,replay}]` and surfaced in the Console **Tape**
+tab. Each `COMPLETED` run is a `(prompt → completion)` pair — extract training
+JSONL with `org.atmosphere.checkpoint.TapeDatasetCli` to distill a smaller
+student. See the [Session Tape reference](https://async-io.live/docs/reference/tape/).
+
 ## Key Components
 
 | Class | Description |

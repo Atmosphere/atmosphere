@@ -18,6 +18,8 @@ package org.atmosphere.ai.tape;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import tools.jackson.databind.ObjectMapper;
+
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -123,6 +125,7 @@ public final class TapeRecorder {
         final String endpoint;
         final String model;
         final String runtimeName;
+        final String parentRunId;
         final long startedAt = System.currentTimeMillis();
         final AtomicReference<TapeStatus> requestedTerminal = new AtomicReference<>();
         final AtomicLong dropped = new AtomicLong();
@@ -145,11 +148,14 @@ public final class TapeRecorder {
             this.endpoint = info.endpoint();
             this.model = info.model();
             this.runtimeName = info.runtimeName();
+            this.parentRunId = info.parentRunId();
         }
     }
 
     private record StepOp(OpenRun run, String kind, String payload, long ts) {
     }
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final TapeStore store;
     private final Config config;
@@ -340,6 +346,55 @@ public final class TapeRecorder {
         lateTerminalsTotal.incrementAndGet();
     }
 
+    /**
+     * Record a complete, non-streaming dispatch — an A2A tool-agent skill
+     * invocation that bypasses the streaming {@link org.atmosphere.ai.AiPipeline}
+     * — as a single terminal tape run. This lets a multi-agent coordination
+     * whose children are tool-backed (no LLM run) still appear as a tree: the
+     * child links to the coordinator via {@code parentRunId}. Written straight to
+     * the store (begin + input/text steps + terminal); the async writer path is
+     * reserved for live streaming sessions. A failed store write is swallowed at
+     * trace — taping must never break a dispatch.
+     *
+     * @param tapeId      conversation/task key (the A2A task id)
+     * @param endpoint    the dispatched skill/agent path
+     * @param parentRunId the dispatching coordinator's tape run id, or {@code null}
+     * @param userId      owning principal, or {@code null}
+     * @param inputText   the request text (user turn), or {@code null}
+     * @param outputText  the result text, or {@code null}
+     * @param status      terminal status (COMPLETED / ERROR)
+     */
+    void recordCompletedRun(String tapeId, String endpoint, String parentRunId, String userId,
+                            String inputText, String outputText, TapeStatus status) {
+        if (closed.get()) {
+            return;
+        }
+        var runId = "tape-" + java.util.UUID.randomUUID();
+        var now = System.currentTimeMillis();
+        try {
+            store.begin(new TapeRun(runId, tapeId, null, null, userId, endpoint, null,
+                    "a2a-skill", now, TapeStatus.OPEN, null, 0, 0, false, parentRunId));
+            var steps = new java.util.ArrayList<TapeStep>(2);
+            long seq = 0;
+            if (inputText != null) {
+                steps.add(new TapeStep(runId, seq++, "input",
+                        MAPPER.writeValueAsString(java.util.Map.of("messages",
+                                java.util.List.of(java.util.Map.of("role", "user",
+                                        "content", inputText)))), now));
+            }
+            if (outputText != null && !outputText.isEmpty()) {
+                steps.add(new TapeStep(runId, seq++, "text",
+                        MAPPER.writeValueAsString(java.util.Map.of("text", outputText)), now));
+            }
+            if (!steps.isEmpty()) {
+                store.append(runId, steps);
+            }
+            store.markTerminal(runId, status, new TapeStore.Counters(seq, 0, false));
+        } catch (RuntimeException e) {
+            logger.trace("one-shot tape record failed for {}: {}", endpoint, e.toString());
+        }
+    }
+
     void countUnserializable() {
         unserializableTotal.incrementAndGet();
     }
@@ -518,7 +573,7 @@ public final class TapeRecorder {
         try {
             store.begin(new TapeRun(run.runId, run.tapeId, run.sessionId, run.resourceUuid,
                     run.userId, run.endpoint, run.model, run.runtimeName, run.startedAt,
-                    TapeStatus.OPEN, null, 0, 0, false, null));
+                    TapeStatus.OPEN, null, 0, 0, false, run.parentRunId));
             run.begun = true;
             return true;
         } catch (RuntimeException e) {

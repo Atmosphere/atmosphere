@@ -1330,7 +1330,7 @@ public class CoordinatorProcessor implements Processor<Object> {
      * protocol. Handles the coordinator's prompt signature by injecting
      * the {@link AgentFleet} and a collecting {@link StreamingSession}.
      */
-    static class A2aCoordinatorBridge {
+    static class A2aCoordinatorBridge implements org.atmosphere.a2a.runtime.PipelineBackedSkill {
         private final Object promptTarget;
         private final Method bridgedPromptMethod;
         private final AgentFleet fleet;

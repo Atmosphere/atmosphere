@@ -48,6 +48,16 @@ public interface AgentProxy {
                 Consumer<String> onToken, Runnable onComplete);
 
     /**
+     * Returns a view of this proxy that stamps {@code dispatchMetadata} onto
+     * every dispatch's wire message (e.g. the coordinator's tape run id under
+     * {@code atmosphere.tape.parentRunId}). Default returns {@code this} for
+     * proxies that don't carry dispatch metadata.
+     */
+    default AgentProxy withDispatchMetadata(Map<String, Object> dispatchMetadata) {
+        return this;
+    }
+
+    /**
      * Start an agent call and return a cancellable execution handle.
      * The call runs asynchronously on a virtual thread.
      *

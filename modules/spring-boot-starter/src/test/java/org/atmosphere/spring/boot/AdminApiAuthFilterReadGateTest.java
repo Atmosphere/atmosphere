@@ -276,7 +276,8 @@ class AdminApiAuthFilterReadGateTest {
                 "/api/admin/journal/coord-123",
                 "/api/admin/journal/coord-123/log",
                 "/api/admin/tape/runs",
-                "/api/admin/tape/runs/run-abc123/steps"}) {
+                "/api/admin/tape/runs/run-abc123/steps",
+                "/api/admin/tape/runs/run-abc123/replay"}) {
             var res = new MockHttpServletResponse();
             var chain = Mockito.mock(FilterChain.class);
             filter.doFilter(new MockHttpServletRequest("GET", path), res, chain);

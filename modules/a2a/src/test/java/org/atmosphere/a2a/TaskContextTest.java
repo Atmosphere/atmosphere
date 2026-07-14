@@ -57,6 +57,29 @@ class TaskContextTest {
     }
 
     @Test
+    void putMetadataInheritsMessageMetadata() {
+        var ctx = new TaskContext("t1", "c1");
+        ctx.putMetadata(java.util.Map.of("atmosphere.tape.parentRunId", "ceo-run-1", "skillId", "plan"));
+        assertEquals("ceo-run-1", ctx.metadata().get("atmosphere.tape.parentRunId"));
+        assertEquals("plan", ctx.metadata().get("skillId"));
+    }
+
+    @Test
+    void putMetadataNullOrEmptyIsNoOp() {
+        var ctx = new TaskContext("t1", "c1");
+        ctx.putMetadata(null);
+        ctx.putMetadata(java.util.Map.of());
+        assertTrue(ctx.metadata().isEmpty());
+    }
+
+    @Test
+    void metadataViewIsUnmodifiable() {
+        var ctx = new TaskContext("t1", "c1");
+        ctx.putMetadata(java.util.Map.of("k", "v"));
+        assertThrows(UnsupportedOperationException.class, () -> ctx.metadata().put("x", "y"));
+    }
+
+    @Test
     void updateStatusFlipsState() {
         var ctx = new TaskContext("t1", "c1");
         ctx.updateStatus(TaskState.WORKING, "go");

@@ -19,6 +19,7 @@ import org.atmosphere.a2a.types.TaskState;
 import org.atmosphere.ai.AiPipeline;
 import org.atmosphere.ai.StreamingSession;
 
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -70,7 +71,17 @@ public class A2aStreamCollector implements StreamingSession {
         if (pipeline != null) {
             // Delegate to the AI pipeline so the message is processed through
             // the LLM and the response streams back through this collector.
-            pipeline.execute(taskCtx.taskId(), message, this);
+            // Forward the coordinator's tape run id (carried on the incoming A2A
+            // task metadata) so this fan-out child records it as parentRunId and
+            // the team session replays as a tree — no-op when absent.
+            Object parentRun = taskCtx.metadata()
+                    .get(org.atmosphere.ai.tape.TapeSupport.PARENT_RUN_METADATA_KEY);
+            if (parentRun != null) {
+                pipeline.execute(taskCtx.taskId(), message, this, Map.of(
+                        org.atmosphere.ai.tape.TapeSupport.PARENT_RUN_METADATA_KEY, parentRun));
+            } else {
+                pipeline.execute(taskCtx.taskId(), message, this);
+            }
         } else {
             // Fallback: buffer the message as the response text when no
             // pipeline is available.

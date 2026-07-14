@@ -27,6 +27,15 @@ atmosphere:
     model: ${LLM_MODEL:gemini-2.5-flash}
     base-url: ${LLM_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}
     api-key: ${LLM_API_KEY:${GEMINI_API_KEY:}}
+  # Session tape: record every agent's AI turn (typed AiEvent steps) as a durable
+  # artifact. Each specialist's run links to the CEO's run via parentRunId, so
+  # the whole team session replays as a tree from the Console "Tape" tab
+  # (SqliteTapeStore via the atmosphere-checkpoint dependency). Off by default.
+  ai:
+    tape:
+      enabled: true
+      store: sqlite
+      path: ${ATMOSPHERE_TAPE_PATH:${java.io.tmpdir}/atmosphere-startup-team-tape.db}
 
 spring:
   autoconfigure:

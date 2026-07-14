@@ -41,6 +41,7 @@ public final class DefaultAgentProxy implements AgentProxy {
     private final AgentTransport transport;
     private final List<AgentActivityListener> activityListeners;
     private final AgentLimits limits;
+    private final Map<String, Object> dispatchMetadata;
 
     public DefaultAgentProxy(String name, String version, int weight,
                              boolean local, AgentTransport transport) {
@@ -71,6 +72,14 @@ public final class DefaultAgentProxy implements AgentProxy {
                              boolean local, RetryPolicy retryPolicy, AgentTransport transport,
                              List<AgentActivityListener> activityListeners,
                              AgentLimits limits) {
+        this(name, version, weight, local, retryPolicy, transport, activityListeners, limits,
+                Map.of());
+    }
+
+    private DefaultAgentProxy(String name, String version, int weight,
+                              boolean local, RetryPolicy retryPolicy, AgentTransport transport,
+                              List<AgentActivityListener> activityListeners,
+                              AgentLimits limits, Map<String, Object> dispatchMetadata) {
         this.name = name;
         this.version = version;
         this.weight = weight;
@@ -79,6 +88,25 @@ public final class DefaultAgentProxy implements AgentProxy {
         this.transport = transport;
         this.activityListeners = List.copyOf(activityListeners);
         this.limits = limits;
+        this.dispatchMetadata = Map.copyOf(dispatchMetadata);
+    }
+
+    @Override
+    public AgentProxy withDispatchMetadata(Map<String, Object> md) {
+        if (md == null || md.isEmpty()) {
+            return this;
+        }
+        return new DefaultAgentProxy(name, version, weight, local, retryPolicy, transport,
+                activityListeners, limits, md);
+    }
+
+    // Route through the 3-arg transport call when there is no dispatch metadata
+    // (the common path — and the one existing transport stubs/mocks implement),
+    // and only the metadata-carrying 4-arg overload when a parent run is set.
+    private AgentResult dispatch(String skill, Map<String, Object> args) {
+        return dispatchMetadata.isEmpty()
+                ? transport.send(name, skill, args)
+                : transport.send(name, skill, args, dispatchMetadata);
     }
 
     /** Returns the per-agent limits configured for this proxy. */
@@ -104,7 +132,7 @@ public final class DefaultAgentProxy implements AgentProxy {
         var start = Instant.now();
         emitActivity(new AgentActivity.Thinking(name, skill, start));
 
-        var result = transport.send(name, skill, args);
+        var result = dispatch(skill, args);
         var maxAttempts = retryPolicy.maxRetries();
         if (result.success() || maxAttempts <= 0) {
             emitTerminal(skill, result, start);
@@ -130,7 +158,7 @@ public final class DefaultAgentProxy implements AgentProxy {
                 return result;
             }
             emitActivity(new AgentActivity.Thinking(name, skill, Instant.now()));
-            result = transport.send(name, skill, args);
+            result = dispatch(skill, args);
             if (result.success()) {
                 emitTerminal(skill, result, start);
                 return result;
@@ -182,7 +210,11 @@ public final class DefaultAgentProxy implements AgentProxy {
     @Override
     public void stream(String skill, Map<String, Object> args,
                        Consumer<String> onToken, Runnable onComplete) {
-        transport.stream(name, skill, args, onToken, onComplete);
+        if (dispatchMetadata.isEmpty()) {
+            transport.stream(name, skill, args, onToken, onComplete);
+        } else {
+            transport.stream(name, skill, args, dispatchMetadata, onToken, onComplete);
+        }
     }
 
     /**
@@ -194,6 +226,6 @@ public final class DefaultAgentProxy implements AgentProxy {
         var combined = new java.util.ArrayList<>(this.activityListeners);
         combined.addAll(extra);
         return new DefaultAgentProxy(name, version, weight, local, retryPolicy,
-                transport, combined, limits);
+                transport, combined, limits, dispatchMetadata);
     }
 }

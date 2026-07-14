@@ -60,6 +60,15 @@ public final class TapeSupport {
 
     private static final AtomicReference<TapeRecorder> HOLDER = new AtomicReference<>();
 
+    /**
+     * Request-metadata key carrying the dispatching coordinator's tape run id
+     * onto a fan-out child dispatch. A coordinator stamps it into the outgoing
+     * A2A message metadata; the child's {@code AiPipeline.execute} reads it back
+     * from {@code extraMetadata} and records it as {@link TapeRun#parentRunId()},
+     * so the whole coordination replays as a tree ({@link TapeReplay#reconstructTree}).
+     */
+    public static final String PARENT_RUN_METADATA_KEY = "atmosphere.tape.parentRunId";
+
     private TapeSupport() {
     }
 
@@ -142,6 +151,32 @@ public final class TapeSupport {
             return session;
         }
         return new TapeRecordingSession(recorder, session, info);
+    }
+
+    /**
+     * Record a complete, non-streaming dispatch — e.g. an A2A tool-agent skill
+     * invocation that never enters the streaming {@link org.atmosphere.ai.AiPipeline}
+     * — as a single terminal tape run. Lets a multi-agent coordination whose
+     * children are tool-backed still reconstruct as a tree: the child links to
+     * its coordinator via {@code parentRunId} (see
+     * {@link TapeReplay#reconstructTree}). No-op when no recorder is installed.
+     *
+     * @param taskId      the dispatch/task key (recorded as the run's tapeId)
+     * @param endpoint    the dispatched skill/agent path
+     * @param parentRunId the dispatching coordinator's tape run id, or {@code null}
+     * @param userId      owning principal, or {@code null}
+     * @param inputText   the request text, or {@code null}
+     * @param outputText  the result text, or {@code null}
+     * @param ok          whether the dispatch succeeded (COMPLETED vs ERROR)
+     */
+    public static void recordCompletedDispatch(String taskId, String endpoint, String parentRunId,
+                                               String userId, String inputText, String outputText,
+                                               boolean ok) {
+        var recorder = HOLDER.get();
+        if (recorder != null && !recorder.isClosed()) {
+            recorder.recordCompletedRun(taskId, endpoint, parentRunId, userId, inputText,
+                    outputText, ok ? TapeStatus.COMPLETED : TapeStatus.ERROR);
+        }
     }
 
     /**

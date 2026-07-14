@@ -96,9 +96,15 @@ public class A2aAgentTransport implements AgentTransport, AutoCloseable {
 
     @Override
     public AgentResult send(String agentName, String skill, Map<String, Object> args) {
+        return send(agentName, skill, args, Map.of());
+    }
+
+    @Override
+    public AgentResult send(String agentName, String skill, Map<String, Object> args,
+                            Map<String, Object> dispatchMetadata) {
         var start = Instant.now();
         try {
-            var requestBody = JsonRpcUtils.buildSendRequest(skill, args);
+            var requestBody = JsonRpcUtils.buildSendRequest(skill, args, dispatchMetadata);
             var httpRequest = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl))
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))
@@ -155,8 +161,15 @@ public class A2aAgentTransport implements AgentTransport, AutoCloseable {
     @Override
     public void stream(String agentName, String skill, Map<String, Object> args,
                        Consumer<String> onToken, Runnable onComplete) {
+        stream(agentName, skill, args, Map.of(), onToken, onComplete);
+    }
+
+    @Override
+    public void stream(String agentName, String skill, Map<String, Object> args,
+                       Map<String, Object> dispatchMetadata,
+                       Consumer<String> onToken, Runnable onComplete) {
         try {
-            var requestBody = JsonRpcUtils.buildStreamRequest(skill, args);
+            var requestBody = JsonRpcUtils.buildStreamRequest(skill, args, dispatchMetadata);
             var httpRequest = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl))
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))

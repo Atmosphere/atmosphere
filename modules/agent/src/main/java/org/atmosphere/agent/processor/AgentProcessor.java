@@ -1255,7 +1255,7 @@ public class AgentProcessor implements Processor<Object> {
      * Each command skill gets its own bridge instance with the command prefix,
      * while the default NL skill delegates to the {@code @Prompt} method.
      */
-    static class SkillBridge {
+    static class SkillBridge implements org.atmosphere.a2a.runtime.PipelineBackedSkill {
         private final CommandRouter commandRouter;
         private final org.atmosphere.ai.processor.PromptMethodInvoker promptInvoker;
         private final String commandPrefix;

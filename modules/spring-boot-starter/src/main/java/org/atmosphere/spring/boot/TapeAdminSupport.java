@@ -21,6 +21,7 @@ import java.util.Locale;
 import java.util.Map;
 
 import org.atmosphere.ai.tape.TapeQuery;
+import org.atmosphere.ai.tape.TapeReplay;
 import org.atmosphere.ai.tape.TapeRun;
 import org.atmosphere.ai.tape.TapeStatus;
 import org.atmosphere.ai.tape.TapeStep;
@@ -86,6 +87,51 @@ final class TapeAdminSupport {
         return TapeSupport.installed();
     }
 
+    /**
+     * Deterministically replay a recorded run as a coordination tree — the run
+     * plus its fan-out children (linked by {@code parentRunId}) — reconstructed
+     * from the tape with no model in the loop. {@code present=false} when the
+     * run is unknown or no tape store is installed.
+     */
+    static Map<String, Object> replay(String runId) {
+        var store = TapeSupport.installedStore();
+        if (store.isEmpty()) {
+            return Map.of("runId", runId, "present", false);
+        }
+        return TapeReplay.reconstructTree(store.get(), runId)
+                .map(TapeAdminSupport::treeToMap)
+                .orElseGet(() -> Map.of("runId", runId, "present", false));
+    }
+
+    private static Map<String, Object> treeToMap(TapeReplay.ReplayedTree tree) {
+        var m = new LinkedHashMap<String, Object>();
+        m.put("present", true);
+        m.put("runCount", tree.runCount());
+        m.put("root", replayedRunToMap(tree.root()));
+        m.put("children",
+                tree.children().stream().map(TapeAdminSupport::replayedRunToMap).toList());
+        return m;
+    }
+
+    // LinkedHashMap (not Map.of) — parentRunId/model/endedAt are legitimately null.
+    private static Map<String, Object> replayedRunToMap(TapeReplay.ReplayedRun r) {
+        var m = new LinkedHashMap<String, Object>();
+        m.put("runId", r.runId());
+        m.put("parentRunId", r.parentRunId());
+        m.put("status", r.status() == null ? null : r.status().name());
+        m.put("model", r.model());
+        m.put("runtime", r.runtimeName());
+        m.put("endpoint", r.endpoint());
+        m.put("startedAt", r.startedAt());
+        m.put("endedAt", r.endedAt());
+        m.put("input", r.input().stream()
+                .map(msg -> Map.of("role", msg.role(), "content", msg.content())).toList());
+        m.put("output", r.output());
+        m.put("tools", r.tools().stream()
+                .map(t -> Map.of("name", t.name(), "arguments", t.arguments())).toList());
+        return m;
+    }
+
     private static TapeStatus parseStatus(String status) {
         if (status == null || status.isBlank()) {
             return null;
@@ -101,6 +147,7 @@ final class TapeAdminSupport {
         var m = new LinkedHashMap<String, Object>();
         m.put("runId", r.runId());
         m.put("tapeId", r.tapeId());
+        m.put("parentRunId", r.parentRunId());
         m.put("status", r.status().name());
         m.put("model", r.model());
         m.put("runtime", r.runtimeName());

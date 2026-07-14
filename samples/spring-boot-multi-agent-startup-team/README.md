@@ -252,6 +252,51 @@ Evaluations run asynchronously on a serialized virtual thread executor to avoid
 rate-limiting LLM APIs. Results stream to the client in real time via
 `AgentActivity.Evaluated` -> `StreamingActivityListener` -> `AiEvent.AgentStep("eval", ...)`.
 
+## Session Tape + Replay (the coordination tree)
+
+Where the Coordination Journal records the dispatch *graph*, the **session tape**
+records each agent's actual AI event stream — and lets you **replay** the whole
+team session deterministically, with no model in the loop. It is enabled in this
+sample (`atmosphere.ai.tape.*` in `application.yml`, on the SQLite store via the
+`atmosphere-checkpoint` dependency).
+
+When the CEO fans out, `CeoCoordinator` stamps its own run id onto the dispatch:
+
+```java
+// Link every specialist's tape run to this coordinator's run id.
+fleet = fleet.withParentRun(session.runId().orElse(null));
+```
+
+Each specialist dispatched over A2A inherits that id and records it as
+`parentRunId` on its own tape run — so a single team request produces a tree: the
+CEO run plus one run per specialist. Because the specialists here are
+*tool-agents* (`@AgentSkillHandler` methods that return directly, never touching
+the LLM pipeline), each dispatch is recorded as a single completed run — the tree
+is complete whether children are LLM- or tool-backed.
+
+Open the **Atmosphere Console** (`/atmosphere/console/`), go to the **Tape** tab,
+and click **▶ Replay** on the coordinator run:
+
+```
+6 run(s) in this coordination — 1 coordinator + 5 agent(s), linked by parentRunId.
+  COORDINATOR  <ceo run>      ▸ user prompt → executive briefing
+  AGENT        web_search     ↳ parent <ceo run>
+  AGENT        analyze_strategy
+  AGENT        financial_model
+  AGENT        write_report   (Market Analysis)
+  AGENT        write_report   (Risk Assessment)
+```
+
+or hit the gated admin endpoint directly:
+
+```bash
+curl -s localhost:8080/api/admin/tape/runs/<ceoRunId>/replay | jq
+# -> { present, runCount, root, children[] } — each reconstructed from the tape
+```
+
+See the [Session Tape & Replay tutorial](https://async-io.live/docs/tutorial/36-session-tape/)
+for the full story.
+
 ## SQLite Checkpoints
 
 The `CheckpointConfig` class wires `CheckpointingCoordinationJournal` with

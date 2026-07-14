@@ -207,6 +207,28 @@ public interface AgentFleet {
     }
 
     /**
+     * Returns a fleet view whose child dispatches carry {@code parentRunId} as
+     * the coordinator's tape run id ({@code atmosphere.tape.parentRunId}) on
+     * each outgoing wire message. The dispatched agent's tape run records it as
+     * its parent run, so the whole multi-agent coordination can be replayed as
+     * a tree. Call it in a {@code @Prompt} with the coordinator's own run id:
+     *
+     * <pre>{@code
+     * var teamFleet = fleet.withParentRun(session.runId().orElse(null));
+     * var results = teamFleet.parallel(...);
+     * }</pre>
+     *
+     * <p>A {@code null}/blank id returns {@code this}. Default returns
+     * {@code this} for fleets that don't propagate a parent run.</p>
+     *
+     * @param parentRunId the coordinator's tape run id, or {@code null}
+     * @return a fleet view that stamps the parent run on each dispatch
+     */
+    default AgentFleet withParentRun(String parentRunId) {
+        return this;
+    }
+
+    /**
      * Wrap this fleet with a {@link FleetInterceptor} that evaluates every
      * dispatch before it leaves the coordinator. Multiple interceptors
      * compose through chained calls — the most recently added runs last,

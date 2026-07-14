@@ -227,6 +227,12 @@ public class CeoCoordinator {
         // Wire per-session activity streaming — clients see agent-step events in real time
         fleet = fleet.withActivityListener(new StreamingActivityListener(session));
 
+        // Link every specialist's tape run to this coordinator's run id, so the
+        // whole team session — CEO + the 4 specialists — reconstructs as one
+        // tree from the session tape (TapeReplay#reconstructTree). No-op when the
+        // tape is disabled or no run id is bound.
+        fleet = fleet.withParentRun(session.runId().orElse(null));
+
         // Dispatch-edge governance — evaluate each cross-agent call against
         // the governance policy chain before it leaves the coordinator.
         // Denies become synthetic failed AgentResults; transforms rewrite

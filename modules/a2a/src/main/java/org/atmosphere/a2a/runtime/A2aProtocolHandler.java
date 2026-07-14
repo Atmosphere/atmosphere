@@ -241,6 +241,7 @@ public final class A2aProtocolHandler {
 
             var taskCtx = taskManager.createTask(contextId);
             taskCtx.addMessage(msg);
+            taskCtx.putMetadata(msg.metadata());
 
             A2aRegistry.SkillEntry skill = null;
             if (skillId != null) {
@@ -289,6 +290,7 @@ public final class A2aProtocolHandler {
 
         var taskCtx = taskManager.createTask(contextId);
         taskCtx.addMessage(message);
+        taskCtx.putMetadata(message.metadata());
 
         if (skillId != null) {
             var skillOpt = registry.skill(skillId);
@@ -409,6 +411,8 @@ public final class A2aProtocolHandler {
     }
 
     private void executeSkill(A2aRegistry.SkillEntry skill, TaskContext taskCtx, JsonNode params) {
+        var inputText = firstMessageText(params);
+        boolean ok = true;
         try {
             var method = skill.method();
             method.setAccessible(true);
@@ -438,13 +442,59 @@ public final class A2aProtocolHandler {
 
             method.invoke(skill.instance(), args);
         } catch (InvocationTargetException e) {
+            ok = false;
             var cause = e.getCause() != null ? e.getCause() : e;
             logger.warn("Skill {} execution failed", skill.id(), cause);
             taskCtx.fail(cause.getMessage());
         } catch (Exception e) {
+            ok = false;
             logger.warn("Skill {} execution failed", skill.id(), e);
             taskCtx.fail(e.getMessage());
+        } finally {
+            tapeToolDispatch(skill, taskCtx, inputText, ok);
         }
+    }
+
+    /**
+     * Record a tool-agent dispatch (a {@code @AgentSkillHandler} that returns
+     * directly, never entering the streaming pipeline) as a single tape run, so
+     * a multi-agent coordination whose children are tool-backed still
+     * reconstructs as a tree. Skipped when: the tape is off; the handler is
+     * {@link PipelineBackedSkill} (an LLM agent that tapes its own pipeline run —
+     * avoids a double run); or there is no coordination parent run (a standalone
+     * A2A tool call is not part of a tree). Taping never breaks the dispatch.
+     */
+    private void tapeToolDispatch(A2aRegistry.SkillEntry skill, TaskContext taskCtx,
+                                  String inputText, boolean ok) {
+        if (!org.atmosphere.ai.tape.TapeSupport.installed()
+                || skill.instance() instanceof PipelineBackedSkill) {
+            return;
+        }
+        var parent = taskCtx.metadata()
+                .get(org.atmosphere.ai.tape.TapeSupport.PARENT_RUN_METADATA_KEY);
+        if (!(parent instanceof String parentRunId) || parentRunId.isBlank()) {
+            return;
+        }
+        org.atmosphere.ai.tape.TapeSupport.recordCompletedDispatch(taskCtx.taskId(), skill.id(),
+                parentRunId, null, inputText, taskResultText(taskCtx), ok);
+    }
+
+    private String firstMessageText(JsonNode params) {
+        var message = extractMessage(params);
+        return message.parts().isEmpty() ? null : message.parts().getFirst().text();
+    }
+
+    private static String taskResultText(TaskContext taskCtx) {
+        for (var artifact : taskCtx.artifacts()) {
+            if (artifact.parts() != null) {
+                for (var part : artifact.parts()) {
+                    if (part.text() != null && !part.text().isBlank()) {
+                        return part.text();
+                    }
+                }
+            }
+        }
+        return taskCtx.statusMessage();
     }
 
     private Object coerceArgument(JsonNode node, Class<?> targetType) {

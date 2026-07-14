@@ -83,6 +83,18 @@ public final class TaskContext {
         return Collections.unmodifiableMap(metadata);
     }
 
+    /**
+     * Merge the initiating message's metadata onto the task (an A2A task inherits
+     * its message's metadata). This is how caller intent — e.g. the session
+     * tape's {@code atmosphere.tape.parentRunId} carried from a coordinator's
+     * fan-out dispatch — reaches downstream consumers. Null/empty is a no-op.
+     */
+    public void putMetadata(Map<String, Object> extra) {
+        if (extra != null && !extra.isEmpty()) {
+            metadata.putAll(extra);
+        }
+    }
+
     void setTaskManager(TaskManager mgr) {
         this.taskManager = mgr;
     }

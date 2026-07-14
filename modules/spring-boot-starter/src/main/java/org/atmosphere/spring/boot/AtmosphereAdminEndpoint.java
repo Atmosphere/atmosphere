@@ -1148,6 +1148,20 @@ public class AtmosphereAdminEndpoint {
     }
 
     /**
+     * Session tape — deterministically replay a recorded run as a coordination
+     * tree: the run plus its fan-out children (linked by {@code parentRunId}),
+     * reconstructed from the tape with no model in the loop. Pre-redaction
+     * content, gated like {@link #tapeRuns}.
+     */
+    @GetMapping("/tape/runs/{runId}/replay")
+    public ResponseEntity<Map<String, Object>> tapeReplay(@PathVariable("runId") String runId) {
+        if (!TAPE_ON_CLASSPATH) {
+            return ResponseEntity.ok(Map.of("runId", runId, "present", false));
+        }
+        return ResponseEntity.ok(TapeAdminSupport.replay(runId));
+    }
+
+    /**
      * OWASP Agentic AI Top 10 (Dec 2025) self-assessment. Read-only. Pairs
      * with the {@code agt verify} CLI payload shape — external compliance
      * tooling that targets MS's Agent Compliance package can consume this

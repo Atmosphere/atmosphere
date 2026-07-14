@@ -15,6 +15,8 @@
  */
 package org.atmosphere.a2a.runtime;
 
+import java.util.Map;
+
 import org.atmosphere.a2a.types.TaskState;
 import org.atmosphere.ai.AiPipeline;
 import org.atmosphere.ai.StreamingSession;
@@ -25,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
@@ -81,6 +84,23 @@ class A2aStreamCollectorTest {
         collector.stream("prompt");
 
         verify(pipeline).execute(eq("task-123"), eq("prompt"), eq(collector));
+    }
+
+    @Test
+    void streamForwardsParentRunMetadataToPipeline() {
+        // The task inherited the coordinator's tape run id (message metadata);
+        // the collector must forward it to the pipeline's 4-arg execute so the
+        // child records it as parentRunId.
+        when(taskCtx.metadata())
+                .thenReturn(Map.of("atmosphere.tape.parentRunId", "ceo-run-1"));
+        doNothing().when(pipeline)
+                .execute(anyString(), anyString(), any(StreamingSession.class), anyMap());
+
+        var collector = new A2aStreamCollector(taskCtx, pipeline);
+        collector.stream("prompt");
+
+        verify(pipeline).execute(eq("task-123"), eq("prompt"), eq(collector),
+                eq(Map.of("atmosphere.tape.parentRunId", "ceo-run-1")));
     }
 
     @Test

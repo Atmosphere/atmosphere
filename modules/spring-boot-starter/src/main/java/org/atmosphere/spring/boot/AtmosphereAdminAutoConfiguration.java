@@ -357,7 +357,7 @@ public class AtmosphereAdminAutoConfiguration {
             var uri = req.getRequestURI();
             return uri != null
                     && uri.matches(".*/api/admin/(governance/decisions|audit|journal(/[^/]+(/log)?)?"
-                            + "|tape/runs(/[^/]+/steps)?)$");
+                            + "|tape/runs(/[^/]+/(steps|replay))?)$");
         }
 
         private static boolean isReadMethod(HttpServletRequest req) {

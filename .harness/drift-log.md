@@ -2391,3 +2391,30 @@ target-readiness race so every mission provably hits sample-target) is offered b
 target* (assert the target host/port appears in the findings), never merely because a "DONE" line or
 a result file exists. Zero findings from a live web recon is a RED flag (mission didn't connect), not
 a clean bill of health — treat it as a failed run, not a pass.
+
+---
+
+## 2026-07-14 — Root README overstated the session tape ("Every AI turn recorded to a durable session tape")
+
+**Claim (shipped):** the root README "Why Atmosphere" row read *"Every AI turn recorded to a durable
+session tape"* (commit `74578d8669`).
+
+**Truth:** the tape is **off by default** (`atmosphere.ai.tape.enabled=false`), crash-durable only
+with the SQLite store (the in-memory fallback is not), and records events *as produced at the session
+boundary* with documented `TapeSupport` exclusions — sync `generate`/`generateResult`
+(`CollectingSession`), in-process coordinator fan-out *branch* sessions, pipeline-internal
+`StructuredOutputRetry` attempts, reattach replay, and `modules/interactions` runs. So both "every AI
+turn" and an unconditional "durable" oversell.
+
+**Slip path:** I wrote a punchy value-prop table row without carrying the caveats I had *correctly*
+stated elsewhere (the new tutorial and reference both open with "off by default"). Marketing-table
+brevity dropped the qualifiers — the textbook README-honesty failure. The project maintainer caught it
+on review.
+
+**Fix:** reworded to *"An opt-in session tape records session-boundary AI events (SQLite-durable)…"*;
+added a "What's *not* taped" note to the tutorial and the exclusion list to the reference + the
+`modules/ai` README. Bundled with this log entry in one commit.
+
+**Gate:** a top-of-README capability row must carry its enablement + durability + scope caveats inline
+(no "Every … always …" for an opt-in/bounded feature) so the headline matches the detailed doc —
+never a qualifier-free superlative.

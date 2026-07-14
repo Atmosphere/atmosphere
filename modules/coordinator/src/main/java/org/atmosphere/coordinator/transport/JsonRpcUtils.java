@@ -41,11 +41,21 @@ final class JsonRpcUtils {
     private JsonRpcUtils() { }
 
     static String buildSendRequest(String skill, Map<String, Object> args) {
-        return buildRequest(METHOD_SEND_MESSAGE, skill, args);
+        return buildRequest(METHOD_SEND_MESSAGE, skill, args, Map.of());
+    }
+
+    static String buildSendRequest(String skill, Map<String, Object> args,
+                                   Map<String, Object> dispatchMetadata) {
+        return buildRequest(METHOD_SEND_MESSAGE, skill, args, dispatchMetadata);
     }
 
     static String buildStreamRequest(String skill, Map<String, Object> args) {
-        return buildRequest(METHOD_SEND_STREAMING_MESSAGE, skill, args);
+        return buildRequest(METHOD_SEND_STREAMING_MESSAGE, skill, args, Map.of());
+    }
+
+    static String buildStreamRequest(String skill, Map<String, Object> args,
+                                     Map<String, Object> dispatchMetadata) {
+        return buildRequest(METHOD_SEND_STREAMING_MESSAGE, skill, args, dispatchMetadata);
     }
 
     /**
@@ -122,14 +132,23 @@ final class JsonRpcUtils {
         return null;
     }
 
-    private static String buildRequest(String method, String skill, Map<String, Object> args) {
+    private static String buildRequest(String method, String skill, Map<String, Object> args,
+                                       Map<String, Object> dispatchMetadata) {
         var firstValue = args.values().isEmpty()
                 ? "" : String.valueOf(args.values().iterator().next());
+        // Message metadata = the fixed skillId plus any caller-supplied dispatch
+        // metadata (e.g. the coordinator's tape run id, atmosphere.tape.parentRunId,
+        // which the receiving task inherits so the child records its parent run).
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("skillId", skill);
+        if (dispatchMetadata != null) {
+            metadata.putAll(dispatchMetadata);
+        }
         var message = Map.of(
                 "messageId", UUID.randomUUID().toString(),
                 "role", "ROLE_USER",
                 "parts", List.of(Map.of("text", firstValue)),
-                "metadata", Map.of("skillId", skill)
+                "metadata", metadata
         );
         var params = new LinkedHashMap<String, Object>();
         params.put("message", message);

@@ -109,6 +109,18 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
                 evalExecutor, false, coordinationId);
     }
 
+    @Override
+    public AgentFleet withParentRun(String parentRunId) {
+        var delegated = delegate.withParentRun(parentRunId);
+        if (delegated == delegate) {
+            return this; // null/blank parent id — no change
+        }
+        // Re-wrap the parent-run-carrying delegate, sharing (not owning) the
+        // eval executor exactly like withCoordinationId.
+        return new JournalingAgentFleet(delegated, journal, coordinatorName,
+                evalExecutor, false, coordinationIdOverride);
+    }
+
     /**
      * Install a {@link CommitmentSigner} so every cross-agent dispatch
      * emits a signed {@link CommitmentRecord}. Pass {@code null} or

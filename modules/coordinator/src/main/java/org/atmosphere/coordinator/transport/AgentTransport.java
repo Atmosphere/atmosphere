@@ -28,9 +28,26 @@ public interface AgentTransport {
     /** Send a synchronous request to an agent skill. */
     AgentResult send(String agentName, String skill, Map<String, Object> args);
 
+    /**
+     * Send a synchronous request carrying dispatch metadata (e.g. the
+     * coordinator's tape run id) onto the wire message. The default ignores the
+     * metadata for transports that don't propagate it.
+     */
+    default AgentResult send(String agentName, String skill, Map<String, Object> args,
+                             Map<String, Object> dispatchMetadata) {
+        return send(agentName, skill, args);
+    }
+
     /** Send a streaming request. Tokens are pushed to the consumer. */
     void stream(String agentName, String skill, Map<String, Object> args,
                 Consumer<String> onToken, Runnable onComplete);
+
+    /** Streaming variant carrying dispatch metadata; default ignores it. */
+    default void stream(String agentName, String skill, Map<String, Object> args,
+                        Map<String, Object> dispatchMetadata,
+                        Consumer<String> onToken, Runnable onComplete) {
+        stream(agentName, skill, args, onToken, onComplete);
+    }
 
     /** Whether the target agent is currently reachable. */
     boolean isAvailable();

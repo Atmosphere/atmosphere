@@ -30,6 +30,7 @@ Atmosphere is built for teams that need AI agents to behave like production serv
 | Govern execution | Policy admission, `@AgentScope`, human approval, plan-and-verify, cost ceilings, PII rewriting, and admin kill switches |
 | Pause for humans | Durable HITL approvals hibernate without holding a thread, persist workflow state, and resume through REST approval surfaces |
 | Resume long runs | Durable sessions, run IDs, replay buffers, checkpoints, and reconnect-safe continuation |
+| Observe and replay | An opt-in [session tape](https://atmosphere.github.io/docs/tutorial/36-session-tape/) records session-boundary AI events (SQLite-durable) — reconstruct a recorded run, or a multi-agent coordination tree, from the tape with no model call, then distill a smaller model from it |
 | Expose the same agent everywhere | Browser endpoints plus MCP (stateless RC on the MCP 2026-07-28 spec, sessions back to 2024-11-05), A2A, AG-UI, Slack, Telegram, Discord, WhatsApp, and Messenger modules |
 
 ## Scope
@@ -189,7 +190,7 @@ Atmosphere keeps governance on the critical path rather than as an afterthought.
 | [PII and cost controls](https://atmosphere.github.io/docs/reference/governance/) | `atmosphere-ai` | stream-level PII redaction, token usage, per-tenant cost ceilings |
 | [Admin control plane](https://atmosphere.github.io/docs/reference/admin/) | `atmosphere-admin` | dashboard, REST/MCP control surfaces, kill switches, journal flow viewer, governance decisions, **workflow authoring UI** (authoring + persistence; manifest execution runtime not yet wired), **eval dashboard** |
 | Enterprise console bundle | `atmosphere-admin-bundle` | single Maven dep aggregating `spring-boot-starter` + `admin` + `ai` + `coordinator` + `agent` + `rag` + `checkpoint` + `durable-sessions` |
-| [Compliance evidence](https://atmosphere.github.io/docs/tutorial/32-owasp-agentic-matrix/) | `atmosphere-ai`, `atmosphere-admin` | OWASP Agentic Top 10, EU AI Act, HIPAA, SOC 2 matrices and AGT-compatible verification output |
+| [Compliance evidence](https://atmosphere.github.io/docs/tutorial/32-owasp-agentic-matrix/) | `atmosphere-ai`, `atmosphere-admin` | OWASP Agentic Top 10, EU AI Act, HIPAA, SOC 2 matrices, admin-console evidence views, and AGT-compatible verification output |
 | [Sandbox execution](https://atmosphere.github.io/docs/reference/sandbox/) | `atmosphere-sandbox` | `DockerSandboxProvider` default and `SandboxProvider` SPI for isolated code execution |
 
 Governance policy can be YAML-driven:

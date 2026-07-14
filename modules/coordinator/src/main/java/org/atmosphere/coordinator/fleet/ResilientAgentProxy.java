@@ -76,6 +76,19 @@ public final class ResilientAgentProxy implements AgentProxy {
     public boolean isLocal() { return delegate.isLocal(); }
 
     @Override
+    public AgentProxy withDispatchMetadata(Map<String, Object> dispatchMetadata) {
+        // Thread the dispatch metadata (e.g. the coordinator's tape run id) into
+        // the wrapped proxy, preserving this proxy's circuit breaker + listeners.
+        // Without this override the interface default would return `this`, and a
+        // ResilientAgentProxy-wrapped fleet would silently drop the parent run.
+        var wrapped = delegate.withDispatchMetadata(dispatchMetadata);
+        if (wrapped == delegate) {
+            return this;
+        }
+        return new ResilientAgentProxy(wrapped, circuitBreaker, activityListeners);
+    }
+
+    @Override
     public AgentResult call(String skill, Map<String, Object> args) {
         if (!circuitBreaker.allowRequest()) {
             var cooldownUntil = Instant.now().plusSeconds(30);

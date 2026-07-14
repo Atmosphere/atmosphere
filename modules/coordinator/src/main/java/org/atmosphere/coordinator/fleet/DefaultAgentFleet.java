@@ -124,6 +124,23 @@ public final class DefaultAgentFleet implements AgentFleet {
     }
 
     @Override
+    public AgentFleet withParentRun(String parentRunId) {
+        if (parentRunId == null || parentRunId.isBlank()) {
+            return this;
+        }
+        // Stamp the coordinator's tape run id onto every child dispatch's wire
+        // message metadata; the child records it as parentRunId so the whole
+        // coordination replays as a tree (TapeReplay#reconstructTree).
+        var md = Map.<String, Object>of(
+                org.atmosphere.ai.tape.TapeSupport.PARENT_RUN_METADATA_KEY, parentRunId);
+        var newProxies = new LinkedHashMap<String, AgentProxy>();
+        for (var entry : proxies.entrySet()) {
+            newProxies.put(entry.getKey(), entry.getValue().withDispatchMetadata(md));
+        }
+        return new DefaultAgentFleet(newProxies, evaluators, parallelTimeoutMs, activityListeners);
+    }
+
+    @Override
     public AgentProxy agent(String name) {
         var proxy = proxies.get(name);
         if (proxy == null) {

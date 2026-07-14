@@ -396,9 +396,15 @@ public class AiPipeline {
         // wrap and the conversation key is the clientId. Zero-cost no-op when
         // nothing is installed.
         if (org.atmosphere.ai.tape.TapeSupport.installed()) {
+            // A fan-out child of a multi-agent coordination carries its parent
+            // coordinator's tape run id in the request metadata; recording it as
+            // parentRunId lets the whole team session replay as a tree.
+            Object parentRun = extraMetadata.get(
+                    org.atmosphere.ai.tape.TapeSupport.PARENT_RUN_METADATA_KEY);
             session = org.atmosphere.ai.tape.TapeSupport.wrap(session,
                     org.atmosphere.ai.tape.TapeRunInfo.pipeline(clientId, model,
-                            runtime != null ? runtime.name() : null));
+                            runtime != null ? runtime.name() : null,
+                            parentRun instanceof String s && !s.isBlank() ? s : null));
         }
         var history = memory != null
                 ? memory.getHistory(clientId)

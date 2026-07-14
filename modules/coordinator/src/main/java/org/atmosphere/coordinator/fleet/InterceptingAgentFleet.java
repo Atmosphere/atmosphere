@@ -108,6 +108,18 @@ public final class InterceptingAgentFleet implements AgentFleet {
     }
 
     @Override
+    public AgentFleet withParentRun(String parentRunId) {
+        // Delegate so the parent tape run id reaches the wrapped fleet's proxies;
+        // without this override the interface default returns `this` and a
+        // governance-wrapped fleet silently drops the multi-agent tree linkage.
+        var delegated = delegate.withParentRun(parentRunId);
+        if (delegated == delegate) {
+            return this;
+        }
+        return new InterceptingAgentFleet(delegated, interceptors);
+    }
+
+    @Override
     public AgentResult route(AgentResult result, java.util.function.Consumer<RoutingSpec> spec) {
         // The route DSL runs in terms of AgentCall execution on `this` — so
         // interceptors apply naturally when the routing body calls fleet.agent(...).
