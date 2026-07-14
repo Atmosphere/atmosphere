@@ -74,7 +74,8 @@ LLM_API_KEY=your-key ./mvnw spring-boot:run
 ### Swap the runtime adapter
 
 ```bash
-# Built-in is the default. This injects the Spring AI adapter dependencies.
+# Built-in is the default. --runtime spring-ai scaffolds the app against the
+# Spring AI adapter instead (a CLI overlay injects its Maven dependencies).
 atmosphere new my-agent --template ai-chat --runtime spring-ai
 
 # Use --force when a sample already pins a runtime adapter.
@@ -155,6 +156,8 @@ Narrow the set per agent (`@Agent(harness = {Harness.MEMORY})`) or opt down to a
 ## AI Runtime Adapters
 
 `atmosphere-ai` ships the `AgentRuntime` SPI plus the Built-in OpenAI-compatible adapter. Eleven additional adapters live in separate modules — nine wrap a third-party framework, and two (`atmosphere-anthropic`, `atmosphere-cohere`) are native HTTP+SSE clients for the Anthropic Messages API and the Cohere v2 chat API respectively. Drop one runtime adapter on the classpath and the same `@Agent` code dispatches through it.
+
+Atmosphere does not replace these frameworks. You keep the native framework for what it does best — its models, tools, planners, memory, and vector stores — and Atmosphere adds the service layer around it: real-time transports, governance, HITL approval, durable sessions, replay, and MCP/A2A/AG-UI exposure. The adapter is a bridge, not a replacement; the **Notes** column below says which native framework each one is the best fit for.
 
 Capabilities are intentionally not identical. The authoritative matrix is pinned by `AbstractAgentRuntimeContractTest.expectedCapabilities()`, so a runtime cannot drift from its declared feature set without breaking tests.
 

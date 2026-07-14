@@ -2,6 +2,8 @@
 
 `AgentRuntime` implementation backed by Microsoft Semantic Kernel for Java. When this JAR is on the classpath, `@AiEndpoint` can route prompts through SK's `ChatCompletionService` and stream results to browser clients via Atmosphere's real-time transport.
 
+Use this adapter when Microsoft Semantic Kernel is already your plugin, function, and connector layer. Atmosphere keeps Semantic Kernel in charge of those native abstractions and adds the service layer around them — real-time client transports (WebSocket, SSE, long-polling, gRPC), `@Agent`/`@AiEndpoint` dispatch, governance and HITL approval, durable sessions and session-tape replay, and MCP/A2A/AG-UI exposure of the same agent. It runs on top of Semantic Kernel; it does not replace it.
+
 ## Maven Coordinates
 
 ```xml

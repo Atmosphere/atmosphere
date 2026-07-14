@@ -2,6 +2,8 @@
 
 `AgentRuntime` implementation backed by JetBrains [Koog](https://github.com/JetBrains/koog/) `PromptExecutor`. When this JAR is on the classpath, `@AiEndpoint` can run Koog agents and stream their output to browser clients in real-time.
 
+Use this adapter when JetBrains Koog is already your agent and prompt-execution layer. Atmosphere keeps Koog in charge of its native agent orchestration and adds the service layer around it — real-time client transports (WebSocket, SSE, long-polling, gRPC), `@Agent`/`@AiEndpoint` dispatch, governance and HITL approval, durable sessions and session-tape replay, and MCP/A2A/AG-UI exposure of the same agent. It runs on top of Koog; it does not replace it.
+
 ## Maven Coordinates
 
 ```xml

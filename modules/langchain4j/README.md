@@ -2,6 +2,8 @@
 
 `AgentRuntime` implementation backed by LangChain4j `StreamingChatLanguageModel`. When this JAR is on the classpath, `@AiEndpoint` automatically uses LangChain4j for LLM streaming.
 
+Use this adapter when LangChain4j is already your model, AI-Services, tool, or RAG layer. Atmosphere keeps LangChain4j in charge of those native abstractions and adds the service layer around them — real-time client transports (WebSocket, SSE, long-polling, gRPC), `@Agent`/`@AiEndpoint` dispatch, governance and HITL approval, durable sessions and session-tape replay, and MCP/A2A/AG-UI exposure of the same agent. It runs on top of LangChain4j; it does not replace it.
+
 ## Maven Coordinates
 
 ```xml

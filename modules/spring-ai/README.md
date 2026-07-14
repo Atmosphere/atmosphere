@@ -2,6 +2,8 @@
 
 `AgentRuntime` implementation backed by Spring AI `ChatClient`. When this JAR is on the classpath, `@AiEndpoint` automatically uses Spring AI for LLM streaming.
 
+Use this adapter when Spring AI is already your model, advisor, memory, tool, or `VectorStore` layer. Atmosphere keeps Spring AI in charge of those native abstractions and adds the service layer around them — real-time client transports (WebSocket, SSE, long-polling, gRPC), `@Agent`/`@AiEndpoint` dispatch, governance and HITL approval, durable sessions and session-tape replay, and MCP/A2A/AG-UI exposure of the same agent. It runs on top of Spring AI; it does not replace it.
+
 ## Maven Coordinates
 
 ```xml

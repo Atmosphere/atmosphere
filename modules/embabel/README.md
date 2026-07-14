@@ -2,6 +2,8 @@
 
 `AgentRuntime` implementation backed by Embabel `AgentPlatform`. When this JAR is on the classpath, `@AiEndpoint` can run Embabel agents and stream their output to browser clients.
 
+Use this adapter when Embabel's goal-oriented action planning (GOAP) is already your agent layer. Atmosphere keeps Embabel in charge of native planning and adds the service layer around it — real-time client transports (WebSocket, SSE, long-polling, gRPC), `@Agent`/`@AiEndpoint` dispatch, governance and HITL approval, durable sessions and session-tape replay, and MCP/A2A/AG-UI exposure of the same agent. It runs on top of Embabel; it does not replace it. **Spring Boot 3 only today:** this adapter requires `atmosphere-spring-boot3-starter` and the `-Pspring-boot3` profile.
+
 ## Maven Coordinates
 
 ```xml

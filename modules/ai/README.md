@@ -34,6 +34,8 @@ The `@AiEndpoint` annotation replaces the boilerplate of `@ManagedService` + `@R
 
 The `AgentRuntime` interface is the AI-layer equivalent of `AsyncSupport`. Implementations are discovered via `ServiceLoader`, filtered by `isAvailable()`, and the highest `priority()` wins.
 
+**Mental model.** `atmosphere-ai` is a normalization layer, not a replacement for the frameworks it adapts. It wraps each native runtime (Spring AI, LangChain4j, ADK, Koog, Embabel, Semantic Kernel, AgentScope, …) in one execution contract so Atmosphere can apply transport, governance, memory, replay, approval, and observability consistently across all of them. When a runtime has a native feature, the adapter uses it; when it does not, Atmosphere provides a portable floor where safe (see [Native vs portable floor](#native-vs-portable-floor) below). The capability flags in the table are runtime truth — each is pinned by a contract test — not aspiration.
+
 | Adapter JAR | `AgentRuntime` implementation | Priority | Capabilities |
 |-------------|-------------------------------|----------|-------------|
 | `atmosphere-ai` (built-in) | `BuiltInAgentRuntime` (OpenAI-compatible) | 0 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, PER_REQUEST_RETRY, TOKEN_USAGE, CONVERSATION_MEMORY, TOOL_CALL_DELTA, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
@@ -65,6 +67,15 @@ Capability flags advertise a coarse contract: "this runtime cooperates with the 
 If a per-runtime cell needs a caveat, document it in the row footnote (Spring AI Alibaba already does for buffered streaming) rather than weakening the capability semantics across all rows.
 
 **Spring AI Alibaba runtime — Spring Boot 3 only today.** Spring AI Alibaba `1.1.2.3` is compiled against Spring AI `1.1.8` and `spring-ai-alibaba-graph-core-1.1.2.3` hardcodes references to Spring AI 1.1.x-only types (e.g. `org.springframework.ai.deepseek.DeepSeekAssistantMessage`), so the runtime requires Spring AI 1.1.8 on the classpath. Spring AI 1.1.8 in turn requires Spring Boot 3 (it references the SB3-era FQN `org.springframework.boot.autoconfigure.web.client.RestClientAutoConfiguration`; Spring Boot 4 has the same class but at the renamed FQN `org.springframework.boot.restclient.autoconfigure.RestClientAutoConfiguration`). Net result: `atmosphere-spring-ai-alibaba` runs end-to-end on Spring Boot 3 today (verified via chrome-devtools through the bundled Console against Ollama, qwen2.5:0.5b round-trip succeeded); a Spring Boot 4 path will become possible once Alibaba publishes a Spring AI 2.x-aligned `spring-ai-alibaba-agent-framework`. Forcing Spring AI 2.0.0 across the classpath today fails at `ReactAgent` construction with `NoClassDefFoundError`. AgentScope (`atmosphere-agentscope`) is unaffected — it builds its OpenAI-compatible client through `AiConfig` directly and is validated end-to-end on Spring Boot 4.
+
+### Native vs portable floor
+
+Capability declarations follow one rule: **a runtime advertises a native surface only when the adapter proves it is wired end-to-end.** This keeps the flags honest (Correctness Invariant #5 — runtime truth) and governs how the deep-agent primitives — planning and the virtual filesystem — resolve per runtime:
+
+- **Native wins when proven.** Where a runtime ships a native plan or filesystem surface that the adapter drives end-to-end, the adapter uses it and declares the flag: AgentScope and Spring AI Alibaba declare `PLANNING` (native `PlanNotebook` / `write_todos` delegation, persisted through `AgentPlanStore`); ADK and Anthropic declare `VIRTUAL_FILESYSTEM` (native artifact-service / `memory_20250818` tool bridge over Atmosphere's `AgentFileSystem`).
+- **Portable floor otherwise.** Where a runtime has no native surface, the Built-in harness supplies a portable floor so the same `@Agent` behaves consistently — the `write_todos` plan tool and the six-tool, conversation-scoped virtual filesystem (`ls`, `read_file`, `write_file`, `edit_file`, `glob`, `grep`).
+- **Undeclared ≠ unwired.** A runtime can deliberately leave a flag *undeclared* to keep the portable floor active. Embabel exposes native planning and the Embabel `FileTools` surface as explicit opt-ins (`atmosphere.ai.planning=native`, `atmosphere.ai.filesystem=native`) but declares neither capability flag, because each native surface covers only one of the two dispatch paths — declaring the flag would suppress the portable floor on the path the native surface does not cover.
+- **No duplicate tools.** When native owns a surface, Atmosphere does not also inject its portable equivalent on that path — the model sees one plan tool and one filesystem, never two.
 
 ### AiInterceptor
 
