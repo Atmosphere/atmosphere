@@ -2481,3 +2481,65 @@ drift needed a lie; both needed only a gate that could not fail.
   tests anywhere?" — instead of flagging the flag. It immediately caught
   `native-image-ci.yml`, which the old file-blanket allowlist had exempted
   wholesale; it does test, via an inline boot probe, now encoded as evidence.
+
+---
+
+## 2026-07-15 — The gate-hardening commit shipped three more silent no-ops (corrects the 2026-07-14 entry)
+
+Same session, next day. The commit that deleted the WARN tier introduced two
+fresh instances of the exact failure it was written to kill, and inherited a
+third from the environment. CI caught them within minutes of the push.
+
+**Claim:** "All 5 warn classes are at zero, honestly" — reported to the project
+maintainer alongside `ARCHITECTURAL VALIDATION PASSED` and an injection test
+that supposedly proved every check bites.
+
+**Truth:** the mock/stub check was an unconditional PASS. Its allowlist filter
+was written as `... | python3 - "$TOML_FILE" <<'PYTHON_WIRING'` — but `python3 -`
+reads its *program* from stdin, and the heredoc rebinds stdin to the program
+text, so the piped findings never arrived. `for line in sys.stdin` saw EOF and
+the filter emitted nothing. Zero findings, forever. Separately,
+`false_positive_words` had been placed *below* `[[mock_exclusions.wiring_sites]]`
+in the TOML, which binds a bare key to the array's first element rather than the
+parent table; `MOCK_FALSE_POSITIVES` parsed empty, and `grep -viE ""` matches
+every line, so `-v` discarded every finding — the same no-op by a second,
+independent route. Either bug alone was sufficient.
+
+**Slip path:** the injection test that "proved every check bites" injected
+`"stub implementation of x"` — a string the *critical placeholder* check
+matches. It failed the build, I saw red, and I credited the mock check for a
+catch that belonged to a different check. The test was real; the attribution was
+not. A bare `mock` token, which only the mock check can catch, passes clean
+through both bugs. Verifying that a gate fails is not the same as verifying
+*which* gate failed.
+
+**Also caught (environmental, pre-existing):** CI runs
+`architectural-validation.sh` with Python installed but never ripgrep, and every
+`rg` call in the script redirects stderr to `/dev/null`. A missing binary
+therefore reads as "no findings" — so the sysout check silently found 13 console
+entry points it could not filter (the filter shells out to `rg`), and the
+continue-on-error check reported 1 finding on an empty result because
+`echo "$EMPTY" | wc -l` counts echo's own trailing newline. The second is a
+latent miscount that had been harmless for as long as the check was advisory:
+promoting it to blocking is what made a clean tree fail.
+
+**Gate added:**
+- The script refuses to run when `rg` or `python3` is absent, instead of
+  scanning nothing and printing PASS. `.github/workflows/ci.yml` installs
+  ripgrep so the refusal never fires.
+- Every allowlist parsed from the TOML is asserted non-empty before use, because
+  an empty pattern in `grep -vE` is a match-everything filter — a typo or a
+  misplaced TOML key would otherwise *disable* checks while printing PASS.
+- The wiring-site filter is now a real file (`scripts/lib/filter_wiring_sites.py`),
+  which keeps stdin free for the data it is supposed to read.
+- Counting uses `grep -c .` rather than `echo | wc -l` so an empty result counts
+  as zero.
+- `validation-patterns.toml` carries an inline warning that bare keys must stay
+  above the array-of-tables header, naming the bug it caused.
+- Injection tests must assert *which* check fired, not merely that the build went
+  red. A gate proven only by "something failed" is not proven.
+
+**Standing lesson:** three no-ops in one file, all shaped alike — a check whose
+input is empty for a reason unrelated to the code being clean. Emptiness must
+never be the same signal as cleanliness. Every future check must answer: "if my
+input silently became empty, would I still print PASS?"

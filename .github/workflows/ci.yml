@@ -28,6 +28,15 @@ jobs:
       with:
         python-version: '3.12'
 
+    # Every check shells out to ripgrep with stderr suppressed, so without the
+    # binary the gate finds nothing and prints PASS. The script now refuses to
+    # run when rg is absent rather than passing vacuously; install it so the
+    # refusal never triggers.
+    - name: Install ripgrep
+      run: |
+        command -v rg > /dev/null 2>&1 || sudo apt-get install -y -qq ripgrep
+        rg --version | head -1
+
     - name: Run Architectural Validation
       run: ./scripts/architectural-validation.sh
 

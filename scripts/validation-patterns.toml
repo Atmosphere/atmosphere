@@ -77,20 +77,6 @@ files = [
     "FakeLlmClient.java"
 ]
 
-# Production sites that WIRE a legitimately-named fake, rather than leaking a
-# stub. `atmosphere.ai.mode=fake` is a documented, shipped config mode: it
-# selects FakeLlmClient so the samples run with no API key, and AiConfig logs
-# the choice at startup. The mode is a product feature, so the word "fake" in
-# its wiring is the feature's real name --- not a placeholder someone forgot.
-#
-# Scoped to file + symbol, deliberately: a bare file exclusion would let a real
-# stub land in AiConfig unnoticed. Any mock/stub/fake hit in these files that
-# does NOT match the paired regex still fails.
-[[mock_exclusions.wiring_sites]]
-file = "AiConfig.java"
-pattern = '"fake"\.equalsIgnoreCase\(mode\)|new FakeLlmClient\(|mode=fake'
-reason = "wires the documented atmosphere.ai.mode=fake demo mode"
-
 # Word-level false positives (words containing mock/stub/fake but not meaning it)
 false_positive_words = [
     "socket",
@@ -105,6 +91,29 @@ false_positive_words = [
     "noOpsRequest",
     "AtmosphereRequestImpl"
 ]
+
+# NOTE: every bare key of [mock_exclusions] must stay ABOVE the
+# [[mock_exclusions.wiring_sites]] block below. TOML binds subsequent bare keys
+# to the most recent table header, so a key placed after the array-of-tables
+# silently becomes a field of wiring_sites[0] instead. That is not theoretical:
+# false_positive_words was briefly stranded there, which emptied
+# MOCK_FALSE_POSITIVES, turned the mock check's `grep -viE "$EMPTY"` into a
+# match-everything filter, and made the whole check pass vacuously. Add new bare
+# keys above this line.
+
+# Production sites that WIRE a legitimately-named fake, rather than leaking a
+# stub. `atmosphere.ai.mode=fake` is a documented, shipped config mode: it
+# selects FakeLlmClient so the samples run with no API key, and AiConfig logs
+# the choice at startup. The mode is a product feature, so the word "fake" in
+# its wiring is the feature's real name --- not a placeholder someone forgot.
+#
+# Scoped to file + symbol, deliberately: a bare file exclusion would let a real
+# stub land in AiConfig unnoticed. Any mock/stub/fake hit in these files that
+# does NOT match the paired regex still fails.
+[[mock_exclusions.wiring_sites]]
+file = "AiConfig.java"
+pattern = '"fake"\.equalsIgnoreCase\(mode\)|new FakeLlmClient\(|mode=fake'
+reason = "wires the documented atmosphere.ai.mode=fake demo mode"
 
 # ============================================================================
 # @SuppressWarnings ALLOWLIST

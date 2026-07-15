@@ -60,6 +60,22 @@ pass_validation() {
 # reason — do not reintroduce a yellow tier. Bash will fail loudly with
 # "command not found" if anyone calls warn_validation again.
 
+# Hard dependency check. Nearly every check here shells out to `rg` with
+# stderr redirected to /dev/null, so on a machine without ripgrep the command
+# fails silently, the check finds nothing, and the gate prints PASS. An absent
+# tool must never read as a clean result — that is the same failure mode as the
+# SOURCE_DIRS typo (a check that scanned nothing and passed), just sourced from
+# the environment instead of the script. Fail loudly instead.
+for tool in rg python3; do
+    if ! command -v "$tool" > /dev/null 2>&1; then
+        echo -e "${RED}CRITICAL: '$tool' is not installed.${NC}"
+        echo -e "${RED}Nearly every check here depends on it and suppresses its${NC}"
+        echo -e "${RED}stderr, so continuing would print PASS while scanning${NC}"
+        echo -e "${RED}nothing. Install $tool (CI: see .github/workflows/ci.yml).${NC}"
+        exit 1
+    fi
+done
+
 # Comment-aware scanner. Checks that ask about CODE must not match Javadoc
 # usage examples, and checks that ask about COMMENTS must not match enum
 # constants that happen to be spelled TODO. See scripts/lib/source_scan.py.
@@ -146,6 +162,28 @@ ns = config.get("non_shipped_modules", {}).get("modules", [])
 print(f'NON_SHIPPED_MODULES="{" ".join(ns)}"')
 PYTHON_PARSER
 )"
+
+# ----------------------------------------------------------------------------
+# Guard against a silently-empty config. Several checks filter their findings
+# through `grep -vE "$SOME_ALLOWLIST"`, and an EMPTY pattern matches every line
+# — so `-v` then discards every finding and the check passes vacuously. A typo
+# in the TOML, a key stranded under the wrong table header, or a parser change
+# would therefore *disable* checks while still printing PASS. Refuse to run
+# instead. (This is not hypothetical: moving false_positive_words below
+# [[mock_exclusions.wiring_sites]] bound it to wiring_sites[0], emptied
+# MOCK_FALSE_POSITIVES, and neutered the mock check.)
+for required in SPI_ALLOWLIST ALLOWED_SUPPRESSIONS MOCK_FALSE_POSITIVES \
+                CRITICAL_PLACEHOLDERS CI_COE_ALLOWLIST NOOP_ALLOWLIST \
+                NON_SHIPPED_MODULES; do
+    if [ -z "${!required}" ]; then
+        echo -e "${RED}CRITICAL: $required parsed empty from validation-patterns.toml.${NC}"
+        echo -e "${RED}An empty allowlist becomes a match-everything grep filter and${NC}"
+        echo -e "${RED}would silently disable checks while printing PASS. Check the${NC}"
+        echo -e "${RED}TOML table structure — a bare key placed after an [[array.of.tables]]${NC}"
+        echo -e "${RED}header binds to that array's first element, not the parent table.${NC}"
+        exit 1
+    fi
+done
 
 # ----------------------------------------------------------------------------
 # Verify the non-shipped allowlist against the poms it claims to describe.
@@ -365,26 +403,23 @@ fi
 # Legitimately-named product features are allowlisted per file+symbol in
 # [[mock_exclusions.wiring_sites]], never per file alone: `mode=fake` is a real
 # shipped mode, but a real stub landing in AiConfig must still fail.
+#
+# The wiring-site filter is a real file, not a heredoc: `python3 - <<'PY'` in a
+# pipeline reads its program from stdin, which rebinds stdin away from the pipe,
+# so the findings never reach the filter and it emits nothing. That silently
+# turned this whole check into an unconditional PASS.
+MOCK_FILTER="$SCRIPT_DIR/lib/filter_wiring_sites.py"
+if [ ! -f "$MOCK_FILTER" ]; then
+    echo -e "${RED}CRITICAL: filter_wiring_sites.py not found at $MOCK_FILTER${NC}"
+    exit 1
+fi
 MOCK_HITS=$(python3 "$SCAN" --mode code --ignore-case \
     --regex '\b(mock|dummy|fake|stub)\b' \
     --exclude '*Mock*' --exclude '*Stub*' --exclude '*Fake*' --exclude '*Test*' \
     $NON_SHIPPED_EXCLUDES $SHIPPED_SRC_DIRS 2>/dev/null \
     | grep -v 'Mockito' \
     | grep -viE "$MOCK_FALSE_POSITIVES" \
-    | python3 - "$TOML_FILE" <<'PYTHON_WIRING'
-import sys, re, tomllib
-
-with open(sys.argv[1], "rb") as f:
-    sites = tomllib.load(f).get("mock_exclusions", {}).get("wiring_sites", [])
-compiled = [(s["file"], re.compile(s["pattern"])) for s in sites]
-
-for line in sys.stdin:
-    path, _, rest = line.partition(":")
-    if any(path.endswith("/" + f) and rx.search(rest) for f, rx in compiled):
-        continue
-    sys.stdout.write(line)
-PYTHON_WIRING
-)
+    | python3 "$MOCK_FILTER" "$TOML_FILE")
 MOCK_IN_PROD=$(printf '%s' "$MOCK_HITS" | grep -c . || true)
 
 if [ "$MOCK_IN_PROD" -gt "$THRESHOLD_MOCK" ]; then
@@ -813,16 +848,22 @@ echo ""
 echo -e "${BLUE}--- CI Workflow Integrity ---${NC}"
 
 # continue-on-error: true (excluding allowlisted workflows)
+#
+# Counted with `grep -c .` rather than `echo "$X" | wc -l`: echo emits a
+# trailing newline even for an empty variable, so the old idiom reported 1
+# finding when there were zero. As a WARN that miscount was invisible; as a
+# blocking check it fails the build on a clean tree.
 CI_COE_TOTAL=$(rg 'continue-on-error:\s*true' .github/workflows/ -n 2>/dev/null | grep -v '#' || true)
 if [ -n "$CI_COE_ALLOWLIST" ]; then
-    CI_COE=$(echo "$CI_COE_TOTAL" | grep -vE "$CI_COE_ALLOWLIST" | wc -l | tr -d ' ')
+    CI_COE_UNAUTHORIZED=$(printf '%s' "$CI_COE_TOTAL" | grep -vE "$CI_COE_ALLOWLIST" || true)
 else
-    CI_COE=$(echo "$CI_COE_TOTAL" | wc -l | tr -d ' ')
+    CI_COE_UNAUTHORIZED="$CI_COE_TOTAL"
 fi
+CI_COE=$(printf '%s' "$CI_COE_UNAUTHORIZED" | grep -c . || true)
 
 if [ "$CI_COE" -gt 0 ]; then
     fail_validation "Found $CI_COE unauthorized 'continue-on-error: true' in CI workflows"
-    echo "$CI_COE_TOTAL" | grep -vE "$CI_COE_ALLOWLIST" 2>/dev/null | head -5
+    echo "$CI_COE_UNAUTHORIZED" | head -5
 else
     pass_validation "No unauthorized continue-on-error in CI workflows"
 fi
