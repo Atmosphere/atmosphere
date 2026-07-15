@@ -1,0 +1,58 @@
+name: "CI: Gate Self-Test"
+
+# Proves that every check in architectural-validation.sh actually fails on a
+# violation. Without this, a check that has only ever printed PASS is
+# indistinguishable from a check that cannot fail — which is not hypothetical:
+# six no-ops were found in that script in two days (an undefined path variable
+# making rg read stdin, a missing rg binary with suppressed stderr, an empty
+# allowlist turning `grep -vE` into match-everything, a heredoc stealing stdin
+# from a pipeline, and two regexes whose word boundaries could never match the
+# spellings their own extractors targeted). Every one printed PASS.
+#
+# Path-filtered to the gate itself: the suite injects ~25 violations and runs
+# the full gate for each (~15 min), which is only worth paying when the gate or
+# its config changes.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/architectural-validation.sh'
+      - 'scripts/validation-patterns.toml'
+      - 'scripts/lib/**'
+      - '.github/workflows/gate-selftest.yml'
+  pull_request:
+    paths:
+      - 'scripts/architectural-validation.sh'
+      - 'scripts/validation-patterns.toml'
+      - 'scripts/lib/**'
+      - '.github/workflows/gate-selftest.yml'
+  workflow_dispatch:
+
+jobs:
+  prove-gate:
+    name: Prove every check bites
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.12'
+
+    # ubuntu-latest does not ship ripgrep, and the gate suppresses rg's stderr —
+    # so without this the gate finds nothing and passes vacuously, and this
+    # suite would "prove" a gate that isn't running.
+    - name: Install ripgrep
+      run: |
+        command -v rg > /dev/null 2>&1 || sudo apt-get install -y -qq ripgrep
+        rg --version | head -1
+
+    - name: Scanner self-test
+      run: python3 scripts/lib/source_scan.py --self-test
+
+    - name: Prove every check fails on a violation
+      run: ./scripts/lib/prove_gate.sh

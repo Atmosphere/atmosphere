@@ -264,7 +264,11 @@ echo -e "${BLUE}--- NOOP / Dead Code Detection ---${NC}"
 # 1a. Constants ending in NOOP/NO_OP that are DECLARED but never referenced
 #     outside their declaring file. Only match field declarations (static final),
 #     not usages. The exact pattern that let AiMetrics.NOOP ship without being wired.
-NOOP_DECLS=$(rg "static\s+final\s+.*\b(NOOP|NO_OP)\b" $SRC_DIRS --type java -l 2>/dev/null || true)
+# [A-Z_]* on both sides is load-bearing: `_` is a word character, so a bare
+# \b(NOOP|NO_OP)\b never matches FOO_NOOP or NOOP_INSTANCE — it only ever found
+# a constant named exactly NOOP. The extractor below is [A-Z_]*NOOP[A-Z_]* and
+# always intended the affixed spellings; the two disagreed silently.
+NOOP_DECLS=$(rg "static\s+final\s+.*\b[A-Z_]*(NOOP|NO_OP)[A-Z_]*\b" $SRC_DIRS --type java -l 2>/dev/null || true)
 NOOP_ISSUES=""
 NOOP_COUNT=0
 if [ -n "$NOOP_DECLS" ]; then
@@ -287,7 +291,7 @@ if [ -n "$NOOP_DECLS" ]; then
                 NOOP_ISSUES="${NOOP_ISSUES}  ${tag} (${file})\n"
                 NOOP_COUNT=$((NOOP_COUNT + 1))
             fi
-        done < <(rg "static\s+final\s+.*\b(NOOP|NO_OP)\b" "$file" 2>/dev/null)
+        done < <(rg "static\s+final\s+.*\b[A-Z_]*(NOOP|NO_OP)[A-Z_]*\b" "$file" 2>/dev/null)
     done
 fi
 
@@ -489,24 +493,28 @@ fi
 echo ""
 echo -e "${BLUE}--- Test Integrity ---${NC}"
 
-DISABLED_TESTS=$(rg '@Disabled\b' $TEST_DIRS --type java -c 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
+# @(?:[\w.]*\.)? tolerates a fully-qualified annotation: a bare '@Disabled\b'
+# missed @org.junit.jupiter.api.Disabled entirely, so a qualified skip was
+# invisible to this gate. Matches the contract-test detector's convention.
+# Note \b after Disabled correctly excludes @DisabledOnOs (a conditional, not a skip).
+DISABLED_TESTS=$(rg '@(?:[\w.]*\.)?Disabled\b' $TEST_DIRS --type java -c 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
 
 if [ "$DISABLED_TESTS" -gt 0 ]; then
-    BARE_DISABLED=$(rg '@Disabled\s*$' $TEST_DIRS --type java -c 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
+    BARE_DISABLED=$(rg '@(?:[\w.]*\.)?Disabled\s*$' $TEST_DIRS --type java -c 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
     if [ "$BARE_DISABLED" -gt 0 ]; then
         fail_validation "Found $BARE_DISABLED @Disabled test(s) with no reason string — @Disabled(\"why, and what unblocks it\")"
-        rg '@Disabled\s*$' $TEST_DIRS --type java -n 2>/dev/null | head -5
+        rg '@(?:[\w.]*\.)?Disabled\s*$' $TEST_DIRS --type java -n 2>/dev/null | head -5
     fi
     echo "  Total @Disabled tests: $DISABLED_TESTS"
 else
     pass_validation "No @Disabled tests"
 fi
 
-IGNORE_TESTS=$(rg '@Ignore\b' $TEST_DIRS --type java -c 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
+IGNORE_TESTS=$(rg '@(?:[\w.]*\.)?Ignore\b' $TEST_DIRS --type java -c 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
 
 if [ "$IGNORE_TESTS" -gt 0 ]; then
     fail_validation "Found $IGNORE_TESTS @Ignore annotations (JUnit 4 legacy — migrate to @Disabled)"
-    rg '@Ignore\b' $TEST_DIRS --type java -n 2>/dev/null | head -5
+    rg '@(?:[\w.]*\.)?Ignore\b' $TEST_DIRS --type java -n 2>/dev/null | head -5
 else
     pass_validation "No JUnit 4 @Ignore annotations"
 fi

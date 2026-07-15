@@ -1,0 +1,53 @@
+name: "CI: CrewAI Sidecar (Python)"
+
+# The CrewAI tool bridge is half Java, half Python. `CI: Core` covers the Java
+# half — including ToolCallbackServer answering 401 without a valid
+# X-Atmosphere-Tool-Token. Nothing covered the Python half, so the test proving
+# the sidecar actually SENDS that header ran only on developer machines. If a
+# refactor dropped the header, CI stayed green and every tool call would 401 at
+# runtime, surfacing as an opaque CrewAI agent failure.
+#
+# An authorisation control needs both ends gated or it is only half-enforced.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'modules/crewai/**'
+      - '.github/workflows/crewai-sidecar.yml'
+  pull_request:
+    paths:
+      - 'modules/crewai/**'
+      - '.github/workflows/crewai-sidecar.yml'
+  workflow_dispatch:
+
+jobs:
+  sidecar-tests:
+    name: Sidecar pytest
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: modules/crewai/sidecar
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.11'
+
+    - name: Install sidecar + dev deps
+      run: pip install -e '.[dev]'
+
+    - name: Run sidecar test suite
+      run: pytest tests/ -q
+
+    # The suite passing is not enough: it must actually contain the assertion
+    # that the callback token rides the wire. A renamed or deleted test would
+    # otherwise leave this lane green while the control went unguarded.
+    - name: Assert the token test exists and ran
+      run: |
+        pytest tests/test_tools.py::test_remote_tool_sends_auth_token_header -q
+        pytest tests/test_tools_in_sessions.py::test_callback_url_without_token_returns_400 -q
