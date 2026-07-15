@@ -43,9 +43,12 @@ import java.util.concurrent.TimeUnit;
  * not cold-start discovery cost. Report {@code resolveAll().size()}
  * alongside results to document the provider count on the classpath.</p>
  *
- * <p>TODO: parameterize provider count via a synthetic {@link ClassLoader}
- * with generated service entries to isolate dispatch cost from availability
- * check cost. Tracked in Tier 1 plan (open question #4).</p>
+ * <p>Scope: provider count is whatever the benchmark classpath supplies, so
+ * the number reported here folds dispatch cost together with availability-check
+ * cost. Separating the two would need a synthetic {@link ClassLoader} carrying
+ * generated service entries; until a run needs that split, read the result as
+ * the combined warm-resolution cost and report {@code resolveAll().size()}
+ * beside it.</p>
  */
 @State(Scope.Benchmark)
 @Fork(value = 2, jvmArgsAppend = {"-Xms512m", "-Xmx512m"})

@@ -44,7 +44,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -126,6 +128,12 @@ class CrewAiToolBridgeTest {
         var cb = body.path("tool_callback_url").asString("");
         assertTrue(cb.startsWith("http://127.0.0.1:"),
                 "tool_callback_url must point at a loopback callback server; got: " + cb);
+        // The sidecar cannot authenticate to the callback server without this,
+        // so a URL advertised without a token is a broken tool bridge.
+        var token = body.path("tool_callback_token").asString("");
+        assertFalse(token.isBlank(),
+                "tool_callback_token must accompany tool_callback_url — the "
+                        + "callback server refuses untokened calls with 401");
         // Tool itself shouldn't have been executed yet — the sidecar must
         // pull it via the callback URL.
         assertFalse(executed.get(), "executor must not run on the start path");
@@ -152,6 +160,9 @@ class CrewAiToolBridgeTest {
                 "tools must be omitted when none are wired; got: " + body.path("tools"));
         assertTrue(body.path("tool_callback_url").isMissingNode(),
                 "tool_callback_url must be omitted when no tools are wired");
+        assertTrue(body.path("tool_callback_token").isMissingNode(),
+                "tool_callback_token must be omitted when there is no callback "
+                        + "URL to authorise against");
     }
 
     // ---- Callback server stand-alone (no runtime) ----------------------
@@ -167,7 +178,7 @@ class CrewAiToolBridgeTest {
         var server = new ToolCallbackServer(Map.of("lookup_order", tool), session, null);
         server.start();
         try {
-            var response = post(server.callbackUrl(),
+            var response = post(server,
                     "{\"call_id\":\"c1\",\"name\":\"lookup_order\","
                             + "\"arguments\":{\"order_id\":\"A123\"}}");
             assertEquals(200, response.statusCode());
@@ -194,7 +205,7 @@ class CrewAiToolBridgeTest {
                 new RecordingSession(), null);
         server.start();
         try {
-            var response = post(server.callbackUrl(),
+            var response = post(server,
                     "{\"call_id\":\"c2\",\"name\":\"boom\",\"arguments\":{}}");
             // 200, not 5xx — sidecar routes the error back to CrewAI as a
             // recoverable tool failure (per wire protocol contract).
@@ -224,7 +235,7 @@ class CrewAiToolBridgeTest {
         var server = new ToolCallbackServer(Map.of(), new RecordingSession(), null);
         server.start();
         try {
-            var response = post(server.callbackUrl(),
+            var response = post(server,
                     "{\"call_id\":\"c3\",\"name\":\"never_registered\","
                             + "\"arguments\":{}}");
             assertEquals(200, response.statusCode(),
@@ -242,7 +253,7 @@ class CrewAiToolBridgeTest {
         var server = new ToolCallbackServer(Map.of(), new RecordingSession(), null);
         server.start();
         try {
-            var response = post(server.callbackUrl(), "{ not json");
+            var response = post(server, "{ not json");
             assertEquals(400, response.statusCode(),
                     "malformed JSON is a wire-level failure; 400 surfaces it cleanly");
         } finally {
@@ -257,12 +268,117 @@ class CrewAiToolBridgeTest {
         try {
             assertEquals("127.0.0.1", server.host(),
                     "callback server MUST bind 127.0.0.1, never 0.0.0.0 — "
-                            + "loopback isolation is the only trust boundary today");
+                            + "binding is the outer boundary; the token check "
+                            + "below is what authorises callers within the host");
             assertTrue(server.callbackUrl().startsWith("http://127.0.0.1:"),
                     "callback URL must advertise 127.0.0.1 host");
         } finally {
             server.stop();
         }
+    }
+
+    // ---- Callback authorisation (Correctness Invariant #6) -------------
+
+    @Test
+    void toolCallback_missingToken_returns401() throws Exception {
+        var server = new ToolCallbackServer(Map.of(), new RecordingSession(), null);
+        server.start();
+        try {
+            var response = post(server.callbackUrl(),
+                    "{\"call_id\":\"c1\",\"name\":\"whatever\",\"arguments\":{}}",
+                    null);
+            assertEquals(401, response.statusCode(),
+                    "a callback with no " + ToolCallbackServer.TOKEN_HEADER
+                            + " header must be refused — loopback reachability "
+                            + "is not authorisation; every process on the host "
+                            + "can open an ephemeral loopback port");
+        } finally {
+            server.stop();
+        }
+    }
+
+    @Test
+    void toolCallback_wrongToken_returns401() throws Exception {
+        var server = new ToolCallbackServer(Map.of(), new RecordingSession(), null);
+        server.start();
+        try {
+            var response = post(server.callbackUrl(),
+                    "{\"call_id\":\"c1\",\"name\":\"whatever\",\"arguments\":{}}",
+                    "0".repeat(64));
+            assertEquals(401, response.statusCode(),
+                    "a callback presenting the wrong token must be refused");
+        } finally {
+            server.stop();
+        }
+    }
+
+    /**
+     * The gate must run before tool lookup and before the body parser — an
+     * unauthorised caller must not be able to reach {@code @AiTool} code, and
+     * must not learn which tools exist from a differing error shape.
+     */
+    @Test
+    void toolCallback_unauthorized_doesNotExecuteTool() throws Exception {
+        var executor = new RecordingExecutor();
+        var tool = ToolDefinition.builder("lookup_order", "Look up an order")
+                .parameter("order_id", "The order id", "string", true)
+                .executor(executor)
+                .build();
+        var server = new ToolCallbackServer(
+                Map.of("lookup_order", tool), new RecordingSession(), null);
+        server.start();
+        try {
+            var response = post(server.callbackUrl(),
+                    "{\"call_id\":\"c1\",\"name\":\"lookup_order\","
+                            + "\"arguments\":{\"order_id\":\"A123\"}}",
+                    null);
+            assertEquals(401, response.statusCode());
+            assertNull(executor.lastArgs.get(),
+                    "the tool executor MUST NOT run for an unauthorised callback");
+        } finally {
+            server.stop();
+        }
+    }
+
+    @Test
+    void callbackServer_tokenIsPerServer() throws Exception {
+        var a = new ToolCallbackServer(Map.of(), new RecordingSession(), null);
+        var b = new ToolCallbackServer(Map.of(), new RecordingSession(), null);
+        a.start();
+        b.start();
+        try {
+            assertNotEquals(a.token(), b.token(),
+                    "each server must mint its own token so a token leaked from "
+                            + "one run cannot authorise another");
+            var response = post(b.callbackUrl(),
+                    "{\"call_id\":\"c1\",\"name\":\"whatever\",\"arguments\":{}}",
+                    a.token());
+            assertEquals(401, response.statusCode(),
+                    "server B must reject server A's token");
+        } finally {
+            a.stop();
+            b.stop();
+        }
+    }
+
+    @Test
+    void callbackServer_notStarted_tokenIsNull() {
+        var server = new ToolCallbackServer(Map.of(), new RecordingSession(), null);
+        assertNull(server.token(),
+                "token() must be null until start() mints it — callers must "
+                        + "never advertise a token the server would not accept");
+    }
+
+    @Test
+    void startRequest_callbackUrlWithoutToken_isRejected() {
+        // A URL with no token would advertise a surface the sidecar can reach
+        // but never authenticate to: every call 401s inside CrewAI's retry
+        // loop as an opaque agent failure. Fail at the wiring seam instead.
+        assertThrows(IllegalArgumentException.class, () ->
+                new CrewAiSidecarClient.StartRequest(
+                        "hi", null, List.of(), Map.of(), null, List.of(),
+                        "http://127.0.0.1:1234/v1/tools/call", null),
+                "StartRequest must reject a callback URL with no token");
     }
 
     @Test
@@ -289,11 +405,26 @@ class CrewAiToolBridgeTest {
 
     // ---- Test plumbing -------------------------------------------------
 
-    private static HttpResponse<String> post(String url, String body)
+    /**
+     * POST a well-formed, authorised callback — the happy path the sidecar
+     * takes. Presents the token {@code server} minted so these tests exercise
+     * routing rather than the 401 gate; the gate itself is asserted by the
+     * {@code toolCallback_*Token*} tests below.
+     */
+    private static HttpResponse<String> post(ToolCallbackServer server, String body)
+            throws IOException, InterruptedException {
+        return post(server.callbackUrl(), body, server.token());
+    }
+
+    private static HttpResponse<String> post(String url, String body, String token)
             throws IOException, InterruptedException {
         var client = HttpClient.newHttpClient();
-        var request = HttpRequest.newBuilder(URI.create(url))
-                .header("content-type", "application/json")
+        var builder = HttpRequest.newBuilder(URI.create(url))
+                .header("content-type", "application/json");
+        if (token != null) {
+            builder = builder.header(ToolCallbackServer.TOKEN_HEADER, token);
+        }
+        var request = builder
                 .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
                 .timeout(java.time.Duration.ofSeconds(5))
                 .build();

@@ -77,36 +77,50 @@ public interface CrewAiSidecarClient {
      * (crew name, agent overrides) so the wire schema stays stable while
      * the implementation evolves.
      *
-     * <p>{@code systemPrompt}, {@code tools}, and {@code toolCallbackUrl}
-     * are optional. When {@code tools} is empty AND {@code systemPrompt}
-     * is null the wire body is identical to the pre-tool-bridge shape so
-     * existing sidecars stay forward-compatible.</p>
+     * <p>{@code systemPrompt}, {@code tools}, {@code toolCallbackUrl}, and
+     * {@code toolCallbackToken} are optional. When {@code tools} is empty AND
+     * {@code systemPrompt} is null the wire body is identical to the
+     * pre-tool-bridge shape so existing sidecars stay forward-compatible.</p>
      *
-     * @param message         the user turn text
-     * @param model           the model identifier; may be {@code null} so the
-     *                        sidecar falls back to its own default
-     * @param history         conversation history; never {@code null}, may be
-     *                        empty
-     * @param options         additional knobs; never {@code null}, may be
-     *                        empty
-     * @param systemPrompt    optional system-prompt directive prepended to
-     *                        each agent's persona by the sidecar; may be
-     *                        {@code null}
-     * @param tools           tools available to the crew; never {@code null},
-     *                        may be empty (no tool bridge running)
-     * @param toolCallbackUrl URL the sidecar POSTs to when a tool is invoked;
-     *                        MUST be non-null whenever {@code tools} is
-     *                        non-empty
+     * @param message           the user turn text
+     * @param model             the model identifier; may be {@code null} so the
+     *                          sidecar falls back to its own default
+     * @param history           conversation history; never {@code null}, may be
+     *                          empty
+     * @param options           additional knobs; never {@code null}, may be
+     *                          empty
+     * @param systemPrompt      optional system-prompt directive prepended to
+     *                          each agent's persona by the sidecar; may be
+     *                          {@code null}
+     * @param tools             tools available to the crew; never {@code null},
+     *                          may be empty (no tool bridge running)
+     * @param toolCallbackUrl   URL the sidecar POSTs to when a tool is invoked;
+     *                          MUST be non-null whenever {@code tools} is
+     *                          non-empty
+     * @param toolCallbackToken shared secret the sidecar MUST echo in the
+     *                          {@code X-Atmosphere-Tool-Token} header on every
+     *                          callback; MUST be non-null whenever
+     *                          {@code toolCallbackUrl} is set, otherwise the
+     *                          callback server rejects every call with 401
      */
     record StartRequest(String message, String model,
                         List<HistoryEntry> history, Map<String, Object> options,
                         String systemPrompt, List<ToolDescriptor> tools,
-                        String toolCallbackUrl) {
+                        String toolCallbackUrl, String toolCallbackToken) {
 
         public StartRequest {
             history = history != null ? List.copyOf(history) : List.of();
             options = options != null ? Map.copyOf(options) : Map.of();
             tools = tools != null ? List.copyOf(tools) : List.of();
+            // A callback URL without a token would advertise a surface the
+            // sidecar can reach but never authenticate to — every call would
+            // 401. Catch the wiring mistake here rather than as a silent
+            // tool-failure loop inside CrewAI.
+            if (toolCallbackUrl != null && !toolCallbackUrl.isBlank()
+                    && (toolCallbackToken == null || toolCallbackToken.isBlank())) {
+                throw new IllegalArgumentException(
+                        "toolCallbackToken is required when toolCallbackUrl is set");
+            }
         }
 
         /**
@@ -116,7 +130,7 @@ public interface CrewAiSidecarClient {
          */
         public StartRequest(String message, String model,
                             List<HistoryEntry> history, Map<String, Object> options) {
-            this(message, model, history, options, null, List.of(), null);
+            this(message, model, history, options, null, List.of(), null, null);
         }
     }
 

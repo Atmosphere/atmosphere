@@ -277,6 +277,10 @@ class CrewAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 JsonNode body = parseOrEmpty(bodyBytes);
                 var message = body.path("message").asString("");
                 var toolCallbackUrl = body.path("tool_callback_url").asString("");
+                // A real sidecar reads the per-run secret off the same body and
+                // echoes it on every callback; the fixture must too, or the
+                // callback server refuses it with 401.
+                var toolCallbackToken = body.path("tool_callback_token").asString("");
                 var tools = body.path("tools");
 
                 exchange.getResponseHeaders().add("Content-Type", "text/event-stream");
@@ -307,7 +311,7 @@ class CrewAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                     // path (Correctness Invariant #7 — Mode Parity).
                     var toolName = tools.get(0).path("name").asString("");
                     if (!toolName.isBlank()) {
-                        invokeToolCallback(toolCallbackUrl, toolName);
+                        invokeToolCallback(toolCallbackUrl, toolCallbackToken, toolName);
                     }
                 }
 
@@ -319,7 +323,9 @@ class CrewAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 os.close();
             }
 
-            private static void invokeToolCallback(String callbackUrl, String toolName) {
+            private static void invokeToolCallback(String callbackUrl,
+                                                   String callbackToken,
+                                                   String toolName) {
                 // Best-effort — the runtime's terminal-path guarantees absorb
                 // a failed callback (the SSE stream still finishes with a
                 // done frame). The contract assertion lives downstream on
@@ -333,6 +339,7 @@ class CrewAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                     var request = HttpRequest.newBuilder(URI.create(callbackUrl))
                             .timeout(Duration.ofSeconds(2))
                             .header("content-type", "application/json")
+                            .header(ToolCallbackServer.TOKEN_HEADER, callbackToken)
                             .POST(HttpRequest.BodyPublishers.ofString(body,
                                     StandardCharsets.UTF_8))
                             .build();

@@ -97,6 +97,13 @@ class _StartRequest(BaseModel):
         default=None,
         description="Loopback URL the bridge POSTs to when a tool fires.",
     )
+    tool_callback_token: str | None = Field(
+        default=None,
+        description="Shared secret echoed in the X-Atmosphere-Tool-Token "
+                    "header on every callback. Required whenever "
+                    "tool_callback_url is set; the Java callback server "
+                    "answers 401 without it.",
+    )
 
     @field_validator("message")
     @classmethod
@@ -177,6 +184,16 @@ def create_app(crew_factory: Callable[[str, list[dict[str, str]]], Any] | None =
                 {"error": "tool_callback_url required when tools are present"},
                 status_code=400,
             )
+        # Same boundary, one step further: a callback URL with no token means
+        # every tool call would 401 deep inside CrewAI's retry loop, which
+        # surfaces as an opaque agent failure. Reject the misconfiguration here
+        # where the error is still legible.
+        if body.tool_callback_url and not body.tool_callback_token:
+            return JSONResponse(
+                {"error": "tool_callback_token required when "
+                          "tool_callback_url is present"},
+                status_code=400,
+            )
 
         registry: SessionRegistry = request.app.state.registry
         session = registry.acquire()
@@ -218,6 +235,7 @@ def create_app(crew_factory: Callable[[str, list[dict[str, str]]], Any] | None =
                     [tool.model_dump() for tool in body.tools],
                     body.tool_callback_url or "",
                     session.id,
+                    callback_token=body.tool_callback_token or "",
                 )
                 inject_tools_into_crew(crew, remote_tools)
             except Exception as exc:  # noqa: BLE001 — boundary

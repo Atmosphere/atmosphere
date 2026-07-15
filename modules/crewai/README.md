@@ -156,21 +156,28 @@ Request:
       "return_type": "string"
     }
   ],
-  "tool_callback_url": "http://127.0.0.1:54321/v1/tools/call"
+  "tool_callback_url": "http://127.0.0.1:54321/v1/tools/call",
+  "tool_callback_token": "9f2c...<64 hex chars>"
 }
 ```
 
-`system_prompt`, `tools`, and `tool_callback_url` are optional. When
-`tools` is empty (or absent) and `system_prompt` is null, the body
-shape is identical to the pre-tool-bridge protocol so older sidecars
-stay forward-compatible. The bridge rejects `tools` without
-`tool_callback_url` with `400 Bad Request` (Correctness Invariant #4 —
-Boundary Safety).
+`system_prompt`, `tools`, `tool_callback_url`, and
+`tool_callback_token` are optional. When `tools` is empty (or absent)
+and `system_prompt` is null, the body shape is identical to the
+pre-tool-bridge protocol so older sidecars stay forward-compatible.
+The bridge rejects `tools` without `tool_callback_url`, and
+`tool_callback_url` without `tool_callback_token`, with `400 Bad
+Request` (Correctness Invariant #4 — Boundary Safety).
 
 ### Tool callback — `POST <tool_callback_url>`
 
 When CrewAI invokes a remote tool, the sidecar POSTs to the loopback
-callback URL the Java side advertised:
+callback URL the Java side advertised, echoing the token from the
+start-session body in the `X-Atmosphere-Tool-Token` header:
+
+```
+X-Atmosphere-Tool-Token: 9f2c...<64 hex chars>
+```
 
 ```json
 {
@@ -195,7 +202,24 @@ or
 ```
 
 Non-2xx responses are reserved for transport-layer failures
-(malformed JSON → 400, pool saturation → 503).
+(missing/incorrect token → 401, malformed JSON → 400, pool saturation
+→ 503).
+
+#### Callback authorisation
+
+The callback server binds `127.0.0.1` on an ephemeral port, but
+loopback reachability is not authorisation: every process on the host
+can open a loopback port. Each server therefore mints a fresh 256-bit
+token in `start()` and answers `401` to any callback whose
+`X-Atmosphere-Tool-Token` header does not match — checked before the
+body is read, so an unauthorised caller reaches neither tool lookup
+nor the payload parser (Correctness Invariant #6, default deny).
+
+The token is per-server and per-run: it travels to the sidecar only on
+the `POST /v1/sessions` body, never in a URL (URLs surface in access
+logs and process listings), is never logged, and dies with the
+execution that minted it. Comparison uses `MessageDigest.isEqual`, so
+response latency does not leak a prefix oracle.
 
 Response: 200 OK with `Content-Type: text/event-stream`. The session
 id is exposed two ways and the runtime accepts whichever arrives first:

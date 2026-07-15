@@ -96,8 +96,33 @@ run_incremental_scoped() {
             ./mvnw install -B -ntp -pl modules/quarkus-extension/deployment -am -DskipTests
             ;;
     esac
-    echo "Running: ./mvnw install -B -ntp -pl $PL_LIST -am $TEST_GROUPS"
-    ./mvnw install -B -ntp -pl "$PL_LIST" -am $TEST_GROUPS
+
+    # Profile-gated modules are not in the default reactor, so passing them to
+    # -pl fails with "Could not find the selected project in the reactor" and
+    # takes the whole validation down with them. .githooks/pre-commit has split
+    # these out since it learned the same lesson; this script never did, so any
+    # push touching modules/benchmarks was unconditionally blocked. Same split,
+    # same profile.
+    local profile_modules="" standard_modules=""
+    for mod in $(echo "$PL_LIST" | tr ',' '\n'); do
+        case "$mod" in
+            modules/benchmarks) profile_modules="$profile_modules $mod" ;;
+            *)                  standard_modules="$standard_modules $mod" ;;
+        esac
+    done
+    profile_modules=$(echo "$profile_modules" | tr ' ' '\n' | sed '/^$/d' | paste -sd, -)
+    standard_modules=$(echo "$standard_modules" | tr ' ' '\n' | sed '/^$/d' | paste -sd, -)
+
+    if [ -n "$profile_modules" ]; then
+        echo "Running: ./mvnw install -B -ntp -Pperf -pl $profile_modules -am $TEST_GROUPS"
+        ./mvnw install -B -ntp -Pperf -pl "$profile_modules" -am $TEST_GROUPS || return 1
+    fi
+
+    if [ -z "$standard_modules" ]; then
+        return 0
+    fi
+    echo "Running: ./mvnw install -B -ntp -pl $standard_modules -am $TEST_GROUPS"
+    ./mvnw install -B -ntp -pl "$standard_modules" -am $TEST_GROUPS
 }
 
 echo ""

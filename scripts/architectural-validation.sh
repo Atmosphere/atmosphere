@@ -46,13 +46,38 @@ fail_validation() {
     VALIDATION_FAILED=true
 }
 
-warn_validation() {
-    echo -e "${YELLOW}  WARN: $1${NC}"
-}
-
 pass_validation() {
     echo -e "${GREEN}  PASS: $1${NC}"
 }
+
+# There is deliberately no warn_validation(). A gate with an advisory tier
+# reports the same finding forever and blocks nothing, so the findings
+# accumulate and everyone learns to scroll past the yellow — which is exactly
+# what happened here: 5 WARN classes (99 findings) rode along under a green
+# "ARCHITECTURAL VALIDATION PASSED" banner. Every check now either fails the
+# build or does not exist. If a finding is not worth blocking a commit for,
+# delete the check or allowlist the case in validation-patterns.toml with a
+# reason — do not reintroduce a yellow tier. Bash will fail loudly with
+# "command not found" if anyone calls warn_validation again.
+
+# Comment-aware scanner. Checks that ask about CODE must not match Javadoc
+# usage examples, and checks that ask about COMMENTS must not match enum
+# constants that happen to be spelled TODO. See scripts/lib/source_scan.py.
+SCAN="$SCRIPT_DIR/lib/source_scan.py"
+if [ ! -f "$SCAN" ]; then
+    echo -e "${RED}CRITICAL: source_scan.py not found at $SCAN${NC}"
+    exit 1
+fi
+
+# Verify the instrument before trusting it. A scanner that silently stopped
+# stripping comments would turn every check below green — the most dangerous
+# way for a gate to fail, because it looks like success.
+if ! SELF_TEST_OUT=$(python3 "$SCAN" --self-test 2>&1); then
+    echo -e "${RED}CRITICAL: source_scan.py self-test failed — the validation${NC}"
+    echo -e "${RED}instrument is broken, so its results cannot be trusted.${NC}"
+    echo "$SELF_TEST_OUT"
+    exit 1
+fi
 
 # Source directories to scan (production code only)
 SRC_DIRS="modules/*/src/main/java"
@@ -96,7 +121,10 @@ print(f'MOCK_FILE_EXCLUDES="{mock_globs}"')
 
 # Thresholds
 th = config.get("thresholds", {})
-print(f'THRESHOLD_MOCK={th.get("mock_in_production", 5)}')
+print(f'THRESHOLD_MOCK={th.get("mock_in_production", 0)}')
+print(f'THRESHOLD_TODO={th.get("todo_markers", 0)}')
+print(f'THRESHOLD_SYSOUT={th.get("system_out_calls", 0)}')
+print(f'THRESHOLD_STACKTRACE={th.get("print_stack_trace", 0)}')
 
 # Critical placeholder patterns -> pipe-separated regex
 cp = config.get("placeholder_patterns", {}).get("critical", [])
@@ -108,15 +136,81 @@ print(f'CRITICAL_PLACEHOLDERS="{critical_regex}"')
 coe = config.get("ci_allowlist", {}).get("continue_on_error", [])
 print(f'CI_COE_ALLOWLIST="{"|".join(coe)}"')
 
-# CI skip-tests allowlist
-st = config.get("ci_allowlist", {}).get("skip_tests", [])
-print(f'CI_SKIP_TESTS_ALLOWLIST="{"|".join(st)}"')
-
 # NOOP allowlist -> pipe-separated for grep -E
 na = config.get("noop_allowlist", {}).get("internal_use", [])
 print(f'NOOP_ALLOWLIST="{"|".join(na)}"')
+
+# Modules that publish nothing -> excluded from production-hygiene checks.
+# Verified against their poms below; this is not a blind allowlist.
+ns = config.get("non_shipped_modules", {}).get("modules", [])
+print(f'NON_SHIPPED_MODULES="{" ".join(ns)}"')
 PYTHON_PARSER
 )"
+
+# ----------------------------------------------------------------------------
+# Verify the non-shipped allowlist against the poms it claims to describe.
+# An allowlist that asserts a fact must prove the fact, or it is just a way to
+# turn checks off quietly. If someone adds a deploying module here to dodge a
+# finding, this fails.
+# ----------------------------------------------------------------------------
+if ! NON_SHIPPED_PROOF=$(python3 - "$NON_SHIPPED_MODULES" <<'PYTHON_VERIFY'
+import sys, pathlib, xml.etree.ElementTree as ET
+
+NS = {"m": "http://maven.apache.org/POM/4.0.0"}
+problems = []
+
+for module in sys.argv[1].split():
+    pom = pathlib.Path("modules") / module / "pom.xml"
+    if not pom.exists():
+        problems.append(f"{module}: no pom.xml at {pom}")
+        continue
+    root = ET.parse(pom).getroot()
+
+    # Either a <maven.deploy.skip>true</maven.deploy.skip> property ...
+    prop = root.find("m:properties/m:maven.deploy.skip", NS)
+    skipped = prop is not None and (prop.text or "").strip() == "true"
+
+    # ... or a maven-deploy-plugin with <skip>true</skip>.
+    if not skipped:
+        for plugin in root.findall("m:build/m:plugins/m:plugin", NS):
+            artifact = plugin.find("m:artifactId", NS)
+            if artifact is None or artifact.text != "maven-deploy-plugin":
+                continue
+            skip = plugin.find("m:configuration/m:skip", NS)
+            if skip is not None and (skip.text or "").strip() == "true":
+                skipped = True
+                break
+
+    if not skipped:
+        problems.append(
+            f"{module}: listed in [non_shipped_modules] but its pom does not "
+            f"skip deployment — it publishes an artifact, so production checks "
+            f"must apply to it")
+
+for p in problems:
+    print(p)
+sys.exit(1 if problems else 0)
+PYTHON_VERIFY
+); then
+    echo -e "${RED}CRITICAL: [non_shipped_modules] in validation-patterns.toml is wrong:${NC}"
+    echo "$NON_SHIPPED_PROOF"
+    exit 1
+fi
+
+# Build the exclude globs + the shipped source dir list from the verified list.
+NON_SHIPPED_EXCLUDES=""
+SHIPPED_SRC_DIRS=""
+for d in $SRC_DIRS; do
+    [ -d "$d" ] || continue
+    keep=true
+    for m in $NON_SHIPPED_MODULES; do
+        case "$d" in "modules/$m/"*) keep=false ;; esac
+    done
+    $keep && SHIPPED_SRC_DIRS="$SHIPPED_SRC_DIRS $d"
+done
+for m in $NON_SHIPPED_MODULES; do
+    NON_SHIPPED_EXCLUDES="$NON_SHIPPED_EXCLUDES --exclude */modules/$m/*"
+done
 
 echo ""
 echo -e "${BLUE}==== Atmosphere Framework - Architectural Validation ====${NC}"
@@ -183,7 +277,7 @@ while IFS= read -r iface_file; do
 done < <(find modules/ai/src/main/java -name "*.java" 2>/dev/null)
 
 if [ -n "$DEAD_INTERFACES" ]; then
-    warn_validation "AI module interfaces with zero implementations in production code:"
+    fail_validation "AI module interfaces with zero implementations in production code:"
     echo -e "$DEAD_INTERFACES"
     echo "  (Add to [spi_interfaces].user_extensible in validation-patterns.toml to allowlist.)"
 else
@@ -210,8 +304,9 @@ while IFS= read -r spi_file; do
 done < <(find modules/*/src/main/resources/META-INF/services -type f 2>/dev/null)
 
 if [ -n "$EMPTY_SPI" ]; then
-    warn_validation "Empty META-INF/services files (SPI declared but no provider listed):"
+    fail_validation "Empty META-INF/services files (SPI declared but no provider listed):"
     echo -e "$EMPTY_SPI"
+    echo "  (Add to [empty_services].allowed in validation-patterns.toml to allowlist.)"
 else
     pass_validation "No empty SPI service files"
 fi
@@ -234,38 +329,69 @@ if [ -n "$CRITICAL_PLACEHOLDERS" ]; then
     fi
 fi
 
-# 2b. TODO/FIXME markers (warning only)
-TODO_COUNT=$(rg '\bTODO\b|\bFIXME\b|\bXXX\b|\bHACK\b' $SRC_DIRS --type java -c 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
-if [ "$TODO_COUNT" -gt 0 ]; then
-    warn_validation "Found $TODO_COUNT TODO/FIXME/HACK markers in production code"
+# 2b. TODO/FIXME/XXX/HACK deferral markers.
+#
+# Scanned in COMMENT mode: a marker only ever lives in a comment, and scanning
+# raw text made `case TODO ->` (AgentScope's SubTaskState enum constant) look
+# like unfinished work — 8 of the 11 findings this check used to report were
+# that. Javadoc inline tags are stripped first, so `{@code TODO}` documenting
+# an enum round-trip is prose about a constant, not a deferral.
+#
+# Blocking, per feedback_no_deferral: main is release-ready, so a marker saying
+# "finish this later" is either work to do now or a note that should say what it
+# actually means. Both real markers found on 2026-07-14 turned out to be
+# mislabeled design rationale; the third (ToolCallbackServer's missing tool-auth
+# token) was a genuine unshipped security control and got implemented.
+TODO_HITS=$(python3 "$SCAN" --mode comment --strip-javadoc-tags \
+    --regex '\b(TODO|FIXME|XXX|HACK)\b' $SRC_DIRS 2>/dev/null || true)
+TODO_COUNT=$(printf '%s' "$TODO_HITS" | grep -c . || true)
+if [ "$TODO_COUNT" -gt "$THRESHOLD_TODO" ]; then
+    fail_validation "Found $TODO_COUNT TODO/FIXME/XXX/HACK deferral marker(s) in production code (threshold: $THRESHOLD_TODO)"
+    echo "$TODO_HITS" | head -10
+    echo "  Either do the work, or rewrite the comment to state what is actually"
+    echo "  true (a constraint, a scope limit, a design rationale) without a marker."
 else
-    pass_validation "No TODO/FIXME markers in production code"
+    pass_validation "No TODO/FIXME/XXX/HACK deferral markers in production code"
 fi
 
-# 2c. Stub/mock patterns in production source (NOT test source)
-# Filter pipeline: rg output is "file:line:content". We filter on content portion.
-# Exclude: comment lines (// or * or /*), Javadoc, imports, and false positive words.
-MOCK_IN_PROD=$(rg -i "\bmock\b|\bdummy\b|\bfake\b|\bstub\b" $SRC_DIRS --type java \
-    -g '!*Mock*' -g '!*Stub*' -g '!*Fake*' -g '!*Test*' \
-    -g '!*/integration-tests/*' 2>/dev/null \
-    | grep -v '//' | grep -v '\*.*\(mock\|stub\|fake\|dummy\)' \
-    | grep -v 'Mockito' | grep -v 'import' \
+# 2c. Stub/mock/fake implementations leaking into shipped code.
+#
+# CODE mode: the old pipeline tried to drop comments with `grep -v '//'`, which
+# both missed Javadoc bodies and threw away any real line with a trailing
+# comment. Non-shipped modules are excluded outright — `benchmarks` exists to
+# build synthetic fixtures, so requiring it to contain no "stub" was asking a
+# question about the wrong code.
+#
+# Legitimately-named product features are allowlisted per file+symbol in
+# [[mock_exclusions.wiring_sites]], never per file alone: `mode=fake` is a real
+# shipped mode, but a real stub landing in AiConfig must still fail.
+MOCK_HITS=$(python3 "$SCAN" --mode code --ignore-case \
+    --regex '\b(mock|dummy|fake|stub)\b' \
+    --exclude '*Mock*' --exclude '*Stub*' --exclude '*Fake*' --exclude '*Test*' \
+    $NON_SHIPPED_EXCLUDES $SHIPPED_SRC_DIRS 2>/dev/null \
+    | grep -v 'Mockito' \
     | grep -viE "$MOCK_FALSE_POSITIVES" \
-    | wc -l | tr -d ' ')
+    | python3 - "$TOML_FILE" <<'PYTHON_WIRING'
+import sys, re, tomllib
+
+with open(sys.argv[1], "rb") as f:
+    sites = tomllib.load(f).get("mock_exclusions", {}).get("wiring_sites", [])
+compiled = [(s["file"], re.compile(s["pattern"])) for s in sites]
+
+for line in sys.stdin:
+    path, _, rest = line.partition(":")
+    if any(path.endswith("/" + f) and rx.search(rest) for f, rx in compiled):
+        continue
+    sys.stdout.write(line)
+PYTHON_WIRING
+)
+MOCK_IN_PROD=$(printf '%s' "$MOCK_HITS" | grep -c . || true)
 
 if [ "$MOCK_IN_PROD" -gt "$THRESHOLD_MOCK" ]; then
-    fail_validation "Found $MOCK_IN_PROD mock/stub/fake references in production code (threshold: $THRESHOLD_MOCK)"
-    rg -i "\bmock\b|\bdummy\b|\bfake\b|\bstub\b" $SRC_DIRS --type java -n \
-        -g '!*Mock*' -g '!*Stub*' -g '!*Fake*' -g '!*Test*' \
-        -g '!*/integration-tests/*' 2>/dev/null \
-        | grep -v '//' | grep -v '\*.*\(mock\|stub\|fake\|dummy\)' \
-        | grep -v 'Mockito' | grep -v 'import' \
-        | grep -viE "$MOCK_FALSE_POSITIVES" \
-        | head -5
-elif [ "$MOCK_IN_PROD" -gt 0 ]; then
-    warn_validation "Found $MOCK_IN_PROD mock/stub/fake references in production code"
+    fail_validation "Found $MOCK_IN_PROD mock/stub/fake reference(s) in shipped production code (threshold: $THRESHOLD_MOCK)"
+    echo "$MOCK_HITS" | head -10
 else
-    pass_validation "No mock/stub code in production sources"
+    pass_validation "No mock/stub code in shipped production sources"
 fi
 
 # ============================================================================
@@ -291,7 +417,19 @@ fi
 
 echo ""
 echo -e "${BLUE}--- Unchecked Return Values ---${NC}"
-UNCHECKED=$(rg '^\s+\w+\.offer\(' $SOURCE_DIRS --type java -l 2>/dev/null | \
+# $SOURCE_DIRS never existed — the variable is SRC_DIRS. With no path argument
+# rg falls back to reading stdin, so from 2026-04-09 (68fdaf598d) until
+# 2026-07-14 this check scanned nothing and printed PASS on every run. That is
+# strictly worse than the WARN tier: a warning is ignored, but a green PASS is
+# cited as evidence. Whenever a path variable is interpolated into rg, an empty
+# expansion must fail loudly rather than silently turn the check into a no-op —
+# hence the guard below.
+if [ -z "${SRC_DIRS// /}" ]; then
+    echo -e "${RED}CRITICAL: SRC_DIRS is empty — rg would read stdin and the${NC}"
+    echo -e "${RED}check would silently pass without scanning anything.${NC}"
+    exit 1
+fi
+UNCHECKED=$(rg '^\s+\w+\.offer\(' $SRC_DIRS --type java -l 2>/dev/null | \
     grep -v "StubAgentTransport\|Test\.java\|InMemoryCheckpointStore" || true)
 if [ -n "$UNCHECKED" ]; then
     fail_validation "Unchecked offer() return values in: $(echo "$UNCHECKED" | tr '\n' ' ')"
@@ -321,7 +459,7 @@ DISABLED_TESTS=$(rg '@Disabled\b' $TEST_DIRS --type java -c 2>/dev/null | awk -F
 if [ "$DISABLED_TESTS" -gt 0 ]; then
     BARE_DISABLED=$(rg '@Disabled\s*$' $TEST_DIRS --type java -c 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
     if [ "$BARE_DISABLED" -gt 0 ]; then
-        warn_validation "Found $BARE_DISABLED @Disabled tests without a reason string"
+        fail_validation "Found $BARE_DISABLED @Disabled test(s) with no reason string — @Disabled(\"why, and what unblocks it\")"
         rg '@Disabled\s*$' $TEST_DIRS --type java -n 2>/dev/null | head -5
     fi
     echo "  Total @Disabled tests: $DISABLED_TESTS"
@@ -549,26 +687,52 @@ else
     pass_validation "No backup/temporary files"
 fi
 
-# System.out.println in production code
-SYSOUT_COUNT=$(rg 'System\.(out|err)\.(print|println)' $SRC_DIRS --type java \
-    -g '!*/integration-tests/*' -c 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
+# Console writes from library code.
+#
+# The rule is "library code logs through SLF4J", and the reason console entry
+# points are exempt is that stdout IS their product: McpStdioBridge speaks
+# JSON-RPC over stdout (routing it to a logger would break the MCP transport),
+# and TapeDatasetCli / Version print what the operator asked for. So a class
+# declaring main() is a console program by definition and may write to the
+# console; everything else must not.
+#
+# CODE mode: all 6 findings this pair used to report were wasync Javadoc
+# examples teaching callers `socket.on(MESSAGE, m -> System.out.println(m))`.
+# Documentation showing a println is not a println.
+console_entrypoints() {
+    # Filter "path:line:text" hits, dropping those in classes with a main().
+    while IFS= read -r hit; do
+        [ -z "$hit" ] && continue
+        file="${hit%%:*}"
+        if ! rg -q 'public\s+static\s+void\s+main\s*\(' "$file" 2>/dev/null; then
+            echo "$hit"
+        fi
+    done
+}
 
-if [ "$SYSOUT_COUNT" -gt 0 ]; then
-    warn_validation "Found $SYSOUT_COUNT System.out/err.print calls in production code (use SLF4J)"
-    rg 'System\.(out|err)\.(print|println)' $SRC_DIRS --type java -n \
-        -g '!*/integration-tests/*' 2>/dev/null | head -5
+SYSOUT_HITS=$(python3 "$SCAN" --mode code \
+    --regex 'System\.(out|err)\.(print|println|printf)' \
+    $NON_SHIPPED_EXCLUDES $SHIPPED_SRC_DIRS 2>/dev/null | console_entrypoints)
+SYSOUT_COUNT=$(printf '%s' "$SYSOUT_HITS" | grep -c . || true)
+
+if [ "$SYSOUT_COUNT" -gt "$THRESHOLD_SYSOUT" ]; then
+    fail_validation "Found $SYSOUT_COUNT System.out/err call(s) in shipped library code — use SLF4J (threshold: $THRESHOLD_SYSOUT)"
+    echo "$SYSOUT_HITS" | head -10
+    echo "  (Classes declaring main() are console entry points and are exempt.)"
 else
-    pass_validation "No System.out/err in production code"
+    pass_validation "No System.out/err in shipped library code"
 fi
 
 # printStackTrace() calls
-STACKTRACE_COUNT=$(rg '\.printStackTrace\(\)' $SRC_DIRS --type java -c 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
+STACKTRACE_HITS=$(python3 "$SCAN" --mode code --regex '\.printStackTrace\(\)' \
+    $NON_SHIPPED_EXCLUDES $SHIPPED_SRC_DIRS 2>/dev/null | console_entrypoints)
+STACKTRACE_COUNT=$(printf '%s' "$STACKTRACE_HITS" | grep -c . || true)
 
-if [ "$STACKTRACE_COUNT" -gt 0 ]; then
-    warn_validation "Found $STACKTRACE_COUNT .printStackTrace() calls (use logger.error())"
-    rg '\.printStackTrace\(\)' $SRC_DIRS --type java -n 2>/dev/null | head -5
+if [ "$STACKTRACE_COUNT" -gt "$THRESHOLD_STACKTRACE" ]; then
+    fail_validation "Found $STACKTRACE_COUNT .printStackTrace() call(s) in shipped code — use logger.error() (threshold: $THRESHOLD_STACKTRACE)"
+    echo "$STACKTRACE_HITS" | head -10
 else
-    pass_validation "No .printStackTrace() in production code"
+    pass_validation "No .printStackTrace() in shipped code"
 fi
 
 # ============================================================================
@@ -657,25 +821,50 @@ else
 fi
 
 if [ "$CI_COE" -gt 0 ]; then
-    warn_validation "Found $CI_COE unauthorized 'continue-on-error: true' in CI workflows"
+    fail_validation "Found $CI_COE unauthorized 'continue-on-error: true' in CI workflows"
     echo "$CI_COE_TOTAL" | grep -vE "$CI_COE_ALLOWLIST" 2>/dev/null | head -5
 else
     pass_validation "No unauthorized continue-on-error in CI workflows"
 fi
 
-# -DskipTests (excluding allowlisted workflows)
-SKIP_TESTS_TOTAL=$(rg '\-DskipTests' .github/workflows/ -n 2>/dev/null | grep -v '#' || true)
-if [ -n "$CI_SKIP_TESTS_ALLOWLIST" ]; then
-    SKIP_TESTS_CI=$(echo "$SKIP_TESTS_TOTAL" | grep -vE "$CI_SKIP_TESTS_ALLOWLIST" | wc -l | tr -d ' ')
-else
-    SKIP_TESTS_CI=$(echo "$SKIP_TESTS_TOTAL" | wc -l | tr -d ' ')
-fi
+# A workflow that skips tests must run tests somewhere. See the rationale on
+# [ci_allowlist].never_tests — the old check flagged the -DskipTests flag
+# itself, which meant 19 findings and no bugs, because priming a dependency
+# closure before a real test step is the normal shape of every lane here.
+if ! SKIP_TESTS_REPORT=$(python3 - "$TOML_FILE" <<'PYTHON_SKIPTESTS'
+import sys, re, pathlib, tomllib
 
-if [ "$SKIP_TESTS_CI" -gt 0 ]; then
-    warn_validation "Found $SKIP_TESTS_CI unauthorized '-DskipTests' in CI workflows"
-    echo "$SKIP_TESTS_TOTAL" | grep -vE "$CI_SKIP_TESTS_ALLOWLIST" 2>/dev/null | head -5
+with open(sys.argv[1], "rb") as f:
+    ci = tomllib.load(f).get("ci_allowlist", {})
+never = set(ci.get("never_tests", []))
+patterns = [re.compile(p) for p in ci.get("test_step_patterns", [])]
+
+problems = []
+for wf in sorted(pathlib.Path(".github/workflows").glob("*.y*ml")):
+    text = wf.read_text(errors="ignore")
+    # Ignore commented-out lines so a note about -DskipTests isn't a finding.
+    live = "\n".join(l for l in text.split("\n")
+                     if not l.lstrip().startswith("#"))
+    if "-DskipTests" not in live:
+        continue
+    if wf.name in never:
+        continue
+    if any(p.search(live) for p in patterns):
+        continue
+    problems.append(
+        f"  {wf.name}: uses -DskipTests but has no step matching any known "
+        f"test-runner pattern. Add the real test step, or list it in "
+        f"[ci_allowlist].never_tests with a reason.")
+
+for p in problems:
+    print(p)
+sys.exit(1 if problems else 0)
+PYTHON_SKIPTESTS
+); then
+    fail_validation "CI workflow(s) skip tests without running any:"
+    echo "$SKIP_TESTS_REPORT"
 else
-    pass_validation "No unauthorized -DskipTests in CI workflows"
+    pass_validation "Every -DskipTests workflow runs tests in a separate step"
 fi
 
 # ============================================================================
@@ -761,9 +950,12 @@ echo -e "${BLUE}====================================================${NC}"
 if [ "$VALIDATION_FAILED" = true ]; then
     echo -e "${RED}ARCHITECTURAL VALIDATION FAILED${NC}"
     echo ""
-    echo "Fix the FAIL items above before committing."
-    echo "WARN items are advisory but should be addressed."
-    echo "Allowlists: scripts/validation-patterns.toml"
+    echo "Fix the FAIL items above before committing — every check here blocks."
+    echo "If a finding is a false positive, fix the check in"
+    echo "scripts/architectural-validation.sh so it stops asking the wrong"
+    echo "question; if it is a legitimate exception, allowlist the specific"
+    echo "case with a reason in scripts/validation-patterns.toml. Do not"
+    echo "raise a threshold to step over it."
     exit 1
 fi
 

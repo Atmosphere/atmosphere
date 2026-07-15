@@ -31,7 +31,11 @@ import tools.jackson.databind.json.JsonMapper;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -52,12 +56,21 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * <h3>Security posture</h3>
  * <p>Binds <strong>127.0.0.1 only</strong> with an ephemeral port — never
- * 0.0.0.0 — so the surface is unreachable from outside the host. The sidecar
- * is a local helper process; the trust model assumes loopback isolation. If
- * sandbox topology ever shares a network namespace with untrusted code, the
- * next hardening step is a per-process shared-secret token in the
- * {@code X-Atmosphere-Tool-Token} header. TODO: introduce the token check
- * before extending this transport beyond loopback.</p>
+ * 0.0.0.0 — so the surface is unreachable from outside the host.</p>
+ *
+ * <p>Loopback is not on its own an authorisation boundary: every process on
+ * the host can reach an ephemeral loopback port, so bind address alone would
+ * let any local process invoke Java {@code @AiTool}s. Each server therefore
+ * mints a fresh 256-bit token in {@link #start()} and rejects any callback
+ * whose {@code X-Atmosphere-Tool-Token} header does not match it with
+ * {@code 401} — checked before the body is read, so an unauthorised caller
+ * cannot reach tool lookup or the payload parser (Correctness Invariant #6 —
+ * every mutating surface requires explicit authorisation; default deny).</p>
+ *
+ * <p>The token is handed to the sidecar out-of-band on the
+ * {@code POST /v1/sessions} body ({@code tool_callback_token}) over the same
+ * loopback hop, and is never logged. It is per-server and per-run: a leaked
+ * token dies with the execution that minted it.</p>
  *
  * <h3>Lifecycle</h3>
  * <p>One server per active execution. Started in
@@ -79,6 +92,14 @@ public final class ToolCallbackServer {
     private static final int DEFAULT_POOL_SIZE = 8;
     private static final int MAX_PAYLOAD_BYTES = 1 << 20; // 1 MiB ceiling per call
 
+    /** Header the sidecar must present on every tool callback. */
+    static final String TOKEN_HEADER = "X-Atmosphere-Tool-Token";
+
+    /** 256 bits — well beyond brute force over a per-run loopback listener. */
+    private static final int TOKEN_BYTES = 32;
+
+    private static final SecureRandom RANDOM = new SecureRandom();
+
     private final Map<String, ToolDefinition> toolRegistry;
     private final StreamingSession session;
     private final ApprovalStrategy approvalStrategy;
@@ -90,6 +111,8 @@ public final class ToolCallbackServer {
     private volatile HttpServer server;
     private volatile ExecutorService executor;
     private volatile int port = -1;
+    private volatile byte[] tokenBytes;
+    private volatile String token;
 
     /**
      * Construct a callback server. Callers MUST {@link #start()} before
@@ -134,6 +157,15 @@ public final class ToolCallbackServer {
         if (!started.compareAndSet(false, true)) {
             return;
         }
+        // Mint before the listener accepts anything, so there is no window in
+        // which the context is reachable with a null token (which would read
+        // as "no token configured" and fail open).
+        var secret = new byte[TOKEN_BYTES];
+        RANDOM.nextBytes(secret);
+        var hex = HexFormat.of().formatHex(secret);
+        this.token = hex;
+        this.tokenBytes = hex.getBytes(StandardCharsets.UTF_8);
+
         var bind = new InetSocketAddress("127.0.0.1", 0);
         var srv = HttpServer.create(bind, 0);
         srv.createContext(CALLBACK_PATH, new CallbackHandler());
@@ -160,6 +192,17 @@ public final class ToolCallbackServer {
             return null;
         }
         return "http://127.0.0.1:" + port + CALLBACK_PATH;
+    }
+
+    /**
+     * The shared secret the sidecar must echo in the {@link #TOKEN_HEADER}
+     * header on every callback. {@code null} until {@link #start()} has minted
+     * it. Hand this to the sidecar over the loopback session hop only — never
+     * log it and never put it in a URL (URLs land in access logs and process
+     * listings).
+     */
+    public String token() {
+        return token;
     }
 
     /** Loopback host the listener is bound to — exposed for assertion in tests. */
@@ -210,6 +253,16 @@ public final class ToolCallbackServer {
                     writeJson(exchange, 405,
                             Map.of("error", "method not allowed: "
                                     + exchange.getRequestMethod()));
+                    return;
+                }
+                // Authorisation first: an unauthorised caller must not reach
+                // tool lookup, the body parser, or the pool-saturation probe.
+                // Default deny — a null expected token means start() has not
+                // minted one, and we refuse rather than wave the caller past.
+                if (!authorized(exchange)) {
+                    logger.warn("rejected unauthorised tool callback from {}",
+                            exchange.getRemoteAddress());
+                    writeJson(exchange, 401, Map.of("error", "unauthorized"));
                     return;
                 }
                 // Pool saturation: if the underlying ThreadPoolExecutor's queue
@@ -283,6 +336,26 @@ public final class ToolCallbackServer {
                         Map.of("error", "tool callback server busy"));
             }
         }
+    }
+
+    /**
+     * Constant-time comparison of the presented header against the minted
+     * token. {@link MessageDigest#isEqual} does not short-circuit on the
+     * first differing byte, so response latency does not leak a prefix
+     * oracle. Fails closed on a missing header and on a server that never
+     * minted a token.
+     */
+    private boolean authorized(HttpExchange exchange) {
+        var expected = tokenBytes;
+        if (expected == null) {
+            return false;
+        }
+        var presented = exchange.getRequestHeaders().getFirst(TOKEN_HEADER);
+        if (presented == null) {
+            return false;
+        }
+        return MessageDigest.isEqual(
+                presented.getBytes(StandardCharsets.UTF_8), expected);
     }
 
     private static JsonNode readJsonBody(HttpExchange exchange) throws IOException {

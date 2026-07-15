@@ -86,6 +86,7 @@ def test_session_with_tools_injects_them_on_each_agent() -> None:
                 "options": {},
                 "tools": [_tool_descriptor()],
                 "tool_callback_url": "http://127.0.0.1:1/v1/tools/call",
+                "tool_callback_token": "t0k",
             },
         ) as response:
             assert response.status_code == 200, \
@@ -122,6 +123,7 @@ def test_session_with_tools_calls_callback_when_tool_fires() -> None:
                 "message": "go", "model": None, "history": [], "options": {},
                 "tools": [_tool_descriptor()],
                 "tool_callback_url": "http://127.0.0.1:1/v1/tools/call",
+                "tool_callback_token": "t0k",
             },
         ) as response:
             assert response.status_code == 200
@@ -210,6 +212,34 @@ def test_tools_without_callback_url_returns_400() -> None:
         f"missing callback URL must surface as 400; got {response.status_code}"
     body = response.json()
     assert "tool_callback_url" in body.get("error", ""), \
+        f"error payload must name the missing field; got {body}"
+
+
+def test_callback_url_without_token_returns_400() -> None:
+    """Boundary safety (Invariant #4): a callback URL with no token is a
+    misconfiguration — the Java callback server would 401 every tool call,
+    which CrewAI surfaces as an opaque agent failure several layers down.
+    Reject it here where the error still names the actual problem."""
+    crew = _CrewWithAgents()
+
+    def factory(_message: str, _history: list[dict[str, str]]) -> _CrewWithAgents:
+        return crew
+
+    app = create_app(crew_factory=factory)
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/sessions",
+            json={
+                "message": "go", "model": None, "history": [], "options": {},
+                "tools": [_tool_descriptor()],
+                "tool_callback_url": "http://127.0.0.1:1/v1/tools/call",
+                # tool_callback_token intentionally omitted
+            },
+        )
+    assert response.status_code == 400, \
+        f"missing callback token must surface as 400; got {response.status_code}"
+    body = response.json()
+    assert "tool_callback_token" in body.get("error", ""), \
         f"error payload must name the missing field; got {body}"
 
 

@@ -59,6 +59,12 @@ logger = logging.getLogger(__name__)
 # a stuck approval doesn't permanently wedge the agent.
 _DEFAULT_TIMEOUT_SECONDS = 120.0
 
+# Header carrying the per-run shared secret the Java callback server minted.
+# Loopback binding alone is not an authorisation boundary --- any process on
+# the host can reach an ephemeral loopback port --- so the server rejects
+# calls without this header. Must match ToolCallbackServer.TOKEN_HEADER.
+_TOKEN_HEADER = "X-Atmosphere-Tool-Token"
+
 # JSON Schema → Python type mapping. Anything not in this table falls back
 # to ``typing.Any`` with an INFO log (per spec: never crash on unexpected
 # shapes, surface the surprise).
@@ -159,6 +165,7 @@ def build_remote_tool(descriptor: dict[str, Any],
                       callback_url: str,
                       session_id: str,
                       *,
+                      callback_token: str,
                       client: httpx.Client | None = None,
                       timeout: float = _DEFAULT_TIMEOUT_SECONDS) -> Any:
     """Build a single CrewAI ``BaseTool`` subclass from a descriptor.
@@ -168,22 +175,28 @@ def build_remote_tool(descriptor: dict[str, Any],
     the ``result`` field of the response.
 
     Args:
-        descriptor:    Tool descriptor as deserialised from the Java
-                       ``POST /v1/sessions`` body.
-        callback_url:  Absolute URL the Java side advertised for tool
-                       callbacks (always a loopback address).
-        session_id:    Opaque session id; threaded into the call body so
-                       observers on the Java side can correlate.
-        client:        Optional shared ``httpx.Client``. Mostly used for
-                       testing so a mock transport can be injected.
-        timeout:       Per-call timeout in seconds.
+        descriptor:     Tool descriptor as deserialised from the Java
+                        ``POST /v1/sessions`` body.
+        callback_url:   Absolute URL the Java side advertised for tool
+                        callbacks (always a loopback address).
+        session_id:     Opaque session id; threaded into the call body so
+                        observers on the Java side can correlate.
+        callback_token: Shared secret minted by the Java callback server for
+                        this run, sent as ``X-Atmosphere-Tool-Token`` on every
+                        call. The server answers 401 without it, so an empty
+                        token is a wiring bug, not a degraded mode --- it is
+                        rejected here rather than at every tool invocation.
+        client:         Optional shared ``httpx.Client``. Mostly used for
+                        testing so a mock transport can be injected.
+        timeout:        Per-call timeout in seconds.
 
     Returns:
         A subclass of ``crewai.tools.BaseTool`` ready to be added to an
         agent's ``tools`` list.
 
     Raises:
-        ValueError:    Descriptor missing a name or callback_url is empty.
+        ValueError:    Descriptor missing a name, or callback_url /
+                       callback_token is empty.
     """
     # Imported lazily so test modules that don't exercise the tool path
     # don't have to pay the CrewAI import cost.
@@ -195,6 +208,11 @@ def build_remote_tool(descriptor: dict[str, Any],
     if not callback_url:
         raise ValueError(
             f"build_remote_tool requires a non-empty callback_url for tool {name!r}",
+        )
+    if not callback_token:
+        raise ValueError(
+            f"build_remote_tool requires a non-empty callback_token for tool "
+            f"{name!r}; the Java callback server rejects untokened calls with 401",
         )
     description = descriptor.get("description") or f"Tool '{name}'"
     _args_schema = _build_args_schema(descriptor)
@@ -233,7 +251,12 @@ def build_remote_tool(descriptor: dict[str, Any],
             owns_client = http_client is None
             local_client = http_client or httpx.Client(timeout=timeout)
             try:
-                response = local_client.post(callback_url, json=body, timeout=timeout)
+                response = local_client.post(
+                    callback_url,
+                    json=body,
+                    timeout=timeout,
+                    headers={_TOKEN_HEADER: callback_token},
+                )
             except httpx.HTTPError as exc:
                 # Transport-level failure — surface as a runtime error so
                 # CrewAI's tool-failure path runs (rather than silently
@@ -292,13 +315,15 @@ def build_remote_tools(descriptors: list[dict[str, Any]],
                        callback_url: str,
                        session_id: str,
                        *,
+                       callback_token: str,
                        client: httpx.Client | None = None) -> list[Any]:
     """Convenience wrapper: materialise a whole list of descriptors."""
     tools: list[Any] = []
     for descriptor in descriptors or []:
         try:
             tools.append(build_remote_tool(
-                descriptor, callback_url, session_id, client=client,
+                descriptor, callback_url, session_id,
+                callback_token=callback_token, client=client,
             ))
         except (ValueError, RuntimeError) as exc:
             # Skip the bad descriptor but keep the rest — a single

@@ -266,6 +266,7 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
         }
         var tools = toolDescriptors(context.tools());
         var callbackUrl = callbackServer != null ? callbackServer.callbackUrl() : null;
+        var callbackToken = callbackServer != null ? callbackServer.token() : null;
         var request = new CrewAiSidecarClient.StartRequest(
                 context.message(),
                 effectiveModel(context),
@@ -273,7 +274,8 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
                 java.util.Map.of(),
                 context.systemPrompt(),
                 tools,
-                callbackUrl);
+                callbackUrl,
+                callbackToken);
         CrewAiSidecarClient.SidecarSession sidecarSession;
         try {
             sidecarSession = client.startSession(request);

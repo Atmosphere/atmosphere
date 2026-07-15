@@ -217,6 +217,10 @@ public final class HttpSseSidecarClient implements CrewAiSidecarClient {
             }
             if (request.toolCallbackUrl() != null && !request.toolCallbackUrl().isBlank()) {
                 root.put("tool_callback_url", request.toolCallbackUrl());
+                // Handed over on this loopback hop rather than in the callback
+                // URL: URLs surface in access logs and process listings, and
+                // the token must not.
+                root.put("tool_callback_token", request.toolCallbackToken());
             }
         }
         return root;

@@ -2418,3 +2418,66 @@ added a "What's *not* taped" note to the tutorial and the exclusion list to the 
 **Gate:** a top-of-README capability row must carry its enablement + durability + scope caveats inline
 (no "Every … always …" for an opt-in/bounded feature) so the headline matches the detailed doc —
 never a qualifier-free superlative.
+
+---
+
+## 2026-07-14 — Architectural-validation gate: a green PASS over a check that scanned nothing
+
+The session that promoted every advisory WARN in
+`scripts/architectural-validation.sh` to a blocking FAIL. Two drifts surfaced,
+and neither was authored this session — both are the gate itself making claims
+the code did not support.
+
+**Claim (shipped, every run since 2026-04-09):** `PASS: No unchecked offer()
+calls in production code`.
+
+**Truth:** the check scanned nothing at all. It read
+`rg '^\s+\w+\.offer\(' $SOURCE_DIRS --type java -l`, and `SOURCE_DIRS` has never
+been defined anywhere in the script — the variable is `SRC_DIRS`. With no path
+argument ripgrep falls back to reading **stdin**, so under CI (stdin at EOF) the
+check returned instantly with no matches and printed PASS; run from a terminal
+it hangs forever, which is how it was finally caught. Introduced by
+`68fdaf598d` ("add validation gates for unchecked returns"), the commit whose
+message claims the gate now fails on unchecked `offer()`. It never could.
+Re-running the fixed check found zero real violations, so no bug shipped behind
+it — the cost was three months of false assurance for Correctness Invariant #3.
+
+**Claim (shipped):** `ARCHITECTURAL VALIDATION PASSED` — printed above 5 WARN
+classes totalling 99 findings.
+
+**Truth:** 6 of those findings were the gate reading its own documentation as
+code (wasync Javadoc teaching `socket.on(MESSAGE, m -> System.out.println(m))`
+counted as 5 `System.out` violations and 1 `printStackTrace`), 8 were
+AgentScope's `SubTaskState.TODO` enum constant read as a deferral marker, and
+19 were `-DskipTests` on dependency-priming steps in workflows that all run a
+real suite afterwards (11/11 audited legitimate). Of the genuinely-actionable
+remainder, one was real and unshipped: `ToolCallbackServer` documented an
+`X-Atmosphere-Tool-Token` header that existed in no Java, no Python, and no
+test — the CrewAI tool-callback server authorised nothing, so any process on
+the host could invoke `@AiTool`s over its loopback port.
+
+**Slip path:** the gate had an advisory tier. A WARN blocks nothing, so the
+findings accumulated and the yellow became scenery — and because the banner
+still read PASSED, the noise was indistinguishable from the one real security
+gap sitting inside it. The `SOURCE_DIRS` typo survived for the same reason from
+the other direction: nobody re-reads a check that is already green. Neither
+drift needed a lie; both needed only a gate that could not fail.
+
+**Gate added:**
+- `warn_validation()` is deleted, not deprecated. Every check now fails the
+  build or does not exist; bash errors loudly if anyone calls it again. All
+  thresholds are 0 — a budget above zero is a promise to tolerate the next one.
+- `scripts/lib/source_scan.py` splits code from comments so each check asks the
+  question it means (`--mode code` for "does the code call System.out",
+  `--mode comment` for "does a comment carry a TODO"). It carries a 12-case
+  self-test pinned to the exact false positives above, and the gate runs that
+  self-test before trusting the instrument — a scanner that silently stopped
+  stripping comments would turn every check green.
+- Empty path expansion into `rg` now exits CRITICAL instead of degrading to a
+  stdin read, which is the specific mechanism that made the check a no-op.
+- `[non_shipped_modules]` is verified against each module's pom on every run,
+  so the allowlist cannot be used to quietly exempt a module that ships.
+- The `-DskipTests` check now asks the real invariant — "does this workflow run
+  tests anywhere?" — instead of flagging the flag. It immediately caught
+  `native-image-ci.yml`, which the old file-blanket allowlist had exempted
+  wholesale; it does test, via an inline boot probe, now encoded as evidence.

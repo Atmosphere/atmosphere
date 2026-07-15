@@ -63,7 +63,8 @@ def test_build_remote_tool_pydantic_schema() -> None:
         ],
         "return_type": "string",
     }
-    tool = build_remote_tool(descriptor, "http://127.0.0.1:9999/cb", "sess_x")
+    tool = build_remote_tool(descriptor, "http://127.0.0.1:9999/cb", "sess_x",
+                             callback_token="t0k")
 
     schema = tool.args_schema
     fields = schema.model_fields
@@ -93,7 +94,8 @@ def test_build_remote_tool_unknown_type_falls_back_to_any(caplog) -> None:
     }
     import logging
     with caplog.at_level(logging.INFO):
-        tool = build_remote_tool(descriptor, "http://127.0.0.1:9999/cb", "sess_x")
+        tool = build_remote_tool(descriptor, "http://127.0.0.1:9999/cb", "sess_x",
+                             callback_token="t0k")
     assert any("unknown JSON schema type" in r.message for r in caplog.records), \
         "unknown schema types must log at INFO so observers see the surprise"
     # The schema field exists; its type is permissive.
@@ -123,7 +125,7 @@ def test_remote_tool_posts_to_callback() -> None:
         }
         tool = build_remote_tool(
             descriptor, "http://127.0.0.1:8765/v1/tools/call", "sess_x",
-            client=client,
+            callback_token="t0k", client=client,
         )
         result = tool._run(order_id="A123")
 
@@ -154,7 +156,8 @@ def test_remote_tool_propagates_error() -> None:
         tool = build_remote_tool(
             {"name": "x", "description": "y",
              "parameters": [{"name": "p", "type": "string", "required": True}]},
-            "http://127.0.0.1:1/cb", "sess_x", client=client,
+            "http://127.0.0.1:1/cb", "sess_x", callback_token="t0k",
+            client=client,
         )
         with pytest.raises(RuntimeError) as exc:
             tool._run(p="value")
@@ -175,7 +178,8 @@ def test_remote_tool_propagates_http_error() -> None:
     try:
         tool = build_remote_tool(
             {"name": "x", "description": "y", "parameters": []},
-            "http://127.0.0.1:1/cb", "sess_x", client=client,
+            "http://127.0.0.1:1/cb", "sess_x", callback_token="t0k",
+            client=client,
         )
         with pytest.raises(RuntimeError) as exc:
             tool._run()
@@ -190,8 +194,46 @@ def test_build_remote_tool_rejects_empty_callback_url() -> None:
     with pytest.raises(ValueError, match="callback_url"):
         build_remote_tool(
             {"name": "x", "description": "y", "parameters": []},
-            "", "sess_x",
+            "", "sess_x", callback_token="t0k",
         )
+
+
+def test_build_remote_tool_rejects_empty_callback_token() -> None:
+    """Without the token every callback 401s inside CrewAI's retry loop and
+    surfaces as an opaque agent failure. Fail at build time where the reason
+    is still legible."""
+    with pytest.raises(ValueError, match="callback_token"):
+        build_remote_tool(
+            {"name": "x", "description": "y", "parameters": []},
+            "http://127.0.0.1:1/cb", "sess_x", callback_token="",
+        )
+
+
+def test_remote_tool_sends_auth_token_header() -> None:
+    """The Java callback server refuses any call without a matching
+    ``X-Atmosphere-Tool-Token``. This pins the header onto the wire: if the
+    header silently stopped being sent, every tool call would 401 at runtime
+    and only an integration test would notice."""
+    captured: dict[str, Any] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["token"] = request.headers.get("X-Atmosphere-Tool-Token")
+        return httpx.Response(200, json={"result": "ok"})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    try:
+        tool = build_remote_tool(
+            {"name": "x", "description": "y", "parameters": []},
+            "http://127.0.0.1:1/cb", "sess_x",
+            callback_token="s3cret-token", client=client,
+        )
+        assert tool._run() == "ok"
+        assert captured["token"] == "s3cret-token", (
+            "the per-run token must ride every callback in the "
+            "X-Atmosphere-Tool-Token header"
+        )
+    finally:
+        client.close()
 
 
 def test_inject_tools_into_crew_appends_to_each_agent() -> None:

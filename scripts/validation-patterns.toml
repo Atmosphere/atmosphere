@@ -43,6 +43,30 @@ hedge = [
 ]
 
 # ============================================================================
+# NON-SHIPPED MODULES — test-support and perf harnesses, not product code
+# ============================================================================
+
+[non_shipped_modules]
+# The production-hygiene checks (mock/stub, System.out, printStackTrace) ask
+# "would a user of the published jar see this?". These modules publish nothing,
+# so the question does not apply: benchmarks exists to build synthetic fixtures
+# and print numbers to a console, and integration-tests exists to be a fixture.
+#
+# NOT a convenience allowlist — every entry is verified against its pom on each
+# run (see verify_non_shipped in architectural-validation.sh). Listing a module
+# that actually deploys fails the build, so this list cannot be used to smuggle
+# product code out of the checks.
+#
+# Evidence (re-verified by the gate, quoted here for readers):
+#   modules/benchmarks/pom.xml        <maven.deploy.skip>true</maven.deploy.skip>
+#   modules/integration-tests/pom.xml maven-deploy-plugin  <skip>true</skip>
+#                                     maven-install-plugin <skip>true</skip>
+modules = [
+    "benchmarks",
+    "integration-tests"
+]
+
+# ============================================================================
 # MOCK / STUB EXCLUSIONS — legitimate uses of mock/stub/fake words
 # ============================================================================
 
@@ -52,6 +76,20 @@ files = [
     "FakeHttpSession.java",
     "FakeLlmClient.java"
 ]
+
+# Production sites that WIRE a legitimately-named fake, rather than leaking a
+# stub. `atmosphere.ai.mode=fake` is a documented, shipped config mode: it
+# selects FakeLlmClient so the samples run with no API key, and AiConfig logs
+# the choice at startup. The mode is a product feature, so the word "fake" in
+# its wiring is the feature's real name --- not a placeholder someone forgot.
+#
+# Scoped to file + symbol, deliberately: a bare file exclusion would let a real
+# stub land in AiConfig unnoticed. Any mock/stub/fake hit in these files that
+# does NOT match the paired regex still fails.
+[[mock_exclusions.wiring_sites]]
+file = "AiConfig.java"
+pattern = '"fake"\.equalsIgnoreCase\(mode\)|new FakeLlmClient\(|mode=fake'
+reason = "wires the documented atmosphere.ai.mode=fake demo mode"
 
 # Word-level false positives (words containing mock/stub/fake but not meaning it)
 false_positive_words = [
@@ -165,15 +203,46 @@ continue_on_error = [
     "release-4x.yml"          # trailing website-sync dispatch must not skip the publish jobs
 ]
 
-# CI commands where -DskipTests is acceptable
-skip_tests = [
-    "snapshot-deploy.yml",   # deploy workflows only need compile
-    "native-image-ci.yml",   # native image build tests separately
-    "release-4x.yml",        # release deploys after CI passes
-    "atmosphere-4x-ci.yml",  # compile step before separate test step
-    "samples-ci.yml",        # compile deps before sample build
-    "generator-ci.yml",      # compile deps before generator test
-    "codeql-analysis.yml"    # CodeQL only needs compilation
+# -DskipTests in CI is normal and correct: nearly every workflow primes its
+# dependency closure with `install -DskipTests` and then runs the real suite in
+# a later step. Flagging the flag itself produced 19 findings and zero bugs.
+#
+# The invariant that actually matters is "a workflow must not skip tests and
+# then run none". So the gate now asks that question directly: a workflow using
+# -DskipTests must ALSO contain a step matching test_step_patterns below, or be
+# listed in never_tests with a reason. Adding a bad -DskipTests to a workflow
+# that still runs tests elsewhere is not caught here — no cheap static check
+# can tell which suite a given flag suppressed; that is what review is for.
+#
+# Audited 2026-07-14: all 11 previously-unlisted workflows were legitimate
+# (prime-then-test or publish-only), which is why the file-blanket approach was
+# replaced rather than extended.
+never_tests = [
+    "publish-github-packages.yml",  # republishes an already-CI-tested tag
+    "dependency-submission.yml",    # submits a dependency graph; nothing to test
+    "snapshot-deploy.yml",          # deploys SNAPSHOTs after CI passed
+    "codeql-analysis.yml"           # CodeQL needs compilation, not tests
+]
+
+# Evidence that a workflow really runs tests. Kept explicit rather than clever:
+# a heuristic nobody can read is a gate nobody trusts.
+test_step_patterns = [
+    "mvnw[^\\n]*\\btest\\b",        # ./mvnw test / ./mvnw -B test -pl ...
+    "mvnw[^\\n]*\\bverify\\b",      # failsafe lanes
+    "playwright test",              # e2e / foundation / release-gate lanes
+    "benchmarks\\.jar",             # benchmarks.yml runs JMH as its test
+    "vt-pinning-check\\.sh",        # benchmarks.yml virtual-thread lane
+    "release-gate-samples\\.sh",    # release-gate shards invoke Playwright
+    "sample-startup-smoke\\.sh",    # ci.yml smoke job
+    "test-cli\\.sh",                # cli-e2e.yml unit + runtime suites
+    "e2e-test-[a-z-]*\\.sh",        # cli-e2e.yml overlay/runtime e2e
+    "pytest",                       # sidecar suites
+    # native-image-ci.yml's test is an inline boot probe, not a script: it
+    # backgrounds the native binary, polls an actuator/health endpoint with
+    # `curl -sf`, and `exit 1`s if the app never answers. For a native-image
+    # lane that IS the assertion under test — reflection/AOT misconfiguration
+    # shows up as a binary that will not boot.
+    "curl -sf http"
 ]
 
 # ============================================================================
@@ -261,9 +330,14 @@ methods = ["call", "callAsync", "stream"]
 # ============================================================================
 
 [thresholds]
-# Maximum allowed counts before failing (0 = any occurrence fails)
-mock_in_production = 5
-placeholder_markers = 0         # critical placeholders are always failures
-system_out_calls = 0            # advisory warning threshold (not enforced)
-print_stack_trace = 0           # advisory warning threshold (not enforced)
-todo_markers = 50               # high threshold for legacy code (warn only)
+# Every threshold is 0 and every check is blocking. The old non-zero budgets
+# (mock_in_production = 5, todo_markers = 50) were how 99 findings stayed
+# invisible under a green banner: the counts sat just under the budget and the
+# advisory tier meant nothing failed. A budget above zero is a promise to
+# tolerate the next one too — if a pattern is acceptable, allowlist the
+# specific case with a reason; do not raise the number.
+mock_in_production = 0
+placeholder_markers = 0
+system_out_calls = 0
+print_stack_trace = 0
+todo_markers = 0
