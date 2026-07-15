@@ -95,7 +95,15 @@ run_case() {
         FAILED=$((FAILED+1))
         local got="${out:-<no FAIL at all — check is a NO-OP>}"
         RESULTS="${RESULTS}$(printf "${RED}  NO-OP${NC}   %s\n            expected: %s\n            got     : %s" \
-            "$name" "$expect" "$(echo "$got" | head -1)")\n"
+            "$name" "$expect" "$(echo "$got" | head -3 | tr '\n' '|')")\n"
+        # Diagnostics: a CI-only failure with no evidence is unactionable.
+        {
+            echo "---- diagnostics for failing case: $name ----"
+            echo "  rg: $(rg --version 2>&1 | head -1)  bash: $BASH_VERSION"
+            echo "  injected diff:"; git diff --unified=1 -- "${INJECT_TRACKED[@]}" 2>/dev/null | grep '^+' | grep -v '^+++' | head -6 | sed 's/^/    /'
+            echo "  untracked created:"; for f in "${INJECT_CREATED[@]}"; do [ -e "$f" ] && echo "    $f"; done
+            echo "  full gate FAIL output:"; echo "${out:-<none>}" | sed 's/^/    /'
+        } >&2
     fi
 }
 
@@ -156,10 +164,10 @@ run_case "mock-in-prod"        "mock/stub/fake reference"                       
 run_case "suppresswarnings"    "unauthorized @SuppressWarnings"                      s_suppress
 run_case "unchecked-offer"     "Unchecked offer()"                                   s_offer
 run_case "noop-test-assert"    "no-op test assertions"                               s_noop_test
-run_case "bare-disabled"       "@Disabled"                                           s_disabled
-run_case "disabled-fqn"        "@Disabled"                                           s_disabled_fqn
-run_case "junit4-ignore"       "@Ignore"                                             s_ignore
-run_case "ignore-fqn"          "@Ignore"                                             s_ignore_fqn
+run_case "bare-disabled"       "@Disabled test(s) with no reason string"             s_disabled
+run_case "disabled-fqn"        "@Disabled test(s) with no reason string"             s_disabled_fqn
+run_case "junit4-ignore"       "@Ignore annotations (JUnit 4 legacy"                 s_ignore
+run_case "ignore-fqn"          "@Ignore annotations (JUnit 4 legacy"                 s_ignore_fqn
 run_case "contract-assume"     "contract-test skip patterns"                         s_assume
 run_case "backup-files"        "backup/temporary files"                              s_backup
 run_case "system-out"          "System.out/err call(s)"                              s_sysout

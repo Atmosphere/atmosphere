@@ -2543,3 +2543,54 @@ promoting it to blocking is what made a clean tree fail.
 input is empty for a reason unrelated to the code being clean. Emptiness must
 never be the same signal as cleanliness. Every future check must answer: "if my
 input silently became empty, would I still print PASS?"
+
+---
+
+## 2026-07-15 (later) — "25/25 checks bite" was true only on my ripgrep
+
+The bite-proof suite from earlier the same day went green locally and red in CI
+within minutes of the push. Three findings, each a variant of the same root:
+a check whose result depends on something other than the code it grades.
+
+**Claim:** "25/25 bite, zero no-ops — every check in the gate is now proven."
+
+**Truth:** 23/25 on CI's ripgrep. The two annotation checks used
+`@(?:[\w.]*\.)?Disabled\b` to tolerate a fully-qualified `@org.junit...Disabled`.
+That matches on **ripgrep 14.1.1** (Homebrew, my machine) and matches **nothing**
+on **ripgrep 14.1.0** — which is what `apt-get install ripgrep` puts on
+`ubuntu-latest`. Verified in an `ubuntu:24.04` container: `(?:[\w.]*\.)?`,
+`([\w.]*\.)?` and `(\w+\.)*` all fail there on the FQN input and all pass on
+14.1.1; the group-free `@[\w.]*Disabled\b` works on both. So the fix I shipped to
+close an evasion gap silently reopened it on the only machine that matters — and
+my local "proof" certified it.
+
+**Second drift (mine, caught by CI):** the harness's `restore()` ran
+`git checkout -- .`, reverting *every* uncommitted change between cases —
+including the in-progress regex fix it was meant to grade. A run reported the fix
+as a no-op, I re-applied it, and only a `git status` showed the harness had eaten
+it. A test harness must never revert paths it did not write.
+
+**Third drift (mine):** the expectation strings were ambiguous. `"@Disabled"`
+appears in three distinct FAIL messages — the `@Disabled` check, the `@Ignore`
+check's "migrate to @Disabled", and the empty-override check — so a case could be
+graded green against a check it never exercised. That is the same misattribution
+this suite was written to prevent, reintroduced inside the suite itself.
+
+**Slip path:** I treated "passes on my machine" as "proven", for a tool whose
+behaviour I had already watched differ between environments *that same day*
+(ripgrep missing entirely on CI runners). Having just learned that the gate's
+result depends on the local toolchain, I still validated a toolchain-sensitive
+regex locally and called it proof.
+
+**Gate added:**
+- Annotation patterns are group-free and carry a comment naming the rg version
+  bug, so the next reader does not "tidy" them back into a group.
+- `restore()` reverts only an explicit list of injected paths, and fingerprints
+  `scripts/` before/after — a case that mutates the code under test aborts the
+  run instead of grading the wrong thing.
+- Every expectation is the target check's own distinctive phrase, not a substring
+  shared with sibling messages.
+- Failing cases now dump the rg version, the injected diff, and the full gate
+  output, so a CI-only failure is diagnosable without a local repro.
+- `CI: Gate Self-Test` runs on every change to the gate. It caught all of this
+  within four minutes of the push — the suite works; my local run of it did not.

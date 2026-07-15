@@ -493,28 +493,35 @@ fi
 echo ""
 echo -e "${BLUE}--- Test Integrity ---${NC}"
 
-# @(?:[\w.]*\.)? tolerates a fully-qualified annotation: a bare '@Disabled\b'
-# missed @org.junit.jupiter.api.Disabled entirely, so a qualified skip was
-# invisible to this gate. Matches the contract-test detector's convention.
-# Note \b after Disabled correctly excludes @DisabledOnOs (a conditional, not a skip).
-DISABLED_TESTS=$(rg '@(?:[\w.]*\.)?Disabled\b' $TEST_DIRS --type java -c 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
+# @[\w.]* tolerates a fully-qualified annotation: a bare '@Disabled\b' missed
+# @org.junit.jupiter.api.Disabled entirely, so a qualified skip was invisible.
+#
+# Deliberately group-free. The natural spelling '@(?:[\w.]*\.)?Disabled\b'
+# works on ripgrep 14.1.1 but silently matches NOTHING on 14.1.0 — which is what
+# `apt-get install ripgrep` puts on ubuntu-latest, so it passed locally and
+# no-op'd in CI. Any optional/repeated group containing a dot has the same
+# problem there (verified in ubuntu:24.04 for (?:..)?, (..)? and (..)*).
+# Do not "tidy" this into a group.
+#
+# \b after Disabled correctly excludes @DisabledOnOs (a conditional, not a skip).
+DISABLED_TESTS=$(rg '@[\w.]*Disabled\b' $TEST_DIRS --type java -c 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
 
 if [ "$DISABLED_TESTS" -gt 0 ]; then
-    BARE_DISABLED=$(rg '@(?:[\w.]*\.)?Disabled\s*$' $TEST_DIRS --type java -c 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
+    BARE_DISABLED=$(rg '@[\w.]*Disabled\s*$' $TEST_DIRS --type java -c 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
     if [ "$BARE_DISABLED" -gt 0 ]; then
         fail_validation "Found $BARE_DISABLED @Disabled test(s) with no reason string — @Disabled(\"why, and what unblocks it\")"
-        rg '@(?:[\w.]*\.)?Disabled\s*$' $TEST_DIRS --type java -n 2>/dev/null | head -5
+        rg '@[\w.]*Disabled\s*$' $TEST_DIRS --type java -n 2>/dev/null | head -5
     fi
     echo "  Total @Disabled tests: $DISABLED_TESTS"
 else
     pass_validation "No @Disabled tests"
 fi
 
-IGNORE_TESTS=$(rg '@(?:[\w.]*\.)?Ignore\b' $TEST_DIRS --type java -c 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
+IGNORE_TESTS=$(rg '@[\w.]*Ignore\b' $TEST_DIRS --type java -c 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
 
 if [ "$IGNORE_TESTS" -gt 0 ]; then
     fail_validation "Found $IGNORE_TESTS @Ignore annotations (JUnit 4 legacy — migrate to @Disabled)"
-    rg '@(?:[\w.]*\.)?Ignore\b' $TEST_DIRS --type java -n 2>/dev/null | head -5
+    rg '@[\w.]*Ignore\b' $TEST_DIRS --type java -n 2>/dev/null | head -5
 else
     pass_validation "No JUnit 4 @Ignore annotations"
 fi
