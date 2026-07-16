@@ -41,9 +41,11 @@ test.describe('Embedded Jetty WebSocket Chat', () => {
     await chat.goto(server.baseUrl);
     await chat.waitForConnected();
 
-    await chat.joinAs('Charlie');
+    // The Console's broadcast dialect sends {author: 'console', message} and
+    // renders the server echo author-prefixed — the echo proves the frame
+    // made the full wire round-trip through the broadcaster.
     await chat.sendMessage('Who am I?');
-    await chat.expectMessageFrom('Charlie', 'Who am I?');
+    await chat.expectMessageFrom('console', 'Who am I?');
   });
 
   test('input clears after sending', async ({ page }) => {
@@ -70,19 +72,20 @@ test.describe('Embedded Jetty WebSocket Chat', () => {
 });
 
 test.describe('Jetty HTTP/3 (QUIC) Support', () => {
-  test('page shows Jetty 12 container info', async ({ page }) => {
-    await page.goto(server.baseUrl);
-    await expect(page.getByText('Jetty 12')).toBeVisible({ timeout: 10_000 });
+  test('console header shows the sample subtitle', async ({ page }) => {
+    // The Console renders the subtitle its /api/console/info stand-in
+    // (ConsoleInfoServlet) reports for this sample — the old bespoke page's
+    // container-info banner is gone with the bespoke UI.
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await expect(page.getByText('WebSocket broadcast chat on embedded Jetty'))
+      .toBeVisible({ timeout: 10_000 });
   });
 
-  test('page subtitle confirms Jetty HTTP/3 active', async ({ page }) => {
-    // When jetty-http3-server is on the classpath, JettyHttp3AsyncSupport
-    // auto-activates and the framework diagnostic includes "with Jetty HTTP/3".
-    // The chat page renders the container info in its subtitle.
+  test('sample root redirects to the console', async ({ page }) => {
+    // The meta-refresh redirect is the sample's whole remaining root page.
     await page.goto(server.baseUrl);
-    // If HTTP/3 connector is present, subtitle includes "HTTP/3"
-    // If not (missing dep), it's just "Embedded Jetty 12"
-    await expect(page.getByText('Jetty 12')).toBeVisible({ timeout: 10_000 });
+    await page.waitForURL(/\/atmosphere\/console\//, { timeout: 10_000 });
+    await expect(page.getByTestId('chat-layout')).toBeVisible({ timeout: 10_000 });
   });
 
   test('chat works over WebSocket on Jetty 12', async ({ page }) => {

@@ -41,9 +41,11 @@ test.describe('Quarkus Chat', () => {
     await chat.goto(server.baseUrl);
     await chat.waitForConnected();
 
-    await chat.joinAs('Charlie');
+    // The Console's broadcast dialect sends {author: 'console', message} and
+    // renders the server echo author-prefixed — the echo proves the frame
+    // made the full wire round-trip through the broadcaster.
     await chat.sendMessage('Who am I?');
-    await chat.expectMessageFrom('Charlie', 'Who am I?');
+    await chat.expectMessageFrom('console', 'Who am I?');
   });
 
   test('input clears after sending', async ({ page }) => {

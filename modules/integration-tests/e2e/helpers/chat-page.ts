@@ -2,10 +2,9 @@ import type { Page, Locator } from '@playwright/test';
 import { expect } from '@playwright/test';
 
 /**
- * Page Object Model for Atmosphere chat UIs.
- *
- * Works with all sample apps that use the atmosphere.js ChatLayout components
- * (ChatInput, MessageList, MessageBubble, StatusBar).
+ * Page Object Model for the Atmosphere Console chat surface — the UI every
+ * sample serves at /atmosphere/console/ (ChatContainer, ChatInput,
+ * ChatMessage, ConnectionStatus share these test ids).
  */
 export class ChatPage {
   readonly input: Locator;
@@ -20,9 +19,11 @@ export class ChatPage {
     this.statusLabel = page.getByTestId('status-label');
   }
 
-  /** Navigate to the app and wait for the chat layout to render. */
+  /** Navigate to the sample's Console and wait for the chat layout to render. */
   async goto(url: string): Promise<void> {
-    await this.page.goto(url);
+    // Land on the Console directly — the sample root is a meta-refresh
+    // redirect to it, and racing that navigation flakes waitFor/evaluate.
+    await this.page.goto(url.replace(/\/$/, '') + '/atmosphere/console/');
     await this.page.getByTestId('chat-layout').waitFor({ state: 'visible' });
   }
 
@@ -73,9 +74,10 @@ export class ChatPage {
     await expect(bubble.first()).toBeVisible({ timeout: options?.timeout ?? 10_000 });
   }
 
-  /** Assert the status bar shows a specific state. */
+  /** Assert the status pill shows a specific state (prefix match — the
+   *  Console pill names the live wire, e.g. "Connected · websocket"). */
   async expectStatus(text: string): Promise<void> {
-    await expect(this.statusLabel).toHaveText(text);
+    await expect(this.statusLabel).toHaveText(new RegExp('^' + text));
   }
 
   /** Get the text content of the last message bubble. */

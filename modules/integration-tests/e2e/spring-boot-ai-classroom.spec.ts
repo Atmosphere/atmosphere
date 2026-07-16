@@ -13,23 +13,25 @@ test.afterAll(async () => {
 
 test.describe('Spring Boot AI Classroom', () => {
   test('page loads with room selector', async ({ page }) => {
-    await page.goto(server.baseUrl);
-    await expect(page.getByTestId('room-selector')).toBeVisible();
+    // The Console renders its endpoint picker from the sample's
+    // console-endpoints config (Math/Code/Science classroom rooms).
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await expect(page.getByTestId('endpoint-picker')).toBeVisible();
+    await expect(page.getByTestId('pick-math')).toBeVisible();
   });
 
   test('joining math room shows classroom layout', async ({ page }) => {
-    await page.goto(server.baseUrl);
-    await page.getByTestId('room-math').click();
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await page.getByTestId('pick-math').click();
 
-    await expect(page.getByTestId('classroom-layout')).toBeVisible();
-    await expect(page.getByTestId('room-badge')).toContainText('Math');
+    await expect(page.getByTestId('chat-layout')).toBeVisible();
     await expect(page.getByTestId('chat-input')).toBeVisible();
   });
 
   // Known issue: browser console WebSocket never connects in CI
   test.skip('student sends question and sees streaming response', async ({ page }) => {
-    await page.goto(server.baseUrl);
-    await page.getByTestId('room-math').click();
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await page.getByTestId('pick-math').click();
 
     await page.getByTestId('chat-input').fill('What is a prime number?');
     await page.getByTestId('chat-send').click();
@@ -42,10 +44,9 @@ test.describe('Spring Boot AI Classroom', () => {
 
   // Known issue: browser console WebSocket never connects in CI
   test.skip('code room shows a response', async ({ page }) => {
-    await page.goto(server.baseUrl);
-    await page.getByTestId('room-code').click();
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await page.getByTestId('pick-code').click();
 
-    await expect(page.getByTestId('room-badge')).toContainText('Code');
     await page.getByTestId('chat-input').fill('How do I write clean code?');
     await page.getByTestId('chat-send').click();
 
@@ -55,10 +56,9 @@ test.describe('Spring Boot AI Classroom', () => {
 
   // Known issue: browser console WebSocket never connects in CI
   test.skip('science room shows a response', async ({ page }) => {
-    await page.goto(server.baseUrl);
-    await page.getByTestId('room-science').click();
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await page.getByTestId('pick-science').click();
 
-    await expect(page.getByTestId('room-badge')).toContainText('Science');
     await page.getByTestId('chat-input').fill('What is photosynthesis?');
     await page.getByTestId('chat-send').click();
 
@@ -67,15 +67,15 @@ test.describe('Spring Boot AI Classroom', () => {
   });
 
   test('send button is disabled when input is empty', async ({ page }) => {
-    await page.goto(server.baseUrl);
-    await page.getByTestId('room-math').click();
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await page.getByTestId('pick-math').click();
     await expect(page.getByTestId('chat-send')).toBeDisabled();
   });
 
   // Known issue: browser console WebSocket never connects in CI
   test.skip('input clears after sending', async ({ page }) => {
-    await page.goto(server.baseUrl);
-    await page.getByTestId('room-math').click();
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await page.getByTestId('pick-math').click();
 
     await page.getByTestId('chat-input').fill('Test message');
     await page.getByTestId('chat-send').click();

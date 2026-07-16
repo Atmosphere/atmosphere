@@ -77,18 +77,19 @@ test.describe('Chat over WebTransport', () => {
     await page.goto(server.baseUrl);
     await connected;
 
+    // The sample now speaks the Room Protocol (console-room: lobby): the
+    // presence chip renders only after the server's join_ack, so it proves
+    // the frame made the full round-trip over the negotiated transport.
+    // Room broadcasts deliberately exclude the sender, so there is no
+    // sender-side echo bubble to assert anymore.
+    await expect(page.getByTestId('presence-count'))
+      .toHaveText(/\d+ online/, { timeout: 15_000 });
+
     const input = page.getByTestId('chat-input');
     await input.fill('Hello over HTTP/3!');
     await page.getByTestId('chat-send').click();
 
-    // Two bubbles prove the FULL round-trip: the local user bubble (exact
-    // match) and the server's broadcast echo the console now renders
-    // (author-prefixed) — the echo only exists if the frame came back over
-    // the wire, so this is strictly stronger than the old single assertion
-    // (which also became ambiguous once the echo rendered).
     await expect(page.getByText('Hello over HTTP/3!', { exact: true }))
-      .toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('console: Hello over HTTP/3!'))
       .toBeVisible({ timeout: 10_000 });
   });
 

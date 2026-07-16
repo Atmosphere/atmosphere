@@ -98,16 +98,23 @@ test.describe('Spring Boot Chat', () => {
       await expect(a.getByTestId('status-label')).toHaveText(/^Connected/, { timeout: 15_000 });
       await expect(b.getByTestId('status-label')).toHaveText(/^Connected/, { timeout: 15_000 });
 
+      // Both consoles join the sample's Room Protocol room (console-room:
+      // lobby); the presence chip only renders after the server's join_ack,
+      // so "2 online" on both pages IS a proven round-trip for each client.
+      await expect(a.getByTestId('presence-count')).toHaveText(/\d+ online/, { timeout: 15_000 });
+      await expect(b.getByTestId('presence-count')).toHaveText(/\d+ online/, { timeout: 15_000 });
+
       await a.getByTestId('chat-input').fill('cross-client broadcast probe');
       await a.getByTestId('chat-send').click();
 
-      // The other client renders the broadcast (author-prefixed bubble)...
+      // The other member renders the room broadcast prefixed with the
+      // sender's memberId ({type:'message', from:'console-xxxx', data}).
+      // Room broadcasts deliberately exclude the sender, so there is no
+      // sender-side echo — the receiver's bubble is the round-trip proof.
       await expect(b.getByTestId('message-list'))
-        .toContainText('console: cross-client broadcast probe', { timeout: 10_000 });
-      // ...and the sender sees the server echo, proving the round-trip
-      // (not just the locally rendered user bubble).
-      await expect(a.getByTestId('message-list'))
-        .toContainText('console: cross-client broadcast probe', { timeout: 10_000 });
+        .toContainText('cross-client broadcast probe', { timeout: 10_000 });
+      await expect(b.getByTestId('message-list'))
+        .toContainText(/console-[0-9a-f]+: cross-client broadcast probe/, { timeout: 10_000 });
     } finally {
       await ctxA.close();
       await ctxB.close();

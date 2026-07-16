@@ -125,14 +125,19 @@ test.describe('Agent Activity Streaming', () => {
     // Four sequential keyless crew stages + browser render: needs more than
     // the global 90s per-test budget on CI runners.
     test.setTimeout(300_000);
-    await page.goto(server.baseUrl + '/');
-    // Wait for the transport to GENUINELY connect (ConnectionStatusBadge
-    // flips to "Connected") instead of a blind sleep — the first-attempt
-    // flake was a race where the prompt was submitted before the socket
-    // opened, so the pipeline never ran and no cards could ever appear.
-    await expect(page.getByText(/^Connected/).first()).toBeVisible({ timeout: 30_000 });
+    // The sample UI is the Atmosphere Console: fleet roster in the empty
+    // state, live agent-activity strip during the coordination.
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    // Wait for the transport to GENUINELY connect (status pill flips to
+    // "Connected") instead of a blind sleep — the first-attempt flake was a
+    // race where the prompt was submitted before the socket opened, so the
+    // pipeline never ran and no cards could ever appear.
+    await expect(page.getByTestId('status-label')).toHaveText(/^Connected/, { timeout: 30_000 });
+    // Runtime-truth fleet roster from /api/admin/coordinators/{name}/fleet.
+    await expect(page.getByTestId('fleet-roster')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('fleet-agent')).toHaveCount(4);
 
-    const input = page.getByPlaceholder(/ask about/i);
+    const input = page.getByTestId('chat-input');
     await input.fill('AI fitness apps');
     await input.press('Enter');
 
@@ -147,16 +152,21 @@ test.describe('Agent Activity Streaming', () => {
       await input.press('Enter');
     }
 
-    // Wait for agent collaboration cards to appear. The keyless pipeline is
-    // deterministic but slow (four sequential crew stages on a cold JIT) —
-    // CI runners need real headroom or this reads as flaky (2026-07-04).
-    await expect(page.getByText(/Research Agent/i).first()).toBeVisible({ timeout: 90_000 });
+    // Wait for the live agent-activity strip (agent-step events). The
+    // keyless pipeline is deterministic but slow (four sequential crew
+    // stages on a cold JIT) — CI runners need real headroom or this reads
+    // as flaky (2026-07-04).
+    await expect(page.getByTestId('agent-activity')).toBeVisible({ timeout: 90_000 });
+    await expect(page.getByTestId('agent-activity'))
+      .toContainText(/research/i, { timeout: 90_000 });
 
-    // Wait for the CEO synthesis to appear
-    await expect(page.getByText(/CEO/).first()).toBeVisible({ timeout: 120_000 });
+    // The writer stage is the last crew hop before the CEO synthesis —
+    // seeing it proves the coordination traversed the whole fleet.
+    await expect(page.getByTestId('agent-activity'))
+      .toContainText(/writer/i, { timeout: 120_000 });
 
-    // Agent status bar should show checkmarks for completed agents
-    const statusBar = page.locator('text=/✓/');
-    await expect(statusBar.first()).toBeVisible({ timeout: 30_000 });
+    // The synthesized reply streams back as the assistant bubble.
+    await expect(page.getByTestId('message-bubble').last())
+      .not.toBeEmpty({ timeout: 120_000 });
   });
 });
