@@ -24,6 +24,7 @@ import org.atmosphere.ai.governance.rag.RagSafetyConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.ClassUtils;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -91,6 +92,12 @@ public class AtmosphereConsoleInfoEndpoint {
         if (harness != null) {
             result.put("harness", harness);
         }
+        // Session tape: true only when a recorder is actually installed at
+        // runtime (not merely on the classpath) — the truthful signal that gates
+        // the console Tape tab (Runtime Truth — Invariant #5). Probed reflectively
+        // because atmosphere-ai is optional: a direct TapeSupport.installed() call
+        // would NoClassDefFoundError on samples without the tape package.
+        result.put("hasTape", hasInstalledTape());
         return result;
     }
 
@@ -207,5 +214,23 @@ public class AtmosphereConsoleInfoEndpoint {
             logger.debug("Framework not initialized yet, using configured default", e);
         }
         return configuredPath;
+    }
+
+    /**
+     * Whether a tape recorder is actually installed at runtime — probed
+     * reflectively so the optional {@code atmosphere-ai} tape package staying off
+     * the classpath (non-AI apps) does not force-load it here.
+     */
+    private boolean hasInstalledTape() {
+        try {
+            var type = ClassUtils.forName("org.atmosphere.ai.tape.TapeSupport",
+                    getClass().getClassLoader());
+            return Boolean.TRUE.equals(type.getMethod("installed").invoke(null));
+        } catch (ClassNotFoundException | LinkageError absent) {
+            return false;
+        } catch (ReflectiveOperationException e) {
+            logger.trace("tape installed() probe failed", e);
+            return false;
+        }
     }
 }

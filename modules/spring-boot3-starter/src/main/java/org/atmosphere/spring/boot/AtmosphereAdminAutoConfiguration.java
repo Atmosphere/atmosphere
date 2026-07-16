@@ -323,4 +323,207 @@ public class AtmosphereAdminAutoConfiguration {
             return controller;
         }
     }
+
+    /**
+     * Validates {@code X-Atmosphere-Auth} on every {@code /api/admin/*}
+     * request via the Spring-supplied {@code TokenValidator} bean and
+     * surfaces the resolved principal to Spring MVC. {@code AuthInterceptor}
+     * only runs inside the Atmosphere handler chain, which does not
+     * cover {@code /api/admin/*} (that path is served by Spring MVC's
+     * DispatcherServlet). Its primary job here is the default-deny gate for
+     * recorded-content reads (audit / journal / tape) that the Spring Boot 3
+     * admin plane otherwise served unauthenticated.
+     *
+     * <p>Registered unconditionally. The {@code TokenValidator} is optional: when
+     * absent, the filter resolves no principal, so the
+     * {@code atmosphere.admin.http-read-auth-required} gate denies every admin
+     * read (fail closed) rather than being silently ignored — the previous
+     * {@code @ConditionalOnBean} skipped the whole filter without a validator,
+     * turning the flag into a no-op (Correctness Invariant #6: default deny).
+     * Writes are gated separately by the endpoint's {@code guardWrite}
+     * ({@code atmosphere.admin.http-write-enabled}, default off).</p>
+     */
+    @Bean
+    public FilterRegistrationBean<AdminApiAuthFilter> adminApiAuthFilter(
+            org.springframework.beans.factory.ObjectProvider<org.atmosphere.auth.TokenValidator>
+                    validatorProvider,
+            org.springframework.core.env.Environment env) {
+        var validator = validatorProvider.getIfAvailable();
+        if (validator == null && Boolean.parseBoolean(
+                env.getProperty("atmosphere.admin.http-read-auth-required", "false"))) {
+            logger.warn("atmosphere.admin.http-read-auth-required=true but no "
+                    + "TokenValidator bean is present — all /api/admin/* reads will be "
+                    + "denied (fail closed). Define a TokenValidator bean to authenticate "
+                    + "admin reads, or unset the flag for an open read plane.");
+        }
+        var reg = new FilterRegistrationBean<>(new AdminApiAuthFilter(validator, env));
+        reg.addUrlPatterns("/api/admin/*");
+        reg.setOrder(0);
+        return reg;
+    }
+
+    /**
+     * Gates recorded-content admin reads (audit / journal / tape) default-deny
+     * and surfaces the {@code X-Atmosphere-Auth}-resolved principal onto Spring
+     * MVC requests. Absent or invalid tokens leave the principal unset, so a
+     * sensitive read returns 401 (default deny, Correctness Invariant #6).
+     */
+    static class AdminApiAuthFilter implements Filter {
+
+        /** May be {@code null} when no {@code TokenValidator} bean is present. */
+        private final org.atmosphere.auth.TokenValidator validator;
+        private final org.springframework.core.env.Environment env;
+
+        AdminApiAuthFilter(org.atmosphere.auth.TokenValidator validator,
+                           org.springframework.core.env.Environment env) {
+            this.validator = validator;
+            this.env = env;
+        }
+
+        @Override
+        public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+                throws IOException, ServletException {
+            var httpReq = (HttpServletRequest) request;
+            var token = httpReq.getHeader("X-Atmosphere-Auth");
+            if (token == null || token.isBlank()) {
+                // Fall back to the ?X-Atmosphere-Auth= query string
+                // since browsers cannot set custom headers on WebSocket /
+                // EventSource upgrades; the REST surface supports it too
+                // so test fixtures that share the token-in-query flow
+                // work.
+                token = httpReq.getParameter("X-Atmosphere-Auth");
+            }
+            java.security.Principal principal = null;
+            if (validator != null && token != null && !token.isBlank()
+                    && validator.validate(token)
+                            instanceof org.atmosphere.auth.TokenValidator.Valid valid) {
+                principal = valid.principal();
+                httpReq.setAttribute("org.atmosphere.auth.principal", principal);
+            }
+            // Opt-in read auth gate: when
+            // atmosphere.admin.http-read-auth-required=true, reject
+            // anonymous reads (GET/HEAD/OPTIONS) too. Default false so
+            // existing demo consoles keep working; production operators
+            // flip the flag. Writes go through guardWrite on the
+            // endpoint and aren't double-gated here.
+            //
+            // Exception: the agent-workspace surfaces (model-written file
+            // contents, plans) are default-DENY regardless of the general
+            // read gate — they hold arbitrary model/user content, materially
+            // more sensitive than the metrics the open read plane exposes
+            // (Correctness Invariant #6). Demos that want the console
+            // Workspace tab without a token opt out explicitly with
+            // atmosphere.admin.workspace-read-auth-required=false.
+            if (principal == null && isReadMethod(httpReq)
+                    && (isReadAuthRequired() || isSensitiveWorkspaceRead(httpReq)
+                            || isSensitiveContentRead(httpReq))) {
+                var httpRes = (HttpServletResponse) response;
+                httpRes.setStatus(401);
+                httpRes.setContentType("application/json");
+                httpRes.getWriter().write(
+                        "{\"error\":\"Admin read operations require authentication\","
+                        + "\"hint\":\"Send X-Atmosphere-Auth header or disable "
+                        + "atmosphere.admin.http-read-auth-required\"}");
+                httpRes.getWriter().flush();
+                return;
+            }
+            if (principal != null) {
+                chain.doFilter(new AuthenticatedHttpRequest(httpReq, principal), response);
+                return;
+            }
+            chain.doFilter(request, response);
+        }
+
+        private boolean isReadAuthRequired() {
+            return Boolean.parseBoolean(
+                    env.getProperty("atmosphere.admin.http-read-auth-required", "false"));
+        }
+
+        /**
+         * Whether this request reads an agent-workspace surface that exposes
+         * workspace internals — a plan document, the file listing or a file's
+         * content — and that surface still requires authentication (the
+         * default; {@code atmosphere.admin.workspace-read-auth-required=false}
+         * opts a demo out, loudly at its own risk).
+         *
+         * <p>The {@code /api/admin/workspace/owners} discovery endpoint is
+         * deliberately NOT gated: it returns only agent names plus
+         * plan/filesystem booleans — the same existence information already
+         * exposed by {@code /api/admin/agents} and the console itself — and
+         * the console probes it on load for every app, so gating it would
+         * emit a spurious 401 resource error on consoles that never open the
+         * Workspace tab. The sensitive data (plan text, file names, file
+         * bodies) stays default-deny.</p>
+         */
+        private boolean isSensitiveWorkspaceRead(HttpServletRequest req) {
+            if (!Boolean.parseBoolean(env.getProperty(
+                    "atmosphere.admin.workspace-read-auth-required", "true"))) {
+                return false;
+            }
+            var uri = req.getRequestURI();
+            return uri != null
+                    && uri.matches(".*/api/admin/agents/[^/]+/(plan|files|files/content)$");
+        }
+
+        /**
+         * Whether this request reads a recorded-content observability surface
+         * that carries arbitrary user/model content — the governance decision
+         * log ({@code context_snapshot} embeds a 200-char preview of the
+         * request message AND the response, plus user/session/agent/
+         * conversation ids — see {@code GovernanceDecisionLog#snapshot}), the
+         * control audit log (broadcast/unicast message bodies + principals),
+         * and the coordination journal (agent-to-agent message content). These
+         * are the same "arbitrary model/user content" class the workspace
+         * surfaces guard, so they are default-DENY too, independent of the
+         * general read gate (Correctness Invariant #6). A demo that wants these
+         * console tabs open without a token opts out explicitly, at its own
+         * risk, with {@code atmosphere.admin.content-read-auth-required=false}.
+         *
+         * <p>Deliberately NOT gated: {@code /governance/summary},
+         * {@code /governance/health}, {@code /governance/policies} (policy
+         * metadata, no request content) and {@code /governance/commitments}
+         * (Ed25519-signed records meant for external SIEM verification against
+         * the published key) — those carry no user/model content and stay on
+         * the open read plane.</p>
+         */
+        private boolean isSensitiveContentRead(HttpServletRequest req) {
+            if (!Boolean.parseBoolean(env.getProperty(
+                    "atmosphere.admin.content-read-auth-required", "true"))) {
+                return false;
+            }
+            var uri = req.getRequestURI();
+            return uri != null
+                    && uri.matches(".*/api/admin/(governance/decisions|audit|journal(/[^/]+(/log)?)?"
+                            + "|tape/runs(/[^/]+/(steps|replay))?)$");
+        }
+
+        private static boolean isReadMethod(HttpServletRequest req) {
+            var method = req.getMethod();
+            return "GET".equalsIgnoreCase(method)
+                    || "HEAD".equalsIgnoreCase(method)
+                    || "OPTIONS".equalsIgnoreCase(method);
+        }
+    }
+
+    /**
+     * Wraps the servlet request so {@code getUserPrincipal()} returns the
+     * token-resolved principal. Standard servlet consumers (Spring MVC,
+     * Jakarta Security) read it — wrapping is simpler than duplicating the
+     * lookup at every site.
+     */
+    static class AuthenticatedHttpRequest
+            extends jakarta.servlet.http.HttpServletRequestWrapper {
+
+        private final java.security.Principal principal;
+
+        AuthenticatedHttpRequest(HttpServletRequest req, java.security.Principal principal) {
+            super(req);
+            this.principal = principal;
+        }
+
+        @Override
+        public java.security.Principal getUserPrincipal() {
+            return principal;
+        }
+    }
 }

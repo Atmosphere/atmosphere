@@ -173,24 +173,6 @@
                 <netty.version>4.1.135.Final</netty.version>
                 <atmosphere.starter>atmosphere-spring-boot3-starter</atmosphere.starter>
             </properties>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-surefire-plugin</artifactId>
-                        <configuration>
-                            <!-- The tape replay admin endpoints (/api/admin/tape/runs, /replay)
-                                 ship only in the Spring Boot 4 starter; the spring-boot3-starter's
-                                 AtmosphereAdminEndpoint has no tape routes (parity gap). This E2E
-                                 asserts that HTTP surface, so it is SB4-only until the tape admin
-                                 support is ported to the Boot 3 starter. -->
-                            <excludes>
-                                <exclude>**/TapeLifecycleE2ETest.java</exclude>
-                            </excludes>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
         </profile>
     </profiles>
 </project>

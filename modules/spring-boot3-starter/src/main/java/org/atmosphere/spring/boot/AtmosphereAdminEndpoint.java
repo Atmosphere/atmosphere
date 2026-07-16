@@ -21,6 +21,7 @@ import org.atmosphere.admin.ai.AiRuntimeController;
 import org.atmosphere.admin.coordinator.CoordinatorController;
 import org.atmosphere.admin.mcp.McpController;
 import org.atmosphere.admin.metrics.MetricsController;
+import org.springframework.util.ClassUtils;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.http.ResponseEntity;
@@ -381,5 +382,78 @@ public class AtmosphereAdminEndpoint {
     public List<org.atmosphere.admin.ControlAuditLog.AuditEntry> listAuditEntries(
             @RequestParam(value = "limit", defaultValue = "100") int limit) {
         return admin.auditLog().entries(limit);
+    }
+
+    /**
+     * Whether the optional {@code atmosphere-ai} tape package is on the
+     * classpath. Probed once, without force-loading the tape types, so this
+     * always-active admin controller ({@code @ConditionalOnBean(AtmosphereAdmin)})
+     * registers even on samples that don't carry {@code atmosphere-ai} (an
+     * optional starter dependency). A direct reference to a tape type in a
+     * controller method signature would make Spring's {@code getDeclaredMethods}
+     * reflection force-load the tape package at bean registration and crash
+     * those samples with {@link NoClassDefFoundError}. The tape reads live in
+     * {@link TapeAdminSupport}, reached only through the guarded bodies below.
+     */
+    private static final boolean TAPE_ON_CLASSPATH = tapeOnClasspath();
+
+    private static boolean tapeOnClasspath() {
+        try {
+            ClassUtils.forName("org.atmosphere.ai.tape.TapeSupport",
+                    AtmosphereAdminEndpoint.class.getClassLoader());
+            return true;
+        } catch (ClassNotFoundException | LinkageError absent) {
+            return false; // atmosphere-ai not on this sample's classpath
+        }
+    }
+
+    /**
+     * Session tape — list recorded AI runs (newest first), optionally filtered
+     * by {@code tapeId} / {@code status}. Reads the installed
+     * {@link org.atmosphere.ai.tape.TapeStore} via {@link TapeAdminSupport};
+     * returns an empty list when the tape is disabled or {@code atmosphere-ai}
+     * is absent (runtime truth). The tape holds pre-redaction content, so this
+     * endpoint sits behind the content-read-auth gate (see
+     * {@code AtmosphereAdminAutoConfiguration.AdminApiAuthFilter} — Invariant #6).
+     */
+    @GetMapping("/tape/runs")
+    public ResponseEntity<List<Map<String, Object>>> tapeRuns(
+            @RequestParam(value = "tapeId", required = false) String tapeId,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "limit", defaultValue = "100") int limit) {
+        if (!TAPE_ON_CLASSPATH) {
+            return ResponseEntity.ok(List.of());
+        }
+        return ResponseEntity.ok(TapeAdminSupport.runs(tapeId, status, limit));
+    }
+
+    /**
+     * Session tape — the ordered steps of one run, from {@code fromSeq}
+     * (default 0) up to {@code max} (default 500). Pre-redaction content, gated
+     * like {@link #tapeRuns}.
+     */
+    @GetMapping("/tape/runs/{runId}/steps")
+    public ResponseEntity<Map<String, Object>> tapeSteps(
+            @PathVariable("runId") String runId,
+            @RequestParam(value = "fromSeq", defaultValue = "0") long fromSeq,
+            @RequestParam(value = "max", defaultValue = "500") int max) {
+        if (!TAPE_ON_CLASSPATH) {
+            return ResponseEntity.ok(Map.of("runId", runId, "steps", List.of()));
+        }
+        return ResponseEntity.ok(TapeAdminSupport.steps(runId, fromSeq, max));
+    }
+
+    /**
+     * Session tape — deterministically replay a recorded run as a coordination
+     * tree: the run plus its fan-out children (linked by {@code parentRunId}),
+     * reconstructed from the tape with no model in the loop. Pre-redaction
+     * content, gated like {@link #tapeRuns}.
+     */
+    @GetMapping("/tape/runs/{runId}/replay")
+    public ResponseEntity<Map<String, Object>> tapeReplay(@PathVariable("runId") String runId) {
+        if (!TAPE_ON_CLASSPATH) {
+            return ResponseEntity.ok(Map.of("runId", runId, "present", false));
+        }
+        return ResponseEntity.ok(TapeAdminSupport.replay(runId));
     }
 }
