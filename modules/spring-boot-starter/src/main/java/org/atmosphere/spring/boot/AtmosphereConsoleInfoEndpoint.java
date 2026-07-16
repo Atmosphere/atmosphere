@@ -151,6 +151,12 @@ public class AtmosphereConsoleInfoEndpoint {
         // the console never probes /actuator into a 404.
         result.put("hasActuator",
                 hasBean("org.springframework.boot.health.actuate.endpoint.HealthEndpoint"));
+        // Admin read plane (governance summary, agents, workspace owners all
+        // hang off the AtmosphereAdmin bean): lets the console skip its
+        // legacy probes instead of 404-spamming hosts without the plane.
+        var hasAdmin = hasBean("org.atmosphere.admin.AtmosphereAdmin");
+        result.put("hasAdmin", hasAdmin);
+        result.put("hasWorkspace", hasAdmin);
         // Session tape: true only when a recorder is actually installed, not
         // merely on the classpath — so the Tape tab and its /api/admin/tape
         // reads appear only when the opt-in tape is live (Runtime Truth —

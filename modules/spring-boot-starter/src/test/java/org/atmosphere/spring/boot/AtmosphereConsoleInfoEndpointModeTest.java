@@ -188,6 +188,11 @@ class AtmosphereConsoleInfoEndpointModeTest {
         var result = newEndpoint(Map.of()).info();
         assertThat(result).containsEntry("hasInteractions", false);
         assertThat(result).containsEntry("hasVerifier", false);
+        // Admin read plane + workspace both hang off the AtmosphereAdmin bean;
+        // false lets the console skip its legacy governance/agents/workspace
+        // probes instead of 404-spamming hosts without the plane.
+        assertThat(result).containsEntry("hasAdmin", false);
+        assertThat(result).containsEntry("hasWorkspace", false);
     }
 
     private AtmosphereConsoleInfoEndpoint newEndpoint(Map<String, AtmosphereHandlerWrapper> handlers) {

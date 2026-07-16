@@ -191,6 +191,8 @@ onMounted(async () => {
   // console-info harness block is runtime state, not config intent. Used to
   // gate the workspace probe below.
   let harnessPresent = false
+  let adminDeclaredAbsent = false
+  let workspaceDeclaredAbsent = false
   try {
     const res = await fetch('/api/console/info')
     if (res.ok) {
@@ -228,16 +230,25 @@ onMounted(async () => {
       tapeAvailable.value = data.hasTape === true
       roomsAvailable.value = data.hasRooms === true
       actuatorAvailable.value = data.hasActuator === true
+      // hasAdmin === false means the host declared it has no admin read
+      // plane — skip the legacy governance/agents probes so bare-Jetty and
+      // similar hosts never see 404 noise. Absent flag = probe (older
+      // servers, the Quarkus admin extension). hasWorkspace === false
+      // likewise suppresses the workspace probe (Quarkus lacks the route).
+      adminDeclaredAbsent = data.hasAdmin === false
+      workspaceDeclaredAbsent = data.hasWorkspace === false
       harnessPresent = data.harness != null && typeof data.harness === 'object'
     }
   } catch {
     // Console info not available — use defaults
   }
-  await Promise.all([probeGovernance(), probeAgents()])
+  if (!adminDeclaredAbsent) {
+    await Promise.all([probeGovernance(), probeAgents()])
+  }
   // harness block ⇒ atmosphere-ai (and the workspace endpoint class) is on
   // the classpath; agents probe OK ⇒ the AtmosphereAdmin bean is live. Both
   // together mean /api/admin/workspace/owners is mapped — no 404 probe spam.
-  if (harnessPresent && agentsAvailable.value) {
+  if (harnessPresent && agentsAvailable.value && !workspaceDeclaredAbsent) {
     await probeWorkspace()
   }
   ready.value = true

@@ -94,6 +94,12 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
         // admin/verifier REST planes, so both are honestly false here.
         payload.put("hasInteractions", Boolean.FALSE);
         payload.put("hasVerifier", Boolean.FALSE);
+        // The Quarkus admin extension serves governance/agents but has no
+        // /api/admin/workspace/owners route — saying so stops the console's
+        // workspace probe from 404-spamming (Runtime Truth). hasAdmin is
+        // deliberately omitted: the console's legacy probes discover the
+        // governance/agents planes the admin extension actually maps.
+        payload.put("hasWorkspace", Boolean.FALSE);
         // RAG injection-safety runtime truth, in parity with the Spring starter
         // (Invariant #5): present only when a ContextProvider was actually wrapped.
         var ragSafety = detectRagSafety(framework);

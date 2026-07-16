@@ -99,6 +99,14 @@ export class AtmosphereChatTransport implements ChatTransport {
   // this.subscription is assigned — so a join requested then is latched and
   // flushed as soon as the subscription lands (terminal-path completeness).
   private joinPending = false
+  // Set when a WT-first subscription exhausted its reconnect quota: the
+  // sidecar regenerates its self-signed certificate on every boot, so after
+  // a server restart the stale hash can never handshake again. The fallback
+  // resubscribe goes plain WebSocket; the next page load is WT-first again.
+  private wtDisabled = false
+  // Set by the composable's unmount disconnect — stops the fallback
+  // resubscribe loop from rebuilding a connection nobody owns anymore.
+  private closedByUser = false
 
   constructor(
     private readonly options: ChatTransportOptions,
@@ -112,7 +120,7 @@ export class AtmosphereChatTransport implements ChatTransport {
     // WT-first when /api/console/info confirmed a live HTTP/3 sidecar
     // (Runtime Truth) — WS remains the fallback, exactly like the former
     // bespoke sample UIs. Without the sidecar: WS with long-polling fallback.
-    const wt = options.webTransport
+    const wt = this.wtDisabled ? undefined : options.webTransport
     this.subscription = await this.atmosphere.subscribe<string>(
       {
         url: withAuthToken(options.endpoint),
@@ -124,7 +132,13 @@ export class AtmosphereChatTransport implements ChatTransport {
         ...(wt?.certificateHash ? { serverCertificateHashes: [wt.certificateHash] } : {}),
         reconnect: true,
         reconnectInterval: 3000,
-        maxReconnectOnClose: options.maxReconnectOnClose,
+        // WT reconnects after a server restart fail deterministically (the
+        // sidecar's self-signed cert regenerates per boot, so the stale hash
+        // can never handshake) — cap the WT quota so the WebSocket fallback
+        // resubscribe takes over in seconds, with the full quota of its own.
+        maxReconnectOnClose: wt
+          ? Math.min(3, options.maxReconnectOnClose)
+          : options.maxReconnectOnClose,
         // Room Protocol endpoints exchange raw JSON envelopes written by
         // RoomProtocolInterceptor#sendToResource — those writes carry no
         // TrackMessageSize prefix and no atmo-protocol framing, so both
@@ -133,6 +147,9 @@ export class AtmosphereChatTransport implements ChatTransport {
         trackMessageLength: !options.rooms,
         enableProtocol: !options.rooms,
         ...(options.rooms ? { contentType: 'application/json' } : {}),
+        // Sends while disconnected enqueue (core auto-enqueues on push when
+        // state !== 'connected') and drain automatically on reopen.
+        ...(options.offlineQueue ? { offlineQueue: options.offlineQueue } : {}),
       },
       options.status.wrap({
         open: () => {
@@ -163,7 +180,19 @@ export class AtmosphereChatTransport implements ChatTransport {
           console.warn('[atmosphere] transport failure, falling back:', reason)
         },
         clientTimeout: () => handlers.onClientTimeout(),
-        failureToReconnect: () => handlers.onFailureToReconnect(),
+        failureToReconnect: () => {
+          if (!this.wtDisabled && options.webTransport) {
+            // WT reconnect quota exhausted — almost always a server restart
+            // that regenerated the sidecar's self-signed cert, which the
+            // stale hash can never handshake with. Rebuild over plain
+            // WebSocket: offline-queued sends drain on its first open.
+            this.wtDisabled = true
+            this.teardown()
+            void this.fallbackResubscribe(handlers)
+            return
+          }
+          handlers.onFailureToReconnect()
+        },
       })
     )
     if (this.joinPending) {
@@ -173,11 +202,38 @@ export class AtmosphereChatTransport implements ChatTransport {
   }
 
   disconnect(): void {
+    this.closedByUser = true
+    this.teardown()
+  }
+
+  private teardown(): void {
     if (this.atmosphere) {
       this.atmosphere.closeAll()
       this.atmosphere = null
       this.subscription = null
+      this.joinPending = false
     }
+  }
+
+  /**
+   * Rebuild the subscription (WT already disabled) after the WT reconnect
+   * quota exhausted. subscribe() rejects when the server is still down, so
+   * retry on the transport-level cadence until it lands, the quota runs out
+   * (terminal failureToReconnect), or the owner disconnects.
+   */
+  private async fallbackResubscribe(handlers: ChatTransportHandlers): Promise<void> {
+    for (let attempt = 0; attempt < this.options.maxReconnectOnClose; attempt++) {
+      if (this.closedByUser) return
+      try {
+        await this.connect()
+        return
+      } catch {
+        this.teardown()
+        handlers.onReconnect()
+        await new Promise(resolve => setTimeout(resolve, 3000))
+      }
+    }
+    handlers.onFailureToReconnect()
   }
 
   /** Join the configured Room Protocol room (no-op without a rooms option). */
@@ -200,30 +256,40 @@ export class AtmosphereChatTransport implements ChatTransport {
   }
 
   send(text: string): void {
-    if (!this.subscription) return
+    const payload = this.wirePayload(text)
+    if (this.subscription) {
+      this.subscription.push(payload)
+      return
+    }
+    // No live subscription (mid fallback-rebuild): buffer the wire payload
+    // directly — the queue drains on the replacement subscription's first
+    // open. Without a queue the send drops, as it always did.
+    this.options.offlineQueue?.enqueue(payload)
+  }
+
+  /** Wrap a user message in the endpoint's wire dialect. */
+  private wirePayload(text: string): string {
     if (this.options.rooms) {
       // Room Protocol endpoints expect broadcasts wrapped with the room name;
       // the server echoes them back as {type:'message', from, data, id}.
-      this.subscription.push(JSON.stringify({
+      return JSON.stringify({
         type: 'broadcast',
         room: this.options.rooms.room,
         data: text,
-      }))
-      return
+      })
     }
     if (this.options.isBroadcast()) {
       // Broadcast rooms decode {author, message, time} (see the chat
       // sample's JacksonDecoder); a raw string would fail the decoder and
       // be dropped server-side. The echo renders via the event-less-frame
       // branch in handleStreamingEvent, confirming delivery.
-      this.subscription.push(JSON.stringify({
+      return JSON.stringify({
         author: 'console',
         message: text,
         time: Date.now(),
-      }))
-      return
+      })
     }
-    this.subscription.push(text)
+    return text
   }
 
   sendControl(frame: string): void {

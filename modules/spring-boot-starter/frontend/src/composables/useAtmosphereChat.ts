@@ -1,5 +1,6 @@
-import { ref, onMounted, onUnmounted, type Ref } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, type Ref } from 'vue'
 import { ConnectionStatus } from 'atmosphere.js'
+import { useOfflineQueue } from 'atmosphere.js/vue'
 import { recordPlanUpdate, resetLivePlan } from '../lib/workspaceStore'
 import { mergeRoutingMetadata, type RoutingMetadata } from '../lib/routingMetadata'
 import { createChatTransport } from '../transports'
@@ -57,6 +58,32 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
   // (Room Protocol) tracked in a local set.
   const presenceCount = ref(0)
   let presenceMembers = new Set<string>()
+
+  // Offline queue for the Atmosphere transport: sends while disconnected
+  // enqueue (the core auto-enqueues on push when state !== 'connected') and
+  // drain automatically on reopen. The queue only fills after a first
+  // successful connect — the core drains on *reopen*, not first open — so
+  // offline input is gated on everConnected (Runtime Truth: never advertise
+  // a queue that would never drain).
+  const offline = useOfflineQueue<string>({ maxSize: 50 })
+  const everConnected = ref(false)
+  const canQueueOffline = computed(() =>
+    transportName === 'atmosphere' && everConnected.value)
+  // Re-wrap in a local computed: the package's ComputedRef type comes from
+  // its own vue instance, which vue-tsc won't unwrap in templates here.
+  const offlineSize = computed(() => offline.size.value)
+  // User bubbles sent while disconnected carry a "(queued)" suffix until the
+  // queue drains (size back to 0), then the suffix is stripped.
+  const QUEUED_SUFFIX = ' *(queued)*'
+  const queuedBubbleIds = new Set<string>()
+  watch(offlineSize, (size) => {
+    if (size === 0 && queuedBubbleIds.size > 0) {
+      messages.value = messages.value.map(m => queuedBubbleIds.has(m.id)
+        ? { ...m, content: m.content.replace(QUEUED_SUFFIX, '') }
+        : m)
+      queuedBubbleIds.clear()
+    }
+  })
 
   // Broadcast-mode endpoints (@ManagedService chat rooms) decode a JSON
   // {author, message, time} envelope, not the raw prompt string the AI
@@ -462,6 +489,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         status,
         maxReconnectOnClose: MAX_RECONNECT_ON_CLOSE,
         webTransport,
+        ...(transportName === 'atmosphere' ? { offlineQueue: offline.queue } : {}),
         ...(room ? {
           rooms: {
             room,
@@ -472,6 +500,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
       }, {
         onOpen: () => {
           isConnected.value = true
+          everConnected.value = true
           connectionState.value = 'connected'
           reconnectAttempts = 0
         },
@@ -522,12 +551,18 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
   function send(text: string) {
     if (!transport || !text.trim()) return
 
+    // Disconnected sends are only meaningful when the offline queue will
+    // catch them (Atmosphere transport, after a first connect).
+    const offlineSend = !isConnected.value
+    if (offlineSend && !canQueueOffline.value) return
+
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: text.trim(),
+      content: text.trim() + (offlineSend ? QUEUED_SUFFIX : ''),
       timestamp: Date.now(),
     }
+    if (offlineSend) queuedBubbleIds.add(userMessage.id)
     messages.value = [...messages.value, userMessage]
     toolCalls.value = []
     agentSteps.value = {}
@@ -538,7 +573,8 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     // Broadcast and Room Protocol sends have no streamed AI reply — the room
     // echo renders as its own bubble ({type:'message'} or the event-less
     // frame). The wire envelope itself is the transport's dialect concern.
-    isStreaming.value = !broadcastMode.value && !room
+    // Offline sends stream nothing until the queue drains on reopen.
+    isStreaming.value = !broadcastMode.value && !room && !offlineSend
     transport.send(text.trim())
   }
 
@@ -558,6 +594,8 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     messages.value = []
     toolCalls.value = []
     currentAssistantMessage = null
+    // The suffixed bubbles are gone; queued sends themselves stay queued.
+    queuedBubbleIds.clear()
     // The Workspace tab's live plan belongs to the conversation being
     // cleared — keeping it would render the previous conversation's plan
     // against the new chat.
@@ -588,5 +626,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     routing,
     agentSteps,
     presenceCount,
+    offlineSize,
+    canQueueOffline,
   }
 }

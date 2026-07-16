@@ -37,7 +37,9 @@ public class ConsoleInfoServlet extends HttpServlet {
             "mode":"broadcast",\
             "transport":"atmosphere",\
             "hasInteractions":false,\
-            "hasVerifier":false}""";
+            "hasVerifier":false,\
+            "hasAdmin":false,\
+            "hasWorkspace":false}""";
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {

@@ -1,4 +1,4 @@
-import type { ConnectionStatus } from 'atmosphere.js'
+import type { ConnectionStatus, OfflineQueue } from 'atmosphere.js'
 
 /**
  * Wire transports the console can speak, as reported by
@@ -53,6 +53,12 @@ export interface ChatTransportOptions {
    * cursor so replays deduplicate — and wrap sends as room broadcasts.
    */
   rooms?: { room: string; memberId: string; sinceId: () => number }
+  /**
+   * Offline queue wired into the subscription: sends while disconnected
+   * enqueue instead of dropping, and drain automatically on reconnect.
+   * The composable owns the instance so its size stays reactive.
+   */
+  offlineQueue?: OfflineQueue<string>
   /**
    * Shared resilience tracker driving the ConnectionStatus pill. The
    * Atmosphere transport instruments it via status.wrap(); foreign
