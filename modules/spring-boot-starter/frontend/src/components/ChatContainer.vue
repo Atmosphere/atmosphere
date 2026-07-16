@@ -2,6 +2,7 @@
 import { ref, nextTick, watch } from 'vue'
 import { useAtmosphereChat } from '../composables/useAtmosphereChat'
 import { formatCost } from '../lib/routingMetadata'
+import { agentColor, type FleetInfo } from '../lib/fleet'
 import type { ConsoleTransportName } from '../transports'
 import ChatMessage from './ChatMessage.vue'
 import ChatInput from './ChatInput.vue'
@@ -24,9 +25,12 @@ const props = defineProps<{
   // Live HTTP/3 sidecar coordinates from /api/console/info — the Atmosphere
   // transport connects WT-first with WS fallback when present.
   webTransport?: { port: number; certificateHash?: string }
+  // Runtime-truth coordinator fleet roster (/api/admin/coordinators/{n}/fleet)
+  // — renders the multi-agent welcome cards + the live activity strip.
+  fleet?: FleetInfo
 }>()
 
-const { messages, toolCalls, isConnected, isStreaming, connectionState, connectionStatus, send, clearMessages, respondToApproval, stats, routing } = useAtmosphereChat(props.endpoint, props.mode, props.transport, props.webTransport)
+const { messages, toolCalls, isConnected, isStreaming, connectionState, connectionStatus, send, clearMessages, respondToApproval, stats, routing, agentSteps } = useAtmosphereChat(props.endpoint, props.mode, props.transport, props.webTransport)
 const messagesContainer = ref<HTMLElement | null>(null)
 
 function scrollToBottom() {
@@ -70,6 +74,20 @@ function handleSend(text: string) {
           </svg>
         </div>
         <p class="empty-title">{{ mode === 'broadcast' ? 'Start a broadcast' : 'Start a conversation' }}</p>
+        <!-- Coordinator fleet roster — runtime truth from the admin API -->
+        <div v-if="fleet" class="fleet-roster" data-testid="fleet-roster">
+          <div class="fleet-roster-title">{{ fleet.name }} · {{ fleet.agents.length }} agents</div>
+          <div class="fleet-cards">
+            <div v-for="agent in fleet.agents" :key="agent.name" class="fleet-card"
+                 :style="{ borderLeftColor: agentColor(agent.name) }" data-testid="fleet-agent">
+              <span class="fleet-agent-name" :style="{ color: agentColor(agent.name) }">{{ agent.name }}</span>
+              <span class="fleet-agent-meta">
+                {{ agent.isLocal === false ? 'remote' : 'local' }}
+                <span v-if="agent.isAvailable === false" class="fleet-agent-down">· unavailable</span>
+              </span>
+            </div>
+          </div>
+        </div>
         <p class="empty-subtitle">
           <!--
             The broadcast copy intentionally avoids the substring "connected"
@@ -97,6 +115,14 @@ function handleSend(text: string) {
           />
         </div>
       </template>
+      <!-- Live per-agent activity from agent-step events during coordinations -->
+      <div v-if="Object.keys(agentSteps).length > 0" class="agent-activity-strip" data-testid="agent-activity">
+        <span v-for="(step, agent) in agentSteps" :key="agent" class="agent-activity"
+              :style="{ borderColor: agentColor(String(agent)) }">
+          <span class="agent-activity-name" :style="{ color: agentColor(String(agent)) }">{{ agent }}</span>
+          <span class="agent-activity-step">{{ step }}</span>
+        </span>
+      </div>
       <div v-if="isStreaming" class="streaming-indicator">
         <span class="dot"></span><span class="dot"></span><span class="dot"></span>
       </div>
@@ -224,6 +250,80 @@ function handleSend(text: string) {
   display: flex;
   gap: 4px;
   padding: 0.5rem 1rem;
+}
+
+.fleet-roster {
+  margin-top: 1.25rem;
+  width: 100%;
+  max-width: 480px;
+}
+
+.fleet-roster-title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.fleet-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.fleet-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-left-width: 3px;
+  border-radius: 4px 10px 10px 4px;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.fleet-agent-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.fleet-agent-meta {
+  font-size: 0.6875rem;
+  color: var(--text-tertiary);
+}
+
+.fleet-agent-down {
+  color: #ef4444;
+}
+
+.agent-activity-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  padding: 0.25rem 1rem 0.5rem 2.75rem;
+}
+
+.agent-activity {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+  border: 1px solid;
+  border-radius: 9999px;
+  padding: 0.125rem 0.625rem;
+  background: var(--bg-surface);
+}
+
+.agent-activity-name {
+  font-weight: 600;
+}
+
+.agent-activity-step {
+  color: var(--text-secondary);
 }
 
 .session-stats {

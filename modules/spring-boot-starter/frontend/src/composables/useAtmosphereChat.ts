@@ -48,6 +48,9 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
   // Cost/latency routing readout from the server's metadata events —
   // rendered as header chips + in the per-turn stats footer.
   const routing = ref<RoutingMetadata>({})
+  // Live per-agent activity from agent-step events (agent → current step) —
+  // drives the fleet activity strip during multi-agent coordinations.
+  const agentSteps = ref<Record<string, string>>({})
 
   // Broadcast-mode endpoints (@ManagedService chat rooms) decode a JSON
   // {author, message, time} envelope, not the raw prompt string the AI
@@ -235,6 +238,17 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
           tc.result = typeof result === 'string' ? result : JSON.stringify(result)
           tc.done = true
           toolCalls.value = [...toolCalls.value]
+        }
+        break
+      }
+      case 'agent-step': {
+        // Multi-agent coordination progress: {agent, stepName} — surfaced as
+        // the live fleet activity strip while the coordinator fans out.
+        const data = msg.data as Record<string, unknown> | undefined
+        const agent = data?.agent
+        const stepName = data?.stepName
+        if (typeof agent === 'string' && agent && typeof stepName === 'string') {
+          agentSteps.value = { ...agentSteps.value, [agent]: stepName }
         }
         break
       }
@@ -458,6 +472,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     }
     messages.value = [...messages.value, userMessage]
     toolCalls.value = []
+    agentSteps.value = {}
     stats.value = null
     streamStartedAt = Date.now()
     streamTokenCount = 0
@@ -514,5 +529,6 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     respondToApproval,
     stats,
     routing,
+    agentSteps,
   }
 }

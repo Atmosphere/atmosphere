@@ -32,16 +32,26 @@ import java.util.Optional;
 /**
  * Read operations for coordinator fleets and the coordination journal.
  *
- * <p>This controller operates on explicitly provided {@link AgentFleet} and
- * {@link CoordinationJournal} instances rather than discovering them from the
- * framework, since fleet instances are injected into coordinator handlers at
- * startup and not stored in a global registry.</p>
+ * <p>Fleet instances are created by {@code CoordinatorProcessor} at endpoint
+ * registration and published into the framework property bag under
+ * {@link #FLEETS_PROPERTY}; the supplier-based constructor reads that bag on
+ * every call so the reported roster is runtime truth regardless of
+ * bean-vs-framework startup ordering. The static-map constructor remains for
+ * callers that own explicit fleet instances (tests, embedded wiring).</p>
  *
  * @since 4.0
  */
 public final class CoordinatorController {
 
-    private final Map<String, AgentFleet> fleets;
+    /**
+     * Framework property under which {@code CoordinatorProcessor} publishes
+     * its live {@code Map<String, AgentFleet>} (coordinator name → fleet).
+     * String-bridged so this module keeps no compile-time dependency on the
+     * processor.
+     */
+    public static final String FLEETS_PROPERTY = "org.atmosphere.coordinator.fleets";
+
+    private final java.util.function.Supplier<Map<String, AgentFleet>> fleetsSupplier;
     private final CoordinationJournal journal;
 
     /**
@@ -50,8 +60,26 @@ public final class CoordinatorController {
      */
     public CoordinatorController(Map<String, AgentFleet> fleets,
                                   CoordinationJournal journal) {
-        this.fleets = fleets != null ? Map.copyOf(fleets) : Map.of();
+        var copy = fleets != null ? Map.copyOf(fleets) : Map.<String, AgentFleet>of();
+        this.fleetsSupplier = () -> copy;
         this.journal = journal != null ? journal : CoordinationJournal.NOOP;
+    }
+
+    /**
+     * @param fleetsSupplier live view of the registered fleets, read on every
+     *                       call (e.g. the framework property bag under
+     *                       {@link #FLEETS_PROPERTY})
+     * @param journal        the coordination journal (may be {@link CoordinationJournal#NOOP})
+     */
+    public CoordinatorController(java.util.function.Supplier<Map<String, AgentFleet>> fleetsSupplier,
+                                  CoordinationJournal journal) {
+        this.fleetsSupplier = fleetsSupplier != null ? fleetsSupplier : Map::of;
+        this.journal = journal != null ? journal : CoordinationJournal.NOOP;
+    }
+
+    private Map<String, AgentFleet> fleets() {
+        var fleets = fleetsSupplier.get();
+        return fleets != null ? fleets : Map.of();
     }
 
     /**
@@ -59,7 +87,7 @@ public final class CoordinatorController {
      */
     public List<Map<String, Object>> listCoordinators() {
         var result = new ArrayList<Map<String, Object>>();
-        for (var entry : fleets.entrySet()) {
+        for (var entry : fleets().entrySet()) {
             var info = new LinkedHashMap<String, Object>();
             info.put("name", entry.getKey());
             var fleet = entry.getValue();
@@ -74,7 +102,7 @@ public final class CoordinatorController {
      * Get the fleet detail for a specific coordinator.
      */
     public Optional<Map<String, Object>> getFleet(String coordinatorName) {
-        var fleet = fleets.get(coordinatorName);
+        var fleet = fleets().get(coordinatorName);
         if (fleet == null) {
             return Optional.empty();
         }

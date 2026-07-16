@@ -6,6 +6,9 @@ atmosphere:
   interactions:
     http-write-enabled: true
     demo-principal: demo-user
+  # The bundled Atmosphere Console is the sample UI: fleet roster + live
+  # agent activity render from the coordinator admin API + agent-step events.
+  console-subtitle: AI startup advisory team — @Coordinator fans out to 4 A2A agents
   web-transport:
     enabled: true
     port: 4446

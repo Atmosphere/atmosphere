@@ -602,13 +602,30 @@ public class AtmosphereAdminAutoConfiguration {
     static class CoordinatorAdminConfiguration {
 
         @Bean
-        CoordinatorController atmosphereAdminCoordinatorController(AtmosphereAdmin admin) {
-            // Fleet instances are injected into coordinator handlers at startup,
-            // not stored in a global bean. The controller is created with empty
-            // fleets and populated later via the framework startup hook.
-            var controller = new CoordinatorController(
-                    java.util.Map.of(),
-                    org.atmosphere.coordinator.journal.CoordinationJournal.NOOP);
+        CoordinatorController atmosphereAdminCoordinatorController(AtmosphereAdmin admin,
+                org.atmosphere.cpr.AtmosphereFramework framework) {
+            // Fleet instances are created by CoordinatorProcessor at endpoint
+            // registration and published into the framework property bag under
+            // CoordinatorController.FLEETS_PROPERTY. The supplier reads the bag
+            // on every call, so the reported roster is runtime truth regardless
+            // of bean-vs-framework startup ordering. (This wiring was previously
+            // an empty immutable map — /api/admin/coordinators always returned
+            // [] and the "populated later" hook it referenced never existed.)
+            var controller = new CoordinatorController(() -> {
+                try {
+                    var cfg = framework.getAtmosphereConfig();
+                    if (cfg != null && cfg.properties()
+                            .get(CoordinatorController.FLEETS_PROPERTY) instanceof java.util.Map<?, ?> fleets) {
+                        // Module-owned key, written only by CoordinatorProcessor.
+                        @SuppressWarnings("unchecked")
+                        var typed = (java.util.Map<String, org.atmosphere.coordinator.fleet.AgentFleet>) fleets;
+                        return typed;
+                    }
+                } catch (Exception e) {
+                    logger.debug("Coordinator fleets not available", e);
+                }
+                return java.util.Map.<String, org.atmosphere.coordinator.fleet.AgentFleet>of();
+            }, org.atmosphere.coordinator.journal.CoordinationJournal.NOOP);
             admin.setCoordinatorController(controller);
             logger.debug("Atmosphere Admin: Coordinator controller wired");
             return controller;

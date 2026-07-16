@@ -13,6 +13,7 @@ import Checkpoints from './components/Checkpoints.vue'
 import Tape from './components/Tape.vue'
 import McpApps from './components/McpApps.vue'
 import { livePlan } from './lib/workspaceStore'
+import type { FleetAgent, FleetInfo } from './lib/fleet'
 import type { ConsoleTransportName } from './transports'
 import logoUrl from './assets/logo.svg'
 
@@ -67,9 +68,34 @@ async function probeAgents() {
     const res = await fetch('/api/admin/agents', { headers: { Accept: 'application/json' } })
     if (res.ok) {
       agentsAvailable.value = true
+      // A coordinator fleet is the runtime-truth roster for the multi-agent
+      // welcome screen + activity strip. Only fetched behind the successful
+      // agents probe, so slim samples never see a 404.
+      await fetchFleet()
     }
   } catch {
     // /api/admin/agents not wired — hide the Sessions tab.
+  }
+}
+
+const fleet = ref<FleetInfo | undefined>(undefined)
+
+async function fetchFleet() {
+  try {
+    const res = await fetch('/api/admin/coordinators', { headers: { Accept: 'application/json' } })
+    if (!res.ok) return
+    const coordinators = await res.json() as Array<{ name?: string }>
+    const first = Array.isArray(coordinators) ? coordinators[0]?.name : undefined
+    if (!first) return
+    const detail = await fetch(`/api/admin/coordinators/${encodeURIComponent(first)}/fleet`,
+      { headers: { Accept: 'application/json' } })
+    if (!detail.ok) return
+    const data = await detail.json() as { name?: string; agents?: FleetAgent[] }
+    if (data?.agents?.length) {
+      fleet.value = { name: data.name ?? first, agents: data.agents }
+    }
+  } catch {
+    // No coordinator fleet — the chat renders its regular empty state.
   }
 }
 
@@ -219,7 +245,7 @@ onMounted(async () => {
       </nav>
     </header>
     <main class="app-main">
-      <ChatContainer v-if="ready && activeTab === 'chat'" :endpoint="endpoint" :mode="mode" :transport="transport" :web-transport="webTransport" />
+      <ChatContainer v-if="ready && activeTab === 'chat'" :endpoint="endpoint" :mode="mode" :transport="transport" :web-transport="webTransport" :fleet="fleet" />
       <Sessions v-if="ready && agentsAvailable" v-show="activeTab === 'sessions'"
                 :active="activeTab === 'sessions'" />
       <Workspace v-if="ready && workspaceVisible" v-show="activeTab === 'workspace'"

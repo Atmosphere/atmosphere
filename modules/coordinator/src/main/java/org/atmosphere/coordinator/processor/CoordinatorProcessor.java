@@ -307,6 +307,18 @@ public class CoordinatorProcessor implements Processor<Object> {
             }
             fleet = applyPresetGovernance(fleet,
                     features.contains(Harness.DELEGATION), framework, coordinatorName);
+            // Publish the finished fleet into the framework property bag so the
+            // admin read plane (/api/admin/coordinators, CoordinatorController)
+            // reports the live roster (Runtime Truth). String-bridged key — the
+            // admin module reads it without a compile-time dep on this processor.
+            // The property bag is an untyped Map<String, Object> and this module
+            // owns the key, so the cast is safe by construction.
+            @SuppressWarnings("unchecked")
+            var fleetRegistry = (Map<String, AgentFleet>) framework.getAtmosphereConfig()
+                    .properties()
+                    .computeIfAbsent("org.atmosphere.coordinator.fleets",
+                            k -> new java.util.concurrent.ConcurrentHashMap<String, AgentFleet>());
+            fleetRegistry.put(coordinatorName, fleet);
             var responseType = annotation.responseAs() == Void.class
                     ? null : annotation.responseAs();
             var journalHook = resolveJournalHook(framework, annotation, fleet, journal);
