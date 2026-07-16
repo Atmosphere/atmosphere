@@ -268,9 +268,14 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         break
       }
       case 'join_ack': {
-        // Room Protocol join acknowledgement seeds the member set.
+        // Room Protocol join acknowledgement seeds the member set. The wire
+        // carries RoomMember objects ({id, metadata}); tolerate bare strings.
         if (Array.isArray(msg.members)) {
-          presenceMembers = new Set(msg.members.filter((m): m is string => typeof m === 'string'))
+          presenceMembers = new Set(msg.members
+            .map((m: unknown) => typeof m === 'string'
+              ? m
+              : (m as { id?: unknown })?.id)
+            .filter((id): id is string => typeof id === 'string' && id.length > 0))
           presenceCount.value = presenceMembers.size
         }
         break

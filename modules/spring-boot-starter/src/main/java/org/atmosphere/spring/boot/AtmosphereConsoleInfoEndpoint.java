@@ -143,6 +143,14 @@ public class AtmosphereConsoleInfoEndpoint {
         // off samples that carry no store, and off a 404 probe (Runtime Truth —
         // Invariant #5).
         result.put("hasCheckpoints", hasBean("org.atmosphere.checkpoint.CheckpointStore"));
+        // Room Protocol read plane: true only when a live RoomManager bean is
+        // wired (the exact condition under which /api/admin/rooms has data) —
+        // gates the console's Rooms tab (Runtime Truth — Invariant #5).
+        result.put("hasRooms", hasBean("org.atmosphere.room.RoomManager"));
+        // Actuator health plane (Boot 4 FQCN): gates the Observability tab so
+        // the console never probes /actuator into a 404.
+        result.put("hasActuator",
+                hasBean("org.springframework.boot.health.actuate.endpoint.HealthEndpoint"));
         // Session tape: true only when a recorder is actually installed, not
         // merely on the classpath — so the Tape tab and its /api/admin/tape
         // reads appear only when the opt-in tape is live (Runtime Truth —

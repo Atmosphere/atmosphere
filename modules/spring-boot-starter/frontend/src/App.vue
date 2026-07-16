@@ -10,6 +10,8 @@ import Workspace from './components/Workspace.vue'
 import Interactions from './components/Interactions.vue'
 import Validation from './components/Validation.vue'
 import Checkpoints from './components/Checkpoints.vue'
+import Rooms from './components/Rooms.vue'
+import Observability from './components/Observability.vue'
 import Tape from './components/Tape.vue'
 import McpApps from './components/McpApps.vue'
 import { livePlan } from './lib/workspaceStore'
@@ -17,7 +19,7 @@ import type { FleetAgent, FleetInfo } from './lib/fleet'
 import type { ConsoleTransportName } from './transports'
 import logoUrl from './assets/logo.svg'
 
-type Tab = 'chat' | 'sessions' | 'workspace' | 'interactions' | 'validation' | 'checkpoints' | 'tape' | 'apps' | 'policies' | 'decisions' | 'owasp' | 'commitments'
+type Tab = 'chat' | 'sessions' | 'workspace' | 'interactions' | 'validation' | 'checkpoints' | 'tape' | 'apps' | 'rooms' | 'observability' | 'policies' | 'decisions' | 'owasp' | 'commitments'
 
 const subtitle = ref('')
 const endpoint = ref('/atmosphere/ai-chat')
@@ -52,6 +54,8 @@ const interactionsAvailable = ref(false)
 const validationAvailable = ref(false)
 const checkpointsAvailable = ref(false)
 const tapeAvailable = ref(false)
+const roomsAvailable = ref(false)
+const actuatorAvailable = ref(false)
 
 async function probeGovernance() {
   try {
@@ -162,6 +166,12 @@ const tabs = computed(() => {
   if (mcpEndpoint.value) {
     list.push({ id: 'apps', label: 'MCP Apps' })
   }
+  if (roomsAvailable.value) {
+    list.push({ id: 'rooms', label: 'Rooms' })
+  }
+  if (actuatorAvailable.value) {
+    list.push({ id: 'observability', label: 'Observability' })
+  }
   if (governanceAvailable.value) {
     list.push({
       id: 'policies',
@@ -216,6 +226,8 @@ onMounted(async () => {
       validationAvailable.value = data.hasVerifier === true
       checkpointsAvailable.value = data.hasCheckpoints === true
       tapeAvailable.value = data.hasTape === true
+      roomsAvailable.value = data.hasRooms === true
+      actuatorAvailable.value = data.hasActuator === true
       harnessPresent = data.harness != null && typeof data.harness === 'object'
     }
   } catch {
@@ -288,6 +300,10 @@ onMounted(async () => {
       <McpApps v-if="ready && mcpEndpoint" v-show="activeTab === 'apps'"
                :endpoint="mcpEndpoint" :active="activeTab === 'apps'"
                :sandbox-origin="mcpSandboxOrigin ?? undefined" />
+      <Rooms v-if="ready && roomsAvailable" v-show="activeTab === 'rooms'"
+             :active="activeTab === 'rooms'" />
+      <Observability v-if="ready && actuatorAvailable" v-show="activeTab === 'observability'"
+                     :active="activeTab === 'observability'" />
       <GovernancePolicies v-if="ready" v-show="activeTab === 'policies'"
                           :active="activeTab === 'policies'" />
       <GovernanceDecisions v-if="ready" v-show="activeTab === 'decisions'"

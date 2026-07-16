@@ -1,6 +1,10 @@
 atmosphere:
   console-subtitle: Real-time chat with WebTransport/HTTP3 and WebSocket fallback
   console-endpoint: /atmosphere/chat
+  # The bundled Atmosphere Console IS the sample UI: it joins the Room
+  # Protocol room below (presence chip + sinceId history sync) and gains
+  # Rooms + Observability tabs from the hasRooms/hasActuator info flags.
+  console-room: lobby
   packages: org.atmosphere.samples.springboot.chat
 
   # WebTransport over HTTP/3 sidecar server.

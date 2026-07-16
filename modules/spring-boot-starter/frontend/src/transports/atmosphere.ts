@@ -95,6 +95,10 @@ export class AtmosphereChatTransport implements ChatTransport {
 
   private atmosphere: Atmosphere | null = null
   private subscription: Subscription | null = null
+  // The open callback can fire while subscribe() is still awaiting — before
+  // this.subscription is assigned — so a join requested then is latched and
+  // flushed as soon as the subscription lands (terminal-path completeness).
+  private joinPending = false
 
   constructor(
     private readonly options: ChatTransportOptions,
@@ -121,8 +125,14 @@ export class AtmosphereChatTransport implements ChatTransport {
         reconnect: true,
         reconnectInterval: 3000,
         maxReconnectOnClose: options.maxReconnectOnClose,
-        trackMessageLength: true,
-        enableProtocol: true,
+        // Room Protocol endpoints exchange raw JSON envelopes written by
+        // RoomProtocolInterceptor#sendToResource — those writes carry no
+        // TrackMessageSize prefix and no atmo-protocol framing, so both
+        // decoders must be off or the ack/echo frames are swallowed while
+        // the client waits for a length prefix that never comes.
+        trackMessageLength: !options.rooms,
+        enableProtocol: !options.rooms,
+        ...(options.rooms ? { contentType: 'application/json' } : {}),
       },
       options.status.wrap({
         open: () => {
@@ -156,6 +166,10 @@ export class AtmosphereChatTransport implements ChatTransport {
         failureToReconnect: () => handlers.onFailureToReconnect(),
       })
     )
+    if (this.joinPending) {
+      this.joinPending = false
+      this.joinRoom()
+    }
   }
 
   disconnect(): void {
@@ -169,7 +183,12 @@ export class AtmosphereChatTransport implements ChatTransport {
   /** Join the configured Room Protocol room (no-op without a rooms option). */
   private joinRoom(): void {
     const rooms = this.options.rooms
-    if (!rooms || !this.subscription) return
+    if (!rooms) return
+    if (!this.subscription) {
+      // Open fired before subscribe() resolved — flush after assignment.
+      this.joinPending = true
+      return
+    }
     const sinceId = rooms.sinceId()
     this.subscription.push(JSON.stringify({
       type: 'join',

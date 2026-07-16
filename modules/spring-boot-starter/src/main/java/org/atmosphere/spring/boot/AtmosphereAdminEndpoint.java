@@ -57,12 +57,23 @@ public class AtmosphereAdminEndpoint {
 
     private final AtmosphereAdmin admin;
     private final org.springframework.core.env.Environment env;
+    private final org.springframework.beans.factory.ObjectProvider<org.atmosphere.room.RoomManager> roomManager;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    public AtmosphereAdminEndpoint(
+            AtmosphereAdmin admin,
+            org.springframework.core.env.Environment env,
+            org.springframework.beans.factory.ObjectProvider<org.atmosphere.room.RoomManager> roomManager) {
+        this.admin = admin;
+        this.env = env;
+        this.roomManager = roomManager;
+    }
+
+    /** Convenience for tests and embedders without a Room Protocol wiring. */
     public AtmosphereAdminEndpoint(
             AtmosphereAdmin admin,
             org.springframework.core.env.Environment env) {
-        this.admin = admin;
-        this.env = env;
+        this(admin, env, null);
     }
 
     /**
@@ -410,6 +421,36 @@ public class AtmosphereAdminEndpoint {
                     "uuid", uuid));
         }
         return ResponseEntity.notFound().build();
+    }
+
+    // ── Rooms ──
+
+    /**
+     * Room Protocol rooms with member counts and details — the framework-owned
+     * read plane behind the console's Rooms tab (the {@code RoomManager} is
+     * app-wired alongside {@code RoomProtocolInterceptor}; absent bean = empty
+     * list, and the console gates the tab on the {@code hasRooms} info flag).
+     */
+    @GetMapping("/rooms")
+    public List<Map<String, Object>> listRooms() {
+        var manager = roomManager == null ? null : roomManager.getIfAvailable();
+        if (manager == null) {
+            return List.of();
+        }
+        return manager.all().stream()
+                .map(room -> {
+                    var map = new java.util.LinkedHashMap<String, Object>();
+                    map.put("name", room.name());
+                    map.put("members", room.size());
+                    map.put("destroyed", room.isDestroyed());
+                    map.put("memberDetails", room.memberInfo().values().stream()
+                            .map(m -> Map.<String, Object>of(
+                                    "id", m.id(),
+                                    "metadata", m.metadata()))
+                            .toList());
+                    return (Map<String, Object>) map;
+                })
+                .toList();
     }
 
     // ── Agents ──
