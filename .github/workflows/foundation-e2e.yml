@@ -66,7 +66,7 @@ jobs:
         # samples can resolve them at run-time.
         run: |
           ./mvnw install -Pfastinstall -DskipTests \
-            -pl samples/spring-boot-personal-assistant,samples/spring-boot-coding-agent,samples/spring-boot-reattach-harness,samples/kotlin-dsl-chat,samples/spring-boot-spring-ai-advisors,samples/spring-boot-ms-governance-chat,samples/spring-boot-ai-classroom,samples/spring-boot-channels-chat,samples/spring-boot-rag-chat \
+            -pl samples/spring-boot-personal-assistant,samples/spring-boot-coding-agent,samples/spring-boot-reattach-harness,samples/kotlin-dsl-chat,samples/spring-boot-spring-ai-advisors,samples/spring-boot-ms-governance-chat,samples/spring-boot-ai-classroom,samples/spring-boot-channels-chat,samples/spring-boot-rag-chat,modules/checkpoint-temporal \
             -am -q
 
       - name: Install Playwright deps
@@ -363,6 +363,47 @@ jobs:
             kill "$(cat /tmp/rag.pid)" 2>/dev/null || true
           fi
 
+      # ── Temporal adapter — Workflow<S> on a real Temporal service ─
+      # Proves atmosphere-checkpoint-temporal end-to-end: a one-shot Java
+      # runner executes a Workflow<S> through Workflow.run() against a
+      # local Temporal dev server (runner exits non-zero if the temporal
+      # provider was not the one that ran it), then the spec asserts the
+      # execution — type, task queue, per-step activities, terminal
+      # result — as rendered in the Temporal Web UI.
+      - name: Install Temporal CLI
+        run: |
+          curl -sSf https://temporal.download/cli.sh | sh
+          echo "$HOME/.temporalio/bin" >> "$GITHUB_PATH"
+
+      - name: Start Temporal dev server
+        run: |
+          nohup temporal server start-dev --log-level warn \
+              > /tmp/temporal-dev.log 2>&1 &
+          echo $! > /tmp/temporal.pid
+
+      - name: Wait for Temporal UI readiness
+        run: npx --yes wait-on --timeout 120000 http://127.0.0.1:8233
+
+      - name: Run a Workflow through the Temporal adapter
+        run: |
+          ./mvnw -q test-compile org.codehaus.mojo:exec-maven-plugin:3.5.0:java \
+              -pl modules/checkpoint-temporal \
+              -Dexec.mainClass=org.atmosphere.checkpoint.temporal.TemporalWorkflowE2ERunner \
+              -Dexec.classpathScope=test
+
+      - name: Run temporal-workflow spec
+        working-directory: e2e
+        env:
+          ATMO_E2E_BASE_URL: http://127.0.0.1:8233
+        run: npx playwright test tests/temporal-workflow.spec.ts --reporter=list
+
+      - name: Stop Temporal dev server
+        if: always()
+        run: |
+          if [ -f /tmp/temporal.pid ]; then
+            kill "$(cat /tmp/temporal.pid)" 2>/dev/null || true
+          fi
+
       - name: Dump sample logs on failure
         if: failure()
         run: |
@@ -384,3 +425,5 @@ jobs:
           cat /tmp/chn-run.log || true
           echo '=== rag-run.log ==='
           cat /tmp/rag-run.log || true
+          echo '=== temporal-dev.log ==='
+          cat /tmp/temporal-dev.log || true

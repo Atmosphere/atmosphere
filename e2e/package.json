@@ -11,6 +11,7 @@
     "test:coding-agent": "playwright test tests/coding-agent.spec.ts",
     "test:reattach": "playwright test tests/reattach.spec.ts",
     "test:guarded-email-agent": "playwright test tests/guarded-email-agent.spec.ts",
+    "test:temporal-workflow": "playwright test tests/temporal-workflow.spec.ts",
     "show-report": "playwright show-report"
   },
   "devDependencies": {

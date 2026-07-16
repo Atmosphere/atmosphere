@@ -74,6 +74,17 @@ so per-run resolution stays cheap.
 temporal server start-dev          # local dev server on 127.0.0.1:7233
 # start your app with this module on the classpath — runs appear in the
 # Temporal UI (http://localhost:8233) under task queue atmosphere-workflow
+
+# Or drive the shipped one-shot runner (used by the Playwright e2e):
+./mvnw -q test-compile org.codehaus.mojo:exec-maven-plugin:3.5.0:java \
+    -pl modules/checkpoint-temporal \
+    -Dexec.mainClass=org.atmosphere.checkpoint.temporal.TemporalWorkflowE2ERunner \
+    -Dexec.classpathScope=test
+
+# UI-level assertions (workflow type, task queue, per-step activities,
+# terminal result) live in e2e/tests/temporal-workflow.spec.ts and run in
+# CI via .github/workflows/foundation-e2e.yml:
+cd e2e && ATMO_E2E_BASE_URL=http://127.0.0.1:8233 npm run test:temporal-workflow
 ```
 
 ## Tests
