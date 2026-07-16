@@ -353,6 +353,12 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
       this.incomingBuffer = '';
       this.connect().catch((error) => {
         logger.error('Reconnection failed:', error);
+        // Re-enter the close flow so the retry/quota logic runs — without
+        // this the reconnect chain dies silently on a rejected connect().
+        // WebSocket gets the equivalent for free (the browser fires onclose
+        // after a failed connection attempt); a failed WebTransport
+        // handshake fires no close event at all.
+        this.handleClose();
       });
     }, delay);
   }

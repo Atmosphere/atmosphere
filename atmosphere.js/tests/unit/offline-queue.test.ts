@@ -126,6 +126,18 @@ describe('OfflineQueue', () => {
     expect(pending[0].state).toBe('sent');
   });
 
+  it('fires onEnqueue for every enqueue, including core-driven ones', () => {
+    // subscription.push enqueues directly on the queue while disconnected,
+    // bypassing the framework hooks' wrapper methods — the handler keeps
+    // reactive size badges live for that path.
+    const queue = new OfflineQueue<string>({ maxSize: 5 });
+    const seen: string[] = [];
+    queue.setHandlers({ onEnqueue: (msg) => seen.push(msg.data) });
+    queue.enqueue('a');
+    queue.enqueue('b');
+    expect(seen).toEqual(['a', 'b']);
+  });
+
   it('clear removes all queued and pending messages', () => {
     queue.enqueue('a');
     queue.enqueue('b');

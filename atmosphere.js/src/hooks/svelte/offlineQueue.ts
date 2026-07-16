@@ -94,6 +94,7 @@ export function createOfflineQueueStore<T = string | object | ArrayBuffer>(
   }
 
   queue.setHandlers({
+    onEnqueue: notify,
     onDrain: notify,
     onAck: notify,
     onFailed: notify,

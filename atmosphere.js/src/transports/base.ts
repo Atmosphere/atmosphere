@@ -200,6 +200,11 @@ export abstract class BaseTransport<T = unknown> {
       this._state = 'connected';
       logger.debug(`${this.name} transport opened`);
       this.handlers.open?.(response);
+      // A pre-populated queue on first open means this subscription replaced
+      // one that died with sends still buffered (e.g. a fallback resubscribe
+      // after the previous transport exhausted its reconnect quota) — flush
+      // it now, exactly like the reopen path above.
+      this.drainOfflineQueue();
     }
     this.resetInactivityTimer();
   }
@@ -300,7 +305,7 @@ export abstract class BaseTransport<T = unknown> {
 
   private drainOfflineQueue(): void {
     if (this._offlineQueue?.drainOnReconnect && this._offlineQueue.size > 0) {
-      logger.info(`Draining ${this._offlineQueue.size} offline messages after reconnect`);
+      logger.info(`Draining ${this._offlineQueue.size} offline messages`);
       this._offlineQueue.drain((data, _messageId) => {
         this.send(typeof data === 'string' || data instanceof ArrayBuffer ? data : JSON.stringify(data));
       });

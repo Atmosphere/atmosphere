@@ -662,6 +662,43 @@ describe('WebTransportTransport', () => {
       expect(mockHandlers.reconnect).not.toHaveBeenCalled();
     });
 
+    it('keeps retrying failed reconnects until the quota, then signals failureToReconnect', async () => {
+      // Regression: a rejected reconnect connect() used to be swallowed —
+      // the chain died silently after one failed attempt, with no further
+      // retries and no failureToReconnect (a server restart regenerating the
+      // self-signed cert makes every WT handshake fail exactly this way).
+      const request: AtmosphereRequest = {
+        url: 'https://localhost:8080/chat',
+        transport: 'webtransport',
+        reconnect: true,
+        maxReconnectOnClose: 2,
+        reconnectInterval: 5,
+      };
+      transport = new WebTransportTransport(request, mockHandlers);
+      await transport.connect();
+
+      await vi.waitFor(() => {
+        expect(mockReader.read).toHaveBeenCalled();
+      }, { timeout: 5000 });
+
+      // Every later connection attempt fails its handshake: ready rejects
+      // and no close event ever fires.
+      (globalThis as any).WebTransport = vi.fn(function() {
+        const inst = createMockTransportInstance(createMockReader(), createMockWriter());
+        inst.ready = Promise.reject(new Error('Opening handshake failed'));
+        return inst;
+      });
+
+      mockReader.pushDone(); // stream end → close → reconnect chain
+
+      await vi.waitFor(() => {
+        expect(mockHandlers.failureToReconnect).toHaveBeenCalled();
+      }, { timeout: 5000 });
+
+      // The quota was consumed by real retries, not one silent death.
+      expect(mockHandlers.reconnect).toHaveBeenCalledTimes(2);
+    });
+
     it('should not reconnect when reconnect is false', async () => {
       const request: AtmosphereRequest = {
         url: 'https://localhost:8080/chat',
@@ -1022,8 +1059,6 @@ describe('WebTransportTransport', () => {
       };
 
       const queue = new OfflineQueue({ maxSize: 10, drainOnReconnect: true });
-      queue.enqueue('queued-msg-1');
-      queue.enqueue('queued-msg-2');
 
       let connectCount = 0;
       let secondWriter: ReturnType<typeof createMockWriter> | null = null;
@@ -1048,6 +1083,11 @@ describe('WebTransportTransport', () => {
       transport.setOfflineQueue(queue);
 
       await transport.connect();
+
+      // Enqueue after the first open — a queue pre-populated before connect
+      // now drains on first open instead (see base-transport.test.ts).
+      queue.enqueue('queued-msg-1');
+      queue.enqueue('queued-msg-2');
 
       // Wait for reconnect to succeed and drain
       await new Promise((r) => setTimeout(r, 300));

@@ -323,14 +323,28 @@ describe('BaseTransport', () => {
 
   it('drains offline queue on reopen', () => {
     const queue = new OfflineQueue({ maxSize: 10, drainOnReconnect: true });
+    transport.setOfflineQueue(queue);
+    transport.doNotifyOpen(makeResponse()); // first open — queue still empty
+
     queue.enqueue('msg1');
     queue.enqueue('msg2');
-
-    transport.setOfflineQueue(queue);
-    transport.doNotifyOpen(makeResponse()); // first open
     transport.doNotifyOpen(makeResponse()); // reopen → drains queue
 
     expect(queue.size).toBe(0);
     expect(handlers.reopen).toHaveBeenCalled();
+  });
+
+  it('drains a pre-populated offline queue on first open', () => {
+    // A queue with content at first open means this subscription replaced
+    // one that died with sends still buffered (fallback resubscribe after
+    // the previous transport exhausted its reconnect quota).
+    const queue = new OfflineQueue({ maxSize: 10, drainOnReconnect: true });
+    queue.enqueue('buffered-before-connect');
+
+    transport.setOfflineQueue(queue);
+    transport.doNotifyOpen(makeResponse()); // first open → drains too
+
+    expect(queue.size).toBe(0);
+    expect(handlers.open).toHaveBeenCalled();
   });
 });

@@ -76,6 +76,7 @@ export function useOfflineQueue<T = string | object | ArrayBuffer>(
   const bump = () => { tick.value++; };
 
   queue.setHandlers({
+    onEnqueue: bump,
     onDrain: bump,
     onAck: bump,
     onFailed: bump,

@@ -325,6 +325,12 @@ export interface OfflineQueueConfig {
  * Handlers for offline queue and optimistic message tracking
  */
 export interface MessageTrackingHandlers<T = unknown> {
+  /**
+   * Called when a message is enqueued — including core-driven enqueues
+   * (subscription.push while disconnected), which bypass the framework
+   * hooks' wrapper methods, so reactive size badges stay live.
+   */
+  onEnqueue?: (message: TrackedMessage<T>) => void;
   /** Called when a queued message is sent after reconnection */
   onDrain?: (message: TrackedMessage<T>) => void;
   /** Called when a message is acknowledged by the server */

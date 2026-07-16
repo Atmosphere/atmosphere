@@ -87,6 +87,7 @@ export class OfflineQueue<T = string | object | ArrayBuffer> {
 
     this.queue.push(msg);
     logger.debug(`Enqueued message ${msg.id} (queue size: ${this.queue.length})`);
+    this.handlers.onEnqueue?.(msg);
     return msg;
   }
 
