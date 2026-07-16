@@ -247,8 +247,8 @@ public final class A2aProtocolHandler {
             if (skillId != null) {
                 skill = registry.skill(skillId).orElse(null);
             }
-            if (skill == null && !registry.skills().isEmpty()) {
-                skill = registry.skills().values().iterator().next();
+            if (skill == null) {
+                skill = defaultSkill();
             }
 
             if (skill != null) {
@@ -299,10 +299,13 @@ public final class A2aProtocolHandler {
             } else {
                 taskCtx.fail("Unknown skill: " + skillId);
             }
-        } else if (!registry.skills().isEmpty()) {
-            executeSkill(registry.skills().values().iterator().next(), taskCtx, params);
         } else {
-            taskCtx.fail("No skills registered");
+            var fallback = defaultSkill();
+            if (fallback != null) {
+                executeSkill(fallback, taskCtx, params);
+            } else {
+                taskCtx.fail("No skills registered");
+            }
         }
 
         return JsonRpc.Response.success(id, SendMessageResponse.of(
@@ -550,6 +553,31 @@ public final class A2aProtocolHandler {
             return message.metadata().get("skillId").toString();
         }
         return null;
+    }
+
+    /**
+     * Deterministic default for requests carrying no {@code skillId} — free-text
+     * chat from the Atmosphere Console or any generic A2A client. Prefers the
+     * conversational skill: exactly one {@code String} parameter named
+     * {@code message}, the shape the free text binds to. Falls back to the first
+     * registered skill, and {@code null} when none exist. Registration order
+     * alone is not a stable contract ({@code getDeclaredMethods} is
+     * JVM-arbitrary), which made no-skillId requests nondeterministically land
+     * on parameter-shaped skills (e.g. {@code get-time}) and fail on any
+     * multi-skill agent. Shared by the streaming and unary paths (Mode Parity).
+     */
+    private A2aRegistry.SkillEntry defaultSkill() {
+        var all = registry.skills().values();
+        for (var entry : all) {
+            var skillParams = entry.params();
+            if (skillParams != null && skillParams.size() == 1) {
+                var p = skillParams.get(0);
+                if ("message".equals(p.name()) && p.type() == String.class) {
+                    return entry;
+                }
+            }
+        }
+        return all.isEmpty() ? null : all.iterator().next();
     }
 
     // ── Push notification config (tasks/pushNotificationConfig/*) ──

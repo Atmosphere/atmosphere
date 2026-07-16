@@ -72,6 +72,73 @@ class A2aProtocolHandlerTest {
         taskManager.shutdown();
     }
 
+    /** Parameter-shaped skill — fails without a valid structured argument. */
+    static class TimeOnlyAgent {
+        @AgentSkill(id = "get-time", name = "Get Time", description = "Time for a timezone")
+        @AgentSkillHandler
+        public void getTime(TaskContext task, @AgentSkillParam(name = "timezone") String timezone) {
+            if (timezone == null || !timezone.contains("/")) {
+                task.fail("Invalid timezone");
+                return;
+            }
+            task.addArtifact(Artifact.text("12:00 in " + timezone));
+            task.complete("done");
+        }
+    }
+
+    /** Conversational skill — the shape free-text chat binds to. */
+    static class AskAgent {
+        @AgentSkill(id = "ask", name = "Ask", description = "Ask anything")
+        @AgentSkillHandler
+        public void ask(TaskContext task, @AgentSkillParam(name = "message") String message) {
+            task.addArtifact(Artifact.text("You asked: " + message));
+            task.complete("answered");
+        }
+    }
+
+    /**
+     * Regression: a no-skillId request (free-text chat from the Atmosphere
+     * Console or any generic A2A client) must route to the conversational
+     * skill (single String "message" param), not whatever skill happens to
+     * register first. Pre-fix, the fallback took the first registry entry —
+     * here the parameter-shaped get-time, which fails on free text (the
+     * exact empty-reply the a2a-agent sample produced in the Console).
+     */
+    @Test
+    void noSkillIdRoutesToConversationalSkillNotFirstRegistered() throws Exception {
+        var registry = new A2aRegistry();
+        registry.scan(new TimeOnlyAgent()); // adversarial order: param skill first
+        registry.scan(new AskAgent());
+        var tm = new TaskManager();
+        try {
+            var card = registry.buildAgentCard("multi", "Multi", "1.0", "/a2a");
+            var multiHandler = new A2aProtocolHandler(registry, tm, card, card);
+
+            // Unary path
+            var request = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"SendMessage\","
+                    + "\"params\":{\"message\":{\"messageId\":\"m1\",\"role\":\"ROLE_USER\","
+                    + "\"parts\":[{\"text\":\"weather in Paris?\"}]},"
+                    + "\"arguments\":{\"message\":\"weather in Paris?\"}}}";
+            var task = mapper.readTree(multiHandler.handleMessage(request))
+                    .get("result").get("task");
+            assertEquals("TASK_STATE_COMPLETED", task.get("status").get("state").stringValue());
+            assertEquals("You asked: weather in Paris?",
+                    task.get("artifacts").get(0).get("parts").get(0).get("text").stringValue());
+
+            // Streaming path (Mode Parity: same routing as unary)
+            var tokens = new ArrayList<String>();
+            var streamReq = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"message/stream\","
+                    + "\"params\":{\"message\":{\"messageId\":\"m2\",\"role\":\"user\","
+                    + "\"parts\":[{\"type\":\"text\",\"text\":\"weather in Paris?\"}]},"
+                    + "\"arguments\":{\"message\":\"weather in Paris?\"}}}";
+            multiHandler.handleStreamingMessage(streamReq, tokens::add, () -> { });
+            assertEquals(1, tokens.size());
+            assertEquals("You asked: weather in Paris?", tokens.get(0));
+        } finally {
+            tm.shutdown();
+        }
+    }
+
     @Test
     void sendMessageReturnsTaskWrappedInResponse() throws Exception {
         var request = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"SendMessage\","
