@@ -54,7 +54,15 @@ public @interface Coordinator {
     /** Coordinator name. Used in the registration path and protocol metadata. */
     String name();
 
-    /** Classpath resource path to the skill file (.md). The entire file becomes the system prompt. */
+    /**
+     * Classpath resource path to the skill file (.md). The entire file becomes
+     * the system prompt. A {@code ## Guardrails} section is also enforced as an
+     * admission {@code ScopePolicy} with the same precedence as on
+     * {@code @Agent}: the skill's guardrails win, an optional {@code scopeTier}
+     * frontmatter hint picks the tier ({@code none} opts out entirely), and a
+     * {@code @AgentScope} annotation on the class is the fallback when the
+     * skill declares no guardrails.
+     */
     String skillFile() default "";
 
     /** Human-readable description. Used in Agent Card metadata. */
