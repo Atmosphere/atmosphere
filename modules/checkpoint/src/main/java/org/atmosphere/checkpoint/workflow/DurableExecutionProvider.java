@@ -33,9 +33,11 @@ import java.util.ServiceLoader;
  * to caller code.
  *
  * <p>The heavy external SDKs are intentionally <strong>not</strong> pulled into
- * the build: this is the seam, with a dependency-free reference adapter. A
- * Temporal/DBOS adapter ships as a separate optional module, the same way remote
- * sandbox backends and provider-specific voice backends plug into their SPIs.</p>
+ * this module: this is the seam, with a dependency-free reference adapter. The
+ * Temporal adapter ships as the separate optional {@code
+ * atmosphere-checkpoint-temporal} module, the same way remote sandbox backends
+ * and provider-specific voice backends plug into their SPIs; DBOS/Restate
+ * adapters implement the same interface.</p>
  */
 public interface DurableExecutionProvider {
 

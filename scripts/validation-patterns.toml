@@ -86,6 +86,7 @@ false_positive_words = [
     "unstub",
     "clock",
     "newStub",
+    "newWorkflowStub",
     "blockingStub",
     "Grpc",
     "noOpsRequest",

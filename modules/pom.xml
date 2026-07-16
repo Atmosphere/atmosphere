@@ -57,6 +57,7 @@
         <module>admin-bundle</module>
         <module>checkpoint</module>
         <module>checkpoint-postgres</module>
+        <module>checkpoint-temporal</module>
         <module>interactions</module>
         <module>interactions-postgres</module>
         <module>channels</module>

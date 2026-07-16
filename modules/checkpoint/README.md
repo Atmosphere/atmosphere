@@ -77,7 +77,7 @@ hibernation and resume.
 | `WorkflowStep<S>` | Single step: `name()` + `execute(S) → StepOutcome<S>` + `maxRetries()` + `retryDelay()` |
 | `StepOutcome<S>` | Sealed: `Advance(next)` / `Hibernate(saved)` / `Done(final)` / `Fail(reason)` |
 | `WorkflowResult<S>` | Sealed terminal return value: `Completed` / `Hibernated(lastStepName)` / `Failed(lastStepName, reason)` |
-| `DurableExecutionProvider` | Pluggable durability substrate. Every `run()` resolves its backend via `ServiceLoader` — an external engine adapter (Temporal, DBOS, Restate) takes over when registered and available; the in-tree step engine is the always-on fallback |
+| `DurableExecutionProvider` | Pluggable durability substrate. Every `run()` resolves its backend via `ServiceLoader` — an external engine adapter takes over when registered and available; the in-tree step engine is the always-on fallback. The `atmosphere-checkpoint-temporal` module ships the Temporal adapter; DBOS/Restate adapters implement the same SPI |
 
 Hibernation is a return-not-park primitive: a step returning
 `StepOutcome.hibernate(state)` causes `run()` to persist a snapshot and

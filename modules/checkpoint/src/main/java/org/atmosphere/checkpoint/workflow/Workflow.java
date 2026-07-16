@@ -76,6 +76,9 @@ public final class Workflow<S> {
     /** Metadata key recording the workflow's logical name (informational). */
     public static final String META_WORKFLOW_NAME = "workflow.name";
 
+    /** Metadata key recording whether the workflow reached a terminal Done outcome. */
+    public static final String META_DONE = "workflow.done";
+
     private final String name;
     private final String coordinationId;
     private final List<WorkflowStep<S>> steps;
@@ -240,7 +243,7 @@ public final class Workflow<S> {
                 .metadata(Map.of(
                         META_LAST_STEP, lastStepName,
                         META_WORKFLOW_NAME, name,
-                        "workflow.done", String.valueOf(done)))
+                        META_DONE, String.valueOf(done)))
                 .build();
         store.save(snap);
     }
@@ -255,6 +258,15 @@ public final class Workflow<S> {
 
     public List<WorkflowStep<S>> steps() {
         return steps;
+    }
+
+    /**
+     * The checkpoint store backing this workflow. Exposed so external
+     * {@link DurableExecutionProvider} adapters can persist and read the
+     * same snapshot trail as the in-tree step engine.
+     */
+    public CheckpointStore store() {
+        return store;
     }
 
     /** Delete every snapshot for this workflow's coordination. */
