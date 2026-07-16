@@ -77,6 +77,7 @@ hibernation and resume.
 | `WorkflowStep<S>` | Single step: `name()` + `execute(S) → StepOutcome<S>` + `maxRetries()` + `retryDelay()` |
 | `StepOutcome<S>` | Sealed: `Advance(next)` / `Hibernate(saved)` / `Done(final)` / `Fail(reason)` |
 | `WorkflowResult<S>` | Sealed terminal return value: `Completed` / `Hibernated(lastStepName)` / `Failed(lastStepName, reason)` |
+| `DurableExecutionProvider` | Pluggable durability substrate. Every `run()` resolves its backend via `ServiceLoader` — an external engine adapter (Temporal, DBOS, Restate) takes over when registered and available; the in-tree step engine is the always-on fallback |
 
 Hibernation is a return-not-park primitive: a step returning
 `StepOutcome.hibernate(state)` causes `run()` to persist a snapshot and
@@ -125,6 +126,8 @@ Tests pin every claim:
 | `WorkflowTest.explicitFailIsPropagated` | `StepOutcome.fail("reason")` ends with `Failed` carrying the reason verbatim |
 | `WorkflowTest.duplicateStepNamesRejected` | Constructor rejects duplicate step names (the resume key contract) |
 | `WorkflowSqliteResumeTest.workflowResumesAcrossSqliteStoreClose` | Closes the `SqliteCheckpointStore` entirely between runs, opens a fresh store on the same file, and proves only the un-completed step runs — the cold-restart scenario the primitive exists for |
+| `DurableExecutionProviderTest.workflowRunRoutesToARegisteredExternalProvider` | A `ServiceLoader`-registered external provider takes over `run()`; the local step loop does not execute |
+| `DurableExecutionProviderTest.workflowRunFallsBackToTheLocalEngineWhenNoExternalEngine` | With no available external engine, `run()` executes on the in-tree step engine; unavailable providers are never selected |
 
 ## CoordinationJournal Bridge (optional)
 

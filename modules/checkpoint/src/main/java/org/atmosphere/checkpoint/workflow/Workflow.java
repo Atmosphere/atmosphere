@@ -101,12 +101,26 @@ public final class Workflow<S> {
     }
 
     /**
-     * Run (or resume) the workflow. If a snapshot exists for this
+     * Run (or resume) the workflow on the durable-execution backend
+     * resolved via {@link DurableExecutionProvider#resolve()} — an external
+     * engine adapter (Temporal, DBOS, Restate) registered through
+     * {@code ServiceLoader} takes over when available; otherwise the
+     * in-tree step engine executes. If a snapshot exists for this
      * coordination the run picks up at the step <em>after</em> the last
      * recorded {@code META_LAST_STEP}; otherwise it starts at the first
      * step with the provided {@code initialState}.
      */
     public WorkflowResult<S> run(S initialState) {
+        return DurableExecutionProvider.resolve().run(this, initialState);
+    }
+
+    /**
+     * Execute on the in-tree step engine — the path behind
+     * {@link InMemoryDurableExecutionProvider}. External providers run the
+     * steps on their own engine and must not call back into {@link #run},
+     * which re-resolves the provider.
+     */
+    WorkflowResult<S> runLocal(S initialState) {
         var resume = loadLatest();
         S state;
         int startIndex;

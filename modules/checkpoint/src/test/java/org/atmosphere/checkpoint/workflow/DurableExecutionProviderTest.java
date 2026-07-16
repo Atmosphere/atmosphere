@@ -19,8 +19,10 @@ import org.atmosphere.checkpoint.InMemoryCheckpointStore;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -64,5 +66,47 @@ class DurableExecutionProviderTest {
         var completed = assertInstanceOf(WorkflowResult.Completed.class, result,
                 "a two-step workflow with a done() outcome completes");
         assertEquals("doc-ingested-published", completed.finalState());
+    }
+
+    @Test
+    void workflowRunRoutesToARegisteredExternalProvider() {
+        var store = new InMemoryCheckpointStore();
+        store.start();
+        var stepRan = new AtomicBoolean();
+        var workflow = new Workflow<>("route-demo", "coord-route", List.of(
+                step("only", s -> {
+                    stepRan.set(true);
+                    return StepOutcome.done(s);
+                })), store);
+
+        TestExternalDurableExecutionProvider.AVAILABLE.set(true);
+        try {
+            var result = workflow.run("doc");
+            assertInstanceOf(WorkflowResult.Completed.class, result);
+            assertEquals(1, TestExternalDurableExecutionProvider.RUNS.get(),
+                    "run() must route to the ServiceLoader-registered external engine");
+            assertFalse(stepRan.get(),
+                    "the external engine owns execution — the local step loop must not run");
+        } finally {
+            TestExternalDurableExecutionProvider.AVAILABLE.set(false);
+            TestExternalDurableExecutionProvider.RUNS.set(0);
+        }
+    }
+
+    @Test
+    void workflowRunFallsBackToTheLocalEngineWhenNoExternalEngine() {
+        var store = new InMemoryCheckpointStore();
+        store.start();
+        var workflow = new Workflow<>("fallback-demo", "coord-fallback", List.of(
+                step("ingest", s -> StepOutcome.advance(s + "-ingested")),
+                step("publish", s -> StepOutcome.done(s + "-published"))), store);
+
+        var result = workflow.run("doc");
+
+        var completed = assertInstanceOf(WorkflowResult.Completed.class, result,
+                "with no external engine available, the in-tree step engine executes");
+        assertEquals("doc-ingested-published", completed.finalState());
+        assertEquals(0, TestExternalDurableExecutionProvider.RUNS.get(),
+                "an unavailable provider must not be selected (Runtime Truth, #5)");
     }
 }

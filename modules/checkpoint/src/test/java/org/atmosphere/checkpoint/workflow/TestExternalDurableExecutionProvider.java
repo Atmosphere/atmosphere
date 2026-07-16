@@ -15,27 +15,33 @@
  */
 package org.atmosphere.checkpoint.workflow;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
- * Dependency-free reference {@link DurableExecutionProvider} that runs a
- * {@link Workflow} on Atmosphere's own step engine — each step checkpointed
- * through the workflow's configured {@code CheckpointStore}. This is the
- * always-available fallback; a Temporal/DBOS/Restate adapter implements the same
- * SPI to run the identical {@code Workflow<S>} on an external engine.
+ * ServiceLoader-registered stand-in for an external engine adapter
+ * (Temporal/DBOS/Restate). Unavailable by default so every other test in the
+ * module keeps resolving the in-tree reference; a test flips {@link #AVAILABLE}
+ * to prove {@link Workflow#run} routes to a registered external provider.
  */
-public final class InMemoryDurableExecutionProvider implements DurableExecutionProvider {
+public final class TestExternalDurableExecutionProvider implements DurableExecutionProvider {
+
+    public static final AtomicBoolean AVAILABLE = new AtomicBoolean();
+    public static final AtomicInteger RUNS = new AtomicInteger();
 
     @Override
     public String name() {
-        return "in-memory";
+        return "test-external";
     }
 
     @Override
     public boolean isAvailable() {
-        return true;
+        return AVAILABLE.get();
     }
 
     @Override
     public <S> WorkflowResult<S> run(Workflow<S> workflow, S initialState) {
-        return workflow.runLocal(initialState);
+        RUNS.incrementAndGet();
+        return new WorkflowResult.Completed<>(initialState, workflow.coordinationId());
     }
 }

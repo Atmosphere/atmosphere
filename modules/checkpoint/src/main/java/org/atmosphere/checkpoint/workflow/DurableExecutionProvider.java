@@ -28,6 +28,9 @@ import java.util.ServiceLoader;
  * operating Temporal, DBOS, or Restate provides an adapter implementing this
  * same interface so {@code Workflow<S>} steps run on that engine instead —
  * extending the "swap one Maven dep" promise down to the durability substrate.
+ * Every {@link Workflow#run} call resolves its backend through
+ * {@link #resolve()}, so a registered adapter takes effect without any change
+ * to caller code.
  *
  * <p>The heavy external SDKs are intentionally <strong>not</strong> pulled into
  * the build: this is the seam, with a dependency-free reference adapter. A
@@ -45,6 +48,8 @@ public interface DurableExecutionProvider {
     /**
      * Execute {@code workflow} to a terminal {@link WorkflowResult} (Completed /
      * Hibernated / Failed) on this backend, starting from {@code initialState}.
+     * Implementations run the steps on their own engine; they must not call
+     * {@link Workflow#run}, which re-resolves the provider.
      */
     <S> WorkflowResult<S> run(Workflow<S> workflow, S initialState);
 
@@ -53,8 +58,9 @@ public interface DurableExecutionProvider {
      * recorded effect history (the {@link EffectJournal} contract), as opposed to
      * only checkpointing {@code Workflow<S>} steps. Default {@code false}: a
      * provider opts in by also returning a journal from {@link #effectJournal()}.
-     * Capability advertisement gates on this AND the resolved journal's
-     * {@link EffectJournal#durable()} (Runtime Truth, Correctness Invariant #5).
+     * Any replay-capability advertisement MUST gate on this AND the resolved
+     * journal's {@link EffectJournal#durable()} (Runtime Truth, Correctness
+     * Invariant #5).
      */
     default boolean supportsDeterministicReplay() {
         return false;
