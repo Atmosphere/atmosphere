@@ -233,6 +233,13 @@ public class AtmosphereProperties {
 
     private String consoleSubtitle = "";
 
+    /** Wire transport the console chat should speak to reach this sample's
+     *  endpoint: {@code atmosphere} (default), {@code grpc}, {@code a2a} or
+     *  {@code ag-ui}. Unrecognized values are reported as {@code atmosphere}
+     *  by {@code /api/console/info}. Mirrors the Spring Boot 4 starter's
+     *  {@code atmosphere.console-transport}. */
+    private String consoleTransport = "atmosphere";
+
     /** Whether to register admin write tools as MCP tools (default false). */
     private String adminMcpWriteTools = "false";
 
@@ -242,6 +249,14 @@ public class AtmosphereProperties {
 
     public void setConsoleSubtitle(String consoleSubtitle) {
         this.consoleSubtitle = consoleSubtitle;
+    }
+
+    public String getConsoleTransport() {
+        return consoleTransport;
+    }
+
+    public void setConsoleTransport(String consoleTransport) {
+        this.consoleTransport = consoleTransport;
     }
 
     public String getAdminMcpWriteTools() {

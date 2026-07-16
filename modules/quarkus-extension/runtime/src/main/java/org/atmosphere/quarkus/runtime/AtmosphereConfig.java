@@ -101,6 +101,16 @@ public interface AtmosphereConfig {
     Optional<String> consoleEndpoint();
 
     /**
+     * Optional wire transport the bundled Atmosphere Console should speak to
+     * reach this application's endpoint: {@code atmosphere} (default —
+     * WebSocket + long-polling over the Atmosphere protocol), {@code grpc},
+     * {@code a2a} or {@code ag-ui}. Unrecognized values are reported as
+     * {@code atmosphere} by {@code /api/console/info}. Mirrors the Spring
+     * starter's {@code atmosphere.console-transport}.
+     */
+    Optional<String> consoleTransport();
+
+    /**
      * Whether to enable the bounded-memory {@link org.atmosphere.cache.BoundedMemoryCache}
      * and {@link org.atmosphere.interceptor.MessageAckInterceptor}. Mirrors the Spring
      * Boot starter's {@code atmosphere.cache.enabled} property; when {@code true} the

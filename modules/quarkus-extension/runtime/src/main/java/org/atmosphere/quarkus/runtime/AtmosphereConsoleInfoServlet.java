@@ -59,6 +59,7 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
 
     public static final String CONSOLE_SUBTITLE_PARAM = "consoleSubtitle";
     public static final String CONSOLE_ENDPOINT_PARAM = "consoleEndpoint";
+    public static final String CONSOLE_TRANSPORT_PARAM = "consoleTransport";
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -80,6 +81,13 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
         payload.put("endpoint", endpoint);
         payload.put("runtime", runtime);
         payload.put("mode", mode);
+        // Wire transport the console client should use, in parity with the
+        // Spring starter (AtmosphereConsoleInfoEndpoint#detectTransport).
+        // Validated against the adapter set the console actually ships — an
+        // unrecognized value is reported as "atmosphere" so a typo can never
+        // make the console load a missing adapter (Runtime Truth — Inv #5).
+        payload.put("transport",
+                validateTransport(getInitParameter(CONSOLE_TRANSPORT_PARAM)));
         // Parity with the Spring starter's /api/console/info capability flags so
         // the shared console gates its optional tabs without a 404-producing
         // probe. The Quarkus extension does not bundle the interactions or
@@ -149,6 +157,22 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
             logger.debug("Could not enumerate handlers", e);
         }
         return DEFAULT_AI_ENDPOINT;
+    }
+
+    /**
+     * Validate the configured console transport against the set the console
+     * ships an adapter for; anything else (including null/blank) is reported
+     * as {@code atmosphere}. Mirrors the Spring starter's
+     * {@code AtmosphereConsoleInfoEndpoint#detectTransport}.
+     */
+    static String validateTransport(String configured) {
+        if (configured == null) {
+            return "atmosphere";
+        }
+        return switch (configured.trim().toLowerCase(java.util.Locale.ROOT)) {
+            case "grpc", "a2a", "ag-ui" -> configured.trim().toLowerCase(java.util.Locale.ROOT);
+            default -> "atmosphere";
+        };
     }
 
     private static String detectMode(AtmosphereFramework framework, String endpoint) {

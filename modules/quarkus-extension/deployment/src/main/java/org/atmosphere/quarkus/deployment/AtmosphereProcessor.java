@@ -504,6 +504,9 @@ class AtmosphereProcessor {
         config.consoleEndpoint().ifPresent(s ->
                 builder.addInitParam(
                         AtmosphereConsoleInfoServlet.CONSOLE_ENDPOINT_PARAM, s));
+        config.consoleTransport().ifPresent(s ->
+                builder.addInitParam(
+                        AtmosphereConsoleInfoServlet.CONSOLE_TRANSPORT_PARAM, s));
         return builder.build();
     }
 

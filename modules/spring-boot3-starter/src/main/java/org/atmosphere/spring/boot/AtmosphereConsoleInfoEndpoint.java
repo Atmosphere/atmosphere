@@ -70,6 +70,12 @@ public class AtmosphereConsoleInfoEndpoint {
         result.put("subtitle", subtitle);
         result.put("endpoint", detectEndpoint());
         result.put("runtime", detectRuntime());
+        // Wire transport the console client should use, in parity with the
+        // Spring Boot 4 starter (AtmosphereConsoleInfoEndpoint#detectTransport).
+        // Validated against the adapter set the console actually ships — an
+        // unrecognized value is reported as "atmosphere" so a typo can never
+        // make the console load a missing adapter (Runtime Truth — Inv #5).
+        result.put("transport", detectTransport());
         // RAG injection-safety: reported only when a ContextProvider was actually
         // wrapped at endpoint registration (Runtime Truth — Invariant #5), with
         // the effective classifier tier after any runtime-absent downgrade.
@@ -193,6 +199,25 @@ public class AtmosphereConsoleInfoEndpoint {
             logger.debug("Could not resolve AgentRuntime", e);
             return "unknown";
         }
+    }
+
+    /**
+     * The wire transport the console client should use, validated against the
+     * set of transports the console actually ships an adapter for. Any value
+     * outside {@code atmosphere | grpc | a2a | ag-ui} (including blank) is
+     * reported as {@code atmosphere} so a typo can never make the console load
+     * an adapter that doesn't exist and silently fail to connect (Runtime Truth
+     * — Invariant #5: advertise only confirmed capability).
+     */
+    private String detectTransport() {
+        var configured = properties.getConsoleTransport();
+        if (configured == null) {
+            return "atmosphere";
+        }
+        return switch (configured.trim().toLowerCase(java.util.Locale.ROOT)) {
+            case "grpc", "a2a", "ag-ui" -> configured.trim().toLowerCase(java.util.Locale.ROOT);
+            default -> "atmosphere";
+        };
     }
 
     /**
