@@ -13,6 +13,7 @@ import Checkpoints from './components/Checkpoints.vue'
 import Tape from './components/Tape.vue'
 import McpApps from './components/McpApps.vue'
 import { livePlan } from './lib/workspaceStore'
+import type { ConsoleTransportName } from './transports'
 import logoUrl from './assets/logo.svg'
 
 type Tab = 'chat' | 'sessions' | 'workspace' | 'interactions' | 'validation' | 'checkpoints' | 'tape' | 'apps' | 'policies' | 'decisions' | 'owasp' | 'commitments'
@@ -24,6 +25,11 @@ const endpoint = ref('/atmosphere/ai-chat')
 // org.atmosphere.{ai,agent,coordinator} packages (e.g. @ManagedService chats
 // in spring-boot-mcp-server / spring-boot-otel-chat).
 const mode = ref<'ai' | 'broadcast'>('ai')
+// Wire transport for the chat connection. 'atmosphere' (WS + long-polling)
+// unless the sample opts into a foreign protocol via
+// atmosphere.console-transport — value is server-validated
+// (AtmosphereConsoleInfoEndpoint#detectTransport), so only known names arrive.
+const transport = ref<ConsoleTransportName>('atmosphere')
 const ready = ref(false)
 const activeTab = ref<Tab>('chat')
 // The live MCP endpoint, when one is registered — enables the MCP Apps host tab.
@@ -148,6 +154,12 @@ onMounted(async () => {
       if (data.subtitle) subtitle.value = data.subtitle
       if (data.endpoint) endpoint.value = data.endpoint
       if (data.mode === 'broadcast' || data.mode === 'ai') mode.value = data.mode
+      // Narrow to the known adapter names — the server already validates,
+      // but the frontend must not trust the wire (Boundary Safety).
+      if (data.transport === 'grpc' || data.transport === 'a2a'
+          || data.transport === 'ag-ui' || data.transport === 'atmosphere') {
+        transport.value = data.transport
+      }
       if (data.mcpEndpoint) mcpEndpoint.value = data.mcpEndpoint
       if (data.mcpSandboxOrigin) mcpSandboxOrigin.value = data.mcpSandboxOrigin
       // Runtime-resolved capability flags — gate the optional tabs without a
@@ -197,7 +209,7 @@ onMounted(async () => {
       </nav>
     </header>
     <main class="app-main">
-      <ChatContainer v-if="ready && activeTab === 'chat'" :endpoint="endpoint" :mode="mode" />
+      <ChatContainer v-if="ready && activeTab === 'chat'" :endpoint="endpoint" :mode="mode" :transport="transport" />
       <Sessions v-if="ready && agentsAvailable" v-show="activeTab === 'sessions'"
                 :active="activeTab === 'sessions'" />
       <Workspace v-if="ready && workspaceVisible" v-show="activeTab === 'workspace'"

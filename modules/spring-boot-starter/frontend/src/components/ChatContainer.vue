@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, nextTick, watch } from 'vue'
 import { useAtmosphereChat } from '../composables/useAtmosphereChat'
+import type { ConsoleTransportName } from '../transports'
 import ChatMessage from './ChatMessage.vue'
 import ChatInput from './ChatInput.vue'
 import ConnectionStatus from './ConnectionStatus.vue'
@@ -15,9 +16,13 @@ const props = defineProps<{
   // spring-boot-mcp-server / spring-boot-otel-chat where there is no AI
   // assistant on the other side, just other connected peers.
   mode?: 'ai' | 'broadcast'
+  // Wire transport reported by /api/console/info (atmosphere default;
+  // grpc / a2a / ag-ui for samples exposing a foreign protocol). Selects
+  // the ChatTransport adapter behind the same rendering pipeline.
+  transport?: ConsoleTransportName
 }>()
 
-const { messages, toolCalls, isConnected, isStreaming, connectionState, connectionStatus, send, clearMessages, respondToApproval, stats } = useAtmosphereChat(props.endpoint, props.mode)
+const { messages, toolCalls, isConnected, isStreaming, connectionState, connectionStatus, send, clearMessages, respondToApproval, stats } = useAtmosphereChat(props.endpoint, props.mode, props.transport)
 const messagesContainer = ref<HTMLElement | null>(null)
 
 function scrollToBottom() {

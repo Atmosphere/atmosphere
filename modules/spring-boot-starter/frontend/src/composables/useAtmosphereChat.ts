@@ -1,12 +1,9 @@
 import { ref, onMounted, onUnmounted, type Ref } from 'vue'
-import { Atmosphere, ConnectionStatus } from 'atmosphere.js'
-import { resolveAuthToken } from '../lib/authToken'
+import { ConnectionStatus } from 'atmosphere.js'
 import { recordPlanUpdate, resetLivePlan } from '../lib/workspaceStore'
-import type {
-  Subscription,
-  AtmosphereResponse,
-  ConnectionStatusSnapshot,
-} from 'atmosphere.js'
+import { createChatTransport } from '../transports'
+import type { ChatTransport, ConsoleTransportName } from '../transports'
+import type { ConnectionStatusSnapshot } from 'atmosphere.js'
 
 export interface ChatMessage {
   id: string
@@ -38,7 +35,8 @@ export interface SessionStats {
 }
 
 export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
-                                  mode?: 'ai' | 'broadcast') {
+                                  mode?: 'ai' | 'broadcast',
+                                  transportName: ConsoleTransportName = 'atmosphere') {
   const messages = ref<ChatMessage[]>([])
   const toolCalls = ref<ToolCall[]>([])
   const isConnected = ref(false)
@@ -68,8 +66,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
   const connectionStatus: Ref<ConnectionStatusSnapshot> = ref(status.snapshot)
   const unsubscribeStatus = status.onChange((s) => { connectionStatus.value = s })
 
-  let atmosphere: Atmosphere | null = null
-  let subscription: Subscription | null = null
+  let transport: ChatTransport | null = null
   let currentAssistantMessage: ChatMessage | null = null
   let toolCallCounter = 0
   let reactivityTimer: ReturnType<typeof setTimeout> | null = null
@@ -142,39 +139,6 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     }
 
     return { message, status, retryDelay }
-  }
-
-  function parseStreamingMessage(body: string) {
-    // Messages arrive as JSON objects, possibly length-prefixed by TrackMessageSizeInterceptor.
-    // Format can be: plain JSON, newline-separated JSON, or <len>|<json><len>|<json>...
-    const trimmed = body.trim()
-    if (!trimmed) return
-
-    // Try length-prefixed format first: <digits>|<json>...
-    if (/^\d+\|/.test(trimmed)) {
-      let remaining = trimmed
-      while (remaining.length > 0) {
-        const m = remaining.match(/^(\d+)\|/)
-        if (!m) break
-        const len = parseInt(m[1], 10)
-        const start = m[0].length
-        const chunk = remaining.substring(start, start + len)
-        remaining = remaining.substring(start + len)
-        try { handleStreamingEvent(JSON.parse(chunk)) } catch { appendToAssistant(chunk) }
-      }
-      return
-    }
-
-    // Try as single JSON object
-    try {
-      handleStreamingEvent(JSON.parse(trimmed))
-      return
-    } catch { /* not single JSON */ }
-
-    // Split by newlines (multiple JSON objects per frame)
-    for (const line of trimmed.split('\n').filter(l => l.trim())) {
-      try { handleStreamingEvent(JSON.parse(line)) } catch { appendToAssistant(line) }
-    }
   }
 
   function handleStreamingEvent(msg: Record<string, unknown>) {
@@ -408,54 +372,28 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     isStreaming.value = false
   }
 
-  /**
-   * Append the auth token (if any) to the WebSocket URL as the
-   * X-Atmosphere-Auth query parameter the server's TokenValidator reads.
-   * The token is resolved by the shared {@link resolveAuthToken} helper
-   * (also used by the admin REST surface), so the WS and REST paths can
-   * never drift. Returns the URL unchanged when no token is available, so
-   * anonymous backends connect exactly as before.
-   */
-  function withAuthToken(wsUrl: string): string {
-    const token = resolveAuthToken()
-    if (!token) return wsUrl
-    return wsUrl + (wsUrl.includes('?') ? '&' : '?') + 'X-Atmosphere-Auth=' + encodeURIComponent(token)
-  }
-
   async function connect() {
-    atmosphere = new Atmosphere({ logLevel: 'debug' })
-
-    subscription = await atmosphere.subscribe<string>(
-      {
-        url: withAuthToken(endpoint),
-        transport: 'websocket',
-        fallbackTransport: 'long-polling',
-        reconnect: true,
-        reconnectInterval: 3000,
+    try {
+      transport = await createChatTransport(transportName, {
+        endpoint,
+        isBroadcast: () => broadcastMode.value,
+        status,
         maxReconnectOnClose: MAX_RECONNECT_ON_CLOSE,
-        trackMessageLength: true,
-        enableProtocol: true,
-      },
-      status.wrap({
-        open: () => {
+      }, {
+        onOpen: () => {
           isConnected.value = true
           connectionState.value = 'connected'
           reconnectAttempts = 0
         },
-        close: () => {
+        onClose: () => {
           isConnected.value = false
           connectionState.value = 'disconnected'
           finalizeAssistant()
         },
-        message: (response: AtmosphereResponse<string>) => {
-          if (response.responseBody) {
-            parseStreamingMessage(response.responseBody as string)
-          }
-        },
-        error: () => {
+        onError: () => {
           connectionState.value = 'error'
         },
-        reconnect: () => {
+        onReconnect: () => {
           reconnectAttempts += 1
           // Stop advertising "reconnecting" after the client has exhausted
           // its quota of retries — atmosphere.js will silently give up at
@@ -464,29 +402,35 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
             ? 'disconnected'
             : 'reconnecting'
         },
-        reopen: () => {
+        onReopen: () => {
           isConnected.value = true
           connectionState.value = 'connected'
           reconnectAttempts = 0
         },
-        transportFailure: (reason) => {
-          console.warn('[atmosphere] transport failure, falling back:', reason)
-        },
-        clientTimeout: () => {
-          // Heartbeat watchdog tripped — atmosphere.js will reconnect.
+        onClientTimeout: () => {
+          // Heartbeat watchdog tripped — the transport will reconnect.
           connectionState.value = 'reconnecting'
         },
-        failureToReconnect: () => {
+        onFailureToReconnect: () => {
           // Reconnect quota exhausted. Make this visible in the operator UI.
           isConnected.value = false
           connectionState.value = 'disconnected'
         },
+        onEvent: handleStreamingEvent,
+        onRawText: appendToAssistant,
       })
-    )
+      await transport.connect()
+    } catch (e) {
+      // Transport construction/connect failed terminally (e.g. the reported
+      // transport's adapter isn't in this build). Fail loud, not blank.
+      console.error('[console] chat transport failed:', e)
+      isConnected.value = false
+      connectionState.value = 'error'
+    }
   }
 
   function send(text: string) {
-    if (!subscription || !text.trim()) return
+    if (!transport || !text.trim()) return
 
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
@@ -496,30 +440,20 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     }
     messages.value = [...messages.value, userMessage]
     toolCalls.value = []
-    isStreaming.value = true
     stats.value = null
     streamStartedAt = Date.now()
     streamTokenCount = 0
 
-    if (broadcastMode.value) {
-      // Broadcast rooms decode {author, message, time} (see the chat
-      // sample's JacksonDecoder); a raw string would fail the decoder and
-      // be dropped server-side. The echo renders via the event-less-frame
-      // branch in handleStreamingEvent, confirming delivery.
-      isStreaming.value = false
-      subscription.push(JSON.stringify({
-        author: 'console',
-        message: text.trim(),
-        time: Date.now(),
-      }))
-      return
-    }
-
-    subscription.push(text.trim())
+    // Broadcast sends have no streamed AI reply — the room echo renders as
+    // its own bubble via the event-less-frame branch in handleStreamingEvent.
+    // The wire envelope itself ({author, message, time} vs raw prompt) is the
+    // transport's dialect concern.
+    isStreaming.value = !broadcastMode.value
+    transport.send(text.trim())
   }
 
   function respondToApproval(approvalId: string, approved: boolean) {
-    if (!subscription || !approvalId) return
+    if (!transport || !approvalId) return
     // Clear approval state locally so the UI collapses the buttons
     // immediately — the server will follow up with tool-result.
     const tc = toolCalls.value.find(t => t.approval?.approvalId === approvalId)
@@ -527,7 +461,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
       tc.approval = undefined
       toolCalls.value = [...toolCalls.value]
     }
-    subscription.push(`/__approval/${approvalId}/${approved ? 'approve' : 'deny'}`)
+    transport.sendControl(`/__approval/${approvalId}/${approved ? 'approve' : 'deny'}`)
   }
 
   function clearMessages() {
@@ -546,9 +480,8 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
 
   onUnmounted(() => {
     unsubscribeStatus()
-    if (atmosphere) {
-      atmosphere.closeAll()
-    }
+    transport?.disconnect()
+    transport = null
   })
 
   return {
