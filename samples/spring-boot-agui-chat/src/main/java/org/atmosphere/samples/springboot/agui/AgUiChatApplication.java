@@ -29,11 +29,13 @@ public class AgUiChatApplication {
     }
 
     /**
-     * Serve the bespoke AG-UI / CopilotKit-style React chat UI at the root path.
-     * AG-UI (not the generic Atmosphere console) is the point of this sample, so
-     * {@code /} forwards to the built React bundle in {@code static/index.html}
-     * rather than redirecting to {@code /atmosphere/console/}. The Atmosphere
-     * console remains available at {@code /atmosphere/console/} for inspection.
+     * {@code /} forwards to {@code static/index.html}, which redirects to the
+     * bundled Atmosphere Console. The Console drives the real AG-UI wire
+     * (named-event SSE at {@code /atmosphere/agent/assistant/agui}) through its
+     * {@code ag-ui} transport adapter — selected via
+     * {@code atmosphere.console-transport} in {@code application.yml} — so the
+     * AG-UI protocol remains the point of this sample, demoed through the
+     * shared Console instead of a bespoke frontend.
      */
     @Configuration
     static class HomePage implements WebMvcConfigurer {

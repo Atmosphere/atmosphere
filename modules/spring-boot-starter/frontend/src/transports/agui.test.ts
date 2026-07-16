@@ -102,13 +102,16 @@ describe('AgUiEventTranslator', () => {
 })
 
 describe('AgUiChatTransport', () => {
-  it('reports open when the endpoint is reachable (any HTTP status)', async () => {
-    // A HEAD may 405 on the AG-UI endpoint — still a live server.
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 405 })))
+  it('reports open when the origin is reachable (any HTTP status)', async () => {
+    // The probe targets the origin root, not the AG-UI endpoint (a HEAD
+    // there 405s, which browsers red-log). Any response = live server.
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
     const h = handlers([])
     const t = new AgUiChatTransport(options(), h)
     await t.connect()
     expect(h.onOpen).toHaveBeenCalledOnce()
+    expect(fetchMock.mock.calls[0][0]).toBe('/')
   })
 
   it('refuses to open on network failure', async () => {

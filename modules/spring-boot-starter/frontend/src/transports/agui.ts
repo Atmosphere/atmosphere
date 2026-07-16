@@ -115,10 +115,12 @@ export class AgUiChatTransport implements ChatTransport {
   }
 
   async connect(): Promise<void> {
-    // Any HTTP status proves the server answers on this origin; only a
-    // network-level failure rejects. (A HEAD to the AG-UI endpoint may 405 —
-    // that is still a live server.)
-    await fetch(this.options.endpoint, { method: 'HEAD' })
+    // Reachability probe: AG-UI defines no side-effect-free request on its
+    // endpoint (a HEAD there 405s, which the browser red-logs as a resource
+    // error — probe noise the console forbids), so probe the origin root
+    // instead. Any HTTP response proves the server answers; only a
+    // network-level failure rejects.
+    await fetch('/', { method: 'HEAD' })
     this.connected = true
     this.lifecycle.open?.(undefined as never)
     this.handlers.onOpen()

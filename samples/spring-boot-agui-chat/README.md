@@ -36,10 +36,6 @@ bodies for a real API call to make them production-grade.
 ## Running
 
 ```bash
-# Build the frontend first (builds atmosphere.js, then the React app into static/)
-cd ../../atmosphere.js && npm install && npm run build && cd -
-cd samples/spring-boot-agui-chat/frontend && npm install && npx vite build && cd ../../..
-
 # Demo mode (no key) — works out of the box
 ./mvnw spring-boot:run -pl samples/spring-boot-agui-chat
 
@@ -47,8 +43,9 @@ cd samples/spring-boot-agui-chat/frontend && npm install && npx vite build && cd
 LLM_API_KEY=sk-... ./mvnw spring-boot:run -pl samples/spring-boot-agui-chat
 ```
 
-Open **http://localhost:8085** — the bespoke AG-UI React UI is served at `/`.
-(The generic Atmosphere console remains at `/atmosphere/console/`.)
+Open **http://localhost:8085** — it redirects to the bundled Atmosphere
+Console at `/atmosphere/console/`, whose `ag-ui` transport adapter drives the
+real AG-UI wire (named-event SSE) from the browser.
 
 | Message | Demo mode | With LLM key |
 |---------|-----------|--------------|
@@ -59,7 +56,7 @@ Open **http://localhost:8085** — the bespoke AG-UI React UI is served at `/`.
 ## The Real Wire Path
 
 ```
-Browser (React + atmosphere.js/chat)
+Browser (Atmosphere Console, ag-ui transport adapter)
    │  POST /atmosphere/agent/assistant/agui   (AG-UI RunContext JSON)
    ▼
 AgUiHandler                       parse RunContext, emit RUN_STARTED, run on a virtual thread
@@ -84,8 +81,8 @@ RUN_FINISHED
   `AgentProcessor.registerAgUi` because `atmosphere-agui` is on the classpath;
   the handler is wired with the agent's real `AiPipeline`).
 - **WS UI handler:** the same `@Agent` also exposes `/atmosphere/agent/assistant`
-  (Atmosphere's WebSocket chat surface); this sample's bespoke UI uses the AG-UI
-  SSE endpoint, not the WS one.
+  (Atmosphere's WebSocket chat surface); this sample's Console is pinned to the
+  AG-UI SSE endpoint via `atmosphere.console-transport: ag-ui`, not the WS one.
 
 ## Demo vs. Real-Key Contract
 
@@ -105,8 +102,7 @@ same; only the *content* and *tool dispatch* differ.
 | `AssistantAgent.java` | `@Agent` with `@Prompt(String, StreamingSession)` + real `@AiTool get_weather` / `get_time` |
 | `DemoResponseProducer.java` | No-key fallback — streams real AG-UI frames via the session |
 | `LlmConfig.java` | Resolves `AiConfig` from `llm.*` properties (`LLM_API_KEY`, `llm.model`, …) |
-| `AgUiChatApplication.java` | Serves the bespoke AG-UI React UI at `/` |
-| `frontend/src/App.tsx` | React app: `fetch()` + `ReadableStream` SSE parser, posts to the AG-UI endpoint |
+| `AgUiChatApplication.java` | Spring Boot entrypoint; `/` redirects to the Console |
 
 The AG-UI mapping and SSE bridge are shipped framework code — see
 `modules/agui` (`AgUiEventMapper`, `AgUiHandler`) — not part of this sample.

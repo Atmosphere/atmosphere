@@ -3,6 +3,11 @@ server:
 
 atmosphere:
   console-subtitle: AG-UI agent — real AgentRuntime streamed as AG-UI events (get_weather/get_time tools)
+  # The bundled Atmosphere Console IS the sample UI: it drives the real AG-UI
+  # wire (named-event SSE, CopilotKit-compatible) through its ag-ui transport
+  # adapter — not the Atmosphere WebSocket.
+  console-endpoint: /atmosphere/agent/assistant/agui
+  console-transport: ag-ui
   packages: org.atmosphere.samples.springboot.agui
   web-transport:
     enabled: true

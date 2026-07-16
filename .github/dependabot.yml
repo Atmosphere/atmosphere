@@ -64,7 +64,6 @@ updates:
       - "/samples/embedded-jetty-websocket-chat/frontend"
       - "/samples/grpc-chat/frontend"
       - "/samples/quarkus-chat/frontend"
-      - "/samples/spring-boot-agui-chat/frontend"
       - "/samples/spring-boot-ai-chat/frontend"
       - "/samples/spring-boot-ai-classroom/frontend"
       - "/samples/spring-boot-ai-tools/frontend"

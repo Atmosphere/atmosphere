@@ -132,38 +132,43 @@ test.describe('AG-UI real-LLM lane', () => {
   });
 });
 
-// ── UI LANE: bespoke AG-UI React surface served at / ───────────────────────
-test.describe('AG-UI chat UI', () => {
-  test('page loads with chat layout', async ({ page }) => {
+// ── UI LANE: Atmosphere Console driving the AG-UI wire ─────────────────────
+// The sample's / redirects to /atmosphere/console/; the Console's ag-ui
+// transport adapter (selected via atmosphere.console-transport) posts the
+// AG-UI RunContext and renders the named-event SSE stream.
+test.describe('AG-UI chat via the Atmosphere Console', () => {
+  test('root redirects to the console, connected over ag-ui', async ({ page }) => {
     await page.goto(server.baseUrl);
     await expect(page.getByTestId('chat-layout')).toBeVisible();
     await expect(page.getByTestId('chat-input')).toBeVisible();
-    await expect(page.getByText('AG-UI Protocol Demo', { exact: false })).toBeVisible();
+    // The status pill names the real wire — ag-ui, not the Atmosphere WS.
+    await expect(page.getByText('Connected · ag-ui')).toBeVisible({ timeout: 30_000 });
   });
 
   test('send "Hello!" renders the user message and the streamed assistant text', async ({ page }) => {
     await page.goto(server.baseUrl);
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByText('Connected · ag-ui')).toBeVisible({ timeout: 30_000 });
 
     await page.getByTestId('chat-input').fill('Hello!');
     await page.getByTestId('chat-send').click();
 
-    // The user's message bubble renders.
-    await expect(page.getByText('Hello!')).toBeVisible();
+    // The user's message bubble renders (precise class — the demo reply can
+    // echo prompt text, which would break a bare getByText in strict mode).
+    await expect(page.locator('.message--user').filter({ hasText: 'Hello!' })).toBeVisible();
 
-    // The streamed assistant reply renders the rendered element (StreamingMessage),
-    // which always contains the stable demo phrase — assert the visible node,
-    // not payload bytes.
-    await expect(page.getByText('AG-UI protocol', { exact: false }).first())
+    // The streamed assistant reply always contains the stable demo phrase —
+    // assert the rendered bubble, not payload bytes.
+    await expect(page.locator('.message--assistant').filter({ hasText: 'AG-UI protocol' }).first())
       .toBeVisible({ timeout: 30_000 });
   });
 
   // Tool-call cards render only when the model dispatches a real tool — that
-  // needs a live key, exercised by the real-LLM lane above.
+  // needs a live key, exercised by the real-LLM lane above. The Console maps
+  // TOOL_CALL_START/RESULT onto its tool cards via the ag-ui adapter.
   test('weather query shows the get_weather tool card', async ({ page }) => {
     test.skip(!process.env.LLM_API_KEY, 'requires LLM_API_KEY for real tool dispatch');
     await page.goto(server.baseUrl);
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByText('Connected · ag-ui')).toBeVisible({ timeout: 30_000 });
 
     await page.getByTestId('chat-input').fill('What is the weather in Paris?');
     await page.getByTestId('chat-send').click();
@@ -175,7 +180,7 @@ test.describe('AG-UI chat UI', () => {
   // Owner: atmosphere-agui; Expiry: 2026-09-30. The demo AG-UI handler responds
   // fast enough that the input disable→enable cycle is not reliably observable
   // in a headless run; revisit with an artificial demo delay or a network-idle
-  // wait when the bespoke UI gains a "thinking" affordance to assert against.
+  // wait when the Console gains a "thinking" affordance to assert against.
   test.skip('input disabled while streaming, re-enabled after', async ({ page }) => {
     await page.goto(server.baseUrl);
     await expect(page.getByTestId('chat-input')).toBeVisible();
