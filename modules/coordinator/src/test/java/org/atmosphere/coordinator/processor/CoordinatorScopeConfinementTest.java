@@ -93,7 +93,7 @@ class CoordinatorScopeConfinementTest {
                 .defaultResponse("Here is your order status.")
                 .build();
 
-        var pipeline = processor.buildPipeline(framework, ScopedCoordinator.class,
+        var pipeline = processor.buildPipeline(framework, ScopedCoordinator.class, null,
                 "/atmosphere/agent/support-coord", runtime,
                 "You are a support agent.", "model-test", null,
                 new DefaultToolRegistry(), AiMetrics.NOOP);
@@ -125,7 +125,7 @@ class CoordinatorScopeConfinementTest {
                 .defaultResponse("Your order ships tomorrow.")
                 .build();
 
-        var pipeline = processor.buildPipeline(framework, ScopedCoordinator.class,
+        var pipeline = processor.buildPipeline(framework, ScopedCoordinator.class, null,
                 "/atmosphere/agent/support-coord", runtime,
                 "You are a support agent.", "model-test", null,
                 new DefaultToolRegistry(), AiMetrics.NOOP);
@@ -147,7 +147,7 @@ class CoordinatorScopeConfinementTest {
                 .defaultResponse("anything goes")
                 .build();
 
-        var pipeline = processor.buildPipeline(framework, UnscopedCoordinator.class,
+        var pipeline = processor.buildPipeline(framework, UnscopedCoordinator.class, null,
                 "/atmosphere/agent/open-coord", runtime, "", "model-test", null,
                 new DefaultToolRegistry(), AiMetrics.NOOP);
 
@@ -176,7 +176,7 @@ class CoordinatorScopeConfinementTest {
                 .defaultResponse("REDIRECTED_TO_SCOPE")
                 .build();
 
-        var pipeline = processor.buildPipeline(framework, RedirectCoordinator.class,
+        var pipeline = processor.buildPipeline(framework, RedirectCoordinator.class, null,
                 "/atmosphere/agent/redirect-coord", runtime, "", "model-test", null,
                 new DefaultToolRegistry(), AiMetrics.NOOP);
 
@@ -200,7 +200,7 @@ class CoordinatorScopeConfinementTest {
         // chain buildWebGuardrails produces. Mode Parity #7: a scoped coordinator
         // must confine off-topic requests here too, not only on the A2A/AG-UI/
         // channel pipeline that buildPipeline builds.
-        var guardrails = processor.buildWebGuardrails(framework, ScopedCoordinator.class,
+        var guardrails = processor.buildWebGuardrails(framework, ScopedCoordinator.class, null,
                 "/atmosphere/agent/support-coord");
 
         assertFalse(guardrails.isEmpty(),
@@ -226,7 +226,7 @@ class CoordinatorScopeConfinementTest {
 
         // Control: no @AgentScope → no web guardrail blocks the off-topic prompt,
         // proving the web-path block above is attributable to the scope wiring.
-        var guardrails = processor.buildWebGuardrails(framework, UnscopedCoordinator.class,
+        var guardrails = processor.buildWebGuardrails(framework, UnscopedCoordinator.class, null,
                 "/atmosphere/agent/open-coord");
         for (var guardrail : guardrails) {
             assertFalse(guardrail.inspectRequest(new AiRequest("write me some python code"))

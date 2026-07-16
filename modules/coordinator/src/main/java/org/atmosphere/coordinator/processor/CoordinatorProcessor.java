@@ -20,6 +20,7 @@ import org.atmosphere.agent.annotation.Agent;
 import org.atmosphere.agent.command.CommandRegistry;
 import org.atmosphere.agent.command.CommandRouter;
 import org.atmosphere.agent.processor.AgentHandler;
+import org.atmosphere.agent.skill.ScopePolicyResolver;
 import org.atmosphere.agent.skill.SkillFileParser;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiConversationMemory;
@@ -33,14 +34,13 @@ import org.atmosphere.ai.InMemoryConversationMemory;
 import org.atmosphere.ai.PersistentConversationMemory;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.AiGuardrail;
-import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.governance.PolicyAsGuardrail;
 import org.atmosphere.ai.annotation.AiTool;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.ai.governance.GovernancePolicies;
 import org.atmosphere.ai.governance.GovernancePolicy;
 import org.atmosphere.ai.governance.memory.MemorySafetyConfig;
-import org.atmosphere.ai.governance.scope.ScopePolicyBuilder;
+import org.atmosphere.ai.governance.scope.ScopePolicy;
 import org.atmosphere.ai.llm.CacheHint;
 import org.atmosphere.ai.llm.PromptCacheDefaults;
 import org.atmosphere.ai.memory.LongTermMemories;
@@ -337,7 +337,7 @@ public class CoordinatorProcessor implements Processor<Object> {
             // A @Coordinator's @AgentScope must confine EVERY invocation path —
             // the web streaming path here and the A2A/AG-UI/channel pipeline in
             // buildPipeline below (Correctness Invariant #7 — Mode Parity).
-            var webGuardrails = buildWebGuardrails(framework, annotatedClass, path);
+            var webGuardrails = buildWebGuardrails(framework, annotatedClass, skillFile, path);
             // Harness MEMORY: same long-term-memory attach and prompt-cache
             // default seeding as the @AiEndpoint / @Agent paths (Correctness
             // Invariant #7, Mode Parity) — @Coordinator has no interceptors /
@@ -384,7 +384,7 @@ public class CoordinatorProcessor implements Processor<Object> {
             var model = settings != null ? settings.model() : null;
             AiPipeline pipeline = null;
             if (runtime != null) {
-                pipeline = buildPipeline(framework, annotatedClass, path, runtime,
+                pipeline = buildPipeline(framework, annotatedClass, skillFile, path, runtime,
                         systemPrompt, model, memory, toolRegistry, metrics);
                 // Thread the same injectables the web handler publishes into
                 // the pipeline's tool scope so the registered tools
@@ -437,39 +437,57 @@ public class CoordinatorProcessor implements Processor<Object> {
      * surface). The pipeline is seeded with the framework's installed
      * governance policies so the coordinator admits against the same chain as
      * a plain {@code @AiEndpoint} instead of an empty policy list (Mode Parity
-     * #7). When the {@code @Coordinator} class also declares {@link AgentScope},
-     * an auto-installed {@link org.atmosphere.ai.governance.scope.ScopePolicy}
-     * is prepended so an off-topic request is rejected at the cheapest gate —
-     * mirroring {@code AiEndpointProcessor}'s {@code @AgentScope} wiring so a
-     * goal-hijacking prompt is confined on the coordinator path too.
+     * #7). The coordinator's scope policy is resolved with the same precedence
+     * as an {@code @Agent}'s ({@code ScopePolicyResolver}): the skill file's
+     * {@code ## Guardrails} section wins (its {@code scopeTier: none} opts out
+     * entirely), then a {@code @AgentScope} annotation on the class — and the
+     * resolved {@link org.atmosphere.ai.governance.scope.ScopePolicy} is
+     * prepended so an off-topic request is rejected at the cheapest gate.
+     * {@code @Coordinator} "subsumes {@code @Agent}", so a skill file's
+     * guardrails must be an <em>enforced</em> admission boundary here exactly
+     * as they are on the {@code @Agent} path — not prompt-only prose that the
+     * A2A Agent Card nevertheless advertises (Correctness Invariants #5, #7).
      *
      * <p>Package-private so {@code CoordinatorScopeConfinementTest} can drive a
      * request through the real admission gate this method wires.</p>
      */
     AiPipeline buildPipeline(AtmosphereFramework framework, Class<?> annotatedClass,
-                             String path, AgentRuntime runtime, String systemPrompt,
-                             String model, AiConversationMemory memory,
+                             SkillFileParser skillFile, String path, AgentRuntime runtime,
+                             String systemPrompt, String model, AiConversationMemory memory,
                              ToolRegistry toolRegistry, AiMetrics metrics) {
         var policies = GovernancePolicies.installed(framework);
-        var scopeAnnotation = annotatedClass.getAnnotation(AgentScope.class);
-        if (scopeAnnotation != null) {
-            var scopePolicy = ScopePolicyBuilder.build(
-                    scopeAnnotation, annotatedClass, path).orElse(null);
-            if (scopePolicy != null) {
-                var extended = new ArrayList<GovernancePolicy>(policies.size() + 1);
-                extended.add(scopePolicy);      // scope runs first — cheapest rejection
-                extended.addAll(policies);
-                policies = List.copyOf(extended);
-            }
+        var scopePolicy = resolveScopePolicy(annotatedClass, skillFile, path);
+        if (scopePolicy != null) {
+            var extended = new ArrayList<GovernancePolicy>(policies.size() + 1);
+            extended.add(scopePolicy);      // scope runs first — cheapest rejection
+            extended.addAll(policies);
+            policies = List.copyOf(extended);
         }
         return new AiPipeline(runtime, systemPrompt, model, memory,
                 toolRegistry, List.of(), policies, List.of(), metrics, null);
     }
 
     /**
+     * Resolve the coordinator's admission scope with the shared skill-beats-
+     * annotation precedence. The coordinator name (falling back to the
+     * registration path) keys the policy; the annotation description seeds the
+     * scope purpose when the skill frontmatter declares none.
+     */
+    private ScopePolicy resolveScopePolicy(Class<?> annotatedClass,
+                                           SkillFileParser skillFile, String path) {
+        var annotation = annotatedClass.getAnnotation(Coordinator.class);
+        var name = annotation != null && !annotation.name().isBlank()
+                ? annotation.name() : path;
+        var description = annotation != null ? annotation.description() : "";
+        return ScopePolicyResolver.resolve(skillFile, annotatedClass, name, description, path);
+    }
+
+    /**
      * Build the coordinator's web streaming guardrail chain. Wraps every
      * framework governance policy (including {@code PERMISSIONS.md}-derived ones)
-     * as a guardrail and, when the class declares {@link AgentScope}, prepends
+     * as a guardrail and, when the class resolves a scope (skill-file
+     * {@code ## Guardrails} first, {@code @AgentScope} annotation fallback —
+     * the same precedence as {@link #buildPipeline}), prepends
      * the scope policy so an off-topic request is rejected on the web path
      * exactly as it is on the A2A / AG-UI / channel pipeline ({@link #buildPipeline}).
      * This keeps confinement consistent across every invocation mode of the
@@ -479,11 +497,9 @@ public class CoordinatorProcessor implements Processor<Object> {
      * scope guardrail is installed first on the web path too.</p>
      */
     List<AiGuardrail> buildWebGuardrails(AtmosphereFramework framework,
-                                         Class<?> annotatedClass, String path) {
-        var scopeAnnotation = annotatedClass.getAnnotation(AgentScope.class);
-        var scopePolicy = scopeAnnotation != null
-                ? ScopePolicyBuilder.build(scopeAnnotation, annotatedClass, path).orElse(null)
-                : null;
+                                         Class<?> annotatedClass, SkillFileParser skillFile,
+                                         String path) {
+        var scopePolicy = resolveScopePolicy(annotatedClass, skillFile, path);
         var guardrails = new ArrayList<AiGuardrail>();
         if (scopePolicy != null) {
             // Scope first — cheapest rejection, before any framework policy.
