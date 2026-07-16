@@ -168,6 +168,10 @@ export const SAMPLES: Record<string, SampleConfig> = {
     port: 8095,
     type: 'spring-boot',
     readyPath: '/atmosphere/agent/ceo',
+    // Open the recorded-content read gate so the console Tape tab can read the
+    // tape back (the tape holds pre-redaction content; default posture is 401).
+    // This is the documented dev/demo config for viewing tapes.
+    jvmArgs: ['-Datmosphere.admin.content-read-auth-required=false'],
   },
   'spring-boot-dentist-agent': {
     name: 'spring-boot-dentist-agent',

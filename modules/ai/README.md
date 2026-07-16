@@ -387,7 +387,9 @@ records it as `parentRunId`, so the whole team session replays as a tree. Custom
 stores implement the `TapeStore` SPI; `InMemoryTapeStore` ships here and
 `SqliteTapeStore` in `atmosphere-checkpoint`. Reads are exposed (gated) at
 `/api/admin/tape/runs[/{id}/{steps,replay}]` and surfaced in the Console **Tape**
-tab. Each `COMPLETED` run is a `(prompt → completion)` pair — extract training
+tab, where **▶ Replay** on a coordinator run draws the coordination tree as an
+interactive node-graph (coordinator → agents, edges by `parentRunId`; click a node
+for its steps). Each `COMPLETED` run is a `(prompt → completion)` pair — extract training
 JSONL with `org.atmosphere.checkpoint.TapeDatasetCli` to distill a smaller
 student. See the [Session Tape reference](https://async-io.live/docs/reference/tape/).
 

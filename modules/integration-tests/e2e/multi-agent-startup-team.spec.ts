@@ -257,4 +257,55 @@ test.describe('Multi-Agent Startup Team', () => {
     expect(ceoResult.texts.length).toBeGreaterThan(0);
     expect(ceoResult.fullText.length).toBeGreaterThan(0);
   });
+
+  // ── Console Tape tab: coordination-tree graph (Vue Flow) ──
+
+  test('Tape tab replay renders the coordination tree as a Vue Flow graph (CSP-safe)', async ({ page }) => {
+    test.setTimeout(90_000);
+
+    // 1. Drive the CEO so the tape records a coordination tree (coordinator + agents).
+    await sendAndCollect(server.baseUrl, '/atmosphere/agent/ceo',
+      'Assess the market for a subscription coffee startup.', 25_000);
+
+    // 2. Wait for the async tape writer to persist the coordinator run + its children.
+    let coordinatorId = '';
+    await expect.poll(async () => {
+      const res = await fetch(`${server.baseUrl}/api/admin/tape/runs?limit=50`);
+      if (!res.ok) return 0;
+      const runs = (await res.json()) as
+        { runId: string; parentRunId: string | null; endpoint: string | null }[];
+      const coord = runs.find((r) => !r.parentRunId && (r.endpoint ?? '').includes('/ceo'));
+      if (!coord) return 0;
+      const children = runs.filter((r) => r.parentRunId === coord.runId);
+      if (children.length > 0) coordinatorId = coord.runId;
+      return children.length;
+    }, { timeout: 30_000, intervals: [500] }).toBeGreaterThan(0);
+
+    // 3. Capture CSP violations before loading the page: the console runs under a
+    //    strict nonce CSP with no 'unsafe-inline'; Vue Flow must not trip it.
+    const cspErrors: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'error' && /content security policy/i.test(msg.text())) {
+        cspErrors.push(msg.text());
+      }
+    });
+
+    // 4. Open the console Tape tab.
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await page.getByRole('button', { name: 'Tape' }).click();
+    await expect(page.getByTestId('tape-table')).toBeVisible();
+
+    // 5. Replay the coordinator run (its row carries the short id).
+    await page.getByTestId('tape-row').filter({ hasText: coordinatorId.slice(0, 8) })
+      .getByTestId('tape-replay-btn').click();
+
+    // 6. The Vue Flow graph renders the coordinator + its fan-out agent nodes.
+    await expect(page.getByTestId('tape-flow')).toBeVisible();
+    await expect.poll(() => page.getByTestId('tape-flow-node').count(),
+      { timeout: 10_000 }).toBeGreaterThanOrEqual(2);
+    await expect(page.getByTestId('replay-summary')).toContainText('coordinator');
+
+    // 7. No CSP violation fired while Vue Flow mounted and laid out the graph.
+    expect(cspErrors, cspErrors.join('\n')).toHaveLength(0);
+  });
 });
