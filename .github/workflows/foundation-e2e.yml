@@ -381,8 +381,24 @@ jobs:
               > /tmp/temporal-dev.log 2>&1 &
           echo $! > /tmp/temporal.pid
 
-      - name: Wait for Temporal UI readiness
-        run: npx --yes wait-on --timeout 120000 http://127.0.0.1:8233
+      - name: Wait for Temporal readiness (gRPC frontend + UI)
+        # curl GET, not wait-on: the Temporal UI server does not answer the
+        # HEAD requests wait-on sends, so the probe times out against a
+        # perfectly healthy server. The CLI check proves the gRPC frontend
+        # is up too — the adapter caches a failed connection probe for 30s,
+        # so the runner must not race a not-yet-ready frontend.
+        run: |
+          for i in $(seq 1 60); do
+            if temporal workflow list --address 127.0.0.1:7233 > /dev/null 2>&1 \
+                && curl -sf http://127.0.0.1:8233 > /dev/null; then
+              echo 'Temporal frontend + UI ready'
+              exit 0
+            fi
+            sleep 2
+          done
+          echo 'Temporal did not become ready within 120s'
+          tail -50 /tmp/temporal-dev.log || true
+          exit 1
 
       - name: Run a Workflow through the Temporal adapter
         run: |
