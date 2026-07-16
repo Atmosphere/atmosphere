@@ -62,14 +62,11 @@ updates:
       - "/modules/spring-boot-starter/frontend"
       - "/samples/chat/frontend"
       - "/samples/embedded-jetty-websocket-chat/frontend"
-      - "/samples/quarkus-chat/frontend"
       - "/samples/spring-boot-ai-chat/frontend"
       - "/samples/spring-boot-ai-classroom/frontend"
       - "/samples/spring-boot-ai-tools/frontend"
       - "/samples/spring-boot-chat/frontend"
-      - "/samples/spring-boot-mcp-server/frontend"
       - "/samples/spring-boot-multi-agent-startup-team/frontend"
-      - "/samples/spring-boot-rag-chat/frontend"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
