@@ -61,6 +61,15 @@ export function parseAtmosphereFrames(body: string): AtmosphereFrame[] {
 }
 
 /**
+ * Derive the HTTP/3 sidecar URL for an endpoint path: WebTransport binds
+ * its own port on the same host, always over https. Pure for testability.
+ */
+export function deriveWebTransportUrl(endpoint: string, port: number, hostname: string): string {
+  const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+  return `https://${hostname}:${port}${path}`
+}
+
+/**
  * Append the auth token (if any) to the WebSocket URL as the
  * X-Atmosphere-Auth query parameter the server's TokenValidator reads.
  * The token is resolved by the shared {@link resolveAuthToken} helper
@@ -96,11 +105,19 @@ export class AtmosphereChatTransport implements ChatTransport {
     const { options, handlers } = this
     this.atmosphere = new Atmosphere({ logLevel: 'debug' })
 
+    // WT-first when /api/console/info confirmed a live HTTP/3 sidecar
+    // (Runtime Truth) — WS remains the fallback, exactly like the former
+    // bespoke sample UIs. Without the sidecar: WS with long-polling fallback.
+    const wt = options.webTransport
     this.subscription = await this.atmosphere.subscribe<string>(
       {
         url: withAuthToken(options.endpoint),
-        transport: 'websocket',
-        fallbackTransport: 'long-polling',
+        transport: wt ? 'webtransport' : 'websocket',
+        fallbackTransport: wt ? 'websocket' : 'long-polling',
+        ...(wt ? {
+          webTransportUrl: deriveWebTransportUrl(options.endpoint, wt.port, window.location.hostname),
+        } : {}),
+        ...(wt?.certificateHash ? { serverCertificateHashes: [wt.certificateHash] } : {}),
         reconnect: true,
         reconnectInterval: 3000,
         maxReconnectOnClose: options.maxReconnectOnClose,

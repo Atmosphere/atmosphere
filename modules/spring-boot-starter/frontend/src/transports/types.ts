@@ -41,6 +41,13 @@ export interface ChatTransportOptions {
    */
   isBroadcast(): boolean
   /**
+   * WebTransport (HTTP/3) sidecar coordinates, present only when
+   * /api/console/info confirmed the server genuinely bound (Runtime
+   * Truth). The Atmosphere transport then connects WT-first with WS
+   * fallback, like the former bespoke sample UIs.
+   */
+  webTransport?: { port: number; certificateHash?: string }
+  /**
    * Shared resilience tracker driving the ConnectionStatus pill. The
    * Atmosphere transport instruments it via status.wrap(); foreign
    * adapters mark lifecycle transitions on it directly.

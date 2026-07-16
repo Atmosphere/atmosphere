@@ -60,9 +60,7 @@ updates:
     directories:
       - "/atmosphere.js"
       - "/modules/spring-boot-starter/frontend"
-      - "/samples/spring-boot-ai-chat/frontend"
       - "/samples/spring-boot-ai-classroom/frontend"
-      - "/samples/spring-boot-ai-tools/frontend"
       - "/samples/spring-boot-chat/frontend"
       - "/samples/spring-boot-multi-agent-startup-team/frontend"
     schedule:

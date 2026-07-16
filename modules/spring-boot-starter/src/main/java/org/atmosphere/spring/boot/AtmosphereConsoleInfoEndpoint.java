@@ -90,6 +90,14 @@ public class AtmosphereConsoleInfoEndpoint {
         // adapter. Validated against the known set — an unrecognized value is
         // reported as "atmosphere" rather than echoed back (Runtime Truth #5).
         result.put("transport", detectTransport());
+        // WebTransport sidecar (HTTP/3): reported only when the server genuinely
+        // bound (Runtime Truth — Invariant #5), so the console's Atmosphere
+        // transport prefers WT with WS fallback exactly like the former bespoke
+        // sample UIs — and never probes /api/webtransport-info into a 404.
+        var webTransport = detectWebTransport();
+        if (webTransport != null) {
+            result.put("webTransport", webTransport);
+        }
         // Report the live MCP endpoint (if any) so the console can host MCP Apps
         // (SEP-1865) against it. Omitted when no MCP handler is registered, so
         // the console only surfaces the Apps tab when there's truly one to talk
@@ -334,6 +342,36 @@ public class AtmosphereConsoleInfoEndpoint {
         } catch (Exception e) {
             logger.debug("Could not classify handler mode for {}", endpoint, e);
             return "ai";
+        }
+    }
+
+    /**
+     * Runtime-truth view of the WebTransport (HTTP/3) sidecar: present only
+     * when the {@code ReactorNettyTransportServer} bean exists AND is running,
+     * with the actually-bound port and the self-signed certificate hash the
+     * browser needs for {@code serverCertificateHashes}. Bean-provider based so
+     * samples without the sidecar (or with startup failure) simply omit the
+     * block — the console then connects over plain WebSocket.
+     */
+    private Map<String, Object> detectWebTransport() {
+        try {
+            var provider = context.getBeanProvider(
+                    org.atmosphere.spring.boot.webtransport.ReactorNettyTransportServer.class);
+            var server = provider.getIfAvailable();
+            if (server == null || !server.isRunning()) {
+                return null;
+            }
+            var map = new LinkedHashMap<String, Object>();
+            map.put("enabled", true);
+            map.put("port", server.port());
+            var hash = server.certificateHash();
+            if (hash != null) {
+                map.put("certificateHash", hash);
+            }
+            return map;
+        } catch (Exception e) {
+            logger.debug("WebTransport state not available", e);
+            return null;
         }
     }
 

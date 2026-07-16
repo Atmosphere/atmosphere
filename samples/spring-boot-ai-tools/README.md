@@ -1,6 +1,6 @@
 # Atmosphere @AiTool Pipeline
 
-Framework-agnostic AI tool calling with **real-time tool events** — tools declared with `@AiTool` annotations are automatically bridged to whichever AI backend is active (Spring AI, LangChain4j, or Google ADK). Tool invocations are streamed as `AiEvent` frames so the frontend shows live tool activity.
+Framework-agnostic AI tool calling with **real-time tool events** — tools declared with `@AiTool` annotations are automatically bridged to whichever AI backend is active (Spring AI, LangChain4j, or Google ADK). Tool invocations are streamed as `AiEvent` frames so the bundled Atmosphere Console shows live tool activity.
 
 ## What It Does
 
@@ -75,7 +75,7 @@ names and drop `llm.mode=fake` to route real traffic.
 ## Key Features
 
 - **`@AiEndpoint(tools = AssistantTools.class)`** — `@AiTool` methods auto-bridged to whichever AI backend is active
-- **`AiEvent` tool events** — `ToolStart` and `ToolResult` events streamed to the frontend in real-time
+- **`AiEvent` tool events** — `ToolStart` and `ToolResult` events streamed to the Console in real-time
 - **Cost metering** — `CostMeteringInterceptor` tracks tokens, cost, and latency per response
 - **Conversation memory** — multi-turn history with configurable window size
 - **Demo mode** — works out-of-the-box without an API key (the built-in runtime returns canned LLM responses). Note: the example tools themselves (e.g. `get_weather`) return illustrative data in **every** mode — this sample demonstrates `@AiTool` wiring, not a live weather service
@@ -112,7 +112,7 @@ Open http://localhost:8090 in your browser.
 | `CostMeteringInterceptor.java` | `AiInterceptor` for cost/latency tracking |
 | `application-routing-cost.yml` / `application-routing-latency.yml` | Offline cost/latency model-routing profiles |
 | `CostLatencyRoutingDeliveryTest.java` | Proves the router selects the expected model by cost vs latency |
-| `App.tsx` | React frontend with `ToolActivity` component for live events |
+| Atmosphere Console | Tool cards render `tool-start`/`tool-result` live (Agent Collaboration section) |
 
 ## Architecture
 

@@ -44,7 +44,7 @@ public class AiChat {
 }
 ```
 
-### Client — React + atmosphere.js
+### Client — the bundled Atmosphere Console
 
 Uses the `useChat` hook from `atmosphere.js/react`:
 
@@ -179,7 +179,6 @@ Without `X-Atmosphere-Auth` (and with auth enabled), the handshake returns
 ```
 spring-boot-ai-chat/
 ├── pom.xml
-├── frontend/                        # React + Vite frontend
 │   └── src/
 │       ├── App.tsx                  # Chat UI with useChat hook
 │       └── main.tsx                 # AtmosphereProvider wrapper
@@ -194,7 +193,7 @@ spring-boot-ai-chat/
     └── resources/
         ├── application.yml          # LLM config (model, mode, API key)
         ├── prompts/                 # @Agent skill files (multimodal-assistant-skill.md)
-        └── static/                  # Built frontend assets
+        └── static/                  # / redirect + multimodal.html demo
 ```
 
 ## See Also

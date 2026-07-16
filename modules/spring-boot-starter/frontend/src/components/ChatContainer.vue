@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, nextTick, watch } from 'vue'
 import { useAtmosphereChat } from '../composables/useAtmosphereChat'
+import { formatCost } from '../lib/routingMetadata'
 import type { ConsoleTransportName } from '../transports'
 import ChatMessage from './ChatMessage.vue'
 import ChatInput from './ChatInput.vue'
@@ -20,9 +21,12 @@ const props = defineProps<{
   // grpc / a2a / ag-ui for samples exposing a foreign protocol). Selects
   // the ChatTransport adapter behind the same rendering pipeline.
   transport?: ConsoleTransportName
+  // Live HTTP/3 sidecar coordinates from /api/console/info — the Atmosphere
+  // transport connects WT-first with WS fallback when present.
+  webTransport?: { port: number; certificateHash?: string }
 }>()
 
-const { messages, toolCalls, isConnected, isStreaming, connectionState, connectionStatus, send, clearMessages, respondToApproval, stats } = useAtmosphereChat(props.endpoint, props.mode, props.transport)
+const { messages, toolCalls, isConnected, isStreaming, connectionState, connectionStatus, send, clearMessages, respondToApproval, stats, routing } = useAtmosphereChat(props.endpoint, props.mode, props.transport, props.webTransport)
 const messagesContainer = ref<HTMLElement | null>(null)
 
 function scrollToBottom() {
@@ -47,6 +51,13 @@ function handleSend(text: string) {
   <div class="chat-container" data-testid="chat-layout">
     <div class="chat-toolbar">
       <ConnectionStatus :state="connectionState" :status="connectionStatus" />
+      <!-- Cost/latency routing readout from the server's metadata events -->
+      <div v-if="routing.model || routing.cost !== undefined || routing.latency !== undefined"
+           class="routing-chips" data-testid="routing-chips">
+        <span v-if="routing.model" class="routing-chip">{{ routing.model }}</span>
+        <span v-if="routing.cost !== undefined" class="routing-chip">{{ formatCost(routing.cost) }}</span>
+        <span v-if="routing.latency !== undefined" class="routing-chip">{{ routing.latency }}ms</span>
+      </div>
       <button class="clear-btn" @click="clearMessages" title="Clear messages">
         Clear
       </button>
@@ -95,6 +106,14 @@ function handleSend(text: string) {
         <span>{{ stats.elapsedMs }}ms</span>
         <span class="sep">&middot;</span>
         <span>{{ stats.streamingTextsPerSecond.toFixed(1) }} tok/s</span>
+        <template v-if="routing.model">
+          <span class="sep">&middot;</span>
+          <span>{{ routing.model }}</span>
+        </template>
+        <template v-if="routing.cost !== undefined">
+          <span class="sep">&middot;</span>
+          <span>{{ formatCost(routing.cost) }}</span>
+        </template>
       </div>
     </div>
     <ChatInput :disabled="!isConnected" :is-streaming="isStreaming" @send="handleSend" />
@@ -115,6 +134,23 @@ function handleSend(text: string) {
   padding: 0.5rem 1.5rem;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-surface);
+}
+
+.routing-chips {
+  display: flex;
+  gap: 0.375rem;
+  margin-left: auto;
+  margin-right: 0.75rem;
+}
+
+.routing-chip {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
 }
 
 .clear-btn {

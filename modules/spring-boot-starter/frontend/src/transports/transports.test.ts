@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest'
 import { ConnectionStatus } from 'atmosphere.js'
 import { parseAtmosphereFrames, AtmosphereChatTransport, createChatTransport } from './index'
+import { deriveWebTransportUrl } from './atmosphere'
 import type { ChatTransportHandlers, ChatTransportOptions } from './index'
 
 /**
@@ -73,6 +74,18 @@ describe('parseAtmosphereFrames', () => {
       { kind: 'raw', text: 'plain text' },
       { kind: 'event', msg: { type: 'complete' } },
     ])
+  })
+})
+
+describe('deriveWebTransportUrl', () => {
+  it('binds the endpoint path onto the https sidecar port', () => {
+    expect(deriveWebTransportUrl('/atmosphere/ai-chat', 4443, 'localhost'))
+      .toBe('https://localhost:4443/atmosphere/ai-chat')
+  })
+
+  it('normalizes a missing leading slash', () => {
+    expect(deriveWebTransportUrl('chat', 4447, '127.0.0.1'))
+      .toBe('https://127.0.0.1:4447/chat')
   })
 })
 

@@ -214,6 +214,37 @@ class ConsoleResourceFilterTest {
     }
 
     @Test
+    void buildConsoleCspAllowsTheLiveWebTransportOrigin() {
+        // The HTTP/3 sidecar binds its own port — without this connect-src
+        // entry the CSP blocks the console's WebTransport-first connect and
+        // every WT sample silently degrades to the WS fallback.
+        var csp = AtmosphereAutoConfiguration.ConsoleResourceFilter
+                .buildConsoleCsp("http", "127.0.0.1:8080", "", "n0nce", "https://127.0.0.1:4443");
+        assertThat(csp).contains("connect-src 'self' ws: wss: https://127.0.0.1:4443;");
+    }
+
+    @Test
+    void buildConsoleCspOmitsWebTransportWhenSidecarIsDown() {
+        var csp = AtmosphereAutoConfiguration.ConsoleResourceFilter
+                .buildConsoleCsp("http", "127.0.0.1:8080", "", "n0nce", null);
+        assertThat(csp).contains("connect-src 'self' ws: wss:;");
+    }
+
+    @Test
+    void webTransportOriginUsesThePageHostname() {
+        // The console derives the WT URL from location.hostname, so the CSP
+        // entry must be built from the same host the page was addressed by.
+        assertThat(AtmosphereAutoConfiguration.ConsoleResourceFilter
+                .webTransportOrigin("localhost:8080", 4443)).isEqualTo("https://localhost:4443");
+        assertThat(AtmosphereAutoConfiguration.ConsoleResourceFilter
+                .webTransportOrigin("127.0.0.1:8080", 4447)).isEqualTo("https://127.0.0.1:4447");
+        assertThat(AtmosphereAutoConfiguration.ConsoleResourceFilter
+                .webTransportOrigin("localhost:8080", null)).isNull();
+        assertThat(AtmosphereAutoConfiguration.ConsoleResourceFilter
+                .webTransportOrigin(null, 4443)).isNull();
+    }
+
+    @Test
     void buildConsoleCspSwapsLocalhostToLoopback() {
         var csp = AtmosphereAutoConfiguration.ConsoleResourceFilter
                 .buildConsoleCsp("http", "localhost:8083", "", "n0nce");

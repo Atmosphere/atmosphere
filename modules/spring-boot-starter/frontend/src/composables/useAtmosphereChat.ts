@@ -1,6 +1,7 @@
 import { ref, onMounted, onUnmounted, type Ref } from 'vue'
 import { ConnectionStatus } from 'atmosphere.js'
 import { recordPlanUpdate, resetLivePlan } from '../lib/workspaceStore'
+import { mergeRoutingMetadata, type RoutingMetadata } from '../lib/routingMetadata'
 import { createChatTransport } from '../transports'
 import type { ChatTransport, ConsoleTransportName } from '../transports'
 import type { ConnectionStatusSnapshot } from 'atmosphere.js'
@@ -36,13 +37,17 @@ export interface SessionStats {
 
 export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
                                   mode?: 'ai' | 'broadcast',
-                                  transportName: ConsoleTransportName = 'atmosphere') {
+                                  transportName: ConsoleTransportName = 'atmosphere',
+                                  webTransport?: { port: number; certificateHash?: string }) {
   const messages = ref<ChatMessage[]>([])
   const toolCalls = ref<ToolCall[]>([])
   const isConnected = ref(false)
   const isStreaming = ref(false)
   const connectionState = ref<string>('disconnected')
   const stats = ref<SessionStats | null>(null)
+  // Cost/latency routing readout from the server's metadata events —
+  // rendered as header chips + in the per-turn stats footer.
+  const routing = ref<RoutingMetadata>({})
 
   // Broadcast-mode endpoints (@ManagedService chat rooms) decode a JSON
   // {author, message, time} envelope, not the raw prompt string the AI
@@ -198,6 +203,13 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
       }
       case 'progress':
         // Ignored for chat display
+        break
+      case 'metadata':
+        // Cost/latency routing readout (routing.model / routing.cost /
+        // routing.latency keys, plus the runtime's bare model) — feeds the
+        // header chips and the per-turn stats footer.
+        routing.value = mergeRoutingMetadata(
+          routing.value, msg.data as Record<string, unknown> | undefined)
         break
       case 'tool-start': {
         const name = ((msg.data as Record<string, unknown>)?.toolName ?? '') as string
@@ -384,6 +396,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         isBroadcast: () => broadcastMode.value,
         status,
         maxReconnectOnClose: MAX_RECONNECT_ON_CLOSE,
+        webTransport,
       }, {
         onOpen: () => {
           isConnected.value = true
@@ -500,5 +513,6 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     clearMessages,
     respondToApproval,
     stats,
+    routing,
   }
 }

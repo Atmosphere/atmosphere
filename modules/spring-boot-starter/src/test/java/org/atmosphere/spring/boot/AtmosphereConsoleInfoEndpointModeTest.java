@@ -149,6 +149,14 @@ class AtmosphereConsoleInfoEndpointModeTest {
     }
 
     @Test
+    void webTransportOmittedWhenNoSidecarIsRunning() {
+        // The block is Runtime Truth: absent unless the HTTP/3 server bean
+        // exists AND reports running — a mock context provides no bean, so
+        // the console must fall back to plain WebSocket.
+        assertThat(newEndpoint(Map.of()).info()).doesNotContainKey("webTransport");
+    }
+
+    @Test
     void capabilityFlagsEmittedAsBooleansDefaultFalse() {
         // The frontend gates the Interactions/Validation tabs on these flags
         // instead of probing (which 404s on samples without those modules).

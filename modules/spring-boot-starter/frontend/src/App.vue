@@ -30,6 +30,9 @@ const mode = ref<'ai' | 'broadcast'>('ai')
 // atmosphere.console-transport — value is server-validated
 // (AtmosphereConsoleInfoEndpoint#detectTransport), so only known names arrive.
 const transport = ref<ConsoleTransportName>('atmosphere')
+// HTTP/3 sidecar coordinates — present only when the server confirmed a live
+// WebTransport bind; the chat then connects WT-first with WS fallback.
+const webTransport = ref<{ port: number; certificateHash?: string } | undefined>(undefined)
 const ready = ref(false)
 const activeTab = ref<Tab>('chat')
 // The live MCP endpoint, when one is registered — enables the MCP Apps host tab.
@@ -160,6 +163,13 @@ onMounted(async () => {
           || data.transport === 'ag-ui' || data.transport === 'atmosphere') {
         transport.value = data.transport
       }
+      if (data.webTransport && typeof data.webTransport.port === 'number') {
+        webTransport.value = {
+          port: data.webTransport.port,
+          ...(typeof data.webTransport.certificateHash === 'string'
+            ? { certificateHash: data.webTransport.certificateHash } : {}),
+        }
+      }
       if (data.mcpEndpoint) mcpEndpoint.value = data.mcpEndpoint
       if (data.mcpSandboxOrigin) mcpSandboxOrigin.value = data.mcpSandboxOrigin
       // Runtime-resolved capability flags — gate the optional tabs without a
@@ -209,7 +219,7 @@ onMounted(async () => {
       </nav>
     </header>
     <main class="app-main">
-      <ChatContainer v-if="ready && activeTab === 'chat'" :endpoint="endpoint" :mode="mode" :transport="transport" />
+      <ChatContainer v-if="ready && activeTab === 'chat'" :endpoint="endpoint" :mode="mode" :transport="transport" :web-transport="webTransport" />
       <Sessions v-if="ready && agentsAvailable" v-show="activeTab === 'sessions'"
                 :active="activeTab === 'sessions'" />
       <Workspace v-if="ready && workspaceVisible" v-show="activeTab === 'workspace'"

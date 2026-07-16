@@ -130,7 +130,7 @@
     },
     {
       "name": "spring-boot-ai-chat",
-      "description": "AI streaming chat — React useChat UI, WebTransport fallback, swap backend via one dependency",
+      "description": "AI streaming chat — Atmosphere Console UI, WebTransport-first with WS fallback, swap backend via one dependency",
       "category": "ai",
       "tags": [
         "spring-boot",

@@ -137,9 +137,16 @@ public class AtmosphereAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(name = "atmosphereConsoleFilter")
     org.springframework.boot.web.servlet.FilterRegistrationBean<jakarta.servlet.Filter> atmosphereConsoleFilter(
-            AtmosphereProperties properties) {
+            AtmosphereProperties properties,
+            org.springframework.beans.factory.ObjectProvider<org.atmosphere.spring.boot.webtransport.ReactorNettyTransportServer> webTransportServer) {
+        // The WebTransport sidecar port feeds the console CSP's connect-src at
+        // request time (Runtime Truth): the HTTP/3 origin differs from the page
+        // origin, so without it the CSP blocks the console's WT-first connect.
         var registration = new org.springframework.boot.web.servlet.FilterRegistrationBean<jakarta.servlet.Filter>(
-                new ConsoleResourceFilter(properties.getMcpSandboxOrigin()));
+                new ConsoleResourceFilter(properties.getMcpSandboxOrigin(), () -> {
+                    var server = webTransportServer.getIfAvailable();
+                    return server != null && server.isRunning() ? server.port() : null;
+                }));
         registration.addUrlPatterns("/atmosphere/console/*");
         registration.setOrder(0);
         return registration;
@@ -222,9 +229,19 @@ public class AtmosphereAutoConfiguration {
         // or "" when unset. Threaded into the console HTML's frame-src below.
         private final String configuredSandboxOrigin;
 
+        // Live WebTransport sidecar port supplier (null = sidecar not running).
+        // Resolved per request so the CSP's connect-src reflects runtime truth.
+        private final java.util.function.Supplier<Integer> webTransportPort;
+
         ConsoleResourceFilter(String configuredSandboxOrigin) {
+            this(configuredSandboxOrigin, () -> null);
+        }
+
+        ConsoleResourceFilter(String configuredSandboxOrigin,
+                              java.util.function.Supplier<Integer> webTransportPort) {
             this.configuredSandboxOrigin = configuredSandboxOrigin == null
                     ? "" : configuredSandboxOrigin.trim();
+            this.webTransportPort = webTransportPort;
         }
 
         @Override
@@ -290,7 +307,8 @@ public class AtmosphereAutoConfiguration {
                                 .replace(NONCE_PLACEHOLDER, nonce);
                         httpRes.setHeader("Content-Security-Policy",
                                 buildConsoleCsp(httpReq.getScheme(),
-                                        httpReq.getHeader("Host"), configuredSandboxOrigin, nonce));
+                                        httpReq.getHeader("Host"), configuredSandboxOrigin, nonce,
+                                        webTransportOrigin(httpReq.getHeader("Host"), webTransportPort.get())));
                         // Anti-clickjacking: the console is always the top frame (it
                         // frames the sandbox; nothing frames it). frame-ancestors
                         // 'none' in the CSP is the modern control; X-Frame-Options
@@ -332,6 +350,11 @@ public class AtmosphereAutoConfiguration {
          * Package-visible for unit testing.
          */
         static String buildConsoleCsp(String scheme, String host, String configuredOrigin, String nonce) {
+            return buildConsoleCsp(scheme, host, configuredOrigin, nonce, null);
+        }
+
+        static String buildConsoleCsp(String scheme, String host, String configuredOrigin, String nonce,
+                                      String webTransportOrigin) {
             var frameSrc = new StringBuilder("'self'");
             var sibling = siblingOrigin(scheme, host);
             if (sibling != null) {
@@ -344,13 +367,38 @@ public class AtmosphereAutoConfiguration {
                     frameSrc.append(' ').append(trimmed);
                 }
             }
+            // The HTTP/3 sidecar binds its own port, so its origin differs from
+            // the page origin — without an explicit connect-src entry the CSP
+            // blocks the console's WebTransport-first connect. Present only when
+            // the sidecar genuinely runs (Runtime Truth), null otherwise.
+            var connectSrc = new StringBuilder("'self' ws: wss:");
+            if (webTransportOrigin != null && !webTransportOrigin.isBlank()) {
+                connectSrc.append(' ').append(webTransportOrigin);
+            }
             return "default-src 'self'; "
                     + "script-src 'nonce-" + nonce + "' 'strict-dynamic'; "
                     + "style-src 'self' 'nonce-" + nonce + "'; "
                     + "img-src 'self' data:; font-src 'self' data:; "
-                    + "connect-src 'self' ws: wss:; "
+                    + "connect-src " + connectSrc + "; "
                     + "frame-src " + frameSrc + "; object-src 'none'; "
                     + "base-uri 'none'; frame-ancestors 'none'; form-action 'self'";
+        }
+
+        /**
+         * The HTTP/3 sidecar's origin as the browser will address it: the page
+         * host's hostname (the console derives the WT URL from
+         * {@code location.hostname}) with the sidecar's actually-bound port,
+         * always https. {@code null} when the sidecar isn't running.
+         */
+        static String webTransportOrigin(String host, Integer wtPort) {
+            if (wtPort == null || host == null || host.isBlank()) {
+                return null;
+            }
+            var hostname = host.contains(":") ? host.substring(0, host.indexOf(':')) : host;
+            if (hostname.isBlank()) {
+                return null;
+            }
+            return "https://" + hostname + ":" + wtPort;
         }
 
         /**
