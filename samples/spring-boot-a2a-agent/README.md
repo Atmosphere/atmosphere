@@ -48,7 +48,10 @@ GEMINI_API_KEY=your-key ./mvnw spring-boot:run -pl samples/spring-boot-a2a-agent
 ./mvnw spring-boot:run -pl samples/spring-boot-a2a-agent
 ```
 
-Open **http://localhost:8084** for the built-in demo UI, or use curl:
+Open **http://localhost:8084** — it redirects to the bundled Atmosphere
+Console at `/atmosphere/console/`, whose `a2a` transport adapter drives the
+real A2A wire (JSON-RPC `message/stream` over SSE, `message/send` fallback)
+from the browser. Or use curl directly:
 
 ```bash
 # Discover the agent

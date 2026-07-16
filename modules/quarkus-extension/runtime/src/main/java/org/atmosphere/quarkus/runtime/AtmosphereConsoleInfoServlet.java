@@ -185,9 +185,13 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
                 return "ai";
             }
             var handlerClassName = wrapper.atmosphereHandler().getClass().getName();
+            // Parity with the Spring starter's detectMode: protocol bridges
+            // over agents (A2aHandler, AgUiHandler) are AI-shaped too.
             if (handlerClassName.startsWith("org.atmosphere.ai.")
                     || handlerClassName.startsWith("org.atmosphere.agent.")
-                    || handlerClassName.startsWith("org.atmosphere.coordinator.")) {
+                    || handlerClassName.startsWith("org.atmosphere.coordinator.")
+                    || handlerClassName.startsWith("org.atmosphere.a2a.")
+                    || handlerClassName.startsWith("org.atmosphere.agui.")) {
                 return "ai";
             }
             return "broadcast";

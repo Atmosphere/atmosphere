@@ -23,7 +23,15 @@ export type A2aFrame =
  * the server's actual envelope; the vitest suite pins it.
  */
 export function parseA2aData(payload: string): A2aFrame[] {
-  const trimmed = payload.trim()
+  let trimmed = payload.trim()
+  // The server's SSE layer re-frames the handler's hand-framed terminal
+  // write, so the wire carries lines like `data:data:data: [DONE]` and empty
+  // `data:` fragments (observed via od -c against the live sample). Strip
+  // every repeated prefix before classifying — framing lint must never
+  // become chat text.
+  while (trimmed.startsWith('data:')) {
+    trimmed = trimmed.slice(5).trim()
+  }
   if (!trimmed) return []
   if (trimmed === '[DONE]') return [{ kind: 'done' }]
 
@@ -31,8 +39,10 @@ export function parseA2aData(payload: string): A2aFrame[] {
   try {
     parsed = JSON.parse(trimmed)
   } catch {
-    // Not JSON — surface verbatim rather than dropping a frame silently.
-    return [{ kind: 'text', text: trimmed }]
+    // Non-JSON, non-[DONE] payloads on this wire are framing artifacts, not
+    // content — the server only emits JSON-RPC envelopes and the [DONE]
+    // sentinel. Dropping beats rendering lint into the conversation.
+    return []
   }
 
   const error = parsed.error as Record<string, unknown> | undefined
@@ -58,13 +68,38 @@ export function parseA2aData(payload: string): A2aFrame[] {
 /**
  * Extract the reply text from a unary `message/send` Task result:
  * result.artifacts[0].parts[0].text (the A2A sync-fallback contract).
+ * Accepts both the bare Task and the SendMessageResponse {task: ...} oneof.
  */
 export function extractTaskText(result: unknown): string | null {
-  const task = result as Record<string, unknown> | null
+  const task = unwrapTask(result)
   const artifacts = task?.artifacts as Array<Record<string, unknown>> | undefined
   const parts = artifacts?.[0]?.parts as Array<Record<string, unknown>> | undefined
   const text = parts?.[0]?.text
   return typeof text === 'string' && text ? text : null
+}
+
+/**
+ * Extract the failure text from a unary Task result. A failed Task carries
+ * its message in status.message.parts (NOT artifacts) with state
+ * TASK_STATE_FAILED — without reading it, a skill failure surfaces as a
+ * meaningless "empty result".
+ */
+export function extractTaskFailure(result: unknown): string | null {
+  const task = unwrapTask(result)
+  const status = task?.status as Record<string, unknown> | undefined
+  if (status?.state !== 'TASK_STATE_FAILED') return null
+  const message = status?.message as Record<string, unknown> | undefined
+  const parts = message?.parts as Array<Record<string, unknown>> | undefined
+  const text = parts?.[0]?.text
+  return typeof text === 'string' && text ? text : 'A2A task failed'
+}
+
+function unwrapTask(result: unknown): Record<string, unknown> | null {
+  const r = result as Record<string, unknown> | null
+  if (r && typeof r.task === 'object' && r.task !== null) {
+    return r.task as Record<string, unknown>
+  }
+  return r
 }
 
 /**
@@ -134,8 +169,11 @@ export class A2aChatTransport implements ChatTransport {
       // defines message/send as the sync fallback.
       try {
         const result = await this.rpc('message/send', this.messageParams(text), signal)
+        const failure = extractTaskFailure(result)
         const reply = extractTaskText(result)
-        if (reply) {
+        if (failure) {
+          this.handlers.onEvent({ type: 'error', data: failure })
+        } else if (reply) {
           this.handlers.onEvent({ type: 'streaming-text', data: reply })
           this.handlers.onEvent({ type: 'complete' })
         } else {

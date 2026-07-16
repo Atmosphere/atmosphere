@@ -69,6 +69,17 @@ class AtmosphereConsoleInfoEndpointModeTest {
     }
 
     @Test
+    void a2aProtocolBridgeYieldsAiMode() {
+        // A2aHandler bridges an AI agent over JSON-RPC — the console must
+        // render assistant copy + streaming indicator, not broadcast copy.
+        var props = new AtmosphereProperties();
+        props.setConsoleEndpoint("/atmosphere/a2a");
+        var info = newEndpoint(props,
+                Map.of("/atmosphere/a2a", wrapperFor(new org.atmosphere.a2a.test.FakeA2aHandler())));
+        assertThat(info.info()).containsEntry("mode", "ai");
+    }
+
+    @Test
     void managedAtmosphereHandlerYieldsBroadcastMode() {
         var info = newEndpoint(Map.of("/atmosphere/ai-chat", wrapperFor(mock(ManagedAtmosphereHandler.class))));
         var result = info.info();

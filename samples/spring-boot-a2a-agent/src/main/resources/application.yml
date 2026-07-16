@@ -3,6 +3,11 @@ server:
 
 atmosphere:
   console-subtitle: A2A Agent — weather and time via Agent-to-Agent protocol
+  # The bundled Atmosphere Console IS the sample UI: it drives the real A2A
+  # wire (JSON-RPC message/stream over SSE, message/send fallback) through
+  # its a2a transport adapter — not the Atmosphere WebSocket.
+  console-endpoint: /atmosphere/a2a
+  console-transport: a2a
   packages: org.atmosphere.samples.springboot.a2a
 
 llm:

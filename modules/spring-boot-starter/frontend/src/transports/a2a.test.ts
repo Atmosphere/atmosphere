@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ConnectionStatus } from 'atmosphere.js'
-import { A2aChatTransport, extractTaskText, parseA2aData } from './a2a'
+import { A2aChatTransport, extractTaskFailure, extractTaskText, parseA2aData } from './a2a'
 import { createChatTransport } from './index'
 import type { ChatTransportHandlers, ChatTransportOptions } from './types'
 
@@ -75,6 +75,17 @@ describe('parseA2aData', () => {
     expect(parseA2aData('  [DONE]  ')).toEqual([{ kind: 'done' }])
   })
 
+  it('strips the server SSE layer\'s repeated data: re-framing', () => {
+    // The live wire (od -c against the sample) carries the terminal write
+    // re-framed by Atmosphere's SSE layer: `data:data:data: [DONE]` — the
+    // adapter sees `data:data: [DONE]` after the line-level slice. It must
+    // resolve to done, never render as chat text.
+    expect(parseA2aData('data:data: [DONE]')).toEqual([{ kind: 'done' }])
+    expect(parseA2aData('data: [DONE]')).toEqual([{ kind: 'done' }])
+    // Empty re-framed fragments are lint, not content.
+    expect(parseA2aData('data:')).toEqual([])
+  })
+
   it('maps a JSON-RPC error envelope to an error frame', () => {
     const err = JSON.stringify({ jsonrpc: '2.0', id: 1, error: { code: -32001, message: 'task not found' } })
     expect(parseA2aData(err)).toEqual([{ kind: 'error', message: 'task not found' }])
@@ -90,8 +101,10 @@ describe('parseA2aData', () => {
     ])
   })
 
-  it('surfaces non-JSON payloads verbatim instead of dropping them', () => {
-    expect(parseA2aData('plain token')).toEqual([{ kind: 'text', text: 'plain token' }])
+  it('drops non-JSON payloads — this wire only carries envelopes and [DONE]', () => {
+    // Surfacing unknown payloads verbatim is how SSE framing lint leaked
+    // into the chat as literal "data:data: [DONE]" text.
+    expect(parseA2aData('plain token')).toEqual([])
   })
 
   it('returns nothing for empty payloads', () => {
@@ -104,9 +117,34 @@ describe('extractTaskText', () => {
     expect(extractTaskText({ artifacts: [{ parts: [{ text: 'sync reply' }] }] })).toBe('sync reply')
   })
 
+  it('unwraps the SendMessageResponse {task} oneof', () => {
+    expect(extractTaskText({ task: { artifacts: [{ parts: [{ text: 'wrapped' }] }] } })).toBe('wrapped')
+  })
+
   it('returns null when the task carries no text', () => {
     expect(extractTaskText({ artifacts: [] })).toBeNull()
     expect(extractTaskText(null)).toBeNull()
+  })
+})
+
+describe('extractTaskFailure', () => {
+  it('reads the failure text from status.message.parts on TASK_STATE_FAILED', () => {
+    // A failed Task carries its text in status.message.parts, NOT artifacts —
+    // the real shape the a2a sample returns for a mis-parameterized skill.
+    expect(extractTaskFailure({
+      task: {
+        status: {
+          state: 'TASK_STATE_FAILED',
+          message: { parts: [{ text: 'Invalid timezone.' }] },
+        },
+        artifacts: [],
+      },
+    })).toBe('Invalid timezone.')
+  })
+
+  it('returns null for non-failed tasks', () => {
+    expect(extractTaskFailure({ status: { state: 'TASK_STATE_COMPLETED' } })).toBeNull()
+    expect(extractTaskFailure(null)).toBeNull()
   })
 })
 

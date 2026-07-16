@@ -318,12 +318,16 @@ public class AtmosphereConsoleInfoEndpoint {
             }
             var handlerClassName = wrapper.atmosphereHandler().getClass().getName();
             // AiEndpointHandler (modules/ai), AgentHandler (modules/agent),
-            // and any handler whose package is under org.atmosphere.{ai,agent,
-            // coordinator} count as AI-shaped. Everything else (notably
-            // ManagedAtmosphereHandler from modules/cpr) is broadcast-shaped.
+            // protocol bridges over agents (A2aHandler, AgUiHandler), and any
+            // handler whose package is under org.atmosphere.{ai,agent,
+            // coordinator,a2a,agui} count as AI-shaped. Everything else
+            // (notably ManagedAtmosphereHandler from modules/cpr) is
+            // broadcast-shaped.
             if (handlerClassName.startsWith("org.atmosphere.ai.")
                     || handlerClassName.startsWith("org.atmosphere.agent.")
-                    || handlerClassName.startsWith("org.atmosphere.coordinator.")) {
+                    || handlerClassName.startsWith("org.atmosphere.coordinator.")
+                    || handlerClassName.startsWith("org.atmosphere.a2a.")
+                    || handlerClassName.startsWith("org.atmosphere.agui.")) {
                 return "ai";
             }
             return "broadcast";
