@@ -66,6 +66,13 @@
             <version>${jackson.version}</version>
         </dependency>
 
+        <!-- Used directly (JacksonException), not merely via databind. -->
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>jakarta.servlet</groupId>
             <artifactId>jakarta.servlet-api</artifactId>

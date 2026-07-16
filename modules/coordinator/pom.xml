@@ -71,6 +71,15 @@
             <version>${jackson.version}</version>
         </dependency>
 
+        <!-- Jackson 3 reads com.fasterxml.jackson.annotation.* — the polymorphic
+             journal event types (FileCoordinationJournal) compile against
+             @JsonTypeInfo/@JsonSubTypes from this artifact. Version pinned in the
+             root dependencyManagement. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>jakarta.servlet</groupId>
             <artifactId>jakarta.servlet-api</artifactId>

@@ -29,6 +29,14 @@
             <artifactId>jackson-databind</artifactId>
             <version>${jackson.version}</version>
         </dependency>
+        <!-- Used directly (JacksonException, TypeReference), not merely via
+             databind — declared so the compile classpath doesn't lean on a
+             transitive that databind could re-arrange in a future line. -->
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
         <!--
             SnakeYAML is the default PolicyParser implementation for the
             governance policy plane. Declared as an explicit runtime dep

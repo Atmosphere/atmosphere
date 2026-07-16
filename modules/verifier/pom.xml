@@ -24,6 +24,14 @@
             <artifactId>atmosphere-ai</artifactId>
         </dependency>
 
+        <!-- ObjectMapper is used directly (plan AST parsing) — declared instead
+             of leaning on atmosphere-ai's transitive. -->
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>

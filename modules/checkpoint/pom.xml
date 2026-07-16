@@ -55,6 +55,15 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Used directly (TypeReference in SqliteCheckpointStore), not merely
+             via databind. Optional to match — only the SQLite store needs it. -->
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${jackson.version}</version>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Spring Boot auto-configuration for the default CheckpointStore bean
              (AtmosphereCheckpointAutoConfiguration). Provided/optional so the
              core SPI stays usable from non-Spring runtimes (Quarkus, plain
