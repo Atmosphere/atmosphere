@@ -62,7 +62,12 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
 
   // Resilience tracker — surfaces fallback, reconnect-attempts and the
   // terminal "lost" state to the operator UI via ConnectionStatusBadge.
-  const status = new ConnectionStatus({ initialTransport: 'websocket' })
+  // The pill names the wire honestly: 'websocket' for the Atmosphere
+  // transport (long-polling shows via fallback tracking), the foreign
+  // protocol name otherwise (ConnectionTransportName is deliberately wide).
+  const status = new ConnectionStatus({
+    initialTransport: transportName === 'atmosphere' ? 'websocket' : transportName,
+  })
   const connectionStatus: Ref<ConnectionStatusSnapshot> = ref(status.snapshot)
   const unsubscribeStatus = status.onChange((s) => { connectionStatus.value = s })
 

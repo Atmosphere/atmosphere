@@ -32,10 +32,13 @@ function makeResponse(
 
 describe('ConnectionStatus', () => {
   it('accepts non-atmosphere transport names via ConnectionTransportName', () => {
-    // Snapshot.transport is typed ConnectionTransportName = TransportType | (string & {}),
-    // so samples that drive gRPC / A2A / AG-UI through their own client can build a
-    // snapshot without casting. Type-level guarantee; the test just pins the runtime path.
-    const status = new ConnectionStatus({ initialTransport: 'grpc' as never });
+    // Snapshot.transport AND ConnectionStatusOptions.initialTransport are typed
+    // ConnectionTransportName = TransportType | (string & {}), so consumers that
+    // drive gRPC / A2A / AG-UI through their own client can seed and read the
+    // tracker without casting. The uncasted literal here IS the type-level pin —
+    // the constructor option used to be the one spot still narrowed to
+    // TransportType, forcing an `as never` in this very test.
+    const status = new ConnectionStatus({ initialTransport: 'grpc' });
     expect(status.snapshot.transport).toBe('grpc');
   });
 

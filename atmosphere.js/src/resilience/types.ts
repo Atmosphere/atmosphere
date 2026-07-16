@@ -97,8 +97,15 @@ export interface ConnectionStatusSnapshot {
  * Options for {@link ConnectionStatus}.
  */
 export interface ConnectionStatusOptions {
-  /** Initial transport to record before the first event. Defaults to 'websocket'. */
-  initialTransport?: TransportType;
+  /**
+   * Initial transport to record before the first event. Defaults to
+   * 'websocket'. Accepts the widened {@link ConnectionTransportName} so
+   * non-atmosphere consumers (grpc / a2a / ag-ui adapters) can seed the
+   * tracker with the same name the snapshot will carry — the snapshot and
+   * Badge were widened for exactly these consumers; the constructor must
+   * accept what the snapshot advertises.
+   */
+  initialTransport?: ConnectionTransportName;
   /**
    * Source of monotonic time for the `since` field, in ms. Defaults to
    * {@code Date.now}. Override for deterministic tests.

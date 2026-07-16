@@ -84,10 +84,9 @@ describe('createChatTransport', () => {
   })
 
   it('fails loud for foreign transports whose adapter has not shipped', async () => {
-    for (const name of ['grpc', 'a2a', 'ag-ui'] as const) {
-      await expect(createChatTransport(name, options(), noopHandlers()))
-        .rejects.toThrow(`Console transport '${name}' adapter is not available`)
-    }
+    // a2a and ag-ui ship adapters (see a2a.test.ts / agui.test.ts); grpc is pending.
+    await expect(createChatTransport('grpc', options(), noopHandlers()))
+      .rejects.toThrow("Console transport 'grpc' adapter is not available")
   })
 })
 

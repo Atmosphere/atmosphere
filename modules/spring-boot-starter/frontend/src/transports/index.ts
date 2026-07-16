@@ -24,9 +24,15 @@ export async function createChatTransport(
   handlers: ChatTransportHandlers,
 ): Promise<ChatTransport> {
   switch (name) {
+    case 'a2a': {
+      const { A2aChatTransport } = await import('./a2a')
+      return new A2aChatTransport(options, handlers)
+    }
+    case 'ag-ui': {
+      const { AgUiChatTransport } = await import('./agui')
+      return new AgUiChatTransport(options, handlers)
+    }
     case 'grpc':
-    case 'a2a':
-    case 'ag-ui':
       throw new Error(
         `Console transport '${name}' adapter is not available in this build`)
     case 'atmosphere':
