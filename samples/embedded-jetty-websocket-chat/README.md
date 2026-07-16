@@ -56,7 +56,7 @@ public class WebSocketChat extends WebSocketStreamingHandlerAdapter {
 
 ## Client Side
 
-Same React/Vite client as the WAR chat sample — connects to `/chat` with WebSocket transport, prompts for a name, and exchanges JSON messages.
+Same bundled Atmosphere Console as the WAR chat sample — `/` redirects to `/atmosphere/console/`, which connects to `/chat` with WebSocket transport and exchanges JSON broadcast messages.
 
 ## Build & Run
 

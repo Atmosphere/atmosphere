@@ -57,13 +57,16 @@ Registers `AtmosphereServlet` with annotation scanning:
 
 ## Client Side
 
-The chat UI is a React app bundled with Vite. The build output is committed under `src/main/webapp/assets/` and loaded by `src/main/webapp/index.html` as a single `<script type="module">` import — no framework code lives in this directory in source form.
+The chat UI is the bundled Atmosphere Console, committed under
+`src/main/webapp/atmosphere/console/` and kept fresh by
+`scripts/sync-console-bundle.sh` (gated in CI). `/` redirects there; the
+tiny `ConsoleInfoServlet` at `/api/console/info` points it at the `/chat`
+broadcast endpoint.
 
-- `index.html` boots a React root and loads the compiled bundle from `assets/index-*.js`
-- The bundled app uses the official `atmosphere.js` client (declared as a frontend dep) to subscribe to `/chat` with WebSocket + long-polling fallback
+- The Console subscribes to `/chat` with WebSocket + long-polling fallback via the official `atmosphere.js` client
 - Messages flow as `{ author, message }` JSON frames encoded/decoded by the Jackson encoder/decoder on the server
 
-The server POM pulls in the pre-built browser bundle via the WebJars-style dependency `org.atmosphere.client:javascript:4.0.1`, which is what previous versions of this sample used to wire a hand-written `application.js`. The current sample ships a pre-built React app instead — if you want to modify the UI, rebuild the bundle and drop the output into `src/main/webapp/assets/`.
+The server POM pulls in the pre-built browser bundle via the WebJars-style dependency `org.atmosphere.client:javascript:4.0.1`, which is what previous versions of this sample used to wire a hand-written `application.js`. The current sample ships the shared Atmosphere Console instead — UI changes belong in `modules/spring-boot-starter/frontend/`, then re-sync.
 
 ## Build & Run
 

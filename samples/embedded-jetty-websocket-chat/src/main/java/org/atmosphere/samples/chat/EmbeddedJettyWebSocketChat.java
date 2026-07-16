@@ -82,7 +82,13 @@ public class EmbeddedJettyWebSocketChat {
             }
         }
 
-        // Add DefaultServlet to serve static content
+        // Console self-configuration endpoint — the bundled Atmosphere Console
+        // (webapp/atmosphere/console, synced by scripts/sync-console-bundle.sh)
+        // reads it to pick the broadcast dialect and the /chat endpoint.
+        context.addServlet(new ServletHolder("console-info", ConsoleInfoServlet.class),
+                "/api/console/info");
+
+        // Add DefaultServlet to serve static content (/ redirects to /atmosphere/console/)
         ServletHolder defaultServlet = new ServletHolder("default", DefaultServlet.class);
         defaultServlet.setInitParameter("dirAllowed", "false");
         defaultServlet.setInitParameter("welcomeServlets", "true");

@@ -32,10 +32,12 @@ BUILT_BUNDLE="modules/spring-boot-starter/target/classes/META-INF/resources/atmo
 DEST_DIRS=(
   "modules/spring-boot3-starter/src/main/resources/META-INF/resources/atmosphere/console"
   "modules/quarkus-admin-extension/runtime/src/main/resources/META-INF/resources/atmosphere/console"
-  # Bare-Jetty sample — no starter jar to carry the bundle, so its webapp
-  # ships a committed copy under the same gate (served by the DefaultServlet
+  # Bare-Jetty samples — no starter jar to carry the bundle, so their webapps
+  # ship committed copies under the same gate (served by the DefaultServlet
   # at /atmosphere/console/, protected-targets already set).
   "samples/grpc-chat/src/main/webapp/atmosphere/console"
+  "samples/chat/src/main/webapp/atmosphere/console"
+  "samples/embedded-jetty-websocket-chat/src/main/webapp/atmosphere/console"
 )
 MARKER="scripts/console-bundle.fingerprint"
 

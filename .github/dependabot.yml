@@ -60,8 +60,6 @@ updates:
     directories:
       - "/atmosphere.js"
       - "/modules/spring-boot-starter/frontend"
-      - "/samples/chat/frontend"
-      - "/samples/embedded-jetty-websocket-chat/frontend"
       - "/samples/spring-boot-ai-chat/frontend"
       - "/samples/spring-boot-ai-classroom/frontend"
       - "/samples/spring-boot-ai-tools/frontend"
