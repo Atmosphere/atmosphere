@@ -1,7 +1,8 @@
 # Atmosphere gRPC Chat Sample
 
 A chat application demonstrating Atmosphere's gRPC transport with a
-[Connect-Web](https://connectrpc.com/) browser frontend. Native gRPC clients
+browser clients speaking the [Connect protocol](https://connectrpc.com/) in JSON mode
+(the bundled Atmosphere Console's `grpc` transport adapter). Native gRPC clients
 and web browsers share the same Broadcaster, proving transport-agnostic pub/sub.
 
 ## Architecture
@@ -24,28 +25,22 @@ Browser (Connect-Web)              Java CLI (native gRPC)
 
 ## How to run
 
-### 1. Build the frontend (once)
-
-```bash
-cd samples/grpc-chat/frontend
-npm install
-npm run build        # builds to src/main/webapp/
-cd ../../..
-```
-
-### 2. Start the server
-
 ```bash
 mvn exec:java -pl samples/grpc-chat
 ```
 
 This starts:
 - **gRPC server** on `localhost:9090` (native bidi streaming)
-- **HTTP server** on `localhost:8080` (Connect protocol + frontend)
+- **HTTP server** on `localhost:8080` (Connect protocol + the bundled Atmosphere Console)
 
-### 3. Open the web UI
+### Open the web UI
 
-Open http://localhost:8080 — enter a name and start chatting.
+Open http://localhost:8080 — it redirects to the bundled Atmosphere Console at
+`/atmosphere/console/`, whose `grpc` transport adapter speaks the Connect
+protocol in JSON mode from the browser (enveloped `application/connect+json`
+Subscribe stream + unary `application/json` Send — no protobuf codegen needed).
+The console bundle is a committed copy kept fresh by
+`scripts/sync-console-bundle.sh` (gated in CI).
 
 ### 4. Connect a Java CLI client (optional)
 
@@ -72,21 +67,12 @@ grpcurl -plaintext -d '{"type":"MESSAGE","topic":"/chat","payload":"Hello from g
 
 ## Frontend development
 
-For hot-reload during frontend development:
-
-```bash
-cd samples/grpc-chat/frontend
-npm run dev          # Vite dev server on :5173, proxies /AtmosphereService to :8080
-```
-
 ### Regenerating TypeScript stubs
 
 After changing `modules/grpc/src/main/proto/atmosphere.proto`:
 
-```bash
-cd samples/grpc-chat/frontend
-npx buf generate     # outputs to src/gen/
-```
+Native/JVM clients use the generated stubs from `modules/grpc`; browser access
+needs no codegen — the Console's adapter speaks Connect-JSON directly.
 
 ## Key code
 
@@ -96,8 +82,8 @@ npx buf generate     # outputs to src/gen/
 | `ChatHandler.java` | `GrpcHandler` — connect/message/disconnect callbacks |
 | `ConnectProtocolServlet.java` | Connect protocol bridge: HTTP to `GrpcProcessor` |
 | `GrpcChatClient.java` | Interactive CLI client using native gRPC bidi streaming |
-| `frontend/src/App.tsx` | React UI using `@connectrpc/connect-web` |
-| `frontend/src/gen/atmosphere_pb.ts` | Generated TypeScript stubs from proto |
+| `ConsoleInfoServlet.java` | `/api/console/info` — points the Console at the Connect service with the `grpc` adapter |
+| `src/main/webapp/atmosphere/console/` | Committed Atmosphere Console bundle (synced by `scripts/sync-console-bundle.sh`) |
 
 ## Connect protocol details
 

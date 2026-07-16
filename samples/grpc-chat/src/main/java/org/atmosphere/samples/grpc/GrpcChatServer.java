@@ -85,7 +85,8 @@ public class GrpcChatServer {
             context.setBaseResource(ResourceFactory.root().newResource(webappPath.toUri()));
             logger.info("Serving frontend from {}", webappPath);
         } else {
-            logger.warn("No frontend build found. Run 'npm run build' in samples/grpc-chat/frontend/");
+            logger.warn("No webapp directory found — the bundled Atmosphere Console"
+                    + " (src/main/webapp/atmosphere/console) will not be served");
         }
 
         // Mount Connect protocol servlet at the standard Connect path
@@ -94,7 +95,13 @@ public class GrpcChatServer {
         connectServlet.setAsyncSupported(true);
         context.addServlet(connectServlet, "/org.atmosphere.grpc.AtmosphereService/*");
 
-        // Serve static frontend files
+        // Console self-configuration endpoint — the bundled Atmosphere Console
+        // (webapp/atmosphere/console, synced by scripts/sync-console-bundle.sh)
+        // reads it to pick the grpc transport adapter and the Connect endpoint.
+        context.addServlet(new ServletHolder("console-info", ConsoleInfoServlet.class),
+                "/api/console/info");
+
+        // Serve static frontend files (/ redirects to /atmosphere/console/)
         var defaultServlet = new ServletHolder("default", DefaultServlet.class);
         defaultServlet.setInitParameter("dirAllowed", "false");
         context.addServlet(defaultServlet, "/*");
@@ -115,7 +122,7 @@ public class GrpcChatServer {
             projectDir = Path.of(".");
         }
 
-        for (var candidate : new String[]{"src/main/webapp", "frontend/dist"}) {
+        for (var candidate : new String[]{"src/main/webapp"}) {
             var path = projectDir.resolve(candidate);
             if (Files.exists(path.resolve("index.html"))) {
                 return path;

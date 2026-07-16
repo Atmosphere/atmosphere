@@ -32,6 +32,10 @@ BUILT_BUNDLE="modules/spring-boot-starter/target/classes/META-INF/resources/atmo
 DEST_DIRS=(
   "modules/spring-boot3-starter/src/main/resources/META-INF/resources/atmosphere/console"
   "modules/quarkus-admin-extension/runtime/src/main/resources/META-INF/resources/atmosphere/console"
+  # Bare-Jetty sample — no starter jar to carry the bundle, so its webapp
+  # ships a committed copy under the same gate (served by the DefaultServlet
+  # at /atmosphere/console/, protected-targets already set).
+  "samples/grpc-chat/src/main/webapp/atmosphere/console"
 )
 MARKER="scripts/console-bundle.fingerprint"
 
@@ -74,12 +78,14 @@ check() {
     fi
   fi
 
-  # The two committed copies must be byte-identical to each other — a manual
-  # edit to one of them is drift even when the marker still matches.
-  if ! diff -r "${DEST_DIRS[0]}" "${DEST_DIRS[1]}" >/dev/null 2>&1; then
-    echo -e "${RED}Committed console bundles differ between spring-boot3-starter and quarkus-admin-extension.${NC}"
-    rc=1
-  fi
+  # Every committed copy must be byte-identical to the first — a manual edit
+  # to any one of them is drift even when the marker still matches.
+  for dest in "${DEST_DIRS[@]:1}"; do
+    if ! diff -r "${DEST_DIRS[0]}" "$dest" >/dev/null 2>&1; then
+      echo -e "${RED}Committed console bundle at $dest differs from ${DEST_DIRS[0]}.${NC}"
+      rc=1
+    fi
+  done
 
   if [ $rc -ne 0 ]; then
     echo "  Fix: ./scripts/sync-console-bundle.sh   (then commit the refreshed bundles + marker)"
