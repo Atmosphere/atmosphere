@@ -53,7 +53,7 @@
       "port": 8080,
       "runnable": true,
       "packaging": "spring-boot",
-      "hasFrontend": true,
+      "hasFrontend": false,
       "envVars": {
         "GEMINI_API_KEY": "Google Gemini API key (optional — demo mode without)"
       }
@@ -147,7 +147,7 @@
       "port": 8080,
       "runnable": true,
       "packaging": "spring-boot",
-      "hasFrontend": true,
+      "hasFrontend": false,
       "envVars": {
         "LLM_API_KEY": "API key for your LLM provider (Gemini, OpenAI, etc.)",
         "LLM_MODEL": "Model name (default: gemini-2.0-flash)",
@@ -189,7 +189,7 @@
       "port": 8080,
       "runnable": true,
       "packaging": "spring-boot",
-      "hasFrontend": true,
+      "hasFrontend": false,
       "envVars": {
         "LLM_API_KEY": "API key for your LLM provider",
         "LLM_MODEL": "Model name (default: gemini-2.0-flash)"
@@ -227,7 +227,7 @@
       "port": 8090,
       "runnable": true,
       "packaging": "spring-boot",
-      "hasFrontend": true,
+      "hasFrontend": false,
       "envVars": {
         "LLM_API_KEY": "API key for your LLM provider",
         "LLM_MODEL": "Model name"
@@ -247,7 +247,7 @@
       "port": 8080,
       "runnable": true,
       "packaging": "spring-boot",
-      "hasFrontend": true,
+      "hasFrontend": false,
       "envVars": {
         "LLM_API_KEY": "API key for your LLM provider",
         "LLM_MODEL": "Model name"
@@ -284,7 +284,7 @@
       "port": 8083,
       "runnable": true,
       "packaging": "spring-boot",
-      "hasFrontend": true
+      "hasFrontend": false
     },
     {
       "name": "spring-boot-a2a-agent",
@@ -321,7 +321,7 @@
       "port": 8085,
       "runnable": true,
       "packaging": "spring-boot",
-      "hasFrontend": true
+      "hasFrontend": false
     },
     {
       "name": "spring-boot-otel-chat",
@@ -368,7 +368,7 @@
       "port": 8080,
       "runnable": true,
       "packaging": "spring-boot",
-      "hasFrontend": true
+      "hasFrontend": false
     },
     {
       "name": "quarkus-chat",
@@ -382,7 +382,7 @@
       "port": 8080,
       "runnable": true,
       "packaging": "quarkus",
-      "hasFrontend": true
+      "hasFrontend": false
     },
     {
       "name": "quarkus-ai-chat",
@@ -414,7 +414,7 @@
       "runnable": true,
       "packaging": "executable-jar",
       "mainClass": "org.atmosphere.samples.chat.EmbeddedJettyWebSocketChat",
-      "hasFrontend": true
+      "hasFrontend": false
     },
     {
       "name": "kotlin-dsl-chat",
@@ -446,7 +446,7 @@
       "port": 8080,
       "runnable": false,
       "packaging": "war",
-      "hasFrontend": true,
+      "hasFrontend": false,
       "note": "Requires a servlet container. Use 'spring-boot-chat' for standalone."
     },
     {

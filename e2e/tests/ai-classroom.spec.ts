@@ -38,7 +38,9 @@ const ROOM = '/atmosphere/classroom/math';
 
 test.describe('ai-classroom: room broadcast fan-out', () => {
   test('a non-asking room member receives the streamed reply', async ({ page, baseURL }) => {
-    await page.goto(`${baseURL}/`, { waitUntil: 'commit' });
+    // Land on the Console SPA itself — the sample root is a meta-refresh
+    // redirect to it, which would destroy the evaluate() context mid-test.
+    await page.goto(`${baseURL}/atmosphere/console/`, { waitUntil: 'commit' });
 
     const result = await page.evaluate(async (room) => {
       const url = `ws://${location.host}${room}`;
@@ -90,7 +92,8 @@ test.describe('ai-classroom: room broadcast fan-out', () => {
   });
 
   test('a member of a DIFFERENT room does not receive the reply', async ({ page, baseURL }) => {
-    await page.goto(`${baseURL}/`, { waitUntil: 'commit' });
+    // Same as above: avoid the sample root's meta-refresh redirect.
+    await page.goto(`${baseURL}/atmosphere/console/`, { waitUntil: 'commit' });
 
     const result = await page.evaluate(async () => {
       const open = (ws: WebSocket) => new Promise<boolean>((r) => {
