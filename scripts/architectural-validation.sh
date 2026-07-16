@@ -997,6 +997,28 @@ else
 fi
 
 # ============================================================================
+# 12. CONSOLE BUNDLE SYNC (spring-boot3-starter / quarkus-admin-extension)
+# ============================================================================
+
+echo ""
+echo -e "${BLUE}--- Console Bundle Sync ---${NC}"
+
+# The Console SPA is built from source only in modules/spring-boot-starter;
+# spring-boot3-starter and quarkus-admin-extension ship committed copies of
+# the built bundle. Without this gate those copies drift silently — the Tape
+# tab shipped to the SB4 console while the committed copies stayed on an
+# older build. The check fingerprints the SPA inputs (console frontend +
+# atmosphere.js sources) against the marker written by the sync script, and
+# requires the two committed copies to be byte-identical to each other. No
+# Maven/npm runs here — it only hashes files.
+if ./scripts/sync-console-bundle.sh --check >/dev/null 2>&1; then
+    pass_validation "Committed console bundles match the SPA sources (scripts/sync-console-bundle.sh)"
+else
+    fail_validation "Committed console bundles are stale or diverged:"
+    ./scripts/sync-console-bundle.sh --check 2>&1 | sed 's/^/  /' || true
+fi
+
+# ============================================================================
 # RESULTS SUMMARY
 # ============================================================================
 
