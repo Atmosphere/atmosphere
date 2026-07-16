@@ -83,10 +83,14 @@ describe('createChatTransport', () => {
     expect(t.name).toBe('atmosphere')
   })
 
-  it('fails loud for foreign transports whose adapter has not shipped', async () => {
-    // a2a and ag-ui ship adapters (see a2a.test.ts / agui.test.ts); grpc is pending.
-    await expect(createChatTransport('grpc', options(), noopHandlers()))
-      .rejects.toThrow("Console transport 'grpc' adapter is not available")
+  it('resolves every server-advertised foreign transport to its adapter', async () => {
+    // detectTransport validates to exactly {atmosphere, grpc, a2a, ag-ui} —
+    // each foreign name must map to a real lazy-loaded adapter so the
+    // console never advertises a protocol it cannot speak (Runtime Truth).
+    for (const name of ['grpc', 'a2a', 'ag-ui'] as const) {
+      const t = await createChatTransport(name, options(), noopHandlers())
+      expect(t.name).toBe(name)
+    }
   })
 })
 

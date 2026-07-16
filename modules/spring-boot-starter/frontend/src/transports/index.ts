@@ -6,17 +6,13 @@ export { AtmosphereChatTransport, parseAtmosphereFrames } from './atmosphere'
 
 /**
  * Build the chat transport for the wire protocol /api/console/info
- * reported. Async so foreign adapters can be dynamic-imported as their
- * own chunks — the default Atmosphere console bundle must not pay for
- * protobuf/Connect (grpc), JSON-RPC/SSE (a2a) or AG-UI parsing it never
- * uses.
- *
- * Foreign names whose adapter has not shipped yet fail loudly instead of
- * silently downgrading to the Atmosphere transport: pointing the WS
- * transport at a Connect/SSE endpoint produces an endless reconnect loop
- * that looks like a sample bug, which is far harder to diagnose than an
- * explicit "adapter not available" error (Runtime Truth — the console
- * must not pretend to speak a protocol it can't).
+ * reported. Async so foreign adapters are dynamic-imported as their own
+ * chunks — the default Atmosphere console bundle doesn't pay for the
+ * Connect-JSON (grpc), JSON-RPC/SSE (a2a) or AG-UI parsing it never uses.
+ * The server validates the name against exactly this set
+ * (detectTransport), so every reachable case has a real adapter; if the
+ * sets ever drift, failing loudly here beats silently downgrading to the
+ * WS transport, which would reconnect-loop against a foreign endpoint.
  */
 export async function createChatTransport(
   name: ConsoleTransportName,
@@ -32,9 +28,10 @@ export async function createChatTransport(
       const { AgUiChatTransport } = await import('./agui')
       return new AgUiChatTransport(options, handlers)
     }
-    case 'grpc':
-      throw new Error(
-        `Console transport '${name}' adapter is not available in this build`)
+    case 'grpc': {
+      const { GrpcChatTransport } = await import('./grpc')
+      return new GrpcChatTransport(options, handlers)
+    }
     case 'atmosphere':
     default:
       return new AtmosphereChatTransport(options, handlers)
