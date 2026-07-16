@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { usePollingResource } from '../composables/useGovernance'
+import TapeFlow from './TapeFlow.vue'
 
 /**
  * Session tape view. Reads the read-only admin surface `/api/admin/tape/runs`
@@ -124,11 +125,6 @@ function closeReplay() {
   replayError.value = null
 }
 
-function firstUser(run: ReplayedRun): string {
-  const u = run.input.find((m) => m.role === 'user') ?? run.input[run.input.length - 1]
-  return u ? u.content : ''
-}
-
 function stepText(payload: string): string {
   try {
     const o = JSON.parse(payload)
@@ -234,37 +230,9 @@ const completed = computed(() => runs.value.filter((r) => r.status === 'COMPLETE
         <p class="replay-summary" data-testid="replay-summary">
           {{ replayTree.runCount }} run(s) in this coordination — 1 coordinator
           + {{ replayTree.children.length }} agent(s), linked by parentRunId.
+          <span class="replay-hint">Drag to pan · scroll to zoom · click a node for its steps.</span>
         </p>
-        <div class="replay-node replay-root" data-testid="replay-root">
-          <div class="replay-node-head">
-            <span class="badge st-coordinator">coordinator</span>
-            <span class="mono replay-runid" :title="replayTree.root.runId">{{ shortId(replayTree.root.runId) }}</span>
-            <span class="small">{{ replayTree.root.runtime ?? '—' }} · {{ replayTree.root.model ?? '—' }}</span>
-          </div>
-          <div class="replay-io">
-            <div class="replay-prompt mono">▸ {{ firstUser(replayTree.root) }}</div>
-            <div class="replay-output mono">{{ replayTree.root.output || '(no output)' }}</div>
-          </div>
-        </div>
-        <div
-          v-for="child in replayTree.children"
-          :key="child.runId"
-          class="replay-node replay-child"
-          data-testid="replay-child"
-        >
-          <div class="replay-node-head">
-            <span class="badge st-agent">agent</span>
-            <span class="mono replay-runid" :title="child.runId">{{ shortId(child.runId) }}</span>
-            <span class="small">↳ parent {{ shortId(child.parentRunId) }}</span>
-          </div>
-          <div class="replay-io">
-            <div class="replay-prompt mono">▸ {{ firstUser(child) }}</div>
-            <div class="replay-output mono">{{ child.output || '(no output)' }}</div>
-            <div v-if="child.tools.length" class="replay-tools">
-              <span v-for="(t, i) in child.tools" :key="i" class="tool-chip mono">🔧 {{ t.name }}</span>
-            </div>
-          </div>
-        </div>
+        <TapeFlow :tree="replayTree" @select="openRun" />
       </div>
     </div>
 
@@ -359,23 +327,5 @@ const completed = computed(() => runs.value.filter((r) => r.status === 'COMPLETE
 .replay-btn:hover { background: var(--bg-hover); }
 .replay-summary { font-size: 0.8125rem; color: var(--text-secondary); margin: 0 0 0.75rem; }
 .replay-tree { display: flex; flex-direction: column; gap: 0.5rem; }
-.replay-node { border: 1px solid var(--border-color); border-radius: 8px; padding: 0.625rem 0.75rem; background: var(--bg-surface); }
-.replay-child { margin-left: 1.5rem; position: relative; }
-.replay-child::before {
-  content: ''; position: absolute; left: -0.75rem; top: 1.1rem; width: 0.5rem;
-  height: 1px; background: var(--border-color);
-}
-.replay-node-head { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.375rem; flex-wrap: wrap; }
-.st-coordinator { background: #ede7f6; color: #5e35b1; }
-.st-agent { background: #e1f5fe; color: #0277bd; }
-@media (prefers-color-scheme: dark) {
-  .st-coordinator { background: rgba(94, 53, 177, 0.24); }
-  .st-agent { background: rgba(2, 119, 189, 0.24); }
-}
-.replay-runid { color: var(--text-primary); font-weight: 600; font-size: 0.8125rem; }
-.replay-io { display: flex; flex-direction: column; gap: 0.25rem; }
-.replay-prompt { font-size: 0.75rem; color: var(--text-tertiary); white-space: pre-wrap; word-break: break-word; }
-.replay-output { font-size: 0.8125rem; color: var(--text-secondary); white-space: pre-wrap; word-break: break-word; }
-.replay-tools { display: flex; gap: 0.375rem; flex-wrap: wrap; margin-top: 0.25rem; }
-.tool-chip { font-size: 0.6875rem; background: var(--bg-hover); border: 1px solid var(--border-color); border-radius: 9999px; padding: 0.0625rem 0.5rem; color: var(--text-secondary); }
+.replay-hint { color: var(--text-tertiary); font-size: 0.75rem; }
 </style>

@@ -11,6 +11,7 @@
     "check": "vue-tsc --noEmit && vitest run"
   },
   "dependencies": {
+    "@vue-flow/core": "^1.48.2",
     "atmosphere.js": "file:../../../atmosphere.js",
     "dompurify": "^3.4.11",
     "marked": "^18.0.5",
