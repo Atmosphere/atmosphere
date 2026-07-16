@@ -34,6 +34,11 @@ const transport = ref<ConsoleTransportName>('atmosphere')
 // HTTP/3 sidecar coordinates — present only when the server confirmed a live
 // WebTransport bind; the chat then connects WT-first with WS fallback.
 const webTransport = ref<{ port: number; certificateHash?: string } | undefined>(undefined)
+// Room Protocol room the chat joins (presence + history-synced reconnects).
+const room = ref<string | undefined>(undefined)
+// Selectable endpoints (path-templated samples): picker before connecting.
+const endpointOptions = ref<Array<{ label: string; endpoint: string }>>([])
+const pickedEndpoint = ref<string | undefined>(undefined)
 const ready = ref(false)
 const activeTab = ref<Tab>('chat')
 // The live MCP endpoint, when one is registered — enables the MCP Apps host tab.
@@ -196,6 +201,13 @@ onMounted(async () => {
             ? { certificateHash: data.webTransport.certificateHash } : {}),
         }
       }
+      if (typeof data.room === 'string' && data.room) room.value = data.room
+      if (Array.isArray(data.endpointOptions)) {
+        endpointOptions.value = data.endpointOptions.filter(
+          (o: { label?: unknown; endpoint?: unknown }) =>
+            typeof o?.label === 'string' && typeof o?.endpoint === 'string'
+            && (o.endpoint as string).startsWith('/'))
+      }
       if (data.mcpEndpoint) mcpEndpoint.value = data.mcpEndpoint
       if (data.mcpSandboxOrigin) mcpSandboxOrigin.value = data.mcpSandboxOrigin
       // Runtime-resolved capability flags — gate the optional tabs without a
@@ -245,7 +257,22 @@ onMounted(async () => {
       </nav>
     </header>
     <main class="app-main">
-      <ChatContainer v-if="ready && activeTab === 'chat'" :endpoint="endpoint" :mode="mode" :transport="transport" :web-transport="webTransport" :fleet="fleet" />
+      <!-- Path-templated samples pick their room-endpoint before connecting -->
+      <div v-if="ready && activeTab === 'chat' && endpointOptions.length > 0 && !pickedEndpoint"
+           class="endpoint-picker" data-testid="endpoint-picker">
+        <p class="picker-title">Pick a room</p>
+        <div class="picker-cards">
+          <button v-for="opt in endpointOptions" :key="opt.endpoint" class="picker-card"
+                  :data-testid="`pick-${opt.label.toLowerCase()}`"
+                  @click="pickedEndpoint = opt.endpoint">
+            {{ opt.label }}
+          </button>
+        </div>
+      </div>
+      <ChatContainer v-else-if="ready && activeTab === 'chat'"
+                     :key="pickedEndpoint ?? endpoint"
+                     :endpoint="pickedEndpoint ?? endpoint" :mode="mode" :transport="transport"
+                     :web-transport="webTransport" :fleet="fleet" :room="room" />
       <Sessions v-if="ready && agentsAvailable" v-show="activeTab === 'sessions'"
                 :active="activeTab === 'sessions'" />
       <Workspace v-if="ready && workspaceVisible" v-show="activeTab === 'workspace'"
@@ -384,6 +411,45 @@ onMounted(async () => {
   flex: 1;
   overflow: hidden;
   position: relative;
+}
+
+.endpoint-picker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 1rem;
+}
+
+.picker-title {
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.picker-cards {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.picker-card {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--accent-color);
+  background: var(--accent-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.875rem 1.75rem;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.picker-card:hover {
+  background: var(--bg-hover);
 }
 
 /*

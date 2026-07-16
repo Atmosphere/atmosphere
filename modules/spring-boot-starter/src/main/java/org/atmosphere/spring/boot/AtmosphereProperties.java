@@ -284,6 +284,17 @@ public class AtmosphereProperties {
      *  {@code atmosphere} in {@code /api/console/info} (Runtime Truth). */
     private String consoleTransport = "atmosphere";
 
+    /** Room Protocol room the console joins on connect (endpoints running
+     *  {@code RoomProtocolInterceptor}): presence chip, history-synced
+     *  reconnects and room-wrapped broadcasts. Unset = plain dialect. */
+    private String consoleRoom = "";
+
+    /** Selectable console endpoints as {@code Label=/path} pairs (comma
+     *  separated) for samples whose endpoint is a path template — e.g.
+     *  {@code Math=/atmosphere/classroom/math,Code=/atmosphere/classroom/code}.
+     *  When set, the console shows a room picker before connecting. */
+    private String consoleEndpoints = "";
+
     /** Whether to register admin write tools as MCP tools (default false). */
     private String adminMcpWriteTools = "false";
 
@@ -318,6 +329,22 @@ public class AtmosphereProperties {
 
     public void setConsoleTransport(String consoleTransport) {
         this.consoleTransport = consoleTransport;
+    }
+
+    public String getConsoleRoom() {
+        return consoleRoom;
+    }
+
+    public void setConsoleRoom(String consoleRoom) {
+        this.consoleRoom = consoleRoom;
+    }
+
+    public String getConsoleEndpoints() {
+        return consoleEndpoints;
+    }
+
+    public void setConsoleEndpoints(String consoleEndpoints) {
+        this.consoleEndpoints = consoleEndpoints;
     }
 
     public String getMcpSandboxOrigin() {

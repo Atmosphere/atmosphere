@@ -149,6 +149,30 @@ class AtmosphereConsoleInfoEndpointModeTest {
     }
 
     @Test
+    void roomAndEndpointOptionsEmittedFromConfig() {
+        var props = new AtmosphereProperties();
+        props.setConsoleRoom("lobby");
+        props.setConsoleEndpoints("Math=/atmosphere/classroom/math,Code=/atmosphere/classroom/code");
+        var result = newEndpoint(props, Map.of()).info();
+        assertThat(result).containsEntry("room", "lobby");
+        assertThat(result.get("endpointOptions")).isEqualTo(java.util.List.of(
+                Map.of("label", "Math", "endpoint", "/atmosphere/classroom/math"),
+                Map.of("label", "Code", "endpoint", "/atmosphere/classroom/code")));
+    }
+
+    @Test
+    void malformedEndpointOptionsAreDroppedNotEchoed() {
+        // Boundary Safety: bad pairs (no '=', blank label, relative path) are
+        // dropped; an all-bad config omits the field entirely.
+        assertThat(AtmosphereConsoleInfoEndpoint.parseEndpointOptions(
+                "NoEquals,=/x,Label=relative,Ok=/fine"))
+                .isEqualTo(java.util.List.of(Map.of("label", "Ok", "endpoint", "/fine")));
+        var props = new AtmosphereProperties();
+        props.setConsoleEndpoints("broken");
+        assertThat(newEndpoint(props, Map.of()).info()).doesNotContainKey("endpointOptions");
+    }
+
+    @Test
     void webTransportOmittedWhenNoSidecarIsRunning() {
         // The block is Runtime Truth: absent unless the HTTP/3 server bean
         // exists AND reports running — a mock context provides no bean, so

@@ -125,7 +125,10 @@ export class AtmosphereChatTransport implements ChatTransport {
         enableProtocol: true,
       },
       options.status.wrap({
-        open: () => handlers.onOpen(),
+        open: () => {
+          this.joinRoom()
+          handlers.onOpen()
+        },
         close: () => handlers.onClose(),
         message: (response: AtmosphereResponse<string>) => {
           if (response.responseBody) {
@@ -140,7 +143,12 @@ export class AtmosphereChatTransport implements ChatTransport {
         },
         error: () => handlers.onError(),
         reconnect: () => handlers.onReconnect(),
-        reopen: () => handlers.onReopen(),
+        reopen: () => {
+          // Re-join with the sinceId cursor so the server replays only the
+          // history missed while disconnected (dedupe via message ids).
+          this.joinRoom()
+          handlers.onReopen()
+        },
         transportFailure: (reason) => {
           console.warn('[atmosphere] transport failure, falling back:', reason)
         },
@@ -158,8 +166,32 @@ export class AtmosphereChatTransport implements ChatTransport {
     }
   }
 
+  /** Join the configured Room Protocol room (no-op without a rooms option). */
+  private joinRoom(): void {
+    const rooms = this.options.rooms
+    if (!rooms || !this.subscription) return
+    const sinceId = rooms.sinceId()
+    this.subscription.push(JSON.stringify({
+      type: 'join',
+      room: rooms.room,
+      memberId: rooms.memberId,
+      metadata: { joinedAt: Date.now() },
+      ...(sinceId > 0 ? { sinceId } : {}),
+    }))
+  }
+
   send(text: string): void {
     if (!this.subscription) return
+    if (this.options.rooms) {
+      // Room Protocol endpoints expect broadcasts wrapped with the room name;
+      // the server echoes them back as {type:'message', from, data, id}.
+      this.subscription.push(JSON.stringify({
+        type: 'broadcast',
+        room: this.options.rooms.room,
+        data: text,
+      }))
+      return
+    }
     if (this.options.isBroadcast()) {
       // Broadcast rooms decode {author, message, time} (see the chat
       // sample's JacksonDecoder); a raw string would fail the decoder and

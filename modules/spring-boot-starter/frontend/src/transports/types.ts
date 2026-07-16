@@ -48,6 +48,12 @@ export interface ChatTransportOptions {
    */
   webTransport?: { port: number; certificateHash?: string }
   /**
+   * Room Protocol dialect (RoomProtocolInterceptor endpoints): join this
+   * room on every open/reopen — re-joins carry sinceId() as the history
+   * cursor so replays deduplicate — and wrap sends as room broadcasts.
+   */
+  rooms?: { room: string; memberId: string; sinceId: () => number }
+  /**
    * Shared resilience tracker driving the ConnectionStatus pill. The
    * Atmosphere transport instruments it via status.wrap(); foreign
    * adapters mark lifecycle transitions on it directly.

@@ -2,6 +2,10 @@
 
 atmosphere:
   packages: org.atmosphere.samples.springboot.aiclassroom
+  # The bundled Atmosphere Console is the sample UI: the room picker selects
+  # the per-room @AiEndpoint; every member of a room sees the same AI stream.
+  console-subtitle: Collaborative AI classroom — every student sees the same stream
+  console-endpoints: Math=/atmosphere/classroom/math,Code=/atmosphere/classroom/code,Science=/atmosphere/classroom/science
   web-transport:
     enabled: true
     port: 4446

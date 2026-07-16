@@ -98,6 +98,19 @@ public class AtmosphereConsoleInfoEndpoint {
         if (webTransport != null) {
             result.put("webTransport", webTransport);
         }
+        // Room Protocol room the console joins on connect (presence chip +
+        // history-synced reconnects). Config-declared like the endpoint itself.
+        var consoleRoom = properties.getConsoleRoom();
+        if (consoleRoom != null && !consoleRoom.isBlank()) {
+            result.put("room", consoleRoom.trim());
+        }
+        // Selectable endpoints (Label=/path pairs) for path-templated samples:
+        // the console shows a picker before connecting. Malformed pairs are
+        // dropped rather than echoed (Boundary Safety).
+        var endpointOptions = parseEndpointOptions(properties.getConsoleEndpoints());
+        if (!endpointOptions.isEmpty()) {
+            result.put("endpointOptions", endpointOptions);
+        }
         // Report the live MCP endpoint (if any) so the console can host MCP Apps
         // (SEP-1865) against it. Omitted when no MCP handler is registered, so
         // the console only surfaces the Apps tab when there's truly one to talk
@@ -343,6 +356,32 @@ public class AtmosphereConsoleInfoEndpoint {
             logger.debug("Could not classify handler mode for {}", endpoint, e);
             return "ai";
         }
+    }
+
+    /**
+     * Parse {@code atmosphere.console-endpoints} ({@code Label=/path} pairs,
+     * comma separated) into the picker options. Pairs whose path doesn't
+     * start with {@code /} or whose label is blank are dropped rather than
+     * echoed (Boundary Safety). Package-visible for unit testing.
+     */
+    static java.util.List<Map<String, String>> parseEndpointOptions(String configured) {
+        var options = new java.util.ArrayList<Map<String, String>>();
+        if (configured == null || configured.isBlank()) {
+            return options;
+        }
+        for (var pair : configured.split(",")) {
+            var idx = pair.indexOf('=');
+            if (idx <= 0) {
+                continue;
+            }
+            var label = pair.substring(0, idx).trim();
+            var endpoint = pair.substring(idx + 1).trim();
+            if (label.isEmpty() || !endpoint.startsWith("/")) {
+                continue;
+            }
+            options.add(Map.of("label", label, "endpoint", endpoint));
+        }
+        return options;
     }
 
     /**

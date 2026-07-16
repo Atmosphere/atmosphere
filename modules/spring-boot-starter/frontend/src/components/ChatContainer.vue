@@ -28,9 +28,12 @@ const props = defineProps<{
   // Runtime-truth coordinator fleet roster (/api/admin/coordinators/{n}/fleet)
   // — renders the multi-agent welcome cards + the live activity strip.
   fleet?: FleetInfo
+  // Room Protocol room to join (atmosphere.console-room) — presence chip +
+  // history-synced broadcasts over the RoomProtocolInterceptor dialect.
+  room?: string
 }>()
 
-const { messages, toolCalls, isConnected, isStreaming, connectionState, connectionStatus, send, clearMessages, respondToApproval, stats, routing, agentSteps } = useAtmosphereChat(props.endpoint, props.mode, props.transport, props.webTransport)
+const { messages, toolCalls, isConnected, isStreaming, connectionState, connectionStatus, send, clearMessages, respondToApproval, stats, routing, agentSteps, presenceCount } = useAtmosphereChat(props.endpoint, props.mode, props.transport, props.webTransport, props.room)
 const messagesContainer = ref<HTMLElement | null>(null)
 
 function scrollToBottom() {
@@ -55,6 +58,10 @@ function handleSend(text: string) {
   <div class="chat-container" data-testid="chat-layout">
     <div class="chat-toolbar">
       <ConnectionStatus :state="connectionState" :status="connectionStatus" />
+      <!-- Live room headcount from presence frames -->
+      <span v-if="presenceCount > 0" class="presence-chip" data-testid="presence-count">
+        {{ presenceCount }} online
+      </span>
       <!-- Cost/latency routing readout from the server's metadata events -->
       <div v-if="routing.model || routing.cost !== undefined || routing.latency !== undefined"
            class="routing-chips" data-testid="routing-chips">
@@ -160,6 +167,16 @@ function handleSend(text: string) {
   padding: 0.5rem 1.5rem;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-surface);
+}
+
+.presence-chip {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  margin-left: 0.5rem;
 }
 
 .routing-chips {

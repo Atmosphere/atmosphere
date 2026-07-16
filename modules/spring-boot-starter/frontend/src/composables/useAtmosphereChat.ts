@@ -38,7 +38,8 @@ export interface SessionStats {
 export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
                                   mode?: 'ai' | 'broadcast',
                                   transportName: ConsoleTransportName = 'atmosphere',
-                                  webTransport?: { port: number; certificateHash?: string }) {
+                                  webTransport?: { port: number; certificateHash?: string },
+                                  room?: string) {
   const messages = ref<ChatMessage[]>([])
   const toolCalls = ref<ToolCall[]>([])
   const isConnected = ref(false)
@@ -51,6 +52,11 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
   // Live per-agent activity from agent-step events (agent → current step) —
   // drives the fleet activity strip during multi-agent coordinations.
   const agentSteps = ref<Record<string, string>>({})
+  // Live room headcount. Fed by two wire shapes: presence frames carrying a
+  // server-computed count (classroom), or join_ack/presence member deltas
+  // (Room Protocol) tracked in a local set.
+  const presenceCount = ref(0)
+  let presenceMembers = new Set<string>()
 
   // Broadcast-mode endpoints (@ManagedService chat rooms) decode a JSON
   // {author, message, time} envelope, not the raw prompt string the AI
@@ -81,6 +87,9 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
 
   let transport: ChatTransport | null = null
   let currentAssistantMessage: ChatMessage | null = null
+  // Server-assigned id of the last Room Protocol message seen — the reconnect
+  // join carries it as the sinceId history cursor so replays deduplicate.
+  let lastRoomMessageId = 0
   let toolCallCounter = 0
   let reactivityTimer: ReturnType<typeof setTimeout> | null = null
   let reconnectAttempts = 0
@@ -238,6 +247,43 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
           tc.result = typeof result === 'string' ? result : JSON.stringify(result)
           tc.done = true
           toolCalls.value = [...toolCalls.value]
+        }
+        break
+      }
+      case 'presence': {
+        // Two wire shapes: classroom presence frames ship the current room
+        // headcount; Room Protocol presence frames are member join/leave
+        // deltas tracked in a local set seeded by join_ack.
+        const count = msg.count
+        if (typeof count === 'number') {
+          presenceCount.value = count
+        } else if (typeof msg.memberId === 'string' && msg.memberId) {
+          if (msg.action === 'leave') {
+            presenceMembers.delete(msg.memberId)
+          } else {
+            presenceMembers.add(msg.memberId)
+          }
+          presenceCount.value = presenceMembers.size
+        }
+        break
+      }
+      case 'join_ack': {
+        // Room Protocol join acknowledgement seeds the member set.
+        if (Array.isArray(msg.members)) {
+          presenceMembers = new Set(msg.members.filter((m): m is string => typeof m === 'string'))
+          presenceCount.value = presenceMembers.size
+        }
+        break
+      }
+      case 'message': {
+        // Room Protocol broadcast from another member: {from, data, id}.
+        // Rendered as an author-prefixed bubble like broadcast mode.
+        const from = typeof msg.from === 'string' && msg.from ? `${msg.from}: ` : ''
+        if (typeof msg.data === 'string' && msg.data) {
+          appendBroadcastMessage(from + msg.data)
+        }
+        if (typeof msg.id === 'number') {
+          lastRoomMessageId = msg.id
         }
         break
       }
@@ -411,6 +457,13 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         status,
         maxReconnectOnClose: MAX_RECONNECT_ON_CLOSE,
         webTransport,
+        ...(room ? {
+          rooms: {
+            room,
+            memberId: `console-${Math.random().toString(16).slice(2, 6)}`,
+            sinceId: () => lastRoomMessageId,
+          },
+        } : {}),
       }, {
         onOpen: () => {
           isConnected.value = true
@@ -477,11 +530,10 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     streamStartedAt = Date.now()
     streamTokenCount = 0
 
-    // Broadcast sends have no streamed AI reply — the room echo renders as
-    // its own bubble via the event-less-frame branch in handleStreamingEvent.
-    // The wire envelope itself ({author, message, time} vs raw prompt) is the
-    // transport's dialect concern.
-    isStreaming.value = !broadcastMode.value
+    // Broadcast and Room Protocol sends have no streamed AI reply — the room
+    // echo renders as its own bubble ({type:'message'} or the event-less
+    // frame). The wire envelope itself is the transport's dialect concern.
+    isStreaming.value = !broadcastMode.value && !room
     transport.send(text.trim())
   }
 
@@ -530,5 +582,6 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     stats,
     routing,
     agentSteps,
+    presenceCount,
   }
 }
