@@ -123,6 +123,11 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
   const MAX_RECONNECT_ON_CLOSE = 10
   let streamStartedAt = 0
   let streamTokenCount = 0
+  // Clear-during-stream guard: when the user clears the conversation while a
+  // reply is still streaming, the late deltas belong to the cleared
+  // conversation and must not resurrect an assistant bubble. Set on clear,
+  // reset when the discarded stream terminates or a new send starts.
+  let discardInFlightStream = false
 
   /**
    * Turn whatever shape the server emits for an error into a compact
@@ -206,6 +211,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     switch (type) {
       case 'streaming-text':
       case 'text-delta':
+        if (discardInFlightStream) break
         streamTokenCount += 1
         appendToAssistant(
           typeof msg.data === 'string'
@@ -216,6 +222,10 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         )
         break
       case 'complete': {
+        if (discardInFlightStream) {
+          discardInFlightStream = false
+          break
+        }
         if (streamStartedAt > 0) {
           const elapsedMs = Math.max(1, Date.now() - streamStartedAt)
           stats.value = {
@@ -228,6 +238,10 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         break
       }
       case 'error': {
+        if (discardInFlightStream) {
+          discardInFlightStream = false
+          break
+        }
         const { message, retryDelay, status } = extractErrorShape(msg.data)
         let rendered = `\n\n**Error:** ${message}`
         if (status) {
@@ -572,6 +586,9 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     stats.value = null
     streamStartedAt = Date.now()
     streamTokenCount = 0
+    // A new prompt starts a stream the user wants to see, even if a discarded
+    // one never delivered its terminal event.
+    discardInFlightStream = false
 
     // Broadcast and Room Protocol sends have no streamed AI reply — the room
     // echo renders as its own bubble ({type:'message'} or the event-less
@@ -594,8 +611,17 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
   }
 
   function clearMessages() {
+    // A reply still streaming belongs to the conversation being cleared —
+    // without the discard flag its late deltas would resurrect an assistant
+    // bubble and the empty state would never return.
+    if (isStreaming.value) {
+      discardInFlightStream = true
+      isStreaming.value = false
+    }
     messages.value = []
     toolCalls.value = []
+    agentSteps.value = {}
+    stats.value = null
     currentAssistantMessage = null
     // The suffixed bubbles are gone; queued sends themselves stay queued.
     queuedBubbleIds.clear()
