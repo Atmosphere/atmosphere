@@ -20,6 +20,33 @@
         <temporal.version>1.30.1</temporal.version>
     </properties>
 
+    <dependencyManagement>
+        <dependencies>
+            <!-- CVE-2026-54515: temporal-sdk 1.30.1 pulls Jackson 2 databind/core 2.22.0
+                 (case-insensitive deserialization bypasses per-property
+                 @JsonIgnoreProperties). Patch pins, module-local so the reactor's
+                 Jackson 3 (tools.jackson) modules are untouched; drop once a
+                 temporal-sdk release carries >= 2.22.1. -->
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>2.22.1</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>2.22.1</version>
+            </dependency>
+            <!-- CVE-2024-57699: temporal-testing -> json-path pulls json-smart 2.5.0
+                 (uncontrolled recursion). Test scope only, pinned anyway. -->
+            <dependency>
+                <groupId>net.minidev</groupId>
+                <artifactId>json-smart</artifactId>
+                <version>2.5.2</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
