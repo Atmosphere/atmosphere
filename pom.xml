@@ -1127,7 +1127,7 @@
             <dependency>
                 <groupId>com.github.jknack</groupId>
                 <artifactId>handlebars</artifactId>
-                <version>4.5.2</version>
+                <version>4.5.3</version>
             </dependency>
             <!-- SnakeYAML — declared here so downstream consumers of
                  atmosphere-ai resolve the version through this BOM-style
