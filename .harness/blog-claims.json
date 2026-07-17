@@ -28,7 +28,8 @@
       "id": "agent-scope-on-coordinator",
       "claim": "@AgentScope on a @Coordinator class is honored (scope policy built at processing time)",
       "evidence": [
-        { "path": "modules/coordinator/src/main/java/org/atmosphere/coordinator/processor/CoordinatorProcessor.java", "symbol": "ScopePolicyBuilder.build(" }
+        { "path": "modules/coordinator/src/main/java/org/atmosphere/coordinator/processor/CoordinatorProcessor.java", "symbol": "ScopePolicyResolver.resolve(" },
+        { "path": "modules/agent/src/main/java/org/atmosphere/agent/skill/ScopePolicyResolver.java", "symbol": "getAnnotation(AgentScope.class)" }
       ]
     },
     {
