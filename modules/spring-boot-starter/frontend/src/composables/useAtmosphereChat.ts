@@ -320,10 +320,13 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
         break
       }
       case 'agent-step': {
-        // Multi-agent coordination progress: {agent, stepName} — surfaced as
-        // the live fleet activity strip while the coordinator fans out.
+        // Multi-agent coordination progress — surfaced as the live fleet
+        // activity strip while the coordinator fans out. Wire shape is the
+        // serialized AiEvent.AgentStep record: {stepName, description,
+        // data: {agent, skill, ...}} — the agent name lives one level down.
         const data = msg.data as Record<string, unknown> | undefined
-        const agent = data?.agent
+        const inner = data?.data as Record<string, unknown> | undefined
+        const agent = inner?.agent
         const stepName = data?.stepName
         if (typeof agent === 'string' && agent && typeof stepName === 'string') {
           agentSteps.value = { ...agentSteps.value, [agent]: stepName }
