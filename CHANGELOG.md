@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.63] - 2026-07-17
+
+### Added
+
+- offline-queue badge with queued suffixes and WT-to-WS fallback resubscribe
+- Rooms + Observability tabs; spring-boot-chat converted Framework-owned /api/admin/rooms over RoomManager + hasRooms/hasActuator gates; room dialect fixes (join latched until subscribe resolves, protocol/tracking framing off, RoomMember-shaped join_ack); presence, cross-member delivery, both tabs browser-proven over WebTransport
+- room picker, presence, Room Protocol; classroom converted console-endpoints renders a pre-connect picker, presence frames drive the online chip, console-room joins RoomProtocolInterceptor endpoints with sinceId cursors; collaborative streaming browser-proven across two pages
+- multi-agent fleet roster + activity strip; startup-team on the Console CoordinatorProcessor publishes live fleets into the framework property bag and CoordinatorController reads them via supplier (the /api/admin/coordinators wiring was a dead empty map); the console renders the runtime-truth roster on the welcome screen and per-agent steps during coordinations
+- ai-chat and ai-tools on the Console with WebTransport-first connect /api/console/info gains a runtime-truth webTransport block, the console CSP allows the live HTTP/3 sidecar origin (it silently blocked WT before), routing cost/latency chips render from metadata events; bespoke React frontends deleted
+- chat (WAR) and embedded-jetty-websocket-chat demo through the Atmosphere Console Both bare-Jetty samples ship gate-synced console bundle copies + static /api/console/info servlets; bespoke React bundles and stale committed asset hashes deleted, / redirects
+- quarkus-chat, mcp-server and rag-chat demo through the Atmosphere Console Bespoke React frontends deleted, / redirects to /atmosphere/console/ with per-sample subtitle+endpoint config; rag-chat's root UI had referenced a nonexistent asset bundle
+- grpc-chat demos through the Atmosphere Console over Connect-JSON Bare-Jetty sample ships a third gate-synced console bundle copy + a static /api/console/info servlet selecting the grpc adapter; bespoke Connect-web React frontend deleted, / redirects
+- spring-boot-agui-chat demos through the Atmosphere Console Console drives the real AG-UI named-SSE wire via console-transport=ag-ui (bespoke React UI deleted, / redirects); adapter probes the origin root so connect never red-logs a 405; Playwright UI lane repointed at the Console
+- spring-boot-a2a-agent demos through the Atmosphere Console Console drives the real A2A wire via console-transport=a2a (bespoke frontend deleted, / redirects); a2a/agui handlers now classify as ai mode; adapter tolerates the SSE layer's data: re-framing and surfaces failed-Task text
+- gRPC chat transport adapter over Connect-JSON Speaks ConnectProtocolServlet's JSON mode (enveloped connect+json Subscribe, unary json Send) with ACK-gated open, capped resubscribe and broadcast rendering - no protobuf/codegen dependency
+- A2A and AG-UI chat transport adapters as lazy chunks Built against the server wire shapes (result.artifactUpdate parts / named-SSE AgUiEventMapper inverse) with unary fallback + terminal-path completion; widens ConnectionStatusOptions.initialTransport to ConnectionTransportName
+- console-transport parity on /api/console/info quarkus.atmosphere.console-transport + atmosphere.console-transport (boot3) validated to atmosphere|grpc|a2a|ag-ui, unknown falls back to atmosphere, mirroring the Spring Boot 4 starter
+- pluggable ChatTransport seam behind the chat renderer Extracts the Atmosphere WS wire (framing, auth, send dialect) from useAtmosphereChat into a ChatTransport selected via /api/console/info transport; foreign adapters (grpc/a2a/ag-ui) fail loud until shipped
+- console-transport property + /api/console/info transport field
+- atmosphere-checkpoint-temporal — run Workflow<S> on a Temporal service DurableExecutionProvider adapter: steps as Temporal activities in the calling JVM, CheckpointStore snapshot parity, e2e on the Temporal test service; pins grpc-api alongside the other grpc artifacts
+- port the session-tape admin surface + content-read-auth gate to SB3 Tape runs/steps/replay endpoints + TapeAdminSupport + hasTape probe, gated by a ported AdminApiAuthFilter (content-read default-deny, Inv#6); ai-chat TapeLifecycleE2ETest now runs on both SB4 and SB3
+- visualize the tape coordination tree as a Vue Flow node-graph Replay tab renders the coordinator + fan-out agents (edges by parentRunId) via a pure, unit-tested BFS layout; e2e-verified in the console under the strict nonce CSP with zero violations
+
+### Fixed
+
+- clear during a streaming reply no longer lets late deltas resurrect a bubble Discard flag drops stream events until the cleared stream terminates; clear also resets the agent strip and stats; bundles resynced
+- agent-step handler reads the agent name from the nested AgentStep payload The wire shape is {stepName, data:{agent}} so the fleet activity strip never rendered; bundles resynced
+- classroom spec lands on the Console; samples no longer claim hasFrontend
+- heal WebTransport reconnect chain and drain offline queue on first open
+- deterministic conversational default for no-skillId requests Free-text chat routed to whatever skill registered first (getDeclaredMethods order is JVM-arbitrary), nondeterministically hitting parameter-shaped skills and returning empty streams; prefer the single String-message skill on both stream and unary paths
+- route Workflow.run() through DurableExecutionProvider.resolve() A ServiceLoader-registered engine adapter (Temporal/DBOS/Restate) now takes over without caller changes; contract test pins takeover + fallback
+- enforce skill-file guardrails as admission scope on @Coordinator @Coordinator advertised ## Guardrails on the A2A card but enforced only @AgentScope; shared ScopePolicyResolver gives it @Agent's skill-beats-annotation precedence
+- make annotation checks portable across ripgrep versions rg 14.1.0 (ubuntu-latest apt) matches nothing for an optional group containing a dot, so the qualified-@Disabled fix passed locally and no-op-ed in CI; also stop the harness reverting its own subject
+- stop three validation checks from passing on empty input Refuse to run without rg, assert allowlists parse non-empty, move the wiring-site filter out of a stdin-stealing heredoc, and count with grep -c so a clean tree is not 1 finding
+- fail architectural validation on every finding instead of warning Deletes the advisory tier, adds comment-aware scanning so Javadoc examples and enum constants stop being false positives, authorises CrewAI tool callbacks with a per-run token, and revives an offer() check dead since 68fdaf598d
+- scope the tape lifecycle E2E to Spring Boot 4 (SB3 starter lacks tape admin routes) spring-boot3-starter's AtmosphereAdminEndpoint has no /api/admin/tape/* routes, so exclude TapeLifecycleE2ETest under -Pspring-boot3 until that parity gap is closed
+- protect WEB-INF/META-INF on grpc-chat's Jetty static handler + CI lint grpc-chat served its frontend via DefaultServlet without setProtectedTargets; add it (matching embedded-jetty) plus an architectural-validation check failing any samples/ Jetty static-server that omits the guard
+- remove unnessary docs
+
+### Changed
+
+- stage sweep pathspecs one-by-one so an unmatched glob cannot strand the release commit docs/ lost its last subdirectory .md and 'docs/**/*.md' fataled the whole git add after Central had already published 4.0.63
+- resync committed bundles after the atmosphere.js 5.0.39 dev-version bump
+- repoint agent-scope-on-coordinator claim evidence at ScopePolicyResolver The shared-resolver refactor (092f1460f9) replaced the direct ScopePolicyBuilder.build call the gate greps for
+- prepare next development version 5.0.39
+- drop the per-sample frontend build job
+- retarget sample specs to the Console UI they now serve
+- probe Temporal readiness with curl GET + CLI health, not wait-on HEAD The UI server ignores HEAD so wait-on timed out against a healthy server; also gates on the gRPC frontend so the adapter's 30s failed-probe backoff cannot race startup
+- resync committed bundles after rebase onto main
+- fingerprint-gated bundle sync for the committed sb3/quarkus consoles sync-console-bundle.sh + architectural-validation gate close silent drift; refresh brings the Tape tab, MCP sandbox.html and the ChatTransport seam to both runtimes
+- Temporal-adapter Playwright lane — assert the run in Temporal's own UI One-shot runner (fails fast unless the temporal provider ran it) + spec pinning type/queue/step-activities/result; foundation-e2e boots a Temporal dev server via the CLI
+- refresh the console bundle so SB3 shows the Tape tab + graph Replace the stale SB3 console with the current build (Vue Flow tape graph); it self-gates tabs to SB3's real capabilities (Chat/Sessions/Tape) — e2e-verified on SB3, zero CSP violations, no broken tabs
+- Playwright regression for the tape coordination-graph, CSP-guarded Boots startup-team, replays the coordinator, asserts the Vue Flow graph renders multi-node with zero CSP violations; opens the tape read-gate in the fixture + notes the graph in modules/ai/README
+- document skill-file guardrail enforcement on Coordinator.skillFile
+- declare directly-used Jackson artifacts instead of leaning on transitives dependency:analyze: jackson-core in ai/agent/checkpoint, jackson-annotations in coordinator, jackson-databind in verifier were compile-referenced but undeclared
+- prove every architectural-validation check fails on a violation Adds a 25-case injection suite asserting WHICH check fires, fixes two regexes that could never match the spellings their extractors targeted, and gates the CrewAI sidecar pytest in CI
+- end-to-end tape lifecycle — record, admin-read, replay, extract @SpringBootTest drives a taped turn through the installed recorder, reads it over the gated HTTP admin surface, replays it, and extracts one training example — no live LLM or WebSocket transport needed
+- guard always-active controllers against optional atmosphere-ai in signatures Generic autoconfig-registry scan of every starter controller + ai-free durable-sessions boot smoke reproduce the NoClassDefFoundError trap the console Tape tab hit
+- bump version to 4.0.62
+- prepare next development version 5.0.38
+- prepare for next development iteration 4.0.63-SNAPSHOT
+
 ## [4.0.62] - 2026-07-14
 
 ### Added
