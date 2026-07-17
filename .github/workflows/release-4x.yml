@@ -298,7 +298,15 @@ jobs:
     - name: Commit release version
       if: inputs.dry_run == false
       run: |
-        git add -- pom.xml '**/pom.xml' README.md '**/README.md' 'docs/**/*.md' 'samples/**/*.md' '**/SKILLCARD.yaml' CHANGELOG.md || true
+        # Add each sweep pathspec independently: git add fatals on ANY single
+        # unmatched pathspec and stages NOTHING (4.0.63: docs/ lost its last
+        # subdirectory .md, 'docs/**/*.md' stopped matching, the masked add
+        # staged zero files and the commit failed AFTER Central had already
+        # published — stranding the release bookkeeping). :(glob) lets '**'
+        # match zero directories so top-level docs/*.md are swept too.
+        for p in pom.xml '**/pom.xml' README.md '**/README.md' ':(glob)docs/**/*.md' ':(glob)samples/**/*.md' '**/SKILLCARD.yaml' CHANGELOG.md; do
+          git add -- "$p" 2>/dev/null || echo "sweep pathspec matched nothing (ok): $p"
+        done
         git commit -m "release: Atmosphere ${{ inputs.release_version }}"
         # Remove stale tag from a previous failed attempt (if any)
         git tag -d "atmosphere-${{ inputs.release_version }}" 2>/dev/null || true
