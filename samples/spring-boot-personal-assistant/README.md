@@ -289,10 +289,13 @@ prompt for the same user, and never leaks to a different user.
 
 ## Notes
 
-- The crew members return canned artifacts so the sample runs without
-  internet access. A production deployment plugs each crew member into
-  an MCP server via `ToolExtensibilityPoint`; credentials flow through
-  `AgentIdentity`. The `UpstreamMcpAgent` above demonstrates the wire
-  protocol of that production pattern against a local upstream.
+- The Research crew member uses Atmosphere's built-in `web_search` tool
+  (`WebSearchSupport`). Its engine is fail-closed: with no
+  `org.atmosphere.ai.websearch.endpoint` configured it returns a clear
+  "not configured" brief without touching the network, so the sample runs
+  offline out of the box; set that property to a JSON search endpoint for
+  live results. Credentials for a hosted endpoint flow through the
+  `org.atmosphere.ai.websearch.apiKey` property. The `UpstreamMcpAgent`
+  above demonstrates the MCP wire protocol against a local upstream.
 - Defaults favor safety: permission mode is `DEFAULT`, network-capable
   tools (`send_message`) require explicit approval.
