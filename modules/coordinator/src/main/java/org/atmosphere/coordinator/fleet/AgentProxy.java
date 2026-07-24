@@ -44,6 +44,21 @@ public interface AgentProxy {
 
     CompletableFuture<AgentResult> callAsync(String skill, Map<String, Object> args);
 
+    /**
+     * Maximum evaluator-driven refinement turns for this agent, consumed by
+     * {@link AgentFleet#refineUntil}. Sourced from {@code @AgentRef(maxTurns=...)}
+     * → {@link AgentLimits#maxTurns()}. {@link Integer#MAX_VALUE} (the default)
+     * means "unbounded" — {@code refineUntil} then applies its own safety cap.
+     * Decorating proxies must delegate to the wrapped proxy so the configured
+     * budget survives journaling / interception / circuit-breaker wrapping.
+     *
+     * @return the per-agent refinement budget, or {@link Integer#MAX_VALUE} when
+     *         no per-agent limit is configured
+     */
+    default int maxTurns() {
+        return AgentLimits.DEFAULT.maxTurns();
+    }
+
     void stream(String skill, Map<String, Object> args,
                 Consumer<String> onToken, Runnable onComplete);
 

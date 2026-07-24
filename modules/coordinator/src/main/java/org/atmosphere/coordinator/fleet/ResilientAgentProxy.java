@@ -76,6 +76,9 @@ public final class ResilientAgentProxy implements AgentProxy {
     public boolean isLocal() { return delegate.isLocal(); }
 
     @Override
+    public int maxTurns() { return delegate.maxTurns(); }
+
+    @Override
     public AgentProxy withDispatchMetadata(Map<String, Object> dispatchMetadata) {
         // Thread the dispatch metadata (e.g. the coordinator's tape run id) into
         // the wrapped proxy, preserving this proxy's circuit breaker + listeners.

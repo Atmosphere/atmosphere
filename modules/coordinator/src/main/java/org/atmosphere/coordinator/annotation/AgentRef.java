@@ -90,4 +90,18 @@ public @interface AgentRef {
      * }</pre>
      */
     long timeoutMs() default 0;
+
+    /**
+     * Maximum evaluator-driven refinement turns for this agent, consumed by
+     * {@link org.atmosphere.coordinator.fleet.AgentFleet#refineUntil} as the
+     * supervisor-loop budget. Default 0 means "unbounded" — {@code refineUntil}
+     * then applies its own safety cap
+     * ({@link org.atmosphere.coordinator.fleet.AgentFleet#DEFAULT_MAX_REFINE_TURNS}).
+     * A positive value bounds the loop to that many total dispatches.
+     *
+     * <pre>{@code
+     * @AgentRef(type = WriterAgent.class, maxTurns = 3)  // refine up to 3 times
+     * }</pre>
+     */
+    int maxTurns() default 0;
 }
