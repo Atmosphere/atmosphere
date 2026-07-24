@@ -140,6 +140,169 @@ public interface AgentFleet {
     }
 
     /**
+     * Well-known {@link AgentCall} argument key under which {@link #refineUntil}
+     * injects the aggregated evaluator feedback from the previous attempt so the
+     * worker agent can correct its next response. Mirrors the {@code
+     * _previous_result} key {@link #pipeline} uses to chain steps.
+     */
+    String REFINE_FEEDBACK_KEY = "_refine_feedback";
+
+    /**
+     * Safety cap on refinement turns applied by {@link #refineUntil} when the
+     * worker agent's configured {@link AgentLimits#maxTurns()} is unbounded
+     * ({@link Integer#MAX_VALUE} — the default when {@code @AgentRef(maxTurns=...)}
+     * is not set). Guarantees the supervisor loop always terminates even with no
+     * explicit budget (Correctness Invariant #2/#3 — bounded work, no unbounded
+     * growth). Explicit finite budgets are honoured as the caller's choice.
+     */
+    int DEFAULT_MAX_REFINE_TURNS = 8;
+
+    /**
+     * Evaluator-driven refinement (supervisor / reflection) loop. Dispatches the
+     * worker {@code call}, runs the registered {@link ResultEvaluator}s via
+     * {@link #evaluate}, and — while any evaluator FAILS — re-dispatches the same
+     * skill with the aggregated evaluator feedback merged into the call args
+     * under {@link #REFINE_FEEDBACK_KEY}, until an evaluator verdict passes or the
+     * turn budget is exhausted. Returns the first passing result, or (on
+     * exhaustion / cancellation) the best-scoring attempt seen.
+     *
+     * <p>The turn budget is the worker agent's configured
+     * {@link AgentProxy#maxTurns()} (sourced from {@code @AgentRef(maxTurns=...)}
+     * → {@link AgentLimits#maxTurns()}). See {@link #refineUntil(AgentCall, int)}
+     * for the exact bounding, cancellation, and terminal-path semantics.</p>
+     *
+     * @param call the worker call to dispatch and refine; must not be {@code null}
+     * @return the passing result, or the best/last attempt on exhaustion
+     */
+    default AgentResult refineUntil(AgentCall call) {
+        if (call == null) {
+            return AgentResult.failure("refine", "",
+                    "refineUntil() requires a non-null AgentCall",
+                    java.time.Duration.ZERO);
+        }
+        return refineUntil(call, agent(call.agentName()).maxTurns());
+    }
+
+    /**
+     * Evaluator-driven refinement loop with an explicit turn budget. Behaves as
+     * {@link #refineUntil(AgentCall)} but bounds the loop to {@code maxTurns}
+     * total dispatches instead of reading the worker agent's configured limit.
+     *
+     * <p><b>Bounding.</b> The loop runs at most {@code min(maxTurns, }
+     * effective{@code )} total dispatches. An unbounded budget
+     * ({@link Integer#MAX_VALUE}) is clamped to {@link #DEFAULT_MAX_REFINE_TURNS}
+     * so the loop always terminates; explicit finite budgets are honoured as-is
+     * (Correctness Invariant #3 — no unbounded growth).</p>
+     *
+     * <p><b>Verdict.</b> After each dispatch the registered evaluators run via
+     * {@link #evaluate}. An empty evaluator set means "nothing to refine
+     * against" — the first result is returned immediately. Otherwise the attempt
+     * passes only when every evaluation {@link Evaluation#passed() passed}; on
+     * failure the aggregated failing {@link Evaluation#reason() reasons} are
+     * merged into the next call's args under {@link #REFINE_FEEDBACK_KEY}.</p>
+     *
+     * <p><b>Terminal paths.</b> On a passing verdict the passing result is
+     * returned. On budget exhaustion the highest-scoring attempt is returned
+     * (a successful result outranks a failed one at equal score), never a
+     * half-completed state (Correctness Invariant #2). Cooperative cancellation
+     * is honoured: an interrupt on the coordinating thread stops the loop at the
+     * next turn boundary and returns the best attempt gathered so far.</p>
+     *
+     * <p>Implemented in terms of {@link #agent} and {@link #evaluate}, so
+     * journaling / interception / governance decorators apply to every turn and
+     * behaviour is identical across fleet wrappings (Correctness Invariant #7 —
+     * Mode Parity).</p>
+     *
+     * @param call     the worker call to dispatch and refine; must not be {@code null}
+     * @param maxTurns maximum total dispatch attempts; must be {@code >= 1}
+     * @return the passing result, or the best/last attempt on exhaustion
+     * @throws IllegalArgumentException if {@code maxTurns < 1}
+     */
+    default AgentResult refineUntil(AgentCall call, int maxTurns) {
+        if (call == null) {
+            return AgentResult.failure("refine", "",
+                    "refineUntil() requires a non-null AgentCall",
+                    java.time.Duration.ZERO);
+        }
+        if (maxTurns < 1) {
+            throw new IllegalArgumentException("maxTurns must be >= 1, got: " + maxTurns);
+        }
+        // Clamp the unbounded sentinel to a concrete cap so the loop always
+        // terminates; honour explicit finite budgets as the caller's choice.
+        var budget = maxTurns == Integer.MAX_VALUE ? DEFAULT_MAX_REFINE_TURNS : maxTurns;
+
+        var current = call;
+        AgentResult best = null;
+        var bestScore = Double.NEGATIVE_INFINITY;
+
+        for (var turn = 1; turn <= budget; turn++) {
+            // Cooperative cancellation — a caller that interrupts the
+            // coordinating thread stops the loop at a turn boundary and returns
+            // the best result gathered so far (Correctness Invariant #2).
+            if (Thread.currentThread().isInterrupted()) {
+                break;
+            }
+            var result = agent(current.agentName()).call(current.skill(), current.args());
+            var evaluations = evaluate(result, current);
+
+            // No evaluators registered — nothing to refine against, the first
+            // dispatch is the answer.
+            if (evaluations.isEmpty() || evaluations.stream().allMatch(Evaluation::passed)) {
+                return result;
+            }
+            // Track the best-scoring attempt so an exhausted budget still returns
+            // the closest result. Ties favour the later (more-refined) attempt,
+            // unless doing so would downgrade a successful result to a failed one.
+            var score = aggregateScore(evaluations);
+            if (best == null || score > bestScore
+                    || (score == bestScore && (result.success() || !best.success()))) {
+                best = result;
+                bestScore = score;
+            }
+            // Feed the aggregated failing feedback into the next attempt.
+            current = withRefineFeedback(current, feedbackFrom(evaluations));
+        }
+        // Budget exhausted (or cancelled) with no passing verdict — return the
+        // best attempt. `best` is only null if we were cancelled before the
+        // first dispatch, in which case a synthetic failure is the terminal state.
+        return best != null ? best
+                : AgentResult.failure(call.agentName(), call.skill(),
+                        "refineUntil() produced no result (cancelled before first dispatch)",
+                        java.time.Duration.ZERO);
+    }
+
+    /** Mean evaluation score used to rank refinement attempts. */
+    private static double aggregateScore(List<Evaluation> evaluations) {
+        return evaluations.stream().mapToDouble(Evaluation::score).average().orElse(0.0);
+    }
+
+    /** Join the failing evaluations' reasons into a single feedback string. */
+    private static String feedbackFrom(List<Evaluation> evaluations) {
+        var sb = new StringBuilder();
+        for (var eval : evaluations) {
+            if (eval.passed()) {
+                continue;
+            }
+            var reason = eval.reason();
+            if (reason == null || reason.isBlank()) {
+                continue;
+            }
+            if (!sb.isEmpty()) {
+                sb.append("; ");
+            }
+            sb.append(reason);
+        }
+        return sb.toString();
+    }
+
+    /** Return a copy of {@code call} with {@code feedback} under {@link #REFINE_FEEDBACK_KEY}. */
+    private static AgentCall withRefineFeedback(AgentCall call, String feedback) {
+        var merged = new java.util.LinkedHashMap<>(call.args());
+        merged.put(REFINE_FEEDBACK_KEY, feedback);
+        return new AgentCall(call.agentName(), call.skill(), merged);
+    }
+
+    /**
      * Access the coordination journal for querying past events.
      * Returns {@link CoordinationJournal#NOOP} if journaling is not active.
      */

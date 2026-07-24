@@ -656,9 +656,11 @@ public class CoordinatorProcessor implements Processor<Object> {
             var transport = resolveTransport(framework, agentName, ref);
             var version = ref.version().isEmpty() ? "1.0.0" : ref.version();
             var isLocal = transport instanceof LocalAgentTransport;
-            var limits = ref.timeoutMs() > 0
-                    ? AgentLimits.withTimeout(java.time.Duration.ofMillis(ref.timeoutMs()))
-                    : AgentLimits.DEFAULT;
+            var timeout = ref.timeoutMs() > 0
+                    ? java.time.Duration.ofMillis(ref.timeoutMs())
+                    : AgentLimits.DEFAULT.timeout();
+            var maxTurns = ref.maxTurns() > 0 ? ref.maxTurns() : AgentLimits.DEFAULT.maxTurns();
+            var limits = new AgentLimits(timeout, maxTurns);
 
             AgentProxy proxy = new DefaultAgentProxy(
                     agentName, version, ref.weight(), isLocal,

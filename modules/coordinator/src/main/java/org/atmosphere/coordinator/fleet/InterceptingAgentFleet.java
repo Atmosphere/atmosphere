@@ -203,6 +203,7 @@ public final class InterceptingAgentFleet implements AgentFleet {
         @Override public int weight() { return delegateProxy.weight(); }
         @Override public boolean isAvailable() { return delegateProxy.isAvailable(); }
         @Override public boolean isLocal() { return delegateProxy.isLocal(); }
+        @Override public int maxTurns() { return delegateProxy.maxTurns(); }
 
         @Override
         public AgentResult call(String skill, Map<String, Object> args) {

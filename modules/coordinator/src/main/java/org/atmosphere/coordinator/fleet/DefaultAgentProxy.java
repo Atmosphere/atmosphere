@@ -113,6 +113,9 @@ public final class DefaultAgentProxy implements AgentProxy {
     public AgentLimits limits() { return limits; }
 
     @Override
+    public int maxTurns() { return limits.maxTurns(); }
+
+    @Override
     public String name() { return name; }
 
     @Override
