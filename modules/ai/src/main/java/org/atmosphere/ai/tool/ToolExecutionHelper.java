@@ -576,7 +576,12 @@ public final class ToolExecutionHelper {
      */
     private static String finishAndEmit(String toolName, StreamingSession session,
                                         Map<Class<?>, Object> scope, String result) {
-        var effective = maybeOffload(toolName, result, scope);
+        // Screen the tool output for indirect prompt injection BEFORE offload so
+        // the screened value is what both reaches disk and re-enters the model
+        // (the emit==return invariant). Opt-in and off by default — see
+        // ToolOutputSafetyScreen for the posture rationale.
+        var screened = ToolOutputSafetyScreen.screen(toolName, result);
+        var effective = maybeOffload(toolName, screened, scope);
         if (session != null) {
             session.emit(new AiEvent.ToolResult(toolName, effective));
         }

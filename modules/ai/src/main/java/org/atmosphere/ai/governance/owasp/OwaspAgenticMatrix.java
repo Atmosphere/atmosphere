@@ -205,7 +205,7 @@ public final class OwaspAgenticMatrix {
 
             new Row("A04", "Indirect Prompt Injection",
                     "Attacker plants instructions in RAG docs / tool outputs / web content the agent ingests.",
-                    Coverage.COVERED,
+                    Coverage.PARTIAL,
                     List.of(
                             new Evidence("org.atmosphere.ai.governance.rag.InjectionClassifier",
                                     "org.atmosphere.ai.governance.rag.RuleBasedInjectionClassifierTest",
@@ -223,6 +223,13 @@ public final class OwaspAgenticMatrix {
                                     "Default-on wiring: AiEndpointProcessor wraps every @AiEndpoint "
                                             + "ContextProvider with SafetyContextProvider (rule-based, "
                                             + "fail-closed) unless atmosphere.ai.rag.safety.enabled=false"),
+                            new Evidence("org.atmosphere.ai.tool.ToolOutputSafetyScreen",
+                                    "org.atmosphere.ai.tool.ToolExecutionHelperTest",
+                                    "ToolOutputSafetyScreen.screen",
+                                    "Opt-in tool-output injection screen consumed by "
+                                            + "ToolExecutionHelper.finishAndEmit (every runtime bridge "
+                                            + "and transport funnels through it) — OFF by default; "
+                                            + "enable via org.atmosphere.ai.tool.injectionScreen.enabled"),
                             new Evidence("org.atmosphere.ai.guardrails.PiiRedactionGuardrail",
                                     "org.atmosphere.ai.guardrails.GuardrailsTest",
                                     "PiiRedactionGuardrail",
@@ -232,11 +239,16 @@ public final class OwaspAgenticMatrix {
                                     "org.atmosphere.ai.AiPipelineScopeHardeningTest",
                                     "ScopePolicy",
                                     "Scope-confinement preamble blunts injected instructions")),
-                    "On by default. Instructions hidden inside retrieved documents, tool outputs, "
-                            + "or web content are detected and stripped before they reach the model, "
-                            + "so an attacker can't smuggle commands in through the data the agent "
-                            + "reads. It works with no setup; adding an embedding or classifier model "
-                            + "makes detection stronger but isn't required."),
+                    "Partly on by default. Instructions hidden inside documents the agent "
+                            + "retrieves from a knowledge base are detected and stripped before "
+                            + "they reach the model, with no setup — an attacker can't smuggle "
+                            + "commands in through retrieved documents. Screening of tool outputs "
+                            + "is available but off by default: turn it on with "
+                            + "org.atmosphere.ai.tool.injectionScreen.enabled=true (or the "
+                            + "LLM_TOOL_OUTPUT_INJECTION_SCREEN env var). It is off out of the box "
+                            + "because a tool that legitimately quotes injection-like text — a "
+                            + "security blog, a search hit — would be withheld. Adding an embedding "
+                            + "or classifier model makes RAG detection stronger but isn't required."),
 
             new Row("A05", "Cascading Failures / Runaway Agent Loops",
                     "Multi-agent loop spirals out of control; one agent's failure triggers another.",

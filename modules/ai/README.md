@@ -129,8 +129,15 @@ Either way the screen never silently fails open. On a classifier error the
 document is dropped (fail-closed) unless `fail-open=true`. Every enforcement is
 recorded to the `GovernanceDecisionLog`.
 
-Only `ContextProvider` retrieval is screened. `@Agent` does not auto-wire a
-`ContextProvider`; tool outputs (`@AiTool`) are a separate trust boundary.
+Only `ContextProvider` retrieval is screened **by default**. `@Agent` does not
+auto-wire a `ContextProvider`; tool outputs (`@AiTool`) are a separate trust
+boundary with their own **opt-in** screen: set
+`org.atmosphere.ai.tool.injectionScreen.enabled=true` (or the
+`LLM_TOOL_OUTPUT_INJECTION_SCREEN` env var) and every tool result is run through
+the same rule-based classifier at the shared `ToolExecutionHelper` seam before it
+re-enters the model — a flagged result is replaced with a non-actionable marker
+and audited. It is off out of the box because a tool that legitimately quotes
+injection-like text (a security blog, a search hit) would be withheld.
 
 The console `/api/console/info` reports the live screen as runtime truth (present
 only once a provider is actually wrapped):
