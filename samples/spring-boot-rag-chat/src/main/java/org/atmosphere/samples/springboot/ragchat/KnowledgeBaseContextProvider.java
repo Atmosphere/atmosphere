@@ -55,10 +55,18 @@ public class KnowledgeBaseContextProvider implements ContextProvider {
 
     @Override
     public List<Document> retrieve(String query, int maxResults) {
-        // Score the trusted corpus and the one untrusted document uniformly via
-        // the built-in word-overlap retriever, exactly as a real vector store
-        // would return a poisoned chunk alongside legitimate ones.
-        var candidates = new ArrayList<Document>(KnowledgeBase.instance().documents());
+        var candidates = new ArrayList<Document>();
+        if (!new org.atmosphere.ai.rag.spring.SpringAiVectorStoreContextProvider().isAvailable()) {
+            // Keyless demo mode: no vector store, so this provider serves the
+            // whole trusted corpus via word-overlap scoring as the graceful
+            // fallback retrieval path.
+            candidates.addAll(KnowledgeBase.instance().documents());
+        }
+        // The untrusted community doc is contributed in BOTH modes — in keyed
+        // mode the trusted corpus rides the vector store and this provider
+        // supplies only the poisoned document, exactly like a compromised doc
+        // sitting alongside a real store; the default-on screen drops it either
+        // way.
         candidates.add(POISONED);
         return new InMemoryContextProvider(candidates).retrieve(query, maxResults);
     }

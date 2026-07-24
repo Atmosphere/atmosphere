@@ -60,12 +60,24 @@ public final class KnowledgeBase {
     }
 
     /**
-     * Search the knowledge base using word-overlap scoring.
-     * Works without embeddings — always available, even in demo mode.
+     * Search the knowledge base. When a Spring AI {@code VectorStore} is
+     * configured (an {@code EmbeddingModel} bean exists), the search runs real
+     * {@code similaritySearch} over the embedded chunks via
+     * {@link org.atmosphere.ai.rag.spring.SpringAiVectorStoreContextProvider} —
+     * the same retrieval the {@code @AiEndpoint} path uses (mode parity). In
+     * keyless demo mode it falls back to word-overlap scoring, which needs no
+     * embeddings.
      */
     public List<ContextProvider.Document> search(String query, int maxResults) {
         if (documents.isEmpty()) {
             return List.of();
+        }
+        var vector = new org.atmosphere.ai.rag.spring.SpringAiVectorStoreContextProvider();
+        if (vector.isAvailable()) {
+            var hits = vector.retrieve(query, maxResults);
+            if (!hits.isEmpty()) {
+                return hits;
+            }
         }
         var provider = new InMemoryContextProvider(documents);
         return provider.retrieve(query, maxResults);

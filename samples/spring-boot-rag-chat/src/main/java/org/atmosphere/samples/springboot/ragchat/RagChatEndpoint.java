@@ -26,10 +26,15 @@ import org.slf4j.LoggerFactory;
 /**
  * Canonical RAG chat endpoint and the page the bundled Atmosphere Console
  * connects to (it sits at the default {@code /atmosphere/ai-chat} path). Every
- * turn, Atmosphere automatically retrieves context through the declared
- * {@link KnowledgeBaseContextProvider} and injects it into the prompt.
+ * turn, Atmosphere retrieves context through the declared providers: the
+ * {@link org.atmosphere.ai.rag.spring.SpringAiVectorStoreContextProvider}
+ * runs real Spring AI {@code VectorStore.similaritySearch} over the embedded
+ * document chunks whenever an {@code EmbeddingModel} is configured (an API key
+ * is present), and self-skips ({@code isAvailable() == false}) in keyless demo
+ * mode, where the {@link KnowledgeBaseContextProvider}'s word-overlap search is
+ * the graceful fallback.
  *
- * <p>Because the provider is declared here, the framework wraps it with the
+ * <p>Because the providers are declared here, the framework wraps them with the
  * default-on injection-safety screen ({@code atmosphere.ai.rag.safety.*}): any
  * retrieved document that looks like an indirect prompt injection (OWASP
  * Agentic A04) is dropped before it reaches the model. Ask "how do I secure
@@ -49,7 +54,9 @@ import org.slf4j.LoggerFactory;
  * RAG retrieval as usual.</p>
  */
 @AiEndpoint(path = "/atmosphere/ai-chat",
-        contextProviders = {KnowledgeBaseContextProvider.class},
+        contextProviders = {
+                org.atmosphere.ai.rag.spring.SpringAiVectorStoreContextProvider.class,
+                KnowledgeBaseContextProvider.class},
         systemPrompt = "You are a knowledge base assistant for the Atmosphere Framework. "
                 + "Answer the user's question using only the retrieved context. If the context "
                 + "does not contain the answer, say so plainly.")

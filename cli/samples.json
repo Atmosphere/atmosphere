@@ -235,7 +235,7 @@
     },
     {
       "name": "spring-boot-rag-chat",
-      "description": "RAG agent — chunked vector-store ingestion, @Agent tools for knowledge search, slash commands",
+      "description": "RAG agent — chunked vector-store ingestion + similaritySearch retrieval, @Agent tools for knowledge search, slash commands",
       "category": "agent",
       "tags": [
         "spring-boot",

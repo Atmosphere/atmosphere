@@ -15,9 +15,13 @@ screen) and a richer **`@Agent`** with AI tools and slash commands.
 6. **Real-time streaming** over WebSocket/SSE
 
 When a Spring AI embedding model is configured (API key present), each Markdown
-document is also chunked with `RagChunker` and indexed into a `SimpleVectorStore`
-for semantic search; chunk metadata preserves the source document and offsets so
-citations point to the right passage.
+document is chunked with `RagChunker`, indexed into a `SimpleVectorStore`, and
+**retrieved with real `VectorStore.similaritySearch`** on every turn — by both
+the endpoint's automatic RAG (via `SpringAiVectorStoreContextProvider`) and the
+agent's `search_knowledge_base` tool. Chunk metadata preserves the source
+document and offsets so citations point to the right passage. Without a key the
+sample degrades to the built-in word-overlap retriever, so it still runs in demo
+mode.
 
 ## Architecture
 
@@ -27,7 +31,8 @@ Browser (atmosphere.js)
     +-- /atmosphere/ai-chat (console default)
     |     @AiEndpoint (RagChatEndpoint.java)
     |       @Prompt --> RAG pipeline:
-    |         1. KnowledgeBaseContextProvider retrieves docs
+    |         1. SpringAiVectorStoreContextProvider (similaritySearch, keyed mode)
+    |            + KnowledgeBaseContextProvider (word-overlap fallback + demo doc)
     |         2. SafetyContextProvider screens them (drops injections) <-- default-on
     |         3. LLM generates response
     |
@@ -145,8 +150,9 @@ Five documentation files in `src/main/resources/docs/`:
 - `atmosphere-getting-started.md` — Getting started with Maven and examples
 - `atmosphere-agents.md` — Agent framework (@Agent, @Command, @AiTool, @Coordinator)
 
-`KnowledgeBase` keeps full documents for the explicit `@AiTool` methods.
-`RagChatEndpoint`'s automatic RAG retrieves over the knowledge base with the
-built-in word-overlap retriever, so it works with no API key. When an embedding
-model is configured, `VectorStoreConfig` additionally indexes retrieval-sized
-chunks into a Spring AI `SimpleVectorStore` for semantic search.
+`KnowledgeBase` keeps full documents for the explicit `@AiTool` methods. With an
+embedding model configured, `VectorStoreConfig` indexes retrieval-sized chunks
+into a Spring AI `SimpleVectorStore` and **both retrieval paths query it with
+`similaritySearch`** — the endpoint's automatic RAG and `search_knowledge_base`.
+With no API key, retrieval degrades to the built-in word-overlap retriever so
+the demo still works.
