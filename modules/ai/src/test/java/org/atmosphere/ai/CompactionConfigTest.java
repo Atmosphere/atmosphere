@@ -18,17 +18,24 @@ package org.atmosphere.ai;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class CompactionConfigTest {
 
     private AtmosphereConfig config(String strategy, Integer recentWindow) {
+        return config(strategy, recentWindow, null);
+    }
+
+    private AtmosphereConfig config(String strategy, Integer recentWindow, String model) {
         var cfg = mock(AtmosphereConfig.class);
         when(cfg.getInitParameter(CompactionConfig.STRATEGY_KEY)).thenReturn(strategy);
         when(cfg.getInitParameter(CompactionConfig.RECENT_WINDOW_KEY, 0))
                 .thenReturn(recentWindow != null ? recentWindow : 0);
+        when(cfg.getInitParameter(AiConfig.LLM_MODEL)).thenReturn(model);
         return cfg;
     }
 
@@ -70,6 +77,51 @@ public class CompactionConfigTest {
     @Test
     public void unknownValueFallsBackToSlidingWindow() {
         assertInstanceOf(SlidingWindowCompaction.class,
+                CompactionConfig.resolve(config("no-such-strategy", null)));
+    }
+
+    @Test
+    public void tokenWindowSelectsModelAwareCompaction() {
+        assertInstanceOf(TokenWindowCompaction.class,
                 CompactionConfig.resolve(config("token-window", null)));
+    }
+
+    @Test
+    public void tokenWindowIsCaseInsensitive() {
+        assertInstanceOf(TokenWindowCompaction.class,
+                CompactionConfig.resolve(config("TOKEN-WINDOW", null)));
+    }
+
+    @Test
+    public void tokenWindowSizesBudgetToConfiguredModel() {
+        var known = (TokenWindowCompaction) CompactionConfig.resolve(
+                config("token-window", null, "claude-sonnet-4-6"));
+        assertEquals(200_000, known.budgetTokens());
+    }
+
+    @Test
+    public void tokenWindowUnknownModelFallsBackToFlatDefault() {
+        var unknown = (TokenWindowCompaction) CompactionConfig.resolve(
+                config("token-window", null, "totally-made-up-model-xyz"));
+        assertEquals(TokenWindowStrategy.DEFAULT_MAX_TOKENS, unknown.budgetTokens());
+    }
+
+    @Test
+    public void tokenWindowBudgetScalesWithModelWindow() {
+        // Larger context window ⇒ larger eviction budget ⇒ later compaction.
+        var big = (TokenWindowCompaction) CompactionConfig.resolve(
+                config("token-window", null, "gemini-2.5-pro"));
+        var small = (TokenWindowCompaction) CompactionConfig.resolve(
+                config("token-window", null, "totally-made-up-model-xyz"));
+        assertTrue(big.budgetTokens() > small.budgetTokens(),
+                "known large-window model must budget more than an unknown model");
+    }
+
+    @Test
+    public void tokenWindowDefaultsToConfiguredGeminiWhenNoModel() {
+        // No explicit LLM_MODEL ⇒ CompactionConfig falls back to DEFAULT_MODEL
+        // (gemini-2.5-flash), a known 1M-window model.
+        var strategy = (TokenWindowCompaction) CompactionConfig.resolve(config("token-window", null));
+        assertEquals(1_000_000, strategy.budgetTokens());
     }
 }
