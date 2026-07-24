@@ -749,83 +749,36 @@ public class AiStreamingSession implements StreamingSession {
             effectiveGuardrails = List.copyOf(augmented);
         }
 
-        // The capturing-session decorator chain starts at `this` rather than
-        // `delegate` so every delegating method — critically, `injectables()`
-        // — reaches AiStreamingSession's live map. The delegate chain
-        // (DefaultStreamingSession etc.) returns the empty default, which
-        // would leave {@code @AiTool} methods without their typed parameter
-        // injections (AgentFleet, AgentIdentity, ...) and force the
-        // ThreadLocal shim back. Existing capturing sessions forward all
-        // StreamingSession methods to their delegate, so starting the chain
-        // at `this` doesn't change observable behaviour on any other method.
-        StreamingSession target = this;
-        if (memory != null) {
-            target = new MemoryCapturingSession(target, memory, resource.uuid(), message);
-        }
-
-        // LineageCapturingSession ties the prompt → tool calls → RAG → cost
-        // chain into a single audit row per @Prompt invocation. NOOP recorder
-        // is the framework default so unmounted code paths cost nothing; admin
-        // / Spring / Quarkus auto-config installs a real recorder via
-        // LineageRecorderHolder.install. Wrapped after MemoryCapturingSession
-        // so the lineage entry's terminal classification reflects what the
-        // memory capture sees (memory persists only on success).
-        var lineageRecorder = org.atmosphere.ai.lineage.LineageRecorderHolder.get();
-        if (lineageRecorder != org.atmosphere.ai.lineage.LineageRecorder.NOOP) {
-            target = new org.atmosphere.ai.lineage.LineageCapturingSession(
-                    target, lineageRecorder, userId, agentId, conversationId, message);
-        }
-
-        // Wrap in MetricsCapturingSession for latency/streaming text tracking
-        if (metrics != AiMetrics.NOOP) {
-            target = new MetricsCapturingSession(target, metrics, model,
-                    runtime != null ? runtime.name() : "unknown");
-        }
-
-        // Wrap in CostAccountingSession so TokenUsage events feed whatever
-        // CostAccountant is installed in the holder (default NOOP). This is
-        // the observability → enforcement wire: runtimes report usage, the
-        // accountant pushes cost into CostCeilingGuardrail.addCost, the next
-        // request-side guardrail inspection blocks the tenant once the
-        // ceiling trips. Skip wrapping when no accountant is installed so
-        // the decorator chain stays flat in the common case.
-        var accountant = org.atmosphere.ai.cost.CostAccountantHolder.get();
-        if (accountant != org.atmosphere.ai.cost.CostAccountant.NOOP) {
-            target = new org.atmosphere.ai.cost.CostAccountingSession(target, accountant);
-        }
-
-        // Inner-loop dev inspector: record prompt/response/tool-calls/usage for
-        // the admin "Dev" surface. Wrapped only when a recorder is installed
-        // (dev-only opt-in) so the hot path stays flat and allocation-free by
-        // default. The decorator is exception-isolated — a recorder fault never
-        // breaks the user's stream.
-        var devInspector = org.atmosphere.ai.devinspector.DevInspectorRecorderHolder.get();
-        if (devInspector != org.atmosphere.ai.devinspector.DevInspectorRecorder.NOOP) {
-            target = new DevInspectorCapturingSession(target, devInspector,
-                    request.model() != null ? request.model() : model, request.message());
-        }
-
-        // Wrap in GuardrailCapturingSession for post-LLM response inspection.
-        // `effectiveGuardrails` adds the per-request ScopePolicy (wrapped as a
-        // PolicyAsGuardrail) when one was installed via request metadata so
-        // post-response drift detection honours the narrowed scope.
-        if (!effectiveGuardrails.isEmpty()) {
-            target = new GuardrailCapturingSession(target, effectiveGuardrails);
-        }
-
         // Snapshot the system prompt as the developer (and ScopePolicy) shaped
-        // it, before structured-output augmentation appends schema text. The
-        // per-stage telemetry below attributes the input bill to the stage
+        // it, before structured-output / confidence augmentation appends text.
+        // The per-stage telemetry below attributes the input bill to the stage
         // that introduced it instead of lumping schema into "system".
         var baseSystemPrompt = request.systemPrompt();
-        String structuredSchemaText = null;
-
-        // Wrap in StructuredOutputCapturingSession for typed response parsing
         var effectiveResponseType = responseType != null ? responseType : request.responseType();
-        if (effectiveResponseType != null && effectiveResponseType != Void.class) {
-            var parser = StructuredOutputParser.resolve();
-            target = new StructuredOutputCapturingSession(target, parser, effectiveResponseType);
-            structuredSchemaText = parser.schemaInstructions(effectiveResponseType);
+
+        // The shared decorator chain — ONE composer for both dispatch entry
+        // modes (Mode Parity, Invariant #7); see DispatchDecorators for the
+        // canonical order and rationale. The chain starts at `this` rather
+        // than `delegate` so every delegating method — critically,
+        // `injectables()` — reaches AiStreamingSession's live map. Existing
+        // capturing sessions forward all StreamingSession methods to their
+        // delegate, so starting at `this` doesn't change observable behaviour
+        // on any other method. The budget (ai.budget request metadata) and
+        // confidence-elicitation layers now apply on this path exactly as on
+        // the pipeline path — before the composer existed, @AiEndpoint could
+        // not enforce a budget at all.
+        var composed = DispatchDecorators.compose(this, new DispatchDecorators.Spec(
+                memory, resource.uuid(), message,
+                userId, agentId, conversationId,
+                metrics, model, runtime != null ? runtime.name() : "unknown",
+                request.model() != null ? request.model() : model,
+                AiBudget.from(request.metadata()),
+                effectiveGuardrails,
+                effectiveResponseType,
+                AiConfidenceElicitation.from(request.metadata())));
+        StreamingSession target = composed.target();
+        var structuredSchemaText = composed.structuredSchemaText();
+        if (structuredSchemaText != null) {
             // appendStableText keeps a trailing grounded-facts block the
             // absolute suffix: schema text is stable per endpoint, so it must
             // land inside the provider's cacheable prompt prefix, not after
@@ -833,6 +786,12 @@ public class AiStreamingSession implements StreamingSession {
             request = request.withSystemPrompt(
                     org.atmosphere.ai.facts.FactResolver.FactBundle.appendStableText(
                             request.systemPrompt(), structuredSchemaText));
+        }
+        if (composed.confidenceCueText() != null) {
+            // Same cache-prefix splice as the schema branch above.
+            request = request.withSystemPrompt(
+                    org.atmosphere.ai.facts.FactResolver.FactBundle.appendStableText(
+                            request.systemPrompt(), composed.confidenceCueText()));
         }
 
         // Expose the session to interceptors via request attribute
@@ -894,11 +853,9 @@ public class AiStreamingSession implements StreamingSession {
         // Per-stage input breakdown — emitted on the websocket @AiEndpoint
         // path to match AiPipeline's channel-bridge instrumentation. Mode
         // parity (Invariant #7): runtime turn-cost telemetry must look the
-        // same regardless of which entry the request came in on. Confidence
-        // elicitation only ships through the pipeline path today, so it is
-        // intentionally absent here.
+        // same regardless of which entry the request came in on.
         InputAssemblyTelemetry.emit(metrics, request.model(),
-                baseSystemPrompt, structuredSchemaText, null,
+                baseSystemPrompt, structuredSchemaText, composed.confidenceCueText(),
                 tools, request.history(), request.message());
 
         var streamingTarget = target;
@@ -942,6 +899,13 @@ public class AiStreamingSession implements StreamingSession {
                             StructuredOutputParser.resolve(), effectiveResponseType, effectiveRetries)
                     : runtime.executeWithHandle(context, streamingTarget);
             this.currentHandle = handle;
+            // Bind the budget's cancel hook to the runtime handle so a
+            // wall-clock or token trip cancels the in-flight runtime call
+            // instead of leaving the provider hung after the error frame
+            // (Terminal Path, Invariant #2 — same binding as AiPipeline).
+            if (composed.budgetSession() != null) {
+                composed.budgetSession().setOnTrip(handle::cancel);
+            }
             // Close the publish-then-cancel race: a disconnect that fired
             // between executeWithHandle returning and currentHandle being
             // assigned would have read null and dropped the cancel. Re-check

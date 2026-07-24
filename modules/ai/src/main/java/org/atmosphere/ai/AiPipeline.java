@@ -558,53 +558,39 @@ public class AiPipeline {
             }
         }
 
-        // Wrap session in decorators
-        StreamingSession target = session;
-        if (memory != null) {
-            target = new MemoryCapturingSession(target, memory, clientId, message);
-        }
-        if (metrics != AiMetrics.NOOP) {
-            target = new MetricsCapturingSession(target, metrics, model,
-                    runtime != null ? runtime.name() : "unknown");
-        }
-        // Budget circuit breaker — wraps the session so token/step/wall-clock
-        // accounting taps every runtime turn. Slotted after MetricsCapturingSession
-        // so the metrics layer still sees raw counts on the breaching call (the
-        // budget event is data, not a reason to drop the metric). Caller-supplied
-        // budget in request metadata wins over the pipeline default; both flow
-        // through {@code baseMetadata} above.
-        var requestBudget = AiBudget.from(baseMetadata);
-        BudgetCapturingSession budgetSession = null;
-        if (requestBudget != null && requestBudget.enforced()) {
-            budgetSession = new BudgetCapturingSession(target, requestBudget);
-            target = budgetSession;
-        }
-        // Post-response evaluation: guardrails + policies (the latter wrapped so
-        // their post-response path flows through the existing capturing session).
-        var postResponseChecks = mergeForPostResponse(guardrails, effectivePolicies);
-        if (!postResponseChecks.isEmpty()) {
-            target = new GuardrailCapturingSession(target, postResponseChecks);
-        }
-
         // Snapshot of the system prompt as the developer (ScopePolicy +
         // guardrails + governance policies) shaped it, captured AFTER all
         // request-mutating evaluations have run but BEFORE any pipeline-driven
-        // augmentation. The structured-output and confidence branches below
-        // append schema / cue text onto the prompt; we capture each
-        // augmentation separately so InputAssemblyTelemetry can attribute the
-        // input bill to the stage that introduced it instead of lumping
+        // augmentation. The composer's structured-output / confidence layers
+        // return their appended text so InputAssemblyTelemetry can attribute
+        // the input bill to the stage that introduced it instead of lumping
         // everything into "system" (or worse, missing guardrail / policy
         // mutations entirely — which a snapshot taken before the loops would).
         var baseSystemPrompt = request.systemPrompt();
-        String structuredSchemaText = null;
-        String confidenceCueText = null;
-
-        // Wrap in StructuredOutputCapturingSession for typed response parsing
         var effectiveResponseType = responseType != null ? responseType : request.responseType();
-        if (effectiveResponseType != null && effectiveResponseType != Void.class) {
-            var parser = StructuredOutputParser.resolve();
-            target = new StructuredOutputCapturingSession(target, parser, effectiveResponseType);
-            structuredSchemaText = parser.schemaInstructions(effectiveResponseType);
+
+        // The shared decorator chain — ONE composer for both dispatch entry
+        // modes (Mode Parity, Invariant #7); see DispatchDecorators for the
+        // canonical order and rationale. Post-response checks merge guardrails
+        // + governance policies (the latter wrapped so their post-response
+        // path flows through the same capturing session). The lineage / cost
+        // / dev-inspector layers now apply on this path exactly as on the
+        // @AiEndpoint path — before the composer existed, coordinator and
+        // channel traffic never accrued cost or lineage audit rows.
+        var composed = DispatchDecorators.compose(session, new DispatchDecorators.Spec(
+                memory, clientId, message,
+                null, null, clientId,
+                metrics, model, runtime != null ? runtime.name() : "unknown",
+                request.model() != null ? request.model() : model,
+                AiBudget.from(baseMetadata),
+                mergeForPostResponse(guardrails, effectivePolicies),
+                effectiveResponseType,
+                AiConfidenceElicitation.from(baseMetadata)));
+        StreamingSession target = composed.target();
+        var budgetSession = composed.budgetSession();
+        var structuredSchemaText = composed.structuredSchemaText();
+        var confidenceCueText = composed.confidenceCueText();
+        if (structuredSchemaText != null) {
             // appendStableText keeps a trailing grounded-facts block the
             // absolute suffix: schema text is stable per endpoint, so it must
             // land inside the provider's cacheable prompt prefix, not after
@@ -613,19 +599,7 @@ public class AiPipeline {
                     org.atmosphere.ai.facts.FactResolver.FactBundle.appendStableText(
                             request.systemPrompt(), structuredSchemaText));
         }
-
-        // Confidence elicitation — model-reported-field path. Skipped when
-        // structured output is in play because the structured-output parser
-        // expects the entire response to be a single JSON object matching
-        // the declared schema; appending a separate {"confidence": …} block
-        // would break the parse. Callers that want confidence alongside
-        // structured output should add a {@code confidence} field to their
-        // record schema and read it post-parse.
-        var requestElicitation = AiConfidenceElicitation.from(baseMetadata);
-        if (requestElicitation != null
-                && (effectiveResponseType == null || effectiveResponseType == Void.class)) {
-            target = new ConfidenceCapturingSession(target, requestElicitation);
-            confidenceCueText = requestElicitation.effectiveCue();
+        if (confidenceCueText != null) {
             // Same cache-prefix splice as the schema branch above: the cue is
             // stable, so keep it ahead of any trailing grounded-facts block.
             request = request.withSystemPrompt(
