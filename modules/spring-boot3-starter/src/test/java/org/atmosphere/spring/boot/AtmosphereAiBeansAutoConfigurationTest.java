@@ -18,9 +18,13 @@ package org.atmosphere.spring.boot;
 import org.atmosphere.ai.cost.CostAccountant;
 import org.atmosphere.ai.guardrails.PiiRedactionGuardrail;
 import org.atmosphere.ai.resume.InMemoryRunJournal;
+import org.atmosphere.checkpoint.SqliteRunJournal;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
+
+import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -86,13 +90,36 @@ class AtmosphereAiBeansAutoConfigurationTest {
     }
 
     @Test
-    void runRegistryInstallerUsesInMemoryJournalWhenEnabled() {
+    void runRegistryInstallerUsesSqliteJournalWhenEnabled(@TempDir Path tempDir) {
+        // atmosphere-checkpoint + sqlite-jdbc are on the test classpath, so the
+        // bundled default is the crash-durable SQLite run journal.
         contextRunner
-                .withPropertyValues("atmosphere.ai.resume.durable.enabled=true")
+                .withPropertyValues(
+                        "atmosphere.ai.resume.durable.enabled=true",
+                        "atmosphere.ai.resume.path=" + tempDir.resolve("run-journal.db"))
+                .run(context -> {
+                    var installer = context.getBean(
+                            AtmosphereAiAutoConfiguration.RunRegistryInstaller.class);
+                    assertThat(installer.journal()).isInstanceOf(SqliteRunJournal.class);
+                    assertThat(installer.journal().durable())
+                            .as("bundled SQLite run journal is crash-durable")
+                            .isTrue();
+                });
+    }
+
+    @Test
+    void runRegistryInstallerHonorsMemoryOptOut() {
+        contextRunner
+                .withPropertyValues(
+                        "atmosphere.ai.resume.durable.enabled=true",
+                        "atmosphere.ai.resume.journal=memory")
                 .run(context -> {
                     var installer = context.getBean(
                             AtmosphereAiAutoConfiguration.RunRegistryInstaller.class);
                     assertThat(installer.journal()).isInstanceOf(InMemoryRunJournal.class);
+                    assertThat(installer.journal().durable())
+                            .as("the in-memory opt-out must not advertise crash-durability")
+                            .isFalse();
                 });
     }
 

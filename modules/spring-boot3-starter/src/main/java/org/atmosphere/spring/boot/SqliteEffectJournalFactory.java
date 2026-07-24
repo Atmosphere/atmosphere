@@ -15,26 +15,26 @@
  */
 package org.atmosphere.spring.boot;
 
-import org.atmosphere.ai.resume.RunJournal;
-import org.atmosphere.checkpoint.SqliteRunJournal;
+import org.atmosphere.ai.resume.EffectJournal;
+import org.atmosphere.checkpoint.SqliteEffectJournal;
 
 import java.nio.file.Path;
 
 /**
- * Isolated construction of the bundled crash-durable {@link SqliteRunJournal} for
- * run-resume rehydration. Kept in its own class so it is class-loaded only after
+ * Isolated construction of the bundled {@link SqliteEffectJournal} for the
+ * durable-execution spine. Kept in its own class so it is class-loaded only after
  * the autoconfig has confirmed the {@code atmosphere-checkpoint} module is on the
  * classpath — referencing it directly from the autoconfig would force a
  * {@code NoClassDefFoundError} when the optional dependency is absent.
  * Package-private: an implementation detail of
- * {@code AtmosphereAiAutoConfiguration}'s run-resume wiring.
+ * {@code AtmosphereAiAutoConfiguration}'s durable-run wiring.
  */
-final class SqliteRunJournalFactory {
+final class SqliteEffectJournalFactory {
 
-    private SqliteRunJournalFactory() {
+    private SqliteEffectJournalFactory() {
     }
 
-    static RunJournal create(String path, int maxRuns, int maxEventsPerRun) {
-        return new SqliteRunJournal(Path.of(path), maxRuns, maxEventsPerRun);
+    static EffectJournal create(String path, int maxRuns, int maxEffectsPerRun) {
+        return new SqliteEffectJournal(Path.of(path), maxRuns, maxEffectsPerRun);
     }
 }
