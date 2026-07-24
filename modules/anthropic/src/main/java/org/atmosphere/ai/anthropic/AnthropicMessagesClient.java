@@ -97,7 +97,7 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
 
     private AnthropicMessagesClient(Builder b) {
         super(new SseClientConfig(b.baseUrl, b.apiKey, b.httpClient, b.timeout,
-                b.maxTokens, b.customHeaders));
+                b.maxTokens, b.customHeaders, b.retryPolicy));
         this.anthropicVersion = b.anthropicVersion;
         this.generation = b.generation != null
                 ? b.generation : org.atmosphere.ai.GenerationParams.defaults();
@@ -724,6 +724,7 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
         private final LinkedHashMap<String, String> customHeaders = new LinkedHashMap<>();
         private org.atmosphere.ai.GenerationParams generation =
                 org.atmosphere.ai.GenerationParams.defaults();
+        private org.atmosphere.ai.RetryPolicy retryPolicy;
 
         private Builder() {
         }
@@ -755,6 +756,18 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
 
         public Builder maxTokens(int maxTokens) {
             this.maxTokens = maxTokens;
+            return this;
+        }
+
+        /**
+         * HTTP-layer retry policy applied inside the shared SSE base: 429 /
+         * 500 / 502 / 503 / 408 are retried with exponential backoff and a
+         * {@code Retry-After} header on 429 is honored (capped at 60s).
+         * Defaults to {@link org.atmosphere.ai.RetryPolicy#DEFAULT}; pass
+         * {@link org.atmosphere.ai.RetryPolicy#NONE} to disable.
+         */
+        public Builder retryPolicy(org.atmosphere.ai.RetryPolicy retryPolicy) {
+            this.retryPolicy = retryPolicy;
             return this;
         }
 

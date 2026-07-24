@@ -53,12 +53,20 @@ class AbstractSseLlmClientTest {
     /**
      * Minimal concrete subclass that exposes the protected helpers. It carries
      * no provider-specific behaviour — just enough to construct the base and
-     * forward the helper calls under test.
+     * forward the helper calls under test. The 2-arg constructor pins
+     * {@link org.atmosphere.ai.RetryPolicy#NONE} so the pre-retry helper tests
+     * keep their original single-attempt semantics; retry tests pass an
+     * explicit fast policy.
      */
     private static final class TestClient extends AbstractSseLlmClient {
         private TestClient(HttpClient httpClient, Map<String, String> customHeaders) {
+            this(httpClient, customHeaders, org.atmosphere.ai.RetryPolicy.NONE);
+        }
+
+        private TestClient(HttpClient httpClient, Map<String, String> customHeaders,
+                           org.atmosphere.ai.RetryPolicy retryPolicy) {
             super(new SseClientConfig("https://example.test/", "test-key",
-                    httpClient, Duration.ofSeconds(5), 256, customHeaders));
+                    httpClient, Duration.ofSeconds(5), 256, customHeaders, retryPolicy));
         }
 
         @Override
@@ -67,7 +75,7 @@ class AbstractSseLlmClientTest {
         }
 
         // Thin pass-throughs so the test can reach the protected surface.
-        boolean callRunRound(HttpRequest req, CollectingSession session,
+        boolean callRunRound(HttpRequest req, org.atmosphere.ai.StreamingSession session,
                              AtomicBoolean cancelled, java.util.function.Consumer<JsonNode> onEvent) {
             return runRound(req, session, cancelled, onEvent);
         }
@@ -307,6 +315,159 @@ class AbstractSseLlmClientTest {
 
         assertEquals("a real description",
                 schema.path("properties").path("p").path("description").asString(""));
+    }
+
+    // (e) HTTP-layer retry (the PER_REQUEST_RETRY P1) -----------------------
+
+    /** Counts error() invocations — CollectingSession is write-once/final. */
+    private static final class CountingSession implements org.atmosphere.ai.StreamingSession {
+        final java.util.concurrent.atomic.AtomicInteger errors =
+                new java.util.concurrent.atomic.AtomicInteger();
+        volatile Throwable lastFailure;
+        @Override public String sessionId() { return "counting"; }
+        @Override public void send(String text) { }
+        @Override public void sendMetadata(String key, Object value) { }
+        @Override public void progress(String message) { }
+        @Override public void complete() { }
+        @Override public void complete(String summary) { }
+        @Override public void error(Throwable t) { errors.incrementAndGet(); lastFailure = t; }
+        @Override public boolean isClosed() { return false; }
+        @Override public boolean hasErrored() { return errors.get() > 0; }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static HttpResponse<java.io.InputStream> responseOf(int status, String body,
+                                                                Map<String, List<String>> headers) {
+        var response = (HttpResponse<java.io.InputStream>) mock(HttpResponse.class);
+        when(response.statusCode()).thenReturn(status);
+        // Fresh stream per read so a retried attempt never sees a drained body.
+        when(response.body()).thenAnswer(inv ->
+                new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)));
+        when(response.headers()).thenReturn(java.net.http.HttpHeaders.of(
+                headers, (a, b) -> true));
+        return response;
+    }
+
+    private static org.atmosphere.ai.RetryPolicy fastRetry(int maxRetries) {
+        return new org.atmosphere.ai.RetryPolicy(maxRetries, Duration.ofMillis(1),
+                Duration.ofMillis(5), 2.0,
+                org.atmosphere.ai.RetryPolicy.DEFAULT.retryableErrors());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void runRoundRetries429ThenStreamsTheSecondAttempt() throws Exception {
+        // Regression for the Tier-1 P1: a 429 used to surface a bare
+        // session.error the outer PER_REQUEST_RETRY wrapper could never retry —
+        // zero retries against the dominant transient failure. The base now
+        // retries at the HTTP layer and the stream completes on attempt two.
+        var httpClient = mock(HttpClient.class);
+        var r429 = responseOf(429, "{\"error\":\"rate limited\"}",
+                Map.of("Retry-After", List.of("0")));
+        var r200 = responseOf(200, "data: {\"type\":\"ok\"}\n\n", Map.of());
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(r429, r200);
+        var c = new TestClient(httpClient, Map.of(), fastRetry(2));
+        var session = new CountingSession();
+        var seen = new ArrayList<JsonNode>();
+
+        var completed = c.callRunRound(dummyRequest(), session,
+                new AtomicBoolean(false), seen::add);
+
+        assertTrue(completed, "the retried round must stream to completion");
+        assertEquals(0, session.errors.get(), "no error may surface on a recovered round");
+        assertEquals(1, seen.size());
+        assertEquals("ok", seen.get(0).path("type").asString(""));
+        org.mockito.Mockito.verify(httpClient, org.mockito.Mockito.times(2))
+                .send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void runRoundExhausts429BudgetWithExactlyOneError() throws Exception {
+        var httpClient = mock(HttpClient.class);
+        var r429 = responseOf(429, "{\"error\":\"rate limited\"}", Map.of());
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(r429);
+        var c = new TestClient(httpClient, Map.of(), fastRetry(2));
+        var session = new CountingSession();
+
+        var completed = c.callRunRound(dummyRequest(), session,
+                new AtomicBoolean(false), event -> { });
+
+        assertFalse(completed);
+        assertEquals(1, session.errors.get(),
+                "exhausted budget must emit session.error exactly once (Inv #2)");
+        assertTrue(session.lastFailure.getMessage().contains("429"),
+                "the final error must carry the status, got: " + session.lastFailure.getMessage());
+        org.mockito.Mockito.verify(httpClient, org.mockito.Mockito.times(3))
+                .send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void runRoundDoesNotRetryNonRetryable400() throws Exception {
+        var httpClient = mock(HttpClient.class);
+        var r400 = responseOf(400, "{\"error\":\"bad request\"}", Map.of());
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(r400);
+        var c = new TestClient(httpClient, Map.of(), fastRetry(3));
+        var session = new CountingSession();
+
+        var completed = c.callRunRound(dummyRequest(), session,
+                new AtomicBoolean(false), event -> { });
+
+        assertFalse(completed);
+        assertEquals(1, session.errors.get());
+        org.mockito.Mockito.verify(httpClient, org.mockito.Mockito.times(1))
+                .send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void runRoundHonorsRetryAfterOverPolicyBackoff() throws Exception {
+        // Policy backoff is a deliberately huge 5s; Retry-After: 0 must win, so
+        // a fast completion proves the header was honored (previously ignored).
+        var httpClient = mock(HttpClient.class);
+        var r429 = responseOf(429, "{\"error\":\"rate limited\"}",
+                Map.of("Retry-After", List.of("0")));
+        var r200 = responseOf(200, "data: {\"type\":\"ok\"}\n\n", Map.of());
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(r429, r200);
+        var slowPolicy = new org.atmosphere.ai.RetryPolicy(1, Duration.ofSeconds(5),
+                Duration.ofSeconds(5), 1.0,
+                org.atmosphere.ai.RetryPolicy.DEFAULT.retryableErrors());
+        var c = new TestClient(httpClient, Map.of(), slowPolicy);
+        var session = new CountingSession();
+
+        var startNanos = System.nanoTime();
+        var completed = c.callRunRound(dummyRequest(), session,
+                new AtomicBoolean(false), event -> { });
+        var elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
+
+        assertTrue(completed);
+        assertTrue(elapsedMs < 2500,
+                "Retry-After: 0 must override the 5s policy backoff, took " + elapsedMs + "ms");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void runRoundRetriesTransportExceptionThenSucceeds() throws Exception {
+        var httpClient = mock(HttpClient.class);
+        var r200 = responseOf(200, "data: {\"type\":\"ok\"}\n\n", Map.of());
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenThrow(new java.io.IOException("connection reset"))
+                .thenReturn(r200);
+        var c = new TestClient(httpClient, Map.of(), fastRetry(1));
+        var session = new CountingSession();
+        var seen = new ArrayList<JsonNode>();
+
+        var completed = c.callRunRound(dummyRequest(), session,
+                new AtomicBoolean(false), seen::add);
+
+        assertTrue(completed, "a transient transport failure must be retried");
+        assertEquals(0, session.errors.get());
+        assertEquals(1, seen.size());
     }
 
     @Test

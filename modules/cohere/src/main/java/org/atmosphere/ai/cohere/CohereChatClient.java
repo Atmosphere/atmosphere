@@ -91,7 +91,7 @@ public final class CohereChatClient extends AbstractSseLlmClient {
 
     private CohereChatClient(Builder b) {
         super(new SseClientConfig(b.baseUrl, b.apiKey, b.httpClient, b.timeout,
-                b.maxTokens, b.customHeaders));
+                b.maxTokens, b.customHeaders, b.retryPolicy));
     }
 
     public static Builder builder() {
@@ -626,6 +626,7 @@ public final class CohereChatClient extends AbstractSseLlmClient {
         private Duration timeout = Duration.ofSeconds(120);
         private int maxTokens = DEFAULT_MAX_TOKENS;
         private final LinkedHashMap<String, String> customHeaders = new LinkedHashMap<>();
+        private org.atmosphere.ai.RetryPolicy retryPolicy;
 
         private Builder() {
         }
@@ -652,6 +653,18 @@ public final class CohereChatClient extends AbstractSseLlmClient {
 
         public Builder maxTokens(int maxTokens) {
             this.maxTokens = maxTokens;
+            return this;
+        }
+
+        /**
+         * HTTP-layer retry policy applied inside the shared SSE base: 429 /
+         * 500 / 502 / 503 / 408 are retried with exponential backoff and a
+         * {@code Retry-After} header on 429 is honored (capped at 60s).
+         * Defaults to {@link org.atmosphere.ai.RetryPolicy#DEFAULT}; pass
+         * {@link org.atmosphere.ai.RetryPolicy#NONE} to disable.
+         */
+        public Builder retryPolicy(org.atmosphere.ai.RetryPolicy retryPolicy) {
+            this.retryPolicy = retryPolicy;
             return this;
         }
 

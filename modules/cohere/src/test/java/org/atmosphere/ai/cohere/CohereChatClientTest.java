@@ -206,12 +206,53 @@ class CohereChatClientTest {
         var client = CohereChatClient.builder()
                 .apiKey("test-key")
                 .httpClient(httpClient)
+                // Pin single-attempt semantics: this test asserts the error
+                // SHAPE, not the retry behavior (covered below and in the base
+                // suite). 500 is retryable under the production DEFAULT policy.
+                .retryPolicy(org.atmosphere.ai.RetryPolicy.NONE)
                 .build();
         var session = new CollectingSession();
         client.stream("command-a-plus-05-2026", List.of(), null,
                 "Hi", textContext(), session, null);
         session.await(java.time.Duration.ofSeconds(5));
         assertTrue(session.failed(), "non-2xx must surface as session.error()");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void stream429IsRetriedAndStreamsToCompletion() throws Exception {
+        // End-to-end regression for the PER_REQUEST_RETRY P1: a 429 first
+        // attempt must be retried at the HTTP layer (honoring Retry-After) and
+        // the second attempt's streamed text must reach the session intact.
+        var httpClient = mock(HttpClient.class);
+        var r429 = mock(HttpResponse.class);
+        when(r429.statusCode()).thenReturn(429);
+        when(r429.body()).thenAnswer(inv -> new ByteArrayInputStream(
+                "{\"error\":\"rate limited\"}".getBytes(StandardCharsets.UTF_8)));
+        when(r429.headers()).thenReturn(java.net.http.HttpHeaders.of(
+                java.util.Map.of("Retry-After", List.of("0")), (a, b) -> true));
+        var r200 = mock(HttpResponse.class);
+        when(r200.statusCode()).thenReturn(200);
+        when(r200.body()).thenReturn(new ByteArrayInputStream(
+                TEXT_RESPONSE.getBytes(StandardCharsets.UTF_8)));
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(r429, r200);
+        var client = CohereChatClient.builder()
+                .apiKey("test-key")
+                .httpClient(httpClient)
+                .retryPolicy(org.atmosphere.ai.RetryPolicy.of(2,
+                        java.time.Duration.ofMillis(1)))
+                .build();
+        var session = new CollectingSession();
+
+        client.stream("command-a-plus-05-2026", List.of(), null,
+                "Hi", textContext(), session, null);
+        session.await(java.time.Duration.ofSeconds(5));
+
+        assertFalse(session.failed(), "a recovered 429 must not surface an error");
+        assertTrue(session.text().contains("Bonjour Atmosphere"),
+                "the retried stream's text must reach the session, got: " + session.text());
+        verify(httpClient, times(2)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
     }
 
     @Test

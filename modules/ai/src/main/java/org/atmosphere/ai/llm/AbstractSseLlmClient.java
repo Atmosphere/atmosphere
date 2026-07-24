@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.llm;
 
+import org.atmosphere.ai.RetryPolicy;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.tool.ToolDefinition;
 import org.slf4j.Logger;
@@ -78,6 +79,11 @@ public abstract class AbstractSseLlmClient {
     protected final int maxTokens;
     /** Caller-supplied custom headers (observability / proxy / tenant metadata). */
     protected final Map<String, String> customHeaders;
+    /**
+     * HTTP-layer retry policy applied inside {@link #runRound}; never null
+     * (defaulted to {@link RetryPolicy#DEFAULT} by the constructor).
+     */
+    protected final RetryPolicy retryPolicy;
 
     /**
      * Immutable configuration carrier passed from each subclass Builder into
@@ -92,6 +98,7 @@ public abstract class AbstractSseLlmClient {
      * @param timeout       per-request timeout
      * @param maxTokens     default {@code max_tokens}
      * @param customHeaders caller custom headers (copied defensively)
+     * @param retryPolicy   HTTP retry policy; null means {@link RetryPolicy#DEFAULT}
      */
     public record SseClientConfig(
             String baseUrl,
@@ -99,7 +106,15 @@ public abstract class AbstractSseLlmClient {
             HttpClient httpClient,
             Duration timeout,
             int maxTokens,
-            Map<String, String> customHeaders) {
+            Map<String, String> customHeaders,
+            RetryPolicy retryPolicy) {
+
+        /** Legacy carrier without a retry policy — defaults to {@link RetryPolicy#DEFAULT}. */
+        public SseClientConfig(String baseUrl, String apiKey, HttpClient httpClient,
+                               Duration timeout, int maxTokens,
+                               Map<String, String> customHeaders) {
+            this(baseUrl, apiKey, httpClient, timeout, maxTokens, customHeaders, null);
+        }
     }
 
     /**
@@ -118,6 +133,8 @@ public abstract class AbstractSseLlmClient {
         this.timeout = config.timeout();
         this.maxTokens = config.maxTokens();
         this.customHeaders = Map.copyOf(config.customHeaders());
+        this.retryPolicy = config.retryPolicy() != null ? config.retryPolicy()
+                : RetryPolicy.DEFAULT;
     }
 
     /** Visible for tests. */
@@ -139,34 +156,93 @@ public abstract class AbstractSseLlmClient {
      * {@code session.error(providerName() + " API returned " + code + ": " + snippet)}.
      * On a transport / IO exception, surfaces {@code session.error(e)}.
      *
-     * <p>Byte-identical to the per-client {@code runRound} + the SSE
-     * {@code readLine} scaffolding: cancel check first, skip non-{@code data:}
-     * lines, trim the payload, drop empty payloads, parse with {@code MAPPER}
-     * (debug-skip on {@link RuntimeException}), then invoke {@code onEvent}.</p>
+     * <p><b>HTTP-layer retry.</b> A retryable status (429 / 500 / 502 / 503 /
+     * 408, gated by {@link RetryPolicy#retryableErrors()}) and transient
+     * transport exceptions are retried up to {@link RetryPolicy#maxRetries()}
+     * times with exponential backoff, honoring a {@code Retry-After} header on
+     * 429 (capped at 60s) — mirroring {@code OpenAiCompatibleClient}'s
+     * {@code sendWithRetry} so all direct-HTTP providers classify and back off
+     * identically (Mode Parity, Invariant #7). The retry sits here, not in the
+     * outer {@code executeWithOuterRetry} wrapper, because a non-2xx surfaces
+     * as an out-of-band {@code session.error} the wrapper structurally cannot
+     * retry (it only fires on a thrown exception with a clean session). The
+     * error is emitted exactly once, only after the budget is exhausted or on
+     * a non-retryable status (Invariant #2); each failed attempt's body is
+     * drained and closed; backoff is bounded and cancel-aware (Invariant #3).
+     * Retrying is safe because no event has been dispatched before the 2xx
+     * check — a partial stream is never replayed.</p>
+     *
+     * <p>The 2xx streaming loop is byte-identical to the per-client
+     * {@code runRound} + SSE {@code readLine} scaffolding: cancel check first,
+     * skip non-{@code data:} lines, trim the payload, drop empty payloads,
+     * parse with {@code MAPPER} (debug-skip on {@link RuntimeException}), then
+     * invoke {@code onEvent}.</p>
      *
      * @return {@code true} when the round completed by reading the stream to
      *         end-of-input; {@code false} when it errored or was cancelled
-     *         mid-stream (in which case the session has already been notified
-     *         for the error paths; the cancel path leaves the session untouched
+     *         (in which case the session has already been notified for the
+     *         error paths; the cancel path leaves the session untouched
      *         exactly as the originals did)
      */
     protected final boolean runRound(HttpRequest httpRequest,
                                      StreamingSession session,
                                      AtomicBoolean cancelled,
                                      Consumer<JsonNode> onEvent) {
-        HttpResponse<InputStream> response;
-        try {
-            response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
-        } catch (Exception e) {
-            session.error(e);
-            return false;
-        }
-        if (response.statusCode() / 100 != 2) {
+        var maxRetries = retryPolicy.maxRetries();
+        for (int attempt = 0; attempt <= maxRetries; attempt++) {
+            if (cancelled.get()) {
+                // Cancelled before/between attempts: leave the session
+                // untouched, matching the mid-stream cancel contract.
+                return false;
+            }
+            HttpResponse<InputStream> response;
+            try {
+                response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                session.error(ie);
+                return false;
+            } catch (Exception e) {
+                if (attempt == maxRetries) {
+                    session.error(e);
+                    return false;
+                }
+                var delay = computeRetryDelay(attempt, null);
+                logger.warn("{} transport error, retrying in {}ms (attempt {}/{}): {}",
+                        providerName(), delay.toMillis(), attempt + 1, maxRetries, e.toString());
+                if (!sleepBeforeRetry(delay, session, cancelled)) {
+                    return false;
+                }
+                continue;
+            }
+            var status = response.statusCode();
+            if (status / 100 == 2) {
+                return streamBody(response, session, cancelled, onEvent);
+            }
+            // Drain + close the error body on EVERY attempt so a retried
+            // request never leaks the HTTP stream between attempts.
             var bodySnippet = readSnippet(response.body());
-            session.error(new RuntimeException(providerName() + " API returned "
-                    + response.statusCode() + ": " + bodySnippet));
-            return false;
+            if (!isRetryable(status, retryPolicy) || attempt == maxRetries) {
+                session.error(new RuntimeException(providerName() + " API returned "
+                        + status + ": " + bodySnippet));
+                return false;
+            }
+            var delay = computeRetryDelay(attempt, response);
+            logger.warn("{} API returned {}, retrying in {}ms (attempt {}/{})",
+                    providerName(), status, delay.toMillis(), attempt + 1, maxRetries);
+            if (!sleepBeforeRetry(delay, session, cancelled)) {
+                return false;
+            }
         }
+        // Unreachable: the final attempt always returns above; defensive only.
+        return false;
+    }
+
+    /** The 2xx streaming loop, unchanged from the pre-retry {@code runRound} body. */
+    private boolean streamBody(HttpResponse<InputStream> response,
+                               StreamingSession session,
+                               AtomicBoolean cancelled,
+                               Consumer<JsonNode> onEvent) {
         try (var body = response.body();
              var reader = new BufferedReader(
                      new InputStreamReader(body, StandardCharsets.UTF_8))) {
@@ -196,6 +272,75 @@ public abstract class AbstractSseLlmClient {
             session.error(e);
             return false;
         }
+    }
+
+    /**
+     * Classify a non-2xx status against the policy's retryable error set —
+     * identical table to {@code OpenAiCompatibleClient.isRetryable} so the
+     * direct-HTTP providers and the Built-in client back off on the same
+     * statuses.
+     */
+    private static boolean isRetryable(int statusCode, RetryPolicy policy) {
+        var errorType = switch (statusCode) {
+            case 429 -> "rate_limit";
+            case 500 -> "server_error";
+            case 502, 503 -> "unavailable";
+            case 408 -> "timeout";
+            default -> null;
+        };
+        if (errorType == null) {
+            return false;
+        }
+        return policy.retryableErrors().contains(errorType);
+    }
+
+    /**
+     * Compute the backoff before the next attempt. A {@code Retry-After}
+     * header on a 429 wins (parsed defensively, capped at 60s so a hostile
+     * value cannot pin the worker — Invariant #3); otherwise the policy's
+     * exponential {@link RetryPolicy#delayForAttempt}. Mirrors
+     * {@code OpenAiCompatibleClient.computeRetryDelay}.
+     */
+    private Duration computeRetryDelay(int attempt, HttpResponse<?> response) {
+        if (response != null && response.statusCode() == 429) {
+            var retryAfter = response.headers().firstValue("Retry-After");
+            if (retryAfter.isPresent()) {
+                try {
+                    var seconds = Integer.parseInt(retryAfter.get().trim());
+                    return Duration.ofSeconds(Math.min(seconds, 60));
+                } catch (NumberFormatException ex) {
+                    logger.trace("Failed to parse Retry-After header", ex);
+                }
+            }
+        }
+        return retryPolicy.delayForAttempt(attempt);
+    }
+
+    /**
+     * Cancel-aware bounded backoff: sleeps in short slices so a caller cancel
+     * lands promptly instead of waiting out a long {@code Retry-After}.
+     * Returns {@code false} when the wait was aborted — by cancel (session
+     * left untouched, matching the cancel contract) or interrupt (interrupt
+     * flag restored, {@code session.error} surfaced — never swallowed).
+     */
+    private static boolean sleepBeforeRetry(Duration delay, StreamingSession session,
+                                            AtomicBoolean cancelled) {
+        var remainingMs = delay.toMillis();
+        try {
+            while (remainingMs > 0) {
+                if (cancelled.get()) {
+                    return false;
+                }
+                var sliceMs = Math.min(remainingMs, 500);
+                Thread.sleep(sliceMs);
+                remainingMs -= sliceMs;
+            }
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            session.error(ie);
+            return false;
+        }
+        return !cancelled.get();
     }
 
     /**
