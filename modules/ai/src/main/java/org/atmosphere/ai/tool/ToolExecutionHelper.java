@@ -18,6 +18,7 @@ package org.atmosphere.ai.tool;
 import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.approval.ApprovalRegistry;
+import org.atmosphere.ai.approval.ApprovalResolution;
 import org.atmosphere.ai.approval.ApprovalStrategy;
 import org.atmosphere.ai.approval.PendingApproval;
 import org.atmosphere.ai.approval.ToolApprovalPolicy;
@@ -507,17 +508,7 @@ public final class ToolExecutionHelper {
                     + "ApprovalStrategy is configured on this execution path\"}");
         }
 
-        var timeout = tool.approvalTimeout() > 0 ? tool.approvalTimeout() : 300;
-        var approval = new PendingApproval(
-                ApprovalRegistry.generateId(),
-                toolName,
-                args,
-                tool.approvalMessage(),
-                session.sessionId(),
-                Instant.now().plusSeconds(timeout)
-        );
-
-        var resolution = strategy.awaitApprovalDetailed(approval, session);
+        var resolution = resolveApprovalDurably(toolName, tool, args, session, strategy);
         return finishAndEmit(toolName, session, scope, switch (resolution.outcome()) {
             case APPROVED -> {
                 if (resolution.hasResponsePayload()) {
@@ -564,6 +555,133 @@ public final class ToolExecutionHelper {
             return RESPONSE_JSON.writeValueAsString(payload);
         } catch (RuntimeException e) {
             return payload.toString();
+        }
+    }
+
+    /**
+     * Durable JSON payload of one approval decision, committed to the
+     * {@link EffectJournal} under {@link EffectKind#APPROVAL}. Package-private
+     * so Jackson (and the regression test) can reach it.
+     */
+    record ApprovalEffectPayload(String outcome, Map<String, Object> modifiedArguments,
+                                 Object responsePayload) {
+    }
+
+    /**
+     * Await the HITL approval decision, durably when a {@link DurableRunContext}
+     * is installed for the session's run. Before this seam existed, pending
+     * approvals lived only in a per-instance in-memory registry: a node crash
+     * after a human approved — but before the tool result committed — forced
+     * the resumed run to re-prompt with a fresh approval id, and the original
+     * decision was lost (the Tier-1 HITL durability P1).
+     *
+     * <p>With durable runs on, the decision is recorded as an
+     * {@link EffectKind#APPROVAL} effect keyed by
+     * {@link EffectKeys#approval} (its own occurrence cursor, its own
+     * namespace — never colliding with the enclosing TOOL_CALL effect):</p>
+     * <ul>
+     *   <li><b>Replay hit</b> (digest match, Inv #6: the digest folds the run
+     *       principal so another user's re-drive can never inherit a recorded
+     *       decision): the recorded APPROVED / DENIED decision is returned
+     *       without re-prompting the reviewer.</li>
+     *   <li><b>Miss</b>: {@code appendPending} (idempotent — a crash while
+     *       parked re-appends safely) → live await → the decision is committed
+     *       <em>before</em> the tool executes, so the approval commit always
+     *       precedes the enclosing TOOL_CALL commit (Inv #2) and a crash
+     *       mid-tool re-drives without re-prompting.</li>
+     *   <li><b>Timeout</b> is <em>not</em> committed as a decision — the
+     *       effect is marked FAILED so a resumed run re-prompts: an expiry is
+     *       the absence of a human decision, not a decision to replay.</li>
+     * </ul>
+     *
+     * <p>With durable runs off (no scope or the NOOP journal), this is the
+     * byte-identical live path. Journal bookkeeping failures degrade to the
+     * live decision with a WARN — losing durability, never the decision.</p>
+     */
+    private static ApprovalResolution resolveApprovalDurably(String toolName, ToolDefinition tool,
+                                                             Map<String, Object> args,
+                                                             StreamingSession session,
+                                                             ApprovalStrategy strategy) {
+        var ctx = DurableRunScopeHolder.current(session);
+        if (ctx == null || ctx.journal() == EffectJournal.NOOP) {
+            return awaitLiveApproval(toolName, tool, args, session, strategy);
+        }
+        var journal = ctx.journal();
+        var canonicalArgs = EffectKeys.canonicalJson(args);
+        var occurrence = ctx.nextApprovalOccurrence(toolName, canonicalArgs);
+        var key = EffectKeys.approval(ctx.runId(), toolName, args, occurrence);
+        var digest = EffectKeys.sha256Hex("approval", toolName, canonicalArgs, ctx.userId());
+
+        var hit = journal.lookupCommitted(ctx.runId(), key);
+        if (hit.isPresent() && digest.equals(hit.get().requestDigest())) {
+            var replayed = parseApprovalPayload(hit.get().resultPayload());
+            if (replayed != null) {
+                logger.info("Tool {} approval decision replayed from the effect journal "
+                        + "(outcome={}) — reviewer not re-prompted", toolName, replayed.outcome());
+                return replayed;
+            }
+            // Unparseable recorded decision: never guess — fall through to a
+            // live prompt (at-least-once prompting is safe; a wrong replayed
+            // decision is not).
+            logger.warn("Tool {} recorded approval decision was unreadable — re-prompting live",
+                    toolName);
+        }
+        try {
+            journal.appendPending(ctx.runId(), EffectKind.APPROVAL, key, digest);
+        } catch (RuntimeException e) {
+            // Per-run effect cap or journal fault: degrade to a live,
+            // non-durable decision rather than blocking the gate (the cap
+            // failing the run happens at the TOOL_CALL seam, not here).
+            logger.warn("Tool {} approval effect could not be recorded ({}); "
+                    + "the decision will not survive a crash", toolName, e.toString());
+            return awaitLiveApproval(toolName, tool, args, session, strategy);
+        }
+        var resolution = awaitLiveApproval(toolName, tool, args, session, strategy);
+        try {
+            if (resolution.outcome() == ApprovalStrategy.ApprovalOutcome.TIMED_OUT) {
+                journal.markFailed(ctx.runId(), key, "approval timed out before a decision");
+            } else {
+                journal.commit(ctx.runId(), key, RESPONSE_JSON.writeValueAsString(
+                        new ApprovalEffectPayload(resolution.outcome().name(),
+                                resolution.modifiedArguments(), resolution.responsePayload())));
+            }
+        } catch (RuntimeException e) {
+            logger.warn("Tool {} approval decision could not be committed to the effect "
+                    + "journal ({}); the decision stands but will not survive a crash",
+                    toolName, e.toString());
+        }
+        return resolution;
+    }
+
+    /** The pre-durability live await, unchanged: park until approved / denied / expired. */
+    private static ApprovalResolution awaitLiveApproval(String toolName, ToolDefinition tool,
+                                                        Map<String, Object> args,
+                                                        StreamingSession session,
+                                                        ApprovalStrategy strategy) {
+        var timeout = tool.approvalTimeout() > 0 ? tool.approvalTimeout() : 300;
+        var approval = new PendingApproval(
+                ApprovalRegistry.generateId(),
+                toolName,
+                args,
+                tool.approvalMessage(),
+                session.sessionId(),
+                Instant.now().plusSeconds(timeout)
+        );
+        return strategy.awaitApprovalDetailed(approval, session);
+    }
+
+    /** Parse a recorded {@link ApprovalEffectPayload}; null when unreadable. */
+    private static ApprovalResolution parseApprovalPayload(String payload) {
+        if (payload == null || payload.isBlank()) {
+            return null;
+        }
+        try {
+            var recorded = RESPONSE_JSON.readValue(payload, ApprovalEffectPayload.class);
+            var outcome = ApprovalStrategy.ApprovalOutcome.valueOf(recorded.outcome());
+            return new ApprovalResolution(outcome, recorded.modifiedArguments(),
+                    recorded.responsePayload());
+        } catch (RuntimeException e) {
+            return null;
         }
     }
 

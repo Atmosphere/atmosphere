@@ -78,6 +78,20 @@ public final class EffectKeys {
     }
 
     /**
+     * Key for a HITL approval decision on a gated tool call, content-addressed
+     * like {@link #toolCall} but under its own {@code "approval"} namespace so
+     * the decision effect and the tool effect for the same call never collide.
+     * The ordinal comes from
+     * {@link DurableRunContext#nextApprovalOccurrence}, advanced only when the
+     * gate is reached.
+     */
+    public static String approval(String runId, String toolName,
+                                  Map<String, Object> args, int occurrence) {
+        return sha256Hex(runId, "approval", toolName, canonicalJson(args),
+                Integer.toString(occurrence));
+    }
+
+    /**
      * Recursively sorted-key JSON rendering of {@code args}; the same logical
      * arguments produce the same string regardless of key order. A {@code null}
      * map renders as {@code "null"}.
