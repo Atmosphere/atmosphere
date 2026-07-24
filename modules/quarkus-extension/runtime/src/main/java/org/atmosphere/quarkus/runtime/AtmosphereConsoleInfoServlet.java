@@ -60,6 +60,14 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
     public static final String CONSOLE_SUBTITLE_PARAM = "consoleSubtitle";
     public static final String CONSOLE_ENDPOINT_PARAM = "consoleEndpoint";
     public static final String CONSOLE_TRANSPORT_PARAM = "consoleTransport";
+    /**
+     * Set to {@code "true"} by the deployment processor when
+     * {@code atmosphere-checkpoint} is on the classpath — the exact gate under
+     * which {@code AtmosphereCheckpointProducer} produces a {@code CheckpointStore}
+     * and {@code AtmosphereCheckpointServlet} maps {@code /api/admin/checkpoints}.
+     * Absent the param the flag reports {@code false}.
+     */
+    public static final String HAS_CHECKPOINTS_PARAM = "hasCheckpoints";
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -94,6 +102,15 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
         // admin/verifier REST planes, so both are honestly false here.
         payload.put("hasInteractions", Boolean.FALSE);
         payload.put("hasVerifier", Boolean.FALSE);
+        // Durable-run checkpoints: true only when atmosphere-checkpoint is on the
+        // classpath — the exact gate under which AtmosphereCheckpointProducer
+        // produces a CheckpointStore and AtmosphereCheckpointServlet maps
+        // /api/admin/checkpoints. So the flag is true iff the read plane the
+        // console's Checkpoints tab probes genuinely exists, in parity with the
+        // Spring starter's hasBean(CheckpointStore) gate — never a 404 probe
+        // (Runtime Truth — Invariant #5).
+        payload.put("hasCheckpoints",
+                Boolean.parseBoolean(getInitParameter(HAS_CHECKPOINTS_PARAM)));
         // The Quarkus admin extension serves governance/agents but has no
         // /api/admin/workspace/owners route — saying so stops the console's
         // workspace probe from 404-spamming (Runtime Truth). hasAdmin is

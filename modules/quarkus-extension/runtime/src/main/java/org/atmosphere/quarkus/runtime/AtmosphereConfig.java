@@ -463,6 +463,13 @@ public interface AtmosphereConfig {
         Tape tape();
 
         /**
+         * Durable-run checkpoint-store configuration block.
+         *
+         * @return the checkpoint sub-configuration block
+         */
+        Checkpoint checkpoint();
+
+        /**
          * Session-tape sub-configuration, bound to
          * {@code quarkus.atmosphere.ai.tape.*}. Mirrors the Spring Boot
          * starters' {@code atmosphere.ai.tape.*} keys; when {@code enabled}
@@ -566,6 +573,59 @@ public interface AtmosphereConfig {
              */
             @WithDefault("10s")
             Duration textFlushInterval();
+        }
+
+        /**
+         * Durable-run checkpoint-store sub-configuration, bound to
+         * {@code quarkus.atmosphere.ai.checkpoint.*}. Quarkus parity for the
+         * Spring Boot starter's {@code AtmosphereCheckpointAutoConfiguration}:
+         * a {@code CheckpointStore} CDI bean is produced out of the box so the
+         * durable-run read plane ({@code /api/admin/checkpoints}) and the
+         * console's Checkpoints tab work without hand-wiring. The default is a
+         * bounded in-memory store (lost on restart, with a startup WARN);
+         * {@code store=sqlite} upgrades to the crash-durable
+         * {@code SqliteCheckpointStore} when {@code atmosphere-checkpoint} and
+         * the SQLite JDBC driver are present. A user-supplied
+         * {@code CheckpointStore} CDI bean (in-memory, SQLite, or Postgres via
+         * {@code atmosphere-checkpoint-postgres}) always wins over this default
+         * — the producer is a {@code @DefaultBean}, mirroring Spring's
+         * {@code @ConditionalOnMissingBean} selection (Invariant #7).
+         */
+        interface Checkpoint {
+
+            /**
+             * Store backend: {@code memory} (default — bounded in-memory, lost
+             * on restart) or {@code sqlite} (crash-durable, bundled in
+             * {@code atmosphere-checkpoint}). {@code sqlite} falls back to the
+             * in-memory store with a NOT-crash-durable warning when the SQLite
+             * JDBC driver is absent (Correctness Invariant #5). Any user-supplied
+             * {@code CheckpointStore} CDI bean overrides this key entirely.
+             *
+             * @return the store backend name
+             */
+            @WithDefault("memory")
+            String store();
+
+            /**
+             * Filesystem path for the SQLite checkpoint store. The literal
+             * {@code ${java.io.tmpdir}} is expanded to the JVM temp directory.
+             * Ignored when {@code store=memory}.
+             *
+             * @return the SQLite database path
+             */
+            @WithDefault("${java.io.tmpdir}/atmosphere-checkpoints.db")
+            String path();
+
+            /**
+             * Maximum retained snapshots before the oldest are evicted, applied
+             * to both the in-memory and SQLite backends. Bounds store growth so
+             * wire-driven or workflow-driven saves cannot grow it without bound
+             * (Correctness Invariant #3). Defaults to {@code 10000}.
+             *
+             * @return the maximum retained snapshot count
+             */
+            @WithDefault("10000")
+            int maxSnapshots();
         }
     }
 
