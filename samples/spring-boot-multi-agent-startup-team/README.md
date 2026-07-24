@@ -43,7 +43,7 @@ to see the admin dashboard with live event stream, all 5 agents, fleet topology,
 | Agent | Role | Skill | Transport |
 |-------|------|-------|-----------|
 | **CEO** | Coordinates fleet, synthesizes briefing | `@Prompt` + `AgentFleet` | WebSocket |
-| **Research** | Web scraping via JSoup + DuckDuckGo | `web_search` | A2A (local) |
+| **Research** | Web search via the built-in `web_search` tool | `web_search` | A2A (local) |
 | **Strategy** | SWOT analysis, competitive positioning | `analyze_strategy` | A2A (local) |
 | **Finance** | TAM/SAM/SOM, revenue projections | `financial_model` | A2A (local) |
 | **Writer** | Executive briefing synthesis | `write_report` | A2A (local) |
@@ -80,7 +80,7 @@ writes only orchestration logic.
 src/main/java/.../a2astartup/
   A2aStartupTeamApplication.java   # Spring Boot entry point
   CeoCoordinator.java              # @Coordinator with @Fleet (the orchestrator)
-  ResearchAgent.java               # @Agent: web search via JSoup
+  ResearchAgent.java               # @Agent: web search via the built-in web_search tool
   StrategyAgent.java               # @Agent: SWOT analysis
   FinanceAgent.java                # @Agent: financial modeling
   WriterAgent.java                 # @Agent: report synthesis
@@ -173,12 +173,23 @@ public class ResearchAgent {
             @AgentSkillParam(name = "query") String query,
             @AgentSkillParam(name = "num_results") String numResults) {
         task.updateStatus(TaskState.WORKING, "Searching: " + query);
-        // ... JSoup scraping logic ...
-        task.addArtifact(Artifact.text(results));
-        task.complete("Found " + count + " results");
+        // Atmosphere's built-in web_search tool: pluggable engine, fail-closed offline.
+        var results = WebSearchSupport.shared()
+                .search(WebSearchQuery.of(query, Integer.parseInt(numResults)));
+        task.addArtifact(Artifact.text(results.toModelText()));
+        task.complete("Found " + results.results().size() + " result(s)");
     }
 }
 ```
+
+The `web_search` engine is **fail-closed**: with no
+`org.atmosphere.ai.websearch.endpoint` configured it returns a clear "not
+configured" brief without touching the network, so the sample runs offline out
+of the box. Point that property at a JSON search endpoint (a self-hosted
+metasearch instance or a hosted JSON search API), and set
+`org.atmosphere.ai.websearch.apiKey` if the endpoint needs a credential, to get
+live results. Swap in an alternative backend by putting a `WebSearchEngine`
+service on the classpath.
 
 ### Skill Files (atmosphere-skills repo)
 

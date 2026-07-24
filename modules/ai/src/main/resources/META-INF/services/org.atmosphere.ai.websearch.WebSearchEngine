@@ -1,0 +1,5 @@
+# Default web-search engine: JSON-over-HTTP against an operator-configured
+# search endpoint (priority 0). Fail-closed until an endpoint is set via
+# org.atmosphere.ai.websearch.endpoint. Add another WebSearchEngine on the
+# classpath (configured, higher priority) to override it.
+org.atmosphere.ai.websearch.HttpWebSearchEngine

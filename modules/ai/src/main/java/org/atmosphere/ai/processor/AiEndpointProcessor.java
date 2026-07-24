@@ -568,6 +568,16 @@ public class AiEndpointProcessor implements Processor<Object> {
             logger.info("In-process eval enabled: registered '{}' tool",
                     org.atmosphere.ai.code.EvalTool.TOOL_NAME);
         }
+        // Offer the 'web_search' tool only when a WebSearchEngine is configured
+        // (endpoint set) and confirmed at runtime (Correctness Invariant #5).
+        // Unconfigured, the tool is not advertised and search fails closed.
+        var webSearch = org.atmosphere.ai.websearch.WebSearchSupport.shared();
+        if (webSearch.isEnabled()) {
+            registry.register(webSearch.tool());
+            logger.info("Web search enabled ({}): registered '{}' tool",
+                    webSearch.engineName(),
+                    org.atmosphere.ai.websearch.WebSearchTool.TOOL_NAME);
+        }
         return registry;
     }
 

@@ -73,7 +73,7 @@ import java.util.Map;
  *   User message (WebSocket)
  *     |
  *     v
- *   Step 1: Research Agent (sequential — web scraping via JSoup)
+ *   Step 1: Research Agent (sequential — web search via the built-in web_search tool)
  *     |
  *   Step 2: Strategy + Finance agents (parallel — both use research results)
  *     |
