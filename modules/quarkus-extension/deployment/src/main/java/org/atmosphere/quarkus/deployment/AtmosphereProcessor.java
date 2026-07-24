@@ -507,7 +507,51 @@ class AtmosphereProcessor {
         config.consoleTransport().ifPresent(s ->
                 builder.addInitParam(
                         AtmosphereConsoleInfoServlet.CONSOLE_TRANSPORT_PARAM, s));
+        // Advertise the durable-run checkpoint read plane to the console only when
+        // atmosphere-checkpoint is on the classpath — the same gate under which
+        // registerCheckpointStore() below produces the CheckpointStore and maps
+        // /api/admin/checkpoints. So hasCheckpoints is true iff the plane the
+        // console's Checkpoints tab probes genuinely exists (Runtime Truth,
+        // Invariant #5), in parity with the Spring starter's
+        // hasBean(CheckpointStore) gate.
+        if (isClassPresent("org.atmosphere.checkpoint.CheckpointStore")) {
+            builder.addInitParam(AtmosphereConsoleInfoServlet.HAS_CHECKPOINTS_PARAM, "true");
+        }
         return builder.build();
+    }
+
+    /**
+     * Quarkus parity for the Spring Boot starter's
+     * {@code AtmosphereCheckpointAutoConfiguration} + {@code AtmosphereCheckpointEndpoint}.
+     * Requires {@code atmosphere-checkpoint} on the classpath
+     * ({@code CheckpointStore} lives there). When present it registers
+     * {@code AtmosphereCheckpointProducer} — which produces a {@code CheckpointStore}
+     * CDI bean (bounded in-memory by default, crash-durable SQLite when
+     * {@code quarkus.atmosphere.ai.checkpoint.store=sqlite}, or a user-supplied
+     * bean that wins via {@code @DefaultBean}) — and maps the read-only
+     * {@code AtmosphereCheckpointServlet} at {@code /api/admin/checkpoints}, so the
+     * durable-run read plane and the console's Checkpoints tab work on Quarkus
+     * exactly as on Spring Boot (Invariant #7). Both are registered by class name so
+     * this build-time module needs no compile dependency on {@code atmosphere-checkpoint}.
+     */
+    @BuildStep
+    void registerCheckpointStore(BuildProducer<AdditionalBeanBuildItem> beans,
+                                 BuildProducer<ServletBuildItem> servlets) {
+        if (!isClassPresent("org.atmosphere.checkpoint.CheckpointStore")) {
+            return;
+        }
+        beans.produce(AdditionalBeanBuildItem.unremovableOf(
+                "org.atmosphere.quarkus.runtime.AtmosphereCheckpointProducer"));
+        servlets.produce(ServletBuildItem.builder(
+                        "AtmosphereCheckpointServlet",
+                        "org.atmosphere.quarkus.runtime.AtmosphereCheckpointServlet")
+                .addMapping("/api/admin/checkpoints")
+                .setLoadOnStartup(2)
+                .setAsyncSupported(false)
+                .build());
+        logger.info("Atmosphere checkpoint store producer + read endpoint registered "
+                + "(default in-memory CheckpointStore, GET /api/admin/checkpoints; "
+                + "quarkus.atmosphere.ai.checkpoint.store=sqlite for crash-durable)");
     }
 
     /**
