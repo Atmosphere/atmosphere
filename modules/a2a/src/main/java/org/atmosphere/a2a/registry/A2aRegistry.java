@@ -112,7 +112,14 @@ public final class A2aRegistry {
                     false,
                     Map.of("guardrails", List.copyOf(guardrails))));
         }
-        var capabilities = new AgentCapabilities(true, false, extensions, true);
+        // Advertise streaming only when there is a skill to run: the SSE path
+        // (SendStreamingMessage / SubscribeToTask) forwards a skill's artifact
+        // frames live and replays them on resubscribe, so streaming genuinely
+        // works whenever a skill is registered — but a skill-less card can
+        // stream nothing, so it must not claim it (Correctness Invariant #5,
+        // Runtime Truth). Previously hardcoded true regardless of skills.
+        var streaming = !skills.isEmpty();
+        var capabilities = new AgentCapabilities(streaming, false, extensions, true);
         return new AgentCard(name, description, interfaces,
                 null, version, null, capabilities,
                 null, null, null, null, skillList, null, null);

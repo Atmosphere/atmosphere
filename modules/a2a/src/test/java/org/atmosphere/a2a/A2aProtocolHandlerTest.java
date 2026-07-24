@@ -97,6 +97,40 @@ class A2aProtocolHandlerTest {
     }
 
     /**
+     * Emits two artifacts then completes, and records how many tokens the SSE
+     * sink had already delivered at the midpoint of execution. With live
+     * streaming that count is {@code >= 1} (the first frame was forwarded while
+     * the skill was still running); with the old buffer-then-replay it would be
+     * {@code 0} (nothing forwarded until after the handler returned).
+     */
+    static class LiveStreamAgent {
+        private final java.util.List<String> tokens;
+        int tokensSeenMidSkill = -1;
+
+        LiveStreamAgent(java.util.List<String> tokens) {
+            this.tokens = tokens;
+        }
+
+        @AgentSkill(id = "live", name = "Live", description = "Streams chunks")
+        @AgentSkillHandler
+        public void live(TaskContext task, @AgentSkillParam(name = "message") String message) {
+            task.addArtifact(Artifact.text("first"));
+            tokensSeenMidSkill = tokens.size();
+            task.addArtifact(Artifact.text("second"));
+            task.complete("done");
+        }
+    }
+
+    /** Always throws — exercises the streaming error-frame path. */
+    static class FailingAgent {
+        @AgentSkill(id = "boom", name = "Boom", description = "Always fails")
+        @AgentSkillHandler
+        public void boom(TaskContext task, @AgentSkillParam(name = "message") String message) {
+            throw new IllegalStateException("kaboom");
+        }
+    }
+
+    /**
      * Regression: a no-skillId request (free-text chat from the Atmosphere
      * Console or any generic A2A client) must route to the conversational
      * skill (single String "message" param), not whatever skill happens to
@@ -312,6 +346,107 @@ class A2aProtocolHandlerTest {
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"SendStreamingMessage\"}",
                 t -> {}, () -> count[0]++);
         assertEquals(1, count[0]);
+    }
+
+    /**
+     * Regression: streaming must forward tokens live as the skill produces them,
+     * not buffer everything and replay after completion. The skill records how
+     * many frames were already delivered at its midpoint — {@code >= 1} proves
+     * live streaming.
+     */
+    @Test
+    void streamingForwardsTokensLiveDuringExecutionNotBufferedReplay() {
+        var tokens = new ArrayList<String>();
+        var agent = new LiveStreamAgent(tokens);
+        var registry = new A2aRegistry();
+        registry.scan(agent);
+        var tm = new TaskManager();
+        try {
+            var card = registry.buildAgentCard("live", "Live", "1.0", "/a2a");
+            var h = new A2aProtocolHandler(registry, tm, card);
+            var completed = new boolean[]{false};
+            h.handleStreamingMessage(streamRequest("hi"), tokens::add, () -> completed[0] = true);
+
+            assertTrue(agent.tokensSeenMidSkill >= 1,
+                    "expected >=1 frame forwarded live before the skill completed, got "
+                            + agent.tokensSeenMidSkill);
+            assertEquals(java.util.List.of("first", "second"), tokens);
+            assertTrue(completed[0]);
+        } finally {
+            tm.shutdown();
+        }
+    }
+
+    /**
+     * Regression: a failing skill must emit a proper error frame (via the
+     * {@code onError} sink the SSE writer turns into a JSON-RPC error envelope),
+     * not a silent completion. The terminal path still runs {@code onComplete}.
+     */
+    @Test
+    void failingSkillEmitsErrorFrameNotSilentDone() {
+        var registry = new A2aRegistry();
+        registry.scan(new FailingAgent());
+        var tm = new TaskManager();
+        try {
+            var card = registry.buildAgentCard("boom", "Boom", "1.0", "/a2a");
+            var h = new A2aProtocolHandler(registry, tm, card);
+            var tokens = new ArrayList<String>();
+            var errors = new ArrayList<String>();
+            var completed = new boolean[]{false};
+
+            h.handleStreamingMessage(streamRequest("hi"), tokens::add, errors::add,
+                    () -> completed[0] = true);
+
+            assertEquals(1, errors.size(), "a failing skill must emit exactly one error frame");
+            assertTrue(errors.get(0).contains("kaboom"),
+                    "error frame must carry the failure cause, got: " + errors.get(0));
+            assertTrue(tokens.isEmpty(), "a failing skill must not emit a content frame");
+            assertTrue(completed[0], "terminal path must still complete after an error");
+        } finally {
+            tm.shutdown();
+        }
+    }
+
+    /**
+     * Regression: resubscribe (SubscribeToTask over SSE) must replay the task's
+     * recorded artifact events, not spawn a new task with an empty message.
+     */
+    @Test
+    void resubscribeReplaysRecordedArtifactEvents() throws Exception {
+        // greet adds one artifact "Hello, Ada!" and completes the task.
+        var sendResp = handler.handleMessage(sendRequest(1, "SendMessage", "Ada"));
+        var taskId = mapper.readTree(sendResp).get("result").get("task")
+                .get("id").stringValue();
+
+        var replayed = new ArrayList<String>();
+        var completed = new boolean[]{false};
+        var req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"SubscribeToTask\","
+                + "\"params\":{\"id\":\"" + taskId + "\"}}";
+        handler.handleStreamingMessage(req, replayed::add, () -> completed[0] = true);
+
+        assertFalse(replayed.isEmpty(), "resubscribe must replay >=1 recorded event");
+        assertEquals("Hello, Ada!", replayed.get(0));
+        assertTrue(completed[0]);
+    }
+
+    /** Resubscribe to an unknown task surfaces an error frame, not a new task. */
+    @Test
+    void resubscribeUnknownTaskEmitsErrorFrame() {
+        var errors = new ArrayList<String>();
+        var completed = new boolean[]{false};
+        var req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"SubscribeToTask\","
+                + "\"params\":{\"id\":\"nosuch\"}}";
+        handler.handleStreamingMessage(req, t -> {}, errors::add, () -> completed[0] = true);
+
+        assertEquals(1, errors.size());
+        assertTrue(errors.get(0).contains("nosuch"));
+        assertTrue(completed[0]);
+    }
+
+    private String streamRequest(String text) {
+        return "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"SendStreamingMessage\","
+                + "\"params\":{\"message\":{\"messageId\":\"m\",\"role\":\"user\","
+                + "\"parts\":[{\"text\":\"" + text + "\"}]}}}";
     }
 
     private String sendRequest(int id, String method, String name) {

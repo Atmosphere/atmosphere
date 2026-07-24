@@ -127,6 +127,16 @@ public final class TaskManager {
         artifactListeners.add(listener);
     }
 
+    /**
+     * Remove a previously registered artifact listener. Symmetric with
+     * {@link #onArtifactUpdate} so a resubscribe stream that registers to
+     * replay future artifacts can unregister when it stops waiting
+     * (Correctness Invariant #1). No-op if the listener was never added.
+     */
+    public void removeArtifactListener(Consumer<TaskArtifactUpdateEvent> listener) {
+        artifactListeners.remove(listener);
+    }
+
     void notifyStatusUpdate(TaskContext task) {
         var event = new TaskStatusUpdateEvent(task.taskId(), task.contextId(),
                 TaskStatus.of(task.state(), task.statusMessage()));

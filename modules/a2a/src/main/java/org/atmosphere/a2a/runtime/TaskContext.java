@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 
 /**
  * Mutable, thread-safe in-flight A2A task. The initial state is
@@ -45,6 +46,17 @@ public final class TaskContext {
     private final Map<String, Object> metadata = new ConcurrentHashMap<>();
     private final ReentrantLock statusLock = new ReentrantLock();
     private volatile TaskManager taskManager;
+
+    /**
+     * Live token sink installed by the streaming dispatch path (SSE). When set,
+     * every text token produced during skill execution — pipeline tokens
+     * forwarded via {@link A2aStreamCollector#send(String)} and each text part
+     * of an {@link #addArtifact} — is forwarded to it as the skill generates
+     * output, so the SSE client sees incremental frames instead of a
+     * buffer-then-replay after completion. {@code null} (the default) on the
+     * unary path makes {@link #emitToken} a no-op.
+     */
+    private volatile Consumer<String> tokenSink;
 
     public TaskContext(String taskId, String contextId) {
         this.taskId = taskId;
@@ -99,6 +111,28 @@ public final class TaskContext {
         this.taskManager = mgr;
     }
 
+    /**
+     * Install (or, with {@code null}, detach) the live streaming token sink.
+     * Package-private: only the streaming dispatch path in
+     * {@link A2aProtocolHandler} installs a sink, and it always detaches it on
+     * a terminal path so no token is forwarded after the stream closes
+     * (Correctness Invariant #1 — every registration has an explicit removal).
+     */
+    void setTokenSink(Consumer<String> sink) {
+        this.tokenSink = sink;
+    }
+
+    /**
+     * Forward a token to the installed streaming sink, if any. No-op when no
+     * sink is installed (the unary path) or the text is null/empty.
+     */
+    void emitToken(String text) {
+        var sink = tokenSink;
+        if (sink != null && text != null && !text.isEmpty()) {
+            sink.accept(text);
+        }
+    }
+
     public void addMessage(Message msg) {
         messages.add(msg);
     }
@@ -118,6 +152,14 @@ public final class TaskContext {
 
     public void addArtifact(Artifact artifact) {
         artifacts.add(artifact);
+        // Forward each text part to the live streaming sink so an SSE client
+        // receives this artifact as an incremental frame the moment the skill
+        // produces it, rather than a buffer-then-replay after completion.
+        if (artifact != null && artifact.parts() != null) {
+            for (var part : artifact.parts()) {
+                emitToken(part.text());
+            }
+        }
         if (taskManager != null) {
             taskManager.notifyArtifactUpdate(this, artifact);
         }

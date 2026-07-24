@@ -321,7 +321,29 @@ public final class A2aHandler extends AbstractProtocolHandler<A2aSession>
         var writer = response.getWriter();
         protocolHandler.handleStreamingMessage(body,
                 token -> writeStreamChunk(writer, rpcId, token),
+                errorMessage -> writeStreamError(writer, rpcId, errorMessage),
                 () -> writer.write("data: [DONE]\n\n"));
+    }
+
+    /**
+     * Emit a terminal SSE error frame as a JSON-RPC error envelope. Completes
+     * the stream's terminal path on failure so the client sees the failure
+     * cause instead of a silent {@code [DONE]} (Correctness Invariant #2).
+     */
+    private void writeStreamError(java.io.PrintWriter writer, Object rpcId, String message) {
+        try {
+            var error = new LinkedHashMap<String, Object>();
+            error.put("code", org.atmosphere.protocol.JsonRpc.INTERNAL_ERROR);
+            error.put("message", message != null ? message : "Skill execution failed");
+            var envelope = new LinkedHashMap<String, Object>();
+            envelope.put("jsonrpc", "2.0");
+            envelope.put("id", rpcId);
+            envelope.put("error", error);
+            writer.write("data: " + mapper.writeValueAsString(envelope) + "\n\n");
+            writer.flush();
+        } catch (JacksonException e) {
+            logger.warn("Failed to write SSE error frame", e);
+        }
     }
 
     /**
