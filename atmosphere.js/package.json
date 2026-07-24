@@ -147,7 +147,7 @@
     "react-dom": "^19.2.5",
     "svelte": "^5.55.7",
     "tsup": "^8.5.1",
-    "typescript": "^6.0.2",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.2",
     "vue": "^3.5.31"
   },
