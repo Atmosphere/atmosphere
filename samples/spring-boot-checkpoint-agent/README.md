@@ -83,7 +83,7 @@ atmosphere checkpoint fork <id> --state custom-branch
 
 | File | Purpose |
 |------|---------|
-| `CheckpointConfig.java` | Wires a pluggable `CheckpointStore` (SQLite by default, in-memory opt-in) + wraps the journal with `CheckpointingCoordinationJournal` |
+| `CheckpointConfig.java` | Wires a pluggable `CheckpointStore` and a `DurableTimerStore` (both SQLite by default, in-memory opt-in) + wraps the journal with `CheckpointingCoordinationJournal`. The `DurableTimerService` re-arms restart-surviving deadlines (e.g. approval auto-reject) from the SQLite store on boot |
 | `CommitmentConfig.java` | Installs an `Ed25519CommitmentSigner` bean + flips `CommitmentRecordsFlag` on so every dispatch emits a signed VC-subtype record on the journal |
 | `DispatchCoordinator.java` | `@Coordinator` that arms the signer per session, calls the analyzer, and returns the checkpoint pointer. Signed `CommitmentRecord`s land on the journal alongside each `AgentDispatched` event. |
 | `AnalyzerAgent.java` | `@Agent` whose `AgentCompleted` events are captured as snapshots |
