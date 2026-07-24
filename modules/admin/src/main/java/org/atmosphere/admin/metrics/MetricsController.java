@@ -110,6 +110,20 @@ public final class MetricsController {
         if (responseTimer != null) {
             ai.put("responseLatencyMeanMs", round(responseTimer.mean(TimeUnit.MILLISECONDS)));
         }
+        // Spend + tool read-outs: the atmosphere.ai.cost summary is fed at the
+        // shared metrics seam whenever a TokenPricing is installed; absent
+        // pricing the meter never registers and no cost key is reported
+        // (runtime truth — never advertise a fabricated $0 spend).
+        var costSummary = registry.find("atmosphere.ai.cost").summary();
+        if (costSummary != null) {
+            ai.put("costUsdTotal", round(costSummary.totalAmount()));
+            ai.put("costSamples", costSummary.count());
+        }
+        var toolTimer = registry.find("atmosphere.ai.tool.duration").timer();
+        if (toolTimer != null) {
+            ai.put("toolCallsTotal", toolTimer.count());
+            ai.put("toolLatencyMeanMs", round(toolTimer.mean(TimeUnit.MILLISECONDS)));
+        }
         result.put("ai", ai);
 
         return result;

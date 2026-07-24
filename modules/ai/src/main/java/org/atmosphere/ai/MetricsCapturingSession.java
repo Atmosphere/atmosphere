@@ -15,21 +15,52 @@
  */
 package org.atmosphere.ai;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * A {@link StreamingSession} decorator that captures timing and streaming text usage
  * metadata and reports them to an {@link AiMetrics} implementation.
  *
- * <p>Follows the same wrapping pattern as {@link MemoryCapturingSession}.</p>
+ * <p>Follows the same wrapping pattern as {@link MemoryCapturingSession}.
+ * This is the ONE decorator present on both dispatch entry modes (see
+ * {@code DispatchDecorators}), so it is also where the cost and tool-call
+ * meters are fed — putting them anywhere else would recreate the
+ * one-mode-only observability drift (Mode Parity, Invariant #7).</p>
  */
 class MetricsCapturingSession extends DelegatingStreamingSession {
+
+    private static final Logger logger = LoggerFactory.getLogger(MetricsCapturingSession.class);
+
+    /**
+     * Bound on concurrently-tracked tool starts within one turn. The session
+     * is per-dispatch (short-lived), so this only guards a pathological turn
+     * whose tool terminals never arrive (Invariant #3 — bounded structures).
+     */
+    private static final int MAX_TRACKED_TOOL_STARTS = 64;
 
     private final AiMetrics metrics;
     private final String model;
     private final String providerName;
     private final Instant startTime;
+    /**
+     * ToolStart timestamps by tool name, eldest-evicted at the cap and removed
+     * on each terminal frame. Duration attribution by name is best-effort
+     * under parallel same-named tool calls (the events carry no call id).
+     */
+    private final Map<String, Instant> toolStarts =
+            new LinkedHashMap<>(8, 0.75f, false) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, Instant> eldest) {
+                    return size() > MAX_TRACKED_TOOL_STARTS;
+                }
+            };
     private volatile Instant firstStreamingTextTime;
     private int promptStreamingTexts;
     private int completionStreamingTexts;
@@ -99,8 +130,36 @@ class MetricsCapturingSession extends DelegatingStreamingSession {
             // GenAI semconv). Self-guards on hasCounts() + a valid current span;
             // no-op when OTel is absent.
             GenAiTracer.record(usage, model, providerName);
+            recordCost(usage);
         }
         delegate.usage(usage);
+    }
+
+    /**
+     * Feed the {@code atmosphere.ai.cost} meter from the authoritative token
+     * counts — the wire that was missing when {@code recordCost} had zero
+     * production callers and the documented cost meter stayed permanently
+     * empty. Dollars are only recorded when a real {@code TokenPricing} is
+     * installed (default {@code ZERO} keeps the meter empty — no fabricated
+     * costs, Runtime Truth Invariant #5) and the computed cost is positive.
+     * Exception-isolated: a pricing fault never breaks the user's stream
+     * (Invariant #2).
+     */
+    private void recordCost(TokenUsage usage) {
+        try {
+            var pricing = org.atmosphere.ai.cost.TokenPricingHolder.get();
+            if (pricing == org.atmosphere.ai.cost.TokenPricing.ZERO) {
+                return;
+            }
+            var effectiveModel = usage.model() != null && !usage.model().isBlank()
+                    ? usage.model() : model;
+            var costUsd = pricing.costUsd(usage, effectiveModel);
+            if (costUsd > 0) {
+                metrics.recordCost(effectiveModel, BigDecimal.valueOf(costUsd));
+            }
+        } catch (RuntimeException e) {
+            logger.debug("Cost metering failed for model {}: {}", model, e.toString());
+        }
     }
 
     @Override
@@ -128,7 +187,44 @@ class MetricsCapturingSession extends DelegatingStreamingSession {
                 firstStreamingTextTime = Instant.now();
             }
         }
+        // Feed the atmosphere.ai.tool.duration timer from the tool lifecycle
+        // frames every runtime bridge emits at the shared execution seam —
+        // recordToolCall previously had zero production callers, so the
+        // documented tool meter was permanently empty. Exception-isolated
+        // like the cost feed; frames are forwarded regardless.
+        try {
+            switch (event) {
+                case AiEvent.ToolStart start ->
+                        recordToolStart(start.toolName());
+                case AiEvent.ToolResult result ->
+                        recordToolTerminal(result.toolName(), true);
+                case AiEvent.ToolError error ->
+                        recordToolTerminal(error.toolName(), false);
+                default -> {
+                    // Not a tool lifecycle frame.
+                }
+            }
+        } catch (RuntimeException e) {
+            logger.debug("Tool-call metering failed: {}", e.toString());
+        }
         delegate.emit(event);
+    }
+
+    private synchronized void recordToolStart(String toolName) {
+        if (toolName != null) {
+            toolStarts.putIfAbsent(toolName, Instant.now());
+        }
+    }
+
+    private synchronized void recordToolTerminal(String toolName, boolean success) {
+        if (toolName == null) {
+            return;
+        }
+        var started = toolStarts.remove(toolName);
+        var duration = started != null
+                ? Duration.between(started, Instant.now())
+                : Duration.ZERO;
+        metrics.recordToolCall(model, toolName, duration, success);
     }
 
     private void recordMetrics() {

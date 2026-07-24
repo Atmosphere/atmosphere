@@ -498,36 +498,45 @@ public class AtmosphereAiAutoConfiguration {
                     guardrailProvider,
             org.springframework.beans.factory.ObjectProvider<org.atmosphere.ai.cost.TokenPricing>
                     pricingProvider) {
+        var pricing = pricingProvider.getIfAvailable();
         var user = userAccountant.getIfAvailable();
         if (user != null) {
-            return new CostAccountantInstaller(user, "user-bean");
+            return new CostAccountantInstaller(user, pricing, "user-bean");
         }
         var guardrail = guardrailProvider.getIfAvailable();
-        var pricing = pricingProvider.getIfAvailable();
         if (guardrail != null && pricing != null) {
             return new CostAccountantInstaller(
                     new org.atmosphere.ai.cost.CostCeilingAccountant(guardrail, pricing),
-                    "CostCeilingAccountant(guardrail+pricing)");
+                    pricing, "CostCeilingAccountant(guardrail+pricing)");
         }
+        // No accountant to wire — the installer still publishes a bare
+        // TokenPricing bean (if present) so the atmosphere.ai.cost meter is
+        // fed even without enforcement (observability without a ceiling).
         return new CostAccountantInstaller(
-                org.atmosphere.ai.cost.CostAccountant.NOOP,
+                org.atmosphere.ai.cost.CostAccountant.NOOP, pricing,
                 "NOOP (no CostAccountant, guardrail, or pricing bean)");
     }
 
     /**
      * Installs a {@link org.atmosphere.ai.cost.CostAccountant} into the
-     * process-wide {@link org.atmosphere.ai.cost.CostAccountantHolder} on
-     * startup and restores the no-op on shutdown.
+     * process-wide {@link org.atmosphere.ai.cost.CostAccountantHolder} — and
+     * the application's {@link org.atmosphere.ai.cost.TokenPricing} into
+     * {@link org.atmosphere.ai.cost.TokenPricingHolder}, which feeds the
+     * {@code atmosphere.ai.cost} meter at the shared metrics seam — on
+     * startup, restoring the no-ops on shutdown.
      */
     static final class CostAccountantInstaller
             implements org.springframework.beans.factory.SmartInitializingSingleton,
                        org.springframework.beans.factory.DisposableBean {
 
         private final org.atmosphere.ai.cost.CostAccountant accountant;
+        private final org.atmosphere.ai.cost.TokenPricing pricing;
         private final String source;
 
-        CostAccountantInstaller(org.atmosphere.ai.cost.CostAccountant accountant, String source) {
+        CostAccountantInstaller(org.atmosphere.ai.cost.CostAccountant accountant,
+                                org.atmosphere.ai.cost.TokenPricing pricing, String source) {
             this.accountant = accountant;
+            this.pricing = pricing;
             this.source = source;
         }
 
@@ -540,11 +549,16 @@ public class AtmosphereAiAutoConfiguration {
             } else {
                 logger.debug("CostAccountantInstaller: {} — holder stays at NOOP", source);
             }
+            if (pricing != null) {
+                org.atmosphere.ai.cost.TokenPricingHolder.install(pricing);
+                logger.info("TokenPricing installed — the atmosphere.ai.cost meter is live");
+            }
         }
 
         @Override
         public void destroy() {
             org.atmosphere.ai.cost.CostAccountantHolder.reset();
+            org.atmosphere.ai.cost.TokenPricingHolder.reset();
         }
 
         /** Exposed so tests can assert which path fired. */

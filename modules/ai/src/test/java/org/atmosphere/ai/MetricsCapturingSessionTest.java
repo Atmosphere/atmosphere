@@ -231,4 +231,53 @@ class MetricsCapturingSessionTest {
         var session = new MetricsCapturingSession(delegate, mockMetrics(), "gpt-4");
         assertFalse(session.isClosed());
     }
+
+    // Cost + tool meters (the Tier-1 "cost is not observable" P1) ----------
+
+    @Test
+    void usageFeedsCostMeterWhenPricingInstalled() {
+        // Regression: recordCost had ZERO production callers, so the
+        // documented atmosphere.ai.cost meter was permanently empty. With a
+        // TokenPricing installed, the shared metrics seam now feeds it.
+        org.atmosphere.ai.cost.TokenPricingHolder.install(
+                org.atmosphere.ai.cost.TokenPricing.flat(3.0, 15.0));
+        try {
+            var metrics = mockMetrics();
+            var session = new MetricsCapturingSession(mockDelegate(), metrics, "gpt-4o");
+            session.usage(new TokenUsage(1_000_000, 1_000_000, 0, 2_000_000, "gpt-4o"));
+
+            var captor = org.mockito.ArgumentCaptor.forClass(java.math.BigDecimal.class);
+            verify(metrics).recordCost(eq("gpt-4o"), captor.capture());
+            assert Math.abs(captor.getValue().doubleValue() - 18.0) < 0.0001
+                    : "1M in @ $3 + 1M out @ $15 = $18, got " + captor.getValue();
+        } finally {
+            org.atmosphere.ai.cost.TokenPricingHolder.reset();
+        }
+    }
+
+    @Test
+    void usageWithoutPricingNeverFabricatesACost() {
+        // Runtime truth (Inv #5): no rate sheet installed -> the cost meter
+        // stays empty; a fabricated $0 sample would read as "spend tracked".
+        var metrics = mockMetrics();
+        var session = new MetricsCapturingSession(mockDelegate(), metrics, "gpt-4o");
+        session.usage(new TokenUsage(1000, 500, 0, 1500, "gpt-4o"));
+        verify(metrics, never()).recordCost(any(), any());
+    }
+
+    @Test
+    void toolLifecycleFeedsToolCallMeter() {
+        // Regression: recordToolCall had zero production callers. The tool
+        // lifecycle frames every bridge emits now feed the timer on both
+        // dispatch paths (this decorator is the shared seam).
+        var metrics = mockMetrics();
+        var session = new MetricsCapturingSession(mockDelegate(), metrics, "gpt-4");
+        session.emit(new AiEvent.ToolStart("search", java.util.Map.of("q", "x")));
+        session.emit(new AiEvent.ToolResult("search", "found"));
+        verify(metrics).recordToolCall(eq("gpt-4"), eq("search"), any(), eq(true));
+
+        session.emit(new AiEvent.ToolStart("fetch", java.util.Map.of()));
+        session.emit(new AiEvent.ToolError("fetch", "boom"));
+        verify(metrics).recordToolCall(eq("gpt-4"), eq("fetch"), any(), eq(false));
+    }
 }
