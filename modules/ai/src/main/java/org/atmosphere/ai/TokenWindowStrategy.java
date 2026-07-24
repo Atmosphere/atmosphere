@@ -28,10 +28,23 @@ import java.util.List;
  * <p>The {@code maxMessages} parameter from {@link AiConversationMemory} is
  * reinterpreted as the maximum token count (not message count). This allows
  * fine-grained control over context window usage.</p>
+ *
+ * <p>The budget can be sized to the resolved model's actual context window via
+ * {@link #forModel(String)} / {@link ModelWindowCatalog}, so a 200k-token model
+ * is not needlessly compacted at the flat {@value #DEFAULT_MAX_TOKENS}-token
+ * default. See {@link TokenWindowCompaction} for the production compaction path
+ * that consumes this.</p>
  */
 public class TokenWindowStrategy implements MemoryStrategy {
 
     private static final int CHARS_PER_TOKEN = 4;
+
+    /**
+     * Historical flat token budget, used by {@link #TokenWindowStrategy() the
+     * no-arg constructor} and as {@link ModelWindowCatalog}'s fallback for an
+     * unknown model — so behavior is never worse than before the catalog.
+     */
+    public static final int DEFAULT_MAX_TOKENS = 4000;
 
     private final int maxTokens;
 
@@ -43,10 +56,29 @@ public class TokenWindowStrategy implements MemoryStrategy {
     }
 
     /**
-     * Default constructor using 4000 tokens.
+     * Default constructor using {@value #DEFAULT_MAX_TOKENS} tokens.
      */
     public TokenWindowStrategy() {
-        this(4000);
+        this(DEFAULT_MAX_TOKENS);
+    }
+
+    /**
+     * Build a model-aware strategy whose token budget is {@code model}'s context
+     * window from {@link ModelWindowCatalog}, or the documented default when the
+     * model is unknown. Never throws on an unknown model.
+     *
+     * @param model the resolved model id (may be {@code null}/blank → default)
+     * @return a strategy budgeted to the model's context window
+     */
+    public static TokenWindowStrategy forModel(String model) {
+        return new TokenWindowStrategy(ModelWindowCatalog.contextWindow(model));
+    }
+
+    /**
+     * @return the maximum estimated token budget this strategy retains
+     */
+    public int maxTokens() {
+        return maxTokens;
     }
 
     @Override
