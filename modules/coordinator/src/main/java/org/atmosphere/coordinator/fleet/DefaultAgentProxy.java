@@ -24,7 +24,12 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Default {@link AgentProxy} implementation that delegates to an {@link AgentTransport}.
@@ -109,6 +114,86 @@ public final class DefaultAgentProxy implements AgentProxy {
                 : transport.send(name, skill, args, dispatchMetadata);
     }
 
+    /**
+     * Dispatch a single skill call bounded by {@link AgentLimits#timeout()}.
+     * The synchronous {@link #call} / {@link DefaultAgentFleet#pipeline} paths
+     * used to invoke {@link #dispatch} directly with no time bound, so a hanging
+     * local sub-agent ({@code LocalAgentTransport.send} is fully synchronous)
+     * blocked the coordinator thread forever — only
+     * {@link DefaultAgentFleet#parallel} honored the limit (Mode Parity,
+     * Correctness Invariant #7; Terminal Path, Invariant #2). This helper closes
+     * that gap for every non-parallel mode by mirroring {@code parallel()}'s
+     * proven interrupt mechanism: run the dispatch on a per-call
+     * virtual-thread executor, bound it with {@code orTimeout}, and on a timeout
+     * {@code cancel(true)} + {@code shutdownNow()} the executor <em>while it is
+     * still live</em> so the interrupt actually reaches the blocked worker
+     * ({@link CompletableFuture#cancel} alone does not interrupt). A timeout
+     * yields a symmetric {@link AgentResult#failure} rather than propagating,
+     * so the retry loop in {@link #call} treats it like any other failure.
+     *
+     * <p>The executor is created and owned by this call and torn down in a
+     * {@code finally} with the non-blocking {@code shutdownNow()} (never
+     * {@code close()}, which awaits termination and would re-introduce the very
+     * hang this guards against — Ownership, Invariant #1). A non-timeout
+     * dispatch failure is re-thrown unchanged to preserve the prior
+     * propagation behavior.</p>
+     */
+    private AgentResult dispatchBounded(String skill, Map<String, Object> args, Instant start) {
+        var timeoutMs = limits.timeout().toMillis();
+        var vtExecutor = Executors.newVirtualThreadPerTaskExecutor();
+        try {
+            // Capture any thread-affine dispatch context (e.g. the local
+            // circular-dispatch chain) on THIS thread before hopping to the
+            // worker, so the transport's runtime guards survive the bound. A
+            // transport that returns null (no context to propagate, or a test
+            // double) falls back to the unwrapped dispatch.
+            Supplier<AgentResult> raw = () -> dispatch(skill, args);
+            var wrapped = transport.withDispatchContext(raw);
+            var body = wrapped != null ? wrapped : raw;
+            var future = CompletableFuture
+                    .supplyAsync(body, vtExecutor)
+                    .orTimeout(timeoutMs, TimeUnit.MILLISECONDS);
+            try {
+                // Await interruptibly (get, not join): when this call is itself
+                // running on an outer executor that is shut down — e.g.
+                // DefaultAgentFleet.parallel() cancelling siblings on a first
+                // failure — the interrupt lands here and must propagate INTO this
+                // per-call executor, or the inner dispatch would run to
+                // completion and defeat the outer cancellation.
+                return future.get();
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                future.cancel(true);
+                vtExecutor.shutdownNow();
+                var elapsed = Duration.between(start, Instant.now());
+                logger.debug("Agent '{}' skill '{}' interrupted while awaiting dispatch", name, skill);
+                return AgentResult.failure(name, skill, "Agent call interrupted", elapsed);
+            } catch (ExecutionException e) {
+                var cause = e.getCause();
+                if (cause instanceof TimeoutException) {
+                    // Cancel + shutdownNow WHILE the executor is live so the
+                    // interrupt reaches the blocked dispatch worker.
+                    future.cancel(true);
+                    vtExecutor.shutdownNow();
+                    var elapsed = Duration.between(start, Instant.now());
+                    logger.warn("Agent '{}' skill '{}' timed out after {}ms — failing the call",
+                            name, skill, timeoutMs);
+                    return AgentResult.failure(name, skill,
+                            "Agent timed out after " + timeoutMs + "ms", elapsed);
+                }
+                if (cause instanceof RuntimeException re) {
+                    throw re;
+                }
+                throw new IllegalStateException(
+                        "Agent '" + name + "' dispatch failed", cause == null ? e : cause);
+            }
+        } finally {
+            // Non-blocking cleanup on every terminal path (success, timeout,
+            // failure). shutdownNow() does not await, so it never hangs.
+            vtExecutor.shutdownNow();
+        }
+    }
+
     /** Returns the per-agent limits configured for this proxy. */
     public AgentLimits limits() { return limits; }
 
@@ -132,7 +217,7 @@ public final class DefaultAgentProxy implements AgentProxy {
         var start = Instant.now();
         emitActivity(new AgentActivity.Thinking(name, skill, start));
 
-        var result = dispatch(skill, args);
+        var result = dispatchBounded(skill, args, start);
         var maxAttempts = retryPolicy.maxRetries();
         if (result.success() || maxAttempts <= 0) {
             emitTerminal(skill, result, start);
@@ -158,7 +243,7 @@ public final class DefaultAgentProxy implements AgentProxy {
                 return result;
             }
             emitActivity(new AgentActivity.Thinking(name, skill, Instant.now()));
-            result = dispatch(skill, args);
+            result = dispatchBounded(skill, args, start);
             if (result.success()) {
                 emitTerminal(skill, result, start);
                 return result;

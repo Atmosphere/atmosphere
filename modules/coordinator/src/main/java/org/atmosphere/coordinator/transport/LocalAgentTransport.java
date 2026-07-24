@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Transport for co-located agents (same JVM). Invokes the agent's A2A protocol
@@ -128,6 +129,32 @@ public class LocalAgentTransport implements AgentTransport {
     @Override
     public AgentResult send(String agentName, String skill, Map<String, Object> args) {
         return send(agentName, skill, args, Map.of());
+    }
+
+    /**
+     * Propagate the circular-dispatch chain across a worker-thread hop. Captures
+     * the caller thread's {@link #dispatchChain} snapshot now and re-seeds it on
+     * the thread that runs {@code body}, so nested {@code A -> B -> A} dispatches
+     * are still detected when {@link org.atmosphere.coordinator.fleet.DefaultAgentProxy}
+     * runs each bounded call on its own virtual thread. Without this the guard
+     * would start every hop with a fresh, empty chain and miss the cycle.
+     */
+    @Override
+    public Supplier<AgentResult> withDispatchContext(Supplier<AgentResult> body) {
+        var parent = Set.copyOf(dispatchChain.get());
+        return () -> {
+            var prior = dispatchChain.get();
+            dispatchChain.set(new HashSet<>(parent));
+            try {
+                return body.get();
+            } finally {
+                if (prior.isEmpty()) {
+                    dispatchChain.remove();
+                } else {
+                    dispatchChain.set(prior);
+                }
+            }
+        };
     }
 
     @Override

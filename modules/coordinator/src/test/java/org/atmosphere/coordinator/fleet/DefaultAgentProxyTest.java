@@ -19,6 +19,7 @@ import org.atmosphere.coordinator.transport.AgentTransport;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -60,6 +61,48 @@ public class DefaultAgentProxyTest {
 
         assertNotNull(future);
         assertEquals("ok", future.join().text());
+    }
+
+    @Test
+    void callHonorsPerAgentTimeout() {
+        // Regression for the Tier-1 P1: the synchronous call() path ignored
+        // AgentLimits.timeout() — only parallel() honored it — so a hanging
+        // local sub-agent blocked the coordinator thread forever (Inv #7 mode
+        // parity, Inv #2 terminal path). A sub-agent that sleeps far beyond the
+        // per-agent bound must now fail fast, not hang.
+        var transport = mock(AgentTransport.class);
+        when(transport.send("slow", "work", Map.of("q", "x"))).thenAnswer(inv -> {
+            Thread.sleep(5000);
+            return new AgentResult("slow", "work", "late", Map.of(), Duration.ZERO, true);
+        });
+        var proxy = new DefaultAgentProxy("slow", "1.0.0", 1, true, 0, transport,
+                List.of(), AgentLimits.withTimeout(Duration.ofMillis(200)));
+
+        var startNanos = System.nanoTime();
+        var result = proxy.call("work", Map.of("q", "x"));
+        var elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
+
+        assertFalse(result.success(), "a hanging sub-agent must fail, not hang");
+        assertTrue(result.text().contains("timed out"),
+                "timeout failure should say so, was: " + result.text());
+        assertTrue(elapsedMs < 3000,
+                "call must return shortly after the 200ms bound, took " + elapsedMs + "ms");
+    }
+
+    @Test
+    void callReturnsPromptlyWhenUnderTimeout() {
+        // The bound must not penalize the fast path: a quick dispatch returns
+        // its real result unchanged.
+        var transport = mock(AgentTransport.class);
+        var expected = new AgentResult("fast", "work", "ok", Map.of(), Duration.ZERO, true);
+        when(transport.send("fast", "work", Map.of())).thenReturn(expected);
+        var proxy = new DefaultAgentProxy("fast", "1.0.0", 1, true, 0, transport,
+                List.of(), AgentLimits.withTimeout(Duration.ofSeconds(5)));
+
+        var result = proxy.call("work", Map.of());
+
+        assertTrue(result.success());
+        assertEquals("ok", result.text());
     }
 
     @Test

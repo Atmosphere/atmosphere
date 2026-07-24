@@ -19,6 +19,7 @@ import org.atmosphere.coordinator.fleet.AgentResult;
 
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Transport abstraction for agent-to-agent communication.
@@ -27,6 +28,26 @@ public interface AgentTransport {
 
     /** Send a synchronous request to an agent skill. */
     AgentResult send(String agentName, String skill, Map<String, Object> args);
+
+    /**
+     * Wrap a dispatch {@code body} so any thread-affine call context captured on
+     * the <em>calling</em> thread is re-established when {@code body} runs —
+     * possibly on a different thread. The wrapper is built on the caller thread
+     * (capturing its context) and the returned supplier is invoked on the
+     * executing thread.
+     *
+     * <p>{@link org.atmosphere.coordinator.fleet.DefaultAgentProxy} runs each
+     * bounded dispatch on a per-call virtual-thread worker to enforce
+     * {@link org.atmosphere.coordinator.fleet.AgentLimits#timeout()}; without
+     * propagation, a transport that keeps a {@link ThreadLocal} dispatch context
+     * (e.g. {@link LocalAgentTransport}'s circular-dispatch chain) would start
+     * each hop with a fresh, empty context and lose its runtime cycle backstop.
+     * The default returns {@code body} unchanged — transports with no
+     * thread-affine dispatch state need no propagation.</p>
+     */
+    default Supplier<AgentResult> withDispatchContext(Supplier<AgentResult> body) {
+        return body;
+    }
 
     /**
      * Send a synchronous request carrying dispatch metadata (e.g. the
