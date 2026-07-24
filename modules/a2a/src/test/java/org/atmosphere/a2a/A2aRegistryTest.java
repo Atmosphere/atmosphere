@@ -104,9 +104,21 @@ class A2aRegistryTest {
     @Test
     void buildAgentCardCapabilitiesAdvertiseStreamingAndExtendedCard() {
         var registry = new A2aRegistry();
+        registry.scan(new TestAgent());
         var card = registry.buildAgentCard("test", "Test", "1.0", "/a2a");
+        // Streaming genuinely works once a skill is registered — the SSE path
+        // forwards its artifact frames live.
         assertEquals(true, card.capabilities().streaming());
         assertEquals(true, card.capabilities().extendedAgentCard());
         assertEquals(false, card.capabilities().pushNotifications());
+    }
+
+    @Test
+    void buildAgentCardWithoutSkillsDoesNotAdvertiseStreaming() {
+        // Runtime Truth (Correctness Invariant #5): a skill-less card can stream
+        // nothing, so it must not claim streaming — previously hardcoded true.
+        var registry = new A2aRegistry();
+        var card = registry.buildAgentCard("test", "Test", "1.0", "/a2a");
+        assertEquals(false, card.capabilities().streaming());
     }
 }

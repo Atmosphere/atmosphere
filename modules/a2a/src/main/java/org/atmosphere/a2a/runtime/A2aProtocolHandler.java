@@ -22,13 +22,16 @@ import org.atmosphere.a2a.annotation.AgentSkillParam;
 import org.atmosphere.a2a.protocol.A2aMethod;
 import org.atmosphere.a2a.registry.A2aRegistry;
 import org.atmosphere.a2a.types.AgentCard;
+import org.atmosphere.a2a.types.Artifact;
 import org.atmosphere.a2a.types.ListTasksResponse;
 import org.atmosphere.a2a.types.Message;
+import org.atmosphere.a2a.types.TaskArtifactUpdateEvent;
 import org.atmosphere.a2a.types.TaskPushNotificationConfig;
 import org.atmosphere.a2a.types.Part;
 import org.atmosphere.a2a.types.Role;
 import org.atmosphere.a2a.types.SendMessageResponse;
 import org.atmosphere.a2a.types.TaskState;
+import org.atmosphere.a2a.types.TaskStatusUpdateEvent;
 import org.atmosphere.protocol.JsonRpc;
 import org.atmosphere.protocol.ProtocolTracing;
 import org.slf4j.Logger;
@@ -39,6 +42,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /**
@@ -68,6 +74,14 @@ public final class A2aProtocolHandler {
     public static final int ERROR_UNSUPPORTED_OPERATION = -32004;
     /** -32007 — ExtendedAgentCardNotConfiguredError. */
     public static final int ERROR_EXTENDED_CARD_NOT_CONFIGURED = -32007;
+
+    /**
+     * Upper bound (ms) a resubscribe stream waits for an in-flight task to
+     * reach a terminal state before releasing the request thread. Matches the
+     * synchronous prompt cap so a resubscribe cannot outlive the work it
+     * follows; a task already terminal at resubscribe time never waits.
+     */
+    private static final long RESUBSCRIBE_TIMEOUT_MS = 120_000L;
 
     private final A2aRegistry registry;
     private final TaskManager taskManager;
@@ -221,14 +235,61 @@ public final class A2aProtocolHandler {
     }
 
     /**
-     * Handle a streaming message from a local transport. Executes the skill
-     * and bridges each artifact text part to the token consumer.
+     * Handle a streaming message from a local transport with a no-op error
+     * callback. Retained for callers (the local coordinator dispatch and the
+     * {@link LocalDispatchable} SPI) that surface failures via task state
+     * rather than an inline error frame.
      */
     public void handleStreamingMessage(String message, Consumer<String> onToken,
                                         Runnable onComplete) {
+        handleStreamingMessage(message, onToken, err -> { }, onComplete);
+    }
+
+    /**
+     * Handle a streaming request. Two request shapes flow here:
+     *
+     * <ul>
+     *   <li>{@code SendStreamingMessage} — resolves and runs the skill with a
+     *       live token sink installed on the task, so pipeline tokens
+     *       ({@link A2aStreamCollector#send}) and each {@code addArtifact} text
+     *       part are forwarded to {@code onToken} <em>as the skill produces
+     *       them</em> (not buffered-then-replayed). On skill failure
+     *       {@code onError} receives the failure message so the caller emits a
+     *       proper error frame instead of a silent completion (Correctness
+     *       Invariant #2 — every terminal path completes). A skill that returns
+     *       a result without streaming still yields one final frame, preserving
+     *       Mode Parity (#7) with the unary response's text.</li>
+     *   <li>{@code SubscribeToTask} (target of {@code tasks/resubscribe}) —
+     *       replays the target task's recorded artifact events and, while it is
+     *       still in-flight, forwards subsequent events until it terminates.
+     *       Does <em>not</em> create a new task or run a skill — fixing the
+     *       prior behavior that routed a resubscribe through the send path with
+     *       an empty message, spawning a bogus task.</li>
+     * </ul>
+     *
+     * {@code onComplete} runs exactly once on every terminal path.
+     */
+    public void handleStreamingMessage(String message, Consumer<String> onToken,
+                                        Consumer<String> onError, Runnable onComplete) {
+        // Serialize sink writes: a pipeline may stream tokens from a background
+        // thread while the request thread waits in awaitAndFinalize, and SSE
+        // frames must not interleave (Correctness Invariant #4 — framing).
+        var writeLock = new Object();
+        Consumer<String> safeToken = token -> {
+            synchronized (writeLock) {
+                onToken.accept(token);
+            }
+        };
         try {
             var node = mapper.readTree(message);
+            var rawMethod = node.has("method") ? node.get("method").stringValue() : null;
+            var method = A2aMethod.canonicalize(rawMethod);
             var params = node.get("params");
+
+            if (A2aMethod.SUBSCRIBE_TO_TASK.equals(method)) {
+                replayAndResume(params, safeToken, onError);
+                return;
+            }
 
             if (params == null) {
                 return;
@@ -251,31 +312,146 @@ public final class A2aProtocolHandler {
                 skill = defaultSkill();
             }
 
-            if (skill != null) {
-                executeSkill(skill, taskCtx, params);
-            } else {
+            if (skill == null) {
                 logger.warn("No skill found for streaming request (skillId: {})", skillId);
+                taskCtx.fail("No skills registered");
+                onError.accept("No skills registered");
+                return;
             }
 
-            boolean hasTokens = false;
-            for (var artifact : taskCtx.artifacts()) {
-                if (artifact.parts() != null) {
-                    for (var part : artifact.parts()) {
-                        if (part.text() != null && !part.text().isEmpty()) {
-                            hasTokens = true;
-                            onToken.accept(part.text());
-                        }
-                    }
-                }
+            // Install the live sink so send()/addArtifact forward tokens as the
+            // skill runs; detach on every exit so nothing is forwarded after the
+            // stream closes (Correctness Invariant #1).
+            var tokenCount = new AtomicInteger();
+            taskCtx.setTokenSink(t -> {
+                tokenCount.incrementAndGet();
+                safeToken.accept(t);
+            });
+            try {
+                executeSkill(skill, taskCtx, params);
+            } finally {
+                taskCtx.setTokenSink(null);
             }
-            if (!hasTokens) {
-                logger.debug("Streaming execution produced no output for skillId '{}'",
-                        skillId);
+
+            // Skill failed: emit an error frame rather than a silent [DONE]
+            // (Correctness Invariant #2).
+            if (taskCtx.state() == TaskState.FAILED) {
+                var reason = taskCtx.statusMessage() != null
+                        ? taskCtx.statusMessage() : "Skill execution failed";
+                onError.accept(reason);
+                return;
+            }
+
+            // Skill produced its result without streaming live (e.g. a command
+            // handler that only calls complete()): still emit one final frame so
+            // the SSE client receives the result (Mode Parity #7). Guarded by
+            // tokenCount so it never duplicates already-streamed tokens.
+            if (tokenCount.get() == 0) {
+                emitFinalResult(taskCtx, safeToken);
             }
         } catch (Exception e) {
             logger.warn("Streaming message handling failed", e);
+            onError.accept("Internal error");
         } finally {
             onComplete.run();
+        }
+    }
+
+    /**
+     * Replay a task's recorded artifact events for a resubscribe, then — while
+     * the task is still in-flight — forward subsequent artifact events until it
+     * reaches a terminal state or {@link #RESUBSCRIBE_TIMEOUT_MS} elapses.
+     * Future-event listeners are registered <em>before</em> the snapshot replay
+     * (so an artifact added mid-replay is not lost) and deduped by
+     * {@code artifactId} (so it is not emitted twice); both listeners are
+     * removed on every exit path (Correctness Invariant #1).
+     */
+    private void replayAndResume(JsonNode params, Consumer<String> onToken,
+                                 Consumer<String> onError) {
+        var taskId = params != null && params.has("id") && !params.get("id").isNull()
+                ? params.get("id").stringValue() : null;
+        if (taskId == null || taskId.isBlank()) {
+            onError.accept("Missing task id for resubscribe");
+            return;
+        }
+        var taskOpt = taskManager.getTask(taskId);
+        if (taskOpt.isEmpty()) {
+            onError.accept("Unknown task: " + taskId);
+            return;
+        }
+        var ctx = taskOpt.get();
+
+        Set<String> seen = ConcurrentHashMap.newKeySet();
+        var terminal = new CountDownLatch(1);
+        Consumer<TaskArtifactUpdateEvent> artifactListener = ev -> {
+            if (taskId.equals(ev.taskId())) {
+                emitArtifact(ev.artifact(), onToken, seen);
+            }
+        };
+        Consumer<TaskStatusUpdateEvent> statusListener = ev -> {
+            if (taskId.equals(ev.taskId()) && ev.status() != null
+                    && ev.status().state() != null && ev.status().state().isTerminal()) {
+                terminal.countDown();
+            }
+        };
+        taskManager.onArtifactUpdate(artifactListener);
+        taskManager.onStatusUpdate(statusListener);
+        try {
+            // Replay events the reconnecting client missed.
+            for (var artifact : ctx.artifacts()) {
+                emitArtifact(artifact, onToken, seen);
+            }
+            // Stream subsequent events until the task terminates (bounded wait).
+            if (!ctx.state().isTerminal()) {
+                terminal.await(RESUBSCRIBE_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            taskManager.removeArtifactListener(artifactListener);
+            taskManager.removeStatusListener(statusListener);
+        }
+    }
+
+    /** Emit an artifact's text parts once, skipping any already-seen artifactId. */
+    private static void emitArtifact(Artifact artifact, Consumer<String> onToken,
+                                     Set<String> seen) {
+        if (artifact == null || artifact.parts() == null) {
+            return;
+        }
+        if (artifact.artifactId() != null && !seen.add(artifact.artifactId())) {
+            return;
+        }
+        for (var part : artifact.parts()) {
+            if (part.text() != null && !part.text().isEmpty()) {
+                onToken.accept(part.text());
+            }
+        }
+    }
+
+    /**
+     * Emit a completed task's result as a single final frame when nothing
+     * streamed live — the recorded artifacts if any, else the completed status
+     * text. Only reached with {@code tokenCount == 0}, so it cannot duplicate a
+     * token already forwarded through the live sink.
+     */
+    private static void emitFinalResult(TaskContext taskCtx, Consumer<String> onToken) {
+        boolean emitted = false;
+        for (var artifact : taskCtx.artifacts()) {
+            if (artifact.parts() != null) {
+                for (var part : artifact.parts()) {
+                    if (part.text() != null && !part.text().isEmpty()) {
+                        onToken.accept(part.text());
+                        emitted = true;
+                    }
+                }
+            }
+        }
+        if (!emitted) {
+            var text = taskCtx.statusMessage();
+            if (text != null && !text.isEmpty()) {
+                onToken.accept(text);
+            }
         }
     }
 
