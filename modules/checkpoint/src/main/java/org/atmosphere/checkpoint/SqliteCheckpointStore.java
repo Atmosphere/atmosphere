@@ -70,6 +70,7 @@ public final class SqliteCheckpointStore implements CheckpointStore {
 
     private final Connection connection;
     private final int maxSnapshots;
+    private final CheckpointCipher cipher;
     private final ReentrantLock lock = new ReentrantLock();
     private final ObjectMapper mapper = new ObjectMapper();
     private final CopyOnWriteArrayList<CheckpointListener> listeners = new CopyOnWriteArrayList<>();
@@ -92,15 +93,26 @@ public final class SqliteCheckpointStore implements CheckpointStore {
      * {@code maxSnapshots} snapshots in total (oldest pruned on save).
      */
     public SqliteCheckpointStore(Path dbPath, int maxSnapshots) {
-        this(toJdbcUrl(dbPath), maxSnapshots);
+        this(dbPath, maxSnapshots, CheckpointCipher.NONE);
     }
 
-    private SqliteCheckpointStore(String jdbcUrl, int maxSnapshots) {
+    /**
+     * Create a store with an encryption-at-rest {@link CheckpointCipher}
+     * applied to the {@code state_json} / {@code metadata_json} columns —
+     * see {@link AesGcmCheckpointCipher}. Pass {@link CheckpointCipher#NONE}
+     * for the plaintext default.
+     */
+    public SqliteCheckpointStore(Path dbPath, int maxSnapshots, CheckpointCipher cipher) {
+        this(toJdbcUrl(dbPath), maxSnapshots, cipher);
+    }
+
+    private SqliteCheckpointStore(String jdbcUrl, int maxSnapshots, CheckpointCipher cipher) {
         if (maxSnapshots <= 0) {
             throw new IllegalArgumentException(
                     "maxSnapshots must be positive, got " + maxSnapshots);
         }
         this.maxSnapshots = maxSnapshots;
+        this.cipher = cipher != null ? cipher : CheckpointCipher.NONE;
         try {
             this.connection = DriverManager.getConnection(jdbcUrl);
             connection.setAutoCommit(true);
@@ -152,6 +164,11 @@ public final class SqliteCheckpointStore implements CheckpointStore {
                 stmt.execute(
                     "CREATE INDEX IF NOT EXISTS idx_checkpoints_created ON checkpoints(created_at)");
             }
+            if (cipher == CheckpointCipher.NONE) {
+                logger.warn("SqliteCheckpointStore persists checkpoint state as PLAINTEXT at "
+                        + "rest — secrets or PII inside agent state land unmasked in the .db "
+                        + "file. Construct the store with an AesGcmCheckpointCipher to encrypt.");
+            }
             logger.info("SqliteCheckpointStore initialized (maxSnapshots={})", maxSnapshots);
         } catch (SQLException e) {
             throw new IllegalStateException("Failed to create checkpoints table", e);
@@ -189,9 +206,9 @@ public final class SqliteCheckpointStore implements CheckpointStore {
                 ps.setString(2, snapshot.parentId() != null ? snapshot.parentId().value() : null);
                 ps.setString(3, snapshot.coordinationId());
                 ps.setString(4, snapshot.agentName());
-                ps.setString(5, mapper.writeValueAsString(snapshot.state()));
+                ps.setString(5, cipher.encrypt(mapper.writeValueAsString(snapshot.state())));
                 ps.setString(6, snapshot.state() != null ? snapshot.state().getClass().getName() : null);
-                ps.setString(7, mapper.writeValueAsString(snapshot.metadata()));
+                ps.setString(7, cipher.encrypt(mapper.writeValueAsString(snapshot.metadata())));
                 ps.setString(8, snapshot.createdAt().toString());
                 ps.executeUpdate();
             }
@@ -378,9 +395,9 @@ public final class SqliteCheckpointStore implements CheckpointStore {
 
     private WorkflowSnapshot<?> fromRow(ResultSet rs) throws Exception {
         var parentIdStr = rs.getString("parent_id");
-        var stateJson = rs.getString("state_json");
+        var stateJson = cipher.decrypt(rs.getString("state_json"));
         var stateType = rs.getString("state_type");
-        var metadataJson = rs.getString("metadata_json");
+        var metadataJson = cipher.decrypt(rs.getString("metadata_json"));
 
         Object state = deserializeState(stateJson, stateType);
         Map<String, String> metadata = metadataJson != null

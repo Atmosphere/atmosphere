@@ -15,6 +15,7 @@
  */
 package org.atmosphere.checkpoint.postgres;
 
+import org.atmosphere.checkpoint.CheckpointCipher;
 import org.atmosphere.checkpoint.CheckpointEvent;
 import org.atmosphere.checkpoint.CheckpointId;
 import org.atmosphere.checkpoint.CheckpointListener;
@@ -84,6 +85,7 @@ public final class PostgresCheckpointStore implements CheckpointStore {
     private final DataSource dataSource;
     private final String table;
     private final int maxSnapshots;
+    private final CheckpointCipher cipher;
     private final ObjectMapper mapper = new ObjectMapper();
     private final CopyOnWriteArrayList<CheckpointListener> listeners = new CopyOnWriteArrayList<>();
 
@@ -106,6 +108,20 @@ public final class PostgresCheckpointStore implements CheckpointStore {
      * @param maxSnapshots retain at most this many snapshots (oldest pruned on save)
      */
     public PostgresCheckpointStore(DataSource dataSource, String table, int maxSnapshots) {
+        this(dataSource, table, maxSnapshots, CheckpointCipher.NONE);
+    }
+
+    /**
+     * @param dataSource   JDBC source; the store never closes it (owned by caller)
+     * @param table        table name; must be a simple identifier
+     * @param maxSnapshots retain at most this many snapshots (oldest pruned on save)
+     * @param cipher       encryption-at-rest for the {@code state_json} /
+     *                     {@code metadata_json} columns — see
+     *                     {@link org.atmosphere.checkpoint.AesGcmCheckpointCipher};
+     *                     {@link CheckpointCipher#NONE} keeps the plaintext default
+     */
+    public PostgresCheckpointStore(DataSource dataSource, String table, int maxSnapshots,
+                                   CheckpointCipher cipher) {
         this.dataSource = Objects.requireNonNull(dataSource, "dataSource must not be null");
         if (table == null || !table.matches("[A-Za-z_][A-Za-z0-9_]*")) {
             throw new IllegalArgumentException(
@@ -116,6 +132,7 @@ public final class PostgresCheckpointStore implements CheckpointStore {
         }
         this.table = table;
         this.maxSnapshots = maxSnapshots;
+        this.cipher = cipher != null ? cipher : CheckpointCipher.NONE;
     }
 
     @Override
@@ -143,6 +160,11 @@ public final class PostgresCheckpointStore implements CheckpointStore {
                     + "_agent ON " + table + " (agent_name)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_" + table
                     + "_created ON " + table + " (created_at)");
+            if (cipher == CheckpointCipher.NONE) {
+                logger.warn("PostgresCheckpointStore persists checkpoint state as PLAINTEXT at "
+                        + "rest — secrets or PII inside agent state land unmasked in the "
+                        + "database. Construct the store with an AesGcmCheckpointCipher to encrypt.");
+            }
             logger.info("PostgresCheckpointStore initialized (table={}, maxSnapshots={})",
                     table, maxSnapshots);
         } catch (SQLException e) {
@@ -178,10 +200,10 @@ public final class PostgresCheckpointStore implements CheckpointStore {
                     ins.setString(2, snapshot.parentId() != null ? snapshot.parentId().value() : null);
                     ins.setString(3, snapshot.coordinationId());
                     ins.setString(4, snapshot.agentName());
-                    ins.setString(5, mapper.writeValueAsString(snapshot.state()));
+                    ins.setString(5, cipher.encrypt(mapper.writeValueAsString(snapshot.state())));
                     ins.setString(6, snapshot.state() != null
                             ? snapshot.state().getClass().getName() : null);
-                    ins.setString(7, mapper.writeValueAsString(snapshot.metadata()));
+                    ins.setString(7, cipher.encrypt(mapper.writeValueAsString(snapshot.metadata())));
                     ins.setLong(8, snapshot.createdAt().toEpochMilli());
                     ins.executeUpdate();
                 }
@@ -358,9 +380,9 @@ public final class PostgresCheckpointStore implements CheckpointStore {
 
     private WorkflowSnapshot<?> fromRow(ResultSet rs) throws Exception {
         var parentIdStr = rs.getString("parent_id");
-        var stateJson = rs.getString("state_json");
+        var stateJson = cipher.decrypt(rs.getString("state_json"));
         var stateType = rs.getString("state_type");
-        var metadataJson = rs.getString("metadata_json");
+        var metadataJson = cipher.decrypt(rs.getString("metadata_json"));
 
         Object state = deserializeState(stateJson, stateType);
         Map<String, String> metadata = metadataJson != null

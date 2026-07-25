@@ -24,6 +24,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -83,9 +84,12 @@ public final class TapeRecorder {
      * @param maxTextChars      per-run text accumulator cap before a forced flush
      * @param idleTimeout       OPEN runs with no append for this long are ABANDONED
      * @param textFlushInterval min age before the writer tick flushes accumulated text
+     * @param redactor          capture-time payload redaction hook; {@code null}
+     *                          coalesces to {@link TapeRedactor#NONE} (verbatim)
      */
     public record Config(int queueCapacity, int maxTextChars,
-                         Duration idleTimeout, Duration textFlushInterval) {
+                         Duration idleTimeout, Duration textFlushInterval,
+                         TapeRedactor redactor) {
 
         public Config {
             if (queueCapacity <= 0) {
@@ -103,9 +107,18 @@ public final class TapeRecorder {
                 throw new IllegalArgumentException("textFlushInterval must be positive, got "
                         + textFlushInterval);
             }
+            if (redactor == null) {
+                redactor = TapeRedactor.NONE;
+            }
         }
 
-        /** 8192-step queue, 256 KiB text cap, 30 min idle timeout, 10 s text flush. */
+        /** Legacy carrier without a redactor — records verbatim. */
+        public Config(int queueCapacity, int maxTextChars,
+                      Duration idleTimeout, Duration textFlushInterval) {
+            this(queueCapacity, maxTextChars, idleTimeout, textFlushInterval, null);
+        }
+
+        /** 8192-step queue, 256 KiB text cap, 30 min idle timeout, 10 s text flush, verbatim. */
         public static Config defaults() {
             return new Config(8192, 262_144, Duration.ofMinutes(30), Duration.ofSeconds(10));
         }
@@ -377,14 +390,19 @@ public final class TapeRecorder {
             var steps = new java.util.ArrayList<TapeStep>(2);
             long seq = 0;
             if (inputText != null) {
+                // Redacted like the streaming path's `input` step — the
+                // one-shot A2A dispatch must not leak what the live path
+                // masks (Mode Parity, Invariant #7).
                 steps.add(new TapeStep(runId, seq++, "input",
-                        MAPPER.writeValueAsString(java.util.Map.of("messages",
-                                java.util.List.of(java.util.Map.of("role", "user",
-                                        "content", inputText)))), now));
+                        MAPPER.writeValueAsString(redactSafely("input",
+                                java.util.Map.of("messages",
+                                        java.util.List.of(java.util.Map.of("role", "user",
+                                                "content", inputText))))), now));
             }
             if (outputText != null && !outputText.isEmpty()) {
                 steps.add(new TapeStep(runId, seq++, "text",
-                        MAPPER.writeValueAsString(java.util.Map.of("text", outputText)), now));
+                        MAPPER.writeValueAsString(redactSafely("text",
+                                java.util.Map.of("text", outputText))), now));
             }
             if (!steps.isEmpty()) {
                 store.append(runId, steps);
@@ -397,6 +415,27 @@ public final class TapeRecorder {
 
     void countUnserializable() {
         unserializableTotal.incrementAndGet();
+    }
+
+    /**
+     * Apply the configured {@link TapeRedactor}, falling back to the raw
+     * payload on any redactor fault — capture is best-effort and a redaction
+     * bug must never drop a step or break a dispatch (Invariant #4). Shared
+     * by the streaming serialization seam and the one-shot A2A path.
+     */
+    Map<String, Object> redactSafely(String kind, Map<String, Object> payload) {
+        var redactor = config.redactor();
+        if (redactor == TapeRedactor.NONE) {
+            return payload;
+        }
+        try {
+            var redacted = redactor.redact(kind, payload);
+            return redacted != null ? redacted : payload;
+        } catch (RuntimeException e) {
+            logger.debug("Tape redactor failed for kind {} — persisting unredacted: {}",
+                    kind, e.toString());
+            return payload;
+        }
     }
 
     // ------------------------------------------------------------------

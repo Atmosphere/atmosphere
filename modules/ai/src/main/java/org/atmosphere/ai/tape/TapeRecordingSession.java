@@ -410,7 +410,7 @@ public final class TapeRecordingSession extends DelegatingStreamingSession {
             if (flushedChars < full.length()) {
                 var suffix = full.substring((int) flushedChars);
                 flushedChars += suffix.length();
-                offerLocked("text", toJson(payload("text", suffix), suffix));
+                offerLocked("text", toJson("text", payload("text", suffix), suffix));
             }
         }
     }
@@ -451,7 +451,7 @@ public final class TapeRecordingSession extends DelegatingStreamingSession {
         if (recorder.isClosed() || dropIfTerminal()) {
             return;
         }
-        var json = toJson(payloadMap, source);
+        var json = toJson(kind, payloadMap, source);
         synchronized (lock) {
             offerLocked(kind, json);
         }
@@ -461,7 +461,7 @@ public final class TapeRecordingSession extends DelegatingStreamingSession {
         if (recorder.isClosed() || dropIfTerminal()) {
             return;
         }
-        var json = toJson(payloadMap, source);
+        var json = toJson(kind, payloadMap, source);
         synchronized (lock) {
             // Semantic boundary: the pending text segment precedes the event.
             flushTextLocked(false);
@@ -479,7 +479,7 @@ public final class TapeRecordingSession extends DelegatingStreamingSession {
             recorder.countLateTerminal();
             return;
         }
-        var json = toJson(payloadMap, source);
+        var json = toJson(kind, payloadMap, source);
         synchronized (lock) {
             selfBindLocked();
             flushTextLocked(false);
@@ -523,7 +523,7 @@ public final class TapeRecordingSession extends DelegatingStreamingSession {
         }
         // Serializing a plain string map here is pure CPU work — the monitor
         // is never held across store calls or delegate forwarding.
-        offerLocked("text", toJson(map, text));
+        offerLocked("text", toJson("text", map, text));
     }
 
     /** Caller must hold {@code lock}. */
@@ -579,7 +579,14 @@ public final class TapeRecordingSession extends DelegatingStreamingSession {
         };
     }
 
-    private String toJson(Map<String, Object> payloadMap, Object source) {
+    /**
+     * Serialize one step payload, applying the configured capture-time
+     * {@link TapeRedactor} first (identity by default). Every persisted step
+     * funnels through here — tool args/results, the input prompt, text
+     * segments — so an installed redactor masks the whole durable record.
+     */
+    private String toJson(String kind, Map<String, Object> payloadMap, Object source) {
+        payloadMap = recorder.redactSafely(kind, payloadMap);
         try {
             return MAPPER.writeValueAsString(payloadMap);
         } catch (RuntimeException e) {

@@ -41,15 +41,13 @@ public class PiiRedactionFilter extends AiStreamBroadcastFilter {
     // Sentence boundary detection
     private static final Pattern SENTENCE_BOUNDARY = Pattern.compile("[.!?\\n]");
 
-    // Default PII patterns
-    private static final Pattern EMAIL_PATTERN =
-            Pattern.compile("[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}");
-    private static final Pattern US_PHONE_PATTERN =
-            Pattern.compile("(?:\\+?1[\\s.-]?)?\\(?\\d{3}\\)?[\\s.-]?\\d{3}[\\s.-]?\\d{4}");
-    private static final Pattern SSN_PATTERN =
-            Pattern.compile("\\b\\d{3}-\\d{2}-\\d{4}\\b");
-    private static final Pattern CREDIT_CARD_PATTERN =
-            Pattern.compile("\\b(?:\\d[\\s-]?){13,19}\\b");
+    // Default PII patterns — the canonical definitions live in PiiPatterns so
+    // every redaction surface (this stream filter, the tape redactor) shares
+    // one source instead of drifting per consumer.
+    private static final Pattern EMAIL_PATTERN = PiiPatterns.EMAIL;
+    private static final Pattern US_PHONE_PATTERN = PiiPatterns.US_PHONE;
+    private static final Pattern SSN_PATTERN = PiiPatterns.SSN;
+    private static final Pattern CREDIT_CARD_PATTERN = PiiPatterns.CREDIT_CARD;
 
     private final Map<String, Pattern> patterns = new LinkedHashMap<>();
     private final ConcurrentHashMap<String, StringBuffer> buffers = new ConcurrentHashMap<>();

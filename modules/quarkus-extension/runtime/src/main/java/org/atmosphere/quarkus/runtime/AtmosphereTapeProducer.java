@@ -65,6 +65,11 @@ public class AtmosphereTapeProducer {
     @Inject
     Instance<TapeStore> storeInstance;
 
+    // Optional capture-time redaction hook — a TapeRedactor CDI bean opts in
+    // to masking step payloads before they persist (Spring-starter parity).
+    @Inject
+    Instance<org.atmosphere.ai.tape.TapeRedactor> redactorInstance;
+
     // Non-null only when this bean created the store — so onShutdown() closes a
     // store we own but never a user-supplied bean (Correctness Invariant #1).
     private volatile TapeStore ownedStore;
@@ -102,7 +107,8 @@ public class AtmosphereTapeProducer {
         }
         var recorderConfig = new TapeRecorder.Config(
                 tape.queueCapacity(), tape.maxTextChars(),
-                tape.idleTimeout(), tape.textFlushInterval());
+                tape.idleTimeout(), tape.textFlushInterval(),
+                redactorInstance.isResolvable() ? redactorInstance.get() : null);
         var installedRecorder = TapeSupport.install(store, recorderConfig);
         if (installedRecorder.store() != store) {
             // TapeSupport refused a double-install and returned the earlier

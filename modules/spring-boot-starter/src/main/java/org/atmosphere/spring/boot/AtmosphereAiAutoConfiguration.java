@@ -975,8 +975,10 @@ public class AtmosphereAiAutoConfiguration {
     public TapeInstaller atmosphereTapeInstaller(
             AtmosphereProperties properties,
             org.springframework.beans.factory.ObjectProvider<org.atmosphere.ai.tape.TapeStore>
-                    storeProvider) {
-        return new TapeInstaller(properties.getAi().getTape(), storeProvider);
+                    storeProvider,
+            org.springframework.beans.factory.ObjectProvider<org.atmosphere.ai.tape.TapeRedactor>
+                    redactorProvider) {
+        return new TapeInstaller(properties.getAi().getTape(), storeProvider, redactorProvider);
     }
 
     /** Builds the tape store, installs the recorder, and tears both down symmetrically. */
@@ -987,6 +989,8 @@ public class AtmosphereAiAutoConfiguration {
         private final AtmosphereProperties.TapeProperties config;
         private final org.springframework.beans.factory.ObjectProvider<
                 org.atmosphere.ai.tape.TapeStore> storeProvider;
+        private final org.springframework.beans.factory.ObjectProvider<
+                org.atmosphere.ai.tape.TapeRedactor> redactorProvider;
         // Non-null only when this installer created the store — so destroy()
         // closes a store we own but never a user-supplied bean (Invariant #1).
         private org.atmosphere.ai.tape.TapeStore ownedStore;
@@ -996,9 +1000,12 @@ public class AtmosphereAiAutoConfiguration {
 
         TapeInstaller(AtmosphereProperties.TapeProperties config,
                       org.springframework.beans.factory.ObjectProvider<
-                              org.atmosphere.ai.tape.TapeStore> storeProvider) {
+                              org.atmosphere.ai.tape.TapeStore> storeProvider,
+                      org.springframework.beans.factory.ObjectProvider<
+                              org.atmosphere.ai.tape.TapeRedactor> redactorProvider) {
             this.config = config;
             this.storeProvider = storeProvider;
+            this.redactorProvider = redactorProvider;
         }
 
         @Override
@@ -1013,9 +1020,13 @@ public class AtmosphereAiAutoConfiguration {
                 store = resolveBundledStore();
                 created = true;
             }
+            // A TapeRedactor bean opts in to capture-time masking of step
+            // payloads (tool args/results, the input prompt) before they are
+            // persisted; absent, the tape records verbatim as before.
             var recorderConfig = new org.atmosphere.ai.tape.TapeRecorder.Config(
                     config.getQueueCapacity(), config.getMaxTextChars(),
-                    config.getIdleTimeout(), config.getTextFlushInterval());
+                    config.getIdleTimeout(), config.getTextFlushInterval(),
+                    redactorProvider.getIfAvailable());
             var installed = org.atmosphere.ai.tape.TapeSupport.install(store, recorderConfig);
             if (installed.store() != store) {
                 // TapeSupport refused a double-install (the @SpringBootTest
