@@ -31,9 +31,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Pins the opt-in crash-durable run-resume wiring (P2.21): off by default;
- * when enabled, installs a journal-backed {@code RunRegistry} into the
- * holder — an in-memory journal (not crash-durable) by default, or a
- * supplied durable {@link RunJournal} bean when present.
+ * when enabled, installs a journal-backed {@code RunRegistry} into the holder.
+ * The bundled default is the crash-durable SQLite journal when the checkpoint
+ * module <em>and</em> the SQLite driver are present; {@code journal=memory}
+ * opts back to the in-memory journal, and a supplied durable {@link RunJournal}
+ * bean always wins. This starter's test classpath deliberately omits the SQLite
+ * driver (its bundled-store paths supply their own beans), so the SQLite default
+ * is pinned in the SB3 starter test that ships the driver — here the in-memory
+ * opt-out and the user-bean path are pinned.
  */
 class RunRegistryDurableAutoConfigurationTest {
 
@@ -59,15 +64,17 @@ class RunRegistryDurableAutoConfigurationTest {
     }
 
     @Test
-    void enabledWithoutJournalBeanInstallsInMemoryNonDurable() {
+    void enabledWithMemoryBackendInstallsInMemoryNonDurable() {
         contextRunner
-                .withPropertyValues("atmosphere.ai.resume.durable.enabled=true")
+                .withPropertyValues(
+                        "atmosphere.ai.resume.durable.enabled=true",
+                        "atmosphere.ai.resume.journal=memory")
                 .run(context -> {
                     assertThat(context).hasSingleBean(AtmosphereAiAutoConfiguration.RunRegistryInstaller.class);
                     var journal = RunRegistryHolder.get().journal();
                     assertThat(journal).isInstanceOf(InMemoryRunJournal.class);
                     assertThat(journal.durable())
-                            .as("default in-memory journal must not advertise crash-durability")
+                            .as("the in-memory opt-out must not advertise crash-durability")
                             .isFalse();
                 });
     }

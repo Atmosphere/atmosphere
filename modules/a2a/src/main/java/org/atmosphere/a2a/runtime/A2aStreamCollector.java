@@ -64,6 +64,11 @@ public class A2aStreamCollector implements StreamingSession {
     @Override
     public void send(String text) {
         buffer.append(text);
+        // Forward the token to the task's live streaming sink (SSE) so it is
+        // delivered as the model generates it; a no-op on the unary path where
+        // no sink is installed. The buffer is still the source of truth for the
+        // final task result on complete().
+        taskCtx.emitToken(text);
     }
 
     @Override

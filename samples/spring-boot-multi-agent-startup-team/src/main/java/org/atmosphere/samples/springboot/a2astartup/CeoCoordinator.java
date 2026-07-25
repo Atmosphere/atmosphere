@@ -73,7 +73,7 @@ import java.util.Map;
  *   User message (WebSocket)
  *     |
  *     v
- *   Step 1: Research Agent (sequential — web scraping via JSoup)
+ *   Step 1: Research Agent (sequential — web search via the built-in web_search tool)
  *     |
  *   Step 2: Strategy + Finance agents (parallel — both use research results)
  *     |
@@ -106,7 +106,9 @@ import java.util.Map;
         @AgentRef(type = ResearchAgent.class),
         @AgentRef(type = StrategyAgent.class),
         @AgentRef(type = FinanceAgent.class),
-        @AgentRef(type = WriterAgent.class)
+        // maxTurns=3 caps the evaluator-driven refineUntil supervisor loop below:
+        // the writer is re-dispatched with evaluator feedback up to 3 times.
+        @AgentRef(type = WriterAgent.class, maxTurns = 3)
 })
 @AgentScope(
         purpose = "Startup CEO advisory: market analysis, competitive strategy, "
@@ -285,7 +287,15 @@ public class CeoCoordinator {
                 "recommendation", "Comprehensive analysis with financial projections");
         session.emit(new AiEvent.ToolStart("write_report",
                 Map.<String, Object>of("title", message)));
-        var report = fleet.agent("writer-agent").call("write_report", writerArgs);
+        // fleet.refineUntil() is the evaluator-driven supervisor loop: it
+        // dispatches the writer, runs the registered ResultEvaluators
+        // (SanityCheckEvaluator / LlmResultEvaluator, wired via ServiceLoader),
+        // and re-dispatches with their aggregated feedback (under
+        // AgentFleet.REFINE_FEEDBACK_KEY) until one passes or the writer's
+        // @AgentRef(maxTurns=3) budget is exhausted — bounded, cancellation-aware,
+        // and journaled per turn through the wrapped fleet. With no evaluator on
+        // the classpath it degenerates to a single dispatch.
+        var report = fleet.refineUntil(fleet.call("writer-agent", "write_report", writerArgs));
         session.emit(new AiEvent.ToolResult("write_report", report.text()));
 
         // --- Step 3b: Conditional routing — choose synthesis path based on finance result ---

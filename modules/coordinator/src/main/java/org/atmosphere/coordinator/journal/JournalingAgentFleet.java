@@ -486,6 +486,11 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
         }
 
         @Override
+        public int maxTurns() {
+            return delegate.maxTurns();
+        }
+
+        @Override
         public AgentResult call(String skill, Map<String, Object> args) {
             // No surrounding CoordinationStarted on the proxy path — each
             // dispatch is itself a root in the causal DAG.

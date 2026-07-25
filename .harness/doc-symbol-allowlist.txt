@@ -52,6 +52,7 @@ HandlesTypes
 
 # ── Quarkus ──
 BuildStep
+DefaultBean
 
 # ── JMH (benchmark docs) ──
 Measurement

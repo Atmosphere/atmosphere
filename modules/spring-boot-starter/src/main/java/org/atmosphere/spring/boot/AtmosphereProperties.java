@@ -416,6 +416,8 @@ public class AtmosphereProperties {
 
         private TapeProperties tape = new TapeProperties();
 
+        private ResumeProperties resume = new ResumeProperties();
+
         public boolean isEnabled() {
             return enabled;
         }
@@ -446,6 +448,14 @@ public class AtmosphereProperties {
 
         public void setTape(TapeProperties tape) {
             this.tape = tape;
+        }
+
+        public ResumeProperties getResume() {
+            return resume;
+        }
+
+        public void setResume(ResumeProperties resume) {
+            this.resume = resume;
         }
 
         public RoutingProperties getRouting() {
@@ -1454,6 +1464,62 @@ public class AtmosphereProperties {
             public void setPrivateKeyPassword(String privateKeyPassword) {
                 this.privateKeyPassword = privateKeyPassword;
             }
+        }
+    }
+
+    /**
+     * Crash-durable run-resume configuration, bound to {@code atmosphere.ai.resume.*}.
+     * Enabling {@code atmosphere.ai.resume.durable.enabled=true} installs a
+     * {@code RunJournal}-backed {@code RunRegistry}; when the optional
+     * {@code atmosphere-checkpoint} module is present the default journal is the
+     * bundled crash-durable SQLite store, else the autoconfig falls back to an
+     * in-memory journal and logs that the deployment is NOT crash-durable
+     * (Correctness Invariant #5).
+     */
+    public static class ResumeProperties {
+
+        /** Journal backend: {@code sqlite} (default, crash-durable) or {@code memory}. */
+        private String journal = "sqlite";
+
+        /** SQLite database file path for the {@code sqlite} journal. */
+        private String path = "${java.io.tmpdir}/atmosphere-run-journal.db";
+
+        /** Cap on concurrently journaled runs (oldest run evicted past it). */
+        private int maxRuns = 10_000;
+
+        /** Per-run captured-event cap; past it the oldest events are evicted (ring). */
+        private int maxEventsPerRun = 1_024;
+
+        public String getJournal() {
+            return journal;
+        }
+
+        public void setJournal(String journal) {
+            this.journal = journal;
+        }
+
+        public String getPath() {
+            return path;
+        }
+
+        public void setPath(String path) {
+            this.path = path;
+        }
+
+        public int getMaxRuns() {
+            return maxRuns;
+        }
+
+        public void setMaxRuns(int maxRuns) {
+            this.maxRuns = maxRuns;
+        }
+
+        public int getMaxEventsPerRun() {
+            return maxEventsPerRun;
+        }
+
+        public void setMaxEventsPerRun(int maxEventsPerRun) {
+            this.maxEventsPerRun = maxEventsPerRun;
         }
     }
 

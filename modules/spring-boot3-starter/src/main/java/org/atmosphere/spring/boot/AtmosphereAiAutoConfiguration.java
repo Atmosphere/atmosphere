@@ -576,37 +576,58 @@ public class AtmosphereAiAutoConfiguration {
      * Opt-in crash-durable run resume. Off by default — enable with
      * {@code atmosphere.ai.resume.durable.enabled=true}. Installs a
      * {@code RunJournal}-backed {@code RunRegistry} into the process-wide holder
-     * and rehydrates persisted runs on startup. Supply a durable
-     * {@code RunJournal} bean for real crash survival; without one the bundled
-     * in-memory journal is used (a WARN fires — not crash-durable).
+     * and rehydrates persisted runs on startup. The journal is resolved as: a
+     * user-supplied {@code RunJournal} bean, else the bundled crash-durable
+     * SQLite journal when the optional {@code atmosphere-checkpoint} module is
+     * present, else the in-memory journal with a NOT-crash-durable warning
+     * (Correctness Invariant #5). A journal this installer created is closed on
+     * shutdown (Ownership, Correctness Invariant #1).
      */
     @Bean
     @ConditionalOnMissingBean(RunRegistryInstaller.class)
     @ConditionalOnProperty(name = "atmosphere.ai.resume.durable.enabled", havingValue = "true")
     public RunRegistryInstaller atmosphereRunRegistryInstaller(
+            AtmosphereProperties properties,
             org.springframework.beans.factory.ObjectProvider<org.atmosphere.ai.resume.RunJournal>
                     journalProvider) {
-        var journal = journalProvider.getIfAvailable(org.atmosphere.ai.resume.InMemoryRunJournal::new);
-        return new RunRegistryInstaller(journal);
+        return new RunRegistryInstaller(properties.getAi().getResume(), journalProvider);
     }
 
     /**
      * Builds a {@code RunJournal}-backed {@code RunRegistry}, rehydrates
      * persisted runs, installs it into the process-wide holder on startup, and
-     * restores the default in-memory registry on shutdown.
+     * restores the default in-memory registry on shutdown. A journal this
+     * installer created (the bundled SQLite/in-memory fallback) is closed on
+     * shutdown; a user-supplied journal bean is left alone (Invariant #1).
      */
     static final class RunRegistryInstaller
             implements org.springframework.beans.factory.SmartInitializingSingleton,
                        org.springframework.beans.factory.DisposableBean {
 
-        private final org.atmosphere.ai.resume.RunJournal journal;
+        private final AtmosphereProperties.ResumeProperties config;
+        private final org.springframework.beans.factory.ObjectProvider<
+                org.atmosphere.ai.resume.RunJournal> journalProvider;
+        // Non-null only when this installer created the journal — so destroy()
+        // closes a journal we own but never a user-supplied bean (Invariant #1).
+        private org.atmosphere.ai.resume.RunJournal ownedJournal;
 
-        RunRegistryInstaller(org.atmosphere.ai.resume.RunJournal journal) {
-            this.journal = journal;
+        RunRegistryInstaller(AtmosphereProperties.ResumeProperties config,
+                             org.springframework.beans.factory.ObjectProvider<
+                                     org.atmosphere.ai.resume.RunJournal> journalProvider) {
+            this.config = config;
+            this.journalProvider = journalProvider;
         }
 
         @Override
         public void afterSingletonsInstantiated() {
+            var userJournal = journalProvider.getIfAvailable();
+            org.atmosphere.ai.resume.RunJournal journal;
+            if (userJournal != null) {
+                journal = userJournal;
+            } else {
+                journal = resolveBundledJournal();
+                ownedJournal = journal;
+            }
             var registry = new org.atmosphere.ai.resume.RunRegistry(
                     java.time.Clock.systemUTC(),
                     org.atmosphere.ai.resume.RunRegistry.DEFAULT_TTL,
@@ -618,20 +639,53 @@ public class AtmosphereAiAutoConfiguration {
                         journal.getClass().getSimpleName(), rehydrated);
             } else {
                 logger.warn("Run resume journaling enabled but journal {} is in-memory — "
-                                + "NOT crash-durable. Supply a durable RunJournal bean for "
-                                + "crash survival. (rehydrated={} run(s))",
+                                + "NOT crash-durable. Supply a durable RunJournal bean (or add the "
+                                + "atmosphere-checkpoint dependency) for crash survival. "
+                                + "(rehydrated={} run(s))",
                         journal.getClass().getSimpleName(), rehydrated);
             }
+        }
+
+        private org.atmosphere.ai.resume.RunJournal resolveBundledJournal() {
+            var maxRuns = config.getMaxRuns();
+            var maxEvents = config.getMaxEventsPerRun();
+            var wantsSqlite = "sqlite".equalsIgnoreCase(config.getJournal());
+            var sqlitePresent = org.springframework.util.ClassUtils.isPresent(
+                    "org.atmosphere.checkpoint.SqliteRunJournal", getClass().getClassLoader());
+            if (wantsSqlite && sqlitePresent) {
+                var path = config.getPath().replace(
+                        "${java.io.tmpdir}", System.getProperty("java.io.tmpdir"));
+                try {
+                    return SqliteRunJournalFactory.create(path, maxRuns, maxEvents);
+                } catch (RuntimeException e) {
+                    logger.error("Failed to open the SQLite run journal at {} — falling back to the "
+                            + "in-memory journal (NOT crash-durable)", path, e);
+                    return new org.atmosphere.ai.resume.InMemoryRunJournal(maxRuns, maxEvents);
+                }
+            }
+            if (wantsSqlite) {
+                logger.warn("atmosphere.ai.resume.journal=sqlite but the atmosphere-checkpoint module is "
+                        + "not on the classpath — using the in-memory journal (NOT crash-durable). Add the "
+                        + "atmosphere-checkpoint dependency for crash survival.");
+            }
+            return new org.atmosphere.ai.resume.InMemoryRunJournal(maxRuns, maxEvents);
         }
 
         @Override
         public void destroy() {
             org.atmosphere.ai.resume.RunRegistryHolder.reset();
+            if (ownedJournal instanceof AutoCloseable closeable) {
+                try {
+                    closeable.close();
+                } catch (Exception e) {
+                    logger.debug("Error closing the run-resume journal on shutdown", e);
+                }
+            }
         }
 
         /** Exposed so tests can assert the resolved journal. */
         org.atmosphere.ai.resume.RunJournal journal() {
-            return journal;
+            return ownedJournal != null ? ownedJournal : journalProvider.getIfAvailable();
         }
     }
 
@@ -748,7 +802,7 @@ public class AtmosphereAiAutoConfiguration {
                 var path = config.getPath().replace(
                         "${java.io.tmpdir}", System.getProperty("java.io.tmpdir"));
                 try {
-                    return SqliteRunJournalFactory.create(path, maxRuns, maxEffects);
+                    return SqliteEffectJournalFactory.create(path, maxRuns, maxEffects);
                 } catch (RuntimeException e) {
                     logger.error("Failed to open the SQLite effect journal at {} — falling back to the "
                             + "in-memory journal (NOT crash-durable)", path, e);

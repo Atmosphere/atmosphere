@@ -20,9 +20,11 @@ import java.nio.file.Paths;
 
 import org.atmosphere.checkpoint.CheckpointStore;
 import org.atmosphere.checkpoint.DurableTimerService;
+import org.atmosphere.checkpoint.DurableTimerStore;
 import org.atmosphere.checkpoint.InMemoryCheckpointStore;
 import org.atmosphere.checkpoint.InMemoryDurableTimerStore;
 import org.atmosphere.checkpoint.SqliteCheckpointStore;
+import org.atmosphere.checkpoint.SqliteDurableTimerStore;
 import org.atmosphere.checkpoint.coordinator.CheckpointingCoordinationJournal;
 import org.atmosphere.checkpoint.coordinator.CoordinationStateExtractor;
 import org.atmosphere.checkpoint.coordinator.CoordinationStateExtractors;
@@ -99,16 +101,41 @@ public class CheckpointConfig {
     }
 
     /**
+     * Backing store for the durable timer service. Defaults to a
+     * {@link SqliteDurableTimerStore} at {@code target/durable-timers.db} so a
+     * timer armed before a JVM restart actually survives it — matching the
+     * checkpoint store's durability. Set {@code atmosphere.checkpoint.store=in-memory}
+     * to opt out (armed timers then die with the JVM).
+     *
+     * <p>No explicit {@code destroyMethod} is declared: Spring's inferred-destroy
+     * closes {@link SqliteDurableTimerStore#close()} (releasing the JDBC
+     * connection) on shutdown and no-ops for the in-memory store. The timer
+     * service below does NOT own this connection and must not close it
+     * (Correctness Invariant #1).</p>
+     */
+    @Bean
+    public DurableTimerStore durableTimerStore() {
+        if (STORE_IN_MEMORY.equals(storeKind)) {
+            logger.info("Using InMemoryDurableTimerStore — armed timers will be lost on restart.");
+            return new InMemoryDurableTimerStore();
+        }
+        Path dbPath = Paths.get("target/durable-timers.db").toAbsolutePath();
+        logger.info("Using SqliteDurableTimerStore at {} — armed timers survive JVM restart.", dbPath);
+        return new SqliteDurableTimerStore(dbPath);
+    }
+
+    /**
      * Wall-clock durable timer service for restart-surviving deadlines — e.g.
      * auto-rejecting an approval that no human acted on within its window. The
      * {@code approval-auto-reject} callback is registered here; a controller arms
      * a timer via {@link DurableTimerService#schedule} and the service fires it on
-     * the poll after its deadline (even across a restart). {@code close()} stops
-     * the poller on shutdown.
+     * the poll after its deadline (even across a restart, because the store above
+     * is crash-durable by default). {@code close()} stops the poller on shutdown;
+     * the store connection is released by its own bean (Correctness Invariant #1).
      */
     @Bean(destroyMethod = "close")
-    public DurableTimerService durableTimerService() {
-        var service = new DurableTimerService(new InMemoryDurableTimerStore());
+    public DurableTimerService durableTimerService(DurableTimerStore durableTimerStore) {
+        var service = new DurableTimerService(durableTimerStore);
         service.onFire("approval-auto-reject", timer ->
                 logger.warn("Durable timer fired: auto-rejecting approval {} (deadline reached)",
                         timer.payload().get("approvalId")));
