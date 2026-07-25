@@ -150,11 +150,12 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         }
 
         var gemini = new Gemini(settings.model(), apiKey);
-        var agent = LlmAgent.builder()
+        var agentBuilder = LlmAgent.builder()
                 .name("atmosphere-agent")
                 .model(gemini)
-                .instruction("You are a helpful assistant.")
-                .build();
+                .instruction("You are a helpful assistant.");
+        applyGenerationConfig(agentBuilder, settings.generation());
+        var agent = agentBuilder.build();
         var appBuilder = com.google.adk.apps.App.builder()
                 .name("atmosphere")
                 .rootAgent(agent);
@@ -162,6 +163,42 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         var runner = Runner.builder().app(appBuilder.build()).build();
         logger.info("ADK auto-configured: model={}", settings.model());
         return runner;
+    }
+
+    /**
+     * Attach the framework-level {@link org.atmosphere.ai.GenerationParams}
+     * overrides to an ADK agent via
+     * {@code LlmAgent.Builder.generateContentConfig(GenerateContentConfig)}.
+     * ADK's request assembly ({@code BaseLlmFlow}) uses the agent's config as
+     * the base {@code GenerateContentConfig} of every {@code LlmRequest}, and
+     * {@code LlmRequest.Builder.outputSchema} merges the native
+     * structured-output schema into the same config via {@code toBuilder()},
+     * so both features compose. Only non-null components are mapped
+     * (temperature → {@code temperature}, maxTokens → {@code maxOutputTokens},
+     * topP → {@code topP}, stop → {@code stopSequences}); when nothing is set,
+     * no config is attached at all so the wire request stays byte-identical
+     * to the pre-{@code GenerationParams} behavior.
+     */
+    private static void applyGenerationConfig(LlmAgent.Builder agentBuilder,
+                                              org.atmosphere.ai.GenerationParams generation) {
+        if (generation == null || generation.isEmpty()) {
+            return;
+        }
+        var configBuilder = com.google.genai.types.GenerateContentConfig.builder();
+        if (generation.temperature() != null) {
+            // google-genai models temperature/topP as Float, not Double.
+            configBuilder.temperature(generation.temperature().floatValue());
+        }
+        if (generation.maxTokens() != null) {
+            configBuilder.maxOutputTokens(generation.maxTokens());
+        }
+        if (generation.topP() != null) {
+            configBuilder.topP(generation.topP().floatValue());
+        }
+        if (generation.stop() != null && !generation.stop().isEmpty()) {
+            configBuilder.stopSequences(generation.stop());
+        }
+        agentBuilder.generateContentConfig(configBuilder.build());
     }
 
     /**
@@ -204,11 +241,12 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                                           List<ToolDefinition> tools) {
         var apiKey = settings.apiKey();
         var gemini = new Gemini(settings.model(), apiKey);
-        var agent = LlmAgent.builder()
+        var agentBuilder = LlmAgent.builder()
                 .name("atmosphere-agent")
                 .model(gemini)
-                .instruction("You are a helpful assistant.")
-                .build();
+                .instruction("You are a helpful assistant.");
+        applyGenerationConfig(agentBuilder, settings.generation());
+        var agent = agentBuilder.build();
         var appBuilder = com.google.adk.apps.App.builder()
                 .name("atmosphere")
                 .rootAgent(agent);
@@ -294,6 +332,11 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                     .name("atmosphere-agent")
                     .model(gemini)
                     .instruction(instruction);
+            // Framework-level generation overrides ride the per-request agent
+            // too — the tool-calling / streaming dispatch path must honor the
+            // same knobs as the configure()-time paths (Correctness
+            // Invariant #7 — Mode Parity).
+            applyGenerationConfig(agentBuilder, settings.generation());
 
             if (!adkTools.isEmpty()) {
                 agentBuilder.tools(adkTools);

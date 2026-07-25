@@ -133,6 +133,17 @@ class AgentScopeRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 AiCapability.PLANNING);
     }
 
+    /**
+     * Explicit cede: AgentScope's {@code ReActAgent} owns its model wiring
+     * (constructed by the application, not from {@code AiConfig}); configure
+     * sampling via AgentScope's own model options. See
+     * {@code modules/ai/README.md} § Generation parameters.
+     */
+    @Override
+    protected Set<GenerationParamsSupport> expectedGenerationHonoring() {
+        return Set.of();
+    }
+
     static class TestableAgentScopeRuntime extends AgentScopeAgentRuntime {
         TestableAgentScopeRuntime(ReActAgent agent) {
             setNativeClient(agent);

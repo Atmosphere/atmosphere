@@ -109,6 +109,13 @@ public class CohereAgentRuntime extends AbstractAgentRuntime<CohereChatClient> {
         if (baseUrl != null) {
             builder.baseUrl(baseUrl);
         }
+        // max_tokens precedence (highest wins):
+        //   1. cohere.max.tokens system property (explicit per-runtime knob)
+        //   2. AiConfig GenerationParams.maxTokens() (framework-level opt-in)
+        //   3. the client default (DEFAULT_MAX_TOKENS)
+        // The sysprop still wins over the framework override exactly as before;
+        // GenerationParams only fills the gap when the sysprop is unset, so a
+        // deployment that already pins cohere.max.tokens is unaffected.
         var maxTokensRaw = System.getProperty(MAX_TOKENS_PROPERTY);
         if (maxTokensRaw != null && !maxTokensRaw.isBlank()) {
             try {
@@ -118,6 +125,14 @@ public class CohereAgentRuntime extends AbstractAgentRuntime<CohereChatClient> {
                 // is silent on purpose so an environment with a stray value
                 // does not break the build-time wiring.
             }
+        } else if (settings != null && settings.generation().maxTokens() != null) {
+            builder.maxTokens(settings.generation().maxTokens());
+        }
+        // temperature / p / stop_sequences: the framework GenerationParams
+        // overrides ride through to the Cohere v2 Chat request body when
+        // set. Unset components leave the body byte-identical to today.
+        if (settings != null) {
+            builder.generation(settings.generation());
         }
         return builder.build();
     }

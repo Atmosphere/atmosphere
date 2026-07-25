@@ -92,6 +92,58 @@ public abstract class AbstractAgentRuntimeContractTest {
      */
     protected abstract java.util.Set<AiCapability> expectedCapabilities();
 
+    /**
+     * The per-knob components of {@link org.atmosphere.ai.GenerationParams}
+     * a runtime honors on its native wire request (as opposed to ceding
+     * the knob to the framework's own configuration surface). Pinned per
+     * runtime via {@link #expectedGenerationHonoring()} so the honoring
+     * matrix in {@code modules/ai/README.md} § Generation parameters can be
+     * kept in lock-step with a compile-enforced declaration.
+     */
+    public enum GenerationParamsSupport {
+        /** {@code GenerationParams.temperature()} reaches the provider wire. */
+        TEMPERATURE,
+        /** {@code GenerationParams.maxTokens()} reaches the provider wire. */
+        MAX_TOKENS,
+        /** {@code GenerationParams.topP()} reaches the provider wire. */
+        TOP_P,
+        /** {@code GenerationParams.stop()} reaches the provider wire. */
+        STOP
+    }
+
+    /**
+     * Declare which {@link org.atmosphere.ai.GenerationParams} components
+     * this runtime honors on its native wire request. An empty set is an
+     * <em>explicit cede</em> — the runtime leaves all four knobs to its
+     * framework-native configuration (documented in
+     * {@code modules/ai/README.md} § Generation parameters). The method is
+     * abstract on purpose: a new runtime cannot compile its contract test
+     * without making the honor-vs-cede choice, closing the
+     * silently-neither-honor-nor-declare gap (Correctness Invariant #5 —
+     * Runtime Truth). Runtimes declaring a non-empty set prove the wiring
+     * in a dedicated {@code *GenerationParams*Test} in their module
+     * (built-in's proof lives in
+     * {@code modules/ai}'s {@code OpenAiCompatibleClientGenerationTest}).
+     */
+    protected abstract java.util.Set<GenerationParamsSupport> expectedGenerationHonoring();
+
+    /**
+     * Forcing-function assertion for {@link #expectedGenerationHonoring()}:
+     * the declaration must be non-null (empty = explicit cede). The real
+     * enforcement is the abstract hook itself — a runtime module cannot
+     * compile its contract test without declaring — plus the per-runtime
+     * {@code *GenerationParams*Test} wire proofs for non-empty sets.
+     */
+    @Test
+    protected void runtimeDeclaresGenerationParamsHonoring() {
+        var runtime = createRuntime();
+        var honored = expectedGenerationHonoring();
+        assertNotNull(honored,
+                runtime.name() + " contract test must declare its GenerationParams "
+                        + "honoring set — Set.of() for an explicit cede, or the honored "
+                        + "components with a *GenerationParams*Test proving the wiring.");
+    }
+
     @Test
     protected void runtimeDeclaresMinimumCapabilities() {
         var runtime = createRuntime();

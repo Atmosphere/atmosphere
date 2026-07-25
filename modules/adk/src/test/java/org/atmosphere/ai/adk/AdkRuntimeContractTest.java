@@ -104,6 +104,20 @@ class AdkRuntimeContractTest extends AbstractAgentRuntimeContractTest {
     }
 
     /**
+     * All four knobs reach the Gemini wire via
+     * {@code LlmAgent.Builder.generateContentConfig} (temperature/topP as
+     * Float, maxTokens as {@code maxOutputTokens}, stop as
+     * {@code stopSequences}) — proven in {@code AdkGenerationParamsTest}.
+     */
+    @Override
+    protected Set<GenerationParamsSupport> expectedGenerationHonoring() {
+        return Set.of(GenerationParamsSupport.TEMPERATURE,
+                GenerationParamsSupport.MAX_TOKENS,
+                GenerationParamsSupport.TOP_P,
+                GenerationParamsSupport.STOP);
+    }
+
+    /**
      * Exercise the {@code runtimeWithVisionCapabilityAcceptsImagePart}
      * contract assertion on the ADK runtime. ADK declares
      * {@link AiCapability#VISION} and translates

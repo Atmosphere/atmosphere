@@ -249,27 +249,93 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
      * is always set (SK NPEs without it). A malformed schema is skipped (logged) so
      * it can never break dispatch; a provider rejection trips the
      * {@code NativeStructuredOutputMode.AUTO} graceful fall-back.
+     *
+     * <p>Generation overrides come from the framework-resolved
+     * {@link AiConfig.LlmSettings#generation()}; the three-arg overload takes
+     * them explicitly so tests can pin the mapping.</p>
      */
     static InvocationContext buildInvocationContext(boolean hasTools, String nativeSchema) {
+        return buildInvocationContext(hasTools, nativeSchema, currentGeneration());
+    }
+
+    /**
+     * Full overload — additionally maps the framework-level
+     * {@link org.atmosphere.ai.GenerationParams} components onto SK's
+     * {@code PromptExecutionSettings} builder (temperature →
+     * {@code withTemperature}, maxTokens → {@code withMaxTokens}, topP →
+     * {@code withTopP}, stop → {@code withStopSequences}). Only non-null
+     * components are applied; when nothing is set and no schema is present,
+     * no {@code PromptExecutionSettings} is attached at all so dispatch
+     * stays byte-identical to the pre-{@code GenerationParams} behavior.
+     * A malformed schema no longer suppresses the generation overrides —
+     * each concern attaches independently.
+     *
+     * <p><strong>SK API constraint:</strong> {@code PromptExecutionSettings.Builder.build()}
+     * force-fills SK defaults for every unset knob (maxTokens 256,
+     * temperature 1.0, topP 1.0, …), and {@code OpenAIChatCompletion}
+     * forwards them unconditionally whenever a settings object is present.
+     * So once ANY knob (or a native schema — the pre-existing behavior) is
+     * set, the remaining knobs ship SK's defaults rather than staying
+     * absent. There is no attach-one-knob-only surface in SK 1.5.0; the
+     * byte-identity guarantee therefore holds only for the all-unset case.</p>
+     */
+    static InvocationContext buildInvocationContext(boolean hasTools, String nativeSchema,
+                                                    org.atmosphere.ai.GenerationParams generation) {
         var builder = InvocationContext.builder()
                 .withToolCallBehavior(ToolCallBehavior.allowAllKernelFunctions(hasTools));
+        com.microsoft.semantickernel.orchestration.responseformat.JsonSchemaResponseFormat
+                responseFormat = null;
         if (nativeSchema != null && !nativeSchema.isBlank()) {
             try {
-                var responseFormat = com.microsoft.semantickernel.orchestration.responseformat
+                responseFormat = com.microsoft.semantickernel.orchestration.responseformat
                         .JsonSchemaResponseFormat.builder()
                         .setName("structured_output")
                         .setJsonSchema(nativeSchema)
                         .setStrict(true)
                         .build();
-                builder.withPromptExecutionSettings(
-                        com.microsoft.semantickernel.orchestration.PromptExecutionSettings.builder()
-                                .withResponseFormat(responseFormat)
-                                .build());
             } catch (RuntimeException e) {
                 logger.debug("Skipping SK response format — schema not usable", e);
             }
         }
+        var generationSet = generation != null && generation.hasAny();
+        if (responseFormat != null || generationSet) {
+            var settingsBuilder =
+                    com.microsoft.semantickernel.orchestration.PromptExecutionSettings.builder();
+            if (responseFormat != null) {
+                settingsBuilder.withResponseFormat(responseFormat);
+            }
+            if (generationSet) {
+                if (generation.temperature() != null) {
+                    settingsBuilder.withTemperature(generation.temperature());
+                }
+                if (generation.maxTokens() != null) {
+                    settingsBuilder.withMaxTokens(generation.maxTokens());
+                }
+                if (generation.topP() != null) {
+                    settingsBuilder.withTopP(generation.topP());
+                }
+                if (generation.stop() != null && !generation.stop().isEmpty()) {
+                    settingsBuilder.withStopSequences(generation.stop());
+                }
+            }
+            builder.withPromptExecutionSettings(settingsBuilder.build());
+        }
         return builder.build();
+    }
+
+    /**
+     * The framework-resolved generation overrides, or
+     * {@link org.atmosphere.ai.GenerationParams#defaults()} (all unset) when
+     * no {@link AiConfig} has been resolved. Note the per-request
+     * {@code SemanticKernelInvocation} override takes full control of the
+     * {@code InvocationContext} — including its {@code PromptExecutionSettings}
+     * — so generation overrides intentionally do not apply on that path
+     * (same posture as native structured output).
+     */
+    private static org.atmosphere.ai.GenerationParams currentGeneration() {
+        var settings = AiConfig.get();
+        return settings != null ? settings.generation()
+                : org.atmosphere.ai.GenerationParams.defaults();
     }
 
     /**

@@ -483,7 +483,11 @@ framework-native configuration instead (we never silently drop a knob).
 | Anthropic (`AnthropicMessagesClient`) | ✅ | ✅ `max_tokens` ¹ | ✅ `top_p` | ✅ `stop_sequences` |
 | Spring AI (`SpringAiAgentRuntime`) | ✅ | ✅ | ✅ | ✅ `stopSequences` ² |
 | LangChain4j (`LangChain4jAgentRuntime`) | ✅ | ✅ `maxOutputTokens` | ✅ | ✅ `stopSequences` ² |
-| ADK, Koog, Embabel, Semantic Kernel, AgentScope, Spring AI Alibaba, Cohere, CrewAI | native | native | native | native |
+| ADK (`AdkAgentRuntime`) | ✅ ³ | ✅ `maxOutputTokens` ³ | ✅ ³ | ✅ `stopSequences` ³ |
+| Semantic Kernel (`SemanticKernelAgentRuntime`) | ✅ `withTemperature` ⁴ | ✅ `withMaxTokens` ⁴ | ✅ `withTopP` ⁴ | ✅ `withStopSequences` ⁴ |
+| Cohere (`CohereChatClient`) | ✅ | ✅ `max_tokens` ⁵ | ✅ `p` | ✅ `stop_sequences` |
+| Koog (`KoogAgentRuntime`) | ✅ `LLMParams.temperature` ⁶ | native ⁶ | native ⁶ | native ⁶ |
+| Embabel, AgentScope, Spring AI Alibaba, CrewAI | native | native | native | native |
 
 ¹ Anthropic `max_tokens` precedence is **`anthropic.max.tokens` sysprop →
 `AiConfig` `maxTokens` → client default (4096)**: the per-runtime sysprop still
@@ -495,11 +499,41 @@ used for prompt caching). Whether a given provider behind those frameworks
 honors every field depends on that provider, but the framework forwards all
 four; the OpenAI-backed path honors all four.
 
+³ ADK attaches a `GenerateContentConfig` to the `LlmAgent` only when at least
+one knob is set (temperature/topP are narrowed to `Float` — the google-genai
+type); ADK's request assembly merges the native structured-output schema into
+the same config, so both features compose. Applied on the configure-time and
+per-request runner paths alike.
+
+⁴ Semantic Kernel maps the knobs onto the `PromptExecutionSettings` of its
+default `InvocationContext`; a per-request `SemanticKernelInvocation` override
+takes full control of the invocation (including its settings) and bypasses
+them by design — same posture as native structured output. SK API constraint:
+`PromptExecutionSettings.Builder.build()` force-fills SK defaults for every
+unset knob (maxTokens 256, temperature 1.0, topP 1.0, …) whenever a settings
+object is attached — so once ANY knob (or a native schema, the pre-existing
+behavior) is set, the remaining knobs ship SK's defaults. The byte-identity
+guarantee holds only for the all-unset case.
+
+⁵ Cohere `max_tokens` precedence mirrors Anthropic: **`cohere.max.tokens`
+sysprop → `AiConfig` `maxTokens` → client default (4096)**. Cohere v2 names
+the nucleus-sampling field `p`, not `top_p`.
+
+⁶ Koog's provider-agnostic `LLMParams` carries `temperature` on every dispatch
+path (executor prompt, `AIAgent` factory, planner prompt). `topP`/`stop` have
+no field on the base `LLMParams` (only provider-specific subclasses such as
+`OpenAIChatParams` carry them) and `maxTokens` stays ceded to Koog's
+model-level configuration, so those three remain framework-native.
+
 > The Built-in Responses-API path intentionally does **not** emit `stop` — the
 > OpenAI Responses API has no `stop` parameter (unlike chat-completions). All
 > other knobs match across the chat-completions and Responses paths (Mode
-> Parity). The eight runtimes marked `native` are not wired through `AiConfig`
-> for these knobs; configure them via their framework's own options API.
+> Parity). Cells marked `native` are not wired through `AiConfig`
+> for that knob; configure them via the framework's own options API. Every
+> runtime's honor-vs-cede choice is pinned by the abstract
+> `expectedGenerationHonoring()` hook on
+> `AbstractAgentRuntimeContractTest` — a new runtime cannot compile its
+> contract test without declaring one.
 
 ## Tool Loop Policy
 

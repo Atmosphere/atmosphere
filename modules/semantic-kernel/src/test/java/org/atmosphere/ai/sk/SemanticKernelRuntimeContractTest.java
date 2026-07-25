@@ -130,4 +130,20 @@ class SemanticKernelRuntimeContractTest extends AbstractAgentRuntimeContractTest
                 AiCapability.CANCELLATION);
     }
 
+    /**
+     * All four knobs ride SK's {@code PromptExecutionSettings} builder
+     * ({@code withTemperature}/{@code withMaxTokens}/{@code withTopP}/
+     * {@code withStopSequences}) on the default {@code InvocationContext};
+     * a per-request {@code SemanticKernelInvocation} override takes full
+     * control and bypasses them by design. Proven in
+     * {@code SemanticKernelGenerationParamsTest}.
+     */
+    @Override
+    protected Set<GenerationParamsSupport> expectedGenerationHonoring() {
+        return Set.of(GenerationParamsSupport.TEMPERATURE,
+                GenerationParamsSupport.MAX_TOKENS,
+                GenerationParamsSupport.TOP_P,
+                GenerationParamsSupport.STOP);
+    }
+
 }

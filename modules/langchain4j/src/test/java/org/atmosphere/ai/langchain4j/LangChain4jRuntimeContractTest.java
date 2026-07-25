@@ -134,6 +134,20 @@ class LangChain4jRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 AiCapability.CANCELLATION);
     }
 
+    /**
+     * All four knobs ride the LC4j {@code ChatRequest} /
+     * {@code OpenAiChatRequestParameters} builders (maxTokens as
+     * {@code maxOutputTokens}, stop as {@code stopSequences}) — proven in
+     * {@code LangChain4jGenerationParamsTest}.
+     */
+    @Override
+    protected Set<GenerationParamsSupport> expectedGenerationHonoring() {
+        return Set.of(GenerationParamsSupport.TEMPERATURE,
+                GenerationParamsSupport.MAX_TOKENS,
+                GenerationParamsSupport.TOP_P,
+                GenerationParamsSupport.STOP);
+    }
+
     @Override
     protected AgentExecutionContext createImageContext() {
         var parts = List.<org.atmosphere.ai.Content>of(

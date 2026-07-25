@@ -116,6 +116,17 @@ class SpringAiAlibabaRuntimeContractTest extends AbstractAgentRuntimeContractTes
                 AiCapability.PLANNING);
     }
 
+    /**
+     * Explicit cede: the Alibaba {@code ReactAgent} graph owns its
+     * {@code ChatModel} wiring (built by the application, not from
+     * {@code AiConfig}); configure sampling on the agent's own model
+     * options. See {@code modules/ai/README.md} § Generation parameters.
+     */
+    @Override
+    protected Set<GenerationParamsSupport> expectedGenerationHonoring() {
+        return Set.of();
+    }
+
     static class TestableSpringAiAlibabaRuntime extends SpringAiAlibabaAgentRuntime {
         TestableSpringAiAlibabaRuntime(ReactAgent agent) {
             setNativeClient(agent);

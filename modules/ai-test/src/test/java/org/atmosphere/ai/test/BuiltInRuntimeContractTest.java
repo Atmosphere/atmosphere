@@ -123,6 +123,21 @@ class BuiltInRuntimeContractTest extends AbstractAgentRuntimeContractTest {
     }
 
     /**
+     * All four knobs reach the wire on both {@code OpenAiCompatibleClient}
+     * paths (chat-completions: {@code temperature}/{@code max_tokens}/
+     * {@code top_p}/{@code stop}; Responses API: no {@code stop} — the API
+     * has no such parameter). Proven in {@code modules/ai}'s
+     * {@code OpenAiCompatibleClientGenerationTest}.
+     */
+    @Override
+    protected Set<GenerationParamsSupport> expectedGenerationHonoring() {
+        return Set.of(GenerationParamsSupport.TEMPERATURE,
+                GenerationParamsSupport.MAX_TOKENS,
+                GenerationParamsSupport.TOP_P,
+                GenerationParamsSupport.STOP);
+    }
+
+    /**
      * Exercise the {@code runtimeWithVisionCapabilityAcceptsImagePart}
      * contract assertion on the Built-in runtime. Built-in declares
      * {@link org.atmosphere.ai.AiCapability#VISION} and threads

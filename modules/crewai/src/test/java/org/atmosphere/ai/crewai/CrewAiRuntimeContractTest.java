@@ -203,6 +203,17 @@ class CrewAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
     }
 
     /**
+     * Explicit cede: the CrewAI sidecar owns its model configuration (crew
+     * definitions live in the Python process); configure sampling in the
+     * crew's own LLM settings. See {@code modules/ai/README.md}
+     * § Generation parameters.
+     */
+    @Override
+    protected Set<GenerationParamsSupport> expectedGenerationHonoring() {
+        return Set.of();
+    }
+
+    /**
      * Fake CrewAI sidecar. Smart enough to dispatch on the request body:
      * <ul>
      *   <li>If the body's {@code message} contains

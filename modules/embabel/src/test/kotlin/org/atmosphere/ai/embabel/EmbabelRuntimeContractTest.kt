@@ -118,6 +118,14 @@ internal class EmbabelRuntimeContractTest : AbstractAgentRuntimeContractTest() {
     )
 
     /**
+     * Explicit cede: Embabel's `AgentPlatform` owns model selection and
+     * sampling on each application-defined agent; the framework knobs are
+     * not threaded through `runAgentFrom`. See `modules/ai/README.md`
+     * § Generation parameters.
+     */
+    override fun expectedGenerationHonoring(): Set<GenerationParamsSupport> = emptySet()
+
+    /**
      * Build a mocked [AgentPlatform] that:
      *  1. Reports a single deployed [Agent] named `"chat-assistant"` (the
      *     runtime's default agent name) so [EmbabelAgentRuntime.execute]

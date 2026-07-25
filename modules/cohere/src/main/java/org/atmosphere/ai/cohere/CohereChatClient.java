@@ -59,7 +59,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *   <li>Required body fields: {@code model}, {@code messages},
  *       {@code stream: true}.</li>
  *   <li>Optional body fields used here: {@code max_tokens},
- *       {@code temperature}, {@code tools}.</li>
+ *       {@code temperature}, {@code p}, {@code stop_sequences},
+ *       {@code tools}.</li>
  *   <li>Message roles: {@code system}, {@code user}, {@code assistant},
  *       {@code tool} (tool result carries {@code tool_call_id} and
  *       {@code content}).</li>
@@ -89,13 +90,46 @@ public final class CohereChatClient extends AbstractSseLlmClient {
     private static final String DEFAULT_BASE_URL = "https://api.cohere.com";
     private static final int DEFAULT_MAX_TOKENS = 4096;
 
+    /**
+     * Opt-in framework-level generation overrides. Never {@code null} — the
+     * builder defaults it to {@link org.atmosphere.ai.GenerationParams#defaults()}
+     * (all unset). {@code temperature}, {@code p}, and {@code stop_sequences}
+     * are applied in {@link #buildRequestBody} when set; {@code maxTokens} is
+     * handled by the runtime's builder wiring (it feeds the base
+     * {@code max_tokens} field, preserving the {@code cohere.max.tokens}
+     * sysprop precedence). An unset component leaves the request body
+     * byte-identical to today.
+     */
+    private final org.atmosphere.ai.GenerationParams generation;
+
     private CohereChatClient(Builder b) {
         super(new SseClientConfig(b.baseUrl, b.apiKey, b.httpClient, b.timeout,
                 b.maxTokens, b.customHeaders, b.retryPolicy));
+        this.generation = b.generation != null
+                ? b.generation : org.atmosphere.ai.GenerationParams.defaults();
     }
 
     public static Builder builder() {
         return new Builder();
+    }
+
+    /**
+     * Returns the framework-level generation overrides applied to every
+     * request body. Never {@code null}. Package-private so the wiring tests can
+     * assert that {@link CohereAgentRuntime#createNativeClient} threaded the
+     * {@code AiConfig} generation through without reaching into private state.
+     */
+    org.atmosphere.ai.GenerationParams generationForTest() {
+        return generation;
+    }
+
+    /**
+     * Returns the resolved {@code max_tokens} this client emits on every
+     * request. Package-private — exists so the wiring tests can pin the
+     * sysprop / GenerationParams / default precedence the runtime resolves.
+     */
+    int maxTokensForTest() {
+        return maxTokens;
     }
 
     @Override
@@ -540,6 +574,25 @@ public final class CohereChatClient extends AbstractSseLlmClient {
         root.put("model", model);
         root.put("max_tokens", maxTokens);
         root.put("stream", true);
+        // Framework-level GenerationParams overrides ride through to the
+        // Cohere v2 Chat wire when set. Cohere names the nucleus-sampling
+        // field p (not top_p) and the stop field stop_sequences (array).
+        // Unset components are omitted so the body stays byte-identical to
+        // today. maxTokens is NOT applied here — it is already folded into
+        // the base `max_tokens` field by the runtime's builder wiring, which
+        // preserves the cohere.max.tokens precedence.
+        if (generation.temperature() != null) {
+            root.put("temperature", generation.temperature());
+        }
+        if (generation.topP() != null) {
+            root.put("p", generation.topP());
+        }
+        if (generation.stop() != null && !generation.stop().isEmpty()) {
+            var stopArray = root.putArray("stop_sequences");
+            for (var s : generation.stop()) {
+                stopArray.add(s);
+            }
+        }
         var msgs = root.putArray("messages");
         for (var m : messages) {
             msgs.add(m);
@@ -627,6 +680,8 @@ public final class CohereChatClient extends AbstractSseLlmClient {
         private int maxTokens = DEFAULT_MAX_TOKENS;
         private final LinkedHashMap<String, String> customHeaders = new LinkedHashMap<>();
         private org.atmosphere.ai.RetryPolicy retryPolicy;
+        private org.atmosphere.ai.GenerationParams generation =
+                org.atmosphere.ai.GenerationParams.defaults();
 
         private Builder() {
         }
@@ -665,6 +720,22 @@ public final class CohereChatClient extends AbstractSseLlmClient {
          */
         public Builder retryPolicy(org.atmosphere.ai.RetryPolicy retryPolicy) {
             this.retryPolicy = retryPolicy;
+            return this;
+        }
+
+        /**
+         * Framework-level generation overrides applied to every request body
+         * (temperature → {@code temperature}, topP → {@code p}, stop →
+         * {@code stop_sequences}). {@code maxTokens} is intentionally NOT
+         * consumed here — the runtime folds it into {@link #maxTokens(int)}
+         * so the {@code cohere.max.tokens} sysprop precedence is preserved.
+         * A {@code null} argument collapses to
+         * {@link org.atmosphere.ai.GenerationParams#defaults()} (all unset,
+         * byte-identical request body).
+         */
+        public Builder generation(org.atmosphere.ai.GenerationParams generation) {
+            this.generation = generation != null
+                    ? generation : org.atmosphere.ai.GenerationParams.defaults();
             return this;
         }
 
