@@ -422,6 +422,12 @@ class KoogAgentRuntime : AgentRuntime {
         val lifecycleListeners = context.listeners()
         val lifecycleModelName = context.model() ?: name()
 
+        // Framework-level generation override: the AIAgent factory threads
+        // its temperature parameter onto the agent prompt's LLMParams
+        // (createAgentConfig), so the AiConfig knob reaches the tool-calling
+        // path exactly like the executor path (Correctness Invariant #7 —
+        // Mode Parity). null = unset = byte-identical dispatch.
+        val temperature = generationTemperature()
         val agent = if (customStrategy != null) {
             AIAgent(
                 promptExecutor = executor,
@@ -429,6 +435,7 @@ class KoogAgentRuntime : AgentRuntime {
                 strategy = customStrategy,
                 toolRegistry = toolRegistry,
                 systemPrompt = systemPrompt,
+                temperature = temperature,
                 maxIterations = maxIterations
             ) {
                 wireFeatureHandlers(cancelled, session, lifecycleListeners, lifecycleModelName)
@@ -438,6 +445,7 @@ class KoogAgentRuntime : AgentRuntime {
                 promptExecutor = executor,
                 llmModel = model,
                 systemPrompt = systemPrompt,
+                temperature = temperature,
                 toolRegistry = toolRegistry,
                 maxIterations = maxIterations
             ) {
@@ -556,7 +564,11 @@ class KoogAgentRuntime : AgentRuntime {
         val agent = PlannerAIAgent(
             promptExecutor = executor,
             agentConfig = AIAgentConfig(
-                prompt = prompt("atmosphere-planner") {
+                // Framework-level generation override on the planner prompt's
+                // LLMParams — same temperature knob as the agent and executor
+                // paths (Correctness Invariant #7 — Mode Parity).
+                prompt = prompt("atmosphere-planner",
+                    LLMParams(temperature = generationTemperature())) {
                     if (systemPrompt.isNotBlank()) {
                         system(systemPrompt)
                     }
@@ -678,22 +690,41 @@ class KoogAgentRuntime : AgentRuntime {
      * NativeStructuredOutputMode.AUTO graceful fall-back.
      */
     private fun nativeStructuredParams(context: AgentExecutionContext): LLMParams {
+        // Framework-level generation override: Koog's provider-agnostic
+        // LLMParams carries temperature, so the AiConfig knob rides every
+        // executor dispatch — structured and plain alike (Correctness
+        // Invariant #7 — Mode Parity). topP/stop have no field on the base
+        // LLMParams (only provider-specific subclasses like OpenAIChatParams
+        // carry them) and maxTokens stays ceded to Koog's model-level
+        // configuration; see modules/ai/README.md § Generation parameters.
+        val temperature = generationTemperature()
         if (context.responseType() == null ||
             !org.atmosphere.ai.NativeStructuredOutput.shouldApply(context)
         ) {
-            return LLMParams()
+            return LLMParams(temperature = temperature)
         }
         val schemaJson = org.atmosphere.ai.NativeStructuredOutput.schema(context)
-            ?: return LLMParams()
+            ?: return LLMParams(temperature = temperature)
         return try {
             val jsonObject = kotlinx.serialization.json.Json.Default
                 .parseToJsonElement(schemaJson) as kotlinx.serialization.json.JsonObject
-            LLMParams(schema = LLMParams.Schema.JSON.Standard("structured_output", jsonObject))
+            LLMParams(
+                temperature = temperature,
+                schema = LLMParams.Schema.JSON.Standard("structured_output", jsonObject)
+            )
         } catch (e: Exception) {
             logger.debug("Skipping Koog native schema — not parseable", e)
-            LLMParams()
+            LLMParams(temperature = temperature)
         }
     }
+
+    /**
+     * The framework-resolved [org.atmosphere.ai.GenerationParams.temperature]
+     * override, or `null` (unset — byte-identical wire output) when no
+     * [AiConfig] has been resolved or the knob is not set.
+     */
+    private fun generationTemperature(): Double? =
+        AiConfig.get()?.generation()?.temperature()
 
     private fun buildPrompt(context: AgentExecutionContext): Prompt {
         return prompt("atmosphere", nativeStructuredParams(context)) {

@@ -121,6 +121,19 @@ internal class KoogRuntimeContractTest : AbstractAgentRuntimeContractTest() {
     )
 
     /**
+     * Temperature rides Koog's provider-agnostic `LLMParams` on every
+     * dispatch path (executor prompt, `AIAgent` factory temperature,
+     * planner prompt) — the executor and agent paths are proven in
+     * [KoogGenerationParamsTest]; the planner prompt threads the same
+     * `LLMParams(temperature = …)`. topP and stop have no field on the
+     * base `LLMParams` (only provider-specific subclasses carry them) and
+     * maxTokens stays ceded to Koog's model-level configuration, so those
+     * three are explicit cedes.
+     */
+    override fun expectedGenerationHonoring(): Set<GenerationParamsSupport> =
+        setOf(GenerationParamsSupport.TEMPERATURE)
+
+    /**
      * Provide a context carrying a tiny PNG so the base contract's
      * `runtimeWithVisionCapabilityAcceptsImagePart` assertion exercises the
      * Koog dispatch path. The fake [PromptExecutor] installed by

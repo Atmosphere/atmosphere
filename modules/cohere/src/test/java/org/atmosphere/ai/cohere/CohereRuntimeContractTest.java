@@ -118,6 +118,20 @@ class CohereRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 AiCapability.CANCELLATION);
     }
 
+    /**
+     * All four knobs reach the Cohere v2 Chat wire ({@code temperature}/
+     * {@code max_tokens}/{@code p}/{@code stop_sequences}; the
+     * {@code cohere.max.tokens} sysprop still wins over the framework
+     * maxTokens) — proven in {@code CohereGenerationParamsTest}.
+     */
+    @Override
+    protected Set<GenerationParamsSupport> expectedGenerationHonoring() {
+        return Set.of(GenerationParamsSupport.TEMPERATURE,
+                GenerationParamsSupport.MAX_TOKENS,
+                GenerationParamsSupport.TOP_P,
+                GenerationParamsSupport.STOP);
+    }
+
     @Test
     void runtimeNameIsCohere() {
         assertEquals("cohere", createRuntime().name());

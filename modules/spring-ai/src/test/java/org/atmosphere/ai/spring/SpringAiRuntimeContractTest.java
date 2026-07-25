@@ -90,6 +90,19 @@ class SpringAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 AiCapability.CANCELLATION);
     }
 
+    /**
+     * All four knobs ride Spring AI's generic {@code ChatOptions} builder
+     * (stop as {@code stopSequences}) — proven in
+     * {@code SpringAiGenerationParamsTest}.
+     */
+    @Override
+    protected Set<GenerationParamsSupport> expectedGenerationHonoring() {
+        return Set.of(GenerationParamsSupport.TEMPERATURE,
+                GenerationParamsSupport.MAX_TOKENS,
+                GenerationParamsSupport.TOP_P,
+                GenerationParamsSupport.STOP);
+    }
+
     @Override
     protected AgentExecutionContext createImageContext() {
         var parts = List.<org.atmosphere.ai.Content>of(
