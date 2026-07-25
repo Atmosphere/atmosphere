@@ -24,8 +24,12 @@ import jdk.jfr.StackTrace;
 
 /**
  * A runtime-classified error. {@code errorType} matches the values reported
- * to {@link org.atmosphere.ai.AiMetrics#recordError} ({@code rate_limit},
- * {@code timeout}, {@code server_error}, {@code stream_error}, ...).
+ * to {@link org.atmosphere.ai.AiMetrics#recordError} — the
+ * {@link org.atmosphere.ai.AiProviderException} taxonomy vocabulary
+ * ({@code rate_limit}, {@code timeout}, {@code server_error},
+ * {@code unavailable}, {@code auth}, {@code context_length},
+ * {@code content_filter}, {@code invalid_request}) plus
+ * {@code stream_error} and {@code unknown}.
  */
 @Name("org.atmosphere.ai.Error")
 @Label("Atmosphere AI Error")

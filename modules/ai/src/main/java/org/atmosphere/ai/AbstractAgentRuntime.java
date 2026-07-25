@@ -505,10 +505,17 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
                 doExecute(client, context, session);
                 return;
             } catch (RuntimeException e) {
-                if (attempt >= policy.maxRetries() || session.hasErrored()) {
+                // Typed gate: a classified terminal failure (auth, context
+                // length, content filter, invalid request) is never retried
+                // even with budget remaining — RetryPolicy.shouldRetry
+                // consults the AiProviderException taxonomy. Unclassified
+                // RuntimeExceptions keep the historical retry-any behavior.
+                if (attempt >= policy.maxRetries() || session.hasErrored()
+                        || (e instanceof AiException classified
+                                && !policy.shouldRetry(classified, attempt))) {
                     throw e;
                 }
-                var delay = policy.delayForAttempt(attempt);
+                var delay = retryDelay(policy, attempt, e);
                 attempt++;
                 lifecycleLogger.info(
                         "{} outer-retry attempt {}/{} after {}ms (cause: {})",
@@ -524,6 +531,25 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
                 }
             }
         }
+    }
+
+    /**
+     * Backoff before the next outer-retry attempt. A classified
+     * {@link AiProviderException.RateLimited} carrying the provider's
+     * {@code Retry-After} hint wins (capped at 60s so a hostile value cannot
+     * pin the worker — same cap as the HTTP-layer retry loops); otherwise
+     * the policy's exponential {@link RetryPolicy#delayForAttempt}.
+     */
+    private static java.time.Duration retryDelay(RetryPolicy policy, int attempt,
+                                                 RuntimeException e) {
+        if (e instanceof AiProviderException.RateLimited rateLimited) {
+            var hinted = rateLimited.retryAfter();
+            if (hinted.isPresent()) {
+                var capped = java.time.Duration.ofSeconds(60);
+                return hinted.get().compareTo(capped) <= 0 ? hinted.get() : capped;
+            }
+        }
+        return policy.delayForAttempt(attempt);
     }
 
     /**

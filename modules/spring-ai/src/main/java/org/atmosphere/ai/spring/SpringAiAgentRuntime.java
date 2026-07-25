@@ -362,7 +362,11 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
                             modelScope.fail(error);
                             logger.error("Spring AI streaming error: {}", error.getMessage());
                             if (!session.isClosed()) {
-                                session.error(error);
+                                // Classify the raw Spring AI/provider exception
+                                // (429/auth/context-length signals) so retry,
+                                // metrics, and routing see a typed failure;
+                                // unclassifiable errors pass through unchanged.
+                                session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(error));
                             }
                             completion.complete(null);
                         });

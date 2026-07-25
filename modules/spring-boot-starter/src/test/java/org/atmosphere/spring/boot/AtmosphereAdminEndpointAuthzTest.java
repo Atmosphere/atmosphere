@@ -196,6 +196,67 @@ class AtmosphereAdminEndpointAuthzTest {
                 .andExpect(status().isOk());
     }
 
+    // ── Eval dataset runner (POST /api/admin/evals/run) ──
+    // Same write gate as every other mutating admin route: feature flag →
+    // authenticated principal → ControlAuthorizer. The runner must never be
+    // reachable anonymously — it drives live LLM traffic.
+
+    @Test
+    void evalRunReturns403WhenFeatureFlagDisabled() throws Exception {
+        var evals = Mockito.mock(org.atmosphere.admin.evals.EvalController.class);
+        Mockito.when(admin.evalController()).thenReturn(evals);
+        mockMvcGateClosed.perform(post("/api/admin/evals/run")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"baseline\":\"smoke\"}"))
+                .andExpect(status().isForbidden());
+        Mockito.verify(evals, Mockito.never()).startRun(Mockito.any(), Mockito.any());
+    }
+
+    @Test
+    void evalRunReturns401ForAnonymousCallerWhenFlagEnabled() throws Exception {
+        var evals = Mockito.mock(org.atmosphere.admin.evals.EvalController.class);
+        Mockito.when(admin.evalController()).thenReturn(evals);
+        Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
+        mockMvcGateOpen.perform(post("/api/admin/evals/run")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"baseline\":\"smoke\"}"))
+                .andExpect(status().isUnauthorized());
+        Mockito.verify(evals, Mockito.never()).startRun(Mockito.any(), Mockito.any());
+    }
+
+    @Test
+    void evalRunReturns202ForAuthenticatedCallerUnderRequirePrincipal() throws Exception {
+        var evals = Mockito.mock(org.atmosphere.admin.evals.EvalController.class);
+        Mockito.when(admin.evalController()).thenReturn(evals);
+        Mockito.when(evals.runnerEnabled()).thenReturn(true);
+        Mockito.when(evals.startRun(Mockito.any(), Mockito.eq("alice@example.com")))
+                .thenReturn(new org.atmosphere.admin.evals.EvalRunner.StartedRun(
+                        "smoke-1", "smoke", 3));
+        Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
+        Principal alice = () -> "alice@example.com";
+        mockMvcGateOpen.perform(post("/api/admin/evals/run")
+                        .principal(alice)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"baseline\":\"smoke\"}"))
+                .andExpect(status().isAccepted());
+        Mockito.verify(evals).startRun(Mockito.any(), Mockito.eq("alice@example.com"));
+    }
+
+    @Test
+    void evalRunReturns503WhenRunnerNotWired() throws Exception {
+        var evals = Mockito.mock(org.atmosphere.admin.evals.EvalController.class);
+        Mockito.when(admin.evalController()).thenReturn(evals);
+        Mockito.when(evals.runnerEnabled()).thenReturn(false);
+        Mockito.when(admin.authorizer()).thenReturn(ControlAuthorizer.REQUIRE_PRINCIPAL);
+        Principal alice = () -> "alice@example.com";
+        mockMvcGateOpen.perform(post("/api/admin/evals/run")
+                        .principal(alice)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"baseline\":\"smoke\"}"))
+                .andExpect(status().isServiceUnavailable());
+        Mockito.verify(evals, Mockito.never()).startRun(Mockito.any(), Mockito.any());
+    }
+
     @Test
     void verifierCheckReturns401ForAnonymousCallerWhenFlagEnabled() throws Exception {
         var verifier = Mockito.mock(VerifierController.class);

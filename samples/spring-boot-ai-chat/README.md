@@ -174,6 +174,74 @@ curl -i 'http://localhost:8080/atmosphere/ai-chat?X-Atmosphere-Auth=demo-token'
 Without `X-Atmosphere-Auth` (and with auth enabled), the handshake returns
 `HTTP 401 X-Atmosphere-error: No authentication token provided`.
 
+## OpenAI-compatible endpoint
+
+This sample opts into Atmosphere's OpenAI-compatible serving surface
+(`atmosphere.ai.openai.enabled=true` in `application.yml`), so any tool that
+speaks the OpenAI wire format — Open WebUI, LibreChat, the OpenAI SDKs,
+LangChain's OpenAI client — can call the `ai-chat` endpoint as a drop-in
+model named `atmosphere-ai-chat`:
+
+- `POST http://localhost:8080/atmosphere/v1/chat/completions` — non-streaming
+  and SSE streaming (`"stream": true`) chat completions
+- `GET http://localhost:8080/atmosphere/v1/models` — model discovery (this is
+  what Open WebUI uses to populate its model dropdown)
+
+Every request dispatches through the same governed `AiPipeline` as the
+WebSocket / channel / A2A surfaces, so guardrails, governance policies,
+budgets, and cost accounting apply unchanged. Without an `LLM_API_KEY` the
+demo runtime answers with canned text — the wire format works end-to-end
+either way.
+
+```bash
+# Non-streaming
+curl -s http://localhost:8080/atmosphere/v1/chat/completions \
+     -H 'Content-Type: application/json' \
+     -d '{"model":"atmosphere-ai-chat","messages":[{"role":"user","content":"Hello"}]}'
+
+# Streaming (SSE chat.completion.chunk frames, terminated by data: [DONE])
+curl -sN http://localhost:8080/atmosphere/v1/chat/completions \
+     -H 'Content-Type: application/json' \
+     -d '{"model":"atmosphere-ai-chat","stream":true,"messages":[{"role":"user","content":"Hello"}]}'
+```
+
+Or with the OpenAI Python SDK — point `base_url` at `/atmosphere/v1`:
+
+```python
+from openai import OpenAI
+
+client = OpenAI(base_url="http://localhost:8080/atmosphere/v1", api_key="unused")
+resp = client.chat.completions.create(
+    model="atmosphere-ai-chat",
+    messages=[{"role": "user", "content": "Hello"}],
+)
+print(resp.choices[0].message.content)
+```
+
+**Scope**: tool/function-calling passthrough is deliberately not supported —
+`tools`, `functions`, and tool-role messages are rejected with an
+`unsupported_parameter` error (register tools on the agent instead). Sampling
+parameters (`temperature`, `top_p`, `max_tokens`) are accepted and ignored;
+generation settings are controlled server-side. Client-sent history is
+threaded through the endpoint's conversation memory per request; client
+`system` messages ride along as history and never replace the agent's own
+system prompt.
+
+**Auth posture (honest version)**: in this sample the endpoint is
+**unauthenticated out of the box**, because the sample disables token auth by
+default (see [Authentication](#authentication)) and no
+`atmosphere.ai.openai.api-key` is set — fine for localhost demos, not for
+anything reachable from a network you don't trust. Two independent knobs
+harden it:
+
+1. `--atmosphere.auth.enabled=true` — the framework `AuthInterceptor` then
+   gates this endpoint like every other handler; clients must send
+   `X-Atmosphere-Auth: demo-token` (OpenAI SDKs: pass it via
+   `default_headers`).
+2. `atmosphere.ai.openai.api-key=<key>` — the endpoint then requires standard
+   `Authorization: Bearer <key>`, which OpenAI SDKs send natively as their
+   `api_key`.
+
 ## Project Structure
 
 ```

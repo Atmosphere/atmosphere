@@ -99,8 +99,32 @@ class MetricsCapturingSessionTest {
         var metrics = mockMetrics();
         var delegate = mockDelegate();
         var session = new MetricsCapturingSession(delegate, metrics, "gpt-4");
-        session.error(new RuntimeException("HTTP 503 service unavailable"));
+        session.error(new RuntimeException("HTTP 500 internal server error"));
         verify(metrics).recordError("gpt-4", "server_error");
+    }
+
+    @Test
+    void errorClassifiesUnavailable() {
+        // 502/503 report the retry vocabulary's "unavailable" (previously
+        // lumped into server_error) so the metric label matches what the
+        // HTTP retry loops classify for the same status.
+        var metrics = mockMetrics();
+        var delegate = mockDelegate();
+        var session = new MetricsCapturingSession(delegate, metrics, "gpt-4");
+        session.error(new RuntimeException("HTTP 503 service unavailable"));
+        verify(metrics).recordError("gpt-4", "unavailable");
+    }
+
+    @Test
+    void errorReportsTypedProviderExceptionErrorType() {
+        // A typed AiProviderException short-circuits the message heuristics:
+        // metrics report exactly the classification retry/routing consumed.
+        var metrics = mockMetrics();
+        var delegate = mockDelegate();
+        var session = new MetricsCapturingSession(delegate, metrics, "gpt-4");
+        session.error(new AiProviderException.ContextLengthExceeded(
+                "API returned 400: maximum context length exceeded", 400, null));
+        verify(metrics).recordError("gpt-4", "context_length");
     }
 
     @Test

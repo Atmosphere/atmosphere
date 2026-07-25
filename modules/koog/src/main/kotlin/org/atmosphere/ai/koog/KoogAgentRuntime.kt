@@ -240,7 +240,12 @@ class KoogAgentRuntime : AgentRuntime {
                 if (!session.isClosed) session.complete()
                 done.complete(null)
             } catch (e: Throwable) {
-                if (!session.isClosed) session.error(e)
+                // Classified through the shared taxonomy so retry, metrics,
+                // and routing see a typed failure; no-signal errors pass
+                // through unchanged.
+                if (!session.isClosed) {
+                    session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(e))
+                }
                 done.completeExceptionally(e)
             } finally {
                 activeThread.set(null)
@@ -487,7 +492,11 @@ class KoogAgentRuntime : AgentRuntime {
                 lifecycleListeners, lifecycleModelName, e
             )
             logger.error("Koog agent execution failed", e)
-            if (!session.isClosed) session.error(e)
+            // Classified through the shared taxonomy so retry, metrics, and
+            // routing see a typed failure; no-signal errors pass through.
+            if (!session.isClosed) {
+                session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(e))
+            }
         }
     }
 
@@ -620,7 +629,9 @@ class KoogAgentRuntime : AgentRuntime {
                 lifecycleListeners, lifecycleModelName, e
             )
             logger.error("Koog planner agent execution failed", e)
-            if (!session.isClosed) session.error(e)
+            if (!session.isClosed) {
+                session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(e))
+            }
         }
     }
 
@@ -668,7 +679,9 @@ class KoogAgentRuntime : AgentRuntime {
             throw ce
         } catch (e: Exception) {
             logger.error("Koog streaming failed", e)
-            if (!session.isClosed) session.error(e)
+            if (!session.isClosed) {
+                session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(e))
+            }
         }
     }
 

@@ -720,6 +720,32 @@ class AtmosphereProcessor {
     }
 
     /**
+     * Quarkus parity for the Spring Boot starter's {@code CostAccountantInstaller}
+     * (in {@code AtmosphereAiAutoConfiguration}). Requires {@code atmosphere-ai} on
+     * the classpath ({@code CostAccountantHolder} lives there). When present the
+     * producer bean is registered; {@code QuarkusAtmosphereServlet} bridges the
+     * effective {@code CostCeilingGuardrail} (a user CDI bean, or the built-in one
+     * from {@code quarkus.atmosphere.ai.guardrails.cost.enabled=true} +
+     * {@code budget-usd}) into the framework guardrail chain before annotation
+     * processing, and on startup the producer installs a user {@code CostAccountant}
+     * bean or the built-in {@code CostCeilingAccountant} (guardrail +
+     * {@code TokenPricing} CDI bean) into the process-wide holders. The bean is a
+     * no-op when nothing is configured, so registering it unconditionally (when
+     * {@code atmosphere-ai} is present) carries no runtime cost beyond one startup
+     * observer.
+     */
+    @BuildStep
+    void registerCostAccountantProducer(BuildProducer<AdditionalBeanBuildItem> beans) {
+        if (!isClassPresent("org.atmosphere.ai.cost.CostAccountantHolder")) {
+            return;
+        }
+        beans.produce(AdditionalBeanBuildItem.unremovableOf(
+                "org.atmosphere.quarkus.runtime.AtmosphereCostAccountantProducer"));
+        logger.info("Atmosphere cost accountant producer registered "
+                + "(quarkus.atmosphere.ai.guardrails.cost.enabled or CDI beans gate installation)");
+    }
+
+    /**
      * Build-time classpath detection for optional integrations. Quarkus
      * extensions resolve dependencies through their own classloader, which
      * matches the build classpath for the extension processor; this is the

@@ -35,6 +35,13 @@ test.describe('Browser agent', () => {
       .toMatch(/Registered AI tool: code_exec/);
     expect(out, 'code execution must be enabled (container sandbox advertised)')
       .toMatch(/Code execution ENABLED/);
+    // The sample's system prompt is registry-managed (systemPrompt =
+    // "prompt:browser-agent" -> prompts/browser-agent/v1.md). The resolver
+    // logs the selected version at registration; asserting it proves the
+    // versioned PromptRegistry is on the endpoint's critical path, not just
+    // present on the classpath (runtime truth).
+    expect(out, 'the system prompt must resolve through the versioned prompt registry')
+      .toMatch(/Managed prompt 'browser-agent' resolved to version 'v1'/);
   });
 
   // Regression for the browser-agent key handling. The sample pins the Cohere

@@ -33,8 +33,11 @@ Browser (atmosphere.js)
     |       @Prompt --> RAG pipeline:
     |         1. SpringAiVectorStoreContextProvider (similaritySearch, keyed mode)
     |            + KnowledgeBaseContextProvider (word-overlap fallback + demo doc)
+    |            over-fetches 15 candidates (atmosphere.ai.rag.reranker=llm)
     |         2. SafetyContextProvider screens them (drops injections) <-- default-on
-    |         3. LLM generates response
+    |         3. LlmReranker scores the screened candidates down to top-5
+    |            (fails open to retriever order on any error/timeout)
+    |         4. LLM generates response
     |
     +-- /atmosphere/agent/rag-assistant
           @Agent (RagAgent.java)
@@ -111,6 +114,27 @@ poisoned document flow through unscreened.
 
 > The screen covers the `ContextProvider` retrieval path. The `@Agent`'s explicit
 > `@AiTool` search is a separate mechanism over the (clean) shared `KnowledgeBase`.
+
+## LLM Reranker (over-fetch, then rerank)
+
+This sample opts in to Atmosphere's second-stage reranker
+(`atmosphere.ai.rag.reranker=llm` in `application.yml`). Instead of injecting the
+retriever's raw top-5, each turn over-fetches 3x the slot (15 candidates,
+`atmosphere.ai.rag.overfetch`), and one batched completion on the endpoint's
+runtime ranks them by relevance to the question; the top 5 reach the prompt.
+Registration logs the active policy:
+
+```
+AI endpoint /atmosphere/ai-chat — LLM reranker active: over-fetch x3 then rerank down to top-5
+```
+
+Reranking is strictly fail-open: any error, timeout
+(`atmosphere.ai.rag.reranker-timeout-ms`, default 10000), or unparseable model
+output keeps the original retriever order (trimmed to top-5), so retrieval never
+breaks because reranking hiccuped. In keyless demo mode the demo runtime's canned
+reply is unparseable, so the sample simply falls back to retriever order — with a
+real API key the reranker genuinely reorders the over-fetched candidates. The
+injection-safety screen above always runs *before* the reranker sees a candidate.
 
 ## Key Files
 

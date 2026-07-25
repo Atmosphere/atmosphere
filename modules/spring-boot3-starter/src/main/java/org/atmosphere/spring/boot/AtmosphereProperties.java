@@ -305,12 +305,22 @@ public class AtmosphereProperties {
 
         private ResumeProperties resume = new ResumeProperties();
 
+        private OpenaiServingProperties openai = new OpenaiServingProperties();
+
         public boolean isEnabled() {
             return enabled;
         }
 
         public void setEnabled(boolean enabled) {
             this.enabled = enabled;
+        }
+
+        public OpenaiServingProperties getOpenai() {
+            return openai;
+        }
+
+        public void setOpenai(OpenaiServingProperties openai) {
+            this.openai = openai;
         }
 
         public HarnessProperties getHarness() {
@@ -447,6 +457,73 @@ public class AtmosphereProperties {
 
         public void setTimeout(long timeout) {
             this.timeout = timeout;
+        }
+    }
+
+    /**
+     * OpenAI-compatible serving endpoint, bound to {@code atmosphere.ai.openai.*}.
+     * <strong>Off by default</strong> — enabling it registers
+     * {@code POST /atmosphere/v1/chat/completions} (and
+     * {@code GET /atmosphere/v1/models}) so OpenAI-wire clients (Open WebUI,
+     * LibreChat, the OpenAI SDKs) can call registered {@code @Agent} /
+     * {@code @AiEndpoint} pipelines as drop-in models. Requests dispatch
+     * through the same {@code AiPipeline} admission chain as channel / A2A /
+     * AG-UI traffic, so governance and guardrails apply unchanged.
+     */
+    public static class OpenaiServingProperties {
+
+        private boolean enabled;
+
+        /**
+         * Inbound {@code model} name → registered agent / endpoint name.
+         * When non-empty, only mapped names (plus {@link #defaultAgent}) are
+         * served; when empty, the {@code model} field must exactly match a
+         * registered agent name.
+         */
+        private java.util.Map<String, String> models = new java.util.LinkedHashMap<>();
+
+        /** Agent served when the request's model is blank or unmapped. */
+        private String defaultAgent;
+
+        /**
+         * Optional static bearer key: when set, requests must carry
+         * {@code Authorization: Bearer <key>}. When unset, the endpoint does
+         * no authentication of its own (a startup warning is logged) and
+         * relies on framework-level interceptors such as the
+         * {@code AuthInterceptor}.
+         */
+        private String apiKey;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public java.util.Map<String, String> getModels() {
+            return models;
+        }
+
+        public void setModels(java.util.Map<String, String> models) {
+            this.models = models;
+        }
+
+        public String getDefaultAgent() {
+            return defaultAgent;
+        }
+
+        public void setDefaultAgent(String defaultAgent) {
+            this.defaultAgent = defaultAgent;
+        }
+
+        public String getApiKey() {
+            return apiKey;
+        }
+
+        public void setApiKey(String apiKey) {
+            this.apiKey = apiKey;
         }
     }
 

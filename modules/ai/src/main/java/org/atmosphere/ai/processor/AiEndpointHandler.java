@@ -267,6 +267,13 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     private volatile int maxToolsPerRequest;
 
     /**
+     * Endpoint-scoped RAG over-fetch + rerank policy resolved by the processor
+     * from {@code org.atmosphere.ai.rag.*}; {@code null} keeps the legacy
+     * fetch-k retrieval (see {@link org.atmosphere.ai.RagRetrieval}).
+     */
+    private volatile org.atmosphere.ai.RagRetrieval ragRetrieval;
+
+    /**
      * Endpoint-scoped reply fan-out from {@code @AiEndpoint.broadcastReply()}.
      * When {@code true}, the single reply streams to every subscriber on the
      * per-path broadcaster (the room) instead of only the originating resource.
@@ -289,6 +296,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
 
     public void setMaxToolsPerRequest(int maxToolsPerRequest) {
         this.maxToolsPerRequest = Math.max(0, maxToolsPerRequest);
+    }
+
+    public void setRagRetrieval(org.atmosphere.ai.RagRetrieval ragRetrieval) {
+        this.ragRetrieval = ragRetrieval;
     }
 
     public void setBroadcastReply(boolean broadcastReply) {
@@ -617,6 +628,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         }
         if (maxToolsPerRequest > 0) {
             session.setMaxToolsPerRequest(maxToolsPerRequest);
+        }
+        if (ragRetrieval != null) {
+            session.setRagRetrieval(ragRetrieval);
         }
 
         // Publish the handler's injectables map (AgentFleet, AgentIdentity,
@@ -1056,6 +1070,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
 
     List<ContextProvider> contextProviders() {
         return contextProviders;
+    }
+
+    org.atmosphere.ai.RagRetrieval ragRetrieval() {
+        return ragRetrieval;
     }
 
     AiMetrics metrics() {

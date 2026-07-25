@@ -148,6 +148,38 @@ only once a provider is actually wrapped):
 
 See the `spring-boot-rag-chat` sample for a poisoned-document demo.
 
+## RAG Reranking (over-fetch, then rerank)
+
+By default each `ContextProvider` contributes its top-5 documents per turn (fused
+with Reciprocal Rank Fusion when an endpoint declares more than one provider).
+Opting in to the second-stage reranker makes retrieval over-fetch a wider
+candidate set and score it back down to the top-5 with a single batched
+completion on the endpoint's resolved `AgentRuntime`:
+
+```properties
+# Off by default — set reranker=llm to opt in
+atmosphere.ai.rag.reranker=none              # llm
+atmosphere.ai.rag.overfetch=3                # candidate multiplier, clamped 1..10
+atmosphere.ai.rag.reranker-timeout-ms=10000  # rerank completion bound
+```
+
+A bare `AtmosphereConfig` reads these as `org.atmosphere.ai.rag.reranker`,
+`org.atmosphere.ai.rag.overfetch`, and `org.atmosphere.ai.rag.reranker.timeout-ms`
+init-params. With `reranker=llm`, each provider fetches `5 * overfetch`
+candidates; `LlmReranker` sends the query plus the numbered (content-truncated)
+candidates in ONE prompt and expects a strict JSON index array (e.g. `[2,0,3]`)
+back. Reranking runs per ranked list **before** RRF fusion on the multi-provider
+path, and always **after** the injection-safety screen above (the screen wraps
+`retrieve()` itself).
+
+Fail-open by design: any error, timeout, or malformed/out-of-range model output
+keeps the original retriever order trimmed to top-5, so retrieval never breaks
+because reranking hiccuped. With `reranker=none` (the default) nothing changes —
+no over-fetch, no extra model call, no trimming. Custom strategies (cross-encoder
+services, per-provider fusion) implement the `DocumentReranker` interface and
+attach via `RagRetrieval.of(...)` / `AiStreamingSession.setRagRetrieval(...)`, or
+override `ContextProvider.rerank(query, docs)` for provider-local reordering.
+
 ## Memory Injection Safety (OWASP Agentic A03)
 
 The symmetric **write-path** counterpart to RAG injection safety. When the
@@ -443,6 +475,37 @@ export LLM_MODE=local
 export LLM_MODEL=llama3.2
 ```
 
+### OpenAI-compatible serving endpoint (inbound)
+
+Opt-in inbound surface (`org.atmosphere.ai.openai`) that exposes registered
+`@Agent` / `@AiEndpoint` pipelines as drop-in OpenAI models at
+`POST /atmosphere/v1/chat/completions` (non-streaming + SSE streaming) and
+`GET /atmosphere/v1/models`, so Open WebUI, LibreChat, and the OpenAI SDKs
+(`base_url = http://host:port/atmosphere/v1`) can call an agent without
+Atmosphere-specific client code. Every request dispatches through
+`AiPipeline.execute(...)` — the same entry the channel / A2A / AG-UI bridges
+use — so admission governance, guardrails, budgets, and cost accounting apply
+identically (Mode Parity).
+
+| Init-param (Spring: same key as property) | Default | Meaning |
+|---|---|---|
+| `atmosphere.ai.openai.enabled` | `false` | Master switch — the handler is not registered until this is `true` |
+| `atmosphere.ai.openai.models.<name>` | — | Maps inbound `model` value `<name>` to a registered agent/endpoint name; a non-empty map is a whitelist |
+| `atmosphere.ai.openai.default-agent` | unset | Agent served when `model` is blank or unmapped; unset means unknown models get a 404 `model_not_found` |
+| `atmosphere.ai.openai.api-key` | unset | When set, requires `Authorization: Bearer <key>` (401 otherwise); when unset the endpoint performs no auth of its own (startup warning) and relies on framework interceptors such as `AuthInterceptor` |
+
+`@Agent` classes serve under their agent name; `@AiEndpoint` classes serve
+under the last segment of their path (`/atmosphere/ai-chat` → `ai-chat`).
+Deliberately unsupported (rejected with `unsupported_parameter`, never
+half-supported): `tools` / `functions` passthrough, tool-role messages,
+`n > 1`, non-text `response_format`, and non-text content parts. Sampling
+parameters (`temperature`, `top_p`, `max_tokens`) are accepted and ignored —
+generation settings come from the framework config above. Client-sent prior
+turns are staged into the pipeline's conversation memory under a per-request
+key (cleared after the call); client `system` messages ride along as history
+and never replace the agent's own system prompt. See
+`samples/spring-boot-ai-chat/README.md` for curl / SDK examples.
+
 ### Generation parameters
 
 Four optional generation knobs let you set sampling controls once at the
@@ -534,6 +597,66 @@ model-level configuration, so those three remain framework-native.
 > `expectedGenerationHonoring()` hook on
 > `AbstractAgentRuntimeContractTest` — a new runtime cannot compile its
 > contract test without declaring one.
+
+## Prompt Registry (versioned prompts, templating, rollout)
+
+System prompts can be managed as **versioned files** instead of inline
+annotation strings. A system prompt value (or `skillFile` on
+`@Agent`/`@Coordinator`) of the form `prompt:<name>[@<version>]` resolves
+through the `org.atmosphere.ai.prompt.PromptRegistry` at registration time;
+any other value behaves exactly as before.
+
+```java
+@AiEndpoint(path = "/support", systemPrompt = "prompt:support-agent")       // rollout / latest
+@AiEndpoint(path = "/support", systemPrompt = "prompt:support-agent@v2")    // pinned
+@AiEndpoint(path = "/support", systemPrompt = "prompt:support-agent@latest")
+```
+
+**Layout** (shipped `FilePromptRegistry`): one file per version.
+
+```
+prompts/<name>/v1.md          # classpath — versions must be contiguous from v1
+prompts/<name>/v2.md
+prompts/<name>/v2.md.sha256   # optional integrity sidecar (hex SHA-256 of trimmed content)
+```
+
+An optional disk tier (`-Datmosphere.ai.prompt.dir=/etc/prompts`) is checked
+first and read fresh on every resolve, so operators can stage prompt versions
+without a rebuild; disk versions may be sparse. A sidecar hash mismatch fails
+closed (`INTEGRITY FAILURE`) — a tampered prompt never reaches the model.
+Names are restricted to `[A-Za-z0-9][A-Za-z0-9._-]*` and versions to
+`v<digits>`; disk paths are normalized and containment-checked. Alternative
+backends implement the `PromptRegistry` SPI and register via `ServiceLoader`
+(first provider wins over the file registry).
+
+**Templating**: prompts may contain `{{variable}}` placeholders. Values come
+from `atmosphere.ai.prompt.var.<name>` system properties (config defaults),
+overridden by the per-request map on
+`PromptResolver.resolve(reference, unitId, variables)`. An unresolved
+placeholder fails closed at registration with an error naming the missing
+variables — a half-templated prompt is never shipped to the model.
+
+**Rollout** (deterministic A/B split):
+
+```
+-Datmosphere.ai.prompt.rollout.support-agent=v1:90,v2:10
+```
+
+Weights are relative; selection hashes the rollout unit id with SHA-256 (never
+`Math.random()`), so the same unit always gets the same version across
+restarts and JVMs. A bare `prompt:<name>` reference participates in rollout;
+`@latest` and pinned references do not. At the annotation seam the rollout
+unit is the endpoint identity (endpoint path / agent name), which is stable
+per deployment; per-user splits call
+`PromptRegistry.selectVersion(name, userId)` directly. A malformed weight
+spec fails closed rather than guessing a version.
+
+Unlike `skill:` references (which fall back to a default assistant prompt when
+the remote skills repo is unreachable), a `prompt:` reference that cannot be
+resolved aborts endpoint registration: the registry is local, so a miss means
+a broken build, and starting with the wrong prompt would silently ship the
+wrong behavior. `samples/spring-boot-browser-agent` uses a registry-managed
+prompt (`prompt:browser-agent` → `prompts/browser-agent/v1.md`).
 
 ## Tool Loop Policy
 
@@ -880,7 +1003,7 @@ var metrics = new MicrometerAiMetrics(meterRegistry, "spring-ai");
 |--------|------|-------------|
 | `atmosphere.ai.prompts.total` | Counter | Total prompt requests |
 | `atmosphere.ai.streaming_texts.total` | Counter | Total streaming text chunks |
-| `atmosphere.ai.errors.total` | Counter | Errors by type (`timeout`, `rate_limit`, `server_error`, `unknown`) |
+| `atmosphere.ai.errors.total` | Counter | Errors by type (`rate_limit`, `timeout`, `server_error`, `unavailable`, `auth`, `context_length`, `content_filter`, `invalid_request`, `stream_error`, `unknown`) |
 | `atmosphere.ai.prompt.duration` | Timer | Time from prompt to first streaming text (TTFT) |
 | `atmosphere.ai.response.duration` | Timer | Full response wall-clock time |
 | `atmosphere.ai.tool.duration` | Timer | Tool call execution time |
@@ -943,7 +1066,7 @@ All values are confirmed runtime values. The attributes are written only when
 - **Time to first streaming text (TTFT)** — latency from session start to first `send()` call
 - **Total duration** — wall-clock time from start to `complete()` or `error()`
 - **Streaming text count** — number of `send()` calls
-- **Error classification** — categorizes errors as `timeout`, `rate_limit`, `server_error`, or `unknown`
+- **Error classification** — delegates to `ProviderErrorClassifier`: a typed `AiProviderException` reports its `errorType()` (`rate_limit`, `timeout`, `server_error`, `unavailable`, `auth`, `context_length`, `content_filter`, `invalid_request`); raw exceptions are classified by message heuristics, falling back to `unknown`
 - **Active session tracking** — calls `sessionStarted()`/`sessionEnded()` for gauge updates
 
 ```java

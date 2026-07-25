@@ -16,7 +16,12 @@
 package org.atmosphere.quarkus.deployment;
 
 import io.quarkus.test.QuarkusExtensionTest;
+import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.AiRequest;
+import org.atmosphere.ai.TokenUsage;
+import org.atmosphere.ai.cost.CostCeilingAccountant;
+import org.atmosphere.ai.cost.TokenPricing;
+import org.atmosphere.ai.guardrails.CostCeilingGuardrail;
 import org.atmosphere.ai.governance.DenyListPolicy;
 import org.atmosphere.ai.governance.GovernancePolicy;
 import org.atmosphere.ai.governance.KillSwitchPolicy;
@@ -120,6 +125,37 @@ public class GovernancePolicyQuarkusParityTest {
         // And the parsed policies evaluate correctly.
         assertInstanceOf(PolicyDecision.Deny.class,
                 parsed.get(0).evaluate(preAdm("please drop table users")));
+    }
+
+    @Test
+    public void costCeilingObservabilityToEnforcementLoopUnderQuarkus() {
+        // Same loop the Spring Boot side pins in
+        // AtmosphereCostAccountantAutoConfigurationTest: TokenUsage →
+        // CostCeilingAccountant → TokenPricing → addCost → the next
+        // request-side inspect Blocks — identical semantics on the Quarkus
+        // deployment classloader (Mode Parity invariant).
+        var guardrail = new CostCeilingGuardrail(0.004);
+        var accountant = new CostCeilingAccountant(guardrail, TokenPricing.flat(1.0, 2.0));
+        org.slf4j.MDC.put("business.tenant.id", "acme-parity");
+        try {
+            assertInstanceOf(AiGuardrail.GuardrailResult.Pass.class,
+                    guardrail.inspectRequest(new AiRequest("hello")),
+                    "under budget the request must pass");
+
+            // 2000 in @ $1/M + 1500 out @ $2/M = $0.005 ≥ the $0.004 ceiling.
+            accountant.record("acme-parity",
+                    TokenUsage.of(2_000, 1_500, 3_500, "test-model"), "test-model");
+            assertTrue(guardrail.spent("acme-parity") >= 0.004,
+                    "the accountant must accrue spend into the guardrail bucket");
+
+            var block = assertInstanceOf(AiGuardrail.GuardrailResult.Block.class,
+                    guardrail.inspectRequest(new AiRequest("hello")),
+                    "over budget the request must Block — identical to Spring Boot behaviour");
+            assertTrue(block.reason().contains("acme-parity"),
+                    "the block reason must name the tenant: " + block.reason());
+        } finally {
+            org.slf4j.MDC.remove("business.tenant.id");
+        }
     }
 
     @Test

@@ -4,6 +4,14 @@
 atmosphere:
   console-subtitle: RAG-powered AI chat with document retrieval
   packages: org.atmosphere.samples.springboot.ragchat
+  ai:
+    rag:
+      # Second-stage LLM reranker: retrieval over-fetches 3x the top-5 slot
+      # (15 candidates) and one batched completion on the endpoint's runtime
+      # scores them back down to the 5 most relevant. Fails open to the
+      # retriever order on any error/timeout — in keyless demo mode the demo
+      # runtime's canned reply is unparseable, so ranking simply falls back.
+      reranker: llm
   web-transport:
     enabled: true
     port: 4445

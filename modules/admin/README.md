@@ -334,7 +334,33 @@ curl -X POST http://localhost:8080/api/admin/evals/runs \       # record (CI)
 UI lives at `/atmosphere/admin/evals.html`. `EvalRunStore` is the SPI;
 the default `InMemoryEvalRunStore` is a bounded ring buffer (500 runs
 per baseline, oldest evicted) so a long-running deployment does not
-accumulate unbounded history.
+accumulate unbounded history. Setting `atmosphere.admin.evals.db=<file>`
+swaps in the durable SQLite stores (`SqliteEvalRunStore` +
+`SqliteEvalDatasetStore`, same bounds) so history and curated datasets
+survive restart; a user-defined store `@Bean` still wins.
+
+### Running Evals
+
+`POST /api/admin/evals/run` replays the curated dataset against the live
+agent — `EvalRunner` executes each case prompt on the resolved
+`AgentRuntime` (bounded virtual-thread concurrency, per-case timeout),
+scores it with `LlmJudgeLiveScorer` (LLM-as-judge via
+`atmosphere-ai-test`'s `LlmJudge`), and persists one `EvalRun` row per
+case plus an aggregate row (id = run id, `passRate` in `scores`):
+
+```bash
+curl -X POST http://localhost:8080/api/admin/evals/run \
+     -H 'Content-Type: application/json' \
+     -d '{"baseline":"nightly","tag":"golden","judgeModel":"gpt-4o-mini"}'
+# → 202 {"runId":"nightly-…","totalCases":N,"progress":"/api/admin/evals/runs?baseline=nightly"}
+```
+
+Progress is the existing run listing — per-case rows land as they
+complete. The route sits behind the same write gate (`evals.write`) as
+every other mutating admin endpoint and returns `503` until both
+`atmosphere-ai` and `atmosphere-ai-test` are on the classpath, `409`
+while a run is already in flight. Tunables:
+`atmosphere.admin.evals.runner.{judge-model,pass-threshold,case-timeout-ms,max-concurrency}`.
 
 ## WebSocket Event Stream
 

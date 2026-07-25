@@ -116,6 +116,15 @@ public class AiStreamingSession implements StreamingSession {
 
     /** Endpoint-scoped cap on tools injected per turn; 0 injects every tool. */
     private volatile int endpointMaxToolsPerRequest;
+
+    /**
+     * Endpoint-scoped over-fetch + rerank retrieval policy resolved from
+     * {@code org.atmosphere.ai.rag.*} by the endpoint processor. The
+     * {@link RagRetrieval#disabled()} default preserves the legacy fetch-k
+     * behavior byte for byte — over-fetch only happens when a configured
+     * reranker will actually run.
+     */
+    private volatile RagRetrieval ragRetrieval = RagRetrieval.disabled();
     /**
      * Framework-scoped injectables stashed by the endpoint handler and
      * threaded into {@code @AiTool} dispatch so tool methods can declare
@@ -484,6 +493,17 @@ public class AiStreamingSession implements StreamingSession {
     }
 
     /**
+     * Set the endpoint-scoped over-fetch + rerank retrieval policy resolved
+     * from {@code org.atmosphere.ai.rag.*} (see {@link RagRetrieval}). With an
+     * active reranker each provider fetches {@code k * overfetch} candidates
+     * and the reranker scores them back down to {@code k}; {@code null} or a
+     * disabled policy restores the legacy fetch-k behavior.
+     */
+    public void setRagRetrieval(RagRetrieval retrieval) {
+        this.ragRetrieval = retrieval != null ? retrieval : RagRetrieval.disabled();
+    }
+
+    /**
      * Publish the framework-scoped injectables the endpoint handler collected
      * (live {@code AgentFleet}, {@code AgentIdentity}, {@code AgentState},
      * ...). Threaded into the tool-call loop so {@code @AiTool} methods can
@@ -621,15 +641,26 @@ public class AiStreamingSession implements StreamingSession {
             // Rank Fusion when more than one retriever is wired so documents the
             // retrievers agree on rank first. A single retriever needs no fusion.
             var perProvider = new java.util.ArrayList<java.util.List<ContextProvider.Document>>();
+            var retrieval = ragRetrieval;
             for (var provider : contextProviders) {
                 try {
                     var query = ContextProvider.normalizeQuery(provider.transformQuery(request.message()));
                     if (!ContextProvider.shouldRetrieve(query)) {
                         continue;
                     }
-                    var docs = provider.retrieve(query, 5);
+                    // With a configured reranker (org.atmosphere.ai.rag.reranker),
+                    // over-fetch k*overfetch candidates and rerank them back down
+                    // to top-k — per ranked list, before RRF fusion below, so the
+                    // fused order is built from already-reranked lists. Without
+                    // one, fetchSize(k) == k and retrieval.rerank is a pass-
+                    // through: legacy behavior, no extra model call. A
+                    // SafetyContextProvider wraps retrieve(), so injection
+                    // screening always runs before reranking.
+                    var docs = provider.retrieve(query,
+                            retrieval.fetchSize(RagRetrieval.DEFAULT_TOP_K));
                     docs = provider.filter(query, docs);
                     docs = provider.rerank(query, docs);
+                    docs = retrieval.rerank(query, docs, RagRetrieval.DEFAULT_TOP_K);
                     docs = provider.postProcess(query, docs);
                     perProvider.add(docs);
                 } catch (Exception e) {

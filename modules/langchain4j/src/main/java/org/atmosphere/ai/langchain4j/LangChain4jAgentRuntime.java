@@ -456,7 +456,11 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
                     .onError(error -> {
                         try {
                             if (!session.isClosed()) {
-                                session.error(error);
+                                // Classify the raw LC4j/provider exception so
+                                // retry, metrics, and routing see a typed
+                                // failure; no-signal errors pass through.
+                                session.error(
+                                        org.atmosphere.ai.ProviderErrorClassifier.wrap(error));
                             }
                         } finally {
                             done.complete(null);
@@ -468,7 +472,7 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
             // start(). Surface to session.error and resolve the handle so
             // callers don't hang on whenDone().
             if (!session.isClosed()) {
-                session.error(e);
+                session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(e));
             }
             done.complete(null);
         }

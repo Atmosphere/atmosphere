@@ -819,6 +819,55 @@ public class AtmosphereAdminEndpoint {
         }
     }
 
+    /**
+     * Start replaying the curated eval dataset against the live agent —
+     * the "run the evals" half of the flywheel. Body: optional
+     * {@code baseline} (grouping label, default {@code dataset}), {@code tag}
+     * (narrow the dataset to cases carrying the tag) and {@code judgeModel}
+     * (judge model override). Returns 202 with the run id; per-case rows and
+     * the aggregate (row id = run id) surface through the existing
+     * {@code GET /evals/runs?baseline=...} listing as they land.
+     */
+    @PostMapping("/evals/run")
+    public ResponseEntity<Map<String, Object>> runEvalDataset(
+            @org.springframework.web.bind.annotation.RequestBody Map<String, Object> body,
+            HttpServletRequest request) {
+        var baseline = body.getOrDefault("baseline", "dataset").toString();
+        var guard = guardWrite(request, "evals.write", baseline);
+        if (guard != null) {
+            return guard;
+        }
+        org.atmosphere.admin.evals.EvalController controller = admin.evalController();
+        if (controller == null) {
+            return ResponseEntity.status(503).body(Map.of("error", "Eval controller not wired"));
+        }
+        if (!controller.runnerEnabled()) {
+            return ResponseEntity.status(503).body(Map.of(
+                    "error", "Eval runner not wired",
+                    "hint", "requires the atmosphere-ai and atmosphere-ai-test modules on the classpath"));
+        }
+        var tag = body.get("tag") instanceof String s ? s : null;
+        var judgeModel = body.get("judgeModel") instanceof String j ? j : null;
+        try {
+            var started = controller.startRun(
+                    new org.atmosphere.admin.evals.EvalRunner.RunRequest(baseline, tag, judgeModel),
+                    resolvePrincipal(request));
+            return ResponseEntity.accepted().body(Map.of(
+                    "runId", started.runId(),
+                    "baseline", started.baseline(),
+                    "totalCases", started.totalCases(),
+                    "progress", "/api/admin/evals/runs?baseline=" + java.net.URLEncoder.encode(
+                            started.baseline(), java.nio.charset.StandardCharsets.UTF_8)));
+        } catch (SecurityException se) {
+            return ResponseEntity.status(403).body(Map.of("error", se.getMessage()));
+        } catch (IllegalArgumentException iae) {
+            return ResponseEntity.badRequest().body(Map.of("error", iae.getMessage()));
+        } catch (IllegalStateException ise) {
+            // busy (single-flight) or target runtime unavailable — retryable
+            return ResponseEntity.status(409).body(Map.of("error", ise.getMessage()));
+        }
+    }
+
     // ── Dev Inspector (inner-loop, dev-only) ──
 
     @GetMapping("/ai/dev/inspector")

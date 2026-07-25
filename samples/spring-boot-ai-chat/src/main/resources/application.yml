@@ -33,6 +33,17 @@ atmosphere:
       enabled: true
       store: sqlite
       path: ${ATMOSPHERE_TAPE_PATH:${java.io.tmpdir}/atmosphere-ai-chat-tape.db}
+    # OpenAI-compatible serving: expose the ai-chat endpoint as a drop-in
+    # "model" for OpenAI-wire clients (Open WebUI, LibreChat, OpenAI SDKs)
+    # at POST /atmosphere/v1/chat/completions (+ GET /atmosphere/v1/models).
+    # The models map is a whitelist: only "atmosphere-ai-chat" is served and
+    # it dispatches through the same governed AiPipeline as every other
+    # protocol surface. See README.md ("OpenAI-compatible endpoint") for the
+    # auth posture and curl / SDK examples.
+    openai:
+      enabled: true
+      models:
+        atmosphere-ai-chat: ai-chat
 
 # LLM Configuration
 # Set via .envrc, environment variables, or override here.

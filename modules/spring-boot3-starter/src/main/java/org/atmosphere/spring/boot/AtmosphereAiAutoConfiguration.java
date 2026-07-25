@@ -126,6 +126,41 @@ public class AtmosphereAiAutoConfiguration {
                     policies.size(),
                     policies.stream().map(GovernancePolicy::name).toList());
         }
+        // Bridge the OpenAI-compatible serving endpoint config into framework
+        // init-params so the annotation processors (AgentProcessor /
+        // AiEndpointProcessor) register the /atmosphere/v1/chat/completions
+        // handler for every agent pipeline they build. Off by default — the
+        // params are only bridged when the operator explicitly opts in
+        // (Correctness Invariant #6: no new inbound surface ships silently).
+        var openai = properties.getAi().getOpenai();
+        if (openai.isEnabled()) {
+            framework.addInitParameter(
+                    org.atmosphere.ai.openai.OpenAiServing.ENABLED_PARAM, "true");
+            if (openai.getDefaultAgent() != null && !openai.getDefaultAgent().isBlank()) {
+                framework.addInitParameter(
+                        org.atmosphere.ai.openai.OpenAiServing.DEFAULT_AGENT_PARAM,
+                        openai.getDefaultAgent());
+            }
+            if (openai.getApiKey() != null && !openai.getApiKey().isBlank()) {
+                framework.addInitParameter(
+                        org.atmosphere.ai.openai.OpenAiServing.API_KEY_PARAM,
+                        openai.getApiKey());
+            }
+            for (var mapping : openai.getModels().entrySet()) {
+                framework.addInitParameter(
+                        org.atmosphere.ai.openai.OpenAiServing.MODELS_PARAM_PREFIX
+                                + mapping.getKey(),
+                        mapping.getValue());
+            }
+            logger.info("OpenAI-compatible serving enabled at {} (models: {}, defaultAgent: {}, "
+                            + "endpoint api-key: {})",
+                    org.atmosphere.ai.openai.OpenAiServing.CHAT_COMPLETIONS_PATH,
+                    openai.getModels().isEmpty() ? "registered agent names"
+                            : openai.getModels().keySet(),
+                    openai.getDefaultAgent() != null ? openai.getDefaultAgent() : "none",
+                    openai.getApiKey() != null && !openai.getApiKey().isBlank()
+                            ? "configured" : "NOT configured");
+        }
         // Bridge the RAG injection-safety policy into framework init-params so
         // AiEndpointProcessor wraps every @AiEndpoint ContextProvider. On by
         // default and fail-closed; disable with atmosphere.ai.rag.safety.enabled=false.

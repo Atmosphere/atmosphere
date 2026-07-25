@@ -17,6 +17,7 @@ package org.atmosphere.spring.boot;
 
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiGuardrail;
+import org.atmosphere.ai.RagRetrieval;
 import org.atmosphere.ai.code.CodeSandboxConfig;
 import org.atmosphere.ai.facts.FactResolver;
 import org.atmosphere.ai.filter.PiiRedactionFilter;
@@ -246,6 +247,17 @@ public class AtmosphereAiAutoConfiguration {
         }
         logger.info("RAG injection-safety: enabled={}, tier={}, onBreach={}, failOpen={}",
                 rag.isEnabled(), rag.getTier(), rag.getOnBreach(), rag.isFailOpen());
+        // Bridge the RAG over-fetch + rerank retrieval policy so
+        // AiEndpointProcessor resolves it per endpoint (off by default —
+        // atmosphere.ai.rag.reranker=llm opts in).
+        var retrieval = properties.getAi().getRag();
+        if (retrieval.getReranker() != null) {
+            framework.addInitParameter(RagRetrieval.RERANKER_KEY, retrieval.getReranker());
+        }
+        framework.addInitParameter(RagRetrieval.OVERFETCH_KEY,
+                String.valueOf(retrieval.getOverfetch()));
+        framework.addInitParameter(RagRetrieval.RERANKER_TIMEOUT_MS_KEY,
+                String.valueOf(retrieval.getRerankerTimeoutMs()));
         // Bridge the long-term-memory injection-safety policy (OWASP Agentic A03)
         // into framework init-params, then resolve + install it as the framework
         // default so LongTermMemoryInterceptor screens every extracted fact before
@@ -265,6 +277,41 @@ public class AtmosphereAiAutoConfiguration {
         // bridge only needs to seed the init-params above.
         logger.info("Memory injection-safety: enabled={}, tier={}, onBreach={}, failOpen={}",
                 mem.isEnabled(), mem.getTier(), mem.getOnBreach(), mem.isFailOpen());
+        // Bridge the OpenAI-compatible serving endpoint config into framework
+        // init-params so the annotation processors (AgentProcessor /
+        // AiEndpointProcessor) register the /atmosphere/v1/chat/completions
+        // handler for every agent pipeline they build. Off by default — the
+        // params are only bridged when the operator explicitly opts in
+        // (Correctness Invariant #6: no new inbound surface ships silently).
+        var openai = properties.getAi().getOpenai();
+        if (openai.isEnabled()) {
+            framework.addInitParameter(
+                    org.atmosphere.ai.openai.OpenAiServing.ENABLED_PARAM, "true");
+            if (openai.getDefaultAgent() != null && !openai.getDefaultAgent().isBlank()) {
+                framework.addInitParameter(
+                        org.atmosphere.ai.openai.OpenAiServing.DEFAULT_AGENT_PARAM,
+                        openai.getDefaultAgent());
+            }
+            if (openai.getApiKey() != null && !openai.getApiKey().isBlank()) {
+                framework.addInitParameter(
+                        org.atmosphere.ai.openai.OpenAiServing.API_KEY_PARAM,
+                        openai.getApiKey());
+            }
+            for (var mapping : openai.getModels().entrySet()) {
+                framework.addInitParameter(
+                        org.atmosphere.ai.openai.OpenAiServing.MODELS_PARAM_PREFIX
+                                + mapping.getKey(),
+                        mapping.getValue());
+            }
+            logger.info("OpenAI-compatible serving enabled at {} (models: {}, defaultAgent: {}, "
+                            + "endpoint api-key: {})",
+                    org.atmosphere.ai.openai.OpenAiServing.CHAT_COMPLETIONS_PATH,
+                    openai.getModels().isEmpty() ? "registered agent names"
+                            : openai.getModels().keySet(),
+                    openai.getDefaultAgent() != null ? openai.getDefaultAgent() : "none",
+                    openai.getApiKey() != null && !openai.getApiKey().isBlank()
+                            ? "configured" : "NOT configured");
+        }
         // Bridge the agent-as-artifact workspace location into a framework
         // init-param so AgentProcessor / CoordinatorProcessor load it and apply
         // its extension files. Unset by default — no workspace is loaded.

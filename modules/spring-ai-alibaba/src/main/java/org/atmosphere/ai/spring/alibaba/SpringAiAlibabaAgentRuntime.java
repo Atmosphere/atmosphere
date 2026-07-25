@@ -282,7 +282,9 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
                 UsageCapturingChatModel.endCapture();
             }
             modelScope.fail(gre);
-            session.error(gre);
+            // Classified through the shared taxonomy so retry, metrics, and
+            // routing see a typed failure; no-signal errors pass through.
+            session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(gre));
             throw new IllegalStateException("Spring AI Alibaba ReactAgent failed", gre);
         } catch (RuntimeException re) {
             // Mirror the checked-exception path for any unchecked failure

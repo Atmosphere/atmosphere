@@ -298,6 +298,15 @@ public class AgentProcessor implements Processor<Object> {
             }
             wireChannelBridge(agentName, commandRouter, instance, systemPrompt, pipeline,
                     channels, protocols);
+            // Opt-in OpenAI-compatible serving (atmosphere.ai.openai.enabled):
+            // expose the agent's governed pipeline as a chat-completions
+            // "model" named after the agent, dispatching through the exact
+            // same admission chain as the A2A / AG-UI / channel surfaces
+            // (Mode Parity #7). No-op while the endpoint is disabled.
+            if (org.atmosphere.ai.openai.OpenAiServingRegistrar.registerAgent(
+                    framework, agentName, pipeline, memory)) {
+                protocols.add("openai");
+            }
 
             // Step 12: Log summary
             logger.info("Agent '{}' registered at {} (class: {}, commands: {}, tools: {}, "
@@ -560,6 +569,14 @@ public class AgentProcessor implements Processor<Object> {
 
     private SkillFileParser parseSkillFile(Agent annotation) {
         var skillPath = annotation.skillFile();
+        if (org.atmosphere.ai.prompt.PromptResolver.isManaged(skillPath)) {
+            // prompt: prefix resolves a versioned, registry-managed prompt
+            // (rollout unit = the agent name); resolution fails closed on a
+            // missing version, integrity mismatch, or unresolved template
+            // variable — a managed prompt is an explicit deployment contract.
+            return SkillFileParser.parse(org.atmosphere.ai.prompt.PromptResolver
+                    .resolveSystemPrompt(skillPath, annotation.name()));
+        }
         if (skillPath != null && !skillPath.isEmpty()) {
             // skill: prefix loads from atmosphere-skills repo (classpath -> cache -> GitHub).
             // Raw form: keeps the YAML frontmatter so hints like scopeTier reach the

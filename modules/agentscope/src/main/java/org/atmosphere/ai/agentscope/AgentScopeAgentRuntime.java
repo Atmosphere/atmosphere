@@ -231,8 +231,10 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
                             // Boundary safety (Invariant #4): every terminal
                             // path must close the session. error() is
                             // idempotent on Atmosphere's StreamingSession.
+                            // Classified through the shared taxonomy so retry,
+                            // metrics, and routing see a typed failure.
                             modelScope.fail(error);
-                            session.error(error);
+                            session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(error));
                             done.completeExceptionally(error);
                         },
                         () -> {

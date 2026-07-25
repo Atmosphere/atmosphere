@@ -54,6 +54,7 @@ public final class EvalController {
     private final EvalDatasetStore datasetStore;
     private final JournalDatasetPromoter promoter;
     private final SampledLiveScorer liveScorer;
+    private final EvalRunner runner;
     private final ControlAuthorizer authorizer;
     private final ControlAuditLog auditLog;
 
@@ -64,17 +65,31 @@ public final class EvalController {
     }
 
     /**
-     * Full constructor wiring the eval-flywheel surfaces: the dataset store +
-     * {@link CoordinationJournal} back the trace→dataset promotion, the optional
-     * {@link SampledLiveScorer} backs online scoring of production traffic.
+     * Constructor wiring the eval-flywheel surfaces without a runner: the
+     * dataset store + {@link CoordinationJournal} back the trace→dataset
+     * promotion, the optional {@link SampledLiveScorer} backs online scoring
+     * of production traffic.
      */
     public EvalController(EvalRunStore store, EvalDatasetStore datasetStore,
                           CoordinationJournal journal, SampledLiveScorer liveScorer,
                           ControlAuthorizer authorizer, ControlAuditLog auditLog) {
+        this(store, datasetStore, journal, liveScorer, null, authorizer, auditLog);
+    }
+
+    /**
+     * Full constructor. The optional {@link EvalRunner} backs the
+     * dataset-replay surface ({@code POST /api/admin/evals/run}); when absent
+     * the surface reports itself unavailable via {@link #runnerEnabled()}.
+     */
+    public EvalController(EvalRunStore store, EvalDatasetStore datasetStore,
+                          CoordinationJournal journal, SampledLiveScorer liveScorer,
+                          EvalRunner runner, ControlAuthorizer authorizer,
+                          ControlAuditLog auditLog) {
         this.store = store != null ? store : new InMemoryEvalRunStore();
         this.datasetStore = datasetStore != null ? datasetStore : new InMemoryEvalDatasetStore();
         this.promoter = new JournalDatasetPromoter(journal != null ? journal : CoordinationJournal.NOOP);
         this.liveScorer = liveScorer;
+        this.runner = runner;
         this.authorizer = authorizer != null ? authorizer : ControlAuthorizer.DENY_ALL;
         this.auditLog = auditLog;
     }
@@ -213,6 +228,33 @@ public final class EvalController {
     /** Whether an online scorer is configured. */
     public boolean liveScoringEnabled() {
         return liveScorer != null;
+    }
+
+    /** Whether a dataset-replay runner is wired. */
+    public boolean runnerEnabled() {
+        return runner != null;
+    }
+
+    /**
+     * Start replaying the curated dataset against the live agent — the
+     * "run the evals" surface. Per-case rows and the aggregate land in the
+     * run store under the request's baseline, so progress is observable via
+     * {@link #listRuns(String)}. Mutating; requires {@code evals.write}.
+     *
+     * @throws IllegalStateException when no runner is wired, a run is already
+     *                               in progress, or the target runtime is
+     *                               unavailable
+     */
+    public EvalRunner.StartedRun startRun(EvalRunner.RunRequest request, String principal) {
+        requireWrite("run:" + request.baseline(), principal);
+        if (runner == null) {
+            throw new IllegalStateException("no eval runner is wired");
+        }
+        var started = runner.start(request);
+        audit("evals.write", started.runId(), principal,
+                "eval dataset run started (baseline=" + started.baseline()
+                        + " cases=" + started.totalCases() + ")");
+        return started;
     }
 
     private void requireWrite(String target, String principal) {

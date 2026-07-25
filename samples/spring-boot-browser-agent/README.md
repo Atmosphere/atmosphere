@@ -91,3 +91,8 @@ variables (default-deny; hardened defaults):
   `code_exec` tool and asks it to drive a browser via Playwright, saving screenshots
   to `/workspace/artifacts/`. The `code_exec` tool itself is registered automatically
   by the framework when code execution is enabled — it is not declared in `tools()`.
+- `src/main/resources/prompts/browser-agent/v1.md` — the system prompt itself,
+  managed by the versioned prompt registry (`systemPrompt = "prompt:browser-agent"`).
+  Add a `v2.md` and set `-Datmosphere.ai.prompt.rollout.browser-agent=v1:90,v2:10`
+  to A/B the prompt without touching code — see "Prompt Registry" in
+  `modules/ai/README.md`.

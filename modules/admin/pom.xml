@@ -61,6 +61,25 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- LLM-as-judge bridge (LlmJudgeLiveScorer → LlmJudge). Optional:
+             the eval runner's judge wiring only activates when the ai-test
+             module is on the classpath. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai-test</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Durable SQLite eval stores. Optional: operators opt in via
+             atmosphere.admin.evals.db; without the driver the stores fail
+             fast at construction. -->
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.53.2.0</version>
+            <optional>true</optional>
+        </dependency>
+
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-core</artifactId>

@@ -444,7 +444,9 @@ class EmbabelAgentRuntime : AgentRuntime {
             platform.runAgentFrom(agent, options, mapOf("userMessage" to context.message()))
         } catch (e: Exception) {
             logger.error("Agent execution failed", e)
-            session.error(e)
+            // Classified through the shared taxonomy so retry, metrics, and
+            // routing see a typed failure; no-signal errors pass through.
+            session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(e))
             return
         }
 
@@ -685,7 +687,7 @@ class EmbabelAgentRuntime : AgentRuntime {
                     .doOnError { t ->
                         logger.error("Embabel streaming dispatch failed", t)
                         if (!session.isClosed) {
-                            session.error(t)
+                            session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(t))
                         }
                     }
                     .doOnComplete {
@@ -704,7 +706,7 @@ class EmbabelAgentRuntime : AgentRuntime {
                 // above already wrote session.error; this catch covers
                 // pre-subscribe construction errors.
                 if (!session.hasErrored() && !session.isClosed) {
-                    session.error(t)
+                    session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(t))
                 }
                 return
             }
@@ -717,7 +719,7 @@ class EmbabelAgentRuntime : AgentRuntime {
             runner.generateText(currentMessage)
         } catch (t: Throwable) {
             logger.error("Embabel Ai dispatch failed", t)
-            session.error(t)
+            session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(t))
             return
         }
 

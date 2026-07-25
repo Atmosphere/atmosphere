@@ -67,6 +67,10 @@ export default defineConfig({
       testMatch: /spring-boot-ai-chat\.spec\.ts/,
     },
     {
+      name: 'openai-endpoint',
+      testMatch: /openai-endpoint\.spec\.ts/,
+    },
+    {
       name: 'quarkus-ai-chat',
       testMatch: /quarkus-ai-chat\.spec\.ts/,
     },

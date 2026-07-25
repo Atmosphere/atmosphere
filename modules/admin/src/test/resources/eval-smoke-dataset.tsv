@@ -1,0 +1,10 @@
+# Deterministic eval smoke dataset — replayed by EvalRunnerSmokeTest (the CI
+# gate for the admin eval runner). Format: id <TAB> prompt <TAB> reference.
+# The canned Built-in-runtime answers in the test are keyed off these prompts;
+# smoke-wrong is answered incorrectly on purpose so the aggregate exercises a
+# real failure (4/5 pass, threshold 0.75).
+smoke-capital-fr	What is the capital of France?	Paris
+smoke-capital-jp	What is the capital of Japan?	Tokyo
+smoke-sum	What is 2 plus 2?	4
+smoke-color	What color is the sky on a clear day?	blue
+smoke-wrong	What is the capital of Australia?	Canberra

@@ -92,6 +92,28 @@ public record RetryPolicy(
     }
 
     /**
+     * Typed retry decision for a classified failure. An
+     * {@link AiProviderException} is retried only when its
+     * {@link AiProviderException#errorType()} is in {@link #retryableErrors()}
+     * — a terminal 400/401/403 classification is never retried even when the
+     * budget remains. Any other {@link AiException} keeps the historical
+     * outer-wrapper behavior (retry while budget remains), so runtimes whose
+     * failures cannot be classified are no worse off than before the
+     * taxonomy. Consulted by {@code AbstractAgentRuntime}'s outer retry
+     * wrapper so classified retryability applies uniformly across framework
+     * runtimes, not just the direct-HTTP clients.
+     */
+    public boolean shouldRetry(AiException error, int attemptsSoFar) {
+        if (attemptsSoFar >= maxRetries) {
+            return false;
+        }
+        if (error instanceof AiProviderException classified) {
+            return retryableErrors.contains(classified.errorType());
+        }
+        return true;
+    }
+
+    /**
      * @return {@code true} when this instance is the {@link #DEFAULT}
      * inheritance sentinel. Dispatch sites use this to decide whether a
      * per-request override is in effect: when the answer is {@code true}

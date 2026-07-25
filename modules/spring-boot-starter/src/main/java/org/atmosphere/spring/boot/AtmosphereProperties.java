@@ -418,12 +418,22 @@ public class AtmosphereProperties {
 
         private ResumeProperties resume = new ResumeProperties();
 
+        private OpenaiServingProperties openai = new OpenaiServingProperties();
+
         public boolean isEnabled() {
             return enabled;
         }
 
         public void setEnabled(boolean enabled) {
             this.enabled = enabled;
+        }
+
+        public OpenaiServingProperties getOpenai() {
+            return openai;
+        }
+
+        public void setOpenai(OpenaiServingProperties openai) {
+            this.openai = openai;
         }
 
         public HarnessProperties getHarness() {
@@ -580,12 +590,98 @@ public class AtmosphereProperties {
     }
 
     /**
-     * RAG configuration group, bound to {@code atmosphere.ai.rag.*}. Currently
-     * carries the injection-safety screen ({@code atmosphere.ai.rag.safety.*}).
+     * OpenAI-compatible serving endpoint, bound to {@code atmosphere.ai.openai.*}.
+     * <strong>Off by default</strong> — enabling it registers
+     * {@code POST /atmosphere/v1/chat/completions} (and
+     * {@code GET /atmosphere/v1/models}) so OpenAI-wire clients (Open WebUI,
+     * LibreChat, the OpenAI SDKs) can call registered {@code @Agent} /
+     * {@code @AiEndpoint} pipelines as drop-in models. Requests dispatch
+     * through the same {@code AiPipeline} admission chain as channel / A2A /
+     * AG-UI traffic, so governance and guardrails apply unchanged.
+     */
+    public static class OpenaiServingProperties {
+
+        private boolean enabled;
+
+        /**
+         * Inbound {@code model} name → registered agent / endpoint name.
+         * When non-empty, only mapped names (plus {@link #defaultAgent}) are
+         * served; when empty, the {@code model} field must exactly match a
+         * registered agent name.
+         */
+        private java.util.Map<String, String> models = new java.util.LinkedHashMap<>();
+
+        /** Agent served when the request's model is blank or unmapped. */
+        private String defaultAgent;
+
+        /**
+         * Optional static bearer key: when set, requests must carry
+         * {@code Authorization: Bearer <key>}. When unset, the endpoint does
+         * no authentication of its own (a startup warning is logged) and
+         * relies on framework-level interceptors such as the
+         * {@code AuthInterceptor}.
+         */
+        private String apiKey;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public java.util.Map<String, String> getModels() {
+            return models;
+        }
+
+        public void setModels(java.util.Map<String, String> models) {
+            this.models = models;
+        }
+
+        public String getDefaultAgent() {
+            return defaultAgent;
+        }
+
+        public void setDefaultAgent(String defaultAgent) {
+            this.defaultAgent = defaultAgent;
+        }
+
+        public String getApiKey() {
+            return apiKey;
+        }
+
+        public void setApiKey(String apiKey) {
+            this.apiKey = apiKey;
+        }
+    }
+
+    /**
+     * RAG configuration group, bound to {@code atmosphere.ai.rag.*}. Carries
+     * the injection-safety screen ({@code atmosphere.ai.rag.safety.*}) and the
+     * over-fetch + rerank retrieval policy ({@code atmosphere.ai.rag.reranker}).
      */
     public static class Rag {
 
         private Safety safety = new Safety();
+
+        /**
+         * Retrieval reranker: {@code none} (default) or {@code llm}. With
+         * {@code llm}, each provider over-fetches {@code k * overfetch}
+         * candidates and a single batched completion on the endpoint's
+         * resolved runtime scores them back down to top-k. Fails open to the
+         * retriever order on any error, timeout, or malformed model output.
+         */
+        private String reranker = "none";
+
+        /**
+         * Over-fetch multiplier applied while a reranker is active (clamped
+         * to 1..10). No effect when {@code reranker=none}.
+         */
+        private int overfetch = 3;
+
+        /** Rerank completion bound in milliseconds (fail-open on expiry). */
+        private long rerankerTimeoutMs = 10_000;
 
         public Safety getSafety() {
             return safety;
@@ -593,6 +689,30 @@ public class AtmosphereProperties {
 
         public void setSafety(Safety safety) {
             this.safety = safety;
+        }
+
+        public String getReranker() {
+            return reranker;
+        }
+
+        public void setReranker(String reranker) {
+            this.reranker = reranker;
+        }
+
+        public int getOverfetch() {
+            return overfetch;
+        }
+
+        public void setOverfetch(int overfetch) {
+            this.overfetch = overfetch;
+        }
+
+        public long getRerankerTimeoutMs() {
+            return rerankerTimeoutMs;
+        }
+
+        public void setRerankerTimeoutMs(long rerankerTimeoutMs) {
+            this.rerankerTimeoutMs = rerankerTimeoutMs;
         }
 
         /**

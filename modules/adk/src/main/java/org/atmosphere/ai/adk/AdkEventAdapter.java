@@ -282,7 +282,11 @@ public final class AdkEventAdapter {
         // when bridge() was called without listeners.
         modelScope.fail(t);
         if (completed.compareAndSet(false, true) && !session.isClosed()) {
-            session.error(t);
+            // Classify the raw ADK/Gemini exception (429/auth/context-length
+            // signals) into the shared AiProviderException taxonomy so retry,
+            // metrics, and routing see a typed failure; no-signal errors pass
+            // through unchanged.
+            session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(t));
         }
         // completeExceptionally so whenDone().get() surfaces the real error
         // to upstream listener chains. complete(null) here silently masked

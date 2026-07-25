@@ -28,9 +28,10 @@ import java.util.concurrent.atomic.AtomicReference;
  * <p>Defaults to {@link TokenPricing#ZERO}: with no rate sheet installed no
  * dollar figure is ever fabricated, and the cost meter stays empty — dollars
  * are advertised only when a real {@code TokenPricing} is configured
- * (Runtime Truth, Correctness Invariant #5). The Spring starters install the
- * application's {@code TokenPricing} bean here alongside the cost-ceiling
- * accountant; a bare deployment calls {@link #install} directly.</p>
+ * (Runtime Truth, Correctness Invariant #5). The host starters (Spring Boot,
+ * Quarkus) install the application's {@code TokenPricing} bean here alongside
+ * the cost-ceiling accountant; a bare deployment calls {@link #install}
+ * directly.</p>
  *
  * <p>Same holder idiom as {@link CostAccountantHolder}: the metrics decorator
  * is constructed on every dispatch across all entry modes, so a process-wide

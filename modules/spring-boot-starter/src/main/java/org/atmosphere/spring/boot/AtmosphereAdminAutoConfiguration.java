@@ -674,28 +674,59 @@ public class AtmosphereAdminAutoConfiguration {
         }
 
         /**
+         * Eval run store: durable SQLite when {@code atmosphere.admin.evals.db}
+         * points at a database file, bounded in-memory otherwise (500 runs per
+         * baseline, oldest evicted). A user-defined
+         * {@link org.atmosphere.admin.evals.EvalRunStore} bean still wins.
+         * Fail-fast: a configured path with no SQLite driver aborts startup
+         * rather than silently falling back to in-memory.
+         */
+        @Bean
+        @ConditionalOnMissingBean(org.atmosphere.admin.evals.EvalRunStore.class)
+        org.atmosphere.admin.evals.EvalRunStore atmosphereAdminEvalRunStore(
+                org.springframework.core.env.Environment env) {
+            var db = env.getProperty("atmosphere.admin.evals.db", "");
+            if (!db.isBlank()) {
+                return new org.atmosphere.admin.evals.SqliteEvalRunStore(java.nio.file.Path.of(db));
+            }
+            return new org.atmosphere.admin.evals.InMemoryEvalRunStore();
+        }
+
+        /**
+         * Eval dataset store: same selection rule as
+         * {@link #atmosphereAdminEvalRunStore} — SQLite (sharing the
+         * {@code atmosphere.admin.evals.db} file) when configured, bounded
+         * in-memory otherwise.
+         */
+        @Bean
+        @ConditionalOnMissingBean(org.atmosphere.admin.evals.EvalDatasetStore.class)
+        org.atmosphere.admin.evals.EvalDatasetStore atmosphereAdminEvalDatasetStore(
+                org.springframework.core.env.Environment env) {
+            var db = env.getProperty("atmosphere.admin.evals.db", "");
+            if (!db.isBlank()) {
+                return new org.atmosphere.admin.evals.SqliteEvalDatasetStore(java.nio.file.Path.of(db));
+            }
+            return new org.atmosphere.admin.evals.InMemoryEvalDatasetStore();
+        }
+
+        /**
          * Wires the eval-dashboard controller backing the
-         * {@code /api/admin/evals/*} endpoints. Uses a bounded in-memory
-         * store by default (500 runs per baseline, oldest evicted);
-         * production deployments override with a JDBC-backed
-         * {@link org.atmosphere.admin.evals.EvalRunStore} bean for
-         * durable history across replicas.
+         * {@code /api/admin/evals/*} endpoints over the store beans above.
+         * The dataset runner ({@code POST /api/admin/evals/run}) is picked up
+         * when {@link EvalRunnerConfiguration} is active; without it the route
+         * reports 503.
          */
         @Bean
         org.atmosphere.admin.evals.EvalController atmosphereAdminEvalController(
                 AtmosphereAdmin admin,
-                org.springframework.beans.factory.ObjectProvider<
-                        org.atmosphere.admin.evals.EvalRunStore> storeProvider,
-                org.springframework.beans.factory.ObjectProvider<
-                        org.atmosphere.admin.evals.EvalDatasetStore> datasetStoreProvider,
+                org.atmosphere.admin.evals.EvalRunStore store,
+                org.atmosphere.admin.evals.EvalDatasetStore datasetStore,
                 org.springframework.beans.factory.ObjectProvider<
                         org.atmosphere.coordinator.journal.CoordinationJournal> journalProvider,
                 org.springframework.beans.factory.ObjectProvider<
-                        org.atmosphere.admin.evals.SampledLiveScorer> liveScorerProvider) {
-            var store = storeProvider.getIfAvailable(
-                    org.atmosphere.admin.evals.InMemoryEvalRunStore::new);
-            var datasetStore = datasetStoreProvider.getIfAvailable(
-                    org.atmosphere.admin.evals.InMemoryEvalDatasetStore::new);
+                        org.atmosphere.admin.evals.SampledLiveScorer> liveScorerProvider,
+                org.springframework.beans.factory.ObjectProvider<
+                        org.atmosphere.admin.evals.EvalRunner> runnerProvider) {
             // Journaling is opt-in (NOOP by default) — promotion is reachable
             // but returns empty until an app registers a CoordinationJournal.
             var journal = journalProvider.getIfAvailable(
@@ -703,12 +734,14 @@ public class AtmosphereAdminAutoConfiguration {
             // Online scoring is opt-in — an app supplies a SampledLiveScorer bean
             // (with its own LiveScorer judge) to enable it.
             var liveScorer = liveScorerProvider.getIfAvailable();
+            var runner = runnerProvider.getIfAvailable();
             var controller = new org.atmosphere.admin.evals.EvalController(
-                    store, datasetStore, journal, liveScorer, admin.authorizer(), admin.auditLog());
+                    store, datasetStore, journal, liveScorer, runner,
+                    admin.authorizer(), admin.auditLog());
             admin.setEvalController(controller);
             logger.debug("Atmosphere Admin: Eval controller wired (store={}, dataset={}, "
-                            + "liveScoring={})",
-                    store.name(), datasetStore.name(), liveScorer != null);
+                            + "liveScoring={}, runner={})",
+                    store.name(), datasetStore.name(), liveScorer != null, runner != null);
             return controller;
         }
 
@@ -735,6 +768,53 @@ public class AtmosphereAdminAutoConfiguration {
             logger.warn("Atmosphere dev inspector ENABLED (capacity={}) — records prompt/response "
                     + "content; dev-only, do not enable in production.", capacity);
             return controller;
+        }
+    }
+
+    /**
+     * Wires the eval dataset runner behind {@code POST /api/admin/evals/run}.
+     * Requires the AI runtime SPI (target + judge execution) and
+     * {@code atmosphere-ai-test} (the {@code LlmJudge} the shipped
+     * {@link org.atmosphere.admin.evals.LlmJudgeLiveScorer} bridges to); when
+     * either is absent the bean stays out and the route reports 503 —
+     * advertised state matches wired state.
+     *
+     * <p>Tunables ({@code atmosphere.admin.evals.runner.*}): {@code judge-model}
+     * (default: the active runtime's default model), {@code pass-threshold}
+     * (aggregate + rubric bar, default 0.7), {@code case-timeout-ms} (default
+     * 30s), {@code max-concurrency} (virtual-thread bound, default 4).</p>
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = {"org.atmosphere.coordinator.fleet.AgentFleet",
+            "org.atmosphere.ai.AgentRuntimeResolver", "org.atmosphere.ai.test.LlmJudge"})
+    static class EvalRunnerConfiguration {
+
+        @Bean
+        org.atmosphere.admin.evals.EvalRunner atmosphereAdminEvalRunner(
+                org.atmosphere.admin.evals.EvalDatasetStore datasetStore,
+                org.atmosphere.admin.evals.EvalRunStore runStore,
+                org.springframework.core.env.Environment env) {
+            var defaultJudgeModel = env.getProperty("atmosphere.admin.evals.runner.judge-model", "");
+            var threshold = env.getProperty(
+                    "atmosphere.admin.evals.runner.pass-threshold", Double.class, 0.7);
+            var timeoutMs = env.getProperty(
+                    "atmosphere.admin.evals.runner.case-timeout-ms", Long.class, 30_000L);
+            var concurrency = env.getProperty(
+                    "atmosphere.admin.evals.runner.max-concurrency", Integer.class, 4);
+            java.util.function.Function<String, org.atmosphere.admin.evals.EvalRunner.CaseScorer>
+                    scorerFactory = judgeModel -> {
+                        var model = judgeModel == null || judgeModel.isBlank()
+                                ? defaultJudgeModel : judgeModel;
+                        var judge = new org.atmosphere.ai.test.LlmJudge(
+                                org.atmosphere.ai.AgentRuntimeResolver.resolve(), model);
+                        return new org.atmosphere.admin.evals.LlmJudgeLiveScorer(judge, threshold);
+                    };
+            logger.debug("Atmosphere Admin: Eval runner wired (concurrency={}, caseTimeoutMs={}, "
+                    + "passThreshold={})", concurrency, timeoutMs, threshold);
+            return new org.atmosphere.admin.evals.EvalRunner(
+                    org.atmosphere.ai.AgentRuntimeResolver::resolve, scorerFactory,
+                    datasetStore, runStore, concurrency,
+                    java.time.Duration.ofMillis(timeoutMs), threshold);
         }
     }
 }

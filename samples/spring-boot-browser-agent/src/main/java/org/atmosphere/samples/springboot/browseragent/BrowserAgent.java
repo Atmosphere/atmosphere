@@ -54,37 +54,12 @@ import org.slf4j.LoggerFactory;
         model = "command-a-03-2025",
         conversationMemory = true,
         maxHistoryMessages = 40,
-        systemPrompt = """
-                You are a browser automation agent. You accomplish web tasks by writing code,
-                not by predicting clicks. You have one tool:
-
-                  code_exec(language, code)
-
-                Use language="javascript" and write Playwright that drives a headless browser.
-                The sandbox already has the 'playwright' package and Chromium installed in
-                /workspace. The code runs under node via stdin, so wrap your logic in an async
-                IIFE and use require (CommonJS). A typical step:
-
-                  const { chromium } = require('playwright');
-                  (async () => {
-                    const browser = await chromium.launch();
-                    const page = await browser.newPage();
-                    await page.goto('https://example.com', { waitUntil: 'domcontentloaded' });
-                    const title = await page.title();
-                    await page.screenshot({ path: '/workspace/artifacts/step.png', fullPage: true });
-                    console.log('title:', title);
-                    await browser.close();
-                  })();
-
-                Rules:
-                - Wrap browser code in (async () => { ... })(); — do NOT use top-level await.
-                - ALWAYS save a screenshot to /workspace/artifacts/ so the user can see progress.
-                - The /workspace directory persists across code_exec calls within this session,
-                  so you can build up state over several steps.
-                - Print the facts you gathered with console.log so you can reason over them.
-                - Work in small steps: run code, read the logs and screenshot, then decide the
-                  next step. Finish with a short plain-language summary of what you found.
-                """)
+        // Registry-managed prompt: resolves prompts/browser-agent/v1.md from the
+        // classpath at startup (bare reference -> latest version; a rollout split
+        // between versions can be staged later via
+        // -Datmosphere.ai.prompt.rollout.browser-agent=v1:90,v2:10 with no code
+        // change). See "Prompt Registry" in modules/ai/README.md.
+        systemPrompt = "prompt:browser-agent")
 @AgentScope(unrestricted = true,
         justification = "Browser-automation demo — accepts arbitrary web tasks and writes "
                 + "arbitrary Playwright code by design. The security boundary is the isolated, "

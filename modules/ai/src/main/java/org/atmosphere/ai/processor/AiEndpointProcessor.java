@@ -32,6 +32,7 @@ import org.atmosphere.ai.ModelRouter;
 import org.atmosphere.ai.ModelTier;
 import org.atmosphere.ai.PersistentConversationMemory;
 import org.atmosphere.ai.PromptLoader;
+import org.atmosphere.ai.RagRetrieval;
 import org.atmosphere.ai.RoutingAiSupport;
 import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
@@ -244,6 +245,11 @@ public class AiEndpointProcessor implements Processor<Object> {
                     policies = List.copyOf(extended);
                 }
             }
+            // Snapshot the raw guardrail list before the policy merge below —
+            // the OpenAI serving pipeline takes guardrails and policies as
+            // separate constructor arguments, and passing the merged list
+            // would evaluate every policy twice on that path.
+            var endpointGuardrails = guardrails;
             if (!policies.isEmpty()) {
                 var merged = new ArrayList<AiGuardrail>(guardrails.size() + policies.size());
                 merged.addAll(guardrails);
@@ -298,6 +304,22 @@ public class AiEndpointProcessor implements Processor<Object> {
                     runtime, interceptors, memory, lifecycle,
                     toolRegistry, guardrails, contextProviders, metrics,
                     broadcastFilters, endpointModel, injectables);
+
+            // RAG over-fetch + rerank: resolved once per endpoint from the
+            // org.atmosphere.ai.rag.* init-params (mirrors CompactionConfig).
+            // Gated on a declared ContextProvider — no RAG surface, no
+            // reranker (Runtime Truth, Invariant #5). The LlmReranker scores
+            // through this endpoint's resolved runtime, not a re-resolve.
+            if (!contextProviders.isEmpty()) {
+                var ragRetrieval = RagRetrieval.resolve(
+                        framework.getAtmosphereConfig(), () -> runtime);
+                if (ragRetrieval.rerankerActive()) {
+                    handler.setRagRetrieval(ragRetrieval);
+                    logger.info("AI endpoint {} — LLM reranker active: over-fetch x{} "
+                                    + "then rerank down to top-{}", annotation.path(),
+                            ragRetrieval.overfetch(), RagRetrieval.DEFAULT_TOP_K);
+                }
+            }
 
             // Endpoint-scoped prompt cache policy: the annotation wins, then
             // the org.atmosphere.ai.prompt-cache.default init-param, then the
@@ -364,6 +386,17 @@ public class AiEndpointProcessor implements Processor<Object> {
             var registeredHandler = applyDecorators(handler, instance, framework, annotation.path());
             framework.addAtmosphereHandler(annotation.path(), registeredHandler, frameworkInterceptors);
 
+            // Opt-in OpenAI-compatible serving (atmosphere.ai.openai.enabled):
+            // expose this endpoint as a chat-completions "model" through a
+            // dedicated AiPipeline built from the exact same pieces as the
+            // handler above, so governance, guardrails, memory, tools, and
+            // metrics behave identically on both surfaces (Mode Parity #7).
+            registerOpenAiServing(framework, annotation.path(), runtime, systemPrompt,
+                    endpointModel != null ? endpointModel
+                            : (settings != null ? settings.model() : null),
+                    memory, toolRegistry, endpointGuardrails, policies, contextProviders,
+                    metrics, responseType, injectables, cachePolicy);
+
             logger.info("AI endpoint registered at {} (class: {}, runtime: {}, interceptors: {}, "
                             + "memory: {}, tools: {}, guardrails: {}, contextProviders: {}, "
                             + "filters: {}, fallback: {}, timeout: {}ms, "
@@ -382,6 +415,54 @@ public class AiEndpointProcessor implements Processor<Object> {
         } catch (Exception e) {
             logger.error("Failed to register AI endpoint from {}", annotatedClass.getName(), e);
         }
+    }
+
+    /**
+     * Register this endpoint with the opt-in OpenAI-compatible serving surface
+     * ({@code atmosphere.ai.openai.enabled}, off by default). The serving name
+     * is the endpoint path's last segment (e.g. {@code /atmosphere/ai-chat}
+     * serves as model {@code ai-chat}); operators alias or restrict names via
+     * the {@code atmosphere.ai.openai.models.*} mapping. No-op when serving is
+     * disabled — the pipeline is not even built.
+     */
+    private void registerOpenAiServing(AtmosphereFramework framework, String path,
+            AgentRuntime runtime, String systemPrompt, String model,
+            AiConversationMemory memory, ToolRegistry toolRegistry,
+            List<AiGuardrail> guardrails, List<GovernancePolicy> policies,
+            List<ContextProvider> contextProviders, AiMetrics metrics,
+            Class<?> responseType, java.util.Map<Class<?>, Object> injectables,
+            org.atmosphere.ai.llm.CacheHint.CachePolicy cachePolicy) {
+        if (!org.atmosphere.ai.openai.OpenAiServingRegistrar.enabled(framework)) {
+            return;
+        }
+        var name = openAiServingName(path);
+        var pipeline = new org.atmosphere.ai.AiPipeline(runtime, systemPrompt, model, memory,
+                toolRegistry, guardrails, policies, contextProviders, metrics, responseType);
+        if (cachePolicy != null
+                && cachePolicy != org.atmosphere.ai.llm.CacheHint.CachePolicy.NONE) {
+            pipeline.setDefaultCachePolicy(cachePolicy);
+        }
+        if (injectables != null && !injectables.isEmpty()) {
+            pipeline.setToolInjectables(injectables);
+        }
+        if (org.atmosphere.ai.openai.OpenAiServingRegistrar.registerAgent(
+                framework, name, pipeline, memory)) {
+            logger.info("@AiEndpoint {} exposed as OpenAI-compatible model '{}'", path, name);
+        }
+    }
+
+    /** Derive the serving name from an endpoint path: its last non-blank segment. */
+    static String openAiServingName(String path) {
+        if (path == null || path.isBlank()) {
+            return "default";
+        }
+        var trimmed = path.strip();
+        while (trimmed.endsWith("/")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+        var slash = trimmed.lastIndexOf('/');
+        var segment = slash >= 0 ? trimmed.substring(slash + 1) : trimmed;
+        return segment.isBlank() ? trimmed : segment;
     }
 
     /**
@@ -447,13 +528,25 @@ public class AiEndpointProcessor implements Processor<Object> {
 
     /**
      * Resolves the system prompt: resource file takes precedence over inline string.
+     * Either value may be a {@code prompt:name[@version]} reference, which resolves
+     * through the versioned {@link org.atmosphere.ai.prompt.PromptRegistry}
+     * (rollout unit = the endpoint path); plain literals pass through unchanged.
      */
     private String resolveSystemPrompt(AiEndpoint annotation) {
         var resource = annotation.systemPromptResource();
         if (resource != null && !resource.isEmpty()) {
+            if (org.atmosphere.ai.prompt.PromptResolver.isManaged(resource)) {
+                return org.atmosphere.ai.prompt.PromptResolver
+                        .resolveSystemPrompt(resource, annotation.path());
+            }
             return PromptLoader.resolve(resource);
         }
-        return annotation.systemPrompt();
+        var inline = annotation.systemPrompt();
+        if (org.atmosphere.ai.prompt.PromptResolver.isManaged(inline)) {
+            return org.atmosphere.ai.prompt.PromptResolver
+                    .resolveSystemPrompt(inline, annotation.path());
+        }
+        return inline;
     }
 
     private void validatePromptSignature(Method method) {

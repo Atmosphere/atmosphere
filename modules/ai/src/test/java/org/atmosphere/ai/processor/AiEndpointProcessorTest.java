@@ -19,6 +19,7 @@ import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.ContextProvider;
 import org.atmosphere.ai.PromptLoader;
+import org.atmosphere.ai.RagRetrieval;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
@@ -505,6 +506,70 @@ public class AiEndpointProcessorTest {
         assertEquals(1, handler.contextProviders().size());
         assertFalse(handler.contextProviders().get(0) instanceof SafetyContextProvider,
                 "with the screen disabled, the declared provider must pass through unwrapped");
+    }
+
+    @Test
+    public void testRerankerConfigWiresRagRetrievalIntoHandler() throws Exception {
+        // org.atmosphere.ai.rag.reranker=llm → the handler carries an active
+        // over-fetch + rerank policy for its sessions.
+        var cfg = mock(AtmosphereConfig.class);
+        when(cfg.getInitParameter(RagRetrieval.RERANKER_KEY)).thenReturn("llm");
+        when(cfg.getInitParameter(anyString(), anyInt()))
+                .thenAnswer(inv -> inv.getArgument(1));
+        when(framework.getAtmosphereConfig()).thenReturn(cfg);
+        when(framework.newClassInstance(eq(Object.class), any()))
+                .thenReturn(new RagSafetyEndpoint());
+        when(framework.newClassInstance(eq(ContextProvider.class), eq(PoisonProvider.class)))
+                .thenReturn(new PoisonProvider());
+
+        processor.handle(framework, (Class) RagSafetyEndpoint.class);
+
+        var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
+        verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
+        var handler = (AiEndpointHandler) handlerCaptor.getValue();
+
+        assertNotNull(handler.ragRetrieval(), "reranker config must reach the handler");
+        assertTrue(handler.ragRetrieval().rerankerActive());
+        assertEquals(RagRetrieval.DEFAULT_OVERFETCH, handler.ragRetrieval().overfetch());
+    }
+
+    @Test
+    public void testNoRerankerConfigLeavesHandlerOnLegacyRetrieval() throws Exception {
+        // Default posture: no reranker, no over-fetch — sessions keep the
+        // legacy fetch-k retrieval.
+        when(framework.newClassInstance(eq(Object.class), any()))
+                .thenReturn(new RagSafetyEndpoint());
+        when(framework.newClassInstance(eq(ContextProvider.class), eq(PoisonProvider.class)))
+                .thenReturn(new PoisonProvider());
+
+        processor.handle(framework, (Class) RagSafetyEndpoint.class);
+
+        var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
+        verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
+        var handler = (AiEndpointHandler) handlerCaptor.getValue();
+
+        assertNull(handler.ragRetrieval());
+    }
+
+    @Test
+    public void testRerankerNotWiredWithoutContextProviders() throws Exception {
+        // Runtime truth: an endpoint with no RAG surface gets no reranker even
+        // when the config asks for one.
+        var cfg = mock(AtmosphereConfig.class);
+        when(cfg.getInitParameter(RagRetrieval.RERANKER_KEY)).thenReturn("llm");
+        when(cfg.getInitParameter(anyString(), anyInt()))
+                .thenAnswer(inv -> inv.getArgument(1));
+        when(framework.getAtmosphereConfig()).thenReturn(cfg);
+        when(framework.newClassInstance(eq(Object.class), any()))
+                .thenReturn(new ValidEndpoint());
+
+        processor.handle(framework, (Class) ValidEndpoint.class);
+
+        var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
+        verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
+        var handler = (AiEndpointHandler) handlerCaptor.getValue();
+
+        assertNull(handler.ragRetrieval());
     }
 
     // ---- Test fixture classes ----

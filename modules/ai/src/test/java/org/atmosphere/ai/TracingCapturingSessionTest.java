@@ -143,11 +143,23 @@ public class TracingCapturingSessionTest {
     @Test
     public void testErrorClassifiesServerError() {
         var session = new TracingCapturingSession(delegate, metrics, "gpt-4");
-        var error = new RuntimeException("HTTP 503 service unavailable");
+        var error = new RuntimeException("HTTP 500 internal server error");
 
         session.error(error);
 
         verify(metrics).recordError("gpt-4", "server_error");
+    }
+
+    @Test
+    public void testErrorClassifiesUnavailable() {
+        // 502/503 report "unavailable" — the same label the retry vocabulary
+        // uses for those statuses (metrics + retry agree).
+        var session = new TracingCapturingSession(delegate, metrics, "gpt-4");
+        var error = new RuntimeException("HTTP 503 service unavailable");
+
+        session.error(error);
+
+        verify(metrics).recordError("gpt-4", "unavailable");
     }
 
     @Test

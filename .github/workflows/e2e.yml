@@ -79,7 +79,7 @@ jobs:
           - name: core-transports
             projects: "quarkus-chat,sse-transport,long-polling-transport,transport-fallback,reconnection"
           - name: ai-chat-core
-            projects: "ai-chat,ai-streaming-dom,ai-chat-features"
+            projects: "ai-chat,ai-streaming-dom,ai-chat-features,openai-endpoint"
           - name: ai-chat-memory
             projects: "ai-memory,ai-memory-strategies"
           - name: ai-ux-events

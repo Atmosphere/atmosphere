@@ -132,20 +132,8 @@ public class TracingCapturingSession extends DelegatingStreamingSession {
     }
 
     private static String classifyError(Throwable t) {
-        var msg = t.getMessage();
-        if (msg == null) {
-            return "unknown";
-        }
-        var lower = msg.toLowerCase();
-        if (lower.contains("timeout")) {
-            return "timeout";
-        }
-        if (lower.contains("429") || lower.contains("rate")) {
-            return "rate_limit";
-        }
-        if (lower.contains("500") || lower.contains("502") || lower.contains("503")) {
-            return "server_error";
-        }
-        return "unknown";
+        // Same delegation as MetricsCapturingSession.classifyError — one
+        // classifier feeds metrics, retry, and routing (Mode Parity).
+        return ProviderErrorClassifier.errorType(t);
     }
 }

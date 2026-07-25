@@ -130,6 +130,14 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- LlmJudge behind the admin eval runner's judge scorer. Optional:
+             EvalRunnerConfiguration only activates when it is present. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai-test</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Governance decision-log audit sinks. Optional: the JDBC/Postgres
              and Kafka auto-configurations only activate when the matching module
              is present AND a connection target is configured (default OFF). -->

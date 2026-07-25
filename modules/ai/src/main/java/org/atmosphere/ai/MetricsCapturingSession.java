@@ -241,20 +241,10 @@ class MetricsCapturingSession extends DelegatingStreamingSession {
     }
 
     private static String classifyError(Throwable t) {
-        var msg = t.getMessage();
-        if (msg == null) {
-            return "unknown";
-        }
-        var lower = msg.toLowerCase();
-        if (lower.contains("timeout")) {
-            return "timeout";
-        }
-        if (lower.contains("429") || lower.contains("rate")) {
-            return "rate_limit";
-        }
-        if (lower.contains("500") || lower.contains("502") || lower.contains("503")) {
-            return "server_error";
-        }
-        return "unknown";
+        // Delegate to the shared taxonomy classifier so the metric labels and
+        // the retry/routing classification always agree: a typed
+        // AiProviderException reports its errorType; raw exceptions go
+        // through the same message heuristics the adapters use.
+        return ProviderErrorClassifier.errorType(t);
     }
 }

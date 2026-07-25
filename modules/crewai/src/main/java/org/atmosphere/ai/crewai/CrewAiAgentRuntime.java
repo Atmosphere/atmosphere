@@ -280,7 +280,10 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
         try {
             sidecarSession = client.startSession(request);
         } catch (RuntimeException e) {
-            session.error(e);
+            // Classified through the shared taxonomy (timeout / unavailable
+            // signals from the sidecar HTTP client) so retry, metrics, and
+            // routing see a typed failure; no-signal errors pass through.
+            session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(e));
             return;
         }
         if (sessionIdSink != null && sidecarSession.sessionId() != null) {
@@ -307,7 +310,11 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
                     terminal = true;
                     break;
                 } else if (event instanceof CrewAiSidecarClient.SidecarEvent.Error err) {
-                    session.error(new CrewAiSidecarException(err.message()));
+                    // The sidecar relays the underlying provider's message —
+                    // classify it (429/auth/context-length signals) so a
+                    // relayed rate limit is typed just like a direct one.
+                    session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(
+                            new CrewAiSidecarException(err.message())));
                     terminal = true;
                     break;
                 }
@@ -323,7 +330,7 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
             // Catch-all to guarantee the session reaches a terminal state
             // even when the iterator or session close throws.
             if (!session.isClosed()) {
-                session.error(e);
+                session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(e));
             }
         }
     }

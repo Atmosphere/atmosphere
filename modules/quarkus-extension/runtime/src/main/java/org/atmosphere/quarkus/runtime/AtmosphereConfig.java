@@ -248,6 +248,66 @@ public interface AtmosphereConfig {
         Governance governance();
 
         /**
+         * Guardrail configuration block.
+         *
+         * @return the guardrails sub-configuration block
+         */
+        Guardrails guardrails();
+
+        /**
+         * Guardrail sub-configuration, bound to
+         * {@code quarkus.atmosphere.ai.guardrails.*}. Mirrors the Spring Boot
+         * starter's {@code atmosphere.ai.guardrails.*} keys; currently carries
+         * the per-tenant cost ceiling.
+         */
+        interface Guardrails {
+
+            /**
+             * Per-tenant cost-ceiling configuration.
+             *
+             * @return the cost sub-configuration block
+             */
+            Cost cost();
+
+            /**
+             * Opt-in per-tenant cost ceiling, bound to
+             * {@code quarkus.atmosphere.ai.guardrails.cost.*}. Off by default.
+             * When {@code enabled}, {@code AtmosphereCostAccountantProducer}
+             * constructs a {@code CostCeilingGuardrail} with {@code budget-usd}
+             * and bridges it into the framework guardrail chain; when a
+             * {@code TokenPricing} CDI bean is also present, the built-in
+             * {@code CostCeilingAccountant} is installed so per-turn
+             * {@code TokenUsage} accrues dollar spend against the ceiling —
+             * the same observability-to-enforcement loop the Spring Boot
+             * starter wires from {@code atmosphere.ai.guardrails.cost.*}.
+             */
+            interface Cost {
+
+                /**
+                 * Master switch. Defaults to {@code false}; set {@code true}
+                 * to construct the built-in {@code CostCeilingGuardrail}. A
+                 * user-supplied {@code CostCeilingGuardrail} CDI bean always
+                 * wins over this key.
+                 *
+                 * @return {@code true} if the built-in cost ceiling is enabled
+                 */
+                @WithDefault("false")
+                boolean enabled();
+
+                /**
+                 * Per-tenant ceiling in USD. {@code 0} (the default) keeps
+                 * the guardrail observational — spend accrues but nothing
+                 * blocks — mirroring the Spring Boot starter's
+                 * {@code atmosphere.ai.guardrails.cost.budget-usd} default.
+                 *
+                 * @return the per-tenant budget in USD
+                 */
+                @WithDefault("0.0")
+                double budgetUsd();
+            }
+        }
+
+        /**
          * Long-term-memory sub-configuration. Currently carries the
          * injection-safety screen for the memory write path.
          */

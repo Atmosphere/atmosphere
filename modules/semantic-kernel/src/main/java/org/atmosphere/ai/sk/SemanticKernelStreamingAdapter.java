@@ -69,7 +69,11 @@ final class SemanticKernelStreamingAdapter {
                     modelScope.fail(error);
                     logger.error("Semantic Kernel streaming error: {}", error.getMessage());
                     if (!session.isClosed()) {
-                        session.error(error);
+                        // Classify the raw SK/provider exception into the shared
+                        // AiProviderException taxonomy so retry, metrics, and
+                        // routing see a typed failure; no-signal errors pass
+                        // through unchanged.
+                        session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(error));
                     }
                     completion.complete(null);
                 })

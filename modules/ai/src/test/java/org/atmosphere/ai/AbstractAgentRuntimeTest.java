@@ -356,4 +356,104 @@ class AbstractAgentRuntimeTest {
         assertEquals(1, runtime.attempts,
                 "runtimes that own per-request retry natively must not be wrapped a second time");
     }
+
+    // -- Typed taxonomy gate on the outer retry wrapper --
+
+    /** Runtime whose doExecute throws a supplied classified exception N times. */
+    static class ClassifiedFlakyRuntime extends AbstractAgentRuntime<String> {
+        final java.util.function.Supplier<RuntimeException> failure;
+        final int failuresBeforeSuccess;
+        int attempts = 0;
+
+        ClassifiedFlakyRuntime(int failuresBeforeSuccess,
+                               java.util.function.Supplier<RuntimeException> failure) {
+            this.failuresBeforeSuccess = failuresBeforeSuccess;
+            this.failure = failure;
+        }
+
+        @Override public String name() { return "classified-flaky"; }
+        @Override protected String nativeClientClassName() { return "java.lang.String"; }
+        @Override protected String createNativeClient(AiConfig.LlmSettings settings) { return "fake"; }
+        @Override protected String clientDescription() { return "FakeClient"; }
+        @Override public Set<AiCapability> capabilities() {
+            return Set.of(AiCapability.TEXT_STREAMING, AiCapability.PER_REQUEST_RETRY);
+        }
+
+        @Override
+        protected void doExecute(String client, AgentExecutionContext context, StreamingSession session) {
+            attempts++;
+            if (attempts <= failuresBeforeSuccess) {
+                throw failure.get();
+            }
+        }
+    }
+
+    /**
+     * The framework-adapter path: a wrapped 429 (RateLimited from the shared
+     * classifier) thrown pre-stream is retried by the outer wrapper until it
+     * succeeds — classified retryability works on runtimes that cannot hook
+     * RetryPolicy into their native HTTP client.
+     */
+    @Test
+    void executeRetriesClassifiedRateLimitOnFrameworkRuntime() {
+        var runtime = new ClassifiedFlakyRuntime(2, () ->
+                (RuntimeException) ProviderErrorClassifier.wrap(
+                        new RuntimeException("HTTP 429 rate limit exceeded")));
+        runtime.configure(null);
+
+        var policy = new RetryPolicy(
+                3, java.time.Duration.ofMillis(1), java.time.Duration.ofMillis(5),
+                1.0, RetryPolicy.DEFAULT.retryableErrors());
+
+        runtime.execute(contextWithRetry(policy), noopSession());
+
+        assertEquals(3, runtime.attempts,
+                "a classified rate_limit must be retried (2 failures + 1 success)");
+    }
+
+    /**
+     * The terminal side of the same path: a classified 400
+     * (TerminalProviderError) is thrown once and never retried, even though
+     * retry budget remains — the typed gate distinguishes a retryable 429
+     * from a terminal 400 where the legacy wrapper retried both.
+     */
+    @Test
+    void executeDoesNotRetryClassifiedTerminal400() {
+        var runtime = new ClassifiedFlakyRuntime(99, () ->
+                new AiProviderException.TerminalProviderError(
+                        "API returned 400: bad request", 400, null));
+        runtime.configure(null);
+
+        var policy = new RetryPolicy(
+                3, java.time.Duration.ofMillis(1), java.time.Duration.ofMillis(5),
+                1.0, RetryPolicy.DEFAULT.retryableErrors());
+
+        assertThrows(AiProviderException.TerminalProviderError.class,
+                () -> runtime.execute(contextWithRetry(policy), noopSession()));
+        assertEquals(1, runtime.attempts,
+                "a classified terminal 400 must never be retried");
+    }
+
+    /**
+     * The policy vocabulary governs classified failures: a RateLimited
+     * against a policy whose retryableErrors excludes rate_limit is NOT
+     * retried — while (per {@link #executeRetriesFrameworkRuntimeOnPreStreamFailure})
+     * an UNclassified RuntimeException under the same empty vocabulary still
+     * is. That asymmetry is the typed gate.
+     */
+    @Test
+    void executeHonorsPolicyVocabularyForClassifiedFailures() {
+        var runtime = new ClassifiedFlakyRuntime(99, () ->
+                new AiProviderException.RateLimited("HTTP 429", null, null));
+        runtime.configure(null);
+
+        var policy = new RetryPolicy(
+                3, java.time.Duration.ofMillis(1), java.time.Duration.ofMillis(5),
+                1.0, java.util.Set.of());
+
+        assertThrows(AiProviderException.RateLimited.class,
+                () -> runtime.execute(contextWithRetry(policy), noopSession()));
+        assertEquals(1, runtime.attempts,
+                "a classified failure outside the policy vocabulary must not be retried");
+    }
 }

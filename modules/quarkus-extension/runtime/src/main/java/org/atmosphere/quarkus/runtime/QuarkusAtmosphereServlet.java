@@ -86,6 +86,14 @@ public class QuarkusAtmosphereServlet extends AtmosphereServlet {
             sc.getServletContext().setAttribute(
                     DefaultAnnotationProcessor.ANNOTATION_ATTRIBUTE, annotationMap);
         }
+        // Create the framework WITHOUT initializing it so cross-cutting AI
+        // wiring can seed framework properties before annotation processing
+        // freezes each @AiEndpoint's guardrail chain (StartupEvent observers
+        // fire after this init, i.e. too late). The initializer is idempotent:
+        // super.init() below finds the framework already created and only
+        // runs framework.init().
+        configureFramework(sc, false);
+        bridgeAiCostGuardrail();
         super.init(sc);
 
         // Make the framework available to the WebSocket endpoint configurator.
@@ -95,5 +103,42 @@ public class QuarkusAtmosphereServlet extends AtmosphereServlet {
         // any WebSocket upgrade requests that arrived before init completed.
         LazyAtmosphereConfigurator.setFramework(framework());
         logger.info("QuarkusAtmosphereServlet.init() completed, framework available for WebSocket");
+    }
+
+    /**
+     * Bridges the effective cost-ceiling guardrail into the framework
+     * property bag before annotation processing runs, so it joins every
+     * {@code @AiEndpoint} inspection chain — the Quarkus equivalent of the
+     * Spring registrar's bean-list bridge. Guarded on {@code atmosphere-ai}
+     * being present ({@code atmosphere-ai} is an optional dependency) before
+     * any type from it is linked, and on the Arc container being up.
+     */
+    private void bridgeAiCostGuardrail() {
+        try {
+            Class.forName("org.atmosphere.ai.cost.CostAccountantHolder", false,
+                    QuarkusAtmosphereServlet.class.getClassLoader());
+        } catch (ClassNotFoundException e) {
+            return; // atmosphere-ai absent — nothing to bridge
+        }
+        var container = io.quarkus.arc.Arc.container();
+        if (container == null) {
+            return;
+        }
+        doBridgeAiCostGuardrail(container);
+    }
+
+    /**
+     * Kept as a separate method so {@code AtmosphereCostAccountantProducer}
+     * (whose API surface references optional {@code atmosphere-ai} types) is
+     * only linked after the classpath check in
+     * {@link #bridgeAiCostGuardrail()} passed.
+     *
+     * @param container the running Arc container
+     */
+    private void doBridgeAiCostGuardrail(io.quarkus.arc.ArcContainer container) {
+        var handle = container.instance(AtmosphereCostAccountantProducer.class);
+        if (handle.isAvailable()) {
+            handle.get().bridgeGuardrail(framework());
+        }
     }
 }

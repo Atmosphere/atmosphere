@@ -223,8 +223,19 @@ public abstract class AbstractSseLlmClient {
             // request never leaks the HTTP stream between attempts.
             var bodySnippet = readSnippet(response.body());
             if (!isRetryable(status, retryPolicy) || attempt == maxRetries) {
-                session.error(new RuntimeException(providerName() + " API returned "
-                        + status + ": " + bodySnippet));
+                // Typed taxonomy: same classification the retry gate above
+                // used, surfaced as an AiProviderException (message unchanged
+                // from the pre-taxonomy RuntimeException) so downstream retry,
+                // metrics, and routing consumers see a classified failure.
+                // Retry-After is only consulted on an actual 429.
+                var retryAfterHint = status == 429
+                        ? response.headers().firstValue("Retry-After")
+                                .flatMap(org.atmosphere.ai.ProviderErrorClassifier::parseRetryAfter)
+                                .orElse(null)
+                        : null;
+                session.error(org.atmosphere.ai.ProviderErrorClassifier.fromHttpStatus(
+                        status, providerName() + " API returned " + status + ": " + bodySnippet,
+                        retryAfterHint));
                 return false;
             }
             var delay = computeRetryDelay(attempt, response);
@@ -276,22 +287,12 @@ public abstract class AbstractSseLlmClient {
 
     /**
      * Classify a non-2xx status against the policy's retryable error set —
-     * identical table to {@code OpenAiCompatibleClient.isRetryable} so the
-     * direct-HTTP providers and the Built-in client back off on the same
-     * statuses.
+     * the same table {@code OpenAiCompatibleClient.isRetryable} consults,
+     * now folded into {@code ProviderErrorClassifier} so the direct-HTTP
+     * providers and the Built-in client back off on the same statuses.
      */
     private static boolean isRetryable(int statusCode, RetryPolicy policy) {
-        var errorType = switch (statusCode) {
-            case 429 -> "rate_limit";
-            case 500 -> "server_error";
-            case 502, 503 -> "unavailable";
-            case 408 -> "timeout";
-            default -> null;
-        };
-        if (errorType == null) {
-            return false;
-        }
-        return policy.retryableErrors().contains(errorType);
+        return org.atmosphere.ai.ProviderErrorClassifier.isRetryableStatus(statusCode, policy);
     }
 
     /**

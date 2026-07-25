@@ -676,8 +676,17 @@ public class OpenAiCompatibleClient implements LlmClient {
 
                 if (!isRetryable(response.statusCode(), effectivePolicy) || attempt == maxRetries) {
                     logger.error("LLM API error ({}): {}", response.statusCode(), errorBody);
-                    session.error(new LlmException("API returned " + response.statusCode()
-                            + ": " + extractErrorMessage(errorBody)));
+                    // Typed taxonomy: classify the status (429 → RateLimited
+                    // with the Retry-After hint, 401/403 → AuthenticationFailed,
+                    // 400 refined to context-length/content-filter, 5xx →
+                    // TransientProviderError) so retry, metrics, and routing
+                    // consumers can distinguish terminal from transient. The
+                    // message is unchanged from the pre-taxonomy LlmException.
+                    session.error(org.atmosphere.ai.ProviderErrorClassifier.fromHttpStatus(
+                            response.statusCode(),
+                            "API returned " + response.statusCode()
+                                    + ": " + extractErrorMessage(errorBody),
+                            retryAfterHintOf(response)));
                     return null;
                 }
 
@@ -717,17 +726,24 @@ public class OpenAiCompatibleClient implements LlmClient {
     }
 
     private static boolean isRetryable(int statusCode, RetryPolicy policy) {
-        var errorType = switch (statusCode) {
-            case 429 -> "rate_limit";
-            case 500 -> "server_error";
-            case 502, 503 -> "unavailable";
-            case 408 -> "timeout";
-            default -> null;
-        };
-        if (errorType == null) {
-            return false;
+        // Status table folded into the shared classifier so the HTTP retry
+        // decision and the typed exception surfaced on the terminal path can
+        // never disagree (single source of truth).
+        return org.atmosphere.ai.ProviderErrorClassifier.isRetryableStatus(statusCode, policy);
+    }
+
+    /**
+     * Parsed {@code Retry-After} hint for the typed 429 classification, or
+     * null. Only consulted on an actual 429 — other statuses never read the
+     * header.
+     */
+    private static Duration retryAfterHintOf(HttpResponse<?> response) {
+        if (response.statusCode() != 429) {
+            return null;
         }
-        return policy.retryableErrors().contains(errorType);
+        return response.headers().firstValue("Retry-After")
+                .flatMap(org.atmosphere.ai.ProviderErrorClassifier::parseRetryAfter)
+                .orElse(null);
     }
 
     private Duration computeRetryDelay(int attempt, HttpResponse<?> response, RetryPolicy policy) {

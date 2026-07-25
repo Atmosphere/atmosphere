@@ -84,6 +84,35 @@ public final class PromptLoader {
     }
 
     /**
+     * Loads the text content of a classpath resource like {@link #load(String)}
+     * but returns empty instead of throwing when the resource is absent. This is
+     * the probe primitive the versioned
+     * {@link org.atmosphere.ai.prompt.FilePromptRegistry} composes for its
+     * classpath tier. Hits share {@link #load}'s cache; misses are not cached
+     * (the classpath is immutable at runtime, so a probe is a cheap null check).
+     *
+     * @param resourcePath classpath resource path (same validation as {@link #load})
+     * @return the trimmed text content, or empty when the resource is absent
+     * @throws IllegalArgumentException if the path contains {@code ..} or starts with {@code /}
+     */
+    public static java.util.Optional<String> loadOptional(String resourcePath) {
+        if (resourcePath.contains("..") || resourcePath.startsWith("/")) {
+            throw new IllegalArgumentException(
+                    "Invalid resource path (must not contain '..' or start with '/'): " + resourcePath);
+        }
+        var cached = CACHE.get(resourcePath);
+        if (cached != null) {
+            return java.util.Optional.of(cached);
+        }
+        var content = readResourceOrNull(resourcePath);
+        if (content == null) {
+            return java.util.Optional.empty();
+        }
+        var previous = CACHE.putIfAbsent(resourcePath, content);
+        return java.util.Optional.of(previous != null ? previous : content);
+    }
+
+    /**
      * Clears the prompt cache. Primarily intended for testing.
      */
     public static void clearCache() {

@@ -1130,6 +1130,14 @@ public class CoordinatorProcessor implements Processor<Object> {
 
     private SkillFileParser loadSkillFile(String skillFilePath,
                                           String coordinatorName) {
+        if (org.atmosphere.ai.prompt.PromptResolver.isManaged(skillFilePath)) {
+            // prompt: prefix resolves a versioned, registry-managed prompt
+            // (rollout unit = the coordinator name); fails closed on a missing
+            // version, integrity mismatch, or unresolved template variable —
+            // mirrors the @Agent path (Mode Parity, Invariant #7).
+            return SkillFileParser.parse(org.atmosphere.ai.prompt.PromptResolver
+                    .resolveSystemPrompt(skillFilePath, coordinatorName));
+        }
         if (skillFilePath == null || skillFilePath.isBlank()) {
             var candidates = List.of(
                     "META-INF/skills/" + coordinatorName + "/SKILL.md",
