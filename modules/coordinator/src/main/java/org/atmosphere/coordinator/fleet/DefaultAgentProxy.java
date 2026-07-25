@@ -147,7 +147,23 @@ public final class DefaultAgentProxy implements AgentProxy {
             // worker, so the transport's runtime guards survive the bound. A
             // transport that returns null (no context to propagate, or a test
             // double) falls back to the unwrapped dispatch.
-            Supplier<AgentResult> raw = () -> dispatch(skill, args);
+            //
+            // Symmetrically, an interrupt raised ON THE WORKER during the
+            // dispatch (a cancellation signal from inside the agent body) used
+            // to land on the coordinating thread when dispatch ran inline —
+            // callers like AgentFleet.refineUntil observe it at their next turn
+            // boundary. Record it and relay it to the caller thread after the
+            // await so the signal is never silently swallowed by the hop.
+            var workerInterrupted = new java.util.concurrent.atomic.AtomicBoolean();
+            Supplier<AgentResult> raw = () -> {
+                try {
+                    return dispatch(skill, args);
+                } finally {
+                    if (Thread.currentThread().isInterrupted()) {
+                        workerInterrupted.set(true);
+                    }
+                }
+            };
             var wrapped = transport.withDispatchContext(raw);
             var body = wrapped != null ? wrapped : raw;
             var future = CompletableFuture
@@ -160,7 +176,12 @@ public final class DefaultAgentProxy implements AgentProxy {
                 // failure — the interrupt lands here and must propagate INTO this
                 // per-call executor, or the inner dispatch would run to
                 // completion and defeat the outer cancellation.
-                return future.get();
+                var result = future.get();
+                if (workerInterrupted.get()) {
+                    // Relay the worker-observed interrupt across the hop.
+                    Thread.currentThread().interrupt();
+                }
+                return result;
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
                 future.cancel(true);

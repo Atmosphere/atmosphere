@@ -90,6 +90,29 @@ public class DefaultAgentProxyTest {
     }
 
     @Test
+    void workerInterruptDuringDispatchIsRelayedToCaller() {
+        // The bounded dispatch runs the transport on a worker thread. An
+        // interrupt raised DURING the dispatch (a cancellation signal from
+        // inside the agent body) used to land on the coordinating thread when
+        // dispatch ran inline — refineUntil-style loops observe it at their
+        // next turn boundary. The hop must relay it, never swallow it.
+        var transport = mock(AgentTransport.class);
+        when(transport.send("agent", "work", Map.of())).thenAnswer(inv -> {
+            Thread.currentThread().interrupt();
+            return new AgentResult("agent", "work", "done", Map.of(), Duration.ZERO, true);
+        });
+        var proxy = new DefaultAgentProxy("agent", "1.0.0", 1, true, 0, transport,
+                List.of(), AgentLimits.DEFAULT);
+
+        var result = proxy.call("work", Map.of());
+
+        assertTrue(result.success());
+        assertTrue(Thread.interrupted(),
+                "a worker-observed interrupt must be relayed to the calling thread"
+                        + " (and is consumed here so it does not leak into other tests)");
+    }
+
+    @Test
     void callReturnsPromptlyWhenUnderTimeout() {
         // The bound must not penalize the fast path: a quick dispatch returns
         // its real result unchanged.
