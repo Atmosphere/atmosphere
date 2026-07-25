@@ -173,6 +173,16 @@
                     <plugin>
                         <groupId>org.graalvm.buildtools</groupId>
                         <artifactId>native-maven-plugin</artifactId>
+                        <!-- The plugin realm no longer inherits maven-shared-utils from the
+                             Maven distribution on current CI runners; without this pin the
+                             build fails with "A required class was missing ... MessageUtils". -->
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.apache.maven.shared</groupId>
+                                <artifactId>maven-shared-utils</artifactId>
+                                <version>3.4.2</version>
+                            </dependency>
+                        </dependencies>
                         <configuration>
                             <mainClass>org.atmosphere.samples.springboot.chat.ChatApplication</mainClass>
                         </configuration>
