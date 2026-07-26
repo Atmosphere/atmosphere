@@ -233,7 +233,7 @@ public final class McpToolSource implements AutoCloseable {
         }
         return new ToolDefinition(displayName, def.description(), def.parameters(),
                 def.returnType(), def.executor(), def.approvalMessage(),
-                def.approvalTimeout(), def.kind());
+                def.approvalTimeout(), def.executionTimeout(), def.kind());
     }
 
     /**

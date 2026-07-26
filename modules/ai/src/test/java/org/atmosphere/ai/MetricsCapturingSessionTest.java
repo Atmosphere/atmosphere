@@ -199,12 +199,28 @@ class MetricsCapturingSessionTest {
 
         // (a) legacy delegate.usage still flows unchanged
         verify(delegate).usage(usage);
-        // (b) recordTokenUsage called once with provider + response model (the 6-arg overload)
+        // (b) recordTokenUsage called once with provider + response model, now
+        // carrying the provider's cached-input count (0 here) so a prompt-cache
+        // hit reaches the meters instead of being dropped at this seam.
         verify(metrics).recordTokenUsage(
                 eq("google-adk"), eq("gemini-2.0"), eq("gemini-2.0-flash-001"),
-                eq(120L), eq(80L), eq(200L));
+                eq(120L), eq(80L), eq(0L), eq(200L));
         // (c) the 4-arg legacy overload must NOT be invoked on the provider path
         verify(metrics, never()).recordTokenUsage(any(), anyLong(), anyLong(), anyLong());
+    }
+
+    @Test
+    void cachedInputTokensReachTheMeterSeam() {
+        // Regression: the provider's cached-input count survived onto the wire
+        // and into the tape but was dropped here, so a prompt-cache hit — billed
+        // at a different rate than fresh input — was invisible to metrics.
+        var metrics = mockMetrics();
+        var session = new MetricsCapturingSession(mockDelegate(), metrics, "gpt-4o", "built-in");
+        session.usage(new TokenUsage(1000, 500, 800, 1500, "gpt-4o"));
+
+        verify(metrics).recordTokenUsage(
+                eq("built-in"), eq("gpt-4o"), eq("gpt-4o"),
+                eq(1000L), eq(500L), eq(800L), eq(1500L));
     }
 
     @Test
@@ -220,7 +236,7 @@ class MetricsCapturingSessionTest {
 
         verify(delegate).usage(usage);
         verify(metrics).recordTokenUsage(
-                eq("built-in"), eq("gpt-4"), eq("gpt-4"), eq(10L), eq(5L), eq(15L));
+                eq("built-in"), eq("gpt-4"), eq("gpt-4"), eq(10L), eq(5L), eq(0L), eq(15L));
     }
 
     @Test

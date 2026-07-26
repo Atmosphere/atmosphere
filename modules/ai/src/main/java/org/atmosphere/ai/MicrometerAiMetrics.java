@@ -70,6 +70,9 @@ public final class MicrometerAiMetrics implements AiMetrics {
     private static final Logger logger = LoggerFactory.getLogger(MicrometerAiMetrics.class);
 
     private final MeterRegistry registry;
+    /** Percentile-publishing timers, cached per name+tags (see percentileTimer). */
+    private final java.util.concurrent.ConcurrentHashMap<String, Timer> percentileTimers =
+            new java.util.concurrent.ConcurrentHashMap<>();
     private final String provider;
     private final AtomicInteger activeSessions = new AtomicInteger(0);
 
@@ -114,8 +117,8 @@ public final class MicrometerAiMetrics implements AiMetrics {
     public void recordLatency(String model, Duration timeToFirstStreamingText, Duration totalDuration) {
         var tags = tags(model);
         counter("atmosphere.ai.prompts.total", tags).increment();
-        timer("atmosphere.ai.prompt.duration", tags).record(timeToFirstStreamingText);
-        timer("atmosphere.ai.response.duration", tags).record(totalDuration);
+        percentileTimer("atmosphere.ai.prompt.duration", tags).record(timeToFirstStreamingText);
+        percentileTimer("atmosphere.ai.response.duration", tags).record(totalDuration);
         // OTel GenAI convention: gen_ai.client.operation.duration. Micrometer
         // exporters emit Timer durations in seconds, matching the convention's
         // unit, so this surfaces directly in GenAI dashboards.
@@ -154,6 +157,14 @@ public final class MicrometerAiMetrics implements AiMetrics {
     @Override
     public void recordTokenUsage(String genAiProvider, String requestModel, String responseModel,
                                  long inputTokens, long outputTokens, long totalTokens) {
+        recordTokenUsage(genAiProvider, requestModel, responseModel,
+                inputTokens, outputTokens, 0L, totalTokens);
+    }
+
+    @Override
+    public void recordTokenUsage(String genAiProvider, String requestModel, String responseModel,
+                                 long inputTokens, long outputTokens, long cachedInputTokens,
+                                 long totalTokens) {
         // Atmosphere-namespaced counter, tagged by token type, consistent with
         // the rest of the atmosphere.ai.* series. Uses the instance provider —
         // byte-identical to the prior behaviour regardless of genAiProvider.
@@ -163,6 +174,15 @@ public final class MicrometerAiMetrics implements AiMetrics {
         }
         if (outputTokens > 0) {
             counter("atmosphere.ai.tokens", tags.and("type", "output")).increment(outputTokens);
+        }
+        if (cachedInputTokens > 0) {
+            // Cached input is billed at a different rate than fresh input, so
+            // it gets its own series rather than being folded into type=input.
+            // Atmosphere-namespaced only: the GenAI convention defines just
+            // input/output for gen_ai.token.type, so the dual-emit below is
+            // left spec-clean.
+            counter("atmosphere.ai.tokens", tags.and("type", "cached_input"))
+                    .increment(cachedInputTokens);
         }
         // OTel GenAI convention: gen_ai.client.token.usage, split by
         // gen_ai.token.type. The convention defines input/output token types
@@ -193,7 +213,7 @@ public final class MicrometerAiMetrics implements AiMetrics {
         var tags = tags(model)
                 .and("tool", toolName)
                 .and("success", String.valueOf(success));
-        timer("atmosphere.ai.tool.duration", tags).record(duration);
+        percentileTimer("atmosphere.ai.tool.duration", tags).record(duration);
     }
 
     @Override
@@ -274,6 +294,25 @@ public final class MicrometerAiMetrics implements AiMetrics {
 
     private Timer timer(String name, Tags tags) {
         return registry.timer(name, tags);
+    }
+
+    /**
+     * Timer publishing p50 / p90 / p99 alongside the mean — the same
+     * distribution config (and the same builder-cached-in-a-map shape) the
+     * governance evaluation timers use, so AI latency reads like every other
+     * Atmosphere latency series. A mean alone hides the tail an operator
+     * actually pages on.
+     *
+     * <p>The builder result is cached per name+tags because
+     * {@code Timer.builder(...).register(...)} re-resolves distribution config
+     * on every call; the record path runs per turn.</p>
+     */
+    private Timer percentileTimer(String name, Tags tags) {
+        return percentileTimers.computeIfAbsent(name + '|' + tags, k ->
+                Timer.builder(name)
+                        .tags(tags)
+                        .publishPercentiles(0.5, 0.9, 0.99)
+                        .register(registry));
     }
 
     /**

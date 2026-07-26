@@ -1100,10 +1100,7 @@ public class OpenAiCompatibleClient implements LlmClient {
         var properties = new LinkedHashMap<String, Object>();
         var required = new ArrayList<String>();
         for (var p : tool.parameters()) {
-            var prop = new LinkedHashMap<String, String>();
-            prop.put("type", p.type());
-            prop.put("description", p.description());
-            properties.put(p.name(), prop);
+            properties.put(p.name(), parameterSchema(p));
             if (p.required()) {
                 required.add(p.name());
             }
@@ -1111,6 +1108,39 @@ public class OpenAiCompatibleClient implements LlmClient {
         params.put("properties", properties);
         params.put("required", required);
         return params;
+    }
+
+    /**
+     * One parameter as an OpenAI-shaped JSON Schema property, carrying the
+     * constructs a model needs to produce a valid argument: {@code enum} for a
+     * constrained value, {@code items} for array elements, and nested
+     * {@code properties}/{@code required} for objects. Recurses through the
+     * parameter's own nesting.
+     */
+    private static Map<String, Object> parameterSchema(
+            org.atmosphere.ai.tool.ToolParameter p) {
+        var prop = new LinkedHashMap<String, Object>();
+        prop.put("type", p.type());
+        prop.put("description", p.description());
+        if (p.hasEnumValues()) {
+            prop.put("enum", List.copyOf(p.enumValues()));
+        }
+        if (p.items() != null) {
+            prop.put("items", parameterSchema(p.items()));
+        }
+        if (p.hasProperties()) {
+            var nested = new LinkedHashMap<String, Object>();
+            var nestedRequired = new ArrayList<String>();
+            for (var child : p.properties()) {
+                nested.put(child.name(), parameterSchema(child));
+                if (child.required()) {
+                    nestedRequired.add(child.name());
+                }
+            }
+            prop.put("properties", nested);
+            prop.put("required", nestedRequired);
+        }
+        return prop;
     }
 
     private HttpRequest buildHttpRequest(String requestBody, String endpoint) {

@@ -33,6 +33,8 @@ import java.util.List;
  * @param executor        the function that executes the tool
  * @param approvalMessage if non-null, this tool requires human approval before execution
  * @param approvalTimeout approval timeout in seconds (0 = use default)
+ * @param executionTimeout per-tool execution bound in seconds (0 = use the
+ *                        framework default, negative = unbounded)
  * @param kind            behavioural category used by the outer
  *                        {@link org.atmosphere.ai.identity.PermissionMode}
  *                        (e.g. {@code ACCEPT_EDITS} auto-approves
@@ -46,6 +48,7 @@ public record ToolDefinition(
         ToolExecutor executor,
         String approvalMessage,
         long approvalTimeout,
+        long executionTimeout,
         ToolKind kind
 ) {
     public ToolDefinition {
@@ -63,13 +66,26 @@ public record ToolDefinition(
 
     /**
      * Backwards-compatible constructor for callers predating the {@code kind}
-     * component. Defaults the tool kind to {@link ToolKind#OTHER}.
+     * component. Defaults the tool kind to {@link ToolKind#OTHER} and the
+     * execution bound to the framework default.
      */
     public ToolDefinition(String name, String description, List<ToolParameter> parameters,
                           String returnType, ToolExecutor executor, String approvalMessage,
                           long approvalTimeout) {
         this(name, description, parameters, returnType, executor, approvalMessage,
-                approvalTimeout, ToolKind.OTHER);
+                approvalTimeout, 0L, ToolKind.OTHER);
+    }
+
+    /**
+     * Backwards-compatible constructor for callers predating the
+     * {@code executionTimeout} component. Defaults it to the framework-wide
+     * execution bound.
+     */
+    public ToolDefinition(String name, String description, List<ToolParameter> parameters,
+                          String returnType, ToolExecutor executor, String approvalMessage,
+                          long approvalTimeout, ToolKind kind) {
+        this(name, description, parameters, returnType, executor, approvalMessage,
+                approvalTimeout, 0L, kind);
     }
 
     /**
@@ -92,6 +108,7 @@ public record ToolDefinition(
         private ToolExecutor executor;
         private String approvalMessage;
         private long approvalTimeout;
+        private long executionTimeout;
         private ToolKind kind = ToolKind.OTHER;
 
         private Builder(String name, String description) {
@@ -123,6 +140,23 @@ public record ToolDefinition(
             return this;
         }
 
+        /**
+         * Bound this tool's execution to {@code seconds}. A tool that exceeds
+         * it is abandoned and the model receives a structured timeout error
+         * instead of the agent turn hanging (Correctness Invariant #3 —
+         * model-chosen tool calls are external input and must not block
+         * unbounded). {@code 0} uses the framework default
+         * ({@code org.atmosphere.ai.toolExecutionTimeout}); a negative value
+         * disables the bound for this tool.
+         *
+         * @param seconds the execution bound in seconds
+         * @return this builder
+         */
+        public Builder executionTimeout(long seconds) {
+            this.executionTimeout = seconds;
+            return this;
+        }
+
         public Builder requiresApproval(String message, long timeoutSeconds) {
             this.approvalMessage = message;
             this.approvalTimeout = timeoutSeconds;
@@ -140,7 +174,7 @@ public record ToolDefinition(
                 throw new IllegalStateException("executor must be set");
             }
             return new ToolDefinition(name, description, parameters, returnType,
-                    executor, approvalMessage, approvalTimeout, kind);
+                    executor, approvalMessage, approvalTimeout, executionTimeout, kind);
         }
     }
 }

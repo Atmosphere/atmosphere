@@ -142,6 +142,78 @@ class ToolExecutionHelperTest {
         assertEquals("foobar", result);
     }
 
+    // Tool-execution bound (Correctness Invariant #3) ----------------------
+
+    @Test
+    void hungToolIsAbandonedAtItsExecutionBound() throws Exception {
+        // Regression: a blocking tool executor ran on the agent-turn thread
+        // with no time bound, so a hung tool (JDBC, a raw socket, an un-timed
+        // HTTP call) hung the whole turn forever. Model-chosen tool calls are
+        // external input — they must be bounded.
+        var released = new java.util.concurrent.CountDownLatch(1);
+        var interrupted = new java.util.concurrent.atomic.AtomicBoolean();
+        var tool = ToolDefinition.builder("hang", "Blocks forever")
+                .parameter("q", "query", "string")
+                .executor(args -> {
+                    try {
+                        released.await();
+                    } catch (InterruptedException e) {
+                        interrupted.set(true);
+                        Thread.currentThread().interrupt();
+                    }
+                    return "never";
+                })
+                .executionTimeout(1)
+                .build();
+
+        var startNanos = System.nanoTime();
+        var result = ToolExecutionHelper.executeWithApproval(
+                "hang", tool, Map.of("q", "x"),
+                new DefaultToolRegistryTest.StubSession("sess-hang"), null, null, Map.of());
+        var elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
+
+        assertTrue(result.contains("tool_timeout"),
+                "the model must receive a structured timeout error, got: " + result);
+        assertTrue(elapsedMs < 15_000,
+                "the call must return at its bound, took " + elapsedMs + "ms");
+        // The abandoned worker must actually be interrupted, not merely orphaned.
+        for (int i = 0; i < 50 && !interrupted.get(); i++) {
+            Thread.sleep(20);
+        }
+        assertTrue(interrupted.get(), "the overrunning executor must be interrupted");
+        released.countDown();
+    }
+
+    @Test
+    void toolWithinItsBoundReturnsNormally() {
+        var tool = ToolDefinition.builder("quick", "Returns immediately")
+                .parameter("q", "query", "string")
+                .executor(args -> "done")
+                .executionTimeout(30)
+                .build();
+        var result = ToolExecutionHelper.executeWithApproval(
+                "quick", tool, Map.of("q", "x"),
+                new DefaultToolRegistryTest.StubSession("sess-quick"), null, null, Map.of());
+        assertEquals("done", result);
+    }
+
+    @Test
+    void negativeExecutionTimeoutDisablesTheBound() {
+        // Escape hatch: a legitimately long-running tool opts out entirely and
+        // runs inline on the caller thread exactly as before the bound existed.
+        var tool = ToolDefinition.builder("unbounded", "Opts out of the bound")
+                .parameter("q", "query", "string")
+                .executor(args -> "ran on " + Thread.currentThread().getName())
+                .executionTimeout(-1)
+                .build();
+        var callerThread = Thread.currentThread().getName();
+        var result = ToolExecutionHelper.executeWithApproval(
+                "unbounded", tool, Map.of("q", "x"),
+                new DefaultToolRegistryTest.StubSession("sess-unbounded"), null, null, Map.of());
+        assertEquals("ran on " + callerThread, result,
+                "a disabled bound must keep the inline caller-thread call");
+    }
+
     /** Captures emitted events so tests can pin the emit==return invariant. */
     static final class CapturingSession implements org.atmosphere.ai.StreamingSession {
         final List<org.atmosphere.ai.AiEvent> events = new java.util.ArrayList<>();

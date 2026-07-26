@@ -138,12 +138,9 @@ public class DefaultToolRegistry implements ToolRegistry {
             }
             var paramAnnotation = param.getAnnotation(Param.class);
             if (paramAnnotation != null) {
-                parameters.add(new ToolParameter(
-                        paramAnnotation.value(),
-                        paramAnnotation.description(),
-                        ToolParameter.jsonSchemaType(param.getType()),
-                        paramAnnotation.required()
-                ));
+                parameters.add(describeParameter(paramAnnotation.value(),
+                        paramAnnotation.description(), param.getParameterizedType(),
+                        param.getType(), paramAnnotation.required(), 0));
             } else {
                 var name = param.getName();
                 if (name.matches("arg\\d+")) {
@@ -151,12 +148,8 @@ public class DefaultToolRegistry implements ToolRegistry {
                             + "add @Param annotation or compile with -parameters flag",
                             method.getName(), name);
                 }
-                parameters.add(new ToolParameter(
-                        name,
-                        "",
-                        ToolParameter.jsonSchemaType(param.getType()),
-                        true
-                ));
+                parameters.add(describeParameter(name, "", param.getParameterizedType(),
+                        param.getType(), true, 0));
             }
         }
 
@@ -314,6 +307,86 @@ public class DefaultToolRegistry implements ToolRegistry {
                 || name.equals(SANDBOX_CLASS_NAME);
     }
 
+    /** Deepest nesting the schema describer will walk before flattening. */
+    private static final int MAX_SCHEMA_DEPTH = 4;
+
+    /**
+     * Describe one parameter as a JSON Schema node, reading the parameter's
+     * <em>generic</em> type so the model sees what it actually has to produce:
+     * an enum's allowed values, an array/collection's element schema, and a
+     * record's nested fields. Previously every one of these collapsed to a
+     * bare {@code "object"}, leaving the model to guess the shape.
+     *
+     * <p>Recursion is bounded by {@link #MAX_SCHEMA_DEPTH} so a
+     * self-referential record cannot spin.</p>
+     */
+    private static ToolParameter describeParameter(String name, String description,
+                                                   java.lang.reflect.Type genericType,
+                                                   Class<?> rawType, boolean required,
+                                                   int depth) {
+        if (rawType.isEnum()) {
+            var constants = rawType.getEnumConstants();
+            var values = new ArrayList<String>(constants.length);
+            for (var constant : constants) {
+                values.add(((Enum<?>) constant).name());
+            }
+            return ToolParameter.ofEnum(name, description, required, values);
+        }
+        if (depth < MAX_SCHEMA_DEPTH) {
+            var element = elementType(genericType, rawType);
+            if (element != null) {
+                var items = describeParameter("item", "", element,
+                        rawClassOf(element), true, depth + 1);
+                return ToolParameter.ofArray(name, description, required, items);
+            }
+            if (rawType.isRecord()) {
+                var components = rawType.getRecordComponents();
+                var properties = new ArrayList<ToolParameter>(components.length);
+                for (var component : components) {
+                    properties.add(describeParameter(component.getName(), "",
+                            component.getGenericType(), component.getType(), true, depth + 1));
+                }
+                return ToolParameter.ofObject(name, description, required, properties);
+            }
+        }
+        return new ToolParameter(name, description,
+                ToolParameter.jsonSchemaType(rawType), required);
+    }
+
+    /**
+     * The element type of an array or {@link Collection}, or {@code null} when
+     * the type is neither. A raw (un-parameterized) collection yields
+     * {@code Object}, which describes as a plain object node.
+     */
+    private static java.lang.reflect.Type elementType(java.lang.reflect.Type genericType,
+                                                      Class<?> rawType) {
+        if (rawType.isArray()) {
+            return rawType.getComponentType();
+        }
+        if (!Collection.class.isAssignableFrom(rawType)) {
+            return null;
+        }
+        if (genericType instanceof java.lang.reflect.ParameterizedType parameterized) {
+            var args = parameterized.getActualTypeArguments();
+            if (args.length == 1) {
+                return args[0];
+            }
+        }
+        return Object.class;
+    }
+
+    /** Best-effort raw class for a reflective type. */
+    private static Class<?> rawClassOf(java.lang.reflect.Type type) {
+        if (type instanceof Class<?> clazz) {
+            return clazz;
+        }
+        if (type instanceof java.lang.reflect.ParameterizedType parameterized
+                && parameterized.getRawType() instanceof Class<?> raw) {
+            return raw;
+        }
+        return Object.class;
+    }
+
     @SuppressWarnings("unchecked")
     private static Object convertArg(Object value, Class<?> targetType) {
         if (value == null) {
@@ -321,6 +394,35 @@ public class DefaultToolRegistry implements ToolRegistry {
         }
         if (targetType.isInstance(value)) {
             return value;
+        }
+        // A structured argument (nested object / array) aimed at a String
+        // parameter must arrive as JSON text, which is what the tool used to
+        // receive when nested values were left un-parsed. Map.toString() would
+        // hand it `{key=value}` — not JSON, and a fresh corruption of exactly
+        // the kind parsing tool arguments with Jackson removed.
+        if (targetType == String.class && (value instanceof Map<?, ?> || value instanceof List<?>)) {
+            return ToolBridgeUtils.toJsonText(value);
+        }
+        // Enum parameters: the model sends the constant's name as a string.
+        // Without this the raw String reached method.invoke and every
+        // enum-typed @AiTool parameter failed with an argument type mismatch —
+        // the parameter kind was unusable, not merely under-described.
+        if (targetType.isEnum() && value instanceof String name) {
+            for (var constant : targetType.getEnumConstants()) {
+                var enumName = ((Enum<?>) constant).name();
+                if (enumName.equals(name) || enumName.equalsIgnoreCase(name)) {
+                    return constant;
+                }
+            }
+            throw new IllegalArgumentException("'" + name + "' is not a valid "
+                    + targetType.getSimpleName() + " value");
+        }
+        // Structured arguments aimed at a record/POJO parameter bind through
+        // Jackson, so a nested object from the model reaches a typed parameter
+        // instead of failing the reflective invoke.
+        if (value instanceof Map<?, ?> && !targetType.isPrimitive()
+                && targetType != Object.class && !Map.class.isAssignableFrom(targetType)) {
+            return ToolBridgeUtils.convertValue(value, targetType);
         }
         // Handle common conversions from JSON-parsed types
         var str = value.toString();

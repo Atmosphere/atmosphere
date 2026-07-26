@@ -119,6 +119,40 @@ class McpPolicyGatewayTest {
     }
 
     @Test
+    void failingAdmissionCallDeniesInsteadOfAdmitting() {
+        // Regression: the gateway used to catch a failed admission call and
+        // return ADMITTED — a security fail-open on the live tools/call path
+        // (Correctness Invariant #6). An errored governance plane silently
+        // disarmed every operator deny rule. It must now fail CLOSED.
+        var brokenConfig = mock(AtmosphereConfig.class);
+        var brokenFramework = mock(AtmosphereFramework.class);
+        when(brokenFramework.getAtmosphereConfig()).thenReturn(brokenConfig);
+        // properties() is read by PolicyAdmissionGate outside its own
+        // fail-closed try, so this surfaces as a reflective invocation failure.
+        when(brokenConfig.properties()).thenThrow(new IllegalStateException("governance exploded"));
+
+        var outcome = McpPolicyGateway.admit(brokenFramework, "delete_database", Map.of());
+
+        var denied = assertInstanceOf(McpPolicyGateway.Outcome.Denied.class, outcome,
+                "a failed admission call must deny, never admit");
+        assertEquals("mcp-policy-gateway", denied.policyName());
+        assertTrue(denied.reason().contains("governance admission call failed"),
+                "the denial must name the cause: " + denied.reason());
+    }
+
+    @Test
+    void isActiveReflectsConfirmedRuntimeStateNotClasspathPresence() {
+        // Runtime truth (Invariant #5): active means the admission chain can
+        // actually run — classpath presence alone is not enough. With
+        // atmosphere-ai present AND its reflection resolved, this is true;
+        // a broken-init gateway reports false (and denies).
+        assertTrue(McpPolicyGateway.isActive());
+        var outcome = McpPolicyGateway.admit(framework, "search", Map.of());
+        assertEquals(McpPolicyGateway.Outcome.ADMITTED, outcome,
+                "an active gateway with no policies installed still admits");
+    }
+
+    @Test
     void nullArgsPreviewAdmits() {
         var outcome = McpPolicyGateway.admit(framework, "search", null);
         assertEquals(McpPolicyGateway.Outcome.ADMITTED, outcome);

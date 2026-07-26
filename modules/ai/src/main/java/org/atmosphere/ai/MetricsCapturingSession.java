@@ -119,7 +119,7 @@ class MetricsCapturingSession extends DelegatingStreamingSession {
                 // GenAI convention's gen_ai.provider.name (Runtime Truth) and the
                 // provider-reported response model into gen_ai.response.model.
                 metrics.recordTokenUsage(providerName, model, usage.model(),
-                        usage.input(), usage.output(), usage.total());
+                        usage.input(), usage.output(), usage.cachedInput(), usage.total());
             } else {
                 // Legacy construction (no resolved provider): keep the exact
                 // 4-arg call so behaviour stays byte-identical.

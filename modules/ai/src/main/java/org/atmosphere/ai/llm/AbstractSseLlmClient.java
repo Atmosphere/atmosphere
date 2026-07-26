@@ -422,11 +422,7 @@ public abstract class AbstractSseLlmClient {
         var properties = schema.putObject("properties");
         var required = mapper.createArrayNode();
         for (var param : def.parameters()) {
-            var prop = properties.putObject(param.name());
-            prop.put("type", param.type() != null ? param.type() : "string");
-            if (param.description() != null && !param.description().isBlank()) {
-                prop.put("description", param.description());
-            }
+            properties.set(param.name(), parameterSchemaNode(param, mapper));
             if (param.required()) {
                 required.add(param.name());
             }
@@ -435,5 +431,42 @@ public abstract class AbstractSseLlmClient {
             schema.set("required", required);
         }
         return schema;
+    }
+
+    /**
+     * One parameter as a JSON Schema node, including the constructs a model
+     * needs to emit a valid argument: {@code enum} for a constrained value,
+     * {@code items} for an array's elements, and nested
+     * {@code properties}/{@code required} for an object. Recurses through
+     * {@link org.atmosphere.ai.tool.ToolParameter}'s own nesting.
+     */
+    private ObjectNode parameterSchemaNode(org.atmosphere.ai.tool.ToolParameter param,
+                                           ObjectMapper mapper) {
+        var prop = mapper.createObjectNode();
+        prop.put("type", param.type() != null ? param.type() : "string");
+        if (param.description() != null && !param.description().isBlank()) {
+            prop.put("description", param.description());
+        }
+        if (param.hasEnumValues()) {
+            var values = prop.putArray("enum");
+            param.enumValues().forEach(values::add);
+        }
+        if (param.items() != null) {
+            prop.set("items", parameterSchemaNode(param.items(), mapper));
+        }
+        if (param.hasProperties()) {
+            var nested = prop.putObject("properties");
+            var nestedRequired = mapper.createArrayNode();
+            for (var child : param.properties()) {
+                nested.set(child.name(), parameterSchemaNode(child, mapper));
+                if (child.required()) {
+                    nestedRequired.add(child.name());
+                }
+            }
+            if (!nestedRequired.isEmpty()) {
+                prop.set("required", nestedRequired);
+            }
+        }
+        return prop;
     }
 }

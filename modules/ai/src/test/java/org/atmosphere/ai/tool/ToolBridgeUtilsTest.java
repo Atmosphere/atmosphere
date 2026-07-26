@@ -76,8 +76,28 @@ public class ToolBridgeUtilsTest {
 
     @Test
     public void testParseJsonArgsEscapedStringValues() {
+        // Escapes are DECODED. The hand-rolled tokenizer this replaced left the
+        // backslashes literal, so a tool received `He said \\"hello\\"` — every
+        // escaped quote, newline, and tab in a model-supplied argument was
+        // corrupted before it reached the executor (Correctness Invariant #4).
         var result = ToolBridgeUtils.parseJsonArgs("{\"msg\":\"He said \\\"hello\\\"\"}");
-        assertEquals("He said \\\"hello\\\"", result.get("msg"));
+        assertEquals("He said \"hello\"", result.get("msg"));
+    }
+
+    @Test
+    public void testParseJsonArgsDecodesUnicodeEscapes() {
+        var result = ToolBridgeUtils.parseJsonArgs(
+                "{\"city\":\"Z\\u00fcrich\",\"emoji\":\"\\ud83d\\ude00\"}");
+        assertEquals("Z\u00fcrich", result.get("city"));
+        assertEquals("\ud83d\ude00", result.get("emoji"), "surrogate pairs must round-trip");
+    }
+
+    @Test
+    public void testParseJsonArgsDecodesControlEscapes() {
+        var result = ToolBridgeUtils.parseJsonArgs(
+                "{\"multi\":\"line1\\nline2\\ttabbed\",\"path\":\"C:\\\\tmp\"}");
+        assertEquals("line1\nline2\ttabbed", result.get("multi"));
+        assertEquals("C:\\tmp", result.get("path"));
     }
 
     @Test
@@ -94,27 +114,27 @@ public class ToolBridgeUtilsTest {
     // --- nested JSON regression tests ---
 
     @Test
-    public void testParseJsonArgsNestedArrayDoesNotThrow() {
-        // Regression: previously, an LLM passing {"items":[1,2,3]} fell into the
-        // numeric branch and Long.parseLong("[1,2,3") threw NumberFormatException,
-        // escaping the tool bridge before ToolExecutionHelper could return a
-        // structured error.
+    public void testParseJsonArgsNestedArrayBecomesList() {
+        // A nested array is a real List now. It used to be handed back as raw
+        // JSON text, so a tool declaring List<...> got a String and the reflective
+        // invoke failed with an argument-type mismatch.
         var result = ToolBridgeUtils.parseJsonArgs("{\"name\":\"alice\",\"items\":[1,2,3]}");
         assertEquals("alice", result.get("name"));
-        assertEquals("[1,2,3]", result.get("items"));
+        assertEquals(java.util.List.of(1L, 2L, 3L), result.get("items"));
     }
 
     @Test
-    public void testParseJsonArgsNestedObjectDoesNotThrow() {
+    public void testParseJsonArgsNestedObjectBecomesMap() {
         var result = ToolBridgeUtils.parseJsonArgs("{\"filter\":{\"key\":\"value\",\"n\":42}}");
-        assertEquals("{\"key\":\"value\",\"n\":42}", result.get("filter"));
+        assertEquals(java.util.Map.of("key", "value", "n", 42L), result.get("filter"));
     }
 
     @Test
     public void testParseJsonArgsDeeplyNestedArrayOfObjects() {
         var result = ToolBridgeUtils.parseJsonArgs(
                 "{\"rows\":[{\"a\":1},{\"a\":2}],\"count\":2}");
-        assertEquals("[{\"a\":1},{\"a\":2}]", result.get("rows"));
+        assertEquals(java.util.List.of(java.util.Map.of("a", 1L), java.util.Map.of("a", 2L)),
+                result.get("rows"));
         assertEquals(2L, result.get("count"));
     }
 
@@ -122,7 +142,7 @@ public class ToolBridgeUtilsTest {
     public void testParseJsonArgsNestedIgnoresBracketsInStrings() {
         // A '}' inside a quoted string must not terminate the nested span.
         var result = ToolBridgeUtils.parseJsonArgs("{\"payload\":{\"msg\":\"hello}world\"}}");
-        assertEquals("{\"msg\":\"hello}world\"}", result.get("payload"));
+        assertEquals(java.util.Map.of("msg", "hello}world"), result.get("payload"));
     }
 
     @Test

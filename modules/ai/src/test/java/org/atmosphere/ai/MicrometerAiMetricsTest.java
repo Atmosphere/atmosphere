@@ -207,6 +207,56 @@ public class MicrometerAiMetricsTest {
     }
 
     @Test
+    public void latencyTimersPublishPercentilesNotJustTheMean() {
+        // Regression: the AI latency timers were means-only, so operators had
+        // no tail visibility (the governance timers already published
+        // percentiles). p50/p90/p99 matches that established pattern.
+        metrics.recordLatency("gpt-4", java.time.Duration.ofMillis(100),
+                java.time.Duration.ofMillis(500));
+
+        var promptTimer = registry.find("atmosphere.ai.prompt.duration").timer();
+        assertNotNull(promptTimer);
+        var published = java.util.Arrays.stream(promptTimer.takeSnapshot().percentileValues())
+                .map(v -> Math.round(v.percentile() * 100))
+                .toList();
+        assertTrue(published.containsAll(java.util.List.of(50L, 90L, 99L)),
+                "prompt latency must publish p50/p90/p99, got: " + published);
+
+        var responseTimer = registry.find("atmosphere.ai.response.duration").timer();
+        assertNotNull(responseTimer);
+        assertTrue(responseTimer.takeSnapshot().percentileValues().length > 0,
+                "response latency must publish percentiles too");
+    }
+
+    @Test
+    public void cachedInputTokensGetTheirOwnSeries() {
+        // Regression: cachedInput reached the wire and the tape but no meter,
+        // so a provider-cache hit was invisible to billing dashboards even
+        // though it is billed at a different rate than fresh input.
+        metrics.recordTokenUsage("built-in", "gpt-4", "gpt-4",
+                1000L, 500L, 800L, 1500L);
+
+        var cached = registry.find("atmosphere.ai.tokens")
+                .tag("type", "cached_input").counter();
+        assertNotNull(cached, "cached_input token series must exist");
+        assertEquals(800.0, cached.count(), 0.001);
+
+        // The existing input/output series stay exactly as before.
+        assertEquals(1000.0, registry.find("atmosphere.ai.tokens")
+                .tag("type", "input").counter().count(), 0.001);
+        assertEquals(500.0, registry.find("atmosphere.ai.tokens")
+                .tag("type", "output").counter().count(), 0.001);
+    }
+
+    @Test
+    public void zeroCachedInputEmitsNoCachedSeries() {
+        // Runtime truth: a provider that reports no cache hit must not
+        // register a zero-valued cached series.
+        metrics.recordTokenUsage("built-in", "gpt-4", "gpt-4", 10L, 5L, 0L, 15L);
+        assertNull(registry.find("atmosphere.ai.tokens").tag("type", "cached_input").counter());
+    }
+
+    @Test
     public void testCostRecording() {
         metrics.recordCost("gpt-4", BigDecimal.valueOf(0.05));
 

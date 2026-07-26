@@ -36,6 +36,11 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Shared helper for executing Atmosphere tools and formatting results.
@@ -81,6 +86,33 @@ public final class ToolExecutionHelper {
     public static final String TOOL_OUTPUT_OFFLOAD_THRESHOLD_ENV =
             "LLM_TOOL_OUTPUT_OFFLOAD_THRESHOLD";
 
+    /**
+     * Default per-tool execution bound, in seconds. A tool call is external
+     * input — the model chooses it — so an unbounded blocking executor hangs
+     * the agent turn forever (Correctness Invariant #3). The default matches
+     * the coordinator's {@code AgentLimits.DEFAULT} 120s so a tool bound and
+     * an agent-dispatch bound are the same order of magnitude. Override per
+     * tool via {@link ToolDefinition.Builder#executionTimeout(long)}, globally
+     * via {@link #TOOL_EXECUTION_TIMEOUT_PROPERTY} /
+     * {@link #TOOL_EXECUTION_TIMEOUT_ENV}; a resolved value {@code <= 0}
+     * disables the bound and restores the pure inline call.
+     */
+    public static final long DEFAULT_TOOL_EXECUTION_TIMEOUT_SECONDS = 120L;
+
+    /**
+     * System property overriding {@link #DEFAULT_TOOL_EXECUTION_TIMEOUT_SECONDS}.
+     * Resolved sysprop-first, then {@link #TOOL_EXECUTION_TIMEOUT_ENV},
+     * mirroring the offload-threshold knobs.
+     */
+    public static final String TOOL_EXECUTION_TIMEOUT_PROPERTY =
+            "org.atmosphere.ai.toolExecutionTimeout";
+
+    /**
+     * Environment variable overriding {@link #DEFAULT_TOOL_EXECUTION_TIMEOUT_SECONDS}.
+     * See {@link #TOOL_EXECUTION_TIMEOUT_PROPERTY}.
+     */
+    public static final String TOOL_EXECUTION_TIMEOUT_ENV = "LLM_TOOL_EXECUTION_TIMEOUT";
+
     /** Characters of the full result kept in the preview returned to the model when offloading. */
     private static final int OFFLOAD_PREVIEW_CHARS = 1500;
 
@@ -122,13 +154,136 @@ public final class ToolExecutionHelper {
     public static String executeAndFormat(String toolName, ToolExecutor executor,
                                           Map<String, Object> args,
                                           Map<Class<?>, Object> injectables) {
+        return executeAndFormat(toolName, executor, args, injectables, 0L);
+    }
+
+    /**
+     * Execution-bounded variant. {@code toolExecutionTimeout} is the tool's own
+     * {@link ToolDefinition#executionTimeout()} (0 = framework default,
+     * negative = unbounded); the effective bound is resolved by
+     * {@link #resolveExecutionTimeout(long)}.
+     */
+    static String executeAndFormat(String toolName, ToolExecutor executor,
+                                   Map<String, Object> args,
+                                   Map<Class<?>, Object> injectables,
+                                   long toolExecutionTimeout) {
+        var scope = injectables != null ? injectables : Map.<Class<?>, Object>of();
+        var timeoutSeconds = resolveExecutionTimeout(toolExecutionTimeout);
+        if (timeoutSeconds <= 0) {
+            // Bound disabled: byte-identical inline call on the caller thread,
+            // preserving thread affinity for executors that rely on it.
+            return invokeAndFormat(toolName, executor, args, scope);
+        }
+        return invokeBounded(toolName, executor, args, scope, timeoutSeconds);
+    }
+
+    /** The raw executor invocation + result/error formatting, no time bound. */
+    private static String invokeAndFormat(String toolName, ToolExecutor executor,
+                                          Map<String, Object> args,
+                                          Map<Class<?>, Object> scope) {
         try {
-            var result = executor.execute(args, injectables != null ? injectables : Map.of());
+            var result = executor.execute(args, scope);
             logger.debug("Tool {} executed: {}", toolName, result);
             return result != null ? result.toString() : "null";
         } catch (Exception e) {
             logger.error("Tool {} execution failed", toolName, e);
             return "{\"error\":\"" + ToolBridgeUtils.escapeJson(errorMessage(e)) + "\"}";
+        }
+    }
+
+    /**
+     * Run the executor on a per-call virtual thread bounded by
+     * {@code timeoutSeconds}. A tool that overruns is abandoned (interrupted)
+     * and the model receives a structured {@code tool_timeout} error, so the
+     * agent loop continues instead of hanging forever on a blocking executor
+     * (Correctness Invariant #3).
+     *
+     * <p>Mirrors the coordinator's proven bounded-dispatch mechanism: cancel
+     * plus {@code shutdownNow()} <em>while the executor is live</em> so the
+     * interrupt actually reaches the blocked worker, an interruptible await so
+     * an outer cancellation propagates inward, and a relay of a
+     * worker-observed interrupt back to the calling thread so a cancel raised
+     * inside the tool body is not swallowed by the thread hop.</p>
+     */
+    private static String invokeBounded(String toolName, ToolExecutor executor,
+                                        Map<String, Object> args,
+                                        Map<Class<?>, Object> scope,
+                                        long timeoutSeconds) {
+        var vtExecutor = Executors.newVirtualThreadPerTaskExecutor();
+        try {
+            var workerInterrupted = new java.util.concurrent.atomic.AtomicBoolean();
+            var future = CompletableFuture.supplyAsync(() -> {
+                try {
+                    return invokeAndFormat(toolName, executor, args, scope);
+                } finally {
+                    if (Thread.currentThread().isInterrupted()) {
+                        workerInterrupted.set(true);
+                    }
+                }
+            }, vtExecutor).orTimeout(timeoutSeconds, TimeUnit.SECONDS);
+            try {
+                var result = future.get();
+                if (workerInterrupted.get()) {
+                    Thread.currentThread().interrupt();
+                }
+                return result;
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                future.cancel(true);
+                vtExecutor.shutdownNow();
+                return "{\"error\":\"tool_interrupted\",\"tool\":\""
+                        + ToolBridgeUtils.escapeJson(toolName) + "\"}";
+            } catch (ExecutionException e) {
+                if (e.getCause() instanceof TimeoutException) {
+                    future.cancel(true);
+                    vtExecutor.shutdownNow();
+                    logger.warn("Tool {} exceeded its {}s execution bound and was abandoned. "
+                            + "Raise it per tool via ToolDefinition.executionTimeout, globally "
+                            + "via {}, or set a value <= 0 to disable the bound.",
+                            toolName, timeoutSeconds, TOOL_EXECUTION_TIMEOUT_PROPERTY);
+                    return "{\"error\":\"tool_timeout\",\"tool\":\""
+                            + ToolBridgeUtils.escapeJson(toolName)
+                            + "\",\"timeoutSeconds\":" + timeoutSeconds + "}";
+                }
+                // invokeAndFormat catches Exception itself, so a throw here is
+                // an Error or a JVM-level failure — surface it as a tool error
+                // rather than propagating into the runtime bridge.
+                var cause = e.getCause() != null ? e.getCause() : e;
+                logger.error("Tool {} execution failed", toolName, cause);
+                return "{\"error\":\"" + ToolBridgeUtils.escapeJson(errorMessage(cause)) + "\"}";
+            }
+        } finally {
+            // Non-blocking teardown on every terminal path; shutdownNow never
+            // awaits, so it cannot re-introduce the hang this guards against.
+            vtExecutor.shutdownNow();
+        }
+    }
+
+    /**
+     * Resolve the effective execution bound: the tool's own value when
+     * positive, else the {@link #TOOL_EXECUTION_TIMEOUT_PROPERTY} system
+     * property, else {@link #TOOL_EXECUTION_TIMEOUT_ENV}, else
+     * {@link #DEFAULT_TOOL_EXECUTION_TIMEOUT_SECONDS}. A negative tool value
+     * disables the bound for that tool; a resolved global value {@code <= 0}
+     * disables it everywhere. Parsing is lenient — a malformed value falls back
+     * to the default rather than throwing (Correctness Invariant #4).
+     */
+    private static long resolveExecutionTimeout(long toolExecutionTimeout) {
+        if (toolExecutionTimeout != 0) {
+            return toolExecutionTimeout;
+        }
+        var raw = System.getProperty(TOOL_EXECUTION_TIMEOUT_PROPERTY);
+        if (raw == null || raw.isBlank()) {
+            raw = System.getenv(TOOL_EXECUTION_TIMEOUT_ENV);
+        }
+        if (raw == null || raw.isBlank()) {
+            return DEFAULT_TOOL_EXECUTION_TIMEOUT_SECONDS;
+        }
+        try {
+            return Long.parseLong(raw.trim());
+        } catch (NumberFormatException e) {
+            logger.warn("Ignoring malformed tool execution timeout '{}' (expected seconds)", raw);
+            return DEFAULT_TOOL_EXECUTION_TIMEOUT_SECONDS;
         }
     }
 
@@ -169,7 +324,8 @@ public final class ToolExecutionHelper {
             logger.info("Tool {} argument validation failed: {}", tool.name(), errors);
             return buildValidationErrorJson(tool.name(), errors);
         }
-        return executeAndFormat(tool.name(), tool.executor(), args);
+        return executeAndFormat(tool.name(), tool.executor(), args, Map.of(),
+                tool.executionTimeout());
     }
 
     /**
@@ -421,7 +577,7 @@ public final class ToolExecutionHelper {
             case BYPASS -> {
                 // Auto-approve every tool. Explicit opt-in only.
                 return finishAndEmit(toolName, session, scope,
-                        executeAndFormat(toolName, tool.executor(), args, scope));
+                        executeAndFormat(toolName, tool.executor(), args, scope, tool.executionTimeout()));
             }
             case PLAN -> {
                 // Force approval on every tool regardless of tool-local
@@ -479,7 +635,7 @@ public final class ToolExecutionHelper {
                 logger.info("Tool {} auto-approved under PermissionMode.ACCEPT_EDITS (kind=EDIT)", toolName);
             }
             return finishAndEmit(toolName, session, scope,
-                    executeAndFormat(toolName, tool.executor(), args, scope));
+                    executeAndFormat(toolName, tool.executor(), args, scope, tool.executionTimeout()));
         }
         // DenyAll is evaluated BEFORE the strategy-null fall-through so that
         // a null strategy cannot bypass a deny-by-policy decision. Previously
@@ -525,7 +681,7 @@ public final class ToolExecutionHelper {
                         ? resolution.modifiedArguments() : args;
                 logger.info("Tool {} approved, executing{}", toolName,
                         resolution.hasModifiedArguments() ? " with reviewer-edited arguments" : "");
-                yield executeAndFormat(toolName, tool.executor(), effectiveArgs, scope);
+                yield executeAndFormat(toolName, tool.executor(), effectiveArgs, scope, tool.executionTimeout());
             }
             case DENIED -> {
                 logger.info("Tool {} denied by user", toolName);

@@ -115,6 +115,40 @@ public final class CompositeAiMetrics implements AiMetrics {
         }
     }
 
+    /**
+     * Fan out the provider-aware overload verbatim. Without this override the
+     * interface default downgrades every composite-wrapped call to the 4-arg
+     * form, so delegates silently lose the resolved provider name and the
+     * response model whenever JFR metrics are active (Runtime Truth, Mode
+     * Parity) — and, with the cached-input overload below, the cached count too.
+     */
+    @Override
+    public void recordTokenUsage(String provider, String requestModel, String responseModel,
+                                 long inputTokens, long outputTokens, long totalTokens) {
+        for (var delegate : delegates) {
+            try {
+                delegate.recordTokenUsage(provider, requestModel, responseModel,
+                        inputTokens, outputTokens, totalTokens);
+            } catch (RuntimeException e) {
+                logFailure(delegate, "recordTokenUsage", e);
+            }
+        }
+    }
+
+    @Override
+    public void recordTokenUsage(String provider, String requestModel, String responseModel,
+                                 long inputTokens, long outputTokens, long cachedInputTokens,
+                                 long totalTokens) {
+        for (var delegate : delegates) {
+            try {
+                delegate.recordTokenUsage(provider, requestModel, responseModel,
+                        inputTokens, outputTokens, cachedInputTokens, totalTokens);
+            } catch (RuntimeException e) {
+                logFailure(delegate, "recordTokenUsage", e);
+            }
+        }
+    }
+
     @Override
     public void recordCost(String model, BigDecimal cost) {
         for (var delegate : delegates) {

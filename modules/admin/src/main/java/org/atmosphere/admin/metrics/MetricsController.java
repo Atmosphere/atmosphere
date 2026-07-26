@@ -105,10 +105,20 @@ public final class MetricsController {
         var promptTimer = registry.find("atmosphere.ai.prompt.duration").timer();
         if (promptTimer != null) {
             ai.put("promptLatencyMeanMs", round(promptTimer.mean(TimeUnit.MILLISECONDS)));
+            putPercentiles(ai, "promptLatency", promptTimer);
         }
         var responseTimer = registry.find("atmosphere.ai.response.duration").timer();
         if (responseTimer != null) {
             ai.put("responseLatencyMeanMs", round(responseTimer.mean(TimeUnit.MILLISECONDS)));
+            putPercentiles(ai, "responseLatency", responseTimer);
+        }
+        // Provider-side prompt-cache hits: billed differently from fresh input,
+        // so operators need it broken out. Absent when no runtime reported a
+        // cached count (runtime truth — no key rather than a fabricated zero).
+        var cachedTokens = registry.find("atmosphere.ai.tokens")
+                .tag("type", "cached_input").counter();
+        if (cachedTokens != null) {
+            ai.put("cachedInputTokensTotal", round(cachedTokens.count()));
         }
         // Spend + tool read-outs: the atmosphere.ai.cost summary is fed at the
         // shared metrics seam whenever a TokenPricing is installed; absent
@@ -127,6 +137,28 @@ public final class MetricsController {
         result.put("ai", ai);
 
         return result;
+    }
+
+    /**
+     * Publish a timer's p50 / p90 / p99 under {@code <prefix>P50Ms} and
+     * friends. A mean alone hides the tail operators actually page on. Keys
+     * are omitted when the timer publishes no percentile snapshot (runtime
+     * truth: a plain timer reports no percentiles, and reporting zeros would
+     * read as "the tail is fine").
+     */
+    private static void putPercentiles(Map<String, Object> target, String prefix,
+                                       io.micrometer.core.instrument.Timer timer) {
+        for (var value : timer.takeSnapshot().percentileValues()) {
+            var key = switch ((int) Math.round(value.percentile() * 100)) {
+                case 50 -> prefix + "P50Ms";
+                case 90 -> prefix + "P90Ms";
+                case 99 -> prefix + "P99Ms";
+                default -> null;
+            };
+            if (key != null) {
+                target.put(key, round(value.value(TimeUnit.MILLISECONDS)));
+            }
+        }
     }
 
     /**

@@ -22,6 +22,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ToolParameterTest {
@@ -98,8 +99,53 @@ class ToolParameterTest {
     @Test
     void jsonSchemaTypeObjectFallback() {
         assertEquals("object",
-                ToolParameter.jsonSchemaType(List.class));
-        assertEquals("object",
                 ToolParameter.jsonSchemaType(Map.class));
+        assertEquals("object",
+                ToolParameter.jsonSchemaType(Object.class));
     }
+
+    @Test
+    void jsonSchemaTypeCollectionsAndArraysAreArrays() {
+        // A list described as "object" told the model the wrong shape — it is
+        // a JSON Schema array, and its element type rides in items().
+        assertEquals("array", ToolParameter.jsonSchemaType(List.class));
+        assertEquals("array", ToolParameter.jsonSchemaType(java.util.Set.class));
+        assertEquals("array", ToolParameter.jsonSchemaType(String[].class));
+    }
+
+    @Test
+    void jsonSchemaTypeEnumIsAConstrainedString() {
+        // An enum is a string whose allowed values are enumerated; describing
+        // it as "object" left the model guessing at both shape and values.
+        assertEquals("string", ToolParameter.jsonSchemaType(Season.class));
+    }
+
+    @Test
+    void richParametersCarryEnumItemsAndProperties() {
+        var season = ToolParameter.ofEnum("season", "Which season", true,
+                List.of("SPRING", "SUMMER"));
+        assertTrue(season.hasEnumValues());
+        assertEquals(List.of("SPRING", "SUMMER"), season.enumValues());
+
+        var tags = ToolParameter.ofArray("tags", "Tags", false,
+                new ToolParameter("item", "", "string", true));
+        assertEquals("array", tags.type());
+        assertEquals("string", tags.items().type());
+
+        var origin = ToolParameter.ofObject("origin", "Origin", true,
+                List.of(new ToolParameter("city", "", "string", true)));
+        assertTrue(origin.hasProperties());
+        assertEquals("city", origin.properties().get(0).name());
+    }
+
+    @Test
+    void flatConstructorStaysEmptyOnTheRichFields() {
+        // Source compatibility: the 4-arg form still yields a plain node.
+        var flat = new ToolParameter("q", "Query", "string", true);
+        assertFalse(flat.hasEnumValues());
+        assertFalse(flat.hasProperties());
+        assertNull(flat.items());
+    }
+
+    private enum Season { SPRING, SUMMER }
 }

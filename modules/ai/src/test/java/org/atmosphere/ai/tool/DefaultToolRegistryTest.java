@@ -168,6 +168,119 @@ public class DefaultToolRegistryTest {
     }
 
     /**
+     * End-to-end regression for the tool-argument corruption: model-supplied
+     * arguments carrying a unicode escape and a nested object used to arrive
+     * as a literal backslash sequence and an un-parsed JSON string, so a tool
+     * declaring a {@code Map} parameter failed to bind at all (argument type
+     * mismatch on the reflective invoke). Both must now bind correctly.
+     */
+    @Test
+    public void structuredArgumentsFromTheWireBindToTypedParameters() {
+        var registry = new DefaultToolRegistry();
+        registry.register(new SearchToolProvider());
+
+        var args = ToolBridgeUtils.parseJsonArgs(
+                "{\"city\":\"Z\\u00fcrich\",\"filter\":{\"lang\":\"de\",\"n\":2}}");
+        var result = registry.execute("search", args);
+
+        assertTrue(result.success(), "structured args must bind: " + result.result());
+        assertEquals("Zürich|{lang=de, n=2}", result.result());
+    }
+
+    /**
+     * A structured value bound to a {@code String} parameter must arrive as
+     * JSON text — {@code Map.toString()} would be a fresh corruption.
+     */
+    @Test
+    public void structuredArgumentBoundToStringParameterArrivesAsJson() {
+        var registry = new DefaultToolRegistry();
+        registry.register(new RawFilterToolProvider());
+
+        var args = ToolBridgeUtils.parseJsonArgs("{\"filter\":{\"lang\":\"de\"}}");
+        var result = registry.execute("raw_filter", args);
+
+        assertTrue(result.success());
+        assertEquals("{\"lang\":\"de\"}", result.result());
+    }
+
+    /**
+     * Regression: an enum-typed {@code @AiTool} parameter was broken end to
+     * end. Its schema said only "object" (no allowed values, so the model had
+     * to guess), and the model's string never converted, so the reflective
+     * invoke failed with an argument-type mismatch. Both halves must work.
+     */
+    @Test
+    public void enumParametersAreDescribedAndBound() {
+        var registry = new DefaultToolRegistry();
+        registry.register(new UnitToolProvider());
+
+        var tool = registry.getTool("convert").orElseThrow();
+        var unitParam = tool.parameters().stream()
+                .filter(p -> p.name().equals("unit")).findFirst().orElseThrow();
+        assertEquals("string", unitParam.type(), "an enum is a constrained string, not an object");
+        assertEquals(java.util.List.of("CELSIUS", "FAHRENHEIT"), unitParam.enumValues(),
+                "the model must be told the allowed values");
+
+        var result = registry.execute("convert", Map.of("unit", "FAHRENHEIT"));
+        assertTrue(result.success(), "enum argument must bind: " + result.result());
+        assertEquals("FAHRENHEIT", result.result());
+    }
+
+    @Test
+    public void collectionAndRecordParametersCarryTheirShape() {
+        var registry = new DefaultToolRegistry();
+        registry.register(new ShapedToolProvider());
+        var tool = registry.getTool("shaped").orElseThrow();
+
+        var tags = tool.parameters().stream()
+                .filter(p -> p.name().equals("tags")).findFirst().orElseThrow();
+        assertEquals("array", tags.type(), "a List must describe as an array");
+        assertNotNull(tags.items(), "an array must describe its element schema");
+        assertEquals("string", tags.items().type());
+
+        var origin = tool.parameters().stream()
+                .filter(p -> p.name().equals("origin")).findFirst().orElseThrow();
+        assertEquals("object", origin.type());
+        assertEquals(2, origin.properties().size(), "a record must describe its fields");
+        assertTrue(origin.properties().stream().anyMatch(p -> p.name().equals("city")));
+    }
+
+    enum TemperatureUnit { CELSIUS, FAHRENHEIT }
+
+    record Origin(String city, int zip) { }
+
+    static class UnitToolProvider {
+        @AiTool(name = "convert", description = "Convert to a unit")
+        public String convert(@Param(value = "unit", description = "Target unit")
+                              TemperatureUnit unit) {
+            return unit.name();
+        }
+    }
+
+    static class ShapedToolProvider {
+        @AiTool(name = "shaped", description = "Takes shaped parameters")
+        public String shaped(@Param(value = "tags", description = "Tags") List<String> tags,
+                             @Param(value = "origin", description = "Origin") Origin origin) {
+            return tags + "|" + origin;
+        }
+    }
+
+    static class SearchToolProvider {
+        @AiTool(name = "search", description = "Search with a structured filter")
+        public String search(@Param(value = "city", description = "City") String city,
+                             @Param(value = "filter", description = "Filter") Map<String, Object> filter) {
+            return city + "|" + filter;
+        }
+    }
+
+    static class RawFilterToolProvider {
+        @AiTool(name = "raw_filter", description = "Takes the filter as raw JSON text")
+        public String rawFilter(@Param(value = "filter", description = "Filter") String filter) {
+            return filter;
+        }
+    }
+
+    /**
      * Pins the injectables-aware dispatch contract: an @AiTool method may
      * declare a framework-scoped parameter (here {@code StreamingSession})
      * and the reflective executor must
