@@ -38,65 +38,63 @@ async function expectMessage(page: Page, text: string, timeout = 10_000): Promis
   await expect(page.getByTestId('message-list')).toContainText(text, { timeout });
 }
 
-test.describe('Multi-Client Broadcast', () => {
-  // spring-boot-chat uses @ManagedService with JacksonDecoder (expects {author,message} JSON).
-  // The Atmosphere Console sends raw text prompts, which the decoder can't parse.
-  // Multi-client broadcast is tested via WAsyncChatIntegrationTest (JUnit) instead.
-  // These browser tests verify the console UI connects and renders correctly.
-  test.skip(true, '@ManagedService chat protocol incompatible with console text input');
-
-  test('message from one client is received by another', async ({ browser }) => {
-    // Open two independent browser contexts (simulates two users)
+/**
+ * spring-boot-chat's @ManagedService pairs a JacksonDecoder that expects
+ * {author,message} JSON with the Console, which sends raw text prompts — so
+ * a console-typed message is never decoded and never rebroadcast. The
+ * cross-client *delivery* contract is therefore asserted at the protocol
+ * level by WAsyncChatIntegrationTest (JUnit, samples/spring-boot-chat), which
+ * speaks the encoded wire format.
+ *
+ * What only a browser can prove — and what this spec now actually runs, rather
+ * than skipping wholesale — is that two independent contexts each establish
+ * their own console session against one server, render their own sends, and
+ * stay isolated from each other.
+ */
+test.describe('Multi-Client Console Sessions', () => {
+  test('two independent contexts each connect to the same server', async ({ browser }) => {
     const ctx1 = await browser.newContext();
     const ctx2 = await browser.newContext();
-    const page1 = await ctx1.newPage();
-    const page2 = await ctx2.newPage();
+    try {
+      const page1 = await ctx1.newPage();
+      const page2 = await ctx2.newPage();
 
-    // Both connect to the console
-    await openConsole(page1);
-    await openConsole(page2);
+      // Both reach "Connected" — one server, two concurrent console sessions.
+      await openConsole(page1);
+      await openConsole(page2);
 
-    // Allow connections to stabilize
-    await page1.waitForTimeout(1000);
-
-    // Client 1 sends a message
-    await sendMessage(page1, 'Can you see this?');
-
-    // Client 2 should receive it
-    await expectMessage(page2, 'Can you see this?');
-
-    // Client 2 replies
-    await sendMessage(page2, 'Yes I can!');
-
-    // Client 1 should receive the reply
-    await expectMessage(page1, 'Yes I can!');
-
-    await ctx1.close();
-    await ctx2.close();
+      await expect(page1.getByTestId('chat-layout')).toBeVisible();
+      await expect(page2.getByTestId('chat-layout')).toBeVisible();
+    } finally {
+      await ctx1.close();
+      await ctx2.close();
+    }
   });
 
-  test('both clients see their own sent messages', async ({ browser }) => {
+  test('each client renders its own send', async ({ browser }) => {
     const ctx1 = await browser.newContext();
     const ctx2 = await browser.newContext();
-    const page1 = await ctx1.newPage();
-    const page2 = await ctx2.newPage();
+    try {
+      const page1 = await ctx1.newPage();
+      const page2 = await ctx2.newPage();
 
-    await openConsole(page1);
-    await openConsole(page2);
+      await openConsole(page1);
+      await openConsole(page2);
 
-    // Allow connections to stabilize
-    await page1.waitForTimeout(1000);
+      await sendMessage(page1, 'Hello from client 1');
+      await sendMessage(page2, 'Hello from client 2');
 
-    // Client 1 sends a message
-    await sendMessage(page1, 'Hello everyone!');
-
-    // Client 1 should see its own message (added locally by the console)
-    await expectMessage(page1, 'Hello everyone!');
-
-    // Client 2 should also receive the broadcast
-    await expectMessage(page2, 'Hello everyone!');
-
-    await ctx1.close();
-    await ctx2.close();
+      // Each console renders its own outbound message. Cross-client delivery
+      // is deliberately NOT asserted here: whether the undecodable console
+      // text reaches the other session depends on broadcaster timing rather
+      // than on a contract this sample defines, so pinning it either way would
+      // be asserting an accident. WAsyncChatIntegrationTest owns the delivery
+      // contract, over the encoded wire format the decoder actually accepts.
+      await expectMessage(page1, 'Hello from client 1');
+      await expectMessage(page2, 'Hello from client 2');
+    } finally {
+      await ctx1.close();
+      await ctx2.close();
+    }
   });
 });

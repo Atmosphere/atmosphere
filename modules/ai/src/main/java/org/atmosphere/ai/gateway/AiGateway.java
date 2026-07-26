@@ -49,14 +49,43 @@ import java.util.Optional;
  */
 public final class AiGateway {
 
+    /**
+     * The principal every unauthenticated caller collapses into.
+     * {@code AbstractAgentRuntime.admitThroughGateway} substitutes this id
+     * when the execution context carries no {@code userId()}, which means
+     * <b>all anonymous traffic shares one rate-limit bucket</b>. Deployments
+     * that serve unauthenticated users should size that bucket explicitly via
+     * the anonymous-limiter constructor (or the production profile in
+     * {@link GatewayProfiles}) rather than letting anonymous traffic compete
+     * inside a single per-"user" window.
+     */
+    public static final String ANONYMOUS_USER = "anonymous";
+
     private final PerUserRateLimiter rateLimiter;
+    private final PerUserRateLimiter anonymousRateLimiter;
     private final CredentialResolver credentialResolver;
     private final GatewayTraceExporter traceExporter;
 
     public AiGateway(PerUserRateLimiter rateLimiter,
                      CredentialResolver credentialResolver,
                      GatewayTraceExporter traceExporter) {
+        this(rateLimiter, null, credentialResolver, traceExporter);
+    }
+
+    /**
+     * Full constructor with an explicit anonymous-bucket limiter. When
+     * {@code anonymousRateLimiter} is {@code null} the {@link #ANONYMOUS_USER}
+     * principal is limited by the main {@code rateLimiter} like any other id
+     * (the historical behavior); when non-null, anonymous callers draw from
+     * the dedicated limiter so the shared-bucket ceiling is an explicit,
+     * separately-tunable number instead of an implicit consequence.
+     */
+    public AiGateway(PerUserRateLimiter rateLimiter,
+                     PerUserRateLimiter anonymousRateLimiter,
+                     CredentialResolver credentialResolver,
+                     GatewayTraceExporter traceExporter) {
         this.rateLimiter = Objects.requireNonNull(rateLimiter, "rateLimiter");
+        this.anonymousRateLimiter = anonymousRateLimiter;
         this.credentialResolver = Objects.requireNonNull(credentialResolver, "credentialResolver");
         this.traceExporter = Objects.requireNonNull(traceExporter, "traceExporter");
     }
@@ -67,10 +96,14 @@ public final class AiGateway {
      * admission point — every agent call goes through here, unconditionally.
      */
     public GatewayDecision admit(String userId, String provider, String model) {
-        if (!rateLimiter.tryAcquire(userId)) {
+        var anonymous = ANONYMOUS_USER.equals(userId) && anonymousRateLimiter != null;
+        var limiter = anonymous ? anonymousRateLimiter : rateLimiter;
+        if (!limiter.tryAcquire(userId)) {
             traceExporter.record(new GatewayTraceEntry(userId, provider, model,
                     false, "rate-limited", Optional.empty()));
-            return GatewayDecision.rejected("per-user rate limit exceeded");
+            return GatewayDecision.rejected(anonymous
+                    ? "shared anonymous-bucket rate limit exceeded"
+                    : "per-user rate limit exceeded");
         }
         var credentials = credentialResolver.resolve(userId, provider);
         traceExporter.record(new GatewayTraceEntry(userId, provider, model,
@@ -80,6 +113,20 @@ public final class AiGateway {
 
     public PerUserRateLimiter rateLimiter() {
         return rateLimiter;
+    }
+
+    /**
+     * The limiter governing the shared {@link #ANONYMOUS_USER} bucket — the
+     * dedicated anonymous limiter when one was configured, otherwise the main
+     * per-user limiter (anonymous traffic then shares one window inside it).
+     */
+    public PerUserRateLimiter anonymousRateLimiter() {
+        return anonymousRateLimiter != null ? anonymousRateLimiter : rateLimiter;
+    }
+
+    /** Whether a dedicated anonymous-bucket limiter is configured. */
+    public boolean hasDedicatedAnonymousLimiter() {
+        return anonymousRateLimiter != null;
     }
 
     public CredentialResolver credentialResolver() {

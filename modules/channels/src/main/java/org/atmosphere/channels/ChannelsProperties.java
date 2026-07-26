@@ -15,6 +15,8 @@
  */
 package org.atmosphere.channels;
 
+import java.time.Duration;
+
 /**
  * Configuration properties for Atmosphere messaging channels.
  */
@@ -25,6 +27,7 @@ public class ChannelsProperties {
     private DiscordProperties discord = new DiscordProperties();
     private WhatsAppProperties whatsapp = new WhatsAppProperties();
     private MessengerProperties messenger = new MessengerProperties();
+    private DedupProperties dedup = new DedupProperties();
 
     public TelegramProperties getTelegram() { return telegram; }
     public void setTelegram(TelegramProperties telegram) { this.telegram = telegram; }
@@ -40,6 +43,37 @@ public class ChannelsProperties {
 
     public MessengerProperties getMessenger() { return messenger; }
     public void setMessenger(MessengerProperties messenger) { this.messenger = messenger; }
+
+    public DedupProperties getDedup() { return dedup; }
+    public void setDedup(DedupProperties dedup) { this.dedup = dedup; }
+
+    /**
+     * Inbound webhook idempotency. Every supported platform re-delivers a
+     * webhook when the endpoint answers non-2xx or times out, so without a
+     * dedup key a single user message can run the agent — and bill for the
+     * model call — two or three times.
+     *
+     * <pre>
+     * atmosphere:
+     *   channels:
+     *     dedup:
+     *       enabled: true      # default
+     *       max-entries: 10000 # default, hard bound on the cache
+     *       ttl: 15m           # default, how long an id is remembered
+     * </pre>
+     */
+    public static class DedupProperties {
+        private boolean enabled = true;
+        private int maxEntries = SeenMessageCache.DEFAULT_MAX_ENTRIES;
+        private Duration ttl = SeenMessageCache.DEFAULT_TTL;
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        public int getMaxEntries() { return maxEntries; }
+        public void setMaxEntries(int maxEntries) { this.maxEntries = maxEntries; }
+        public Duration getTtl() { return ttl; }
+        public void setTtl(Duration ttl) { this.ttl = ttl; }
+    }
 
     public static class TelegramProperties {
         private String botToken;

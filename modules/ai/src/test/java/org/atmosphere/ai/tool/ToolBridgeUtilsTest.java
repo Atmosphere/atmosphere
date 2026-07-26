@@ -112,6 +112,10 @@ public class ToolBridgeUtilsTest {
     }
 
     // --- nested JSON regression tests ---
+    // Nested values decode to real Maps/Lists. The old tokenizer captured them
+    // as raw text spans, so a tool declaring a List or a record parameter
+    // received a String it could not bind. See ToolArgJacksonParseTest for the
+    // full decoding table.
 
     @Test
     public void testParseJsonArgsNestedArrayBecomesList() {
@@ -120,29 +124,28 @@ public class ToolBridgeUtilsTest {
         // invoke failed with an argument-type mismatch.
         var result = ToolBridgeUtils.parseJsonArgs("{\"name\":\"alice\",\"items\":[1,2,3]}");
         assertEquals("alice", result.get("name"));
-        assertEquals(java.util.List.of(1L, 2L, 3L), result.get("items"));
+        assertEquals(List.of(1L, 2L, 3L), result.get("items"));
     }
 
     @Test
     public void testParseJsonArgsNestedObjectBecomesMap() {
         var result = ToolBridgeUtils.parseJsonArgs("{\"filter\":{\"key\":\"value\",\"n\":42}}");
-        assertEquals(java.util.Map.of("key", "value", "n", 42L), result.get("filter"));
+        assertEquals(Map.of("key", "value", "n", 42L), result.get("filter"));
     }
 
     @Test
     public void testParseJsonArgsDeeplyNestedArrayOfObjects() {
         var result = ToolBridgeUtils.parseJsonArgs(
                 "{\"rows\":[{\"a\":1},{\"a\":2}],\"count\":2}");
-        assertEquals(java.util.List.of(java.util.Map.of("a", 1L), java.util.Map.of("a", 2L)),
-                result.get("rows"));
+        assertEquals(List.of(Map.of("a", 1L), Map.of("a", 2L)), result.get("rows"));
         assertEquals(2L, result.get("count"));
     }
 
     @Test
     public void testParseJsonArgsNestedIgnoresBracketsInStrings() {
-        // A '}' inside a quoted string must not terminate the nested span.
+        // A '}' inside a quoted string must not terminate the nested value.
         var result = ToolBridgeUtils.parseJsonArgs("{\"payload\":{\"msg\":\"hello}world\"}}");
-        assertEquals(java.util.Map.of("msg", "hello}world"), result.get("payload"));
+        assertEquals(Map.of("msg", "hello}world"), result.get("payload"));
     }
 
     @Test

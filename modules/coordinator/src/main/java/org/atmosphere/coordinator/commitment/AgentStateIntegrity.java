@@ -32,10 +32,26 @@ import java.util.Base64;
 
 /**
  * Ed25519-backed integrity seal for {@code AgentState} memory snapshots.
- * Operators who need tamper-evident memory install one instance per
- * deployment, then wrap their {@code AgentState} with a
- * {@code SigningAgentState} decorator that consults this helper on every
- * read/write.
+ *
+ * <h2>Wiring status — standalone utility, no production caller</h2>
+ *
+ * This class is an <b>API + reference implementation</b>. Nothing in the
+ * framework calls it: there is no {@code SigningAgentState} decorator, and no
+ * shipped code path seals or verifies agent memory. Operators who want
+ * tamper-evident memory must write that decorator themselves and wrap their
+ * own {@code AgentState}.
+ *
+ * <p>It is deliberately left unwired rather than switched on by default: the
+ * shipped {@code FileSystemAgentState} stores memory as plain Markdown/JSONL
+ * that users are encouraged to read and edit directly ({@code cat},
+ * {@code grep}, {@code vim}, {@code git commit}), so a verify-on-read seal
+ * would report every legitimate hand edit as tampering. Sealing only pays off
+ * for a backend whose contents are written and read exclusively by the
+ * framework.</p>
+ *
+ * <p>Do not cite this class as evidence of an active memory-integrity control
+ * (Correctness Invariant #5 — Runtime Truth); it is pinned as unwired by
+ * {@code AgentStateIntegrityWiringPinTest}.</p>
  *
  * <h2>Design</h2>
  * Content-addressed seal: SHA-256 the content, Ed25519-sign the hash.
@@ -58,9 +74,10 @@ import java.util.Base64;
  * share a single {@link KeyPair} across both and publish one public
  * key for all verifiers.</p>
  *
- * <p>Addresses OWASP Agentic A03 Memory Poisoning — the companion
- * evidence to {@link CommitmentRecord}, which covers dispatch records
- * on the coordinator.</p>
+ * <p>Relevant to OWASP Agentic A03 Memory Poisoning, but — unlike
+ * {@link CommitmentRecord}, which {@code JournalingAgentFleet} genuinely
+ * emits for dispatch records once flag-enabled — this class has no emitter,
+ * so it must not be listed as A03 coverage evidence.</p>
  */
 public final class AgentStateIntegrity {
 

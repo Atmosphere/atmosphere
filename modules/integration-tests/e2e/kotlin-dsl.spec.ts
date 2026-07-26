@@ -8,6 +8,14 @@ import net from 'net';
 /**
  * Kotlin DSL E2E — boots the SHADED fat jar and drives its wire protocol.
  *
+ * The sample now answers through a real agent declared with the Kotlin agent
+ * DSL (`registerAgent { }`), so this spec also asserts the agent actually
+ * landed in the framework's routing table and that its replies come back over
+ * the transport DSL's endpoint. The JVM is started with every provider key
+ * scrubbed from its environment so the agent resolves the framework's offline
+ * demo runtime and the answers stay deterministic — a developer with
+ * GEMINI_API_KEY exported must not turn this suite into a live model call.
+ *
  * This used to be a `test.skip()` no-op ("tested via the CI job"), which gave
  * false confidence: the sample shipped a release-gate regression (WebSocket
  * upgrades answered 501 because the embedded Jetty context never provisioned
@@ -71,9 +79,19 @@ if (process.env.CI && !jar) {
 
   test.beforeAll(async () => {
     test.setTimeout(120_000);
+    // Scrub provider credentials from the child env: the sample's agent
+    // resolves its runtime the same way an @Agent does, so a key in the
+    // developer's shell would swap the deterministic offline runtime for a
+    // live model and make these assertions meaningless.
+    const env = { ...process.env };
+    for (const key of ['LLM_API_KEY', 'LLM_MODE', 'LLM_MODEL', 'LLM_BASE_URL',
+      'OPENAI_API_KEY', 'GEMINI_API_KEY', 'ANTHROPIC_API_KEY']) {
+      delete env[key];
+    }
     proc = spawn('java', [`-Dserver.port=${PORT}`, '-jar', jar as string], {
       cwd: resolve(ROOT, 'samples', 'kotlin-dsl-chat'),
       stdio: ['ignore', 'pipe', 'pipe'],
+      env,
     });
     proc.stdout?.on('data', (d) => { output += d.toString(); });
     proc.stderr?.on('data', (d) => { output += d.toString(); });
@@ -92,6 +110,29 @@ if (process.env.CI && !jar) {
   test.afterAll(async () => {
     proc?.kill('SIGTERM');
     await new Promise((r) => setTimeout(r, 500));
+  });
+
+  test('the DSL-declared agent is registered as a framework endpoint', async () => {
+    // The Kotlin agent DSL registers through the framework's own machinery, so
+    // the agent must be routable at the same /atmosphere/agent/{name} mapping
+    // an @Agent-annotated class produces. An unregistered agent path 404s —
+    // that contrast is what proves registration, not merely that the app boots.
+    const registered = await fetch(
+      `http://127.0.0.1:${PORT}/atmosphere/agent/kotlin-dsl-chat`,
+      { method: 'POST', body: 'ping' });
+    expect(registered.status, 'the DSL agent must be routable').toBe(200);
+
+    const unknown = await fetch(
+      `http://127.0.0.1:${PORT}/atmosphere/agent/not-declared`,
+      { method: 'POST', body: 'ping' });
+    expect(unknown.status, 'an undeclared agent path must not be routed').toBe(404);
+
+    // Runtime truth: the agent resolved the offline demo runtime (no keys in
+    // this JVM's env) and the lambda-declared tool reached the tool registry.
+    expect(output, 'the agent DSL must register through the framework')
+      .toMatch(/agent 'kotlin-dsl-chat' registered at \/atmosphere\/agent\/kotlin-dsl-chat/);
+    expect(output, 'the resolved runtime and the DSL tool must be reported')
+      .toMatch(/runtime: demo, tools: \[word_count\]/);
   });
 
   test('WebSocket upgrade succeeds and the DSL agent answers', async () => {
@@ -113,7 +154,9 @@ if (process.env.CI && !jar) {
     await new Promise((r) => setTimeout(r, 1500));
     ws.close();
 
-    expect(msgs, 'DeterministicAgent answers ping with pong').toContain('pong');
+    // The replies now come from the DSL-declared agent's AI pipeline (offline
+    // demo runtime), delivered by the transport DSL's coroutine broadcast.
+    expect(msgs, 'the DSL agent answers ping with pong').toContain('pong');
     expect(msgs, 'other messages are echoed').toContain('echo: release-gate');
   });
 

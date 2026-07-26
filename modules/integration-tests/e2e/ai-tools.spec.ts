@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
 import { WebSocket } from 'ws';
+import { quarantined } from './helpers/quarantine';
 
 let server: SampleServer;
 
@@ -132,8 +133,16 @@ test.describe('@AiTool Pipeline', () => {
       .not.toBeEmpty({ timeout: 30_000 });
   });
 
-  // Built-in demo runtime echoes responses but doesn't dispatch tool call events to console
-  test.skip('tool activity panel shows tool events after query', async ({ page }) => {
+  // The tool-event wire contract itself is asserted without a browser by the
+  // approval-required frame test below and by ai-tool-call-delta.spec.ts; what
+  // is missing is only the console rendering of those events under a keyless run.
+  quarantined({
+    owner: 'jfarcand',
+    expires: '2026-09-30',
+    issue: 'pending',
+    reason: 'the keyless demo runtime echoes text but emits no tool-start/tool-end '
+      + 'events, so the console tool-activity panel has nothing to render',
+  })('tool activity panel shows tool events after query @quarantined', async ({ page }) => {
     await page.goto(server.baseUrl + '/atmosphere/console/');
     await expect(page.getByTestId('chat-input')).toBeVisible();
 

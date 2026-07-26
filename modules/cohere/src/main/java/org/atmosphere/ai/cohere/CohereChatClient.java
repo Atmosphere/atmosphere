@@ -639,6 +639,53 @@ public final class CohereChatClient extends AbstractSseLlmClient {
         return root;
     }
 
+    /**
+     * Live model enumeration against Cohere's {@code GET /v1/models}.
+     * Response shape: {@code {"models":[{"name":"command-a-...","endpoints":
+     * [...]}, ...],"next_page_token":...}} — Cohere keys each entry by
+     * {@code name} (not {@code id}), which
+     * {@link org.atmosphere.ai.llm.ModelListJson} accepts alongside the
+     * OpenAI/Anthropic {@code data[].id} shape. Pagination is ignored; the
+     * parser bounds the result regardless.
+     *
+     * <p>Best-effort by contract: any transport failure, non-2xx status, or
+     * unparseable body returns an empty list (logged at DEBUG) so enumeration
+     * can never break discovery or dispatch. Runs with a short timeout
+     * independent of the streaming timeout.</p>
+     *
+     * @return immutable list of model identifiers; never {@code null}
+     */
+    public List<String> listModels() {
+        var enumTimeout = timeout.compareTo(Duration.ofSeconds(10)) < 0
+                ? timeout : Duration.ofSeconds(10);
+        var builder = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/v1/models"))
+                .header("accept", "application/json")
+                .GET()
+                .timeout(enumTimeout);
+        if (apiKey != null && !apiKey.isBlank()) {
+            builder.header("authorization", "Bearer " + apiKey);
+        }
+        applyReservedFilteredHeaders(builder,
+                Set.of("authorization", "content-type", "accept"));
+        try {
+            var response = httpClient.send(builder.build(),
+                    java.net.http.HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() / 100 != 2) {
+                logger.debug("Cohere model enumeration returned {}", response.statusCode());
+                return List.of();
+            }
+            return org.atmosphere.ai.llm.ModelListJson.parse(MAPPER, response.body());
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            logger.debug("Cohere model enumeration interrupted", ie);
+            return List.of();
+        } catch (Exception e) {
+            logger.debug("Cohere model enumeration failed", e);
+            return List.of();
+        }
+    }
+
     private HttpRequest buildHttpRequest(String body) {
         var builder = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/v2/chat"))

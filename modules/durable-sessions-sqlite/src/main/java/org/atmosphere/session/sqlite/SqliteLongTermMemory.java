@@ -102,7 +102,9 @@ public class SqliteLongTermMemory implements LongTermMemory {
                     stmt.execute("PRAGMA journal_mode=WAL");
                 }
                 createTable();
-            } catch (SQLException e) {
+            } catch (SQLException | RuntimeException e) {
+                // Also closes on a schema-version refusal (RuntimeException),
+                // which propagates as-is.
                 try { connection.close(); } catch (SQLException ex) { e.addSuppressed(ex); }
                 throw e;
             }
@@ -126,20 +128,22 @@ public class SqliteLongTermMemory implements LongTermMemory {
     }
 
     private void createTable() throws SQLException {
-        try (var stmt = connection.createStatement()) {
-            stmt.execute("""
-                    CREATE TABLE IF NOT EXISTS ai_user_facts (
-                        id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id     TEXT NOT NULL,
-                        fact_text   TEXT NOT NULL,
-                        created_at  INTEGER NOT NULL
-                    )
-                    """);
-            stmt.execute("""
-                    CREATE INDEX IF NOT EXISTS idx_user_facts_user_id_created
-                        ON ai_user_facts (user_id, id DESC)
-                    """);
-        }
+        SchemaMigrations.migrate(connection, "ai_user_facts", List.of(conn -> {
+            try (var stmt = conn.createStatement()) {
+                stmt.execute("""
+                        CREATE TABLE IF NOT EXISTS ai_user_facts (
+                            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                            user_id     TEXT NOT NULL,
+                            fact_text   TEXT NOT NULL,
+                            created_at  INTEGER NOT NULL
+                        )
+                        """);
+                stmt.execute("""
+                        CREATE INDEX IF NOT EXISTS idx_user_facts_user_id_created
+                            ON ai_user_facts (user_id, id DESC)
+                        """);
+            }
+        }));
     }
 
     @Override

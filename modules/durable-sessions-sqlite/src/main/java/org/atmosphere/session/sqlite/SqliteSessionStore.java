@@ -95,7 +95,9 @@ public class SqliteSessionStore implements SessionStore {
                     stmt.execute("PRAGMA journal_mode=WAL");
                 }
                 createTable();
-            } catch (SQLException e) {
+            } catch (SQLException | RuntimeException e) {
+                // Also closes on a schema-version refusal (RuntimeException),
+                // which propagates as-is.
                 try { connection.close(); } catch (SQLException ex) { e.addSuppressed(ex); }
                 throw e;
             }
@@ -106,23 +108,25 @@ public class SqliteSessionStore implements SessionStore {
     }
 
     private void createTable() throws SQLException {
-        try (var stmt = connection.createStatement()) {
-            stmt.execute("""
-                    CREATE TABLE IF NOT EXISTS durable_sessions (
-                        token        TEXT PRIMARY KEY,
-                        resource_id  TEXT NOT NULL,
-                        rooms        TEXT NOT NULL DEFAULT '',
-                        broadcasters TEXT NOT NULL DEFAULT '',
-                        metadata     TEXT NOT NULL DEFAULT '',
-                        created_at   INTEGER NOT NULL,
-                        last_seen    INTEGER NOT NULL
-                    )
-                    """);
-            stmt.execute("""
-                    CREATE INDEX IF NOT EXISTS idx_last_seen
-                    ON durable_sessions(last_seen)
-                    """);
-        }
+        SchemaMigrations.migrate(connection, "durable_sessions", List.of(conn -> {
+            try (var stmt = conn.createStatement()) {
+                stmt.execute("""
+                        CREATE TABLE IF NOT EXISTS durable_sessions (
+                            token        TEXT PRIMARY KEY,
+                            resource_id  TEXT NOT NULL,
+                            rooms        TEXT NOT NULL DEFAULT '',
+                            broadcasters TEXT NOT NULL DEFAULT '',
+                            metadata     TEXT NOT NULL DEFAULT '',
+                            created_at   INTEGER NOT NULL,
+                            last_seen    INTEGER NOT NULL
+                        )
+                        """);
+                stmt.execute("""
+                        CREATE INDEX IF NOT EXISTS idx_last_seen
+                        ON durable_sessions(last_seen)
+                        """);
+            }
+        }));
     }
 
     @Override

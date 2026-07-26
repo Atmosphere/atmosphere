@@ -143,6 +143,11 @@ public final class ProtocolBridge {
             var ph = phClass.getConstructor(registryClass, tmClass, cardClass)
                     .newInstance(registry, tm, card);
 
+            // Raw @AgentSkill handlers are invoked reflectively and never reach
+            // AiPipeline's pre-admission loop; the framework reference lets the
+            // handler resolve the installed governance chain.
+            phClass.getMethod("setFramework", AtmosphereFramework.class).invoke(ph, framework);
+
             // Create A2aHandler(protocolHandler)
             var a2aHandlerClass = Class.forName("org.atmosphere.a2a.runtime.A2aHandler");
             var handler = a2aHandlerClass.getConstructor(phClass).newInstance(ph);

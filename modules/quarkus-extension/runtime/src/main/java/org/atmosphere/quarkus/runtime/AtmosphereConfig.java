@@ -255,6 +255,67 @@ public interface AtmosphereConfig {
         Guardrails guardrails();
 
         /**
+         * Outbound-LLM gateway configuration block.
+         *
+         * @return the gateway sub-configuration block
+         */
+        Gateway gateway();
+
+        /**
+         * Outbound gateway sub-configuration, bound to
+         * {@code quarkus.atmosphere.ai.gateway.*}. Mirrors the Spring Boot
+         * starter's {@code atmosphere.ai.gateway.*} keys.
+         *
+         * <p>The framework default is the permissive dev gateway (1M
+         * calls/hour, effectively unrestricted). Setting
+         * {@code profile=production} installs the
+         * {@code GatewayProfiles.production()} limits into the process-wide
+         * {@code AiGatewayHolder}: a per-principal request ceiling plus a
+         * separate, tighter ceiling for the shared {@code anonymous} bucket
+         * every unauthenticated caller collapses into.</p>
+         */
+        interface Gateway {
+
+            /**
+             * Named gateway profile. {@code default} (the default value)
+             * leaves the permissive dev gateway in place; {@code production}
+             * installs the enforcing profile.
+             *
+             * @return the profile name
+             */
+            @WithDefault("default")
+            String profile();
+
+            /**
+             * Per-principal request ceiling inside one window. {@code 0}
+             * (the default) uses the production profile's built-in value.
+             *
+             * @return the per-principal request ceiling
+             */
+            @WithDefault("0")
+            int maxRequestsPerWindow();
+
+            /**
+             * Sliding-window length in seconds. {@code 0} (the default) uses
+             * the production profile's built-in value.
+             *
+             * @return the window length in seconds
+             */
+            @WithDefault("0")
+            int windowSeconds();
+
+            /**
+             * Ceiling for the shared {@code anonymous} bucket. {@code 0}
+             * (the default) derives it from the per-principal ceiling using
+             * the production profile's anonymous divisor.
+             *
+             * @return the anonymous-bucket request ceiling
+             */
+            @WithDefault("0")
+            int anonymousMaxRequests();
+        }
+
+        /**
          * Guardrail sub-configuration, bound to
          * {@code quarkus.atmosphere.ai.guardrails.*}. Mirrors the Spring Boot
          * starter's {@code atmosphere.ai.guardrails.*} keys; currently carries

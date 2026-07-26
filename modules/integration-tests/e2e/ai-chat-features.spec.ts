@@ -11,6 +11,24 @@ test.afterAll(async () => {
   await server?.stop();
 });
 
+/**
+ * See ai-streaming-dom.spec.ts for why the `?token=` param is required: the
+ * fixture forces ATMOSPHERE_AUTH_ENABLED=true, and without a token the
+ * AuthInterceptor closes the console WebSocket immediately after the upgrade.
+ */
+function consoleUrl(): string {
+  return server.baseUrl + '/atmosphere/console/?token=demo-token';
+}
+
+/** Send a prompt and wait for that turn's assistant bubble to settle. */
+async function sendTurn(page: import('@playwright/test').Page, prompt: string, turn: number) {
+  await page.getByTestId('chat-input').fill(prompt);
+  await page.getByTestId('chat-send').click();
+  await expect(page.locator('.message--user')).toHaveCount(turn, { timeout: 10_000 });
+  await expect(page.locator('.message--assistant')).toHaveCount(turn, { timeout: 30_000 });
+  await expect(page.locator('.message--assistant').last()).not.toBeEmpty();
+}
+
 test.describe('AI Chat — New Features E2E', () => {
 
   test('capability validation: server starts successfully with requires', async ({ page }) => {
@@ -21,70 +39,51 @@ test.describe('AI Chat — New Features E2E', () => {
     await expect(page.getByTestId('chat-layout')).toBeVisible();
   });
 
-  // Known issue: spring-boot-ai-chat browser console WebSocket never connects in CI — skip
-  test.skip('conversation memory: server remembers across turns in same session', async ({ page }) => {
-    await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+  test('conversation survives three turns in the same session', async ({ page }) => {
+    await page.goto(consoleUrl());
+    await expect(page.getByText('Connected')).toBeVisible({ timeout: 30_000 });
 
-    // First message
-    await page.getByTestId('chat-input').fill('Hello');
-    await page.getByTestId('chat-send').click();
-    await expect(page.locator('[class*="assistant"], [class*="message"]').first())
-      .not.toBeEmpty({ timeout: 30_000 });
+    await sendTurn(page, 'Hello', 1);
+    await sendTurn(page, 'What is Atmosphere?', 2);
+    await sendTurn(page, 'Tell me more', 3);
 
-    // Wait for streaming to complete
-    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
-
-    // Second message
-    await page.getByTestId('chat-input').fill('What is Atmosphere?');
-    await page.getByTestId('chat-send').click();
-
-    // Wait for streaming to complete
-    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
-
-    // Third message — verify conversation is still flowing
-    await page.getByTestId('chat-input').fill('Tell me more');
-    await page.getByTestId('chat-send').click();
-
-    // Wait for response
-    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
-
-    // All three user messages should be visible in the chat
-    await expect(page.getByText('Hello', { exact: true })).toBeVisible();
-    await expect(page.getByText('What is Atmosphere?')).toBeVisible();
-    await expect(page.getByText('Tell me more')).toBeVisible();
+    // Every turn is still on screen — the transcript is not truncated or reset
+    // between rounds, and each prompt got its own answer.
+    const userBubbles = page.locator('.message--user');
+    await expect(userBubbles.nth(0)).toContainText('Hello');
+    await expect(userBubbles.nth(1)).toContainText('What is Atmosphere?');
+    await expect(userBubbles.nth(2)).toContainText('Tell me more');
   });
 
-  // Known issue: spring-boot-ai-chat browser console WebSocket never connects in CI — skip
-  test.skip('two independent clients maintain separate conversations', async ({ browser }) => {
+  test('two independent clients maintain separate conversations', async ({ browser }) => {
     const ctx1 = await browser.newContext();
     const ctx2 = await browser.newContext();
-    const page1 = await ctx1.newPage();
-    const page2 = await ctx2.newPage();
+    try {
+      const page1 = await ctx1.newPage();
+      const page2 = await ctx2.newPage();
 
-    await page1.goto(server.baseUrl + '/atmosphere/console/');
-    await page2.goto(server.baseUrl + '/atmosphere/console/');
+      await page1.goto(consoleUrl());
+      await page2.goto(consoleUrl());
+      await expect(page1.getByText('Connected')).toBeVisible({ timeout: 30_000 });
+      await expect(page2.getByText('Connected')).toBeVisible({ timeout: 30_000 });
 
-    await expect(page1.getByTestId('chat-input')).toBeVisible();
-    await expect(page2.getByTestId('chat-input')).toBeVisible();
+      await sendTurn(page1, 'Hello from client 1', 1);
+      await sendTurn(page2, 'Hello from client 2', 1);
 
-    // Client 1 sends a message
-    await page1.getByTestId('chat-input').fill('Hello from client 1');
-    await page1.getByTestId('chat-send').click();
-    await expect(page1.locator('[class*="assistant"], [class*="message"]').last())
-      .not.toBeEmpty({ timeout: 30_000 });
+      // Each client sees only its own prompt — the other client's message must
+      // never leak into this session's transcript.
+      await expect(page1.locator('.message--user')).toHaveCount(1);
+      await expect(page1.locator('.message--user').last())
+        .toContainText('Hello from client 1');
+      await expect(page1.getByText('Hello from client 2')).toHaveCount(0);
 
-    // Client 2 sends a different message
-    await page2.getByTestId('chat-input').fill('Hello from client 2');
-    await page2.getByTestId('chat-send').click();
-    await expect(page2.locator('[class*="assistant"], [class*="message"]').last())
-      .not.toBeEmpty({ timeout: 30_000 });
-
-    // Each client should see only their own messages
-    await expect(page1.getByText('Hello from client 1')).toBeVisible();
-    await expect(page2.getByText('Hello from client 2')).toBeVisible();
-
-    await ctx1.close();
-    await ctx2.close();
+      await expect(page2.locator('.message--user')).toHaveCount(1);
+      await expect(page2.locator('.message--user').last())
+        .toContainText('Hello from client 2');
+      await expect(page2.getByText('Hello from client 1')).toHaveCount(0);
+    } finally {
+      await ctx1.close();
+      await ctx2.close();
+    }
   });
 });

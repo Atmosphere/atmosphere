@@ -46,15 +46,34 @@ public class ChannelWebhookController {
 
     private final Map<String, MessagingChannel> channelsByPath;
     private final ChannelFilterChain filterChain;
+    private final SeenMessageCache seenMessages;
     private final List<Consumer<IncomingMessage>> handlers = new CopyOnWriteArrayList<>();
 
+    /**
+     * Controller with the default inbound-deduplication window
+     * ({@link SeenMessageCache#DEFAULT_MAX_ENTRIES} ids,
+     * {@link SeenMessageCache#DEFAULT_TTL}).
+     */
     public ChannelWebhookController(List<MessagingChannel> channels, ChannelFilterChain filterChain) {
+        this(channels, filterChain, new SeenMessageCache());
+    }
+
+    /**
+     * @param seenMessages the idempotency window for inbound deliveries; use
+     *                     {@link SeenMessageCache#disabled()} to accept every
+     *                     platform retry as a fresh message
+     */
+    public ChannelWebhookController(List<MessagingChannel> channels, ChannelFilterChain filterChain,
+                                    SeenMessageCache seenMessages) {
         this.channelsByPath = new HashMap<>();
         this.filterChain = filterChain;
+        this.seenMessages = seenMessages != null ? seenMessages : SeenMessageCache.disabled();
         for (MessagingChannel channel : channels) {
             channelsByPath.put(channel.webhookPath(), channel);
             log.info("Registered {} channel at {}", channel.channelType().id(), channel.webhookPath());
         }
+        log.info("Inbound webhook deduplication {}",
+                this.seenMessages.isEnabled() ? "enabled" : "disabled");
     }
 
     /**
@@ -85,10 +104,14 @@ public class ChannelWebhookController {
      * via WebSocket instead of HTTP webhooks.
      */
     public void routeMessage(IncomingMessage message) {
-        var filtered = filterChain.filterIncoming(message);
-        if (filtered != null) {
-            dispatchToHandlers(filtered);
-        }
+        deliverOnce(message);
+    }
+
+    /**
+     * The idempotency window this controller enforces on inbound deliveries.
+     */
+    public SeenMessageCache seenMessages() {
+        return seenMessages;
     }
 
     /**
@@ -141,15 +164,7 @@ public class ChannelWebhookController {
 
             boolean handlerFailed = false;
             for (IncomingMessage msg : messages) {
-                var filtered = filterChain.filterIncoming(msg);
-                if (filtered == null) {
-                    log.debug("Inbound message from {} blocked by filter", msg.senderId());
-                    continue;
-                }
-                log.debug("Received {} message from {}: {}",
-                        filtered.channelType().id(), filtered.senderId(),
-                        filtered.text().substring(0, Math.min(50, filtered.text().length())));
-                if (!dispatchToHandlers(filtered)) {
+                if (!deliverOnce(msg)) {
                     handlerFailed = true;
                 }
             }
@@ -163,6 +178,46 @@ public class ChannelWebhookController {
             return ResponseEntity.status(e.isRetryable() ? 500 : 400)
                     .body(e.isRetryable() ? "Internal server error" : "Bad request");
         }
+    }
+
+    /**
+     * Deliver one inbound message exactly once: deduplicate, filter, dispatch.
+     *
+     * <p>Deduplication runs <em>before</em> the filter chain and before any
+     * handler so a platform retry costs nothing — no filter side effects, no
+     * agent run, no outbound reply — and is acknowledged 200 by the caller.
+     * Messages carrying no platform message id bypass the check entirely
+     * (see {@link SeenMessageCache#firstDelivery}); dropping unkeyed traffic
+     * would lose real user messages.</p>
+     *
+     * <p>When dispatch fails the claim is released again: the endpoint answers
+     * 5xx, the platform retries, and that retry must actually run the handlers
+     * instead of being swallowed as a duplicate of the delivery that never
+     * completed (Correctness Invariant #2).</p>
+     *
+     * @return {@code true} when the message was handled (or safely skipped),
+     *         {@code false} when a handler threw
+     */
+    private boolean deliverOnce(IncomingMessage message) {
+        var messageId = message.messageId();
+        if (!seenMessages.firstDelivery(message.channelType(), messageId)) {
+            log.debug("Duplicate {} delivery for message {} — acknowledged without re-processing",
+                    message.channelType().id(), messageId);
+            return true;
+        }
+        var filtered = filterChain.filterIncoming(message);
+        if (filtered == null) {
+            log.debug("Inbound message from {} blocked by filter", message.senderId());
+            return true;
+        }
+        log.debug("Received {} message from {}: {}",
+                filtered.channelType().id(), filtered.senderId(),
+                filtered.text().substring(0, Math.min(50, filtered.text().length())));
+        var dispatched = dispatchToHandlers(filtered);
+        if (!dispatched) {
+            seenMessages.forget(message.channelType(), messageId);
+        }
+        return dispatched;
     }
 
     /**

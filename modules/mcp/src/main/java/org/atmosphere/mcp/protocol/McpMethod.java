@@ -57,6 +57,17 @@ public final class McpMethod {
     // ElicitResult envelope with the user's response.
     public static final String ELICITATION_CREATE = "elicitation/create";
 
+    // Sampling (MCP 2024-11-05+) — the server asks the client to run an LLM
+    // completion on its behalf. Issued server-to-client; the client returns a
+    // CreateMessageResult envelope. Gated on the client's advertised
+    // "sampling" capability.
+    public static final String SAMPLING_CREATE_MESSAGE = "sampling/createMessage";
+
+    // Roots (MCP 2024-11-05+) — the server asks the client which filesystem
+    // roots it exposes. Issued server-to-client; gated on the client's
+    // advertised "roots" capability.
+    public static final String ROOTS_LIST = "roots/list";
+
     // Tasks (MCP 2025-11-25, experimental) — durable request tracking.
     public static final String TASKS_GET = "tasks/get";
     public static final String TASKS_RESULT = "tasks/result";

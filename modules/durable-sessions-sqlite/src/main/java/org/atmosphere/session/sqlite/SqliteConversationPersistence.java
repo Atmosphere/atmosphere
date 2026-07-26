@@ -23,6 +23,7 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -83,7 +84,9 @@ public class SqliteConversationPersistence implements ConversationPersistence {
                     stmt.execute("PRAGMA journal_mode=WAL");
                 }
                 createTable();
-            } catch (SQLException e) {
+            } catch (SQLException | RuntimeException e) {
+                // Also closes on a schema-version refusal (RuntimeException),
+                // which propagates as-is.
                 try { connection.close(); } catch (SQLException ex) { e.addSuppressed(ex); }
                 throw e;
             }
@@ -107,15 +110,17 @@ public class SqliteConversationPersistence implements ConversationPersistence {
     }
 
     private void createTable() throws SQLException {
-        try (var stmt = connection.createStatement()) {
-            stmt.execute("""
-                    CREATE TABLE IF NOT EXISTS ai_conversations (
-                        conversation_id TEXT PRIMARY KEY,
-                        data            TEXT NOT NULL,
-                        updated_at      INTEGER NOT NULL
-                    )
-                    """);
-        }
+        SchemaMigrations.migrate(connection, "ai_conversations", List.of(conn -> {
+            try (var stmt = conn.createStatement()) {
+                stmt.execute("""
+                        CREATE TABLE IF NOT EXISTS ai_conversations (
+                            conversation_id TEXT PRIMARY KEY,
+                            data            TEXT NOT NULL,
+                            updated_at      INTEGER NOT NULL
+                        )
+                        """);
+            }
+        }));
     }
 
     @Override

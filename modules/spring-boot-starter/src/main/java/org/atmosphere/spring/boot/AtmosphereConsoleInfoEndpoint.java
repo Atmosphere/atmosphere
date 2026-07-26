@@ -147,10 +147,23 @@ public class AtmosphereConsoleInfoEndpoint {
         // wired (the exact condition under which /api/admin/rooms has data) —
         // gates the console's Rooms tab (Runtime Truth — Invariant #5).
         result.put("hasRooms", hasBean("org.atmosphere.room.RoomManager"));
-        // Actuator health plane (Boot 4 FQCN): gates the Observability tab so
-        // the console never probes /actuator into a 404.
+        // Actuator health plane (Boot 4 FQCN): gates the Observability tab's
+        // health chip so the console never probes /actuator/health into a 404.
         result.put("hasActuator",
                 hasBean("org.springframework.boot.health.actuate.endpoint.HealthEndpoint"));
+        // Micrometer metrics read plane for the console's Observability tab.
+        // Resolved from the actuator's *web exposure* registry, not from bean
+        // or classpath presence: spring-boot-actuator ships the MetricsEndpoint
+        // bean whenever it is on the classpath, but Boot's default
+        // management.endpoints.web.exposure.include is health-only, so the bean
+        // exists while /actuator/metrics 404s. Advertising off the bean would
+        // point the console at a dead URL (Runtime Truth — Invariant #5).
+        var metricsPath = detectMetricsPath();
+        result.put("hasMetrics", metricsPath != null);
+        if (metricsPath != null) {
+            result.put("metricsFormat", "actuator");
+            result.put("metricsPath", metricsPath);
+        }
         // Admin read plane (governance summary, agents, workspace owners all
         // hang off the AtmosphereAdmin bean): lets the console skip its
         // legacy probes instead of 404-spamming hosts without the plane.
@@ -272,6 +285,70 @@ public class AtmosphereConsoleInfoEndpoint {
             logger.debug("Memory injection-safety state not available", e);
         }
         return null;
+    }
+
+    /**
+     * The path the actuator genuinely serves the {@code metrics} endpoint on,
+     * or {@code null} when the console cannot reach one. Walks the actuator's
+     * {@code WebEndpointsSupplier} — the registry of endpoints actually exposed
+     * over HTTP after {@code management.endpoints.web.exposure.*} filtering —
+     * so a classpath-present but unexposed MetricsEndpoint reports nothing.
+     *
+     * <p>A management server on its own port also reports {@code null}: the
+     * console is served from the application port and its same-origin fetch
+     * could not reach it. The check is deliberately conservative (an
+     * explicitly-set management port that merely happens to equal the implicit
+     * application port reads as unreachable) — under-advertising hides a tab,
+     * over-advertising ships a broken one.</p>
+     *
+     * <p>Resolved reflectively because {@code spring-boot-actuator} is an
+     * optional dependency of this starter; a direct type reference would
+     * NoClassDefFoundError on hosts without it.</p>
+     */
+    private String detectMetricsPath() {
+        var environment = context.getEnvironment();
+        if (environment == null) {
+            // A context that cannot describe its own environment cannot confirm
+            // where the actuator listens — report nothing rather than assume.
+            return null;
+        }
+        var managementPort = environment.getProperty("management.server.port");
+        if (managementPort != null && !managementPort.isBlank()
+                && !managementPort.equals(environment.getProperty("server.port"))) {
+            return null;
+        }
+        try {
+            var supplierType = ClassUtils.forName(
+                    "org.springframework.boot.actuate.endpoint.web.WebEndpointsSupplier",
+                    context.getClassLoader());
+            if (context.getBeanNamesForType(supplierType, true, false).length == 0) {
+                return null;
+            }
+            var endpointType = ClassUtils.forName(
+                    "org.springframework.boot.actuate.endpoint.web.ExposableWebEndpoint",
+                    context.getClassLoader());
+            var idMethod = endpointType.getMethod("getEndpointId");
+            var rootPathMethod = endpointType.getMethod("getRootPath");
+            var endpoints = supplierType.getMethod("getEndpoints")
+                    .invoke(context.getBean(supplierType));
+            for (var endpoint : (Iterable<?>) endpoints) {
+                if (!"metrics".equals(String.valueOf(idMethod.invoke(endpoint)))) {
+                    continue;
+                }
+                var basePath = environment.getProperty(
+                        "management.endpoints.web.base-path", "/actuator");
+                while (basePath.endsWith("/")) {
+                    basePath = basePath.substring(0, basePath.length() - 1);
+                }
+                return basePath + "/" + rootPathMethod.invoke(endpoint);
+            }
+            return null;
+        } catch (LinkageError | ReflectiveOperationException | RuntimeException e) {
+            // ReflectiveOperationException covers the ClassNotFoundException
+            // thrown when spring-boot-actuator is simply absent.
+            logger.debug("Actuator metrics web exposure not resolvable", e);
+            return null;
+        }
     }
 
     /**

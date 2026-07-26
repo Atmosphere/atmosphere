@@ -68,6 +68,16 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
      * Absent the param the flag reports {@code false}.
      */
     public static final String HAS_CHECKPOINTS_PARAM = "hasCheckpoints";
+    /**
+     * Resolved Prometheus export path (e.g. {@code /q/metrics}), set by the
+     * deployment processor from {@code quarkus.micrometer.export.prometheus.path}
+     * against the non-application root. It is only a route spelling: the servlet
+     * reports {@code hasMetrics: true} solely when
+     * {@link ConsoleMetricsState#prometheusLive()} confirms a Prometheus
+     * registry genuinely booted, so a configured path never advertises a plane
+     * that does not exist (Runtime Truth — Invariant #5).
+     */
+    public static final String METRICS_PATH_PARAM = "metricsPath";
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -117,6 +127,21 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
         // deliberately omitted: the console's legacy probes discover the
         // governance/agents planes the admin extension actually maps.
         payload.put("hasWorkspace", Boolean.FALSE);
+        // Micrometer metrics read plane for the console's Observability tab.
+        // Advertised only when the startup observer confirmed a Prometheus
+        // registry genuinely booted — the exact condition under which
+        // quarkus-micrometer-registry-prometheus serves its export route.
+        // Configuration alone never turns it on (Runtime Truth — Invariant #5).
+        // The payload names the wire format explicitly so the console parses
+        // Prometheus text here and actuator JSON on Spring, never a guess.
+        var metricsPath = getInitParameter(METRICS_PATH_PARAM);
+        var hasMetrics = ConsoleMetricsState.prometheusLive()
+                && metricsPath != null && !metricsPath.isBlank();
+        payload.put("hasMetrics", hasMetrics);
+        if (hasMetrics) {
+            payload.put("metricsFormat", "prometheus");
+            payload.put("metricsPath", metricsPath.trim());
+        }
         // RAG injection-safety runtime truth, in parity with the Spring starter
         // (Invariant #5): present only when a ContextProvider was actually wrapped.
         var ragSafety = detectRagSafety(framework);

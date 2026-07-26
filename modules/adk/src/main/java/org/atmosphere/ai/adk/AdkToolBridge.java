@@ -166,10 +166,7 @@ public final class AdkToolBridge {
         var required = new java.util.ArrayList<String>();
 
         for (var param : parameters) {
-            properties.put(param.name(), Schema.builder()
-                    .type(toAdkType(param.type()))
-                    .description(param.description())
-                    .build());
+            properties.put(param.name(), toAdkSchema(param));
             if (param.required()) {
                 required.add(param.name());
             }
@@ -180,6 +177,40 @@ public final class AdkToolBridge {
                 .properties(properties)
                 .required(required)
                 .build();
+    }
+
+    /**
+     * Translate one parameter into an ADK {@link Schema}, carrying its
+     * structural facets through: {@code enum_} for a closed value set,
+     * {@code items} for an array's element type, and nested
+     * {@code properties}/{@code required} for an object. A parameter with no
+     * facets produces exactly the flat type+description schema this bridge
+     * always emitted.
+     */
+    private static Schema toAdkSchema(ToolParameter param) {
+        var builder = Schema.builder()
+                .type(toAdkType(param.type()))
+                .description(param.description());
+        if (!param.enumValues().isEmpty()) {
+            builder.enum_(param.enumValues());
+        }
+        if (param.items() != null) {
+            // Recursive: an array of objects carries its element's full schema,
+            // not just the element's bare type name.
+            builder.items(toAdkSchema(param.items()));
+        }
+        if (!param.properties().isEmpty()) {
+            var nested = new LinkedHashMap<String, Schema>();
+            var nestedRequired = new java.util.ArrayList<String>();
+            for (var property : param.properties()) {
+                nested.put(property.name(), toAdkSchema(property));
+                if (property.required()) {
+                    nestedRequired.add(property.name());
+                }
+            }
+            builder.properties(nested).required(nestedRequired);
+        }
+        return builder.build();
     }
 
     private static Type.Known toAdkType(String jsonSchemaType) {

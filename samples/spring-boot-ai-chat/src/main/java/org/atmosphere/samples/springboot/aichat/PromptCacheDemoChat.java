@@ -25,7 +25,10 @@ import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.ai.cache.InMemoryResponseCache;
+import org.atmosphere.ai.cache.ResponseCacheConfig;
 import org.atmosphere.ai.llm.CacheHint;
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,6 +60,16 @@ import java.time.Duration;
  * the pipeline — the cache gate fires identically either way. The pipeline
  * is cached in a field so the {@link InMemoryResponseCache} state is
  * preserved across requests on this endpoint.</p>
+ *
+ * <p><strong>Semantic cache.</strong> Setting the framework init-param
+ * {@code org.atmosphere.ai.cache.semantic=true} swaps the exact cache for a
+ * {@link org.atmosphere.ai.cache.SemanticResponseCache}, which also serves a
+ * <em>reworded</em> prompt whose embedding is within the cosine threshold of a
+ * stored one. It needs a real embedding backend: with none resolvable the
+ * framework seam declines and this endpoint keeps the exact cache, reporting
+ * the resolved choice on the wire as {@code prompt.cache.kind}. The response
+ * cache is a pipeline-layer feature — the reason this endpoint routes through
+ * an {@code AiPipeline} rather than streaming directly.</p>
  */
 @AiEndpoint(path = "/atmosphere/ai-chat-with-cache",
         promptCache = CacheHint.CachePolicy.CONSERVATIVE)
@@ -78,27 +91,53 @@ public class PromptCacheDemoChat {
      */
     private volatile AiPipeline pipeline;
 
+    /**
+     * Which cache actually backs the pipeline — {@code semantic} or
+     * {@code exact}. Reported on the wire as {@code prompt.cache.kind} so the
+     * client sees the resolved runtime state, not the configured intent
+     * (Correctness Invariant #5).
+     */
+    private volatile String cacheKind = "exact";
+
     @Prompt
-    public void onPrompt(String message, StreamingSession session) {
+    public void onPrompt(String message, StreamingSession session, AtmosphereResource resource) {
         var policy = getClass().getAnnotation(AiEndpoint.class).promptCache();
         session.sendMetadata("prompt.cache.policy", policy.name());
 
-        logger.info("Routing prompt through pipeline response cache: {}", message);
-        pipeline().execute("prompt-cache-demo", message, session);
+        // The endpoint path always supplies a resource; the @Agent channel
+        // bridges invoke @Prompt with null, so read the config defensively —
+        // a null config makes the seam decline and the exact cache is used.
+        var configured = pipeline(resource != null ? resource.getAtmosphereConfig() : null);
+        session.sendMetadata("prompt.cache.kind", cacheKind);
+
+        logger.info("Routing prompt through the {} pipeline response cache: {}", cacheKind, message);
+        configured.execute("prompt-cache-demo", message, session);
     }
 
-    private AiPipeline pipeline() {
+    private AiPipeline pipeline(AtmosphereConfig config) {
         var existing = pipeline;
         if (existing != null) {
             return existing;
         }
         synchronized (this) {
             if (pipeline == null) {
-                var cache = new InMemoryResponseCache(64);
                 var p = new AiPipeline(new DemoAgentRuntime(), "cache demo", "demo-model",
                         null, null, java.util.List.of(), java.util.List.of(), AiMetrics.NOOP);
-                p.setResponseCache(cache, Duration.ofMinutes(5));
-                p.setDefaultCachePolicy(CacheHint.CachePolicy.CONSERVATIVE);
+                // Ask the framework seam first: with
+                // org.atmosphere.ai.cache.semantic=true AND an EmbeddingRuntime
+                // actually on the classpath, this installs a
+                // SemanticResponseCache that also serves reworded prompts.
+                // It declines (returns false) when the key is off or no
+                // embedding backend is available, and the demo then uses the
+                // exact cache — so the endpoint always has a live cache and
+                // never advertises semantic matching it cannot perform.
+                if (ResponseCacheConfig.install(p, config)) {
+                    cacheKind = "semantic";
+                } else {
+                    p.setResponseCache(new InMemoryResponseCache(64), Duration.ofMinutes(5));
+                    p.setDefaultCachePolicy(CacheHint.CachePolicy.CONSERVATIVE);
+                    cacheKind = "exact";
+                }
                 pipeline = p;
             }
             return pipeline;

@@ -98,8 +98,20 @@ public final class SqliteRunJournal implements RunJournal, AutoCloseable {
         this.maxEventsPerRun = maxEventsPerRun;
         try {
             this.connection = DriverManager.getConnection(toJdbcUrl(dbPath));
-            connection.setAutoCommit(true);
-            createSchema();
+            try {
+                connection.setAutoCommit(true);
+                createSchema();
+            } catch (SQLException | RuntimeException e) {
+                // The journal never escapes the failed constructor, so close
+                // the connection it created (Correctness Invariant #2) —
+                // including on a schema-version refusal, which propagates as-is.
+                try {
+                    connection.close();
+                } catch (SQLException closeFailure) {
+                    e.addSuppressed(closeFailure);
+                }
+                throw e;
+            }
         } catch (SQLException e) {
             throw new IllegalStateException("Failed to open SQLite run journal: " + dbPath, e);
         }
@@ -119,27 +131,29 @@ public final class SqliteRunJournal implements RunJournal, AutoCloseable {
     }
 
     private void createSchema() throws SQLException {
-        try (var stmt = connection.createStatement()) {
-            stmt.execute("""
-                CREATE TABLE IF NOT EXISTS run_record (
-                    run_id TEXT PRIMARY KEY,
-                    agent_id TEXT NOT NULL,
-                    user_id TEXT NOT NULL,
-                    session_id TEXT NOT NULL,
-                    created_at TEXT NOT NULL
-                )""");
-            stmt.execute("""
-                CREATE TABLE IF NOT EXISTS run_event (
-                    run_id TEXT NOT NULL,
-                    sequence INTEGER NOT NULL,
-                    type TEXT NOT NULL,
-                    payload TEXT NOT NULL,
-                    ts TEXT NOT NULL,
-                    PRIMARY KEY (run_id, sequence)
-                )""");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_run_record_created "
-                    + "ON run_record(created_at)");
-        }
+        SchemaMigrations.migrate(connection, "run_record", List.of(conn -> {
+            try (var stmt = conn.createStatement()) {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS run_record (
+                        run_id TEXT PRIMARY KEY,
+                        agent_id TEXT NOT NULL,
+                        user_id TEXT NOT NULL,
+                        session_id TEXT NOT NULL,
+                        created_at TEXT NOT NULL
+                    )""");
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS run_event (
+                        run_id TEXT NOT NULL,
+                        sequence INTEGER NOT NULL,
+                        type TEXT NOT NULL,
+                        payload TEXT NOT NULL,
+                        ts TEXT NOT NULL,
+                        PRIMARY KEY (run_id, sequence)
+                    )""");
+                stmt.execute("CREATE INDEX IF NOT EXISTS idx_run_record_created "
+                        + "ON run_record(created_at)");
+            }
+        }));
     }
 
     @Override

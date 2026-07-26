@@ -16,6 +16,7 @@
 
     <properties>
         <atmosphere.module.name>org.atmosphere.ai</atmosphere.module.name>
+        <jqwik.version>1.10.1</jqwik.version>
     </properties>
 
     <dependencies>
@@ -105,6 +106,24 @@
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
             <version>${logback-version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!--
+            jqwik drives the generative (property-based) wire-parsing tests (the
+            *PropertyTest suites). The adversarial example-based suites pin the
+            specific malformed frames we have already seen; the property tests
+            search the input space around them for the ones we have not. Test
+            scope only — no consumer of atmosphere-ai sees this on its classpath.
+
+            jqwik runs on the JUnit 5 platform alongside Jupiter (both engines
+            are discovered by Surefire), and re-runs any falsified property with
+            its recorded seed, so a CI failure reproduces locally verbatim.
+        -->
+        <dependency>
+            <groupId>net.jqwik</groupId>
+            <artifactId>jqwik</artifactId>
+            <version>${jqwik.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

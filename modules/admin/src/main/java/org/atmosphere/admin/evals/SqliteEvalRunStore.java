@@ -70,29 +70,36 @@ public final class SqliteEvalRunStore implements EvalRunStore, AutoCloseable {
         } catch (SQLException e) {
             SqliteEvalSupport.closeQuietly(connection, logger);
             throw new IllegalStateException("Failed to initialize SQLite eval run store: " + dbPath, e);
+        } catch (RuntimeException e) {
+            // A schema-version refusal propagates as-is, but the connection
+            // this constructor opened must still be closed (Invariant #2).
+            SqliteEvalSupport.closeQuietly(connection, logger);
+            throw e;
         }
     }
 
     private void createSchema() throws SQLException {
-        try (var stmt = connection.createStatement()) {
-            stmt.execute("""
-                CREATE TABLE IF NOT EXISTS eval_runs (
-                    id TEXT PRIMARY KEY,
-                    baseline TEXT NOT NULL,
-                    ts_iso TEXT NOT NULL,
-                    ts_millis INTEGER NOT NULL,
-                    agent_version TEXT NOT NULL,
-                    prompt TEXT NOT NULL,
-                    judge_response TEXT NOT NULL,
-                    verdict INTEGER,
-                    scores TEXT NOT NULL,
-                    judge_model TEXT NOT NULL,
-                    passed INTEGER NOT NULL,
-                    notes TEXT NOT NULL
-                )""");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_eval_runs_baseline_ts "
-                    + "ON eval_runs(baseline, ts_millis)");
-        }
+        SchemaMigrations.migrate(connection, "eval_runs", List.of(conn -> {
+            try (var stmt = conn.createStatement()) {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS eval_runs (
+                        id TEXT PRIMARY KEY,
+                        baseline TEXT NOT NULL,
+                        ts_iso TEXT NOT NULL,
+                        ts_millis INTEGER NOT NULL,
+                        agent_version TEXT NOT NULL,
+                        prompt TEXT NOT NULL,
+                        judge_response TEXT NOT NULL,
+                        verdict INTEGER,
+                        scores TEXT NOT NULL,
+                        judge_model TEXT NOT NULL,
+                        passed INTEGER NOT NULL,
+                        notes TEXT NOT NULL
+                    )""");
+                stmt.execute("CREATE INDEX IF NOT EXISTS idx_eval_runs_baseline_ts "
+                        + "ON eval_runs(baseline, ts_millis)");
+            }
+        }));
     }
 
     @Override

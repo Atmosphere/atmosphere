@@ -138,32 +138,40 @@ public final class SqliteCheckpointStore implements CheckpointStore {
     public void start() {
         lock.lock();
         try {
-            try (var stmt = connection.createStatement()) {
-                stmt.execute("""
-                    CREATE TABLE IF NOT EXISTS checkpoints (
-                        id TEXT PRIMARY KEY,
-                        parent_id TEXT,
-                        coordination_id TEXT NOT NULL,
-                        agent_name TEXT,
-                        state_json TEXT,
-                        state_type TEXT,
-                        metadata_json TEXT,
-                        created_at TEXT NOT NULL
-                    )""");
-                // Migration for databases created before state_type existed.
-                // SQLite has no ADD COLUMN IF NOT EXISTS, so check presence
-                // first — this keeps start() idempotent without throwing a
-                // duplicate-column error on every boot of a current-schema DB.
-                if (!hasColumn("checkpoints", "state_type")) {
-                    stmt.execute("ALTER TABLE checkpoints ADD COLUMN state_type TEXT");
-                }
-                stmt.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_checkpoints_coord ON checkpoints(coordination_id)");
-                stmt.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_checkpoints_agent ON checkpoints(agent_name)");
-                stmt.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_checkpoints_created ON checkpoints(created_at)");
-            }
+            SchemaMigrations.migrate(connection, "checkpoints", List.of(
+                    conn -> {
+                        try (var stmt = conn.createStatement()) {
+                            stmt.execute("""
+                                CREATE TABLE IF NOT EXISTS checkpoints (
+                                    id TEXT PRIMARY KEY,
+                                    parent_id TEXT,
+                                    coordination_id TEXT NOT NULL,
+                                    agent_name TEXT,
+                                    state_json TEXT,
+                                    state_type TEXT,
+                                    metadata_json TEXT,
+                                    created_at TEXT NOT NULL
+                                )""");
+                            stmt.execute(
+                                "CREATE INDEX IF NOT EXISTS idx_checkpoints_coord ON checkpoints(coordination_id)");
+                            stmt.execute(
+                                "CREATE INDEX IF NOT EXISTS idx_checkpoints_agent ON checkpoints(agent_name)");
+                            stmt.execute(
+                                "CREATE INDEX IF NOT EXISTS idx_checkpoints_created ON checkpoints(created_at)");
+                        }
+                    },
+                    conn -> {
+                        // Migration 1 -> 2 for databases created before state_type
+                        // existed. SQLite has no ADD COLUMN IF NOT EXISTS, so check
+                        // presence first — an adopted unstamped database may already
+                        // carry the column, and the step must stay idempotent
+                        // without throwing a duplicate-column error.
+                        if (!hasColumn(conn, "checkpoints", "state_type")) {
+                            try (var stmt = conn.createStatement()) {
+                                stmt.execute("ALTER TABLE checkpoints ADD COLUMN state_type TEXT");
+                            }
+                        }
+                    }));
             if (cipher == CheckpointCipher.NONE) {
                 logger.warn("SqliteCheckpointStore persists checkpoint state as PLAINTEXT at "
                         + "rest — secrets or PII inside agent state land unmasked in the .db "
@@ -465,7 +473,8 @@ public final class SqliteCheckpointStore implements CheckpointStore {
      * Whether {@code column} exists on {@code table}, via {@code PRAGMA
      * table_info}. {@code table} is an internal literal, never user input.
      */
-    private boolean hasColumn(String table, String column) throws SQLException {
+    private static boolean hasColumn(Connection connection, String table,
+                                     String column) throws SQLException {
         try (var ps = connection.prepareStatement("PRAGMA table_info(" + table + ")");
              var rs = ps.executeQuery()) {
             while (rs.next()) {

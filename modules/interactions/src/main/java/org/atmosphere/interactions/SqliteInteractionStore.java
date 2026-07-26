@@ -93,41 +93,43 @@ public final class SqliteInteractionStore implements InteractionStore {
     public void start() {
         lock.lock();
         try {
-            try (var stmt = connection.createStatement()) {
-                stmt.execute("""
-                    CREATE TABLE IF NOT EXISTS interactions (
-                        id TEXT PRIMARY KEY,
-                        parent_id TEXT,
-                        conversation_id TEXT,
-                        agent_id TEXT,
-                        user_id TEXT,
-                        model TEXT,
-                        status TEXT NOT NULL,
-                        background INTEGER NOT NULL,
-                        store_flag INTEGER NOT NULL,
-                        final_text TEXT,
-                        usage_json TEXT,
-                        error_message TEXT,
-                        created_at TEXT NOT NULL,
-                        updated_at TEXT NOT NULL
-                    )""");
-                stmt.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_interactions_user ON interactions(user_id)");
-                stmt.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_interactions_conv ON interactions(conversation_id)");
-                stmt.execute("""
-                    CREATE TABLE IF NOT EXISTS interaction_steps (
-                        interaction_id TEXT NOT NULL,
-                        seq INTEGER NOT NULL,
-                        type TEXT NOT NULL,
-                        text TEXT,
-                        tool_name TEXT,
-                        data_json TEXT,
-                        usage_json TEXT,
-                        created_at TEXT NOT NULL,
-                        PRIMARY KEY (interaction_id, seq)
-                    )""");
-            }
+            SchemaMigrations.migrate(connection, "interactions", List.of(conn -> {
+                try (var stmt = conn.createStatement()) {
+                    stmt.execute("""
+                        CREATE TABLE IF NOT EXISTS interactions (
+                            id TEXT PRIMARY KEY,
+                            parent_id TEXT,
+                            conversation_id TEXT,
+                            agent_id TEXT,
+                            user_id TEXT,
+                            model TEXT,
+                            status TEXT NOT NULL,
+                            background INTEGER NOT NULL,
+                            store_flag INTEGER NOT NULL,
+                            final_text TEXT,
+                            usage_json TEXT,
+                            error_message TEXT,
+                            created_at TEXT NOT NULL,
+                            updated_at TEXT NOT NULL
+                        )""");
+                    stmt.execute(
+                        "CREATE INDEX IF NOT EXISTS idx_interactions_user ON interactions(user_id)");
+                    stmt.execute(
+                        "CREATE INDEX IF NOT EXISTS idx_interactions_conv ON interactions(conversation_id)");
+                    stmt.execute("""
+                        CREATE TABLE IF NOT EXISTS interaction_steps (
+                            interaction_id TEXT NOT NULL,
+                            seq INTEGER NOT NULL,
+                            type TEXT NOT NULL,
+                            text TEXT,
+                            tool_name TEXT,
+                            data_json TEXT,
+                            usage_json TEXT,
+                            created_at TEXT NOT NULL,
+                            PRIMARY KEY (interaction_id, seq)
+                        )""");
+                }
+            }));
             LOGGER.info("SqliteInteractionStore initialized");
         } catch (SQLException e) {
             throw new IllegalStateException("Failed to create interactions schema", e);

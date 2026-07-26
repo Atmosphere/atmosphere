@@ -142,8 +142,9 @@ class McpClientDepthTest {
                                                String label) throws Exception {
         Method translate = McpToolSource.class.getDeclaredMethod(
                 "toDefinition", McpSchema.Tool.class, McpSyncClient.class,
-                String.class, McpToolMetrics.class);
+                String.class, McpToolMetrics.class, McpToolBreaker.class);
         translate.setAccessible(true);
-        return (ToolDefinition) translate.invoke(null, tool, client, label, new McpToolMetrics());
+        return (ToolDefinition) translate.invoke(null, tool, client, label,
+                new McpToolMetrics(), new McpToolBreaker(0, 0L));
     }
 }

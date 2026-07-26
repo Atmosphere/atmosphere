@@ -98,8 +98,20 @@ public final class SqliteDurableTimerStore implements DurableTimerStore, AutoClo
         this.maxTimers = maxTimers;
         try {
             this.connection = DriverManager.getConnection(toJdbcUrl(dbPath));
-            connection.setAutoCommit(true);
-            createSchema();
+            try {
+                connection.setAutoCommit(true);
+                createSchema();
+            } catch (SQLException | RuntimeException e) {
+                // The store never escapes the failed constructor, so close the
+                // connection it created (Correctness Invariant #2) — including
+                // on a schema-version refusal, which propagates as-is.
+                try {
+                    connection.close();
+                } catch (SQLException closeFailure) {
+                    e.addSuppressed(closeFailure);
+                }
+                throw e;
+            }
         } catch (SQLException e) {
             throw new IllegalStateException("Failed to open SQLite durable-timer store: " + dbPath, e);
         }
@@ -119,15 +131,17 @@ public final class SqliteDurableTimerStore implements DurableTimerStore, AutoClo
     }
 
     private void createSchema() throws SQLException {
-        try (var stmt = connection.createStatement()) {
-            stmt.execute("""
-                CREATE TABLE IF NOT EXISTS durable_timer (
-                    id TEXT PRIMARY KEY,
-                    fire_at TEXT NOT NULL,
-                    kind TEXT NOT NULL,
-                    payload TEXT NOT NULL
-                )""");
-        }
+        SchemaMigrations.migrate(connection, "durable_timer", List.of(conn -> {
+            try (var stmt = conn.createStatement()) {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS durable_timer (
+                        id TEXT PRIMARY KEY,
+                        fire_at TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        payload TEXT NOT NULL
+                    )""");
+            }
+        }));
     }
 
     @Override

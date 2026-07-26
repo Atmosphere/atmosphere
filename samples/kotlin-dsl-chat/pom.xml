@@ -31,6 +31,13 @@
             <artifactId>atmosphere-kotlin</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- The AI layer the agent { } DSL declares against. atmosphere-kotlin
+             marks it optional (the transport DSL alone does not need it), so an
+             app using the agent DSL declares it explicitly. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>

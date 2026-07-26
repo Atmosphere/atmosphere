@@ -104,13 +104,16 @@ final class SemanticKernelToolBridge {
     private static List<InputVariable> toInputVariables(ToolDefinition tool) {
         var inputs = new ArrayList<InputVariable>(tool.parameters().size());
         for (var p : tool.parameters()) {
+            // InputVariable's trailing argument is the enum value list
+            // (getEnumValues); passing the parameter's closed set instead of an
+            // empty list is what tells the planner which values are legal.
             inputs.add(new InputVariable(
                     p.name(),
                     p.type(),
                     p.description(),
                     null,
                     p.required(),
-                    Collections.emptyList()));
+                    p.enumValues().isEmpty() ? Collections.emptyList() : p.enumValues()));
         }
         return inputs;
     }

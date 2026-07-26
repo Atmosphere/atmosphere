@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
+import { quarantined } from './helpers/quarantine';
 
 let server: SampleServer;
 
@@ -11,55 +12,70 @@ test.afterAll(async () => {
   await server?.stop();
 });
 
-test.describe('AI Streaming in DOM', () => {
-  // Known issue: spring-boot-ai-chat browser console WebSocket never connects in CI
-  test.skip('streaming response appears after sending a prompt', async ({ page }) => {
-    await page.goto(server.baseUrl + '/atmosphere/console/');
-    // Wait for WebSocket to connect — textarea is disabled until connected
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+/**
+ * The e2e fixture boots spring-boot-ai-chat with ATMOSPHERE_AUTH_ENABLED=true,
+ * so the console must present the demo token or the AuthInterceptor closes
+ * every WebSocket right after the 101 upgrade — which reads as "never
+ * connects". The console's resolveAuthToken() (lib/authToken.ts) picks the
+ * token up from a `?token=` query param, which is what unified-console.spec.ts
+ * already relies on. These tests were quarantined under a "WebSocket never
+ * connects in CI" comment that misattributed the auth close to the harness.
+ */
+function consoleUrl(): string {
+  return server.baseUrl + '/atmosphere/console/?token=demo-token';
+}
 
-    // Send a prompt
+test.describe('AI Streaming in DOM', () => {
+  test('streaming response appears after sending a prompt', async ({ page }) => {
+    await page.goto(consoleUrl());
+    await expect(page.getByText('Connected')).toBeVisible({ timeout: 30_000 });
+
     await page.getByTestId('chat-input').fill('Tell me about Atmosphere');
     await page.getByTestId('chat-send').click();
 
-    // The user's message should appear immediately
-    await expect(page.getByText('Tell me about Atmosphere')).toBeVisible();
+    // The user's message renders in its own bubble immediately. A precise
+    // class avoids a strict-mode violation when the demo reply echoes it.
+    await expect(page.locator('.message--user').last())
+      .toContainText('Tell me about Atmosphere', { timeout: 10_000 });
 
-    // Wait for streaming response to complete
-    await expect(page.locator('[class*="assistant"], [class*="message"]').last())
-      .not.toBeEmpty({ timeout: 30_000 });
+    // The assistant bubble streams in and ends up non-empty.
+    const assistant = page.locator('.message--assistant').last();
+    await expect(assistant).toBeVisible({ timeout: 30_000 });
+    await expect(assistant).not.toBeEmpty();
   });
 
-  // Known issue: spring-boot-ai-chat browser console WebSocket never connects in CI
-  test.skip('send button is disabled during streaming', async ({ page }) => {
-    await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeVisible();
-
-    await page.getByTestId('chat-input').fill('What is WebSocket?');
-    await page.getByTestId('chat-send').click();
-
-    // During streaming, the send button should be disabled
-    await expect(page.getByTestId('chat-send')).toBeDisabled({ timeout: 5_000 });
-
-    // After streaming completes, fill input so send button re-enables
-    await expect(page.locator('[class*="assistant"], [class*="message"]').last())
-      .not.toBeEmpty({ timeout: 30_000 });
-    await page.getByTestId('chat-input').fill('Follow-up');
-    await expect(page.getByTestId('chat-send')).toBeEnabled({ timeout: 10_000 });
-  });
-
-  // Known issue: spring-boot-ai-chat browser console WebSocket never connects in CI
-  test.skip('user prompt is visible in the chat after sending', async ({ page }) => {
-    await page.goto(server.baseUrl + '/atmosphere/console/');
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+  test('user prompt is visible in the chat after sending', async ({ page }) => {
+    await page.goto(consoleUrl());
+    await expect(page.getByText('Connected')).toBeVisible({ timeout: 30_000 });
 
     await page.getByTestId('chat-input').fill('Hello AI');
     await page.getByTestId('chat-send').click();
 
-    // Prompt text should appear in the page
-    await expect(page.getByText('Hello AI')).toBeVisible();
+    await expect(page.locator('.message--user').last())
+      .toContainText('Hello AI', { timeout: 10_000 });
 
-    // Input should be cleared
+    // Input is cleared by the send handler.
     await expect(page.getByTestId('chat-input')).toHaveValue('');
+  });
+
+  quarantined({
+    owner: 'jfarcand',
+    expires: '2026-09-30',
+    issue: 'pending',
+    reason: 'the keyless demo runtime completes the round in milliseconds, so a '
+      + 'polled toBeDisabled() races the completion and cannot observe the transition',
+  })('send button is disabled during streaming @quarantined', async ({ page }) => {
+    await page.goto(consoleUrl());
+    await expect(page.getByText('Connected')).toBeVisible({ timeout: 30_000 });
+
+    await page.getByTestId('chat-input').fill('What is WebSocket?');
+    await page.getByTestId('chat-send').click();
+
+    await expect(page.getByTestId('chat-send')).toBeDisabled({ timeout: 5_000 });
+
+    await expect(page.locator('.message--assistant').last())
+      .not.toBeEmpty({ timeout: 30_000 });
+    await page.getByTestId('chat-input').fill('Follow-up');
+    await expect(page.getByTestId('chat-send')).toBeEnabled({ timeout: 10_000 });
   });
 });

@@ -19,9 +19,15 @@ import org.atmosphere.ai.annotation.AiTool;
 import org.atmosphere.ai.annotation.Param;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -208,7 +214,8 @@ public class DefaultToolRegistry implements ToolRegistry {
                     var paramName = paramAnnotation != null
                             ? paramAnnotation.value()
                             : p.getName();
-                    invokeArgs[i] = convertArg(args.get(paramName), p.getType());
+                    invokeArgs[i] = convertArg(args.get(paramName), p.getType(),
+                            p.getParameterizedType());
                 }
                 return method.invoke(instance, invokeArgs);
             }
@@ -244,6 +251,9 @@ public class DefaultToolRegistry implements ToolRegistry {
                 executor,
                 approvalMessage,
                 approvalTimeout,
+                // Per-tool execution bound from the annotation: 0 inherits the
+                // framework default, negative disables the bound for this tool.
+                annotation.timeoutSeconds(),
                 annotation.kind()
         );
     }
@@ -321,7 +331,7 @@ public class DefaultToolRegistry implements ToolRegistry {
      * self-referential record cannot spin.</p>
      */
     private static ToolParameter describeParameter(String name, String description,
-                                                   java.lang.reflect.Type genericType,
+                                                   Type genericType,
                                                    Class<?> rawType, boolean required,
                                                    int depth) {
         if (rawType.isEnum()) {
@@ -358,7 +368,7 @@ public class DefaultToolRegistry implements ToolRegistry {
      * the type is neither. A raw (un-parameterized) collection yields
      * {@code Object}, which describes as a plain object node.
      */
-    private static java.lang.reflect.Type elementType(java.lang.reflect.Type genericType,
+    private static Type elementType(Type genericType,
                                                       Class<?> rawType) {
         if (rawType.isArray()) {
             return rawType.getComponentType();
@@ -366,7 +376,7 @@ public class DefaultToolRegistry implements ToolRegistry {
         if (!Collection.class.isAssignableFrom(rawType)) {
             return null;
         }
-        if (genericType instanceof java.lang.reflect.ParameterizedType parameterized) {
+        if (genericType instanceof ParameterizedType parameterized) {
             var args = parameterized.getActualTypeArguments();
             if (args.length == 1) {
                 return args[0];
@@ -376,19 +386,47 @@ public class DefaultToolRegistry implements ToolRegistry {
     }
 
     /** Best-effort raw class for a reflective type. */
-    private static Class<?> rawClassOf(java.lang.reflect.Type type) {
+    private static Class<?> rawClassOf(Type type) {
         if (type instanceof Class<?> clazz) {
             return clazz;
         }
-        if (type instanceof java.lang.reflect.ParameterizedType parameterized
+        if (type instanceof ParameterizedType parameterized
                 && parameterized.getRawType() instanceof Class<?> raw) {
             return raw;
         }
         return Object.class;
     }
 
-    @SuppressWarnings("unchecked")
-    private static Object convertArg(Object value, Class<?> targetType) {
+    /**
+     * Binds a structured argument ({@code Map}/{@code List} from the JSON
+     * parser, or a raw JSON text span from a malformed-input fallback) onto a
+     * record / collection / enum parameter type.
+     */
+    private static final ObjectMapper ARG_JSON = JsonMapper.builder()
+            .enable(DeserializationFeature.USE_LONG_FOR_INTS)
+            .build();
+
+    /**
+     * Convert one model-supplied argument to the tool method's parameter type.
+     *
+     * <p>Scalars keep their historical {@code toString()}-then-parse path so
+     * already-correct simple arguments bind byte-identically. Everything the
+     * scalar path cannot express — enums, records, collections, maps, arrays —
+     * is bound structurally: a nested object aimed at a {@code String} becomes
+     * JSON text (never {@code Map.toString()}'s {@code {key=value}}), an enum
+     * binds by constant name, and a record binds through Jackson. Whatever
+     * still falls through goes to {@link #convertStructuredArg}, which also
+     * reads the parameter's generic type so {@code List<Row>} binds its
+     * elements. A binding failure there returns the raw value so the
+     * downstream reflective invoke surfaces a tool error rather than crashing
+     * the bridge (Correctness Invariant #4).</p>
+     *
+     * @param value       the model-supplied argument (may be null)
+     * @param targetType  the method parameter's raw type
+     * @param genericType the method parameter's generic type, used to bind
+     *                    element types of collections ({@code List<Row>})
+     */
+    private static Object convertArg(Object value, Class<?> targetType, Type genericType) {
         if (value == null) {
             return null;
         }
@@ -439,6 +477,47 @@ public class DefaultToolRegistry implements ToolRegistry {
         } else if (targetType == boolean.class || targetType == Boolean.class) {
             return Boolean.parseBoolean(str);
         }
-        return value;
+        return convertStructuredArg(value, targetType, genericType);
+    }
+
+    /**
+     * Jackson-backed binding for the non-scalar parameter types the legacy
+     * {@code toString()} ladder fell through on (it returned the raw value,
+     * so a record parameter received a {@code Map} and the reflective invoke
+     * threw {@code IllegalArgumentException}).
+     */
+    private static Object convertStructuredArg(Object value, Class<?> targetType, Type genericType) {
+        var javaType = resolveJavaType(targetType, genericType);
+        try {
+            if (value instanceof String raw) {
+                var trimmed = raw.trim();
+                if (targetType.isEnum()) {
+                    // Enum constants arrive as bare strings, not JSON text.
+                    return ARG_JSON.convertValue(trimmed, javaType);
+                }
+                if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+                    // A raw JSON span from the malformed-input fallback path.
+                    return ARG_JSON.readValue(trimmed, javaType);
+                }
+            }
+            return ARG_JSON.convertValue(value, javaType);
+        } catch (JacksonException | IllegalArgumentException e) {
+            logger.debug("Could not bind argument to {} ({}); passing the raw value through",
+                    targetType.getName(), e.toString());
+            return value;
+        }
+    }
+
+    /**
+     * Resolve the Jackson {@link tools.jackson.databind.JavaType} for a
+     * parameter, preferring the generic type so {@code List<Row>} binds its
+     * elements instead of degrading to {@code List<Map>}.
+     */
+    private static tools.jackson.databind.JavaType resolveJavaType(Class<?> targetType,
+                                                                   Type genericType) {
+        if (genericType instanceof ParameterizedType) {
+            return ARG_JSON.constructType(genericType);
+        }
+        return ARG_JSON.constructType(targetType);
     }
 }

@@ -101,6 +101,24 @@ public final class AiConfig {
     public static final String PROMPT_CACHE_KEY_ENV = "LLM_PROMPT_CACHE_KEY";
 
     /**
+     * Tri-state control of OpenAI {@code logprobs} emission by the Built-in
+     * client when a confidence elicitation is active: {@code enabled}
+     * (force-request), {@code disabled} (force-suppress), or {@code auto}
+     * (shared endpoint allow-list). Parsed leniently — see
+     * {@link org.atmosphere.ai.llm.LogprobsMode#parse(String)} — so malformed
+     * values fall back to {@code auto} instead of throwing.
+     * <p>Default: {@code auto}</p>
+     * <p>Sysprop: {@code atmosphere.ai.logprobs}; env: {@code LLM_LOGPROBS}</p>
+     */
+    public static final String LOGPROBS_PROPERTY = "atmosphere.ai.logprobs";
+
+    /**
+     * Environment-variable name for the tri-state {@code logprobs} control.
+     * See {@link #LOGPROBS_PROPERTY}.
+     */
+    public static final String LOGPROBS_ENV = "LLM_LOGPROBS";
+
+    /**
      * Tri-state control of provider-native structured-output enforcement:
      * {@code enabled} (apply + fail-fast on rejection), {@code disabled}
      * (prompt-injection only), or {@code auto} (apply + graceful fall-back).
@@ -455,6 +473,25 @@ public final class AiConfig {
             raw = System.getenv(PROMPT_CACHE_KEY_ENV);
         }
         return PromptCacheKeyMode.parse(raw);
+    }
+
+    /**
+     * Resolve the tri-state {@code logprobs} control from the
+     * {@code atmosphere.ai.logprobs} system property, falling back to the
+     * {@code LLM_LOGPROBS} environment variable, then to
+     * {@link org.atmosphere.ai.llm.LogprobsMode#AUTO}. Parsing is lenient and
+     * never throws (see {@link org.atmosphere.ai.llm.LogprobsMode#parse(String)});
+     * the sysprop wins over the env var, mirroring
+     * {@link #resolvePromptCacheKeyMode()}.
+     *
+     * @return the resolved mode, never {@code null}
+     */
+    public static org.atmosphere.ai.llm.LogprobsMode resolveLogprobsMode() {
+        var raw = System.getProperty(LOGPROBS_PROPERTY);
+        if (raw == null || raw.isBlank()) {
+            raw = System.getenv(LOGPROBS_ENV);
+        }
+        return org.atmosphere.ai.llm.LogprobsMode.parse(raw);
     }
 
     /**

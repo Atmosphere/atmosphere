@@ -33,6 +33,17 @@ atmosphere:
       enabled: true
       store: sqlite
       path: ${ATMOSPHERE_TAPE_PATH:${java.io.tmpdir}/atmosphere-ai-chat-tape.db}
+    # Inner-loop dev inspector: keeps the last N AI turns (prompt, response,
+    # tool calls, token usage, terminal status) in a bounded in-memory ring and
+    # serves them from GET /api/admin/ai/dev/inspector. Where the tape is the
+    # durable, replayable record, this is the "what did the model just see and
+    # say?" view you hit while iterating on a prompt — no store, no replay.
+    # Records prompt/response content, so the read is authenticated like every
+    # other recorded-content admin surface and a startup WARN fires. Dev-only:
+    # turn it off for production (see README "Dev inspector").
+    dev-inspector:
+      enabled: true
+      capacity: 100
     # OpenAI-compatible serving: expose the ai-chat endpoint as a drop-in
     # "model" for OpenAI-wire clients (Open WebUI, LibreChat, OpenAI SDKs)
     # at POST /atmosphere/v1/chat/completions (+ GET /atmosphere/v1/models).

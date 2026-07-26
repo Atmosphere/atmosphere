@@ -68,4 +68,19 @@ public interface LlmClient {
                                       java.util.function.Consumer<java.io.Closeable> streamSink) {
         streamChatCompletion(request, session);
     }
+
+    /**
+     * Enumerate the models the configured endpoint serves — the seam behind
+     * {@link org.atmosphere.ai.AiCapability#MODEL_ENUMERATION}. Best-effort:
+     * implementations return an empty list on any transport or parse failure
+     * so enumeration can never break discovery or dispatch. The default
+     * implementation returns an empty list — clients with a live
+     * {@code GET .../models} surface override
+     * (see {@link OpenAiCompatibleClient#listModels()}).
+     *
+     * @return immutable list of model identifiers; never {@code null}
+     */
+    default java.util.List<String> listModels() {
+        return java.util.List.of();
+    }
 }

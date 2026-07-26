@@ -18,6 +18,7 @@ package org.atmosphere.ai.llm;
 import org.atmosphere.ai.RetryPolicy;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.tool.ToolDefinition;
+import org.atmosphere.ai.tool.ToolParameter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.databind.JsonNode;
@@ -438,10 +439,9 @@ public abstract class AbstractSseLlmClient {
      * needs to emit a valid argument: {@code enum} for a constrained value,
      * {@code items} for an array's elements, and nested
      * {@code properties}/{@code required} for an object. Recurses through
-     * {@link org.atmosphere.ai.tool.ToolParameter}'s own nesting.
+     * {@link ToolParameter}'s own nesting.
      */
-    private ObjectNode parameterSchemaNode(org.atmosphere.ai.tool.ToolParameter param,
-                                           ObjectMapper mapper) {
+    private ObjectNode parameterSchemaNode(ToolParameter param, ObjectMapper mapper) {
         var prop = mapper.createObjectNode();
         prop.put("type", param.type() != null ? param.type() : "string");
         if (param.description() != null && !param.description().isBlank()) {

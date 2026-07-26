@@ -27,19 +27,26 @@ import org.atmosphere.ai.tool.ToolExecutionHelper;
 import org.junit.jupiter.api.Test;
 import java.util.concurrent.atomic.AtomicReference;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * TCK-style contract test for {@link AgentRuntime} implementations.
@@ -394,6 +401,379 @@ public abstract class AbstractAgentRuntimeContractTest {
         return null;
     }
 
+    /**
+     * Everything the shared behavioural cancellation assertion needs from a
+     * runtime module: a runtime wired to a backend that <em>blocks</em> (so the
+     * handle is genuinely in flight when {@code cancel()} lands) and the
+     * context to dispatch. Two optional probes make the assertion stronger
+     * where the module's stub infrastructure can observe them:
+     *
+     * <ul>
+     *   <li>{@link #withBackendRelease} — a counter the stub increments when
+     *       the runtime fires its native release primitive (Reactor
+     *       {@code dispose()}, {@code ReActAgent.interrupt()},
+     *       {@code InputStream.close()}, …). The contract asserts it fires
+     *       <em>exactly once</em> across repeated {@code cancel()} calls,
+     *       proving the CAS guard (Correctness Invariant #2).</li>
+     *   <li>{@link #withLateBackendEvent} — an action that simulates the
+     *       backend delivering one more frame <em>after</em> cancel. The
+     *       contract asserts no text reaches the session afterwards, proving
+     *       the runtime actually stops forwarding rather than merely
+     *       resolving its future.</li>
+     *   <li>{@link #withInFlightProbe} — reports when the backend has actually
+     *       been engaged. Runtimes that dispatch on a virtual thread
+     *       (Built-in, Anthropic, Cohere, Koog) would otherwise be cancelled
+     *       before the worker issues the call, and the cancel would be a
+     *       no-op the contract could not distinguish from a real teardown.</li>
+     * </ul>
+     *
+     * <p>Fixtures must not start the dispatch themselves — the contract calls
+     * {@link AgentRuntime#executeWithHandle} — and any blocking stub must be
+     * bounded (e.g. {@code latch.await(30, SECONDS)}) so a regression cannot
+     * strand a test thread.</p>
+     */
+    public static final class CancellationFixture {
+
+        private final AgentRuntime runtime;
+        private final AgentExecutionContext context;
+        private final AtomicInteger backendReleases;
+        private final String backendReleaseLabel;
+        private final Runnable lateBackendEvent;
+        private final java.util.function.BooleanSupplier inFlightProbe;
+        private final String inFlightLabel;
+
+        private CancellationFixture(AgentRuntime runtime, AgentExecutionContext context,
+                                    AtomicInteger backendReleases, String backendReleaseLabel,
+                                    Runnable lateBackendEvent,
+                                    java.util.function.BooleanSupplier inFlightProbe,
+                                    String inFlightLabel) {
+            this.runtime = runtime;
+            this.context = context;
+            this.backendReleases = backendReleases;
+            this.backendReleaseLabel = backendReleaseLabel;
+            this.lateBackendEvent = lateBackendEvent;
+            this.inFlightProbe = inFlightProbe;
+            this.inFlightLabel = inFlightLabel;
+        }
+
+        /**
+         * @param runtime a runtime whose backend stub blocks until cancelled
+         * @param context the context to dispatch through
+         *                {@link AgentRuntime#executeWithHandle}
+         */
+        public static CancellationFixture of(AgentRuntime runtime, AgentExecutionContext context) {
+            return new CancellationFixture(runtime, context, null, null, null, null, null);
+        }
+
+        /**
+         * @param label   what the counter observes, quoted in assertion failures
+         *                (e.g. {@code "Reactor subscription dispose()"})
+         * @param counter incremented by the stub each time the runtime fires
+         *                its native release primitive
+         */
+        public CancellationFixture withBackendRelease(String label, AtomicInteger counter) {
+            return new CancellationFixture(runtime, context, counter, label, lateBackendEvent,
+                    inFlightProbe, inFlightLabel);
+        }
+
+        /**
+         * @param action pushes one more backend frame into the runtime after
+         *               cancel (e.g. calling a captured streaming handler's
+         *               {@code onPartialResponse})
+         */
+        public CancellationFixture withLateBackendEvent(Runnable action) {
+            return new CancellationFixture(runtime, context, backendReleases,
+                    backendReleaseLabel, action, inFlightProbe, inFlightLabel);
+        }
+
+        /**
+         * @param label what the probe observes, quoted in assertion failures
+         *              (e.g. {@code "SSE response body opened"})
+         * @param probe {@code true} once the runtime's worker has actually
+         *              engaged the backend stub
+         */
+        public CancellationFixture withInFlightProbe(String label,
+                                                     java.util.function.BooleanSupplier probe) {
+            return new CancellationFixture(runtime, context, backendReleases,
+                    backendReleaseLabel, lateBackendEvent, probe, label);
+        }
+
+        public AgentRuntime runtime() {
+            return runtime;
+        }
+
+        public AgentExecutionContext context() {
+            return context;
+        }
+    }
+
+    /**
+     * Subclass hook: build a {@link CancellationFixture} whose runtime is
+     * wired to a blocking backend stub. Defaults to {@code null}; runtimes
+     * that declare {@link AiCapability#CANCELLATION} must either override this
+     * or register the capability in {@link #capabilitiesCoveredOutsideTck()}
+     * naming the dedicated cancel test that covers it — see
+     * {@link #declaredCapabilitiesWithBehavioralHooksAreExercised()}.
+     */
+    protected CancellationFixture createCancellationFixture() {
+        return null;
+    }
+
+    /**
+     * Behavioural contract for {@link AiCapability#CANCELLATION}: twelve
+     * runtimes advertise it, so the guarantee a caller actually relies on has
+     * to hold uniformly rather than per-adapter. Against a backend stub that
+     * blocks (nothing has completed the call yet), this asserts:
+     *
+     * <ol>
+     *   <li>the handle is live before cancel — the fixture really did leave a
+     *       call in flight, so the rest of the assertions mean something;</li>
+     *   <li>{@code cancel()} drives {@link org.atmosphere.ai.ExecutionHandle#whenDone()}
+     *       to a terminal state promptly. Both terminal shapes are honest and
+     *       both occur in-tree — Spring AI / Koog / the direct-HTTP adapters
+     *       resolve the future normally, LangChain4j and AgentScope resolve it
+     *       exceptionally — but an exceptional resolution must carry a
+     *       {@link CancellationException} (or an {@link InterruptedException}),
+     *       never an arbitrary provider error masquerading as a cancel;</li>
+     *   <li>{@code cancel()} is idempotent: repeated calls neither throw nor
+     *       re-fire the native release primitive (CAS-guarded, Invariant #2);</li>
+     *   <li>no completion event fires more than once, and no further text
+     *       reaches the session after termination — including when the fixture
+     *       can push a late backend frame in.</li>
+     * </ol>
+     *
+     * <p>Runtimes whose backend cannot be stubbed for cancel keep their proof
+     * in a dedicated {@code *CancelTest} and register {@code CANCELLATION} in
+     * {@link #capabilitiesCoveredOutsideTck()}.</p>
+     */
+    @Test
+    protected void cancellationStopsInFlightCallAndSettlesHandle() throws Exception {
+        var fixture = createCancellationFixture();
+        if (fixture == null) {
+            // Presence is enforced by the capability meta-gate; skipping here
+            // keeps this assertion's failure output about cancel semantics.
+            return;
+        }
+        var runtime = fixture.runtime;
+        var session = new RecordingSession();
+
+        var handle = runtime.executeWithHandle(fixture.context, session);
+        assertNotNull(handle, runtime.name() + " executeWithHandle must not return null");
+
+        if (fixture.inFlightProbe != null) {
+            // Runtimes that dispatch on a virtual thread need the worker to
+            // reach the backend first; cancelling earlier would short-circuit
+            // before any resource was acquired and prove nothing.
+            var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+            while (!fixture.inFlightProbe.getAsBoolean() && System.nanoTime() < deadline) {
+                Thread.sleep(5);
+            }
+            assertTrue(fixture.inFlightProbe.getAsBoolean(),
+                    runtime.name() + " backend was never engaged within 10s ("
+                            + fixture.inFlightLabel + ") — the fixture's dispatch never "
+                            + "reached the stub, so there was nothing to cancel.");
+        }
+
+        assertFalse(handle.isDone(),
+                runtime.name() + " cancellation fixture must leave a call in flight — the "
+                        + "handle was already done before cancel(), so nothing was actually "
+                        + "cancelled. Make the fixture's backend stub block.");
+
+        handle.cancel();
+
+        try {
+            handle.whenDone().get(10, TimeUnit.SECONDS);
+        } catch (TimeoutException te) {
+            fail(runtime.name() + " cancel() did not settle whenDone() within 10s — the "
+                    + "handle never reaches a terminal state, so callers awaiting release "
+                    + "hang forever (Correctness Invariant #2 — Terminal Path Completeness).");
+        } catch (ExecutionException ee) {
+            var cause = ee.getCause();
+            assertTrue(cause instanceof CancellationException
+                            || cause instanceof InterruptedException,
+                    runtime.name() + " cancel() resolved whenDone() exceptionally with "
+                            + (cause == null ? "null" : cause.getClass().getName())
+                            + " — a cancelled execution must surface a CancellationException "
+                            + "so callers can tell a caller-initiated abort from a provider "
+                            + "failure: " + cause);
+        } catch (CancellationException expected) {
+            // Some runtimes cancel the CompletableFuture itself rather than
+            // completing it exceptionally. That is still a resolved terminal
+            // path, and the isDone() assertion below is what carries the
+            // check — there is deliberately no assertion in this arm.
+            logCancelledFuture(runtime.name());
+        }
+
+        assertTrue(handle.isDone(),
+                runtime.name() + " isDone() must report true once whenDone() has settled");
+
+        // Idempotency: repeat cancels must be no-ops, not re-teardown.
+        handle.cancel();
+        handle.cancel();
+        assertTrue(handle.isDone(),
+                runtime.name() + " repeated cancel() must leave the handle terminal");
+
+        if (fixture.backendReleases != null) {
+            assertEquals(1, fixture.backendReleases.get(),
+                    runtime.name() + " native backend release (" + fixture.backendReleaseLabel
+                            + ") must fire exactly once across three cancel() calls — a "
+                            + "non-CAS-guarded cancel double-releases the backend "
+                            + "(Correctness Invariant #1 — Ownership).");
+        }
+
+        var textAfterTermination = session.textChunks.size();
+        if (fixture.lateBackendEvent != null) {
+            fixture.lateBackendEvent.run();
+        }
+        // Settle window: nothing may arrive from a cancelled dispatch, whether
+        // the fixture could push a late frame in or not.
+        Thread.sleep(200);
+        assertEquals(textAfterTermination, session.textChunks.size(),
+                runtime.name() + " forwarded text to the session after cancellation — "
+                        + "cancel() resolved the handle without stopping the in-flight "
+                        + "stream: " + session.textChunks);
+        assertTrue(session.completionCount.get() <= 1,
+                runtime.name() + " completed the session " + session.completionCount.get()
+                        + " times on the cancel path; a terminal event must fire at most once.");
+    }
+
+    /**
+     * Record which terminal shape a runtime's cancelled future took. Kept as a
+     * trace so a suite run can tell "the future was cancelled outright" from
+     * "the future completed normally" without either shape failing the
+     * contract — both are honest terminations (never swallow silently).
+     */
+    private static void logCancelledFuture(String runtimeName) {
+        org.slf4j.LoggerFactory.getLogger(AbstractAgentRuntimeContractTest.class)
+                .debug("{} resolved whenDone() by cancelling the future itself", runtimeName);
+    }
+
+    /**
+     * Registry of capabilities whose behavioural proof lives <em>outside</em>
+     * this TCK, mapping each capability to the simple or fully-qualified name
+     * of the test class that proves it. The escape hatch exists because six
+     * runtimes already own richer wire-shape / native-teardown tests than a
+     * shared hook could express, and forcing them to duplicate that coverage
+     * would buy nothing.
+     *
+     * <p>The registration is not a free pass:
+     * {@link #declaredCapabilitiesWithBehavioralHooksAreExercised()} resolves
+     * every named class with {@link Class#forName} against the subclass's own
+     * classloader, so a fabricated or deleted test class fails the build, and
+     * a name from another Maven module (not on this module's test classpath)
+     * cannot be cited either — cross-module coverage claims must be proven by
+     * implementing the hook instead. Stale entries for capabilities the
+     * runtime no longer declares also fail.</p>
+     *
+     * @return capability → covering test class name; empty by default
+     */
+    protected Map<AiCapability, String> capabilitiesCoveredOutsideTck() {
+        return Map.of();
+    }
+
+    /**
+     * Meta-gate closing the "declare it but never exercise it" hole. Several
+     * capability assertions in this class are hook-driven and skip cleanly
+     * when the subclass hook returns {@code null} — convenient while a runtime
+     * is being brought up, but it means a runtime can advertise
+     * {@link AiCapability#VISION}, {@link AiCapability#PROMPT_CACHING},
+     * {@link AiCapability#PER_REQUEST_RETRY} or {@link AiCapability#CANCELLATION}
+     * and have <em>zero</em> behaviour exercised anywhere, with a green TCK.
+     * This test fails such a runtime, listing the missing overrides, and
+     * points at the {@link #capabilitiesCoveredOutsideTck()} escape hatch for
+     * runtimes whose proof genuinely lives in a dedicated test.
+     *
+     * <p>{@link AiCapability#TOOL_CALLING} is deliberately <em>not</em> gated:
+     * {@link #hitlPendingApprovalEmitsProtocolEvent} falls back to
+     * {@link #assertHelperLevelHitl} when
+     * {@link #createApprovalTriggerContext()} is absent, so a missing hook
+     * degrades the assertion rather than skipping it. Adding a capability to
+     * {@link #BEHAVIOURAL_HOOKS} is how a future hook joins the gate.</p>
+     */
+    @Test
+    protected void declaredCapabilitiesWithBehavioralHooksAreExercised() {
+        var runtime = createRuntime();
+        var declared = runtime.capabilities();
+        var registered = capabilitiesCoveredOutsideTck();
+        assertNotNull(registered,
+                runtime.name() + " capabilitiesCoveredOutsideTck() must not return null");
+
+        // A registration is only honest if the named class exists on this
+        // module's test classpath and the capability is actually declared.
+        for (var entry : registered.entrySet()) {
+            assertTrue(declared.contains(entry.getKey()),
+                    runtime.name() + " registers " + entry.getKey() + " in "
+                            + "capabilitiesCoveredOutsideTck() but capabilities() no longer "
+                            + "declares it — drop the stale registration.");
+            var className = entry.getValue();
+            assertTrue(className != null && !className.isBlank(),
+                    runtime.name() + " registration for " + entry.getKey() + " must name the "
+                            + "test class that covers it.");
+            try {
+                Class.forName(className, false, getClass().getClassLoader());
+            } catch (ClassNotFoundException e) {
+                var qualified = getClass().getPackageName() + "." + className;
+                try {
+                    Class.forName(qualified, false, getClass().getClassLoader());
+                } catch (ClassNotFoundException e2) {
+                    fail(runtime.name() + " registers " + entry.getKey()
+                            + " as covered by \"" + className + "\", but no such class is on "
+                            + "this module's test classpath (tried \"" + className + "\" and \""
+                            + qualified + "\"). Name a real test class in THIS module, or "
+                            + "implement the TCK hook — coverage in another Maven module "
+                            + "cannot be cited here because nothing would break if it were "
+                            + "deleted.");
+                }
+            }
+        }
+
+        var missing = new LinkedHashMap<AiCapability, String>();
+        for (var hook : BEHAVIOURAL_HOOKS.entrySet()) {
+            var capability = hook.getKey();
+            if (!declared.contains(capability) || registered.containsKey(capability)) {
+                continue;
+            }
+            if (hook.getValue().apply(this) == null) {
+                missing.put(capability, HOOK_NAMES.get(capability));
+            }
+        }
+
+        if (!missing.isEmpty()) {
+            var lines = new ArrayList<String>();
+            missing.forEach((capability, hookName) ->
+                    lines.add("  - " + capability + " → override " + hookName));
+            fail(runtime.name() + " declares capabilities whose behaviour is never exercised "
+                    + "(Correctness Invariant #5 — Runtime Truth). The hook-driven assertions "
+                    + "skip silently when the hook returns null, so these capabilities pass the "
+                    + "TCK without a single behavioural check:\n"
+                    + String.join("\n", lines)
+                    + "\nEither implement the hook, or register the capability in "
+                    + "capabilitiesCoveredOutsideTck() naming the test class in this module "
+                    + "that already proves it.");
+        }
+    }
+
+    /**
+     * Capability → the hook whose {@code null} return makes that capability's
+     * behavioural assertion skip entirely. Applied to {@code this} so the
+     * meta-gate observes the subclass's override.
+     */
+    private static final Map<AiCapability,
+            java.util.function.Function<AbstractAgentRuntimeContractTest, Object>>
+            BEHAVIOURAL_HOOKS = Map.of(
+                    AiCapability.VISION, AbstractAgentRuntimeContractTest::createImageContext,
+                    AiCapability.PROMPT_CACHING, AbstractAgentRuntimeContractTest::createCacheContext,
+                    AiCapability.PER_REQUEST_RETRY, AbstractAgentRuntimeContractTest::createRetryContext,
+                    AiCapability.CANCELLATION,
+                    AbstractAgentRuntimeContractTest::createCancellationFixture);
+
+    /** Hook names quoted in the meta-gate's failure message. */
+    private static final Map<AiCapability, String> HOOK_NAMES = Map.of(
+            AiCapability.VISION, "createImageContext()",
+            AiCapability.PROMPT_CACHING, "createCacheContext()",
+            AiCapability.PER_REQUEST_RETRY, "createRetryContext()",
+            AiCapability.CANCELLATION, "createCancellationFixture()");
+
     /** Minimal 1×1 transparent PNG for VISION contract tests. */
     protected static final byte[] TINY_PNG = new byte[]{
             (byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
@@ -652,15 +1032,33 @@ public abstract class AbstractAgentRuntimeContractTest {
     }
 
     /**
-     * Cross-provider governance contract — RAG injection classifier
-     * composes with this runtime. A {@link org.atmosphere.ai.governance.rag.SafetyContextProvider}
-     * configured with the rule-based classifier must drop a document
-     * containing canonical injection content. The retrieved-and-filtered
-     * docs are then stitched into the runtime's prompt so the runtime
-     * sees only safe content. Addresses OWASP Agentic Top-10 A04.
-     * Inherited by every runtime adapter so the RAG safety layer's
-     * drop guarantee holds across Built-in, Spring AI, LangChain4j, ADK,
-     * Embabel, Koog, Semantic Kernel.
+     * Cross-provider governance contract — a
+     * {@link org.atmosphere.ai.governance.rag.SafetyContextProvider} installed
+     * on an {@link org.atmosphere.ai.AiPipeline} wrapping this runtime must
+     * reach the runtime as the screening wrapper, and must drop a document
+     * carrying canonical injection content at the retrieval seam the runtime
+     * calls. Addresses OWASP Agentic Top-10 A04.
+     *
+     * <p><b>What this asserts, exactly.</b> The pipeline is driven for real
+     * (same shape as {@link #policyDenyBlocksRuntimeExecute} and
+     * {@link #perRequestScopeBlocksRuntimeExecute}, except the turn is
+     * <em>allowed</em>): the runtime is reached, and the
+     * {@link AgentExecutionContext} it receives carries the
+     * {@code SafetyContextProvider} instance itself — not the unscreened
+     * delegate the application registered it around. Retrieval is then driven
+     * through that exact object and the flagged document must be gone. Those
+     * two facts together are the runtime-independent guarantee: no adapter can
+     * be handed unscreened retrieval, whatever it does with the docs
+     * afterwards.</p>
+     *
+     * <p><b>What this does not assert.</b> Prompt bytes. Stitching retrieved
+     * docs into the outgoing prompt is <em>not</em> runtime-independent —
+     * {@code AiStreamingSession} does it on the {@code @AiEndpoint} path,
+     * Koog stitches natively in its own dispatch, and other adapters bridge
+     * {@code contextProviders} to their framework's RAG surface. An earlier
+     * version of this test built a prompt string locally and asserted on that
+     * {@code StringBuilder}, which involved neither the pipeline nor the
+     * runtime and therefore could not have caught any adapter regression.</p>
      */
     @Test
     protected void ragInjectionClassifierDropsFlaggedContextBeforeRuntime() throws Exception {
@@ -687,34 +1085,60 @@ public abstract class AbstractAgentRuntimeContractTest {
                 .onBreach(org.atmosphere.ai.governance.rag.SafetyContextProvider.Breach.DROP)
                 .build();
 
-        var filtered = safety.retrieve("user query", 5);
-        assertFalse(filtered.isEmpty(),
-                runtime.name() + " safety layer must keep at least one doc");
-        assertTrue(filtered.size() == 1 && "docs/safe.md".equals(filtered.get(0).source()),
+        var runtimeInvoked = new AtomicBoolean(false);
+        var observedContext = new AtomicReference<AgentExecutionContext>();
+        var wrapper = new org.atmosphere.ai.AgentRuntime() {
+            @Override public String name() { return runtime.name() + "+contract-wrapper"; }
+            @Override public boolean isAvailable() { return runtime.isAvailable(); }
+            @Override public int priority() { return runtime.priority(); }
+            @Override public void configure(org.atmosphere.ai.AiConfig.LlmSettings s) {
+                runtime.configure(s);
+            }
+            @Override public java.util.Set<AiCapability> capabilities() {
+                return runtime.capabilities();
+            }
+            @Override
+            public void execute(AgentExecutionContext context, StreamingSession session) {
+                runtimeInvoked.set(true);
+                observedContext.set(context);
+                runtime.execute(context, session);
+            }
+        };
+        var pipeline = new org.atmosphere.ai.AiPipeline(
+                wrapper, "", null, null, null,
+                java.util.List.of(), java.util.List.of(), java.util.List.of(safety),
+                null, null);
+        var session = new RecordingSession();
+        pipeline.execute("contract-client", "user query", session);
+        session.awaitCompletion(10, TimeUnit.SECONDS);
+
+        assertTrue(runtimeInvoked.get(),
+                runtime.name() + " runtime.execute() must run — nothing denies this turn, so a "
+                        + "miss here means the RAG assertions below never reached the adapter.");
+        var delivered = observedContext.get();
+        assertNotNull(delivered,
+                runtime.name() + " pipeline did not deliver an execution context to the runtime");
+        assertEquals(1, delivered.contextProviders().size(),
+                runtime.name() + " pipeline must thread exactly the installed ContextProvider "
+                        + "into the runtime's context: " + delivered.contextProviders());
+        assertSame(safety, delivered.contextProviders().get(0),
+                runtime.name() + " runtime received a ContextProvider that is NOT the "
+                        + "SafetyContextProvider the pipeline was built with — the screening "
+                        + "wrapper was unwrapped or replaced, so the adapter would retrieve "
+                        + "unscreened documents (OWASP Agentic A04).");
+
+        // Retrieve through the exact object the adapter will call at RAG time.
+        var filtered = delivered.contextProviders().get(0).retrieve("user query", 5);
+        assertEquals(1, filtered.size(),
+                runtime.name() + " safety layer must keep exactly the safe doc: " + filtered);
+        assertEquals("docs/safe.md", filtered.get(0).source(),
                 runtime.name() + " safety layer must drop docs/evil.md and keep docs/safe.md: "
                         + filtered);
-
-        // Build the augmented message the same way AiStreamingSession does
-        // when it wires ContextProviders into the prompt.
-        var augmented = new StringBuilder("user query\n\nRelevant context:");
-        for (var doc : filtered) {
-            augmented.append("\n---\nSource: ").append(doc.source())
-                    .append("\n").append(doc.content());
-        }
-
-        // Sanity-check: the evil payload must NOT appear in the augmented
-        // prompt regardless of which runtime we're testing. That is the
-        // cross-provider invariant — the governance layer filters before
-        // the runtime sees anything.
         assertFalse(
-                augmented.toString().toLowerCase().contains("ignore all previous instructions"),
-                runtime.name() + " augmented prompt contains the injected payload — "
-                        + "SafetyContextProvider failed to drop the flagged doc.\n  prompt: "
-                        + augmented);
-        assertTrue(
-                augmented.toString().toLowerCase().contains("safe reference content"),
-                runtime.name() + " augmented prompt must still carry the safe document.\n"
-                        + "  prompt: " + augmented);
+                filtered.get(0).content().toLowerCase()
+                        .contains("ignore all previous instructions"),
+                runtime.name() + " the retained document still carries the injected payload: "
+                        + filtered);
     }
 
     /** Minimal StreamingSession satisfying the helper's session.sessionId() call. */

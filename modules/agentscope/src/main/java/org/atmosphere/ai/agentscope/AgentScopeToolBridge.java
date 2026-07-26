@@ -69,9 +69,10 @@ public final class AgentScopeToolBridge {
         var properties = new LinkedHashMap<String, Object>();
         var required = new ArrayList<String>();
         for (var parameter : tool.parameters()) {
-            properties.put(parameter.name(), Map.of(
-                    "type", parameter.type(),
-                    "description", parameter.description()));
+            // Shared emitter so the enum / array-items / nested-object facets
+            // reach AgentScope with the same fidelity every other bridge sees.
+            properties.put(parameter.name(),
+                    org.atmosphere.ai.tool.ToolBridgeUtils.parameterSchemaMap(parameter));
             if (parameter.required()) {
                 required.add(parameter.name());
             }

@@ -31,16 +31,18 @@ async function sendMessage(page: import('@playwright/test').Page, text: string) 
 }
 
 /**
- * XSS Protection E2E — skipped pending reliable console WebSocket connect in CI
- * (the same harness limitation that gates the other console streaming specs).
+ * XSS Protection E2E — drives real payloads through the console against the
+ * dentist-agent sample (no auth, @Agent accepts raw text) and asserts none of
+ * them execute.
  *
- * The actual XSS defense is implemented and unit-tested without a browser:
+ * This complements, rather than duplicates, the headless unit coverage:
  * renderMarkdown() routes all console output through DOMPurify before any
- * `v-html` binding (modules/spring-boot-starter/frontend/src/lib/markdown.ts),
+ * `v-html` binding (modules/spring-boot-starter/frontend/src/lib/markdown.ts)
  * and markdown.test.ts asserts script / onerror / javascript: payloads are
- * stripped. These browser tests document the end-to-end gap; they do not run yet.
+ * stripped in isolation. These tests prove the sanitizer is actually on the
+ * rendering path in a real browser, which a unit test cannot show.
  */
-test.describe.skip('XSS Protection', () => {
+test.describe('XSS Protection', () => {
   test('script tags in messages are not executed', async ({ browser }) => {
     const ctx1 = await browser.newContext();
     const ctx2 = await browser.newContext();
@@ -61,8 +63,12 @@ test.describe.skip('XSS Protection', () => {
     const xssOnReceiver = await receiver.evaluate(() => (window as any).__xss);
     expect(xssOnReceiver).toBeFalsy();
 
-    // Verify the message list contains the escaped text (rendered safely)
-    await expect(sender.getByTestId('message-list')).toContainText('<script>', { timeout: 5_000 });
+    // The sanitizer STRIPS the script element rather than escaping it for
+    // display, so assert on the DOM: no <script> node ever reaches the
+    // message content. (An earlier version of this test asserted the literal
+    // text '<script>' was visible — that was never the behaviour; DOMPurify
+    // removes the node and its content outright.)
+    await expect(sender.locator('[data-testid="message-list"] script')).toHaveCount(0);
 
     await ctx1.close();
     await ctx2.close();
@@ -87,8 +93,19 @@ test.describe.skip('XSS Protection', () => {
     const xssOnReceiver = await receiver.evaluate(() => (window as any).__xss_img);
     expect(xssOnReceiver).toBeFalsy();
 
-    // The raw payload text should be visible (escaped, not interpreted as HTML)
-    await expect(sender.getByTestId('message-list')).toContainText('onerror', { timeout: 5_000 });
+    // <img> itself is on the sanitizer's allow-list — what must not survive is
+    // the event-handler attribute. Assert the attribute is gone rather than the
+    // element: an assertion that no <img> renders would be testing the wrong
+    // thing and would break the moment someone legitimately posts an image.
+    await expect(sender.locator('[data-testid="message-list"] [onerror]')).toHaveCount(0);
+    const imgHandlers = await sender.evaluate(() => {
+      const list = document.querySelector('[data-testid="message-list"]');
+      if (!list) return -1;
+      return Array.from(list.querySelectorAll('img')).filter((el) =>
+        Array.from(el.attributes).some((a) => a.name.toLowerCase().startsWith('on')),
+      ).length;
+    });
+    expect(imgHandlers).toBe(0);
 
     await ctx1.close();
     await ctx2.close();
@@ -148,23 +165,27 @@ test.describe.skip('XSS Protection', () => {
 
     await openConsole(page, server.baseUrl);
 
-    // Send a message with HTML-like content that should be displayed as text
-    await sendMessage(page, 'Use <div> and <span> for layout');
+    // Layout tags are on the sanitizer's allow-list — they render as real, inert
+    // elements, which is safe. What must NOT survive is anything scriptable, so
+    // assert the boundary where it actually is: benign markup renders, and no
+    // event-handler attribute or script node comes with it.
+    await sendMessage(page, 'Use <div>a</div> and <span>b</span> for layout');
 
-    // The angle-bracket content should appear as visible text, not interpreted as DOM
-    await expect(page.getByTestId('message-list')).toContainText('<div>', { timeout: 10_000 });
-    await expect(page.getByTestId('message-list')).toContainText('<span>', { timeout: 5_000 });
+    // Scope to the USER bubble: `.message-content` unqualified also matches the
+    // agent's reply, and `.last()` races whichever bubble renders last.
+    const sent = page.locator('.message--user .message-content').last();
+    await expect(sent).toContainText('for layout', { timeout: 15_000 });
 
-    // Verify no actual <div> or <span> elements were injected into message content
-    const injectedDivCount = await page.evaluate(() => {
+    // No executable residue anywhere in the rendered message content.
+    await expect(page.locator('[data-testid="message-list"] script')).toHaveCount(0);
+    const handlerCount = await page.evaluate(() => {
       const list = document.querySelector('[data-testid="message-list"]');
-      if (!list) return 0;
-      // Count div/span elements inside message-content that are NOT part of the
-      // console's own component structure (message-content renders via innerHTML)
-      const contentDivs = list.querySelectorAll('.message-content div');
-      return contentDivs.length;
+      if (!list) return -1;
+      return Array.from(list.querySelectorAll('*')).filter((el) =>
+        Array.from(el.attributes).some((a) => a.name.toLowerCase().startsWith('on')),
+      ).length;
     });
-    expect(injectedDivCount).toBe(0);
+    expect(handlerCount).toBe(0);
 
     await ctx.close();
   });

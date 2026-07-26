@@ -21,6 +21,7 @@ import org.atmosphere.checkpoint.CheckpointId;
 import org.atmosphere.checkpoint.CheckpointListener;
 import org.atmosphere.checkpoint.CheckpointQuery;
 import org.atmosphere.checkpoint.CheckpointStore;
+import org.atmosphere.checkpoint.SchemaMigrations;
 import org.atmosphere.checkpoint.WorkflowSnapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -137,29 +138,41 @@ public final class PostgresCheckpointStore implements CheckpointStore {
 
     @Override
     public void start() {
-        try (var conn = dataSource.getConnection();
-             var stmt = conn.createStatement()) {
-            // Portable DDL: TEXT/VARCHAR for serialized JSON, BIGINT for the
-            // timestamp. CREATE TABLE IF NOT EXISTS makes start() idempotent.
-            stmt.execute("CREATE TABLE IF NOT EXISTS " + table + " ("
-                    + "id VARCHAR(255) PRIMARY KEY, "
-                    + "parent_id VARCHAR(255), "
-                    + "coordination_id VARCHAR(255) NOT NULL, "
-                    + "agent_name VARCHAR(255), "
-                    + "state_json TEXT, "
-                    + "state_type VARCHAR(512), "
-                    + "metadata_json TEXT, "
-                    + "created_at BIGINT NOT NULL)");
-            // Migration for tables created before state_type existed. Postgres
-            // and H2 both support ADD COLUMN IF NOT EXISTS, so start() stays
-            // idempotent with no duplicate-column error.
-            stmt.execute("ALTER TABLE " + table + " ADD COLUMN IF NOT EXISTS state_type VARCHAR(512)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_" + table
-                    + "_coord ON " + table + " (coordination_id)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_" + table
-                    + "_agent ON " + table + " (agent_name)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_" + table
-                    + "_created ON " + table + " (created_at)");
+        try (var conn = dataSource.getConnection()) {
+            // The component key is the (configurable) table name, so several
+            // stores over different tables in one database version separately.
+            SchemaMigrations.migrate(conn, table, List.of(
+                    c -> {
+                        // Portable DDL: TEXT/VARCHAR for serialized JSON, BIGINT
+                        // for the timestamp, idempotent via IF NOT EXISTS.
+                        try (var stmt = c.createStatement()) {
+                            stmt.execute("CREATE TABLE IF NOT EXISTS " + table + " ("
+                                    + "id VARCHAR(255) PRIMARY KEY, "
+                                    + "parent_id VARCHAR(255), "
+                                    + "coordination_id VARCHAR(255) NOT NULL, "
+                                    + "agent_name VARCHAR(255), "
+                                    + "state_json TEXT, "
+                                    + "state_type VARCHAR(512), "
+                                    + "metadata_json TEXT, "
+                                    + "created_at BIGINT NOT NULL)");
+                            stmt.execute("CREATE INDEX IF NOT EXISTS idx_" + table
+                                    + "_coord ON " + table + " (coordination_id)");
+                            stmt.execute("CREATE INDEX IF NOT EXISTS idx_" + table
+                                    + "_agent ON " + table + " (agent_name)");
+                            stmt.execute("CREATE INDEX IF NOT EXISTS idx_" + table
+                                    + "_created ON " + table + " (created_at)");
+                        }
+                    },
+                    c -> {
+                        // Migration 1 -> 2 for tables created before state_type
+                        // existed. Postgres and H2 both support ADD COLUMN IF NOT
+                        // EXISTS, so the step stays idempotent for adopted
+                        // unstamped tables that already carry the column.
+                        try (var stmt = c.createStatement()) {
+                            stmt.execute("ALTER TABLE " + table
+                                    + " ADD COLUMN IF NOT EXISTS state_type VARCHAR(512)");
+                        }
+                    }));
             if (cipher == CheckpointCipher.NONE) {
                 logger.warn("PostgresCheckpointStore persists checkpoint state as PLAINTEXT at "
                         + "rest — secrets or PII inside agent state land unmasked in the "

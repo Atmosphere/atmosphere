@@ -71,6 +71,13 @@ public final class DefaultStreamingSession implements StreamingSession {
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final AtomicBoolean errored = new AtomicBoolean(false);
     private final AtomicLong sequence = new AtomicLong(0);
+    /**
+     * Last outbound-activity timestamp (epoch millis), refreshed on every
+     * broadcast so {@link #sweepExpired} never reaps a session that is still
+     * streaming. Package-private volatile so tests can age a session without
+     * a clock indirection on this hot path.
+     */
+    volatile long lastActivityMillis = System.currentTimeMillis();
 
     DefaultStreamingSession(String sessionId, AtmosphereResource resource) {
         this(sessionId, resource, false);
@@ -87,6 +94,7 @@ public final class DefaultStreamingSession implements StreamingSession {
         this.broadcastToRoom = broadcastToRoom;
         SESSION_RESOURCES.put(sessionId, resource);
         SESSION_INSTANCES.put(sessionId, this);
+        StreamingSessionSweeper.ensureStarted();
     }
 
     /**
@@ -106,8 +114,23 @@ public final class DefaultStreamingSession implements StreamingSession {
      * before the streaming session completes.
      */
     public static void cleanupResource(AtmosphereResource resource) {
+        cleanupResource(resource.uuid());
+    }
+
+    /**
+     * Remove all sessions associated with a disconnecting resource by its
+     * UUID. Used by the recycled-disconnect path where the container has
+     * already stripped the {@link AtmosphereResource} from the event but the
+     * event still carries the UUID it was created with.
+     *
+     * @param resourceUuid the atmosphere resource UUID (may be null; no-op)
+     */
+    public static void cleanupResource(String resourceUuid) {
+        if (resourceUuid == null) {
+            return;
+        }
         SESSION_RESOURCES.entrySet().removeIf(e -> {
-            if (e.getValue().uuid().equals(resource.uuid())) {
+            if (e.getValue().uuid().equals(resourceUuid)) {
                 var session = SESSION_INSTANCES.remove(e.getKey());
                 if (session != null) {
                     session.closed.set(true);
@@ -116,6 +139,34 @@ public final class DefaultStreamingSession implements StreamingSession {
             }
             return false;
         });
+    }
+
+    /**
+     * Remove sessions whose last outbound activity is older than
+     * {@code ttlMs}. Invoked by {@link StreamingSessionSweeper} so orphaned
+     * sessions — a runtime that never fires a terminal event, a disconnect
+     * the container never delivered — cannot grow the process-global maps
+     * without bound (Correctness Invariant #3). Reaped sessions are marked
+     * closed so late writes from a stuck runtime are dropped at the wire
+     * layer instead of resurrecting the entry.
+     *
+     * @param ttlMs the idle TTL in milliseconds
+     * @return the number of sessions removed
+     */
+    static int sweepExpired(long ttlMs) {
+        var cutoff = System.currentTimeMillis() - ttlMs;
+        var removed = 0;
+        for (var entry : SESSION_INSTANCES.entrySet()) {
+            var session = entry.getValue();
+            if (session.lastActivityMillis < cutoff
+                    && SESSION_INSTANCES.remove(entry.getKey(), session)) {
+                SESSION_RESOURCES.remove(entry.getKey());
+                session.closed.set(true);
+                removed++;
+                logger.debug("Swept idle streaming session {}", entry.getKey());
+            }
+        }
+        return removed;
     }
 
     @Override
@@ -297,6 +348,9 @@ public final class DefaultStreamingSession implements StreamingSession {
     }
 
     private void broadcast(String json) {
+        // Every outbound frame refreshes the TTL clock so the sweeper never
+        // reaps a session that is actively streaming.
+        lastActivityMillis = System.currentTimeMillis();
         // Wrap in RawMessage so ManagedAtmosphereHandler.onStateChange()
         // delivers the JSON as-is without re-invoking @Message handlers.
         try {

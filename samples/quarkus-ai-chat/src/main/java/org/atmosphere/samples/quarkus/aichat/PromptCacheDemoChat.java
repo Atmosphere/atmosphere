@@ -25,7 +25,10 @@ import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.ai.cache.InMemoryResponseCache;
+import org.atmosphere.ai.cache.ResponseCacheConfig;
 import org.atmosphere.ai.llm.CacheHint;
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,27 +59,42 @@ public class PromptCacheDemoChat {
 
     private volatile AiPipeline pipeline;
 
+    /** The cache that actually backs the pipeline: {@code semantic} or {@code exact}. */
+    private volatile String cacheKind = "exact";
+
     @Prompt
-    public void onPrompt(String message, StreamingSession session) {
+    public void onPrompt(String message, StreamingSession session, AtmosphereResource resource) {
         var policy = getClass().getAnnotation(AiEndpoint.class).promptCache();
         session.sendMetadata("prompt.cache.policy", policy.name());
 
-        logger.info("Routing prompt through pipeline response cache: {}", message);
-        pipeline().execute("prompt-cache-demo", message, session);
+        // Null-safe: the @Agent channel bridges invoke @Prompt without a
+        // resource, and a null config makes the seam decline (exact cache).
+        var configured = pipeline(resource != null ? resource.getAtmosphereConfig() : null);
+        session.sendMetadata("prompt.cache.kind", cacheKind);
+
+        logger.info("Routing prompt through the {} pipeline response cache: {}", cacheKind, message);
+        configured.execute("prompt-cache-demo", message, session);
     }
 
-    private AiPipeline pipeline() {
+    private AiPipeline pipeline(AtmosphereConfig config) {
         var existing = pipeline;
         if (existing != null) {
             return existing;
         }
         synchronized (this) {
             if (pipeline == null) {
-                var cache = new InMemoryResponseCache(64);
                 var p = new AiPipeline(new DemoAgentRuntime(), "cache demo", "demo-model",
                         null, null, java.util.List.of(), java.util.List.of(), AiMetrics.NOOP);
-                p.setResponseCache(cache, Duration.ofMinutes(5));
-                p.setDefaultCachePolicy(CacheHint.CachePolicy.CONSERVATIVE);
+                // Same framework seam as the Spring port: semantic when
+                // org.atmosphere.ai.cache.semantic=true and an EmbeddingRuntime
+                // is genuinely available, exact otherwise.
+                if (ResponseCacheConfig.install(p, config)) {
+                    cacheKind = "semantic";
+                } else {
+                    p.setResponseCache(new InMemoryResponseCache(64), Duration.ofMinutes(5));
+                    p.setDefaultCachePolicy(CacheHint.CachePolicy.CONSERVATIVE);
+                    cacheKind = "exact";
+                }
                 pipeline = p;
             }
             return pipeline;

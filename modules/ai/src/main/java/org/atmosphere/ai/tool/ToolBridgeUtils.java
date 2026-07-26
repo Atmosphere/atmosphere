@@ -41,13 +41,19 @@ public final class ToolBridgeUtils {
      * Tool arguments come off the model wire, so they are parsed with Jackson
      * rather than by hand (Correctness Invariant #4, Boundary Safety).
      * {@code USE_LONG_FOR_INTS} keeps the long-boxing contract callers and
-     * tests rely on for integral values.
+     * tests rely on for integral values, matching what the pre-Jackson
+     * tokenizer produced for simple args ({@code Long.parseLong}).
      */
     private static final ObjectMapper MAPPER = JsonMapper.builder()
             .enable(DeserializationFeature.USE_LONG_FOR_INTS)
             .build();
 
-    private static final TypeReference<Map<String, Object>> MAP_TYPE =
+    /**
+     * Deserialized as a {@link LinkedHashMap} so the returned map is both
+     * mutable (as documented) and preserves the model's argument order without
+     * an extra defensive copy.
+     */
+    private static final TypeReference<LinkedHashMap<String, Object>> MAP_TYPE =
             new TypeReference<>() { };
 
     private ToolBridgeUtils() {
@@ -72,6 +78,11 @@ public final class ToolBridgeUtils {
      * whatever key/value pairs it could recover — the same partial-map
      * behavior this method has always had.</p>
      *
+     * <p>Integral numbers surface as {@link Long}, decimals and
+     * exponent-notation numbers as {@link Double}. The tool-argument validator
+     * downstream turns whatever the lenient parse could not recover into a
+     * structured tool error the model can react to.</p>
+     *
      * @param json the JSON string to parse
      * @return a mutable map of parsed arguments, or an empty immutable map
      *         if the input is null, blank, or empty JSON
@@ -82,13 +93,12 @@ public final class ToolBridgeUtils {
         }
         try {
             var parsed = MAPPER.readValue(json, MAP_TYPE);
-            // Copy into a HashMap: the returned map is documented mutable, and
-            // Jackson's map implementation is not guaranteed to be.
-            return parsed == null ? new HashMap<>() : new HashMap<>(parsed);
+            return parsed != null ? parsed : new HashMap<>();
         } catch (RuntimeException e) {
             // Jackson 3 exceptions are unchecked (JacksonException extends
-            // RuntimeException). Malformed model output degrades to the
-            // lenient parse instead of propagating into the tool bridge.
+            // RuntimeException). Malformed model output (unquoted token,
+            // trailing garbage, truncation) degrades to the lenient parse
+            // instead of propagating into the tool bridge.
             return lenientParse(json);
         }
     }
@@ -134,15 +144,24 @@ public final class ToolBridgeUtils {
      * Best-effort tokenizer for input Jackson could not parse. Recovers the
      * key/value pairs it can and stops at the first construct it cannot read,
      * returning a partial map rather than throwing. Kept as the fallback so a
-     * model that emits slightly-off JSON (an unquoted number token, a
-     * truncated object) behaves exactly as it did before Jackson parsing was
-     * introduced.
+     * model that emits slightly-off JSON (an unquoted number token) still
+     * yields the key/value pairs the pre-Jackson tokenizer recovered. Handles
+     * flat key-value pairs with string, number, boolean and null values;
+     * nested objects/arrays are captured as raw text spans.
+     *
+     * <p>One deliberate difference from that tokenizer: the closing brace is
+     * optional, so a payload truncated mid-object still yields its leading
+     * pairs instead of being discarded whole.</p>
      */
     private static Map<String, Object> lenientParse(String json) {
         var result = new HashMap<String, Object>();
         var trimmed = json.trim();
-        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-            trimmed = trimmed.substring(1, trimmed.length() - 1).trim();
+        if (trimmed.startsWith("{")) {
+            // The closing brace is optional here: a truncated payload still has
+            // salvageable leading pairs, and requiring a matching '}' made the
+            // whole object unreadable the moment the model's output was cut off.
+            var end = trimmed.endsWith("}") ? trimmed.length() - 1 : trimmed.length();
+            trimmed = trimmed.substring(1, end).trim();
         }
         if (trimmed.isEmpty()) {
             return result;
@@ -329,6 +348,12 @@ public final class ToolBridgeUtils {
      * Used by adapters that need a raw JSON Schema representation
      * (e.g., Spring AI's {@code inputSchema}).
      *
+     * <p>Structural facets carried by {@link ToolParameter} are emitted
+     * faithfully: {@code enum} for closed value sets, a recursive {@code items}
+     * schema for array elements, and nested {@code properties}/{@code required} for
+     * object parameters. Flat parameters emit exactly the
+     * {@code type}/{@code description} pair previous releases produced.</p>
+     *
      * @param parameters the tool parameter definitions
      * @return a JSON Schema string describing the parameters
      */
@@ -341,7 +366,7 @@ public final class ToolBridgeUtils {
         var properties = new LinkedHashMap<String, Object>();
         var required = new ArrayList<String>();
         for (var param : parameters) {
-            properties.put(param.name(), parameterSchema(param));
+            properties.put(param.name(), parameterSchemaMap(param));
             if (param.required()) {
                 required.add(param.name());
             }
@@ -352,12 +377,18 @@ public final class ToolBridgeUtils {
     }
 
     /**
-     * One parameter as a JSON Schema property map, carrying {@code enum} for a
-     * constrained value, {@code items} for array elements, and nested
-     * {@code properties}/{@code required} for objects — the constructs a model
-     * needs to emit a valid argument. Recurses through the parameter's nesting.
+     * Build the JSON Schema property object for one parameter as a plain map,
+     * carrying {@code enum} for a constrained value, {@code items} for array
+     * elements, and nested {@code properties}/{@code required} for objects —
+     * the constructs a model needs to emit a valid argument. Recurses through
+     * the parameter's nesting. Shared by {@link #buildJsonSchemaString} and the
+     * map-based bridge emitters so every runtime serializes an identical
+     * property shape.
+     *
+     * @param param the parameter definition
+     * @return an ordered map mirroring the JSON Schema property object
      */
-    private static Map<String, Object> parameterSchema(ToolParameter param) {
+    public static Map<String, Object> parameterSchemaMap(ToolParameter param) {
         var prop = new LinkedHashMap<String, Object>();
         prop.put("type", param.type());
         prop.put("description", param.description() == null ? "" : param.description());
@@ -365,13 +396,13 @@ public final class ToolBridgeUtils {
             prop.put("enum", List.copyOf(param.enumValues()));
         }
         if (param.items() != null) {
-            prop.put("items", parameterSchema(param.items()));
+            prop.put("items", parameterSchemaMap(param.items()));
         }
         if (param.hasProperties()) {
             var nested = new LinkedHashMap<String, Object>();
             var nestedRequired = new ArrayList<String>();
             for (var child : param.properties()) {
-                nested.put(child.name(), parameterSchema(child));
+                nested.put(child.name(), parameterSchemaMap(child));
                 if (child.required()) {
                     nestedRequired.add(child.name());
                 }

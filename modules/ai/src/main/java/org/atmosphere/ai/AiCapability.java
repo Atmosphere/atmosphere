@@ -116,10 +116,13 @@ public enum AiCapability {
      * keyed by tool-call id) but never invoke it from their streaming loop,
      * so no {@code ai.toolCall.delta.*} frames reach the wire.
      *
-     * <p>In 4.0.36 only {@code BuiltInAgentRuntime} declares this — its
-     * {@code OpenAiCompatibleClient} chat-completions and responses-API
-     * streaming loops both call {@code session.toolCallDelta(id, chunk)}
-     * on every {@code delta.tool_calls[].function.arguments} fragment. The
+     * <p>Declared by the three hand-rolled HTTP runtimes, each of which owns
+     * its own SSE parse and therefore sees per-chunk argument fragments:
+     * {@code BuiltInAgentRuntime} ({@code OpenAiCompatibleClient}
+     * chat-completions and responses-API loops, on every
+     * {@code delta.tool_calls[].function.arguments} fragment),
+     * {@code CohereAgentRuntime} ({@code tool-call-delta} events), and
+     * {@code AnthropicAgentRuntime} ({@code input_json_delta} frames). The
      * six framework bridges (Spring AI, LangChain4j, ADK, Embabel, Koog,
      * Semantic Kernel) cannot emit deltas without bypassing their high-level
      * streaming APIs — see the 4.0.36 CHANGELOG entry and commit

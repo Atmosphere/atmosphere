@@ -18,6 +18,7 @@ package org.atmosphere.ai;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.distribution.DistributionStatisticConfig;
+import io.micrometer.core.instrument.distribution.ValueAtPercentile;
 import io.micrometer.core.instrument.distribution.pause.PauseDetector;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +26,8 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -210,7 +213,8 @@ public class MicrometerAiMetricsTest {
     public void latencyTimersPublishPercentilesNotJustTheMean() {
         // Regression: the AI latency timers were means-only, so operators had
         // no tail visibility (the governance timers already published
-        // percentiles). p50/p90/p99 matches that established pattern.
+        // percentiles). p50/p90/p99 matches that established pattern; p95 is
+        // the usual latency-SLO point for a streaming turn.
         metrics.recordLatency("gpt-4", java.time.Duration.ofMillis(100),
                 java.time.Duration.ofMillis(500));
 
@@ -241,6 +245,13 @@ public class MicrometerAiMetricsTest {
         assertNotNull(cached, "cached_input token series must exist");
         assertEquals(800.0, cached.count(), 0.001);
 
+        var genAiCached = registry.find("gen_ai.client.token.usage")
+                .tag("gen_ai.provider.name", "built-in")
+                .tag("gen_ai.token.type", "cached_input")
+                .summary();
+        assertNotNull(genAiCached, "gen_ai.client.token.usage cached_input series missing");
+        assertEquals(800.0, genAiCached.totalAmount(), 0.001);
+
         // The existing input/output series stay exactly as before.
         assertEquals(1000.0, registry.find("atmosphere.ai.tokens")
                 .tag("type", "input").counter().count(), 0.001);
@@ -251,9 +262,13 @@ public class MicrometerAiMetricsTest {
     @Test
     public void zeroCachedInputEmitsNoCachedSeries() {
         // Runtime truth: a provider that reports no cache hit must not
-        // register a zero-valued cached series.
+        // register a zero-valued cached series — on either the 7-arg form with
+        // a zero count or the 6-arg form that has no cached count at all.
         metrics.recordTokenUsage("built-in", "gpt-4", "gpt-4", 10L, 5L, 0L, 15L);
+        metrics.recordTokenUsage("built-in", "gpt-4o", null, 120L, 80L, 200L);
         assertNull(registry.find("atmosphere.ai.tokens").tag("type", "cached_input").counter());
+        assertNull(registry.find("gen_ai.client.token.usage")
+                .tag("gen_ai.token.type", "cached_input").summary());
     }
 
     @Test
@@ -481,5 +496,41 @@ public class MicrometerAiMetricsTest {
                 () -> guardedMetrics.recordLatency("gpt-4", Duration.ofMillis(150), Duration.ofMillis(800)));
         assertEquals(2, strictRegistry.find("atmosphere.ai.response.duration")
                 .tag("model", "gpt-4").tag("provider", "spring-ai").timer().count());
+    }
+
+    // Percentile publication (mean-only timers hide tail latency) ----------
+
+    /**
+     * Every AI latency timer goes through the one {@code timer(name, tags)}
+     * factory, so the OTel {@code gen_ai.*} series gets the same tail
+     * visibility as the {@code atmosphere.ai.*} ones (Mode Parity).
+     */
+    private static void assertPublishesPercentiles(Timer timer, String name) {
+        assertNotNull(timer, name + " timer missing");
+        var percentiles = Arrays.stream(timer.takeSnapshot().percentileValues())
+                .map(ValueAtPercentile::percentile)
+                .toList();
+        assertTrue(percentiles.containsAll(List.of(0.5, 0.9, 0.95, 0.99)),
+                name + " must publish p50/p90/p95/p99, got " + percentiles);
+    }
+
+    @Test
+    public void everyLatencySeriesPublishesPercentiles() {
+        metrics.recordLatency("gpt-4", Duration.ofMillis(200), Duration.ofMillis(1000));
+
+        assertPublishesPercentiles(registry.find("atmosphere.ai.prompt.duration")
+                .tag("model", "gpt-4").timer(), "atmosphere.ai.prompt.duration");
+        assertPublishesPercentiles(registry.find("atmosphere.ai.response.duration")
+                .tag("model", "gpt-4").timer(), "atmosphere.ai.response.duration");
+        assertPublishesPercentiles(registry.find("gen_ai.client.operation.duration")
+                .tag("gen_ai.request.model", "gpt-4").timer(), "gen_ai.client.operation.duration");
+    }
+
+    @Test
+    public void toolTimerPublishesPercentiles() {
+        metrics.recordToolCall("gpt-4", "search", Duration.ofMillis(350), true);
+
+        assertPublishesPercentiles(registry.find("atmosphere.ai.tool.duration")
+                .tag("tool", "search").timer(), "atmosphere.ai.tool.duration");
     }
 }

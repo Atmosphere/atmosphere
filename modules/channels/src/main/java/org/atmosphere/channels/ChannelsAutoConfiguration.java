@@ -120,8 +120,10 @@ public class ChannelsAutoConfiguration {
 
     @Bean
     public ChannelWebhookController channelWebhookController(List<MessagingChannel> channels,
-                                                              ChannelFilterChain filterChain) {
-        return new ChannelWebhookController(channels, filterChain);
+                                                              ChannelFilterChain filterChain,
+                                                              ChannelsProperties props) {
+        return new ChannelWebhookController(channels, filterChain,
+                SeenMessageCache.from(props.getDedup()));
     }
 
     @Bean

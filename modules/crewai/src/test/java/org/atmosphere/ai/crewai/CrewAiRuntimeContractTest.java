@@ -214,6 +214,28 @@ class CrewAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
     }
 
     /**
+     * {@code CANCELLATION} is proven by {@link CrewAiAgentRuntimeBridgeTest}'s
+     * {@code cancel_callsSidecarDelete}, which asserts the handle's
+     * {@code cancel()} issues the sidecar {@code DELETE} that stops the remote
+     * Python crew — the release that actually matters for this runtime and one
+     * the shared TCK's in-process stub could not observe.
+     */
+    @Override
+    protected Map<AiCapability, String> capabilitiesCoveredOutsideTck() {
+        return Map.of(AiCapability.CANCELLATION, "CrewAiAgentRuntimeBridgeTest");
+    }
+
+    /**
+     * Exercise {@code runtimeAcceptsCustomRetryPolicyOnContext}. CrewAI
+     * inherits {@code AbstractAgentRuntime.executeWithOuterRetry}, which wraps
+     * {@code doExecute} when the context carries a non-inherit policy.
+     */
+    @Override
+    protected AgentExecutionContext createRetryContext() {
+        return createTextContext().withRetryPolicy(org.atmosphere.ai.RetryPolicy.NONE);
+    }
+
+    /**
      * Fake CrewAI sidecar. Smart enough to dispatch on the request body:
      * <ul>
      *   <li>If the body's {@code message} contains

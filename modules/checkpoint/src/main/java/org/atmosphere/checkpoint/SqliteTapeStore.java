@@ -120,8 +120,20 @@ public final class SqliteTapeStore implements TapeStore {
         this.maxStepsPerRun = maxStepsPerRun;
         try {
             this.connection = DriverManager.getConnection(toJdbcUrl(dbPath));
-            connection.setAutoCommit(true);
-            createSchema();
+            try {
+                connection.setAutoCommit(true);
+                createSchema();
+            } catch (SQLException | RuntimeException e) {
+                // The store never escapes the failed constructor, so close the
+                // connection it created (Correctness Invariant #2) — including
+                // on a schema-version refusal, which propagates as-is.
+                try {
+                    connection.close();
+                } catch (SQLException closeFailure) {
+                    e.addSuppressed(closeFailure);
+                }
+                throw e;
+            }
         } catch (SQLException e) {
             throw new IllegalStateException("Failed to open SQLite tape store: " + dbPath, e);
         }
@@ -141,37 +153,39 @@ public final class SqliteTapeStore implements TapeStore {
     }
 
     private void createSchema() throws SQLException {
-        try (var stmt = connection.createStatement()) {
-            stmt.execute("""
-                CREATE TABLE IF NOT EXISTS tape_run (
-                    run_id TEXT PRIMARY KEY,
-                    tape_id TEXT,
-                    session_id TEXT,
-                    resource_uuid TEXT,
-                    user_id TEXT,
-                    endpoint TEXT,
-                    model TEXT,
-                    runtime TEXT,
-                    status TEXT NOT NULL,
-                    started_at INTEGER NOT NULL,
-                    ended_at INTEGER,
-                    step_count INTEGER NOT NULL DEFAULT 0,
-                    dropped_steps INTEGER NOT NULL DEFAULT 0,
-                    truncated INTEGER NOT NULL DEFAULT 0,
-                    parent_run_id TEXT
-                )""");
-            stmt.execute("""
-                CREATE TABLE IF NOT EXISTS tape_step (
-                    run_id TEXT NOT NULL,
-                    seq INTEGER NOT NULL,
-                    kind TEXT NOT NULL,
-                    payload TEXT NOT NULL,
-                    ts INTEGER NOT NULL,
-                    PRIMARY KEY (run_id, seq)
-                )""");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_tape_run_status_started "
-                    + "ON tape_run(status, started_at)");
-        }
+        SchemaMigrations.migrate(connection, "tape_run", List.of(conn -> {
+            try (var stmt = conn.createStatement()) {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS tape_run (
+                        run_id TEXT PRIMARY KEY,
+                        tape_id TEXT,
+                        session_id TEXT,
+                        resource_uuid TEXT,
+                        user_id TEXT,
+                        endpoint TEXT,
+                        model TEXT,
+                        runtime TEXT,
+                        status TEXT NOT NULL,
+                        started_at INTEGER NOT NULL,
+                        ended_at INTEGER,
+                        step_count INTEGER NOT NULL DEFAULT 0,
+                        dropped_steps INTEGER NOT NULL DEFAULT 0,
+                        truncated INTEGER NOT NULL DEFAULT 0,
+                        parent_run_id TEXT
+                    )""");
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS tape_step (
+                        run_id TEXT NOT NULL,
+                        seq INTEGER NOT NULL,
+                        kind TEXT NOT NULL,
+                        payload TEXT NOT NULL,
+                        ts INTEGER NOT NULL,
+                        PRIMARY KEY (run_id, seq)
+                    )""");
+                stmt.execute("CREATE INDEX IF NOT EXISTS idx_tape_run_status_started "
+                        + "ON tape_run(status, started_at)");
+            }
+        }));
     }
 
     @Override

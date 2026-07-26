@@ -207,6 +207,15 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
         // configuration intent (Correctness Invariant #5, Runtime Truth).
         var memoryFs = resolveMemoryFileSystem(context, session);
 
+        // Prompt caching (AiCapability.PROMPT_CACHING): the portable CacheHint
+        // rides on context.metadata() (seeded by @AiEndpoint.promptCache, the
+        // PromptCacheDefaults init-param, or the harness CACHE feature) and is
+        // realized here as Anthropic cache_control breakpoints. Resolved once
+        // per request and applied identically on every tool-loop round so the
+        // cached prefix stays byte-stable across rounds — a breakpoint that
+        // moved between rounds would invalidate the very prefix it marks.
+        var cacheHint = org.atmosphere.ai.llm.CacheHint.from(context);
+
         while (true) {
             if (effectiveCancel.get()) {
                 session.error(new InterruptedException("Cancelled before round " + rounds));
@@ -224,7 +233,7 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
                 }
             }
             var requestBody = buildRequestBody(model, working, system, context.tools(),
-                    nativeSchema, memoryFs != null);
+                    nativeSchema, memoryFs != null, cacheHint);
             HttpRequest httpRequest;
             try {
                 httpRequest = buildHttpRequest(requestBody);
@@ -394,6 +403,17 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
                     var acc = toolBuffers.get(index);
                     if (acc != null) {
                         acc.appendArguments(chunk);
+                        // Forward the incremental fragment so browser UIs can
+                        // render partial tool-argument JSON as the model types
+                        // it — same posture as CohereChatClient's
+                        // tool-call-delta loop and the Built-in
+                        // OpenAiCompatibleClient chat-completions loop
+                        // (Correctness Invariant #7, Mode Parity). The
+                        // accumulator id is set by content_block_start, which
+                        // Anthropic always emits before any delta for that
+                        // index; a blank id is dropped by StreamingSession's
+                        // null/empty guard rather than producing a stray frame.
+                        session.toolCallDelta(acc.id(), chunk);
                     }
                 }
             }
@@ -598,7 +618,8 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
 
     private String buildRequestBody(String model, List<ObjectNode> messages,
                                     String system, List<ToolDefinition> tools,
-                                    String jsonSchema, boolean withMemoryTool) {
+                                    String jsonSchema, boolean withMemoryTool,
+                                    org.atmosphere.ai.llm.CacheHint cacheHint) {
         var root = MAPPER.createObjectNode();
         root.put("model", model);
         root.put("max_tokens", maxTokens);
@@ -621,8 +642,24 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
                 stopArray.add(s);
             }
         }
+        var caching = cacheHint != null && cacheHint.enabled();
         if (system != null && !system.isBlank()) {
-            root.put("system", system);
+            if (caching) {
+                // Cacheable system prompt: Anthropic accepts `system` as an
+                // array of text blocks, and only the block form can carry
+                // cache_control. Marking the final system block caches the
+                // rendered prefix up to and including the system prompt —
+                // which, given Anthropic's tools → system → messages render
+                // order, covers the tool definitions too.
+                var systemArray = root.putArray("system");
+                var block = textBlock(system);
+                block.set("cache_control", cacheControlNode(cacheHint));
+                systemArray.add(block);
+            } else {
+                // No hint: keep the plain-string form so the request body is
+                // byte-identical to the pre-caching wire shape.
+                root.put("system", system);
+            }
         }
         var msgs = root.putArray("messages");
         for (var m : messages) {
@@ -643,6 +680,15 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
                 memory.put("type", AnthropicMemoryTool.TOOL_TYPE);
                 memory.put("name", AnthropicMemoryTool.TOOL_NAME);
                 toolArray.add(memory);
+            }
+            if (caching && !toolArray.isEmpty()) {
+                // Second breakpoint on the last tool definition. Tools render
+                // first, so this caches the tool block on its own — valuable
+                // when the system prompt changes but the (deterministic,
+                // insertion-ordered) tool set does not. Two breakpoints total,
+                // well inside Anthropic's four-per-request ceiling.
+                var lastTool = (ObjectNode) toolArray.get(toolArray.size() - 1);
+                lastTool.set("cache_control", cacheControlNode(cacheHint));
             }
         }
         if (jsonSchema != null && !jsonSchema.isBlank()) {
@@ -669,6 +715,28 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
         }
     }
 
+    /**
+     * Build the Anthropic {@code cache_control} marker for a breakpoint.
+     * Always {@code {"type":"ephemeral"}}; an explicit
+     * {@link org.atmosphere.ai.llm.CacheHint#ttl()} of at least one hour — or
+     * an {@link org.atmosphere.ai.llm.CacheHint.CachePolicy#AGGRESSIVE} policy,
+     * whose documented intent is maximum reuse — additionally requests
+     * Anthropic's {@code "ttl":"1h"} extended cache lifetime. Anything shorter
+     * uses the 5-minute default, which is the only other TTL the Messages API
+     * accepts (an arbitrary Duration cannot be forwarded verbatim).
+     */
+    private ObjectNode cacheControlNode(org.atmosphere.ai.llm.CacheHint hint) {
+        var node = MAPPER.createObjectNode();
+        node.put("type", "ephemeral");
+        var wantsExtended = hint.policy()
+                        == org.atmosphere.ai.llm.CacheHint.CachePolicy.AGGRESSIVE
+                || hint.ttl().map(t -> t.compareTo(Duration.ofHours(1)) >= 0).orElse(false);
+        if (wantsExtended) {
+            node.put("ttl", "1h");
+        }
+        return node;
+    }
+
     private ObjectNode toolDefinitionNode(ToolDefinition def) {
         var node = MAPPER.createObjectNode();
         node.put("name", def.name());
@@ -680,6 +748,54 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
         // Anthropic's schema shape.
         node.set("input_schema", toolSchemaObjectNode(def, MAPPER));
         return node;
+    }
+
+    /**
+     * Live model enumeration against Anthropic's {@code GET /v1/models}.
+     * Response shape: {@code {"data":[{"type":"model","id":"claude-...",
+     * "display_name":"..."} , ...],"has_more":false,...}} — only {@code id}
+     * is consumed, parsed defensively by
+     * {@link org.atmosphere.ai.llm.ModelListJson} (pagination is ignored; the
+     * first page covers every served model in practice, and the parser bounds
+     * the result regardless).
+     *
+     * <p>Best-effort by contract: any transport failure, non-2xx status, or
+     * unparseable body returns an empty list (logged at DEBUG) so enumeration
+     * can never break discovery or dispatch. Runs with a short timeout
+     * independent of the streaming timeout.</p>
+     *
+     * @return immutable list of model identifiers; never {@code null}
+     */
+    public List<String> listModels() {
+        var enumTimeout = timeout.compareTo(Duration.ofSeconds(10)) < 0
+                ? timeout : Duration.ofSeconds(10);
+        var builder = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/v1/models"))
+                .header("accept", "application/json")
+                .header("anthropic-version", anthropicVersion)
+                .GET()
+                .timeout(enumTimeout);
+        if (apiKey != null && !apiKey.isBlank()) {
+            builder.header("x-api-key", apiKey);
+        }
+        applyReservedFilteredHeaders(builder,
+                Set.of("x-api-key", "anthropic-version", "content-type", "accept"));
+        try {
+            var response = httpClient.send(builder.build(),
+                    java.net.http.HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() / 100 != 2) {
+                logger.debug("Anthropic model enumeration returned {}", response.statusCode());
+                return List.of();
+            }
+            return org.atmosphere.ai.llm.ModelListJson.parse(MAPPER, response.body());
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            logger.debug("Anthropic model enumeration interrupted", ie);
+            return List.of();
+        } catch (Exception e) {
+            logger.debug("Anthropic model enumeration failed", e);
+            return List.of();
+        }
     }
 
     private HttpRequest buildHttpRequest(String body) {

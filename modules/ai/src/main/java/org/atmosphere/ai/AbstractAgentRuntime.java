@@ -255,7 +255,8 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
     public static void admitThroughGateway(String runtimeName,
                                            AgentExecutionContext context) {
         var gateway = org.atmosphere.ai.gateway.AiGatewayHolder.get();
-        var userId = context.userId() != null ? context.userId() : "anonymous";
+        var userId = context.userId() != null
+                ? context.userId() : org.atmosphere.ai.gateway.AiGateway.ANONYMOUS_USER;
         var decision = gateway.admit(userId, runtimeName,
                 context.model() != null ? context.model() : "default");
         if (!decision.accepted()) {

@@ -134,6 +134,59 @@ class AgentScopeRuntimeContractTest extends AbstractAgentRuntimeContractTest {
     }
 
     /**
+     * {@code VISION} is proven by {@link AgentScopeVisionWireShapeTest}, which
+     * pins the native {@code ImageBlock} / {@code Base64Source} shape on the
+     * outgoing {@code Msg} — a stronger assertion than the TCK's
+     * "dispatch does not throw" hook could make against a mocked
+     * {@code ReActAgent}.
+     */
+    @Override
+    protected java.util.Map<AiCapability, String> capabilitiesCoveredOutsideTck() {
+        return java.util.Map.of(
+                AiCapability.VISION, "AgentScopeVisionWireShapeTest");
+    }
+
+    /**
+     * Exercise {@code runtimeAcceptsCustomRetryPolicyOnContext} on AgentScope.
+     * {@code AbstractAgentRuntime.executeWithOuterRetry} wraps {@code doExecute}
+     * when the context carries a non-inherit {@code RetryPolicy}.
+     */
+    @Override
+    protected AgentExecutionContext createRetryContext() {
+        return new AgentExecutionContext(
+                "Hello, no retries.", "You are helpful", "qwen-plus",
+                null, "session-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), null, null, List.of(), List.of(),
+                org.atmosphere.ai.approval.ToolApprovalPolicy.annotated())
+                .withRetryPolicy(org.atmosphere.ai.RetryPolicy.NONE);
+    }
+
+    /**
+     * Cancellation fixture for AgentScope. {@code doExecuteWithHandle} fires
+     * both of AgentScope's teardown primitives on cancel —
+     * {@code ReActAgent.interrupt()} to unwind the agent's internal ReAct loop
+     * and {@code Disposable.dispose()} to drop in-flight emissions — behind a
+     * CAS guard. The stub returns a never-emitting {@link Flux} (so the handle
+     * is genuinely in flight) and counts {@code interrupt()} calls, which the
+     * contract asserts fires exactly once across repeated cancels.
+     */
+    @Override
+    protected CancellationFixture createCancellationFixture() {
+        var interrupts = new java.util.concurrent.atomic.AtomicInteger();
+        var agent = mock(ReActAgent.class);
+        when(agent.stream(anyList(), any(StreamOptions.class)))
+                .thenAnswer(inv -> Flux.<Event>never());
+        org.mockito.Mockito.doAnswer(inv -> {
+            interrupts.incrementAndGet();
+            return null;
+        }).when(agent).interrupt();
+        return CancellationFixture
+                .of(new TestableAgentScopeRuntime(agent), createTextContext())
+                .withBackendRelease("ReActAgent.interrupt()", interrupts);
+    }
+
+    /**
      * Explicit cede: AgentScope's {@code ReActAgent} owns its model wiring
      * (constructed by the application, not from {@code AiConfig}); configure
      * sampling via AgentScope's own model options. See

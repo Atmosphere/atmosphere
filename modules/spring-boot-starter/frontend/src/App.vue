@@ -56,6 +56,12 @@ const checkpointsAvailable = ref(false)
 const tapeAvailable = ref(false)
 const roomsAvailable = ref(false)
 const actuatorAvailable = ref(false)
+// Metrics read plane, as the server resolved it: the path it confirmed
+// responds plus the wire format served there (actuator JSON on Spring Boot,
+// Prometheus text on Quarkus). Both stay undefined unless the server said so,
+// so the Observability tab never guesses a URL or a parser.
+const metricsPath = ref<string | undefined>(undefined)
+const metricsFormat = ref<'actuator' | 'prometheus' | undefined>(undefined)
 
 async function probeGovernance() {
   try {
@@ -169,7 +175,10 @@ const tabs = computed(() => {
   if (roomsAvailable.value) {
     list.push({ id: 'rooms', label: 'Rooms' })
   }
-  if (actuatorAvailable.value) {
+  // Either plane on its own is worth the tab: Quarkus publishes metrics with
+  // no actuator health endpoint, and a Spring host can expose health while
+  // keeping metrics off the web exposure list.
+  if (actuatorAvailable.value || metricsPath.value) {
     list.push({ id: 'observability', label: 'Observability' })
   }
   if (governanceAvailable.value) {
@@ -230,6 +239,22 @@ onMounted(async () => {
       tapeAvailable.value = data.hasTape === true
       roomsAvailable.value = data.hasRooms === true
       actuatorAvailable.value = data.hasActuator === true
+      // Only accept a path the server itself resolved, and only the two
+      // formats the console ships a parser for (Boundary Safety — the
+      // frontend must not trust the wire even when the server validates).
+      if (data.hasMetrics === true && typeof data.metricsPath === 'string'
+          && data.metricsPath.startsWith('/')
+          && (data.metricsFormat === 'actuator' || data.metricsFormat === 'prometheus')) {
+        metricsPath.value = data.metricsPath
+        metricsFormat.value = data.metricsFormat
+      } else if (data.hasMetrics === undefined && data.hasActuator === true) {
+        // Compatibility with servers predating the metricsPath field: the
+        // actuator health plane is live, and its metrics endpoint is where it
+        // has always been. Newer servers always send the explicit fields, so
+        // this branch never runs against a host that can describe itself.
+        metricsPath.value = '/actuator/metrics'
+        metricsFormat.value = 'actuator'
+      }
       // hasAdmin === false means the host declared it has no admin read
       // plane — skip the legacy governance/agents probes so bare-Jetty and
       // similar hosts never see 404 noise. Absent flag = probe (older
@@ -313,8 +338,11 @@ onMounted(async () => {
                :sandbox-origin="mcpSandboxOrigin ?? undefined" />
       <Rooms v-if="ready && roomsAvailable" v-show="activeTab === 'rooms'"
              :active="activeTab === 'rooms'" />
-      <Observability v-if="ready && actuatorAvailable" v-show="activeTab === 'observability'"
-                     :active="activeTab === 'observability'" />
+      <Observability v-if="ready && (actuatorAvailable || metricsPath)"
+                     v-show="activeTab === 'observability'"
+                     :active="activeTab === 'observability'"
+                     :health-path="actuatorAvailable ? '/actuator/health' : undefined"
+                     :metrics-path="metricsPath" :metrics-format="metricsFormat" />
       <GovernancePolicies v-if="ready" v-show="activeTab === 'policies'"
                           :active="activeTab === 'policies'" />
       <GovernanceDecisions v-if="ready" v-show="activeTab === 'decisions'"

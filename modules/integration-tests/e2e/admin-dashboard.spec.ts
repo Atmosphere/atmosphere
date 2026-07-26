@@ -292,22 +292,27 @@ test.describe('Admin Dashboard UI', () => {
     await expect(page.getByText('Event stream: connected')).toBeVisible({ timeout: 15_000 });
   });
 
-  // TODO: #2598 — 'built-in' text collides between stats-grid and agents tab
-  test.skip('agents tab shows AI runtimes and MCP tools sections', async ({ page }) => {
+  // The former quarantine reason was a strict-mode collision on the literal
+  // 'built-in', which appears in both the stats grid and the agents tab. The
+  // fix is to scope every assertion to #tab-agents instead of the page, which
+  // is what this test now does — no skip needed.
+  test('agents tab shows AI runtimes and MCP tools sections', async ({ page }) => {
     await injectAuthToken(page);
     await page.goto(`${server.baseUrl}/atmosphere/admin/`);
     // Use the tab selector to avoid ambiguity with "Registered Agents" card header
     await page.locator('.tab', { hasText: 'Agents' }).click();
 
+    const agentsTab = page.locator('#tab-agents');
+
     // Should show agents section
-    await expect(page.getByText('Registered Agents')).toBeVisible({ timeout: 10_000 });
+    await expect(agentsTab.getByText('Registered Agents')).toBeVisible({ timeout: 10_000 });
 
     // AI Runtimes section — scope to the tab content to avoid stats-grid collision
-    await expect(page.getByText('AI Runtimes')).toBeVisible();
-    await expect(page.locator('#tab-agents').getByText('built-in')).toBeVisible({ timeout: 5_000 });
+    await expect(agentsTab.getByText('AI Runtimes')).toBeVisible();
+    await expect(agentsTab.getByText('built-in').first()).toBeVisible({ timeout: 5_000 });
 
     // MCP Tools section
-    await expect(page.getByText('MCP Tools')).toBeVisible();
+    await expect(agentsTab.getByText('MCP Tools')).toBeVisible();
   });
 
   test('journal tab has filter controls and query button', async ({ page }) => {

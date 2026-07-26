@@ -26,6 +26,14 @@
             <artifactId>atmosphere-runtime</artifactId>
         </dependency>
 
+        <!-- The AI layer the agent { } DSL declares against. Optional: apps that
+             only use the transport DSL (atmosphere { }) never load these types. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-stdlib</artifactId>

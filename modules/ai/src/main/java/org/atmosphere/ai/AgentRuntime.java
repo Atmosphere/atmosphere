@@ -167,13 +167,7 @@ public interface AgentRuntime {
             }
         };
         var start = java.time.Instant.now();
-        execute(context, usageCapturing);
-        if (!collector.isClosed()) {
-            collector.await(timeout);
-        }
-        if (!collector.isClosed()) {
-            collector.complete();
-        }
+        executeBounded(this, context, usageCapturing, collector, timeout);
         var elapsed = Duration.between(start, java.time.Instant.now());
         return new AgentExecutionResult(
                 collector.text(),
@@ -200,22 +194,117 @@ public interface AgentRuntime {
     /**
      * Synchronous convenience with a custom timeout.
      *
+     * <p>The {@code timeout} is a hard bound on the caller's thread for every
+     * runtime, blocking or async. See {@link #executeBounded} for why the
+     * dispatch runs on a carrier thread rather than inline.</p>
+     *
      * @param context the execution context
      * @param timeout maximum wait time
      * @return the collected response text, or empty string if timed out
      */
     default String generate(AgentExecutionContext context, Duration timeout) {
         var collector = new CollectingSession();
-        execute(context, collector);
-        // Wait for the runtime to signal completion (async runtimes stream on
-        // background threads). If the runtime doesn't call complete() within
-        // the timeout, force-close as a safety net — but NEVER before awaiting.
-        if (!collector.isClosed()) {
-            collector.await(timeout);
-        }
-        if (!collector.isClosed()) {
-            collector.complete();
-        }
+        executeBounded(this, context, collector, collector, timeout);
         return collector.text();
+    }
+
+    /**
+     * Run {@code runtime} against {@code sink} on a virtual-thread carrier and
+     * enforce {@code timeout} as a real bound on the calling thread.
+     *
+     * <p>Why a carrier: {@link #execute} is synchronous for blocking runtimes
+     * — it returns only once the upstream completion has finished. Running it
+     * inline and awaiting afterwards made the caller's {@code Duration} a
+     * no-op for exactly those runtimes: the await could not start until the
+     * call it was supposed to bound had already returned, so a stalled
+     * provider blocked the caller for its own (much longer) HTTP timeout
+     * times its retry count. The guardrail-admission path
+     * ({@code LlmModerationDetector}, {@code LlmClassifierInjectionClassifier},
+     * {@code LlmClassifierScopeGuardrail}) and the coordinator's
+     * {@code LlmResultEvaluator} all sit on request-serving threads and pass
+     * short bounds precisely to avoid that stall.</p>
+     *
+     * <p>On timeout the underlying call is abandoned rather than merely
+     * ignored (Correctness Invariant #2): the runtime's
+     * {@link ExecutionHandle} is cancelled when one was published — firing
+     * the backend's native cancel primitive and refunding tokens for a
+     * response nobody will read — and the carrier is interrupted so a
+     * blocking runtime that never returned a handle stops occupying it. The
+     * latch is then force-completed so the session is left in a terminal
+     * state either way.</p>
+     *
+     * <p>The carrier is created here, so interrupting and abandoning it is
+     * this method's own resource to manage (Correctness Invariant #1); no
+     * caller-supplied executor is touched.</p>
+     *
+     * @param runtime the runtime to dispatch (the caller, passed explicitly
+     *                because interface private methods cannot be overridden)
+     * @param context the execution context
+     * @param sink    the session handed to the runtime
+     * @param latch   the {@link CollectingSession} whose completion the bound
+     *                is measured against ({@code sink} must forward its
+     *                terminal events here — it may be {@code sink} itself)
+     * @param timeout the caller's hard bound
+     */
+    private static void executeBounded(AgentRuntime runtime,
+                                       AgentExecutionContext context,
+                                       StreamingSession sink,
+                                       CollectingSession latch,
+                                       Duration timeout) {
+        var handleRef = new java.util.concurrent.atomic.AtomicReference<ExecutionHandle>();
+        var failureRef = new java.util.concurrent.atomic.AtomicReference<Throwable>();
+        var carrier = Thread.ofVirtual()
+                .name("ai-generate-" + latch.sessionId())
+                .start(() -> {
+                    try {
+                        handleRef.set(runtime.executeWithHandle(context, sink));
+                    } catch (RuntimeException | Error e) {
+                        // Surface the failure through the session so the
+                        // waiting caller unparks immediately instead of
+                        // sitting out the full timeout for a call that has
+                        // already failed, and hand it back to the caller so
+                        // dispatching on a carrier stays invisible: before the
+                        // carrier existed the throw reached the caller inline,
+                        // and callers such as the scope/moderation guardrails
+                        // branch on it. Swallowing it here would turn a failed
+                        // classifier call into an empty response, which those
+                        // guardrails read as "admit" (Correctness Invariant #2).
+                        failureRef.set(e);
+                        sink.error(e);
+                    }
+                });
+        if (latch.await(timeout)) {
+            rethrowCarrierFailure(failureRef.get());
+            return;
+        }
+        var handle = handleRef.get();
+        if (handle != null && !handle.isDone()) {
+            handle.cancel();
+        }
+        // A blocking runtime parks the carrier inside execute() and never
+        // publishes a handle; interrupting is the only way to abandon it.
+        carrier.interrupt();
+        if (!latch.isClosed()) {
+            latch.complete();
+        }
+    }
+
+    /**
+     * Re-raise a failure caught on the dispatch carrier on the calling thread,
+     * preserving the pre-carrier contract that a runtime blowing up inside
+     * {@code execute} reaches the caller of {@link #generate} as a throw.
+     *
+     * <p>A timed-out call does not come through here: the caller asked for a
+     * bound and gets the documented empty result instead of an exception.</p>
+     *
+     * @param failure the throwable captured on the carrier, or {@code null}
+     */
+    private static void rethrowCarrierFailure(Throwable failure) {
+        switch (failure) {
+            case null -> { }
+            case RuntimeException e -> throw e;
+            case Error e -> throw e;
+            default -> throw new IllegalStateException(failure);
+        }
     }
 }

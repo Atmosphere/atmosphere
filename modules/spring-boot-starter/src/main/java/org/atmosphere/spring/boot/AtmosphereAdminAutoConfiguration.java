@@ -335,12 +335,15 @@ public class AtmosphereAdminAutoConfiguration {
          * request message AND the response, plus user/session/agent/
          * conversation ids — see {@code GovernanceDecisionLog#snapshot}), the
          * control audit log (broadcast/unicast message bodies + principals),
-         * and the coordination journal (agent-to-agent message content). These
-         * are the same "arbitrary model/user content" class the workspace
-         * surfaces guard, so they are default-DENY too, independent of the
-         * general read gate (Correctness Invariant #6). A demo that wants these
-         * console tabs open without a token opts out explicitly, at its own
-         * risk, with {@code atmosphere.admin.content-read-auth-required=false}.
+         * the coordination journal (agent-to-agent message content), and the
+         * dev inspector ({@code DevInspectorEntry} retains a 2000-char preview
+         * of both the prompt and the response — the single most content-dense
+         * admin read there is). These are the same "arbitrary model/user
+         * content" class the workspace surfaces guard, so they are default-DENY
+         * too, independent of the general read gate (Correctness Invariant #6).
+         * A demo that wants these console tabs open without a token opts out
+         * explicitly, at its own risk, with
+         * {@code atmosphere.admin.content-read-auth-required=false}.
          *
          * <p>Deliberately NOT gated: {@code /governance/summary},
          * {@code /governance/health}, {@code /governance/policies} (policy
@@ -357,7 +360,7 @@ public class AtmosphereAdminAutoConfiguration {
             var uri = req.getRequestURI();
             return uri != null
                     && uri.matches(".*/api/admin/(governance/decisions|audit|journal(/[^/]+(/log)?)?"
-                            + "|tape/runs(/[^/]+/(steps|replay))?)$");
+                            + "|tape/runs(/[^/]+/(steps|replay))?|ai/dev/inspector)$");
         }
 
         private static boolean isReadMethod(HttpServletRequest req) {

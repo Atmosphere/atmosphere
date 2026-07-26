@@ -19,7 +19,9 @@ import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ToolExecutionResultMessage;
+import dev.langchain4j.model.chat.request.json.JsonArraySchema;
 import dev.langchain4j.model.chat.request.json.JsonBooleanSchema;
+import dev.langchain4j.model.chat.request.json.JsonEnumSchema;
 import dev.langchain4j.model.chat.request.json.JsonIntegerSchema;
 import dev.langchain4j.model.chat.request.json.JsonNumberSchema;
 import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
@@ -96,19 +98,51 @@ public final class LangChain4jToolBridge {
     }
 
     private static JsonSchemaElement toSchemaElement(ToolParameter param) {
-        return switch (param.type()) {
-            case "integer" -> JsonIntegerSchema.builder()
+        // Structural facets first: an enum is a closed string set, an array
+        // carries its element type, and an object carries its properties.
+        // Falling straight to the scalar switch (as this did before) told the
+        // model "string"/"object" with no contract at all.
+        if (!param.enumValues().isEmpty()) {
+            return JsonEnumSchema.builder()
                     .description(param.description())
+                    .enumValues(param.enumValues())
                     .build();
-            case "number" -> JsonNumberSchema.builder()
+        }
+        if ("array".equals(param.type())) {
+            return JsonArraySchema.builder()
                     .description(param.description())
+                    // Recursive: an array of objects keeps its element schema
+                    // instead of collapsing to a bare scalar type.
+                    .items(param.items() != null
+                            ? toSchemaElement(param.items())
+                            : scalarSchema(null, ""))
                     .build();
-            case "boolean" -> JsonBooleanSchema.builder()
+        }
+        if (!param.properties().isEmpty()) {
+            var nested = new LinkedHashMap<String, JsonSchemaElement>();
+            var nestedRequired = new java.util.ArrayList<String>();
+            for (var property : param.properties()) {
+                nested.put(property.name(), toSchemaElement(property));
+                if (property.required()) {
+                    nestedRequired.add(property.name());
+                }
+            }
+            return JsonObjectSchema.builder()
                     .description(param.description())
+                    .addProperties(nested)
+                    .required(nestedRequired)
                     .build();
-            default -> JsonStringSchema.builder()
-                    .description(param.description())
-                    .build();
+        }
+        return scalarSchema(param.type(), param.description());
+    }
+
+    /** Scalar element for a parameter type; a null/unknown type defaults to string. */
+    private static JsonSchemaElement scalarSchema(String type, String description) {
+        return switch (type == null ? "string" : type) {
+            case "integer" -> JsonIntegerSchema.builder().description(description).build();
+            case "number" -> JsonNumberSchema.builder().description(description).build();
+            case "boolean" -> JsonBooleanSchema.builder().description(description).build();
+            default -> JsonStringSchema.builder().description(description).build();
         };
     }
 

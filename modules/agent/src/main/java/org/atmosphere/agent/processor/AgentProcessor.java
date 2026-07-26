@@ -506,6 +506,10 @@ public class AgentProcessor implements Processor<Object> {
                     var taskManager = new org.atmosphere.a2a.runtime.TaskManager();
                     var protocolHandler = new org.atmosphere.a2a.runtime.A2aProtocolHandler(
                             registry, taskManager, card);
+                    // Raw @AgentSkill handlers are invoked reflectively and never
+                    // reach AiPipeline's pre-admission loop; the framework reference
+                    // lets the handler resolve the installed governance chain.
+                    protocolHandler.setFramework(framework);
                     if (pushOn) {
                         A2aCardDecorations.wirePush(framework, protocolHandler, taskManager, agentName);
                     }
@@ -934,6 +938,10 @@ public class AgentProcessor implements Processor<Object> {
             var taskManager = new org.atmosphere.a2a.runtime.TaskManager();
             var protocolHandler = new org.atmosphere.a2a.runtime.A2aProtocolHandler(
                     registry, taskManager, card);
+            // Raw @AgentSkill handlers are invoked reflectively and never reach
+            // AiPipeline's pre-admission loop; the framework reference lets the
+            // handler resolve the installed governance chain.
+            protocolHandler.setFramework(framework);
             if (pushOn) {
                 A2aCardDecorations.wirePush(framework, protocolHandler, taskManager, annotation.name());
             }

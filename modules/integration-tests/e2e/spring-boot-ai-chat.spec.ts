@@ -99,48 +99,11 @@ test.describe('Spring Boot AI Chat', () => {
     await expect(page.getByTestId('chat-send')).toBeDisabled();
   });
 
-  // Auth-gated sample: console WebSocket blocked without token.
-  // Full auth flow tested in auth-token.spec.ts (raw WebSocket with X-Atmosphere-Auth).
-  test.skip('user receives a response after sending a message', async ({ page }) => {
-    await page.goto(server.baseUrl + '/atmosphere/console/');
-    await page.getByTestId('chat-input').fill('Hello');
-    await page.getByTestId('chat-send').click();
-
-    await expect(page.getByTestId('message-list')).toContainText('demo mode', { timeout: 30_000 });
-  });
-
-  // Auth-gated: console can't connect without token
-  test.skip('user can send a prompt and receive streaming response', async ({ page }) => {
-    await page.goto(server.baseUrl + '/atmosphere/console/');
-    await page.getByTestId('chat-input').fill('What is Atmosphere?');
-    await page.getByTestId('chat-send').click();
-
-    await expect(page.getByTestId('message-list')).toContainText('Atmosphere', { timeout: 30_000 });
-  });
-
-  // Auth-gated: console can't connect without token
-  test.skip('input clears after sending', async ({ page }) => {
-    await page.goto(server.baseUrl + '/atmosphere/console/');
-    await page.getByTestId('chat-input').fill('Test message');
-    await page.getByTestId('chat-send').click();
-
-    await expect(page.getByTestId('chat-input')).toHaveValue('');
-  });
-
-  // Auth-gated: console can't connect without token
-  test.skip('multi-turn conversation preserves history', async ({ page }) => {
-    await page.goto(server.baseUrl + '/atmosphere/console/');
-
-    await page.getByTestId('chat-input').fill('Hello');
-    await page.getByTestId('chat-send').click();
-    await expect(page.getByTestId('message-list')).toContainText('demo mode', { timeout: 30_000 });
-
-    await page.getByTestId('chat-input').fill('What is Atmosphere?');
-    await page.getByTestId('chat-send').click();
-
-    await expect(page.getByText('Hello', { exact: true })).toBeVisible();
-    await expect(page.getByText('What is Atmosphere?')).toBeVisible();
-  });
+  // Live console coverage for this sample is not duplicated here: single-turn
+  // send/receive/input-clears lives in unified-console.spec.ts and the
+  // multi-turn transcript case in ai-chat-features.spec.ts, both driving this
+  // same sample through the same console with the `?token=` param. What
+  // follows is the wire-level @AiEndpoint behaviour unique to this spec.
 
   // Gap #7a — @AiEndpoint(promptCache = CONSERVATIVE) end-to-end.
   //
@@ -157,6 +120,11 @@ test.describe('Spring Boot AI Chat', () => {
 
     const firstFrames = await collectFrames(url, prompt);
     expect(metadataValue(firstFrames, 'prompt.cache.policy')).toBe('CONSERVATIVE');
+    // Runtime truth: the sample reports which cache the framework seam actually
+    // resolved. org.atmosphere.ai.cache.semantic is off here (and no embedding
+    // backend runs in this lane), so it must report the exact cache rather than
+    // claiming semantic matching it cannot perform.
+    expect(metadataValue(firstFrames, 'prompt.cache.kind')).toBe('exact');
     expect(metadataValue(firstFrames, 'ai.cache.hit')).toBe(false);
     expect(firstFrames.some((f) => f.type === 'error')).toBe(false);
     expect(firstFrames.some((f) => f.type === 'complete')).toBe(true);
@@ -216,5 +184,45 @@ test.describe('Spring Boot AI Chat', () => {
     expect(streamingText.length).toBeGreaterThan(0);
     expect(frames.some((f) => f.type === 'error')).toBe(false);
     expect(frames.some((f) => f.type === 'complete')).toBe(true);
+  });
+
+  // Dev inspector — atmosphere.ai.dev-inspector.enabled=true in this sample's
+  // application.yml installs the bounded in-memory recorder, which the shared
+  // DispatchDecorators chain wraps around every turn on both dispatch paths.
+  //
+  // Asserts the feature RECORDS, not that the app booted: drive a unique prompt
+  // through the pipeline endpoint, then read it back from the admin surface and
+  // match the prompt preview to the exact text that was just sent.
+  test('dev inspector records the turn that was just dispatched', async () => {
+    const prompt = 'dev-inspector-check-' + Date.now();
+    const frames = await collectFrames(
+      buildWsUrl(server, '/atmosphere/ai-chat-with-cache'), prompt);
+    expect(frames.some((f) => f.type === 'complete')).toBe(true);
+
+    type Entry = { promptPreview: string; responsePreview: string; status: string };
+
+    // The recorder is written on the terminal event, so poll briefly.
+    let recorded: Entry | undefined;
+    await expect.poll(async () => {
+      const res = await fetch(`${server.baseUrl}/api/admin/ai/dev/inspector?limit=50`, {
+        headers: { 'X-Atmosphere-Auth': 'demo-token' },
+      });
+      if (!res.ok) return false;
+      const entries = (await res.json()) as Entry[];
+      recorded = entries.find((e) => (e.promptPreview ?? '').includes(prompt));
+      return recorded !== undefined;
+    }, { timeout: 15_000, intervals: [250] }).toBe(true);
+
+    expect(recorded!.status).toBe('OK');
+    expect(recorded!.responsePreview).toContain('Cached response for');
+  });
+
+  // The inspector retains prompt AND response previews, so its read sits behind
+  // the recorded-content auth gate (Correctness Invariant #6) exactly like
+  // /tape/runs and /governance/decisions — enabling it in a sample must not
+  // open prompt content to anonymous callers.
+  test('dev inspector read is denied without a token', async () => {
+    const res = await fetch(`${server.baseUrl}/api/admin/ai/dev/inspector`);
+    expect(res.status).toBe(401);
   });
 });

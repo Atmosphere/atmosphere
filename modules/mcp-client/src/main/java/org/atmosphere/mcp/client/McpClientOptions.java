@@ -54,19 +54,47 @@ import java.util.function.UnaryOperator;
  *                           means the client does not advertise elicitation
  * @param samplingHandler    handles a server sampling request; {@code null}
  *                           means the client does not advertise sampling
+ * @param breakerFailureThreshold consecutive per-tool failures that open the
+ *                           circuit breaker; {@code <= 0} disables it
+ * @param breakerOpenMillis  cooldown before an open breaker admits a half-open
+ *                           probe
  */
 public record McpClientOptions(
         String toolNamePrefix,
         Predicate<String> toolFilter,
         UnaryOperator<String> nameMapper,
         Function<McpSchema.ElicitRequest, McpSchema.ElicitResult> elicitationHandler,
-        Function<McpSchema.CreateMessageRequest, McpSchema.CreateMessageResult> samplingHandler) {
+        Function<McpSchema.CreateMessageRequest, McpSchema.CreateMessageResult> samplingHandler,
+        int breakerFailureThreshold,
+        long breakerOpenMillis) {
+
+    /** Consecutive failures that open a tool's breaker unless overridden. */
+    public static final int DEFAULT_BREAKER_FAILURE_THRESHOLD = 5;
+
+    /** Cooldown before an open breaker admits a half-open probe, in millis. */
+    public static final long DEFAULT_BREAKER_OPEN_MILLIS = 30_000L;
 
     public McpClientOptions {
         toolNamePrefix = toolNamePrefix == null ? "" : toolNamePrefix;
         if (toolFilter == null) {
             toolFilter = name -> true;
         }
+        if (breakerOpenMillis < 0) {
+            breakerOpenMillis = DEFAULT_BREAKER_OPEN_MILLIS;
+        }
+    }
+
+    /**
+     * Backwards-compatible constructor predating the circuit-breaker settings.
+     * Applies the default threshold and cooldown.
+     */
+    public McpClientOptions(String toolNamePrefix, Predicate<String> toolFilter,
+                            UnaryOperator<String> nameMapper,
+                            Function<McpSchema.ElicitRequest, McpSchema.ElicitResult> elicitationHandler,
+                            Function<McpSchema.CreateMessageRequest,
+                                    McpSchema.CreateMessageResult> samplingHandler) {
+        this(toolNamePrefix, toolFilter, nameMapper, elicitationHandler, samplingHandler,
+                DEFAULT_BREAKER_FAILURE_THRESHOLD, DEFAULT_BREAKER_OPEN_MILLIS);
     }
 
     /** All defaults: no prefix, no filter, no rename, no callbacks. */
@@ -97,6 +125,8 @@ public record McpClientOptions(
         private UnaryOperator<String> nameMapper;
         private Function<McpSchema.ElicitRequest, McpSchema.ElicitResult> elicitationHandler;
         private Function<McpSchema.CreateMessageRequest, McpSchema.CreateMessageResult> samplingHandler;
+        private int breakerFailureThreshold = DEFAULT_BREAKER_FAILURE_THRESHOLD;
+        private long breakerOpenMillis = DEFAULT_BREAKER_OPEN_MILLIS;
 
         /** Prefix every imported tool name (collision avoidance across servers). */
         public Builder toolNamePrefix(String prefix) {
@@ -136,9 +166,26 @@ public record McpClientOptions(
             return this;
         }
 
+        /**
+         * Consecutive per-tool failures that open the circuit breaker. Pass
+         * {@code 0} (or a negative value) to disable breaking entirely and let
+         * every call reach the remote server.
+         */
+        public Builder breakerFailureThreshold(int threshold) {
+            this.breakerFailureThreshold = threshold;
+            return this;
+        }
+
+        /** Cooldown before an open breaker admits a half-open probe. */
+        public Builder breakerOpenMillis(long openMillis) {
+            this.breakerOpenMillis = openMillis;
+            return this;
+        }
+
         public McpClientOptions build() {
             return new McpClientOptions(toolNamePrefix, toolFilter, nameMapper,
-                    elicitationHandler, samplingHandler);
+                    elicitationHandler, samplingHandler, breakerFailureThreshold,
+                    breakerOpenMillis);
         }
     }
 }

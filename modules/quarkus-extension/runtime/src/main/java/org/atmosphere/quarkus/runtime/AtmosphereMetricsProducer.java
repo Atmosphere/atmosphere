@@ -16,6 +16,7 @@
 package org.atmosphere.quarkus.runtime;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
 import io.quarkus.runtime.StartupEvent;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -63,6 +64,15 @@ public class AtmosphereMetricsProducer {
      *              the observer eagerly)
      */
     public void onStart(@Observes @Priority(100) StartupEvent event) {
+        // Record whether a Prometheus-backed registry actually booted — the
+        // exact condition under which quarkus-micrometer-registry-prometheus
+        // serves its export route. AtmosphereConsoleInfoServlet reads this to
+        // report hasMetrics to the console (Runtime Truth — Invariant #5).
+        // Runs before the framework check: the export route is live even when
+        // the AtmosphereServlet was never reached during boot.
+        if (containsPrometheusRegistry(registry)) {
+            ConsoleMetricsState.markPrometheusLive();
+        }
         if (installed != null) {
             return;
         }
@@ -86,5 +96,39 @@ public class AtmosphereMetricsProducer {
      */
     public AtmosphereMetrics installed() {
         return installed;
+    }
+
+    /**
+     * Whether the given registry is (or contains, for composites) a
+     * Prometheus-backed registry. Matched by class name — never a compile-time
+     * import — because the Prometheus registry jar is not a dependency of this
+     * module: it only appears when the user app pulls
+     * {@code quarkus-micrometer-registry-prometheus}. Both the simpleclient
+     * ({@code io.micrometer.prometheus}) and the newer client
+     * ({@code io.micrometer.prometheusmetrics}) packages are recognized.
+     *
+     * @param registry the registry to inspect, may be {@code null}
+     * @return {@code true} when a Prometheus registry is present
+     */
+    static boolean containsPrometheusRegistry(MeterRegistry registry) {
+        if (registry == null) {
+            return false;
+        }
+        if (registry instanceof CompositeMeterRegistry composite) {
+            for (MeterRegistry member : composite.getRegistries()) {
+                if (containsPrometheusRegistry(member)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        for (Class<?> c = registry.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
+            var name = c.getName();
+            if ("io.micrometer.prometheus.PrometheusMeterRegistry".equals(name)
+                    || "io.micrometer.prometheusmetrics.PrometheusMeterRegistry".equals(name)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

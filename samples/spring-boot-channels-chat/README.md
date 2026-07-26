@@ -107,3 +107,24 @@ the agent's pipeline by `ChannelAiBridge` (from `atmosphere-channels`), which ha
 platform format differences (max length, reply threading, markdown) transparently.
 The `## Channels` list in the skill file is the agent's channel allow-list — only the
 listed platforms reach this agent.
+
+## Webhook retries are deduplicated
+
+Every platform here re-delivers a webhook when the endpoint answers non-2xx or times
+out. `ChannelWebhookController` remembers each `(platform, messageId)` it has already
+accepted, so a retry is acknowledged 200 without re-running the agent or re-sending
+the reply. A delivery whose handlers failed releases its claim, so the platform's
+retry of *that* message is genuinely processed. The window is bounded and configurable:
+
+```yaml
+atmosphere:
+  channels:
+    dedup:
+      enabled: true       # default; false accepts every retry as a new message
+      max-entries: 10000  # default; LRU eviction past this bound
+      ttl: 15m            # default; how long a message id is remembered
+```
+
+Messages a platform delivers without a message id are never deduplicated — an
+unkeyed message cannot be proven to be a retry, and dropping it would lose real
+user traffic.

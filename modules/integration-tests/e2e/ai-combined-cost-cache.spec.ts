@@ -88,15 +88,14 @@ test.describe('Combined Cost/Latency Routing + Cache Coalescing E2E', () => {
   // cachedInput > 0 TokenUsage, and it does not install a pipeline
   // ResponseCache. The assertion would be a no-op against this handler.
   //
-  // Documented as a skip to avoid rot: if a future handler wires a
-  // FakeLlmClient variant that emits cachedInput>0 (or if this endpoint
-  // gains a pipeline cache), flip the skip off and add the assertion.
-  test.skip('TokenUsage.cachedInput replayed on pipeline cache hit (requires real-LLM or fake-with-cached_tokens)', async () => {
-    // Assertion shape once plumbed end-to-end:
-    //   expect(firstClient.metadata.get('ai.tokens.cached_input')).toBeGreaterThan(0);
-    //   expect(secondClient.metadata.get('ai.tokens.cached_input'))
-    //       .toBe(firstClient.metadata.get('ai.tokens.cached_input'));
-  });
+  // Documented here to avoid rot: if a future handler wires a FakeLlmClient
+  // variant that emits cachedInput>0 (or if this endpoint gains a pipeline
+  // cache), add the test. The assertion shape, for whoever wires that handler:
+  //   expect(firstClient.metadata.get('ai.tokens.cached_input')).toBeGreaterThan(0);
+  //   expect(secondClient.metadata.get('ai.tokens.cached_input'))
+  //       .toBe(firstClient.metadata.get('ai.tokens.cached_input'));
+  // Carried as a comment rather than an empty test.skip() body: a test with no
+  // assertions reports as quarantined coverage that does not exist.
 
   test('Sequential cost then latency requests each produce a coalesced event', async () => {
     const client = new AiWsClient(server.wsUrl, '/ai/combined-cost-cache');

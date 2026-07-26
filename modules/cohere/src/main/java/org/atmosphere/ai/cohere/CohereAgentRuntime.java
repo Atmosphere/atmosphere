@@ -65,6 +65,14 @@ public class CohereAgentRuntime extends AbstractAgentRuntime<CohereChatClient> {
     private static final String MAX_TOKENS_PROPERTY = "cohere.max.tokens";
     private static final String DEFAULT_MODEL = "command-a-plus-05-2026";
 
+    /**
+     * Short-TTL cache for {@link #models()}. Best-effort: a failed or empty
+     * live enumeration falls through to the configured-model fallback and is
+     * not negatively cached.
+     */
+    private final org.atmosphere.ai.llm.CachedModelList modelCache =
+            new org.atmosphere.ai.llm.CachedModelList();
+
     @Override
     public String name() {
         return "cohere";
@@ -171,6 +179,31 @@ public class CohereAgentRuntime extends AbstractAgentRuntime<CohereChatClient> {
         return streamThroughGatewayWithHandle(context, session, DEFAULT_MODEL, client::stream);
     }
 
+    /**
+     * Live model enumeration via Cohere's {@code GET /v1/models}, cached for a
+     * short TTL and always falling back to the configured model on any error,
+     * timeout, or empty result — enumeration failure can never break dispatch.
+     * Backs {@link AiCapability#MODEL_ENUMERATION}.
+     */
+    @Override
+    public java.util.List<String> models() {
+        var client = getNativeClient();
+        if (client == null) {
+            return fallbackModels();
+        }
+        return modelCache.get("Cohere", client::listModels, this::fallbackModels);
+    }
+
+    /**
+     * Configured-model fallback for {@link #models()}: the framework-resolved
+     * {@link AiConfig} model when set, otherwise {@link #DEFAULT_MODEL} — the
+     * model this runtime would actually dispatch with. Never empty.
+     */
+    private java.util.List<String> fallbackModels() {
+        var configured = super.models();
+        return configured.isEmpty() ? java.util.List.of(DEFAULT_MODEL) : configured;
+    }
+
     @Override
     public Set<AiCapability> capabilities() {
         // Honest floor — every entry corresponds to a code path
@@ -220,6 +253,13 @@ public class CohereAgentRuntime extends AbstractAgentRuntime<CohereChatClient> {
         //                            posture as BuiltInAgentRuntime's
         //                            OpenAiCompatibleClient chat-completions
         //                            loop.
+        //   MODEL_ENUMERATION     — models() calls GET /v1/models through
+        //                            CohereChatClient.listModels() (Cohere
+        //                            keys entries by `name`, parsed by the
+        //                            shared ModelListJson), cached for a short
+        //                            TTL and always falling back to the
+        //                            configured model on any error/timeout/
+        //                            empty result.
         // NOT claimed:
         //   AUDIO                 — Cohere v2 chat content array has no
         //                            audio block (Content.Audio is dropped
@@ -252,6 +292,7 @@ public class CohereAgentRuntime extends AbstractAgentRuntime<CohereChatClient> {
                 AiCapability.VISION,
                 AiCapability.MULTI_MODAL,
                 AiCapability.TOOL_CALL_DELTA,
+                AiCapability.MODEL_ENUMERATION,
                 // CANCELLATION: doExecuteWithHandle returns a live handle whose
                 // cancel() flips a `cancelled` flag the streaming worker polls,
                 // stopping token forwarding and settling whenDone().

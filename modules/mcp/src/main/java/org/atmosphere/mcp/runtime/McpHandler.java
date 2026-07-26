@@ -29,6 +29,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -451,7 +452,11 @@ public final class McpHandler implements AtmosphereHandler {
         if (sessionId != null) {
             var removed = sessions.remove(sessionId);
             if (removed != null) {
-                logger.info("MCP session terminated: {}", sessionId);
+                // Fail any in-flight server-initiated request so callers
+                // awaiting an elicitation response unblock (Invariant #2).
+                var cancelled = removed.close();
+                logger.info("MCP session terminated: {} ({} pending server request(s) cancelled)",
+                        sessionId, cancelled);
             }
         }
 
@@ -503,19 +508,40 @@ public final class McpHandler implements AtmosphereHandler {
     @Override
     public void destroy() {
         cleaner.shutdownNow();
-        sessions.clear();
+        // Drain rather than clear() so every session's in-flight
+        // server-initiated requests are failed instead of dropped
+        // un-completed (Invariant #2).
+        for (var sessionId : Set.copyOf(sessions.keySet())) {
+            var session = sessions.remove(sessionId);
+            if (session != null) {
+                session.close();
+            }
+        }
         logger.debug("McpHandler destroyed");
     }
 
-    private void evictExpiredSessions() {
+    /**
+     * Remove every session idle past the TTL, failing its in-flight
+     * server-initiated requests. Scheduled on the cleaner thread;
+     * package-private so tests can drive a pass deterministically instead of
+     * racing the fixed-rate schedule.
+     *
+     * @return the number of sessions evicted
+     */
+    int evictExpiredSessions() {
+        var evicted = 0;
         var it = sessions.entrySet().iterator();
         while (it.hasNext()) {
             var entry = it.next();
             if (entry.getValue().isExpired(sessionTtlMs)) {
                 it.remove();
-                logger.info("Evicted expired MCP session: {}", entry.getKey());
+                evicted++;
+                var cancelled = entry.getValue().close();
+                logger.info("Evicted expired MCP session: {} ({} pending server request(s) cancelled)",
+                        entry.getKey(), cancelled);
             }
         }
+        return evicted;
     }
 
     private void write(AtmosphereResponse response, String data) throws IOException {

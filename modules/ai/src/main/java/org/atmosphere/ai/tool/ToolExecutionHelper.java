@@ -36,11 +36,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
  * Shared helper for executing Atmosphere tools and formatting results.
@@ -92,10 +88,14 @@ public final class ToolExecutionHelper {
      * the agent turn forever (Correctness Invariant #3). The default matches
      * the coordinator's {@code AgentLimits.DEFAULT} 120s so a tool bound and
      * an agent-dispatch bound are the same order of magnitude. Override per
-     * tool via {@link ToolDefinition.Builder#executionTimeout(long)}, globally
+     * tool via {@link ToolDefinition.Builder#executionTimeout(long)} or
+     * {@link org.atmosphere.ai.annotation.AiTool#timeoutSeconds()}, globally
      * via {@link #TOOL_EXECUTION_TIMEOUT_PROPERTY} /
      * {@link #TOOL_EXECUTION_TIMEOUT_ENV}; a resolved value {@code <= 0}
-     * disables the bound and restores the pure inline call.
+     * disables the bound and skips the watchdog entirely.
+     *
+     * <p>The bound never moves the tool body off the calling thread — see
+     * {@link #executeWithDeadline} for why that is load-bearing.</p>
      */
     public static final long DEFAULT_TOOL_EXECUTION_TIMEOUT_SECONDS = 120L;
 
@@ -169,22 +169,35 @@ public final class ToolExecutionHelper {
                                    long toolExecutionTimeout) {
         var scope = injectables != null ? injectables : Map.<Class<?>, Object>of();
         var timeoutSeconds = resolveExecutionTimeout(toolExecutionTimeout);
-        if (timeoutSeconds <= 0) {
-            // Bound disabled: byte-identical inline call on the caller thread,
-            // preserving thread affinity for executors that rely on it.
-            return invokeAndFormat(toolName, executor, args, scope);
-        }
-        return invokeBounded(toolName, executor, args, scope, timeoutSeconds);
-    }
-
-    /** The raw executor invocation + result/error formatting, no time bound. */
-    private static String invokeAndFormat(String toolName, ToolExecutor executor,
-                                          Map<String, Object> args,
-                                          Map<Class<?>, Object> scope) {
         try {
-            var result = executor.execute(args, scope);
+            var result = timeoutSeconds > 0
+                    ? executeWithDeadline(toolName, executor, args, scope, timeoutSeconds)
+                    // Bound disabled: byte-identical inline call on the caller
+                    // thread, exactly as before the bound existed.
+                    : executor.execute(args, scope);
             logger.debug("Tool {} executed: {}", toolName, result);
             return result != null ? result.toString() : "null";
+        } catch (ToolTimeoutException e) {
+            // Terminal path: the tool was interrupted, the turn continues. The
+            // model sees a structured error it can react to (retry, pick a
+            // different tool, tell the user) rather than the turn hanging.
+            logger.warn("Tool {} exceeded its {}s execution bound and was abandoned. "
+                    + "Raise it per tool via ToolDefinition.executionTimeout, globally "
+                    + "via {}, or set a value <= 0 to disable the bound.",
+                    toolName, timeoutSeconds, TOOL_EXECUTION_TIMEOUT_PROPERTY);
+            return "{\"error\":\"tool_timeout\",\"tool\":\""
+                    + ToolBridgeUtils.escapeJson(toolName)
+                    + "\",\"timeoutSeconds\":" + timeoutSeconds
+                    + ",\"message\":\"Tool execution exceeded the " + timeoutSeconds
+                    + "s deadline and was cancelled\"}";
+        } catch (InterruptedException e) {
+            // Not our deadline — the turn itself was cancelled from outside and
+            // the throw cleared the flag. Re-assert it so the cancellation is
+            // not stranded at this seam, and name it distinctly for the model.
+            Thread.currentThread().interrupt();
+            logger.debug("Tool {} was interrupted before completing", toolName);
+            return "{\"error\":\"tool_interrupted\",\"tool\":\""
+                    + ToolBridgeUtils.escapeJson(toolName) + "\"}";
         } catch (Exception e) {
             logger.error("Tool {} execution failed", toolName, e);
             return "{\"error\":\"" + ToolBridgeUtils.escapeJson(errorMessage(e)) + "\"}";
@@ -192,70 +205,130 @@ public final class ToolExecutionHelper {
     }
 
     /**
-     * Run the executor on a per-call virtual thread bounded by
-     * {@code timeoutSeconds}. A tool that overruns is abandoned (interrupted)
-     * and the model receives a structured {@code tool_timeout} error, so the
-     * agent loop continues instead of hanging forever on a blocking executor
-     * (Correctness Invariant #3).
-     *
-     * <p>Mirrors the coordinator's proven bounded-dispatch mechanism: cancel
-     * plus {@code shutdownNow()} <em>while the executor is live</em> so the
-     * interrupt actually reaches the blocked worker, an interruptible await so
-     * an outer cancellation propagates inward, and a relay of a
-     * worker-observed interrupt back to the calling thread so a cancel raised
-     * inside the tool body is not swallowed by the thread hop.</p>
+     * One-shot watchdog scheduler backing the tool execution deadline. Daemon
+     * threads so it never holds JVM exit; {@code removeOnCancelPolicy} so the
+     * near-universal "tool finished, cancel the watchdog" path evicts the task
+     * from the delay queue immediately instead of leaving it to accumulate for
+     * the length of the deadline (Correctness Invariant #3 — a bounded queue,
+     * not one that grows with tool throughput).
      */
-    private static String invokeBounded(String toolName, ToolExecutor executor,
-                                        Map<String, Object> args,
-                                        Map<Class<?>, Object> scope,
-                                        long timeoutSeconds) {
-        var vtExecutor = Executors.newVirtualThreadPerTaskExecutor();
-        try {
-            var workerInterrupted = new java.util.concurrent.atomic.AtomicBoolean();
-            var future = CompletableFuture.supplyAsync(() -> {
+    private static final java.util.concurrent.ScheduledThreadPoolExecutor DEADLINE_WATCHDOG =
+            createWatchdog();
+
+    private static java.util.concurrent.ScheduledThreadPoolExecutor createWatchdog() {
+        var scheduler = new java.util.concurrent.ScheduledThreadPoolExecutor(1, runnable -> {
+            var thread = new Thread(runnable, "atmosphere-tool-deadline");
+            thread.setDaemon(true);
+            return thread;
+        });
+        scheduler.setRemoveOnCancelPolicy(true);
+        return scheduler;
+    }
+
+    /** Outcome of the race between the tool body and its deadline watchdog. */
+    private enum DeadlineOutcome { RUNNING, TIMED_OUT, COMPLETED }
+
+    /**
+     * Run the executor <strong>inline on the calling thread</strong>, bounded by
+     * {@code timeoutSeconds} via a watchdog that interrupts this thread on
+     * expiry.
+     *
+     * <p>Running inline is deliberate and load-bearing: handing the tool body to
+     * another thread would silently drop every non-inheritable {@link ThreadLocal}
+     * the caller established — Spring's {@code SecurityContextHolder} and
+     * {@code RequestContextHolder} above all — so a tool doing its own
+     * authorization check would see a null authentication. That is a silent
+     * security regression, so the deadline is enforced without a thread hop.</p>
+     *
+     * <p>The watchdog and the tool body race through a single CAS, so exactly one
+     * of them wins: either the body finishes first and the watchdog is cancelled
+     * before it can interrupt, or the watchdog commits to interrupting and the
+     * body's outcome is reported as a timeout. Any interrupt this watchdog
+     * delivered is cleared before returning, so a late-firing watchdog can never
+     * leak an interrupt into whatever the thread does next (Invariant #2).
+     * An interrupt that did <em>not</em> come from our watchdog — a genuinely
+     * cancelled turn — is left intact and propagates.</p>
+     *
+     * <p><strong>Residual limitation:</strong> interruption is cooperative. A
+     * tool body that catches {@link InterruptedException} and keeps working, or
+     * that blocks in a non-interruptible call (an un-timeboxed socket read, a
+     * tight CPU loop), will still overrun its deadline in wall-clock terms; it
+     * is reported as a timeout once it finally returns. Bounding such a tool
+     * requires the tool itself to honour interrupts or carry its own I/O
+     * timeout — no caller-side mechanism short of killing the thread can force
+     * it, and thread-killing is unsafe.</p>
+     */
+    private static Object executeWithDeadline(String toolName, ToolExecutor executor,
+                                              Map<String, Object> args,
+                                              Map<Class<?>, Object> scope,
+                                              long timeoutSeconds) throws Exception {
+        var outcome = new java.util.concurrent.atomic.AtomicReference<>(DeadlineOutcome.RUNNING);
+        // Latched by the watchdog *after* it has actually delivered the
+        // interrupt, so the losing side knows the signal has landed and can
+        // clear it rather than racing the delivery.
+        var interruptDelivered = new java.util.concurrent.CountDownLatch(1);
+        var caller = Thread.currentThread();
+
+        var watchdog = DEADLINE_WATCHDOG.schedule(() -> {
+            if (outcome.compareAndSet(DeadlineOutcome.RUNNING, DeadlineOutcome.TIMED_OUT)) {
                 try {
-                    return invokeAndFormat(toolName, executor, args, scope);
+                    caller.interrupt();
                 } finally {
-                    if (Thread.currentThread().isInterrupted()) {
-                        workerInterrupted.set(true);
-                    }
+                    interruptDelivered.countDown();
                 }
-            }, vtExecutor).orTimeout(timeoutSeconds, TimeUnit.SECONDS);
-            try {
-                var result = future.get();
-                if (workerInterrupted.get()) {
-                    Thread.currentThread().interrupt();
-                }
-                return result;
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-                future.cancel(true);
-                vtExecutor.shutdownNow();
-                return "{\"error\":\"tool_interrupted\",\"tool\":\""
-                        + ToolBridgeUtils.escapeJson(toolName) + "\"}";
-            } catch (ExecutionException e) {
-                if (e.getCause() instanceof TimeoutException) {
-                    future.cancel(true);
-                    vtExecutor.shutdownNow();
-                    logger.warn("Tool {} exceeded its {}s execution bound and was abandoned. "
-                            + "Raise it per tool via ToolDefinition.executionTimeout, globally "
-                            + "via {}, or set a value <= 0 to disable the bound.",
-                            toolName, timeoutSeconds, TOOL_EXECUTION_TIMEOUT_PROPERTY);
-                    return "{\"error\":\"tool_timeout\",\"tool\":\""
-                            + ToolBridgeUtils.escapeJson(toolName)
-                            + "\",\"timeoutSeconds\":" + timeoutSeconds + "}";
-                }
-                // invokeAndFormat catches Exception itself, so a throw here is
-                // an Error or a JVM-level failure — surface it as a tool error
-                // rather than propagating into the runtime bridge.
-                var cause = e.getCause() != null ? e.getCause() : e;
-                logger.error("Tool {} execution failed", toolName, cause);
-                return "{\"error\":\"" + ToolBridgeUtils.escapeJson(errorMessage(cause)) + "\"}";
             }
+        }, timeoutSeconds, TimeUnit.SECONDS);
+
+        try {
+            var result = executor.execute(args, scope);
+            if (outcome.compareAndSet(DeadlineOutcome.RUNNING, DeadlineOutcome.COMPLETED)) {
+                return result;
+            }
+            // The watchdog won the race: the deadline was genuinely exceeded,
+            // even though the body returned a value (it ignored the interrupt).
+            // Report the timeout so the deadline means what it says.
+            awaitInterruptDelivery(interruptDelivered);
+            throw new ToolTimeoutException(toolName, timeoutSeconds);
+        } catch (Exception e) {
+            if (outcome.compareAndSet(DeadlineOutcome.RUNNING, DeadlineOutcome.COMPLETED)) {
+                // A genuine tool failure that beat the deadline — reported
+                // exactly as it is on the no-deadline path (Invariant #7).
+                throw e;
+            }
+            // The failure is our own interrupt surfacing through the tool body.
+            awaitInterruptDelivery(interruptDelivered);
+            var timeout = new ToolTimeoutException(toolName, timeoutSeconds);
+            timeout.addSuppressed(e);
+            throw timeout;
         } finally {
-            // Non-blocking teardown on every terminal path; shutdownNow never
-            // awaits, so it cannot re-introduce the hang this guards against.
-            vtExecutor.shutdownNow();
+            watchdog.cancel(false);
+            if (outcome.get() == DeadlineOutcome.TIMED_OUT) {
+                // Clear ONLY the interrupt our watchdog raised. When the body
+                // completed first the flag can only be externally set (a
+                // cancelled turn), and swallowing that would strand the cancel.
+                Thread.interrupted();
+            }
+        }
+    }
+
+    /**
+     * Wait, without blocking, for the watchdog to finish delivering its
+     * interrupt. The watchdog CASes and interrupts back to back, so the window
+     * is nanoseconds; spinning avoids a blocking wait that would itself throw
+     * on the interrupt we are waiting for.
+     */
+    private static void awaitInterruptDelivery(java.util.concurrent.CountDownLatch delivered) {
+        for (int i = 0; i < 10_000 && delivered.getCount() != 0; i++) {
+            Thread.onSpinWait();
+        }
+    }
+
+    /** Raised internally when a tool call exceeds its execution deadline. */
+    private static final class ToolTimeoutException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
+        ToolTimeoutException(String toolName, long timeoutSeconds) {
+            super("Tool '" + toolName + "' exceeded its " + timeoutSeconds + "s execution deadline");
         }
     }
 

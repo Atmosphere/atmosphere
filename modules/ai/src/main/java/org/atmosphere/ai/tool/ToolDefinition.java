@@ -125,6 +125,20 @@ public record ToolDefinition(
             return parameter(paramName, paramDescription, type, true);
         }
 
+        /**
+         * Add a fully-formed parameter, preserving any structural JSON-Schema
+         * facets it carries ({@code enum} values, array {@code items} type,
+         * nested object {@code properties}). The string overloads above build
+         * a flat parameter; use this one when the structure is already known
+         * (reflection-derived, or read off a remote MCP server's schema).
+         */
+        public Builder parameter(ToolParameter parameter) {
+            if (parameter != null) {
+                parameters.add(parameter);
+            }
+            return this;
+        }
+
         public Builder returnType(String returnType) {
             this.returnType = returnType;
             return this;

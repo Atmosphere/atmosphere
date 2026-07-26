@@ -199,12 +199,17 @@ test.describe('Quarkus Admin Dashboard UI', () => {
     await expect(page.getByText('Event stream: connected')).toBeVisible({ timeout: 15_000 });
   });
 
-  // TODO: #2598 — flaky selector for 'Agents' tab with strict mode
-  test.skip('agents tab renders', async ({ page }) => {
+  // The former quarantine reason was a strict-mode violation: getByText('Agents')
+  // matches both the tab and the 'Registered Agents' card header. Selecting the
+  // tab by its .tab class (as admin-dashboard.spec.ts does) and scoping the
+  // assertions to the tab panel resolves it — no skip needed.
+  test('agents tab renders', async ({ page }) => {
     await page.goto(`${server.baseUrl}/admin/`);
-    await page.getByText('Agents', { exact: true }).click();
-    await expect(page.getByText('Registered Agents')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('AI Runtimes')).toBeVisible();
+    await page.locator('.tab', { hasText: 'Agents' }).click();
+
+    const agentsTab = page.locator('#tab-agents');
+    await expect(agentsTab.getByText('Registered Agents')).toBeVisible({ timeout: 10_000 });
+    await expect(agentsTab.getByText('AI Runtimes')).toBeVisible();
   });
 
   test('control tab has broadcast form and audit log', async ({ page }) => {

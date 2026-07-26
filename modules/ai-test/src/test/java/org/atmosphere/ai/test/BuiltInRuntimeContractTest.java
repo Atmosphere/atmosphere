@@ -116,6 +116,12 @@ class BuiltInRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 AiCapability.CONVERSATION_MEMORY,
                 AiCapability.AUDIO,
                 AiCapability.TOOL_CALL_DELTA,
+                // MODEL_ENUMERATION: models() calls the configured
+                // OpenAI-compatible endpoint's GET {baseUrl}/models through
+                // OpenAiCompatibleClient.listModels(), cached for a short TTL
+                // with a configured-model fallback — round-trip pinned in
+                // modules/ai's ModelEnumerationTest.
+                AiCapability.MODEL_ENUMERATION,
                 AiCapability.BUDGET_ENFORCEMENT,
                 AiCapability.CONFIDENCE_SCORES,
                 AiCapability.PASSIVATION,
@@ -203,6 +209,42 @@ class BuiltInRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 List.of(), null, null, List.of(), List.of(),
                 org.atmosphere.ai.approval.ToolApprovalPolicy.annotated())
                 .withRetryPolicy(org.atmosphere.ai.RetryPolicy.NONE);
+    }
+
+    /**
+     * Cancellation fixture for the Built-in runtime.
+     * {@code BuiltInAgentRuntime.doExecuteWithHandle} hands the client a
+     * {@code cancelled} flag plus a {@code streamSink} that receives the
+     * in-flight SSE {@link java.io.Closeable}; {@code cancel()} closes that
+     * stream (interrupting a blocked read) and the read loop exits at the
+     * next boundary. The stub publishes a {@code Closeable} whose
+     * {@code close()} counts native releases, then parks until the flag flips
+     * — bounded at 30s so a regression cannot strand the worker thread.
+     */
+    @Override
+    protected CancellationFixture createCancellationFixture() {
+        var releases = new java.util.concurrent.atomic.AtomicInteger();
+        var engaged = new java.util.concurrent.atomic.AtomicBoolean();
+        var client = mock(LlmClient.class);
+        doAnswer(inv -> {
+            java.util.concurrent.atomic.AtomicBoolean cancelled = inv.getArgument(2);
+            java.util.function.Consumer<java.io.Closeable> streamSink = inv.getArgument(3);
+            streamSink.accept(releases::incrementAndGet);
+            engaged.set(true);
+            var deadline = System.nanoTime() + java.time.Duration.ofSeconds(30).toNanos();
+            while (!cancelled.get() && System.nanoTime() < deadline) {
+                Thread.sleep(5);
+            }
+            return null;
+        }).when(client).streamChatCompletion(
+                any(org.atmosphere.ai.llm.ChatCompletionRequest.class),
+                any(org.atmosphere.ai.StreamingSession.class),
+                any(java.util.concurrent.atomic.AtomicBoolean.class),
+                any());
+        return CancellationFixture
+                .of(new TestableBuiltInRuntime(client), createTextContext())
+                .withInFlightProbe("streamChatCompletion entered", engaged::get)
+                .withBackendRelease("in-flight SSE InputStream.close()", releases);
     }
 
 }

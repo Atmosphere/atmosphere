@@ -165,11 +165,15 @@ public interface StreamingSession extends AutoCloseable {
      * fields before the consolidated {@link AiEvent.ToolStart} event fires.
      *
      * <p>Only runtimes that advertise {@link AiCapability#TOOL_CALL_DELTA}
-     * actually invoke this method from their streaming loop. As of 4.0.37 that
-     * is exactly one runtime: {@code BuiltInAgentRuntime}, whose
-     * {@code OpenAiCompatibleClient} forwards every
-     * {@code delta.tool_calls[].function.arguments} fragment from both the
-     * chat-completions and responses-API streaming paths. The framework
+     * actually invoke this method from their streaming loop — the three
+     * hand-rolled HTTP runtimes, each of which owns its own SSE parse:
+     * {@code BuiltInAgentRuntime}, whose {@code OpenAiCompatibleClient}
+     * forwards every {@code delta.tool_calls[].function.arguments} fragment
+     * from both the chat-completions and responses-API streaming paths;
+     * {@code CohereAgentRuntime}, which forwards each {@code tool-call-delta}
+     * event's argument fragment; and {@code AnthropicAgentRuntime}, which
+     * forwards each {@code input_json_delta} frame's {@code partial_json}.
+     * The framework
      * bridges (Spring AI, LangChain4j, ADK, Embabel, Koog, Semantic Kernel)
      * consume high-level streaming APIs that surface only consolidated tool
      * calls and never per-chunk argument fragments, so they leave the default

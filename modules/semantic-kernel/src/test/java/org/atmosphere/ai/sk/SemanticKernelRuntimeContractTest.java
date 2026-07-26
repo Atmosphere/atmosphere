@@ -146,4 +146,40 @@ class SemanticKernelRuntimeContractTest extends AbstractAgentRuntimeContractTest
                 GenerationParamsSupport.STOP);
     }
 
+    /**
+     * Both entries point at dedicated tests in this module that assert more
+     * than the TCK's hooks could:
+     * <ul>
+     *   <li>{@code VISION} — {@link SemanticKernelVisionWireShapeTest} pins the
+     *       native multi-modal content shape on the outgoing chat history.</li>
+     *   <li>{@code CANCELLATION} — {@link SemanticKernelAgentRuntimeCancelTest}
+     *       drives {@code doExecuteWithHandle} against a {@code doOnCancel}-
+     *       instrumented {@link Flux} and asserts the Reactor subscription is
+     *       disposed and the session completed exactly once.</li>
+     * </ul>
+     */
+    @Override
+    protected Map<AiCapability, String> capabilitiesCoveredOutsideTck() {
+        return Map.of(
+                AiCapability.VISION, "SemanticKernelVisionWireShapeTest",
+                AiCapability.CANCELLATION, "SemanticKernelAgentRuntimeCancelTest");
+    }
+
+    /**
+     * Exercise {@code runtimeAcceptsCustomRetryPolicyOnContext}. Semantic
+     * Kernel inherits {@code AbstractAgentRuntime.executeWithOuterRetry},
+     * which wraps {@code doExecute} when the context carries a non-inherit
+     * policy.
+     */
+    @Override
+    protected AgentExecutionContext createRetryContext() {
+        return new AgentExecutionContext(
+                "Hello, no retries.", "You are helpful", "gpt-4o-mini",
+                null, "session-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), null, null, List.of(), List.of(),
+                org.atmosphere.ai.approval.ToolApprovalPolicy.annotated())
+                .withRetryPolicy(org.atmosphere.ai.RetryPolicy.NONE);
+    }
+
 }

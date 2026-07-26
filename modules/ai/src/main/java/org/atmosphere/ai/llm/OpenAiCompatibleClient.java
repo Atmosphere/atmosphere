@@ -211,8 +211,14 @@ public class OpenAiCompatibleClient implements LlmClient {
         var effective = cancelled != null
                 ? cancelled
                 : new java.util.concurrent.atomic.AtomicBoolean();
+        // Native-logprobs accumulator, one per top-level stream (it spans
+        // tool-loop rounds so the aggregate reflects the whole response).
+        // Null when the request did not opt in — the SSE forwarders then add
+        // zero capture overhead and the wire behavior is unchanged.
+        var logprobTokens = request.logprobs()
+                ? new ArrayList<org.atmosphere.ai.TokenLogprob>() : null;
         try {
-            doStreamWithToolLoop(request, session, 0, effective, streamSink);
+            doStreamWithToolLoop(request, session, 0, effective, streamSink, logprobTokens);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             session.error(e);
@@ -244,7 +250,8 @@ public class OpenAiCompatibleClient implements LlmClient {
     private void doStreamWithToolLoop(ChatCompletionRequest request,
                                       StreamingSession session, int toolRound,
                                       java.util.concurrent.atomic.AtomicBoolean cancelled,
-                                      java.util.function.Consumer<java.io.Closeable> streamSink)
+                                      java.util.function.Consumer<java.io.Closeable> streamSink,
+                                      List<org.atmosphere.ai.TokenLogprob> logprobTokens)
             throws InterruptedException, java.io.IOException {
 
         // Durable-run round seam: when a durable scope is installed, each LLM
@@ -265,7 +272,7 @@ public class OpenAiCompatibleClient implements LlmClient {
             var recorded = durableCtx.journal().lookupCommitted(durableCtx.runId(), roundKey);
             if (recorded.isPresent()) {
                 replayRound(recorded.get().resultPayload(), request, session, toolRound,
-                        cancelled, streamSink);
+                        cancelled, streamSink, logprobTokens);
                 return;
             }
             // Two-phase: record the round PENDING before dispatch; commit it
@@ -377,10 +384,11 @@ public class OpenAiCompatibleClient implements LlmClient {
                 }
                 if (useResponsesApi) {
                     processResponsesApiSSELine(line, session, accumulators,
-                            toolCallsRequested, capturedResponseId, capturedUsage, roundText);
+                            toolCallsRequested, capturedResponseId, capturedUsage, roundText,
+                            logprobTokens);
                 } else {
                     processSSELine(line, session, accumulators, toolCallsRequested,
-                            capturedUsage, roundText);
+                            capturedUsage, roundText, logprobTokens);
                 }
             }
         } catch (java.io.IOException e) {
@@ -425,7 +433,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                     recordRound(roundText, accumulators, capturedUsage[0]));
         }
         continueAfterRound(request, session, toolRound, toolCallsRequested[0],
-                accumulators, durable, cancelled, streamSink);
+                accumulators, durable, cancelled, streamSink, logprobTokens);
     }
 
     /**
@@ -441,7 +449,8 @@ public class OpenAiCompatibleClient implements LlmClient {
                                     Map<Integer, ToolCallAccumulator> accumulators,
                                     boolean durable,
                                     java.util.concurrent.atomic.AtomicBoolean cancelled,
-                                    java.util.function.Consumer<java.io.Closeable> streamSink)
+                                    java.util.function.Consumer<java.io.Closeable> streamSink,
+                                    List<org.atmosphere.ai.TokenLogprob> logprobTokens)
             throws InterruptedException, java.io.IOException {
         // If the model requested tool calls, execute them and re-submit
         if (toolCallsRequested && !accumulators.isEmpty() && !request.tools().isEmpty()) {
@@ -456,7 +465,13 @@ public class OpenAiCompatibleClient implements LlmClient {
                         loopPolicy.maxIterations(), loopPolicy.onMaxIterations());
                 if (!session.isClosed()) {
                     switch (loopPolicy.onMaxIterations()) {
-                        case COMPLETE_WITHOUT_TOOLS -> session.complete();
+                        case COMPLETE_WITHOUT_TOOLS -> {
+                            // Terminal-path symmetry (Invariant #2): the
+                            // overflow completion emits the same confidence
+                            // signal the natural completion does.
+                            emitLogprobConfidence(session, logprobTokens);
+                            session.complete();
+                        }
                         case FAIL -> session.error(
                                 new ToolLoopPolicy.ToolLoopExhaustedException(
                                         loopPolicy.maxIterations()));
@@ -542,19 +557,47 @@ public class OpenAiCompatibleClient implements LlmClient {
             logger.debug("Tool round {}: executed {} tool calls, re-submitting",
                     toolRound + 1, accumulators.size());
 
+            // The logprobs opt-in must survive into every follow-up round:
+            // the final answer (and therefore the tokens worth scoring) is
+            // produced by the LAST round, so dropping the flag here would
+            // leave the confidence aggregate reflecting only the tool-call
+            // round. jsonSchema is intentionally left at the shim default to
+            // keep this round's wire shape unchanged — see the follow-up note
+            // in the class Javadoc history rather than widening scope here.
             var followUp = new ChatCompletionRequest(
                     request.model(), List.copyOf(updatedMessages),
                     request.temperature(), request.maxStreamingTexts(),
                     request.jsonMode(), request.tools(), request.conversationId(),
                     request.approvalStrategy(), request.parts(), request.listeners(),
                     request.cacheHint(), request.retryPolicy(), request.approvalPolicy(),
-                    request.toolLoopPolicy());
+                    request.toolLoopPolicy(), null, request.logprobs());
             if (cancelled.get()) {
                 return;
             }
-            doStreamWithToolLoop(followUp, session, toolRound + 1, cancelled, streamSink);
+            doStreamWithToolLoop(followUp, session, toolRound + 1, cancelled, streamSink,
+                    logprobTokens);
         } else if (!session.isClosed()) {
+            // Fire the native-logprobs confidence BEFORE the terminal frame so
+            // the pipeline's ConfidenceCapturingSession observes the explicit
+            // LOGPROBS_NATIVE emission and skips its own model-reported-field
+            // parse (no double confidence event per response).
+            emitLogprobConfidence(session, logprobTokens);
             session.complete();
+        }
+    }
+
+    /**
+     * Emit a {@link org.atmosphere.ai.AiConfidence} with source
+     * {@code LOGPROBS_NATIVE} when the stream captured token logprobs.
+     * Deliberately silent when the provider returned none — emitting an empty
+     * LOGPROBS_NATIVE record would set the capturing decorator's explicit
+     * flag and suppress the model-reported-field fallback, degrading the
+     * signal instead of enriching it.
+     */
+    private static void emitLogprobConfidence(StreamingSession session,
+                                              List<org.atmosphere.ai.TokenLogprob> logprobTokens) {
+        if (logprobTokens != null && !logprobTokens.isEmpty()) {
+            session.confidence(org.atmosphere.ai.AiConfidence.fromLogprobs(logprobTokens));
         }
     }
 
@@ -568,7 +611,8 @@ public class OpenAiCompatibleClient implements LlmClient {
     private void replayRound(String payload, ChatCompletionRequest request,
                              StreamingSession session, int toolRound,
                              java.util.concurrent.atomic.AtomicBoolean cancelled,
-                             java.util.function.Consumer<java.io.Closeable> streamSink)
+                             java.util.function.Consumer<java.io.Closeable> streamSink,
+                             List<org.atmosphere.ai.TokenLogprob> logprobTokens)
             throws InterruptedException, java.io.IOException {
         var round = deserializeRound(payload);
         if (round.assistantText() != null && !round.assistantText().isEmpty()) {
@@ -587,8 +631,11 @@ public class OpenAiCompatibleClient implements LlmClient {
         }
         logger.debug("Replaying recorded LLM round {} ({} tool calls, no HTTP)",
                 toolRound, round.toolCalls().size());
+        // Recorded rounds carry no logprobs — the accumulator stays as-is, so
+        // a fully-replayed run emits no LOGPROBS_NATIVE confidence and the
+        // model-reported-field fallback still fires (runtime truth on replay).
         continueAfterRound(request, session, toolRound, !round.toolCalls().isEmpty(),
-                accumulators, true, cancelled, streamSink);
+                accumulators, true, cancelled, streamSink, logprobTokens);
     }
 
     /**
@@ -766,7 +813,8 @@ public class OpenAiCompatibleClient implements LlmClient {
                                 Map<Integer, ToolCallAccumulator> accumulators,
                                 boolean[] toolCallsRequested,
                                 org.atmosphere.ai.TokenUsage[] usageHolder,
-                                StringBuilder roundText) {
+                                StringBuilder roundText,
+                                List<org.atmosphere.ai.TokenLogprob> logprobTokens) {
         if (line.isBlank() || !line.startsWith(DATA_PREFIX)) {
             return;
         }
@@ -799,6 +847,14 @@ public class OpenAiCompatibleClient implements LlmClient {
                         roundText.append(text);
                     }
                 }
+            }
+
+            // Capture per-token logprobs when the request asked for them.
+            // OpenAI streams them per-chunk under choices[0].logprobs.content
+            // as [{token, logprob, top_logprobs}, ...]; the accumulated list
+            // feeds AiConfidence.fromLogprobs on completion.
+            if (logprobTokens != null) {
+                captureLogprobs(firstChoice.get("logprobs"), logprobTokens);
             }
 
             // Accumulate tool call fragments. Each argument chunk is also
@@ -859,6 +915,48 @@ public class OpenAiCompatibleClient implements LlmClient {
             }
         } catch (JacksonException e) {
             logger.warn("Failed to parse SSE data: {}", data, e);
+        }
+    }
+
+    /** Bound on captured logprob entries — matches the output ceiling a
+     *  single response can realistically carry; beyond it the capture stops
+     *  and the aggregate reflects the captured prefix (Invariant #3). */
+    private static final int MAX_LOGPROB_TOKENS = 4096;
+
+    /**
+     * Fold one chunk's {@code choices[0].logprobs.content} entries into the
+     * accumulator. Boundary-defensive (Invariant #4): entries missing a
+     * numeric {@code logprob} or a {@code token} string are skipped, NaN is
+     * skipped, and a (theoretically impossible but observed-in-the-wild)
+     * positive logprob is clamped to {@code 0.0} so a single malformed entry
+     * can never abort the stream via {@link TokenLogprob}'s validation.
+     */
+    private static void captureLogprobs(tools.jackson.databind.JsonNode logprobsNode,
+                                        List<org.atmosphere.ai.TokenLogprob> logprobTokens) {
+        if (logprobsNode == null || logprobsNode.isNull()) {
+            return;
+        }
+        var content = logprobsNode.get("content");
+        if (content == null || !content.isArray()) {
+            return;
+        }
+        for (var entry : content) {
+            if (logprobTokens.size() >= MAX_LOGPROB_TOKENS) {
+                logger.debug("Logprob capture truncated at {} tokens", MAX_LOGPROB_TOKENS);
+                return;
+            }
+            var tokenNode = entry.get("token");
+            var logprobNode = entry.get("logprob");
+            if (tokenNode == null || !tokenNode.isString()
+                    || logprobNode == null || !logprobNode.isNumber()) {
+                continue;
+            }
+            var logprob = logprobNode.asDouble();
+            if (Double.isNaN(logprob)) {
+                continue;
+            }
+            logprobTokens.add(new org.atmosphere.ai.TokenLogprob(
+                    tokenNode.stringValue(), Math.min(logprob, 0.0)));
         }
     }
 
@@ -962,7 +1060,36 @@ public class OpenAiCompatibleClient implements LlmClient {
             cacheHint.cacheKey().filter(k -> !k.isBlank())
                     .ifPresent(k -> body.put("prompt_cache_key", k));
         }
+        // Native logprobs: requested by BuiltInAgentRuntime when a confidence
+        // elicitation is active, gated per-endpoint exactly like
+        // prompt_cache_key (LogprobsMode AUTO defers to the shared allow-list;
+        // some compat proxies reject the field). Chat-completions only — the
+        // Responses API path never requests logprobs, so confidence there
+        // stays on the model-reported-field decorator fallback. That
+        // intentional mode difference is documented in modules/ai/README.md
+        // (§ Native logprobs confidence → "Mode scope"), per Correctness
+        // Invariant #7.
+        if (request.logprobs() && supportsLogprobs()) {
+            body.put("logprobs", true);
+        }
         return MAPPER.writeValueAsString(body);
+    }
+
+    /**
+     * Returns {@code true} if this client should emit {@code logprobs: true}
+     * for a request that opted in. Resolution mirrors
+     * {@link #supportsPromptCacheKey()}: the tri-state
+     * {@code atmosphere.ai.logprobs} knob ({@link LogprobsMode}) is consulted
+     * first; under {@link LogprobsMode#AUTO} the decision defers to the shared
+     * known-tolerant-endpoint allow-list
+     * ({@link CacheHint#endpointAcceptsPromptCacheKey(String)}) so both
+     * optional OpenAI fields make the identical AUTO decision for any given
+     * endpoint (default-deny on unknown hosts — a strict compat proxy that
+     * rejects the field would otherwise fail the whole request).
+     */
+    boolean supportsLogprobs() {
+        return org.atmosphere.ai.AiConfig.resolveLogprobsMode()
+                .resolve(CacheHint.endpointAcceptsPromptCacheKey(baseUrl));
     }
 
     /**
@@ -1100,7 +1227,11 @@ public class OpenAiCompatibleClient implements LlmClient {
         var properties = new LinkedHashMap<String, Object>();
         var required = new ArrayList<String>();
         for (var p : tool.parameters()) {
-            properties.put(p.name(), parameterSchema(p));
+            // Structural facets (enum values, array items, nested object
+            // properties) travel with the property so the model sees the same
+            // contract the validator enforces. Emitted by the shared helper so
+            // every bridge serializes an identical property shape.
+            properties.put(p.name(), ToolBridgeUtils.parameterSchemaMap(p));
             if (p.required()) {
                 required.add(p.name());
             }
@@ -1108,39 +1239,6 @@ public class OpenAiCompatibleClient implements LlmClient {
         params.put("properties", properties);
         params.put("required", required);
         return params;
-    }
-
-    /**
-     * One parameter as an OpenAI-shaped JSON Schema property, carrying the
-     * constructs a model needs to produce a valid argument: {@code enum} for a
-     * constrained value, {@code items} for array elements, and nested
-     * {@code properties}/{@code required} for objects. Recurses through the
-     * parameter's own nesting.
-     */
-    private static Map<String, Object> parameterSchema(
-            org.atmosphere.ai.tool.ToolParameter p) {
-        var prop = new LinkedHashMap<String, Object>();
-        prop.put("type", p.type());
-        prop.put("description", p.description());
-        if (p.hasEnumValues()) {
-            prop.put("enum", List.copyOf(p.enumValues()));
-        }
-        if (p.items() != null) {
-            prop.put("items", parameterSchema(p.items()));
-        }
-        if (p.hasProperties()) {
-            var nested = new LinkedHashMap<String, Object>();
-            var nestedRequired = new ArrayList<String>();
-            for (var child : p.properties()) {
-                nested.put(child.name(), parameterSchema(child));
-                if (child.required()) {
-                    nestedRequired.add(child.name());
-                }
-            }
-            prop.put("properties", nested);
-            prop.put("required", nestedRequired);
-        }
-        return prop;
     }
 
     private HttpRequest buildHttpRequest(String requestBody, String endpoint) {
@@ -1204,6 +1302,50 @@ public class OpenAiCompatibleClient implements LlmClient {
             logger.trace("Failed to parse error response JSON", ex);
         }
         return errorBody.length() > 200 ? errorBody.substring(0, 200) + "..." : errorBody;
+    }
+
+    /**
+     * Live model enumeration against the OpenAI-compatible
+     * {@code GET {baseUrl}/models} endpoint ({@code /v1/models} on OpenAI,
+     * Gemini-compat, Ollama, Azure — the base URL already carries the
+     * version segment). Response shape: {@code {"object":"list","data":
+     * [{"id":"..."} , ...]}} — parsed defensively by {@link ModelListJson}.
+     *
+     * <p>Best-effort by contract: any transport failure, non-2xx status, or
+     * unparseable body returns an empty list (logged at DEBUG) so enumeration
+     * can never break discovery or dispatch. The request runs with a short
+     * timeout independent of the streaming timeout so a slow provider cannot
+     * pin an admin/discovery caller.</p>
+     */
+    @Override
+    public List<String> listModels() {
+        var enumTimeout = timeout.compareTo(Duration.ofSeconds(10)) < 0
+                ? timeout : Duration.ofSeconds(10);
+        var builder = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/models"))
+                .header("Accept", "application/json")
+                .GET()
+                .timeout(enumTimeout);
+        if (apiKey != null && !apiKey.isBlank()) {
+            builder.header("Authorization", "Bearer " + apiKey);
+        }
+        applyCustomHeaders(builder);
+        try {
+            var response = httpClient.send(builder.build(),
+                    HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() / 100 != 2) {
+                logger.debug("Model enumeration returned {}", response.statusCode());
+                return List.of();
+            }
+            return ModelListJson.parse(MAPPER, response.body());
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            logger.debug("Model enumeration interrupted", ie);
+            return List.of();
+        } catch (Exception e) {
+            logger.debug("Model enumeration failed", e);
+            return List.of();
+        }
     }
 
     // -- OpenAI Responses API support --
@@ -1338,7 +1480,8 @@ public class OpenAiCompatibleClient implements LlmClient {
                                             boolean[] toolCallsRequested,
                                             String[] capturedResponseId,
                                             org.atmosphere.ai.TokenUsage[] usageHolder,
-                                            StringBuilder roundText) {
+                                            StringBuilder roundText,
+                                            List<org.atmosphere.ai.TokenLogprob> logprobTokens) {
         if (line.isBlank() || !line.startsWith(DATA_PREFIX)) {
             return;
         }
@@ -1354,7 +1497,8 @@ public class OpenAiCompatibleClient implements LlmClient {
 
             if (type == null) {
                 // Fallback: treat as Chat Completions format (shouldn't happen normally)
-                processSSELine(line, session, accumulators, toolCallsRequested, usageHolder, roundText);
+                processSSELine(line, session, accumulators, toolCallsRequested, usageHolder,
+                        roundText, logprobTokens);
                 return;
             }
 

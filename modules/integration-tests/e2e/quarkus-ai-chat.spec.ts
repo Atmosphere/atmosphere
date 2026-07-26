@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer, type SampleConfig } from './fixtures/sample-server';
 import { AiWsClient } from './helpers/ai-ws-client';
 import { llmBudget } from './helpers/llm-rate-budget';
+import { quarantined } from './helpers/quarantine';
 
 /**
  * E2E coverage for `samples/quarkus-ai-chat` and the underlying
@@ -410,7 +411,13 @@ test.describe('Quarkus AI Chat', () => {
   // transport-agnostic) and reproduces the same way against the existing
   // spring-boot-ai-chat sample. Tracked as a separate atmosphere.js v5
   // issue — restore this assertion once that's fixed.
-  test.fixme('long-polling transport: prompt round-trips with same wire envelope',
+  quarantined({
+    owner: 'jfarcand',
+    expires: '2026-09-30',
+    issue: 'pending',
+    reason: 'atmosphere.js v5 does not propagate X-Atmosphere-tracking-id between '
+      + 'long-polling requests, so the server drops the prompt body',
+  })('long-polling transport: prompt round-trips with same wire envelope @quarantined',
     async ({ page }, testInfo) => {
       test.skip(!REAL_LLM, 'Long-polling transport test requires LLM_MODE=real-ollama');
       test.skip(SKIP_REQUEST_HEAVY,

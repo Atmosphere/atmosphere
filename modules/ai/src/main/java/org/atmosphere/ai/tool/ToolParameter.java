@@ -32,6 +32,9 @@ import java.util.List;
  * themselves {@code ToolParameter}s, so every emitter that already walks a
  * parameter list can walk a nested schema with the same code.</p>
  *
+ * <p>All three facets are optional — a parameter carrying none of them emits
+ * exactly the flat schema previous releases produced.</p>
+ *
  * @param name        parameter name as exposed to the model
  * @param description human-readable description
  * @param type        JSON Schema type (string, integer, number, boolean, object, array)

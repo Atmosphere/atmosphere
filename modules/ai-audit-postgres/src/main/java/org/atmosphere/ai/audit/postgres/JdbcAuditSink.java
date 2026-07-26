@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import javax.sql.DataSource;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.List;
 
 /**
  * {@link AuditSink} that writes {@link AuditEntry} rows to a JDBC table.
@@ -128,13 +129,29 @@ public final class JdbcAuditSink implements AuditSink {
         return "jdbc:" + table;
     }
 
+    /**
+     * Create (or version-adopt) the audit table. Runs only when
+     * {@code autoCreate} is set — when DDL is owned by Flyway/Liquibase the
+     * sink writes nothing, not even a schema-version row, because it does not
+     * own the schema.
+     *
+     * <p>A DDL failure stays a warning ("assuming external DDL"), preserving
+     * the sink's tolerance of an operator-managed table. A
+     * <em>version</em> refusal — the on-disk schema is newer than this build
+     * understands — propagates instead: it means the rows would be written
+     * against a schema this code cannot read, so failing construction is the
+     * fail-closed answer (Correctness Invariant #6).</p>
+     */
     private void createSchemaIfMissing() {
         var ddl = createTableDdl(postgres);
-        try (var conn = dataSource.getConnection();
-             var stmt = conn.createStatement()) {
-            for (var statement : ddl) {
-                stmt.execute(statement);
-            }
+        try (var conn = dataSource.getConnection()) {
+            SchemaMigrations.migrate(conn, table, List.of(c -> {
+                try (var stmt = c.createStatement()) {
+                    for (var statement : ddl) {
+                        stmt.execute(statement);
+                    }
+                }
+            }));
         } catch (SQLException e) {
             logger.warn("Schema auto-create for '{}' failed — assuming external DDL: {}",
                     table, e.toString());

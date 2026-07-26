@@ -16,6 +16,9 @@
 package org.atmosphere.samples.kotlindsl
 
 import kotlinx.coroutines.runBlocking
+import org.atmosphere.ai.llm.DemoAgentRuntime
+import org.atmosphere.ai.processor.AiEndpointHandler
+import org.atmosphere.cpr.AtmosphereFramework
 import org.atmosphere.cpr.AtmosphereRequest
 import org.atmosphere.cpr.AtmosphereResource
 import org.atmosphere.cpr.Broadcaster
@@ -31,29 +34,70 @@ import java.io.BufferedReader
 import java.io.StringReader
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Future
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 /**
- * Delivery proof for the Kotlin DSL + coroutine extensions that [KotlinDslChat]
- * is built on.
+ * Delivery proof for the two Kotlin DSLs [KotlinDslChat] is built on.
  *
- * These tests exercise real behavior: a message is driven through the
- * DSL-built handler, the deterministic agent computes a reply, and the
- * suspending coroutine extension actually delivers it. The assertions are on
- * the observable effect (what was broadcast / written), not on object identity.
+ * The agent is pinned to the framework's offline `DemoAgentRuntime` so the
+ * suite never depends on the developer's API keys or the network; `main` leaves
+ * the runtime unpinned and lets the resolver choose.
+ *
+ * These tests exercise real behavior: the agent DSL registers a real agent into
+ * a real [AtmosphereFramework], a message is driven through the DSL-built
+ * transport handler, the agent answers through the framework's AI pipeline, and
+ * the suspending coroutine extension actually delivers the reply. The
+ * assertions are on the observable effect (what was registered, what was
+ * broadcast / written), not on object identity.
  */
 class KotlinDslChatDeliveryTest {
+
+    private lateinit var framework: AtmosphereFramework
+
+    @BeforeTest
+    fun setUp() {
+        framework = AtmosphereFramework().init()
+    }
+
+    @AfterTest
+    fun tearDown() {
+        framework.destroy()
+        DemoAgentRuntime.setResponseStrategy(null)
+    }
 
     private fun completed(value: Any? = null): Future<Any> =
         @Suppress("UNCHECKED_CAST")
         (CompletableFuture.completedFuture(value) as Future<Any>)
 
     @Test
+    fun `the agent DSL registers a real agent endpoint in the framework`() {
+        val assistant = KotlinDslChat.registerAssistant(framework, DemoAgentRuntime())
+
+        // Registered through the framework's own machinery — same path shape
+        // and same handler class an @Agent-annotated class produces.
+        assertEquals("/atmosphere/agent/kotlin-dsl-chat", assistant.path)
+        val wrapper = framework.atmosphereHandlers["/atmosphere/agent/kotlin-dsl-chat"]
+        assertNotNull(wrapper, "the DSL agent must be reachable as a framework endpoint")
+        assertTrue(wrapper.atmosphereHandler() is AiEndpointHandler)
+
+        // The lambda tool is a first-class registered tool, not decoration.
+        assertEquals(listOf("word_count"), assistant.tools.allTools().map { it.name() })
+        val counted = assistant.tools.execute("word_count", mapOf("text" to "one two three"))
+        assertTrue(counted.success())
+        assertEquals("3", counted.result())
+    }
+
+    @Test
     fun `DSL endpoint streams the agent reply through the coroutine broadcast extension`() {
-        // Endpoint assembled entirely by the Kotlin DSL.
-        val handler = KotlinDslChat.chatHandler()
+        val assistant = KotlinDslChat.registerAssistant(framework, DemoAgentRuntime())
+        // Endpoint assembled entirely by the Kotlin transport DSL.
+        val handler = KotlinDslChat.chatHandler(assistant)
 
         val broadcaster = mock<Broadcaster> {
             on { broadcast(any()) } doReturn completed()
@@ -65,16 +109,30 @@ class KotlinDslChatDeliveryTest {
         val resource = mock<AtmosphereResource> {
             on { getRequest() } doReturn request
             on { getBroadcaster() } doReturn broadcaster
+            on { uuid() } doReturn "client-1"
         }
 
         // Drive a real message through the DSL endpoint.
         handler.onRequest(resource)
 
-        // Proof: the deterministic agent turned "ping" into "pong" and the
-        // broadcastSuspend coroutine extension delivered exactly that payload.
+        // Proof: the message went through the agent's AI pipeline and the
+        // resolved runtime answered "pong", and the broadcastSuspend coroutine
+        // extension delivered exactly that payload.
         val delivered = argumentCaptor<Any>()
         verify(broadcaster).broadcast(delivered.capture())
         assertEquals("pong", delivered.firstValue)
+    }
+
+    @Test
+    fun `the agent answers through the AI pipeline with conversation memory`() {
+        val assistant = KotlinDslChat.registerAssistant(framework, DemoAgentRuntime())
+
+        val answer = runBlocking { assistant.ask("client-1", "hello") }
+
+        assertEquals("echo: hello", answer)
+        // Memory is the framework's conversation memory, fed by the pipeline.
+        assertNotNull(assistant.memory)
+        assertTrue(assistant.memory!!.getHistory("client-1").isNotEmpty())
     }
 
     @Test
@@ -105,13 +163,13 @@ class KotlinDslChatDeliveryTest {
     }
 
     @Test
-    fun `deterministic agent is reproducible offline`() {
-        val agent = DeterministicAgent()
-        assertEquals("pong", agent.reply("ping"))
-        assertEquals("echo: hi", agent.reply("hi"))
+    fun `the offline reply strategy is reproducible`() {
+        assertEquals("pong", KotlinDslChat.offlineReply("ping"))
+        assertEquals("echo: hi", KotlinDslChat.offlineReply("hi"))
         assertEquals(
             "You asked: \"are you online?\" — here is a deterministic answer.",
-            agent.reply("are you online?")
+            KotlinDslChat.offlineReply("are you online?")
         )
+        assertEquals("Say something and I'll reply.", KotlinDslChat.offlineReply(null))
     }
 }

@@ -119,6 +119,16 @@ class AnthropicRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 AiCapability.VISION,
                 AiCapability.MULTI_MODAL,
                 AiCapability.VIRTUAL_FILESYSTEM,
+                // TOOL_CALL_DELTA / PROMPT_CACHING / MODEL_ENUMERATION are all
+                // genuinely wired — input_json_delta fragments reach
+                // session.toolCallDelta, the portable CacheHint becomes
+                // Anthropic cache_control breakpoints, and models() calls
+                // GET /v1/models with a configured-model fallback. Round-trips
+                // pinned in AnthropicPromptCacheAndDeltaTest and
+                // AnthropicModelEnumerationTest.
+                AiCapability.TOOL_CALL_DELTA,
+                AiCapability.PROMPT_CACHING,
+                AiCapability.MODEL_ENUMERATION,
                 AiCapability.CANCELLATION);
     }
 
@@ -135,6 +145,81 @@ class AnthropicRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 GenerationParamsSupport.TOP_P,
                 GenerationParamsSupport.STOP);
     }
+
+    /**
+     * {@code VISION} is proven by {@code AnthropicMessagesClientTest}'s
+     * {@code visionPartsTranslateToImageBlock}, which pins the native
+     * base64 {@code image} block on the outgoing Messages body — a stronger
+     * assertion than the TCK's "dispatch does not throw" hook.
+     *
+     * <p>{@code PROMPT_CACHING} is proven the same way by
+     * {@code AnthropicPromptCacheAndDeltaTest}, which asserts the
+     * {@code cache_control} breakpoints land on the system block and the last
+     * tool definition, that a hint-less request keeps the legacy plain-string
+     * system with no breakpoints, and that {@code cache_read_input_tokens}
+     * reaches {@code TokenUsage.cachedInput}.</p>
+     */
+    @Override
+    protected Map<AiCapability, String> capabilitiesCoveredOutsideTck() {
+        return Map.of(
+                AiCapability.VISION, "AnthropicMessagesClientTest",
+                AiCapability.PROMPT_CACHING, "AnthropicPromptCacheAndDeltaTest");
+    }
+
+    /**
+     * Exercise {@code runtimeAcceptsCustomRetryPolicyOnContext}. Anthropic
+     * inherits {@code AbstractAgentRuntime.executeWithOuterRetry}, which wraps
+     * {@code doExecute} when the context carries a non-inherit policy.
+     */
+    @Override
+    protected AgentExecutionContext createRetryContext() {
+        return new AgentExecutionContext(
+                "Hello, no retries.", "You are helpful", "claude-sonnet-4-6",
+                null, "session-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), null, null, List.of(), List.of(),
+                org.atmosphere.ai.approval.ToolApprovalPolicy.annotated())
+                .withRetryPolicy(org.atmosphere.ai.RetryPolicy.NONE);
+    }
+
+    /**
+     * Cancellation fixture for Anthropic.
+     * {@code AbstractAgentRuntime.streamThroughGatewayWithHandle} runs the
+     * native stream on a virtual thread and hands it a {@code cancelled} flag
+     * that {@code AbstractSseLlmClient}'s read loop polls once per SSE line;
+     * {@code cancel()} flips the flag and the loop exits at the next line,
+     * closing the response body on its way out.
+     *
+     * <p>The stub serves a message-start plus one text delta (so text has
+     * already reached the session) and then keeps the stream open with SSE
+     * comment lines, leaving the execution genuinely in flight. Closing that
+     * body is the observable native release, asserted exactly-once across
+     * repeated cancels.</p>
+     */
+    @Override
+    protected CancellationFixture createCancellationFixture() {
+        var streamOpens = new java.util.concurrent.atomic.AtomicInteger();
+        var streamCloses = new java.util.concurrent.atomic.AtomicInteger();
+        var httpClient = HttpRuntimeTestSupport.mockOpenEndedStreamHttpClient(
+                OPEN_ENDED_SSE_PREAMBLE, streamOpens, streamCloses);
+        var client = AnthropicMessagesClient.builder()
+                .apiKey("test-key")
+                .httpClient(httpClient)
+                .build();
+        return CancellationFixture
+                .of(new TestableAnthropicRuntime(client), createTextContext())
+                .withInFlightProbe("SSE response body opened", () -> streamOpens.get() > 0)
+                .withBackendRelease("SSE response body close()", streamCloses);
+    }
+
+    private static final String OPEN_ENDED_SSE_PREAMBLE = """
+            data: {"type":"message_start","message":{"id":"msg_1"}}
+
+            data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello"}}
+
+            """;
 
     @Test
     void runtimeNameIsAnthropic() {

@@ -98,6 +98,7 @@ class ToolParameterTest {
 
     @Test
     void jsonSchemaTypeObjectFallback() {
+        // A Map (and any type with no better mapping) is a JSON object.
         assertEquals("object",
                 ToolParameter.jsonSchemaType(Map.class));
         assertEquals("object",
@@ -106,8 +107,9 @@ class ToolParameterTest {
 
     @Test
     void jsonSchemaTypeCollectionsAndArraysAreArrays() {
-        // A list described as "object" told the model the wrong shape — it is
-        // a JSON Schema array, and its element type rides in items().
+        // Previously these degraded to "object", so the model was told a list
+        // parameter was a JSON object and had no way to know it takes a list —
+        // it is a JSON Schema array, and its element type rides in items().
         assertEquals("array", ToolParameter.jsonSchemaType(List.class));
         assertEquals("array", ToolParameter.jsonSchemaType(java.util.Set.class));
         assertEquals("array", ToolParameter.jsonSchemaType(String[].class));

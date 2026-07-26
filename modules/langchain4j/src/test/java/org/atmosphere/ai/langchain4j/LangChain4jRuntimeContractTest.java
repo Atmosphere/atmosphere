@@ -198,6 +198,60 @@ class LangChain4jRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 org.atmosphere.ai.approval.ToolApprovalPolicy.annotated());
     }
 
+    /**
+     * Exercise {@code runtimeAcceptsCustomRetryPolicyOnContext} on LangChain4j.
+     * {@code AbstractAgentRuntime.executeWithOuterRetry} wraps {@code doExecute}
+     * when the context carries a non-inherit {@code RetryPolicy}, so a
+     * non-default policy must ride the dispatch without the bridge rejecting it.
+     */
+    @Override
+    protected AgentExecutionContext createRetryContext() {
+        return new AgentExecutionContext(
+                "Hello, no retries.", "You are helpful", "gpt-4",
+                null, "session-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), null, null, List.of(), List.of(),
+                org.atmosphere.ai.approval.ToolApprovalPolicy.annotated())
+                .withRetryPolicy(org.atmosphere.ai.RetryPolicy.NONE);
+    }
+
+    /**
+     * Cancellation fixture for LangChain4j. LC4j's
+     * {@code StreamingChatResponseHandler} contract has no network-level abort
+     * hook, so {@code doExecuteWithHandle} implements a soft cancel: a flag the
+     * {@code CancelAwareStreamingHandler} polls on every token, plus an
+     * exceptionally-resolved future so callers stop awaiting. The stub captures
+     * the handler and returns without invoking a callback — exactly what an
+     * in-flight provider call looks like from the runtime's side.
+     *
+     * <p>No {@code withBackendRelease} probe: there is no native teardown
+     * primitive to observe here (that is the honest shape of LC4j's soft
+     * cancel, not a gap in the fixture). Instead the fixture supplies a late
+     * backend event — pushing one more token through the captured handler
+     * after cancel — so the contract proves the flag genuinely stops token
+     * forwarding rather than merely resolving the future.</p>
+     */
+    @Override
+    protected CancellationFixture createCancellationFixture() {
+        var captured =
+                new java.util.concurrent.atomic.AtomicReference<StreamingChatResponseHandler>();
+        var model = mock(StreamingChatModel.class);
+        doAnswer(inv -> {
+            captured.set(inv.getArgument(1));
+            // Return without calling any callback: the request is "in flight".
+            return null;
+        }).when(model).chat(any(ChatRequest.class), any(StreamingChatResponseHandler.class));
+
+        return CancellationFixture
+                .of(new TestableLangChain4jRuntime(model), createTextContext())
+                .withLateBackendEvent(() -> {
+                    var handler = captured.get();
+                    if (handler != null) {
+                        handler.onPartialResponse("token-after-cancel");
+                    }
+                });
+    }
+
     @Test
     void langChain4jDeclaresToolCalling() {
         assertTrue(createRuntime().capabilities().contains(AiCapability.TOOL_CALLING));

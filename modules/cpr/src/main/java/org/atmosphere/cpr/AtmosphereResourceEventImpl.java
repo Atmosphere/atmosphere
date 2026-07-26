@@ -76,6 +76,19 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         uuid = resource.uuid();
     }
 
+    /**
+     * The UUID of the {@link AtmosphereResource} this event was created for.
+     * Captured at construction time, so it remains available after
+     * {@link #destroy()} has stripped the resource reference — containers
+     * (Tomcat) can fire async error/cancel listeners with a recycled request,
+     * and disconnect-cleanup paths need the resource identity even then.
+     *
+     * @return the originating resource UUID; never null
+     */
+    public String uuid() {
+        return uuid;
+    }
+
     @Override
     public boolean isResuming() {
         var r = resource;

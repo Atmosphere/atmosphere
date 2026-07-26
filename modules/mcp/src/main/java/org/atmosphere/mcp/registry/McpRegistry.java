@@ -164,8 +164,32 @@ public final class McpRegistry {
 
     /**
      * Metadata for a method parameter.
+     *
+     * <p>{@code schema} carries the structural JSON-Schema facets that
+     * {@code type} alone cannot express — the closed value set of an enum, the
+     * element type of an array, the nested properties of an object. It is
+     * empty for a plain scalar parameter, in which case
+     * {@link #inputSchema(ToolEntry)} emits exactly the flat
+     * {@code type}/{@code description} pair it always did.</p>
+     *
+     * @param name        parameter name as exposed to the MCP client
+     * @param description human-readable description
+     * @param required    whether the client must supply this parameter
+     * @param type        the Java type the parameter binds to
+     * @param schema      extra JSON-Schema facets ({@code enum}, {@code items},
+     *                    {@code properties}, ...); never {@code null}
      */
-    public record ParamEntry(String name, String description, boolean required, Class<?> type) {}
+    public record ParamEntry(String name, String description, boolean required, Class<?> type,
+                             Map<String, Object> schema) {
+        public ParamEntry {
+            schema = schema == null ? Map.of() : Map.copyOf(schema);
+        }
+
+        /** Flat-parameter constructor: no structural facets. */
+        public ParamEntry(String name, String description, boolean required, Class<?> type) {
+            this(name, description, required, type, Map.of());
+        }
+    }
 
     /**
      * MCP 2025-06-18 / 2025-11-25 spec extensions: human-friendly display
@@ -458,6 +482,12 @@ public final class McpRegistry {
             if (!param.description().isEmpty()) {
                 prop.put("description", param.description());
             }
+            // Structural facets (enum values, array items, nested object
+            // properties) either derived from the Java type at scan time or
+            // carried in from an upstream ToolDefinition. They override the
+            // flat type when they disagree — an enum is a string with a value
+            // list, not the bare "string" the class mapping produces.
+            prop.putAll(param.schema());
             properties.put(param.name(), prop);
             if (param.required()) {
                 required.add(param.name());
@@ -481,13 +511,14 @@ public final class McpRegistry {
             if (isInjectableType(p.getType())) {
                 continue;
             }
+            var facets = schemaFacets(p.getType(), p.getParameterizedType());
             var mcpParam = p.getAnnotation(McpParam.class);
             if (mcpParam != null) {
                 params.add(new ParamEntry(mcpParam.name(), mcpParam.description(),
-                        mcpParam.required(), p.getType()));
+                        mcpParam.required(), p.getType(), facets));
             } else {
                 // Fall back to parameter name if -parameters compiler flag is used
-                params.add(new ParamEntry(p.getName(), "", true, p.getType()));
+                params.add(new ParamEntry(p.getName(), "", true, p.getType(), facets));
             }
         }
         return params;
@@ -510,6 +541,11 @@ public final class McpRegistry {
         if (type == org.atmosphere.mcp.protocol.McpInputContext.class) {
             return true;
         }
+        // Server→client request surface (sampling / roots / elicitation) —
+        // injected per invocation, never asked of the model.
+        if (type == org.atmosphere.mcp.runtime.McpServerContext.class) {
+            return true;
+        }
         // atmosphere-ai StreamingSession (optional dependency)
         try {
             var streamingSessionClass = Class.forName("org.atmosphere.ai.StreamingSession");
@@ -529,6 +565,72 @@ public final class McpRegistry {
         if (type == double.class || type == Double.class) return "number";
         if (type == float.class || type == Float.class) return "number";
         if (type == boolean.class || type == Boolean.class) return "boolean";
+        if (type.isEnum()) return "string";
+        if (type.isArray() || java.util.Collection.class.isAssignableFrom(type)) return "array";
         return "string";
+    }
+
+    /**
+     * Derive the structural JSON-Schema facets a Java parameter type implies:
+     * {@code enum} for an enum class, {@code items.type} for arrays and
+     * collections (element type resolved from the generic argument when
+     * present), and nested {@code properties}/{@code required} for records.
+     * Returns an empty map for plain scalars, which keeps their emitted schema
+     * byte-identical to previous releases.
+     *
+     * <p>Kept local to {@code atmosphere-mcp} rather than shared with
+     * {@code ToolParameter}: this module must keep working with
+     * {@code atmosphere-ai} absent from the classpath.</p>
+     */
+    private static Map<String, Object> schemaFacets(Class<?> type,
+                                                    java.lang.reflect.Type genericType) {
+        return schemaFacets(type, genericType, 0);
+    }
+
+    private static Map<String, Object> schemaFacets(Class<?> type,
+                                                    java.lang.reflect.Type genericType,
+                                                    int depth) {
+        if (type.isEnum()) {
+            var names = new ArrayList<String>();
+            for (var constant : type.getEnumConstants()) {
+                names.add(((Enum<?>) constant).name());
+            }
+            return Map.of("enum", names);
+        }
+        if (type.isArray()) {
+            return Map.of("items", Map.of("type", jsonSchemaType(type.getComponentType())));
+        }
+        if (java.util.Collection.class.isAssignableFrom(type)) {
+            var element = collectionElement(genericType);
+            return element == null ? Map.of()
+                    : Map.of("items", Map.of("type", jsonSchemaType(element)));
+        }
+        if (type.isRecord() && depth < 3) {
+            var properties = new LinkedHashMap<String, Object>();
+            var required = new ArrayList<String>();
+            for (var component : type.getRecordComponents()) {
+                var prop = new LinkedHashMap<String, Object>();
+                prop.put("type", jsonSchemaType(component.getType()));
+                prop.putAll(schemaFacets(component.getType(), component.getGenericType(), depth + 1));
+                properties.put(component.getName(), prop);
+                required.add(component.getName());
+            }
+            if (properties.isEmpty()) {
+                return Map.of();
+            }
+            return Map.of("type", "object", "properties", properties, "required", required);
+        }
+        return Map.of();
+    }
+
+    /** Element class of a {@code Collection<E>}; {@code null} when unresolvable. */
+    private static Class<?> collectionElement(java.lang.reflect.Type genericType) {
+        if (genericType instanceof java.lang.reflect.ParameterizedType parameterized) {
+            var args = parameterized.getActualTypeArguments();
+            if (args.length == 1 && args[0] instanceof Class<?> element) {
+                return element;
+            }
+        }
+        return null;
     }
 }

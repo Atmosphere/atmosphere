@@ -41,6 +41,7 @@ import io.quarkus.deployment.builditem.nativeimage.RuntimeInitializedClassBuildI
 import io.quarkus.smallrye.health.deployment.spi.HealthBuildItem;
 import io.quarkus.undertow.deployment.IgnoredServletContainerInitializerBuildItem;
 import io.quarkus.undertow.deployment.ServletBuildItem;
+import io.quarkus.vertx.http.deployment.NonApplicationRootPathBuildItem;
 import io.quarkus.websockets.client.deployment.ServerWebSocketContainerBuildItem;
 import org.atmosphere.cpr.AtmosphereAnnotations;
 import org.atmosphere.cpr.AtmosphereReflectiveTypes;
@@ -48,6 +49,7 @@ import org.atmosphere.quarkus.runtime.AtmosphereConfig;
 import org.atmosphere.quarkus.runtime.AtmosphereConsoleInfoServlet;
 import org.atmosphere.quarkus.runtime.AtmosphereRecorder;
 import org.atmosphere.quarkus.runtime.QuarkusAtmosphereServlet;
+import org.eclipse.microprofile.config.ConfigProvider;
 import org.jboss.jandex.AnnotationInstance;
 import org.jboss.jandex.DotName;
 import org.jboss.jandex.IndexView;
@@ -491,7 +493,8 @@ class AtmosphereProcessor {
      * whether the registered handler was AI-shaped or {@code @ManagedService}.
      */
     @BuildStep
-    ServletBuildItem registerConsoleInfoServlet(AtmosphereConfig config) {
+    ServletBuildItem registerConsoleInfoServlet(AtmosphereConfig config,
+                                                NonApplicationRootPathBuildItem nonApplicationRootPath) {
         ServletBuildItem.Builder builder = ServletBuildItem.builder(
                         "AtmosphereConsoleInfoServlet",
                         AtmosphereConsoleInfoServlet.class.getName())
@@ -517,6 +520,21 @@ class AtmosphereProcessor {
         if (isClassPresent("org.atmosphere.checkpoint.CheckpointStore")) {
             builder.addInitParam(AtmosphereConsoleInfoServlet.HAS_CHECKPOINTS_PARAM, "true");
         }
+        // Micrometer metrics parity for the console's Observability tab: resolve
+        // the Prometheus export route exactly the way quarkus-micrometer does —
+        // a relative path lives under the non-application root (default /q), an
+        // absolute override passes through — and hand the resolved string to the
+        // servlet. Passing it unconditionally is deliberate: it is a route
+        // *spelling*, not a capability claim. Whether the console is told the
+        // plane exists is decided at runtime by AtmosphereMetricsProducer
+        // confirming a Prometheus registry genuinely booted, because this
+        // build step runs in the augmentation classloader and cannot see the
+        // application's registry classes at all (Runtime Truth — Invariant #5).
+        String prometheusPath = ConfigProvider.getConfig()
+                .getOptionalValue("quarkus.micrometer.export.prometheus.path", String.class)
+                .orElse("metrics");
+        builder.addInitParam(AtmosphereConsoleInfoServlet.METRICS_PATH_PARAM,
+                nonApplicationRootPath.resolvePath(prometheusPath));
         return builder.build();
     }
 
@@ -743,6 +761,26 @@ class AtmosphereProcessor {
                 "org.atmosphere.quarkus.runtime.AtmosphereCostAccountantProducer"));
         logger.info("Atmosphere cost accountant producer registered "
                 + "(quarkus.atmosphere.ai.guardrails.cost.enabled or CDI beans gate installation)");
+    }
+
+    /**
+     * Registers the gateway-profile producer when {@code atmosphere-ai} is on
+     * the classpath ({@code AiGatewayHolder} lives there). The bean is a no-op
+     * unless {@code quarkus.atmosphere.ai.gateway.profile=production}, which
+     * installs the enforcing {@code GatewayProfiles.production()} limits into
+     * the process-wide holder — the Quarkus mirror of the Spring Boot
+     * starter's {@code atmosphere.ai.gateway.profile} key. Registering it
+     * unconditionally costs one startup observer.
+     */
+    @BuildStep
+    void registerGatewayProducer(BuildProducer<AdditionalBeanBuildItem> beans) {
+        if (!isClassPresent("org.atmosphere.ai.gateway.AiGatewayHolder")) {
+            return;
+        }
+        beans.produce(AdditionalBeanBuildItem.unremovableOf(
+                "org.atmosphere.quarkus.runtime.AtmosphereGatewayProducer"));
+        logger.info("Atmosphere gateway producer registered "
+                + "(quarkus.atmosphere.ai.gateway.profile gates installation)");
     }
 
     /**

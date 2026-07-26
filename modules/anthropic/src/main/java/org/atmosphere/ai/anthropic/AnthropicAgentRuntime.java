@@ -63,6 +63,14 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
     private static final String DEFAULT_MODEL = "claude-sonnet-4-6";
 
     /**
+     * Short-TTL cache for {@link #models()}. Best-effort: a failed or empty
+     * live enumeration falls through to the configured-model fallback and is
+     * not negatively cached.
+     */
+    private final org.atmosphere.ai.llm.CachedModelList modelCache =
+            new org.atmosphere.ai.llm.CachedModelList();
+
+    /**
      * The fallback model used only when neither the per-request
      * {@link AgentExecutionContext#model()} nor {@link AiConfig#model()} pins
      * one. Deployers override it without code via the {@code anthropic.model}
@@ -182,6 +190,33 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
         return streamThroughGatewayWithHandle(context, session, defaultModel(), client::stream);
     }
 
+    /**
+     * Live model enumeration via Anthropic's {@code GET /v1/models}, cached
+     * for a short TTL and always falling back to the configured model on any
+     * error, timeout, or empty result — enumeration failure can never break
+     * dispatch. Backs {@link AiCapability#MODEL_ENUMERATION}.
+     */
+    @Override
+    public java.util.List<String> models() {
+        var client = getNativeClient();
+        if (client == null) {
+            return fallbackModels();
+        }
+        return modelCache.get("Anthropic", client::listModels, this::fallbackModels);
+    }
+
+    /**
+     * Configured-model fallback for {@link #models()}: the framework-resolved
+     * {@link AiConfig} model when set, otherwise this runtime's
+     * {@link #defaultModel()} (which honors the {@code anthropic.model}
+     * system property). Never empty — an admin surface always sees the model
+     * this runtime would actually dispatch with.
+     */
+    private java.util.List<String> fallbackModels() {
+        var configured = super.models();
+        return configured.isEmpty() ? java.util.List.of(defaultModel()) : configured;
+    }
+
     @Override
     public Set<AiCapability> capabilities() {
         // Honest floor — every entry here corresponds to a code path
@@ -228,15 +263,37 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
         //                            commands (view/create/str_replace/
         //                            insert/delete/rename) against
         //                            Atmosphere's bounded store.
+        //   TOOL_CALL_DELTA       — AnthropicMessagesClient
+        //                            .handleContentBlockDelta forwards every
+        //                            input_json_delta fragment's partial_json
+        //                            via session.toolCallDelta(id, chunk) so
+        //                            browser UIs render partial tool-argument
+        //                            JSON before the consolidated
+        //                            AiEvent.ToolStart frame fires. Same
+        //                            posture as Cohere's tool-call-delta loop
+        //                            and Built-in's chat-completions loop.
+        //   PROMPT_CACHING        — buildRequestBody realizes the portable
+        //                            CacheHint as Anthropic cache_control
+        //                            breakpoints: the system prompt switches
+        //                            to the block form carrying
+        //                            {"type":"ephemeral"} and the last tool
+        //                            definition carries a second breakpoint
+        //                            (AGGRESSIVE / >=1h hints request the
+        //                            "1h" extended TTL). cache_read_input_tokens
+        //                            from message_delta already flows to
+        //                            TokenUsage.cachedInput, so the saving is
+        //                            observable end-to-end.
+        //   MODEL_ENUMERATION     — models() calls GET /v1/models through
+        //                            AnthropicMessagesClient.listModels(),
+        //                            cached for a short TTL and always falling
+        //                            back to the configured model on any
+        //                            error/timeout/empty result.
         // NOT claimed:
         //   PLANNING              — the Anthropic API has no plan object to
         //                            delegate to; the harness PLANNING floor
         //                            (write_todos) covers this runtime.
-        //   TOOL_CALL_DELTA       — input_json_delta arrives but is not
-        //                            forwarded via session.toolCallDelta yet
         //   AUDIO                 — Anthropic Messages has no audio block
         //                            (Content.Audio is dropped with a debug log)
-        //   PROMPT_CACHING        — cache_control blocks deferred
         return Set.of(
                 AiCapability.TEXT_STREAMING,
                 AiCapability.SYSTEM_PROMPT,
@@ -253,6 +310,9 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
                 AiCapability.VISION,
                 AiCapability.MULTI_MODAL,
                 AiCapability.VIRTUAL_FILESYSTEM,
+                AiCapability.TOOL_CALL_DELTA,
+                AiCapability.PROMPT_CACHING,
+                AiCapability.MODEL_ENUMERATION,
                 // CANCELLATION: doExecuteWithHandle returns a live handle whose
                 // cancel() flips a `cancelled` flag the streaming worker polls,
                 // stopping token forwarding and settling whenDone().

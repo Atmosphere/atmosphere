@@ -17,11 +17,18 @@ import { test, expect, Page } from '@playwright/test';
 
 /**
  * E2E wire contract for the kotlin-dsl-chat sample (shaded jar, embedded
- * Jetty 12, handler built with the Kotlin `atmosphere {}` DSL).
+ * Jetty 12, endpoint built with the Kotlin `atmosphere {}` transport DSL,
+ * replies produced by an agent declared with the Kotlin `registerAgent {}`
+ * agent DSL).
  *
  * REQUIRES: samples/kotlin-dsl-chat running on port 8099
  *   ./mvnw -q -pl samples/kotlin-dsl-chat -am package -DskipTests
- *   java -jar samples/kotlin-dsl-chat/target/atmosphere-kotlin-dsl-chat-*.jar
+ *   env -u LLM_API_KEY -u GEMINI_API_KEY -u OPENAI_API_KEY -u ANTHROPIC_API_KEY \
+ *     java -jar samples/kotlin-dsl-chat/target/atmosphere-kotlin-dsl-chat-*.jar
+ *
+ * The agent resolves its runtime the same way an @Agent does, so the provider
+ * keys must be unset for the deterministic offline runtime — and therefore
+ * these fixed answers — to be the ones under test.
  *
  * Pins the three failure modes the 4.0.60 release-gate sweep caught in the
  * packaged jar — none visible to unit tests, because all three live at the
@@ -105,7 +112,7 @@ test.describe('kotlin-dsl-chat: DSL endpoint wire contract', () => {
     // Regression 1: with no jakarta.websocket ServerContainer the upgrade
     // is refused with 501 and `opened` stays false.
     expect(result.opened, 'WebSocket upgrade must be accepted, not 501').toBe(true);
-    expect(result.msgs, 'DeterministicAgent must answer ping with pong').toContain('pong');
+    expect(result.msgs, 'the DSL agent must answer ping with pong').toContain('pong');
     expect(result.msgs, 'non-ping messages must be echoed').toContain('echo: release-gate');
   });
 

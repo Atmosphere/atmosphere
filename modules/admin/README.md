@@ -339,6 +339,29 @@ swaps in the durable SQLite stores (`SqliteEvalRunStore` +
 `SqliteEvalDatasetStore`, same bounds) so history and curated datasets
 survive restart; a user-defined store `@Bean` still wins.
 
+#### Schema versioning
+
+Both SQLite eval stores stamp their schema version when they open, via
+`org.atmosphere.admin.evals.SchemaMigrations` (a package-local copy of the
+canonical `org.atmosphere.checkpoint.SchemaMigrations`, copied so `admin` gains
+no dependency on `atmosphere-checkpoint`). The version lives in a shared
+`atmosphere_schema_version (component, version)` table keyed by the anchor
+table — `eval_runs` and `eval_dataset` respectively — so the two stores version
+independently even when they share one database file (the common case, since
+`atmosphere.admin.evals.db` points both at the same path).
+
+- Fresh database → every migration step runs, final version stamped.
+- Unstamped database whose tables exist → adopted as version 1, later steps run.
+- Already current → no-op.
+- Stamped **newer** than this build → the constructor refuses with an
+  `IllegalStateException` naming the file, the found version, and the supported
+  version, and closes the connection it opened.
+
+To add a migration, append one idempotent step to `createSchema()` in the
+relevant store — never edit or reorder an existing step — and update the
+expected version in `SqliteEvalStoreSchemaVersionTest`. Both eval schemas are
+currently at version 1.
+
 ### Running Evals
 
 `POST /api/admin/evals/run` replays the curated dataset against the live

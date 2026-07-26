@@ -518,6 +518,82 @@ public class AtmosphereAiAutoConfiguration {
     }
 
     /**
+     * Opt-in production gateway profile. Off by default — the framework keeps
+     * the permissive dev gateway (1M calls/hour) until an operator sets
+     * {@code atmosphere.ai.gateway.profile=production}, which installs the
+     * {@link org.atmosphere.ai.gateway.GatewayProfiles#production()} limits
+     * into the process-wide {@code AiGatewayHolder}: a per-principal request
+     * ceiling plus a separate, tighter ceiling for the shared
+     * {@link org.atmosphere.ai.gateway.AiGateway#ANONYMOUS_USER} bucket every
+     * unauthenticated caller collapses into. Each dimension is overridable via
+     * {@code atmosphere.ai.gateway.max-requests-per-window},
+     * {@code .window-seconds}, and {@code .anonymous-max-requests}.
+     */
+    @Bean
+    @ConditionalOnMissingBean(GatewayProfileInstaller.class)
+    @ConditionalOnProperty(name = "atmosphere.ai.gateway.profile",
+            havingValue = org.atmosphere.ai.gateway.GatewayProfiles.PRODUCTION)
+    public GatewayProfileInstaller atmosphereGatewayProfileInstaller(
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.gateway.max-requests-per-window:0}") int maxRequests,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.gateway.window-seconds:0}") int windowSeconds,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${atmosphere.ai.gateway.anonymous-max-requests:0}") int anonymousMaxRequests,
+            org.springframework.beans.factory.ObjectProvider<
+                    org.atmosphere.ai.gateway.AiGateway.CredentialResolver> resolverProvider,
+            org.springframework.beans.factory.ObjectProvider<
+                    org.atmosphere.ai.gateway.AiGateway.GatewayTraceExporter> exporterProvider) {
+        var resolver = resolverProvider.getIfAvailable(
+                org.atmosphere.ai.gateway.AiGateway.CredentialResolver::noop);
+        var exporter = exporterProvider.getIfAvailable(
+                org.atmosphere.ai.gateway.AiGateway.GatewayTraceExporter::noop);
+        var gateway = org.atmosphere.ai.gateway.GatewayProfiles.production(
+                maxRequests,
+                windowSeconds > 0 ? java.time.Duration.ofSeconds(windowSeconds) : null,
+                anonymousMaxRequests, resolver, exporter);
+        return new GatewayProfileInstaller(gateway);
+    }
+
+    /**
+     * Installs the configured {@link org.atmosphere.ai.gateway.AiGateway} into
+     * the process-wide {@code AiGatewayHolder} on startup and restores the
+     * permissive default on shutdown, so a context restart never leaves a
+     * stale gateway behind (Ownership, Correctness Invariant #1).
+     */
+    static final class GatewayProfileInstaller
+            implements org.springframework.beans.factory.SmartInitializingSingleton,
+                       org.springframework.beans.factory.DisposableBean {
+
+        private final org.atmosphere.ai.gateway.AiGateway gateway;
+
+        GatewayProfileInstaller(org.atmosphere.ai.gateway.AiGateway gateway) {
+            this.gateway = gateway;
+        }
+
+        @Override
+        public void afterSingletonsInstantiated() {
+            org.atmosphere.ai.gateway.AiGatewayHolder.install(gateway);
+            logger.info("AiGateway production profile installed "
+                            + "({} requests / {}s per principal, {} for the shared "
+                            + "anonymous bucket)",
+                    gateway.rateLimiter().maxRequests(),
+                    gateway.rateLimiter().window().toSeconds(),
+                    gateway.anonymousRateLimiter().maxRequests());
+        }
+
+        @Override
+        public void destroy() {
+            org.atmosphere.ai.gateway.AiGatewayHolder.reset();
+        }
+
+        /** Exposed so tests can assert the exact gateway that was installed. */
+        org.atmosphere.ai.gateway.AiGateway gateway() {
+            return gateway;
+        }
+    }
+
+    /**
      * Publishes a {@link org.atmosphere.ai.cost.CostAccountant} into the
      * process-wide holder the {@code AiStreamingSession} decorator chain reads.
      * Priority: user-supplied {@code CostAccountant} bean, else a built-in

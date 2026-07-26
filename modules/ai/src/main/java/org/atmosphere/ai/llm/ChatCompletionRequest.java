@@ -47,7 +47,8 @@ public record ChatCompletionRequest(
         RetryPolicy retryPolicy,
         ToolApprovalPolicy approvalPolicy,
         ToolLoopPolicy toolLoopPolicy,
-        String jsonSchema
+        String jsonSchema,
+        boolean logprobs
 ) {
     /**
      * Canonical constructor. {@code retryPolicy} is a per-request override
@@ -71,6 +72,30 @@ public record ChatCompletionRequest(
         // wire shape. A non-null value upgrades to provider-enforced strict
         // {@code json_schema} (set only when the pipeline opts into native
         // structured output via NativeStructuredOutput.shouldApply).
+        // logprobs=false preserves the historical wire shape; true asks
+        // OpenAiCompatibleClient to request token logprobs (subject to the
+        // LogprobsMode endpoint gate) so it can emit a LOGPROBS_NATIVE
+        // AiConfidence on completion.
+    }
+
+    /**
+     * Shim constructor accepting the 15-arg form (without {@code logprobs}).
+     * Defaults {@code logprobs} to {@code false} so every existing call site —
+     * including the prior canonical signature — keeps emitting the historical
+     * wire shape (no {@code logprobs} field).
+     */
+    public ChatCompletionRequest(String model, List<ChatMessage> messages,
+                                 double temperature, int maxStreamingTexts,
+                                 boolean jsonMode, List<ToolDefinition> tools,
+                                 String conversationId, ApprovalStrategy approvalStrategy,
+                                 List<org.atmosphere.ai.Content> parts,
+                                 List<org.atmosphere.ai.AgentLifecycleListener> listeners,
+                                 CacheHint cacheHint, RetryPolicy retryPolicy,
+                                 ToolApprovalPolicy approvalPolicy, ToolLoopPolicy toolLoopPolicy,
+                                 String jsonSchema) {
+        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools,
+                conversationId, approvalStrategy, parts, listeners, cacheHint, retryPolicy,
+                approvalPolicy, toolLoopPolicy, jsonSchema, false);
     }
 
     /**
@@ -89,7 +114,7 @@ public record ChatCompletionRequest(
                                  ToolApprovalPolicy approvalPolicy, ToolLoopPolicy toolLoopPolicy) {
         this(model, messages, temperature, maxStreamingTexts, jsonMode, tools,
                 conversationId, approvalStrategy, parts, listeners, cacheHint, retryPolicy,
-                approvalPolicy, toolLoopPolicy, null);
+                approvalPolicy, toolLoopPolicy, null, false);
     }
 
     /**
@@ -234,6 +259,7 @@ public record ChatCompletionRequest(
         private ToolApprovalPolicy approvalPolicy;
         private ToolLoopPolicy toolLoopPolicy = ToolLoopPolicy.DEFAULT;
         private String jsonSchema;
+        private boolean logprobs;
 
         private Builder(String model) {
             this.model = model;
@@ -375,10 +401,25 @@ public record ChatCompletionRequest(
             return this;
         }
 
+        /**
+         * Ask {@link OpenAiCompatibleClient} to request token logprobs
+         * ({@code logprobs: true} on the chat-completions wire, subject to the
+         * {@link LogprobsMode} endpoint gate) so the streamed response can be
+         * folded into an {@link org.atmosphere.ai.AiConfidence} with source
+         * {@code LOGPROBS_NATIVE}. Set by {@code BuiltInAgentRuntime} when a
+         * confidence elicitation is active for the request; defaults to
+         * {@code false}, which keeps the wire shape byte-identical to today.
+         */
+        public Builder logprobs(boolean logprobs) {
+            this.logprobs = logprobs;
+            return this;
+        }
+
         public ChatCompletionRequest build() {
             return new ChatCompletionRequest(model, List.copyOf(messages),
                     temperature, maxStreamingTexts, jsonMode, tools, conversationId, approvalStrategy,
-                    parts, listeners, cacheHint, retryPolicy, approvalPolicy, toolLoopPolicy, jsonSchema);
+                    parts, listeners, cacheHint, retryPolicy, approvalPolicy, toolLoopPolicy,
+                    jsonSchema, logprobs);
         }
     }
 }

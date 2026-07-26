@@ -34,6 +34,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -77,6 +79,67 @@ class McpToolSourceTest {
         assertTrue(byName.get("city").required(), "city is in required[] — must be required");
         assertFalse(byName.get("units").required(), "units is not in required[] — must be optional");
         assertEquals("string", byName.get("city").type());
+    }
+
+    @Test
+    void carriesRemoteSchemaStructureIntoTheToolDefinition() throws Exception {
+        // A remote server's enum / array / nested-object contract must survive
+        // the import. Before this, only type+description were read, so the
+        // local model saw an under-specified schema for every remote tool.
+        var schema = new McpSchema.JsonSchema(
+                "object",
+                Map.of(
+                        "unit", Map.of("type", "string", "description", "Unit",
+                                "enum", List.of("CELSIUS", "FAHRENHEIT")),
+                        "tags", Map.of("type", "array", "items", Map.of("type", "string")),
+                        "at", Map.of("type", "object",
+                                "properties", Map.of(
+                                        "lat", Map.of("type", "number"),
+                                        "lon", Map.of("type", "number")),
+                                "required", List.of("lat"))
+                ),
+                List.of("unit"),
+                Boolean.FALSE, null, null);
+        var tool = new McpSchema.Tool("convert", null, "Convert", schema, null, null, null);
+
+        var def = invokeTranslate(tool, mock(McpSyncClient.class), "test://server").get(0);
+        var byName = def.parameters().stream()
+                .collect(java.util.stream.Collectors.toMap(p -> p.name(), p -> p));
+
+        assertEquals(List.of("CELSIUS", "FAHRENHEIT"), byName.get("unit").enumValues());
+        assertEquals("string", byName.get("tags").items().type());
+        var nested = byName.get("at").properties().stream()
+                .collect(java.util.stream.Collectors.toMap(p -> p.name(), p -> p));
+        assertEquals(2, nested.size(), nested.keySet().toString());
+        assertTrue(nested.get("lat").required(), "lat is in the nested required[]");
+        assertFalse(nested.get("lon").required(), "lon is not in the nested required[]");
+    }
+
+    @Test
+    void breakerShortCircuitsAfterConsecutiveFailures() throws Exception {
+        var schema = new McpSchema.JsonSchema(
+                "object", Map.of(), List.of(), Boolean.FALSE, null, null);
+        var tool = new McpSchema.Tool("flaky", null, "Flaky tool", schema, null, null, null);
+
+        var client = mock(McpSyncClient.class);
+        when(client.callTool(any(McpSchema.CallToolRequest.class)))
+                .thenThrow(new IllegalStateException("server down"));
+
+        var metrics = new McpToolMetrics();
+        var breaker = new McpToolBreaker(2, 60_000L);
+        var def = invokeTranslateWithMetrics(tool, client, "test://server", metrics, breaker);
+
+        for (int i = 0; i < 2; i++) {
+            assertThrows(Exception.class, () -> def.executor().execute(Map.of()));
+        }
+        assertEquals(McpToolBreaker.State.OPEN, breaker.state());
+
+        // The breaker is open: the next call must NOT reach the transport,
+        // and must come back as a tool error rather than another timeout.
+        var shortCircuited = def.executor().execute(Map.of());
+        assertTrue(String.valueOf(shortCircuited).contains("circuit breaker open"),
+                "an open breaker must fail fast with a tool error: " + shortCircuited);
+        verify(client, times(2)).callTool(any(McpSchema.CallToolRequest.class));
     }
 
     @Test
@@ -207,10 +270,21 @@ class McpToolSourceTest {
 
     private static org.atmosphere.ai.tool.ToolDefinition invokeTranslateWithMetrics(
             McpSchema.Tool tool, McpSyncClient client, String label, McpToolMetrics metrics) throws Exception {
+        // A disabled breaker keeps these translation/metrics assertions
+        // focused; McpToolBreakerTest covers the breaking behaviour itself.
+        return invokeTranslateWithMetrics(tool, client, label, metrics,
+                new McpToolBreaker(0, 0L));
+    }
+
+    private static org.atmosphere.ai.tool.ToolDefinition invokeTranslateWithMetrics(
+            McpSchema.Tool tool, McpSyncClient client, String label, McpToolMetrics metrics,
+            McpToolBreaker breaker) throws Exception {
         Method translate = McpToolSource.class.getDeclaredMethod(
-                "toDefinition", McpSchema.Tool.class, McpSyncClient.class, String.class, McpToolMetrics.class);
+                "toDefinition", McpSchema.Tool.class, McpSyncClient.class, String.class,
+                McpToolMetrics.class, McpToolBreaker.class);
         translate.setAccessible(true);
-        return (org.atmosphere.ai.tool.ToolDefinition) translate.invoke(null, tool, client, label, metrics);
+        return (org.atmosphere.ai.tool.ToolDefinition)
+                translate.invoke(null, tool, client, label, metrics, breaker);
     }
 
     /**
@@ -263,7 +337,7 @@ class McpToolSourceTest {
         // MCP server because mocking the transport+session+SDK chain is
         // brittle and adds little signal over the integration test.
         Constructor<?> ctor = McpToolSource.class.getDeclaredConstructor(
-                McpSyncClient.class, List.class, String.class, Map.class);
+                McpSyncClient.class, List.class, String.class, Map.class, Map.class);
         assertTrue(java.lang.reflect.Modifier.isPrivate(ctor.getModifiers()),
                 "constructor must stay private — connect() is the only entry");
     }

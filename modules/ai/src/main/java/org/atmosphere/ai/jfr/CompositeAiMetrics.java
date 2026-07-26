@@ -117,10 +117,11 @@ public final class CompositeAiMetrics implements AiMetrics {
 
     /**
      * Fan out the provider-aware overload verbatim. Without this override the
-     * interface default downgrades every composite-wrapped call to the 4-arg
-     * form, so delegates silently lose the resolved provider name and the
+     * interface default would downgrade to the 4-arg form <em>before</em> the
+     * fan-out, so delegates silently lose the resolved provider name and the
      * response model whenever JFR metrics are active (Runtime Truth, Mode
-     * Parity) — and, with the cached-input overload below, the cached count too.
+     * Parity) — and the pipeline always routes metrics through this composite
+     * ({@link #withJfr}), so the loss would be on the production path.
      */
     @Override
     public void recordTokenUsage(String provider, String requestModel, String responseModel,
@@ -135,6 +136,10 @@ public final class CompositeAiMetrics implements AiMetrics {
         }
     }
 
+    /**
+     * Fan out the cache-aware overload verbatim so each delegate applies its
+     * own default-method downgrade (or handles the cached count natively).
+     */
     @Override
     public void recordTokenUsage(String provider, String requestModel, String responseModel,
                                  long inputTokens, long outputTokens, long cachedInputTokens,

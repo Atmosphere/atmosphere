@@ -475,8 +475,16 @@ public class CoordinatorProcessor implements Processor<Object> {
             extended.addAll(policies);
             policies = List.copyOf(extended);
         }
-        return new AiPipeline(runtime, systemPrompt, model, memory,
+        var pipeline = new AiPipeline(runtime, systemPrompt, model, memory,
                 toolRegistry, List.of(), policies, List.of(), metrics, null);
+        // Opt-in response cache (org.atmosphere.ai.cache.semantic=true). The
+        // cache gate lives in AiPipeline.execute, which is exactly this
+        // surface — the coordinator's A2A / AG-UI / channel dispatch. Off by
+        // default, and a no-op when no EmbeddingRuntime backs it, so an
+        // unconfigured coordinator behaves exactly as before.
+        org.atmosphere.ai.cache.ResponseCacheConfig.install(
+                pipeline, framework.getAtmosphereConfig());
+        return pipeline;
     }
 
     /**
@@ -1231,6 +1239,10 @@ public class CoordinatorProcessor implements Processor<Object> {
             var protocolHandler =
                     new org.atmosphere.a2a.runtime.A2aProtocolHandler(
                             registry, taskManager, card);
+            // Raw @AgentSkill handlers are invoked reflectively and never reach
+            // AiPipeline's pre-admission loop; the framework reference lets the
+            // handler resolve the installed governance chain.
+            protocolHandler.setFramework(framework);
             var a2aHandler =
                     new org.atmosphere.a2a.runtime.A2aHandler(protocolHandler);
 

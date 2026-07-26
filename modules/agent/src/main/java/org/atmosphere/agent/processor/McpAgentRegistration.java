@@ -88,7 +88,7 @@ final class McpAgentRegistration {
                 for (var p : tool.parameters()) {
                     params.add(new McpRegistry.ParamEntry(
                             p.name(), p.description(), p.required(),
-                            jsonSchemaTypeToClass(p.type())));
+                            jsonSchemaTypeToClass(p.type()), schemaFacets(p)));
                 }
                 var executor = tool.executor();
                 mcpRegistry.registerTool(tool.name(), tool.description(),
@@ -139,5 +139,22 @@ final class McpAgentRegistration {
             case "array" -> java.util.List.class;
             default -> String.class;
         };
+    }
+
+    /**
+     * Carry a tool parameter's structural JSON-Schema facets ({@code enum},
+     * array {@code items}, nested object {@code properties}) into the MCP
+     * registry entry. Without this the round-trip through
+     * {@link #jsonSchemaTypeToClass} flattens every parameter to a bare type
+     * name, so an {@code @AiTool} enum or nested-record argument reached MCP
+     * clients under-specified. {@code description} is dropped because
+     * {@code ParamEntry} carries it separately.
+     */
+    private static java.util.Map<String, Object> schemaFacets(
+            org.atmosphere.ai.tool.ToolParameter parameter) {
+        var schema = new java.util.LinkedHashMap<>(
+                org.atmosphere.ai.tool.ToolBridgeUtils.parameterSchemaMap(parameter));
+        schema.remove("description");
+        return schema;
     }
 }

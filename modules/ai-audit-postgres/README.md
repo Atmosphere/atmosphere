@@ -70,6 +70,33 @@ platform migrations:
 new JdbcAuditSink(ds, "audit_governance", false);
 ```
 
+### Schema versioning
+
+When `autoCreate` is set, the sink stamps the schema it creates through the
+package-local `SchemaMigrations` (a copy of the canonical
+`org.atmosphere.checkpoint.SchemaMigrations`, copied so this module gains no
+dependency on `atmosphere-checkpoint`). The version lives in a shared
+`atmosphere_schema_version (component, version)` table keyed by the **table
+name**, so several sinks over different tables version independently.
+
+With `autoCreate=false` the sink writes no DDL **and no version row** — it does
+not stamp a schema an operator owns.
+
+- Fresh table → the create step runs, version stamped.
+- Unstamped table that already exists → adopted as version 1.
+- Already current → no-op.
+- Stamped **newer** than this build → construction fails with an
+  `IllegalStateException` naming the database, the found version, and the
+  supported version. Note the asymmetry with the failure isolation above: a
+  *DDL* failure stays a warning ("assuming external DDL"), but a *version*
+  refusal propagates — rows would otherwise be written against a schema this
+  code cannot read.
+
+The audit-log schema is at **version 1**. To add a migration, append one
+idempotent step to `createSchemaIfMissing()` — never edit or reorder an
+existing step — and update `JdbcAuditSinkSchemaVersionTest`. The full
+convention is documented in `modules/checkpoint/README.md`.
+
 ## Operational notes
 
 - **DataSource ownership:** the sink never closes the `DataSource` —

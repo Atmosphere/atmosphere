@@ -115,6 +115,11 @@ class CohereRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 AiCapability.VISION,
                 AiCapability.MULTI_MODAL,
                 AiCapability.TOOL_CALL_DELTA,
+                // MODEL_ENUMERATION: models() calls GET /v1/models through
+                // CohereChatClient.listModels() with a configured-model
+                // fallback — round-trip pinned in
+                // CohereModelEnumerationTest.
+                AiCapability.MODEL_ENUMERATION,
                 AiCapability.CANCELLATION);
     }
 
@@ -131,6 +136,73 @@ class CohereRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 GenerationParamsSupport.TOP_P,
                 GenerationParamsSupport.STOP);
     }
+
+    /**
+     * {@code VISION} is proven by {@code CohereChatClientTest}'s
+     * {@code visionPartsTranslateToImageUrlBlock}, which pins the
+     * OpenAI-compatible {@code image_url} block and its {@code data:} URI on
+     * the outgoing v2 Chat body — a stronger assertion than the TCK's
+     * "dispatch does not throw" hook.
+     */
+    @Override
+    protected Map<AiCapability, String> capabilitiesCoveredOutsideTck() {
+        return Map.of(AiCapability.VISION, "CohereChatClientTest");
+    }
+
+    /**
+     * Exercise {@code runtimeAcceptsCustomRetryPolicyOnContext}. Cohere
+     * inherits {@code AbstractAgentRuntime.executeWithOuterRetry}, which wraps
+     * {@code doExecute} when the context carries a non-inherit policy.
+     */
+    @Override
+    protected AgentExecutionContext createRetryContext() {
+        return new AgentExecutionContext(
+                "Hello, no retries.", "You are helpful", "command-a-plus-05-2026",
+                null, "session-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), null, null, List.of(), List.of(),
+                org.atmosphere.ai.approval.ToolApprovalPolicy.annotated())
+                .withRetryPolicy(org.atmosphere.ai.RetryPolicy.NONE);
+    }
+
+    /**
+     * Cancellation fixture for Cohere.
+     * {@code AbstractAgentRuntime.streamThroughGatewayWithHandle} runs the
+     * native stream on a virtual thread and hands it a {@code cancelled} flag
+     * that {@code AbstractSseLlmClient}'s read loop polls once per SSE line;
+     * {@code cancel()} flips the flag and the loop exits at the next line,
+     * closing the response body on its way out.
+     *
+     * <p>The stub serves a message-start plus one content delta (so text has
+     * already reached the session) and then keeps the stream open with SSE
+     * comment lines, leaving the execution genuinely in flight. Closing that
+     * body is the observable native release, asserted exactly-once across
+     * repeated cancels.</p>
+     */
+    @Override
+    protected CancellationFixture createCancellationFixture() {
+        var streamOpens = new java.util.concurrent.atomic.AtomicInteger();
+        var streamCloses = new java.util.concurrent.atomic.AtomicInteger();
+        var httpClient = HttpRuntimeTestSupport.mockOpenEndedStreamHttpClient(
+                OPEN_ENDED_SSE_PREAMBLE, streamOpens, streamCloses);
+        var client = CohereChatClient.builder()
+                .apiKey("test-key")
+                .httpClient(httpClient)
+                .build();
+        return CancellationFixture
+                .of(new TestableCohereRuntime(client), createTextContext())
+                .withInFlightProbe("SSE response body opened", () -> streamOpens.get() > 0)
+                .withBackendRelease("SSE response body close()", streamCloses);
+    }
+
+    private static final String OPEN_ENDED_SSE_PREAMBLE = """
+            data: {"type":"message-start","id":"msg_1"}
+
+            data: {"type":"content-start","index":0}
+
+            data: {"type":"content-delta","index":0,"delta":{"message":{"content":{"text":"Hello"}}}}
+
+            """;
 
     @Test
     void runtimeNameIsCohere() {

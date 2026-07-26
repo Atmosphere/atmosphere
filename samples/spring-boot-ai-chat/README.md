@@ -111,6 +111,56 @@ local student from a larger teacher's tapes, then serve the student back through
 `AgentRuntime` SPI by pointing `LLM_BASE_URL` at it. The tape is off by default framework-wide;
 this sample opts in to demonstrate it.
 
+## Response cache: exact vs semantic
+
+`PromptCacheDemoChat` (`/atmosphere/ai-chat-with-cache`) routes prompts through a real
+`AiPipeline`, whose cache gate serves a stored response instead of calling the runtime. By
+default the cache is **exact** — it keys on the request hash, so only a byte-identical prompt
+hits.
+
+Setting the framework init-param `org.atmosphere.ai.cache.semantic=true` swaps in a
+`SemanticResponseCache`, which also serves a *reworded* prompt whose embedding is within the
+cosine threshold (default `0.92`) of a stored one — "what's the weather in Paris?" hits a
+response stored for "tell me the Paris weather". Tunable with
+`org.atmosphere.ai.cache.semantic.threshold`, `.max-entries`, and
+`org.atmosphere.ai.cache.ttl-minutes`.
+
+The semantic cache needs a real embedding backend. With no `EmbeddingRuntime` resolvable the
+framework seam declines rather than installing a cache that could never hit, and this endpoint
+keeps the exact cache. Either way it reports the resolved choice on the wire as
+`prompt.cache.kind` (`exact` | `semantic`) — runtime state, not configured intent.
+
+**Reachability:** the response cache is an `AiPipeline`-layer feature. It covers the pipeline
+dispatch paths — `@Coordinator` A2A / AG-UI / channel bridges, and endpoints like this one that
+route their `@Prompt` method through a pipeline. It is **not** wired into the plain
+`@AiEndpoint` websocket path, which has no response-cache gate.
+
+## Dev inspector (what did the model just see?)
+
+The tape above is the durable, replayable record. The **dev inspector** is its inner-loop
+counterpart: a bounded in-memory ring of the last N turns you read while iterating on a prompt.
+This sample turns it on (`atmosphere.ai.dev-inspector.enabled: true`, capacity 100).
+
+**What you'll see** — send any message, then read the turn back:
+
+```bash
+curl -s -H "X-Atmosphere-Auth: demo-token" \
+  'http://localhost:8080/api/admin/ai/dev/inspector?limit=5' | jq
+# -> [{ "at": ..., "sessionId": ..., "model": ...,
+#       "promptPreview": "...", "responsePreview": "...",
+#       "toolCalls": [...], "tokensIn": 0, "tokensOut": 0, "status": "OK", "error": "" }]
+```
+
+One entry per completed turn, newest first, capped at 2000 characters per preview. Capture is
+installed by the shared dispatch decorator chain, so `@AiEndpoint` streaming turns and
+`AiPipeline` turns (channels, A2A, coordinator) are both recorded. `DELETE` the same path with a
+write-authorized principal to clear the ring.
+
+**Posture** — entries hold prompt *and* response text, so the read is authenticated like every
+other recorded-content admin surface (`/tape/runs`, `/governance/decisions`): anonymous callers
+get `401`. A startup `WARN` fires while it is enabled. It is off by default framework-wide and
+should stay off in production — this sample opts in to demonstrate it.
+
 ## Configuration
 
 Set environment variables before running:

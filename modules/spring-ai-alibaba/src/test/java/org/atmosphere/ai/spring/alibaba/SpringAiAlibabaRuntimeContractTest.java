@@ -127,6 +127,34 @@ class SpringAiAlibabaRuntimeContractTest extends AbstractAgentRuntimeContractTes
         return Set.of();
     }
 
+    /**
+     * Both entries point at dedicated tests in this module that assert more
+     * than the TCK's hooks could:
+     * <ul>
+     *   <li>{@code VISION} — {@link SpringAiAlibabaVisionWireShapeTest} pins
+     *       the native media shape attached to the outgoing user message.</li>
+     *   <li>{@code CANCELLATION} — {@link SpringAiAlibabaAgentRuntimeCancelTest}
+     *       drives the handle against the runtime's own dispatch and asserts
+     *       the in-flight call is released.</li>
+     * </ul>
+     */
+    @Override
+    protected Map<AiCapability, String> capabilitiesCoveredOutsideTck() {
+        return Map.of(
+                AiCapability.VISION, "SpringAiAlibabaVisionWireShapeTest",
+                AiCapability.CANCELLATION, "SpringAiAlibabaAgentRuntimeCancelTest");
+    }
+
+    /**
+     * Exercise {@code runtimeAcceptsCustomRetryPolicyOnContext}. Alibaba
+     * inherits {@code AbstractAgentRuntime.executeWithOuterRetry}, which wraps
+     * {@code doExecute} when the context carries a non-inherit policy.
+     */
+    @Override
+    protected AgentExecutionContext createRetryContext() {
+        return createTextContext().withRetryPolicy(org.atmosphere.ai.RetryPolicy.NONE);
+    }
+
     static class TestableSpringAiAlibabaRuntime extends SpringAiAlibabaAgentRuntime {
         TestableSpringAiAlibabaRuntime(ReactAgent agent) {
             setNativeClient(agent);

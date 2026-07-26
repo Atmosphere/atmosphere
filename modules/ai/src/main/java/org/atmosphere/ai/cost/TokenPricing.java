@@ -47,8 +47,9 @@ public interface TokenPricing {
      * pricing sheet without modelling cached-input discounts or
      * provider-specific extras.
      *
-     * <p>Apps with more complex pricing (provider-specific cached-input
-     * discounts, reserved capacity, vision rates) implement
+     * <p>For a prompt-cache read discount use
+     * {@link #flatWithCachedDiscount(double, double, double)}; apps with more
+     * complex pricing (reserved capacity, vision rates) implement
      * {@link TokenPricing} directly rather than constructing this.</p>
      */
     static TokenPricing flat(double inputUsdPerMillion, double outputUsdPerMillion) {
@@ -62,6 +63,46 @@ public interface TokenPricing {
                 return 0.0;
             }
             return (usage.input() * inputUsdPerMillion
+                    + usage.output() * outputUsdPerMillion) / 1_000_000.0;
+        };
+    }
+
+    /**
+     * Three-rate pricing that discounts prompt-cache hits: cached input
+     * tokens are billed at {@code cachedInputUsdPerMillion} and the
+     * remaining (uncached) input tokens at {@code inputUsdPerMillion}.
+     * Follows the OpenAI-shaped usage report, where the cached count is a
+     * <em>subset</em> of {@link TokenUsage#input()} — the cached count is
+     * clamped to the input count, so a provider that reports cache reads
+     * disjoint from input (Anthropic's {@code cache_read_input_tokens},
+     * for example) never produces a negative uncached remainder. For
+     * disjoint-count billing, implement {@link TokenPricing} directly.
+     *
+     * <p>{@code flat(in, out)} is unchanged and equivalent to
+     * {@code flatWithCachedDiscount(in, in, out)}.</p>
+     *
+     * @param inputUsdPerMillion       USD per million uncached input tokens
+     * @param cachedInputUsdPerMillion USD per million cached input tokens
+     *                                 (the provider's prompt-cache read rate)
+     * @param outputUsdPerMillion      USD per million output tokens
+     */
+    static TokenPricing flatWithCachedDiscount(double inputUsdPerMillion,
+                                               double cachedInputUsdPerMillion,
+                                               double outputUsdPerMillion) {
+        if (inputUsdPerMillion < 0 || cachedInputUsdPerMillion < 0 || outputUsdPerMillion < 0) {
+            throw new IllegalArgumentException(
+                    "prices must be non-negative: in=" + inputUsdPerMillion
+                    + " cached=" + cachedInputUsdPerMillion
+                    + " out=" + outputUsdPerMillion);
+        }
+        return (usage, model) -> {
+            if (usage == null || !usage.hasCounts()) {
+                return 0.0;
+            }
+            long cached = Math.min(Math.max(usage.cachedInput(), 0L), usage.input());
+            long uncached = usage.input() - cached;
+            return (uncached * inputUsdPerMillion
+                    + cached * cachedInputUsdPerMillion
                     + usage.output() * outputUsdPerMillion) / 1_000_000.0;
         };
     }

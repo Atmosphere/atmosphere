@@ -111,8 +111,20 @@ public final class SqliteEffectJournal implements EffectJournal, AutoCloseable {
         this.clock = Objects.requireNonNull(clock, "clock");
         try {
             this.connection = DriverManager.getConnection(toJdbcUrl(dbPath));
-            connection.setAutoCommit(true);
-            createSchema();
+            try {
+                connection.setAutoCommit(true);
+                createSchema();
+            } catch (SQLException | RuntimeException e) {
+                // The journal never escapes the failed constructor, so close
+                // the connection it created (Correctness Invariant #2) —
+                // including on a schema-version refusal, which propagates as-is.
+                try {
+                    connection.close();
+                } catch (SQLException closeFailure) {
+                    e.addSuppressed(closeFailure);
+                }
+                throw e;
+            }
         } catch (SQLException e) {
             throw new IllegalStateException("Failed to open SQLite effect journal: " + dbPath, e);
         }
@@ -132,35 +144,37 @@ public final class SqliteEffectJournal implements EffectJournal, AutoCloseable {
     }
 
     private void createSchema() throws SQLException {
-        try (var stmt = connection.createStatement()) {
-            stmt.execute("""
-                CREATE TABLE IF NOT EXISTS effect_journal (
-                    run_id TEXT NOT NULL,
-                    seq INTEGER NOT NULL,
-                    kind TEXT NOT NULL,
-                    idempotency_key TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    request_digest TEXT,
-                    result_payload TEXT,
-                    recorded_at TEXT NOT NULL,
-                    PRIMARY KEY (run_id, seq),
-                    UNIQUE (run_id, idempotency_key)
-                )""");
-            stmt.execute("""
-                CREATE TABLE IF NOT EXISTS run_meta (
-                    run_id TEXT PRIMARY KEY,
-                    status TEXT NOT NULL,
-                    created_at INTEGER NOT NULL
-                )""");
-            stmt.execute("""
-                CREATE TABLE IF NOT EXISTS run_lease (
-                    run_id TEXT PRIMARY KEY,
-                    owner TEXT NOT NULL,
-                    expires_at INTEGER NOT NULL
-                )""");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_run_meta_status_created "
-                    + "ON run_meta(status, created_at)");
-        }
+        SchemaMigrations.migrate(connection, "effect_journal", List.of(conn -> {
+            try (var stmt = conn.createStatement()) {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS effect_journal (
+                        run_id TEXT NOT NULL,
+                        seq INTEGER NOT NULL,
+                        kind TEXT NOT NULL,
+                        idempotency_key TEXT NOT NULL,
+                        status TEXT NOT NULL,
+                        request_digest TEXT,
+                        result_payload TEXT,
+                        recorded_at TEXT NOT NULL,
+                        PRIMARY KEY (run_id, seq),
+                        UNIQUE (run_id, idempotency_key)
+                    )""");
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS run_meta (
+                        run_id TEXT PRIMARY KEY,
+                        status TEXT NOT NULL,
+                        created_at INTEGER NOT NULL
+                    )""");
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS run_lease (
+                        run_id TEXT PRIMARY KEY,
+                        owner TEXT NOT NULL,
+                        expires_at INTEGER NOT NULL
+                    )""");
+                stmt.execute("CREATE INDEX IF NOT EXISTS idx_run_meta_status_created "
+                        + "ON run_meta(status, created_at)");
+            }
+        }));
     }
 
     @Override

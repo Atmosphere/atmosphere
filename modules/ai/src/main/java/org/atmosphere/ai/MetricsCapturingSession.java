@@ -116,8 +116,9 @@ class MetricsCapturingSession extends DelegatingStreamingSession {
         if (usage != null && usage.hasCounts()) {
             if (providerName != null) {
                 // Provider-aware path: thread the resolved runtime name into the
-                // GenAI convention's gen_ai.provider.name (Runtime Truth) and the
-                // provider-reported response model into gen_ai.response.model.
+                // GenAI convention's gen_ai.provider.name (Runtime Truth), the
+                // provider-reported response model into gen_ai.response.model,
+                // and the prompt-cache hit count into the cached_input series.
                 metrics.recordTokenUsage(providerName, model, usage.model(),
                         usage.input(), usage.output(), usage.cachedInput(), usage.total());
             } else {

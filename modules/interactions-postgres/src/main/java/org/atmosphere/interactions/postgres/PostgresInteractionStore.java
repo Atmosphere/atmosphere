@@ -21,6 +21,7 @@ import org.atmosphere.interactions.InteractionQuery;
 import org.atmosphere.interactions.InteractionStatus;
 import org.atmosphere.interactions.InteractionStep;
 import org.atmosphere.interactions.InteractionStore;
+import org.atmosphere.interactions.SchemaMigrations;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.core.type.TypeReference;
@@ -95,41 +96,44 @@ public final class PostgresInteractionStore implements InteractionStore {
 
     @Override
     public void start() {
-        try (var conn = dataSource.getConnection();
-             var stmt = conn.createStatement()) {
-            stmt.execute("""
-                CREATE TABLE IF NOT EXISTS interactions (
-                    id VARCHAR(255) PRIMARY KEY,
-                    parent_id VARCHAR(255),
-                    conversation_id VARCHAR(255),
-                    agent_id VARCHAR(255),
-                    user_id VARCHAR(255),
-                    model VARCHAR(255),
-                    status VARCHAR(32) NOT NULL,
-                    background BOOLEAN NOT NULL,
-                    store_flag BOOLEAN NOT NULL,
-                    final_text TEXT,
-                    usage_json TEXT,
-                    error_message TEXT,
-                    created_at BIGINT NOT NULL,
-                    updated_at BIGINT NOT NULL
-                )""");
-            stmt.execute(
-                "CREATE INDEX IF NOT EXISTS idx_interactions_user ON interactions (user_id)");
-            stmt.execute(
-                "CREATE INDEX IF NOT EXISTS idx_interactions_conv ON interactions (conversation_id)");
-            stmt.execute("""
-                CREATE TABLE IF NOT EXISTS interaction_steps (
-                    interaction_id VARCHAR(255) NOT NULL,
-                    seq BIGINT NOT NULL,
-                    type VARCHAR(64) NOT NULL,
-                    text TEXT,
-                    tool_name VARCHAR(255),
-                    data_json TEXT,
-                    usage_json TEXT,
-                    created_at BIGINT NOT NULL,
-                    PRIMARY KEY (interaction_id, seq)
-                )""");
+        try (var conn = dataSource.getConnection()) {
+            SchemaMigrations.migrate(conn, "interactions", List.of(c -> {
+                try (var stmt = c.createStatement()) {
+                    stmt.execute("""
+                        CREATE TABLE IF NOT EXISTS interactions (
+                            id VARCHAR(255) PRIMARY KEY,
+                            parent_id VARCHAR(255),
+                            conversation_id VARCHAR(255),
+                            agent_id VARCHAR(255),
+                            user_id VARCHAR(255),
+                            model VARCHAR(255),
+                            status VARCHAR(32) NOT NULL,
+                            background BOOLEAN NOT NULL,
+                            store_flag BOOLEAN NOT NULL,
+                            final_text TEXT,
+                            usage_json TEXT,
+                            error_message TEXT,
+                            created_at BIGINT NOT NULL,
+                            updated_at BIGINT NOT NULL
+                        )""");
+                    stmt.execute(
+                        "CREATE INDEX IF NOT EXISTS idx_interactions_user ON interactions (user_id)");
+                    stmt.execute(
+                        "CREATE INDEX IF NOT EXISTS idx_interactions_conv ON interactions (conversation_id)");
+                    stmt.execute("""
+                        CREATE TABLE IF NOT EXISTS interaction_steps (
+                            interaction_id VARCHAR(255) NOT NULL,
+                            seq BIGINT NOT NULL,
+                            type VARCHAR(64) NOT NULL,
+                            text TEXT,
+                            tool_name VARCHAR(255),
+                            data_json TEXT,
+                            usage_json TEXT,
+                            created_at BIGINT NOT NULL,
+                            PRIMARY KEY (interaction_id, seq)
+                        )""");
+                }
+            }));
             LOGGER.info("PostgresInteractionStore initialized");
         } catch (SQLException e) {
             throw new IllegalStateException("Failed to create interactions schema", e);

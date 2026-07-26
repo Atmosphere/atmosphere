@@ -167,6 +167,14 @@ public class AiStreamingSession implements StreamingSession {
             new java.util.concurrent.atomic.AtomicBoolean();
 
     /**
+     * Last-activity timestamp (epoch millis), refreshed on every delegated
+     * outbound call and on approval routing so {@link #sweepExpired} never
+     * reaps a session that is still in use. Package-private volatile so
+     * tests can age a session directly.
+     */
+    volatile long lastActivityMillis = System.currentTimeMillis();
+
+    /**
      * @param delegate     the underlying streaming session
      * @param runtime    the resolved AI support implementation
      * @param systemPrompt the system prompt from {@code @AiEndpoint}
@@ -254,10 +262,56 @@ public class AiStreamingSession implements StreamingSession {
     public static void registerActive(AiStreamingSession session) {
         var uuid = session.resource.uuid();
         if (uuid != null) {
+            session.lastActivityMillis = System.currentTimeMillis();
             ACTIVE_SESSIONS
                     .computeIfAbsent(uuid, k -> new java.util.concurrent.CopyOnWriteArrayList<>())
                     .add(session);
+            StreamingSessionSweeper.ensureStarted();
         }
+    }
+
+    /**
+     * Remove sessions whose last activity is older than {@code ttlMs}.
+     * Invoked by {@link StreamingSessionSweeper} so a prompt whose runtime
+     * never fires a terminal event — or whose disconnect the container never
+     * delivered — cannot grow the process-global active map without bound
+     * (Correctness Invariant #3). A reaped session gets the same treatment
+     * as the disconnect path: {@link #cancelInflight()} aborts the upstream
+     * LLM call and releases parked approval futures, and the terminate hooks
+     * fire so session-scoped resources are closed (Invariant #2). Live
+     * sessions are safe: the TTL clock refreshes on every outbound frame and
+     * on approval routing, and pending approvals time out after minutes, not
+     * the 30-minute default TTL.
+     *
+     * @param ttlMs the idle TTL in milliseconds
+     * @return the number of sessions removed
+     */
+    static int sweepExpired(long ttlMs) {
+        var cutoff = System.currentTimeMillis() - ttlMs;
+        var removed = 0;
+        for (var entry : ACTIVE_SESSIONS.entrySet()) {
+            var sessions = entry.getValue();
+            for (var session : sessions) {
+                if (session.lastActivityMillis >= cutoff || !sessions.remove(session)) {
+                    continue;
+                }
+                removed++;
+                try {
+                    session.cancelInflight();
+                } catch (RuntimeException e) {
+                    logger.trace("cancelInflight threw during TTL sweep for {}: {}",
+                            entry.getKey(), e.getMessage(), e);
+                }
+                session.fireTerminate();
+                logger.debug("Swept idle AI session for resource {}", entry.getKey());
+            }
+            if (sessions.isEmpty()) {
+                // Only remove the outer entry if the list is still empty — a
+                // concurrent registerActive may have appended in between.
+                ACTIVE_SESSIONS.remove(entry.getKey(), sessions);
+            }
+        }
+        return removed;
     }
 
     /**
@@ -283,6 +337,7 @@ public class AiStreamingSession implements StreamingSession {
         }
         for (var session : sessions) {
             if (session.approvalRegistry.resolve(message) == ApprovalRegistry.ResolveResult.RESOLVED) {
+                session.lastActivityMillis = System.currentTimeMillis();
                 return true;
             }
         }
@@ -305,6 +360,7 @@ public class AiStreamingSession implements StreamingSession {
         for (var sessions : ACTIVE_SESSIONS.values()) {
             for (var session : sessions) {
                 if (session.approvalRegistry.resolve(message) == ApprovalRegistry.ResolveResult.RESOLVED) {
+                    session.lastActivityMillis = System.currentTimeMillis();
                     return true;
                 }
             }
@@ -1063,6 +1119,7 @@ public class AiStreamingSession implements StreamingSession {
 
     @Override
     public void send(String text) {
+        lastActivityMillis = System.currentTimeMillis();
         delegate.send(text);
     }
 
@@ -1074,16 +1131,19 @@ public class AiStreamingSession implements StreamingSession {
         // wrong shape for an AiEndpoint-attached session where the delegate
         // is typically a DefaultStreamingSession that can emit the binary
         // frame on the wire.
+        lastActivityMillis = System.currentTimeMillis();
         delegate.sendContent(content);
     }
 
     @Override
     public void sendMetadata(String key, Object value) {
+        lastActivityMillis = System.currentTimeMillis();
         delegate.sendMetadata(key, value);
     }
 
     @Override
     public void progress(String message) {
+        lastActivityMillis = System.currentTimeMillis();
         delegate.progress(message);
     }
 
@@ -1152,6 +1212,7 @@ public class AiStreamingSession implements StreamingSession {
 
     @Override
     public void emit(AiEvent event) {
+        lastActivityMillis = System.currentTimeMillis();
         delegate.emit(event);
     }
 

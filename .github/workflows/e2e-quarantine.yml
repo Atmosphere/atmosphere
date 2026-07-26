@@ -1,0 +1,152 @@
+name: "CI: E2E Quarantine (scheduled)"
+
+# Quarantined e2e tests still have to run somewhere.
+#
+# A quarantined test is skipped in the blocking lanes because it cannot pass
+# today for a known, documented reason (see the `quarantined({...})` metadata on
+# each one: owner, expiry, tracking issue). Left at that, the coverage silently
+# disappears and nobody learns when the underlying blocker is fixed.
+#
+# This lane runs exactly those tests, weekly, with continue-on-error so it
+# reports without blocking anyone. Two things make it useful:
+#
+#   - RUN_QUARANTINED=true flips e2e/helpers/quarantine.ts from `test.skip` to
+#     the real `test`, so the bodies actually execute.
+#   - A quarantined test that starts PASSING here is the signal to delete its
+#     quarantine metadata — the job summary calls that out explicitly.
+#
+# The same helper also un-skips an entry automatically once its `expires` date
+# passes, so a forgotten quarantine comes back on its own in the blocking lanes
+# rather than sitting inert forever.
+
+on:
+  schedule:
+    # Mondays at 06:17 UTC — off the hour to avoid the scheduler stampede.
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quarantined:
+    name: Quarantined e2e specs
+    runs-on: ubuntu-latest
+    # Reporting lane: never blocks. The step below still surfaces the outcome
+    # in the job summary so a pass (or a new failure mode) is visible.
+    continue-on-error: true
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v5
+      with:
+        java-version: 21
+        distribution: 'temurin'
+        # Supply-chain hardening: GPG-verify the Temurin JDK archive (setup-java >= v5.5.0)
+        verify-signature: true
+        cache: 'maven'
+
+    - name: Build all modules and samples
+      run: ./mvnw -B clean install -DskipTests -Dgpg.skip=true
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: 22
+        cache: 'npm'
+        cache-dependency-path: modules/integration-tests/package-lock.json
+
+    - name: Cache Playwright browsers
+      id: playwright-cache
+      uses: actions/cache@v6
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ hashFiles('modules/integration-tests/package-lock.json') }}
+
+    - name: Install npm dependencies
+      working-directory: modules/integration-tests
+      run: npm ci
+
+    - name: Install Playwright browsers
+      working-directory: modules/integration-tests
+      run: |
+        if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
+          cmd="npx playwright install-deps chromium"
+        else
+          cmd="npx playwright install --with-deps chromium"
+        fi
+        for attempt in 1 2 3; do
+          if timeout 300 $cmd; then
+            break
+          fi
+          if [ "$attempt" = "3" ]; then
+            echo "playwright install failed after 3 attempts" >&2
+            exit 1
+          fi
+          echo "playwright install attempt $attempt failed, retrying in ${attempt}0s..." >&2
+          sleep "${attempt}0"
+        done
+
+    - name: Run quarantined specs
+      id: run
+      working-directory: modules/integration-tests
+      env:
+        LLM_MODE: fake
+        # Flips helpers/quarantine.ts so the quarantined bodies actually run.
+        RUN_QUARANTINED: 'true'
+        INCLUDE_FLAKY: 'true'
+      run: |
+        set +e
+        npx playwright test --grep "@quarantined" --reporter=list,github 2>&1 | tee run.log
+        code=${PIPESTATUS[0]}
+        set -e
+        # An empty selection means every quarantine was retired — that is the
+        # goal state, not a failure, but it must be reported rather than
+        # silently passing as "0 tests ran".
+        if grep -q "Error: No tests found" run.log; then
+          echo "outcome=empty" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        if [ "$code" -eq 0 ]; then
+          echo "outcome=passing" >> "$GITHUB_OUTPUT"
+        else
+          echo "outcome=still-blocked" >> "$GITHUB_OUTPUT"
+        fi
+        exit 0
+
+    - name: Report outcome
+      run: |
+        {
+          echo "## Quarantined e2e specs"
+          echo
+          case "${{ steps.run.outputs.outcome }}" in
+            passing)
+              echo "**Every quarantined spec passed.** The blockers they document are gone."
+              echo
+              echo "Action: remove the \`quarantined({...})\` wrapper and the \`@quarantined\`"
+              echo "tag from the specs listed above so they run in the blocking lanes again."
+              ;;
+            still-blocked)
+              echo "At least one quarantined spec still fails — the documented blocker holds."
+              echo
+              echo "No action needed unless a spec's \`expires\` date is near, in which case"
+              echo "either fix the blocker or re-justify the quarantine with a new expiry."
+              ;;
+            empty)
+              echo "No quarantined specs remain. Nothing to run — this lane can be retired"
+              echo "if no new quarantine is added."
+              ;;
+            *)
+              echo "Run did not report an outcome; check the step log above."
+              ;;
+          esac
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload Playwright Report
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: playwright-report-quarantine
+        path: modules/integration-tests/playwright-report/
+        retention-days: 14

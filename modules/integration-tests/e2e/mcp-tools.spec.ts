@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
+import { quarantined } from './helpers/quarantine';
 
 let server: SampleServer;
 let mcpSessionId: string;
@@ -122,8 +123,16 @@ test.describe('MCP Tool Invocation', () => {
     expect(Array.isArray(users)).toBeTruthy();
   });
 
-  // Known issue: chat broadcaster not active alongside @Agent(headless) in CI
-  test.skip('broadcast_message tool sends successfully', async () => {
+  // The mcp-server sample registers its @Agent headless, so no chat broadcaster
+  // is created for broadcast_message to publish to and the call never reports
+  // status=sent. Retire this once the sample registers a chat broadcaster
+  // alongside the agent, or once broadcast_message creates its target on demand.
+  quarantined({
+    owner: 'jfarcand',
+    expires: '2026-09-30',
+    issue: 'pending',
+    reason: 'no chat broadcaster is active alongside the headless @Agent in this sample',
+  })('broadcast_message tool sends successfully @quarantined', async () => {
     const { body } = await mcpRequest(
       server.baseUrl,
       'tools/call',

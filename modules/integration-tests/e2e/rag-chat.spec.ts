@@ -123,4 +123,54 @@ test.describe('RAG Chat', () => {
     expect(info.ragSafety.tier).toBe('RULE_BASED');
     expect(info.ragSafety.breach).toBe('DROP');
   });
+
+  // Runtime truth: the sample exposes the actuator metrics endpoint
+  // (management.endpoints.web.exposure.include: "*"), so the server resolves the
+  // plane off the web-exposure registry and names both the path and the wire
+  // format. A host that ships the MetricsEndpoint bean without exposing it must
+  // report hasMetrics false, which is why bean presence is not the gate.
+  test('console info resolves the live actuator metrics plane', async ({ request }) => {
+    const res = await request.get(server.baseUrl + '/api/console/info');
+    expect(res.ok()).toBeTruthy();
+    const info = await res.json();
+    expect(info.hasMetrics).toBe(true);
+    expect(info.metricsFormat).toBe('actuator');
+    expect(info.metricsPath).toBe('/actuator/metrics');
+
+    // The advertised path must genuinely answer — the whole point of the flag.
+    const metrics = await request.get(server.baseUrl + info.metricsPath);
+    expect(metrics.ok()).toBeTruthy();
+  });
+
+  // The Observability tab must decompose a meter by its tags and name the
+  // statistic it shows, not list meter names against measurements[0].
+  // atmosphere.ai.input.tokens is tagged by `stage`, and InputAssemblyTelemetry
+  // emits before the runtime is dispatched — so the rows exist on the keyless
+  // demo path too, where the turn itself fails and the latency timers (which
+  // only record on completion) are legitimately absent. Header text is matched
+  // case-insensitively: the panel uppercases column labels in CSS, so the
+  // rendered text is "STAGE" even though the tag is `stage`.
+  test('observability tab renders a tag-decomposed token metric', async ({ page }) => {
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await page.getByTestId('chat-input').fill('What is retrieval augmented generation?');
+    await page.getByTestId('chat-send').click();
+    await expect(page.locator('.message--assistant').last())
+      .not.toBeEmpty({ timeout: 30_000 });
+
+    await page.getByTestId('tab-observability').click();
+    const panel = page.getByTestId('meter-atmosphere.ai.input.tokens');
+    await expect(panel).toBeVisible({ timeout: 20_000 });
+
+    // The split tag names the first column; the second names the statistic the
+    // value column holds ("total" for a counter), so no number is ever rendered
+    // under a label it does not belong to.
+    await expect(panel.locator('th').first()).toHaveText(/^stage$/i);
+    await expect(panel.locator('th').nth(1)).toHaveText(/^total$/i);
+
+    // One row per stage the turn actually used — the decomposition itself.
+    const stages = await panel.getByTestId('series-label').allInnerTexts();
+    expect(stages.map(s => s.trim())).toContain('user_message');
+    // Each decomposed row carries its own value, not an em-dash placeholder.
+    await expect(panel.getByTestId('series-headline').first()).not.toHaveText('—');
+  });
 });

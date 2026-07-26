@@ -94,18 +94,25 @@ test.describe('toolCallDelta Incremental Streaming (Wave 3)', () => {
     expect(builtIn!.capabilities).toContain('TEXT_STREAMING');
     expect(builtIn!.capabilities).toContain('TOOL_CALLING');
 
-    // Negative: any runtime discovered OTHER than built-in must NOT
-    // declare TOOL_CALL_DELTA. Vacuously true on the integration-tests
-    // classpath today (only Built-in is discoverable), but the assertion
-    // body itself is the drift detector — if a framework runtime is
-    // ever added here and wrongly advertises the capability, this fails.
-    const others = payload.runtimes.filter(r => r.name !== 'built-in');
-    for (const runtime of others) {
+    // Negative: the framework bridges must NOT declare TOOL_CALL_DELTA.
+    // They consume high-level streaming APIs that surface only consolidated
+    // tool calls, never per-chunk argument fragments, so declaring it would
+    // be a Runtime-Truth violation (Correctness Invariant #5).
+    //
+    // The delta-capable set is exactly the three hand-rolled HTTP runtimes,
+    // each of which owns its own SSE parse: built-in
+    // (delta.tool_calls[].function.arguments), cohere (tool-call-delta), and
+    // anthropic (input_json_delta). Asserting against the framework-bridge
+    // list rather than "everything except built-in" keeps the drift detector
+    // honest as more native clients gain the capability.
+    const deltaCapable = new Set(['built-in', 'cohere', 'anthropic']);
+    const frameworkBridges = payload.runtimes.filter(r => !deltaCapable.has(r.name));
+    for (const runtime of frameworkBridges) {
       expect(
         runtime.capabilities,
-        `${runtime.name} must not declare TOOL_CALL_DELTA — only BuiltInAgentRuntime`
-          + ' forwards delta.tool_calls[].function.arguments chunks through'
-          + ' StreamingSession.toolCallDelta()'
+        `${runtime.name} must not declare TOOL_CALL_DELTA — only the hand-rolled`
+          + ' HTTP runtimes (built-in, cohere, anthropic) forward per-chunk tool'
+          + ' argument fragments through StreamingSession.toolCallDelta()'
       ).not.toContain('TOOL_CALL_DELTA');
     }
   });

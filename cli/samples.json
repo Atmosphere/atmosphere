@@ -418,12 +418,14 @@
     },
     {
       "name": "kotlin-dsl-chat",
-      "description": "Kotlin-first chat — endpoint built with the Atmosphere Kotlin DSL, delivery via coroutine extensions (offline)",
+      "description": "Kotlin-first chat — endpoint built with the Atmosphere Kotlin DSL, agent declared with the Kotlin agent DSL, delivery via coroutine extensions (offline)",
       "category": "chat",
       "tags": [
         "kotlin",
         "dsl",
         "coroutines",
+        "agent",
+        "ai",
         "embedded",
         "standalone"
       ],

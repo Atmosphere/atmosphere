@@ -61,6 +61,29 @@ In-memory and SQLite ship in this module; Postgres ships as `atmosphere-interact
 A JDBC/Postgres store ships in-tree as `atmosphere-interactions-postgres`
 (`PostgresInteractionStore`). Other backends (Redis, …) are pluggable via the SPI.
 
+### Schema versioning
+
+Both JDBC stores stamp their schema version on `start()` via
+`org.atmosphere.interactions.SchemaMigrations` (a package-local copy of the
+canonical `org.atmosphere.checkpoint.SchemaMigrations` — copied, not depended
+on, so this module keeps no dependency on `atmosphere-checkpoint`). The version
+lives in a shared `atmosphere_schema_version (component, version)` table keyed
+by the anchor table `interactions`.
+
+- Fresh database → every migration step runs, final version stamped.
+- Unstamped database whose tables exist → adopted as version 1, later steps run.
+- Already current → no-op; nothing is written.
+- Stamped **newer** than this build → `start()` refuses with an
+  `IllegalStateException` naming the database, the found version, and the
+  supported version (fail closed rather than mis-read a newer schema).
+
+To add a migration, append one idempotent step to the list in
+`SqliteInteractionStore.start()` **and** `PostgresInteractionStore.start()` —
+never edit or reorder an existing step — then update the expected version in
+`SqliteInteractionStoreSchemaVersionTest` /
+`PostgresInteractionStoreSchemaVersionTest`. The `interactions` schema is
+currently at version 1.
+
 ## Sync vs. Background
 
 ```java

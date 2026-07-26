@@ -38,9 +38,9 @@ The `AgentRuntime` interface is the AI-layer equivalent of `AsyncSupport`. Imple
 
 | Adapter JAR | `AgentRuntime` implementation | Priority | Capabilities |
 |-------------|-------------------------------|----------|-------------|
-| `atmosphere-ai` (built-in) | `BuiltInAgentRuntime` (OpenAI-compatible) | 0 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, PER_REQUEST_RETRY, TOKEN_USAGE, CONVERSATION_MEMORY, TOOL_CALL_DELTA, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
-| `atmosphere-anthropic` | `AnthropicAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, MULTI_MODAL, PER_REQUEST_RETRY, TOKEN_USAGE, CONVERSATION_MEMORY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION, VIRTUAL_FILESYSTEM (native `memory_20250818` tool surface backed by Atmosphere's AgentFileSystem) |
-| `atmosphere-cohere` | `CohereAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, MULTI_MODAL, PER_REQUEST_RETRY, TOKEN_USAGE, CONVERSATION_MEMORY, TOOL_CALL_DELTA, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
+| `atmosphere-ai` (built-in) | `BuiltInAgentRuntime` (OpenAI-compatible) | 0 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, PER_REQUEST_RETRY, TOKEN_USAGE, CONVERSATION_MEMORY, TOOL_CALL_DELTA, MODEL_ENUMERATION, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
+| `atmosphere-anthropic` | `AnthropicAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, MULTI_MODAL, PER_REQUEST_RETRY, TOKEN_USAGE, CONVERSATION_MEMORY, TOOL_CALL_DELTA, PROMPT_CACHING, MODEL_ENUMERATION, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION, VIRTUAL_FILESYSTEM (native `memory_20250818` tool surface backed by Atmosphere's AgentFileSystem) |
+| `atmosphere-cohere` | `CohereAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, MULTI_MODAL, PER_REQUEST_RETRY, TOKEN_USAGE, CONVERSATION_MEMORY, TOOL_CALL_DELTA, MODEL_ENUMERATION, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
 | `atmosphere-crewai`³ (requires external Python sidecar) | `CrewAiAgentRuntime` | 50 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, AGENT_ORCHESTRATION, CANCELLATION, PER_REQUEST_RETRY, TOKEN_USAGE |
 | `atmosphere-spring-ai` | `SpringAiAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, TOKEN_USAGE, CONVERSATION_MEMORY, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
 | `atmosphere-langchain4j` | `LangChain4jAgentRuntime` | 100 | TEXT_STREAMING, TOOL_CALLING, STRUCTURED_OUTPUT, NATIVE_STRUCTURED_OUTPUT, SYSTEM_PROMPT, TOOL_APPROVAL, VISION, AUDIO, MULTI_MODAL, PROMPT_CACHING, TOKEN_USAGE, CONVERSATION_MEMORY, PER_REQUEST_RETRY, BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION, CANCELLATION |
@@ -211,10 +211,19 @@ every enforcement is recorded to the `GovernanceDecisionLog`. The console
 { "memorySafety": { "active": true, "tier": "RULE_BASED", "breach": "DROP" } }
 ```
 
-For deployments that additionally require cryptographic tamper-evidence on stored
-memory snapshots, the coordinator ships **opt-in** Ed25519 primitives
-(`CommitmentRecord`, flag-off; the `AgentStateIntegrity` seal utility) that need a
-durable operator key — they are not on by default.
+For deployments that additionally require cryptographic tamper-evidence, the
+coordinator ships `CommitmentRecord` — Ed25519-signed **dispatch** records emitted
+by `JournalingAgentFleet` once an operator installs a `CommitmentSigner` *and*
+sets `atmosphere.ai.governance.commitment-records.enabled=true`. It is flag-off by
+default and needs a durable operator key.
+
+Cryptographic sealing of **memory snapshots** is not wired to a shipped path.
+`AgentStateIntegrity` (in `modules/coordinator`) is a standalone seal/verify
+utility with no production caller: the `SigningAgentState` decorator its Javadoc
+describes does not exist, and the file-backed `AgentState` default is
+deliberately hand-editable (`cat`/`vim`/`git`), which a verify-on-read seal would
+flag as tampering. Treat it as an API you can build on, not a control that is
+running.
 
 ## Conversation Memory
 
@@ -597,6 +606,39 @@ model-level configuration, so those three remain framework-native.
 > `expectedGenerationHonoring()` hook on
 > `AbstractAgentRuntimeContractTest` — a new runtime cannot compile its
 > contract test without declaring one.
+
+### Native logprobs confidence (Built-in)
+
+`AiCapability.CONFIDENCE_SCORES` has two realizations. The universal one is the
+pipeline-level `ConfidenceCapturingSession`, which appends an elicitation cue to
+the system prompt and parses the model's `"confidence": 0.x` field
+(`AiConfidence.Source.MODEL_REPORTED_FIELD`). The Built-in runtime adds the
+richer **native** one: whenever a request carries an `AiConfidenceElicitation`,
+`BuiltInAgentRuntime` sets `ChatCompletionRequest.logprobs`, `OpenAiCompatibleClient`
+emits `"logprobs": true`, captures `choices[].logprobs.content`, and fires
+`AiConfidence.fromLogprobs(...)` (`Source.LOGPROBS_NATIVE`) before the terminal
+frame. The decorator observes that explicit emission and skips its own parse, so
+exactly **one** confidence event fires per response and the richer signal wins
+whenever the provider supplies it. If the provider returns no logprobs, the
+runtime stays silent and the model-reported-field fallback still applies.
+
+| Sysprop | Env var | Values | Default |
+|---------|---------|--------|---------|
+| `atmosphere.ai.logprobs` | `LLM_LOGPROBS` | `enabled` / `disabled` / `auto` | `auto` |
+
+`auto` defers to the same default-deny endpoint allow-list that gates
+`prompt_cache_key` (`CacheHint.endpointAcceptsPromptCacheKey`: OpenAI, Azure
+OpenAI, loopback). `logprobs` is a standard chat-completions parameter, but
+several OpenAI-compat proxies reject it, and a rejected field fails the whole
+request — suppressing it only costs the richer signal. Force emission on a
+known-tolerant endpoint with `enabled`.
+
+**Mode scope:** logprobs are requested on the **chat-completions path only**.
+The OpenAI Responses API path (`/responses`, used when a `conversationId` is set
+against `api.openai.com`) does not request them, so confidence on that path
+stays on the model-reported-field fallback. The opt-in survives every tool-loop
+round, so the aggregate reflects the tokens of the final answer, not just the
+tool-call round.
 
 ## Prompt Registry (versioned prompts, templating, rollout)
 
@@ -1004,14 +1046,21 @@ var metrics = new MicrometerAiMetrics(meterRegistry, "spring-ai");
 | `atmosphere.ai.prompts.total` | Counter | Total prompt requests |
 | `atmosphere.ai.streaming_texts.total` | Counter | Total streaming text chunks |
 | `atmosphere.ai.errors.total` | Counter | Errors by type (`rate_limit`, `timeout`, `server_error`, `unavailable`, `auth`, `context_length`, `content_filter`, `invalid_request`, `stream_error`, `unknown`) |
-| `atmosphere.ai.prompt.duration` | Timer | Time from prompt to first streaming text (TTFT) |
-| `atmosphere.ai.response.duration` | Timer | Full response wall-clock time |
-| `atmosphere.ai.tool.duration` | Timer | Tool call execution time |
+| `atmosphere.ai.prompt.duration` | Timer | Time from prompt to first streaming text (TTFT), with p50/p95/p99 |
+| `atmosphere.ai.response.duration` | Timer | Full response wall-clock time, with p50/p95/p99 |
+| `atmosphere.ai.tool.duration` | Timer | Tool call execution time, with p50/p95/p99 |
 | `atmosphere.ai.active_sessions` | Gauge | Currently active streaming sessions |
 | `atmosphere.ai.cost` | Summary | Cost per request |
-| `atmosphere.ai.tokens` | Counter | Authoritative provider token usage, tagged by `type` (`input` / `output`) |
+| `atmosphere.ai.tokens` | Counter | Authoritative provider token usage, tagged by `type` (`input` / `output` / `cached_input`) |
 
-All `atmosphere.ai.*` metrics are tagged with `model` and `provider`.
+All `atmosphere.ai.*` metrics are tagged with `model` and `provider`. Timers
+publish client-side p50/p95/p99 percentiles alongside count/total/max —
+mean-only latency hides exactly the TTFT tail spikes streaming operators alert
+on. (The `atmosphere.governance.*` meters use the same client-side
+`publishPercentiles` approach at p50/p90/p99.) The `cached_input` type carries the
+provider-reported prompt-cache hits (`TokenUsage.cachedInput()`), emitted
+as-reported with no arithmetic; the series is absent when the provider reports
+no cache hits.
 
 #### OpenTelemetry GenAI convention dual-emit
 
@@ -1024,8 +1073,13 @@ point is the pipeline-level `MetricsCapturingSession`, not a single adapter.
 
 | Metric | Type | Description |
 |--------|------|-------------|
-| `gen_ai.client.token.usage` | Distribution | Token counts, split by `gen_ai.token.type` (`input` / `output`) |
-| `gen_ai.client.operation.duration` | Timer | Full operation wall-clock time |
+| `gen_ai.client.token.usage` | Distribution | Token counts, split by `gen_ai.token.type` (`input` / `output` / `cached_input`) |
+| `gen_ai.client.operation.duration` | Timer | Full operation wall-clock time, with p50/p95/p99 |
+
+The `cached_input` token type is an **Atmosphere extension** of the GenAI
+convention's enumerated `input` / `output` values — the convention does not
+yet define a cached-token type, and the prompt-cache read volume is exactly
+what cache-aware cost dashboards need.
 
 Convention instruments carry the `gen_ai.operation.name`, `gen_ai.provider.name`,
 and `gen_ai.request.model` attributes. `gen_ai.provider.name` is the **resolved
@@ -1533,6 +1587,14 @@ The next request-side `inspectRequest` on that guardrail sees the
 accumulated spend and Blocks. Observability (`TokenUsage`) becomes the
 input to enforcement (`CostCeilingGuardrail`) — a dashboard becomes a
 control plane.
+
+Two factory rate sheets ship on `TokenPricing`: `flat(in, out)` for the common
+two-rate pricing, and `flatWithCachedDiscount(in, cachedIn, out)` which bills
+prompt-cache hits (`TokenUsage.cachedInput()`) at the provider's discounted
+cache-read rate. The cached count is treated as a subset of input
+(OpenAI-shaped usage reports) and clamped so disjoint-count providers never
+produce a negative uncached remainder — for disjoint billing implement
+`TokenPricing` directly.
 
 The Spring Boot starter wires this automatically when both a
 `CostCeilingGuardrail` and `TokenPricing` bean are present; operators

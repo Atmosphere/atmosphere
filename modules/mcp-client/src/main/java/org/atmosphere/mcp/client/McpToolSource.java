@@ -84,13 +84,16 @@ public final class McpToolSource implements AutoCloseable {
     private final List<ToolDefinition> tools;
     private final String endpoint;
     private final Map<String, McpToolMetrics> metrics;
+    private final Map<String, McpToolBreaker> breakers;
 
     private McpToolSource(McpSyncClient client, List<ToolDefinition> tools, String endpoint,
-                          Map<String, McpToolMetrics> metrics) {
+                          Map<String, McpToolMetrics> metrics,
+                          Map<String, McpToolBreaker> breakers) {
         this.client = client;
         this.tools = tools;
         this.endpoint = endpoint;
         this.metrics = metrics;
+        this.breakers = breakers;
     }
 
     /**
@@ -199,6 +202,7 @@ public final class McpToolSource implements AutoCloseable {
             var tools = listResult == null ? List.<McpSchema.Tool>of() : listResult.tools();
             var defs = new ArrayList<ToolDefinition>(tools.size());
             Map<String, McpToolMetrics> perTool = new ConcurrentHashMap<>();
+            Map<String, McpToolBreaker> perToolBreakers = new ConcurrentHashMap<>();
             for (var tool : tools) {
                 if (!opts.includes(tool.name())) {
                     LOG.debug("McpToolSource[{}] filtered out tool '{}'", label, tool.name());
@@ -206,12 +210,16 @@ public final class McpToolSource implements AutoCloseable {
                 }
                 var toolMetrics = new McpToolMetrics();
                 perTool.put(tool.name(), toolMetrics);
-                defs.add(rename(toDefinition(tool, client, label, toolMetrics),
+                var breaker = new McpToolBreaker(opts.breakerFailureThreshold(),
+                        opts.breakerOpenMillis());
+                perToolBreakers.put(tool.name(), breaker);
+                defs.add(rename(toDefinition(tool, client, label, toolMetrics, breaker),
                         opts.displayName(tool.name())));
             }
             LOG.info("McpToolSource connected to {} — loaded {} tool(s)", label, defs.size());
             return new McpToolSource(client, Collections.unmodifiableList(defs), label,
-                    Collections.unmodifiableMap(perTool));
+                    Collections.unmodifiableMap(perTool),
+                    Collections.unmodifiableMap(perToolBreakers));
         } catch (RuntimeException re) {
             try {
                 client.closeGracefully();
@@ -265,6 +273,17 @@ public final class McpToolSource implements AutoCloseable {
         return metrics;
     }
 
+    /**
+     * Per-tool circuit breakers keyed by the server's original tool name. The
+     * map is unmodifiable but the {@link McpToolBreaker} entries mutate as
+     * calls succeed or fail — operators and tests read
+     * {@link McpToolBreaker#state()} to see which remote tools are currently
+     * short-circuited.
+     */
+    public Map<String, McpToolBreaker> breakers() {
+        return breakers;
+    }
+
     @Override
     public void close() {
         try {
@@ -275,12 +294,16 @@ public final class McpToolSource implements AutoCloseable {
     }
 
     private static ToolDefinition toDefinition(McpSchema.Tool tool, McpSyncClient client,
-                                                String label, McpToolMetrics metrics) {
+                                                String label, McpToolMetrics metrics,
+                                                McpToolBreaker breaker) {
         var builder = ToolDefinition.builder(tool.name(), descriptionOf(tool));
+        // parameter(ToolParameter) preserves the structural facets (enum,
+        // array items, nested object properties) read off the remote server's
+        // JSON Schema; the flat 4-arg overload would drop them.
         for (var param : extractParameters(tool)) {
-            builder.parameter(param.name(), param.description(), param.type(), param.required());
+            builder.parameter(param);
         }
-        builder.executor(args -> invokeRemote(tool.name(), args, client, label, metrics));
+        builder.executor(args -> invokeRemote(tool.name(), args, client, label, metrics, breaker));
         return builder.build();
     }
 
@@ -296,7 +319,6 @@ public final class McpToolSource implements AutoCloseable {
         return description;
     }
 
-    @SuppressWarnings("unchecked")
     private static List<ToolParameter> extractParameters(McpSchema.Tool tool) {
         var schema = tool.inputSchema();
         if (schema == null) {
@@ -309,44 +331,96 @@ public final class McpToolSource implements AutoCloseable {
         var required = schema.required() == null ? List.<String>of() : schema.required();
         var out = new ArrayList<ToolParameter>(properties.size());
         for (var entry : properties.entrySet()) {
-            var name = entry.getKey();
-            var raw = entry.getValue();
-            String type = "string";
-            String description = "";
-            if (raw instanceof Map<?, ?> propMap) {
-                var typeVal = propMap.get("type");
-                if (typeVal instanceof String s && !s.isBlank()) {
-                    type = s;
-                }
-                var descVal = propMap.get("description");
-                if (descVal instanceof String s) {
-                    description = s;
-                }
-            }
-            out.add(new ToolParameter(name, description, type, required.contains(name)));
+            out.add(toParameter(entry.getKey(), entry.getValue(),
+                    required.contains(entry.getKey())));
         }
         return out;
     }
 
+    /**
+     * Translate one JSON Schema property from a remote server's
+     * {@code inputSchema} into a {@link ToolParameter}, carrying the structural
+     * facets through: {@code enum} value sets, {@code items.type} for arrays,
+     * and nested {@code properties}/{@code required} for objects. Before this,
+     * only {@code type} and {@code description} survived, so a remote tool's
+     * enum or nested-object contract was flattened away before the model ever
+     * saw it.
+     */
+    private static ToolParameter toParameter(String name, Object raw, boolean required) {
+        if (!(raw instanceof Map<?, ?> propMap)) {
+            return new ToolParameter(name, "", "string", required);
+        }
+        var type = propMap.get("type") instanceof String s && !s.isBlank() ? s : "string";
+        var description = propMap.get("description") instanceof String s ? s : "";
+
+        var enumValues = new ArrayList<String>();
+        if (propMap.get("enum") instanceof List<?> rawEnum) {
+            for (var value : rawEnum) {
+                if (value != null) {
+                    enumValues.add(value.toString());
+                }
+            }
+        }
+
+        ToolParameter items = null;
+        if (propMap.get("items") instanceof Map<?, ?> rawItems) {
+            // Recurse, so a remote array-of-objects keeps its element schema
+            // rather than being reduced to the element's type name.
+            items = toParameter("item", rawItems, true);
+        }
+
+        var nested = new ArrayList<ToolParameter>();
+        if (propMap.get("properties") instanceof Map<?, ?> nestedProps) {
+            var nestedRequired = propMap.get("required") instanceof List<?> list
+                    ? list : List.of();
+            for (var entry : nestedProps.entrySet()) {
+                var nestedName = String.valueOf(entry.getKey());
+                nested.add(toParameter(nestedName, entry.getValue(),
+                        nestedRequired.contains(nestedName)));
+            }
+        }
+        return new ToolParameter(name, description, type, required, enumValues, items, nested);
+    }
+
     private static Object invokeRemote(String toolName, Map<String, Object> arguments,
-                                       McpSyncClient client, String label, McpToolMetrics metrics) {
-        var request = new McpSchema.CallToolRequest(toolName, arguments == null ? Map.of() : arguments);
+                                       McpSyncClient client, String label, McpToolMetrics metrics,
+                                       McpToolBreaker breaker) {
+        if (!breaker.tryAcquire()) {
+            // Fail fast instead of paying another request timeout against a
+            // server that has failed its last N calls (Invariant #3). Returned
+            // as a tool-error string, not thrown, so the agent loop can pick a
+            // different tool rather than aborting the turn.
+            LOG.debug("McpToolSource[{}] breaker open for tool '{}' — short-circuiting",
+                    label, toolName);
+            metrics.recordError();
+            return "tool error: MCP tool '" + toolName + "' on " + label
+                    + " is temporarily unavailable (circuit breaker open after "
+                    + breaker.consecutiveFailures() + " consecutive failures)";
+        }
         var startNanos = System.nanoTime();
         McpSchema.CallToolResult result;
         try {
-            result = client.callTool(request);
+            // Request construction stays inside the try: a throw between
+            // tryAcquire() and a recorded outcome would strand the half-open
+            // probe slot and wedge the breaker permanently (Invariant #2 —
+            // every path after acquiring must record success or failure).
+            result = client.callTool(new McpSchema.CallToolRequest(
+                    toolName, arguments == null ? Map.of() : arguments));
         } catch (RuntimeException ex) {
             metrics.recordCall((System.nanoTime() - startNanos) / 1_000_000L);
             metrics.recordError();
+            breaker.recordFailure();
             throw new McpToolInvocationException(
                     "MCP tool '" + toolName + "' on " + label + " failed: " + ex.getMessage(), ex);
         }
         metrics.recordCall((System.nanoTime() - startNanos) / 1_000_000L);
         if (result == null) {
+            breaker.recordSuccess();
             return "";
         }
         if (Boolean.TRUE.equals(result.isError())) {
             metrics.recordError();
+            breaker.recordFailure();
             // Surface server-reported tool errors to the model as a string so
             // the loop can decide whether to retry, fall through, or report
             // the failure to the user. Throwing here would abort the loop;
@@ -355,6 +429,7 @@ public final class McpToolSource implements AutoCloseable {
             // wraps the exception.
             return "tool error: " + flatten(result.content());
         }
+        breaker.recordSuccess();
         return flatten(result.content());
     }
 

@@ -199,9 +199,10 @@ class MetricsCapturingSessionTest {
 
         // (a) legacy delegate.usage still flows unchanged
         verify(delegate).usage(usage);
-        // (b) recordTokenUsage called once with provider + response model, now
-        // carrying the provider's cached-input count (0 here) so a prompt-cache
-        // hit reaches the meters instead of being dropped at this seam.
+        // (b) recordTokenUsage called once with provider + response model via the
+        // cache-aware overload, carrying the provider's cached-input count
+        // (0 here) so a prompt-cache hit reaches the meters instead of being
+        // dropped at this seam.
         verify(metrics).recordTokenUsage(
                 eq("google-adk"), eq("gemini-2.0"), eq("gemini-2.0-flash-001"),
                 eq(120L), eq(80L), eq(0L), eq(200L));
@@ -215,9 +216,12 @@ class MetricsCapturingSessionTest {
         // and into the tape but was dropped here, so a prompt-cache hit — billed
         // at a different rate than fresh input — was invisible to metrics.
         var metrics = mockMetrics();
-        var session = new MetricsCapturingSession(mockDelegate(), metrics, "gpt-4o", "built-in");
-        session.usage(new TokenUsage(1000, 500, 800, 1500, "gpt-4o"));
+        var delegate = mockDelegate();
+        var session = new MetricsCapturingSession(delegate, metrics, "gpt-4o", "built-in");
+        var usage = new TokenUsage(1000, 500, 800, 1500, "gpt-4o");
+        session.usage(usage);
 
+        verify(delegate).usage(usage);
         verify(metrics).recordTokenUsage(
                 eq("built-in"), eq("gpt-4o"), eq("gpt-4o"),
                 eq(1000L), eq(500L), eq(800L), eq(1500L));
@@ -251,9 +255,11 @@ class MetricsCapturingSessionTest {
 
         verify(metrics).recordTokenUsage("gpt-4", 120L, 80L, 200L);
         verify(delegate).usage(usage);
-        // The provider-aware overload must NOT be called on the legacy path.
+        // Neither provider-aware overload may be called on the legacy path.
         verify(metrics, never()).recordTokenUsage(
                 any(), any(), any(), anyLong(), anyLong(), anyLong());
+        verify(metrics, never()).recordTokenUsage(
+                any(), any(), any(), anyLong(), anyLong(), anyLong(), anyLong());
     }
 
     @Test

@@ -84,9 +84,14 @@ class BuiltInAgentRuntimeTest {
         // 13 baseline + 3 (BUDGET_ENFORCEMENT, CONFIDENCE_SCORES, PASSIVATION)
         // added for the predictable-AI primitives + CANCELLATION (cooperative
         // cancel via the SSE InputStream close) + NATIVE_STRUCTURED_OUTPUT
-        // (strict json_schema response_format). Bump this number when a new
-        // capability lands on Built-in.
-        assertEquals(18, caps.size());
+        // (strict json_schema response_format) + MODEL_ENUMERATION (live
+        // GET {baseUrl}/models through OpenAiCompatibleClient.listModels(),
+        // short-TTL cached, configured-model fallback). Bump this number when
+        // a new capability lands on Built-in — and update the pinned set in
+        // ai-test's BuiltInRuntimeContractTest.expectedCapabilities(), the
+        // .harness/capabilities.snapshot.json row, the modules/ai/README.md
+        // matrix row, and the SKILLCARD manifests in the same commit.
+        assertEquals(19, caps.size());
     }
 
     @Test

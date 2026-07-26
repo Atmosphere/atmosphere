@@ -126,6 +126,38 @@ internal class EmbabelRuntimeContractTest : AbstractAgentRuntimeContractTest() {
     override fun expectedGenerationHonoring(): Set<GenerationParamsSupport> = emptySet()
 
     /**
+     * Both entries point at dedicated tests in this module that assert more
+     * than the TCK's hooks could:
+     *  - `VISION` — [EmbabelToolBridgeTest] pins `toEmbabelImages`, the
+     *    translation of Atmosphere [org.atmosphere.ai.Content.Image] parts into
+     *    Embabel `AgentImage` instances.
+     *  - `CANCELLATION` — [EmbabelAgentRuntimeCancelTest] drives the handle
+     *    against a mocked `AgentPlatform` and asserts the running
+     *    `AgentProcess` is killed.
+     */
+    override fun capabilitiesCoveredOutsideTck(): Map<AiCapability, String> = mapOf(
+        AiCapability.VISION to "EmbabelToolBridgeTest",
+        AiCapability.CANCELLATION to "EmbabelAgentRuntimeCancelTest"
+    )
+
+    /**
+     * Exercise `runtimeAcceptsCustomRetryPolicyOnContext`. Embabel implements
+     * [org.atmosphere.ai.AgentRuntime] directly and re-implements the outer
+     * retry wrapper privately, so the dispatch must accept a non-default
+     * [org.atmosphere.ai.RetryPolicy] on the context.
+     */
+    override fun createRetryContext(): AgentExecutionContext =
+        AgentExecutionContext(
+            "Hello, no retries.", "You are helpful", "gpt-4o-mini",
+            null, "session-1", "user-1", "conv-1",
+            emptyList<org.atmosphere.ai.tool.ToolDefinition>(), null, null,
+            emptyList<org.atmosphere.ai.ContextProvider>(),
+            emptyMap<String, Any>(),
+            emptyList<org.atmosphere.ai.llm.ChatMessage>(),
+            null, null
+        ).withRetryPolicy(org.atmosphere.ai.RetryPolicy.NONE)
+
+    /**
      * Build a mocked [AgentPlatform] that:
      *  1. Reports a single deployed [Agent] named `"chat-assistant"` (the
      *     runtime's default agent name) so [EmbabelAgentRuntime.execute]

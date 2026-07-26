@@ -67,24 +67,31 @@ public final class SqliteEvalDatasetStore implements EvalDatasetStore, AutoClose
             SqliteEvalSupport.closeQuietly(connection, logger);
             throw new IllegalStateException(
                     "Failed to initialize SQLite eval dataset store: " + dbPath, e);
+        } catch (RuntimeException e) {
+            // A schema-version refusal propagates as-is, but the connection
+            // this constructor opened must still be closed (Invariant #2).
+            SqliteEvalSupport.closeQuietly(connection, logger);
+            throw e;
         }
     }
 
     private void createSchema() throws SQLException {
-        try (var stmt = connection.createStatement()) {
-            stmt.execute("""
-                CREATE TABLE IF NOT EXISTS eval_dataset (
-                    id TEXT PRIMARY KEY,
-                    prompt TEXT NOT NULL,
-                    reference_answer TEXT NOT NULL,
-                    source TEXT NOT NULL,
-                    tags TEXT NOT NULL,
-                    captured_iso TEXT NOT NULL,
-                    captured_millis INTEGER NOT NULL
-                )""");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_eval_dataset_captured "
-                    + "ON eval_dataset(captured_millis)");
-        }
+        SchemaMigrations.migrate(connection, "eval_dataset", List.of(conn -> {
+            try (var stmt = conn.createStatement()) {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS eval_dataset (
+                        id TEXT PRIMARY KEY,
+                        prompt TEXT NOT NULL,
+                        reference_answer TEXT NOT NULL,
+                        source TEXT NOT NULL,
+                        tags TEXT NOT NULL,
+                        captured_iso TEXT NOT NULL,
+                        captured_millis INTEGER NOT NULL
+                    )""");
+                stmt.execute("CREATE INDEX IF NOT EXISTS idx_eval_dataset_captured "
+                        + "ON eval_dataset(captured_millis)");
+            }
+        }));
     }
 
     @Override

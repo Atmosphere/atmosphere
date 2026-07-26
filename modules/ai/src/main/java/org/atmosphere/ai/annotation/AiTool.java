@@ -85,4 +85,23 @@ public @interface AiTool {
      * approval posture exactly as restrictive as before.</p>
      */
     ToolKind kind() default ToolKind.OTHER;
+
+    /**
+     * Per-tool execution deadline in seconds. A tool still running when the
+     * deadline expires has its thread interrupted and the model receives a
+     * structured timeout error instead of the turn hanging. Carried on the
+     * built {@code ToolDefinition.executionTimeout()} and enforced at the
+     * shared {@code ToolExecutionHelper} seam. Interruption is
+     * cooperative: a tool body that swallows {@link InterruptedException} or
+     * blocks uninterruptibly can still overrun and should carry its own I/O
+     * timeout.
+     *
+     * <p>{@code 0} (the default) means "use the globally configured
+     * deadline" ({@code org.atmosphere.ai.toolExecutionTimeout} /
+     * {@code LLM_TOOL_EXECUTION_TIMEOUT}); a negative value disables the
+     * deadline for this tool, which
+     * is the right choice for a tool that legitimately runs unbounded and is
+     * cancelled by other means.</p>
+     */
+    long timeoutSeconds() default 0;
 }

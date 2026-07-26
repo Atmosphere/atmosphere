@@ -2594,3 +2594,109 @@ regex locally and called it proof.
   output, so a CI-only failure is diagnosable without a local repro.
 - `CI: Gate Self-Test` runs on every change to the gate. It caught all of this
   within four minutes of the push — the suite works; my local run of it did not.
+
+---
+
+## 2026-07-25 — JMH gate rationale: invented noise sources for the excluded benchmarks
+
+Adding an enforcing `jmh-gate` leg to `benchmarks.yml` (the existing JMH lane
+ran `fail-on-alert: false`, so it could never go red). The gate runs a curated
+subset — `AiInterceptorChainBenchmark|PolicyEvalBenchmark` — and the workflow
+comment had to justify *why* those two and not the rest.
+
+**Claim:** the comment I committed said the full matrix "includes
+broadcaster/coordinator/checkpoint benchmarks that exercise executors,
+virtual-thread scheduling, and **disk I/O**", and that the two chosen classes
+are "**the least noise-exposed classes in the suite**".
+
+**Truth:** `CheckpointStoreBenchmark` benchmarks `InMemoryCheckpointStore`
+(its own Javadoc: "Tier 1 micro-benchmark: {@link InMemoryCheckpointStore}
+operations across varying snapshot counts") — there is no disk I/O anywhere in
+the suite to be a noise source. And the superlative does not hold: by the same
+grep that cleared the two chosen classes,
+`AgentRuntimeResolverBenchmark` and `BusinessMdcBenchmark` are equally free of
+executors/threads/latches. Only the virtual-thread clause survived contact with
+the code — `CoordinatorFanOutBenchmark`'s Javadoc does say it "isolates fleet
+dispatch and virtual-thread scheduling overhead".
+
+**Slip path:** the rationale was *narratively* correct — a curated-subset gate
+does need noisy neighbours to justify the curation — so I wrote the sentence the
+argument wanted and never opened the files it named. Every clause was
+plausible; three of four were checkable in one grep; I checked none before
+committing. This is the "inferred from the narrative instead of reading the
+code" pattern, landing in a CI workflow comment where nothing executes it — no
+test, no build step, and no reviewer's runtime would ever contradict it. Prose
+that justifies a gate is exactly as load-bearing as the gate (it is what the
+next engineer edits against) and gets no automated verification at all.
+
+**Gate added:** none automated — a workflow comment has no assertable surface.
+The correction cites only in-repo evidence, and each clause now names its
+source so the next reader can re-verify in one grep: the vt-pinning step's own
+`"Checkpoint|Broadcaster"` selector (already designated "most lock-sensitive"
+in this same file) and `CoordinatorFanOutBenchmark`'s class Javadoc. The
+unverifiable superlative was dropped rather than reworded. Standing rule
+reinforced: a justification clause naming a specific class is a factual claim
+about that class — open the file or delete the clause.
+
+**Same-session repeat (caught by the rule above, pre-push):** while re-reading
+the same commit I found two more unverified clauses of this class. The workflow
+comment said the two gated benchmarks run "over fixed `@Param` sets" —
+`PolicyEvalBenchmark` has no `@Param` at all. And the new `MicrometerAiMetrics`
+Javadoc + `modules/ai/README.md` said the AI latency percentiles were
+"mirroring"/"matching the governance timers", when `MicrometerGovernanceMetrics`
+publishes p50/**p90**/p99 and the new AI timers publish p50/**p95**/p99. Same
+failure shape each time: an appeal to a neighbouring artifact ("like X does")
+written from memory of what X probably does, in prose no test executes. All
+three were in one commit; none survived a one-line grep. Corrected to state the
+shared mechanism (`publishPercentiles`) and name the differing values
+explicitly. Recorded here rather than quietly fixed, since the log's purpose is
+the claim-failure *rate*, not just the claims that reached a reviewer.
+## 2026-07-25 — A code comment cited a README section that did not exist
+
+**Session:** Tier-3 adapter polish — Anthropic `cache_control` + tool-call
+deltas, live model enumeration across the three hand-rolled HTTP clients, and
+the native-logprobs confidence path on the Built-in client.
+
+**Claim:** A comment written into `OpenAiCompatibleClient.buildRequestBody`
+stated that logprobs are requested on the chat-completions path only, and that
+"the mode difference is documented on modules/ai/README.md."
+
+**Truth:** No such documentation existed. `modules/ai/README.md` had no
+logprobs section at all at the time the comment was written — neither the
+`atmosphere.ai.logprobs` knob nor the Responses-API mode carve-out. The
+citation pointed at nothing.
+
+**Slip path:** The comment was written while implementing the feature, at the
+moment the intent was formed, not after the doc was authored. Nothing in the
+toolchain checks that a prose cross-reference in a Java comment resolves —
+`javac`, Checkstyle, and PMD all treat comment text as opaque. The claim was
+plausible precisely because it described work I intended to do, which is the
+same "inferred from the plan instead of reading the artifact" failure mode this
+log has recorded before, transplanted from Markdown into a code comment.
+
+Adjacent, caught in the same pass: `AiCapability.TOOL_CALL_DELTA` and
+`StreamingSession.toolCallDelta` both asserted that "only `BuiltInAgentRuntime`
+declares this." That was already false before this session (Cohere declared
+`TOOL_CALL_DELTA` and forwarded fragments from its `tool-call-delta` loop), and
+adding Anthropic would have widened an existing inaccuracy rather than
+introduced a new one. The `ai-tool-call-delta.spec.ts` negative assertion
+carried the same stale premise — it excluded only `built-in`, so it would have
+failed *correctly-behaving* runtimes had anthropic or cohere ever joined that
+classpath.
+
+**Gate added:** `none` for the general class — there is no automated check that
+a Java comment's reference to a doc section resolves, and inventing one for
+prose cross-references would have a poor signal-to-noise ratio. What was done
+instead is specific and verifiable:
+
+- The cited section now exists (`modules/ai/README.md` § *Native logprobs
+  confidence*), covering the knob, the endpoint gate, and the Mode-scope
+  carve-out, and the comment cites it by section name rather than by file
+  alone.
+- The documented mode difference is pinned by a test rather than left to prose:
+  `OpenAiCompatibleClientLogprobsTest.responsesApiPathNeverRequestsLogprobs`
+  asserts the Responses-API body builder never emits the field, so code and doc
+  cannot drift apart silently (Correctness Invariant #7).
+- The two capability Javadocs now enumerate the actual delta-capable set (the
+  three hand-rolled HTTP runtimes), and the e2e negative assertion targets the
+  framework bridges explicitly instead of "everything except built-in."

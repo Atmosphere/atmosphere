@@ -138,6 +138,58 @@ class SpringAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
                 org.atmosphere.ai.approval.ToolApprovalPolicy.annotated());
     }
 
+    /**
+     * Exercise {@code runtimeAcceptsCustomRetryPolicyOnContext} on Spring AI.
+     * {@code AbstractAgentRuntime.executeWithOuterRetry} wraps
+     * {@code doExecute} when {@code context.retryPolicy()} is not the inherit
+     * sentinel, so a non-default policy must ride the dispatch without the
+     * bridge rejecting it.
+     */
+    @Override
+    protected AgentExecutionContext createRetryContext() {
+        return new AgentExecutionContext(
+                "Hello, no retries.", "You are helpful", "gpt-4",
+                null, "session-1", "user-1", "conv-1",
+                List.of(), null, null, List.of(), Map.of(),
+                List.of(), null, null, List.of(), List.of(),
+                org.atmosphere.ai.approval.ToolApprovalPolicy.annotated())
+                .withRetryPolicy(org.atmosphere.ai.RetryPolicy.NONE);
+    }
+
+    /**
+     * Cancellation fixture for Spring AI. {@code doExecuteWithHandle}
+     * subscribes to the {@code ChatClient}'s response {@link Flux} and wraps
+     * the Reactor {@code Disposable} in the returned handle; {@code cancel()}
+     * disposes it, which propagates an upstream cancel to the provider call.
+     * The stub returns a never-emitting {@code Flux} whose {@code doOnCancel}
+     * counts that dispose — so the contract's exactly-once assertion proves
+     * the CAS guard around the disposal.
+     */
+    @Override
+    protected CancellationFixture createCancellationFixture() {
+        var releases = new java.util.concurrent.atomic.AtomicInteger();
+        return CancellationFixture
+                .of(new TestableSpringAiRuntime(mockBlockingChatClient(releases)),
+                        createTextContext())
+                .withBackendRelease("Reactor subscription dispose()", releases);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ChatClient mockBlockingChatClient(
+            java.util.concurrent.atomic.AtomicInteger releases) {
+        var chatClient = mock(ChatClient.class);
+        var promptSpec = mock(ChatClient.ChatClientRequestSpec.class,
+                org.mockito.Answers.RETURNS_SELF);
+        var streamSpec = mock(ChatClient.StreamResponseSpec.class);
+        when(chatClient.prompt()).thenReturn(promptSpec);
+        when(promptSpec.stream()).thenReturn(streamSpec);
+        // Never-emitting source: the subscription stays open until the test
+        // cancels, so the handle is genuinely in flight.
+        when(streamSpec.chatResponse()).thenAnswer(inv ->
+                Flux.<ChatResponse>never().doOnCancel(releases::incrementAndGet));
+        return chatClient;
+    }
+
     @Test
     void springAiDeclaresToolCalling() {
         assertTrue(createRuntime().capabilities().contains(AiCapability.TOOL_CALLING));

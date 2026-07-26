@@ -26,6 +26,7 @@ import org.atmosphere.ai.ContextProvider;
 import org.atmosphere.ai.DefaultStreamingSession;
 import org.atmosphere.ai.PostPromptHook;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.StreamingSessionSweeper;
 import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.ai.TracingCapturingSession;
 import org.atmosphere.ai.cache.AiResponseCacheInspector;
@@ -38,6 +39,7 @@ import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceHeartbeatEventListener;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
@@ -950,45 +952,81 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // Tomcat can fire the async error/cancel listener with a recycled request
         // after the async context has been torn down. When that happens the
         // AtmosphereResourceEvent has already been stripped of its resource and
-        // the event.getResource() we threaded through is null — there is nothing
-        // left to clean up here, so fall through to lifecycle.onDisconnect so
-        // user-defined listeners still see the signal.
+        // the event.getResource() we threaded through is null — but the event
+        // still carries the UUID it was created with, so the memory, session
+        // and tape state keyed by that UUID stays reclaimable (Invariant #3).
+        // The request attributes are gone with the recycled request, so the
+        // interceptor callback sees a null userId on this path.
         if (resource == null) {
-            logger.debug("handleDisconnect invoked after resource recycled — skipping "
-                    + "memory/session cleanup (event.isClosedByClient={}, isCancelled={})",
-                    event.isClosedByClient(), event.isCancelled());
+            var uuid = event instanceof AtmosphereResourceEventImpl impl ? impl.uuid() : null;
+            if (uuid == null) {
+                logger.debug("handleDisconnect invoked after resource recycled with no uuid — skipping "
+                        + "memory/session cleanup (event.isClosedByClient={}, isCancelled={})",
+                        event.isClosedByClient(), event.isCancelled());
+            } else {
+                logger.debug("handleDisconnect invoked after resource recycled — reclaiming session "
+                        + "state for uuid {} (event.isClosedByClient={}, isCancelled={})",
+                        uuid, event.isClosedByClient(), event.isCancelled());
+                cleanupDisconnected(null, uuid);
+            }
             lifecycle.onDisconnect(target, event);
             return;
         }
-        notifyInterceptorsOnDisconnect(resource);
-        if (memory != null) {
-            memory.clear(resource.uuid());
+        cleanupDisconnected(disconnectUserId(resource), resource.uuid());
+        lifecycle.onDisconnect(target, event);
+        logger.info(logMessage, resource.uuid());
+    }
+
+    /**
+     * The {@code ai.userId} request attribute, or null when the request is
+     * already gone. A resource whose request has been recycled must not NPE
+     * the disconnect path.
+     */
+    private static String disconnectUserId(AtmosphereResource resource) {
+        try {
+            var request = resource.getRequest();
+            if (request == null) {
+                return null;
+            }
+            var userId = request.getAttribute("ai.userId");
+            return userId != null ? userId.toString() : null;
+        } catch (RuntimeException e) {
+            logger.trace("unable to resolve ai.userId on disconnect", e);
+            return null;
         }
-        DefaultStreamingSession.cleanupResource(resource);
-        AiStreamingSession.removeAllForResource(resource.uuid());
+    }
+
+    /**
+     * Reclaim every piece of per-connection state keyed by the resource UUID.
+     * Shared by the normal disconnect path and the recycled-resource path so
+     * both reclaim identically (Invariant #7). Interceptors are notified
+     * BEFORE memory is cleared so they can extract facts from history.
+     */
+    private void cleanupDisconnected(String userIdStr, String uuid) {
+        notifyInterceptorsOnDisconnect(userIdStr, uuid);
+        if (memory != null) {
+            memory.clear(uuid);
+        }
+        DefaultStreamingSession.cleanupResource(uuid);
+        AiStreamingSession.removeAllForResource(uuid);
         // Session tape: cancel-mark every open taped run of this resource
         // (reconnects get a fresh uuid, so this never races a live run). The
         // writer drains already-queued steps before CANCELLED lands. No-op
         // when nothing is installed.
-        org.atmosphere.ai.tape.TapeSupport.resourceDisconnected(resource.uuid());
-        lifecycle.onDisconnect(target, event);
-        logger.info(logMessage, resource.uuid());
+        org.atmosphere.ai.tape.TapeSupport.resourceDisconnected(uuid);
     }
 
     /**
      * Notify interceptors of disconnect BEFORE memory is cleared so they can
      * extract facts from conversation history.
      */
-    private void notifyInterceptorsOnDisconnect(AtmosphereResource resource) {
+    private void notifyInterceptorsOnDisconnect(String userIdStr, String conversationId) {
         if (interceptors.isEmpty()) {
             return;
         }
         var history = memory != null
-                ? memory.getHistory(resource.uuid())
+                ? memory.getHistory(conversationId)
                 : List.<org.atmosphere.ai.llm.ChatMessage>of();
-        var userId = resource.getRequest().getAttribute("ai.userId");
-        var userIdStr = userId != null ? userId.toString() : null;
-        var conversationId = resource.uuid();
         for (var interceptor : interceptors) {
             try {
                 interceptor.onDisconnect(userIdStr, conversationId, history);
@@ -997,6 +1035,18 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                         interceptor.getClass().getName(), e);
             }
         }
+    }
+
+    /**
+     * Framework teardown: stop the shared streaming-session TTL sweeper
+     * (symmetric with its lazy start on session registration — Invariant #1).
+     * Idempotent, and the sweeper restarts on the next registration, so
+     * multiple endpoint handlers being destroyed in any order is safe.
+     */
+    @Override
+    public void destroy() {
+        StreamingSessionSweeper.shutdown();
+        super.destroy();
     }
 
     private void invokePrompt(String message, StreamingSession session, AtmosphereResource resource)

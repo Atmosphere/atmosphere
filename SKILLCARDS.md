@@ -22,9 +22,9 @@ NVIDIA uses (`https://github.com/sigstore/model-transparency`).
 |---------|--------|----------|--------------|------|---------------|-----------|
 | `AdkAgentRuntime` | `modules/adk` | java | 19 | [card](modules/adk/SKILLCARD.yaml) | [test](modules/adk/src/test/java/org/atmosphere/ai/adk/AdkRuntimeContractTest.java) | unsigned |
 | `AgentScopeAgentRuntime` | `modules/agentscope` | java | 17 | [card](modules/agentscope/SKILLCARD.yaml) | [test](modules/agentscope/src/test/java/org/atmosphere/ai/agentscope/AgentScopeRuntimeContractTest.java) | unsigned |
-| `AnthropicAgentRuntime` | `modules/anthropic` | java | 16 | [card](modules/anthropic/SKILLCARD.yaml) | [test](modules/anthropic/src/test/java/org/atmosphere/ai/anthropic/AnthropicRuntimeContractTest.java) | unsigned |
-| `BuiltInAgentRuntime` | `modules/ai-test` | java | 18 | [card](modules/ai/SKILLCARD.yaml) | [test](modules/ai-test/src/test/java/org/atmosphere/ai/test/BuiltInRuntimeContractTest.java) | unsigned |
-| `CohereAgentRuntime` | `modules/cohere` | java | 16 | [card](modules/cohere/SKILLCARD.yaml) | [test](modules/cohere/src/test/java/org/atmosphere/ai/cohere/CohereRuntimeContractTest.java) | unsigned |
+| `AnthropicAgentRuntime` | `modules/anthropic` | java | 19 | [card](modules/anthropic/SKILLCARD.yaml) | [test](modules/anthropic/src/test/java/org/atmosphere/ai/anthropic/AnthropicRuntimeContractTest.java) | unsigned |
+| `BuiltInAgentRuntime` | `modules/ai-test` | java | 19 | [card](modules/ai/SKILLCARD.yaml) | [test](modules/ai-test/src/test/java/org/atmosphere/ai/test/BuiltInRuntimeContractTest.java) | unsigned |
+| `CohereAgentRuntime` | `modules/cohere` | java | 17 | [card](modules/cohere/SKILLCARD.yaml) | [test](modules/cohere/src/test/java/org/atmosphere/ai/cohere/CohereRuntimeContractTest.java) | unsigned |
 | `CrewAiAgentRuntime` | `modules/crewai` | java | 9 | [card](modules/crewai/SKILLCARD.yaml) | [test](modules/crewai/src/test/java/org/atmosphere/ai/crewai/CrewAiRuntimeContractTest.java) | unsigned |
 | `EmbabelAgentRuntime` | `modules/embabel` | kotlin | 15 | [card](modules/embabel/SKILLCARD.yaml) | [test](modules/embabel/src/test/kotlin/org/atmosphere/ai/embabel/EmbabelRuntimeContractTest.kt) | unsigned |
 | `KoogAgentRuntime` | `modules/koog` | kotlin | 19 | [card](modules/koog/SKILLCARD.yaml) | [test](modules/koog/src/test/kotlin/org/atmosphere/ai/koog/KoogRuntimeContractTest.kt) | unsigned |

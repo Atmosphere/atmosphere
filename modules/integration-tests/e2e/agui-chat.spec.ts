@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
+import { quarantined } from './helpers/quarantine';
 
 let server: SampleServer;
 
@@ -177,11 +178,15 @@ test.describe('AG-UI chat via the Atmosphere Console', () => {
       .toBeVisible({ timeout: 30_000 });
   });
 
-  // Owner: atmosphere-agui; Expiry: 2026-09-30. The demo AG-UI handler responds
-  // fast enough that the input disable→enable cycle is not reliably observable
-  // in a headless run; revisit with an artificial demo delay or a network-idle
-  // wait when the Console gains a "thinking" affordance to assert against.
-  test.skip('input disabled while streaming, re-enabled after', async ({ page }) => {
+  // Revisit with an artificial demo delay, or a wait on a Console "thinking"
+  // affordance once one exists to assert against.
+  quarantined({
+    owner: 'jfarcand',
+    expires: '2026-09-30',
+    issue: 'pending',
+    reason: 'the demo AG-UI handler responds too fast for the input '
+      + 'disable-then-enable cycle to be observable in a headless run',
+  })('input disabled while streaming, re-enabled after @quarantined', async ({ page }) => {
     await page.goto(server.baseUrl);
     await expect(page.getByTestId('chat-input')).toBeVisible();
 

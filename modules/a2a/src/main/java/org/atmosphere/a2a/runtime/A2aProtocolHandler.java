@@ -93,6 +93,16 @@ public final class A2aProtocolHandler {
     private volatile ProtocolTracing tracing;
 
     /**
+     * Optional framework reference used to resolve the installed governance
+     * policy chain for raw-skill admission ({@link A2aPolicyGateway}). When
+     * {@code null} (not wired) no chain is resolvable and raw dispatch is
+     * admitted — matching a deployment with no policies installed. Installed
+     * via {@link #setFramework} by the registration sites (agent /
+     * coordinator processors, {@code ProtocolBridge}).
+     */
+    private volatile org.atmosphere.cpr.AtmosphereFramework framework;
+
+    /**
      * Optional push-notification service. When {@code null} (the default),
      * the {@code tasks/pushNotificationConfig/*} methods report
      * {@link #ERROR_PUSH_NOT_SUPPORTED} — the honest runtime state for an
@@ -157,6 +167,22 @@ public final class A2aProtocolHandler {
     /** The installed push-notification service, or {@code null} if push is off. */
     public PushNotificationService pushNotificationService() {
         return pushService;
+    }
+
+    /**
+     * Install the framework whose governance policy chain governs raw
+     * {@code @AgentSkill} dispatch. Registration sites call this right after
+     * construction; without it no chain is resolvable and raw skills dispatch
+     * ungoverned — the same posture as a deployment with no policies
+     * installed. Passing {@code null} clears the reference.
+     */
+    public void setFramework(org.atmosphere.cpr.AtmosphereFramework f) {
+        this.framework = f;
+    }
+
+    /** The framework backing raw-skill policy admission, or {@code null}. */
+    public org.atmosphere.cpr.AtmosphereFramework framework() {
+        return framework;
     }
 
     public String handleMessage(String message) {
@@ -591,6 +617,9 @@ public final class A2aProtocolHandler {
 
     private void executeSkill(A2aRegistry.SkillEntry skill, TaskContext taskCtx, JsonNode params) {
         var inputText = firstMessageText(params);
+        if (!admitRawSkill(skill, taskCtx, inputText)) {
+            return;
+        }
         boolean ok = true;
         try {
             var method = skill.method();
@@ -632,6 +661,40 @@ public final class A2aProtocolHandler {
         } finally {
             tapeToolDispatch(skill, taskCtx, inputText, ok);
         }
+    }
+
+    /**
+     * Boundary admission for a <b>raw</b> {@code @AgentSkill} handler — a
+     * user-written method the registry invokes reflectively, which never
+     * enters {@code AiPipeline} and therefore never met the governance
+     * plane's pre-admission loop. Runs the installed policy chain via
+     * {@link A2aPolicyGateway} (fail-closed) and fails the task on a denial
+     * so both the unary response ({@code SendMessage} returns the FAILED
+     * task) and the streaming path (which turns a FAILED task into an error
+     * frame) report it — Mode Parity, Correctness Invariant #7.
+     *
+     * <p>{@link PipelineBackedSkill} handlers are skipped: their dispatch
+     * runs the same chain inside {@code AiPipeline.execute()}, so admitting
+     * here too would evaluate every policy twice per turn — double-charging
+     * stateful policies (concurrency slots, rate counters) and double-writing
+     * the {@code GovernanceDecisionLog}.</p>
+     *
+     * @return {@code true} when the dispatch may proceed
+     */
+    private boolean admitRawSkill(A2aRegistry.SkillEntry skill, TaskContext taskCtx,
+                                  String inputText) {
+        if (skill.instance() instanceof PipelineBackedSkill) {
+            return true;
+        }
+        var outcome = A2aPolicyGateway.admit(framework, skill.id(), inputText);
+        if (outcome instanceof A2aPolicyGateway.Outcome.Denied denied) {
+            logger.warn("A2A skill '{}' denied by policy '{}': {}",
+                    skill.id(), denied.policyName(), denied.reason());
+            taskCtx.fail("Skill '" + skill.id() + "' denied by policy '"
+                    + denied.policyName() + "': " + denied.reason());
+            return false;
+        }
+        return true;
     }
 
     /**

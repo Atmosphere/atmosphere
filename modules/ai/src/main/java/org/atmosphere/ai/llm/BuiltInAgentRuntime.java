@@ -18,6 +18,7 @@ package org.atmosphere.ai.llm;
 import org.atmosphere.ai.AbstractAgentRuntime;
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AiCapability;
+import org.atmosphere.ai.AiConfidenceElicitation;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 
@@ -29,6 +30,21 @@ import java.util.Set;
  * when no framework-specific runtime is on the classpath.
  */
 public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
+
+    /**
+     * Short-TTL cache for {@link #models()}. Best-effort: a failed or empty
+     * live enumeration falls through to the configured-model fallback and is
+     * not negatively cached.
+     */
+    private final CachedModelList modelCache = new CachedModelList();
+
+    /**
+     * Model captured at {@link #configure(AiConfig.LlmSettings)} time, used as
+     * the {@link #models()} fallback when a live enumeration fails and the
+     * process-wide {@link AiConfig} static is not installed. Null until
+     * configured.
+     */
+    private volatile String configuredModel;
 
     /**
      * Built-in threads {@link AgentExecutionContext#retryPolicy()} into
@@ -68,6 +84,14 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
 
     @Override
     public void configure(AiConfig.LlmSettings settings) {
+        if (settings != null && settings.model() != null && !settings.model().isBlank()) {
+            // Remember the model this runtime was configured with so models()
+            // can report it even when the process-wide AiConfig static was
+            // never installed (direct/embedded wiring). Dispatch still resolves
+            // per-request through effectiveModel(...); this is the discovery
+            // fallback only.
+            configuredModel = settings.model();
+        }
         if (getNativeClient() == null && settings != null) {
             setNativeClient(settings.client());
         }
@@ -209,7 +233,52 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
         if (loopPolicy != null) {
             builder.toolLoopPolicy(loopPolicy);
         }
+        // Native-logprobs confidence: when the pipeline installed a confidence
+        // elicitation for this request (AiPipeline seeds its default into
+        // metadata and the caller's own wins), ask the provider for token
+        // logprobs so OpenAiCompatibleClient can emit an AiConfidence with
+        // source LOGPROBS_NATIVE — the highest-quality signal — instead of
+        // relying solely on the model-reported-field parse. The client gates
+        // the actual wire field on LogprobsMode + the shared endpoint
+        // allow-list, and the ConfidenceCapturingSession decorator observes
+        // the explicit emission and skips its own, so exactly one confidence
+        // event fires per response. With no elicitation in scope the flag
+        // stays false and the request body is byte-identical to before.
+        if (AiConfidenceElicitation.from(context) != null) {
+            builder.logprobs(true);
+        }
         return builder.build();
+    }
+
+    /**
+     * Live model enumeration via the configured OpenAI-compatible endpoint's
+     * {@code GET {baseUrl}/models}, cached for a short TTL and always falling
+     * back to the framework-configured model on any error, timeout, or empty
+     * result — enumeration failure can never break dispatch. Backs
+     * {@link AiCapability#MODEL_ENUMERATION}.
+     */
+    @Override
+    public java.util.List<String> models() {
+        var client = getNativeClient();
+        if (client == null) {
+            return fallbackModels();
+        }
+        return modelCache.get("Built-in", client::listModels, this::fallbackModels);
+    }
+
+    /**
+     * Configured-model fallback for {@link #models()}: the framework-resolved
+     * {@link AiConfig} model when the static is installed, otherwise the model
+     * captured at {@link #configure(AiConfig.LlmSettings)} time. Empty only
+     * when this runtime has no configured model at all.
+     */
+    private java.util.List<String> fallbackModels() {
+        var configured = super.models();
+        if (!configured.isEmpty()) {
+            return configured;
+        }
+        var local = configuredModel;
+        return local != null ? java.util.List.of(local) : java.util.List.of();
     }
 
     @Override
@@ -295,15 +364,30 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
                 // doExecute pushes through StreamingSession.usage() which is
                 // exactly the signal BudgetCapturingSession taps.
                 AiCapability.BUDGET_ENFORCEMENT,
-                // CONFIDENCE_SCORES: framework-level capability — when an
-                // AiConfidenceElicitation is configured, AiPipeline appends
-                // the cue to the system prompt and the
+                // CONFIDENCE_SCORES: two paths, both live. (1) Framework
+                // level — when an AiConfidenceElicitation is configured,
+                // AiPipeline appends the cue to the system prompt and the
                 // ConfidenceCapturingSession decorator parses the model's
-                // emitted confidence field on stream completion. Honest
-                // because Built-in honors SYSTEM_PROMPT and streams response
-                // text through the session — both signals the elicitation
-                // path needs.
+                // emitted confidence field on stream completion. (2) Native
+                // logprobs — buildRequest sets ChatCompletionRequest.logprobs
+                // whenever an elicitation is in scope, OpenAiCompatibleClient
+                // emits `logprobs: true` on the chat-completions wire (gated
+                // by LogprobsMode + the shared endpoint allow-list), captures
+                // choices[].logprobs.content, and fires
+                // AiConfidence.fromLogprobs(...) — source LOGPROBS_NATIVE —
+                // before the terminal frame. The decorator sees the explicit
+                // emission and suppresses its own parse, so exactly one
+                // confidence event fires per response and the richer signal
+                // wins when the provider supplies it.
                 AiCapability.CONFIDENCE_SCORES,
+                // MODEL_ENUMERATION: models() calls the configured
+                // OpenAI-compatible endpoint's GET {baseUrl}/models through
+                // OpenAiCompatibleClient.listModels(), cached for a short TTL
+                // (CachedModelList) and always falling back to the
+                // AiConfig-configured model on any error/timeout/empty result.
+                // Honest because the list reflects runtime-resolved provider
+                // state, not configuration intent (Correctness Invariant #5).
+                AiCapability.MODEL_ENUMERATION,
                 // PASSIVATION: AgentPassivation (modules/checkpoint) snapshots
                 // context.history() into a CheckpointStore and rehydrates on
                 // resume. Honest because Built-in's assembleMessages threads

@@ -51,6 +51,18 @@ public final class McpSession {
     /** Default session idle TTL in milliseconds (30 minutes). */
     public static final long DEFAULT_TTL_MS = 30 * 60 * 1000L;
 
+    /**
+     * Hard cap on concurrently in-flight server-initiated requests (sampling,
+     * roots, elicitation). The map is fed by server code — each call reserves a
+     * slot — but the responses come from the client, so a client that never
+     * answers, or a tool that issues requests faster than they are answered,
+     * would otherwise let the map grow without bound (Correctness Invariant #3).
+     * Registrations past the cap are rejected: {@link #registerServerRequest}
+     * fails the reserved future and {@link #tryRegisterServerRequest} returns
+     * {@code false}, so the caller sees backpressure instead of a silent leak.
+     */
+    public static final int MAX_PENDING_SERVER_REQUESTS = 64;
+
     private final String sessionId = UUID.randomUUID().toString();
     private volatile boolean initialized;
     private volatile Map<String, Object> clientCapabilities = Map.of();
@@ -76,6 +88,13 @@ public final class McpSession {
      * the SSE GET tear-down/reopen cycle.
      */
     private final Map<String, CompletableFuture<JsonNode>> pendingServerRequests = new ConcurrentHashMap<>();
+
+    /**
+     * Set once by {@link #close()}. Guards against registering new
+     * server-initiated requests onto a torn-down session and makes
+     * {@code close()} idempotent (Correctness Invariant #2).
+     */
+    private volatile boolean closed;
 
     public McpSession() {
         this(DEFAULT_MAX_PENDING);
@@ -198,7 +217,46 @@ public final class McpSession {
      * reserves the response slot.
      */
     public void registerServerRequest(String requestId, CompletableFuture<JsonNode> future) {
+        if (closed) {
+            // Registering onto a torn-down session would strand the future
+            // forever — nothing will ever complete it (Invariant #2).
+            future.completeExceptionally(new McpSessionClosedException(sessionId));
+            return;
+        }
+        if (pendingServerRequests.size() >= MAX_PENDING_SERVER_REQUESTS) {
+            future.completeExceptionally(new IllegalStateException(
+                    "Too many in-flight server-initiated requests for session " + sessionId
+                            + " (cap=" + MAX_PENDING_SERVER_REQUESTS + ")"));
+            return;
+        }
         pendingServerRequests.put(requestId, future);
+        if (closed) {
+            // Lost the race with close() — reclaim rather than strand.
+            cancelAllPendingServerRequests();
+        }
+    }
+
+    /**
+     * Bounded variant of {@link #registerServerRequest}: reserves the response
+     * slot only while fewer than {@link #MAX_PENDING_SERVER_REQUESTS} requests
+     * are already in flight, and returns {@code false} otherwise.
+     *
+     * <p>Both registration paths honour the cap; they differ only in how the
+     * rejection surfaces. {@code registerServerRequest} fails the future it was
+     * handed, which suits callers that already await it; issuance paths that
+     * want to decide for themselves (sampling in a loop, an elicitation the
+     * client never answers) use this variant and surface the rejection to the
+     * caller directly (Correctness Invariant #3).</p>
+     *
+     * @return {@code true} when the slot was reserved, {@code false} when the
+     *         session is already at its in-flight limit
+     */
+    public boolean tryRegisterServerRequest(String requestId, CompletableFuture<JsonNode> future) {
+        if (pendingServerRequests.size() >= MAX_PENDING_SERVER_REQUESTS) {
+            return false;
+        }
+        pendingServerRequests.put(requestId, future);
+        return true;
     }
 
     /**
@@ -232,6 +290,73 @@ public final class McpSession {
     /** Visible-for-testing snapshot of in-flight server-initiated request ids. */
     public Set<String> pendingServerRequestIds() {
         return Collections.unmodifiableSet(pendingServerRequests.keySet());
+    }
+
+    // ── Teardown ────────────────────────────────────────────────────────
+
+    /**
+     * Tear the session down: mark it closed and fail every in-flight
+     * server-initiated request with {@link McpSessionClosedException}.
+     * Without this, a caller awaiting an {@code elicitation/create} response
+     * would park forever when the session is deleted, evicted by TTL, or
+     * dropped on handler destroy — the future was simply discarded
+     * un-completed (Correctness Invariant #2: every terminal path must leave
+     * the system in a completed state).
+     *
+     * <p>Idempotent and safe from any thread: the second and subsequent calls
+     * are no-ops because the pending map has already been drained and
+     * {@code closed} latched.</p>
+     *
+     * @return the number of pending requests failed by this call
+     */
+    public int close() {
+        closed = true;
+        return cancelAllPendingServerRequests();
+    }
+
+    /** Whether {@link #close()} has been invoked. */
+    public boolean isClosed() {
+        return closed;
+    }
+
+    /**
+     * Fail every pending server-initiated request with a session-closed
+     * cause, draining the map. Each future is removed before completion so a
+     * concurrent {@link #completeServerRequest} cannot double-complete it —
+     * and {@code CompletableFuture} makes the loser a no-op anyway.
+     */
+    private int cancelAllPendingServerRequests() {
+        var cancelled = 0;
+        for (var requestId : Set.copyOf(pendingServerRequests.keySet())) {
+            var future = pendingServerRequests.remove(requestId);
+            if (future != null) {
+                future.completeExceptionally(new McpSessionClosedException(sessionId));
+                cancelled++;
+            }
+        }
+        return cancelled;
+    }
+
+    /**
+     * Cause used to fail in-flight server-initiated requests when the owning
+     * session is torn down (DELETE, TTL eviction, or handler destroy).
+     * Callers awaiting an elicitation response can distinguish this from a
+     * protocol-level failure and stop waiting.
+     */
+    public static final class McpSessionClosedException extends IllegalStateException {
+        private static final long serialVersionUID = 1L;
+
+        private final String sessionId;
+
+        public McpSessionClosedException(String sessionId) {
+            super("MCP session " + sessionId + " was closed before the client responded");
+            this.sessionId = sessionId;
+        }
+
+        /** The session that was closed. */
+        public String sessionId() {
+            return sessionId;
+        }
     }
 
     /** Returns the number of buffered pending notifications. */

@@ -263,9 +263,11 @@ class AdminApiAuthFilterReadGateTest {
         // AND response plus user/session ids (GovernanceDecisionLog#snapshot);
         // the audit log carries broadcast/unicast message bodies + principals;
         // the coordination journal carries agent-to-agent content; the session
-        // tape holds the full pre-redaction prompt + response step stream. All
-        // hold arbitrary user/model content, so — like the workspace surfaces —
-        // they are default-DENY regardless of the general read plane (Inv #6).
+        // tape holds the full pre-redaction prompt + response step stream; the
+        // dev inspector retains a 2000-char prompt AND response preview per
+        // turn (DevInspectorEntry#PREVIEW_CAP). All hold arbitrary user/model
+        // content, so — like the workspace surfaces — they are default-DENY
+        // regardless of the general read plane (Inv #6).
         var env = new MockEnvironment();
         var filter = new AtmosphereAdminAutoConfiguration.AdminApiAuthFilter(
                 tokenValidatorRejectingEverything(), env);
@@ -277,7 +279,8 @@ class AdminApiAuthFilterReadGateTest {
                 "/api/admin/journal/coord-123/log",
                 "/api/admin/tape/runs",
                 "/api/admin/tape/runs/run-abc123/steps",
-                "/api/admin/tape/runs/run-abc123/replay"}) {
+                "/api/admin/tape/runs/run-abc123/replay",
+                "/api/admin/ai/dev/inspector"}) {
             var res = new MockHttpServletResponse();
             var chain = Mockito.mock(FilterChain.class);
             filter.doFilter(new MockHttpServletRequest("GET", path), res, chain);

@@ -134,6 +134,94 @@ internal class KoogRuntimeContractTest : AbstractAgentRuntimeContractTest() {
         setOf(GenerationParamsSupport.TEMPERATURE)
 
     /**
+     * `PROMPT_CACHING` is proven by [KoogAgentRuntimeTest]'s CacheHint tests,
+     * which pin the `BedrockCacheControl.FiveMinutes` / `.OneHour` mapping on
+     * the outgoing prompt's leading text part (and the no-control negative
+     * case) — a stronger assertion than the TCK's "dispatch does not throw"
+     * hook could make.
+     */
+    override fun capabilitiesCoveredOutsideTck(): Map<AiCapability, String> = mapOf(
+        AiCapability.PROMPT_CACHING to "KoogAgentRuntimeTest"
+    )
+
+    /**
+     * Exercise `runtimeAcceptsCustomRetryPolicyOnContext`. Koog implements
+     * [org.atmosphere.ai.AgentRuntime] directly and re-implements the outer
+     * retry wrapper privately, so the dispatch must accept a non-default
+     * [org.atmosphere.ai.RetryPolicy] on the context.
+     */
+    override fun createRetryContext(): AgentExecutionContext =
+        AgentExecutionContext(
+            "Hello, no retries.", "You are helpful", "gpt-4o-mini",
+            null, "session-1", "user-1", "conv-1",
+            emptyList<org.atmosphere.ai.tool.ToolDefinition>(), null, null,
+            emptyList<org.atmosphere.ai.ContextProvider>(),
+            emptyMap<String, Any>(),
+            emptyList<org.atmosphere.ai.llm.ChatMessage>(),
+            null, null
+        ).withRetryPolicy(org.atmosphere.ai.RetryPolicy.NONE)
+
+    /**
+     * Cancellation fixture for Koog. `executeWithHandle` runs `executeInternal`
+     * on a virtual thread, records the coroutine `Job` and the worker thread,
+     * and `cancel()` fires `Job.cancel()` plus a thread interrupt. This fixture
+     * installs a [PromptExecutor] whose streaming flow emits one frame and then
+     * suspends in `delay(...)`, so the coroutine is parked at a cancellable
+     * suspension point when the cancel lands.
+     *
+     * No `withBackendRelease` probe: Koog's `cancel()` deliberately resolves
+     * `whenDone()` immediately as a backstop against a worker stuck in
+     * non-interruptible native code, so the coroutine's own unwinding races
+     * the contract's read of any release counter. Asserting on that counter
+     * would be a flaky assertion dressed up as a strong one; the settle-window
+     * check on late session traffic covers the "stream actually stopped" half.
+     *
+     * The install replaces the happy-path executor from
+     * [installFakePromptExecutor] for the duration of this test; the
+     * [clearPromptExecutor] `@AfterEach` clears it either way.
+     */
+    override fun createCancellationFixture(): CancellationFixture {
+        val engaged = java.util.concurrent.atomic.AtomicBoolean()
+        KoogAgentRuntime.setPromptExecutor(BlockingFakeExecutor(engaged))
+        return CancellationFixture
+            .of(KoogAgentRuntime(), createTextContext())
+            .withInFlightProbe("streaming flow suspended") { engaged.get() }
+    }
+
+    /**
+     * Streams one frame, then parks in `delay(...)` — a cancellable suspension
+     * point — for up to 30 seconds. Bounded so a cancellation regression fails
+     * the contract's timeout assertion rather than stranding the worker.
+     */
+    private class BlockingFakeExecutor(
+        private val engaged: java.util.concurrent.atomic.AtomicBoolean
+    ) : PromptExecutor() {
+        override fun executeStreaming(
+            prompt: Prompt,
+            model: LLModel,
+            tools: List<ToolDescriptor>
+        ): Flow<StreamFrame> = flow {
+            emit(StreamFrame.TextDelta("Hello world"))
+            engaged.set(true)
+            kotlinx.coroutines.delay(30_000)
+        }
+
+        override suspend fun execute(
+            prompt: Prompt,
+            model: LLModel,
+            tools: List<ToolDescriptor>
+        ): Message.Assistant = Message.Assistant(
+            content = "",
+            metaInfo = ResponseMetaInfo.Empty
+        )
+
+        override suspend fun moderate(prompt: Prompt, model: LLModel): ModerationResult =
+            ModerationResult(false, emptyMap<ModerationCategory, ModerationCategoryResult>())
+
+        override fun close() {}
+    }
+
+    /**
      * Provide a context carrying a tiny PNG so the base contract's
      * `runtimeWithVisionCapabilityAcceptsImagePart` assertion exercises the
      * Koog dispatch path. The fake [PromptExecutor] installed by

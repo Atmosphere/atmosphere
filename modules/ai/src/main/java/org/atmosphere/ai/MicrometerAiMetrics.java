@@ -43,12 +43,15 @@ import java.util.concurrent.atomic.AtomicInteger;
  *       (system / tool_schema / structured_output_schema / confidence_cue / scrollback / user_message)</li>
  *   <li>{@code atmosphere.ai.input.chars} &mdash; per-stage exact character count, same tagging</li>
  *   <li>{@code atmosphere.ai.tokens} &mdash; authoritative provider token usage, tagged by
- *       {@code type} (input / output)</li>
+ *       {@code type} (input / output / cached_input)</li>
  * </ul>
  *
  * <p>All Atmosphere-namespaced metrics are tagged with {@code model} and
- * {@code provider}. Because Micrometer is an optional dependency, this class is
- * only usable when {@code micrometer-core} is on the classpath.</p>
+ * {@code provider}. Every latency {@link Timer} publishes client-side p50 /
+ * p90 / p95 / p99 percentiles alongside count/total/max — mean alone hides tail
+ * latency, and TTFT tails are exactly what streaming operators alert on.
+ * Because Micrometer is an optional dependency, this class is only usable
+ * when {@code micrometer-core} is on the classpath.</p>
  *
  * <p>In addition to the {@code atmosphere.ai.*} series above, this class
  * <em>dual-emits</em> the
@@ -70,9 +73,6 @@ public final class MicrometerAiMetrics implements AiMetrics {
     private static final Logger logger = LoggerFactory.getLogger(MicrometerAiMetrics.class);
 
     private final MeterRegistry registry;
-    /** Percentile-publishing timers, cached per name+tags (see percentileTimer). */
-    private final java.util.concurrent.ConcurrentHashMap<String, Timer> percentileTimers =
-            new java.util.concurrent.ConcurrentHashMap<>();
     private final String provider;
     private final AtomicInteger activeSessions = new AtomicInteger(0);
 
@@ -117,8 +117,8 @@ public final class MicrometerAiMetrics implements AiMetrics {
     public void recordLatency(String model, Duration timeToFirstStreamingText, Duration totalDuration) {
         var tags = tags(model);
         counter("atmosphere.ai.prompts.total", tags).increment();
-        percentileTimer("atmosphere.ai.prompt.duration", tags).record(timeToFirstStreamingText);
-        percentileTimer("atmosphere.ai.response.duration", tags).record(totalDuration);
+        timer("atmosphere.ai.prompt.duration", tags).record(timeToFirstStreamingText);
+        timer("atmosphere.ai.response.duration", tags).record(totalDuration);
         // OTel GenAI convention: gen_ai.client.operation.duration. Micrometer
         // exporters emit Timer durations in seconds, matching the convention's
         // unit, so this surfaces directly in GenAI dashboards.
@@ -161,6 +161,25 @@ public final class MicrometerAiMetrics implements AiMetrics {
                 inputTokens, outputTokens, 0L, totalTokens);
     }
 
+    /**
+     * Cache-aware token usage recording. In addition to the input / output
+     * series, emits the prompt-cache hit count as
+     * {@code atmosphere.ai.tokens} tagged {@code type="cached_input"} and as
+     * {@code gen_ai.client.token.usage} tagged
+     * {@code gen_ai.token.type="cached_input"}. The {@code cached_input}
+     * token type is an Atmosphere extension of the OpenTelemetry GenAI
+     * convention's enumerated {@code input} / {@code output} values — the
+     * cached count is emitted exactly as the provider reported it, with no
+     * arithmetic applied (Runtime Truth).
+     *
+     * @param genAiProvider     the resolved runtime name for {@code gen_ai.provider.name}
+     * @param requestModel      the request model ({@code gen_ai.request.model})
+     * @param responseModel     the provider-reported response model; omitted when blank
+     * @param inputTokens       prompt tokens consumed (0 when unknown)
+     * @param outputTokens      completion tokens produced (0 when unknown)
+     * @param cachedInputTokens prompt tokens served from prompt cache (0 when unknown)
+     * @param totalTokens       total tokens for the completion (0 when unknown)
+     */
     @Override
     public void recordTokenUsage(String genAiProvider, String requestModel, String responseModel,
                                  long inputTokens, long outputTokens, long cachedInputTokens,
@@ -178,17 +197,15 @@ public final class MicrometerAiMetrics implements AiMetrics {
         if (cachedInputTokens > 0) {
             // Cached input is billed at a different rate than fresh input, so
             // it gets its own series rather than being folded into type=input.
-            // Atmosphere-namespaced only: the GenAI convention defines just
-            // input/output for gen_ai.token.type, so the dual-emit below is
-            // left spec-clean.
             counter("atmosphere.ai.tokens", tags.and("type", "cached_input"))
                     .increment(cachedInputTokens);
         }
         // OTel GenAI convention: gen_ai.client.token.usage, split by
-        // gen_ai.token.type. The convention defines input/output token types
-        // only — total is derivable and not a distinct series. The provider
-        // tag is the resolved runtime name (Runtime Truth), and the response
-        // model is added when the runtime reported one.
+        // gen_ai.token.type. The convention enumerates input/output token
+        // types — total is derivable and not a distinct series, and
+        // cached_input is an Atmosphere extension value. The provider tag is
+        // the resolved runtime name (Runtime Truth), and the response model
+        // is added when the runtime reported one.
         var genAiTags = genAiTags(genAiProvider, requestModel, responseModel);
         otelDualEmit(() -> {
             if (inputTokens > 0) {
@@ -198,6 +215,10 @@ public final class MicrometerAiMetrics implements AiMetrics {
             if (outputTokens > 0) {
                 registry.summary("gen_ai.client.token.usage", genAiTags.and("gen_ai.token.type", "output"))
                         .record(outputTokens);
+            }
+            if (cachedInputTokens > 0) {
+                registry.summary("gen_ai.client.token.usage", genAiTags.and("gen_ai.token.type", "cached_input"))
+                        .record(cachedInputTokens);
             }
         });
     }
@@ -213,7 +234,7 @@ public final class MicrometerAiMetrics implements AiMetrics {
         var tags = tags(model)
                 .and("tool", toolName)
                 .and("success", String.valueOf(success));
-        percentileTimer("atmosphere.ai.tool.duration", tags).record(duration);
+        timer("atmosphere.ai.tool.duration", tags).record(duration);
     }
 
     @Override
@@ -292,27 +313,27 @@ public final class MicrometerAiMetrics implements AiMetrics {
         return registry.counter(name, tags);
     }
 
-    private Timer timer(String name, Tags tags) {
-        return registry.timer(name, tags);
-    }
-
     /**
-     * Timer publishing p50 / p90 / p99 alongside the mean — the same
-     * distribution config (and the same builder-cached-in-a-map shape) the
-     * governance evaluation timers use, so AI latency reads like every other
-     * Atmosphere latency series. A mean alone hides the tail an operator
-     * actually pages on.
+     * The single latency-timer factory: every AI timer publishes client-side
+     * p50 / p90 / p95 / p99 alongside count/total/max. A mean-only timer hides
+     * exactly the TTFT tail spikes operators page on. p50/p90/p99 matches the
+     * governance meters ({@code MicrometerGovernanceMetrics}) so AI latency
+     * reads like every other Atmosphere latency series; p95 is added because
+     * it is the usual latency-SLO point for a streaming turn.
      *
-     * <p>The builder result is cached per name+tags because
-     * {@code Timer.builder(...).register(...)} re-resolves distribution config
-     * on every call; the record path runs per turn.</p>
+     * <p>Routing every timer through here — rather than a second
+     * percentile-only helper — is what gives the OTel
+     * {@code gen_ai.client.operation.duration} series the same tail visibility
+     * as the {@code atmosphere.ai.*} ones (Mode Parity). {@code register}
+     * returns the already-registered meter on repeat calls, the same registry
+     * lookup {@code registry.timer(name, tags)} performs, so no meter cache of
+     * our own is needed (and none is grown per model/tool tag).</p>
      */
-    private Timer percentileTimer(String name, Tags tags) {
-        return percentileTimers.computeIfAbsent(name + '|' + tags, k ->
-                Timer.builder(name)
-                        .tags(tags)
-                        .publishPercentiles(0.5, 0.9, 0.99)
-                        .register(registry));
+    private Timer timer(String name, Tags tags) {
+        return Timer.builder(name)
+                .tags(tags)
+                .publishPercentiles(0.5, 0.9, 0.95, 0.99)
+                .register(registry);
     }
 
     /**

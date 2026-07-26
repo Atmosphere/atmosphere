@@ -109,6 +109,14 @@ public final class McpProtocolHandler {
     private static final ThreadLocal<McpInputContext> CURRENT_INPUT =
             ThreadLocal.withInitial(McpInputContext::empty);
 
+    // Per-invocation server→client request surface (sampling, roots,
+    // elicitation), made available to a tool handler that injects an
+    // McpServerContext parameter. Bound around each tool execution on the
+    // thread that runs the tool, exactly like CURRENT_INPUT, and cleared on
+    // every terminal path so one invocation can never see another's session.
+    private static final ThreadLocal<McpServerContext> CURRENT_SERVER_CONTEXT =
+            ThreadLocal.withInitial(McpServerContext::empty);
+
     public McpProtocolHandler(String serverName, String serverVersion,
                               McpRegistry registry, AtmosphereConfig config) {
         this(serverName, serverVersion, registry, config, List.of());
@@ -452,6 +460,10 @@ public final class McpProtocolHandler {
         int argCount = arguments != null ? arguments.size() : 0;
         var principalName = resolvePrincipal(resource);
 
+        // Bind the server→client request surface for the duration of this
+        // invocation so an @McpTool that injects an McpServerContext can issue
+        // sampling / roots / elicitation against the calling client's session.
+        bindServerContext(resource);
         try {
             if (tracing != null) {
                 return tracing.traced("tool", toolName, argCount,
@@ -474,7 +486,26 @@ public final class McpProtocolHandler {
                             "Tool invocation failed: " + e.getMessage())),
                     "isError", true
             ));
+        } finally {
+            CURRENT_SERVER_CONTEXT.remove();
         }
+    }
+
+    /**
+     * Bind {@link #CURRENT_SERVER_CONTEXT} to the session behind {@code
+     * resource} for the duration of a tool invocation on this thread. A
+     * request with no session (stateless dialect) binds the empty context, so
+     * a tool that injects {@link McpServerContext} always receives a non-null
+     * handle whose {@code can*} predicates report the truth.
+     */
+    private void bindServerContext(AtmosphereResource resource) {
+        McpSession session = null;
+        if (resource != null && resource.getRequest() != null) {
+            session = (McpSession) resource.getRequest().getAttribute(McpSession.ATTRIBUTE_KEY);
+        }
+        CURRENT_SERVER_CONTEXT.set(session == null
+                ? McpServerContext.empty()
+                : new McpServerContext(this, session));
     }
 
     /**
@@ -744,6 +775,10 @@ public final class McpProtocolHandler {
         var initialEnvelope = task.toWire();
 
         Thread.startVirtualThread(() -> {
+            // Mode parity (#7): a task-augmented call must give the tool the
+            // same server→client surface the synchronous call gets, bound on
+            // the worker thread that actually runs it and cleared in finally.
+            bindServerContext(resource);
             try {
                 var underlying = executeToolCall(id, tool, arguments, principal);
                 if (underlying.error() == null && underlying.result() instanceof Map<?, ?> rawMap) {
@@ -770,6 +805,8 @@ public final class McpProtocolHandler {
                                 "Tool threw: " + e.getMessage())),
                         "isError", true
                 ), e.getMessage());
+            } finally {
+                CURRENT_SERVER_CONTEXT.remove();
             }
         });
 
@@ -881,38 +918,130 @@ public final class McpProtocolHandler {
      */
     public CompletableFuture<JsonNode> elicit(McpSession session, String message,
                                               Map<String, Object> requestedSchema) {
+        var params = new LinkedHashMap<String, Object>();
+        params.put("message", message);
+        params.put("requestedSchema", requestedSchema != null ? requestedSchema : Map.of());
+        return issueServerRequest(session, McpMethod.ELICITATION_CREATE, "elicitation", params);
+    }
+
+    // ── Sampling and roots (server → client requests) ────────────────────
+
+    /**
+     * Issue a {@code sampling/createMessage} request to the client behind
+     * {@code session}: the server asks the client to run an LLM completion on
+     * its behalf and returns a future completing with the client's
+     * {@code CreateMessageResult} envelope.
+     *
+     * <p>Sampling is a <em>client</em> capability per the MCP spec — the client
+     * declares it at initialize and owns the model, the sampling parameters,
+     * and any human-in-the-loop review. This method therefore refuses to issue
+     * the request unless the client advertised {@code sampling}, rather than
+     * assuming support (Correctness Invariant #5, Runtime Truth).</p>
+     *
+     * <p>Reachable from an {@code @McpTool} handler by declaring an
+     * {@link McpServerContext} parameter — see
+     * {@link McpServerContext#sample(List, Map)}.</p>
+     *
+     * @param session  the MCP session to sample through
+     * @param messages the conversation to complete, in MCP
+     *                 {@code SamplingMessage} shape
+     *                 ({@code {role, content:{type,text}}})
+     * @param options  extra {@code CreateMessageRequest} fields
+     *                 ({@code systemPrompt}, {@code maxTokens},
+     *                 {@code modelPreferences}, ...); may be {@code null}
+     * @return future resolving to the {@code result}/{@code error} JSON envelope
+     */
+    public CompletableFuture<JsonNode> sample(McpSession session,
+                                              List<Map<String, Object>> messages,
+                                              Map<String, Object> options) {
+        if (messages == null || messages.isEmpty()) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException(
+                    "sampling/createMessage requires at least one message"));
+        }
+        var params = new LinkedHashMap<String, Object>();
+        if (options != null) {
+            params.putAll(options);
+        }
+        // messages is the one field the caller cannot override via options.
+        params.put("messages", messages);
+        return issueServerRequest(session, McpMethod.SAMPLING_CREATE_MESSAGE, "sampling", params);
+    }
+
+    /**
+     * Issue a {@code roots/list} request to the client behind {@code session},
+     * returning a future completing with the client's {@code ListRootsResult}
+     * envelope ({@code {roots:[{uri,name}]}}).
+     *
+     * <p>Like sampling, {@code roots} is a client-declared capability: the
+     * request is refused when the client did not advertise it.</p>
+     *
+     * @param session the MCP session to query
+     * @return future resolving to the {@code result}/{@code error} JSON envelope
+     */
+    public CompletableFuture<JsonNode> listRoots(McpSession session) {
+        return issueServerRequest(session, McpMethod.ROOTS_LIST, "roots", Map.of());
+    }
+
+    /**
+     * Shared server→client request issuance: capability gate, bounded pending
+     * slot, JSON-RPC envelope, and enqueue onto the session's notification
+     * queue (which the SSE GET stream drains). Every failure path completes the
+     * returned future exceptionally and leaves no reserved slot behind
+     * (Correctness Invariant #2).
+     *
+     * @param session          the session to issue through
+     * @param method           the JSON-RPC method name
+     * @param requiredCapability the client capability key that must have been
+     *                         advertised at initialize
+     * @param params           the request params object
+     */
+    private CompletableFuture<JsonNode> issueServerRequest(McpSession session, String method,
+                                                           String requiredCapability,
+                                                           Map<String, Object> params) {
         if (session == null) {
-            return CompletableFuture.failedFuture(
-                    new IllegalArgumentException("elicit requires an active McpSession"));
+            return CompletableFuture.failedFuture(new IllegalArgumentException(
+                    method + " requires an active McpSession"));
         }
         var caps = session.clientCapabilities();
-        if (caps == null || !caps.containsKey("elicitation")) {
+        if (caps == null || !caps.containsKey(requiredCapability)) {
             return CompletableFuture.failedFuture(new IllegalStateException(
-                    "Client did not advertise the 'elicitation' capability at initialize. "
-                            + "Cannot issue elicitation/create."));
+                    "Client did not advertise the '" + requiredCapability
+                            + "' capability at initialize. Cannot issue " + method + "."));
         }
 
         var requestId = UUID.randomUUID().toString();
         var request = new LinkedHashMap<String, Object>();
         request.put("jsonrpc", "2.0");
         request.put("id", requestId);
-        request.put("method", McpMethod.ELICITATION_CREATE);
-        var params = new LinkedHashMap<String, Object>();
-        params.put("message", message);
-        params.put("requestedSchema", requestedSchema != null ? requestedSchema : Map.of());
-        request.put("params", params);
+        request.put("method", method);
+        request.put("params", params != null ? params : Map.of());
 
         var future = new CompletableFuture<JsonNode>();
-        session.registerServerRequest(requestId, future);
+        if (!session.tryRegisterServerRequest(requestId, future)) {
+            return CompletableFuture.failedFuture(new IllegalStateException(
+                    "Session " + session.sessionId() + " already has "
+                            + McpSession.MAX_PENDING_SERVER_REQUESTS
+                            + " server-initiated requests in flight; refusing " + method));
+        }
 
         try {
-            var serialized = mapper.writeValueAsString(request);
-            session.addPendingNotification(serialized);
+            session.addPendingNotification(mapper.writeValueAsString(request));
         } catch (Exception e) {
             session.cancelServerRequest(requestId, e);
             return CompletableFuture.failedFuture(e);
         }
         return future;
+    }
+
+    /**
+     * The server context bound to the tool invocation running on this thread,
+     * or a context with no session when the call arrived on a path that has no
+     * live {@link McpSession} (the stateless {@code 2026-07-28} dialect). An
+     * {@code @McpTool} method receives this by declaring an
+     * {@link McpServerContext} parameter.
+     */
+    McpServerContext currentServerContext() {
+        return CURRENT_SERVER_CONTEXT.get();
     }
 
     // ── Resources ────────────────────────────────────────────────────────
@@ -1160,6 +1289,9 @@ public final class McpProtocolHandler {
     private Object resolveInjectable(Class<?> type, String topic) {
         if (type == McpInputContext.class) {
             return CURRENT_INPUT.get();
+        }
+        if (type == McpServerContext.class) {
+            return CURRENT_SERVER_CONTEXT.get();
         }
         if (type == AtmosphereConfig.class) {
             return config;

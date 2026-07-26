@@ -53,3 +53,8 @@ samples/*/src/main/resources/certs/
 # Local Claude Code MCP config — points at a per-developer machine path
 # (e.g. a local mirroir build); each dev keeps their own, never committed.
 .mcp.json
+
+# jqwik's local failure-seed store (modules/ai property tests). Regenerated on
+# every run and machine-specific; the reproducible seed is reported in the
+# failure output and pinned via junit-platform.properties instead.
+.jqwik-database

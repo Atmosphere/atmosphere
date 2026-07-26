@@ -99,21 +99,29 @@ public interface AiMetrics {
     }
 
     /**
-     * Token usage carrying the provider's <em>cached</em> input count — the
-     * portion of the prompt served from a provider-side prompt cache. Cached
-     * input is billed differently from fresh input, so an operator reading
-     * only {@code type=input} cannot explain their bill; the count reaches the
-     * wire and the tape but had no meter series until this overload.
+     * Token usage carrying the provider's <em>cached</em> input count
+     * ({@link TokenUsage#cachedInput()}) — the portion of the prompt served
+     * from a provider-side prompt cache. Cached input is billed differently
+     * from fresh input, so an operator reading only {@code type=input} cannot
+     * explain their bill or tell cache-hot from cache-cold traffic; the count
+     * reaches the wire and the tape but had no meter series until this
+     * overload.
      *
-     * <p>The default delegates to the 6-arg form, dropping the cached count,
-     * so existing implementations stay source- and behaviour-compatible.</p>
+     * <p>The default delegates to
+     * {@link #recordTokenUsage(String, String, String, long, long, long)},
+     * dropping the cached count, so existing implementations stay source- and
+     * behaviour-compatible. {@link MicrometerAiMetrics} overrides it to emit
+     * {@code atmosphere.ai.tokens} tagged {@code type="cached_input"} plus the
+     * {@code gen_ai.client.token.usage} series with
+     * {@code gen_ai.token.type="cached_input"}.</p>
      *
      * @param provider          the resolved runtime name ({@code gen_ai.provider.name})
      * @param requestModel      the request model ({@code gen_ai.request.model})
      * @param responseModel     the provider-reported response model; may be {@code null}
      * @param inputTokens       prompt tokens consumed (0 when unknown)
      * @param outputTokens      completion tokens produced (0 when unknown)
-     * @param cachedInputTokens prompt tokens served from the provider's cache (0 when unknown)
+     * @param cachedInputTokens prompt tokens served from the provider's cache
+     *                          (0 when unknown or the provider reported none)
      * @param totalTokens       total tokens for the completion (0 when unknown)
      */
     default void recordTokenUsage(String provider, String requestModel, String responseModel,

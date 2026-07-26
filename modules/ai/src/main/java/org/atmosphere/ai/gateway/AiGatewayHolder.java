@@ -31,8 +31,13 @@ import java.util.concurrent.atomic.AtomicReference;
  * Until {@link #install(AiGateway)} is called, a permissive default is
  * returned: {@link PerUserRateLimiter} sized at one million calls / hour
  * (effectively no-op), noop credential resolver, noop trace exporter.
- * Applications install a real gateway at startup via the Spring Boot
- * starter or Quarkus extension.
+ * Applications opt into enforcing limits with one line —
+ * {@code atmosphere.ai.gateway.profile=production} (Spring Boot),
+ * {@code quarkus.atmosphere.ai.gateway.profile=production} (Quarkus), or
+ * {@code AiGatewayHolder.install(GatewayProfiles.production())}
+ * programmatically — which installs the {@link GatewayProfiles} production
+ * limits including a dedicated shared-bucket ceiling for
+ * {@link AiGateway#ANONYMOUS_USER unauthenticated callers}.
  *
  * <h2>Why a holder</h2>
  *
@@ -85,9 +90,11 @@ public final class AiGatewayHolder {
     public static AiGateway get() {
         if (!INSTALLED.get() && DEFAULT_USED_WARNING.compareAndSet(false, true)) {
             logger.warn("AiGatewayHolder serving the permissive default gateway "
-                    + "(1M calls/hour, noop CredentialResolver / TraceExporter). "
-                    + "Production deployments must call AiGatewayHolder.install(...) "
-                    + "with an enforcing gateway during startup.");
+                    + "(1M calls/hour, one shared 'anonymous' bucket for ALL unauthenticated "
+                    + "callers, noop CredentialResolver / TraceExporter). One-line fix: set "
+                    + "atmosphere.ai.gateway.profile=production (Spring Boot) or "
+                    + "quarkus.atmosphere.ai.gateway.profile=production (Quarkus), or call "
+                    + "AiGatewayHolder.install(GatewayProfiles.production()) during startup.");
         }
         return HOLDER.get();
     }

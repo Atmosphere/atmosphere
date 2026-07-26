@@ -77,6 +77,11 @@ jobs:
           auto-push: ${{ github.ref == 'refs/heads/main' }}
           alert-threshold: '115%'
           comment-on-alert: true
+          # Advisory only: the full suite spans lock-contention and
+          # fan-out benchmarks whose scores swing with shared-runner
+          # noise well past any usable threshold. The enforcing leg is
+          # the jmh-gate job below, which runs a curated deterministic
+          # subset with a threshold sized for runner variance.
           fail-on-alert: false
           benchmark-data-dir-path: 'dev/bench'
 
@@ -86,6 +91,76 @@ jobs:
         with:
           name: jmh-results
           path: target/jmh-results.json
+
+  jmh-gate:
+    # Enforcing regression gate on a curated deterministic subset.
+    #
+    # Why a separate leg instead of fail-on-alert on the full suite:
+    # the full matrix mixes in concurrency-sensitive benchmarks whose
+    # scores depend on thread scheduling — the vt-pinning job below
+    # already singles out Checkpoint + Broadcaster as the most
+    # lock-sensitive, and CoordinatorFanOutBenchmark measures
+    # virtual-thread scheduling overhead by its own definition. Those
+    # swing with runner load, so the full-suite leg stays advisory.
+    # AiInterceptorChain and PolicyEval are single-threaded, in-memory
+    # CPU benchmarks (no executors, threads, or latches) whose inputs
+    # are built from fixed values in @Setup, and they cover hot paths
+    # worth protecting: per-turn interceptor dispatch and governance
+    # admission. The 200%
+    # alert-threshold is sized for cross-runner hardware variance:
+    # quiet on runner-to-runner drift, red when a change makes a hot
+    # path 2x slower (an accidental allocation, O(n^2) loop, or a new
+    # lock shifts these ns/us-scale scores far past that). Comparison
+    # data lives on the benchmark-data branch (dev/bench-gate),
+    # refreshed only by main pushes.
+    name: JMH Regression Gate (stable subset)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          # Supply-chain hardening: GPG-verify the Temurin JDK archive (setup-java >= v5.5.0)
+          verify-signature: true
+          cache: maven
+
+      - name: Build benchmarks
+        run: ./mvnw -Pperf -pl modules/benchmarks -am package -DskipTests -q
+
+      - name: Run curated JMH subset (more iterations for stable scores)
+        run: |
+          mkdir -p target
+          java -jar modules/benchmarks/target/benchmarks.jar \
+            'AiInterceptorChainBenchmark|PolicyEvalBenchmark' \
+            -f 1 -wi 3 -i 5 \
+            -rf json -rff target/jmh-gate-results.json
+
+      - name: Gate on hot-path regression
+        uses: benchmark-action/github-action-benchmark@v1
+        if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+        with:
+          name: 'Atmosphere JMH Stable Gate'
+          tool: 'jmh'
+          output-file-path: target/jmh-gate-results.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          gh-pages-branch: benchmark-data
+          auto-push: ${{ github.ref == 'refs/heads/main' }}
+          alert-threshold: '200%'
+          comment-on-alert: true
+          fail-on-alert: true
+          benchmark-data-dir-path: 'dev/bench-gate'
+
+      - name: Upload gate results artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: jmh-gate-results
+          path: target/jmh-gate-results.json
 
   vt-pinning:
     name: Virtual Thread Pinning Check

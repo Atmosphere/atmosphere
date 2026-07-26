@@ -176,6 +176,47 @@ and swallowed; they never abort the store operation.
 - **Sealed events**: `CheckpointEvent` is sealed so exhaustive pattern
   matches are safe.
 
+## Schema Versioning (`SchemaMigrations`)
+
+Every JDBC-backed store in Atmosphere stamps its schema version, so a
+non-additive schema change is detected instead of silently mis-read.
+`org.atmosphere.checkpoint.SchemaMigrations` is the canonical implementation
+of that convention; `atmosphere-checkpoint-postgres` reuses this class, and
+module families that must not depend on `atmosphere-checkpoint`
+(`durable-sessions-sqlite`, `interactions`, `admin`, `ai-audit-postgres`)
+carry a package-local copy with identical semantics.
+
+The version lives in a shared `atmosphere_schema_version (component, version)`
+table, keyed by the store's **anchor table** — a per-component row rather than
+a database-global marker (e.g. SQLite's `PRAGMA user_version`) because several
+stores legitimately share one database and version independently.
+
+On open, `migrate(connection, component, steps)` where `steps.get(n)` moves
+version `n` to `n + 1`:
+
+| On-disk state | Behaviour |
+|---|---|
+| Fresh (no version row, no anchor table) | every step runs, final version stamped |
+| Unstamped but the anchor table exists | adopted as version **1**, later steps run |
+| Stamped == `steps.size()` | no-op — nothing is written |
+| Stamped > `steps.size()` | **refuses to open** with an `IllegalStateException` naming the database, the found version, and the supported version |
+
+Each step commits with its version stamp in one transaction, so a crash
+mid-migration leaves an already-applied prefix the next open resumes from.
+
+### Adding a migration
+
+1. Append one step to the store's list — never edit or reorder an existing
+   step; existing databases have already applied them.
+2. Make it idempotent (`... IF NOT EXISTS`, or probe before `ALTER`): an
+   adopted unstamped database may already carry the change.
+3. Do not commit, roll back, or toggle auto-commit inside a step — the helper
+   owns the transaction.
+4. Add the new expected version to that module's schema-version test.
+
+Current versions: `checkpoints` 2 (step 1→2 adds `state_type`); `durable_timer`,
+`effect_journal`, `run_record`, `tape_run` 1.
+
 ## Relationship to `atmosphere-durable-sessions`
 
 Atmosphere has **two** durability primitives; they solve different

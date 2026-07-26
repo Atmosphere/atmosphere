@@ -54,8 +54,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  * any subsequent {@code session.send / sendMetadata / progress} from the
  * runtime are dropped at the wire layer. The runtime may continue executing
  * upstream — the guard cannot reach into Spring AI's {@code ChatModel} or
- * Embabel's planner to abort their internal flow — but the user-observable
- * result is a hard cap on iterations.</p>
+ * Embabel's planner to abort their internal flow — so the user-observable
+ * result is a hard cap only for runtimes that actually fire
+ * {@code onModelStart} per round; see the counting model below.</p>
  *
  * <p>For {@link ToolLoopPolicy.OnMaxIterations#COMPLETE_WITHOUT_TOOLS}: the
  * guard logs once and otherwise no-ops. This overflow mode means "stop tool
@@ -70,12 +71,29 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <h2>Counting model</h2>
  *
  * <p>The guard counts {@code onModelStart} invocations within a single execute.
- * For a non-graph runtime, each invocation is one tool-loop round (LLM call
- * → tool execution → next LLM call), matching {@link ToolLoopPolicy#maxIterations}
- * exactly. For graph-based runtimes (Embabel) where one execute spans multiple
- * agent steps each with their own LLM call, the cap effectively applies to
- * total LLM calls per execute — strictly stronger than the rounds-only
- * interpretation, which is the safer direction for a guard.</p>
+ * How that maps onto tool-loop rounds depends entirely on how often the
+ * runtime fires the hook, and that varies by runtime — verify before relying
+ * on the guard as a cap:</p>
+ *
+ * <ul>
+ *   <li><b>Per tool-loop round.</b> The Built-in runtime opens a
+ *       {@link org.atmosphere.ai.ModelCallScope} inside
+ *       {@link OpenAiCompatibleClient}'s round loop, so one invocation is one
+ *       round and the count matches {@link ToolLoopPolicy#maxIterations}
+ *       exactly.</li>
+ *   <li><b>Per agent step.</b> Graph-based runtimes (Embabel, Koog) fire once
+ *       per LLM call across the graph, so the cap applies to total LLM calls
+ *       per execute — strictly stronger than the rounds-only interpretation.</li>
+ *   <li><b>Once per execute.</b> Runtimes that delegate the whole tool loop to
+ *       their framework (Spring AI, Spring AI Alibaba, ADK, Semantic Kernel,
+ *       AgentScope) open a single scope before subscribing to the response
+ *       stream; their internal rounds never surface as {@code onModelStart}.
+ *       CrewAI does not fire the hook at all. <b>For these runtimes the guard
+ *       counts at most one per execute and therefore cannot enforce a round
+ *       cap</b> — their upstream library's own default governs, and a
+ *       per-request {@link ToolLoopPolicy} is honored only where the runtime
+ *       translates it to a native knob (see each module's README).</li>
+ * </ul>
  *
  * <h2>Installation</h2>
  *

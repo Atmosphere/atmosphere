@@ -210,7 +210,14 @@ files = [
 # CI workflow files where continue-on-error: true is acceptable
 continue_on_error = [
     "atmosphere-js-ci.yml",   # JS CI may fail on optional browser tests
-    "release-4x.yml"          # trailing website-sync dispatch must not skip the publish jobs
+    "release-4x.yml",         # trailing website-sync dispatch must not skip the publish jobs
+    # Reporting-only lane: it runs the QUARANTINED specs, i.e. exactly the tests
+    # already known to fail for a documented reason. Blocking on them would make
+    # every quarantine a red build, which is the opposite of the point — the
+    # signal wanted here is "a quarantined spec started PASSING, go delete its
+    # quarantine". The tests it runs are skipped in the blocking lanes, so this
+    # lane's continue-on-error cannot mask a regression in required coverage.
+    "e2e-quarantine.yml"
 ]
 
 # -DskipTests in CI is normal and correct: nearly every workflow primes its
