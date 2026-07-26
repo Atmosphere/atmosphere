@@ -193,10 +193,14 @@ test.describe('Spring Boot AI Chat', () => {
   // Asserts the feature RECORDS, not that the app booted: drive a unique prompt
   // through the pipeline endpoint, then read it back from the admin surface and
   // match the prompt preview to the exact text that was just sent.
+  // Drives /atmosphere/ai-chat, NOT the cache demo: PromptCacheDemoChat builds
+  // its own AiPipeline inline, so it never passes through DispatchDecorators
+  // where DevInspectorCapturingSession is installed. Only endpoints served by
+  // the framework's own dispatch path are recorded.
   test('dev inspector records the turn that was just dispatched', async () => {
     const prompt = 'dev-inspector-check-' + Date.now();
     const frames = await collectFrames(
-      buildWsUrl(server, '/atmosphere/ai-chat-with-cache'), prompt);
+      buildWsUrl(server, '/atmosphere/ai-chat'), prompt);
     expect(frames.some((f) => f.type === 'complete')).toBe(true);
 
     type Entry = { promptPreview: string; responsePreview: string; status: string };
@@ -214,7 +218,7 @@ test.describe('Spring Boot AI Chat', () => {
     }, { timeout: 15_000, intervals: [250] }).toBe(true);
 
     expect(recorded!.status).toBe('OK');
-    expect(recorded!.responsePreview).toContain('Cached response for');
+    expect(recorded!.responsePreview.length).toBeGreaterThan(0);
   });
 
   // The inspector retains prompt AND response previews, so its read sits behind

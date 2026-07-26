@@ -311,8 +311,9 @@ test.describe('Admin Dashboard UI', () => {
     await expect(agentsTab.getByText('AI Runtimes')).toBeVisible();
     await expect(agentsTab.getByText('built-in').first()).toBeVisible({ timeout: 5_000 });
 
-    // MCP Tools section
-    await expect(agentsTab.getByText('MCP Tools')).toBeVisible();
+    // MCP Tools section — exact match: the substring also hits the card's own
+    // "No MCP tools" empty state, which is a strict-mode violation.
+    await expect(agentsTab.getByText('MCP Tools', { exact: true })).toBeVisible();
   });
 
   test('journal tab has filter controls and query button', async ({ page }) => {
