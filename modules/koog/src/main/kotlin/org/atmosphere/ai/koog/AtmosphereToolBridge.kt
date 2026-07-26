@@ -116,18 +116,44 @@ object AtmosphereToolBridge {
         val optional = mutableListOf<ToolParameterDescriptor>()
 
         for (param in tool.parameters()) {
-            val koogType = when (param.type().lowercase()) {
-                "string" -> ToolParameterType.String
-                "integer", "int", "long" -> ToolParameterType.Integer
-                "number", "float", "double" -> ToolParameterType.Float
-                "boolean", "bool" -> ToolParameterType.Boolean
-                else -> ToolParameterType.String
-            }
-            val descriptor = ToolParameterDescriptor(param.name(), param.description(), koogType)
+            val descriptor = ToolParameterDescriptor(param.name(), param.description(), koogType(param))
             if (param.required()) required.add(descriptor) else optional.add(descriptor)
         }
 
         return ToolDescriptor(tool.name(), tool.description(), required, optional, null)
+    }
+
+    /**
+     * Map one Atmosphere parameter onto Koog's type model, carrying the
+     * structural facets rather than flattening them: an enum becomes
+     * [ToolParameterType.Enum] with its allowed values, an array becomes
+     * [ToolParameterType.List] with its element type, and an object becomes
+     * [ToolParameterType.Object] with its nested descriptors. Previously every
+     * one of these collapsed to `String`, so a Koog agent was told a list was
+     * a string and an enum had no allowed values.
+     */
+    private fun koogType(param: org.atmosphere.ai.tool.ToolParameter): ToolParameterType {
+        if (param.hasEnumValues()) {
+            return ToolParameterType.Enum(param.enumValues().toTypedArray())
+        }
+        val items = param.items()
+        if (items != null) {
+            return ToolParameterType.List(koogType(items))
+        }
+        if (param.hasProperties()) {
+            val nested = param.properties().map {
+                ToolParameterDescriptor(it.name(), it.description(), koogType(it))
+            }
+            val requiredNames = param.properties().filter { it.required() }.map { it.name() }
+            return ToolParameterType.Object(nested, requiredNames, null, null)
+        }
+        return when (param.type().lowercase()) {
+            "string" -> ToolParameterType.String
+            "integer", "int", "long" -> ToolParameterType.Integer
+            "number", "float", "double" -> ToolParameterType.Float
+            "boolean", "bool" -> ToolParameterType.Boolean
+            else -> ToolParameterType.String
+        }
     }
 
     /**

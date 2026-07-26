@@ -112,24 +112,29 @@ internal object EmbabelToolBridge {
      * [Tool.ParameterType] enum values.
      */
     private fun toEmbabelParameter(p: ToolParameter): Tool.Parameter {
-        val type = when (p.type().lowercase()) {
-            "string"  -> Tool.ParameterType.STRING
-            "integer" -> Tool.ParameterType.INTEGER
-            "number"  -> Tool.ParameterType.NUMBER
-            "boolean" -> Tool.ParameterType.BOOLEAN
-            "array"   -> Tool.ParameterType.ARRAY
-            "object"  -> Tool.ParameterType.OBJECT
-            else      -> Tool.ParameterType.STRING
-        }
+        // Embabel's Parameter carries enum values, nested properties, and an
+        // array item type — all three were hardcoded empty, so an enum reached
+        // the model with no allowed values and an array with no element type.
         return Tool.Parameter(
             p.name(),
-            type,
+            embabelType(p.type()),
             p.description(),
             p.required(),
-            emptyList<String>(),
-            emptyList<Tool.Parameter>(),
-            null
+            p.enumValues(),
+            p.properties().map { toEmbabelParameter(it) },
+            p.items()?.let { embabelType(it.type()) }
         )
+    }
+
+    /** Map an Atmosphere JSON-Schema type string onto Embabel's enum. */
+    private fun embabelType(type: String?): Tool.ParameterType = when (type?.lowercase()) {
+        "string"  -> Tool.ParameterType.STRING
+        "integer" -> Tool.ParameterType.INTEGER
+        "number"  -> Tool.ParameterType.NUMBER
+        "boolean" -> Tool.ParameterType.BOOLEAN
+        "array"   -> Tool.ParameterType.ARRAY
+        "object"  -> Tool.ParameterType.OBJECT
+        else      -> Tool.ParameterType.STRING
     }
 
     /**
