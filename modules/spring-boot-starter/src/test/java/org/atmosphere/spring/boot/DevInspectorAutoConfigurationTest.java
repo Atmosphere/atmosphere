@@ -59,4 +59,27 @@ class DevInspectorAutoConfigurationTest {
                             .isNotSameAs(DevInspectorRecorder.NOOP);
                 });
     }
+
+    /**
+     * Regression: the inspector bean was declared inside the
+     * coordinator-gated configuration class, so an application without
+     * {@code atmosphere-coordinator} silently got no recorder — the read
+     * endpoint answered but every turn went unrecorded. The tests above cannot
+     * catch that, because this module's own test classpath carries the
+     * coordinator; only hiding it reproduces a plain AI app.
+     */
+    @Test
+    void enabledInstallsRecorderWithoutTheCoordinatorOnTheClasspath() {
+        contextRunner
+                .withPropertyValues("atmosphere.ai.dev-inspector.enabled=true")
+                .withClassLoader(new org.springframework.boot.test.context.FilteredClassLoader(
+                        org.atmosphere.coordinator.fleet.AgentFleet.class))
+                .run(context -> {
+                    assertThat(context).hasSingleBean(DevInspectorController.class);
+                    assertThat(DevInspectorRecorderHolder.get())
+                            .as("the dev inspector has no coordinator dependency — it must "
+                                    + "install without one")
+                            .isNotSameAs(DevInspectorRecorder.NOOP);
+                });
+    }
 }
