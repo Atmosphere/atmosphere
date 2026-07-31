@@ -1310,7 +1310,7 @@
              the earlier GHSA-72hv-8253-57qq fix. 2.21.x cannot close CVE-2026-54515
              (needs >= 2.21.5, unpublished), so we move to the 2.22 line. jackson.version
              3.1.4 closes the same batch on the tools.jackson 3.x side. -->
-        <jackson2.version>2.22.0</jackson2.version>
+        <jackson2.version>2.22.1</jackson2.version>
         <jackson-annotations.version>2.22</jackson-annotations.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
         <snakeyaml.version>2.3</snakeyaml.version>
