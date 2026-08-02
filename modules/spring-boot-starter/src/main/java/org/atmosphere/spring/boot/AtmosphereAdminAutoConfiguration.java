@@ -598,35 +598,48 @@ public class AtmosphereAdminAutoConfiguration {
     }
 
     /**
-     * Opt-in inner-loop dev inspector. Off by default — enable with
-     * {@code atmosphere.ai.dev-inspector.enabled=true}. Installs a bounded
-     * in-memory recorder so the {@code AiStreamingSession} decorator captures
-     * each turn (prompt/response/tools/usage), and wires the read controller
-     * the {@code /api/admin/ai/dev/inspector} routes serve.
+     * Wires the opt-in inner-loop dev inspector.
      *
-     * <p><strong>Dev-only:</strong> records prompt/response content — do not
-     * enable in production (a startup warning fires).</p>
-     *
-     * <p>This bean deliberately lives on the top-level configuration. It
-     * previously sat inside {@code CoordinatorAdminConfiguration}, which is
-     * gated on the coordinator module being present — so any application
-     * without {@code atmosphere-coordinator} had the recorder silently never
-     * installed and the inspector read back empty even with the flag set. The
-     * dev inspector has no coordinator dependency.</p>
+     * <p>Gated on the dev-inspector's <em>own</em> type, not on a neighbouring
+     * module. The bean previously sat inside {@code CoordinatorAdminConfiguration}
+     * ({@code @ConditionalOnClass(AgentFleet)}), so any application without
+     * {@code atmosphere-coordinator} silently got no recorder — the read
+     * endpoint answered but every turn went unrecorded. Hoisting it to the
+     * top-level configuration fixed that but broke the opposite case: a
+     * servlet-only application with neither {@code atmosphere-ai} nor the
+     * coordinator failed to start with {@code NoClassDefFoundError}, because
+     * a top-level {@code @Bean} method's signature is resolved whenever the
+     * enclosing configuration is introspected. Its own nested, correctly-gated
+     * configuration is the only placement that satisfies both.</p>
      */
-    @Bean
-    @ConditionalOnProperty(name = "atmosphere.ai.dev-inspector.enabled", havingValue = "true")
-    org.atmosphere.admin.ai.DevInspectorController atmosphereDevInspectorController(
-            AtmosphereAdmin admin,
-            @org.springframework.beans.factory.annotation.Value(
-                    "${atmosphere.ai.dev-inspector.capacity:100}") int capacity) {
-        var recorder = new org.atmosphere.ai.devinspector.InMemoryDevInspectorRecorder(capacity);
-        org.atmosphere.ai.devinspector.DevInspectorRecorderHolder.install(recorder);
-        var controller = new org.atmosphere.admin.ai.DevInspectorController(recorder);
-        admin.setDevInspectorController(controller);
-        logger.warn("Atmosphere dev inspector ENABLED (capacity={}) — records prompt/response "
-                + "content; dev-only, do not enable in production.", capacity);
-        return controller;
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "org.atmosphere.ai.devinspector.DevInspectorRecorder")
+    static class DevInspectorAdminConfiguration {
+
+        /**
+         * Opt-in inner-loop dev inspector. Off by default — enable with
+         * {@code atmosphere.ai.dev-inspector.enabled=true}. Installs a bounded
+         * in-memory recorder so the {@code AiStreamingSession} decorator captures
+         * each turn (prompt/response/tools/usage), and wires the read controller
+         * the {@code /api/admin/ai/dev/inspector} routes serve.
+         *
+         * <p><strong>Dev-only:</strong> records prompt/response content — do not
+         * enable in production (a startup warning fires).</p>
+         */
+        @Bean
+        @ConditionalOnProperty(name = "atmosphere.ai.dev-inspector.enabled", havingValue = "true")
+        org.atmosphere.admin.ai.DevInspectorController atmosphereDevInspectorController(
+                AtmosphereAdmin admin,
+                @org.springframework.beans.factory.annotation.Value(
+                        "${atmosphere.ai.dev-inspector.capacity:100}") int capacity) {
+            var recorder = new org.atmosphere.ai.devinspector.InMemoryDevInspectorRecorder(capacity);
+            org.atmosphere.ai.devinspector.DevInspectorRecorderHolder.install(recorder);
+            var controller = new org.atmosphere.admin.ai.DevInspectorController(recorder);
+            admin.setDevInspectorController(controller);
+            logger.warn("Atmosphere dev inspector ENABLED (capacity={}) — records prompt/response "
+                    + "content; dev-only, do not enable in production.", capacity);
+            return controller;
+        }
     }
 
     /**

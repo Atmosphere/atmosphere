@@ -82,4 +82,25 @@ class DevInspectorAutoConfigurationTest {
                             .isNotSameAs(DevInspectorRecorder.NOOP);
                 });
     }
+
+    /**
+     * Regression, opposite direction: hoisting the bean to the top-level
+     * configuration to fix the case above made a servlet-only application
+     * — no {@code atmosphere-ai} at all — fail to start with
+     * {@code NoClassDefFoundError}, because a top-level {@code @Bean}
+     * method's signature is resolved whenever the enclosing configuration is
+     * introspected. The context must still refresh cleanly when the
+     * dev-inspector types are absent, flag set or not.
+     */
+    @Test
+    void absentDevInspectorTypesDoNotBreakContextRefresh() {
+        contextRunner
+                .withPropertyValues("atmosphere.ai.dev-inspector.enabled=true")
+                .withClassLoader(new org.springframework.boot.test.context.FilteredClassLoader(
+                        DevInspectorRecorder.class))
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).doesNotHaveBean("atmosphereDevInspectorController");
+                });
+    }
 }
