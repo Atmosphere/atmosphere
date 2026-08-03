@@ -304,6 +304,44 @@ public class AtmosphereAdminAutoConfiguration {
     }
 
     /**
+     * Wires the opt-in inner-loop dev inspector, mirroring the Spring Boot 4
+     * starter so the same {@code atmosphere.ai.dev-inspector.*} configuration
+     * behaves identically on both starters (Correctness Invariant #7).
+     *
+     * <p>Gated on the dev-inspector's own type: a servlet-only application
+     * without {@code atmosphere-ai} must still refresh its context, and a
+     * top-level {@code @Bean} method's signature is resolved whenever the
+     * enclosing configuration is introspected.</p>
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "org.atmosphere.ai.devinspector.DevInspectorRecorder")
+    static class DevInspectorAdminConfiguration {
+
+        /**
+         * Opt-in inner-loop dev inspector. Off by default — enable with
+         * {@code atmosphere.ai.dev-inspector.enabled=true}.
+         *
+         * <p><strong>Dev-only:</strong> records prompt/response content — do not
+         * enable in production (a startup warning fires). The read is gated by
+         * the recorded-content auth rule in {@code AdminApiAuthFilter}.</p>
+         */
+        @Bean
+        @ConditionalOnProperty(name = "atmosphere.ai.dev-inspector.enabled", havingValue = "true")
+        org.atmosphere.admin.ai.DevInspectorController atmosphereDevInspectorController(
+                AtmosphereAdmin admin,
+                @org.springframework.beans.factory.annotation.Value(
+                        "${atmosphere.ai.dev-inspector.capacity:100}") int capacity) {
+            var recorder = new org.atmosphere.ai.devinspector.InMemoryDevInspectorRecorder(capacity);
+            org.atmosphere.ai.devinspector.DevInspectorRecorderHolder.install(recorder);
+            var controller = new org.atmosphere.admin.ai.DevInspectorController(recorder);
+            admin.setDevInspectorController(controller);
+            logger.warn("Atmosphere dev inspector ENABLED (capacity={}) — records prompt/response "
+                    + "content; dev-only, do not enable in production.", capacity);
+            return controller;
+        }
+    }
+
+    /**
      * Wires the coordinator controller when the coordinator module is available.
      */
     @Configuration(proxyBeanMethods = false)
@@ -510,7 +548,7 @@ public class AtmosphereAdminAutoConfiguration {
             var uri = req.getRequestURI();
             return uri != null
                     && uri.matches(".*/api/admin/(governance/decisions|audit|journal(/[^/]+(/log)?)?"
-                            + "|tape/runs(/[^/]+/(steps|replay))?)$");
+                            + "|tape/runs(/[^/]+/(steps|replay))?|ai/dev/inspector)$");
         }
 
         private static boolean isReadMethod(HttpServletRequest req) {

@@ -16,7 +16,6 @@
 package org.atmosphere.samples.springboot.aichat;
 
 import org.atmosphere.ai.AiCapability;
-import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
@@ -77,12 +76,15 @@ public class AiChat {
     public void onPrompt(String message, StreamingSession session) {
         logger.info("Received prompt: {}", message);
 
-        var settings = AiConfig.get();
-        if (settings == null || settings.apiKey() == null || settings.apiKey().isBlank()) {
-            DemoResponseProducer.stream(message, session);
-            return;
-        }
-
+        // One dispatch path in every mode. With no API key configured the
+        // framework's DemoAgentRuntime wins resolution and produces the
+        // simulated response through the same pipeline, so guardrails,
+        // interceptors, memory, metrics, the session tape and the dev
+        // inspector all fire in demo mode exactly as they do against a real
+        // provider (Correctness Invariant #7, Mode Parity). Short-circuiting
+        // into a hand-rolled producer here bypassed that seam, which is why
+        // the dev inspector recorded nothing whenever the sample ran without
+        // a key — the configuration CI uses.
         session.stream(message);
     }
 }

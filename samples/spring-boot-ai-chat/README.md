@@ -306,7 +306,6 @@ spring-boot-ai-chat/
     │   ├── AiChat.java             # @AiEndpoint with capability validation
     │   ├── MultiModalAgent.java    # @Agent — vision + audio input, skill-file persona
     │   ├── AuthConfig.java         # Token-based authentication
-    │   ├── DemoResponseProducer.java # Simulated streaming for demo mode
     │   └── LlmConfig.java          # Spring properties → AiConfig bridge
     └── resources/
         ├── application.yml          # LLM config (model, mode, API key)

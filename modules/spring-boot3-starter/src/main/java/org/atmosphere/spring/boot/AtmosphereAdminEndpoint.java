@@ -427,6 +427,36 @@ public class AtmosphereAdminEndpoint {
         return ResponseEntity.ok(TapeAdminSupport.runs(tapeId, status, limit));
     }
 
+    // ── Dev Inspector (inner-loop, dev-only) ──
+    // Mirrors the Spring Boot 4 starter so the same configuration and the same
+    // e2e assertions hold on both starters (Correctness Invariant #7). The read
+    // returns prompt/response content, so it is listed in the filter's
+    // recorded-content rule and is default-DENY without a principal.
+
+    @GetMapping("/ai/dev/inspector")
+    public ResponseEntity<List<org.atmosphere.ai.devinspector.DevInspectorEntry>> devInspectorRecent(
+            @RequestParam(value = "limit", required = false, defaultValue = "50") int limit) {
+        org.atmosphere.admin.ai.DevInspectorController controller = admin.devInspectorController();
+        if (controller == null) {
+            return ResponseEntity.ok(List.of());
+        }
+        return ResponseEntity.ok(controller.recent(limit));
+    }
+
+    @DeleteMapping("/ai/dev/inspector")
+    public ResponseEntity<Map<String, Object>> devInspectorClear() {
+        var denied = guardWrite();
+        if (denied != null) {
+            return denied;
+        }
+        org.atmosphere.admin.ai.DevInspectorController controller = admin.devInspectorController();
+        if (controller == null) {
+            return ResponseEntity.status(503).body(Map.of("error", "Dev inspector not wired"));
+        }
+        controller.clear();
+        return ResponseEntity.ok(Map.of("cleared", true));
+    }
+
     /**
      * Session tape — the ordered steps of one run, from {@code fromSeq}
      * (default 0) up to {@code max} (default 500). Pre-redaction content, gated
