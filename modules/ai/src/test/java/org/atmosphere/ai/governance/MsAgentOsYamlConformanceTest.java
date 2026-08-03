@@ -42,9 +42,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p>Upstream deleted that examples directory on 2026-07-30 (commit
  * {@code 8149ebf93d}, the v4-removal refactor) and superseded the format with
- * ACS manifests. The weekly conformance workflow therefore diffs against the
- * pinned pre-removal commit {@code 4c5b2aa372} — the last upstream source of
- * the YAML dialect this parser targets — instead of {@code main}.</p>
+ * ACS manifests. These fixtures are now FROZEN legacy-dialect assets: they pin
+ * the pre-ACS schema this parser continues to accept for operators with
+ * existing policy files, and are no longer diffed upstream. The weekly
+ * {@code ms-yaml-conformance} workflow instead tracks upstream {@code main}
+ * against the ACS manifest contract fixtures under
+ * {@code src/test/resources/ms-acs/} — see
+ * {@code org.atmosphere.ai.governance.acs.AcsManifestConformanceTest}.</p>
  */
 class MsAgentOsYamlConformanceTest {
 

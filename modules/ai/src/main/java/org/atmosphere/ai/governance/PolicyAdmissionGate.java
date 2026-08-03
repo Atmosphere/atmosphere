@@ -307,6 +307,10 @@ public final class PolicyAdmissionGate {
         metadata.put("action", "call_tool");
         if (args != null && !args.isEmpty()) {
             metadata.put("tool_args_preview", previewArgs(args));
+            // Full argument map for policies that evaluate structured tool
+            // args (ACS pre_tool_call policy_target kind tool_args) — the
+            // preview above stays for MS-schema string matching.
+            metadata.put("tool_args", Map.copyOf(args));
         }
         return new AiRequest(
                 "call_tool:" + toolName,

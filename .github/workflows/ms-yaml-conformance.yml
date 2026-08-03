@@ -1,22 +1,25 @@
 name: "CI: MS Agent Governance YAML Conformance"
 
 # Tier 7.1 — weekly diff against Microsoft's upstream Agent Governance Toolkit
-# YAML fixtures. Guards the claim that Atmosphere parses MS policy YAML
-# byte-for-byte: if the fixtures and the upstream ref we claim they came
-# from ever disagree, the workflow opens an issue / PR and fails loudly.
+# ACS manifest contract fixtures. Guards the claim that Atmosphere parses MS
+# Agent Control Specification manifests byte-for-byte: if upstream changes the
+# manifest shape (ACS is public preview — it will), the workflow opens an
+# issue and fails loudly instead of letting our copies drift silently.
 #
-# The fixture directory is modules/ai/src/test/resources/ms-agent-os/. Our
-# MsAgentOsYamlConformanceTest (runs in CI: Core) asserts the shipped
-# parser accepts every file in that directory — this workflow keeps the
-# directory aligned with the upstream ref that ships that format.
+# The fixture directory is modules/ai/src/test/resources/ms-acs/, a verbatim
+# copy of upstream's own contract fixtures at
+# policy-engine/core/tests/fixtures/manifests/ — the files upstream's core
+# test suite pins the manifest shape with. AcsManifestConformanceTest
+# (runs in CI: Core) asserts the shipped parser accepts every file in that
+# directory; this workflow keeps the directory aligned with upstream main.
 #
-# The diff is PINNED, not tracking main: upstream commit 8149ebf93d
-# (2026-07-30, "refactor(v4-removal)!") deleted the whole
-# docs/tutorials/policy-as-code/examples directory — the format moved to
-# ACS manifests (docs/tutorials/55-agent-control-specification.md), it was
-# not relocated. UPSTREAM_PIN is the last commit shipping the YAML format
-# our parser targets; whether Atmosphere follows upstream to ACS manifests
-# is a product decision, not a fixture sync.
+# History: the workflow originally diffed docs/tutorials/policy-as-code/
+# examples, the pre-ACS policy YAML dialect. Upstream deleted that directory
+# on 2026-07-30 (commit 8149ebf93d, "refactor(v4-removal)!") in favour of ACS
+# manifests. The legacy dialect fixtures remain frozen under
+# modules/ai/src/test/resources/ms-agent-os/, pinned by
+# MsAgentOsYamlConformanceTest — they are no longer diffed upstream because
+# upstream no longer ships them.
 
 on:
   schedule:
@@ -26,12 +29,13 @@ on:
   workflow_dispatch:
     inputs:
       upstream_ref:
-        description: 'MS Agent Governance Toolkit git ref to diff against (default: the pinned pre-ACS commit)'
-        default: ''
+        description: 'MS Agent Governance Toolkit git ref to diff against (default: main)'
+        default: 'main'
         required: false
   pull_request:
     paths:
       - '.github/workflows/ms-yaml-conformance.yml'
+      - 'modules/ai/src/test/resources/ms-acs/**'
       - 'modules/ai/src/test/resources/ms-agent-os/**'
 
 permissions:
@@ -50,18 +54,13 @@ jobs:
       - name: Clone MS Agent Governance Toolkit upstream
         run: |
           set -euo pipefail
-          # Last upstream commit that ships docs/tutorials/policy-as-code/
-          # examples — the parent of the v4-removal refactor (8149ebf93d)
-          # that deleted the directory in favour of ACS manifests. See the
-          # header comment before moving this back to 'main'.
-          UPSTREAM_PIN=4c5b2aa372538a9f42ef6085bdd13c5bd98ee479
           REF="${{ github.event.inputs.upstream_ref }}"
-          REF="${REF:-$UPSTREAM_PIN}"
+          REF="${REF:-main}"
           mkdir -p /tmp/ms-upstream
           # MS ships the toolkit at microsoft/agent-governance-toolkit. If
           # the repo is moved or the path changes, this block is the one
           # thing to edit. init+fetch instead of clone --branch so the ref
-          # can be a bare commit SHA (the pin), not just a branch or tag.
+          # can also be a bare commit SHA on manual dispatch.
           git init -q /tmp/ms-upstream
           git -C /tmp/ms-upstream remote add origin \
             https://github.com/microsoft/agent-governance-toolkit.git
@@ -75,10 +74,10 @@ jobs:
         id: diff
         run: |
           set -euo pipefail
-          FIXTURES=modules/ai/src/test/resources/ms-agent-os
-          UPSTREAM=/tmp/ms-upstream/docs/tutorials/policy-as-code/examples
+          FIXTURES=modules/ai/src/test/resources/ms-acs
+          UPSTREAM=/tmp/ms-upstream/policy-engine/core/tests/fixtures/manifests
           if [ ! -d "$UPSTREAM" ]; then
-            echo "::error::upstream examples directory not found at $UPSTREAM"
+            echo "::error::upstream ACS manifest fixtures not found at $UPSTREAM"
             exit 1
           fi
           DRIFT=""
@@ -102,9 +101,9 @@ jobs:
             echo "drift<<EOF" >> "$GITHUB_OUTPUT"
             printf "%b" "$DRIFT" >> "$GITHUB_OUTPUT"
             echo "EOF" >> "$GITHUB_OUTPUT"
-            echo "::error::Microsoft YAML fixtures drifted — see step summary"
+            echo "::error::Microsoft ACS manifest fixtures drifted — see step summary"
             {
-              echo "## MS Agent Governance Toolkit YAML drift detected"
+              echo "## MS Agent Control Specification manifest drift detected"
               echo
               echo "\`\`\`"
               printf "%b" "$DRIFT"
@@ -112,7 +111,7 @@ jobs:
               echo "\`\`\`"
               echo
               echo "**Action:** update \`$FIXTURES\` to match upstream and re-run"
-              echo "\`MsAgentOsYamlConformanceTest\` locally. Rationale for any"
+              echo "\`AcsManifestConformanceTest\` locally. Rationale for any"
               echo "intentional divergence belongs in that test's Javadoc."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 1
@@ -125,12 +124,12 @@ jobs:
         with:
           script: |
             const title = 'MS Agent Governance YAML fixtures drifted';
-            const body = `The weekly upstream conformance check detected drift in \`modules/ai/src/test/resources/ms-agent-os/\`.
+            const body = `The weekly upstream conformance check detected drift in \`modules/ai/src/test/resources/ms-acs/\`.
 
             See the failed workflow run for the diff:
             ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}
 
-            To resolve, pull the latest upstream examples and update our fixtures, or document the intentional divergence in \`MsAgentOsYamlConformanceTest\`.`;
+            To resolve, pull the latest upstream ACS manifest fixtures and update our copies, or document the intentional divergence in \`AcsManifestConformanceTest\`.`;
             const issues = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,

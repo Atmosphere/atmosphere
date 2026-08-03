@@ -135,6 +135,19 @@ public final class YamlPolicyParser implements PolicyParser {
                     + effectiveSource + ", got: " + document.getClass().getSimpleName());
         }
 
+        // Auto-detect the MS Agent Control Specification schema — the ACS
+        // root key is unique to that dialect, and its `policies:` is a
+        // mapping where the Atmosphere schema below expects a sequence, so
+        // this branch must run before the shape checks.
+        if (root.containsKey(org.atmosphere.ai.governance.acs.AcsManifestParser.ROOT_KEY)) {
+            var manifest = org.atmosphere.ai.governance.acs.AcsManifestParser
+                    .parse(effectiveSource, root);
+            return List.of(new org.atmosphere.ai.governance.acs.AcsManifestPolicy(
+                    manifest, effectiveSource,
+                    org.atmosphere.ai.governance.acs.AcsManifestPolicy
+                            .resolveManifestDir(effectiveSource)));
+        }
+
         var defaultVersion = asString(root.get("version"), "embedded");
 
         // Auto-detect MS Agent Governance Toolkit schema — root has `rules:`

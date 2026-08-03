@@ -1537,8 +1537,32 @@ the April 2026 public source):
 
   Atmosphere's native `policies:` schema lives alongside the MS schema
   — the two are mutually exclusive per document. `MsAgentOsYamlConformanceTest`
-  pins the interop against MS's unmodified example YAMLs so upstream
-  schema drift surfaces as a test failure here.
+  pins the interop against MS's unmodified example YAMLs. Upstream deleted
+  this dialect's examples on 2026-07-30 (v4-removal refactor) in favour of
+  ACS manifests, so these fixtures are frozen legacy assets: the parser
+  keeps accepting the schema for existing operator policy files, but the
+  weekly upstream diff now tracks the ACS contract instead.
+- **ACS manifest parity** (Agent Control Specification, MS's current
+  policy layer — public preview). `YamlPolicyParser` auto-detects the
+  `agent_control_specification_version:` root key and produces an
+  `AcsManifestPolicy` binding the manifest's intervention points to the
+  governance seams Atmosphere reaches: `input` (pre-admission),
+  `pre_tool_call` (tool-call admission) and `output` (post-response) —
+  points the host never reaches (`pre_model_call`, `agent_shutdown`, …)
+  are host scope and not evaluated. `type: rego` policies evaluate
+  through the real `opa` binary via `atmosphere-ai-policy-rego`'s
+  `AcsRegoEngine` (bundle dir / `.tar.gz` / single `.rego`, resolved
+  manifest-relative with escape rejection); ACS verdicts map
+  `allow`→admit, `deny`→deny with the policy's reason, and a
+  whole-target `transform` on `input` rewrites the message. Everything
+  else — unresolved `extends:` chains, missing engines, malformed
+  verdicts, invalid transform targets — denies fail-closed with an
+  `acs_runtime_error` reason, matching the upstream safety model.
+  `AcsManifestConformanceTest` pins the manifest shape against verbatim
+  copies of upstream's own contract fixtures
+  (`policy-engine/core/tests/fixtures/manifests/`), and the weekly
+  `ms-yaml-conformance` workflow diffs those copies against upstream
+  `main` so a shape change fails loudly.
 - **Context map bridge**: rule `field:` references map to `AiRequest`
   properties (`message`, `system_prompt`, `model`, `user_id`,
   `session_id`, `agent_id`, `conversation_id`), the context phase

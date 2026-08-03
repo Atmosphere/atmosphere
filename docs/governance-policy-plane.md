@@ -256,9 +256,22 @@ defaults:
 
 Two schemas are mutually exclusive per document — a YAML file carrying both `rules:` and `policies:` raises `IOException` at parse time.
 
+### ACS manifests (MS's current policy layer)
+
+Microsoft superseded the `rules:` dialect with Agent Control Specification (ACS) manifests in the 2026-07-30 v4-removal refactor. `YamlPolicyParser` detects the `agent_control_specification_version:` root key and produces an `AcsManifestPolicy`:
+
+| ACS intervention point | Atmosphere seam |
+|---|---|
+| `input` | `PRE_ADMISSION` on the user turn |
+| `pre_tool_call` | `PRE_ADMISSION` on the tool-call intent (`tool_name` metadata) |
+| `output` | `POST_RESPONSE` on the accumulated response |
+| everything else | host scope — not evaluated (a point the host never reaches is never presented) |
+
+`type: rego` policies evaluate through the real `opa` binary (`atmosphere-ai-policy-rego`, ServiceLoader-discovered `AcsRegoEngine`); the `bundle:` reference resolves manifest-relative (directory, `.tar.gz`, or single `.rego`) with path-escape rejection. Verdicts map `allow` → `admit()`, `deny` → `deny(reason)`, and a whole-target `transform` on `input` → `transform(request.withMessage(...))`. Unresolved `extends:` chains, unregistered engine types, malformed verdicts and invalid transform targets all deny fail-closed with an `acs_runtime_error` reason — the upstream ACS safety model and Correctness Invariant #6 agree here.
+
 ### Conformance
 
-`MsAgentOsYamlConformanceTest` copies example YAMLs byte-for-byte from `microsoft/agent-governance-toolkit@April-2026` (`docs/tutorials/policy-as-code/examples/`). If MS changes their upstream schema and our fixtures go stale, the test fails — parity is pinned in CI, not in marketing copy.
+`MsAgentOsYamlConformanceTest` pins the frozen legacy `rules:` dialect (byte-for-byte copies of the pre-removal `docs/tutorials/policy-as-code/examples/`, kept for existing operator policy files). `AcsManifestConformanceTest` pins the ACS manifest shape against verbatim copies of upstream's own contract fixtures (`policy-engine/core/tests/fixtures/manifests/`), and the weekly `ms-yaml-conformance` workflow diffs those copies against upstream `main` — parity is pinned in CI, not in marketing copy.
 
 ---
 
