@@ -39,6 +39,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * ({@code docs/tutorials/policy-as-code/examples/*.yaml}) — updating the MS
  * side upstream and not updating our copy will cause a test drift, which is
  * the point: prove interop is real, not aspirational.
+ *
+ * <p>Upstream deleted that examples directory on 2026-07-30 (commit
+ * {@code 8149ebf93d}, the v4-removal refactor) and superseded the format with
+ * ACS manifests. The weekly conformance workflow therefore diffs against the
+ * pinned pre-removal commit {@code 4c5b2aa372} — the last upstream source of
+ * the YAML dialect this parser targets — instead of {@code main}.</p>
  */
 class MsAgentOsYamlConformanceTest {
 

@@ -2,13 +2,21 @@ name: "CI: MS Agent Governance YAML Conformance"
 
 # Tier 7.1 — weekly diff against Microsoft's upstream Agent Governance Toolkit
 # YAML fixtures. Guards the claim that Atmosphere parses MS policy YAML
-# byte-for-byte: if MS changes the example shape upstream and our copies
-# drift, the workflow opens an issue / PR and fails loudly.
+# byte-for-byte: if the fixtures and the upstream ref we claim they came
+# from ever disagree, the workflow opens an issue / PR and fails loudly.
 #
 # The fixture directory is modules/ai/src/test/resources/ms-agent-os/. Our
 # MsAgentOsYamlConformanceTest (runs in CI: Core) asserts the shipped
 # parser accepts every file in that directory — this workflow keeps the
-# directory aligned with upstream.
+# directory aligned with the upstream ref that ships that format.
+#
+# The diff is PINNED, not tracking main: upstream commit 8149ebf93d
+# (2026-07-30, "refactor(v4-removal)!") deleted the whole
+# docs/tutorials/policy-as-code/examples directory — the format moved to
+# ACS manifests (docs/tutorials/55-agent-control-specification.md), it was
+# not relocated. UPSTREAM_PIN is the last commit shipping the YAML format
+# our parser targets; whether Atmosphere follows upstream to ACS manifests
+# is a product decision, not a fixture sync.
 
 on:
   schedule:
@@ -18,8 +26,8 @@ on:
   workflow_dispatch:
     inputs:
       upstream_ref:
-        description: 'MS Agent Governance Toolkit git ref to diff against (default: main)'
-        default: 'main'
+        description: 'MS Agent Governance Toolkit git ref to diff against (default: the pinned pre-ACS commit)'
+        default: ''
         required: false
   pull_request:
     paths:
@@ -42,17 +50,26 @@ jobs:
       - name: Clone MS Agent Governance Toolkit upstream
         run: |
           set -euo pipefail
-          REF="${{ github.event.inputs.upstream_ref || 'main' }}"
+          # Last upstream commit that ships docs/tutorials/policy-as-code/
+          # examples — the parent of the v4-removal refactor (8149ebf93d)
+          # that deleted the directory in favour of ACS manifests. See the
+          # header comment before moving this back to 'main'.
+          UPSTREAM_PIN=4c5b2aa372538a9f42ef6085bdd13c5bd98ee479
+          REF="${{ github.event.inputs.upstream_ref }}"
+          REF="${REF:-$UPSTREAM_PIN}"
           mkdir -p /tmp/ms-upstream
           # MS ships the toolkit at microsoft/agent-governance-toolkit. If
           # the repo is moved or the path changes, this block is the one
-          # thing to edit.
-          git clone --depth 1 --branch "$REF" \
-            https://github.com/microsoft/agent-governance-toolkit.git \
-            /tmp/ms-upstream || {
+          # thing to edit. init+fetch instead of clone --branch so the ref
+          # can be a bare commit SHA (the pin), not just a branch or tag.
+          git init -q /tmp/ms-upstream
+          git -C /tmp/ms-upstream remote add origin \
+            https://github.com/microsoft/agent-governance-toolkit.git
+          git -C /tmp/ms-upstream fetch -q --depth 1 origin "$REF" || {
               echo "::error::upstream repo unreachable or ref '$REF' does not exist"
               exit 1
             }
+          git -C /tmp/ms-upstream checkout -q FETCH_HEAD
 
       - name: Diff fixtures
         id: diff
