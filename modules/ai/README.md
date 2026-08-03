@@ -1,6 +1,6 @@
 # Atmosphere AI
 
-AI/LLM streaming module for Atmosphere. Provides `@AiEndpoint`, `@Prompt`, `@AiTool`, `StreamingSession`, the `AgentRuntime` SPI for auto-detected AI framework adapters, and a built-in `OpenAiCompatibleClient` that works with Gemini, OpenAI, Ollama, and any OpenAI-compatible API — including tool calling, structured output, and usage metadata tracking.
+AI/LLM streaming module for Atmosphere. Provides `@AiEndpoint`, `@Prompt`, `@AiTool`, `StreamingSession`, the `AgentRuntime` SPI for auto-detected AI framework adapters, and a built-in `OpenAiCompatibleClient` that works with Gemini, OpenAI, Ollama, a LiteLLM proxy, and any OpenAI-compatible API — including tool calling, structured output, and usage metadata tracking.
 
 ## Maven Coordinates
 
