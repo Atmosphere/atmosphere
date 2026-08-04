@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -245,15 +246,61 @@ class ToolExecutionHelperTest {
     }
 
     @Test
-    void toolOutputScreenOffByDefaultReturnsRawResult() {
-        // Default-OFF guard: with the opt-in knob unset, an injection-looking
-        // tool result must flow through verbatim — no behavior change for
-        // existing deployments.
+    void toolOutputScreenAnnotatesByDefaultWithoutDestroyingThePayload() {
+        // The default changed from OFF to ANNOTATE. What must NOT change is that
+        // the payload survives: the model now sees the flagged result wrapped in
+        // a spotlighting banner, not replaced by a placeholder. Deployments that
+        // relied on verbatim passthrough set the mode to OFF.
         System.clearProperty(ToolOutputSafetyScreen.ENABLED_PROPERTY);
-        var session = new CapturingSession("sess-screen-off");
+        System.clearProperty(ToolOutputSafetyScreen.MODE_PROPERTY);
+        var session = new CapturingSession("sess-screen-default");
         var result = runPlainTool("search", INJECTED_TOOL_RESULT, session);
-        assertEquals(INJECTED_TOOL_RESULT, result,
-                "screen must be off by default — raw result expected");
+
+        assertTrue(result.contains(INJECTED_TOOL_RESULT),
+                "the default must never destroy the payload — a false positive on a "
+                        + "file read would otherwise be unrecoverable; got: " + result);
+        assertTrue(result.startsWith(ToolOutputSafetyScreen.ANNOTATION_HEADER),
+                "a flagged result must be marked as untrusted data for the model");
+        assertNotEquals(ToolOutputSafetyScreen.SANITIZED_PLACEHOLDER, result,
+                "ANNOTATE must not behave like SANITIZE");
+    }
+
+    @Test
+    void toolOutputScreenOffModeReturnsRawResult() {
+        System.setProperty(ToolOutputSafetyScreen.MODE_PROPERTY, "OFF");
+        try {
+            var session = new CapturingSession("sess-screen-off");
+            var result = runPlainTool("search", INJECTED_TOOL_RESULT, session);
+            assertEquals(INJECTED_TOOL_RESULT, result,
+                    "OFF must be byte-identical to the pre-screen behaviour");
+        } finally {
+            System.clearProperty(ToolOutputSafetyScreen.MODE_PROPERTY);
+        }
+    }
+
+    @Test
+    void cleanToolOutputIsNeverAnnotated() {
+        System.clearProperty(ToolOutputSafetyScreen.MODE_PROPERTY);
+        var session = new CapturingSession("sess-screen-clean");
+        var clean = "Paris is the capital of France.";
+        var result = runPlainTool("search", clean, session);
+        assertEquals(clean, result,
+                "ordinary tool output must pass through untouched — annotating "
+                        + "everything would train the model to ignore the banner");
+    }
+
+    @Test
+    void theLegacyBooleanStillSelectsTheDestructiveMode() {
+        System.setProperty(ToolOutputSafetyScreen.ENABLED_PROPERTY, "true");
+        try {
+            var session = new CapturingSession("sess-screen-legacy");
+            var result = runPlainTool("search", INJECTED_TOOL_RESULT, session);
+            assertEquals(ToolOutputSafetyScreen.SANITIZED_PLACEHOLDER, result,
+                    "an existing deployment setting the old boolean must keep the "
+                            + "withholding behaviour it opted into");
+        } finally {
+            System.clearProperty(ToolOutputSafetyScreen.ENABLED_PROPERTY);
+        }
     }
 
     @Test

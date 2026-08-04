@@ -172,6 +172,10 @@ public class AiEndpointProcessor implements Processor<Object> {
             var systemPrompt = resolveSystemPrompt(annotation);
             var fallbackStrategy = parseFallbackStrategy(annotation.fallbackStrategy());
             var settings = resolveSettings();
+            // Let the tool-output injection screen read its mode from init-params
+            // like every other governance knob; sysprop and env still win.
+            org.atmosphere.ai.tool.ToolOutputSafetyScreen.install(
+                    framework != null ? framework.getAtmosphereConfig() : null);
             var runtime = resolveRuntimeWithRouting(fallbackStrategy, settings,
                     annotation.requires());
             // Resolved here rather than at its point of use further down because

@@ -205,7 +205,7 @@ public final class OwaspAgenticMatrix {
 
             new Row("A04", "Indirect Prompt Injection",
                     "Attacker plants instructions in RAG docs / tool outputs / web content the agent ingests.",
-                    Coverage.PARTIAL,
+                    Coverage.COVERED,
                     List.of(
                             new Evidence("org.atmosphere.ai.governance.rag.InjectionClassifier",
                                     "org.atmosphere.ai.governance.rag.RuleBasedInjectionClassifierTest",
@@ -226,10 +226,12 @@ public final class OwaspAgenticMatrix {
                             new Evidence("org.atmosphere.ai.tool.ToolOutputSafetyScreen",
                                     "org.atmosphere.ai.tool.ToolExecutionHelperTest",
                                     "ToolOutputSafetyScreen.screen",
-                                    "Opt-in tool-output injection screen consumed by "
+                                    "Default-on tool-output injection screen consumed by "
                                             + "ToolExecutionHelper.finishAndEmit (every runtime bridge "
-                                            + "and transport funnels through it) — OFF by default; "
-                                            + "enable via org.atmosphere.ai.tool.injectionScreen.enabled"),
+                                            + "and transport funnels through it). Default mode "
+                                            + "ANNOTATE marks a flagged result as untrusted data "
+                                            + "without discarding it; SANITIZE withholds it; OFF "
+                                            + "disables. org.atmosphere.ai.tool.injectionScreen.mode"),
                             new Evidence("org.atmosphere.ai.guardrails.PiiRedactionGuardrail",
                                     "org.atmosphere.ai.guardrails.GuardrailsTest",
                                     "PiiRedactionGuardrail",
@@ -239,16 +241,18 @@ public final class OwaspAgenticMatrix {
                                     "org.atmosphere.ai.AiPipelineScopeHardeningTest",
                                     "ScopePolicy",
                                     "Scope-confinement preamble blunts injected instructions")),
-                    "Partly on by default. Instructions hidden inside documents the agent "
-                            + "retrieves from a knowledge base are detected and stripped before "
-                            + "they reach the model, with no setup — an attacker can't smuggle "
-                            + "commands in through retrieved documents. Screening of tool outputs "
-                            + "is available but off by default: turn it on with "
-                            + "org.atmosphere.ai.tool.injectionScreen.enabled=true (or the "
-                            + "LLM_TOOL_OUTPUT_INJECTION_SCREEN env var). It is off out of the box "
-                            + "because a tool that legitimately quotes injection-like text — a "
-                            + "security blog, a search hit — would be withheld. Adding an embedding "
-                            + "or classifier model makes RAG detection stronger but isn't required."),
+                    "On by default on both ingestion paths. Instructions hidden inside "
+                            + "documents the agent retrieves from a knowledge base are detected "
+                            + "and stripped before they reach the model, and instructions hidden "
+                            + "in what a tool returns are detected and marked as untrusted data "
+                            + "the model must not obey — neither needs setup. Tool output is "
+                            + "marked rather than deleted by default, because the detector also "
+                            + "matches ordinary content a tool legitimately returns (a config "
+                            + "file, a log excerpt, a chat transcript) and deleting those would "
+                            + "break real work; deployments that prefer withholding set "
+                            + "org.atmosphere.ai.tool.injectionScreen.mode=SANITIZE. Adding an "
+                            + "embedding or classifier model makes detection stronger but is not "
+                            + "required."),
 
             new Row("A05", "Cascading Failures / Runaway Agent Loops",
                     "Multi-agent loop spirals out of control; one agent's failure triggers another.",
