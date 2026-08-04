@@ -354,8 +354,13 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
             var params = new ArrayList<CrewAiSidecarClient.ParameterDescriptor>(
                     tool.parameters().size());
             for (var p : tool.parameters()) {
+                // Carry the full JSON-Schema property object, not just the scalar
+                // type: ToolParameter holds enum values, an array item schema and
+                // nested object properties, and dropping them sent a Java enum to
+                // the model as an unconstrained string.
                 params.add(new CrewAiSidecarClient.ParameterDescriptor(
-                        p.name(), p.type(), p.description(), p.required()));
+                        p.name(), p.type(), p.description(), p.required(),
+                        org.atmosphere.ai.tool.ToolBridgeUtils.parameterSchemaMap(p)));
             }
             out.add(new CrewAiSidecarClient.ToolDescriptor(
                     tool.name(), tool.description(), params, tool.returnType()));

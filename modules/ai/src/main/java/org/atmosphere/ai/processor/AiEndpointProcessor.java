@@ -329,6 +329,14 @@ public class AiEndpointProcessor implements Processor<Object> {
             var cachePolicy = PromptCacheDefaults.effective(
                     annotation.promptCache(), framework.getAtmosphereConfig(),
                     features.contains(Harness.CACHE));
+            // Endpoint-level response cache from atmosphere.ai.cache.* — the same
+            // seam CoordinatorProcessor installs onto its pipeline. Off unless
+            // configured, and a no-op when no EmbeddingRuntime backs a semantic
+            // cache, so an unconfigured endpoint behaves exactly as before.
+            // Without this the flag was pipeline-only and silently inert here
+            // (Correctness Invariant #7).
+            org.atmosphere.ai.cache.ResponseCacheConfig.install(
+                    handler, framework.getAtmosphereConfig());
             if (cachePolicy != org.atmosphere.ai.llm.CacheHint.CachePolicy.NONE) {
                 handler.setCachePolicy(cachePolicy);
                 // Upgrade the console runtime-state to the policy this endpoint

@@ -139,6 +139,73 @@ class CrewAiToolBridgeTest {
         assertFalse(executed.get(), "executor must not run on the start path");
     }
 
+    /**
+     * CrewAI was the last bridge flattening structural facets: it narrowed the
+     * seven-component {@code ToolParameter} to name/type/description/required,
+     * so a Java enum reached the model as an unconstrained string and arrays and
+     * objects reached it with no element or property types at all. Every other
+     * bridge emits {@code ToolBridgeUtils.parameterSchemaMap}; this pins that
+     * CrewAI now puts the same facets on the sidecar wire.
+     */
+    @Test
+    void toolParameterFacets_reachTheSidecarWire() throws Exception {
+        sidecar.startResponse = doneOnly();
+        var runtime = new CrewAiAgentRuntime();
+        runtime.configure(null);
+
+        var tool = ToolDefinition.builder("book_trip", "Book a trip")
+                .parameter(org.atmosphere.ai.tool.ToolParameter.ofEnum(
+                        "unit", "Temperature unit", true, List.of("CELSIUS", "FAHRENHEIT")))
+                .parameter(org.atmosphere.ai.tool.ToolParameter.ofArray(
+                        "tags", "Trip tags", false,
+                        new org.atmosphere.ai.tool.ToolParameter("item", "", "string", true)))
+                .parameter(org.atmosphere.ai.tool.ToolParameter.ofObject(
+                        "origin", "Origin", true,
+                        List.of(new org.atmosphere.ai.tool.ToolParameter(
+                                "city", "City", "string", true))))
+                .executor(args -> "OK")
+                .build();
+        var session = new RecordingSession();
+        runtime.execute(contextWithTools(List.of(tool), null), session);
+
+        assertTrue(session.awaitTerminal(5, TimeUnit.SECONDS));
+        var params = MAPPER.readTree(sidecar.lastStartBody.get())
+                .path("tools").get(0).path("parameters");
+
+        var unit = paramNamed(params, "unit");
+        assertTrue(unit.path("enum").isArray(), "an enum parameter must carry its allowed values");
+        assertEquals(2, unit.path("enum").size());
+        assertEquals("CELSIUS", unit.path("enum").get(0).asString());
+
+        var tags = paramNamed(params, "tags");
+        assertEquals("string", tags.path("items").path("type").asString(),
+                "an array parameter must carry its element type");
+
+        var origin = paramNamed(params, "origin");
+        assertEquals("string", origin.path("properties").path("city").path("type").asString(),
+                "an object parameter must carry its nested property types");
+        assertEquals("city", origin.path("required_properties").get(0).asString(),
+                "nested required-ness must survive the crossing");
+        // The nested list must NOT be written as "required": that key already
+        // carries the parameter's own boolean, and an array would overwrite it —
+        // turning "origin is mandatory" into a list of field names.
+        assertTrue(origin.path("required").isBoolean(),
+                "the parameter's own required flag must stay a boolean; got "
+                        + origin.path("required"));
+        assertTrue(origin.path("required").asBoolean(),
+                "origin was declared required and must remain so");
+    }
+
+    private static tools.jackson.databind.JsonNode paramNamed(
+            tools.jackson.databind.JsonNode params, String name) {
+        for (var p : params) {
+            if (name.equals(p.path("name").asString())) {
+                return p;
+            }
+        }
+        throw new AssertionError("no parameter named " + name + " in " + params);
+    }
+
     @Test
     void systemPrompt_threadedThroughStartRequest() throws Exception {
         sidecar.startResponse = doneOnly();

@@ -69,6 +69,13 @@ class _ParameterDescriptor(BaseModel):
     type: str = "string"
     description: str = ""
     required: bool = False
+    # Structural facets from the Java ToolParameter, carried so an enum reaches
+    # the model as a constrained Literal and arrays/objects get real types
+    # instead of Any. Optional: an older Java side simply omits them.
+    enum: list[Any] | None = None
+    items: dict[str, Any] | None = None
+    properties: dict[str, Any] | None = None
+    required_properties: list[str] | None = None
 
 
 class _ToolDescriptor(BaseModel):

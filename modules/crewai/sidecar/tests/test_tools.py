@@ -82,6 +82,62 @@ def test_build_remote_tool_pydantic_schema() -> None:
     assert not fields["limit"].is_required(), "required=False must be optional"
 
 
+def test_build_remote_tool_honours_structural_facets() -> None:
+    """Enum, array-items and nested-object facets must produce real pydantic
+    types, not ``Any``.
+
+    Before the Java side sent the full JSON-Schema property object, an enum
+    reached the model as an unconstrained ``str`` and arrays/objects reached it
+    as ``Any`` — so the model had to guess both the shape and the legal values,
+    and pydantic validated nothing on the way back.
+    """
+    from typing import Literal, get_args, get_origin
+
+    descriptor = {
+        "name": "book_trip",
+        "description": "Book a trip.",
+        "parameters": [
+            {"name": "unit", "type": "string", "required": True,
+             "enum": ["CELSIUS", "FAHRENHEIT"]},
+            {"name": "tags", "type": "array", "required": False,
+             "items": {"type": "string"}},
+            {"name": "origin", "type": "object", "required": True,
+             "properties": {"city": {"type": "string"}, "zip": {"type": "integer"}},
+             "required_properties": ["city"]},
+        ],
+        "return_type": "string",
+    }
+    tool = build_remote_tool(descriptor, "http://127.0.0.1:9999/cb", "sess_x",
+                             callback_token="t0k")
+    fields = tool.args_schema.model_fields
+
+    unit = fields["unit"].annotation
+    assert get_origin(unit) is Literal, f"an enum must become a Literal; got {unit}"
+    assert set(get_args(unit)) == {"CELSIUS", "FAHRENHEIT"}
+
+    tags = fields["tags"].annotation
+    assert get_origin(tags) is list, f"an array must become a list; got {tags}"
+    assert get_args(tags) == (str,), "the array element type must survive"
+
+    origin = fields["origin"].annotation
+    nested = getattr(origin, "model_fields", None)
+    assert nested is not None, f"an object must become a nested model; got {origin}"
+    assert nested["city"].annotation is str
+    assert nested["zip"].annotation is int
+
+
+def test_build_remote_tool_facetless_array_still_degrades_to_any() -> None:
+    """An array with no ``items`` must stay permissive rather than crash —
+    the bridge must never deny a whole crew run over a thin schema."""
+    descriptor = {
+        "name": "loose",
+        "parameters": [{"name": "vals", "type": "array", "required": False}],
+    }
+    tool = build_remote_tool(descriptor, "http://127.0.0.1:9999/cb", "sess_x",
+                             callback_token="t0k")
+    assert "vals" in tool.args_schema.model_fields
+
+
 def test_build_remote_tool_unknown_type_falls_back_to_any(caplog) -> None:
     """Unknown schema types must NOT crash — they must log at INFO and
     degrade to typing.Any so the crew run still proceeds."""

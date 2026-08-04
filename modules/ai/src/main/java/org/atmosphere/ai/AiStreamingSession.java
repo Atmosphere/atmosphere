@@ -109,6 +109,14 @@ public class AiStreamingSession implements StreamingSession {
     private final AtomicBoolean terminated = new AtomicBoolean();
     /** Endpoint-configured prompt cache policy from {@code @AiEndpoint.promptCache()}. */
     private volatile org.atmosphere.ai.llm.CacheHint.CachePolicy cachePolicy;
+    /**
+     * Endpoint-level response cache. Mirrors {@link AiPipeline}'s cache source so
+     * the same {@code atmosphere.ai.cache.*} configuration reaches both dispatch
+     * paths (Correctness Invariant #7). Null disables the gate, which is the
+     * default — an endpoint with no cache installed behaves exactly as before.
+     */
+    private volatile org.atmosphere.ai.cache.ResponseCache responseCache;
+    private volatile java.time.Duration responseCacheTtl = java.time.Duration.ofMinutes(5);
     /** Endpoint-configured per-request retry policy from {@code @AiEndpoint.retry()}. */
     private volatile org.atmosphere.ai.RetryPolicy endpointRetryPolicy;
     /** Endpoint-scoped structured-output reprompt budget; 0 disables the loop. */
@@ -518,6 +526,36 @@ public class AiStreamingSession implements StreamingSession {
      */
     public void setCachePolicy(org.atmosphere.ai.llm.CacheHint.CachePolicy policy) {
         this.cachePolicy = policy;
+    }
+
+    /**
+     * Attach an endpoint-level {@link org.atmosphere.ai.cache.ResponseCache}, the
+     * websocket-path twin of {@link AiPipeline#setResponseCache}. When set AND the
+     * request's {@link org.atmosphere.ai.llm.CacheHint} is opted in, the session
+     * consults the cache before calling the runtime; on a miss it wraps the target
+     * in a {@link org.atmosphere.ai.cache.CachingStreamingSession} to capture the
+     * response for replay.
+     *
+     * <p>Before this existed the response cache was reachable only from
+     * {@code AiPipeline}, so an application that configured
+     * {@code atmosphere.ai.cache.semantic=true} got a cache on its
+     * {@code @Coordinator}/channel traffic and silently none on its
+     * {@code @AiEndpoint} traffic (Correctness Invariant #7).</p>
+     *
+     * @param cache cache instance, or {@code null} to disable
+     * @param ttl   entry TTL; defaults to 5 minutes when {@code null}
+     */
+    public void setResponseCache(org.atmosphere.ai.cache.ResponseCache cache,
+                                 java.time.Duration ttl) {
+        this.responseCache = cache;
+        if (ttl != null) {
+            this.responseCacheTtl = ttl;
+        }
+    }
+
+    /** The installed endpoint-level response cache, or {@code null} when none. */
+    public org.atmosphere.ai.cache.ResponseCache responseCache() {
+        return responseCache;
     }
 
     /**
@@ -945,7 +983,87 @@ public class AiStreamingSession implements StreamingSession {
                 baseSystemPrompt, structuredSchemaText, composed.confidenceCueText(),
                 tools, request.history(), request.message());
 
-        var streamingTarget = target;
+        // Endpoint-level response cache — the websocket twin of AiPipeline's gate
+        // (Correctness Invariant #7). Same five safety preconditions, same keying,
+        // same ai.cache.hit wire signal, so a request behaves identically whichever
+        // entry mode it arrived on. Caching is skipped in any of these cases because
+        // CachingStreamingSession only captures text via send()/usage() — tool calls,
+        // tool results, structured-output field events and intermediate lifecycle
+        // frames are NOT replayable, so serving a cached text-only response for any
+        // of them would silently drop frames and could produce wrong answers:
+        //   1. this turn's tools non-empty      2. registry holds latent tools
+        //   3. structured output declared        4. RAG providers augment the prompt
+        //   5. guardrails may mutate the request at runtime
+        var cache = responseCache;
+        var cacheHint = org.atmosphere.ai.llm.CacheHint.from(context);
+        var hasTools = tools != null && !tools.isEmpty();
+        var registryHasTools = toolRegistry != null && !toolRegistry.allTools().isEmpty();
+        var hasStructuredForCache = effectiveResponseType != null
+                && effectiveResponseType != Void.class;
+        var hasRag = contextProviders != null && !contextProviders.isEmpty();
+        var hasGuardrailsForCache = (effectiveGuardrails != null && !effectiveGuardrails.isEmpty())
+                || requestScopePolicy != null;
+        var cacheSafe = !hasTools && !registryHasTools && !hasStructuredForCache
+                && !hasRag && !hasGuardrailsForCache;
+        org.atmosphere.ai.cache.CachingStreamingSession cacheCaptor = null;
+        StreamingSession cacheTarget = target;
+        if (cache != null && cacheHint.enabled() && cacheSafe) {
+            // A SemanticResponseCache matches near-duplicate prompts by embedding
+            // similarity, so it keys on the RAW message rather than the exact
+            // CacheKey hash. Exact caches (the default) key on the hash.
+            var cacheKey = cache instanceof org.atmosphere.ai.cache.SemanticResponseCache
+                    ? request.message()
+                    : org.atmosphere.ai.cache.CacheKey.compute(context);
+            var hit = cache.get(cacheKey);
+            if (hit.isPresent()) {
+                logger.debug("Endpoint response-cache HIT: key={}", cacheKey);
+                var cached = hit.get();
+                var cacheTurn = new org.atmosphere.ai.jfr.AgentTurnEvent();
+                cacheTurn.runtime = runtime != null ? runtime.name() : "unknown";
+                cacheTurn.model = request.model() != null ? request.model()
+                        : (model != null ? model : "unknown");
+                cacheTurn.clientId = resource != null ? resource.uuid() : null;
+                cacheTurn.cacheHit = true;
+                cacheTurn.begin();
+                // Fire lifecycle listeners so observers see a clean start/completion
+                // pair on the hit path too — on a miss AbstractAgentRuntime.execute
+                // fires these internally. Without it, audit/metrics observers go
+                // blind on exactly the requests the cache serves.
+                AbstractAgentRuntime.fireStart(context);
+                try {
+                    target.sendMetadata(AiPipeline.CACHE_HIT_METADATA_KEY, Boolean.TRUE);
+                    target.send(cached.text());
+                    if (cached.usage() != null) {
+                        target.usage(cached.usage());
+                    }
+                    target.complete();
+                    AbstractAgentRuntime.fireCompletion(context);
+                    cacheTurn.status = "success";
+                } catch (RuntimeException e) {
+                    cacheTurn.status = "error";
+                    cacheTurn.errorType = e.getClass().getSimpleName();
+                    AbstractAgentRuntime.fireError(context, e);
+                    throw e;
+                } finally {
+                    cacheTurn.commit();
+                }
+                return;
+            }
+            logger.debug("Endpoint response-cache MISS: key={}", cacheKey);
+            // Emit the false signal on miss too so a client can distinguish
+            // "consulted but missed" from "skipped entirely" (gate short-circuited).
+            target.sendMetadata(AiPipeline.CACHE_HIT_METADATA_KEY, Boolean.FALSE);
+            cacheCaptor = new org.atmosphere.ai.cache.CachingStreamingSession(
+                    target, cacheKey, responseCacheTtl, cache::put);
+            cacheTarget = cacheCaptor;
+        } else if (cache != null && cacheHint.enabled() && logger.isDebugEnabled()) {
+            logger.debug("Endpoint response-cache SKIP: hasTools={} registryHasTools={} "
+                            + "hasStructured={} hasRag={} hasGuardrails={}",
+                    hasTools, registryHasTools, hasStructuredForCache, hasRag,
+                    hasGuardrailsForCache);
+        }
+
+        var streamingTarget = cacheTarget;
         // Session tape: record the final input prompt (system + history + user)
         // as an `input` step so the tape captures both sides of the turn — the
         // self-contained (prompt → completion) record the distillation extractor
@@ -1003,6 +1121,16 @@ public class AiStreamingSession implements StreamingSession {
             try {
                 handle.whenDone().join();
                 turnEvent.status = streamingTarget.hasErrored() ? "error" : "success";
+                // Persist the captured response only after the runtime returned
+                // without throwing and the session is not errored. complete() is
+                // NOT a valid commit signal — runtime bridges call it on a
+                // caller-initiated cancel, which would cache a partial answer and
+                // replay it as authoritative. The captor reference is held
+                // directly rather than recovered with instanceof, so a later
+                // re-wrap of the target cannot silently skip the commit.
+                if (cacheCaptor != null && !cacheCaptor.hasErrored()) {
+                    cacheCaptor.commit();
+                }
             } catch (java.util.concurrent.CompletionException ce) {
                 // Runtime completed exceptionally via Settable.completeExceptionally.
                 // The streamingTarget.error(...) path was already invoked by the

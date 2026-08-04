@@ -92,7 +92,19 @@ import java.util.concurrent.atomic.AtomicInteger;
  *       counts at most one per execute and therefore cannot enforce a round
  *       cap</b> — their upstream library's own default governs, and a
  *       per-request {@link ToolLoopPolicy} is honored only where the runtime
- *       translates it to a native knob (see each module's README).</li>
+ *       translates it to a native knob (see each module's README).
+ *       <p>Surveyed against the pinned versions, exactly one of them exposes
+ *       such a knob: <b>ADK</b> ({@code LlmAgent.maxSteps}), wired by
+ *       {@code AdkAgentRuntime.setMaxSteps} as a startup opt-in — it cannot be
+ *       per-request because the agent is assembled once and reused. Semantic
+ *       Kernel's {@code ToolCallBehavior} maximum is getter-only; Spring AI
+ *       offers no iteration count (only a per-response
+ *       {@code ToolExecutionEligibilityChecker} predicate); Alibaba's
+ *       {@code maxParallelTools} is width, not depth; AgentScope's
+ *       {@code maxIters} sits on an agent the adapter receives rather than
+ *       builds; CrewAI's crew is user-supplied. Those five are bounded only by
+ *       their own upstream defaults — stated here so nobody re-files it as a
+ *       missing cap Atmosphere declined to set.</p></li>
  * </ul>
  *
  * <h2>Installation</h2>

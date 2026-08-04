@@ -40,17 +40,22 @@ import java.util.Optional;
  *
  * <h2>Which dispatch paths this reaches</h2>
  *
- * <p>The response-cache gate lives in {@link AiPipeline#execute}, so this seam
- * reaches exactly the pipeline dispatch paths: the {@code @Coordinator} A2A /
- * AG-UI / channel-bridge surface, and any application that builds its own
- * {@code AiPipeline}. It does <strong>not</strong> reach the
- * {@code @AiEndpoint} websocket path — {@code AiStreamingSession} has no
- * response-cache gate, and the Tier-1 dispatch unification deliberately left
- * the gate in {@code AiPipeline} rather than moving it into the shared
- * {@code DispatchDecorators} composer. An {@code @AiEndpoint} that wants
- * response caching routes its {@code @Prompt} method through an
- * {@code AiPipeline} (as {@code PromptCacheDemoChat} does). Advertising
- * anything wider would be a runtime-truth violation (Correctness Invariant #5).</p>
+ * <p>Both dispatch paths carry a response-cache gate, so this seam reaches all
+ * of them: {@link AiPipeline#execute} covers the {@code @Coordinator} A2A /
+ * AG-UI / channel-bridge surface and any application that builds its own
+ * {@code AiPipeline}, while
+ * {@link org.atmosphere.ai.AiStreamingSession#setResponseCache} covers the
+ * {@code @AiEndpoint} websocket path. Both gates apply the same five safety
+ * preconditions and emit the same {@code ai.cache.hit} signal, so a request is
+ * cached identically whichever entry mode it arrived on (Correctness Invariant
+ * #7). Until that second gate existed, configuring a cache silently did nothing
+ * for {@code @AiEndpoint} traffic and an endpoint that wanted caching had to
+ * route its {@code @Prompt} method through an {@code AiPipeline}.</p>
+ *
+ * <p>The gate stays in each dispatch entry rather than moving into the shared
+ * {@code DispatchDecorators} composer, because a cache hit must short-circuit
+ * the runtime call entirely — a decorator only wraps the session and cannot
+ * skip dispatch.</p>
  *
  * <h2>Why enabling also seeds a cache policy</h2>
  *
@@ -173,6 +178,43 @@ public final class ResponseCacheConfig {
         // explicit opt-in seeds the policy too — otherwise "semantic cache
         // enabled" would be a claim with no runtime effect.
         pipeline.setDefaultCachePolicy(CacheHint.CachePolicy.CONSERVATIVE);
+        return true;
+    }
+
+    /**
+     * Install the configured cache onto an {@code @AiEndpoint} handler — the
+     * websocket-path twin of {@link #install(AiPipeline, AtmosphereConfig)}.
+     *
+     * @param handler the endpoint handler to install onto
+     * @param cfg     the framework config (may be {@code null})
+     * @return {@code true} when a cache was installed
+     */
+    public static boolean install(org.atmosphere.ai.processor.AiEndpointHandler handler,
+                                  AtmosphereConfig cfg) {
+        return install(handler, resolve(cfg));
+    }
+
+    /**
+     * Install an already-resolved cache onto an endpoint handler, so one
+     * application-wide resolution can serve every endpoint.
+     *
+     * <p>Unlike the pipeline overload this does <em>not</em> seed a default cache
+     * policy. The endpoint path already has an explicit, per-endpoint policy
+     * source — {@code @AiEndpoint.promptCache()} resolved through
+     * {@code PromptCacheDefaults} — so seeding one here would silently override
+     * an endpoint that deliberately left caching off.</p>
+     *
+     * @param handler  the endpoint handler to install onto
+     * @param resolved the resolution result
+     * @return {@code true} when a cache was installed
+     */
+    public static boolean install(org.atmosphere.ai.processor.AiEndpointHandler handler,
+                                  Optional<Resolved> resolved) {
+        if (handler == null || resolved.isEmpty()) {
+            return false;
+        }
+        var installed = resolved.get();
+        handler.setResponseCache(installed.cache(), installed.ttl());
         return true;
     }
 

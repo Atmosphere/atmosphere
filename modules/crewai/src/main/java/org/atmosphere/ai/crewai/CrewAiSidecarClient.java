@@ -160,19 +160,31 @@ public interface CrewAiSidecarClient {
     /**
      * One parameter of a {@link ToolDescriptor}.
      *
+     * <p>{@code schema} carries the full JSON-Schema property object produced by
+     * {@link org.atmosphere.ai.tool.ToolBridgeUtils#parameterSchemaMap} — the
+     * same emitter Semantic Kernel, ADK, Koog, Embabel and LangChain4j use — so
+     * enum values, array item types and nested object properties survive the
+     * crossing to the Python sidecar. Before this field existed the descriptor
+     * carried only name/type/description/required, so a Java enum reached the
+     * model as an unconstrained string and arrays and objects reached it as
+     * untyped values.</p>
+     *
      * @param name        parameter name (must be a valid identifier)
      * @param type        JSON-schema type (string, integer, number, boolean,
      *                    array, object)
      * @param description human-readable description; may be empty
      * @param required    whether the model must supply this parameter
+     * @param schema      full JSON-Schema property object; may be empty
      */
     record ParameterDescriptor(String name, String type,
-                               String description, boolean required) {
+                               String description, boolean required,
+                               java.util.Map<String, Object> schema) {
 
         public ParameterDescriptor {
             if (name == null || name.isBlank()) {
                 throw new IllegalArgumentException("parameter name must not be null/blank");
             }
+            schema = schema != null ? java.util.Map.copyOf(schema) : java.util.Map.of();
         }
     }
 

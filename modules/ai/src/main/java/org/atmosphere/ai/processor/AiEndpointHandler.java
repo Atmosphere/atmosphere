@@ -284,8 +284,33 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      */
     private volatile boolean broadcastReply;
 
+    /**
+     * Endpoint-scoped response cache resolved once by the processor from
+     * {@code atmosphere.ai.cache.*}. Applied to every session this handler
+     * creates so the websocket path gets the same cache the pipeline path has
+     * had (Correctness Invariant #7). Null keeps the gate closed.
+     */
+    private volatile org.atmosphere.ai.cache.ResponseCache responseCache;
+    private volatile java.time.Duration responseCacheTtl;
+
     public void setCachePolicy(org.atmosphere.ai.llm.CacheHint.CachePolicy policy) {
         this.cachePolicy = policy;
+    }
+
+    /**
+     * Install the endpoint-level response cache. Resolved once per application by
+     * {@link org.atmosphere.ai.cache.ResponseCacheConfig}; a null cache disables
+     * the gate.
+     */
+    public void setResponseCache(org.atmosphere.ai.cache.ResponseCache cache,
+                                 java.time.Duration ttl) {
+        this.responseCache = cache;
+        this.responseCacheTtl = ttl;
+    }
+
+    /** The endpoint-level response cache, or {@code null} when none is installed. */
+    org.atmosphere.ai.cache.ResponseCache responseCache() {
+        return responseCache;
     }
 
     public void setRetryPolicy(org.atmosphere.ai.RetryPolicy policy) {
@@ -621,6 +646,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // Propagate endpoint-scoped cache / retry policies from @AiEndpoint.
         if (cachePolicy != null) {
             session.setCachePolicy(cachePolicy);
+        }
+        if (responseCache != null) {
+            session.setResponseCache(responseCache, responseCacheTtl);
         }
         if (endpointRetryPolicy != null) {
             session.setRetryPolicy(endpointRetryPolicy);

@@ -65,6 +65,52 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         logger.info("ADK ContextCacheConfig set: ttl={}, minTokens={}", ttl, minTokens);
     }
 
+    private static volatile Integer maxSteps;
+
+    /**
+     * Bound the ADK agent loop using ADK's own {@code LlmAgent.maxSteps}.
+     *
+     * <p>ADK is the one delegating runtime that exposes a native iteration cap,
+     * so this is the only way to bound its loop: Atmosphere's per-request
+     * {@link org.atmosphere.ai.llm.ToolLoopPolicy} cannot reach it, because the
+     * {@code LlmAgent} is assembled once in {@code configure(...)} and reused as
+     * a process-wide {@code Runner}, while the policy is resolved per
+     * {@code AgentExecutionContext}. Set once at startup, like
+     * {@link #setCacheConfig}.</p>
+     *
+     * <p><strong>Unset by default, deliberately.</strong> ADK counts <em>agent
+     * steps</em>, not Atmosphere's model→tool→model rounds, so silently forcing
+     * the built-in family's default of 5 would truncate legitimate multi-step
+     * ADK agents mid-run. An operator who wants the bound opts into a number
+     * that matches their agent's shape.</p>
+     *
+     * @param steps maximum agent steps; must be >= 1
+     */
+    public static void setMaxSteps(int steps) {
+        if (steps < 1) {
+            throw new IllegalArgumentException("maxSteps must be >= 1, got " + steps);
+        }
+        maxSteps = steps;
+        logger.info("ADK LlmAgent.maxSteps set: {}", steps);
+    }
+
+    /** Clear the configured cap, restoring ADK's own default. */
+    static void clearMaxSteps() {
+        maxSteps = null;
+    }
+
+    /** The configured ADK step cap, or {@code null} when unset. */
+    static Integer maxSteps() {
+        return maxSteps;
+    }
+
+    private static void applyMaxSteps(LlmAgent.Builder agentBuilder) {
+        var steps = maxSteps;
+        if (steps != null) {
+            agentBuilder.maxSteps(steps);
+        }
+    }
+
     private static void applyCacheConfig(com.google.adk.apps.App.Builder appBuilder) {
         var config = contextCacheConfig;
         if (config != null) {
@@ -155,6 +201,7 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                 .model(gemini)
                 .instruction("You are a helpful assistant.");
         applyGenerationConfig(agentBuilder, settings.generation());
+        applyMaxSteps(agentBuilder);
         var agent = agentBuilder.build();
         var appBuilder = com.google.adk.apps.App.builder()
                 .name("atmosphere")
@@ -246,6 +293,7 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
                 .model(gemini)
                 .instruction("You are a helpful assistant.");
         applyGenerationConfig(agentBuilder, settings.generation());
+        applyMaxSteps(agentBuilder);
         var agent = agentBuilder.build();
         var appBuilder = com.google.adk.apps.App.builder()
                 .name("atmosphere")
@@ -337,6 +385,7 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
             // same knobs as the configure()-time paths (Correctness
             // Invariant #7 — Mode Parity).
             applyGenerationConfig(agentBuilder, settings.generation());
+        applyMaxSteps(agentBuilder);
 
             if (!adkTools.isEmpty()) {
                 agentBuilder.tools(adkTools);

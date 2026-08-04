@@ -210,6 +210,11 @@ public final class HttpSseSidecarClient implements CrewAiSidecarClient {
                     pNode.put("description",
                             param.description() != null ? param.description() : "");
                     pNode.put("required", param.required());
+                    // Structural facets the flat four fields cannot express. Sent
+                    // as the JSON-Schema property object so the sidecar can build
+                    // a Literal/List/nested-model pydantic type instead of Any.
+                    // Additive: an older sidecar ignores the extra key.
+                    writeSchemaFacets(pNode, param.schema());
                 }
                 node.put("return_type",
                         tool.returnType() != null && !tool.returnType().isBlank()
@@ -224,6 +229,61 @@ public final class HttpSseSidecarClient implements CrewAiSidecarClient {
             }
         }
         return root;
+    }
+
+    /**
+     * Copy the structural facets of a JSON-Schema property object onto the wire
+     * node: {@code enum} (allowed values), {@code items} (array element schema,
+     * recursively) and {@code properties}/{@code required} (nested object).
+     * Scalar {@code type}/{@code description} are already written by the caller.
+     * A parameter with none of these writes nothing, so a flat parameter's wire
+     * shape is byte-identical to before.
+     */
+    private static void writeSchemaFacets(ObjectNode target,
+                                          java.util.Map<String, Object> schema) {
+        if (schema == null || schema.isEmpty()) {
+            return;
+        }
+        if (schema.get("enum") instanceof java.util.List<?> values && !values.isEmpty()) {
+            var enumArray = target.putArray("enum");
+            for (var value : values) {
+                enumArray.add(String.valueOf(value));
+            }
+        }
+        if (schema.get("items") instanceof java.util.Map<?, ?> items && !items.isEmpty()) {
+            writeSchemaObject(target.putObject("items"), items);
+        }
+        if (schema.get("properties") instanceof java.util.Map<?, ?> props && !props.isEmpty()) {
+            var propsNode = target.putObject("properties");
+            for (var entry : props.entrySet()) {
+                if (entry.getValue() instanceof java.util.Map<?, ?> child) {
+                    writeSchemaObject(propsNode.putObject(String.valueOf(entry.getKey())), child);
+                }
+            }
+            // NOT "required": the parameter node already carries a boolean
+            // `required` of its own, and an array here would overwrite it —
+            // silently turning "this parameter is mandatory" into a list of
+            // nested field names (Correctness Invariant #4, framing).
+            if (schema.get("required") instanceof java.util.List<?> required) {
+                var requiredArray = target.putArray("required_properties");
+                for (var name : required) {
+                    requiredArray.add(String.valueOf(name));
+                }
+            }
+        }
+    }
+
+    /** Write one nested JSON-Schema property object (type/description + facets). */
+    private static void writeSchemaObject(ObjectNode target, java.util.Map<?, ?> schema) {
+        if (schema.get("type") != null) {
+            target.put("type", String.valueOf(schema.get("type")));
+        }
+        if (schema.get("description") != null) {
+            target.put("description", String.valueOf(schema.get("description")));
+        }
+        @SuppressWarnings("unchecked") // ToolBridgeUtils emits Map<String, Object> throughout.
+        var typed = (java.util.Map<String, Object>) schema;
+        writeSchemaFacets(target, typed);
     }
 
     private static URI stripTrailingSlash(URI uri) {

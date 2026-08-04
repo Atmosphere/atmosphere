@@ -32,7 +32,11 @@ subclass with:
 
 * ``args_schema`` — a dynamic ``pydantic.BaseModel`` whose field types are
   derived from the descriptor's parameter types (string→str, integer→int,
-  number→float, boolean→bool, array/object/<unknown>→typing.Any).
+  number→float, boolean→bool). Structural facets are honoured when the
+  descriptor carries them: ``enum``→``Literal[...]``, ``array`` with
+  ``items``→``list[T]``, ``object`` with ``properties``→a nested model.
+  An array or object with no facets, and any unknown type, degrade to
+  ``typing.Any``.
 * ``_run`` — POSTs the call to ``tool_callback_url`` on the Java side and
   returns the ``result`` from the response. Raises on ``error`` so CrewAI
   routes the failure back into the agent's tool-error path.
@@ -47,7 +51,7 @@ from __future__ import annotations
 import logging
 import threading
 import uuid
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 from pydantic import BaseModel, ConfigDict, create_model
@@ -73,31 +77,97 @@ _TYPE_MAP: dict[str, type] = {
     "integer": int,
     "number": float,
     "boolean": bool,
-    # Arrays and objects intentionally fall through to Any; deeper schema
-    # construction would require recursing on item/property schemas, which
-    # the wire shape doesn't carry today.
 }
 
 
-def _coerce_type(param_type: str | None, tool_name: str, param_name: str) -> Any:
+def _coerce_type(
+    param_type: str | None,
+    tool_name: str,
+    param_name: str,
+    schema: dict[str, Any] | None = None,
+) -> Any:
     """Map a JSON Schema type string to a Python type for pydantic.
+
+    When the descriptor carries structural facets, they are honoured:
+    ``enum`` becomes a ``Literal``, ``array`` recurses on ``items`` to a
+    ``list[T]``, and ``object`` recurses on ``properties`` to a nested model.
+    Without them an array or object still degrades to ``Any`` — that is what
+    every parameter did before the Java side started sending the full
+    JSON-Schema property object, and it left a Java enum reaching the model
+    as an unconstrained string.
 
     Unknown types log at INFO and degrade to ``Any`` — the spec explicitly
     forbids crashing the bridge on unexpected schema shapes, because that
     would deny the entire crew run for a single misclassified parameter.
     """
+    schema = schema or {}
+
+    # An enum constrains the value set regardless of its base type, so it wins.
+    enum_values = schema.get("enum")
+    if isinstance(enum_values, list) and enum_values:
+        return Literal[tuple(enum_values)]  # type: ignore[return-value]
+
     if not param_type:
         return Any
-    py = _TYPE_MAP.get(param_type.lower())
+    lowered = param_type.lower()
+    py = _TYPE_MAP.get(lowered)
     if py is not None:
         return py
-    if param_type.lower() in ("array", "object"):
+
+    if lowered == "array":
+        items = schema.get("items")
+        if isinstance(items, dict) and items:
+            element = _coerce_type(
+                items.get("type"), tool_name, f"{param_name}[]", items,
+            )
+            return list[element]  # type: ignore[valid-type]
         return Any
+
+    if lowered == "object":
+        properties = schema.get("properties")
+        if isinstance(properties, dict) and properties:
+            return _model_from_properties(properties,
+                                          schema.get("required_properties"),
+                                          tool_name, param_name)
+        return Any
+
     logger.info(
         "tool %s parameter %s has unknown JSON schema type %r; treating as Any",
         tool_name, param_name, param_type,
     )
     return Any
+
+
+def _model_from_properties(
+    properties: dict[str, Any],
+    required: Any,
+    tool_name: str,
+    param_name: str,
+) -> Any:
+    """Build a nested pydantic model from a JSON-Schema ``properties`` map.
+
+    Mirrors ``_build_args_schema`` one level down, so nesting is recursive:
+    an object inside an array inside an object types correctly all the way.
+    """
+    required_names = set(required) if isinstance(required, list) else set()
+    fields: dict[str, Any] = {}
+    for child_name, child_schema in properties.items():
+        if not isinstance(child_schema, dict):
+            continue
+        child_type = _coerce_type(
+            child_schema.get("type"), tool_name, f"{param_name}.{child_name}",
+            child_schema,
+        )
+        fields[child_name] = (
+            (child_type, ...) if child_name in required_names else (child_type, None)
+        )
+    if not fields:
+        return Any
+    return create_model(
+        f"{tool_name}_{param_name}_Nested",
+        __config__=ConfigDict(arbitrary_types_allowed=True),
+        **fields,
+    )
 
 
 def _build_args_schema(descriptor: dict[str, Any]) -> type[BaseModel]:
@@ -122,7 +192,7 @@ def _build_args_schema(descriptor: dict[str, Any]) -> type[BaseModel]:
                 "tool %s has a parameter with no name; skipping it", tool_name,
             )
             continue
-        py_type = _coerce_type(param.get("type"), tool_name, name)
+        py_type = _coerce_type(param.get("type"), tool_name, name, param)
         required = bool(param.get("required", False))
         description = param.get("description") or ""
 
