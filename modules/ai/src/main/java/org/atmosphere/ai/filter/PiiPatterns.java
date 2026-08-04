@@ -25,9 +25,13 @@ import java.util.regex.Pattern;
  */
 public final class PiiPatterns {
 
-    /** Email addresses. */
+    /** Email addresses. The negative lookbehind rejects mid-run start
+     *  positions and the possessive local-part quantifier skips pointless
+     *  backtracking, keeping the scan linear on long runs of local-part
+     *  characters (CodeQL java/polynomial-redos). Matches are unchanged:
+     *  leftmost-first semantics already began every match at a run start. */
     public static final Pattern EMAIL =
-            Pattern.compile("[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}");
+            Pattern.compile("(?<![a-zA-Z0-9._%+\\-])[a-zA-Z0-9._%+\\-]++@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}");
 
     /** US phone numbers (with optional +1, separators). */
     public static final Pattern US_PHONE =

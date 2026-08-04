@@ -76,6 +76,21 @@ public class PiiRedactionFilterTest {
     }
 
     @Test
+    public void testLongLocalPartRunScansLinearly() {
+        // Regression for CodeQL java/polynomial-redos: a long run of email
+        // local-part characters with no '@' used to rescan the remainder from
+        // every start position; quadratic cost effectively hangs this test.
+        var run = "%".repeat(500_000);
+        assertEquals(run, filter.redact(run));
+    }
+
+    @Test
+    public void testEmailPrecededByLocalPartRunStillRedacted() {
+        assertEquals("[REDACTED]", filter.redact("%".repeat(1000) + "bob@example.com"));
+        assertEquals("id [REDACTED]", filter.redact("id 12345bob@example.com"));
+    }
+
+    @Test
     public void testStreamingTextBufferingUntilSentenceBoundary() throws Exception {
         // First streaming text: no sentence boundary — should be ABORT (buffered)
         var result1 = sendStreamingText("My email is ", "s1", 1);
