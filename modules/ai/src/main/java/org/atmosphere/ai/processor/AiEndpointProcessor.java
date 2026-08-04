@@ -174,6 +174,16 @@ public class AiEndpointProcessor implements Processor<Object> {
             var settings = resolveSettings();
             var runtime = resolveRuntimeWithRouting(fallbackStrategy, settings,
                     annotation.requires());
+            // Resolved here rather than at its point of use further down because
+            // conversation memory is built before that point and needs it: a
+            // token-window compaction budget must be sized to the model this
+            // endpoint actually talks to, not to the application-wide default.
+            var resolvedEndpointModel = ModelTier.resolve(
+                    annotation.model(),
+                    settings != null ? settings.baseUrl() : null,
+                    settings != null ? settings.model() : null);
+            var endpointModel = (resolvedEndpointModel == null || resolvedEndpointModel.isEmpty())
+                    ? null : resolvedEndpointModel;
             var interceptors = instantiateInterceptors(annotation.interceptors(), framework);
             // Resolve the endpoint's harness features once: the annotation's
             // harness() (bare by default), upgraded to ALL by the app-wide
@@ -198,7 +208,7 @@ public class AiEndpointProcessor implements Processor<Object> {
             }
             AiConversationMemory memory = null;
             if (annotation.conversationMemory()) {
-                memory = resolveMemory(annotation.maxHistoryMessages(), framework);
+                memory = resolveMemory(annotation.maxHistoryMessages(), framework, endpointModel);
                 if (features.contains(Harness.MEMORY)) {
                     // The annotation attached memory on a path the harness
                     // also resolved MEMORY for — publish the attach-time
@@ -214,7 +224,7 @@ public class AiEndpointProcessor implements Processor<Object> {
                 // what the endpoint actually got — not the global switch, which
                 // may be off when the annotation's harness() opted this
                 // endpoint in (Runtime Truth — Invariant #5).
-                memory = resolveMemory(annotation.maxHistoryMessages(), framework);
+                memory = resolveMemory(annotation.maxHistoryMessages(), framework, endpointModel);
                 preset.updateRuntimeState(HarnessPreset.PRIMITIVE_CONVERSATION_MEMORY, "ACTIVE");
                 logger.info("Harness enabled conversation memory for {} "
                         + "(max {} messages)", annotation.path(), annotation.maxHistoryMessages());
@@ -274,11 +284,6 @@ public class AiEndpointProcessor implements Processor<Object> {
             // provider (detected from the runtime-resolved base URL). Any other
             // value — including raw model ids and the empty string — passes
             // through unchanged, so existing endpoints are unaffected.
-            var resolvedModel = ModelTier.resolve(
-                    annotation.model(),
-                    settings != null ? settings.baseUrl() : null,
-                    settings != null ? settings.model() : null);
-            var endpointModel = (resolvedModel == null || resolvedModel.isEmpty()) ? null : resolvedModel;
 
             // Shared lifecycle scanning — same infrastructure as @ManagedService
             var lifecycle = AnnotatedLifecycle.scan(annotatedClass);
@@ -876,7 +881,8 @@ public class AiEndpointProcessor implements Processor<Object> {
         }
     }
 
-    private AiConversationMemory resolveMemory(int maxHistory, AtmosphereFramework framework) {
+    private AiConversationMemory resolveMemory(int maxHistory, AtmosphereFramework framework,
+                                               String endpointModel) {
         var cfg = framework != null ? framework.getAtmosphereConfig() : null;
         var persistence = ServiceLoader.load(ConversationPersistence.class).stream()
                 .map(ServiceLoader.Provider::get)
@@ -890,7 +896,8 @@ public class AiEndpointProcessor implements Processor<Object> {
             CompactionConfig.warnIfIgnoredByPersistence(cfg, "AiEndpointProcessor");
             return new PersistentConversationMemory(persistence.get(), maxHistory);
         }
-        return new InMemoryConversationMemory(maxHistory, CompactionConfig.resolve(cfg));
+        return new InMemoryConversationMemory(maxHistory,
+                CompactionConfig.resolve(cfg, endpointModel));
     }
 
     private AiMetrics resolveMetrics() {
