@@ -77,7 +77,7 @@ Open http://localhost:8080/admin/ for the admin dashboard with live event stream
 
 ```
 quarkus-chat/
-├── pom.xml                                  # Quarkus 3.36.0 BOM
+├── pom.xml                                  # Quarkus 3.36.3 BOM
 └── src/main/
     ├── java/org/atmosphere/samples/quarkus/chat/
     │   ├── Chat.java                        # @ManagedService handler
