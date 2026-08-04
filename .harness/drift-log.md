@@ -2700,3 +2700,28 @@ instead is specific and verifiable:
 - The two capability Javadocs now enumerate the actual delta-capable set (the
   three hand-rolled HTTP runtimes), and the e2e negative assertion targets the
   framework bridges explicitly instead of "everything except built-in."
+
+---
+
+## 2026-08-04 — LiteLLM PR follow-ups session
+
+While spawning a CI watcher for the sibling-repo docs push, the agent needed
+the full 40-char commit SHA (`gh run list --commit` rejects short SHAs) but
+had only the short `2692391` from the push output. Instead of running
+`git rev-parse HEAD`, it completed the SHA from imagination and ran the
+watcher against `2692391cb1e6...` — 33 invented hex characters. The watcher
+would have polled a nonexistent commit for 20 minutes and reported nothing,
+reading as "no runs found" rather than as an error.
+
+**Truth:** the real commit is `26923916458c3457ac7ee61da40fa44b20c10b21`.
+
+**Slip path:** the full-SHA requirement was remembered (it is in project
+memory), but the value was synthesized instead of looked up — the same
+inferred-instead-of-read failure mode as prose hallucinations, here in a
+shell argument. Self-caught seconds after launch; the watcher was stopped
+and relaunched with the `rev-parse` value before any conclusion was drawn.
+
+**Gate added:** `none` — no automated check can distinguish a real SHA from
+an invented one at the shell layer. The recorded rule: a 40-char SHA may
+only ever be pasted from `rev-parse`/`git log`/API output, never completed
+from a short prefix.
