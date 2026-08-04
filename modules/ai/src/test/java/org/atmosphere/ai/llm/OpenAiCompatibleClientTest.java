@@ -1184,6 +1184,7 @@ public class OpenAiCompatibleClientTest {
     public void testLiteLlmFactory() {
         var client = OpenAiCompatibleClient.litellm("https://litellm.example.com/v1", "proxy-key");
         assertNotNull(client);
+        assertEquals("https://litellm.example.com/v1", client.baseUrl());
         assertEquals("proxy-key", client.apiKey());
     }
 
@@ -1191,15 +1192,17 @@ public class OpenAiCompatibleClientTest {
     public void testLiteLlmFactoryDefaultBaseUrl() {
         var client = OpenAiCompatibleClient.litellm("proxy-key");
         assertNotNull(client);
+        assertEquals("http://localhost:4000/v1", client.baseUrl());
         assertEquals("proxy-key", client.apiKey());
     }
 
     @Test
     public void testLiteLlmFactoryTargetsConfiguredBaseUrl() throws Exception {
         var httpClient = mockHttpClient(200, "data: [DONE]\n\n");
-        // The litellm() factory must send requests to the proxy base URL with
-        // the proxy key as a bearer token — the same wire contract as any other
-        // OpenAI-compatible endpoint.
+        // Built via builder() because the quick factory cannot take a mock
+        // HttpClient; the factory→URL wiring is pinned by the baseUrl()
+        // asserts above, and this proves the base-URL→wire contract: requests
+        // reach <baseUrl>/chat/completions with the key as a bearer token.
         var client = OpenAiCompatibleClient.builder()
                 .baseUrl("https://litellm.example.com/v1")
                 .apiKey("proxy-key")

@@ -164,6 +164,15 @@ public class OpenAiCompatibleClient implements LlmClient {
     }
 
     /**
+     * Returns the base URL this client targets. Package-private: the
+     * accessor exists so the quick-factory tests can verify each factory's
+     * encoded endpoint without reaching into private state.
+     */
+    String baseUrl() {
+        return baseUrl;
+    }
+
+    /**
      * Create a new builder.
      */
     public static Builder builder() {
