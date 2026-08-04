@@ -1181,6 +1181,44 @@ public class OpenAiCompatibleClientTest {
     }
 
     @Test
+    public void testLiteLlmFactory() {
+        var client = OpenAiCompatibleClient.litellm("https://litellm.example.com/v1", "proxy-key");
+        assertNotNull(client);
+        assertEquals("proxy-key", client.apiKey());
+    }
+
+    @Test
+    public void testLiteLlmFactoryDefaultBaseUrl() {
+        var client = OpenAiCompatibleClient.litellm("proxy-key");
+        assertNotNull(client);
+        assertEquals("proxy-key", client.apiKey());
+    }
+
+    @Test
+    public void testLiteLlmFactoryTargetsConfiguredBaseUrl() throws Exception {
+        var httpClient = mockHttpClient(200, "data: [DONE]\n\n");
+        // The litellm() factory must send requests to the proxy base URL with
+        // the proxy key as a bearer token — the same wire contract as any other
+        // OpenAI-compatible endpoint.
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("https://litellm.example.com/v1")
+                .apiKey("proxy-key")
+                .httpClient(httpClient)
+                .build();
+
+        var session = StreamingSessions.start("litellm-base-url", resource);
+        var request = ChatCompletionRequest.of("gpt-4o", "ping");
+        client.streamChatCompletion(request, session);
+
+        var captor = ArgumentCaptor.forClass(HttpRequest.class);
+        verify(httpClient).send(captor.capture(), any(HttpResponse.BodyHandler.class));
+        var sent = captor.getValue();
+        assertEquals("https://litellm.example.com/v1/chat/completions", sent.uri().toString());
+        assertEquals(java.util.List.of("Bearer proxy-key"),
+                sent.headers().allValues("Authorization"));
+    }
+
+    @Test
     public void testCustomHeadersReachTheWire() throws Exception {
         var httpClient = mockHttpClient(200, "data: [DONE]\n\n");
         var client = OpenAiCompatibleClient.builder()

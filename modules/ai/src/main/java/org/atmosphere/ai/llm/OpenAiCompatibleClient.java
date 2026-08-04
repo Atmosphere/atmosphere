@@ -199,6 +199,36 @@ public class OpenAiCompatibleClient implements LlmClient {
                 .build();
     }
 
+    /**
+     * Quick factory for a local LiteLLM proxy on its default port
+     * ({@code http://localhost:4000/v1}). LiteLLM exposes an
+     * OpenAI-compatible endpoint that fronts many upstream providers behind a
+     * single gateway, so it reuses this client unchanged.
+     *
+     * @param apiKey the LiteLLM proxy virtual/master key; may be {@code null}
+     *               for an unsecured local proxy
+     */
+    public static OpenAiCompatibleClient litellm(String apiKey) {
+        return litellm("http://localhost:4000/v1", apiKey);
+    }
+
+    /**
+     * Quick factory for a LiteLLM proxy at an explicit base URL. Point
+     * {@code baseUrl} at the proxy's OpenAI-compatible endpoint (typically
+     * ending in {@code /v1}).
+     *
+     * @param baseUrl the LiteLLM proxy base URL, e.g.
+     *                {@code https://litellm.internal.example.com/v1}
+     * @param apiKey  the LiteLLM proxy virtual/master key; may be {@code null}
+     *                for an unsecured proxy
+     */
+    public static OpenAiCompatibleClient litellm(String baseUrl, String apiKey) {
+        return builder()
+                .baseUrl(baseUrl)
+                .apiKey(apiKey)
+                .build();
+    }
+
     @Override
     public void streamChatCompletion(ChatCompletionRequest request, StreamingSession session) {
         streamChatCompletion(request, session, null, null);
