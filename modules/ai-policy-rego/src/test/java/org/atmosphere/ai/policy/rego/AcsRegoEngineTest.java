@@ -17,6 +17,7 @@ package org.atmosphere.ai.policy.rego;
 
 import org.atmosphere.ai.governance.acs.AcsManifest;
 import org.atmosphere.ai.governance.acs.AcsPolicyEngine;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -59,6 +60,40 @@ class AcsRegoEngineTest {
 
         assertThrows(IllegalArgumentException.class,
                 () -> AcsRegoEngine.resolveBundle(dir, "/etc/passwd"));
+    }
+
+    // AcsExtendsResolver rewrites a base manifest's relative `bundle:` to a
+    // trust-root-relative path (e.g. `subdir/policy/check.rego`); the engine's
+    // manifestDir-relative resolution must land on the real file with the
+    // confinement check intact. The result is canonical (toRealPath).
+    @Test
+    void rebasedTrustRootRelativeBundleResolves(@TempDir Path dir) throws IOException {
+        Files.createDirectories(dir.resolve("subdir/policy"));
+        Files.writeString(dir.resolve("subdir/policy/check.rego"), "package p\n");
+
+        var resolved = AcsRegoEngine.resolveBundle(dir, "subdir/policy/check.rego");
+        assertEquals(dir.toRealPath().resolve("subdir/policy/check.rego"), resolved);
+    }
+
+    // Confinement is decided on canonical paths: a symlink placed under the
+    // manifest directory whose target lies outside it passes the
+    // normalize-only startsWith check but must still be rejected.
+    @Test
+    void symlinkedBundleEscapingManifestDirectoryIsRejected(@TempDir Path dir) throws IOException {
+        Files.createDirectories(dir.resolve("outside"));
+        Files.writeString(dir.resolve("outside/real.rego"), "package p\n");
+        var manifestDir = Files.createDirectories(dir.resolve("manifest"));
+        try {
+            Files.createSymbolicLink(manifestDir.resolve("check.rego"),
+                    dir.resolve("outside/real.rego"));
+        } catch (IOException | UnsupportedOperationException e) {
+            Assumptions.assumeTrue(false, "filesystem does not support symlinks: " + e);
+        }
+
+        var escape = assertThrows(IllegalArgumentException.class,
+                () -> AcsRegoEngine.resolveBundle(manifestDir, "check.rego"));
+        assertTrue(escape.getMessage().contains("escapes the manifest directory"),
+                "was: " + escape.getMessage());
     }
 
     @Test

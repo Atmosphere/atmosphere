@@ -34,9 +34,11 @@ import java.util.Map;
  * @param version           the {@code agent_control_specification_version} value
  * @param name              {@code metadata.name}
  * @param description       {@code metadata.description}, or {@code ""}
- * @param extendsRefs       the {@code extends:} chain, unresolved (see
- *                          {@link AcsManifestPolicy} for the fail-closed
- *                          semantics of a non-empty chain)
+ * @param extendsRefs       the {@code extends:} chain — empty after
+ *                          {@link AcsExtendsResolver} resolution; a manifest
+ *                          that still carries a chain (stream/classpath
+ *                          sourced) denies fail-closed at evaluation (see
+ *                          {@link AcsManifestPolicy})
  * @param policies          named policy declarations, insertion-ordered
  * @param interventionPoints intervention-point bindings, insertion-ordered
  * @param tools             tool declarations, insertion-ordered

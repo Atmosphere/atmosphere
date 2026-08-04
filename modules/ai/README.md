@@ -1552,17 +1552,34 @@ the April 2026 public source):
   are host scope and not evaluated. `type: rego` policies evaluate
   through the real `opa` binary via `atmosphere-ai-policy-rego`'s
   `AcsRegoEngine` (bundle dir / `.tar.gz` / single `.rego`, resolved
-  manifest-relative with escape rejection); ACS verdicts map
+  manifest-relative with canonical, symlink-resolved escape
+  rejection); ACS verdicts map
   `allow`→admit, `deny`→deny with the policy's reason, and a
-  whole-target `transform` on `input` rewrites the message. Everything
-  else — unresolved `extends:` chains, missing engines, malformed
-  verdicts, invalid transform targets — denies fail-closed with an
-  `acs_runtime_error` reason, matching the upstream safety model.
-  `AcsManifestConformanceTest` pins the manifest shape against verbatim
-  copies of upstream's own contract fixtures
+  whole-target `transform` on `input` rewrites the message. `extends:`
+  chains on file-loaded manifests are resolved by `AcsExtendsResolver`,
+  faithful to upstream's Rust resolver: depth-first in list order with
+  the current manifest merging last, a strictly additive merge (per-key
+  unions for `policies`/`tools`/`annotators`, per-field intervention
+  points whose `policy` binding merges atomically — identical or
+  conflict, never field-by-field — deep-merged `metadata`; identical
+  duplicates tolerated, conflicts error with the dotted path), every
+  entry canonicalized and confined under the top-level manifest's
+  directory, cycle detection and a depth cap of 16, and base-manifest
+  `bundle:` refs rebased so they keep resolving against the file that
+  declared them (canonically confined where the bundle exists; escaping
+  refs are left absolute for the engine to deny). Remote manifests
+  are never fetched — non-https URLs error like upstream, https URLs
+  fail closed with "vendor the manifest locally". A chain that cannot
+  be resolved (stream/classpath source) or anything else unexpected —
+  missing engines, malformed verdicts, invalid transform targets —
+  denies fail-closed with an `acs_runtime_error` reason, matching the
+  upstream safety model. `AcsManifestConformanceTest` pins the manifest
+  shape against verbatim copies of upstream's own contract fixtures
   (`policy-engine/core/tests/fixtures/manifests/`), and the weekly
   `ms-yaml-conformance` workflow diffs those copies against upstream
-  `main` so a shape change fails loudly.
+  `main` so a shape change fails loudly; `AcsExtendsResolverTest` pins
+  the extends behaviour against copies of upstream's `fixtures/extends/`
+  trees.
 - **Context map bridge**: rule `field:` references map to `AiRequest`
   properties (`message`, `system_prompt`, `model`, `user_id`,
   `session_id`, `agent_id`, `conversation_id`), the context phase

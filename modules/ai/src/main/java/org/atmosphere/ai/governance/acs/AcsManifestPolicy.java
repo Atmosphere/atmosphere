@@ -53,9 +53,11 @@ import java.util.function.Function;
  * fail-open: a point the host never reaches is never presented to ACS.</p>
  *
  * <p><b>Fail-closed semantics</b> (Correctness Invariant #6, matching the
- * upstream ACS safety model): an unresolved {@code extends:} chain, a bound
- * policy type with no registered {@link AcsPolicyEngine}, an engine throw,
- * or a transform verdict whose target cannot be applied all produce
+ * upstream ACS safety model): an unresolved {@code extends:} chain (file
+ * -sourced chains are resolved by {@link AcsExtendsResolver} at parse time;
+ * stream- or classpath-sourced manifests cannot be), a bound policy type
+ * with no registered {@link AcsPolicyEngine}, an engine throw, or a
+ * transform verdict whose target cannot be applied all produce
  * {@link PolicyDecision.Deny} with an {@code acs_runtime_error} reason —
  * never an admit.</p>
  *
@@ -111,9 +113,10 @@ public final class AcsManifestPolicy implements GovernancePolicy {
         this.manifestDir = manifestDir;
         this.engineLookup = engineLookup;
         if (!manifest.extendsRefs().isEmpty()) {
-            logger.warn("ACS manifest '{}' ({}) declares an extends chain {} — chain resolution "
-                            + "is not supported; every evaluation will deny fail-closed until the "
-                            + "chain is inlined into the manifest",
+            logger.warn("ACS manifest '{}' ({}) declares an extends chain {} that was not "
+                            + "resolved — chains resolve only when the manifest is loaded from a "
+                            + "filesystem path (see AcsExtendsResolver); every evaluation will "
+                            + "deny fail-closed until then",
                     manifest.name(), this.source, manifest.extendsRefs());
         }
     }
@@ -124,6 +127,16 @@ public final class AcsManifestPolicy implements GovernancePolicy {
      * {@code null} when the source does not name an existing file.
      */
     public static Path resolveManifestDir(String source) {
+        var file = resolveManifestFile(source);
+        return file == null ? null : file.getParent();
+    }
+
+    /**
+     * Derive the manifest's file path from a parser source id like
+     * {@code yaml:/etc/atmosphere/policies/manifest.yaml}. Returns
+     * {@code null} when the source does not name an existing file.
+     */
+    public static Path resolveManifestFile(String source) {
         if (source == null || source.isBlank()) {
             return null;
         }
@@ -134,7 +147,7 @@ public final class AcsManifestPolicy implements GovernancePolicy {
         }
         try {
             var path = Path.of(candidate).toAbsolutePath().normalize();
-            return Files.isRegularFile(path) ? path.getParent() : null;
+            return Files.isRegularFile(path) ? path : null;
         } catch (RuntimeException e) {
             logger.trace("source id {} is not a filesystem path", source, e);
             return null;

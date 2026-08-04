@@ -150,9 +150,12 @@ public final class AcsRegoEngine implements AcsPolicyEngine {
 
     /**
      * Resolve the bundle reference against the manifest directory with the
-     * standard confinement check: the normalized result must stay under the
-     * manifest directory (Correctness Invariant #4 — upstream ships the same
-     * escape-rejection semantic in its extends-confinement fixtures).
+     * standard confinement check: the result must stay under the manifest
+     * directory on <em>canonical</em> paths — both sides are canonicalized
+     * via {@code toRealPath} once the bundle is known to exist, so a symlink
+     * under the manifest directory cannot smuggle the bundle outside it
+     * (Correctness Invariant #4 — upstream ships the same escape-rejection
+     * semantic in its extends-confinement fixtures).
      */
     static Path resolveBundle(Path manifestDir, String bundleRef) {
         var candidate = Path.of(bundleRef);
@@ -172,6 +175,19 @@ public final class AcsRegoEngine implements AcsPolicyEngine {
         }
         if (!Files.exists(resolved)) {
             throw new IllegalArgumentException("acs bundle does not exist: " + resolved);
+        }
+        try {
+            // The bundle exists — decide confinement on real paths, not on
+            // symlink names the normalize-only check above cannot see through.
+            base = base.toRealPath();
+            resolved = resolved.toRealPath();
+        } catch (IOException e) {
+            throw new IllegalArgumentException(
+                    "acs bundle path cannot be canonicalized: " + bundleRef, e);
+        }
+        if (!resolved.startsWith(base)) {
+            throw new IllegalArgumentException(
+                    "acs bundle reference escapes the manifest directory: " + bundleRef);
         }
         return resolved;
     }

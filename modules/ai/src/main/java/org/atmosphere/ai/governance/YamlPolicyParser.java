@@ -138,14 +138,28 @@ public final class YamlPolicyParser implements PolicyParser {
         // Auto-detect the MS Agent Control Specification schema — the ACS
         // root key is unique to that dialect, and its `policies:` is a
         // mapping where the Atmosphere schema below expects a sequence, so
-        // this branch must run before the shape checks.
+        // this branch must run before the shape checks. When the source
+        // names a real file and the manifest declares an `extends:` chain,
+        // the chain is resolved (additive merge, confinement, no URL fetch)
+        // BEFORE strict validation — a chain member is only required to be
+        // complete after merging — and a resolution failure throws so policy
+        // loading fails closed at startup. The root mapping just parsed is
+        // handed to the resolver so the top-level document is not re-read
+        // from disk; only the parents in the chain are. Non-filesystem
+        // sources shape-parse with the unresolved chain kept, and
+        // AcsManifestPolicy denies every evaluation fail-closed.
         if (root.containsKey(org.atmosphere.ai.governance.acs.AcsManifestParser.ROOT_KEY)) {
-            var manifest = org.atmosphere.ai.governance.acs.AcsManifestParser
-                    .parse(effectiveSource, root);
+            var manifestFile = org.atmosphere.ai.governance.acs.AcsManifestPolicy
+                    .resolveManifestFile(effectiveSource);
+            var manifest = manifestFile != null
+                    && root.get("extends") instanceof List<?> chain && !chain.isEmpty()
+                    ? org.atmosphere.ai.governance.acs.AcsExtendsResolver
+                            .resolve(effectiveSource, manifestFile, root)
+                    : org.atmosphere.ai.governance.acs.AcsManifestParser
+                            .parse(effectiveSource, root);
             return List.of(new org.atmosphere.ai.governance.acs.AcsManifestPolicy(
                     manifest, effectiveSource,
-                    org.atmosphere.ai.governance.acs.AcsManifestPolicy
-                            .resolveManifestDir(effectiveSource)));
+                    manifestFile == null ? null : manifestFile.getParent()));
         }
 
         var defaultVersion = asString(root.get("version"), "embedded");
