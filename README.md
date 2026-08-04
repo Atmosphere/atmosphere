@@ -24,13 +24,13 @@ Atmosphere is built for teams that need AI agents to behave like production serv
 
 | Need | What Atmosphere provides |
 |---|---|
-| Stream to real clients | WebSocket, SSE, long-polling, and gRPC run through one broadcaster pipeline as always-on defaults; WebTransport over HTTP/3 is optional (needs `jetty-http3-server` or `reactor-netty-http` on the classpath plus a dev cert) |
+| Stream to real clients | WebSocket, SSE, long-polling, and gRPC run through one broadcaster pipeline as always-on defaults; WebTransport over HTTP/3 is optional |
 | Swap AI integrations | One `AgentRuntime` SPI with twelve runtime adapters and contract-tested capability flags |
 | Ship a deep agent | A plain `@Agent` is batteries-included — memory, a plan (`write_todos`), a virtual filesystem, and sub-agent delegation (`task`), on by default via the [harness](https://atmosphere.github.io/docs/agents/harness/) |
 | Govern execution | Policy admission, `@AgentScope`, human approval, plan-and-verify, cost ceilings, PII rewriting, and admin kill switches |
 | Pause for humans | Durable HITL approvals hibernate without holding a thread, persist workflow state, and resume through REST approval surfaces |
 | Resume long runs | Durable sessions, run IDs, replay buffers, checkpoints, and reconnect-safe continuation |
-| Observe and replay | An opt-in [session tape](https://atmosphere.github.io/docs/tutorial/36-session-tape/) records session-boundary AI events (SQLite-durable) — reconstruct a recorded run, or a multi-agent coordination tree, from the tape with no model call, then distill a smaller model from it |
+| Observe and replay | An opt-in [session tape](https://atmosphere.github.io/docs/tutorial/36-session-tape/) records session-boundary AI events (SQLite-durable) — reconstruct a run or a coordination tree with no model call, then distill a smaller model from it |
 | Expose the same agent everywhere | Browser endpoints plus MCP (stateless RC on the MCP 2026-07-28 spec, sessions back to 2024-11-05), A2A, AG-UI, Slack, Telegram, Discord, WhatsApp, and Messenger modules |
 
 ## Scope
@@ -41,8 +41,8 @@ Atmosphere is a real-time, event-driven framework, not an agent-hosting platform
 |---|---|---|
 | [Streaming transport](https://atmosphere.github.io/docs/reference/core/) | `atmosphere-runtime` over WebSocket, SSE, long-polling (always-on defaults), gRPC, plus optional WebTransport/HTTP-3 (needs `jetty-http3-server` or `reactor-netty-http` on the classpath plus a dev cert) | — |
 | [Runtime dispatch](https://atmosphere.github.io/docs/tutorial/11-ai-adapters/) | `atmosphere-ai` `AgentRuntime` SPI + 12 adapters with contract-tested capability flags | Model hosting (we call providers; we do not host weights) |
-| [Orchestration](https://atmosphere.github.io/docs/agents/coordinator/) | `@Coordinator`, `AgentFleet`, handoffs, conditional routing, an event-sourced coordination journal with causal lineage (append-only NDJSON persistence, DAG projection, what-if forking), result evaluation, and durable hibernating `Workflow<S>` over `CheckpointStore` (per-step retry, resume across JVM restart, no thread held while hibernated; add `atmosphere-checkpoint-temporal` and the same workflow runs on a Temporal service) — durable step execution, not wall-clock triggering | Cron / wall-clock scheduling (your container scheduler or a dedicated scheduler fires the workflow) |
-| [Memory](https://atmosphere.github.io/docs/reference/durable-sessions/) | `AiConversationMemory` per-conversation history (in-memory, plus durable SQLite/Redis through the `ConversationPersistence` SPI in `atmosphere-durable-sessions{-sqlite,-redis}`), `LongTermMemory` per-user facts (`InMemoryLongTermMemory`, `SqliteLongTermMemory`, `RedisLongTermMemory`), `SemanticRecallInterceptor` for BYO vector-store recall | Managed vector stores (use Spring AI's `VectorStore`, LangChain4j embeddings, or your own) |
+| [Orchestration](https://atmosphere.github.io/docs/agents/coordinator/) | `@Coordinator`, `AgentFleet`, handoffs, conditional routing, an event-sourced [coordination journal](https://atmosphere.github.io/docs/reference/coordinator/) with causal lineage, result evaluation, and durable hibernating `Workflow<S>` over [`CheckpointStore`](https://atmosphere.github.io/docs/reference/checkpoint/) (Temporal-backed if you add `atmosphere-checkpoint-temporal`) — durable step execution, not wall-clock triggering | Cron / wall-clock scheduling (your container scheduler or a dedicated scheduler fires the workflow) |
+| [Memory](https://atmosphere.github.io/docs/reference/durable-sessions/) | `AiConversationMemory` per-conversation history and `LongTermMemory` per-user facts — in-memory, or durable SQLite/Redis via `atmosphere-durable-sessions{-sqlite,-redis}` — plus `SemanticRecallInterceptor` for BYO vector-store recall | Managed vector stores (use Spring AI's `VectorStore`, LangChain4j embeddings, or your own) |
 | [Governance](https://atmosphere.github.io/docs/reference/governance/) | Policy admission, `@AgentScope`, plan-and-verify, PII redaction, cost ceilings, durable HITL approvals, admin kill switches | — |
 | [Protocol surface](https://atmosphere.github.io/docs/reference/mcp/) | MCP, A2A, AG-UI, Slack/Telegram/Discord/WhatsApp/Messenger channel adapters | — |
 | [Code execution](https://atmosphere.github.io/docs/reference/sandbox/) | `atmosphere-sandbox` `SandboxProvider` SPI + `DockerSandboxProvider` default | Browser automation, headless Chromium |
@@ -89,16 +89,6 @@ atmosphere import https://github.com/anthropics/skills/blob/main/skills/frontend
 cd frontend-design
 LLM_API_KEY=your-key ./mvnw spring-boot:run
 ```
-
-## Terminology
-
-| Term | Meaning in Atmosphere | Examples |
-|---|---|---|
-| Model provider | The model/API vendor or endpoint that serves tokens | OpenAI, Gemini compatibility endpoint, Ollama, DashScope, local OpenAI-compatible proxies |
-| Runtime adapter | The Atmosphere integration that implements `AgentRuntime` | Built-in, Spring AI, LangChain4j, Google ADK, Embabel, Koog, Semantic Kernel, AgentScope, Spring AI Alibaba, Anthropic, Cohere, CrewAI |
-| Capability | A feature advertised by a runtime adapter and pinned by contract tests | tool calling, embeddings, streaming, structured output, prompt caching |
-
-Use **provider** for model vendors and **runtime adapter** for Atmosphere integrations. Not every runtime adapter exposes every capability.
 
 ## `@Agent`
 
@@ -152,6 +142,16 @@ A plain `@Agent` is a *deep agent* out of the box. The [harness](https://atmosph
 - **Prompt caching, skills, and large-tool-output disk offload** — on by default, tuned by config.
 
 Narrow the set per agent (`@Agent(harness = {Harness.MEMORY})`) or opt down to a bare loop (`harness = {}`); `@AiEndpoint` is opt-in. Every primitive reports its *actual* attached state at `/api/console/info` — runtime truth, never configuration intent. This is the same deep-agent capability set as LangChain deepagents, hosted by a JVM framework — [see the comparison](https://atmosphere.github.io/docs/agents/deep-agents-vs-langchain/).
+
+## Terminology
+
+| Term | Meaning in Atmosphere | Examples |
+|---|---|---|
+| Model provider | The model/API vendor or endpoint that serves tokens | OpenAI, Gemini compatibility endpoint, Ollama, DashScope, local OpenAI-compatible proxies |
+| Runtime adapter | The Atmosphere integration that implements `AgentRuntime` | Built-in, Spring AI, LangChain4j, Google ADK, Embabel, Koog, Semantic Kernel, AgentScope, Spring AI Alibaba, Anthropic, Cohere, CrewAI |
+| Capability | A feature advertised by a runtime adapter and pinned by contract tests | tool calling, embeddings, streaming, structured output, prompt caching |
+
+Use **provider** for model vendors and **runtime adapter** for Atmosphere integrations. Not every runtime adapter exposes every capability.
 
 ## AI Runtime Adapters
 
