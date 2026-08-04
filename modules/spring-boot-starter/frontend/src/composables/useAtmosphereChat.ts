@@ -2,7 +2,7 @@ import { ref, computed, watch, onMounted, onUnmounted, type Ref } from 'vue'
 import { ConnectionStatus } from 'atmosphere.js'
 import { useOfflineQueue } from 'atmosphere.js/vue'
 import { recordPlanUpdate, resetLivePlan } from '../lib/workspaceStore'
-import { mergeRoutingMetadata, type RoutingMetadata } from '../lib/routingMetadata'
+import { mergeRoutingMetadata, normalizeMetadataFrame, type RoutingMetadata } from '../lib/routingMetadata'
 import { createChatTransport } from '../transports'
 import type { ChatTransport, ConsoleTransportName } from '../transports'
 import type { ConnectionStatusSnapshot } from 'atmosphere.js'
@@ -260,9 +260,12 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
       case 'metadata':
         // Cost/latency routing readout (routing.model / routing.cost /
         // routing.latency keys, plus the runtime's bare model) — feeds the
-        // header chips and the per-turn stats footer.
+        // header chips and the per-turn stats footer. The Atmosphere wire
+        // frame is {type:'metadata', key, value} top-level (see
+        // DefaultStreamingSession), normalized here into a keyed record;
+        // frames without a top-level key fall back to a data payload map.
         routing.value = mergeRoutingMetadata(
-          routing.value, msg.data as Record<string, unknown> | undefined)
+          routing.value, normalizeMetadataFrame(msg))
         break
       case 'tool-start': {
         const name = ((msg.data as Record<string, unknown>)?.toolName ?? '') as string

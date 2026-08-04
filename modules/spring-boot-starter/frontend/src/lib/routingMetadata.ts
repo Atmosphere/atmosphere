@@ -11,6 +11,24 @@ export interface RoutingMetadata {
 }
 
 /**
+ * Normalize a `metadata` event into a keyed payload map. The Atmosphere wire
+ * frame carries the pair top-level — `{type:'metadata', key:'routing.model',
+ * value:..., sessionId, seq}` (see DefaultStreamingSession) — so the key/value
+ * pair is folded into a single-entry record. Frames without a top-level key
+ * fall back to a `data` payload object when one is present.
+ */
+export function normalizeMetadataFrame(
+  msg: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  if (typeof msg.key === 'string' && msg.key) {
+    return { [msg.key]: msg.value }
+  }
+  return typeof msg.data === 'object' && msg.data !== null
+    ? (msg.data as Record<string, unknown>)
+    : undefined
+}
+
+/**
  * Merge one metadata event payload into the current routing readout.
  * Pure — returns a new object (Vue reactivity replaces the ref value).
  */
