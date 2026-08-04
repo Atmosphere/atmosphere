@@ -18,7 +18,6 @@ package org.atmosphere.samples.springboot.orchestration;
 import org.atmosphere.agent.annotation.Agent;
 import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.agent.annotation.Command;
-import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiTool;
 import org.atmosphere.ai.annotation.Param;
@@ -64,11 +63,9 @@ public class SupportAgent {
             return;
         }
 
-        var settings = AiConfig.get();
-        if (settings == null || settings.apiKey() == null || settings.apiKey().isBlank()) {
-            DemoResponseProducer.streamSupport(message, session);
-            return;
-        }
+        // Streams through the framework pipeline in every mode: with an
+        // LLM_API_KEY a real runtime serves, without one the DemoAgentRuntime
+        // streams the canned support persona (see DemoResponseProducer).
         session.stream(message);
     }
 

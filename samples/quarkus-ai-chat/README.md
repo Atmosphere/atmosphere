@@ -30,6 +30,19 @@ LLM_MODEL=gpt-4o-mini                        \
 mvn quarkus:dev
 ```
 
+### A real API key is required — there is no offline demo lane
+
+This sample always runs the Quarkus LangChain4j bridge runtime.
+`quarkus.langchain4j.openai.api-key` defaults to a `dummy` placeholder, so
+Quarkus LangChain4j always materializes a `StreamingChatModel`; the bridge
+hands it to `LangChain4jAgentRuntime.setModel(...)` at startup, which marks
+an explicit client binding, and the framework's keyless `DemoAgentRuntime`
+fallback therefore never activates here. Without a real key, prompts still
+reach the provider — carrying the placeholder key — and fail upstream with
+an authentication error. Set `LLM_API_KEY` (or `GEMINI_API_KEY`) for working
+responses. Contrast with the Spring Boot AI samples, which route keyless
+demo mode through `DemoAgentRuntime`.
+
 ## What's in the box
 
 | File | Endpoint | Role |
@@ -39,7 +52,6 @@ mvn quarkus:dev
 | `RetryDemoChat.java` | `/atmosphere/ai-chat-with-retry` | Demonstrates `@AiEndpoint(retry = @Retry(...))` — `fail-once:<id>` prompts trigger a deterministic transient failure / recovery sequence with observable `retry.attempt=N` metadata |
 | `MultiModalAgent.java` | `/atmosphere/agent/multimodal` | `@Agent` class (persona from `prompts/multimodal-assistant-skill.md`) demonstrating the multi-modal `Content.Image` wire protocol — `image:<base64>` prompts emit a binary content frame followed by a text acknowledgement |
 | `ReviewExtractor.java` + `MovieReview.java` | `/atmosphere/review-extractor` | Demonstrates `@AiEndpoint(responseAs = MovieReview.class)` — framework appends JSON schema to system prompt and emits `EntityStart` / `StructuredField` / `EntityComplete` events |
-| `DemoResponseProducer.java` | — | Helper for demo-mode responses when no `LLM_API_KEY` is configured |
 | `GeminiCompatCustomizer.java` | — | Drops `frequency_penalty` / `presence_penalty` from the OpenAI request — Gemini's compat endpoint rejects unknown fields. Delete for OpenAI proper. |
 | `prompts/multimodal-assistant-skill.md` | — | `@Agent` skill file — the `MultiModalAgent` persona, resolved from `skill:multimodal-assistant` |
 | `application.properties` | — | `quarkus.atmosphere.packages` + `quarkus.langchain4j.openai.*` |

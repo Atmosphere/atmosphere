@@ -70,20 +70,22 @@ Same agent, same candidate models, opposite pick — purely by the chosen object
 mere presence of a routing bean: it boots the real application under each shipped profile, drives
 a chat turn through the config-installed `RoutingLlmClient`, and asserts the `routing.model`
 frame the router emits carries `frugal-mini` (cost) and `swift-pro` (latency). Swap in real model
-names and drop `llm.mode=fake` to route real traffic.
+names and drop `llm.mode=fake` to route real traffic. The Console's routing chips (model /
+cost / latency in the chat header) render these `routing.*` frames live — the router emits them
+mid-stream, before delegating to the selected model's client.
 
 ## Key Features
 
 - **`@AiEndpoint(tools = AssistantTools.class)`** — `@AiTool` methods auto-bridged to whichever AI backend is active
 - **`AiEvent` tool events** — `ToolStart` and `ToolResult` events streamed to the Console in real-time
-- **Cost metering** — `CostMeteringInterceptor` tracks tokens, cost, and latency per response
+- **Cost metering** — `CostMeteringInterceptor` estimates tokens, cost, and latency per turn (logged server-side)
 - **Conversation memory** — multi-turn history with configurable window size
-- **Demo mode** — works out-of-the-box without an API key (the built-in runtime returns canned LLM responses). Note: the example tools themselves (e.g. `get_weather`) return illustrative data in **every** mode — this sample demonstrates `@AiTool` wiring, not a live weather service
+- **Demo mode** — works out-of-the-box without an API key: `DemoToolRouter` keyword-matches the prompt and executes the real `@AiTool` method through `ToolExecutionHelper.executeWithApproval` (real `ToolStart`/`ToolResult` frames, real `@RequiresApproval` gate), then the bundled `DemoAgentRuntime` streams a canned narrative through the standard pipeline (guardrails, interceptors, memory, metrics all fire). Note: the example tools themselves (e.g. `get_weather`) return illustrative data in **every** mode — this sample demonstrates `@AiTool` wiring, not a live weather service. Demo mode no longer fabricates simulated `routing.*` metadata, so the Console's routing/cost chips stay empty in keyless runs — they populate only when a routing profile (above) installs `RoutingLlmClient`, which emits genuine `routing.*` frames mid-stream; `CostMeteringInterceptor`'s per-turn estimates go to the server log instead
 
 ## Running
 
 ```bash
-# Demo mode (no API key needed — simulated responses with tool events)
+# Demo mode (no API key needed — real tool execution + canned text via the pipeline)
 atmosphere run spring-boot-ai-tools
 
 # Or from the repository root
@@ -108,7 +110,8 @@ Open http://localhost:8090 in your browser.
 |------|---------|
 | `AiToolsChat.java` | `@AiEndpoint` with `tools`, `conversationMemory`, and cost/lifecycle interceptors |
 | `AssistantTools.java` | `@AiTool`-annotated methods (portable across backends) |
-| `DemoResponseProducer.java` | Fallback with `AiEvent.ToolStart`/`ToolResult` events |
+| `DemoToolRouter.java` | Keyless-mode keyword router — executes the real tool via `ToolExecutionHelper.executeWithApproval` (real events, real approval gate) |
+| `DemoResponseProducer.java` | Installs the `DemoAgentRuntime` response strategy (canned narratives streamed through the real pipeline) |
 | `CostMeteringInterceptor.java` | `AiInterceptor` for cost/latency tracking |
 | `application-routing-cost.yml` / `application-routing-latency.yml` | Offline cost/latency model-routing profiles |
 | `CostLatencyRoutingDeliveryTest.java` | Proves the router selects the expected model by cost vs latency |
@@ -119,11 +122,11 @@ Open http://localhost:8090 in your browser.
 ```
 Browser ──WebSocket──> @AiEndpoint(tools=AssistantTools.class)
                            │
-                    ToolRegistry.execute(name, args, session)
-                           │         │
-                     AiEvent.ToolStart  AiEvent.ToolResult
-                           │              │
-                     ──────┘──────────────┘──> StreamingSession.emit()
+              ToolExecutionHelper.executeWithApproval(name, tool, args, session, strategy)
+                           │              │                  │
+                     AiEvent.ToolStart  AiEvent.ApprovalRequired  AiEvent.ToolResult
+                           │              │ (only @RequiresApproval)  │
+                     ──────┘──────────────┘──────────────────────────┘──> StreamingSession.emit()
                                                      │
                                               JSON event frames
                                                      │

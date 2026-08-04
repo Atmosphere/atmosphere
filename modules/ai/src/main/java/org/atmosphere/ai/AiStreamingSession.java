@@ -1238,6 +1238,34 @@ public class AiStreamingSession implements StreamingSession {
         return approvalRegistry;
     }
 
+    /**
+     * Resolve the {@code AiStreamingSession} behind an arbitrarily-decorated
+     * session. The session handed to a {@code @Prompt} method is wrapped in
+     * decorators (e.g. {@code RunEventCapturingSession} for reattach replay),
+     * so application code that needs the session-scoped machinery — above all
+     * {@link #approvalRegistry()}, the registry the endpoint handler routes
+     * {@code /__approval/<id>/...} client responses to — must unwrap the
+     * decorator chain first. Returns empty when no {@code AiStreamingSession}
+     * is behind the chain (ad-hoc test sessions, channel-bridge leaves).
+     *
+     * @param session the (possibly decorated) session, may be {@code null}
+     * @return the underlying {@code AiStreamingSession}, if present
+     */
+    public static java.util.Optional<AiStreamingSession> unwrap(StreamingSession session) {
+        var current = session;
+        while (current != null) {
+            if (current instanceof AiStreamingSession ai) {
+                return java.util.Optional.of(ai);
+            }
+            if (current instanceof DelegatingStreamingSession decorator) {
+                current = decorator.delegate;
+                continue;
+            }
+            return java.util.Optional.empty();
+        }
+        return java.util.Optional.empty();
+    }
+
     // -- Delegate all StreamingSession methods --
 
     @Override

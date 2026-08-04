@@ -15,69 +15,38 @@
  */
 package org.atmosphere.samples.springboot.aitools;
 
-import org.atmosphere.ai.AiEvent;
-import org.atmosphere.ai.StreamingSession;
+import jakarta.annotation.PostConstruct;
+import org.atmosphere.ai.AgentExecutionContext;
+import org.atmosphere.ai.llm.DemoAgentRuntime;
+import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.Map;
 
 /**
- * Simulates tool-calling LLM responses for demo/testing purposes.
- * Used when no API key is configured so the sample works out-of-the-box.
+ * Installs a tool-aware demo strategy so the bundled {@link DemoAgentRuntime}
+ * streams this sample's canned tool-calling narratives instead of its generic
+ * echo when the sample boots without an {@code LLM_API_KEY}. Runs at startup;
+ * the framework then drives every demo-mode request through the standard
+ * pipeline — guardrails, interceptors, memory, metrics, tape, and the dev
+ * inspector all fire — like any real runtime.
+ *
+ * <p>The <em>text</em> below only narrates the tool call; the tool itself is
+ * executed for real (with real {@code ToolStart}/{@code ToolResult} frames and
+ * the real {@code @RequiresApproval} gate) by {@link DemoToolRouter} before
+ * the {@code @Prompt} method streams the message through the pipeline.</p>
  */
-public final class DemoResponseProducer {
+@Component
+public class DemoResponseProducer {
 
-    private DemoResponseProducer() {
+    @PostConstruct
+    public void installToolAwareStrategy() {
+        DemoAgentRuntime.setResponseStrategy(DemoResponseProducer::generateFor);
     }
 
-    public static void stream(String userMessage, StreamingSession session, String model) {
-        var response = generateResponse(userMessage);
-        var toolName = detectTool(userMessage);
-        var words = response.split("(?<=\\s)");
-
-        try {
-            long startNanos = System.nanoTime();
-            session.progress("Demo mode (no API key) — model: " + model);
-
-            // Emit AiEvent tool events so the frontend can show tool activity
-            if (toolName != null) {
-                var toolArgs = buildToolArgs(toolName, userMessage);
-                session.emit(new AiEvent.ToolStart(toolName, toolArgs));
-                Thread.sleep(100);
-
-                // Simulate approval gate for reset_city_data
-                if ("reset_city_data".equals(toolName)) {
-                    session.emit(new AiEvent.ApprovalRequired(
-                            "apr_demo_" + System.currentTimeMillis(),
-                            toolName, toolArgs,
-                            "This will reset all cached data for the city. Are you sure?",
-                            60));
-                    // In demo mode, auto-approve after a short delay
-                    Thread.sleep(2000);
-                }
-
-                session.emit(new AiEvent.ToolResult(toolName, Map.of("status", "success")));
-            }
-
-            for (var word : words) {
-                session.send(word);
-                Thread.sleep(50);
-            }
-            // Send demo routing metadata so the cost badge is visible out-of-the-box
-            long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
-            int estimatedStreamingTexts = response.length() / 4;
-            double estimatedCost = estimatedStreamingTexts * estimatePricePerMillion(model) / 1_000_000.0;
-            session.sendMetadata("routing.model", model + " (demo)");
-            session.sendMetadata("routing.streamingTexts", estimatedStreamingTexts);
-            session.sendMetadata("routing.cost", estimatedCost);
-            session.sendMetadata("routing.latency", elapsedMs);
-            session.complete(response);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            session.error(e);
-        }
+    private static String generateFor(AgentExecutionContext context) {
+        return generateResponse(context.message() != null ? context.message() : "");
     }
 
     private static String generateResponse(String userMessage) {
@@ -162,30 +131,6 @@ public final class DemoResponseProducer {
         };
     }
 
-    // Same pricing as CostMeteringInterceptor — per 1M input streaming texts (USD)
-    private static final Map<String, Double> INPUT_PRICE_PER_MILLION = Map.ofEntries(
-            Map.entry("claude-haiku", 0.80),
-            Map.entry("claude-sonnet", 3.0),
-            Map.entry("claude-opus", 15.0),
-            Map.entry("gpt-5.1-codex-max", 10.0),
-            Map.entry("gpt-5", 2.5),
-            Map.entry("gpt-4.1", 2.0),
-            Map.entry("gpt-4o", 2.5),
-            Map.entry("gpt-4", 30.0),
-            Map.entry("gemini-2.5-flash", 0.15),
-            Map.entry("gemini-2.5-pro", 1.25),
-            Map.entry("gemini-3", 1.25)
-    );
-
-    private static double estimatePricePerMillion(String model) {
-        var lower = model.toLowerCase();
-        return INPUT_PRICE_PER_MILLION.entrySet().stream()
-                .filter(e -> lower.contains(e.getKey()))
-                .map(Map.Entry::getValue)
-                .findFirst()
-                .orElse(3.0);
-    }
-
     private static boolean containsCity(String text) {
         return text.contains("new york") || text.contains("london")
                 || text.contains("paris") || text.contains("tokyo") || text.contains("sydney");
@@ -198,36 +143,5 @@ public final class DemoResponseProducer {
         if (text.contains("tokyo")) return "tokyo";
         if (text.contains("sydney")) return "sydney";
         return null;
-    }
-
-    private static String detectTool(String userMessage) {
-        var lower = userMessage.toLowerCase();
-        if (lower.contains("reset")) return "reset_city_data";
-        if (lower.contains("time") && containsCity(lower)) return "get_city_time";
-        if (lower.contains("time")) return "get_current_time";
-        if (lower.contains("weather")) return "get_weather";
-        if (lower.contains("convert") || lower.contains("celsius") || lower.contains("fahrenheit"))
-            return "convert_temperature";
-        return null;
-    }
-
-    private static Map<String, Object> buildToolArgs(String toolName, String userMessage) {
-        var lower = userMessage.toLowerCase();
-        return switch (toolName) {
-            case "get_city_time" -> {
-                var city = extractCity(lower);
-                yield city != null ? Map.of("city", city) : Map.of();
-            }
-            case "get_weather" -> {
-                var city = extractCity(lower);
-                yield Map.of("city", (Object) (city != null ? city : "New York"));
-            }
-            case "convert_temperature" -> Map.of("value", (Object) "100", "fromUnit", "C");
-            case "reset_city_data" -> {
-                var city = extractCity(lower);
-                yield Map.of("city", (Object) (city != null ? city : "unknown"));
-            }
-            default -> Map.of();
-        };
     }
 }

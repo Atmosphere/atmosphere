@@ -15,6 +15,7 @@
  */
 package org.atmosphere.samples.springboot.aitools;
 
+import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AgentScope;
@@ -60,13 +61,25 @@ public class AiToolsChat {
     public void onPrompt(String message, StreamingSession session, AtmosphereResource resource) {
         logger.info("Prompt from {}: {}", resource.uuid(), message);
 
+        // With no API key there is no model to pick tools, so the demo-mode
+        // router keyword-matches the prompt and executes the real tool through
+        // ToolExecutionHelper.executeWithApproval — real ToolStart/ToolResult
+        // frames and the real @RequiresApproval gate (reset_city_data parks
+        // until the client approves or denies). With a key configured, the
+        // active runtime's own tool-calling loop takes over instead.
+        // Mirrors DemoAgentRuntime.isAvailable(): an explicitly-bound native
+        // client (e.g. SpringAiAgentRuntime.setChatClient) serves without any
+        // key, so its tool-calling loop owns dispatch exclusively too.
         var settings = AiConfig.get();
-        if (settings == null || settings.apiKey() == null || settings.apiKey().isBlank()) {
-            var model = settings != null ? settings.model() : "unknown";
-            DemoResponseProducer.stream(message, session, model);
-            return;
+        if (!AgentRuntimeResolver.hasExplicitClientBinding()
+                && (settings == null || settings.apiKey() == null || settings.apiKey().isBlank())) {
+            DemoToolRouter.route(message, session);
         }
 
+        // Always through the pipeline: DemoAgentRuntime streams the strategy
+        // installed by DemoResponseProducer when no LLM_API_KEY is configured,
+        // otherwise the real runtime streams — guardrails, interceptors,
+        // memory, and metrics fire the same way on both paths.
         session.stream(message);
     }
 }

@@ -61,8 +61,9 @@ function parseSSEStream(raw: string): SSEEvent[] {
 
 // ── DEMO LANE: no LLM key, always runs ────────────────────────────────────
 // Drives the real AG-UI native bridge (AgUiHandler → ResourceAgUiStreamingSession
-// → AgUiEventMapper) with the DemoResponseProducer fallback. Tools are NOT
-// asserted here — the demo path does not call the model, so no real tool
+// → AgUiEventMapper) with the pipeline-routed DemoAgentRuntime (response
+// strategy installed by DemoResponseProducer at startup). Tools are NOT
+// asserted here — the demo runtime does not call the model, so no real tool
 // dispatch happens (that is the REAL-LLM lane below).
 test.describe('AG-UI demo lane (no key)', () => {
   test('SSE lifecycle: first RUN_STARTED, last RUN_FINISHED', async () => {

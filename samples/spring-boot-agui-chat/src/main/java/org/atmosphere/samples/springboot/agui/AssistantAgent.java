@@ -17,7 +17,6 @@ package org.atmosphere.samples.springboot.agui;
 
 import org.atmosphere.agent.annotation.Agent;
 import org.atmosphere.ai.annotation.AgentScope;
-import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiTool;
 import org.atmosphere.ai.annotation.Param;
@@ -46,10 +45,11 @@ import java.time.format.DateTimeFormatter;
  *   → RUN_FINISHED on completion
  * </pre>
  *
- * <p>When no LLM key is configured ({@link AiConfig#get()} is {@code null} or
- * has a blank {@code apiKey()}), {@link #onPrompt} falls back to
- * {@link DemoResponseProducer} so the sample streams a real AG-UI event sequence
- * out of the box. Set {@code LLM_API_KEY} (or {@code GEMINI_API_KEY} /
+ * <p>When no LLM key is configured, the pipeline's runtime resolver picks the
+ * framework's {@code DemoAgentRuntime}, whose response strategy is installed by
+ * {@link DemoResponseProducer} at startup — so the sample streams a real AG-UI
+ * event sequence through the full pipeline (guardrails, interceptors, memory,
+ * metrics) out of the box. Set {@code LLM_API_KEY} (or {@code GEMINI_API_KEY} /
  * {@code OPENAI_API_KEY}) to drive a real model and exercise tool calling.</p>
  */
 @AgentScope(unrestricted = true,
@@ -65,20 +65,15 @@ public class AssistantAgent {
     private static final Logger logger = LoggerFactory.getLogger(AssistantAgent.class);
 
     /**
-     * Handles a user prompt. Drives the real pipeline when a key is configured,
-     * otherwise streams a demo response — mirroring {@code spring-boot-ai-chat}'s
-     * no-key contract so the AG-UI event sequence is identical in both modes.
+     * Handles a user prompt. Always drives the real {@code AiPipeline}: with an
+     * LLM key the resolved runtime streams model output, without one the
+     * framework's {@code DemoAgentRuntime} streams the canned response installed
+     * by {@link DemoResponseProducer} — the AG-UI event sequence is identical
+     * in both modes because both flow through the same pipeline.
      */
     @Prompt
     public void onPrompt(String message, StreamingSession session) {
         logger.info("AG-UI prompt: {}", message);
-
-        var settings = AiConfig.get();
-        if (settings == null || settings.apiKey() == null || settings.apiKey().isBlank()) {
-            DemoResponseProducer.stream(message, session);
-            return;
-        }
-
         session.stream(message);
     }
 

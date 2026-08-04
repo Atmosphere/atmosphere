@@ -8,10 +8,12 @@
  * atmosphere.js UIs can render the prompt and route the user's decision back with
  * the `/__approval/<id>/{approve,deny}` message.
  *
- * A fully tool-calling FakeLlmClient does not yet exist, so these tests target the
- * demo mode of `samples/spring-boot-ai-tools`, which emits the same `AiEvent.ApprovalRequired`
- * frame the real VirtualThreadApprovalStrategy emits. A subsequent phase will add
- * a tool-aware fake client for a full real-pipeline e2e.
+ * These tests target the demo mode of `samples/spring-boot-ai-tools`, whose
+ * DemoToolRouter executes the real reset_city_data tool through
+ * ToolExecutionHelper.executeWithApproval: the `approval-required` frame is emitted
+ * by the real VirtualThreadApprovalStrategy with a real generated apr_* id, the
+ * approve/deny replies resolve the session's real ApprovalRegistry, and the tool
+ * body only runs after an approve.
  */
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
@@ -35,12 +37,17 @@ interface AnyFrame {
   seq?: number;
 }
 
-/** Open a WebSocket, send a prompt, collect frames until `complete` or timeout. */
+/**
+ * Open a WebSocket, send a prompt, collect frames until `complete` or timeout.
+ * When `onApprovalRequired` is supplied it fires once with the REAL generated
+ * approval id from the `approval-required` frame, so tests can drive the live
+ * ApprovalRegistry with `/__approval/<real-id>/{approve,deny}`.
+ */
 function runPrompt(
   baseUrl: string,
   path: string,
   prompt: string,
-  afterOpen?: (ws: WebSocket) => void,
+  onApprovalRequired?: (approvalId: string, ws: WebSocket) => void,
   timeoutMs = 20_000,
 ): Promise<{ frames: AnyFrame[]; approvalMessages: string[] }> {
   return new Promise((resolve, reject) => {
@@ -49,6 +56,8 @@ function runPrompt(
     const frames: AnyFrame[] = [];
     const approvalMessages: string[] = [];
     let opened = false;
+    let approvalSeen = false;
+    let closeScheduled = false;
     const timer = setTimeout(() => {
       try { ws.close(); } catch { /* ignore */ }
       resolve({ frames, approvalMessages });
@@ -57,7 +66,6 @@ function runPrompt(
     ws.on('open', () => {
       opened = true;
       ws.send(prompt);
-      afterOpen?.(ws);
     });
     ws.on('message', (data) => {
       const text = data.toString();
@@ -67,11 +75,25 @@ function runPrompt(
         try {
           const parsed = JSON.parse(trimmed);
           frames.push(parsed);
+          if (!approvalSeen && parsed.event === 'approval-required'
+              && parsed.data?.approvalId && onApprovalRequired) {
+            approvalSeen = true;
+            onApprovalRequired(parsed.data.approvalId as string, ws);
+          }
         } catch { /* not JSON */ }
       }
-      if (/"event"\s*:\s*"complete"/.test(text)) {
+      // The terminal frame is {"type":"complete",...} on the streaming wire
+      // (AiEvent-style frames use "event"); accept both so collection ends on
+      // the genuine completion instead of riding out the full timeout. Close
+      // after a short grace period rather than instantly, so any spurious
+      // post-complete frame (e.g. a late error) is still collected for the
+      // negative "no error frame" assertions.
+      if (!closeScheduled && /"(?:event|type)"\s*:\s*"complete"/.test(text)) {
+        closeScheduled = true;
         clearTimeout(timer);
-        try { ws.close(); } catch { /* ignore */ }
+        setTimeout(() => {
+          try { ws.close(); } catch { /* ignore */ }
+        }, 250);
       }
     });
     ws.on('close', () => {
@@ -96,7 +118,14 @@ test.describe('Phase 0 — HITL approval wire protocol', () => {
       server.baseUrl,
       '/atmosphere/ai-chat',
       'Please reset city data for London',
-      undefined,
+      // Resolve the REAL pending approval so the turn terminates instead of
+      // parking until the annotation's expiry; the assertions below are all
+      // on the approval-required frame that already arrived.
+      (approvalId, ws) => {
+        try {
+          ws.send(`/__approval/${approvalId}/deny`);
+        } catch { /* ignore */ }
+      },
       15_000,
     );
 
@@ -121,16 +150,13 @@ test.describe('Phase 0 — HITL approval wire protocol', () => {
       server.baseUrl,
       '/atmosphere/ai-chat',
       'Please reset city data for Tokyo',
-      (ws) => {
-        // Wait briefly, then send an approve message for any approval the server emits.
-        // Demo mode auto-approves internally so our message is a no-op on the server,
-        // but this still exercises that the client→server wire format Phase 0 defined
-        // is parseable by ApprovalRegistry.isApprovalMessage without errors.
-        setTimeout(() => {
-          try {
-            ws.send('/__approval/apr_phase0_e2e/approve');
-          } catch { /* connection might already be closed */ }
-        }, 500);
+      // The REAL approval gate parks the tool until the client answers, so
+      // approve with the genuine generated id from the approval-required frame
+      // — this resolves the live ApprovalRegistry, not a demo auto-approval.
+      (approvalId, ws) => {
+        try {
+          ws.send(`/__approval/${approvalId}/approve`);
+        } catch { /* connection might already be closed */ }
       },
       15_000,
     );
@@ -138,7 +164,13 @@ test.describe('Phase 0 — HITL approval wire protocol', () => {
     const approval = firstApprovalRequired(frames);
     expect(approval).toBeDefined();
 
-    // Demo mode completes the flow after auto-approval.
+    // The approve resolved the gate, so the REAL tool body executed and its
+    // result frame carries the tool's actual output.
+    const toolResult = frames.find(f => f.event === 'tool-result');
+    expect(toolResult, 'expected a tool-result frame after approval').toBeDefined();
+    expect(String(toolResult!.data?.result)).toContain('has been reset');
+
+    // The pipeline completes the turn after the approved tool ran.
     const complete = frames.find(f => f.event === 'complete' || f.type === 'complete');
     expect(complete, 'expected a complete event after approval flow').toBeDefined();
 
@@ -152,18 +184,28 @@ test.describe('Phase 0 — HITL approval wire protocol', () => {
       server.baseUrl,
       '/atmosphere/ai-chat',
       'Please reset city data for Paris',
-      (ws) => {
-        setTimeout(() => {
-          try {
-            ws.send('/__approval/apr_phase0_e2e/deny');
-          } catch { /* ignore */ }
-        }, 500);
+      // Deny with the genuine generated id — the real gate cancels the tool.
+      (approvalId, ws) => {
+        try {
+          ws.send(`/__approval/${approvalId}/deny`);
+        } catch { /* ignore */ }
       },
       15_000,
     );
 
     const approval = firstApprovalRequired(frames);
     expect(approval).toBeDefined();
+
+    // The denial withholds the destructive tool: its result frame reports the
+    // cancellation instead of the tool body's output.
+    const toolResult = frames.find(f => f.event === 'tool-result');
+    expect(toolResult, 'expected a tool-result frame carrying the cancellation').toBeDefined();
+    expect(String(toolResult!.data?.result)).toContain('cancelled');
+    expect(String(toolResult!.data?.result)).not.toContain('has been reset');
+
+    // Denial cancels the tool, not the turn: the stream still completes cleanly.
+    const complete = frames.find(f => f.event === 'complete' || f.type === 'complete');
+    expect(complete, 'expected a complete event after the denied tool').toBeDefined();
 
     const error = frames.find(f => f.event === 'error' || f.type === 'error');
     expect(error, 'deny message must not error the stream').toBeUndefined();

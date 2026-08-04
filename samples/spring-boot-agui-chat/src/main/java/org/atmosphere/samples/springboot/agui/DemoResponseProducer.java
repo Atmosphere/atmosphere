@@ -15,57 +15,36 @@
  */
 package org.atmosphere.samples.springboot.agui;
 
-import org.atmosphere.ai.AiEvent;
-import org.atmosphere.ai.StreamingSession;
+import jakarta.annotation.PostConstruct;
+import org.atmosphere.ai.AgentExecutionContext;
+import org.atmosphere.ai.llm.DemoAgentRuntime;
+import org.springframework.stereotype.Component;
 
 /**
- * Streams a deterministic demo response when no LLM key is configured, so the
- * sample produces a real AG-UI event sequence (TEXT_MESSAGE_START → N ×
- * TEXT_MESSAGE_CONTENT → TEXT_MESSAGE_END → RUN_FINISHED) out of the box.
+ * Installs an AG-UI-flavoured demo strategy so the bundled
+ * {@link DemoAgentRuntime} streams this sample's canned responses instead of
+ * its generic echo when the sample boots without an {@code LLM_API_KEY}. Runs
+ * at startup; the framework then drives every demo-mode request through the
+ * standard pipeline like any real runtime — guardrails, interceptors, memory,
+ * metrics, and the AG-UI mapper (TEXT_MESSAGE_START → N × TEXT_MESSAGE_CONTENT
+ * → TEXT_MESSAGE_END → RUN_FINISHED) all fire the same way.
  *
- * <p>Each call goes through the same {@link StreamingSession} the real pipeline
- * uses, so the AG-UI frames are produced by the shipped {@code AgUiEventMapper}
- * — not hand-written here. Set {@code LLM_API_KEY} to drive a real model instead
- * (which additionally exercises {@code @AiTool} dispatch).</p>
+ * <p>Set {@code LLM_API_KEY} to drive a real model instead (which additionally
+ * exercises {@code @AiTool} dispatch).</p>
  */
-public final class DemoResponseProducer {
+@Component
+public class DemoResponseProducer {
 
     /** Stable phrase the demo always includes, asserted by the e2e demo lane. */
     static final String DEMO_PHRASE = "AG-UI protocol";
 
-    private DemoResponseProducer() {
+    @PostConstruct
+    public void installDemoStrategy() {
+        DemoAgentRuntime.setResponseStrategy(DemoResponseProducer::generateFor);
     }
 
-    /**
-     * Stream a simulated response word-by-word through the session, then emit a
-     * terminal {@link AiEvent.TextComplete} so the mapper closes the message with
-     * a {@code TEXT_MESSAGE_END} before {@link StreamingSession#complete()} writes
-     * {@code RUN_FINISHED}.
-     */
-    public static void stream(String userMessage, StreamingSession session) {
-        var response = generateResponse(userMessage);
-        // Keep trailing whitespace on each token so the concatenated deltas
-        // reproduce the response verbatim (the e2e demo lane joins them).
-        var words = response.split("(?<=\\s)");
-
-        try {
-            session.progress("Demo mode — set LLM_API_KEY to enable real model responses");
-            for (var word : words) {
-                session.send(word);
-                Thread.sleep(40);
-            }
-            // Close the in-flight AG-UI text message (TEXT_MESSAGE_END) before
-            // the run finishes — mirrors the real pipeline's terminal TextComplete.
-            session.emit(new AiEvent.TextComplete(response));
-            session.complete(response);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            session.error(e);
-        }
-    }
-
-    private static String generateResponse(String userMessage) {
-        var lower = userMessage.toLowerCase();
+    static String generateFor(AgentExecutionContext context) {
+        var lower = context.message() == null ? "" : context.message().toLowerCase();
         if (lower.contains("weather")) {
             return "I can fetch weather through the get_weather tool when a model is connected. "
                     + "Right now I'm streaming over the AG-UI protocol in demo mode — "

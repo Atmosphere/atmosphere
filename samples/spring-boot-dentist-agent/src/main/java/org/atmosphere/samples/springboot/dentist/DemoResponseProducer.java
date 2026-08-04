@@ -15,35 +15,34 @@
  */
 package org.atmosphere.samples.springboot.dentist;
 
-import org.atmosphere.ai.StreamingSession;
+import jakarta.annotation.PostConstruct;
+import org.atmosphere.ai.AgentExecutionContext;
+import org.atmosphere.ai.llm.DemoAgentRuntime;
+import org.springframework.stereotype.Component;
 
 /**
- * Simulates Dr. Molar's responses for demo/testing when no LLM API key is set.
+ * Installs Dr. Molar's canned responses as the {@link DemoAgentRuntime}
+ * strategy so the sample answers in persona when it boots without an
+ * {@code LLM_API_KEY}. Runs at startup; the framework then drives every
+ * demo-mode request through the standard pipeline like any real runtime —
+ * the SKILL.md {@code ## Guardrails} scope policy, memory, metrics, tape
+ * and dev inspector all fire exactly as they would against a real provider.
  */
-public final class DemoResponseProducer {
+@Component
+public class DemoResponseProducer {
 
-    private DemoResponseProducer() {
+    @PostConstruct
+    public void installDentistStrategy() {
+        DemoAgentRuntime.setResponseStrategy(DemoResponseProducer::generateFor);
     }
 
-    public static void stream(String userMessage, StreamingSession session) {
-        var response = generateResponse(userMessage);
-        var words = response.split("(?<=\\s)");
-
-        try {
-            session.progress("Demo mode — set LLM_API_KEY for real AI responses. Try /help for commands!");
-            for (var word : words) {
-                session.send(word);
-                Thread.sleep(40);
-            }
-            session.complete(response);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            session.error(e);
-        }
-    }
-
-    private static String generateResponse(String userMessage) {
-        var lower = userMessage.toLowerCase();
+    /**
+     * Keyword-branched Dr. Molar persona responses, keyed on the incoming
+     * {@link AgentExecutionContext#message()}. Package-private so the unit
+     * test can drive the persona branches directly.
+     */
+    static String generateFor(AgentExecutionContext context) {
+        var lower = context.message() == null ? "" : context.message().toLowerCase();
 
         if (lower.contains("broke") || lower.contains("broken") || lower.contains("cracked")) {
             return "I'm sorry to hear about your broken tooth! That can be really "

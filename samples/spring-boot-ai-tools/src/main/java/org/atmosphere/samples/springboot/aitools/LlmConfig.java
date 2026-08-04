@@ -19,6 +19,7 @@ import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import org.atmosphere.ai.AiConfig;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -42,7 +43,15 @@ public class LlmConfig {
         return AiConfig.configure(mode, model, apiKey, baseUrl);
     }
 
+    /**
+     * Gated on a non-blank key, mirroring
+     * {@code AtmosphereLangChain4jAutoConfiguration}: an unconditional
+     * {@link StreamingChatModel} bean would mark an explicit client binding,
+     * hiding the demo runtime and sending keyless dispatch into LangChain4j
+     * with a blank key. Keyless boots resolve {@code DemoAgentRuntime} instead.
+     */
     @Bean
+    @ConditionalOnExpression("'${llm.api-key:}' != ''")
     public StreamingChatModel streamingChatModel(AiConfig.LlmSettings settings) {
         return OpenAiStreamingChatModel.builder()
                 .baseUrl(settings.baseUrl())

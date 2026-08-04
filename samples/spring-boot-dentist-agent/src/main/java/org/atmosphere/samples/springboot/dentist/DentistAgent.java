@@ -17,7 +17,6 @@ package org.atmosphere.samples.springboot.dentist;
 
 import org.atmosphere.agent.annotation.Agent;
 import org.atmosphere.agent.annotation.Command;
-import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiTool;
 import org.atmosphere.ai.annotation.Param;
@@ -60,12 +59,15 @@ public class DentistAgent {
     @Prompt
     public void onPrompt(String message, StreamingSession session) {
         logger.info("Patient message: {}", message);
-        var settings = AiConfig.get();
-        if (settings == null || settings.apiKey() == null
-                || settings.apiKey().isBlank()) {
-            DemoResponseProducer.stream(message, session);
-            return;
-        }
+        // One dispatch path in every mode. With no API key configured the
+        // framework's DemoAgentRuntime wins resolution and streams Dr. Molar's
+        // canned responses (installed by DemoResponseProducer) through the
+        // same pipeline — the SKILL.md ## Guardrails scope policy, memory,
+        // metrics, the session tape and the dev inspector all fire in demo
+        // mode exactly as they do against a real provider (Correctness
+        // Invariant #7, Mode Parity). Short-circuiting into a hand-rolled
+        // producer here bypassed that seam, so demo traffic skipped every
+        // admission guardrail.
         session.stream(message);
     }
 

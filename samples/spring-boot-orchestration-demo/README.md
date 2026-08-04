@@ -10,7 +10,7 @@ Two `@Agent` classes collaborating over a single Atmosphere streaming session. T
 | **Human approval gate** | `SupportAgent.cancelAccount()` | `@RequiresApproval("This will permanently cancel…")` blocks execution until the user confirms. |
 | **Slash commands** | `SupportAgent.status() / hours() / purge()` | `@Command("/status")`, `@Command("/hours")`, `@Command("/purge", confirm = "…")` answer without calling the LLM. `/purge` additionally uses the `confirm` attribute to require a second click before running. |
 | **LLM tool calling** | `@AiTool` methods on both agents | `lookup_account`, `cancel_account`, `get_invoice`, `process_refund`. Wired via the LangChain4j runtime (`atmosphere-langchain4j` on the classpath). |
-| **Demo-mode fallback** | `DemoResponseProducer` | Streams a canned word-by-word response when `LLM_API_KEY` is not set, so the sample runs offline with the same UX as the live path. |
+| **Demo-mode fallback** | `DemoResponseProducer` | Installs a persona-aware response strategy on the framework's `DemoAgentRuntime` at startup. When `LLM_API_KEY` is not set, the runtime streams the canned support/billing persona word-by-word **through the real pipeline** — guardrails, interceptors, memory, metrics, and handoff frames all fire exactly as on the live path. Both agents' `SKILL.md` files are vendored under `src/main/resources/META-INF/skills/`, so persona selection is offline-deterministic (no skill-repo fetch involved). |
 
 > **Note:** The handoff is a plain intent check inside `@Prompt` (keyword match on the incoming message). This sample does **not** use `@Fleet`, `LlmJudge`, or declarative conditional routing — the only orchestration wiring is `session.handoff()` + `@RequiresApproval` + `@Command`.
 
@@ -76,7 +76,7 @@ Open http://localhost:8080/atmosphere/console/ in your browser.
 | `OrchestrationDemoApplication.java` | Standard `@SpringBootApplication` entry point |
 | `SupportAgent.java` | `@Agent` with `@Prompt`, `session.handoff()`, `@Command` (×3), `@AiTool` (×2), `@RequiresApproval` |
 | `BillingAgent.java` | `@Agent` with `@Prompt` and `@AiTool` (×2) — receives handoffs |
-| `DemoResponseProducer.java` | Word-by-word streaming fallback when `LLM_API_KEY` is unset |
+| `DemoResponseProducer.java` | `@Component` that installs a persona-aware strategy on `DemoAgentRuntime` at startup; when `LLM_API_KEY` is unset the demo runtime streams the matching support/billing persona through the standard pipeline (both `@Prompt` methods always call `session.stream(...)`) |
 | `ConsoleEndpointAlias.java` | Registers `/atmosphere/ai-chat` as a second handler path → support agent |
 | `application.yml` | Sets `atmosphere.ai.path = /atmosphere/agent/support` as the console default |
 

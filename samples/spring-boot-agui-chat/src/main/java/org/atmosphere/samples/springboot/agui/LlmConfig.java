@@ -23,9 +23,9 @@ import org.springframework.context.annotation.Configuration;
 /**
  * Resolves the LLM settings for the AG-UI assistant. Declaring the {@code @Bean}
  * is enough: {@link AiConfig#configure} stores the resolved settings in the
- * framework-wide singleton that {@link AiConfig#get()} returns, which the agent's
- * {@code @Prompt} method reads to decide between the real pipeline and the demo
- * fallback.
+ * framework-wide singleton that {@link AiConfig#get()} returns, which the
+ * pipeline's runtime resolver reads to pick between a real runtime and the
+ * no-key {@code DemoAgentRuntime}.
  *
  * <p>With no {@code llm.api-key} (the default), {@code AiConfig.get().apiKey()}
  * is {@code null} and the sample runs in demo mode. Set {@code LLM_API_KEY} /

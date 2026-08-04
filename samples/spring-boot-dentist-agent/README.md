@@ -67,7 +67,7 @@ TELEGRAM_BOT_TOKEN=... TELEGRAM_WEBHOOK_SECRET=... \
 | `prompts/dentist-skill.md` | System prompt with personality, skills, tools, channels, guardrails |
 | `LlmConfig.java` | Configures LLM backend settings (model, API key, base URL) |
 | `ConsoleEndpointAlias.java` | Aliases the agent handler to `/atmosphere/ai-chat` for the console |
-| `DemoResponseProducer.java` | Fallback responses when no LLM API key is set |
+| `DemoResponseProducer.java` | Installs Dr. Molar's canned responses as the `DemoAgentRuntime` strategy for no-API-key demo mode — the framework streams them through the full pipeline (guardrails, memory, metrics, tape, dev inspector) |
 
 ## Architecture
 
@@ -98,7 +98,7 @@ You are Dr. Molar, a friendly and knowledgeable dental emergency assistant.
 ## Skills          <-- extracted for A2A Agent Card
 ## Tools           <-- cross-referenced with @AiTool methods
 ## Channels        <-- validated against classpath (slack, telegram, web)
-## Guardrails      <-- LLM self-enforces (always state you're an AI, never diagnose)
+## Guardrails      <-- enforced admission scope policy + system-prompt guidance
 ```
 
 The entire file becomes the system prompt. Sections are also parsed for protocol metadata (A2A, MCP).

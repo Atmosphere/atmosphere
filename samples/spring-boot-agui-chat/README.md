@@ -7,9 +7,10 @@ Server-Sent Events — compatible with CopilotKit and similar frontends.
 
 The agent is a plain `@Agent` class. Because `atmosphere-agui` is on the
 classpath, the framework auto-registers an AG-UI SSE endpoint alongside it — no
-hand-rolled controller. When no LLM key is configured the agent falls back to a
-deterministic `DemoResponseProducer` so the sample streams a real AG-UI event
-sequence out of the box (same no-key contract as
+hand-rolled controller. When no LLM key is configured the pipeline resolves the
+framework's `DemoAgentRuntime`, whose response strategy `DemoResponseProducer`
+installs at startup, so the sample streams a real AG-UI event sequence through
+the full pipeline out of the box (same no-key contract as
 [`spring-boot-ai-chat`](../spring-boot-ai-chat/) and
 [`spring-boot-ai-tools`](../spring-boot-ai-tools/)).
 
@@ -22,9 +23,11 @@ When you send a message, the agent:
    (`TEXT_MESSAGE_START` → `TEXT_MESSAGE_CONTENT` → `TEXT_MESSAGE_END`) and may
    dispatch the real `@AiTool` methods `get_weather` / `get_time`, surfaced as
    `TOOL_CALL_START` → `TOOL_CALL_ARGS` → `TOOL_CALL_RESULT` → `TOOL_CALL_END`.
-3. **Without a key (demo mode):** streams a deterministic reply word-by-word as
-   `TEXT_MESSAGE_CONTENT` frames. The demo path does **not** call the model, so
-   no tool dispatch happens — that is exclusively the keyed path.
+3. **Without a key (demo mode):** runs the same `AiPipeline`, but the runtime
+   resolver picks the framework's `DemoAgentRuntime`, which streams a
+   deterministic reply word-by-word as `TEXT_MESSAGE_CONTENT` frames. The demo
+   runtime does **not** call the model, so no tool dispatch happens — that is
+   exclusively the keyed path.
 4. Emits `RUN_FINISHED`.
 
 The `@AiTool` bodies (`get_weather`, `get_time`) return illustrative,
@@ -63,10 +66,11 @@ AgUiHandler                       parse RunContext, emit RUN_STARTED, run on a v
    │  invokes
    ▼
 AssistantAgent.onPrompt(msg, session)
-   │  keyed:  session.stream(msg)             demo: DemoResponseProducer.stream(msg, session)
+   │  session.stream(msg)                     both modes — one dispatch path
    ▼
-AiPipeline.execute(threadId, msg, session)    LLM + @AiTool dispatch (keyed path)
-   │  emits AiEvent.TextDelta / ToolStart / ToolResult / TextComplete / ...
+AiPipeline.execute(threadId, msg, session)    keyed: LLM + @AiTool dispatch
+   │                                          no key: DemoAgentRuntime canned stream
+   │  emits AiEvent.TextDelta / ToolStart / ToolResult / ...
    ▼
 ResourceAgUiStreamingSession.emit(AiEvent)
    │  AgUiEventMapper.toAgUi(event)
@@ -86,21 +90,25 @@ RUN_FINISHED
 
 ## Demo vs. Real-Key Contract
 
-`AssistantAgent.onPrompt` reads `AiConfig.get()`:
+`AssistantAgent.onPrompt` always calls `session.stream(message)` — the pipeline's
+runtime resolver decides the mode:
 
-- `apiKey()` present → `session.stream(message)` drives the real pipeline.
-- `apiKey()` null/blank → `DemoResponseProducer.stream(message, session)`.
+- `apiKey()` present → a real runtime streams model output and may dispatch
+  `@AiTool` methods.
+- `apiKey()` null/blank → the framework's `DemoAgentRuntime` streams the canned
+  response `DemoResponseProducer` installed as its response strategy at startup.
 
-Both paths emit identical AG-UI lifecycle frames (`RUN_STARTED` … text frames …
-`RUN_FINISHED`) through the same `StreamingSession`, so the frontend behaves the
-same; only the *content* and *tool dispatch* differ.
+Both modes flow through the same pipeline (guardrails, interceptors, memory,
+metrics) and emit identical AG-UI lifecycle frames (`RUN_STARTED` … text frames …
+`RUN_FINISHED`), so the frontend behaves the same; only the *content* and *tool
+dispatch* differ.
 
 ## Key Code
 
 | File | Purpose |
 |------|---------|
 | `AssistantAgent.java` | `@Agent` with `@Prompt(String, StreamingSession)` + real `@AiTool get_weather` / `get_time` |
-| `DemoResponseProducer.java` | No-key fallback — streams real AG-UI frames via the session |
+| `DemoResponseProducer.java` | `@PostConstruct` installer of the no-key `DemoAgentRuntime` response strategy |
 | `LlmConfig.java` | Resolves `AiConfig` from `llm.*` properties (`LLM_API_KEY`, `llm.model`, …) |
 | `AgUiChatApplication.java` | Spring Boot entrypoint; `/` redirects to the Console |
 

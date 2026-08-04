@@ -15,118 +15,142 @@
  */
 package org.atmosphere.samples.springboot.agui;
 
-import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.Content;
 import org.atmosphere.ai.StreamingSession;
-import org.junit.jupiter.api.BeforeEach;
+import org.atmosphere.ai.llm.DemoAgentRuntime;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 /**
- * Unit test for {@link AssistantAgent#onPrompt}: with no LLM key configured it
- * must take the {@link DemoResponseProducer} path (word-by-word
- * {@link StreamingSession#send} + a terminal {@code TextComplete} +
- * {@link StreamingSession#complete}) and must NOT call
- * {@link StreamingSession#stream} (which would require a real pipeline).
+ * Unit tests for the sample's demo strategy and prompt dispatch.
+ *
+ * <p>{@link DemoResponseProducer#generateFor} is the strategy the sample
+ * installs on the framework's {@code DemoAgentRuntime} at startup — each
+ * keyword branch must return the canned text containing the stable
+ * {@link DemoResponseProducer#DEMO_PHRASE} the e2e demo lane asserts.
+ * {@link AssistantAgent#onPrompt} must always delegate to
+ * {@link StreamingSession#stream} so demo and real-key requests both flow
+ * through the real pipeline.</p>
  */
 class AssistantAgentTest {
 
-    @BeforeEach
-    void noKey() {
-        // mode=fake → AiConfig.get() non-null but apiKey() null: the documented
-        // no-key demo contract. (configure() stores the singleton AiConfig.get reads.)
-        AiConfig.configure("fake", "demo", null, null);
-        assertNotNull(AiConfig.get(), "settings should be configured");
-        assertTrue(AiConfig.get().apiKey() == null || AiConfig.get().apiKey().isBlank(),
-                "fake mode must have no apiKey so the demo path is taken");
+    @AfterEach
+    void resetStrategy() {
+        // The installer mutates DemoAgentRuntime's process-wide strategy;
+        // restore the built-in default so no state leaks across tests.
+        DemoAgentRuntime.setResponseStrategy(null);
     }
 
     @Test
-    void onPromptUsesDemoFallbackWhenNoKey() {
+    void installedStrategyDrivesDemoRuntime() {
+        // Exercise the real @PostConstruct installation path, not the static
+        // generateFor helper: the installed strategy must drive the framework's
+        // DemoAgentRuntime end-to-end.
+        new DemoResponseProducer().installDemoStrategy();
+
+        var runtime = new DemoAgentRuntime();
+        var session = new RecordingSession();
+        runtime.execute(context("hello"), session);
+
+        var full = String.join("", session.sentDeltas);
+        assertTrue(full.contains(DemoResponseProducer.DEMO_PHRASE),
+                "installed strategy must stream the stable phrase, got: " + full);
+        assertTrue(session.sentDeltas.size() > 1, "response must stream word-by-word");
+        assertTrue(session.completed, "runtime must complete the session");
+    }
+
+    @Test
+    void weatherBranchReturnsCannedWeatherText() {
+        var response = DemoResponseProducer.generateFor(context("What's the weather in Paris?"));
+        assertTrue(response.contains("get_weather"),
+                "weather branch must mention the get_weather tool, was: " + response);
+        assertTrue(response.contains(DemoResponseProducer.DEMO_PHRASE),
+                "weather branch must contain the stable phrase, was: " + response);
+    }
+
+    @Test
+    void timeBranchReturnsCannedTimeText() {
+        var response = DemoResponseProducer.generateFor(context("What time is it in Tokyo?"));
+        assertTrue(response.contains("get_time"),
+                "time branch must mention the get_time tool, was: " + response);
+        assertTrue(response.contains(DemoResponseProducer.DEMO_PHRASE),
+                "time branch must contain the stable phrase, was: " + response);
+    }
+
+    @Test
+    void helloBranchReturnsCannedGreeting() {
+        for (var greeting : List.of("Hello!", "hi there")) {
+            var response = DemoResponseProducer.generateFor(context(greeting));
+            assertTrue(response.startsWith("Hello!"),
+                    "greeting branch must return the canned greeting, was: " + response);
+            assertTrue(response.contains(DemoResponseProducer.DEMO_PHRASE),
+                    "greeting branch must contain the stable phrase, was: " + response);
+        }
+    }
+
+    @Test
+    void defaultBranchReturnsCannedFallback() {
+        var response = DemoResponseProducer.generateFor(context("Tell me about Atmosphere"));
+        assertTrue(response.contains("TEXT_MESSAGE_CONTENT"),
+                "default branch must explain the frame-by-frame streaming, was: " + response);
+        assertTrue(response.contains(DemoResponseProducer.DEMO_PHRASE),
+                "default branch must contain the stable phrase, was: " + response);
+    }
+
+    @Test
+    void onPromptDelegatesToSessionStream() {
         var agent = new AssistantAgent();
         var session = new RecordingSession();
 
         agent.onPrompt("Hello!", session);
 
-        // Demo path: never delegates to the real pipeline.
-        assertFalse(session.streamCalled, "Demo mode must not call session.stream()");
-        assertTrue(session.completed, "Demo mode must complete the session");
+        assertEquals(List.of("Hello!"), session.streamedMessages,
+                "@Prompt must delegate the user message to session.stream()");
+    }
 
-        // Word-by-word streaming produced at least one text token...
-        assertFalse(session.sentTokens.isEmpty(), "Demo mode must stream text via send()");
-        // ...and the concatenation contains the stable demo phrase the e2e lane asserts.
-        var joined = String.join("", session.sentTokens);
-        assertTrue(joined.contains(DemoResponseProducer.DEMO_PHRASE),
-                "Demo response must contain the stable phrase '"
-                        + DemoResponseProducer.DEMO_PHRASE + "', was: " + joined);
-
-        // A terminal TextComplete must close the message before RUN_FINISHED.
-        assertTrue(session.emittedTextComplete,
-                "Demo mode must emit a terminal TextComplete (→ TEXT_MESSAGE_END)");
+    private static AgentExecutionContext context(String message) {
+        return new AgentExecutionContext(message, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null);
     }
 
     /**
-     * Records exactly what the agent does to the session — no real pipeline,
-     * no SSE wire. Mirrors the {@link StreamingSession} contract surface the
-     * demo path touches.
+     * Records stream() dispatches (the surface {@code onPrompt} touches) and
+     * send() deltas plus completion (the surfaces {@code DemoAgentRuntime}
+     * drives when the installed strategy streams a demo response).
      */
     private static final class RecordingSession implements StreamingSession {
         private final String id = UUID.randomUUID().toString();
-        private final AtomicBoolean closed = new AtomicBoolean(false);
-        final List<String> sentTokens = new ArrayList<>();
-        boolean streamCalled;
+        final List<String> streamedMessages = new ArrayList<>();
+        final List<String> sentDeltas = new ArrayList<>();
         boolean completed;
-        boolean emittedTextComplete;
 
         @Override public String sessionId() { return id; }
-        @Override public void send(String text) { sentTokens.add(text); }
         @Override public void sendMetadata(String key, Object value) { }
         @Override public void progress(String message) { }
-
-        @Override
-        public void complete() {
-            completed = true;
-            closed.set(true);
-        }
-
-        @Override
-        public void complete(String summary) {
-            completed = true;
-            closed.set(true);
-        }
-
-        @Override
-        public void error(Throwable t) {
-            closed.set(true);
-            fail("Demo path should not error: " + t.getMessage());
-        }
-
-        @Override public boolean isClosed() { return closed.get(); }
+        @Override public void complete() { completed = true; }
+        @Override public void complete(String summary) { completed = true; }
+        @Override public void error(Throwable t) { throw new AssertionError("unexpected session error", t); }
+        @Override public boolean isClosed() { return completed; }
+        @Override public void emit(AiEvent event) { }
         @Override public void sendContent(Content content) { }
 
         @Override
-        public void emit(AiEvent event) {
-            if (event instanceof AiEvent.TextComplete) {
-                emittedTextComplete = true;
-            } else if (event instanceof AiEvent.TextDelta delta) {
-                sentTokens.add(delta.text());
-            }
+        public void send(String text) {
+            sentDeltas.add(text);
         }
 
         @Override
         public void stream(String message) {
-            streamCalled = true;
-            throw new AssertionError("Demo mode must not invoke the real pipeline via stream()");
+            streamedMessages.add(message);
         }
     }
 }

@@ -113,6 +113,15 @@
             <version>${logback-version}</version>
             <scope>runtime</scope>
         </dependency>
+
+        <!-- Test: demo-strategy persona branches + @Prompt pipeline routing
+             (DentistAgentTest). Version managed by the spring-boot-dependencies
+             BOM imported above. -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
