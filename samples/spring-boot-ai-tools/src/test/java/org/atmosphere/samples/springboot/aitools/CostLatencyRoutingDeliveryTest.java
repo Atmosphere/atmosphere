@@ -16,23 +16,33 @@
 package org.atmosphere.samples.springboot.aitools;
 
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.llm.ChatCompletionRequest;
 import org.atmosphere.ai.routing.RoutingLlmClient;
+import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Proves the Atmosphere 4 blog §7 claim with the AI-tools sample: an agent
@@ -102,6 +112,69 @@ class CostLatencyRoutingDeliveryTest {
                         + "exceeds the 100ms budget, so the faster model is selected");
         assertNotEquals("frugal-mini", routed,
                 "the slow model must NOT be chosen when its latency exceeds the budget");
+    }
+
+    /**
+     * Runtime Truth guard for {@link CostMeteringInterceptor}: under a routing
+     * profile the interceptor's {@code beforeCompletion} must SKIP its
+     * {@code routing.*} estimates. The interceptor hook fires just before the
+     * terminal complete frame — after the router's genuine mid-stream decision
+     * — and both the Console merge and atmosphere.js's snapshot-at-complete
+     * are last-write-wins, so an unconditional emission would silently replace
+     * the routed values with length-based guesses.
+     */
+    @Timeout(value = 120, unit = TimeUnit.SECONDS)
+    @Test
+    void interceptorDoesNotOverwriteRouterValuesUnderARoutingProfile() {
+        var app = new SpringApplication(AiToolsApplication.class);
+        app.setAdditionalProfiles("routing-cost");
+        ConfigurableApplicationContext context = app.run(
+                "--server.port=0",
+                "--atmosphere.web-transport.enabled=false");
+        try {
+            var client = AiConfig.get().client();
+            assertInstanceOf(RoutingLlmClient.class, client,
+                    "the routing profile must install a RoutingLlmClient");
+
+            // The router's genuine decision, emitted mid-stream.
+            var session = new CapturingSession();
+            client.streamChatCompletion(
+                    ChatCompletionRequest.of("auto", "Summarize this quarterly report."),
+                    session);
+            var routedModel = session.metadata().get("routing.model");
+            assertEquals("frugal-mini", String.valueOf(routedModel),
+                    "precondition: the cost objective routes to frugal-mini");
+
+            // Same turn's interceptor pass against the same session: with the
+            // router active it must not emit any routing.* estimate.
+            var attributes = new ConcurrentHashMap<String, Object>();
+            var request = mock(AtmosphereRequest.class);
+            doAnswer(inv -> {
+                attributes.put(inv.getArgument(0), inv.getArgument(1));
+                return null;
+            }).when(request).setAttribute(anyString(), any());
+            when(request.getAttribute(anyString()))
+                    .thenAnswer(inv -> attributes.get(inv.<String>getArgument(0)));
+            var resource = mock(AtmosphereResource.class);
+            when(resource.getRequest()).thenReturn(request);
+
+            var interceptor = new CostMeteringInterceptor();
+            var aiRequest = new AiRequest("Summarize this quarterly report.",
+                    "You are a helpful assistant.", "estimated-model", null,
+                    "router-truth-test", null, "router-truth-test", Map.of(), List.of());
+            interceptor.preProcess(aiRequest, resource);
+            interceptor.beforeCompletion(aiRequest, session, resource);
+
+            assertEquals(routedModel, session.metadata().get("routing.model"),
+                    "the interceptor must not overwrite the router's routing.model "
+                            + "with its length-based estimate");
+            assertFalse(session.metadata().containsKey("routing.streamingTexts"),
+                    "the interceptor must skip ALL routing.* estimates while the router "
+                            + "is installed (routing.streamingTexts is emitted only by the "
+                            + "interceptor); metadata seen: " + session.metadata());
+        } finally {
+            context.close();
+        }
     }
 
     /**

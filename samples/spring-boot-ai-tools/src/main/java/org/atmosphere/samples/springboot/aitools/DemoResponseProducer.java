@@ -125,8 +125,9 @@ public class DemoResponseProducer {
                     "[Tool: convert_temperature] 100.0°C = 212.0°F. "
                         + "This tool was registered with @AiTool and runs on any backend.";
             case "reset_city_data" ->
-                    "[Tool: reset_city_data] All cached data for " + arg + " has been reset. "
-                        + "This tool uses @RequiresApproval — the user must approve before execution.";
+                    "[Tool: reset_city_data] Reset requested for " + arg + " — this tool uses "
+                        + "@RequiresApproval, so the tool result above shows whether the reset "
+                        + "ran or was declined.";
             default -> "Unknown tool: " + toolName;
         };
     }

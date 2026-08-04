@@ -88,6 +88,15 @@
             <artifactId>reactor-netty-http</artifactId>
         </dependency>
 
+        <!-- CostMeteringInterceptorDeliveryTest mocks the AtmosphereResource /
+             Broadcaster wire around a real DefaultStreamingSession. Version
+             managed by the spring-boot-dependencies BOM imported above. -->
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Parent POM restricts logback to test scope; override for runtime logging -->
         <dependency>
             <groupId>ch.qos.logback</groupId>

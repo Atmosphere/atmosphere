@@ -77,6 +77,14 @@ test.describe('@AiTool Pipeline', () => {
 
     await expect(page.locator('.message--assistant').last())
       .not.toBeEmpty({ timeout: 30_000 });
+
+    // CostMeteringInterceptor.beforeCompletion emits routing.* metadata just
+    // BEFORE the terminal complete frame, so the Console's routing chips
+    // render even in keyless demo mode. Assert the RENDERED chips, not mere
+    // frame presence.
+    await expect(page.getByTestId('routing-chips')).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('[data-testid="routing-chips"] .routing-chip').first())
+      .toBeVisible();
   });
 
   test('weather query receives a response', async ({ page }) => {
