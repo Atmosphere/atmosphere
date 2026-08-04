@@ -21,6 +21,7 @@ import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
 import io.quarkus.deployment.builditem.IndexDependencyBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.NativeImageResourceBuildItem;
+import io.quarkus.deployment.builditem.nativeimage.NativeImageResourcePatternsBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.ReflectiveClassBuildItem;
 import io.quarkus.undertow.deployment.ServletBuildItem;
 
@@ -80,14 +81,28 @@ public class AdminProcessor {
      * Without this they get pruned because the resources are read via
      * reflection-style classpath lookup or Quarkus static-resource lookup, not
      * annotation-driven discovery.
+     *
+     * <p>Only the two stable entry points are named literally. Everything under
+     * {@code console/assets/} is matched by pattern instead, because Vite stamps
+     * a content hash into every bundle filename and rebuilding the SPA changes
+     * them all. Naming them literally is how this rotted: the two hashes
+     * previously hard-coded here
+     * ({@code index-D4Ey4XUD.js} / {@code index-5mdPW76Z.css}) had stopped
+     * matching the packaged bundle, so in native image the console's only
+     * script and stylesheet were pruned and the whole SPA served a blank page —
+     * while JVM mode, which resolves assets at runtime, kept working and hid it.
+     * The three lazily-imported transport chunks (a2a / agui / grpc) were never
+     * registered at all. A glob cannot drift out of sync with a rebuild.</p>
      */
     @BuildStep
-    NativeImageResourceBuildItem registerConsoleResources() {
-        return new NativeImageResourceBuildItem(
+    void registerConsoleResources(BuildProducer<NativeImageResourceBuildItem> resources,
+                                  BuildProducer<NativeImageResourcePatternsBuildItem> patterns) {
+        resources.produce(new NativeImageResourceBuildItem(
                 "META-INF/resources/admin/index.html",
-                "META-INF/resources/atmosphere/console/index.html",
-                "META-INF/resources/atmosphere/console/assets/index-D4Ey4XUD.js",
-                "META-INF/resources/atmosphere/console/assets/index-5mdPW76Z.css");
+                "META-INF/resources/atmosphere/console/index.html"));
+        patterns.produce(NativeImageResourcePatternsBuildItem.builder()
+                .includeGlob("META-INF/resources/atmosphere/console/assets/*")
+                .build());
     }
 
     @BuildStep

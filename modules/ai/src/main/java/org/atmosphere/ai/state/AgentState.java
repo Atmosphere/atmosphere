@@ -48,10 +48,11 @@ import java.util.Optional;
  * model only remembers what is saved to disk; users can {@code cat}, {@code grep},
  * {@code vim}, or {@code git commit} their agent's memory.
  *
- * <p>A structured {@code DatabaseAgentState} backend exists for enterprise
- * multi-tenant or audit-grade deployments, but the file-backed default is the
- * recommended shape for personal agents and zero-config compatibility with the
- * OpenClaw ecosystem.</p>
+ * <p>{@link FileSystemAgentState} is the only backend that ships. The SPI is
+ * deliberately storage-agnostic, so a deployment needing multi-tenant isolation
+ * or audit-grade retention can implement its own — but nothing in-tree does, and
+ * the file-backed default is the recommended shape for personal agents and for
+ * zero-config compatibility with the OpenClaw ecosystem.</p>
  *
  * <h2>Runtime-agnostic</h2>
  *
@@ -165,7 +166,8 @@ public interface AgentState {
 
     /**
      * Return the on-disk workspace root for this agent, or {@link Optional#empty()}
-     * if the backend has no filesystem concept (e.g. {@code DatabaseAgentState}).
+     * if the backend has no filesystem concept (any non-file implementation an
+     * application supplies; every in-tree backend is file-backed).
      * Admin inspection endpoints use this to surface the workspace tree to
      * end users.
      */
