@@ -20,7 +20,10 @@ import org.atmosphere.ai.AiRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.DoubleAdder;
 
 /**
@@ -59,9 +62,19 @@ import java.util.concurrent.atomic.DoubleAdder;
  *
  * <h2>Reset</h2>
  *
- * Call {@link #resetTenant(String)} or {@link #resetAll()} on a
- * schedule (daily / monthly) to roll the counter forward; the
- * guardrail itself is stateless about the reset cadence.
+ * Accrual rolls over automatically once {@link #window} elapses, so a
+ * long-running deployment is never permanently blocked by spend it
+ * accumulated weeks ago. {@link #resetTenant(String)} and
+ * {@link #resetAll()} remain for explicit billing boundaries.
+ *
+ * <h2>Bounded tenant tracking</h2>
+ *
+ * Buckets are keyed by an MDC tag, which is caller-influenced, so the
+ * map is capped at {@link #DEFAULT_MAX_TRACKED_TENANTS}. Past the cap,
+ * further tenants share the default bucket rather than allocating an
+ * entry each — the ceiling still applies to them, just coarsely.
+ * An uncapped map here would turn a request header into unbounded heap
+ * growth (Correctness Invariant #3, Backpressure).
  */
 public final class CostCeilingGuardrail implements AiGuardrail {
 
@@ -70,9 +83,19 @@ public final class CostCeilingGuardrail implements AiGuardrail {
     /** Shared bucket for turns without a {@code business.tenant.id} tag. */
     static final String DEFAULT_BUCKET = "__default__";
 
+    /** Cap on distinct tenant buckets before new tenants fold into the default. */
+    public static final int DEFAULT_MAX_TRACKED_TENANTS = 10_000;
+
+    /** Accrual window after which a tenant's spend rolls over. */
+    public static final Duration DEFAULT_WINDOW = Duration.ofDays(30);
+
     private final double budgetUsd;
+    private final int maxTrackedTenants;
+    private final Duration window;
     private final ConcurrentHashMap<String, DoubleAdder> spentByTenant =
             new ConcurrentHashMap<>();
+    private final AtomicBoolean capWarned = new AtomicBoolean();
+    private volatile Instant windowStart = Instant.now();
 
     /**
      * @param budgetUsd per-tenant ceiling in whatever unit the application
@@ -81,10 +104,71 @@ public final class CostCeilingGuardrail implements AiGuardrail {
      *                  deployments).
      */
     public CostCeilingGuardrail(double budgetUsd) {
+        this(budgetUsd, DEFAULT_MAX_TRACKED_TENANTS, DEFAULT_WINDOW);
+    }
+
+    /**
+     * @param budgetUsd         per-tenant ceiling; {@code 0} disables enforcement
+     * @param maxTrackedTenants cap on distinct buckets; must be >= 1
+     * @param window            accrual window before spend rolls over;
+     *                          {@code null} or zero disables rollover
+     */
+    public CostCeilingGuardrail(double budgetUsd, int maxTrackedTenants, Duration window) {
         if (budgetUsd < 0) {
             throw new IllegalArgumentException("budgetUsd must be >= 0, got " + budgetUsd);
         }
+        if (maxTrackedTenants < 1) {
+            throw new IllegalArgumentException(
+                    "maxTrackedTenants must be >= 1, got " + maxTrackedTenants);
+        }
         this.budgetUsd = budgetUsd;
+        this.maxTrackedTenants = maxTrackedTenants;
+        this.window = window == null || window.isZero() || window.isNegative()
+                ? null : window;
+    }
+
+    /**
+     * Roll the accrual forward when the window has elapsed. Without this a
+     * ceiling reached once would block every subsequent turn forever, because
+     * nothing decays the counter — a cost guard that turns into a permanent
+     * outage is worse than no guard.
+     */
+    private void rolloverIfElapsed() {
+        var w = window;
+        if (w == null) {
+            return;
+        }
+        var start = windowStart;
+        if (Instant.now().isAfter(start.plus(w))) {
+            synchronized (this) {
+                if (windowStart == start) {
+                    spentByTenant.clear();
+                    windowStart = Instant.now();
+                    logger.info("Cost ceiling accrual window elapsed ({}) — counters rolled over", w);
+                }
+            }
+        }
+    }
+
+    /**
+     * Resolve the bucket for a tenant, folding overflow into the shared default
+     * once the cap is reached so a caller-supplied tag cannot grow the map
+     * without bound.
+     */
+    private String bucketFor(String tenant) {
+        var key = tenant != null && !tenant.isBlank() ? tenant : DEFAULT_BUCKET;
+        if (DEFAULT_BUCKET.equals(key) || spentByTenant.containsKey(key)) {
+            return key;
+        }
+        if (spentByTenant.size() >= maxTrackedTenants) {
+            if (capWarned.compareAndSet(false, true)) {
+                logger.warn("Cost ceiling is tracking {} tenants (the cap) — further tenants "
+                        + "share the default bucket. Raise the cap if this is a legitimate "
+                        + "tenant count rather than an unbounded tag.", maxTrackedTenants);
+            }
+            return DEFAULT_BUCKET;
+        }
+        return key;
     }
 
     @Override
@@ -92,7 +176,8 @@ public final class CostCeilingGuardrail implements AiGuardrail {
         if (budgetUsd == 0) {
             return GuardrailResult.pass();
         }
-        var tenant = resolveTenant();
+        rolloverIfElapsed();
+        var tenant = bucketFor(resolveTenant());
         var spent = spentByTenant.getOrDefault(tenant, new DoubleAdder()).sum();
         if (spent >= budgetUsd) {
             logger.warn("Cost ceiling hit for tenant={} (spent={} budget={}) — blocking",
@@ -111,17 +196,24 @@ public final class CostCeilingGuardrail implements AiGuardrail {
      * guardrail does not know provider pricing.
      */
     public void addCost(String tenant, double cost) {
-        if (cost <= 0) return;
-        spentByTenant.computeIfAbsent(
-                tenant != null && !tenant.isBlank() ? tenant : DEFAULT_BUCKET,
-                k -> new DoubleAdder()).add(cost);
+        if (cost <= 0) {
+            return;
+        }
+        rolloverIfElapsed();
+        spentByTenant.computeIfAbsent(bucketFor(tenant), k -> new DoubleAdder()).add(cost);
     }
 
     /** Snapshot the accumulated cost for a tenant. */
     public double spent(String tenant) {
+        rolloverIfElapsed();
         var adder = spentByTenant.get(
                 tenant != null && !tenant.isBlank() ? tenant : DEFAULT_BUCKET);
         return adder == null ? 0.0 : adder.sum();
+    }
+
+    /** Distinct tenant buckets currently tracked. Bounded by the configured cap. */
+    public int trackedTenants() {
+        return spentByTenant.size();
     }
 
     /** Reset the counter for one tenant (e.g. on monthly billing boundary). */
