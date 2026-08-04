@@ -143,6 +143,25 @@ public final class AgUiEventMapper {
     }
 
     /**
+     * Close any in-flight tool call, emitting {@link AgUiEvent.ToolCallEnd}
+     * for the tracked id. A {@link AiEvent.ToolStart} with no
+     * {@link AiEvent.ToolResult}/{@link AiEvent.ToolError} before run
+     * completion would otherwise leave {@code TOOL_CALL_START} dangling —
+     * {@link #reset()} silently drops the tracked id. Returns an empty list
+     * when no tool call is open, so callers get close-once semantics for free.
+     *
+     * @return the closing event, or an empty list when no tool call is open
+     */
+    public List<AgUiEvent> closeOpenToolCall() {
+        if (currentToolCallId == null) {
+            return List.of();
+        }
+        var events = List.<AgUiEvent>of(new AgUiEvent.ToolCallEnd(currentToolCallId));
+        currentToolCallId = null;
+        return events;
+    }
+
+    /**
      * Reset the mapper state, clearing tracked message and tool call IDs.
      * Call this between runs to ensure clean state.
      */

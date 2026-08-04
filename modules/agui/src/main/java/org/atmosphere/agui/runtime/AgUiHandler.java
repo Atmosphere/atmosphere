@@ -305,6 +305,27 @@ public final class AgUiHandler implements AtmosphereHandler {
         @Override
         public void complete(String summary) {
             if (closed.compareAndSet(false, true)) {
+                // Close any in-flight tool call first (innermost scope): a
+                // ToolStart with no ToolResult/ToolError before complete()
+                // would leave TOOL_CALL_START dangling, and the mapper reset
+                // below would silently drop the tracked id. The mapper emits
+                // TOOL_CALL_END only while a tool call is open, so this is
+                // close-once like the text close below.
+                for (var agUiEvent : eventMapper.closeOpenToolCall()) {
+                    writer.write(agUiEvent);
+                }
+                // Pipeline-routed dispatches (runtime → DispatchDecorators →
+                // this session) finish with complete() and never emit a
+                // terminal AiEvent.TextComplete, which used to leave the AG-UI
+                // text message dangling (TEXT_MESSAGE_START with no
+                // TEXT_MESSAGE_END). Route a TextComplete through the mapper:
+                // it emits TEXT_MESSAGE_END only while a message is open, so
+                // legacy emitters that already closed the message with an
+                // explicit TextComplete don't get a duplicate END.
+                for (var agUiEvent : eventMapper.toAgUi(
+                        new AiEvent.TextComplete(summary != null ? summary : ""))) {
+                    writer.write(agUiEvent);
+                }
                 writer.write(new AgUiEvent.RunFinished(runContext.runId(), runContext.threadId()));
                 eventMapper.reset();
             }
@@ -313,6 +334,11 @@ public final class AgUiHandler implements AtmosphereHandler {
         @Override
         public void error(Throwable t) {
             if (closed.compareAndSet(false, true)) {
+                // No TEXT_MESSAGE_END here: the AG-UI protocol permits
+                // RUN_ERROR as a terminal hard-abort while a text message is
+                // open, and fabricating an END would signal normal completion
+                // of a message that failed mid-stream. The mapper reset drops
+                // the open-message state.
                 writer.write(new AgUiEvent.RunError(runContext.runId(), t.getMessage(), -1));
                 eventMapper.reset();
             }
@@ -323,6 +349,11 @@ public final class AgUiHandler implements AtmosphereHandler {
 
         @Override
         public void emit(AiEvent event) {
+            if (closed.get()) {
+                // Frames after RUN_FINISHED / RUN_ERROR are AG-UI protocol
+                // violations — drop late emissions once the run is terminal.
+                return;
+            }
             for (var agUiEvent : eventMapper.toAgUi(event)) {
                 writer.write(agUiEvent);
             }

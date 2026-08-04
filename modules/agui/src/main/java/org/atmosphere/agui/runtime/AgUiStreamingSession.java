@@ -95,6 +95,25 @@ public final class AgUiStreamingSession implements StreamingSession {
         if (!closed.compareAndSet(false, true)) {
             return;
         }
+        // Close any in-flight tool call first (innermost scope): a ToolStart
+        // with no ToolResult/ToolError before complete() would leave
+        // TOOL_CALL_START dangling, and the mapper reset below would silently
+        // drop the tracked id. The mapper emits TOOL_CALL_END only while a
+        // tool call is open, so this is close-once like the text close below.
+        for (var agUiEvent : eventMapper.closeOpenToolCall()) {
+            writeSSE(agUiEvent);
+        }
+        // Close any in-flight AG-UI text message before finishing the run:
+        // pipeline-routed dispatches end with complete() without a terminal
+        // AiEvent.TextComplete, which would otherwise leave TEXT_MESSAGE_START
+        // dangling. The mapper emits TEXT_MESSAGE_END only while a message is
+        // open, so emitters that already sent an explicit TextComplete don't
+        // get a duplicate END (close-once semantics; Mode Parity with
+        // AgUiHandler.ResourceAgUiStreamingSession).
+        for (var agUiEvent : eventMapper.toAgUi(
+                new AiEvent.TextComplete(summary != null ? summary : ""))) {
+            writeSSE(agUiEvent);
+        }
         writeSSE(new AgUiEvent.RunFinished(runContext.runId(), runContext.threadId()));
         eventMapper.reset();
         delegate.complete(summary);
@@ -105,6 +124,10 @@ public final class AgUiStreamingSession implements StreamingSession {
         if (!closed.compareAndSet(false, true)) {
             return;
         }
+        // No TEXT_MESSAGE_END here: the AG-UI protocol permits RUN_ERROR as a
+        // terminal hard-abort while a text message is open, and fabricating an
+        // END would signal normal completion of a message that failed
+        // mid-stream. The mapper reset drops the open-message state.
         writeSSE(new AgUiEvent.RunError(runContext.runId(), t.getMessage(), -1));
         eventMapper.reset();
         delegate.error(t);
@@ -122,6 +145,11 @@ public final class AgUiStreamingSession implements StreamingSession {
 
     @Override
     public void emit(AiEvent event) {
+        if (closed.get()) {
+            // Frames after RUN_FINISHED / RUN_ERROR are AG-UI protocol
+            // violations — drop late emissions once the run is terminal.
+            return;
+        }
         for (var agUiEvent : eventMapper.toAgUi(event)) {
             writeSSE(agUiEvent);
         }
