@@ -18,7 +18,7 @@
     <properties>
         <!-- Self-contained netty pin: covers samples scaffolded standalone against
              a released parent POM that may not yet declare netty.version. -->
-        <netty.version>4.2.15.Final</netty.version>
+        <netty.version>4.2.16.Final</netty.version>
         <maven.deploy.skip>true</maven.deploy.skip>
         <atmosphere.starter>atmosphere-spring-boot-starter</atmosphere.starter>
     </properties>
@@ -32,6 +32,17 @@
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
                 <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- tools.jackson pinned one patch above Spring Boot 4.0.7's
+                 managed 3.1.4: 3.1.5 closes GHSA-5gvw-p9qm-jgwh
+                 (jackson-databind DoS). Imported BEFORE spring-boot-dependencies
+                 so Maven's first-declared-wins rule takes the patched line. -->
+            <dependency>
+                <groupId>tools.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>3.1.5</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -145,7 +156,7 @@
             <id>spring-boot3</id>
             <properties>
                 <spring-boot.version>3.5.14</spring-boot.version>
-                <netty.version>4.1.135.Final</netty.version>
+                <netty.version>4.1.136.Final</netty.version>
                 <atmosphere.starter>atmosphere-spring-boot3-starter</atmosphere.starter>
             </properties>
         </profile>

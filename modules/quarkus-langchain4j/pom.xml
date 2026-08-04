@@ -15,20 +15,23 @@
     <url>https://github.com/Atmosphere/atmosphere</url>
 
     <properties>
-        <quarkus.version>3.36.0</quarkus.version>
-        <netty.version>4.1.135.Final</netty.version>
+        <quarkus.version>3.36.3</quarkus.version>
+        <netty.version>4.1.136.Final</netty.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
-            <!-- Netty BOM pinned to 4.1.135.Final, the version Quarkus 3.36.0
-                 ships (up from 4.1.132.Final in 3.35.x). Imported BEFORE
+            <!-- Netty BOM pinned to 4.1.136.Final, one patch above the
+                 4.1.136.Final that Quarkus 3.36.3 ships. Imported BEFORE
                  quarkus-bom and retained as an explicit floor so the patched
-                 netty stays in place regardless of transitive drift. 4.1.133
-                 patches CVE-2026-42577 (handler-proxy header injection),
-                 CVE-2026-42578 (chunked-extension request smuggling), and
-                 CVE-2026-41417 (Transfer-Encoding smuggling). Maven
-                 dependencyManagement is first-declared-wins for imported BOMs. -->
+                 netty stays in place regardless of transitive drift. 4.1.136
+                 closes the codec-family batch (GHSA-jppx-w49h-x2qq /
+                 GHSA-mvh2-crg5-v77c / GHSA-6jqx-86gh-f27w codec-http,
+                 GHSA-93wv-jw9v-4972 codec-http2, GHSA-558v-64gr-wgg4 codec,
+                 GHSA-q6cq-mhr2-jmr5 codec-haproxy, GHSA-mfg7-5gfp-c4w3
+                 codec-dns) on top of the earlier CVE-2026-42577 / -42578 /
+                 -41417 fixes. Maven dependencyManagement is
+                 first-declared-wins for imported BOMs. -->
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>

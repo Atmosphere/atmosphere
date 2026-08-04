@@ -1206,6 +1206,15 @@
                 <artifactId>commons-compress</artifactId>
                 <version>1.27.1</version>
             </dependency>
+            <!-- Force lz4-java to 1.11.1 (kafka-clients 3.9.2 ships 1.10.1 at
+                 runtime scope; <= 1.11.0 is GHSA-xx22-p4ch-683r). Pulled only
+                 transitively through kafka-clients in the kafka / ai-audit-kafka
+                 modules and their test consumers. -->
+            <dependency>
+                <groupId>at.yawk.lz4</groupId>
+                <artifactId>lz4-java</artifactId>
+                <version>1.11.1</version>
+            </dependency>
             <!-- NOTE: spring-webflux is intentionally NOT force-pinned here.
                  Globally pinning to 6.2.17 (the patched 6.x) drags Spring 6's
                  webflux into modules using Spring 7 (Spring Boot 4) and
@@ -1284,7 +1293,7 @@
         <maven.deploy.skip>true</maven.deploy.skip>
         <maven-plugin.version>1.0.0</maven-plugin.version>
         <servlet-version-range>6.0.0</servlet-version-range>
-        <jetty-version>12.0.33</jetty-version>
+        <jetty-version>12.0.36</jetty-version>
         <tomcat-version>11.0.22</tomcat-version>
         <shade-version>1.2.1</shade-version>
         <bnd-maven-plugin.version>7.2.3</bnd-maven-plugin.version>
@@ -1297,7 +1306,7 @@
         <logback-version>1.5.37</logback-version>
         <commons-pool2>2.12.0</commons-pool2>
         <junit-jupiter.version>5.11.4</junit-jupiter.version>
-        <jackson.version>3.2.0</jackson.version>
+        <jackson.version>3.2.1</jackson.version>
         <!-- Mozilla Rhino: pure-Java JS engine backing the optional, default-off
              in-process 'eval' tool (org.atmosphere.ai.code). Sandboxed via a
              deny-all ClassShutter + interpreted-mode instruction budget. -->
@@ -1308,9 +1317,9 @@
              CVE-2026-54512..54518 batch (PolymorphicTypeValidator/subtype-allowlist
              bypasses, @JsonView bypasses, eager-DNS InetSocketAddress) and retains
              the earlier GHSA-72hv-8253-57qq fix. 2.21.x cannot close CVE-2026-54515
-             (needs >= 2.21.5, unpublished), so we move to the 2.22 line. jackson.version
-             3.1.4 closes the same batch on the tools.jackson 3.x side. -->
-        <jackson2.version>2.22.0</jackson2.version>
+             (needs >= 2.21.5, unpublished), so we move to the 2.22 line. 2.22.1
+             closes GHSA-5gvw-p9qm-jgwh on the Jackson 2 side. -->
+        <jackson2.version>2.22.1</jackson2.version>
         <jackson-annotations.version>2.22</jackson-annotations.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
         <snakeyaml.version>2.3</snakeyaml.version>
@@ -1334,13 +1343,17 @@
         <maven-install-plugin.version>3.1.4</maven-install-plugin.version>
         <lettuce.version>6.5.5.RELEASE</lettuce.version>
         <spring-boot.version>4.0.7</spring-boot.version>
-        <!-- Override Spring Boot 4.0.6's netty 4.2.x pin to 4.2.15.Final, which
-             patches CVE-2025-58056 (netty-codec-http) plus the later 4.2.x
-             netty-handler / netty-codec-http3 advisories. spring-boot-dependencies
+        <!-- Override Spring Boot 4.0.7's netty 4.2.x pin (4.2.15.Final) to
+             4.2.16.Final, closing the codec-family batch: GHSA-jppx-w49h-x2qq /
+             GHSA-mvh2-crg5-v77c / GHSA-6jqx-86gh-f27w (codec-http),
+             GHSA-93wv-jw9v-4972 (codec-http2), GHSA-558v-64gr-wgg4
+             (codec-compression), GHSA-hpcc-26xq-25fv (codec-http3) and the
+             medium-severity codec/dns advisories. spring-boot-dependencies
              reads ${netty.version} from caller properties, so this wins precedence
              over the BOM pin without forcing a netty-bom import. -->
-        <netty.version>4.2.15.Final</netty.version>
-        <quarkus.version>3.36.0</quarkus.version>
+        <netty.version>4.2.16.Final</netty.version>
+        <!-- 3.36.3 closes GHSA-qcxp-gm7m-4j5v (quarkus-vertx-http). -->
+        <quarkus.version>3.36.3</quarkus.version>
         <atmosphere.module.name>org.atmosphere</atmosphere.module.name>
         <!-- AI framework versions (single source of truth) -->
         <spring-ai.version>2.0.0</spring-ai.version>

@@ -27,7 +27,7 @@
     <dependencyManagement>
         <dependencies>
             <!-- netty-bom imported BEFORE spring-boot-dependencies so its
-                 first-wins resolution rule pulls 4.2.15.Final across every
+                 first-wins resolution rule pulls 4.2.16.Final across every
                  transitive netty artifact, patching the netty-codec-http /
                  codec-compression / transport-native-epoll CVEs that are
                  still on Spring Boot 4.0.6's pinned 4.2.12.Final line. -->
@@ -35,6 +35,17 @@
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
                 <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- tools.jackson pinned one patch above Spring Boot 4.0.7's
+                 managed 3.1.4: 3.1.5 closes GHSA-5gvw-p9qm-jgwh
+                 (jackson-databind DoS). Imported BEFORE spring-boot-dependencies
+                 so Maven's first-declared-wins rule takes the patched line. -->
+            <dependency>
+                <groupId>tools.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>3.1.5</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

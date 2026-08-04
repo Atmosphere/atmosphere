@@ -16,19 +16,22 @@
 
     <properties>
         <atmosphere.module.name>org.atmosphere.spring.boot3</atmosphere.module.name>
-        <!-- 3.5.14 (latest 3.5.x patch line) closes spring-boot-starter-actuator
+        <!-- 3.5.14 closes spring-boot-starter-actuator
              CVE-2026-22733 + spring-boot CVE-2026-40973, plus assertj-core
              CVE-2026-24400 by pulling 3.27.7. -->
         <spring-boot.version>3.5.14</spring-boot.version>
-        <spring-framework.version>6.2.18</spring-framework.version>
+        <spring-framework.version>6.2.19</spring-framework.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
             <!-- Spring Framework BOM imported BEFORE spring-boot-dependencies
-                 so 6.2.18 wins over Spring Boot 3.5.x's older transitive pin.
-                 6.2.18 patches the spring-webmvc/webflux static-resource DoS
-                 + cache-poisoning + Multipart Temp Files DoS advisories.
+                 so 6.2.19 wins over Spring Boot 3.5.x's older transitive pin.
+                 6.2.19 closes the spring-webmvc GHSA-3chg-m5w7-qfv5 (high) +
+                 GHSA-x23c-287f-qqv5 (high) batch, the spring-expression
+                 GHSA-r5w3-xv2f-j59q SpEL advisory and spring-core
+                 GHSA-659m-px2c-25wj, on top of 6.2.18's static-resource DoS
+                 + cache-poisoning + Multipart Temp Files DoS fixes.
                  Maven first-declared-wins for imported BOMs. -->
             <dependency>
                 <groupId>org.springframework</groupId>

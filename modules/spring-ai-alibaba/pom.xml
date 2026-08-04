@@ -41,16 +41,25 @@
                 <artifactId>spring-ai-rag</artifactId>
                 <version>${spring-ai-alibaba-spring-ai.version}</version>
             </dependency>
-            <!-- Pin Spring Framework 6.x to 6.2.18 (Spring AI 1.1.x still pulls
-                 6.2.14 transitively). Closes spring-webflux/webmvc static-
-                 resource DoS + cache-poisoning + Multipart Temp Files DoS
-                 advisories patched in 6.2.18. -->
+            <!-- Pin Spring Framework 6.x to 6.2.19 (Spring AI 1.1.x still pulls
+                 6.2.14 transitively). 6.2.19 closes the spring-webflux
+                 GHSA-x23c-287f-qqv5 (high) batch, spring-expression
+                 GHSA-r5w3-xv2f-j59q and spring-core GHSA-659m-px2c-25wj, on
+                 top of 6.2.18's static-resource DoS + cache-poisoning +
+                 Multipart Temp Files DoS fixes. -->
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-framework-bom</artifactId>
-                <version>6.2.18</version>
+                <version>6.2.19</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <!-- spring-retry <= 2.0.12 is GHSA-2827-2mxx-j8pv; pulled
+                 transitively via spring-ai-retry. -->
+            <dependency>
+                <groupId>org.springframework.retry</groupId>
+                <artifactId>spring-retry</artifactId>
+                <version>2.0.13</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

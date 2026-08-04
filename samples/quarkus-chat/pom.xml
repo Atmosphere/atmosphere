@@ -23,21 +23,22 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Netty BOM pinned to 4.1.135.Final, the version Quarkus 3.36.0
-                 ships (up from 4.1.132.Final in 3.35.x). Imported BEFORE
+            <!-- Netty BOM pinned to 4.1.136.Final, one patch above the
+                 4.1.136.Final that Quarkus 3.36.3 ships. Imported BEFORE
                  quarkus-bom and retained as an explicit sample-scope floor
                  closing CVE-2026-42577 (handler-proxy header injection),
                  CVE-2026-42578 (chunked-extension request smuggling),
                  CVE-2026-41417 (TE smuggling), and the netty-codec /
-                 codec-http / codec-http2 / codec-dns CVE family. -->
+                 codec-http / codec-http2 / codec-dns / codec-haproxy
+                 GHSA family patched in 4.1.136. -->
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
-                <version>4.1.135.Final</version>
+                <version>4.1.136.Final</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- brotli4j pinned to 1.23.0, the version Quarkus 3.36.0 ships
+            <!-- brotli4j pinned to 1.23.0, the version Quarkus 3.36.x ships
                  (up from 1.16.0 in 3.35.x). 1.23.0 is the release Netty
                  4.1.133's BrotliDecoder.decompress was compiled against — it
                  calls DecoderJNI$Wrapper.pull(int), absent from 1.16.0's

@@ -15,13 +15,13 @@
     <url>https://github.com/Atmosphere/atmosphere</url>
 
     <properties>
-        <quarkus.version>3.36.0</quarkus.version>
-        <netty.version>4.1.135.Final</netty.version>
+        <quarkus.version>3.36.3</quarkus.version>
+        <netty.version>4.1.136.Final</netty.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
-            <!-- Pin Netty 4.1.133 BEFORE the Quarkus BOM so the CVE patches in
+            <!-- Pin Netty 4.1.136 BEFORE the Quarkus BOM so the CVE patches in
                  the parent POM also win for this extension's transitive
                  grpc-netty-shaded resolution. -->
             <dependency>

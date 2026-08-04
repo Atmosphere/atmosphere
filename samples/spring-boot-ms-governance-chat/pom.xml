@@ -18,7 +18,7 @@
     <properties>
         <!-- Self-contained netty pin: covers samples scaffolded standalone against
              a released parent POM that may not yet declare netty.version. -->
-        <netty.version>4.2.15.Final</netty.version>
+        <netty.version>4.2.16.Final</netty.version>
         <maven.deploy.skip>true</maven.deploy.skip>
         <atmosphere.starter>atmosphere-spring-boot-starter</atmosphere.starter>
         <!-- kafka-clients pinned to match the apache/kafka:3.8.1 broker image and
@@ -50,6 +50,17 @@
                 <groupId>org.testcontainers</groupId>
                 <artifactId>testcontainers-bom</artifactId>
                 <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- tools.jackson pinned one patch above Spring Boot 4.0.7's
+                 managed 3.1.4: 3.1.5 closes GHSA-5gvw-p9qm-jgwh
+                 (jackson-databind DoS). Imported BEFORE spring-boot-dependencies
+                 so Maven's first-declared-wins rule takes the patched line. -->
+            <dependency>
+                <groupId>tools.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>3.1.5</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -142,11 +153,13 @@
             <artifactId>postgresql</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- JDBC driver for the JdbcAuditSink against the Postgres container;
-             version managed by spring-boot-dependencies. -->
+        <!-- JDBC driver for the JdbcAuditSink against the Postgres container.
+             Explicit 42.7.12: Spring Boot 4.0.7 manages 42.7.11, which is
+             GHSA-j92g-9f8w-j867. -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
+            <version>42.7.12</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -172,7 +185,7 @@
             <id>spring-boot3</id>
             <properties>
                 <spring-boot.version>3.5.14</spring-boot.version>
-                <netty.version>4.1.135.Final</netty.version>
+                <netty.version>4.1.136.Final</netty.version>
                 <atmosphere.starter>atmosphere-spring-boot3-starter</atmosphere.starter>
             </properties>
         </profile>
