@@ -194,6 +194,11 @@ jobs:
         # cannot recover from (it only fires on a clean non-zero exit). The
         # timeout converts a hang into exit 124 so the backoff/retry advances
         # instead of pinning the leg for hours.
+        # A timed-out attempt kills npx but not the root apt-get it sudo'd,
+        # which keeps downloading and holds the dpkg lock — so retries must
+        # wait for the lock (it releases when the orphan finishes) instead
+        # of failing instantly with "could not get lock".
+        sudo tee /etc/apt/apt.conf.d/99-dpkg-lock-timeout >/dev/null <<<'DPkg::Lock::Timeout "240";'
         if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
           cmd="npx playwright install-deps chromium"
         else

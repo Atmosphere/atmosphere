@@ -133,6 +133,11 @@ jobs:
         # explicitly — 1.59 uses chromium-headless-shell for headless runs.
         # Hardened like e2e.yml: bounded attempts, timeout turns a stalled
         # mirror into exit 124 so the retry advances.
+        # A timed-out attempt kills npx but not the root apt-get it sudo'd,
+        # which keeps downloading and holds the dpkg lock — so retries must
+        # wait for the lock (it releases when the orphan finishes) instead
+        # of failing instantly with "could not get lock".
+        sudo tee /etc/apt/apt.conf.d/99-dpkg-lock-timeout >/dev/null <<<'DPkg::Lock::Timeout "240";'
         install_browsers() {
           for attempt in 1 2 3; do
             if (cd "$1" && timeout 300 npx playwright install --with-deps chromium chromium-headless-shell); then
