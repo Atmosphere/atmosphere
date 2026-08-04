@@ -49,7 +49,11 @@ import java.util.concurrent.atomic.AtomicReference;
  *       {@link AgentRuntime#executeWithHandle(AgentExecutionContext, StreamingSession)},
  *       retaining the returned {@link ExecutionHandle} so a client disconnect can cancel
  *       the in-flight upstream call</li>
- *   <li>Runs {@link AiInterceptor#postProcess} in LIFO order</li>
+ *   <li>Runs {@link AiInterceptor#beforeCompletion} in LIFO order from inside the
+ *       terminal {@link #complete()} — before the terminal complete frame is
+ *       forwarded, while the delegate still accepts outbound frames</li>
+ *   <li>Runs {@link AiInterceptor#postProcess} in LIFO order, after the terminal
+ *       frame has been forwarded</li>
  * </ol>
  */
 public class AiStreamingSession implements StreamingSession {
@@ -71,8 +75,12 @@ public class AiStreamingSession implements StreamingSession {
             new ConcurrentHashMap<>();
 
     /**
-     * Request attribute key under which the active {@link StreamingSession} is stored,
-     * allowing {@link AiInterceptor#postProcess} to send metadata to the client.
+     * Request attribute key under which the active {@link StreamingSession} is stored.
+     * The stored value is the composed decorator target for the current turn — the
+     * same session {@link AiInterceptor#beforeCompletion} receives as a parameter.
+     * By {@link AiInterceptor#postProcess} time the terminal frame has already been
+     * forwarded and the session drops outbound frames, so client-visible metadata
+     * belongs in {@code beforeCompletion}.
      */
     public static final String STREAMING_SESSION_ATTR = "ai.streaming.session";
 
@@ -97,6 +105,29 @@ public class AiStreamingSession implements StreamingSession {
     private final AtomicReference<List<Content>> pendingInputParts =
             new AtomicReference<>(List.of());
     private final AtomicBoolean handoffInProgress = new AtomicBoolean();
+    /**
+     * Per-{@code stream()} state consumed atomically ({@code getAndSet(null)})
+     * by the first terminal call. {@link #complete()} / {@link #complete(String)}
+     * consume it and run {@link AiInterceptor#beforeCompletion} while the
+     * delegate still accepts outbound frames; {@link #error(Throwable)} consumes
+     * it WITHOUT firing — no hook on error, by contract — so a later
+     * {@code complete()} from a runtime bridge (caller-initiated cancel completes
+     * the session after the error) cannot fire the hook for a turn that never
+     * completed. Re-armed on every {@code stream()} invocation — a
+     * {@code @Prompt} body may call {@code stream()} twice on one session and
+     * the hook must fire on each turn, exactly once.
+     */
+    private final AtomicReference<BeforeCompletionContext> beforeCompletionContext =
+            new AtomicReference<>();
+    /**
+     * Latched while {@link #fireBeforeCompletion} runs the hooks so a hook
+     * that (illegally) invokes a terminal method on its session cannot
+     * re-enter terminal processing — the re-entrant call logs WARN and
+     * returns, and the OUTER invocation forwards the terminal frame once the
+     * hooks finish. Hooks must not invoke terminal methods; see
+     * {@link AiInterceptor#beforeCompletion}.
+     */
+    private final AtomicBoolean firingBeforeCompletion = new AtomicBoolean();
     private final ApprovalRegistry approvalRegistry = new ApprovalRegistry();
     /**
      * Session-scoped resources registered via {@link #onTerminate(AutoCloseable)},
@@ -930,6 +961,16 @@ public class AiStreamingSession implements StreamingSession {
         // {@code AiRequest#withTools} actually takes effect — without this,
         // guardrails could only block the whole request, not drop specific tools.
         var finalRequest = request;
+        // Arm the beforeCompletion hook for THIS stream() invocation. The
+        // terminal complete()/complete(String) consumes it exactly once —
+        // including the response-cache-hit early return below, which also
+        // routes through complete() on the composed target. The target is
+        // the same composed decorator chain stored under
+        // STREAMING_SESSION_ATTR: frames sent from the hook reach the wire
+        // and the streaming observers, but layers that finalize on complete()
+        // (e.g. LineageCapturingSession) have already snapshotted their state
+        // by the time the hook runs.
+        beforeCompletionContext.set(new BeforeCompletionContext(finalRequest, target));
         var tools = finalRequest.tools() != null
                 ? finalRequest.tools()
                 : java.util.List.<org.atmosphere.ai.tool.ToolDefinition>of();
@@ -1347,6 +1388,12 @@ public class AiStreamingSession implements StreamingSession {
 
     @Override
     public void complete() {
+        if (firingBeforeCompletion.get()) {
+            logger.warn("AiInterceptor.beforeCompletion invoked complete() on its session; "
+                    + "ignoring — hooks must not invoke terminal methods");
+            return;
+        }
+        fireBeforeCompletion();
         fireTerminate();
         removeActiveSession(this);
         delegate.complete();
@@ -1354,6 +1401,12 @@ public class AiStreamingSession implements StreamingSession {
 
     @Override
     public void complete(String summary) {
+        if (firingBeforeCompletion.get()) {
+            logger.warn("AiInterceptor.beforeCompletion invoked complete(summary) on its session; "
+                    + "ignoring — hooks must not invoke terminal methods");
+            return;
+        }
+        fireBeforeCompletion();
         fireTerminate();
         removeActiveSession(this);
         delegate.complete(summary);
@@ -1361,9 +1414,70 @@ public class AiStreamingSession implements StreamingSession {
 
     @Override
     public void error(Throwable t) {
+        if (firingBeforeCompletion.get()) {
+            logger.warn("AiInterceptor.beforeCompletion invoked error() on its session; "
+                    + "ignoring — hooks must not invoke terminal methods");
+            return;
+        }
+        // The hook's contract is "the turn completed", so the error terminal
+        // path never fires it — but it MUST consume the armed context, or a
+        // later complete() from a runtime bridge (caller-initiated cancel
+        // completes the session after the error) would fire the hook for a
+        // turn that did not complete.
+        beforeCompletionContext.set(null);
         fireTerminate();
         removeActiveSession(this);
         delegate.error(t);
+    }
+
+    /**
+     * Run {@link AiInterceptor#beforeCompletion} in LIFO order (mirroring
+     * postProcess) against the composed decorator target of the current turn,
+     * BEFORE the terminal complete frame is forwarded to the delegate — the
+     * last moment {@code sendMetadata}/{@code emit} still reach the wire. The
+     * armed context is CONSUMED atomically ({@code getAndSet(null)}), so
+     * concurrent or repeated terminal calls can never double-fire the hooks.
+     * A throwing hook — including an {@link Error} such as
+     * {@link AssertionError} — is logged and skipped so it can never suppress
+     * the terminal frame (Correctness Invariant #2). No-op when no
+     * {@code stream()} armed a context (e.g. a {@code @Prompt} that completes
+     * without streaming).
+     *
+     * <p>Bounded residual edge: a pathological trailing terminal call from a
+     * cancelled PRIOR turn may consume the context the next {@code stream()}
+     * just armed, firing that turn's hooks early. The atomic consume bounds
+     * the damage to one early fire — never two fires, never a hang.</p>
+     */
+    private void fireBeforeCompletion() {
+        var ctx = beforeCompletionContext.getAndSet(null);
+        if (ctx == null) {
+            return;
+        }
+        firingBeforeCompletion.set(true);
+        try {
+            for (int i = interceptors.size() - 1; i >= 0; i--) {
+                try {
+                    interceptors.get(i).beforeCompletion(ctx.request(), ctx.target(), resource);
+                } catch (Throwable t) {
+                    // Throwable, not Exception: an AssertionError escaping here
+                    // would skip the terminal frame below and hang the client.
+                    logger.warn("AiInterceptor.beforeCompletion failed: {}",
+                            interceptors.get(i).getClass().getName(), t);
+                }
+            }
+        } finally {
+            firingBeforeCompletion.set(false);
+        }
+    }
+
+    /**
+     * The final {@link AiRequest} and composed decorator target of one
+     * {@code stream()} turn. Consumed atomically from
+     * {@link #beforeCompletionContext} by the first terminal call, so
+     * overlapping terminal calls (a runtime that calls {@code complete()}
+     * twice) fire the hook once.
+     */
+    private record BeforeCompletionContext(AiRequest request, StreamingSession target) {
     }
 
     @Override

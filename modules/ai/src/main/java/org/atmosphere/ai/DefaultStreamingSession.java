@@ -186,6 +186,9 @@ public final class DefaultStreamingSession implements StreamingSession {
     @Override
     public void sendMetadata(String key, Object value) {
         if (closed.get()) {
+            // DEBUG, not WARN: legitimate late metadata exists on disconnect
+            // paths, but a silent drop hid the interceptor-after-complete bug.
+            logger.debug("Dropping metadata '{}' on closed session {}", key, sessionId);
             return;
         }
         var msg = new LinkedHashMap<String, Object>();
