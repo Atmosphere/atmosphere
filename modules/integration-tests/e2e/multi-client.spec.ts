@@ -24,10 +24,20 @@ async function openConsole(page: Page): Promise<void> {
 
 /**
  * Helper: type a message into the console textarea and press Enter to send.
+ *
+ * The "Connected" badge that {@link openConsole} waits for reports the socket
+ * state, not the composer's — the console can paint Connected a beat before the
+ * textarea is enabled and bound to its send handler. Filling in that gap posts
+ * keystrokes at a control that discards them, so the send never leaves the page
+ * and the message list stays on its empty-state placeholder. Waiting for the
+ * input to be editable closes it.
  */
 async function sendMessage(page: Page, text: string): Promise<void> {
   const input = page.getByTestId('chat-input');
+  await input.waitFor({ state: 'visible' });
+  await expect(input).toBeEditable({ timeout: 10_000 });
   await input.fill(text);
+  await expect(input).toHaveValue(text);
   await input.press('Enter');
 }
 
