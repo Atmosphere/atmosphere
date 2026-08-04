@@ -556,10 +556,22 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 logger.debug("Approval response routed for resource {}", resource.uuid());
                 return;
             }
-            // Cross-session fallback removed: scanning all active sessions
-            // weakens approval ownership guarantees. If the resource UUID
-            // changed after transport reconnect, the original approval
-            // times out and the new session must re-trigger the tool call.
+            // Not ours. Behind a load balancer the reviewer's answer routinely
+            // lands on a node that isn't parking the run, so hand it to the
+            // cluster relay: every node tries it against its own registries and
+            // the owner completes the future. A no-op unless the relay is
+            // installed, and the message is never re-published by a receiving
+            // node, so an id nobody owns cannot bounce around the cluster.
+            if (org.atmosphere.ai.approval.ClusterApprovalRelay.publish(userMessage)) {
+                logger.debug("Approval not local to resource {}; relayed to the cluster",
+                        resource.uuid());
+                return;
+            }
+            // Cross-session fallback deliberately not used here: scanning all
+            // active sessions weakens approval ownership guarantees. Without a
+            // relay installed, an approval whose resource UUID changed after a
+            // transport reconnect times out and the new session must re-trigger
+            // the tool call.
             logger.warn("Approval message with no pending approval for resource {}", resource.uuid());
             return;
         }
