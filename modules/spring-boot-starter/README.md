@@ -247,7 +247,15 @@ See [Spring Boot OTel Chat](../../samples/spring-boot-otel-chat/) for a complete
 
 ## GraalVM Native Image
 
-The starter includes `AtmosphereRuntimeHints` for native image support. Build with `mvn clean package -Pnative`.
+The starter includes `AtmosphereRuntimeHints`, which registers the framework's
+reflectively-instantiated types. Build with `mvn clean package -Pnative`.
+
+**Known limitation:** annotation-scanned endpoints are not discovered in a
+native image. `AnnotationDetector` locates `@ManagedService` / `@AiEndpoint` /
+`@Agent` classes by scanning `.class` files on the classpath, which do not
+exist once the image is built, so those classes are silently skipped — the app
+starts and serves nothing at their paths. Register handlers programmatically
+for native targets until discovery has a build-time index.
 
 ## Sample
 

@@ -9,7 +9,10 @@ A real-time chat application on Spring Boot, demonstrating rooms, presence, mess
 - **REST controller** — `GET /api/rooms` exposing room state and member details
 - **Observability** — `AtmosphereMetrics` wired to Micrometer / Spring Boot Actuator
 - **Spring DI** — `AtmosphereFramework` and `RoomManager` auto-exposed as beans
-- **GraalVM Native Image** — works out of the box with the `native` profile
+- **GraalVM Native Image** — builds and boots with the `native` profile. The
+  `@ManagedService` chat endpoint below relies on classpath annotation
+  scanning, which a native image cannot do; see the starter README's known
+  limitation before deploying this natively.
 
 ## Server Side
 

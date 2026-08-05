@@ -20,7 +20,11 @@ The core framework for building real-time web applications in Java. Provides a p
 - **Virtual threads** enabled by default (JDK 21+)
 - **Broadcasting** -- pub/sub via `Broadcaster` and `BroadcasterFactory`
 - **Micrometer and OpenTelemetry** observability (optional)
-- **GraalVM Native Image** compatible
+- **GraalVM Native Image** — the runtime builds and boots; annotation discovery
+  (`@ManagedService`, `@AiEndpoint`, `@Agent`) does **not** work, because
+  `AnnotationDetector` finds handlers by reading `.class` files off the
+  classpath and a native image has none. Register handlers programmatically
+  (`framework.addAtmosphereHandler(path, handler)`) when targeting native.
 
 ## Minimal Example
 
