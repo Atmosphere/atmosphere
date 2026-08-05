@@ -37,6 +37,22 @@ import java.util.Optional;
  */
 public interface CheckpointStore {
 
+    /**
+     * Whether this store encrypts checkpoint state at rest.
+     *
+     * <p>Checkpoints carry whatever the agent put in its state — secrets passed
+     * as tool arguments, PII from a conversation — so whether they are encrypted
+     * is a security posture an operator needs to be able to read back, not infer
+     * from a startup log they never saw. Defaults to {@code false} so a store
+     * that has not considered the question reports the truthful, conservative
+     * answer rather than a flattering one (Correctness Invariant #5).</p>
+     *
+     * @return {@code true} only when state is genuinely encrypted on disk
+     */
+    default boolean encryptsAtRest() {
+        return false;
+    }
+
     /** Start the store (acquire resources). Called once before first use. */
     void start();
 

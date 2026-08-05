@@ -71,6 +71,8 @@ public final class SqliteCheckpointStore implements CheckpointStore {
     private final Connection connection;
     private final int maxSnapshots;
     private final CheckpointCipher cipher;
+    /** Retained so the plaintext warning can name the file it is about. */
+    private final String jdbcUrl;
     private final ReentrantLock lock = new ReentrantLock();
     private final ObjectMapper mapper = new ObjectMapper();
     private final CopyOnWriteArrayList<CheckpointListener> listeners = new CopyOnWriteArrayList<>();
@@ -112,6 +114,7 @@ public final class SqliteCheckpointStore implements CheckpointStore {
                     "maxSnapshots must be positive, got " + maxSnapshots);
         }
         this.maxSnapshots = maxSnapshots;
+        this.jdbcUrl = jdbcUrl;
         this.cipher = cipher != null ? cipher : CheckpointCipher.NONE;
         try {
             this.connection = DriverManager.getConnection(jdbcUrl);
@@ -132,6 +135,16 @@ public final class SqliteCheckpointStore implements CheckpointStore {
             }
         }
         return "jdbc:sqlite:" + abs;
+    }
+
+    /**
+     * Runtime truth: encrypted only when a real cipher was installed. Reported
+     * rather than logged-and-forgotten, so an info surface can show the actual
+     * posture instead of an operator having to trust a startup line.
+     */
+    @Override
+    public boolean encryptsAtRest() {
+        return cipher != CheckpointCipher.NONE;
     }
 
     @Override
@@ -174,8 +187,12 @@ public final class SqliteCheckpointStore implements CheckpointStore {
                     }));
             if (cipher == CheckpointCipher.NONE) {
                 logger.warn("SqliteCheckpointStore persists checkpoint state as PLAINTEXT at "
-                        + "rest — secrets or PII inside agent state land unmasked in the .db "
-                        + "file. Construct the store with an AesGcmCheckpointCipher to encrypt.");
+                        + "rest in {} — secrets passed as tool arguments and PII from "
+                        + "conversations land unmasked in that file, readable by anything with "
+                        + "filesystem access. Fix: new SqliteCheckpointStore(path, maxSnapshots, "
+                        + "new AesGcmCheckpointCipher(key)). The posture is also readable at "
+                        + "runtime via CheckpointStore.encryptsAtRest(), so it can be asserted "
+                        + "rather than trusted to this log line.", jdbcUrl);
             }
             logger.info("SqliteCheckpointStore initialized (maxSnapshots={})", maxSnapshots);
         } catch (SQLException e) {

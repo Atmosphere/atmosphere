@@ -15,7 +15,6 @@
  */
 package org.atmosphere.ai.gateway;
 
-import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -28,10 +27,13 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * <h2>Default gateway</h2>
  *
- * Until {@link #install(AiGateway)} is called, a permissive default is
- * returned: {@link PerUserRateLimiter} sized at one million calls / hour
- * (effectively no-op), noop credential resolver, noop trace exporter.
- * Applications opt into enforcing limits with one line —
+ * Until {@link #install(AiGateway)} is called, {@link GatewayProfiles#safeDefault()}
+ * is returned: a per-principal ceiling real traffic never reaches, a separately
+ * larger shared bucket for unauthenticated callers, and noop credential
+ * resolver / trace exporter. It is a floor that bounds a runaway tool loop, not
+ * a production posture — the previous default of one million calls / hour never
+ * fired at all, leaving a startup WARN as the only mitigation.
+ * Applications opt into enforcing tighter limits with one line —
  * {@code atmosphere.ai.gateway.profile=production} (Spring Boot),
  * {@code quarkus.atmosphere.ai.gateway.profile=production} (Quarkus), or
  * {@code AiGatewayHolder.install(GatewayProfiles.production())}
@@ -89,23 +91,30 @@ public final class AiGatewayHolder {
      */
     public static AiGateway get() {
         if (!INSTALLED.get() && DEFAULT_USED_WARNING.compareAndSet(false, true)) {
-            logger.warn("AiGatewayHolder serving the permissive default gateway "
-                    + "(1M calls/hour, one shared 'anonymous' bucket for ALL unauthenticated "
-                    + "callers, noop CredentialResolver / TraceExporter). One-line fix: set "
+            logger.warn("AiGatewayHolder serving the default gateway ({} req / {}s per "
+                    + "principal, {} req / {}s shared across ALL unauthenticated callers, "
+                    + "noop CredentialResolver / TraceExporter). This is a floor, not a "
+                    + "production posture. One-line fix: set "
                     + "atmosphere.ai.gateway.profile=production (Spring Boot) or "
                     + "quarkus.atmosphere.ai.gateway.profile=production (Quarkus), or call "
-                    + "AiGatewayHolder.install(GatewayProfiles.production()) during startup.");
+                    + "AiGatewayHolder.install(GatewayProfiles.production()) during startup.",
+                    GatewayProfiles.SAFE_DEFAULT_MAX_REQUESTS_PER_WINDOW,
+                    GatewayProfiles.SAFE_DEFAULT_WINDOW_SECONDS,
+                    GatewayProfiles.SAFE_DEFAULT_ANONYMOUS_MAX_REQUESTS,
+                    GatewayProfiles.SAFE_DEFAULT_WINDOW_SECONDS);
         }
         return HOLDER.get();
     }
 
     private static AiGateway defaultGateway() {
-        // One-million-calls-per-hour window is effectively unrestricted for
-        // dev / test. Production deployments install a tighter limiter.
-        var limiter = new PerUserRateLimiter(1_000_000, Duration.ofHours(1));
-        return new AiGateway(
-                limiter,
-                AiGateway.CredentialResolver.noop(),
-                AiGateway.GatewayTraceExporter.noop());
+        // Was one million calls per hour — a number large enough that the
+        // limiter never fired, so the only thing between a runaway tool loop
+        // and an unbounded provider bill was the WARN below, and logs go
+        // unread. GatewayProfiles.safeDefault() keeps a per-principal ceiling
+        // that real traffic never reaches while still bounding a loop, and
+        // sizes the shared anonymous bucket ABOVE it rather than below —
+        // without authentication every caller is ANONYMOUS_USER, so that
+        // bucket is a whole-deployment ceiling.
+        return GatewayProfiles.safeDefault();
     }
 }

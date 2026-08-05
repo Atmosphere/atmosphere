@@ -34,13 +34,31 @@ class AiGatewayHolderTest {
     }
 
     @Test
-    void defaultGatewayAcceptsUnconditionally() {
+    void defaultGatewayAdmitsRealTrafficButIsNotUnbounded() {
         var gateway = AiGatewayHolder.get();
         assertNotNull(gateway);
-        for (var i = 0; i < 1000; i++) {
+
+        // Interactive use must be untouched. 200 requests inside one window is
+        // far beyond what a person generates and still well under the ceiling.
+        for (var i = 0; i < 200; i++) {
             assertTrue(gateway.admit("u1", "built-in", "m").accepted(),
-                    "permissive default must accept dev-scale traffic");
+                    "the default must be invisible to real traffic");
         }
+
+        // The posture changed deliberately: the previous default of one million
+        // calls per hour never fired, so the only thing between a runaway tool
+        // loop and an unbounded provider bill was a startup WARN. A ceiling that
+        // exists is the point — a pathological loop from one principal must
+        // eventually be refused.
+        var refused = false;
+        for (var i = 0; i < GatewayProfiles.SAFE_DEFAULT_MAX_REQUESTS_PER_WINDOW * 2; i++) {
+            if (!gateway.admit("u1", "built-in", "m").accepted()) {
+                refused = true;
+                break;
+            }
+        }
+        assertTrue(refused,
+                "the default must bound a runaway loop; an unenforced limit is not a limit");
     }
 
     @Test

@@ -112,13 +112,16 @@ class GatewayProfilesTest {
     }
 
     @Test
-    void frameworkDefaultStaysPermissiveUntilTheOperatorOptsIn() {
-        // Correctness Invariant: no enforcement change without opt-in. The
-        // holder default must still admit dev-scale traffic.
-        for (var i = 0; i < 2_000; i++) {
+    void frameworkDefaultAdmitsRealTrafficAndProductionTightensIt() {
+        // The principle this test used to encode — "no enforcement without
+        // opt-in" — was traded deliberately. A default of one million calls per
+        // hour is not a limit an operator opted out of; it is no limit at all,
+        // and it left a startup WARN as the only thing standing between a
+        // runaway tool loop and the provider bill. What opt-in now buys is a
+        // TIGHTER posture, not the first one.
+        for (var i = 0; i < 200; i++) {
             assertTrue(AiGatewayHolder.get().admit("alice", "built-in", "m").accepted(),
-                    "the default gateway must stay permissive — installing limits "
-                            + "is an explicit operator decision");
+                    "the default must stay invisible to real interactive traffic");
         }
 
         AiGatewayHolder.install(GatewayProfiles.production(1, Duration.ofMinutes(5), 1,

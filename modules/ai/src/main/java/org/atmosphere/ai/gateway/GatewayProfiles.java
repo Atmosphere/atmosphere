@@ -82,6 +82,51 @@ public final class GatewayProfiles {
         // static factory
     }
 
+    /** Per-principal ceiling in the safe default's window. */
+    public static final int SAFE_DEFAULT_MAX_REQUESTS_PER_WINDOW = 600;
+
+    /** Safe-default sliding-window length in seconds (5 minutes). */
+    public static final int SAFE_DEFAULT_WINDOW_SECONDS = 300;
+
+    /**
+     * Ceiling for the shared anonymous bucket in the safe default. Deliberately
+     * an order of magnitude ABOVE the per-principal ceiling rather than a
+     * fraction of it, unlike {@link #PRODUCTION_ANONYMOUS_DIVISOR}.
+     *
+     * <p>With no authentication configured every caller collapses to
+     * {@link AiGateway#ANONYMOUS_USER}, so this bucket is a whole-deployment
+     * ceiling, not a per-person one. Sizing it by the production divisor would
+     * put an entire unauthenticated deployment under 75 requests per 5 minutes
+     * and 429 the first demo anyone runs — trading an unenforced limit for a
+     * self-inflicted outage.</p>
+     */
+    public static final int SAFE_DEFAULT_ANONYMOUS_MAX_REQUESTS = 6_000;
+
+    /**
+     * The gateway handed out when an application installs none.
+     *
+     * <p>Replaces a one-million-calls-per-hour limiter that was, in practice,
+     * no limiter at all: the only thing standing between a runaway tool loop
+     * and an unbounded provider bill was a startup WARN, and logs go unread.
+     * These numbers are chosen to be invisible to real traffic — 600 requests
+     * per 5 minutes per principal is two per second sustained — while still
+     * bounding a loop that would otherwise run until someone noticed the
+     * invoice.</p>
+     *
+     * <p>This is a floor, not a recommendation. {@link #production()} is
+     * tighter and is the documented opt-in for a deployment that authenticates
+     * its callers.</p>
+     */
+    public static AiGateway safeDefault() {
+        return new AiGateway(
+                new PerUserRateLimiter(SAFE_DEFAULT_MAX_REQUESTS_PER_WINDOW,
+                        Duration.ofSeconds(SAFE_DEFAULT_WINDOW_SECONDS)),
+                new PerUserRateLimiter(SAFE_DEFAULT_ANONYMOUS_MAX_REQUESTS,
+                        Duration.ofSeconds(SAFE_DEFAULT_WINDOW_SECONDS)),
+                AiGateway.CredentialResolver.noop(),
+                AiGateway.GatewayTraceExporter.noop());
+    }
+
     /** Production gateway with the documented defaults and no-op credential/trace hooks. */
     public static AiGateway production() {
         return production(0, null, 0,
