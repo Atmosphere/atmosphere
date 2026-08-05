@@ -271,7 +271,7 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
                 context.message(),
                 effectiveModel(context),
                 history,
-                java.util.Map.of(),
+                sessionOptions(context),
                 context.systemPrompt(),
                 tools,
                 callbackUrl,
@@ -333,6 +333,21 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
                 session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(e));
             }
         }
+    }
+
+    /**
+     * Per-session options handed to the sidecar. Currently carries the tool-loop
+     * cap: CrewAI never fires {@code onModelStart}, so {@code ToolLoopGuard}
+     * counts nothing and the only way a cap binds is to pass it across the wire
+     * for the sidecar to apply as CrewAI's own {@code max_iter}. Empty when no
+     * policy is attached, so the crew keeps whatever the user configured.
+     */
+    private static java.util.Map<String, Object> sessionOptions(AgentExecutionContext context) {
+        var policy = org.atmosphere.ai.llm.ToolLoopPolicies.from(context);
+        if (policy == null) {
+            return java.util.Map.of();
+        }
+        return java.util.Map.of("max_iter", policy.maxIterations());
     }
 
     /**

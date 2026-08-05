@@ -16,6 +16,7 @@
 package org.atmosphere.ai.cost;
 
 import java.util.Objects;
+import java.util.ServiceConfigurationError;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -40,6 +41,9 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public final class TokenPricingHolder {
 
+    private static final org.slf4j.Logger logger =
+            org.slf4j.LoggerFactory.getLogger(TokenPricingHolder.class);
+
     private static final AtomicReference<TokenPricing> HOLDER =
             new AtomicReference<>(TokenPricing.ZERO);
 
@@ -47,18 +51,70 @@ public final class TokenPricingHolder {
         // static holder
     }
 
-    /** Install the process-wide pricing. */
+    /** Set once discovery has run, so a classpath scan happens at most once. */
+    private static final java.util.concurrent.atomic.AtomicBoolean DISCOVERED =
+            new java.util.concurrent.atomic.AtomicBoolean();
+
+    /** Install the process-wide pricing. An explicit install always wins over discovery. */
     public static void install(TokenPricing pricing) {
         HOLDER.set(Objects.requireNonNull(pricing, "pricing"));
+        DISCOVERED.set(true);
     }
 
-    /** Restore the zero pricing. Primarily for tests. */
+    /** Restore the zero pricing and re-arm discovery. Primarily for tests. */
     public static void reset() {
         HOLDER.set(TokenPricing.ZERO);
+        DISCOVERED.set(false);
     }
 
-    /** Fetch the current pricing. Never {@code null}. */
+    /**
+     * Fetch the current pricing, resolving a {@link TokenPricing} provider from
+     * the classpath on first use. Never {@code null}.
+     *
+     * <p>Resolution order: an explicit {@link #install} wins; otherwise the
+     * highest-priority available {@link java.util.ServiceLoader} provider;
+     * otherwise {@link TokenPricing#ZERO}. Discovery runs at most once, and a
+     * provider that throws while loading is skipped rather than failing
+     * dispatch — pricing is an observability concern and must never take the
+     * request path down (Correctness Invariant #2).</p>
+     *
+     * <p>Falling back to {@code ZERO} is deliberate: with no rate sheet on the
+     * classpath, cost reads as zero everywhere, which makes an unconfigured
+     * cost ceiling visibly inert instead of quietly enforcing against wrong
+     * numbers.</p>
+     */
     public static TokenPricing get() {
+        if (DISCOVERED.compareAndSet(false, true)) {
+            discover().ifPresent(HOLDER::set);
+        }
         return HOLDER.get();
+    }
+
+    /** Highest-priority available provider on the classpath, if any. */
+    static java.util.Optional<TokenPricing> discover() {
+        try {
+            return java.util.ServiceLoader.load(TokenPricing.class).stream()
+                    .map(provider -> {
+                        try {
+                            return provider.get();
+                        } catch (RuntimeException | ServiceConfigurationError e) {
+                            logger.warn("TokenPricing provider {} failed to load — skipping: {}",
+                                    provider.type().getName(), e.toString());
+                            return null;
+                        }
+                    })
+                    .filter(java.util.Objects::nonNull)
+                    .filter(TokenPricing::isAvailable)
+                    .max(java.util.Comparator.comparingInt(TokenPricing::priority)
+                            .thenComparing(TokenPricing::name))
+                    .map(found -> {
+                        logger.info("TokenPricing resolved from the classpath: {} (priority {})",
+                                found.name(), found.priority());
+                        return found;
+                    });
+        } catch (RuntimeException | ServiceConfigurationError e) {
+            logger.warn("TokenPricing discovery failed — cost stays zero: {}", e.toString());
+            return java.util.Optional.empty();
+        }
     }
 }

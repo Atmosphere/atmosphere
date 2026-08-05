@@ -519,3 +519,30 @@ def _strip_existing_block(text: str) -> str:
         return text
     end_with_marker = end + len(_SYSTEM_PROMPT_MARKER_END)
     return (text[:start] + text[end_with_marker:]).strip()
+
+
+def apply_max_iter(crew: Any, max_iter: int) -> int:
+    """Bound each agent's ReAct loop using CrewAI's own ``max_iter``.
+
+    CrewAI never fires Atmosphere's ``onModelStart`` hook, so the Java-side
+    ``ToolLoopGuard`` counts nothing and cannot enforce a round cap for this
+    runtime. The cap therefore has to cross the wire and be applied here, on
+    the framework's own knob.
+
+    A non-positive value is ignored rather than raising: the bridge must never
+    deny a whole crew run over one malformed option (Invariant #4, validate at
+    the boundary). Returns the number of agents actually bounded so the caller
+    can log runtime truth rather than intent.
+    """
+    if not isinstance(max_iter, int) or isinstance(max_iter, bool) or max_iter < 1:
+        logger.info("ignoring non-positive max_iter %r", max_iter)
+        return 0
+    agents = getattr(crew, "agents", None) or []
+    applied = 0
+    for agent in agents:
+        try:
+            agent.max_iter = max_iter
+            applied += 1
+        except Exception:  # noqa: BLE001 — a frozen agent must not fail the run
+            logger.info("could not set max_iter on %r; leaving its own value", agent)
+    return applied

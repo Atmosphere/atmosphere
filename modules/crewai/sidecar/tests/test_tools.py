@@ -372,3 +372,31 @@ def test_apply_system_prompt_noop_on_empty() -> None:
     apply_system_prompt(crew, None)
     apply_system_prompt(crew, "   ")
     assert crew.agents[0].backstory == "unchanged"
+
+
+def test_apply_max_iter_bounds_every_agent() -> None:
+    """The Java side cannot bound CrewAI's loop, so the cap has to bind here."""
+    from atmosphere_crewai_bridge.tools import apply_max_iter
+
+    crew = _FakeCrew([_FakeAgent(), _FakeAgent()])
+    applied = apply_max_iter(crew, 4)
+
+    assert applied == 2, "every agent on the crew must be bounded"
+    assert all(a.max_iter == 4 for a in crew.agents)
+
+
+def test_apply_max_iter_ignores_a_nonpositive_value() -> None:
+    """A malformed option must not deny the whole crew run (Invariant #4)."""
+    from atmosphere_crewai_bridge.tools import apply_max_iter
+
+    crew = _FakeCrew([_FakeAgent()])
+    assert apply_max_iter(crew, 0) == 0
+    assert apply_max_iter(crew, -1) == 0
+    assert apply_max_iter(crew, True) == 0, "a bool is not an iteration count"
+    assert not hasattr(crew.agents[0], "max_iter") or crew.agents[0].max_iter is None
+
+
+def test_apply_max_iter_tolerates_a_crew_with_no_agents() -> None:
+    from atmosphere_crewai_bridge.tools import apply_max_iter
+
+    assert apply_max_iter(_FakeCrew([]), 5) == 0

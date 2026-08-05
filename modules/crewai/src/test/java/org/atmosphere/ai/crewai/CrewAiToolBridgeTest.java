@@ -206,6 +206,47 @@ class CrewAiToolBridgeTest {
         throw new AssertionError("no parameter named " + name + " in " + params);
     }
 
+    /**
+     * CrewAI never fires {@code onModelStart}, so {@code ToolLoopGuard} counts
+     * nothing for this runtime and cannot bound its loop. The only cap that
+     * binds is CrewAI's own {@code max_iter}, which means the policy has to
+     * cross the wire for the sidecar to apply. The {@code options} slot existed
+     * on both sides of that wire but was written by nobody and read by nobody.
+     */
+    @Test
+    void toolLoopPolicy_ridesTheOptionsSlotToTheSidecar() throws Exception {
+        sidecar.startResponse = doneOnly();
+        var runtime = new CrewAiAgentRuntime();
+        runtime.configure(null);
+
+        var context = org.atmosphere.ai.llm.ToolLoopPolicies.attach(
+                contextWithTools(List.of(), null),
+                org.atmosphere.ai.llm.ToolLoopPolicy.maxIterations(4));
+        var session = new RecordingSession();
+        runtime.execute(context, session);
+
+        assertTrue(session.awaitTerminal(5, TimeUnit.SECONDS));
+        var options = MAPPER.readTree(sidecar.lastStartBody.get()).path("options");
+        assertEquals(4, options.path("max_iter").asInt(-1),
+                "the cap must reach the sidecar — it is the only place it can be applied");
+    }
+
+    @Test
+    void noPolicyLeavesTheOptionsSlotEmpty() throws Exception {
+        sidecar.startResponse = doneOnly();
+        var runtime = new CrewAiAgentRuntime();
+        runtime.configure(null);
+
+        var session = new RecordingSession();
+        runtime.execute(contextWithTools(List.of(), null), session);
+
+        assertTrue(session.awaitTerminal(5, TimeUnit.SECONDS));
+        var options = MAPPER.readTree(sidecar.lastStartBody.get()).path("options");
+        assertTrue(options.isMissingNode() || options.isEmpty(),
+                "with no policy attached the crew must keep whatever max_iter its "
+                        + "author configured; got: " + options);
+    }
+
     @Test
     void systemPrompt_threadedThroughStartRequest() throws Exception {
         sidecar.startResponse = doneOnly();

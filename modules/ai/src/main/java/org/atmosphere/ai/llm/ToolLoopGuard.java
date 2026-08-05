@@ -93,18 +93,42 @@ import java.util.concurrent.atomic.AtomicInteger;
  *       cap</b> — their upstream library's own default governs, and a
  *       per-request {@link ToolLoopPolicy} is honored only where the runtime
  *       translates it to a native knob (see each module's README).
- *       <p>Surveyed against the pinned versions, exactly one of them exposes
- *       such a knob: <b>ADK</b> ({@code LlmAgent.maxSteps}), wired by
- *       {@code AdkAgentRuntime.setMaxSteps} as a startup opt-in — it cannot be
- *       per-request because the agent is assembled once and reused. Semantic
- *       Kernel's {@code ToolCallBehavior} maximum is getter-only; Spring AI
- *       offers no iteration count (only a per-response
- *       {@code ToolExecutionEligibilityChecker} predicate); Alibaba's
- *       {@code maxParallelTools} is width, not depth; AgentScope's
- *       {@code maxIters} sits on an agent the adapter receives rather than
- *       builds; CrewAI's crew is user-supplied. Those five are bounded only by
- *       their own upstream defaults — stated here so nobody re-files it as a
- *       missing cap Atmosphere declined to set.</p></li>
+ *       <p>Surveyed against the versions this build resolves — google-adk 1.5.0,
+ *       agentscope-core 1.0.12, spring-ai 2.0.0 (final, not a milestone),
+ *       spring-ai-alibaba 1.1.2.3, semantic-kernel 1.5.0 — three of the six are
+ *       translatable and three are not. Re-check against the resolved jar, not
+ *       whatever copy a local repository happens to hold, when bumping any of
+ *       them:</p>
+ *       <ul>
+ *         <li><b>ADK</b> — {@code LlmAgent.maxSteps}, wired by
+ *             {@code AdkAgentRuntime.setMaxSteps}. A startup opt-in rather than
+ *             per-request, because the agent is assembled once and reused.</li>
+ *         <li><b>AgentScope</b> — {@code ReActAgent.Builder.maxIters}. Genuinely
+ *             per-request: the adapter already rebuilds the agent on every
+ *             dispatch, so an attached {@link ToolLoopPolicy} overrides the base
+ *             agent's value for that turn only.</li>
+ *         <li><b>CrewAI</b> — CrewAI's own {@code Agent.max_iter}, carried to the
+ *             Python sidecar in the session {@code options} map and applied to
+ *             every agent on the crew before kickoff.</li>
+ *         <li><b>Semantic Kernel</b> — none. {@code ToolCallBehavior} exposes
+ *             {@code getMaximumAutoInvokeAttempts()} but no setter, and its
+ *             public factories take no maximum.</li>
+ *         <li><b>Spring AI</b> — none <em>reachable from this adapter</em>. The
+ *             {@code ToolExecutionEligibilityChecker} seam exists, but it is a
+ *             {@code ChatModel} construction-time dependency; Atmosphere is
+ *             handed an already-built {@code ChatClient} via
+ *             {@code setChatClient}, and the request-time {@code options(...)}
+ *             spec accepts only a {@code ChatOptions.Builder}, which carries no
+ *             checker slot, and {@code DefaultToolCallingManager.Builder}
+ *             exposes only observation, resolver and exception-processor knobs —
+ *             no iteration count. An application that builds its own
+ *             {@code ChatModel} can install a counting checker itself.</li>
+ *         <li><b>Spring AI Alibaba</b> — none. {@code maxParallelTools} bounds
+ *             width, not depth.</li>
+ *       </ul>
+ *       <p>The last three are bounded only by their own upstream defaults —
+ *       stated here so nobody re-files it as a cap Atmosphere simply declined
+ *       to set.</p></li>
  * </ul>
  *
  * <h2>Installation</h2>

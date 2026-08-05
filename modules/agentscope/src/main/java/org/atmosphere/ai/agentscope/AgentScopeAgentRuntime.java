@@ -342,15 +342,29 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
      * (e.g. a user bean built with {@code enablePlan()}) is carried over so
      * a tools-only rebuild does not silently drop the user's plan surface.
      */
-    private static ReActAgent rebuildAgent(
+    // Package-private so the tool-loop cap can be pinned directly rather than
+    // through a live dispatch that would need a real model backend.
+    static ReActAgent rebuildAgent(
             ReActAgent baseAgent, AgentExecutionContext context, StreamingSession session,
             PlanNotebook planNotebook) {
+        // A per-request ToolLoopPolicy overrides the base agent's maxIters.
+        // AgentScope opens a single ModelCallScope per execute, so its internal
+        // rounds never surface as onModelStart and ToolLoopGuard cannot count
+        // them — translating the policy onto the framework's own iteration knob
+        // is the only way a cap actually binds here. With no policy attached the
+        // base agent's value carries over, so existing tuning is preserved.
+        var loopPolicy = org.atmosphere.ai.llm.ToolLoopPolicies.from(context);
+        var maxIters = loopPolicy != null ? loopPolicy.maxIterations() : baseAgent.getMaxIters();
+        if (loopPolicy != null) {
+            logger.debug("AgentScope maxIters from ToolLoopPolicy: {} (base {})",
+                    maxIters, baseAgent.getMaxIters());
+        }
         var builder = ReActAgent.builder()
                 .name(baseAgent.getClass().getSimpleName())
                 .sysPrompt(baseAgent.getSysPrompt())
                 .model(baseAgent.getModel())
                 .memory(baseAgent.getMemory())
-                .maxIters(baseAgent.getMaxIters())
+                .maxIters(maxIters)
                 .generateOptions(baseAgent.getGenerateOptions());
         if (!context.tools().isEmpty()) {
             builder.toolkit(AgentScopeToolBridge.toToolkit(

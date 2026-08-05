@@ -109,4 +109,36 @@ public interface TokenPricing {
 
     /** Pricing that always reports zero — useful for tests and observability-only deployments. */
     TokenPricing ZERO = (usage, model) -> 0.0;
+
+    // ---- Discovery (ServiceLoader) ----
+    //
+    // Provider-supplied rather than baked in, because a rate sheet in framework
+    // code is a hostage to fortune: prices change on the provider's schedule,
+    // this repository cannot verify them, and a stale table silently produces
+    // wrong money. Shipping the seam instead lets a deployment register the
+    // sheet it is actually billed on, and keeps the framework's own claim
+    // honest — with no provider on the classpath, cost is reported as zero and
+    // any cost ceiling is visibly inert rather than quietly wrong.
+    //
+    // These are default methods so the interface stays functional: `flat(...)`
+    // and `ZERO` remain valid lambdas.
+
+    /** Identifier for logs and the admin cost panel. */
+    default String name() {
+        return getClass().getSimpleName();
+    }
+
+    /**
+     * Whether this pricing is usable right now — e.g. its rate sheet loaded, or
+     * its currency matches the deployment. An unavailable provider is skipped
+     * during discovery rather than producing wrong numbers.
+     */
+    default boolean isAvailable() {
+        return true;
+    }
+
+    /** Higher wins during discovery. Ties resolve on {@link #name()}. */
+    default int priority() {
+        return 0;
+    }
 }

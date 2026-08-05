@@ -39,7 +39,12 @@ from . import __version__
 from .crew_loader import load_crew_factory
 from .sessions import Session, SessionRegistry
 from .stream import drain, run_crew
-from .tools import apply_system_prompt, build_remote_tools, inject_tools_into_crew
+from .tools import (
+    apply_max_iter,
+    apply_system_prompt,
+    build_remote_tools,
+    inject_tools_into_crew,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -230,6 +235,17 @@ def create_app(crew_factory: Callable[[str, list[dict[str, str]]], Any] | None =
                 status_code=500,
                 detail=f"crew factory failed: {type(exc).__name__}: {exc}",
             ) from exc
+
+        # Bound each agent's ReAct loop when the Java side sent a cap. Done
+        # before tools are injected so a tool-bearing crew is already bounded
+        # the first time it can loop.
+        max_iter = body.options.get("max_iter")
+        if max_iter is not None:
+            applied = apply_max_iter(crew, max_iter)
+            logger.info(
+                "applied max_iter=%s to %d agent(s) for session %s",
+                max_iter, applied, session.id,
+            )
 
         # Wire Java-side tools and system prompt onto the crew before
         # kickoff. Both operations are no-ops when the corresponding
