@@ -138,7 +138,7 @@
     "@testing-library/react": "^16.3.2",
     "@types/node": "^26.0.1",
     "@types/react": "^19.2.14",
-    "@vitest/coverage-v8": "^4.1.2",
+    "@vitest/coverage-v8": "^4.1.10",
     "@vitest/ui": "^4.1.2",
     "eslint": "^10.1.0",
     "jsdom": "^29.1.1",
@@ -148,7 +148,7 @@
     "svelte": "^5.55.7",
     "tsup": "^8.5.1",
     "typescript": "^6.0.2",
-    "vitest": "^4.1.2",
+    "vitest": "^4.1.10",
     "vue": "^3.5.31"
   },
   "dependencies": {
