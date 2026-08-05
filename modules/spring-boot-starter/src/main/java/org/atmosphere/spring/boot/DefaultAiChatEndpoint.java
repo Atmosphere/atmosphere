@@ -25,6 +25,30 @@ import org.atmosphere.ai.annotation.Prompt;
  */
 final class DefaultAiChatEndpoint {
 
+    /**
+     * The {@code @Prompt} method, resolved once by name.
+     *
+     * <p>The registrar previously reached for {@code getDeclaredMethods()[0]}.
+     * That is unspecified even on the JVM — the order of the returned array
+     * carries no guarantee — and it broke outright under GraalVM, where the
+     * array is empty unless the methods are registered for reflection. Binding
+     * the method here keeps the lookup next to the declaration it depends on,
+     * so adding a second method to this class cannot silently change which one
+     * the registrar picks.</p>
+     */
+    static final java.lang.reflect.Method PROMPT_METHOD = promptMethod();
+
+    private static java.lang.reflect.Method promptMethod() {
+        try {
+            return DefaultAiChatEndpoint.class.getDeclaredMethod(
+                    "onPrompt", String.class, StreamingSession.class);
+        } catch (NoSuchMethodException e) {
+            throw new IllegalStateException(
+                    "DefaultAiChatEndpoint.onPrompt(String, StreamingSession) is missing; "
+                            + "the default AI endpoint cannot be registered without it", e);
+        }
+    }
+
     @Prompt
     void onPrompt(String message, StreamingSession session) {
         session.stream(message);

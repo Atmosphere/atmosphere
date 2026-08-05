@@ -100,6 +100,18 @@ public final class AtmosphereReflectiveTypes {
             "org.atmosphere.interceptor.IdleResourceInterceptor",
             "org.atmosphere.interceptor.SuspendTrackerInterceptor",
 
+            // Managed-service interceptors: instantiated by
+            // AnnotationUtil.defaultManagedServiceInterceptors for every
+            // @ManagedService endpoint, on a path distinct from the default
+            // chain above. Omitting them still produced a running server —
+            // newClassInstance logs the InstantiationException and carries on —
+            // so the endpoint simply never came up, which no liveness probe
+            // could detect. AtmosphereDefaultInterceptorHintsTest pins these
+            // against the framework's own lists.
+            "org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor",
+            "org.atmosphere.client.TrackMessageSizeInterceptor",
+            "org.atmosphere.config.managed.ManagedServiceInterceptor",
+
             // Annotation processor
             "org.atmosphere.cpr.DefaultAnnotationProcessor"
     );

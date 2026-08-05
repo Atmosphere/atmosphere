@@ -48,6 +48,22 @@ public class AnnotationUtil {
             ManagedServiceInterceptor.class
     );
 
+    /**
+     * The interceptors installed for every {@code @ManagedService} endpoint.
+     *
+     * <p>Exposed because these are instantiated reflectively, which makes them
+     * an ahead-of-time concern: a GraalVM image that has not registered them
+     * cannot construct them, and {@code newClassInstance} reports that by
+     * logging and continuing — the endpoint quietly never comes up. Publishing
+     * the list lets the native-hint registry be checked against it instead of
+     * being kept in sync by hand.</p>
+     *
+     * @return unmodifiable list of the managed-service interceptor types
+     */
+    public static List<Class<? extends AtmosphereInterceptor>> managedServiceInterceptors() {
+        return MANAGED_ATMOSPHERE_INTERCEPTORS;
+    }
+
     public static void interceptors(Class<? extends AtmosphereInterceptor>[] interceptors, AtmosphereFramework framework) {
         for (Class<? extends AtmosphereInterceptor> i : interceptors) {
             try {

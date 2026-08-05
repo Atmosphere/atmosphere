@@ -125,7 +125,11 @@ class AtmosphereAiEndpointRegistrar {
 
         // Create the default endpoint
         var target = new DefaultAiChatEndpoint();
-        var promptMethod = target.getClass().getDeclaredMethods()[0]; // onPrompt
+        // Looked up by name, not by ordinal. getDeclaredMethods() has no
+        // specified order, so indexing it was already relying on luck; under
+        // GraalVM the array came back empty and the registrar died with an
+        // ArrayIndexOutOfBoundsException before the endpoint existed.
+        var promptMethod = DefaultAiChatEndpoint.PROMPT_METHOD;
         var lifecycle = AnnotatedLifecycle.scan(target.getClass());
 
         var handler = new AiEndpointHandler(
