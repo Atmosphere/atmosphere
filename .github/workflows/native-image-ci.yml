@@ -4,12 +4,26 @@ on:
   # `-am` in the install step transitively compiles modules/ai + modules/wasync,
   # so a doclint / compile break in those modules fails Native Image even
   # though they are not direct `-pl` targets. Trigger on them too.
+  #
+  # The module list must cover every Atmosphere dependency of the samples built
+  # below, not just the ones named on the `-pl` line. What breaks a native image
+  # is rarely a compile error — it is a missing reflection hint in a transitive
+  # module, and that module's own commit is the one that needs the lane to run.
+  # modules/{admin,agent,channels,checkpoint,skills} are dependencies of
+  # spring-boot-ai-chat; checkpoint was absent here while shipping a
+  # @Bean(initMethod=…) whose AOT hint resolved to an interface, so the fix for
+  # that startup failure could not trigger the lane that found it.
   push:
     branches: [ main ]
     paths:
       - 'modules/cpr/**'
       - 'modules/ai/**'
       - 'modules/wasync/**'
+      - 'modules/admin/**'
+      - 'modules/agent/**'
+      - 'modules/channels/**'
+      - 'modules/checkpoint/**'
+      - 'modules/skills/**'
       - 'modules/spring-boot-starter/**'
       - 'modules/quarkus-extension/**'
       - 'samples/spring-boot-chat/**'
@@ -24,6 +38,11 @@ on:
       - 'modules/cpr/**'
       - 'modules/ai/**'
       - 'modules/wasync/**'
+      - 'modules/admin/**'
+      - 'modules/agent/**'
+      - 'modules/channels/**'
+      - 'modules/checkpoint/**'
+      - 'modules/skills/**'
       - 'modules/spring-boot-starter/**'
       - 'modules/quarkus-extension/**'
       - 'samples/spring-boot-chat/**'
