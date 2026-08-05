@@ -57,11 +57,23 @@ public class AtmosphereCheckpointAutoConfiguration {
      * Default in-memory checkpoint store, used only when no other
      * {@link CheckpointStore} bean is present.
      *
+     * <p>The return type is the concrete {@link InMemoryCheckpointStore} rather
+     * than the {@link CheckpointStore} interface, and that is load-bearing under
+     * GraalVM. Spring AOT derives the reflection hints for {@code initMethod} /
+     * {@code destroyMethod} from the factory method's <em>declared</em> type, so
+     * declaring the interface registered {@code CheckpointStore.start()} while the
+     * container looks the method up on {@code bean.getClass()} — the concrete
+     * store, whose declared methods were never registered. Native image then
+     * failed the whole context with "Could not find an init method named 'start'".
+     * Declaring the implementation type registers the methods that are actually
+     * invoked. {@link ConditionalOnMissingBean} names the interface explicitly, so
+     * an operator-supplied store still wins.</p>
+     *
      * @return a started {@link InMemoryCheckpointStore}
      */
     @Bean(initMethod = "start", destroyMethod = "stop")
     @ConditionalOnMissingBean(CheckpointStore.class)
-    public CheckpointStore checkpointStore() {
+    public InMemoryCheckpointStore checkpointStore() {
         logger.warn("No CheckpointStore configured — using in-memory (lost on restart); "
                 + "configure SQLite (SqliteCheckpointStore from atmosphere-checkpoint) or "
                 + "Postgres (atmosphere-checkpoint-postgres) for production.");
