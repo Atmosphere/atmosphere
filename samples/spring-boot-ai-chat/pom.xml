@@ -177,6 +177,64 @@
         </plugins>
     </build>
     <profiles>
+        <!--
+          Native profile mirrors samples/spring-boot-chat, including the
+          maven-shared-utils pin (CI runners' plugin realm no longer inherits it
+          from the Maven distribution). This sample is the native lane's only AI
+          dispatch: the two existing native targets contain zero @AiEndpoint /
+          @Agent call sites, so the lane proved a server could start, never that
+          an agent could run under Native Image.
+        -->
+        <profile>
+            <id>native</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-maven-plugin</artifactId>
+                        <version>${spring-boot.version}</version>
+                        <configuration>
+                            <classifier>exec</classifier>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>process-aot</id>
+                                <goals>
+                                    <goal>process-aot</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <!-- The plugin realm no longer inherits maven-shared-utils from the
+                             Maven distribution on current CI runners; without this pin the
+                             build fails with "A required class was missing ... MessageUtils". -->
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.apache.maven.shared</groupId>
+                                <artifactId>maven-shared-utils</artifactId>
+                                <version>3.4.2</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <mainClass>org.atmosphere.samples.springboot.aichat.AiChatApplication</mainClass>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>build-native</id>
+                                <goals>
+                                    <goal>compile-no-fork</goal>
+                                </goals>
+                                <phase>package</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
         <profile>
             <id>spring-boot3</id>
             <properties>

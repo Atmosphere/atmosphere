@@ -48,16 +48,33 @@ class AtmosphereGatewayProfileAutoConfigurationTest {
     }
 
     @Test
-    void withoutTheProfilePropertyTheDefaultStaysPermissive() {
+    void withoutTheProfilePropertyNoInstallerRunsButTheDefaultStillBounds() {
         contextRunner.run(context -> {
             assertThat(context).doesNotHaveBean(
                     AtmosphereAiAutoConfiguration.GatewayProfileInstaller.class);
-            // The permissive default admits far past any production ceiling.
-            for (var i = 0; i < 1_000; i++) {
+
+            // Interactive traffic is untouched without any opt-in.
+            for (var i = 0; i < 200; i++) {
                 assertThat(AiGatewayHolder.get().admit("alice", "built-in", "m").accepted())
-                        .as("no opt-in means no enforcement change")
+                        .as("the default must be invisible to real traffic")
                         .isTrue();
             }
+
+            // What changed deliberately: "no opt-in" used to mean "no ceiling at
+            // all" (one million calls per hour, which never fired). The opt-in
+            // now buys a TIGHTER posture, not the first one — an unenforced
+            // limit left a startup WARN as the only thing between a runaway tool
+            // loop and the provider bill.
+            var refused = false;
+            for (var i = 0; i < GatewayProfiles.SAFE_DEFAULT_MAX_REQUESTS_PER_WINDOW * 2; i++) {
+                if (!AiGatewayHolder.get().admit("alice", "built-in", "m").accepted()) {
+                    refused = true;
+                    break;
+                }
+            }
+            assertThat(refused)
+                    .as("even without the profile, a runaway loop must eventually be refused")
+                    .isTrue();
         });
     }
 
