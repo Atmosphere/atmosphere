@@ -5,25 +5,21 @@ on:
   # so a doclint / compile break in those modules fails Native Image even
   # though they are not direct `-pl` targets. Trigger on them too.
   #
-  # The module list must cover every Atmosphere dependency of the samples built
-  # below, not just the ones named on the `-pl` line. What breaks a native image
-  # is rarely a compile error — it is a missing reflection hint in a transitive
-  # module, and that module's own commit is the one that needs the lane to run.
-  # modules/{admin,agent,channels,checkpoint,skills} are dependencies of
-  # spring-boot-ai-chat; checkpoint was absent here while shipping a
-  # @Bean(initMethod=…) whose AOT hint resolved to an interface, so the fix for
-  # that startup failure could not trigger the lane that found it.
+  # A native AI-dispatch job lived here and was removed deliberately, not
+  # because it was noisy: it proved that Atmosphere's annotation-driven model
+  # does not survive Native Image. AnnotationDetector discovers @AiEndpoint /
+  # @Agent / @ManagedService by reading .class files off the classpath, and a
+  # native image has none, so every annotated user class goes undetected and
+  # the starter silently falls back to its built-in default endpoint. Until
+  # discovery has a build-time index, an end-to-end AI assertion cannot pass
+  # here, and a job asserting only "it booted" would restate the gap this lane
+  # was added to close. See the AI gap register.
   push:
     branches: [ main ]
     paths:
       - 'modules/cpr/**'
       - 'modules/ai/**'
       - 'modules/wasync/**'
-      - 'modules/admin/**'
-      - 'modules/agent/**'
-      - 'modules/channels/**'
-      - 'modules/checkpoint/**'
-      - 'modules/skills/**'
       - 'modules/spring-boot-starter/**'
       - 'modules/quarkus-extension/**'
       - 'samples/spring-boot-chat/**'
@@ -38,11 +34,6 @@ on:
       - 'modules/cpr/**'
       - 'modules/ai/**'
       - 'modules/wasync/**'
-      - 'modules/admin/**'
-      - 'modules/agent/**'
-      - 'modules/channels/**'
-      - 'modules/checkpoint/**'
-      - 'modules/skills/**'
       - 'modules/spring-boot-starter/**'
       - 'modules/quarkus-extension/**'
       - 'samples/spring-boot-chat/**'
@@ -109,93 +100,6 @@ jobs:
       with:
         name: spring-boot-native-artifacts
         path: samples/spring-boot-chat/target/
-
-  spring-boot-ai-native:
-    name: Spring Boot AI Native Image
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v7
-
-    - name: Set up GraalVM 25
-      uses: graalvm/setup-graalvm@v1
-      with:
-        java-version: '25'
-        distribution: 'graalvm'
-        cache: 'maven'
-
-    - name: Install Atmosphere Modules
-      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl samples/spring-boot-ai-chat -am
-
-    - name: Build Spring Boot AI Native Image
-      run: ./mvnw -B -Pnative package -DskipTests -Dgpg.skip=true -pl samples/spring-boot-ai-chat
-      timeout-minutes: 30
-
-    - name: Verify Native Binary Exists
-      run: |
-        BINARY=$(find samples/spring-boot-ai-chat/target -maxdepth 1 -name 'atmosphere-spring-boot-ai-chat*' -not -name '*.jar' -not -name '*.jar.original' -not -name '*.txt' -type f -executable | head -1)
-        if [ -z "$BINARY" ]; then
-          echo "Native binary not found. Contents of target/:"
-          ls -lh samples/spring-boot-ai-chat/target/
-          exit 1
-        fi
-        echo "NATIVE_BINARY=$BINARY" >> "$GITHUB_ENV"
-        ls -lh "$BINARY"
-
-    # The point of this lane. The two other native targets contain zero
-    # @AiEndpoint / @Agent call sites, so they only ever proved a server can
-    # start. This dispatches a real agent turn through the OpenAI-compatible
-    # surface and asserts the model's text came back — keyless, because with no
-    # API key configured DemoAgentRuntime wins runtime resolution and answers
-    # through the same pipeline (guardrails, interceptors, metrics) a real
-    # provider would.
-    - name: Smoke Test AI Dispatch Under Native Image
-      env:
-        # The sample enables the SQLite tape; keep it off the source tree.
-        ATMOSPHERE_TAPE_PATH: ${{ runner.temp }}/tape.db
-      run: |
-        "$NATIVE_BINARY" &
-        PID=$!
-        trap 'kill $PID 2>/dev/null || true' EXIT
-
-        # Readiness is probed on GET /atmosphere/v1/models, not /actuator/health:
-        # this sample does not depend on spring-boot-starter-actuator, so the
-        # health endpoint the other native job uses would never answer here.
-        # The models endpoint is part of the surface under test anyway.
-        for i in $(seq 1 60); do
-          if curl -sf http://localhost:8080/atmosphere/v1/models > /dev/null 2>&1; then
-            echo "Application started"
-            break
-          fi
-          if [ "$i" -eq 60 ]; then
-            echo "Application failed to start within 60 seconds"
-            exit 1
-          fi
-          sleep 1
-        done
-
-        RESPONSE=$(curl -sf -X POST http://localhost:8080/atmosphere/v1/chat/completions \
-          -H 'Content-Type: application/json' \
-          -H 'X-Atmosphere-Auth: demo-token' \
-          -d '{"model":"atmosphere-ai-chat","messages":[{"role":"user","content":"native smoke"}]}') || {
-            echo "AI dispatch request failed"
-            exit 1
-          }
-
-        echo "$RESPONSE"
-        CONTENT=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
-        if [ -z "$CONTENT" ]; then
-          echo "No assistant content returned — the agent did not dispatch under Native Image."
-          echo "A server that merely starts is what this lane already proved; it must run an agent."
-          exit 1
-        fi
-        echo "AI dispatch produced content under Native Image"
-
-    - name: Upload Native Binary
-      if: failure()
-      uses: actions/upload-artifact@v7
-      with:
-        name: spring-boot-ai-native-artifacts
-        path: samples/spring-boot-ai-chat/target/
 
   quarkus-native:
     name: Quarkus Native Image
