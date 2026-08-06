@@ -20,11 +20,16 @@ The core framework for building real-time web applications in Java. Provides a p
 - **Virtual threads** enabled by default (JDK 21+)
 - **Broadcasting** -- pub/sub via `Broadcaster` and `BroadcasterFactory`
 - **Micrometer and OpenTelemetry** observability (optional)
-- **GraalVM Native Image** — the runtime builds and boots; annotation discovery
-  (`@ManagedService`, `@AiEndpoint`, `@Agent`) does **not** work, because
-  `AnnotationDetector` finds handlers by reading `.class` files off the
-  classpath and a native image has none. Register handlers programmatically
-  (`framework.addAtmosphereHandler(path, handler)`) when targeting native.
+- **GraalVM Native Image** — the runtime builds and boots. Whether annotated
+  handlers (`@ManagedService`, `@AiEndpoint`, `@Agent`) are found depends on how
+  they are discovered: `DefaultAnnotationProcessor` uses a pre-built map when the
+  deployment supplies one, and otherwise falls back to reading `.class` files off
+  the classpath — which a native image does not have. The Quarkus extension
+  builds that map from its Jandex index, so annotations resolve there. The Spring
+  Boot starter and plain servlet deployments have no build-time index yet, so
+  annotated classes go undiscovered and their paths serve nothing; register
+  handlers programmatically (`framework.addAtmosphereHandler(path, handler)`)
+  when targeting native on those.
 
 ## Minimal Example
 

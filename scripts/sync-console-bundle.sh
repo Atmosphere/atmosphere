@@ -53,14 +53,36 @@ sha_cmd() {
 # frontend (sources, lockfile, build config) and atmosphere.js (bundled into
 # the SPA chunk via the file: dependency). node_modules excluded — the
 # lockfiles pin them.
+#
+# The package's own "version" line is masked out of the manifest/lockfile hash.
+# The release workflow bumps atmosphere.js to the next -SNAPSHOT as its last
+# step, and that bump cannot change a single byte of the emitted bundle — but
+# it did move the fingerprint, so the first commit after every release was
+# blocked on a re-sync that produced identical bytes. Masking keeps the gate
+# firing on real input changes (dependencies, sources, build config) and stops
+# it firing on the version string alone. Only the top-level and root-package
+# "version" keys are masked; a dependency's pinned version sits deeper in the
+# lockfile and still counts.
+mask_version() {
+  sed -E 's/^([[:space:]]*)"version"[[:space:]]*:[[:space:]]*"[^"]*"/\1"version": "MASKED"/'
+}
+
 compute_fingerprint() {
   {
     find "$FRONTEND_DIR" -type f -not -path "*/node_modules/*" 2>/dev/null
     find "atmosphere.js/src" -type f 2>/dev/null
-    printf '%s\n' "atmosphere.js/package.json" "atmosphere.js/package-lock.json"
   } | LC_ALL=C sort | while IFS= read -r f; do
     [ -f "$f" ] && sha_cmd < "$f" | awk -v f="$f" '{print $1, f}'
-  done | sha_cmd | awk '{print $1}'
+  done > /tmp/.atmo-console-fp.$$ 2>/dev/null || true
+
+  for f in "atmosphere.js/package.json" "atmosphere.js/package-lock.json"; do
+    if [ -f "$f" ]; then
+      mask_version < "$f" | sha_cmd | awk -v f="$f" '{print $1, f}' >> /tmp/.atmo-console-fp.$$
+    fi
+  done
+
+  LC_ALL=C sort /tmp/.atmo-console-fp.$$ | sha_cmd | awk '{print $1}'
+  rm -f /tmp/.atmo-console-fp.$$
 }
 
 check() {
