@@ -504,6 +504,18 @@ public class AtmosphereAutoConfiguration {
 
     private Map<Class<? extends Annotation>, Set<Class<?>>> scanAnnotations(
             AtmosphereProperties properties) {
+
+        // A build-time scan wins when one ran. It is the only thing that works in
+        // a native image, where the classpath holds no .class files to scan and a
+        // runtime scan silently yields nothing — a server that starts and serves
+        // no annotated endpoint. On the JVM the file is normally absent and the
+        // scan below runs exactly as before.
+        var precomputed = AtmosphereAnnotationScanner.readPrecomputed(
+                getClass().getClassLoader());
+        if (precomputed.isPresent()) {
+            return AtmosphereAnnotationScanner.toAnnotationMap(precomputed.get());
+        }
+
         ClassPathScanningCandidateComponentProvider scanner =
                 new ClassPathScanningCandidateComponentProvider(false);
         for (Class<? extends Annotation> annotation : ATMOSPHERE_ANNOTATIONS) {

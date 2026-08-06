@@ -1,0 +1,7 @@
+#
+# Runs Atmosphere's annotation scan during AOT processing. A native image has no
+# .class files to scan at startup, so the handler classes are resolved here —
+# while a real classpath still exists — and recorded for the runtime to read.
+#
+org.springframework.beans.factory.aot.BeanFactoryInitializationAotProcessor=\
+org.atmosphere.spring.boot.AtmosphereAnnotationScanAotProcessor
