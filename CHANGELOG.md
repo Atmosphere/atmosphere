@@ -7,6 +7,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.64] - 2026-08-06
+
+### Added
+
+- bound the default gateway and make checkpoint encryption readable safeDefault replaces a 1M/hour non-limiter with an anonymous bucket sized above the per-principal one; CheckpointStore.encryptsAtRest reports posture instead of only logging it
+- bind tool-loop caps on AgentScope and CrewAI, discover TokenPricing AgentScope maxIters per request, CrewAI max_iter across the sidecar wire; ToolLoopGuard survey now names why SK/SpringAI/Alibaba cannot be capped
+- beforeCompletion interceptor hook fires before the terminal frame Metadata emitted from postProcess was silently dropped at the closed leaf; the hook runs LIFO pre-terminal with Throwable isolation, consume-once arming, error-path invalidation and a reentrancy latch
+- screen tool output for injection by default, marking not deleting Tri-state OFF/ANNOTATE/SANITIZE defaulting to ANNOTATE; bounded 256KB scan; init-param bridge; OWASP A04 now COVERED
+- add LiteLLM proxy quick factory to OpenAiCompatibleClient
+- resolve ACS manifest extends chains with upstream additive-merge semantics Depth-first chain resolution with canonical trust-root confinement, atomic policy bindings, cycle/depth/conflict errors mirroring Microsoft's resolver; URL extends rejected fail-closed and bundle refs rebased per declaring file
+- relay HITL approvals across nodes so any node can answer Publishes an unresolved approval on a cluster broadcaster channel; the owning node completes the parked future, non-owners no-op on UNKNOWN_ID
+- response-cache parity on @AiEndpoint, CrewAI schema facets, ADK step cap Consumers: AiStreamingSession gate + ResponseCacheConfig install at AiEndpointProcessor; ToolBridgeUtils schema on the CrewAI sidecar wire; LlmAgent.maxSteps opt-in
+- parse and enforce MS Agent Control Specification manifests YamlPolicyParser routes the ACS root key to intervention-point bindings with fail-closed opa-backed rego verdicts; weekly conformance diffs upstream's own contract fixtures on main, retiring the pre-ACS pin
+- carry enum, array and nested facets into Koog and Embabel schemas Both bridges flattened every structural facet to a string; Koog gains Enum/List/Object types, Embabel its enum/properties/itemType slots
+- Tier-3 polish — observability, TCK depth, invariants, security defaults, DX Consumers: percentile+cached-token meters and console tab on both runtimes; behavioural CANCELLATION TCK + capability meta-gate across 12 runtimes; session-map sweeper and MCP teardown; Anthropic cache_control/tool-deltas/model enumeration; JDBC schema versioning; A2A raw-handler admission; webhook dedup; Kotlin agent DSL; markdown/sentence chunkers; 20 e2e tests returned to live coverage
+- tool-call correctness — schemas, arg parsing, execution bound, MCP fail-closed Consumers: McpProtocolHandler tools/call gate; parseJsonArgs at 6 bridges; ToolExecutionHelper seam on all 11 runtimes; schema emitters for Built-in/Anthropic/Cohere/SpringAI/Alibaba; MetricsCapturingSession + admin snapshot
+- error taxonomy, reranker, OpenAI serving, prompt registry, eval runner, cost parity Consumers: classifier at 12 runtime error seams + typed outer retry; over-fetch rerank on the retrieval path; /atmosphere/v1 via AiPipeline (default off); prompt: resolution at 3 processor seams; POST /api/admin/evals/run + CI smoke; Quarkus CostAccountantHolder install + servlet guardrail bridge
+- opt-in tape redaction hook and checkpoint encryption at rest TapeRedactor SPI + PII redactor on both tape write paths; AES-256-GCM CheckpointCipher with legacy-plaintext migration; plaintext startup WARN
+- wire GenerationParams into ADK, Semantic Kernel, Cohere, Koog adapters Contract test now forces every runtime to declare honor-vs-cede; README honoring matrix updated
+- feed cost and tool-call meters at the shared metrics seam TokenPricingHolder gates dollars (no fabricated $0); starters install pricing; admin snapshot exposes costUsdTotal + tool timer
+- record HITL approval decisions in the durable effect journal Crash-resume replays a committed approve/deny without re-prompting; timeouts and cross-principal re-drives re-prompt
+- add SQLite durable-timer and run-journal backends
+- add CheckpointStore producer and console parity
+- add web-search tool and pluggable WebSearchEngine SPI
+- add model context-window catalog for model-aware compaction
+- add evaluator-driven refineUntil supervisor loop
+
+### Fixed
+
+- register managed-service interceptors and bind the prompt method by name Reflective instantiation failures were caught and logged, so the AI endpoint silently never registered under GraalVM
+- declare the concrete store type on the lifecycle @Bean Spring AOT hinted CheckpointStore.start() while the container invoked it on InMemoryCheckpointStore, failing native startup
+- runtime-init the two OpenSsl private-key-method interfaces too Their constants getstatic the tcnative JNI values ReferenceCountedOpenSslContext now reaches; native build verified locally in the mandrel container
+- runtime-init io.netty.internal.tcnative for native image netty 4.1.136's SslContext reaches SSLPrivateKeyMethod during analysis; its JNI init fails in the builder (sslSignRsaPkcsSha1 UnsatisfiedLinkError)
+- make the PII email regex linear-time on long local-part runs Negative lookbehind + possessive quantifier close CodeQL java/polynomial-redos; matches unchanged, regression test scans 500k chars
+- patch every open Dependabot alert across Maven and npm manifests netty 4.2.16/4.1.136, quarkus 3.36.3, jetty 12.0.36, jackson 3.2.1/3.1.5/2.22.1, spring 6.2.19, lz4/spring-retry/postgresql pins, npm lockfiles + console bundle refresh
+- ai-tools cost badge rides beforeCompletion without clobbering the router routing.* moves off the dead postProcess path and yields to RoutingLlmClient's genuine values; reset copy no longer narrates success before the approval verdict; e2e asserts the rendered chips
+- merge server metadata frames by their wire shape The handler read msg.data but Atmosphere metadata frames carry top-level key/value, so routing chips never rendered from server emissions; bundle resynced to all committed consumers
+- bound cost-ceiling tenant buckets and roll accrual over The map was keyed by a caller-supplied MDC tag with no cap and never decayed; 500 tags made 500 entries and one breach blocked forever
+- size the compaction budget to the endpoint model, not the app default CompactionConfig.resolve(cfg, model) had zero callers, so @AiEndpoint(model=) got the configured model window - 1M instead of 128k
+- register console assets by pattern so native stops pruning the SPA Both hardcoded hashes had gone stale; the old test compared the registration to itself and passed. Also: meta-gate bite test, DatabaseAgentState doc-truth
+- route keyless demo mode through the pipeline runtime across the AI samples DemoResponseProducer bypasses become DemoAgentRuntime strategies (agui/dentist/orchestration/ai-tools; quarkus documents its bridge-only truth); ai-tools drives real tools and the real approval registry via new AiStreamingSession.unwrap, with HITL/tool-activity specs strengthened to match
+- close open text and tool frames on completion, gate post-terminal emits Pipeline dispatches never emitted TEXT_MESSAGE_END (only the agui sample's hand-rolled TextComplete did) and a dangling TOOL_CALL_START leaked on complete; both AG-UI sessions now close innermost-first and drop frames after RUN_FINISHED/RUN_ERROR
+- route the ai-chat demo fallback through the framework dispatch seam The @Prompt short-circuit bypassed DispatchDecorators, so no key meant no dev-inspector/tape/metrics; SB3 starter gains the inspector for parity
+- gate the dev inspector on its own type, not a neighbouring module Top-level placement broke servlet-only apps with NoClassDefFoundError; the coordinator gate silently skipped the recorder
+- install the dev inspector without requiring the coordinator The bean sat inside the coordinator-gated config, so plain AI apps recorded nothing despite the flag
+- relay a worker-observed interrupt across the bounded dispatch hop An interrupt raised inside the agent body now reaches the coordinating thread so refineUntil stops at its turn boundary
+- unify dispatch decorator stacks behind one shared composer Budget+confidence now on @AiEndpoint; cost+lineage+dev-inspector now on the pipeline path; parity test pins the order
+- HTTP-layer retry with Retry-After in the shared SSE base 429/500/502/503/408 now retried for Anthropic and Cohere; error emitted once after budget; cancel-aware bounded backoff
+- rag-chat queries the real vector store via similaritySearch Endpoint + @AiTool paths ride SpringAiVectorStoreContextProvider in keyed mode; keyword provider keeps only the A04 demo doc
+- add opt-in tool-output injection screen; downgrade OWASP A04 to PARTIAL Screen at the shared finishAndEmit seam (rule-based, fail-closed, audited); matrix prose no longer claims tool outputs are stripped by default
+- honor AgentLimits.timeout on the synchronous call path Bound call()/pipeline dispatch on a per-call VT executor; propagate the circular-dispatch guard across the hop
+- stream tokens live, resume on resubscribe, emit error frames
+- use managed langchain4j version in orchestration-demo Hardcoded 1.15.0 crashed the tool+prompt-cache path; add sample-pom version lint
+
+### Changed
+
+- state the annotation-discovery limitation next to the native claims The runtime boots natively but classpath scanning finds no @ManagedService/@AiEndpoint/@Agent class
+- drop the AI dispatch job until annotation discovery works natively AnnotationDetector reads .class files, so no @AiEndpoint/@Agent class is found in a native image
+- watch every module the native samples depend on checkpoint/admin/agent/channels/skills could break a native image without triggering the lane that builds it
+- dispatch a real agent turn under Native Image Both existing native targets have zero AI call sites, so the lane only proved a server starts; this one asserts assistant content keylessly via DemoAgentRuntime
+- handlebars 4.5.4
+- vitest + coverage-v8 4.1.10 616 tests green; lockfile updated via npm@11 (npm 10.9 arborist crashes on the esbuild override graph)
+- refresh atmosphere.js dev-dep lockfile ranges types/node, vitest coverage, eslint, prettier, react, svelte, vue patch/minor updates; 616 tests green
+- keep jsdom on 29.x — 30.x needs node >=22.13 and the test matrix still covers node 20 616 tests green on 29; the node-20 matrix decision is separate
+- bump actions/setup-node to v7 and action-gh-release to v3
+- handlebars 4.5.3, central-publishing-maven-plugin 0.11.0
+- bump jsdom to 30 and the console frontend vite/vue toolchain marked 18.0.7, vite 8.2.0, plugin-vue 6.0.8, vue-tsc 3.3.9; typescript stays on 6.x (tsup's rollup-plugin-dts cannot drive the TS7 native port); console bundle regenerated
+- align Quarkus version mentions with the 3.36.3 pin
+- drive PgVectorContextProvider against a live pgvector container Every RAG connector test mocked the transport, so nothing had proven the SQL, the vector cast or distance ordering; hard-fails under CI rather than skipping
+- drift-log entry — full SHA synthesized from a short prefix in a watcher command
+- make playwright-install retries wait for the dpkg lock instead of failing instantly timeout 300 kills npx but not the sudo'd apt-get, which keeps holding the lock; DPkg::Lock::Timeout lets later attempts recover
+- pin the litellm factory base URLs via a package-private baseUrl() accessor Wire-level spec comment now states it drives builder() directly since the factory cannot take a mock HttpClient
+- trim concept density in the Why/Scope tables, surface @Agent code earlier Orchestration/Memory rows link reference docs instead of inlining internals; Terminology moves below @Agent
+- wait for the console composer before sending in multi-client The Connected badge reports socket state, not composer readiness; a send in that gap was discarded and the list stayed empty
+- pin MS YAML conformance diff to the last pre-ACS upstream commit Upstream 8149ebf93d deleted the policy-as-code examples for ACS manifests; the pin keeps the byte-for-byte claim testable
+- drive dev-inspector via the decorated endpoint, exact-match MCP Tools PromptCacheDemoChat builds its own AiPipeline so DispatchDecorators never records it; 'MCP Tools' also matched the 'No MCP tools' empty state
+- assert the web_search tool's own output vocabulary in the startup-team spec The sample now uses the built-in fail-closed web_search tool; 'search results' matched only the removed JSoup scrape
+- pin maven-shared-utils into native-maven-plugin realm CI runners' plugin realm dropped it; native lane failed with missing MessageUtils
+- allowlist Quarkus @DefaultBean doc symbol for the checkpoint-producer README
+- pin Jackson 2 databind/core 2.22.1 and json-smart 2.5.2 Module-local patch pins for CVE-2026-54515 and CVE-2024-57699 pulled transitively by temporal-sdk/temporal-testing 1.30.1
+- bump version to 4.0.63
+- prepare for next development iteration 4.0.64-SNAPSHOT
+
 ## [4.0.63] - 2026-07-17
 
 ### Added
