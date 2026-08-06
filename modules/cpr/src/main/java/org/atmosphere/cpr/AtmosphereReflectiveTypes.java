@@ -112,6 +112,19 @@ public final class AtmosphereReflectiveTypes {
             "org.atmosphere.client.TrackMessageSizeInterceptor",
             "org.atmosphere.config.managed.ManagedServiceInterceptor",
 
+            // Broadcaster caches: named by the broadcasterCacheClass init-param and
+            // instantiated with IOUtils.loadClass, so a native image needs them by
+            // name. Their absence is what stopped every @ManagedService endpoint
+            // registering under GraalVM — createBroadcaster threw
+            // ClassNotFoundException, ManagedServiceProcessor logged it via
+            // logger.warn("", e) and carried on, and the endpoint silently never
+            // existed. BroadcasterCacheRegisteredForNativeImageTest pins the set
+            // against the cache package.
+            "org.atmosphere.cache.UUIDBroadcasterCache",
+            "org.atmosphere.cache.DefaultBroadcasterCache",
+            "org.atmosphere.cache.SessionBroadcasterCache",
+            "org.atmosphere.cache.BoundedMemoryCache",
+
             // Annotation processor
             "org.atmosphere.cpr.DefaultAnnotationProcessor"
     );
