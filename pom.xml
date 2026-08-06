@@ -1330,7 +1330,7 @@
              advisory. Provided-scope only (DockerSandboxProvider uses
              docker-java), but the advisory closes cleanly on 1.84+. -->
         <bouncycastle.version>1.84</bouncycastle.version>
-        <micrometer.version>1.16.5</micrometer.version>
+        <micrometer.version>1.16.6</micrometer.version>
         <jakarta-enterprise-cdi-api.version>4.1.0</jakarta-enterprise-cdi-api.version>
         <testcontainers.version>1.21.4</testcontainers.version>
         <awaitility.version>4.2.2</awaitility.version>
