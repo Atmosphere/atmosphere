@@ -1,0 +1,4 @@
+# What atmosphere-runtime needs in a GraalVM native image. Extension modules
+# ship their own file; NativeImageMetadata merges every provider it finds.
+org.atmosphere.nativeimage.CoreNativeImageMetadataProvider
+org.atmosphere.nativeimage.PoolNativeImageMetadataProvider

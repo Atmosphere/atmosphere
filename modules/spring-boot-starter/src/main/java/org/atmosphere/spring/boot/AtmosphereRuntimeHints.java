@@ -15,7 +15,7 @@
  */
 package org.atmosphere.spring.boot;
 
-import org.atmosphere.cpr.AtmosphereReflectiveTypes;
+import org.atmosphere.nativeimage.NativeImageMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.aot.hint.MemberCategory;
@@ -44,34 +44,30 @@ public class AtmosphereRuntimeHints implements RuntimeHintsRegistrar {
     public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
         ReflectionHints reflection = hints.reflection();
 
-        // Spring-specific
+        // Spring-specific: the object factory this starter installs.
         registerType(reflection, SpringAtmosphereObjectFactory.class);
 
-        // Core Atmosphere types (source of truth: AtmosphereReflectiveTypes)
-        for (String typeName : AtmosphereReflectiveTypes.coreTypes()) {
+        // Everything else comes from the modules themselves. This used to be a
+        // transcription of AtmosphereReflectiveTypes, duplicated here, in the
+        // Spring Boot 3 starter and in the Quarkus build step — three copies of
+        // one list, and no way for atmosphere-ai, -mcp or -agent to contribute
+        // the types they load by name. Asking the SPI means a module that adds
+        // a reflective lookup declares it once, beside the code doing it, and
+        // every runtime picks it up.
+        var metadata = NativeImageMetadata.collect(
+                classLoader != null ? classLoader : getClass().getClassLoader());
+
+        for (String typeName : metadata.reflectiveTypes()) {
             registerTypeByName(reflection, typeName);
         }
-
-        // Pool implementations (only if commons-pool2 is on the classpath)
-        if (classLoader != null) {
-            try {
-                classLoader.loadClass("org.apache.commons.pool2.PooledObjectFactory");
-                for (String typeName : AtmosphereReflectiveTypes.poolTypes()) {
-                    registerTypeByName(reflection, typeName);
-                }
-            } catch (ClassNotFoundException e) {
-                logger.trace("commons-pool2 not on classpath; skipping pool class registration", e);
-            }
+        for (String pattern : metadata.resourcePatterns()) {
+            hints.resources().registerPattern(pattern);
         }
 
-        // Annotation processors (instantiated reflectively by AnnotationHandler)
-        for (String processor : AtmosphereReflectiveTypes.annotationProcessors()) {
-            registerTypeByName(reflection, processor);
-        }
-
-        // ServiceLoader resource files
-        hints.resources().registerPattern("META-INF/services/org.atmosphere.inject.Injectable");
-        hints.resources().registerPattern("META-INF/services/org.atmosphere.inject.CDIProducer");
+        logger.debug("Registered {} reflective type(s) and {} resource pattern(s) from "
+                        + "native metadata provider(s) {}",
+                metadata.reflectiveTypes().size(), metadata.resourcePatterns().size(),
+                metadata.providerNames());
     }
 
     private void registerType(ReflectionHints reflection, Class<?> type) {

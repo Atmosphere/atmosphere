@@ -221,7 +221,8 @@ class AtmosphereProcessor {
 
     @BuildStep
     void registerReflection(AtmosphereAnnotationsBuildItem annotations,
-                            BuildProducer<ReflectiveClassBuildItem> reflectiveClasses) {
+                            BuildProducer<ReflectiveClassBuildItem> reflectiveClasses,
+                            BuildProducer<NativeImageResourceBuildItem> nativeResources) {
         List<String> allClassNames = new ArrayList<>();
         for (List<String> classNames : annotations.getAnnotationClassNames().values()) {
             allClassNames.addAll(classNames);
@@ -250,15 +251,36 @@ class AtmosphereProcessor {
                         .reason("Quarkus Atmosphere runtime classes require reflection")
                         .build());
 
-        // Core Atmosphere types (source of truth: AtmosphereReflectiveTypes)
-        reflectiveClasses.produce(
-                ReflectiveClassBuildItem.builder(
-                                AtmosphereReflectiveTypes.coreTypes().toArray(new String[0]))
-                        .constructors()
-                        .methods()
-                        .fields()
-                        .reason("Atmosphere core classes require reflection")
-                        .build());
+        // Everything the modules declare for themselves. This was a direct read
+        // of AtmosphereReflectiveTypes.coreTypes(), which covered only
+        // atmosphere-runtime — atmosphere-ai, -mcp, -agent and -coordinator all
+        // load classes by name and had no way to say so, and the same list was
+        // transcribed again in both Spring starters. NativeImageMetadata merges
+        // every provider on the classpath, so adding a module adds its types
+        // here without touching this build step.
+        var metadata = org.atmosphere.nativeimage.NativeImageMetadata.collect(
+                Thread.currentThread().getContextClassLoader());
+
+        if (!metadata.reflectiveTypes().isEmpty()) {
+            reflectiveClasses.produce(
+                    ReflectiveClassBuildItem.builder(
+                                    metadata.reflectiveTypes().toArray(new String[0]))
+                            .constructors()
+                            .methods()
+                            .fields()
+                            .reason("Declared by Atmosphere native metadata providers: "
+                                    + metadata.providerNames())
+                            .build());
+        }
+
+        for (String pattern : metadata.resourcePatterns()) {
+            nativeResources.produce(new NativeImageResourceBuildItem(pattern));
+        }
+
+        logger.info("Atmosphere native metadata: {} reflective type(s), {} resource(s) "
+                        + "from provider(s) {}",
+                metadata.reflectiveTypes().size(), metadata.resourcePatterns().size(),
+                metadata.providerNames());
     }
 
     @BuildStep
