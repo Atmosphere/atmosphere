@@ -79,19 +79,40 @@ jobs:
 
     - name: Smoke Test Native Binary
       run: |
-        "$NATIVE_BINARY" &
+        LOG=$(mktemp)
+        "$NATIVE_BINARY" > "$LOG" 2>&1 &
         PID=$!
-        # Wait for startup (native images start fast)
+        trap 'kill $PID 2>/dev/null || true' EXIT
+
+        started=0
         for i in $(seq 1 30); do
           if curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1; then
             echo "Application started successfully"
-            kill $PID
-            exit 0
+            started=1
+            break
           fi
           sleep 1
         done
-        echo "Application failed to start within 30 seconds"
-        kill $PID 2>/dev/null || true
+        if [ "$started" -ne 1 ]; then
+          echo "Application failed to start within 30 seconds"
+          sed -n '1,120p' "$LOG"
+          exit 1
+        fi
+
+        # Booting is not the feature. This sample's entire point is the
+        # @ManagedService at /atmosphere/chat, which Atmosphere finds by
+        # scanning .class files — something a native image cannot do. Assert
+        # the handler was actually installed, not merely that a port answers:
+        # /actuator/health is served by Spring and says nothing about whether
+        # Atmosphere registered anything.
+        echo "--- checking that the @ManagedService handler was installed ---"
+        if grep -q "mapped to context-path: /atmosphere/chat" "$LOG"; then
+          echo "PASS: @ManagedService(/atmosphere/chat) is registered under Native Image"
+          exit 0
+        fi
+        echo "FAIL: the annotated endpoint was never installed."
+        echo "Handlers Atmosphere did install:"
+        grep -E "Installed AtmosphereHandler|mapped to context-path" "$LOG" || echo "  (none)"
         exit 1
 
     - name: Upload Native Binary
@@ -130,18 +151,39 @@ jobs:
 
     - name: Smoke Test Native Binary
       run: |
-        samples/quarkus-chat/target/*-runner &
+        LOG=$(mktemp)
+        samples/quarkus-chat/target/*-runner > "$LOG" 2>&1 &
         PID=$!
+        trap 'kill $PID 2>/dev/null || true' EXIT
+
+        started=0
         for i in $(seq 1 30); do
           if curl -sf http://localhost:8080/ > /dev/null 2>&1; then
             echo "Application started successfully"
-            kill $PID
-            exit 0
+            started=1
+            break
           fi
           sleep 1
         done
-        echo "Application failed to start within 30 seconds"
-        kill $PID 2>/dev/null || true
+        if [ "$started" -ne 1 ]; then
+          echo "Application failed to start within 30 seconds"
+          sed -n '1,120p' "$LOG"
+          exit 1
+        fi
+
+        # Same assertion as the Spring Boot lane, and the interesting half of
+        # the comparison: Quarkus builds Atmosphere's annotation map from its
+        # Jandex index at build time rather than scanning at runtime, so the
+        # handler should register here even though a native image has no
+        # .class files. Serving "/" only proved a static page exists.
+        echo "--- checking that the @ManagedService handler was installed ---"
+        if grep -q "mapped to context-path: /atmosphere/chat" "$LOG"; then
+          echo "PASS: @ManagedService(/atmosphere/chat) is registered under Native Image"
+          exit 0
+        fi
+        echo "FAIL: the annotated endpoint was never installed."
+        echo "Handlers Atmosphere did install:"
+        grep -E "Installed AtmosphereHandler|mapped to context-path" "$LOG" || echo "  (none)"
         exit 1
 
     - name: Upload Native Binary
