@@ -100,19 +100,30 @@ jobs:
         fi
 
         # Booting is not the feature. This sample's entire point is the
-        # @ManagedService at /atmosphere/chat, which Atmosphere finds by
-        # scanning .class files — something a native image cannot do. Assert
-        # the handler was actually installed, not merely that a port answers:
-        # /actuator/health is served by Spring and says nothing about whether
-        # Atmosphere registered anything.
-        echo "--- checking that the @ManagedService handler was installed ---"
-        if grep -q "mapped to context-path: /atmosphere/chat" "$LOG"; then
-          echo "PASS: @ManagedService(/atmosphere/chat) is registered under Native Image"
+        # @ManagedService at /atmosphere/chat, and Atmosphere finds that class
+        # by scanning .class files — something a native image cannot do. A
+        # liveness URL answers either way, so drive a real connection and check
+        # that the annotated @Ready method ran: that single log line can only
+        # appear if the class was discovered, the handler registered, @Inject
+        # resolved, and the lifecycle fired.
+        #
+        # Registration itself is silent (ManagedServiceProcessor calls
+        # addAtmosphereHandler with no logging), so there is no "installed"
+        # line to grep — asserting behaviour is both more honest and the only
+        # option available.
+        echo "--- connecting to /atmosphere/chat ---"
+        curl -s --max-time 8 \
+          "http://localhost:8080/atmosphere/chat?X-Atmosphere-tracking-id=0&X-Atmosphere-Framework=2.3&X-Atmosphere-Transport=long-polling&X-Cache-Date=0" \
+          > /dev/null 2>&1 || true
+        sleep 2
+
+        if grep -q "connected (broadcaster:" "$LOG"; then
+          echo "PASS: @ManagedService(/atmosphere/chat) served a real connection under Native Image"
           exit 0
         fi
-        echo "FAIL: the annotated endpoint was never installed."
-        echo "Handlers Atmosphere did install:"
-        grep -E "Installed AtmosphereHandler|mapped to context-path" "$LOG" || echo "  (none)"
+        echo "FAIL: connecting to the annotated endpoint did not run @Ready."
+        echo "--- application log ---"
+        sed -n '1,150p' "$LOG"
         exit 1
 
     - name: Upload Native Binary
@@ -176,14 +187,19 @@ jobs:
         # Jandex index at build time rather than scanning at runtime, so the
         # handler should register here even though a native image has no
         # .class files. Serving "/" only proved a static page exists.
-        echo "--- checking that the @ManagedService handler was installed ---"
-        if grep -q "mapped to context-path: /atmosphere/chat" "$LOG"; then
-          echo "PASS: @ManagedService(/atmosphere/chat) is registered under Native Image"
+        echo "--- connecting to /atmosphere/chat ---"
+        curl -s --max-time 8 \
+          "http://localhost:8080/atmosphere/chat?X-Atmosphere-tracking-id=0&X-Atmosphere-Framework=2.3&X-Atmosphere-Transport=long-polling&X-Cache-Date=0" \
+          > /dev/null 2>&1 || true
+        sleep 2
+
+        if grep -q "connected (broadcaster:" "$LOG"; then
+          echo "PASS: @ManagedService(/atmosphere/chat) served a real connection under Native Image"
           exit 0
         fi
-        echo "FAIL: the annotated endpoint was never installed."
-        echo "Handlers Atmosphere did install:"
-        grep -E "Installed AtmosphereHandler|mapped to context-path" "$LOG" || echo "  (none)"
+        echo "FAIL: connecting to the annotated endpoint did not run @Ready."
+        echo "--- application log ---"
+        sed -n '1,150p' "$LOG"
         exit 1
 
     - name: Upload Native Binary
