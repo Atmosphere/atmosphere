@@ -32,6 +32,7 @@ on:
       - '.mvn/**'
       - 'pom.xml'
       - '.github/workflows/native-image-ci.yml'
+      - 'scripts/native/**'
   pull_request:
     branches: [ main ]
     paths:
@@ -52,6 +53,7 @@ on:
       - '.mvn/**'
       - 'pom.xml'
       - '.github/workflows/native-image-ci.yml'
+      - 'scripts/native/**'
   workflow_dispatch:
 
 jobs:
@@ -124,22 +126,36 @@ jobs:
         # line to grep — asserting behaviour is both more honest and the only
         # option available.
         #
-        # Scope: this drives long-polling. WebSocket, SSE and transport
-        # fallback under native are not exercised by this lane.
+        # Scope: this drives long-polling; the probe below drives WebSocket,
+        # SSE and the room protocol. Transport negotiation/fallback is an
+        # atmosphere.js client behaviour and stays unproven here.
         echo "--- connecting to /atmosphere/chat ---"
         curl -s --max-time 8 \
           "http://localhost:8080/atmosphere/chat?X-Atmosphere-tracking-id=0&X-Atmosphere-Framework=2.3&X-Atmosphere-Transport=long-polling&X-Cache-Date=0" \
           > /dev/null 2>&1 || true
         sleep 2
 
-        if grep -q "connected (broadcaster:" "$LOG"; then
-          echo "PASS: @ManagedService(/atmosphere/chat) served a real connection under Native Image"
-          exit 0
+        if ! grep -q "connected (broadcaster:" "$LOG"; then
+          echo "FAIL: connecting to the annotated endpoint did not run @Ready."
+          echo "--- application log ---"
+          sed -n '1,150p' "$LOG"
+          exit 1
         fi
-        echo "FAIL: connecting to the annotated endpoint did not run @Ready."
-        echo "--- application log ---"
-        sed -n '1,150p' "$LOG"
-        exit 1
+        echo "PASS: @ManagedService(/atmosphere/chat) served a real connection under Native Image"
+
+        # Long-polling proved discovery; it says nothing about the other
+        # transports. Drive WebSocket fan-out (which exercises the Jackson
+        # @Message codec round-trip), SSE delivery, and the room protocol's
+        # join/presence/broadcast with real clients — each has native-only
+        # failure modes (codec reflection, the WS upgrade path) that a
+        # liveness URL and a single long-poll can never surface.
+        echo "--- driving WebSocket / SSE / rooms against the native binary ---"
+        if ! java scripts/native/NativeTransportProbe.java \
+            http://localhost:8080/atmosphere/chat ws-fanout sse rooms; then
+          echo "--- application log ---"
+          sed -n '1,200p' "$LOG"
+          exit 1
+        fi
 
     - name: Upload Native Binary
       if: failure()
@@ -299,14 +315,24 @@ jobs:
           > /dev/null 2>&1 || true
         sleep 2
 
-        if grep -q "connected (broadcaster:" "$LOG"; then
-          echo "PASS: @ManagedService(/atmosphere/chat) served a real connection under Native Image"
-          exit 0
+        if ! grep -q "connected (broadcaster:" "$LOG"; then
+          echo "FAIL: connecting to the annotated endpoint did not run @Ready."
+          echo "--- application log ---"
+          sed -n '1,150p' "$LOG"
+          exit 1
         fi
-        echo "FAIL: connecting to the annotated endpoint did not run @Ready."
-        echo "--- application log ---"
-        sed -n '1,150p' "$LOG"
-        exit 1
+        echo "PASS: @ManagedService(/atmosphere/chat) served a real connection under Native Image"
+
+        # Same probe as the Spring Boot lane, minus rooms — quarkus-chat does
+        # not enable the room protocol. WebSocket under native crosses the
+        # Vert.x handshake bridge, which no long-poll can exercise.
+        echo "--- driving WebSocket / SSE against the native binary ---"
+        if ! java scripts/native/NativeTransportProbe.java \
+            http://localhost:8080/atmosphere/chat ws-fanout sse; then
+          echo "--- application log ---"
+          sed -n '1,200p' "$LOG"
+          exit 1
+        fi
 
     - name: Upload Native Binary
       if: failure()

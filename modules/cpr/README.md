@@ -20,10 +20,10 @@ The core framework for building real-time web applications in Java. Provides a p
 - **Virtual threads** enabled by default (JDK 21+)
 - **Broadcasting** -- pub/sub via `Broadcaster` and `BroadcasterFactory`
 - **Micrometer and OpenTelemetry** observability (optional)
-- **GraalVM Native Image** — the jar ships its own reachability metadata, and the
-  `@ManagedService` long-polling path is verified end-to-end under Native Image on
-  Spring Boot 4 and Quarkus. Other transports, `@Message` encoding and the AI stack
-  are not covered — see [GraalVM Native Image](#graalvm-native-image).
+- **GraalVM Native Image** — the jar ships its own reachability metadata, and CI
+  drives long-polling, WebSocket, SSE, the `@Message` codec round-trip,
+  room-protocol fan-out and AI dispatch against real native binaries on
+  Spring Boot 4 and Quarkus — see [GraalVM Native Image](#graalvm-native-image).
 
 ## Minimal Example
 
@@ -77,22 +77,32 @@ are separate problems with separate answers, and only some paths are covered by 
 
 ### What CI verifies
 
-`.github/workflows/native-image-ci.yml` builds two real native binaries — the Spring
-Boot 4 sample (`samples/spring-boot-chat`) and the Quarkus sample
-(`samples/quarkus-chat`) — starts each one, opens a long-polling connection to the
-`@ManagedService` at `/atmosphere/chat`, and fails the build unless the log shows the
-annotated `@Ready` method ran. That assertion passes only if the annotated class was
-discovered, the handler registered, `@Inject` resolved and the lifecycle fired.
+`.github/workflows/native-image-ci.yml` builds three real native binaries — the
+Spring Boot 4 sample (`samples/spring-boot-chat`), the Spring Boot AI sample
+(`samples/spring-boot-ai-chat`) and the Quarkus sample (`samples/quarkus-chat`).
+The two chat lanes start their binary, open a long-polling connection to the
+`@ManagedService` at `/atmosphere/chat`, and fail the build unless the log shows
+the annotated `@Ready` method ran — an assertion that passes only if the
+annotated class was discovered, the handler registered, `@Inject` resolved and
+the lifecycle fired. Each then drives `scripts/native/NativeTransportProbe.java`
+against the running binary: two WebSocket clients prove fan-out and the
+`@Message` encoder/decoder round-trip, an SSE subscriber receives a message sent
+over a WebSocket, and (on the Spring Boot lane) the room protocol runs
+join/join_ack, presence fan-out and a room broadcast. The AI lane dispatches a
+real agent turn through `/atmosphere/v1/chat/completions` keylessly and asserts
+assistant content came back.
 
 ### What is not verified
 
 No CI lane asserts any of the following under Native Image, so do not assume it works:
 
-- WebSocket and SSE transports, and transport negotiation or fallback
-- `@Message` encoder/decoder round-trips
-- Rooms, `@RoomService`, presence tracking and broadcast fan-out
-- The AI stack (`@AiEndpoint`, `@Agent`) — there is no native CI job for the AI sample
-- Injection beyond what `@Ready` requires
+- Transport negotiation and fallback — the probe pins each transport explicitly;
+  negotiation is an atmosphere.js client behaviour
+- `@RoomService`-annotated endpoints — the probe drives the room *protocol*
+  against a programmatic `RoomManager`; no native sample declares `@RoomService`
+- History replay on join, `@Disconnect` and `@Heartbeat`
+- gRPC — registered for reflection, but no lane builds it natively
+- Injection beyond what the samples use
 
 ### Reflection metadata
 

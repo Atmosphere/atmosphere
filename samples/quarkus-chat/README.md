@@ -99,17 +99,21 @@ The `Quarkus Native Image` job in `.github/workflows/native-image-ci.yml` builds
 - the long-polling transport served a real connection,
 - `@Ready` ran, with its injected `AtmosphereResource` and `Broadcaster` resolved.
 
+The job then drives `scripts/native/NativeTransportProbe.java` — a
+zero-dependency JDK client — against the binary: two WebSocket clients prove
+the upgrade path across the Vert.x handshake bridge, broadcaster fan-out to a
+second subscriber, and the `JacksonEncoder`/`JacksonDecoder` `@Message`
+round-trip; an SSE subscriber receives a message sent over a WebSocket.
+
 ### What CI does not verify
 
 Nothing below is covered by any native lane. Do not assume it works natively until one exists:
 
-- **WebSocket under native image.** The CI request pins `X-Atmosphere-Transport=long-polling`, so transport negotiation and fallback are not exercised either.
-- **SSE and the remaining transports.**
-- **`@Message` encoder/decoder round-trips** (`JacksonEncoder` / `JacksonDecoder`).
-- **Broadcast fan-out to a second subscriber**, `@Disconnect`, and `@Heartbeat`.
+- **Transport negotiation and fallback.** The probe pins each transport explicitly; negotiation is an atmosphere.js client behaviour.
+- **`@Disconnect` and `@Heartbeat`.**
 - **The `/admin/` dashboard and the Atmosphere Console.**
 
-Those paths are covered in **JVM mode** by the Playwright suite (`modules/integration-tests/e2e/quarkus-chat.spec.ts` drives the Console through a real browser and asserts the server echo, which exercises the `@Message` round-trip; `admin-quarkus.spec.ts` covers the dashboard).
+Those paths are covered in **JVM mode** by the Playwright suite (`modules/integration-tests/e2e/quarkus-chat.spec.ts` drives the Console through a real browser and asserts the server echo; `admin-quarkus.spec.ts` covers the dashboard).
 
 ### Declaring your own reflective types
 

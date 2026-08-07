@@ -259,17 +259,23 @@ opens a long-polling connection to its `@ManagedService(path = "/atmosphere/chat
 endpoint, and fails unless the annotated `@Ready` method actually ran. Registration
 is silent, so behaviour is the only honest thing to assert — and that one line can
 only appear if the class was discovered, the handler registered, `@Inject` resolved
-and the lifecycle fired. The Quarkus extension is covered by an equivalent lane.
+and the lifecycle fired. The job then drives `scripts/native/NativeTransportProbe.java`
+against the binary: WebSocket fan-out between two clients (which exercises the
+`@Message` codec round-trip), SSE delivery of a message sent over a WebSocket, and
+the room protocol's join/presence/broadcast. The `spring-boot-ai-native` job builds
+[the AI sample](../../samples/spring-boot-ai-chat/) and asserts a real `@AiEndpoint`
+agent turn returns assistant content. The Quarkus extension is covered by an
+equivalent chat lane (minus rooms).
 
-**That assertion is the whole of what is verified.** The following are exercised by
-no native lane. The mechanisms below register them, but nothing proves they work in
-a native image — do not assume they do:
+**Those assertions are the whole of what is verified.** The following are exercised
+by no native lane. The mechanisms below register them, but nothing proves they work
+in a native image — do not assume they do:
 
-- WebSocket and SSE transports, and transport negotiation or fallback
-- `@Message` encode/decode round-trips
-- Rooms, `@RoomService`, presence, and broadcast fan-out
-- The AI stack (`@AiEndpoint`, `@Agent`) — there is no native CI job for the AI sample
-- Injection beyond what `@Ready` requires
+- Transport negotiation and fallback (an atmosphere.js client behaviour)
+- `@RoomService`-annotated endpoints — the probe drives the room protocol against a
+  programmatic `RoomManager`
+- History replay on join, `@Disconnect` and `@Heartbeat`
+- Injection beyond what the samples use
 
 This section is deliberately narrow. A flat "native compatible" claim once stood here
 on the strength of a smoke test that only curled `/actuator/health`; it held for six

@@ -110,24 +110,27 @@ a line only `Chat.onReady()` writes. Passing establishes, under a real native
 image: `@ManagedService` discovery from the Jandex index, handler registration,
 `Broadcaster` construction (and therefore its cache class), `@Inject` of
 `AtmosphereResource` and a `@Named` `Broadcaster`, and `@Ready` firing -- over
-**long-polling**.
+**long-polling**. The job then drives `scripts/native/NativeTransportProbe.java`
+against the binary: two WebSocket clients cross the Vert.x handshake bridge and
+prove broadcaster fan-out plus the `JacksonEncoder` / `JacksonDecoder`
+`@Message` round-trip, and an SSE subscriber receives a message sent over a
+WebSocket.
 
 ### What CI does not prove
 
 No native lane covers anything below. None of it should be described as
 native-verified until one does:
 
-- **WebSocket** -- the smoke test pins the transport to long-polling by hand.
-- **SSE, transport negotiation and fallback.**
-- **`@Message` round-trip.** `registerEncoderDecoderClasses` does register the
-  sample's `JacksonEncoder` / `JacksonDecoder`, but the lane never POSTs a
-  message, so the encode/decode path is compiled and never exercised.
-- **Rooms / `@RoomService`, presence, broadcast fan-out, `@Disconnect`,
-  `@Heartbeat`.**
-- **The AI stack.** `samples/quarkus-ai-chat` has no native job and is not in
-  the workflow's path filters; every `@AiEndpoint` row in the parity table
-  below is JVM-mode evidence only.
-- **Injection beyond what `@Ready` needs.**
+- **Transport negotiation and fallback** -- the probe pins each transport
+  explicitly; negotiation is an atmosphere.js client behaviour.
+- **Rooms / `@RoomService`, presence.** `quarkus-chat` does not enable the room
+  protocol; the room checks run only on the Spring Boot lane.
+- **`@Disconnect` and `@Heartbeat`.**
+- **The AI stack on Quarkus.** `samples/quarkus-ai-chat` has no native job and
+  is not in the workflow's path filters; every `@AiEndpoint` row in the parity
+  table below is JVM-mode evidence only. (The Spring Boot AI sample does have a
+  native dispatch lane.)
+- **Injection beyond what the sample uses.**
 
 ### Contributing your own reflective types
 
@@ -192,7 +195,7 @@ build time here.
 
 ## Sample
 
-- [Quarkus Chat](../../samples/quarkus-chat/) -- real-time chat with WebSocket and long-polling fallback. Also the sample the native lane builds, where only the long-polling path is driven ([Native Image](#native-image))
+- [Quarkus Chat](../../samples/quarkus-chat/) -- real-time chat with WebSocket and long-polling fallback. Also the sample the native lane builds and drives over long-polling, WebSocket and SSE ([Native Image](#native-image))
 - [Quarkus AI Chat](../../samples/quarkus-ai-chat/) -- 5 `@AiEndpoint` paths (basic chat / prompt-cache / retry / multi-modal / structured-output) backed by `atmosphere-quarkus-langchain4j`
 
 ## Spring Boot ↔ Quarkus Auto-Config Parity

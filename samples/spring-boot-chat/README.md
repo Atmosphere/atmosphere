@@ -171,11 +171,16 @@ discovered, the handler registered, `@Inject` resolved and the lifecycle fired.
 Answering `/actuator/health` is not the assertion; that was the standard this
 lane was written to replace.
 
-That is the whole of what is proven under Native Image. **Not asserted against
-the native binary:** WebSocket and SSE, transport negotiation and fallback, the
-`@Message` encode/decode round-trip, and the Room API (presence, history,
-`GET /api/rooms`). The tests below exercise the transports and the Room API, but
-on the JVM only.
+The same job then drives `scripts/native/NativeTransportProbe.java` — a
+zero-dependency JDK client — against the running binary: two WebSocket clients
+prove broadcaster fan-out and the `JacksonEncoder`/`JacksonDecoder` `@Message`
+round-trip, an SSE subscriber receives a message sent over a WebSocket, and the
+Room Protocol runs end to end (`join`/`join_ack`, presence fan-out to the other
+member, room broadcast). **Not asserted against the native binary:** transport
+negotiation and fallback (an atmosphere.js client behaviour — the probe pins
+each transport explicitly), history replay on join, `GET /api/rooms`,
+`@Disconnect`/`@Heartbeat`, and the Console. The tests below exercise those on
+the JVM.
 
 ### Endpoints
 
