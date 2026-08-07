@@ -141,6 +141,185 @@ jobs:
         sed -n '1,150p' "$LOG"
         exit 1
 
+    - name: Set up Node (WebSocket client)
+      uses: actions/setup-node@v7
+      with:
+        node-version: '22'
+
+    - name: Assert WebSocket @Message round-trip under Native Image
+      shell: bash
+      run: |
+        # Distinct port from the smoke step above. That step's instance takes
+        # ~2s to release its listener after SIGTERM, which is longer than a step
+        # transition; sharing 8080 means this step can be answered by the
+        # previous step's process (or vice versa). Measured, not assumed.
+        PORT="${PORT:-8099}"
+        LOG=$(mktemp)
+        CLIENT="${RUNNER_TEMP:-/tmp}/ws-roundtrip.mjs"
+        ECHO_OUT=$(mktemp)
+
+        dump_and_fail() {
+          echo "FAIL: $1"
+          echo "--- application log (first 120 lines) ---"
+          sed -n '1,120p' "$LOG"
+          echo "--- application log (last 120 lines) ---"
+          tail -n 120 "$LOG"
+          exit 1
+        }
+
+        # Refuse a false pass: if anything already answers on this port, every
+        # assertion below could be satisfied by that process instead of the
+        # binary under test. This exact situation was reproduced during review —
+        # a stale instance served the whole WebSocket round-trip while the
+        # launched binary never started. scripts/sample-startup-smoke.sh:140-143
+        # carries the same guard for the same reason.
+        if curl -s -o /dev/null --max-time 3 "http://127.0.0.1:$PORT/" 2>/dev/null; then
+          echo "FAIL: port $PORT already answers before boot — refusing a false pass"
+          exit 1
+        fi
+
+        # TRACE on the managed-handler package only. Invoker.matchDecoder swallows a
+        # decoder failure with logger.trace("", e), and Invoker.invokeMethod swallows the
+        # IllegalArgumentException that follows the same way — so at INFO a broken
+        # encoder/decoder is completely silent and the server looks healthy. That is the
+        # exact shape this step exists to catch, so raise the level that turns a silent
+        # failure into a stack trace in the dump below.
+        #
+        # The WebTransport sidecar (application.yml, UDP 4443) is irrelevant here and
+        # would collide with any other instance on the runner; turn it off.
+        "$NATIVE_BINARY" --server.port="$PORT" \
+                         --atmosphere.web-transport.enabled=false \
+                         --logging.level.org.atmosphere.config.managed=TRACE > "$LOG" 2>&1 &
+        PID=$!
+        trap 'kill "$PID" 2>/dev/null || true' EXIT
+
+        # Startup gate ONLY, deliberately not an assertion: /actuator/health answers
+        # whether or not Atmosphere registered anything. It just says the process is far
+        # enough along to be worth driving. The kill -0 check is what makes "my binary
+        # died" report as "my binary died" instead of as a broken feature.
+        started=0
+        for _ in $(seq 1 60); do
+          if ! kill -0 "$PID" 2>/dev/null; then
+            dump_and_fail "the native binary exited during startup (pid $PID is gone)"
+          fi
+          if curl -sf "http://127.0.0.1:$PORT/actuator/health" > /dev/null 2>&1; then
+            started=1; break
+          fi
+          sleep 1
+        done
+        if [ "$started" -ne 1 ]; then
+          dump_and_fail "native binary did not start within 60s"
+        fi
+
+        # Bind the evidence to THIS process. An empty log with a healthy port means
+        # something else is answering, and every assertion below would be measuring
+        # the wrong server.
+        if [ ! -s "$LOG" ]; then
+          dump_and_fail "the launched binary produced no output — the health probe was answered by another process"
+        fi
+
+        NONCE="ws-echo-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-0}-$RANDOM"
+        AUTHOR="NativeSmoke"
+        WS_URL="ws://127.0.0.1:$PORT/atmosphere/chat?X-Atmosphere-Transport=websocket&X-Atmosphere-Framework=5.0.0"
+
+        cat > "$CLIENT" <<'CLIENT_EOF'
+        // Opens a real WebSocket to the @ManagedService, sends one chat message and
+        // waits for the broadcast echo of it. stdout: the matching frame, nothing else.
+        const [URL_, AUTHOR, NONCE] = process.argv.slice(2);
+        const DEADLINE_MS = 25000;
+        if (typeof globalThis.WebSocket !== 'function') {
+          console.error('ENV-FAIL: Node ' + process.version + ' has no global WebSocket (need >= 22).');
+          process.exit(2);
+        }
+        const seen = [];
+        let done = false;
+        const fail = (msg) => {
+          if (done) return;
+          done = true;
+          console.error(msg);
+          console.error('--- non-padding frames received (' + seen.length + ') ---');
+          for (const f of seen) console.error(f);
+          process.exit(1);
+        };
+        const ws = new WebSocket(URL_);
+        ws.addEventListener('error', () => fail(
+          'FAIL: WebSocket did not connect to ' + URL_ +
+          ' — the upgrade was refused (no jakarta.websocket ServerContainer?).'));
+        ws.addEventListener('close', (e) => fail(
+          'FAIL: WebSocket closed before the echo arrived (code=' + e.code + ').'));
+        ws.addEventListener('open', () => {
+          const payload = JSON.stringify({ author: AUTHOR, message: NONCE });
+          // Re-send on an interval. A broadcast fired before this resource is in the
+          // broadcaster's suspended set is dropped, so a single shot is racy on a
+          // loaded runner — WAsyncChatIntegrationTest.awaitBroadcasterSubscribers
+          // exists for the same reason. The nonce never changes, so the log
+          // assertion stays exact however many sends land.
+          const send = () => {
+            if (done) return;
+            try { ws.send(payload); }
+            catch (e) { console.error('send failed: ' + (e && e.message)); }
+          };
+          send();
+          const t = setInterval(send, 1500);
+          setTimeout(() => clearInterval(t), DEADLINE_MS);
+        });
+        ws.addEventListener('message', (ev) => {
+          const text = String(ev.data).trim();
+          if (!text || text.startsWith('<!--')) return;  // padding / heartbeat noise
+          seen.push(text);
+          let o;
+          // A non-JSON frame is itself the finding: when the encoder class fails to
+          // load, Invoker.matchEncoder returns the *un-encoded* bean and the wire gets
+          // "...chat.Message@1f2e3d". Keep collecting so that lands in the dump.
+          try { o = JSON.parse(text); } catch { return; }
+          if (o === null || typeof o !== 'object') return;
+          if (o.author !== AUTHOR || o.message !== NONCE) return;
+          done = true;
+          console.log(text);
+          process.exit(0);
+        });
+        setTimeout(() => fail('FAIL: no echo of the sent message within ' + DEADLINE_MS + 'ms.'),
+          DEADLINE_MS + 1000);
+        CLIENT_EOF
+
+        echo "--- driving a real WebSocket against /atmosphere/chat ---"
+        rc=0
+        timeout 60 node "$CLIENT" "$WS_URL" "$AUTHOR" "$NONCE" > "$ECHO_OUT" || rc=$?
+
+        if [ "$rc" -eq 124 ]; then
+          dump_and_fail "the WebSocket client did not terminate within 60s (its own deadline is 26s) — treat as a hang, not a pass."
+        fi
+        if [ "$rc" -eq 2 ]; then
+          dump_and_fail "the runner's Node has no WebSocket support, so the assertion could not run. This is an environment defect, not a pass."
+        fi
+        if [ "$rc" -ne 0 ]; then
+          dump_and_fail "the WebSocket round-trip did not complete (client diagnostics above)."
+        fi
+
+        ECHO_FRAME=$(cat "$ECHO_OUT")
+        echo "echo frame: $ECHO_FRAME"
+
+        # Assertion 1 — the ENCODER ran and broadcast fan-out reached this socket.
+        # Matching the field VALUES, not merely "some JSON arrived", is load-bearing: an
+        # unregistered DTO serialises to {} and an unloadable encoder yields a bare
+        # toString(). The client sends no "time", so a verbatim re-echo of the sent
+        # payload also fails this check — only a real decode->invoke->encode adds it.
+        if ! jq -e --arg a "$AUTHOR" --arg m "$NONCE" \
+             '.author == $a and .message == $m and (.time | type) == "number" and .time > 0' \
+             <<< "$ECHO_FRAME" > /dev/null 2>&1; then
+          dump_and_fail "the echoed frame is not a fully-encoded Message: $ECHO_FRAME"
+        fi
+
+        # Assertion 2 — the DECODER ran and produced a populated DTO, in THIS process.
+        # Chat.onMessage logs both getters; a raw String that was never decoded cannot
+        # reach that method. Because $LOG is this binary's own stdout, this is also what
+        # ties assertion 1's frame to the binary under test.
+        if ! grep -qF "$AUTHOR just sent $NONCE" "$LOG"; then
+          dump_and_fail "@Message never ran with a decoded Message (no '$AUTHOR just sent $NONCE' in the log)."
+        fi
+
+        echo "PASS: WebSocket upgrade + @Message decode + encode + broadcast fan-out all work under Native Image"
+
     - name: Upload Native Binary
       if: failure()
       uses: actions/upload-artifact@v7
