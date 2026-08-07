@@ -5,64 +5,24 @@ on:
   # so a doclint / compile break in those modules fails Native Image even
   # though they are not direct `-pl` targets. Trigger on them too.
   #
-  # A native AI-dispatch job lived here and was removed when Atmosphere's
-  # annotation-driven model could not survive Native Image: the Spring Boot
-  # starter discovered @ManagedService / @AiEndpoint / @Agent with a runtime
-  # classpath scan, a native image has no .class files to scan, so every
-  # annotated user class went undetected and the starter silently fell back to
-  # its built-in default endpoint.
-  #
-  # That blocker is gone. Discovery in the Spring Boot starter is now the union
-  # of the runtime scan and a build-time index — a union and not "index wins",
-  # because an index is per-artifact and letting one short-circuit the scan lets
-  # a single jar hide every other jar's classes. Two things write that index,
-  # both to META-INF/atmosphere/annotated-classes.txt:
-  # AtmosphereAnnotationScanAotProcessor (Spring AOT, registered in the
-  # starter's META-INF/spring/aot.factories) and, for any build tool,
-  # org.atmosphere.nativeimage.AtmosphereAnnotationIndexProcessor — a javac
-  # annotation processor auto-discovered from atmosphere-runtime on the compile
-  # classpath.
-  #
-  # Reflective access is a separate problem with a separate fix.
-  # atmosphere-runtime ships
-  # META-INF/native-image/org.atmosphere/atmosphere-runtime/reachability-metadata.json,
-  # generated from the org.atmosphere.nativeimage.NativeImageMetadataProvider
-  # SPI, so a plain-servlet deployment needs no integration module. A module
-  # declares the types it loads by name by implementing that interface:
-  #
-  #   public final class MyMetadataProvider implements NativeImageMetadataProvider {
-  #       @Override public String name() { return "atmosphere-mymodule"; }
-  #       @Override public Collection<String> reflectiveTypes() {
-  #           return List.of("com.example.LoadedByName");
-  #       }
-  #   }
-  #
-  # and listing it in
-  # META-INF/services/org.atmosphere.nativeimage.NativeImageMetadataProvider.
-  # NativeImageMetadata.collect() merges every provider on the classpath and
-  # feeds all three integrations: AtmosphereRuntimeHints in both Spring starters
-  # and the Quarkus deployment processor. modules/spring-boot3-starter is in the
-  # path filters below for that reason — it is one of the three, and the Quarkus
-  # lane's install step is a full-reactor build, so a break there fails this
-  # workflow and must be able to trigger it. samples/spring-boot-ai-chat is in
-  # the filters only because that same full-reactor install compiles it; it is
-  # not evidence of AI coverage.
-  #
-  # WHAT THE TWO JOBS BELOW ASSERT, AND NOTHING MORE: a @ManagedService serves a
-  # real long-polling connection under Native Image, on Spring Boot and on
-  # Quarkus. Not asserted, and therefore not proven: WebSocket under native,
-  # SSE, transport negotiation and fallback, @Message encoder/decoder
-  # round-trips, @RoomService / presence / broadcast fan-out, and injection
-  # beyond what @Ready needs. The AI lane has not been re-added — no job in this
-  # repository builds samples/spring-boot-ai-chat with -Pnative or -Dnative, so
-  # @AiEndpoint and @Agent under Native Image remain unproven. Do not read a
-  # green run here as "Atmosphere supports GraalVM Native Image".
+  # The AI dispatch job below was removed once, and the reason it was removed is
+  # gone: annotation discovery now survives Native Image. Handlers are resolved
+  # from a build-time index (the javac annotation processor in atmosphere-runtime,
+  # plus the Spring AOT processor) instead of a classpath scan that finds nothing
+  # in an image with no .class files. Re-adding it is the only way to learn
+  # whether @AiEndpoint and @Agent work natively — that remains unproven until
+  # this job is green.
   push:
     branches: [ main ]
     paths:
       - 'modules/cpr/**'
       - 'modules/ai/**'
       - 'modules/wasync/**'
+      - 'modules/admin/**'
+      - 'modules/agent/**'
+      - 'modules/channels/**'
+      - 'modules/checkpoint/**'
+      - 'modules/skills/**'
       - 'modules/spring-boot-starter/**'
       - 'modules/spring-boot3-starter/**'
       - 'modules/quarkus-extension/**'
@@ -78,6 +38,11 @@ on:
       - 'modules/cpr/**'
       - 'modules/ai/**'
       - 'modules/wasync/**'
+      - 'modules/admin/**'
+      - 'modules/agent/**'
+      - 'modules/channels/**'
+      - 'modules/checkpoint/**'
+      - 'modules/skills/**'
       - 'modules/spring-boot-starter/**'
       - 'modules/spring-boot3-starter/**'
       - 'modules/quarkus-extension/**'
@@ -182,6 +147,93 @@ jobs:
       with:
         name: spring-boot-native-artifacts
         path: samples/spring-boot-chat/target/
+
+  spring-boot-ai-native:
+    name: Spring Boot AI Native Image
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up GraalVM 25
+      uses: graalvm/setup-graalvm@v1
+      with:
+        java-version: '25'
+        distribution: 'graalvm'
+        cache: 'maven'
+
+    - name: Install Atmosphere Modules
+      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl samples/spring-boot-ai-chat -am
+
+    - name: Build Spring Boot AI Native Image
+      run: ./mvnw -B -Pnative package -DskipTests -Dgpg.skip=true -pl samples/spring-boot-ai-chat
+      timeout-minutes: 30
+
+    - name: Verify Native Binary Exists
+      run: |
+        BINARY=$(find samples/spring-boot-ai-chat/target -maxdepth 1 -name 'atmosphere-spring-boot-ai-chat*' -not -name '*.jar' -not -name '*.jar.original' -not -name '*.txt' -type f -executable | head -1)
+        if [ -z "$BINARY" ]; then
+          echo "Native binary not found. Contents of target/:"
+          ls -lh samples/spring-boot-ai-chat/target/
+          exit 1
+        fi
+        echo "NATIVE_BINARY=$BINARY" >> "$GITHUB_ENV"
+        ls -lh "$BINARY"
+
+    # The point of this lane. The two other native targets contain zero
+    # @AiEndpoint / @Agent call sites, so they only ever proved a server can
+    # start. This dispatches a real agent turn through the OpenAI-compatible
+    # surface and asserts the model's text came back — keyless, because with no
+    # API key configured DemoAgentRuntime wins runtime resolution and answers
+    # through the same pipeline (guardrails, interceptors, metrics) a real
+    # provider would.
+    - name: Smoke Test AI Dispatch Under Native Image
+      env:
+        # The sample enables the SQLite tape; keep it off the source tree.
+        ATMOSPHERE_TAPE_PATH: ${{ runner.temp }}/tape.db
+      run: |
+        "$NATIVE_BINARY" &
+        PID=$!
+        trap 'kill $PID 2>/dev/null || true' EXIT
+
+        # Readiness is probed on GET /atmosphere/v1/models, not /actuator/health:
+        # this sample does not depend on spring-boot-starter-actuator, so the
+        # health endpoint the other native job uses would never answer here.
+        # The models endpoint is part of the surface under test anyway.
+        for i in $(seq 1 60); do
+          if curl -sf http://localhost:8080/atmosphere/v1/models > /dev/null 2>&1; then
+            echo "Application started"
+            break
+          fi
+          if [ "$i" -eq 60 ]; then
+            echo "Application failed to start within 60 seconds"
+            exit 1
+          fi
+          sleep 1
+        done
+
+        RESPONSE=$(curl -sf -X POST http://localhost:8080/atmosphere/v1/chat/completions \
+          -H 'Content-Type: application/json' \
+          -H 'X-Atmosphere-Auth: demo-token' \
+          -d '{"model":"atmosphere-ai-chat","messages":[{"role":"user","content":"native smoke"}]}') || {
+            echo "AI dispatch request failed"
+            exit 1
+          }
+
+        echo "$RESPONSE"
+        CONTENT=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
+        if [ -z "$CONTENT" ]; then
+          echo "No assistant content returned — the agent did not dispatch under Native Image."
+          echo "A server that merely starts is what this lane already proved; it must run an agent."
+          exit 1
+        fi
+        echo "AI dispatch produced content under Native Image"
+
+    - name: Upload Native Binary
+      if: failure()
+      uses: actions/upload-artifact@v7
+      with:
+        name: spring-boot-ai-native-artifacts
+        path: samples/spring-boot-ai-chat/target/
 
   quarkus-native:
     name: Quarkus Native Image
