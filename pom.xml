@@ -1025,6 +1025,19 @@
                 <artifactId>micrometer-jakarta9</artifactId>
                 <version>${micrometer.version}</version>
             </dependency>
+            <!-- jsoup reaches the reactor only as a provided-scope transitive of
+                 the optional Alibaba agent framework
+                 (spring-ai-alibaba-agent-framework -> flexmark-html2md-converter
+                 -> jsoup 1.15.4), which pulls a version inside the range of
+                 GHSA-pmhh-3w7g-xqp8 (Cleaner may expose markup with custom
+                 raw-text elements). No Atmosphere code calls jsoup or flexmark,
+                 so pinning the patched version is behaviour-neutral for us and
+                 closes the alert at the manifest Dependabot reports against. -->
+            <dependency>
+                <groupId>org.jsoup</groupId>
+                <artifactId>jsoup</artifactId>
+                <version>${jsoup.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.mockito.kotlin</groupId>
                 <artifactId>mockito-kotlin</artifactId>
@@ -1330,7 +1343,14 @@
              advisory. Provided-scope only (DockerSandboxProvider uses
              docker-java), but the advisory closes cleanly on 1.84+. -->
         <bouncycastle.version>1.84</bouncycastle.version>
-        <micrometer.version>1.16.5</micrometer.version>
+        <!-- 1.16.6 closes two high-severity server-instrumentation DoS
+             advisories affecting 1.16.0–1.16.5: GHSA-g3pr-3p32-fp23 (HTTP
+             server instrumentations) and GHSA-w737-wx49-qj23 (gRPC server
+             instrumentation). Both reach us directly — the framework meters
+             HTTP and gRPC transports — so this is not a provided-scope-only
+             advisory. Overrides the version Spring Boot's BOM manages. -->
+        <micrometer.version>1.16.6</micrometer.version>
+        <jsoup.version>1.23.1</jsoup.version>
         <jakarta-enterprise-cdi-api.version>4.1.0</jakarta-enterprise-cdi-api.version>
         <testcontainers.version>1.21.4</testcontainers.version>
         <awaitility.version>4.2.2</awaitility.version>
