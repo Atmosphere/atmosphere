@@ -29,3 +29,7 @@ All documentation has moved to the Atmosphere documentation site:
 ## For Contributors
 
 Build instructions and project conventions are in [CLAUDE.md](.claude/CLAUDE.md).
+
+| Topic | Link |
+|-------|------|
+| Release Sample Sweep | [What the pre-release sweep does, and how to run it](release-sample-sweep.md) |
