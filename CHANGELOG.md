@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.65] - 2026-08-07
+
+### Added
+
+- index annotated classes at compile time via an annotation processor Auto-discovered by javac from atmosphere-runtime, so discovery works in any build without Spring AOT or Quarkus augmentation
+- ship GraalVM metadata inside atmosphere-runtime Generated from the SPI and read automatically, so a deployment with no Spring starter or Quarkus extension needs no configuration
+- let each module declare its own native-image metadata via SPI Replaces one list transcribed into three integration modules; atmosphere-ai/-mcp/-agent load classes by name and had no way to contribute
+- resolve Atmosphere annotations at build time for native image Classpath scanning finds nothing in a native image, so the scan now runs during AOT and the runtime reads the recorded list
+
+### Fixed
+
+- register broadcaster caches so annotated endpoints can be created Loaded by name, so a native image could not build any Broadcaster; the failure was logged and swallowed, silently unregistering every @ManagedService
+- stop the console-bundle gate firing on the release version bump Masks the package's own version from the fingerprint; it cannot change the emitted bundle but blocked the first commit after every release
+
+### Changed
+
+- describe what the native lanes assert, and what they do not The previous text documented a limitation that these fixes removed; it now states the verified path and enumerates the unverified ones
+- drive a real connection and assert the annotated @Ready ran Handler registration is silent, so behaviour is the only honest signal; validated against a JVM run first
+- assert the annotated handler is installed, not just that a port answers Both native smoke tests curled a liveness URL that responds whether or not Atmosphere registered anything
+- prepare next development version 5.0.40
+- bump version to 4.0.64
+- prepare for next development iteration 4.0.65-SNAPSHOT
+
 ## [4.0.64] - 2026-08-06
 
 ### Added
