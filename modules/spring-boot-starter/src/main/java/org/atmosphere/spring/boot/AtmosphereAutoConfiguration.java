@@ -505,16 +505,18 @@ public class AtmosphereAutoConfiguration {
     private Map<Class<? extends Annotation>, Set<Class<?>>> scanAnnotations(
             AtmosphereProperties properties) {
 
-        // A build-time scan wins when one ran. It is the only thing that works in
-        // a native image, where the classpath holds no .class files to scan and a
-        // runtime scan silently yields nothing — a server that starts and serves
-        // no annotated endpoint. On the JVM the file is normally absent and the
-        // scan below runs exactly as before.
-        var precomputed = AtmosphereAnnotationScanner.readPrecomputed(
+        // Union of what the classpath scan finds and what was recorded at build
+        // time — deliberately not "prefer the index".
+        //
+        // Indexes are per-artifact: each jar records only its own classes. Letting
+        // any index short-circuit the scan means one jar's partial index hides
+        // every class in jars that have none, which is precisely what happened
+        // when a test fixture's index suppressed the framework's own processors.
+        // A union cannot do that. On the JVM the scan supplies everything and the
+        // indexes are redundant; in a native image the scan finds nothing and the
+        // indexes are all there is.
+        var fromIndexes = AtmosphereAnnotationScanner.readPrecomputed(
                 getClass().getClassLoader());
-        if (precomputed.isPresent()) {
-            return AtmosphereAnnotationScanner.toAnnotationMap(precomputed.get());
-        }
 
         ClassPathScanningCandidateComponentProvider scanner =
                 new ClassPathScanningCandidateComponentProvider(false);
@@ -578,6 +580,9 @@ public class AtmosphereAutoConfiguration {
         if (!classes.isEmpty()) {
             logger.info("Atmosphere Spring Boot scanner found {} annotated classes", classes.size());
         }
+
+        // Fold in anything recorded at build time that the scan could not see.
+        fromIndexes.ifPresent(classes::addAll);
 
         // Build the same map structure as AnnotationScanningServletContainerInitializer
         Map<Class<? extends Annotation>, Set<Class<?>>> classesByAnnotation = new HashMap<>();

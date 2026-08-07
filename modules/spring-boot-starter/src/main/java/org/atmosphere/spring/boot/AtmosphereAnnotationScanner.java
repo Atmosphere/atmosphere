@@ -156,29 +156,47 @@ final class AtmosphereAnnotationScanner {
      */
     static Optional<Set<Class<?>>> readPrecomputed(ClassLoader classLoader) {
         var resolver = new PathMatchingResourcePatternResolver(classLoader);
-        var resource = resolver.getResource("classpath:" + PRECOMPUTED_RESOURCE);
-        if (!resource.exists()) {
+
+        org.springframework.core.io.Resource[] resources;
+        try {
+            // classpath*: — every jar contributes the index for the classes it
+            // contains, and they are merged. Reading a single resource would let
+            // whichever jar happened to be first silently hide the rest, which
+            // for an application jar shadowing the framework's own index means
+            // losing every built-in annotation processor.
+            resources = resolver.getResources("classpath*:" + PRECOMPUTED_RESOURCE);
+        } catch (IOException e) {
+            logger.warn("Could not enumerate {} — falling back to a classpath scan: {}",
+                    PRECOMPUTED_RESOURCE, e.toString());
+            return Optional.empty();
+        }
+
+        if (resources.length == 0) {
             return Optional.empty();
         }
 
         var classes = new LinkedHashSet<Class<?>>();
         var missing = new ArrayList<String>();
-        try (var reader = new BufferedReader(
-                new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                var name = line.trim();
-                if (name.isEmpty() || name.startsWith("#")) {
-                    continue;
-                }
-                try {
-                    classes.add(Class.forName(name, false, classLoader));
-                } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                    // An optional module present at build time but absent at run
-                    // time. Skipping keeps the remaining endpoints working; the
-                    // alternative — failing startup — would be a worse trade for
-                    // an endpoint the application may not even use.
-                    missing.add(name);
+        try {
+            for (var resource : resources) {
+                try (var reader = new BufferedReader(
+                        new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        var name = line.trim();
+                        if (name.isEmpty() || name.startsWith("#")) {
+                            continue;
+                        }
+                        try {
+                            classes.add(Class.forName(name, false, classLoader));
+                        } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                            // An optional module present at build time but absent at
+                            // run time. Skipping keeps the remaining endpoints working;
+                            // failing startup would be a worse trade for an endpoint
+                            // the application may not even use.
+                            missing.add(name);
+                        }
+                    }
                 }
             }
         } catch (IOException e) {
@@ -195,8 +213,8 @@ final class AtmosphereAnnotationScanner {
         // An empty file means the build-time scan genuinely found nothing. That is
         // reported as a present-but-empty result rather than "absent", so the
         // runtime does not fall back to a scan that cannot work here anyway.
-        logger.info("Atmosphere using {} annotated class(es) recorded at build time",
-                classes.size());
+        logger.info("Atmosphere using {} annotated class(es) recorded at build time "
+                + "across {} index file(s)", classes.size(), resources.length);
         return Optional.of(classes);
     }
 

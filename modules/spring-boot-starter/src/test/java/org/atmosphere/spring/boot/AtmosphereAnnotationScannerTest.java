@@ -30,12 +30,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Covers reading the class list recorded during AOT processing.
  *
- * <p>The distinction that matters here is <em>absent</em> versus <em>present
- * but empty</em>. Absent means no build-time scan ran, so the runtime should
- * scan for itself — the ordinary JVM path. Empty means a build-time scan ran
- * and genuinely found nothing, and falling back to a scan there would be
- * pointless in the one environment (a native image) where the file exists and
- * scanning cannot work.</p>
+ * <p>Indexes are per-artifact: each jar records only the annotated classes it
+ * contains, and the runtime merges every one it finds. An earlier version read
+ * a single resource and let it short-circuit the classpath scan, which meant one
+ * jar's partial index silently hid the classes in every other jar — a test
+ * fixture's two entries were enough to suppress the framework's own processors.
+ * These tests pin the merge, because that failure was silent.</p>
  */
 class AtmosphereAnnotationScannerTest {
 
@@ -52,54 +52,41 @@ class AtmosphereAnnotationScannerTest {
     }
 
     @Test
-    void anAbsentFileMeansNoBuildTimeScanRan() throws Exception {
-        var dir = Files.createTempDirectory("atmo-scan-absent");
+    void indexesFromEveryJarAreMerged() throws Exception {
+        var dir = Files.createTempDirectory("atmo-scan-merge");
         try {
-            var result = AtmosphereAnnotationScanner.readPrecomputed(loaderOver(dir));
-            assertTrue(result.isEmpty(),
-                    "with no recorded list the caller must fall back to scanning — "
-                            + "this is the ordinary JVM path and must not change");
-        } finally {
-            deleteRecursively(dir);
-        }
-    }
-
-    @Test
-    void recordedClassesAreLoaded() throws Exception {
-        var dir = Files.createTempDirectory("atmo-scan-ok");
-        try {
-            writeResource(dir, """
-                    # a comment is ignored
-                    org.atmosphere.spring.boot.DefaultAiChatEndpoint
-
-                    org.atmosphere.spring.boot.AtmosphereAutoConfiguration
-                    """);
+            writeResource(dir, "org.atmosphere.spring.boot.DefaultAiChatEndpoint\n");
 
             var result = AtmosphereAnnotationScanner.readPrecomputed(loaderOver(dir));
             assertTrue(result.isPresent());
-            assertEquals(2, result.get().size(),
-                    "comments and blank lines must not become phantom entries");
-            assertTrue(result.get().contains(DefaultAiChatEndpoint.class));
+
+            // atmosphere-runtime ships its own index of the framework's annotation
+            // processors, so the result is this fixture's entry *plus* those — not
+            // this fixture's entry alone. Reading a single resource instead would
+            // let one jar's index hide every other jar's, which is precisely the
+            // regression that broke sixteen tests when the annotation processor
+            // first started emitting per-artifact indexes.
+            assertTrue(result.get().contains(DefaultAiChatEndpoint.class),
+                    "the fixture's own entry must survive the merge");
+            assertTrue(result.get().size() > 1,
+                    "the framework's index must be merged in alongside it, not replaced by "
+                            + "it; got only " + result.get().size() + " class(es)");
         } finally {
             deleteRecursively(dir);
         }
     }
 
     @Test
-    void anEmptyFileIsPresentAndEmptyRatherThanAbsent() throws Exception {
-        var dir = Files.createTempDirectory("atmo-scan-empty");
-        try {
-            writeResource(dir, "# scan ran, found nothing\n");
+    void theFrameworksOwnProcessorsAreAlwaysAvailable() {
+        var result = AtmosphereAnnotationScanner.readPrecomputed(getClass().getClassLoader());
 
-            var result = AtmosphereAnnotationScanner.readPrecomputed(loaderOver(dir));
-            assertTrue(result.isPresent(),
-                    "a build-time scan that found nothing is an answer, not a missing "
-                            + "answer — reporting it as absent would send a native image "
-                            + "back to a classpath scan that cannot work there");
-            assertTrue(result.get().isEmpty());
-        } finally {
-            deleteRecursively(dir);
-        }
+        assertTrue(result.isPresent(),
+                "atmosphere-runtime always ships an index, because it is the one module "
+                        + "whose classes a native image can never scan for");
+        assertTrue(result.get().stream()
+                        .anyMatch(c -> c.getName().startsWith("org.atmosphere.annotation.")),
+                "the framework's annotation processors must be discoverable — without them "
+                        + "no @ManagedService endpoint works at all in a native image");
     }
 
     @Test
@@ -113,10 +100,32 @@ class AtmosphereAnnotationScannerTest {
 
             var result = AtmosphereAnnotationScanner.readPrecomputed(loaderOver(dir));
             assertTrue(result.isPresent());
-            assertEquals(1, result.get().size(),
+            assertTrue(result.get().contains(DefaultAiChatEndpoint.class),
                     "an optional module present at build time but absent at run time must "
                             + "not take down every other endpoint");
+            assertTrue(result.get().stream()
+                            .noneMatch(c -> c.getName().equals("com.example.RemovedOptionalModule")),
+                    "the unresolvable entry must simply be absent");
+        } finally {
+            deleteRecursively(dir);
+        }
+    }
+
+    @Test
+    void commentsAndBlankLinesAreNotTreatedAsClassNames() throws Exception {
+        var dir = Files.createTempDirectory("atmo-scan-comments");
+        try {
+            writeResource(dir, """
+                    # a comment is ignored
+
+                    org.atmosphere.spring.boot.DefaultAiChatEndpoint
+                    """);
+
+            var result = AtmosphereAnnotationScanner.readPrecomputed(loaderOver(dir));
+            assertTrue(result.isPresent());
             assertTrue(result.get().contains(DefaultAiChatEndpoint.class));
+            assertTrue(result.get().stream().allMatch(c -> !c.getName().isBlank()),
+                    "a blank or commented line must never become a phantom entry");
         } finally {
             deleteRecursively(dir);
         }

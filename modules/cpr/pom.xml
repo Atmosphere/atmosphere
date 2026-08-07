@@ -34,6 +34,18 @@
         </resources>
 
         <plugins>
+            <!-- The annotation-index processor lives in this module, so javac cannot
+                 load it while compiling this module: it does not exist yet at that
+                 point. Every other module picks it up automatically from the
+                 classpath; this module publishes its own annotated classes through
+                 the committed index instead, kept honest by a gate test. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <proc>none</proc>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>biz.aQute.bnd</groupId>
                 <artifactId>bnd-maven-plugin</artifactId>

@@ -1,0 +1,27 @@
+# Atmosphere-annotated classes in this artifact.
+#
+# Written by this module's gate test rather than by the annotation processor:
+# the processor is defined here, so javac cannot run it against this module
+# (see proc:none in pom.xml). Regenerate with AtmosphereRuntimeIndexTest.
+org.atmosphere.annotation.AsyncSupportListenerServiceProcessor
+org.atmosphere.annotation.AsyncSupportServiceProcessor
+org.atmosphere.annotation.AtmosphereFrameworkServiceProcessor
+org.atmosphere.annotation.AtmosphereHandlerServiceProcessor
+org.atmosphere.annotation.AtmosphereInterceptorServiceProcessor
+org.atmosphere.annotation.AtmosphereResourceFactoryServiceProcessor
+org.atmosphere.annotation.AtmosphereResourceListenerServiceProcessor
+org.atmosphere.annotation.AtmosphereServiceProcessor
+org.atmosphere.annotation.BroadcastFilterServiceProcessor
+org.atmosphere.annotation.BroadcasterCacheInspectorServiceProcessor
+org.atmosphere.annotation.BroadcasterCacheListenererviceProcessor
+org.atmosphere.annotation.BroadcasterCacheServiceProcessor
+org.atmosphere.annotation.BroadcasterFactoryServiceProcessor
+org.atmosphere.annotation.BroadcasterListenerServiceProcessor
+org.atmosphere.annotation.BroadcasterServiceProcessor
+org.atmosphere.annotation.EndpointMapperServiceProcessor
+org.atmosphere.annotation.ManagedServiceProcessor
+org.atmosphere.annotation.UUIDProviderServiceProcessor
+org.atmosphere.annotation.WebSocketFactoryServiceProcessor
+org.atmosphere.annotation.WebSocketHandlerServiceProcessor
+org.atmosphere.annotation.WebSocketProcessorServiceProcessor
+org.atmosphere.annotation.WebSocketProtocolServiceProcessor

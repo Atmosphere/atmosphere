@@ -1,0 +1,4 @@
+# Records Atmosphere-annotated classes at compile time so a native image can find
+# them. Auto-discovered by javac from the classpath: depending on atmosphere-runtime
+# is the whole setup.
+org.atmosphere.nativeimage.AtmosphereAnnotationIndexProcessor
