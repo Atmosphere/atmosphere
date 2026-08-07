@@ -120,13 +120,59 @@ class AtmosphereAnnotationScanAotProcessor implements BeanFactoryInitializationA
                 collectFrom(annotation, found);
             }
             for (var method : clazz.getDeclaredMethods()) {
+                boolean annotated = false;
                 for (var annotation : method.getAnnotations()) {
                     collectFrom(annotation, found);
+                    annotated |= isAtmosphereAnnotation(annotation.annotationType());
+                }
+                // The payload types of an annotated method. @Message names its
+                // encoder and decoder by class literal — those are picked up
+                // above — but the DTO they convert appears only as this method's
+                // parameter and return type. Jackson reflects over that DTO's
+                // constructor and fields, so registering the codec without the
+                // type it encodes gets as far as invoking the codec and then
+                // fails on the payload.
+                if (annotated) {
+                    for (var parameter : method.getParameterTypes()) {
+                        addPayloadType(parameter, found);
+                    }
+                    addPayloadType(method.getReturnType(), found);
                 }
             }
         }
         found.removeAll(classes);
         return found;
+    }
+
+    /** Whether an annotation is one of Atmosphere's own. */
+    private boolean isAtmosphereAnnotation(Class<? extends java.lang.annotation.Annotation> type) {
+        return type.getName().startsWith("org.atmosphere.");
+    }
+
+    /**
+     * Register a payload type, skipping what cannot need a hint.
+     *
+     * <p>Primitives and {@code void} have no reflective surface. Framework and JDK
+     * types are either already registered or supplied by the image. What remains is
+     * the application's own DTOs — the types a codec actually has to construct and
+     * populate.</p>
+     */
+    private void addPayloadType(Class<?> type, java.util.Set<Class<?>> sink) {
+        if (type == null || type.isPrimitive() || type.isArray() || type.isInterface()) {
+            return;
+        }
+        // Only JDK types are skipped. Filtering out "org.atmosphere.*" as framework
+        // types looks right and is wrong: the samples live under
+        // org.atmosphere.samples.*, so that filter silently dropped the very DTOs
+        // this method exists to register. Framework types that slip through are
+        // already registered via the metadata SPI, and re-registering one costs
+        // image size — while missing one costs a silent runtime failure.
+        var name = type.getName();
+        if (name.startsWith("java.") || name.startsWith("javax.")
+                || name.startsWith("jakarta.")) {
+            return;
+        }
+        sink.add(type);
     }
 
     private void collectFrom(java.lang.annotation.Annotation annotation,
