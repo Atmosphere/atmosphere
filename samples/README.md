@@ -20,7 +20,7 @@ All samples inherit their Atmosphere version from the parent POM. The target sta
 
 Those two lanes — Spring Boot and Quarkus — assert exactly one path: `@ManagedService` over long-polling. They do **not** cover WebSocket, SSE, transport negotiation or fallback, `@Message` encoder/decoder round-trips, `@RoomService`/presence/broadcast fan-out, injection beyond what `@Ready` needs, or AI dispatch — no native job builds an `@AiEndpoint` / `@Agent` sample. Those paths are not known to be broken; they are unproven, and a cell here stays unticked until a lane asserts it.
 
-Separately from any sample, `atmosphere-runtime` ships `META-INF/native-image/org.atmosphere/atmosphere-runtime/reachability-metadata.json` (77 types, 3 resource patterns), which GraalVM reads automatically. That covers the framework's own load-by-name types — the broadcaster caches (`UUIDBroadcasterCache` and the other three) among them — and the `ServiceLoader` files it reads at startup, with no configuration and no integration module. It closes a class of failure; it is not a claim that the `—` samples build or run natively, because nothing builds them natively.
+Separately from any sample, `atmosphere-runtime` ships `META-INF/native-image/org.atmosphere/atmosphere-runtime/reachability-metadata.json`, which GraalVM reads automatically. That covers the framework's own load-by-name types — the broadcaster caches (`UUIDBroadcasterCache` and the other three) among them — and the `ServiceLoader` files it reads at startup, with no configuration and no integration module. It closes a class of failure; it is not a claim that the `—` samples build or run natively, because nothing builds them natively.
 
 ### AI / LLM Streaming
 

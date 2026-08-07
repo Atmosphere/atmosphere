@@ -144,6 +144,11 @@ servlet init — no extra build-step coordination needed.
 
 ## Native image
 
+No CI lane builds this extension into a native image: the only native jobs build
+`samples/spring-boot-chat` and `samples/quarkus-chat`, and neither enables gRPC.
+The registrations below are what the build step declares — read as configuration
+that exists, not as a transport proven to work ahead-of-time.
+
 The deployment processor declares the
 `AtmosphereGrpcServer`, `AtmosphereGrpcService`, `GrpcProcessor`,
 `AtmosphereMessage`, `AtmosphereServiceGrpc`, and `MessageType` classes

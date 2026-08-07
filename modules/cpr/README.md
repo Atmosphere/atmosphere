@@ -98,7 +98,7 @@ No CI lane asserts any of the following under Native Image, so do not assume it 
 
 `atmosphere-runtime` ships
 `META-INF/native-image/org.atmosphere/atmosphere-runtime/reachability-metadata.json`
-(77 reflective types, 3 resource globs, generated from the SPI below). GraalVM reads
+(generated from the SPI below). GraalVM reads
 it automatically, so a plain-servlet or embedded-Jetty native build needs no
 integration module and no configuration to get the framework's reflective
 registrations — including the broadcaster caches, which are loaded by name and whose
