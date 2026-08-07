@@ -220,7 +220,8 @@ jobs:
 
     - name: Verify no Atmosphere doc-version drift remains
       # Fail-fast BEFORE any irreversible Maven Central publish if the sweep
-      # above missed a doc. cli/samples.json is bumped in a later job, so pass
+      # above missed a doc. This runs before the release commit stages
+      # cli/samples.json, so pass
       # the release version explicitly. This caught the 4.0.57 rag-chat
       # getting-started doc lagging at 4.0.56 (the sweep ran but the commit
       # step did not stage samples/**/*.md — fixed below).
@@ -304,7 +305,13 @@ jobs:
         # staged zero files and the commit failed AFTER Central had already
         # published — stranding the release bookkeeping). :(glob) lets '**'
         # match zero directories so top-level docs/*.md are swept too.
-        for p in pom.xml '**/pom.xml' README.md '**/README.md' ':(glob)docs/**/*.md' ':(glob)samples/**/*.md' '**/SKILLCARD.yaml' CHANGELOG.md; do
+        # cli/samples.json is the source of truth validate-atmosphere-doc-version.sh
+        # compares docs against, and update-doc-versions.sh already rewrote it above.
+        # Leaving it out of this sweep is what made every release land one commit
+        # where the docs said the new version and samples.json still said the old
+        # one — the doc guard and CI: Core both went red on it until a later job
+        # committed the file. Sweeping it here keeps that commit self-consistent.
+        for p in pom.xml '**/pom.xml' README.md '**/README.md' ':(glob)docs/**/*.md' ':(glob)samples/**/*.md' '**/SKILLCARD.yaml' CHANGELOG.md cli/samples.json; do
           git add -- "$p" 2>/dev/null || echo "sweep pathspec matched nothing (ok): $p"
         done
         git commit -m "release: Atmosphere ${{ inputs.release_version }}"

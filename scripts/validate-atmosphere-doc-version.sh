@@ -72,9 +72,10 @@ if ap.exists():
 
 # ── Source of truth: the current released version. By default cli/samples.json
 #    (what update-doc-versions.sh bumps alongside the doc <version> tags). The
-#    release workflow runs the doc sweep BEFORE the cli/samples.json bump (a
-#    later job), so it passes the release version explicitly via the
-#    ATMO_RELEASED_VERSION env var to self-check the sweep before publishing. ──
+#    release workflow runs this sweep before the release commit is created, so it
+#    passes the release version explicitly via the ATMO_RELEASED_VERSION env var
+#    to self-check before publishing. That commit stages cli/samples.json with the
+#    docs, so every commit it produces is self-consistent for this check. ──
 released = os.environ.get("ATMO_RELEASED_VERSION", "").strip()
 if not released:
     samples = Path("cli/samples.json")
