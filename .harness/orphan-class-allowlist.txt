@@ -17,3 +17,8 @@
 # tested against H2 PostgreSQL mode and documented in their module READMEs.
 org.atmosphere.checkpoint.postgres.PostgresCheckpointStore
 org.atmosphere.interactions.postgres.PostgresInteractionStore
+# Build-time generator for the GraalVM metadata embedded in each jar. Its caller is
+# EmbeddedReachabilityMetadataTest, which regenerates and diffs the committed file;
+# it stays in main scope (not test) so other modules can generate their own metadata
+# from their own providers the same way.
+org.atmosphere.nativeimage.NativeImageMetadataWriter
