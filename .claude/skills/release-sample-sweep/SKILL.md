@@ -44,20 +44,20 @@ rendering, streaming, transport headers, tool cards, and console errors.
 ## The shape of the sweep
 
 ```
-Phase 0   Preconditions  — build everything, start Ollama, free the ports, open the ledger
-Phase 1a  Samples        — 31 samples: launch → drive → collect → verdict → teardown
-Phase 1b  Expo client    — the RN client in the iOS simulator
-Phase 1c  CLI            — atmosphere run/new/compose/import/checkpoint + distributions
+Step 0   Preconditions  — build everything, start Ollama, free the ports, open the ledger
+Step 1a  Samples        — 31 samples: launch → drive → collect → verdict → teardown
+Step 1b  Expo client    — the RN client in the iOS simulator
+Step 1c  CLI            — atmosphere run/new/compose/import/checkpoint + distributions
                            ALL OF PHASE 1 IS COLLECT-ONLY. Do not fix anything mid-sweep.
-Phase 2   Triage         — classify every finding, rank by blast radius
-Phase 3   Fix            — root-cause fix + a regression test per issue, in the right
+Step 2   Triage         — classify every finding, rank by blast radius
+Step 3   Fix            — root-cause fix + a regression test per issue, in the right
                            suite, each proven to bite
-Phase 4   Re-test        — the failed surfaces in full, plus the blast-radius subset
+Step 4   Re-test        — the failed surfaces in full, plus the blast-radius subset
                            of already-passing ones
-Phase 5   Report         — vault report, CI green, memory updated
+Step 5   Report         — vault report, CI green, memory updated
 ```
 
-Phase 1 is deliberately fix-free. Fixing mid-sweep changes the artifact under
+Step 1 is deliberately fix-free. Fixing mid-sweep changes the artifact under
 test and invalidates every sample already verified against the old one. The one
 exception: a defect that **blocks the sweep itself** from continuing — fix it,
 say so in the ledger, and note which already-passed samples were re-run.
@@ -87,7 +87,7 @@ say so in the ledger, and note which already-passed samples were re-run.
 8. **Report honestly.** PASS / PARTIAL / FAIL with one line of concrete
    evidence each. PARTIAL must name what was not proven and why.
 
-## Phase 0 — Preconditions
+## Step 0 — Preconditions
 
 ```bash
 git status --porcelain                    # must be clean
@@ -105,24 +105,22 @@ curl -s -o /dev/null -w '%{http_code}\n' http://localhost:11434/v1/models
   samples and `qwen2.5:7b-instruct-q4_K_M` for tool-heavy agents — 3b emits
   invalid tool-call arguments and Ollama answers 400. Note `real-ollama` is a
   CI-harness alias only; `AiConfig` matches the literal `local`.
+- **The launcher scrubs ambient LLM env** (`LLM_API_KEY`, `LLM_BASE_URL`,
+  `LLM_MODE`, `LLM_MODEL`, and the provider keys) from every sample it boots, so
+  the sweep is reproducible on any machine. `SWEEP_KEEP_ENV=1` inherits instead.
+  If you boot a sample by hand, scrub them yourself — a maintainer's profile
+  routinely exports these.
 - **Always read the resolved endpoint out of the boot log before driving:**
 
   ```
   grep 'AI config:' target/sweep/<sample>.log
   ```
 
-  `AiConfig.resolveBaseUrl` maps `local` → `AiConfig.OLLAMA_ENDPOINT`, but on
-  4.0.64-SNAPSHOT the Spring Boot path was observed logging
-  `mode=local … endpoint=https://generativelanguage.googleapis.com/…` and the
-  turn failed against Gemini. Until that is fixed, pass the endpoint explicitly:
-
-  ```
-  --env LLM_MODE=local --env LLM_BASE_URL=http://localhost:11434/v1 \
-  --env LLM_API_KEY=ollama --env LLM_MODEL=qwen2.5:3b
-  ```
-
-  Never assume the mode took effect — an endpoint that disagrees with the mode
-  is itself a finding (Invariant #5, runtime truth).
+  Expect `mode=local … endpoint=http://localhost:11434/v1`. Anything else means
+  the sample is not talking to Ollama and the turn's result says nothing about
+  this build. An explicit `LLM_BASE_URL` outranks the mode by design, so an
+  inherited one silently redirects a "local" run to a remote provider — that is
+  what happened on the 2026-08-07 shakedown before the scrub existed.
 - **Do not use a paid key.** The paid-LLM lane is retired; quota starvation is
   what made the 2026-06 sweep report nine samples as plumbing-only.
 - **Do not use embacle** (`embacle-server --provider claude_code`) for
@@ -137,7 +135,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://localhost:11434/v1/models
   `assets/ledger-template.md`. Write each row **as you finish that sample**,
   never in a batch at the end.
 
-## Phase 1a — The per-sample loop
+## Step 1a — The per-sample loop
 
 Work through `references/sample-matrix.md` in order. For each sample:
 
@@ -174,7 +172,7 @@ Work through `references/sample-matrix.md` in order. For each sample:
    `sweep-sample.sh stop <sample>`. The helper verifies the port is actually
    released; if it is not, stop and investigate before the next sample claims it.
 
-## Phase 1b — The Expo client
+## Step 1b — The Expo client
 
 `samples/spring-boot-ai-classroom/expo-client/` is a native Expo/RN app. It is
 **not** a Maven module, **not** in `cli/samples.json`, and unreachable by the
@@ -186,7 +184,7 @@ Driven with the **iOS simulator MCP**, not chrome-devtools. Full procedure,
 including the `SERVER_URL` port trap and the AppState/NetInfo assertions nothing
 else covers: `references/expo-sweep.md`.
 
-## Phase 1c — The CLI
+## Step 1c — The CLI
 
 The CLI is the documented Quick Start and ships as four distributions
 (curl installer, npx, Homebrew tap, SDKMAN). CI covers `list`/`info`, argument
@@ -200,7 +198,7 @@ a post-publish check of the actually-shipped artifacts. Watch the jar cache —
 a stale `$ATMOSPHERE_HOME/cache/v<version>` boots the previous release and fakes
 a pass. Full procedure: `references/cli-sweep.md`.
 
-## Phase 2 — Triage
+## Step 2 — Triage
 
 With all samples tested, classify each finding before touching any code:
 
@@ -215,7 +213,7 @@ With all samples tested, classify each finding before touching any code:
 Rank by blast radius: shared-module findings first (they can invalidate other
 samples' passes), then per-sample.
 
-## Phase 3 — Fix, with a regression test per issue
+## Step 3 — Fix, with a regression test per issue
 
 Every issue gets a test, but **in the suite that can actually run it**:
 
@@ -242,7 +240,7 @@ For **every** issue in the framework-bug or sample-bug class:
 6. One commit per fix class, conventional-commit prefixed. No CHANGELOG edits —
    the CHANGELOG is touched only at release time.
 
-## Phase 4 — Re-test
+## Step 4 — Re-test
 
 1. **Re-run the failed sample end to end** — the full headline flow, not just
    the broken step.
@@ -253,9 +251,9 @@ For **every** issue in the framework-bug or sample-bug class:
    `references/retest-subset.md`.
 3. **Say what you did not re-run and why.** A subset is a deliberate scope
    decision; leaving it unstated reads as "everything was re-verified".
-4. Repeat Phases 2–4 until the sweep is clean.
+4. Repeat triage → fix → re-test until the sweep is clean.
 
-## Phase 5 — Report
+## Step 5 — Report
 
 - **Vault report** via the `obsidian-writer` skill →
   `Claude Outputs/Sample-Sweep-chrome-devtools-<date>.md`. Promote the ledger:
@@ -274,8 +272,8 @@ For **every** issue in the framework-bug or sample-bug class:
 |---|---|
 | `references/sample-matrix.md` | Every sample: boot type, sweep port, drive surface, headline assertion, gating |
 | `references/driving-recipes.md` | chrome-devtools call sequences per surface class + browser-layer traps |
-| `references/expo-sweep.md` | Phase 1b — the RN client in the iOS simulator |
-| `references/cli-sweep.md` | Phase 1c — what CI already covers, the real gaps, and the CLI pass |
+| `references/expo-sweep.md` | Step 1b — the RN client in the iOS simulator |
+| `references/cli-sweep.md` | Step 1c — what CI already covers, the real gaps, and the CLI pass |
 | `references/regression-specs.md` | Where a Playwright spec lives, how to wire it into CI, how to prove it bites |
 | `references/retest-subset.md` | Blast radius → which passing samples to re-drive after a fix |
 | `references/troubleshooting.md` | Known traps: PNA, long-poll probes, stale jars, port collisions, Quarkus LLM config |

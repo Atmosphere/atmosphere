@@ -2725,3 +2725,47 @@ and relaunched with the `rev-parse` value before any conclusion was drawn.
 an invented one at the shell layer. The recorded rule: a 40-char SHA may
 only ever be pasted from `rev-parse`/`git log`/API output, never completed
 from a short prefix.
+
+## 2026-08-07 — Blamed the framework for an env var I leaked into the sample
+
+### A "runtime truth violation" that was a harness bug
+
+**Claim:** the first run of the new `release-sample-sweep` skill reported a P1
+framework defect — "`LLM_MODE=local` reports `mode=local` but sends the request
+to Gemini" — filed as a Correctness Invariant #5 (Runtime Truth) violation,
+reproduced on `spring-boot-ai-chat` and `spring-boot-one-dep-agent`, and
+published in an artifact for the project maintainer.
+
+**Truth:** the framework was correct. The launcher
+(`.claude/skills/release-sample-sweep/scripts/sweep-sample.sh`) passed the whole
+inherited environment to each sample, and the operator's shell profile exports
+`LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/`. An
+explicit base URL outranking the mode's default is the documented, intended
+precedence in `AiConfig.resolveBaseUrl`. The sweep was testing Gemini while
+reporting that it tested Ollama — the runtime-truth failure was the harness's,
+not the framework's.
+
+**Slip path:** two verifications were skipped in favour of an inference.
+`AiConfig.resolveBaseUrl` was read and its `local → OLLAMA_ENDPOINT` branch
+noted; when the log disagreed, the conclusion drawn was "the Spring
+auto-configuration path diverges" rather than "something upstream supplied an
+explicit URL." `env | grep LLM_` — one command — would have ended it
+immediately, and `feedback_grep_env_tokens` already says env values come from
+the runtime switch, not from documentation. The tell was visible and ignored:
+the logged endpoint carried a trailing slash that `AiConfig.GEMINI_ENDPOINT`
+does not have, so the value provably did not originate in the framework. Worse,
+a doc "correction" was committed (`88582c059c`) that wrote the wrong diagnosis
+into `SKILL.md` and `troubleshooting.md` as established fact.
+
+**Gate added:** `sweep-sample.sh` now scrubs `LLM_API_KEY`, `LLM_BASE_URL`,
+`LLM_MODE`, `LLM_MODEL` and the provider keys from every sample it boots
+(`SWEEP_KEEP_ENV=1` to inherit), mirroring `RG_KEEP_KEYS` in
+`scripts/release-gate-samples.sh`. The launcher prints that the scrub happened,
+and the skill now requires grepping `AI config:` out of the boot log and
+confirming `endpoint=http://localhost:11434/v1` before any turn is driven. The
+recorded rule: when a component behaves as if configured differently than you
+configured it, audit the environment you handed it before you audit its code.
+
+**Follow-up noted, not fixed:** `release-gate-samples.sh` scrubs provider keys
+but not `LLM_BASE_URL` / `LLM_MODE` / `LLM_MODEL`. Harmless on clean CI runners;
+it would bite the same way if that script were run from a configured shell.

@@ -51,20 +51,20 @@ Two more structural gaps it covers:
 
 ## How it works
 
-Five phases. The important structural rule is that **phase 1 is collect-only** —
+Five phases. The important structural rule is that **step 1 is collect-only** —
 nothing is fixed while the sweep is running, because fixing changes the artifact
 under test and silently invalidates every sample already verified against the
 old one.
 
 ```
-Phase 0   Preconditions  build the reactor, start Ollama, open the ledger
-Phase 1a  Samples        31 samples: launch → drive → collect → verdict → teardown
-Phase 1b  Expo client    the RN client in the iOS simulator
-Phase 1c  CLI            run / new / compose / import / checkpoint + distributions
-Phase 2   Triage         classify every finding, rank by blast radius
-Phase 3   Fix            root-cause fix + a regression test per issue
-Phase 4   Re-test        the failures in full, plus a blast-radius subset of the passes
-Phase 5   Report         vault report, CI green
+Step 0   Preconditions  build the reactor, start Ollama, open the ledger
+Step 1a  Samples        31 samples: launch → drive → collect → verdict → teardown
+Step 1b  Expo client    the RN client in the iOS simulator
+Step 1c  CLI            run / new / compose / import / checkpoint + distributions
+Step 2   Triage         classify every finding, rank by blast radius
+Step 3   Fix            root-cause fix + a regression test per issue
+Step 4   Re-test        the failures in full, plus a blast-radius subset of the passes
+Step 5   Report         vault report, CI green
 ```
 
 Findings are classified before anything is fixed — framework bug, sample bug,

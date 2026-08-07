@@ -61,6 +61,25 @@ fi
 STATE_DIR="${SWEEP_STATE_DIR:-$ROOT/target/sweep}"
 MVNW="$ROOT/mvnw"
 
+# Ambient LLM configuration is SCRUBBED from every sample we boot, mirroring
+# scripts/release-gate-samples.sh (RG_KEEP_KEYS). A maintainer's shell profile
+# routinely exports LLM_API_KEY / LLM_BASE_URL / LLM_MODEL, and the sweep must
+# produce the same result on every machine.
+#
+# This is not hypothetical: the 2026-08-07 shakedown run inherited
+# LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/ from the
+# operator's profile, so samples launched with `--env LLM_MODE=local` called
+# Gemini instead of Ollama. The framework was correct — an explicit base URL
+# outranks the mode's default — but the sweep silently tested the wrong provider
+# and the divergence was briefly misread as a framework defect.
+#
+# Note the ordering guarantee this relies on: `env -u FOO FOO=bar` unsets first
+# and then applies the assignment, so an explicit --env always outranks a scrub.
+# Set SWEEP_KEEP_ENV=1 to inherit the caller's values instead.
+SCRUB_VARS=(LLM_API_KEY LLM_BASE_URL LLM_MODEL LLM_MODE
+            OPENAI_API_KEY GEMINI_API_KEY GOOGLE_API_KEY ANTHROPIC_API_KEY
+            COHERE_API_KEY AZURE_OPENAI_API_KEY)
+
 mkdir -p "$STATE_DIR"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
@@ -119,7 +138,12 @@ cmd_start() {
     local sample="${1:-}"; shift || true
     [[ -n "$sample" ]] || die "usage: $0 start <sample> [--port N] ..."
 
-    local port="" ready_path="/" timeout=180
+    # 300s, not 180s: on macOS the first load of the extracted SQLite JDBC
+    # native library goes through Gatekeeper provenance evaluation, and
+    # spring-boot-ai-chat was measured at 126s to Tomcat-up because of it
+    # (a cold TMPDIR can be far worse). A timeout shorter than the slowest
+    # legitimate boot turns a slow sample into a phantom failure.
+    local port="" ready_path="/" timeout=300
     local -a envs=() jvm_args=()
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -172,8 +196,16 @@ cmd_start() {
     #  3. `set -m` puts the job in its own process group, so teardown can
     #     signal the whole group — macOS has no setsid, and the war/exec:java
     #     boots fork a second JVM under the Maven wrapper.
+    local -a scrub=()
+    if [[ "${SWEEP_KEEP_ENV:-0}" != "1" ]]; then
+        local v
+        for v in "${SCRUB_VARS[@]}"; do scrub+=(-u "$v"); done
+        info "$sample: ambient LLM env scrubbed (SWEEP_KEEP_ENV=1 to inherit)"
+    fi
+
     set -m
-    ( cd "$dir" && exec env ${envs[@]+"${envs[@]}"} "${cmd[@]}" ) >"$log" 2>&1 </dev/null &
+    ( cd "$dir" && exec env ${scrub[@]+"${scrub[@]}"} ${envs[@]+"${envs[@]}"} "${cmd[@]}" ) \
+        >"$log" 2>&1 </dev/null &
     local pid=$!
     set +m
     echo "$pid $port $kind" >"$pidfile"

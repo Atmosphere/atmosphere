@@ -78,26 +78,54 @@ to the Gemini base URL with api-key `dummy`. It needs explicit values:
 matches the literal `local`; anything else falls through to remote/Gemini and
 the sample will quietly try to reach the internet.
 
-**`LLM_MODE=local` alone was not enough on 4.0.64-SNAPSHOT.** Observed on
-`spring-boot-ai-chat` and `spring-boot-one-dep-agent` (2026-08-07): the boot log
-read `mode=local, model=qwen2.5:3b,
-endpoint=https://generativelanguage.googleapis.com/v1beta/openai/` and the turn
-failed with a Gemini 404 rendered as an error frame in the Console. `AiConfig`'s
-own `resolveBaseUrl` maps `local` → `OLLAMA_ENDPOINT`, so the divergence is on
-the Spring auto-configuration path. Until it is fixed, pass `LLM_BASE_URL`
-explicitly, and **grep `AI config:` out of every boot log before driving** —
-a mode/endpoint mismatch is a runtime-truth finding in its own right.
+**An inherited `LLM_BASE_URL` silently redirects a "local" run.** On the
+2026-08-07 shakedown, `spring-boot-ai-chat` and `spring-boot-one-dep-agent` both
+logged `mode=local, model=qwen2.5:3b,
+endpoint=https://generativelanguage.googleapis.com/v1beta/openai/` and failed
+with a Gemini 404 rendered as an error frame — despite `--env LLM_MODE=local`.
 
-**A sample that boots but never opens its port.** `spring-boot-ai-chat` hung
-over 10 minutes in `System.load` of the SQLite JDBC native library, reached from
+Cause: the operator's shell profile exported
+`LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/`, and the
+launcher passed the whole inherited environment through. **The framework was
+correct** — an explicit base URL outranks the mode's default, which is the
+documented precedence — but the sweep was testing the wrong provider.
+
+Two lessons, both now enforced:
+
+1. `sweep-sample.sh` scrubs `LLM_*` and the provider keys by default
+   (`SWEEP_KEEP_ENV=1` to inherit). Booting by hand? Scrub them yourself.
+2. **Grep `AI config:` out of every boot log before driving.** Expect
+   `endpoint=http://localhost:11434/v1`. Treat a surprising endpoint as a
+   harness problem first and a framework problem second — check `env | grep LLM_`
+   before writing up a runtime-truth finding.
+
+The generalisation: when a sample behaves as if configured differently than you
+configured it, audit the environment you handed it before you audit the code.
+
+**Slow first boot on macOS: the SQLite native library.** Samples that reach the
+SQLite JDBC driver spend their startup inside `System.load` of an extracted
+`libsqlitejdbc.dylib`, reached from
 `AtmosphereAiAutoConfiguration$TapeInstaller.afterSingletonsInstantiated` →
-`SqliteTapeStoreFactory.create` → `DriverManager.getConnection`. On macOS the
-freshly extracted ad-hoc-signed `libsqlitejdbc.dylib` carries a
-`com.apple.provenance` xattr and Gatekeeper evaluation can stall the load
-indefinitely. Diagnose with `jstack <pid>` rather than guessing — the stack
-names the caller immediately. Samples that do not touch SQLite
-(`quarkus-chat`, `embedded-jetty-websocket-chat`, `spring-boot-one-dep-agent`)
-boot normally, so a hang here is not a general framework outage.
+`SqliteTapeStoreFactory.create` → `DriverManager.getConnection`. The dylib is
+ad-hoc signed and carries a `com.apple.provenance` xattr, so macOS evaluates it
+through Gatekeeper on first load.
+
+Measured on 2026-08-07 with `spring-boot-ai-chat`: the **first** boot never
+completed within 10 minutes and was killed; the **next** boot, with the dylib
+already vetted and cached in `$TMPDIR`, reached Tomcat-up in **126 s** and the
+sample then passed fully. So this is a cold-start cost, not a defect, and not a
+hang to file against the framework.
+
+Consequences for the sweep:
+
+- The launcher's default `--timeout` is **300 s** for this reason. Do not lower
+  it; a timeout under the slowest legitimate boot manufactures phantom failures.
+- Samples that never touch SQLite (`quarkus-chat`,
+  `embedded-jetty-websocket-chat`, `spring-boot-one-dep-agent`) boot in seconds,
+  so a slow boot in one sample says nothing about the others.
+- `jstack <pid>` names the blocking frame in one step — reach for it before
+  theorising about a startup hang, and check whether a second attempt is fast
+  before writing anything up.
 
 **Small models fail tool calls.** `qwen2.5:3b` emits invalid tool-call arguments
 (Ollama answers 400); `7b` has produced an empty final response that an

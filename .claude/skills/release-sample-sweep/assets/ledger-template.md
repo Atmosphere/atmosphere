@@ -8,7 +8,7 @@ version: <x.y.z-SNAPSHOT>
 
 # Sample Sweep — chrome-devtools E2E (<YYYY-MM-DD>)
 
-Copy this to `claude_docs/sample-sweep-<YYYY-MM-DD>.md` before Phase 1 and fill
+Copy this to `claude_docs/sample-sweep-<YYYY-MM-DD>.md` before Step 1 and fill
 each row **as that sample finishes**. Never batch the rows at the end — a
 compacted context or a crashed session loses everything not yet written.
 
@@ -26,7 +26,7 @@ compacted context or a crashed session loses everything not yet written.
 | Console bundle | `scripts/sync-console-bundle.sh --check` → |
 | Environment notes | e.g. a port remapped because another process held it |
 
-## Phase 1a — Sample matrix
+## Step 1a — Sample matrix
 
 Verdicts: **PASS** (headline feature rendered, no unexplained errors) ·
 **PARTIAL** (plumbing proven, feature not observed — reason required) ·
@@ -40,7 +40,7 @@ Verdicts: **PASS** (headline feature rendered, no unexplained errors) ·
 Fill the warning columns even for PASS rows — the warning inventory is half the
 value of the sweep.
 
-## Phase 1b — Expo client (`spring-boot-ai-classroom/expo-client`)
+## Step 1b — Expo client (`spring-boot-ai-classroom/expo-client`)
 
 Backend port used: ____ · `SERVER_URL` pointed at: ____ · reverted after: yes/no
 
@@ -54,7 +54,7 @@ Backend port used: ____ · `SERVER_URL` pointed at: ____ · reverted after: yes/
 
 `atmosphere.js` rebuilt before this pass: yes/no · `git status` clean after: yes/no
 
-## Phase 1c — CLI
+## Step 1c — CLI
 
 `ATMOSPHERE_HOME` used (throwaway): ____ · CLI tested: in-repo / installed
 
@@ -74,7 +74,7 @@ Backend port used: ____ · `SERVER_URL` pointed at: ____ · reverted after: yes/
 
 Templates covered: ____ of ____ in the `cmd_new` map. Not covered: ____ (reason)
 
-## Phase 2 — Triage
+## Step 2 — Triage
 
 | # | Sample | Symptom | Class (framework / sample / config / model / environment) | Blast radius | Priority |
 |---|--------|---------|------------------------------------------------------------|--------------|----------|
@@ -84,7 +84,7 @@ Warnings seen on many samples (candidate framework findings hiding as noise):
 
 - 
 
-## Phase 3 — Fixes
+## Step 3 — Fixes
 
 For each issue:
 
@@ -98,7 +98,7 @@ For each issue:
 - **Proven to bite:** failed pre-fix with `<symptom>` / passed post-fix
 - **Build-time gate added (if the issue is a class):**
 
-## Phase 4 — Re-test
+## Step 4 — Re-test
 
 - **Fix touched:** <module / sample / shared surface>
 - **Blast-radius family:** <from references/retest-subset.md>

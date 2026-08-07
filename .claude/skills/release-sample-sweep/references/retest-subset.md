@@ -62,8 +62,8 @@ grep -rln 'web-transport\|webTransport' samples/*/src/main/resources/
 | `modules/coordinator` | `checkpoint-agent`, `multi-agent-startup-team`, `personal-assistant`, `orchestration-demo` | The `@Coordinator` / `@Fleet` consumers |
 | `modules/checkpoint*` | `checkpoint-agent`, `passivation-agent`, `durable-sessions`, `multi-agent-startup-team` | Durable state consumers |
 | `atmosphere.js` (any export) | Every browser-driven sample (the Console bundles it) **and** the Expo client — the RN client links the local `dist/`, so it is the only check of the `./react-native` export | A client-library change reaches the browser and the native runtime by different paths |
-| `atmosphere.js` `./react-native` only | The Expo client (Phase 1b) | No other surface consumes that export |
-| `cli/atmosphere`, `cli/samples.json`, `cli/npx`, `cli/install.sh` | The full CLI pass (Phase 1c). Samples themselves are unaffected unless `samples.json` changed — then re-check `list`/`info` against `ls samples/` | The CLI is a separate artifact from the samples it launches |
+| `atmosphere.js` `./react-native` only | The Expo client (Step 1b) | No other surface consumes that export |
+| `cli/atmosphere`, `cli/samples.json`, `cli/npx`, `cli/install.sh` | The full CLI pass (Step 1c). Samples themselves are unaffected unless `samples.json` changed — then re-check `list`/`info` against `ls samples/` | The CLI is a separate artifact from the samples it launches |
 | A sample renamed, added, or removed | That sample's own pass **plus** the CLI registry checks, `cmd_new` template map, and `release-gate-samples.sh` coverage map | Sample changes must land with `samples.json`, the CLI map, the READMEs, and CI in the same commit |
 | Root `pom.xml`, `bom/`, a managed dependency version | **Full re-sweep** — all three surfaces | A managed-version change reaches every artifact. This is exactly the class that produced both historical sweep bugs |
 | Build/CI scripts only, docs only | Nothing — but the CI lanes must be green | No artifact changed |

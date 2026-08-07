@@ -46,7 +46,7 @@ export ATMOSPHERE_HOME="$(mktemp -d)/atmosphere-sweep"
 Two more version subtleties, both verified in `cli/atmosphere`:
 
 - `VERSION="4.0.63"` is **pinned in the script** and bumped by the release
-  workflow's Phase 6, *after* publishing. Pre-release, the in-repo CLI still
+  workflow's CLI-version bump job, *after* publishing. Pre-release, the in-repo CLI still
   names the previous version — expected, not a finding.
 - `get_samples_json` prefers the `samples.json` sitting next to the script and
   otherwise downloads from `main` on GitHub. So the **in-repo** CLI reads the
@@ -81,7 +81,7 @@ export ATMOSPHERE_HOME="$(mktemp -d)/atmosphere-sweep"
 cli/atmosphere run spring-boot-ai-chat --port 9201 --env LLM_MODE=local --env LLM_MODEL=qwen2.5:3b
 ```
 
-Then drive it in the browser exactly as in Phase 1 —
+Then drive it in the browser exactly as in Step 1 —
 `http://localhost:9201/atmosphere/console/`, same assertions, same evidence
 collection. The point is that the **CLI-produced artifact** streams, not that
 the CLI printed a URL.

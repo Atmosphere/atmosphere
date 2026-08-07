@@ -3,9 +3,9 @@
 31 samples. `samples/shared-resources` is a resource pack, not a sample.
 
 **Two surfaces are not in this table** and have their own passes:
-`samples/spring-boot-ai-classroom/expo-client/` (Phase 1b, `expo-sweep.md` —
+`samples/spring-boot-ai-classroom/expo-client/` (Step 1b, `expo-sweep.md` —
 a native app, not a Maven module, absent from `cli/samples.json`) and the
-`atmosphere` CLI (Phase 1c, `cli-sweep.md`).
+`atmosphere` CLI (Step 1c, `cli-sweep.md`).
 
 **Verify the count before you trust this file.** Sources of truth:
 
@@ -41,9 +41,18 @@ expect and can boot by hand if needed.
 ## Common env
 
 ```bash
---env LLM_MODE=local --env LLM_MODEL=qwen2.5:3b                    # streaming samples
---env LLM_MODE=local --env LLM_MODEL=qwen2.5:7b-instruct-q4_K_M    # tool-heavy agents
+# streaming samples
+--env LLM_MODE=local --env LLM_API_KEY=ollama --env LLM_MODEL=qwen2.5:3b
+# tool-heavy agents
+--env LLM_MODE=local --env LLM_API_KEY=ollama --env LLM_MODEL=qwen2.5:7b-instruct-q4_K_M
 ```
+
+`LLM_API_KEY=ollama` is a required placeholder, not decoration. The launcher
+scrubs ambient LLM env, and with **no** key the framework correctly takes its
+keyless demo path and streams a canned response — which is a valid PASS for
+`one-dep-agent`'s keyless headline but proves nothing about a real LLM turn.
+Verified 2026-08-07: without the placeholder the Console renders "Demo mode —
+this response is a canned placeholder"; with it, real Ollama content arrives.
 
 `LLM_MODE=local` resolves the base URL to `AiConfig.OLLAMA_ENDPOINT`
 (`http://localhost:11434/v1`). It only governs the **built-in / Spring** path —
