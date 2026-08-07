@@ -9,10 +9,10 @@ A real-time chat application on Spring Boot, demonstrating rooms, presence, mess
 - **REST controller** — `GET /api/rooms` exposing room state and member details
 - **Observability** — `AtmosphereMetrics` wired to Micrometer / Spring Boot Actuator
 - **Spring DI** — `AtmosphereFramework` and `RoomManager` auto-exposed as beans
-- **GraalVM Native Image** — builds and boots with the `native` profile. The
-  `@ManagedService` chat endpoint below relies on classpath annotation
-  scanning, which a native image cannot do; see the starter README's known
-  limitation before deploying this natively.
+- **GraalVM Native Image** — the `native` profile builds this sample into a
+  native binary, with the `@ManagedService` chat endpoint discovered at build
+  time so it serves connections there; see [Native Image](#native-image) for
+  exactly what the CI lane asserts and what it does not
 
 ## Server Side
 
@@ -144,6 +144,38 @@ mvn clean package -Pnative
 ```
 
 Open http://localhost:8080/ in multiple browser tabs to chat.
+
+### Native Image
+
+Annotation discovery normally reads `.class` files off the classpath, and a
+native image has none. The `native` profile moves that work to build time: it
+binds Spring's `process-aot` goal, which runs the scan on a JVM — reading the
+same `atmosphere.packages` property the runtime would have used — and records
+the result into `META-INF/atmosphere/annotated-classes.txt`. The same step
+registers `Chat`, plus the types its annotations name by class literal
+(`JacksonEncoder`, `JacksonDecoder`), for reflection. At startup the framework
+reads *every* copy of that file on the classpath (`classpath*:`) and merges
+them, so each jar contributes the classes it owns rather than the first one
+found hiding the rest.
+
+Nothing else needs configuring here. `atmosphere-runtime` ships GraalVM
+reachability metadata for the classes the framework loads by name, at
+`META-INF/native-image/org.atmosphere/atmosphere-runtime/reachability-metadata.json`,
+and GraalVM reads it straight out of the jar.
+
+The `Spring Boot Native Image` job in `.github/workflows/native-image-ci.yml`
+runs whenever this sample changes. It builds the binary, starts it, opens a real
+long-polling connection to `/atmosphere/chat`, and fails unless the `@Ready`
+method in `Chat.java` ran — a log line that can only appear if the class was
+discovered, the handler registered, `@Inject` resolved and the lifecycle fired.
+Answering `/actuator/health` is not the assertion; that was the standard this
+lane was written to replace.
+
+That is the whole of what is proven under Native Image. **Not asserted against
+the native binary:** WebSocket and SSE, transport negotiation and fallback, the
+`@Message` encode/decode round-trip, and the Room API (presence, history,
+`GET /api/rooms`). The tests below exercise the transports and the Room API, but
+on the JVM only.
 
 ### Endpoints
 

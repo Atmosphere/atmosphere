@@ -5,15 +5,58 @@ on:
   # so a doclint / compile break in those modules fails Native Image even
   # though they are not direct `-pl` targets. Trigger on them too.
   #
-  # A native AI-dispatch job lived here and was removed deliberately, not
-  # because it was noisy: it proved that Atmosphere's annotation-driven model
-  # does not survive Native Image. AnnotationDetector discovers @AiEndpoint /
-  # @Agent / @ManagedService by reading .class files off the classpath, and a
-  # native image has none, so every annotated user class goes undetected and
-  # the starter silently falls back to its built-in default endpoint. Until
-  # discovery has a build-time index, an end-to-end AI assertion cannot pass
-  # here, and a job asserting only "it booted" would restate the gap this lane
-  # was added to close. See the AI gap register.
+  # A native AI-dispatch job lived here and was removed when Atmosphere's
+  # annotation-driven model could not survive Native Image: the Spring Boot
+  # starter discovered @ManagedService / @AiEndpoint / @Agent with a runtime
+  # classpath scan, a native image has no .class files to scan, so every
+  # annotated user class went undetected and the starter silently fell back to
+  # its built-in default endpoint.
+  #
+  # That blocker is gone. Discovery in the Spring Boot starter is now the union
+  # of the runtime scan and a build-time index — a union and not "index wins",
+  # because an index is per-artifact and letting one short-circuit the scan lets
+  # a single jar hide every other jar's classes. Two things write that index,
+  # both to META-INF/atmosphere/annotated-classes.txt:
+  # AtmosphereAnnotationScanAotProcessor (Spring AOT, registered in the
+  # starter's META-INF/spring/aot.factories) and, for any build tool,
+  # org.atmosphere.nativeimage.AtmosphereAnnotationIndexProcessor — a javac
+  # annotation processor auto-discovered from atmosphere-runtime on the compile
+  # classpath.
+  #
+  # Reflective access is a separate problem with a separate fix.
+  # atmosphere-runtime ships
+  # META-INF/native-image/org.atmosphere/atmosphere-runtime/reachability-metadata.json,
+  # generated from the org.atmosphere.nativeimage.NativeImageMetadataProvider
+  # SPI, so a plain-servlet deployment needs no integration module. A module
+  # declares the types it loads by name by implementing that interface:
+  #
+  #   public final class MyMetadataProvider implements NativeImageMetadataProvider {
+  #       @Override public String name() { return "atmosphere-mymodule"; }
+  #       @Override public Collection<String> reflectiveTypes() {
+  #           return List.of("com.example.LoadedByName");
+  #       }
+  #   }
+  #
+  # and listing it in
+  # META-INF/services/org.atmosphere.nativeimage.NativeImageMetadataProvider.
+  # NativeImageMetadata.collect() merges every provider on the classpath and
+  # feeds all three integrations: AtmosphereRuntimeHints in both Spring starters
+  # and the Quarkus deployment processor. modules/spring-boot3-starter is in the
+  # path filters below for that reason — it is one of the three, and the Quarkus
+  # lane's install step is a full-reactor build, so a break there fails this
+  # workflow and must be able to trigger it. samples/spring-boot-ai-chat is in
+  # the filters only because that same full-reactor install compiles it; it is
+  # not evidence of AI coverage.
+  #
+  # WHAT THE TWO JOBS BELOW ASSERT, AND NOTHING MORE: a @ManagedService serves a
+  # real long-polling connection under Native Image, on Spring Boot and on
+  # Quarkus. Not asserted, and therefore not proven: WebSocket under native,
+  # SSE, transport negotiation and fallback, @Message encoder/decoder
+  # round-trips, @RoomService / presence / broadcast fan-out, and injection
+  # beyond what @Ready needs. The AI lane has not been re-added — no job in this
+  # repository builds samples/spring-boot-ai-chat with -Pnative or -Dnative, so
+  # @AiEndpoint and @Agent under Native Image remain unproven. Do not read a
+  # green run here as "Atmosphere supports GraalVM Native Image".
   push:
     branches: [ main ]
     paths:
@@ -21,6 +64,7 @@ on:
       - 'modules/ai/**'
       - 'modules/wasync/**'
       - 'modules/spring-boot-starter/**'
+      - 'modules/spring-boot3-starter/**'
       - 'modules/quarkus-extension/**'
       - 'samples/spring-boot-chat/**'
       - 'samples/spring-boot-ai-chat/**'
@@ -35,6 +79,7 @@ on:
       - 'modules/ai/**'
       - 'modules/wasync/**'
       - 'modules/spring-boot-starter/**'
+      - 'modules/spring-boot3-starter/**'
       - 'modules/quarkus-extension/**'
       - 'samples/spring-boot-chat/**'
       - 'samples/spring-boot-ai-chat/**'
@@ -100,17 +145,22 @@ jobs:
         fi
 
         # Booting is not the feature. This sample's entire point is the
-        # @ManagedService at /atmosphere/chat, and Atmosphere finds that class
-        # by scanning .class files — something a native image cannot do. A
+        # @ManagedService at /atmosphere/chat, and in a native image Atmosphere
+        # cannot scan .class files for it — the class is found only because the
+        # build recorded it in META-INF/atmosphere/annotated-classes.txt. A
         # liveness URL answers either way, so drive a real connection and check
         # that the annotated @Ready method ran: that single log line can only
-        # appear if the class was discovered, the handler registered, @Inject
+        # appear if the class was discovered, the handler registered, the
+        # broadcaster and its by-name-loaded cache were created, @Inject
         # resolved, and the lifecycle fired.
         #
         # Registration itself is silent (ManagedServiceProcessor calls
         # addAtmosphereHandler with no logging), so there is no "installed"
         # line to grep — asserting behaviour is both more honest and the only
         # option available.
+        #
+        # Scope: this drives long-polling. WebSocket, SSE and transport
+        # fallback under native are not exercised by this lane.
         echo "--- connecting to /atmosphere/chat ---"
         curl -s --max-time 8 \
           "http://localhost:8080/atmosphere/chat?X-Atmosphere-tracking-id=0&X-Atmosphere-Framework=2.3&X-Atmosphere-Transport=long-polling&X-Cache-Date=0" \
@@ -182,11 +232,15 @@ jobs:
           exit 1
         fi
 
-        # Same assertion as the Spring Boot lane, and the interesting half of
-        # the comparison: Quarkus builds Atmosphere's annotation map from its
-        # Jandex index at build time rather than scanning at runtime, so the
-        # handler should register here even though a native image has no
-        # .class files. Serving "/" only proved a static page exists.
+        # Same assertion as the Spring Boot lane, over a different build-time
+        # index: Quarkus builds Atmosphere's annotation map from Jandex
+        # (AtmosphereProcessor#scanAnnotations), not from
+        # META-INF/atmosphere/annotated-classes.txt. Jandex alone was never
+        # sufficient, though — the endpoints it registered still failed to come
+        # up until the broadcaster caches, which are loaded by name, were
+        # registered for reflection. Serving "/" only proved a static page
+        # exists; this drives long-polling and greps the @Ready log line, and
+        # covers nothing beyond that.
         echo "--- connecting to /atmosphere/chat ---"
         curl -s --max-time 8 \
           "http://localhost:8080/atmosphere/chat?X-Atmosphere-tracking-id=0&X-Atmosphere-Framework=2.3&X-Atmosphere-Transport=long-polling&X-Cache-Date=0" \

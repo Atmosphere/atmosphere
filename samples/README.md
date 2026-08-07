@@ -11,10 +11,16 @@ All samples inherit their Atmosphere version from the parent POM. The target sta
 | [chat](chat/) | Servlet (WAR) | WAR | — | — | — |
 | [spring-boot-chat](spring-boot-chat/) | Spring Boot 4.0.7 | JAR | ✅ | ✅ | ✅ |
 | [quarkus-chat](quarkus-chat/) | Quarkus 3.36.3 | JAR | — | — | ✅ |
-| [quarkus-ai-chat](quarkus-ai-chat/) | Quarkus 3.36.3 + LangChain4j | JAR | — | — | ✅ |
+| [quarkus-ai-chat](quarkus-ai-chat/) | Quarkus 3.36.3 + LangChain4j | JAR | — | — | profile only, no CI lane |
 | [embedded-jetty-websocket-chat](embedded-jetty-websocket-chat/) | Embedded Jetty | JAR | — | — | — |
 | [kotlin-dsl-chat](kotlin-dsl-chat/) | Kotlin DSL + coroutines (Embedded Jetty) | JAR | — | — | — |
 | [grpc-chat](grpc-chat/) | gRPC + Spring Boot | JAR | — | — | — |
+
+**Reading the Native Image column.** `✅` means the sample declares a `native` profile *and* a job in [`.github/workflows/native-image-ci.yml`](../.github/workflows/native-image-ci.yml) builds the binary, starts it, opens a long-polling connection to the `@ManagedService` endpoint, and asserts the annotated `@Ready` method ran — a log line that can only appear if the class was discovered, the handler registered, and the lifecycle fired. `profile only, no CI lane` means the `native` profile exists but nothing in CI builds or exercises the binary. `—` means no `native` profile is configured.
+
+Those two lanes — Spring Boot and Quarkus — assert exactly one path: `@ManagedService` over long-polling. They do **not** cover WebSocket, SSE, transport negotiation or fallback, `@Message` encoder/decoder round-trips, `@RoomService`/presence/broadcast fan-out, injection beyond what `@Ready` needs, or AI dispatch — no native job builds an `@AiEndpoint` / `@Agent` sample. Those paths are not known to be broken; they are unproven, and a cell here stays unticked until a lane asserts it.
+
+Separately from any sample, `atmosphere-runtime` ships `META-INF/native-image/org.atmosphere/atmosphere-runtime/reachability-metadata.json` (77 types, 3 resource patterns), which GraalVM reads automatically. That covers the framework's own load-by-name types — the broadcaster caches (`UUIDBroadcasterCache` and the other three) among them — and the `ServiceLoader` files it reads at startup, with no configuration and no integration module. It closes a class of failure; it is not a claim that the `—` samples build or run natively, because nothing builds them natively.
 
 ### AI / LLM Streaming
 

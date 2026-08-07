@@ -80,3 +80,6 @@ MeteorService
 McpServer
 # Embabel GOAP action annotation (com.embabel.agent.api.annotation) — referenced in modules/embabel/README.md
 Action
+# jakarta.inject.Named — CDI qualifier used by the chat samples to inject the
+# broadcaster bound to a @ManagedService path (@Inject @Named("/atmosphere/chat")).
+Named

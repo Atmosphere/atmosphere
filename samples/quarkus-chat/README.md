@@ -1,13 +1,13 @@
 # Atmosphere Chat — Quarkus
 
-A real-time chat application on Quarkus with native image support. Uses `@ManagedService` with WebSocket and automatic long-polling fallback.
+A real-time chat application on Quarkus. Uses `@ManagedService` for the server-side handler, served over WebSocket with long-polling fallback in JVM mode. The sample also builds as a GraalVM native image — see [Native Image](#native-image) for exactly what that lane verifies.
 
 ## What It Demonstrates
 
 - **`@ManagedService`** annotation-driven handler with Jackson encoding/decoding
 - **Quarkus extension** — build-time annotation scanning via Jandex, Arc CDI integration
-- **GraalVM Native Image** — works out of the box with the `native` profile
-- **WebSocket** with transparent long-polling fallback
+- **GraalVM Native Image** — the `native` profile builds with no Atmosphere reflection configuration; [Native Image](#native-image) states the verified scope
+- **WebSocket** with transparent long-polling fallback — JVM mode; the native lane exercises long-polling only
 - **Zero configuration** — the extension auto-registers the servlet
 - **Admin Control Plane** — live dashboard at `/admin/` with event stream, agent inspection, and operational controls
 
@@ -21,17 +21,23 @@ Identical to the Spring Boot sample — the same handler works on both platforms
 @ManagedService(path = "/atmosphere/chat", atmosphereConfig = MAX_INACTIVE + "=120000")
 public class Chat {
 
-    @Inject private BroadcasterFactory factory;
+    @Inject @Named("/atmosphere/chat") private Broadcaster broadcaster;
     @Inject private AtmosphereResource r;
+    @Inject private AtmosphereResourceEvent event;
+
+    @Heartbeat
+    public void onHeartbeat(final AtmosphereResourceEvent event) { /* keep-alive observed */ }
 
     @Ready
-    public void onReady() { /* client connected */ }
+    public void onReady() {
+        logger.info("Browser {} connected (broadcaster: {})", r.uuid(), broadcaster.getID());
+    }
 
     @Disconnect
-    public void onDisconnect() { /* client left */ }
+    public void onDisconnect() { /* event.isCancelled() vs event.isClosedByClient() */ }
 
     @Message(encoders = {JacksonEncoder.class}, decoders = {JacksonDecoder.class})
-    public Message onMessage(Message message) {
+    public Message onMessage(Message message) throws IOException {
         return message; // returning broadcasts to all subscribers
     }
 }
@@ -39,7 +45,7 @@ public class Chat {
 
 ## Client Side
 
-The UI is a pre-built JavaScript bundle served from `src/main/resources/META-INF/resources/` (Quarkus's static resources directory). It uses `atmosphere.js` to subscribe to `/atmosphere/chat` with WebSocket transport and long-polling fallback, prompts the user for a name on first connect, and renders incoming JSON messages (`{ author, message }`) with timestamps.
+This sample ships no bespoke client. `src/main/resources/META-INF/resources/index.html` (Quarkus's static resources directory) is a 292-byte redirect to `/atmosphere/console/` — the Atmosphere Console, served by the admin extension and pointed at this sample's endpoint via `quarkus.atmosphere.console-endpoint`. Subscribe from the Console to exchange `{ author, message }` payloads over `/atmosphere/chat`.
 
 ## Configuration
 
@@ -47,6 +53,8 @@ The UI is a pre-built JavaScript bundle served from `src/main/resources/META-INF
 
 ```properties
 quarkus.atmosphere.packages=org.atmosphere.samples.quarkus.chat
+quarkus.atmosphere.console-subtitle=Multi-client broadcast chat on Quarkus
+quarkus.atmosphere.console-endpoint=/atmosphere/chat
 ```
 
 The extension also supports `quarkus.atmosphere.servlet-path`, `quarkus.atmosphere.session-support`, `quarkus.atmosphere.broadcaster-class`, and other properties — see the [Quarkus integration docs](https://atmosphere.github.io/docs/integrations/quarkus/) for details.
@@ -73,6 +81,75 @@ Open http://localhost:8080/ in multiple browser tabs to chat.
 
 Open http://localhost:8080/admin/ for the admin dashboard with live event stream and operational controls.
 
+## Native Image
+
+The `native` profile produces a GraalVM/Mandrel binary. Atmosphere needs no reflection configuration to get there:
+
+- `atmosphere-runtime` ships `META-INF/native-image/org.atmosphere/atmosphere-runtime/reachability-metadata.json`, which GraalVM reads automatically.
+- The Quarkus deployment processor additionally collects every `NativeImageMetadataProvider` on the classpath and feeds it to `ReflectiveClassBuildItem` / `NativeImageResourceBuildItem`, so modules such as `atmosphere-ai` and `atmosphere-agent` contribute their own reflective types.
+- Annotated handlers are discovered from Quarkus's build-time Jandex index over `quarkus.atmosphere.packages` — a native image has no `.class` files to scan at runtime.
+
+The one native-specific setting in `application.properties` is a `quarkus.native.additional-build-args` entry moving Netty's JNI-backed tcnative classes to run-time initialization. That is a Netty/TLS concern, not an Atmosphere one.
+
+### What CI verifies
+
+The `Quarkus Native Image` job in `.github/workflows/native-image-ci.yml` builds the binary with the Mandrel `jdk-21` builder image, waits for `/` to answer, then issues a long-polling `GET` to `/atmosphere/chat` and asserts this sample's `@Ready` log line (`connected (broadcaster:`) appears. Under native image that proves:
+
+- the `@ManagedService` handler was discovered and registered,
+- the long-polling transport served a real connection,
+- `@Ready` ran, with its injected `AtmosphereResource` and `Broadcaster` resolved.
+
+### What CI does not verify
+
+Nothing below is covered by any native lane. Do not assume it works natively until one exists:
+
+- **WebSocket under native image.** The CI request pins `X-Atmosphere-Transport=long-polling`, so transport negotiation and fallback are not exercised either.
+- **SSE and the remaining transports.**
+- **`@Message` encoder/decoder round-trips** (`JacksonEncoder` / `JacksonDecoder`).
+- **Broadcast fan-out to a second subscriber**, `@Disconnect`, and `@Heartbeat`.
+- **The `/admin/` dashboard and the Atmosphere Console.**
+
+Those paths are covered in **JVM mode** by the Playwright suite (`modules/integration-tests/e2e/quarkus-chat.spec.ts` drives the Console through a real browser and asserts the server echo, which exercises the `@Message` round-trip; `admin-quarkus.spec.ts` covers the dashboard).
+
+### Declaring your own reflective types
+
+If your application — or a library it depends on — loads classes by name, declare them through the `NativeImageMetadataProvider` SPI instead of hand-writing `reflect-config.json`. The Quarkus build step calls `NativeImageMetadata.collect(...)`, which merges every provider it finds, so a registered provider needs no further wiring:
+
+```java
+package org.atmosphere.samples.quarkus.chat;
+
+import java.util.Collection;
+import java.util.List;
+
+import org.atmosphere.nativeimage.NativeImageMetadataProvider;
+
+public class ChatNativeImageMetadataProvider implements NativeImageMetadataProvider {
+
+    @Override
+    public String name() {
+        return "quarkus-chat";
+    }
+
+    @Override
+    public Collection<String> reflectiveTypes() {
+        return List.of("com.example.MyBroadcasterCache", "com.example.MyInterceptor");
+    }
+
+    @Override
+    public Collection<String> resourcePatterns() {
+        return List.of("META-INF/services/com.example.MyService");
+    }
+}
+```
+
+Register it in `src/main/resources/META-INF/services/org.atmosphere.nativeimage.NativeImageMetadataProvider`:
+
+```
+org.atmosphere.samples.quarkus.chat.ChatNativeImageMetadataProvider
+```
+
+Registration is a union across providers — no provider can suppress another's types. Override `isAvailable()` to return `false` when an optional dependency is absent, and `priority()` only to influence emission order.
+
 ## Project Structure
 
 ```
@@ -87,8 +164,7 @@ quarkus-chat/
     └── resources/
         ├── application.properties           # Quarkus + Atmosphere config
         └── META-INF/resources/
-            ├── index.html                   # Chat UI
-            └── assets/                      # Bundled atmosphere.js + chat client
+            └── index.html                   # Redirect to /atmosphere/console/
 ```
 
 > **Portability**: The `Chat.java` handler is identical across the [WAR](../chat/), [Spring Boot](../spring-boot-chat/), and Quarkus samples — only the packaging and configuration differ.
