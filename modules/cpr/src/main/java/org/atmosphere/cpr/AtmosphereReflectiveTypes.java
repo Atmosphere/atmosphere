@@ -151,6 +151,12 @@ public final class AtmosphereReflectiveTypes {
             ANNOTATION_PKG + "BroadcasterServiceProcessor",
             ANNOTATION_PKG + "EndpointMapperServiceProcessor",
             ANNOTATION_PKG + "ManagedServiceProcessor",
+            // @RoomService. Absent from this list until 4.0.66 — it was the only
+            // @AtmosphereAnnotation processor on disk that was never registered, so
+            // rooms could not be discovered in a native image while every other
+            // annotation could. AnnotationProcessorRegistrationTest now walks the
+            // package rather than trusting this list to stay complete.
+            ANNOTATION_PKG + "RoomServiceProcessor",
             ANNOTATION_PKG + "UUIDProviderServiceProcessor",
             ANNOTATION_PKG + "WebSocketFactoryServiceProcessor",
             ANNOTATION_PKG + "WebSocketHandlerServiceProcessor",

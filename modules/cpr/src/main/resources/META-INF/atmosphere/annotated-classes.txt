@@ -20,6 +20,7 @@ org.atmosphere.annotation.BroadcasterListenerServiceProcessor
 org.atmosphere.annotation.BroadcasterServiceProcessor
 org.atmosphere.annotation.EndpointMapperServiceProcessor
 org.atmosphere.annotation.ManagedServiceProcessor
+org.atmosphere.annotation.RoomServiceProcessor
 org.atmosphere.annotation.UUIDProviderServiceProcessor
 org.atmosphere.annotation.WebSocketFactoryServiceProcessor
 org.atmosphere.annotation.WebSocketHandlerServiceProcessor

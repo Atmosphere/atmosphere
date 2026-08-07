@@ -422,6 +422,12 @@
       "allDeclaredFields": true
     },
     {
+      "type": "org.atmosphere.annotation.RoomServiceProcessor",
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
       "type": "org.atmosphere.annotation.UUIDProviderServiceProcessor",
       "allDeclaredConstructors": true,
       "allDeclaredMethods": true,
