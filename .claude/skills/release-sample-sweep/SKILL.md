@@ -101,12 +101,28 @@ ollama list                               # qwen2.5:3b + qwen2.5:7b-instruct-q4_
 curl -s -o /dev/null -w '%{http_code}\n' http://localhost:11434/v1/models
 ```
 
-- **LLM backend is local Ollama, keyless.** `LLM_MODE=local` points `AiConfig`
-  at `http://localhost:11434/v1` (`AiConfig.OLLAMA_ENDPOINT`). Use `qwen2.5:3b`
-  for streaming samples and `qwen2.5:7b-instruct-q4_K_M` for tool-heavy agents —
-  3b emits invalid tool-call arguments and Ollama answers 400.
-  Note `real-ollama` is a CI-harness alias only; `AiConfig` needs the literal
-  `local` or it falls through to Gemini.
+- **LLM backend is local Ollama, keyless.** Use `qwen2.5:3b` for streaming
+  samples and `qwen2.5:7b-instruct-q4_K_M` for tool-heavy agents — 3b emits
+  invalid tool-call arguments and Ollama answers 400. Note `real-ollama` is a
+  CI-harness alias only; `AiConfig` matches the literal `local`.
+- **Always read the resolved endpoint out of the boot log before driving:**
+
+  ```
+  grep 'AI config:' target/sweep/<sample>.log
+  ```
+
+  `AiConfig.resolveBaseUrl` maps `local` → `AiConfig.OLLAMA_ENDPOINT`, but on
+  4.0.64-SNAPSHOT the Spring Boot path was observed logging
+  `mode=local … endpoint=https://generativelanguage.googleapis.com/…` and the
+  turn failed against Gemini. Until that is fixed, pass the endpoint explicitly:
+
+  ```
+  --env LLM_MODE=local --env LLM_BASE_URL=http://localhost:11434/v1 \
+  --env LLM_API_KEY=ollama --env LLM_MODEL=qwen2.5:3b
+  ```
+
+  Never assume the mode took effect — an endpoint that disagrees with the mode
+  is itself a finding (Invariant #5, runtime truth).
 - **Do not use a paid key.** The paid-LLM lane is retired; quota starvation is
   what made the 2026-06 sweep report nine samples as plumbing-only.
 - **Do not use embacle** (`embacle-server --provider claude_code`) for

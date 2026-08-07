@@ -78,6 +78,27 @@ to the Gemini base URL with api-key `dummy`. It needs explicit values:
 matches the literal `local`; anything else falls through to remote/Gemini and
 the sample will quietly try to reach the internet.
 
+**`LLM_MODE=local` alone was not enough on 4.0.64-SNAPSHOT.** Observed on
+`spring-boot-ai-chat` and `spring-boot-one-dep-agent` (2026-08-07): the boot log
+read `mode=local, model=qwen2.5:3b,
+endpoint=https://generativelanguage.googleapis.com/v1beta/openai/` and the turn
+failed with a Gemini 404 rendered as an error frame in the Console. `AiConfig`'s
+own `resolveBaseUrl` maps `local` → `OLLAMA_ENDPOINT`, so the divergence is on
+the Spring auto-configuration path. Until it is fixed, pass `LLM_BASE_URL`
+explicitly, and **grep `AI config:` out of every boot log before driving** —
+a mode/endpoint mismatch is a runtime-truth finding in its own right.
+
+**A sample that boots but never opens its port.** `spring-boot-ai-chat` hung
+over 10 minutes in `System.load` of the SQLite JDBC native library, reached from
+`AtmosphereAiAutoConfiguration$TapeInstaller.afterSingletonsInstantiated` →
+`SqliteTapeStoreFactory.create` → `DriverManager.getConnection`. On macOS the
+freshly extracted ad-hoc-signed `libsqlitejdbc.dylib` carries a
+`com.apple.provenance` xattr and Gatekeeper evaluation can stall the load
+indefinitely. Diagnose with `jstack <pid>` rather than guessing — the stack
+names the caller immediately. Samples that do not touch SQLite
+(`quarkus-chat`, `embedded-jetty-websocket-chat`, `spring-boot-one-dep-agent`)
+boot normally, so a hang here is not a general framework outage.
+
 **Small models fail tool calls.** `qwen2.5:3b` emits invalid tool-call arguments
 (Ollama answers 400); `7b` has produced an empty final response that an
 agent-graph could not route ("stuck in node"). Use
