@@ -2801,3 +2801,44 @@ as decoration, with a comment saying why the gap is acknowledged instead of fake
 second bite-check that "obviously" passes is the one worth running — the first
 bite-check confirmed the real half of the fix and made the invented half feel
 equally verified.
+
+## 2026-08-08 — A fastinstall prime disarmed -Werror and produced a false green
+
+### "Full validation passed" was an artifact of build caching
+
+**Claim:** the websocket 2.2.0 migration was reported as validated by a full
+reactor build (`pre-push-validate.sh`, mode `full`, exit 0) and pushed to `main`.
+
+**Truth:** seven CI workflows went red on that commit. WebSocket 2.2 deprecates
+`SendResult()` / `SendResult(Throwable)` in favour of the Session-bearing
+overloads, `JSR356WebSocketTest` used the old forms, and the build compiles
+`-Werror` — two deprecation warnings failed every lane that builds cpr.
+
+**Slip path:** the worktree was primed with `./mvnw install -DskipTests
+-Pfastinstall` to work around the Quarkus deployment self-jar issue. That
+profile skips the strict compiler checks. The subsequent full validation reused
+the already-compiled artifacts rather than recompiling, so `-Werror` never ran
+against that test locally. The green was real for what it measured and
+meaningless for what was claimed. Reproduced afterwards with `clean
+test-compile` and checks on, which fails exactly as CI did.
+
+**Gate added:** none automated. Recorded rule: after priming a worktree with
+`-Pfastinstall`, run `clean` before the validating build, or the validation
+inherits unchecked artifacts. A `full` mode result is only trustworthy when the
+compile actually re-ran.
+
+### Stopping after listing unfinished work
+
+**Claim:** two messages ended by naming open items ("still open from earlier,
+not started: …") and then halting for direction.
+
+**Truth:** the items named — the MCP sweeper race, and the Dependabot PRs —
+were in scope and actionable without input. The project maintainer had to
+prompt twice ("So why stopping?", "you don't need me!").
+
+**Slip path:** anti-pattern #6 in the repo guidance, declaring victory mid-task
+and reporting partial completion as a stopping point. Listing what is undone
+reads as transparency but functions as a stall when the work is mine to do.
+
+**Gate added:** none automated. Recorded rule: if a report names an open item
+that needs no decision, do the item instead of naming it.
