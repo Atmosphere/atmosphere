@@ -13,10 +13,16 @@ atmosphere:
 # The Cohere AgentRuntime is priority 100, so with COHERE_API_KEY set the SPI
 # resolver forces it over the built-in fallback.
 llm:
-  mode: remote
-  # Pinned to a Cohere model (not ${LLM_MODEL:...}) so an ambient LLM_MODEL set
-  # for another provider on the dev machine cannot leak in and 404 the Cohere API.
-  model: command-a-03-2025
+  # Placeholder form for consistency with every other sample, NOT a bug fix:
+  # this block was already reachable by LLM_MODE. Nothing on this sample's
+  # classpath binds the `llm.*` prefix — it pulls no langchain4j/koog/spring-ai
+  # module, and AtmosphereProperties binds `atmosphere.*` — so the previous
+  # literals were inert and the env var already won. Contrast
+  # spring-boot-channels-chat, where `atmosphere.ai.mode` IS read by
+  # AtmosphereAiAutoConfiguration.resolveMode() and a literal there really did
+  # make LLM_MODE=local unreachable.
+  mode: ${LLM_MODE:remote}
+  model: ${LLM_MODEL:command-a-03-2025}
   api-key: ${COHERE_API_KEY:}
 
 server:

@@ -2,7 +2,10 @@ atmosphere:
   packages: org.atmosphere.samples.channels
   ai:
     enabled: true
-    mode: remote
+    # A literal here would out-rank LLM_MODE: the starter reads the property
+    # first and only falls back to the env var, so a pinned "remote" makes
+    # LLM_MODE=local unreachable and a keyless run still dials the cloud.
+    mode: ${LLM_MODE:remote}
     # Set LLM_API_KEY and LLM_MODEL env vars to connect a real LLM
     api-key: ${LLM_API_KEY:}
     model: ${LLM_MODEL:gemini-2.5-flash}

@@ -15,12 +15,11 @@
  */
 package org.atmosphere.samples.mcp;
 
-import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.governance.AllowListPolicy;
 import org.atmosphere.ai.governance.DenyListPolicy;
 import org.atmosphere.ai.governance.GovernancePolicy;
 import org.atmosphere.ai.governance.KillSwitchPolicy;
-import org.atmosphere.ai.governance.PolicyContext;
+import org.atmosphere.ai.governance.PolicyAdmissionGate;
 import org.atmosphere.ai.governance.PolicyDecision;
 import org.atmosphere.ai.governance.RateLimitPolicy;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -29,6 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -56,13 +56,20 @@ class McpGovernanceE2ETest {
     @Autowired AllowListPolicy toolAllowList;
     @Autowired DenyListPolicy argDenyList;
 
-    /** Build a synthetic MCP tool-call request the way McpPolicyGateway does. */
-    private static PolicyContext toolCall(String toolName, String argSummary) {
-        return PolicyContext.preAdmission(
-                new AiRequest(toolName + " " + argSummary, null, null,
-                        "mcp-client-42", null, null, null,
-                        java.util.Map.of("tool_name", toolName, "mcp.action", toolName),
-                        null));
+    /**
+     * Admit a tool call through the same seam {@code McpPolicyGateway} uses, so
+     * the request shape under test is the real one. This helper used to hand-build
+     * a context with the arguments concatenated into the message; that made
+     * {@link #goal2_argumentDenyListCatchesInjectionAttempts} pass against a
+     * deny-list that never actually read an argument, because on the real seam the
+     * message is only {@code "call_tool:<name>"} and the payload rides in metadata.
+     */
+    private PolicyDecision decide(GovernancePolicy policy, String toolName,
+                                  Map<String, Object> args) {
+        var result = PolicyAdmissionGate.admitToolCall(List.of(policy), toolName, args);
+        return result instanceof PolicyAdmissionGate.Result.Denied denied
+                ? PolicyDecision.deny(denied.reason())
+                : PolicyDecision.admit();
     }
 
     @Test
@@ -82,14 +89,14 @@ class McpGovernanceE2ETest {
     @Test
     void goal2_allowListAdmitsSafeTool() {
         assertInstanceOf(PolicyDecision.Admit.class,
-                toolAllowList.evaluate(toolCall("list_users", "")));
+                decide(toolAllowList, "list_users", Map.of()));
     }
 
     @Test
     void goal2_allowListDeniesUnknownToolByDefault() {
         // ban_user is deliberately NOT in the allow-list — operators must
         // opt in before that sensitive tool is callable.
-        var decision = toolAllowList.evaluate(toolCall("ban_user", "{uuid=abc}"));
+        var decision = decide(toolAllowList, "ban_user", Map.of("uuid", "abc"));
         assertInstanceOf(PolicyDecision.Deny.class, decision,
                 "default-deny allow-list must block ban_user until explicitly allowed");
     }
@@ -97,20 +104,22 @@ class McpGovernanceE2ETest {
     @Test
     void goal2_argumentDenyListCatchesInjectionAttempts() {
         // A tool-call whose args carry a SQL drop attempt is denied even
-        // when the tool name itself is on the allow-list.
+        // when the tool name itself is on the allow-list. The arguments go in
+        // as arguments — not pre-rendered into the message — so this fails if
+        // the deny-list ever stops reading them.
         assertInstanceOf(PolicyDecision.Deny.class,
-                argDenyList.evaluate(toolCall("broadcast_message",
-                        "{body='; DROP TABLE users;'}")));
+                decide(argDenyList, "broadcast_message", Map.of("body", "'; DROP TABLE users;'")));
         assertInstanceOf(PolicyDecision.Deny.class,
-                argDenyList.evaluate(toolCall("atmosphere_version",
-                        "{path='../../etc/passwd'}")));
+                decide(argDenyList, "atmosphere_version", Map.of("path", "../../etc/passwd")));
+        assertInstanceOf(PolicyDecision.Admit.class,
+                decide(argDenyList, "broadcast_message", Map.of("body", "maintenance at 10pm")));
     }
 
     @Test
     void goal2_killSwitchHaltsAllMcpTraffic() {
         try {
             killSwitch.arm("incident-mcp", "e2e");
-            var decision = killSwitch.evaluate(toolCall("list_users", ""));
+            var decision = decide(killSwitch, "list_users", Map.of());
             assertInstanceOf(PolicyDecision.Deny.class, decision,
                     "armed kill switch must deny even safe MCP tool calls");
         } finally {

@@ -59,18 +59,31 @@ open class AtmosphereKoogAutoConfiguration {
     open fun koogAgentRuntime(
         @Value("\${atmosphere.koog.model:\${LLM_MODEL:gpt-4o}}") modelName: String,
         @Value("\${atmosphere.koog.api-key:\${LLM_API_KEY:\${OPENAI_API_KEY:}}}") apiKey: String,
-        @Value("\${atmosphere.koog.base-url:\${LLM_BASE_URL:}}") baseUrl: String
+        @Value("\${atmosphere.koog.base-url:\${LLM_BASE_URL:}}") baseUrl: String,
+        @Value("\${llm.mode:\${LLM_MODE:}}") mode: String
     ): KoogAgentRuntime {
-        if (apiKey.isBlank()) {
-            logger.warn("No API key configured for Koog. Set LLM_API_KEY or OPENAI_API_KEY.")
+        // A locally served backend (Ollama, vLLM, LM Studio) needs no credential,
+        // so a blank key says nothing about whether a model is reachable. Keying
+        // only on the key returned a runtime with no PromptExecutor, and the
+        // failure surfaced far away — the first agent turn died with
+        // "PromptExecutor not configured" long after startup logged only a warning.
+        val local = mode.equals("local", ignoreCase = true)
+        if (apiKey.isBlank() && !local) {
+            logger.warn("No API key configured for Koog and llm.mode is not 'local'. "
+                + "Set LLM_API_KEY / OPENAI_API_KEY, or LLM_MODE=local for a local backend.")
             return KoogAgentRuntime()
         }
+
+        // The local server ignores the credential but the client still requires a
+        // non-blank one, so send a placeholder rather than failing to construct.
+        val resolvedApiKey = if (apiKey.isBlank()) "not-needed-for-local" else apiKey
+        val resolvedBaseUrl = if (baseUrl.isBlank() && local) "http://localhost:11434/v1" else baseUrl
 
         val executor: PromptExecutor
         val model: LLModel
 
-        if (baseUrl.isBlank()) {
-            executor = MultiLLMPromptExecutor(OpenAILLMClient(apiKey))
+        if (resolvedBaseUrl.isBlank()) {
+            executor = MultiLLMPromptExecutor(OpenAILLMClient(resolvedApiKey))
             model = OpenAIModels.models.firstOrNull { it.id == modelName } ?: OpenAIModels.Chat.GPT4o
             logger.info("Koog runtime configured: model '{}' via OpenAILLMClient (api.openai.com)", model.id)
         } else {
@@ -78,14 +91,14 @@ open class AtmosphereKoogAutoConfiguration {
             // chatCompletionsPath, so the base must include the version segment and
             // the path drops the default "v1/" prefix.
             val settings = OpenAIClientSettings(
-                baseUrl = baseUrl.trimEnd('/'),
+                baseUrl = resolvedBaseUrl.trimEnd('/'),
                 chatCompletionsPath = "chat/completions"
             )
-            executor = MultiLLMPromptExecutor(OpenAILLMClient(apiKey, settings))
+            executor = MultiLLMPromptExecutor(OpenAILLMClient(resolvedApiKey, settings))
             val template = OpenAIModels.Chat.GPT4o
             model = LLModel(LLMProvider.OpenAI, modelName, template.capabilities,
                 template.contextLength, template.maxOutputTokens)
-            logger.info("Koog runtime configured: model '{}' via OpenAILLMClient ({})", model.id, baseUrl)
+            logger.info("Koog runtime configured: model '{}' via OpenAILLMClient ({})", model.id, resolvedBaseUrl)
         }
 
         KoogAgentRuntime.setPromptExecutor(executor)

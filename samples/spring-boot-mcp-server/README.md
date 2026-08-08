@@ -244,6 +244,8 @@ every `tools/call` — the policy chain evaluates before the
 # Try an argument injection on an admitted tool
 # broadcast_message({body: "'; DROP TABLE users;'"})
 # → denied by mcp-arg-deny-list, method never called
+#   (asserted end-to-end by McpArgumentDenyListTest in modules/mcp — it drives
+#    a real tools/call and fails if the @McpTool method is ever reached)
 
 # Ops break-glass — halts every MCP call
 curl -X POST http://localhost:8083/api/admin/governance/kill-switch/arm \

@@ -17,8 +17,11 @@ package org.atmosphere.ai.governance;
 
 import org.atmosphere.ai.AiRequest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -146,6 +149,109 @@ class DenyListPolicyTest {
         assertTrue(strings.contains("DROP TABLE"));
         assertTrue(strings.contains("TRUNCATE"));
         assertFalse(strings.stream().anyMatch(s -> s.contains("\\Q")));
+    }
+
+    /**
+     * Admit/deny a tool call through the real admission seam. Deliberately NOT
+     * a hand-built context: the bug was that the seam's synthetic message is
+     * {@code "call_tool:<name>"} with the payload in metadata, so any test that
+     * stuffs arguments into the message passes against the broken policy.
+     */
+    private static PolicyAdmissionGate.Result callTool(DenyListPolicy policy,
+                                                       String toolName,
+                                                       Map<String, Object> args) {
+        return PolicyAdmissionGate.admitToolCall(List.<GovernancePolicy>of(policy), toolName, args);
+    }
+
+    @Test
+    void toolCallArgumentMatchingIsDenied() {
+        // Regression: an argument-oriented deny-list was inert — the policy read
+        // only request.message(), which on this seam never contains an argument.
+        var policy = DenyListPolicy.fromRegex("mcp-arg-deny-list",
+                "(?i)\\bDROP\\s+TABLE\\b", "(?i)\\brm\\s+-rf\\s+/", "\\.\\./\\.\\./");
+
+        assertInstanceOf(PolicyAdmissionGate.Result.Denied.class,
+                callTool(policy, "broadcast_message", Map.of("body", "'; DROP TABLE users;'")));
+        assertInstanceOf(PolicyAdmissionGate.Result.Denied.class,
+                callTool(policy, "broadcast_message", Map.of("body", "please rm -rf / now")));
+        assertInstanceOf(PolicyAdmissionGate.Result.Denied.class,
+                callTool(policy, "read_file", Map.of("path", "../../etc/passwd")));
+        assertInstanceOf(PolicyAdmissionGate.Result.Admitted.class,
+                callTool(policy, "broadcast_message", Map.of("body", "maintenance at 10pm")));
+    }
+
+    @Test
+    void toolCallDenyReasonNamesTheArgumentWithoutEchoingIt() {
+        var policy = DenyListPolicy.fromRegex("mcp-arg-deny-list", "(?i)\\bDROP\\s+TABLE\\b");
+        var denied = assertInstanceOf(PolicyAdmissionGate.Result.Denied.class,
+                callTool(policy, "broadcast_message", Map.of("body", "'; DROP TABLE users;'")));
+        assertTrue(denied.reason().contains("tool argument"),
+                "operator needs to know it was an argument, not the prompt: " + denied.reason());
+        assertFalse(denied.reason().contains("DROP TABLE"), "deny reason must not echo the rule");
+    }
+
+    @Test
+    void nestedAndListArgumentsAreScreened() {
+        var policy = DenyListPolicy.fromRegex("nested", "(?i)\\bDROP\\s+TABLE\\b");
+        assertInstanceOf(PolicyAdmissionGate.Result.Denied.class,
+                callTool(policy, "run", Map.of("payload",
+                        Map.of("statements", List.of("SELECT 1", "DROP TABLE users")))));
+    }
+
+    @Test
+    void argumentKeysAreScreenedNotJustValues() {
+        // On tools/call the client names the JSON fields too, so a key is just
+        // as attacker-controlled as a value.
+        var policy = DenyListPolicy.fromRegex("keys", "(?i)\\bDROP\\s+TABLE\\b");
+        assertInstanceOf(PolicyAdmissionGate.Result.Denied.class,
+                callTool(policy, "run", Map.of("DROP TABLE users", "1")));
+    }
+
+    @Test
+    void argumentsAreScreenedIndividuallyNotAsOneRendering() {
+        // Matching the map's toString() would let a rule straddle two unrelated
+        // arguments and fire on the rendering's own punctuation.
+        var policy = DenyListPolicy.fromRegex("straddle", "(?i)alpha,\\s*beta");
+        var args = new java.util.LinkedHashMap<String, Object>();
+        args.put("first", "alpha");
+        args.put("second", "beta");
+        assertInstanceOf(PolicyAdmissionGate.Result.Admitted.class,
+                callTool(policy, "run", args),
+                "a rule must not match across two separate arguments");
+    }
+
+    @Test
+    @Timeout(10)
+    void cyclicArgumentGraphTerminates() {
+        // A programmatically-built cycle must not spin or blow the stack — a
+        // StackOverflowError would escape the gate's fail-closed catch(Exception).
+        var policy = DenyListPolicy.fromRegex("cycle", "(?i)\\bDROP\\s+TABLE\\b");
+        var cyclic = new HashMap<String, Object>();
+        cyclic.put("self", cyclic);
+        cyclic.put("leaf", "harmless");
+        assertInstanceOf(PolicyAdmissionGate.Result.Admitted.class,
+                callTool(policy, "run", Map.of("nested", cyclic)));
+    }
+
+    @Test
+    void oversizedArgumentGraphDeniesRatherThanSkippingTheTail() {
+        // Fail closed: stopping the scan silently would let a payload be buried
+        // past the budget, which is the same inert-rule bug in a new shape.
+        var policy = DenyListPolicy.fromRegex("budget", "(?i)\\bDROP\\s+TABLE\\b");
+        var denied = assertInstanceOf(PolicyAdmissionGate.Result.Denied.class,
+                callTool(policy, "run", Map.of("padding", "x".repeat((1 << 20) + 1))));
+        assertTrue(denied.reason().contains("budget"),
+                "denial must name the budget, not a phantom rule match: " + denied.reason());
+    }
+
+    @Test
+    void ordinaryTurnsWithoutToolArgsAreUnaffected() {
+        var policy = new DenyListPolicy("sql-block", "DROP TABLE");
+        assertInstanceOf(PolicyDecision.Admit.class,
+                policy.evaluate(new PolicyContext(PolicyContext.Phase.PRE_ADMISSION,
+                        new AiRequest("how do databases work", null, null, null, null, null, null,
+                                Map.of("temperature", 0.7), null),
+                        "")));
     }
 
     @Test

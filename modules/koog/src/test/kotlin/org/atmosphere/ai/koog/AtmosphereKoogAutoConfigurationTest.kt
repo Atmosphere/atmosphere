@@ -54,15 +54,16 @@ class AtmosphereKoogAutoConfigurationTest {
     fun reset() = clearExecutor()
 
     @Test
-    fun `blank api key leaves the executor unconfigured`() {
+    fun `blank api key with no local backend leaves the executor unconfigured`() {
         clearExecutor()
-        AtmosphereKoogAutoConfiguration().koogAgentRuntime("gpt-4o", "", "")
-        assertNull(executor(), "no executor should be installed without an API key")
+        AtmosphereKoogAutoConfiguration().koogAgentRuntime("gpt-4o", "", "", "")
+        assertNull(executor(),
+            "with no credential and no local backend there is nothing to talk to")
     }
 
     @Test
     fun `openai mode configures an executor and resolves a known model`() {
-        AtmosphereKoogAutoConfiguration().koogAgentRuntime("gpt-4o", "sk-test", "")
+        AtmosphereKoogAutoConfiguration().koogAgentRuntime("gpt-4o", "sk-test", "", "")
         assertNotNull(executor(), "OpenAI mode must install a PromptExecutor")
         assertEquals("gpt-4o", defaultModel().id)
     }
@@ -75,10 +76,42 @@ class AtmosphereKoogAutoConfigurationTest {
         AtmosphereKoogAutoConfiguration().koogAgentRuntime(
             "gemini-2.5-flash",
             "test-key",
-            "https://generativelanguage.googleapis.com/v1beta/openai"
+            "https://generativelanguage.googleapis.com/v1beta/openai",
+            ""
         )
         assertNotNull(executor(), "OpenAI-compatible mode must install a PromptExecutor")
         assertEquals("gemini-2.5-flash", defaultModel().id,
             "base-url mode must use the requested model id verbatim, not a coerced OpenAI id")
+    }
+
+    @Test
+    fun `local mode configures an executor without any credential`() {
+        // The regression. Keying only on the API key returned a runtime with no
+        // PromptExecutor, so a keyless-local deployment started clean and then
+        // died on the first agent turn with "PromptExecutor not configured" —
+        // far from the startup warning that explained it.
+        clearExecutor()
+        AtmosphereKoogAutoConfiguration().koogAgentRuntime("qwen2.5:3b", "", "", "local")
+        assertNotNull(executor(),
+            "a local backend needs no credential, so a blank key must not suppress the executor")
+        assertEquals("qwen2.5:3b", defaultModel().id)
+    }
+
+    @Test
+    fun `local mode keeps an explicit base url`() {
+        // LLM_BASE_URL must win over the local default, so a vLLM or LM Studio
+        // endpoint on another host is still honoured in local mode.
+        clearExecutor()
+        AtmosphereKoogAutoConfiguration().koogAgentRuntime(
+            "qwen2.5:3b", "", "http://gpu-box:8000/v1", "local")
+        assertNotNull(executor())
+        assertEquals("qwen2.5:3b", defaultModel().id)
+    }
+
+    @Test
+    fun `local mode is case insensitive`() {
+        clearExecutor()
+        AtmosphereKoogAutoConfiguration().koogAgentRuntime("qwen2.5:3b", "", "", "LOCAL")
+        assertNotNull(executor())
     }
 }
