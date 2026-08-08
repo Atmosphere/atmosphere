@@ -101,18 +101,29 @@ class McpHandlerTeardownTest {
 
     @Test
     void ttlEvictionCancelsPendingServerRequests() throws Exception {
-        // Drive a sweep pass directly rather than racing the fixed-rate
-        // schedule (whose first pass fires before this session exists).
         var handler = handler(1L);
         var sessionId = openSession(handler);
         var session = handler.sessions().get(sessionId);
         var pending = pendingRequestOn(session);
 
         Thread.sleep(20); // age the session past the 1ms TTL
-        var evicted = handler.evictExpiredSessions();
 
-        assertEquals(1, evicted, "the idle session must be evicted");
-        assertTrue(handler.sessions().isEmpty());
+        // Two sweepers can do this eviction, so the count is not deterministic.
+        // McpHandler schedules its own pass with an initial delay of
+        // sessionTtlMs — 1 ms here — so the background cleaner fires during the
+        // sleep above, after openSession() created the session. Whichever
+        // sweeper wins, the other observes an already-empty map and returns 0.
+        // (An earlier comment claimed the scheduled pass "fires before this
+        // session exists"; that is only true when the handshake outruns the
+        // 1 ms delay, which a loaded machine does not — hence the intermittent
+        // "expected 1 but was 0" seen in CI on 2026-08-08.)
+        //
+        // What this test actually asserts is unchanged and unweakened: TTL
+        // eviction must cancel the in-flight elicitation rather than drop it.
+        // A dropped request still leaves `pending` incomplete and fails below.
+        handler.evictExpiredSessions();
+
+        assertTrue(handler.sessions().isEmpty(), "the idle session must be evicted");
         assertTrue(pending.isCompletedExceptionally(),
                 "TTL eviction must fail the in-flight elicitation instead of dropping it");
         assertTrue(session.isClosed());
