@@ -1349,7 +1349,7 @@
              instrumentation). Both reach us directly — the framework meters
              HTTP and gRPC transports — so this is not a provided-scope-only
              advisory. Overrides the version Spring Boot's BOM manages. -->
-        <micrometer.version>1.16.6</micrometer.version>
+        <micrometer.version>1.17.0</micrometer.version>
         <jsoup.version>1.23.1</jsoup.version>
         <jakarta-enterprise-cdi-api.version>4.1.0</jakarta-enterprise-cdi-api.version>
         <testcontainers.version>1.21.4</testcontainers.version>
