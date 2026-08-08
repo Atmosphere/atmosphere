@@ -2769,3 +2769,35 @@ configured it, audit the environment you handed it before you audit its code.
 **Follow-up noted, not fixed:** `release-gate-samples.sh` scrubs provider keys
 but not `LLM_BASE_URL` / `LLM_MODE` / `LLM_MODEL`. Harmless on clean CI runners;
 it would bite the same way if that script were run from a configured shell.
+
+---
+
+## 2026-08-08 — Asserted a failure mode I never observed
+
+**Claim:** while fixing the LangChain4j local-mode gate, I changed the bean body
+from `System.getenv("LLM_MODE")` to `@Value("${LLM_MODE:}")` and wrote — in
+Javadoc and in a test comment — that the previous asymmetry made
+`OpenAiStreamingChatModel.builder()` "reject the blank credential, so the context
+fails to start rather than serving local."
+
+**Ground truth:** it does not. Reverting the body to `System.getenv` and re-running
+the new suite passed 6/6. The builder accepts a blank `apiKey`; the context starts
+and the model is simply pointed at `api.openai.com`, which surfaces as a 401 at
+request time. The bite-check is what caught it — the test I wrote to prove the fix
+proved instead that my description of the bug was invented.
+
+**How it slipped in:** I reasoned from what a careful builder *ought* to do rather
+than running it. The gate-must-bite discipline exists for exactly this and worked;
+the failure was writing the claim into Javadoc *before* the check, so it would have
+shipped had the second bite-check been skipped as redundant.
+
+**Fix:** Javadoc now states what is true — one source of truth for `LLM_MODE`, with
+the endpoint-selection difference named as *unpinned* and the reason given (the
+resolved base URL is unreachable from a built model without reflecting through
+LangChain4j `internal` classes). The non-biting test was removed rather than kept
+as decoration, with a comment saying why the gap is acknowledged instead of faked.
+
+**Rule reinforced:** run the revert before writing the sentence, not after. A
+second bite-check that "obviously" passes is the one worth running — the first
+bite-check confirmed the real half of the fix and made the invented half feel
+equally verified.

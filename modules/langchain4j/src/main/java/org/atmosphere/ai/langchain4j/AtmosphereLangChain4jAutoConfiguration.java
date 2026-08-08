@@ -52,23 +52,66 @@ public class AtmosphereLangChain4jAutoConfiguration {
     private static final Logger logger =
         LoggerFactory.getLogger(AtmosphereLangChain4jAutoConfiguration.class);
 
+    /**
+     * Build a model when there is something to talk to — a credentialed remote
+     * endpoint, or a locally served one.
+     *
+     * <p>The condition used to be an API key alone. A local backend (Ollama,
+     * vLLM, LM Studio) needs no credentials, so with {@code llm.mode=local} no
+     * model was built and the runtime failed with "StreamingChatModel not
+     * configured" the moment a prompt arrived. That stayed hidden because
+     * {@code DemoAgentRuntime} out-prioritised every real runtime while the key
+     * was blank, so the sample answered from the canned script and looked
+     * healthy. A missing key says nothing about whether a model is reachable.</p>
+     *
+     * <p>{@code LLM_MODE} is checked alongside {@code llm.mode} because several
+     * samples configure the backend entirely through the environment and declare
+     * no {@code llm} block at all — keying only on the mapped property fixed the
+     * samples that happened to declare it and left the rest broken.</p>
+     *
+     * <p>Both {@code LLM_MODE} readings go through the environment rather than
+     * {@code System.getenv}, so the condition and the body cannot disagree about
+     * what {@code local} means. The environment also sees system properties, so
+     * with {@code System.getenv} in the body a {@code -DLLM_MODE=local} run
+     * opened the gate and then resolved the <em>remote</em> endpoint. No test
+     * pins that difference: the resolved base URL is not readable from a built
+     * {@link OpenAiStreamingChatModel} without reflecting through its {@code
+     * internal} client, which would break on every LangChain4j bump. Treat this
+     * as one source of truth rather than as a fixed defect — the misconfiguration
+     * surfaces as a 401 at request time, not at startup.</p>
+     */
     @Bean
     @ConditionalOnMissingBean(StreamingChatModel.class)
-    @ConditionalOnExpression("'${llm.api-key:}' != ''")
+    @ConditionalOnExpression(
+            "'${llm.api-key:}' != '' or '${llm.mode:}' == 'local' or '${LLM_MODE:}' == 'local'")
     public StreamingChatModel atmosphereLangChain4jStreamingChatModel(
             @Value("${llm.api-key:}") String apiKey,
             @Value("${llm.base-url:}") String baseUrl,
+            @Value("${llm.mode:}") String mode,
+            @Value("${LLM_MODE:}") String environmentMode,
             @Value("${llm.model:gpt-4o-mini}") String model) {
+
+        var local = "local".equalsIgnoreCase(mode)
+                || "local".equalsIgnoreCase(environmentMode);
 
         // Spring's @Value default only kicks in when the property is absent;
         // an empty value still binds, which would NPE OpenAiStreamingChatModel
-        // (baseUrl cannot be null or blank). Apply the OpenAI fallback here.
+        // (baseUrl cannot be null or blank). Apply the fallback here — Ollama's
+        // OpenAI-compatible endpoint for local mode, OpenAI otherwise.
         var resolvedBaseUrl = (baseUrl == null || baseUrl.isBlank())
-                ? "https://api.openai.com/v1"
+                ? (local ? "http://localhost:11434/v1" : "https://api.openai.com/v1")
                 : baseUrl;
-        logger.info("Auto-building LC4j OpenAiStreamingChatModel model={} endpoint={}", model, resolvedBaseUrl);
+
+        // A local server ignores the credential but the builder still rejects a
+        // blank one, so send a placeholder rather than failing to construct.
+        var resolvedApiKey = (apiKey == null || apiKey.isBlank())
+                ? (local ? "not-needed-for-local" : apiKey)
+                : apiKey;
+
+        logger.info("Auto-building LC4j OpenAiStreamingChatModel model={} endpoint={} local={}",
+                model, resolvedBaseUrl, local);
         return OpenAiStreamingChatModel.builder()
-                .apiKey(apiKey)
+                .apiKey(resolvedApiKey)
                 .baseUrl(resolvedBaseUrl)
                 .modelName(model)
                 .build();

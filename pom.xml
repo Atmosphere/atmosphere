@@ -1350,6 +1350,7 @@
         <snakeyaml.version>2.3</snakeyaml.version>
         <mockito.version>5.23.0</mockito.version>
         <mockito-kotlin.version>6.3.0</mockito-kotlin.version>
+        <assertj.version>3.27.7</assertj.version>
         <!-- Pin Bouncy Castle >= 1.84 to override docker-java-core's transitive
              1.82, which carries an LDAP injection (GHSA) and a risky-crypto
              advisory. Provided-scope only (DockerSandboxProvider uses

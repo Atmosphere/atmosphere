@@ -61,6 +61,29 @@
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
+        <!--
+            ApplicationContextRunner. The auto-configuration's gating lives in a
+            @ConditionalOnExpression SpEL string, which only a real context can
+            evaluate — asserting on the resolution helpers instead would pass
+            against the broken condition that shipped before 4.0.66.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-test</artifactId>
+            <version>${spring-boot.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!--
+            AssertableApplicationContext implements AssertJ's AssertProvider, so
+            the type cannot be referenced without AssertJ on the classpath even
+            when the assertions themselves are JUnit's.
+        -->
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>${assertj.version}</version>
+            <scope>test</scope>
+        </dependency>
 
         <dependency>
             <groupId>org.mockito</groupId>
