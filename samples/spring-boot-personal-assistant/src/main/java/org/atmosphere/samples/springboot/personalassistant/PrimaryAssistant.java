@@ -53,8 +53,15 @@ import java.util.Map;
  *       (Spring AI, LangChain4j, ADK, etc.)</li>
  *   <li>{@code @Coordinator} / {@code @Fleet} / {@code AgentFleet} — crew
  *       members are dispatched over {@code InMemoryProtocolBridge}</li>
- *   <li>{@code AgentState} — conversation history is persisted via the
- *       file-backed workspace so the assistant remembers across restarts</li>
+ *   <li>{@code AgentState} — the file-backed workspace persists what the
+ *       agent writes for the life of the conversation. The scope is the
+ *       conversation id, which {@code AiEndpointHandler} defaults to the
+ *       connection's {@code resource.uuid()} unless the application sets the
+ *       {@code ai.conversationId} request attribute — so out of the box a
+ *       reconnect starts an empty workspace. Set that attribute to a stable
+ *       per-user id to get memory that outlives a connection; the default is
+ *       deliberately per-connection because sharing a workspace between
+ *       unidentified callers would leak one user's files to the next.</li>
  *   <li>{@code AgentIdentity} — permission modes layer over tool approval
  *       (no destructive tools here; all three are safe to auto-approve)</li>
  *   <li>{@code ToolExtensibilityPoint} — per-user MCP servers loaded from
