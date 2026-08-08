@@ -20,10 +20,15 @@ import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.governance.GovernancePolicy;
+import org.atmosphere.ai.governance.MsAgentOsPolicy;
 import org.atmosphere.ai.governance.PolicyAdmissionGate;
+import org.atmosphere.ai.governance.TimedPolicy;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
 
 /**
  * Customer-support chat gated by Microsoft Agent Governance Toolkit YAML
@@ -59,11 +64,46 @@ public class MsGovernanceChat {
 
     private static final Logger logger = LoggerFactory.getLogger(MsGovernanceChat.class);
 
-    private static String policyRuleCountSummary() {
-        // Quick descriptor of what's loaded; kept inline so the sample
-        // narrative stays concrete. The real numbers are authoritative via
-        // GET /api/admin/governance/summary.
-        return "9 MS-schema rules (destructive / escalation / PII / discount / audit)";
+    /**
+     * Describes the MS-schema rules that are actually loaded.
+     *
+     * <p>This used to hard-code "9". The YAML has grown to eleven rules since,
+     * so the sample told every visitor a number two short of what it was
+     * enforcing — and the sample's whole point is that the YAML is the source of
+     * truth. Counting the published policies keeps the narrative honest when
+     * someone edits {@code atmosphere-policies.yaml}, which the README invites
+     * them to do.</p>
+     */
+    private static String policyRuleCountSummary(AtmosphereResource resource) {
+        return msSchemaRuleCount(resource)
+                + " MS-schema rules (destructive / escalation / PII / discount / audit)";
+    }
+
+    /**
+     * Total rules across every {@link MsAgentOsPolicy} on the published plane.
+     *
+     * <p>{@code PoliciesConfig} wraps each policy in a {@link TimedPolicy} for
+     * latency metrics, so the delegate has to be unwrapped before the type
+     * check — matching on the wrapper alone would silently count zero.</p>
+     */
+    private static int msSchemaRuleCount(AtmosphereResource resource) {
+        return msSchemaRuleCount(resource.getAtmosphereConfig().properties()
+                .get(GovernancePolicy.POLICIES_PROPERTY));
+    }
+
+    /** Package-private so the count can be pinned without booting a server. */
+    static int msSchemaRuleCount(Object publishedPolicies) {
+        if (!(publishedPolicies instanceof List<?> policies)) {
+            return 0;
+        }
+        var total = 0;
+        for (var policy : policies) {
+            var unwrapped = policy instanceof TimedPolicy timed ? timed.delegate() : policy;
+            if (unwrapped instanceof MsAgentOsPolicy ms) {
+                total += ms.rules().size();
+            }
+        }
+        return total;
     }
 
     // This endpoint drives admission MANUALLY (PolicyAdmissionGate below), so
@@ -97,7 +137,7 @@ public class MsGovernanceChat {
                 // success or exception, or after three turns the concurrency
                 // policy denies this user forever (Invariant #2).
                 try {
-                    respond(admitted, session);
+                    respond(admitted, session, resource);
                 } finally {
                     PolicyAdmissionGate.postResponse(resource, admitted.request(), "");
                 }
@@ -105,7 +145,8 @@ public class MsGovernanceChat {
         }
     }
 
-    private void respond(PolicyAdmissionGate.Result.Admitted admitted, StreamingSession session) {
+    private void respond(PolicyAdmissionGate.Result.Admitted admitted, StreamingSession session,
+                         AtmosphereResource resource) {
         var effective = admitted.request().message();
         var metadata = admitted.request().metadata();
         var snippet = metadata == null ? null
@@ -125,14 +166,14 @@ public class MsGovernanceChat {
                     + "message: \"" + effective + "\". ");
             session.send("Matched FAQ (category=" + category + "): " + snippet + " ");
             session.send("Every turn also passes through @AgentScope classification "
-                    + "plus the " + policyRuleCountSummary()
+                    + "plus the " + policyRuleCountSummary(resource)
                     + " from `atmosphere-policies.yaml`, audit-logged at "
                     + "`GET /api/admin/governance/decisions`.");
         } else {
             session.send("Thanks for contacting Example Corp support. I see your "
                     + "message: \"" + effective + "\". ");
             session.send("Every turn passes through @AgentScope classification "
-                    + "plus the " + policyRuleCountSummary()
+                    + "plus the " + policyRuleCountSummary(resource)
                     + " from `atmosphere-policies.yaml`, audit-logged at "
                     + "`GET /api/admin/governance/decisions`. ");
             session.send("Try prompts listed in README.md to see each rule fire.");
