@@ -217,13 +217,44 @@ by `JournalingAgentFleet` once an operator installs a `CommitmentSigner` *and*
 sets `atmosphere.ai.governance.commitment-records.enabled=true`. It is flag-off by
 default and needs a durable operator key.
 
-Cryptographic sealing of **memory snapshots** is not wired to a shipped path.
-`AgentStateIntegrity` (in `modules/coordinator`) is a standalone seal/verify
-utility with no production caller: the `SigningAgentState` decorator its Javadoc
-describes does not exist, and the file-backed `AgentState` default is
-deliberately hand-editable (`cat`/`vim`/`git`), which a verify-on-read seal would
-flag as tampering. Treat it as an API you can build on, not a control that is
-running.
+Cryptographic sealing of **memory snapshots** ships as an **opt-in** control:
+the file-state seal. `AgentStateIntegrity` (relocated to this module,
+`org.atmosphere.ai.state.seal`; the old `modules/coordinator` coordinates remain
+as a deprecated forwarder) is consumed by `AgentStateSealer`, which
+`FileSystemAgentState` invokes on every load and save once sealing is enabled.
+It is **OFF by default** because the file-backed state is deliberately
+hand-editable (`cat`/`vim`/`git`); with the flag off, nothing is sealed or
+verified and behavior is unchanged.
+
+```properties
+# System properties (env fallbacks in parentheses); all default to off/unset
+atmosphere.ai.state.seal.enabled=true    # (ATMOSPHERE_AI_STATE_SEAL_ENABLED) opt in
+atmosphere.ai.state.seal.key-file=…      # (ATMOSPHERE_AI_STATE_SEAL_KEY_FILE) operator key
+atmosphere.ai.state.seal.strict=true     # (ATMOSPHERE_AI_STATE_SEAL_STRICT) refuse unsealed
+atmosphere.ai.state.seal.reseal=true     # one-shot: bless hand-edits on next start
+```
+
+When enabled, every file `FileSystemAgentState` writes (conversation
+transcripts, `MEMORY.md` facts, daily notes) gets an Ed25519 sidecar seal under
+the sibling `{workspaceRoot}.seal/` directory, and every file it reads —
+including the four rule files — is verified first. Verification failure
+**fails closed** with an `AgentStateSealException` naming the remediation:
+rerun `org.atmosphere.ai.state.seal.AgentStateReseal <workspaceRoot>` (or
+restart once with `-Datmosphere.ai.state.seal.reseal=true`) after a deliberate
+hand-edit. The signing key survives restarts: supply your own via
+`key-file`, or a keypair is generated on first boot and persisted next to the
+state dir at `{workspaceRoot}.seal/state-seal.key` with owner-only permissions.
+Like the checkpoint cipher's legacy-plaintext pass-through, files that predate
+sealing load with a WARN and are sealed on their next save; `strict=true`
+(non-default) refuses them instead.
+
+Honest limits: in the default (non-strict) adoption mode, an adversary who can
+delete a sidecar seal downgrades that file back to "legacy unsealed" — strict
+mode is the enforcing posture against seal-aware tampering. Writers that
+bypass `FileSystemAgentState` (including the agent workspace virtual
+filesystem) do not update seals, so their edits to sealed files read as
+tampering until resealed. Because the control is opt-in, it belongs in the
+OWASP A03 row's notes, not its evidence list.
 
 ## Conversation Memory
 

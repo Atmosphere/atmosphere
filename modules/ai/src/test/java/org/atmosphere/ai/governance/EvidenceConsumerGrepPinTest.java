@@ -128,8 +128,8 @@ class EvidenceConsumerGrepPinTest {
      * only in a comment, Javadoc continuation, or import line must NOT count as
      * a consumer. Before the gate stripped comments and excluded the matrix
      * files, a row's own citation string (and any Javadoc mention) self-satisfied
-     * the grep — which is how the unwired {@code AgentStateIntegrity} primitive
-     * passed as "covered".
+     * the grep — which is how the then-unwired {@code AgentStateIntegrity}
+     * primitive (since wired via the opt-in state seal) passed as "covered".
      */
     @Test
     void commentAndImportMentionsDoNotCountAsConsumers() {
@@ -231,8 +231,8 @@ class EvidenceConsumerGrepPinTest {
      *
      * <p>The two matrix files themselves are excluded: they are the artifact
      * under test, not consumers. Counting a row's own citation string as a
-     * "production consumer" is exactly the self-satisfying hole that let an
-     * unwired primitive ({@code AgentStateIntegrity}) pass as covered — the
+     * "production consumer" is exactly the self-satisfying hole that let a
+     * then-unwired primitive ({@code AgentStateIntegrity}) pass as covered — the
      * matrix Javadoc/citations named the class, so the grep matched the matrix
      * file. Excluding them forces the consumer to be real downstream code.</p>
      */

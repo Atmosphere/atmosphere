@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.coordinator.commitment;
+package org.atmosphere.ai.state.seal;
 
 import org.junit.jupiter.api.Test;
 

@@ -200,8 +200,10 @@ public final class OwaspAgenticMatrix {
                             + "and every document it pulls from a knowledge base, is scanned for "
                             + "hidden malicious instructions before it is stored or shown to the "
                             + "model — so an attacker can't plant commands in the agent's memory or "
-                            + "its sources. Deployments that need cryptographically signed memory can "
-                            + "turn that on separately."),
+                            + "its sources. Deployments that need cryptographically signed memory "
+                            + "can additionally enable the opt-in file-state seal "
+                            + "(atmosphere.ai.state.seal.enabled=true, verify-on-load fail-closed); "
+                            + "being opt-in, it is a note here, not evidence."),
 
             new Row("A04", "Indirect Prompt Injection",
                     "Attacker plants instructions in RAG docs / tool outputs / web content the agent ingests.",

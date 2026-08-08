@@ -16,6 +16,8 @@
 package org.atmosphere.ai.state;
 
 import org.atmosphere.ai.llm.ChatMessage;
+import org.atmosphere.ai.state.seal.AgentStateSealException;
+import org.atmosphere.ai.state.seal.AgentStateSealer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,13 +66,26 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * Per-session locks serialize writes to the same session JSONL file.
  * {@code MEMORY.md} and {@code memory/YYYY-MM-DD.md} writes are serialized by
- * per-file locks. Reads do not lock.
+ * per-file locks. Reads do not lock — except in sealed mode, where each read
+ * takes the same per-file lock so verification never races a writer in this
+ * instance.
+ *
+ * <h2>Opt-in integrity sealing</h2>
+ *
+ * With {@code -Datmosphere.ai.state.seal.enabled=true} an
+ * {@link AgentStateSealer} seals every file this class writes and verifies
+ * every file it reads, failing closed with an {@link AgentStateSealException}
+ * that names the reseal remediation. OFF by default — without the flag,
+ * behavior is exactly the pre-sealing behavior and the files remain freely
+ * hand-editable. See {@link org.atmosphere.ai.state.seal} for the posture
+ * (durable key, legacy adoption, strict sub-mode, reseal step).
  */
 public class FileSystemAgentState implements AgentState {
 
     private static final Logger logger = LoggerFactory.getLogger(FileSystemAgentState.class);
 
     private final Path workspaceRoot;
+    private final AgentStateSealer sealer;
     private final Map<Path, ReentrantLock> locks = new ConcurrentHashMap<>();
     private final Map<String, Map<String, String>> workingMemory = new ConcurrentHashMap<>();
 
@@ -80,10 +95,29 @@ public class FileSystemAgentState implements AgentState {
      * are NOT seeded here — that is the job of
      * {@code AgentWorkspace} (primitive 2).
      *
+     * <p>Integrity sealing follows the system properties documented on
+     * {@link AgentStateSealer}: disabled by default; when enabled but
+     * misconfigured (e.g. an unusable key file), construction fails loudly
+     * rather than running without the requested control.</p>
+     *
      * @param workspaceRoot absolute path to the agent workspace
      */
     public FileSystemAgentState(Path workspaceRoot) {
+        this(workspaceRoot, AgentStateSealer.fromConfiguration(workspaceRoot).orElse(null));
+    }
+
+    /**
+     * Create a new file-backed state with an explicit sealing decision,
+     * bypassing the {@link AgentStateSealer#fromConfiguration} properties —
+     * pass a sealer to force sealing on, or {@code null} to force it off.
+     *
+     * @param workspaceRoot absolute path to the agent workspace
+     * @param sealer        the integrity sealer, or {@code null} for the
+     *                      plain hand-editable behavior
+     */
+    public FileSystemAgentState(Path workspaceRoot, AgentStateSealer sealer) {
         this.workspaceRoot = workspaceRoot.toAbsolutePath().normalize();
+        this.sealer = sealer;
         try {
             Files.createDirectories(this.workspaceRoot);
         } catch (IOException e) {
@@ -96,6 +130,19 @@ public class FileSystemAgentState implements AgentState {
     @Override
     public List<ChatMessage> getConversation(String agentId, String sessionId) {
         var path = sessionJsonl(agentId, sessionId);
+        if (sealer != null) {
+            return withLockGet(path, () -> {
+                if (!Files.exists(path)) {
+                    return List.of();
+                }
+                // Verify the exact bytes read, then parse the verified
+                // string — never re-read between verify and parse.
+                var messages = new ArrayList<ChatMessage>();
+                readSealedRaw(path).lines()
+                        .forEach(line -> JsonlCodec.parseChatMessage(line).ifPresent(messages::add));
+                return List.copyOf(messages);
+            });
+        }
         if (!Files.exists(path)) {
             return List.of();
         }
@@ -117,12 +164,17 @@ public class FileSystemAgentState implements AgentState {
         var path = sessionJsonl(agentId, sessionId);
         withLock(path, () -> {
             try {
+                // Sealed mode: verify what is already on disk before
+                // appending to it, so a tampered transcript is never
+                // laundered by the reseal that follows a legitimate save.
+                verifyBeforeMutation(path);
                 Files.createDirectories(path.getParent());
                 Files.writeString(path,
                         JsonlCodec.encodeChatMessage(message) + "\n",
                         StandardCharsets.UTF_8,
                         StandardOpenOption.CREATE,
                         StandardOpenOption.APPEND);
+                sealAfterMutation(path);
             } catch (IOException e) {
                 logger.warn("Failed to append conversation {}: {}", path, e.getMessage());
             }
@@ -135,6 +187,9 @@ public class FileSystemAgentState implements AgentState {
         withLock(path, () -> {
             try {
                 Files.deleteIfExists(path);
+                if (sealer != null) {
+                    sealer.stateFileDeleted(path);
+                }
             } catch (IOException e) {
                 logger.warn("Failed to clear conversation {}: {}", path, e.getMessage());
             }
@@ -289,7 +344,75 @@ public class FileSystemAgentState implements AgentState {
         }
     }
 
+    /** Value-returning twin of {@link #withLock} for sealed reads. */
+    private <T> T withLockGet(Path path, java.util.function.Supplier<T> body) {
+        var lock = locks.computeIfAbsent(path, k -> new ReentrantLock());
+        lock.lock();
+        try {
+            return body.get();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * Sealed-mode read: load the exact raw content and verify it against
+     * its sidecar seal before any caller interprets it. Fail-closed on an
+     * unreadable file — under sealing, content that cannot be verified is
+     * never handed out (Correctness Invariant #6). Only called when
+     * {@link #sealer} is non-null and the file exists.
+     */
+    private String readSealedRaw(Path path) {
+        String raw;
+        try {
+            raw = Files.readString(path, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new AgentStateSealException("Cannot read agent state file '" + path
+                    + "' for seal verification — refusing to load it.", e);
+        }
+        sealer.verifyLoaded(path, raw);
+        return raw;
+    }
+
+    /** Sealed-mode guard for read-modify-write paths; no-op when unsealed. */
+    private void verifyBeforeMutation(Path path) {
+        if (sealer != null && Files.exists(path)) {
+            readSealedRaw(path);
+        }
+    }
+
+    /**
+     * Sealed-mode counterpart of every save: seal the exact bytes now on
+     * disk. A save whose seal cannot be written or refreshed throws — a
+     * silently stale seal would turn the next load into a false tamper
+     * report. No-op when unsealed.
+     */
+    private void sealAfterMutation(Path path) {
+        if (sealer == null) {
+            return;
+        }
+        try {
+            sealer.sealSaved(path, Files.readString(path, StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            throw new AgentStateSealException("Agent state file '" + path + "' was saved but "
+                    + "could not be re-read for sealing — its seal is stale and the next load "
+                    + "will fail closed; reseal the workspace to recover.", e);
+        }
+    }
+
     private List<MemoryEntry> readEntries(Path path) {
+        if (sealer != null) {
+            return withLockGet(path, () -> {
+                if (!Files.exists(path)) {
+                    return List.of();
+                }
+                return readSealedRaw(path).lines()
+                        .map(MarkdownEntryCodec::parse)
+                        .flatMap(Optional::stream)
+                        .sorted(Comparator.comparing(MemoryEntry::createdAt))
+                        .toList();
+            });
+        }
         if (!Files.exists(path)) {
             return List.of();
         }
@@ -308,12 +431,14 @@ public class FileSystemAgentState implements AgentState {
     private void appendEntry(Path path, MemoryEntry entry) {
         withLock(path, () -> {
             try {
+                verifyBeforeMutation(path);
                 Files.createDirectories(path.getParent());
                 Files.writeString(path,
                         MarkdownEntryCodec.format(entry) + "\n",
                         StandardCharsets.UTF_8,
                         StandardOpenOption.CREATE,
                         StandardOpenOption.APPEND);
+                sealAfterMutation(path);
             } catch (IOException e) {
                 logger.warn("Failed to append entry {}: {}", path, e.getMessage());
             }
@@ -326,6 +451,7 @@ public class FileSystemAgentState implements AgentState {
                 return;
             }
             try {
+                verifyBeforeMutation(path);
                 var kept = new ArrayList<String>();
                 for (var line : Files.readAllLines(path, StandardCharsets.UTF_8)) {
                     var parsed = MarkdownEntryCodec.parse(line);
@@ -334,6 +460,7 @@ public class FileSystemAgentState implements AgentState {
                     }
                 }
                 Files.write(path, kept, StandardCharsets.UTF_8);
+                sealAfterMutation(path);
             } catch (IOException e) {
                 logger.warn("Failed to rewrite entries in {}: {}", path, e.getMessage());
             }
@@ -341,6 +468,14 @@ public class FileSystemAgentState implements AgentState {
     }
 
     private String readFile(Path path) {
+        if (sealer != null) {
+            return withLockGet(path, () -> {
+                if (!Files.exists(path)) {
+                    return "";
+                }
+                return readSealedRaw(path);
+            });
+        }
         if (!Files.exists(path)) {
             return "";
         }
