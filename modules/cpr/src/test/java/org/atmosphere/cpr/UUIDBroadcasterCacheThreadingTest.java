@@ -20,6 +20,7 @@ import org.atmosphere.cache.UUIDBroadcasterCache;
 
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -30,6 +31,12 @@ public class UUIDBroadcasterCacheThreadingTest {
 
     private static final String BROADCASTER_ID = "B1";
     public static final int NUM_MESSAGES = 100000;
+
+    /** Upper bound on how long the producer may take; beyond this it is a real defect. */
+    private static final long PRODUCER_JOIN_TIMEOUT_MS = 60000;
+
+    /** Consecutive empty drains that mean the cache has nothing left to give. */
+    private static final int MAX_IDLE_DRAINS = 50;
     private final AtomicInteger counter = new AtomicInteger(0);
     private static final String CLIENT_ID = java.util.UUID.randomUUID().toString();
     private final ConcurrentLinkedQueue<Object> retreivedMessages = new ConcurrentLinkedQueue<>();
@@ -51,6 +58,13 @@ public class UUIDBroadcasterCacheThreadingTest {
         // delivery, not eviction policy, so lift the cap to a value larger
         // than NUM_MESSAGES.
         cache.setMaxPerClient(NUM_MESSAGES * 2);
+        // Same reasoning as the eviction cap above, for the other silent-drop
+        // path: invalidateExpiredEntries() removes a client idle longer than
+        // clientIdleTime (60 s by default) and addMessage() then discards its
+        // messages with only a debug log. A heavily loaded run can outlive that
+        // window, so lift it well past any plausible runtime. The test asserts
+        // delivery, not idle-expiry policy.
+        cache.setClientIdleTime(TimeUnit.MINUTES.toMillis(30));
 
         Thread t = new Thread(() -> {
             for (int i = 0; i < NUM_MESSAGES; i++) {
@@ -71,16 +85,31 @@ public class UUIDBroadcasterCacheThreadingTest {
                 totalRetrieved += messages.size();
             }
         }
-        // Wait for producer, then drain any trailing messages deterministically.
-        // Without this the test depended on the 15 s wall-clock for the final
-        // drain window — under parallel Maven load it would fail with ~97k/100k
-        // retrieved. Joining first, then draining once more, makes the test
-        // depend on completion, not timing.
-        t.join(30000);
-        List<Object> tail = cache.retrieveFromCache(BROADCASTER_ID, CLIENT_ID);
-        if (!tail.isEmpty()) {
-            retreivedMessages.addAll(tail);
-            totalRetrieved += tail.size();
+        // Wait for the producer, then drain to quiescence. A single trailing
+        // retrieve assumed the whole remainder came back in one batch; when the
+        // 15 s window above expires early under load, it does not, and the test
+        // failed with e.g. "expected: <100000> but was: <91973>" (2026-08-08,
+        // load average ~15 — the same run passed in 7 s on an idle machine).
+        //
+        // Looping until the cache stops yielding messages removes the wall-clock
+        // dependency without weakening what is asserted: a message the cache
+        // genuinely dropped never appears, so the count still falls short and
+        // the test still fails. Slow is now tolerated; lossy is not.
+        t.join(PRODUCER_JOIN_TIMEOUT_MS);
+        assertFalse(t.isAlive(), "producer did not finish within "
+                + PRODUCER_JOIN_TIMEOUT_MS + "ms — cache is too slow, not merely loaded");
+
+        var idleDrains = 0;
+        while (totalRetrieved < NUM_MESSAGES && idleDrains < MAX_IDLE_DRAINS) {
+            List<Object> tail = cache.retrieveFromCache(BROADCASTER_ID, CLIENT_ID);
+            if (tail.isEmpty()) {
+                idleDrains++;
+                Thread.sleep(20);
+            } else {
+                idleDrains = 0;
+                retreivedMessages.addAll(tail);
+                totalRetrieved += tail.size();
+            }
         }
         assertEquals(NUM_MESSAGES, totalRetrieved);
     }

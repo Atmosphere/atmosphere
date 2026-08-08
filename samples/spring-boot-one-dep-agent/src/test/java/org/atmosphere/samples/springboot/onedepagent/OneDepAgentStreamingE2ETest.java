@@ -45,13 +45,28 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <b>multiple streamed {@code streaming-text} frames</b> followed by a
  * {@code complete} frame — the exact wire shape the Atmosphere Console renders.</p>
  *
- * <p>Keyless: with no {@code LLM_API_KEY} the framework's built-in demo runtime
- * serves, so the test needs no provider and makes no external network call. The
- * assertion is specifically on <em>streaming</em> (more than one text frame,
- * non-empty reassembled text, then completion) — not merely "the server
- * started".</p>
+ * <p>Provider-free and hermetic: {@code atmosphere.ai.mode=fake} pins the
+ * in-process {@link org.atmosphere.ai.llm.FakeLlmClient}, which emits canned
+ * text in several delayed chunks — the same multi-frame wire shape a real
+ * provider produces. The test therefore makes no external network call and its
+ * result does not depend on the machine it runs on. The assertion is
+ * specifically on <em>streaming</em> (more than one text frame, non-empty
+ * reassembled text, then completion) — not merely "the server started".</p>
+ *
+ * <p><b>Why the mode is pinned.</b> This test previously relied on the ambient
+ * environment simply not having a key. A developer with {@code LLM_API_KEY}
+ * exported in their shell silently ran it against a live provider: on
+ * 2026-08-07 it reached Gemini, which returned the whole reply as a single
+ * frame, and the build failed with {@code expected size > 1 but was 1}. CI
+ * stayed green because CI is keyless. A test whose outcome depends on an
+ * unstated property of the developer's shell is not a test — properties win
+ * over {@code LLM_MODE}/{@code LLM_API_KEY} in
+ * {@code AtmosphereAiAutoConfiguration}, so pinning the mode here closes that
+ * hole for good.</p>
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = "atmosphere.ai.mode=fake")
 class OneDepAgentStreamingE2ETest {
 
     /** Path the {@code AgentProcessor} registers for {@code @Agent(name = "chat")}. */

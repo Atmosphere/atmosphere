@@ -29,6 +29,7 @@ import org.testcontainers.utility.DockerImageName;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
+import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -62,6 +63,12 @@ public class PgVectorBackendIntegrationTest {
                     .asCompatibleSubstituteFor("postgres");
 
     private static final String TABLE = "rag_documents";
+
+    /** How long to keep probing for a Docker daemon before declaring it absent. */
+    private static final Duration DOCKER_PROBE_TIMEOUT = Duration.ofSeconds(60);
+
+    /** Gap between Docker probes. */
+    private static final Duration DOCKER_PROBE_INTERVAL = Duration.ofSeconds(2);
 
     private static PostgreSQLContainer<?> postgres;
     private static DataSource dataSource;
@@ -194,12 +201,39 @@ public class PgVectorBackendIntegrationTest {
         return ci != null && !ci.isBlank() && !"false".equalsIgnoreCase(ci.trim());
     }
 
+    /**
+     * Probes for a usable Docker daemon, retrying briefly before giving up.
+     *
+     * <p>A single probe conflates "this machine has no Docker" with "the daemon
+     * has not finished starting yet". On a hosted runner the second case is
+     * common, and because {@link #setUp()} turns an unavailable daemon into a
+     * hard failure under {@code CI}, one slow start reddens the merge gate for
+     * a commit that changed nothing related. Observed on 2026-08-08: this lane
+     * failed on one commit and passed on re-run of the identical tree.
+     *
+     * <p>Retrying does not weaken the CI policy — an environment that genuinely
+     * lacks Docker still fails after the window, it just no longer fails a
+     * daemon that was merely slow.
+     */
     private static boolean isDockerAvailable() {
-        try {
-            return DockerClientFactory.instance().isDockerAvailable();
-        } catch (Exception e) {
-            return false;
-        }
+        var deadline = System.nanoTime() + DOCKER_PROBE_TIMEOUT.toNanos();
+        do {
+            try {
+                if (DockerClientFactory.instance().isDockerAvailable()) {
+                    return true;
+                }
+            } catch (Exception e) {
+                // Daemon not up yet (or not reachable). Retry until the window
+                // closes; a genuinely Docker-less environment still fails below.
+            }
+            try {
+                Thread.sleep(DOCKER_PROBE_INTERVAL.toMillis());
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        } while (System.nanoTime() < deadline);
+        return false;
     }
 
     /** Returns a fixed vector, so ordering is a property of the SQL, not a model. */
