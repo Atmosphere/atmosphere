@@ -36,7 +36,7 @@ expect and can boot by hand if needed.
 | `quarkus` | `target/quarkus-app/quarkus-run.jar` | `java -jar target/quarkus-app/quarkus-run.jar` | `QUARKUS_HTTP_PORT=N` |
 | `main-jar` | shaded jar with plain `Main-Class` | `java -Dserver.port=N -jar <jar>` | `-Dserver.port=N` |
 | `war` | `<packaging>war</packaging>` | `./mvnw -B jetty:run` in the sample dir | `-Djetty.port=N` |
-| `exec` | no runnable artifact | `./mvnw exec:java -pl samples/<dir>` | sample-specific |
+| `exec` | no runnable artifact, pom declares `exec-maven-plugin` | `./mvnw exec:java` in the sample dir | `-Dhttp.port=N` and `-Dserver.port=N` both passed |
 
 ## Common env
 

@@ -99,14 +99,28 @@ boot_type() {
     if grep -q '<packaging>war</packaging>' "$dir/pom.xml" 2>/dev/null; then
         echo war; return
     fi
-    local jar; jar="$(find_jar "$sample")" || die "no packaged jar in samples/$sample/target — run: ./mvnw package -pl samples/$sample -DskipTests"
+    local jar; jar="$(find_jar "$sample")" || jar=""
+    if [[ -z "$jar" ]]; then
+        # No jar at all is still an exec candidate; otherwise it is a build gap.
+        if grep -q 'exec-maven-plugin' "$dir/pom.xml" 2>/dev/null; then
+            echo exec; return
+        fi
+        die "no packaged jar in samples/$sample/target — run: ./mvnw package -pl samples/$sample -DskipTests"
+    fi
     if unzip -p "$jar" META-INF/MANIFEST.MF 2>/dev/null | grep -qi '^Spring-Boot-Classes'; then
         echo spring-boot; return
     fi
     if unzip -p "$jar" META-INF/MANIFEST.MF 2>/dev/null | grep -qi '^Main-Class'; then
         echo main-jar; return
     fi
-    die "samples/$sample: $(basename "$jar") has no Main-Class and is not a Spring Boot jar — it is not runnable (check cli/samples.json runnable flag)"
+    # No runnable artifact: the sample is started through the exec plugin.
+    # sample-matrix.md calls this boot type `exec` and grpc-chat uses it; before
+    # this branch existed the script died here and the sample had to be booted
+    # by hand, which also meant scrubbing the ambient LLM env by hand.
+    if grep -q 'exec-maven-plugin' "$dir/pom.xml" 2>/dev/null; then
+        echo exec; return
+    fi
+    die "samples/$sample: $(basename "$jar") has no Main-Class, is not a Spring Boot jar, and declares no exec-maven-plugin — it is not runnable (check cli/samples.json runnable flag)"
 }
 
 find_jar() {
@@ -184,6 +198,14 @@ cmd_start() {
             cmd=(java "-Dserver.port=$port" ${jvm_args[@]+"${jvm_args[@]}"} -jar "$(find_jar "$sample")") ;;
         war)
             cmd=("$MVNW" -B jetty:run "-Djetty.port=$port") ;;
+        exec)
+            # -Dhttp.port is what grpc-chat reads; -Dserver.port is passed too so
+            # a differently-named property does not silently boot on the default
+            # port and let a sweep drive the wrong process.
+            # No -pl: the command runs with cwd already set to the sample
+            # directory, exactly as the war branch above relies on.
+            cmd=("$MVNW" -B exec:java "-Dhttp.port=$port" "-Dserver.port=$port" \
+                 ${jvm_args[@]+"${jvm_args[@]}"}) ;;
     esac
 
     # Three things matter here, each learned the hard way:
