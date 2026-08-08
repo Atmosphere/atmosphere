@@ -51,8 +51,10 @@ import org.atmosphere.quarkus.runtime.AtmosphereRecorder;
 import org.atmosphere.quarkus.runtime.QuarkusAtmosphereServlet;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.jboss.jandex.AnnotationInstance;
+import org.jboss.jandex.AnnotationTarget;
 import org.jboss.jandex.DotName;
 import org.jboss.jandex.IndexView;
+import org.jboss.jandex.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -336,6 +338,62 @@ class AtmosphereProcessor {
                             .reason("Atmosphere Encoder/Decoder classes from @Message/@Ready")
                             .build());
         }
+
+        // Registering the codecs is not enough: a @Message method's payload type
+        // is materialized by the user's decoder — typically Jackson — which
+        // introspects the payload's constructors, fields and accessors
+        // reflectively. Without these the handler registers, the decoder loads,
+        // and the first real message dies inside the image while the same code
+        // passes every JVM test.
+        Set<String> payloadTypes = boundPayloadTypes(index);
+        if (!payloadTypes.isEmpty()) {
+            reflectiveClasses.produce(
+                    ReflectiveClassBuildItem.builder(payloadTypes.toArray(new String[0]))
+                            .constructors()
+                            .methods()
+                            .fields()
+                            .reason("Atmosphere @Message/@Ready payload types bound by user codecs")
+                            .build());
+        }
+    }
+
+    /**
+     * The parameter and return types of every {@code @Message} / {@code @Ready}
+     * method in the index, minus primitives and JDK/Jakarta types. Framework
+     * types slip through and get registered redundantly — deliberate: an
+     * exclusion list broad enough to catch them also caught
+     * {@code org.atmosphere.samples.*}, the very payload classes this exists to
+     * register. Over-registration is a few spare hints; under-registration is a
+     * silent native-only dispatch failure.
+     */
+    static Set<String> boundPayloadTypes(IndexView index) {
+        Set<String> out = new HashSet<>();
+        for (String annotation : List.of("org.atmosphere.config.service.Message",
+                "org.atmosphere.config.service.Ready")) {
+            for (AnnotationInstance ann : index.getAnnotations(DotName.createSimple(annotation))) {
+                if (ann.target().kind() != AnnotationTarget.Kind.METHOD) {
+                    continue;
+                }
+                var method = ann.target().asMethod();
+                var types = new ArrayList<>(method.parameterTypes());
+                types.add(method.returnType());
+                for (var type : types) {
+                    while (type.kind() == Type.Kind.ARRAY) {
+                        type = type.asArrayType().constituent();
+                    }
+                    if (type.kind() != Type.Kind.CLASS
+                            && type.kind() != Type.Kind.PARAMETERIZED_TYPE) {
+                        continue;
+                    }
+                    String name = type.name().toString();
+                    if (name.startsWith("java.") || name.startsWith("jakarta.")) {
+                        continue;
+                    }
+                    out.add(name);
+                }
+            }
+        }
+        return out;
     }
 
     private void extractClassArrayValues(AnnotationInstance ann, String member, Set<String> out) {
