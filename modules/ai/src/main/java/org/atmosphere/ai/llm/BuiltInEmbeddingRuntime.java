@@ -101,10 +101,20 @@ public class BuiltInEmbeddingRuntime implements EmbeddingRuntime {
             return List.of();
         }
         var settings = AiConfig.get();
-        if (settings == null || settings.baseUrl() == null || settings.apiKey() == null) {
-            throw new IllegalStateException("Built-in embedding runtime requires AiConfig.baseUrl + apiKey");
+        // A local embedding server needs no credential, so requiring a key here
+        // made every keyless-local deployment throw before it ever issued a
+        // request — the RAG path in particular, where the ingest is the first
+        // thing that runs. Ask whether a model is reachable, then supply a
+        // placeholder for the Authorization header a local server ignores.
+        if (settings == null || settings.baseUrl() == null || !settings.hasReachableModel()) {
+            throw new IllegalStateException(
+                    "Built-in embedding runtime requires AiConfig.baseUrl plus either an "
+                            + "apiKey or llm.mode=local");
         }
-        var apiKey = settings.apiKey();
+        var configured = settings.apiKey();
+        var apiKey = configured == null || configured.isBlank()
+                ? "not-needed-for-local"
+                : configured;
         var baseUrl = settings.baseUrl();
         var model = resolveModel(settings);
         var endpoint = normalizedEndpoint(baseUrl) + "/embeddings";

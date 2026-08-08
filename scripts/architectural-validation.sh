@@ -824,6 +824,49 @@ else
 fi
 
 # ============================================================================
+# 6b. API-KEY-AS-REACHABILITY PROXY
+# ============================================================================
+
+echo ""
+echo -e "${BLUE}--- LLM Reachability Gate ---${NC}"
+
+# Testing AiConfig's apiKey() to decide whether an LLM is available is wrong:
+# a locally served backend (Ollama, vLLM, LM Studio) needs no credential, so an
+# absent key says nothing about reachability. Five separate sites made this
+# mistake and every one of them silently degraded a working keyless-local
+# deployment — DemoAgentRuntime shadowed every real runtime, the LangChain4j
+# auto-configuration built no model at all, and three samples answered
+# "configure an API key" with a model running and idle on localhost. None of it
+# failed loudly; the samples just quietly stopped exercising their own headline.
+# Ask settings.hasReachableModel() instead.
+#
+# AiConfig itself is excluded — it is where the real key check lives.
+KEY_GATE_DIRS=$(find modules samples -maxdepth 4 -type d -path '*/src/main/java' 2>/dev/null | sort | tr '\n' ' ')
+KEY_GATE_HITS=""
+for gate_dir in $KEY_GATE_DIRS; do
+    [ -d "$gate_dir" ] || continue
+    # Only files that actually consult AiConfig. `apiKey()` is a common
+    # accessor name — OpenAiServing (the inbound key Atmosphere serves under)
+    # and the web-search engine config both have one, and neither has anything
+    # to do with whether an LLM is reachable. Matching the bare method name
+    # flagged all three and would have trained the next reader to ignore it.
+    hits=$(rg -l 'AiConfig' "$gate_dir" --type java 2>/dev/null \
+        | grep -v '/AiConfig.java$' \
+        | xargs -r rg -n 'apiKey\(\)\s*(==|!=)\s*null|apiKey\(\)\.isBlank\(\)' 2>/dev/null \
+        | grep -v '^\s*\*' \
+        | grep -vE ':\s*//' || true)
+    [ -n "$hits" ] && KEY_GATE_HITS="${KEY_GATE_HITS}${hits}\n"
+done
+KEY_GATE_COUNT=$(printf '%b' "$KEY_GATE_HITS" | grep -c . || true)
+
+if [ "$KEY_GATE_COUNT" -gt 0 ]; then
+    fail_validation "Found $KEY_GATE_COUNT site(s) using apiKey() as a proxy for LLM reachability — use settings.hasReachableModel()"
+    printf '%b' "$KEY_GATE_HITS" | head -8
+else
+    pass_validation "No apiKey()-as-reachability gates (keyless local backends stay reachable)"
+fi
+
+# ============================================================================
 # 7. DEPENDENCY INJECTION BYPASS
 # ============================================================================
 

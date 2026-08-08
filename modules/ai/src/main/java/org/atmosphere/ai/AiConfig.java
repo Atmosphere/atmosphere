@@ -312,6 +312,31 @@ public final class AiConfig {
         public boolean isFake() {
             return "fake".equalsIgnoreCase(mode);
         }
+
+        /**
+         * Whether there is a model to talk to.
+         *
+         * <p>Ask this instead of testing {@link #apiKey()} directly. A locally
+         * served backend — Ollama, vLLM, LM Studio — needs no credential, so an
+         * absent key says nothing about reachability. Every place that used
+         * {@code apiKey() != null} as a proxy for "an LLM is available" silently
+         * degraded a working keyless-local deployment: {@code DemoAgentRuntime}
+         * shadowed every real runtime, the LangChain4j auto-configuration built
+         * no model at all, and three samples answered "configure an API key"
+         * with a model running and idle on localhost.</p>
+         *
+         * <p>Fake mode is deliberately excluded — it is the mode that exists
+         * precisely to avoid reaching a model.</p>
+         *
+         * @return {@code true} when a credentialed remote or a local backend is
+         *         configured
+         */
+        public boolean hasReachableModel() {
+            if (isFake()) {
+                return false;
+            }
+            return isLocal() || (apiKey != null && !apiKey.isBlank());
+        }
     }
 
     // -- Singleton holder for framework-wide access --

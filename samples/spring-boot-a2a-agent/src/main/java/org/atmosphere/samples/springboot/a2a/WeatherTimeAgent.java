@@ -66,7 +66,7 @@ public class WeatherTimeAgent {
 
         try {
             var settings = AiConfig.get();
-            if (settings != null && settings.apiKey() != null && !settings.apiKey().isBlank()) {
+            if (settings != null && settings.hasReachableModel()) {
                 // Real LLM call
                 var response = callLlm(settings, message);
                 task.addArtifact(Artifact.text(response));
@@ -95,7 +95,7 @@ public class WeatherTimeAgent {
 
         try {
             var settings = AiConfig.get();
-            if (settings != null && settings.apiKey() != null && !settings.apiKey().isBlank()) {
+            if (settings != null && settings.hasReachableModel()) {
                 var prompt = "Give a brief, realistic current weather report for " + location
                         + ". Include temperature, conditions, humidity, and a short forecast. Be concise (2-3 sentences).";
                 var response = callLlm(settings, prompt);

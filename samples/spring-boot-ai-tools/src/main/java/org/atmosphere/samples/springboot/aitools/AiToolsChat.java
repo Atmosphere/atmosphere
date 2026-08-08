@@ -72,7 +72,7 @@ public class AiToolsChat {
         // key, so its tool-calling loop owns dispatch exclusively too.
         var settings = AiConfig.get();
         if (!AgentRuntimeResolver.hasExplicitClientBinding()
-                && (settings == null || settings.apiKey() == null || settings.apiKey().isBlank())) {
+                && (settings == null || !settings.hasReachableModel())) {
             DemoToolRouter.route(message, session);
         }
 

@@ -94,9 +94,14 @@ public class PrimaryAssistant {
             s.putInjectable(AgentFleet.class, wrapped);
         }
 
+        // A locally served backend (Ollama, vLLM, LM Studio) needs no
+        // credential, so an absent key says nothing about whether a model is
+        // reachable. Keying only on the key sent every keyless-local run down
+        // the keyword fallback — the sample answered "Configure OPENAI_API_KEY"
+        // while a model was running and idle, and the long-term-memory headline
+        // was unreachable because nothing ever called the tools.
         var settings = AiConfig.get();
-        boolean hasLlm = settings != null && settings.apiKey() != null
-                && !settings.apiKey().isBlank();
+        boolean hasLlm = settings != null && settings.hasReachableModel();
 
         if (hasLlm) {
             // LLM-driven path: stream the user message through the runtime.

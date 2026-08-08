@@ -106,10 +106,8 @@ public final class DemoAgentRuntime implements AgentRuntime {
         // one, and only an INFO line to say so. Configuring a local model is an
         // explicit statement that a backend exists; if it is down, failing
         // against it is more useful than silently answering from a script.
-        if (cfg.isLocal()) {
-            return false;
-        }
-        return cfg.apiKey() == null || cfg.apiKey().isBlank();
+        // This runtime serves precisely when nothing real can be reached.
+        return !cfg.hasReachableModel();
     }
 
     /**
