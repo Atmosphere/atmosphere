@@ -60,15 +60,31 @@ public class RoomServiceProcessor implements Processor<Object> {
             framework.addAtmosphereHandler(path, handler,
                     broadcaster(framework, org.atmosphere.cpr.DefaultBroadcaster.class, path), interceptors);
 
-            // Create and configure the Room via RoomManager
             RoomManager roomManager = RoomManager.getOrCreate(framework);
-            Room room = roomManager.room(path);
-            if (maxHistory > 0) {
-                room.enableHistory(maxHistory);
-            }
 
-            logger.info("@RoomService mapped {} to path '{}' (history={})",
-                    annotatedClass.getName(), path, maxHistory);
+            int template = path.indexOf('{');
+            if (template >= 0) {
+                // A templated path names one room PER path value, which is what
+                // the annotation's own example (/chat/{roomId}) implies. Creating
+                // a single room from the raw path instead gave every id one shared
+                // room literally named "/chat/{roomId}" — so two classrooms saw
+                // each other's members and history. RoomInterceptor already
+                // resolves a room per request from the path, so the rooms are
+                // created on first join rather than here.
+                String basePath = path.substring(0, template);
+                interceptors.add(new org.atmosphere.room.RoomInterceptor(
+                        roomManager, basePath, maxHistory));
+                logger.info("@RoomService mapped {} to path '{}' — one room per path value "
+                                + "under '{}' (history={})",
+                        annotatedClass.getName(), path, basePath, maxHistory);
+            } else {
+                Room room = roomManager.room(path);
+                if (maxHistory > 0) {
+                    room.enableHistory(maxHistory);
+                }
+                logger.info("@RoomService mapped {} to path '{}' (history={})",
+                        annotatedClass.getName(), path, maxHistory);
+            }
         } catch (Throwable e) {
             logger.warn("Failed to process @RoomService on " + annotatedClass.getName(), e);
         }

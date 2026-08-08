@@ -51,6 +51,28 @@ public class AiClassroom {
 
 The `{room}` path segment is extracted by `AiEndpointHandler` and each unique room path gets its own Atmosphere broadcaster, so messages in the math room are isolated from the code and science rooms. The `skill:classroom` prefix loads the system prompt from a skill file (classpath or `~/.atmosphere/skills/`).
 
+**Student chat, with history (`@RoomService`):**
+
+The AI stream is one surface; students talking to each other is another. That one
+is a room rather than a broadcaster, because a classroom wants what a room
+provides and a broadcaster does not — membership, presence, and replay:
+
+```java
+@RoomService(path = "/atmosphere/classroom/{room}/chat", maxHistory = 50)
+public class ClassroomChat {
+
+    @Message
+    public String onMessage(String message) {
+        return message;   // fan-out to the room, and recorded for late joiners
+    }
+}
+```
+
+The path is templated, so `/classroom/math/chat` and `/classroom/history/chat`
+are separate rooms with separate membership and separate history. A student who
+joins an in-progress conversation gets the last 50 messages replayed, so what
+they walked into makes sense.
+
 ## Governance — YAML-driven per-room scope
 
 **This sample is unique in the JVM AI space**: ONE `@AiEndpoint` serves

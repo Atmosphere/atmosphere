@@ -45,14 +45,26 @@ public class RoomInterceptor extends AtmosphereInterceptorAdapter {
 
     private final RoomManager roomManager;
     private final String basePath;
+    private final int maxHistory;
 
     public RoomInterceptor(RoomManager roomManager) {
         this(roomManager, DEFAULT_BASE_PATH);
     }
 
     public RoomInterceptor(RoomManager roomManager, String basePath) {
+        this(roomManager, basePath, 0);
+    }
+
+    /**
+     * @param maxHistory replayable messages to retain per room, or {@code 0} for none.
+     *                   Rooms under a templated path are created on first join, so the
+     *                   history size has to travel with the interceptor that creates
+     *                   them — there is no earlier moment at which each room exists.
+     */
+    public RoomInterceptor(RoomManager roomManager, String basePath, int maxHistory) {
         this.roomManager = roomManager;
         this.basePath = basePath.endsWith("/") ? basePath : basePath + "/";
+        this.maxHistory = maxHistory;
     }
 
     @Override
@@ -71,7 +83,11 @@ public class RoomInterceptor extends AtmosphereInterceptorAdapter {
                 roomName = roomName.substring(0, roomName.length() - 1);
             }
             if (!roomName.isEmpty() && !roomName.contains("/")) {
+                boolean firstSight = !roomManager.exists(roomName);
                 Room room = roomManager.room(roomName);
+                if (firstSight && maxHistory > 0) {
+                    room.enableHistory(maxHistory);
+                }
                 room.join(r);
                 logger.debug("Auto-joined {} to room '{}' via path {}", r.uuid(), roomName, pathInfo);
             }
