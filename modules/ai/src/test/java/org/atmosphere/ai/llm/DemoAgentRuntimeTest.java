@@ -61,6 +61,34 @@ class DemoAgentRuntimeTest {
     }
 
     @Test
+    void isNotAvailableWhenAModelIsServedLocally() {
+        // A local backend needs no credentials, so a blank key says nothing about
+        // whether a model is reachable. Conflating the two meant LLM_MODE=local
+        // pointed at a running Ollama and still answered from the canned script —
+        // this runtime's MAX_VALUE priority shadowed the real one, and the only
+        // sign was an INFO line saying no key was configured.
+        AiConfig.configure("local", "qwen2.5:3b", null, "http://localhost:11434/v1");
+
+        var runtime = new DemoAgentRuntime();
+        assertFalse(runtime.isAvailable(),
+                "configuring a local model states that a backend exists; the demo "
+                        + "runtime must stand aside for it even though there is no key");
+    }
+
+    @Test
+    void isStillAvailableWhenNothingIsConfiguredAtAll() {
+        // The case the demo runtime exists for: no key and no local endpoint, so
+        // there is genuinely nothing to talk to. Pinned alongside the above so a
+        // future narrowing cannot switch it off entirely.
+        AiConfig.configure("remote", "demo-model", null, null);
+
+        var runtime = new DemoAgentRuntime();
+        assertTrue(runtime.isAvailable(),
+                "with no key and no local endpoint there is no backend, and the demo "
+                        + "runtime is what keeps a keyless sample usable");
+    }
+
+    @Test
     void isNotAvailableWhenApiKeyConfigured() {
         AiConfig.configure("remote", "gpt-4o-mini", "sk-real-key",
                 "https://api.openai.com/v1");

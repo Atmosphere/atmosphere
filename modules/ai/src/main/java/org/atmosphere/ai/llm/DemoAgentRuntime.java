@@ -96,7 +96,20 @@ public final class DemoAgentRuntime implements AgentRuntime {
             return false;
         }
         var cfg = AiConfig.get();
-        return cfg == null || cfg.apiKey() == null || cfg.apiKey().isBlank();
+        if (cfg == null) {
+            return true;
+        }
+        // A local backend needs no credentials, so an absent key says nothing
+        // about whether a model is reachable. Treating the two as the same thing
+        // meant LLM_MODE=local pointed at a running Ollama and still got canned
+        // demo text — with this runtime's MAX_VALUE priority shadowing the real
+        // one, and only an INFO line to say so. Configuring a local model is an
+        // explicit statement that a backend exists; if it is down, failing
+        // against it is more useful than silently answering from a script.
+        if (cfg.isLocal()) {
+            return false;
+        }
+        return cfg.apiKey() == null || cfg.apiKey().isBlank();
     }
 
     /**
