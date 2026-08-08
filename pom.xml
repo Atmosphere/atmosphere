@@ -973,6 +973,11 @@
                 <version>${jakarta-websocket-api.version}</version>
             </dependency>
             <dependency>
+                <groupId>jakarta.websocket</groupId>
+                <artifactId>jakarta.websocket-client-api</artifactId>
+                <version>${jakarta-websocket-api.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>jakarta.inject</groupId>
                 <artifactId>jakarta.inject-api</artifactId>
                 <version>${jakarta-inject-api.version}</version>
@@ -1311,7 +1316,14 @@
         <shade-version>1.2.1</shade-version>
         <bnd-maven-plugin.version>7.2.3</bnd-maven-plugin.version>
         <jakarta-servlet-api.version>5.0.0</jakarta-servlet-api.version>
-        <jakarta-websocket-api.version>2.0.0</jakarta-websocket-api.version>
+        <!-- Jakarta split this API at 2.1.0: jakarta.websocket-api keeps only
+             the server subset (54 classes at 2.0.0 -> 10 at 2.2.0) and the
+             client-side types Atmosphere compiles against (Endpoint,
+             EndpointConfig, Session, MessageHandler, CloseReason,
+             ClientEndpointConfig, HandshakeResponse) moved to
+             jakarta.websocket-client-api. Both artifacts are therefore declared
+             wherever the API is consumed, and both track this one version. -->
+        <jakarta-websocket-api.version>2.2.0</jakarta-websocket-api.version>
         <jakarta-inject-api.version>2.0.1</jakarta-inject-api.version>
         <opentelemetry-api.version>1.63.0</opentelemetry-api.version>
         <slf4j-impl-version>2.0.17</slf4j-impl-version>
