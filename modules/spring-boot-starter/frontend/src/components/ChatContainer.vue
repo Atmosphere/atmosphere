@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, nextTick, watch } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import { useAtmosphereChat } from '../composables/useAtmosphereChat'
 import { formatCost } from '../lib/routingMetadata'
 import { agentColor, type FleetInfo } from '../lib/fleet'
@@ -35,6 +35,24 @@ const props = defineProps<{
 
 const { messages, toolCalls, isConnected, isStreaming, connectionState, connectionStatus, send, clearMessages, respondToApproval, stats, routing, agentSteps, presenceCount, offlineSize, canQueueOffline } = useAtmosphereChat(props.endpoint, props.mode, props.transport, props.webTransport, props.room)
 const messagesContainer = ref<HTMLElement | null>(null)
+
+/**
+ * Index of the newest user message — the only turn the tool cards belong to.
+ *
+ * `toolCalls` is per-turn state, reset on every send, so it never describes an
+ * earlier turn. Keying the section off "any user message followed by an
+ * assistant one" therefore rendered the *current* turn's cards into every
+ * earlier slot too: ask a question, then ask a second one that calls a tool,
+ * and the first turn retroactively grew tool cards it never made. A single-turn
+ * conversation hid it, which is why it survived — every headline assertion in
+ * the sample sweep drove exactly one turn.
+ */
+const lastUserIndex = computed(() => {
+  for (let i = messages.value.length - 1; i >= 0; i--) {
+    if (messages.value[i].role === 'user') return i
+  }
+  return -1
+})
 
 function scrollToBottom() {
   nextTick(() => {
@@ -115,7 +133,7 @@ function handleSend(text: string) {
       <template v-for="(msg, idx) in messages" :key="msg.id">
         <ChatMessage :message="msg" />
         <!-- Show tool cards after user message, before assistant response -->
-        <div v-if="msg.role === 'user' && toolCalls.length > 0 && (idx === messages.length - 1 || messages[idx + 1]?.role === 'assistant')" class="tool-section" data-testid="tool-activity">
+        <div v-if="idx === lastUserIndex && toolCalls.length > 0" class="tool-section" data-testid="tool-activity">
           <div class="tool-section-label">Agent Collaboration</div>
           <ToolCard
             v-for="tc in toolCalls"

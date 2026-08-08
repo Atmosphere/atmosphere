@@ -445,7 +445,6 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
 
   function appendToAssistant(text: string) {
     if (!text) return
-    console.log('[APPEND]', text.length, 'chars:', text.substring(0, 50))
     if (!currentAssistantMessage) {
       currentAssistantMessage = {
         id: crypto.randomUUID(),
@@ -475,7 +474,36 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     }
   }
 
+  /**
+   * Commit whatever `appendToAssistant` has buffered into the message object
+   * but not yet published to Vue.
+   *
+   * Chunks are accumulated on the message object immediately and published on a
+   * 50ms throttle. Anything appended after the last timer fired is therefore
+   * live on the object but absent from the DOM, and the throttle callback bails
+   * on `if (currentAssistantMessage)` — so once the stream ends and that field
+   * is nulled, the pending text is never rendered at all. A deterministic
+   * handler that calls `session.send()` three times and completes shows only
+   * the first chunk; a real model stream silently loses its last ≤50ms of
+   * tokens, which reads as the model trailing off mid-sentence.
+   */
+  function flushAssistant() {
+    if (reactivityTimer) {
+      clearTimeout(reactivityTimer)
+      reactivityTimer = null
+    }
+    if (!currentAssistantMessage) return
+    const updated = { ...currentAssistantMessage }
+    const idx = messages.value.findIndex(m => m.id === updated.id)
+    if (idx >= 0) {
+      messages.value[idx] = updated
+      currentAssistantMessage = updated
+    }
+    messages.value = [...messages.value]
+  }
+
   function finalizeAssistant() {
+    flushAssistant()
     // If content looks like JSON (structured output from responseAs), format it
     if (currentAssistantMessage) {
       const raw = currentAssistantMessage.content
@@ -484,7 +512,6 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
       if (content.startsWith('{') && content.endsWith('}')) {
         try {
           const entity = JSON.parse(content) as Record<string, unknown>
-          console.log('[FINALIZE] parsed OK, keys:', Object.keys(entity))
           const lines: string[] = []
           for (const [key, val] of Object.entries(entity)) {
             const display = typeof val === 'string' && val.length > 200
