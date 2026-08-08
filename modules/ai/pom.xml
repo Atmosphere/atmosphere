@@ -61,6 +61,15 @@
             <artifactId>rhino</artifactId>
             <optional>true</optional>
         </dependency>
+        <!-- Durable SQLite batch job store. Optional: operators opt in via
+             atmosphere.ai.batch.db; without the driver the store fails fast
+             at construction (the default-off endpoint stays unregistered). -->
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.53.2.0</version>
+            <optional>true</optional>
+        </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>

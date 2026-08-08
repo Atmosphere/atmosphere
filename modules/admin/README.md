@@ -385,6 +385,19 @@ every other mutating admin endpoint and returns `503` until both
 while a run is already in flight. Tunables:
 `atmosphere.admin.evals.runner.{judge-model,pass-threshold,case-timeout-ms,max-concurrency}`.
 
+When the durable batch surface is live (`atmosphere.ai.batch.enabled=true`
+and at least one `@Agent` / `@AiEndpoint` registered — see
+`modules/ai/README.md`), the runner routes the replay through it instead of
+its direct path: the whole dataset is submitted as one batch job (one item
+per case, dispatched through an `AiPipeline` over the target runtime) and
+the per-case rows are scored from the persisted per-item results. Semantics
+match the direct path — same rows, same aggregate, the per-case timeout
+enforced by the batch executor — except that an overall-deadline overrun
+cancels the batch job and marks the aggregate incomplete. The Spring Boot
+starter wires this automatically; resolution happens per run, so toggling
+the batch surface off falls back to the direct path with no restart of the
+runner.
+
 ## WebSocket Event Stream
 
 Connect to `/atmosphere/admin/events` to receive real-time `AdminEvent` JSON:

@@ -546,6 +546,59 @@ key (cleared after the call); client `system` messages ride along as history
 and never replace the agent's own system prompt. See
 `samples/spring-boot-ai-chat/README.md` for curl / SDK examples.
 
+### Batch jobs endpoint (inbound, durable)
+
+Opt-in async sibling of the serving endpoint (`org.atmosphere.ai.batch`):
+submit N independent LLM requests as one job, poll its status, fetch
+per-item results, cancel. Every item dispatches through
+`AiPipeline.execute(...)`, so guardrails, governance policies, budgets, cost
+accounting, and metrics apply to each batch item exactly as to an
+interactive turn (Mode Parity).
+
+**This is Atmosphere's own wire shape, not the OpenAI Batch API** — requests
+ride inline as a JSON array and results come back inline (no file upload, no
+JSONL). Only the error envelope (`{"error":{message,type,param,code}}`) is
+shared with the serving endpoint above.
+
+```
+POST /atmosphere/v1/batches                 submit  → 202 + job envelope
+GET  /atmosphere/v1/batches                 list recent jobs (newest 100)
+GET  /atmosphere/v1/batches/{id}            poll one job
+GET  /atmosphere/v1/batches/{id}/results    per-item results (partial while running)
+POST /atmosphere/v1/batches/{id}/cancel     cancel → 200 (409 once terminal)
+```
+
+Submission body: `{"agent":"<serving name>","submitter":"optional label",`
+`"items":[{"custom_id":"optional","input":"user message"},…]}`. `@Agent`
+classes serve under their agent name, `@AiEndpoint` classes under the last
+segment of their path — the same names as the OpenAI-compatible endpoint.
+Job statuses: `queued`, `running`, `completed`, `failed`, `cancelled`; item
+statuses: `pending`, `succeeded`, `failed`, `cancelled`. A per-item failure
+(guardrail block, budget trip, timeout, runtime error) never fails the job —
+the job completes and the counts/results expose the failed items. Guardrail
+and budget denials carry their message in the item's `error`; other failures
+stay generic (`item failed with an internal error`) with details in the
+server log.
+
+| Init-param (Spring: same key as property) | Default | Meaning |
+|---|---|---|
+| `atmosphere.ai.batch.enabled` | `false` | Master switch — the handler is not registered until this is `true` |
+| `atmosphere.ai.batch.api-key` | unset | When set, all batch routes require `Authorization: Bearer <key>` (401 otherwise); when unset the endpoint performs no auth of its own (startup warning) and relies on framework interceptors such as `AuthInterceptor` |
+| `atmosphere.ai.batch.db` | unset | SQLite file backing the job store — jobs and per-item results survive restart; unset means a bounded in-memory store (jobs do **not** survive restart) |
+| `atmosphere.ai.batch.max-open-jobs` | `8` | Cap on queued + running jobs; submissions past it get a 429 |
+| `atmosphere.ai.batch.max-items-per-job` | `500` | Cap on items per submission; larger submissions get a 429 |
+| `atmosphere.ai.batch.item-concurrency` | `4` | Items executing concurrently across all jobs (fair virtual-thread gate) |
+| `atmosphere.ai.batch.item-timeout-ms` | `120000` | Per-item wall-clock bound; a slower item is recorded as failed |
+| `atmosphere.ai.batch.retained-terminal-jobs` | `200` | Finished jobs kept; older terminal jobs and their items are evicted (the store never grows unbounded) |
+
+Restart semantics (SQLite store): a job left `queued`/`running` by a crash
+or restart is **not resumed** — an in-flight LLM dispatch cannot be resumed
+mid-call — it is marked `failed` with error `interrupted by server restart`
+on the next start, so polling clients always reach a terminal state. Request
+bodies are bounded (4 MiB → 413). The admin eval dataset runner
+(`POST /api/admin/evals/run`) replays its dataset through this executor when
+the surface is enabled — see `modules/admin/README.md`.
+
 ### Generation parameters
 
 Four optional generation knobs let you set sampling controls once at the

@@ -307,6 +307,14 @@ public class AgentProcessor implements Processor<Object> {
                     framework, agentName, pipeline, memory)) {
                 protocols.add("openai");
             }
+            // Opt-in durable batch serving (atmosphere.ai.batch.enabled):
+            // expose the same governed pipeline behind the async submit/poll
+            // job surface, so every batch item rides the identical admission
+            // chain (Mode Parity #7). No-op while the endpoint is disabled.
+            if (org.atmosphere.ai.batch.BatchServingRegistrar.registerAgent(
+                    framework, agentName, pipeline, memory)) {
+                protocols.add("batch");
+            }
 
             // Step 12: Log summary
             logger.info("Agent '{}' registered at {} (class: {}, commands: {}, tools: {}, "

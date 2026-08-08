@@ -49,6 +49,7 @@ class SchemaMigrationsCopySyncTest {
             "durable-sessions-sqlite/src/main/java/org/atmosphere/session/sqlite/SchemaMigrations.java",
             "interactions/src/main/java/org/atmosphere/interactions/SchemaMigrations.java",
             "admin/src/main/java/org/atmosphere/admin/evals/SchemaMigrations.java",
+            "ai/src/main/java/org/atmosphere/ai/batch/SchemaMigrations.java",
             "ai-audit-postgres/src/main/java/org/atmosphere/ai/audit/postgres/SchemaMigrations.java");
 
     @Test

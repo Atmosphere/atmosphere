@@ -817,7 +817,9 @@ public class AtmosphereAdminAutoConfiguration {
         org.atmosphere.admin.evals.EvalRunner atmosphereAdminEvalRunner(
                 org.atmosphere.admin.evals.EvalDatasetStore datasetStore,
                 org.atmosphere.admin.evals.EvalRunStore runStore,
-                org.springframework.core.env.Environment env) {
+                org.springframework.core.env.Environment env,
+                org.springframework.beans.factory.ObjectProvider<
+                        org.atmosphere.cpr.AtmosphereFramework> frameworkProvider) {
             var defaultJudgeModel = env.getProperty("atmosphere.admin.evals.runner.judge-model", "");
             var threshold = env.getProperty(
                     "atmosphere.admin.evals.runner.pass-threshold", Double.class, 0.7);
@@ -835,10 +837,22 @@ public class AtmosphereAdminAutoConfiguration {
                     };
             logger.debug("Atmosphere Admin: Eval runner wired (concurrency={}, caseTimeoutMs={}, "
                     + "passThreshold={})", concurrency, timeoutMs, threshold);
-            return new org.atmosphere.admin.evals.EvalRunner(
+            var runner = new org.atmosphere.admin.evals.EvalRunner(
                     org.atmosphere.ai.AgentRuntimeResolver::resolve, scorerFactory,
                     datasetStore, runStore, concurrency,
                     java.time.Duration.ofMillis(timeoutMs), threshold);
+            // Route dataset replays through the durable batch surface whenever
+            // it is live. Resolved per run (not at bean creation) because the
+            // batch executor only exists once atmosphere.ai.batch.enabled is
+            // on AND an @Agent / @AiEndpoint has registered — runtime truth,
+            // never classpath or config intent (Correctness Invariant #5).
+            runner.setBatchExecutorSupplier(() -> {
+                var framework = frameworkProvider.getIfAvailable();
+                return framework == null ? null
+                        : org.atmosphere.ai.batch.BatchServingRegistrar.executor(framework)
+                                .orElse(null);
+            });
+            return runner;
         }
     }
 }

@@ -18,13 +18,18 @@ package org.atmosphere.admin.evals;
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.AiEvent;
+import org.atmosphere.ai.AiPipeline;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.batch.BatchExecutor;
+import org.atmosphere.ai.batch.BatchItem;
+import org.atmosphere.ai.batch.BatchJob;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -33,6 +38,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -133,6 +139,7 @@ public final class EvalRunner implements AutoCloseable {
     private final double passRateThreshold;
     private final AtomicBoolean running = new AtomicBoolean();
     private final AtomicReference<Thread> asyncThread = new AtomicReference<>();
+    private volatile Supplier<BatchExecutor> batchExecutorSupplier;
 
     public EvalRunner(Supplier<AgentRuntime> targetSupplier,
                       Function<String, CaseScorer> scorerFactory,
@@ -213,6 +220,22 @@ public final class EvalRunner implements AutoCloseable {
     }
 
     /**
+     * Route dataset replays through the durable batch surface
+     * ({@code atmosphere.ai.batch.enabled}): when the supplier yields an
+     * executor at run start, the whole dataset is submitted as one batch job
+     * (one item per case, the case prompt dispatched through an
+     * {@link AiPipeline} over the target runtime) and scored from the
+     * persisted per-item results. The supplier is resolved per run — runtime
+     * truth, since the batch executor exists only while that surface is
+     * enabled and registered; a {@code null} yield falls back to the direct
+     * execution path. The runner never closes the supplied executor
+     * (Invariant #1 — it did not create it).
+     */
+    public void setBatchExecutorSupplier(Supplier<BatchExecutor> batchExecutorSupplier) {
+        this.batchExecutorSupplier = batchExecutorSupplier;
+    }
+
+    /**
      * Interrupt an in-flight asynchronous run. Unrecorded cases receive a
      * {@code cancelled} row and the aggregate row is still written (marked
      * incomplete) before the run thread exits.
@@ -264,6 +287,11 @@ public final class EvalRunner implements AutoCloseable {
     }
 
     private RunSummary execute(Prepared prepared) {
+        var supplier = batchExecutorSupplier;
+        var batchExecutor = supplier != null ? supplier.get() : null;
+        if (batchExecutor != null) {
+            return executeViaBatch(prepared, batchExecutor);
+        }
         var total = prepared.cases().size();
         var passedCount = new AtomicInteger();
         var failedCount = new AtomicInteger();
@@ -324,6 +352,101 @@ public final class EvalRunner implements AutoCloseable {
             shutdown(executor, prepared.runId());
         }
         return saveAggregate(prepared, total, passedCount.get(), failedCount.get(), completed);
+    }
+
+    /**
+     * Replay the dataset through the durable batch surface: one batch job,
+     * one item per case, every item dispatched through an {@link AiPipeline}
+     * over the target runtime so pipeline-layer semantics apply. Scoring
+     * happens after the job reaches a terminal state, from the persisted
+     * per-item results. Semantics match the direct path — one row per case,
+     * the per-case timeout enforced (by the batch executor), cancellation
+     * recorded as failed rows, and the same aggregate row — except that an
+     * overall-deadline overrun cancels the job and marks the aggregate
+     * incomplete (documented Mode Parity divergence, Invariant #7).
+     */
+    private RunSummary executeViaBatch(Prepared prepared, BatchExecutor executor) {
+        var total = prepared.cases().size();
+        var pipeline = new AiPipeline(prepared.target(), "", null, null, null,
+                List.of(), List.of(), List.of(), null, null);
+        var items = new ArrayList<BatchExecutor.ItemRequest>(total);
+        for (var evalCase : prepared.cases()) {
+            items.add(new BatchExecutor.ItemRequest(evalCase.id(), evalCase.prompt()));
+        }
+        BatchJob job;
+        try {
+            job = executor.submit("eval:" + prepared.baseline(), pipeline, null, items,
+                    "eval-runner", perCaseTimeout);
+        } catch (RejectedExecutionException e) {
+            throw new IllegalStateException(
+                    "the batch surface rejected the eval dataset: " + e.getMessage(), e);
+        }
+        var batches = (total + executor.itemConcurrency() - 1) / executor.itemConcurrency() + 1;
+        var overall = Duration.ofMillis(perCaseTimeout.toMillis() * batches + DRIVER_GRACE_MS);
+        var interrupted = false;
+        try {
+            var polled = executor.awaitTerminal(job.id(), overall);
+            if (polled.isEmpty() || !polled.get().status().terminal()) {
+                executor.cancel(job.id());
+            }
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            interrupted = true;
+            executor.cancel(job.id());
+        }
+        var byId = new HashMap<String, EvalCase>(total);
+        for (var evalCase : prepared.cases()) {
+            byId.put(evalCase.id(), evalCase);
+        }
+        int passed = 0;
+        int failed = 0;
+        for (var item : executor.store().items(job.id())) {
+            var evalCase = byId.get(item.customId());
+            if (evalCase == null) {
+                continue;
+            }
+            if (recordBatchOutcome(prepared, evalCase, item)) {
+                passed++;
+            } else {
+                failed++;
+            }
+        }
+        var jobCompleted = executor.store().job(job.id())
+                .map(j -> j.status() == BatchJob.Status.COMPLETED).orElse(false);
+        return saveAggregate(prepared, total, passed, failed, jobCompleted && !interrupted);
+    }
+
+    /** Score one persisted batch item into its per-case row; returns whether it passed. */
+    private boolean recordBatchOutcome(Prepared prepared, EvalCase evalCase, BatchItem item) {
+        var response = "";
+        SampledLiveScorer.Verdict verdict = null;
+        String failure = null;
+        switch (item.status()) {
+            case SUCCEEDED -> {
+                response = item.output();
+                try {
+                    verdict = prepared.scorer().score(evalCase, response);
+                    if (verdict == null) {
+                        failure = "scorer returned no verdict";
+                    }
+                } catch (RuntimeException re) {
+                    failure = "case failed: " + re;
+                }
+            }
+            case FAILED -> failure = item.error().isEmpty() ? "item failed" : item.error();
+            case CANCELLED -> failure = "cancelled";
+            case PENDING -> failure = "item left pending by the batch surface";
+        }
+        var casePassed = failure == null && verdict.passed();
+        save(new EvalRun(
+                prepared.runId() + "." + evalCase.id(), prepared.baseline(), Instant.now(), "",
+                evalCase.prompt(),
+                failure == null ? response : "",
+                failure == null ? verdict.passed() : Boolean.FALSE,
+                failure == null ? Map.of("score", verdict.score()) : Map.of(),
+                prepared.judgeLabel(), casePassed,
+                failure == null ? verdict.notes() : failure));
+        return casePassed;
     }
 
     private void scoreCase(Prepared prepared, EvalCase evalCase, AtomicBoolean recorded,

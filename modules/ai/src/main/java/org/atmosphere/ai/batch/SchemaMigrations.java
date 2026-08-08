@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.checkpoint;
+package org.atmosphere.ai.batch;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,18 +69,16 @@ import java.util.Locale;
  * fails with a duplicate-key {@link SQLException} and simply retries; the
  * steps themselves are idempotent.</p>
  *
- * <p><b>Keep the copies in sync:</b> this class is the canonical version of a
- * convention that is copied (package-local, identical semantics) into module
- * families that must not gain a dependency on {@code atmosphere-checkpoint}:
- * {@code org.atmosphere.session.sqlite}, {@code org.atmosphere.interactions},
- * {@code org.atmosphere.admin.evals}, {@code org.atmosphere.ai.batch}, and
- * {@code org.atmosphere.ai.audit.postgres}. A semantic change here must be
- * mirrored there — {@code SchemaMigrationsCopySyncTest} compares the code of
- * every copy against this file and fails the build on drift.</p>
+ * <p><b>Keep the copies in sync:</b> this is a package-local copy of the
+ * canonical {@code org.atmosphere.checkpoint.SchemaMigrations} — copied, not
+ * depended on, because this module must not gain a dependency on
+ * {@code atmosphere-checkpoint}. Semantics are identical by construction; a
+ * semantic change in the canonical class must be mirrored here, and
+ * {@code SchemaMigrationsCopySyncTest} fails the build on drift.</p>
  *
  * @since 4.0
  */
-public final class SchemaMigrations {
+final class SchemaMigrations {
 
     /** Table every store stamps its schema version into, one row per component. */
     public static final String VERSION_TABLE = "atmosphere_schema_version";

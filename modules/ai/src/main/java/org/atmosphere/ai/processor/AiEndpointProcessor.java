@@ -414,6 +414,16 @@ public class AiEndpointProcessor implements Processor<Object> {
                     memory, toolRegistry, endpointGuardrails, policies, contextProviders,
                     metrics, responseType, injectables, cachePolicy);
 
+            // Opt-in durable batch serving (atmosphere.ai.batch.enabled):
+            // the same pieces behind the async submit/poll job surface, so
+            // every batch item rides the identical admission chain as an
+            // interactive turn on this endpoint (Mode Parity #7).
+            registerBatchServing(framework, annotation.path(), runtime, systemPrompt,
+                    endpointModel != null ? endpointModel
+                            : (settings != null ? settings.model() : null),
+                    memory, toolRegistry, endpointGuardrails, policies, contextProviders,
+                    metrics, responseType, injectables, cachePolicy);
+
             logger.info("AI endpoint registered at {} (class: {}, runtime: {}, interceptors: {}, "
                             + "memory: {}, tools: {}, guardrails: {}, contextProviders: {}, "
                             + "filters: {}, fallback: {}, timeout: {}ms, "
@@ -465,6 +475,40 @@ public class AiEndpointProcessor implements Processor<Object> {
         if (org.atmosphere.ai.openai.OpenAiServingRegistrar.registerAgent(
                 framework, name, pipeline, memory)) {
             logger.info("@AiEndpoint {} exposed as OpenAI-compatible model '{}'", path, name);
+        }
+    }
+
+    /**
+     * Register this endpoint with the opt-in batch job surface
+     * ({@code atmosphere.ai.batch.enabled}, off by default). The serving name
+     * is the endpoint path's last segment, matching the OpenAI-compatible
+     * surface. No-op when batch serving is disabled — the pipeline is not
+     * even built. Batch items are independent requests: they dispatch under
+     * unique per-item conversation keys that the executor clears afterwards.
+     */
+    private void registerBatchServing(AtmosphereFramework framework, String path,
+            AgentRuntime runtime, String systemPrompt, String model,
+            AiConversationMemory memory, ToolRegistry toolRegistry,
+            List<AiGuardrail> guardrails, List<GovernancePolicy> policies,
+            List<ContextProvider> contextProviders, AiMetrics metrics,
+            Class<?> responseType, java.util.Map<Class<?>, Object> injectables,
+            org.atmosphere.ai.llm.CacheHint.CachePolicy cachePolicy) {
+        if (!org.atmosphere.ai.batch.BatchServingRegistrar.enabled(framework)) {
+            return;
+        }
+        var name = openAiServingName(path);
+        var pipeline = new org.atmosphere.ai.AiPipeline(runtime, systemPrompt, model, memory,
+                toolRegistry, guardrails, policies, contextProviders, metrics, responseType);
+        if (cachePolicy != null
+                && cachePolicy != org.atmosphere.ai.llm.CacheHint.CachePolicy.NONE) {
+            pipeline.setDefaultCachePolicy(cachePolicy);
+        }
+        if (injectables != null && !injectables.isEmpty()) {
+            pipeline.setToolInjectables(injectables);
+        }
+        if (org.atmosphere.ai.batch.BatchServingRegistrar.registerAgent(
+                framework, name, pipeline, memory)) {
+            logger.info("@AiEndpoint {} exposed as batch agent '{}'", path, name);
         }
     }
 
