@@ -73,8 +73,12 @@ click          the tab
   refuses **before any tool fires** — confirm no `tool-card` appeared.
 - **Checkpoints** (`checkpoint-agent`): drive a chat turn first, then assert a
   new durable checkpoint row exists.
-- **Interactions** (`coding-agent`): launch a run, assert it reaches COMPLETED
-  with its step + metadata. Cross-check `/api/interactions`.
+- **Interactions** (`coding-agent`): launch the run from the Console
+  **Interactions** tab (or `POST /api/interactions` with
+  `{"message":…,"background":true}`) — a **chat** prompt never creates an
+  interaction, so `GET /api/interactions` returning `[]` after chat drives is
+  correct behaviour, not a bug. Assert COMPLETED with its step timeline +
+  metadata, then cross-check `GET /api/interactions`.
 - **Tape** (`multi-agent-startup-team`): needs
   `-Datmosphere.admin.content-read-auth-required=false`; without it the read
   gate answers 401 by design — that is correct behaviour, not a bug.

@@ -226,7 +226,7 @@ every `tools/call` — the policy chain evaluates before the
 | `kill-switch` | `KillSwitchPolicy` | Operator break-glass — halts every MCP call at 0.1ms |
 | `mcp-tool-rate-limit` | `RateLimitPolicy(60/60s)` | Per-MCP-client rate cap |
 | `mcp-tool-allowlist` | `AllowListPolicy` | Default-deny — only `list_users`, `broadcast_message`, `send_message`, `atmosphere_version` admitted. Sensitive `ban_user` is deliberately absent so operators opt in explicitly. |
-| `mcp-arg-deny-list` | `DenyListPolicy.fromRegex` | Catches `DROP TABLE`, `rm -rf /`, path traversal in tool arguments |
+| `mcp-arg-deny-list` | `DenyListPolicy.fromRegex` | Screens every scalar in the tool-argument graph (values *and* caller-supplied key names) against three demo rules: `DROP TABLE`, `rm -rf /`, and `../../` traversal. These are illustrative patterns, not a complete injection filter — a single-level `../` is admitted, so treat the list as a starting point to extend, not a boundary to rely on. |
 
 ### Exercise live
 
@@ -242,7 +242,7 @@ every `tools/call` — the policy chain evaluates before the
 #   blocks dispatch before the @McpTool method runs
 
 # Try an argument injection on an admitted tool
-# broadcast_message({body: "'; DROP TABLE users;'"})
+# broadcast_message({message: "'; DROP TABLE users;'"})
 # → denied by mcp-arg-deny-list, method never called
 #   (asserted end-to-end by McpArgumentDenyListTest in modules/mcp — it drives
 #    a real tools/call and fails if the @McpTool method is ever reached)

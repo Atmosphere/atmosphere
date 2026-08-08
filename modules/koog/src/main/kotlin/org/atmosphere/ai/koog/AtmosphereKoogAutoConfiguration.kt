@@ -16,7 +16,6 @@
 package org.atmosphere.ai.koog
 
 import ai.koog.prompt.executor.clients.openai.OpenAIClientSettings
-import ai.koog.prompt.executor.clients.openai.OpenAILLMClient
 import ai.koog.prompt.executor.clients.openai.OpenAIModels
 import ai.koog.prompt.executor.llms.MultiLLMPromptExecutor
 import ai.koog.prompt.executor.model.PromptExecutor
@@ -83,7 +82,7 @@ open class AtmosphereKoogAutoConfiguration {
         val model: LLModel
 
         if (resolvedBaseUrl.isBlank()) {
-            executor = MultiLLMPromptExecutor(OpenAILLMClient(resolvedApiKey))
+            executor = MultiLLMPromptExecutor(AtmosphereOpenAILLMClient(resolvedApiKey))
             model = OpenAIModels.models.firstOrNull { it.id == modelName } ?: OpenAIModels.Chat.GPT4o
             logger.info("Koog runtime configured: model '{}' via OpenAILLMClient (api.openai.com)", model.id)
         } else {
@@ -94,7 +93,7 @@ open class AtmosphereKoogAutoConfiguration {
                 baseUrl = resolvedBaseUrl.trimEnd('/'),
                 chatCompletionsPath = "chat/completions"
             )
-            executor = MultiLLMPromptExecutor(OpenAILLMClient(resolvedApiKey, settings))
+            executor = MultiLLMPromptExecutor(AtmosphereOpenAILLMClient(resolvedApiKey, settings))
             val template = OpenAIModels.Chat.GPT4o
             model = LLModel(LLMProvider.OpenAI, modelName, template.capabilities,
                 template.contextLength, template.maxOutputTokens)
