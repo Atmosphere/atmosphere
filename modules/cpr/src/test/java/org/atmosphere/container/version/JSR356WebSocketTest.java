@@ -84,7 +84,7 @@ public class JSR356WebSocketTest {
     @Timeout(value = 1000, unit = TimeUnit.MILLISECONDS)
     @Test
     public void test_semaphore_is_released_in_case_of_successful_write() throws Exception {
-        mockWriteResult(new SendResult());
+        mockWriteResult(new SendResult(session));
 
         webSocket.write("Hello");
         webSocket.write("Hello");
@@ -95,7 +95,7 @@ public class JSR356WebSocketTest {
     @Timeout(value = 1000, unit = TimeUnit.MILLISECONDS)
     @Test
     public void test_semaphore_is_released_in_case_of_failing_write() throws Exception {
-        mockWriteResult(new SendResult(new RuntimeException("Fails")));
+        mockWriteResult(new SendResult(session, new RuntimeException("Fails")));
 
         webSocket.write("Hello");
         webSocket.write("Hello");
