@@ -75,6 +75,27 @@
             <artifactId>spring-ai-alibaba-agent-framework</artifactId>
             <version>${spring-ai-alibaba.version}</version>
             <scope>provided</scope>
+            <!-- fastjson 1.x carries an unpatched critical RCE
+                 (GHSA-crf3-v9rr-v7hj, vulnerable >= 1.2.68 <= 1.2.83). The
+                 framework drags in 1.2.83, which is the HIGHEST 1.x that
+                 exists — the line is end-of-life and the successor is the
+                 separate com.alibaba.fastjson2:fastjson2 artifact, so no
+                 version bump can close this.
+
+                 Excluding is safe here and not a papering-over: no Atmosphere
+                 source references com.alibaba.fastjson (verified by grep over
+                 modules/spring-ai-alibaba/src/main), and the framework itself
+                 is provided-scope, so we never propagated fastjson to
+                 consumers in the first place. An application that supplies the
+                 Alibaba framework at runtime still brings whatever fastjson
+                 that framework needs; this exclusion only removes an unused,
+                 unpatchable artifact from Atmosphere's own build graph. -->
+            <exclusions>
+                <exclusion>
+                    <groupId>com.alibaba</groupId>
+                    <artifactId>fastjson</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- Compile against the same Spring AI line the Alibaba agent
