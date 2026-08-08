@@ -290,10 +290,23 @@ public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
             return body.asString();
         }
 
-        // Fall back to reading from input stream (HTTP)
+        // Fall back to reading from input stream (HTTP).
+        //
+        // Reading consumes the stream, so the content has to be written back for
+        // whoever runs next. Without that, this interceptor drains the body and a
+        // downstream @Message handler re-reads a closed stream and fails with
+        // "Stream closed" — which means a chat message sent over long-polling or
+        // SSE never reaches the annotated method at all, while the same message
+        // over WebSocket works because there the body is already cached.
+        // HeartbeatInterceptor does the same read-then-restore for the same reason.
         try {
             var sb = IOUtils.readEntirelyAsString(r);
-            return sb.length() > 0 ? sb.toString() : null;
+            if (sb.length() == 0) {
+                return null;
+            }
+            var content = sb.toString();
+            request.body(content);
+            return content;
         } catch (IOException e) {
             logger.debug("Failed to read request body: {}", e.getMessage());
             return null;
