@@ -696,7 +696,13 @@ public class ComposeGenerator implements Runnable {
         var repoRoot = scriptDir.getParent();
         var mvnw = repoRoot.resolve("mvnw");
         var mvnwCmd = repoRoot.resolve("mvnw.cmd");
-        var mvnDir = repoRoot.resolve(".mvn");
+        // Only the wrapper subtree. The rest of .mvn/ is reactor-internal
+        // (extensions.xml pulls the Gitflow Incremental Builder, gib.properties
+        // and maven.config configure it) and assumes this multi-module build --
+        // copying it hands a standalone generated project a Maven extension it
+        // has no use for. cli/atmosphere's copy_maven_wrapper draws the same
+        // line for `atmosphere new`; compose must match it.
+        var mvnDir = repoRoot.resolve(".mvn/wrapper");
 
         if (Files.isRegularFile(mvnw)) {
             Files.copy(mvnw, outputDir.resolve("mvnw"), StandardCopyOption.REPLACE_EXISTING);
@@ -716,7 +722,7 @@ public class ComposeGenerator implements Runnable {
             Files.copy(mvnwCmd, outputDir.resolve("mvnw.cmd"), StandardCopyOption.REPLACE_EXISTING);
         }
         if (Files.isDirectory(mvnDir)) {
-            var targetMvnDir = outputDir.resolve(".mvn");
+            var targetMvnDir = outputDir.resolve(".mvn/wrapper");
             Files.walkFileTree(mvnDir, new SimpleFileVisitor<>() {
                 @Override
                 public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
@@ -739,12 +745,18 @@ public class ComposeGenerator implements Runnable {
             return springBootVersionOverride;
         }
         var repoRoot = scriptDir.getParent();
-        var starterPom = repoRoot.resolve("modules/spring-boot-starter/pom.xml");
-        if (Files.isRegularFile(starterPom)) {
+        // The property is DECLARED in the reactor root pom; the starter pom only
+        // references ${spring-boot.version}. Probing the starter first never
+        // matched, so every generated project silently took the hard-coded
+        // fallback below instead of the version the framework is built against.
+        var pattern = Pattern.compile("<spring-boot\\.version>([^<]+)</spring-boot\\.version>");
+        for (var candidate : List.of(repoRoot.resolve("pom.xml"),
+                repoRoot.resolve("modules/spring-boot-starter/pom.xml"))) {
+            if (!Files.isRegularFile(candidate)) {
+                continue;
+            }
             try {
-                var content = Files.readString(starterPom);
-                var matcher = Pattern.compile("<spring-boot\\.version>([^<]+)</spring-boot\\.version>")
-                        .matcher(content);
+                var matcher = pattern.matcher(Files.readString(candidate));
                 if (matcher.find()) {
                     return matcher.group(1);
                 }

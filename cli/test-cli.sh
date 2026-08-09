@@ -392,6 +392,61 @@ assert_contains "$out" "--group is no longer supported" "--group prints deprecat
 
 printf "\n"
 
+# ── 12a. CLI: sample sources come from the ref that matches VERSION ───────
+# `atmosphere new` rewrites the scaffolded pom to resolve the parent at the
+# CLI's pinned VERSION from Maven Central, so the sources have to be the
+# matching `atmosphere-<VERSION>` release tag. Cloning `main` pairs unreleased
+# sample code with released artefacts and the scaffold cannot compile.
+# Offline: a stub `git` records its argv and fails, so no clone is attempted.
+printf "${BOLD}atmosphere new (source ref)${RESET}\n"
+
+git_stub_dir="$tmp_dir/gitstub"
+mkdir -p "$git_stub_dir"
+cat > "$git_stub_dir/git" <<'GITSTUBEOF'
+#!/bin/sh
+printf '%s\n' "$*" >> "$GIT_STUB_LOG"
+exit 1
+GITSTUBEOF
+chmod +x "$git_stub_dir/git"
+
+cli_version=$(grep -m1 '^VERSION=' "$CLI" | sed 's/^VERSION="\(.*\)"$/\1/')
+GIT_STUB_LOG="$tmp_dir/git-argv.log"
+export GIT_STUB_LOG
+: > "$GIT_STUB_LOG"
+
+# Clear both overrides explicitly: the CI network lane exports
+# ATMOSPHERE_VERSION_OVERRIDE for the whole job, and this case is about the
+# default (released-CLI) resolution.
+out=$(cd "$tmp_dir" && PATH="$git_stub_dir:$PATH" ATMOSPHERE_VERSION_OVERRIDE= ATMOSPHERE_SOURCE_REF= \
+        "$CLI" new refprobe --template chat 2>&1) && ec=0 || ec=$?
+git_argv=$(cat "$GIT_STUB_LOG")
+
+assert_exit_code "$ec" 1 "new reports a failed source clone instead of exiting silently"
+assert_contains "$out" "Could not fetch sample sources at ref" "clone failure names the ref"
+assert_contains "$git_argv" "--branch atmosphere-$cli_version" \
+    "sample sources are cloned from the atmosphere-$cli_version tag"
+assert_not_contains "$git_argv" "--branch main" \
+    "a released CLI does not clone main for sample sources"
+
+# ATMOSPHERE_SOURCE_REF is the documented escape hatch for testing against a
+# branch; a SNAPSHOT ATMOSPHERE_VERSION_OVERRIDE implies main (that is what CI
+# installs into the local repo before scaffolding).
+: > "$GIT_STUB_LOG"
+out=$(cd "$tmp_dir" && PATH="$git_stub_dir:$PATH" ATMOSPHERE_SOURCE_REF= ATMOSPHERE_VERSION_OVERRIDE=9.9.9-SNAPSHOT \
+        "$CLI" new refprobe2 --template chat 2>&1) && ec=0 || ec=$?
+assert_contains "$(cat "$GIT_STUB_LOG")" "--branch main" \
+    "a SNAPSHOT version override clones main"
+
+: > "$GIT_STUB_LOG"
+out=$(cd "$tmp_dir" && PATH="$git_stub_dir:$PATH" ATMOSPHERE_SOURCE_REF=some-branch \
+        "$CLI" new refprobe3 --template chat 2>&1) && ec=0 || ec=$?
+assert_contains "$(cat "$GIT_STUB_LOG")" "--branch some-branch" \
+    "ATMOSPHERE_SOURCE_REF overrides the ref"
+
+unset GIT_STUB_LOG
+
+printf "\n"
+
 # ── 12b. CLI: new (network — gated by ATMOSPHERE_NETWORK_TESTS=1) ─────────
 # Full end-to-end clone test, skipped by default to keep CI fast and offline.
 if [ "${ATMOSPHERE_NETWORK_TESTS:-0}" = "1" ]; then
@@ -467,6 +522,25 @@ SKILLEOF
             fi
         else
             fail "cloned ai-chat project directory missing"
+        fi
+
+        # The scaffolded pom pins the parent to the CLI's released VERSION, so
+        # the sources have to come from the matching release tag. When the CLI
+        # cloned `main` instead, any sample using an API added after the last
+        # release scaffolded a project that could not compile — ai-tools calls
+        # AiConfig.LlmSettings#hasReachableModel(), which 4.0.65 does not have,
+        # and the scaffold died with "cannot find symbol: hasReachableModel".
+        out=$(cd "$tmp_dir" && "$CLI" new net-ai-tools --template ai-tools 2>&1) && ec=0 || ec=$?
+        assert_exit_code "$ec" 0 "new ai-tools exits successfully"
+        if [ -d "$tmp_dir/net-ai-tools" ]; then
+            compile_log=$(cd "$tmp_dir/net-ai-tools" && mvn -q -B -DskipTests -Dcheckstyle.skip=true -Dpmd.skip=true compile 2>&1) && cec=0 || cec=$?
+            if [ "$cec" -eq 0 ]; then
+                pass "cloned ai-tools sources match the pinned release (compiles standalone)"
+            else
+                fail "cloned ai-tools sources do not match the pinned release" "$(printf '%s' "$compile_log" | tail -20)"
+            fi
+        else
+            fail "cloned ai-tools project directory missing"
         fi
 
         # ── --runtime scaffold + compile ──────────────────────────────────
@@ -914,6 +988,73 @@ if [ "${ATMOSPHERE_NETWORK_TESTS:-0}" = "1" ]; then
     rm -rf "$routing_net_tmp"
 else
     printf "  ${DIM}— skipping --routing network clone (set ATMOSPHERE_NETWORK_TESTS=1)${RESET}\n"
+fi
+
+printf "\n"
+
+# ── 12e. CLI: compose (gated by ATMOSPHERE_NETWORK_TESTS=1 + jbang) ───────
+# `atmosphere compose` shells out to generator/ComposeGenerator.java via jbang.
+# jbang does not set -Djbang.source, so the generator used to fall back to
+# walking the CWD for generator/templates — which only succeeds inside a
+# checkout of this repo. Every other invocation died with
+# "Cannot find generator templates". Run it from a directory that is not the
+# repo, which is what an installed CLI always does.
+printf "${BOLD}atmosphere compose${RESET}\n"
+if [ "${ATMOSPHERE_NETWORK_TESTS:-0}" = "1" ] && command -v jbang >/dev/null 2>&1; then
+    compose_tmp=$(mktemp -d)
+    mkdir -p "$compose_tmp/skills/analyst" "$compose_tmp/out"
+    cat > "$compose_tmp/skills/analyst/SKILL.md" <<'COMPOSESKILLEOF'
+---
+name: analyst
+description: "Analyzes data"
+---
+# Analyst
+You analyze data.
+COMPOSESKILLEOF
+
+    out=$(cd "$compose_tmp" && "$CLI" compose --name probe-fleet --group com.example \
+            --protocol local --transport websocket --frontend none --deploy single-jar \
+            --ai builtin --output "$compose_tmp/out" "$compose_tmp/skills" </dev/null 2>&1) && ec=0 || ec=$?
+    assert_exit_code "$ec" 0 "compose succeeds from a directory outside the repo"
+    assert_not_contains "$out" "Cannot find generator templates" "compose resolves its templates"
+
+    if [ -f "$compose_tmp/out/pom.xml" ]; then
+        pass "compose writes a parent pom.xml"
+
+        # The generator reads <spring-boot.version> from the reactor root pom;
+        # probing the starter pom (which only *references* the property) always
+        # missed and every generated project silently took the hard-coded
+        # fallback instead of the version the framework is built against.
+        repo_sb=$(grep -m1 '<spring-boot.version>' "$SCRIPT_DIR/../pom.xml" \
+                  | sed 's|.*<spring-boot.version>\([^<]*\)</spring-boot.version>.*|\1|')
+        composed_sb=$(grep -m1 '<spring-boot.version>' "$compose_tmp/out/pom.xml" \
+                  | sed 's|.*<spring-boot.version>\([^<]*\)</spring-boot.version>.*|\1|')
+        if [ -n "$repo_sb" ] && [ "$repo_sb" = "$composed_sb" ]; then
+            pass "compose pins the reactor's Spring Boot version ($repo_sb)"
+        else
+            fail "compose pins the reactor's Spring Boot version" \
+                 "reactor=$repo_sb composed=$composed_sb"
+        fi
+    else
+        fail "compose writes a parent pom.xml"
+    fi
+
+    # Reactor-internal Maven files must not leak into a standalone project —
+    # same rule install_source's copy_maven_wrapper enforces for `new`.
+    if [ ! -e "$compose_tmp/out/.mvn/extensions.xml" ] && [ ! -e "$compose_tmp/out/.mvn/gib.properties" ]; then
+        pass "compose output excludes reactor-internal .mvn files"
+    else
+        fail "compose output excludes reactor-internal .mvn files"
+    fi
+    if [ -f "$compose_tmp/out/.mvn/wrapper/maven-wrapper.properties" ]; then
+        pass "compose output ships .mvn/wrapper/maven-wrapper.properties"
+    else
+        fail "compose output ships .mvn/wrapper/maven-wrapper.properties"
+    fi
+
+    rm -rf "$compose_tmp"
+else
+    printf "  ${DIM}— skipping compose (needs ATMOSPHERE_NETWORK_TESTS=1 and jbang)${RESET}\n"
 fi
 
 printf "\n"

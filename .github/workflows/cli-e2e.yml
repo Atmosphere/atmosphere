@@ -112,6 +112,16 @@ jobs:
     - name: Install jq + xmllint + maven
       run: sudo apt-get update && sudo apt-get install -y jq libxml2-utils maven
 
+    # `atmosphere compose` shells out to generator/ComposeGenerator.java through
+    # jbang. Without jbang on PATH the compose block in test-cli.sh skips itself
+    # and the command ships with no gate at all — which is how it reached a
+    # release broken for every user outside a repo checkout. Fail the job if the
+    # install fails rather than letting the tests quietly go vacuous.
+    - name: Install jbang
+      run: |
+        curl -Ls https://sh.jbang.dev | bash -s - app setup
+        echo "$HOME/.jbang/bin" >> "$GITHUB_PATH"
+
     - name: Build Atmosphere modules
       run: ./mvnw -B install -DskipTests -Dgpg.skip=true -Dcheckstyle.skip=true -Dpmd.skip=true -q
 

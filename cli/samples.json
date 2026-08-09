@@ -250,7 +250,9 @@
       "hasFrontend": false,
       "envVars": {
         "LLM_API_KEY": "API key for your LLM provider",
-        "LLM_MODEL": "Model name"
+        "LLM_MODEL": "Model name",
+        "SPRING_AI_BASE_URL": "Embeddings endpoint override — REQUIRED for a local backend. spring.ai.openai.base-url defaults to Gemini's OpenAI-compatible surface and Spring AI has no Atmosphere mode, so LLM_MODE=local and LLM_BASE_URL do not redirect embeddings. For Ollama: http://localhost:11434/v1",
+        "EMBEDDING_MODEL": "Embedding model id, must match SPRING_AI_BASE_URL (default text-embedding-004; for Ollama: nomic-embed-text)"
       }
     },
     {
@@ -398,7 +400,12 @@
       "port": 18810,
       "runnable": true,
       "packaging": "quarkus",
-      "hasFrontend": false
+      "hasFrontend": false,
+      "envVars": {
+        "LLM_API_KEY": "API key for your LLM provider (or GEMINI_API_KEY)",
+        "LLM_MODEL": "Model name",
+        "LLM_BASE_URL": "Endpoint override — REQUIRED for a local backend. quarkus.langchain4j.openai.base-url defaults to Gemini's OpenAI-compatible surface and Quarkus LangChain4j has no local mode, so LLM_MODE=local alone does not redirect it. For Ollama: http://localhost:11434/v1"
+      }
     },
     {
       "name": "embedded-jetty-websocket-chat",

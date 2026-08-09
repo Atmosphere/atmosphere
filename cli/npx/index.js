@@ -20,21 +20,26 @@ const RESET = '\x1b[0m';
 
 // Keep this list in sync with the shell CLI's `cmd_new` template map in
 // cli/atmosphere. Every entry must resolve to a sample in cli/samples.json.
+// Must stay in lockstep with the `cmd_new` template map in cli/atmosphere —
+// this shim only forwards `--template` to that CLI, so anything listed here
+// that the shell CLI does not map is advertised and then rejected.
+// Provider adapters (koog, embabel, ...) are `--runtime` overlays, not
+// templates; they have no sample of their own to clone.
 const TEMPLATES = {
-  'chat':        'Real-time WebSocket chat',
-  'ai-chat':     'AI streaming chat (Spring AI / LangChain4j / Gemini / Ollama)',
-  'ai-tools':    'AI chat with @AiTool function calling',
-  'mcp-server':  'MCP server exposing tools, resources, and prompts',
-  'rag':         'RAG chat with vector store',
-  'agent':       '@Agent skill-file driven agent (Dr. Molar dentist demo)',
-  'koog':            'Koog @AIAgent chat integration',
-  'embabel':         'Embabel GOAP planning (Kotlin, SB 3.5)',
+  'chat':            'Real-time WebSocket chat',
+  'one-dep-agent':   'One dependency + a single @Agent class (keyless demo runtime)',
+  'ai-chat':         'AI streaming chat (Spring AI / LangChain4j / Gemini / Ollama)',
+  'ai-tools':        'AI chat with @AiTool function calling',
+  'mcp-server':      'MCP server exposing tools, resources, and prompts',
+  'rag':             'RAG chat with vector store',
+  'agent':           '@Agent skill-file driven agent (Dr. Molar dentist demo)',
   'multi-agent':     'Multi-agent fleet — 5 independent @Agents via A2A protocol',
   'classroom':       'AI classroom — shared streaming responses (web + Expo RN)',
   'ms-governance':   'Microsoft Agent Governance policy chat',
   'coding-agent':    'Coding agent with guarded filesystem tools',
   'guarded-agent':   'Guarded email agent with approval flows',
   'assistant':       'Personal assistant with memory and tools',
+  'browser-agent':   'Code-as-action agent driving a headless browser (requires Docker)',
 };
 
 function die(msg) { console.error(`${RED}error:${RESET} ${msg}`); process.exit(1); }

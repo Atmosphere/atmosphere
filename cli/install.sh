@@ -40,8 +40,11 @@ detect_platform() {
 # ── Check prerequisites ────────────────────────────────────────────────────
 check_java() {
     if command -v java >/dev/null 2>&1; then
-        java_ver=$(java -version 2>&1 | head -1 | sed 's/.*"\([0-9]*\).*/\1/')
-        if [ "$java_ver" -ge 21 ] 2>/dev/null; then
+        # Anchor on `version "` — a bare `.*"` is greedy, consumes through the
+        # closing quote and captures the empty string, so every user with a
+        # perfectly good JDK 21 was told to go install Java.
+        java_ver=$(java -version 2>&1 | sed -n 's/.*version "\([0-9][0-9]*\).*/\1/p' | head -1)
+        if [ -n "$java_ver" ] && [ "$java_ver" -ge 21 ] 2>/dev/null; then
             ok "Java $java_ver detected"
             return
         fi

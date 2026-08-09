@@ -9,9 +9,46 @@ set -e
 VERSION="4.0.65"
 ATMOSPHERE_HOME="${ATMOSPHERE_HOME:-$HOME/.atmosphere}"
 CACHE_DIR="$ATMOSPHERE_HOME/cache"
-SAMPLES_JSON_URL="https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/samples.json"
-RUNTIME_OVERLAYS_URL="https://raw.githubusercontent.com/Atmosphere/atmosphere/main/cli/runtime-overlays.json"
-SOURCE_TARBALL_URL="https://github.com/Atmosphere/atmosphere/archive/refs/heads/main.tar.gz"
+
+# ── Source ref ──────────────────────────────────────────────────────────────
+# Every artefact the CLI fetches from GitHub — sample sources, the registry,
+# the runtime overlays — must come from the same ref as the Atmosphere version
+# it pins into the generated pom.xml (see install_source /
+# patch_pom_for_standalone, both of which pin the parent to $VERSION).
+#
+# `main` carries samples that call APIs which have not been released yet.
+# Pairing that source with the last released parent produces a project that
+# cannot compile — e.g. samples/spring-boot-ai-tools on main calls
+# AiConfig.LlmSettings#hasReachableModel(), which does not exist in 4.0.65, so
+# `atmosphere new my-app --template ai-tools` scaffolded a project that failed
+# `mvn compile` with "cannot find symbol".
+#
+# The release workflow pushes the `atmosphere-<version>` tag before it rewrites
+# VERSION= in this script, so the tag matching VERSION always exists by the time
+# a user has this copy.
+#
+# ATMOSPHERE_VERSION_OVERRIDE points the generated pom at a locally-installed
+# build instead of the pinned release; when that build is a SNAPSHOT the
+# matching source is `main`. ATMOSPHERE_SOURCE_REF overrides the ref outright.
+if [ -n "${ATMOSPHERE_SOURCE_REF:-}" ]; then
+    SOURCE_REF="$ATMOSPHERE_SOURCE_REF"
+elif [ -z "${ATMOSPHERE_VERSION_OVERRIDE:-}" ]; then
+    SOURCE_REF="atmosphere-$VERSION"
+else
+    case "$ATMOSPHERE_VERSION_OVERRIDE" in
+        *SNAPSHOT) SOURCE_REF="main" ;;
+        *)         SOURCE_REF="atmosphere-$ATMOSPHERE_VERSION_OVERRIDE" ;;
+    esac
+fi
+# Branches and tags live under different paths in GitHub's archive API.
+case "$SOURCE_REF" in
+    main|master) SOURCE_ARCHIVE_REF="refs/heads/$SOURCE_REF" ;;
+    *)           SOURCE_ARCHIVE_REF="refs/tags/$SOURCE_REF" ;;
+esac
+
+SAMPLES_JSON_URL="https://raw.githubusercontent.com/Atmosphere/atmosphere/$SOURCE_REF/cli/samples.json"
+RUNTIME_OVERLAYS_URL="https://raw.githubusercontent.com/Atmosphere/atmosphere/$SOURCE_REF/cli/runtime-overlays.json"
+SOURCE_TARBALL_URL="https://github.com/Atmosphere/atmosphere/archive/$SOURCE_ARCHIVE_REF.tar.gz"
 
 # ── Colors ──────────────────────────────────────────────────────────────────
 if [ -t 1 ]; then
@@ -36,10 +73,26 @@ need_cmd() {
     command -v "$1" >/dev/null 2>&1 || die "'$1' is required but not found. Please install it first."
 }
 
+# Extract the major version from `java -version`. The banner line is
+#   openjdk version "21.0.2" 2024-01-16 LTS      → 21
+#   java version "1.8.0_402"                     → 1
+# Anchoring on `version "` matters: a bare `.*"` is greedy and consumes through
+# the *closing* quote, capturing the empty string for every JVM ever shipped.
+# Scanning all lines (rather than head -1) tolerates JVMs that print
+# "Picked up JAVA_TOOL_OPTIONS" before the banner.
+java_major_version() {
+    java -version 2>&1 | sed -n 's/.*version "\([0-9][0-9]*\).*/\1/p' | head -1
+}
+
 ensure_java() {
     need_cmd java
-    java_version=$(java -version 2>&1 | head -1 | sed 's/.*"\([0-9]*\).*/\1/')
-    if [ "$java_version" -lt 21 ] 2>/dev/null; then
+    java_version=$(java_major_version)
+    # Fail closed: an unparseable banner must not be read as "new enough".
+    case "$java_version" in
+        ''|*[!0-9]*)
+            die "Java 21+ is required, but the version of the 'java' on PATH could not be determined. Install with: brew install openjdk@21" ;;
+    esac
+    if [ "$java_version" -lt 21 ]; then
         die "Java 21+ is required (found Java $java_version). Install with: brew install openjdk@21"
     fi
 }
@@ -75,6 +128,23 @@ sha256sum_portable() {
     else
         echo "no-checksum-tool"
     fi
+}
+
+# Percent-encode a string so it can be interpolated into a URL path segment or
+# query value. Unreserved set per RFC 3986: A-Z a-z 0-9 - . _ ~
+# Everything else (spaces, &, ?, /, #, UTF-8 bytes) becomes %XX.
+urlencode() {
+    LC_ALL=C awk '
+        BEGIN {
+            s = ARGV[1]
+            for (i = 0; i < 256; i++) ord[sprintf("%c", i)] = i
+            n = length(s)
+            for (i = 1; i <= n; i++) {
+                c = substr(s, i, 1)
+                if (c ~ /^[A-Za-z0-9._~-]$/) printf "%s", c
+                else printf "%%%02X", ord[c]
+            }
+        }' "$1"
 }
 
 # Get the local samples.json — bundled with CLI or download it
@@ -481,8 +551,12 @@ install_source() {
     trap 'rm -rf "$tmp_dir"' EXIT
 
     if command -v git >/dev/null 2>&1; then
-        git clone --depth 1 --filter=blob:none --sparse \
-            https://github.com/Atmosphere/atmosphere.git "$tmp_dir/repo" 2>/dev/null
+        # --branch pins the checkout to the ref that matches the version this
+        # scaffold's pom.xml will resolve from Central. Report the failure
+        # rather than letting `set -e` abort with no output.
+        git clone --depth 1 --filter=blob:none --sparse --branch "$SOURCE_REF" \
+            https://github.com/Atmosphere/atmosphere.git "$tmp_dir/repo" 2>/dev/null \
+            || die "Could not fetch sample sources at ref '$SOURCE_REF' from https://github.com/Atmosphere/atmosphere.git. Check your network, or set ATMOSPHERE_SOURCE_REF to an existing branch/tag."
 
         cd "$tmp_dir/repo"
         # Include the sample plus the jarless Maven wrapper dir; root-level files
@@ -501,7 +575,7 @@ install_source() {
     else
         # Fallback: download tarball and extract
         info "Downloading source archive..."
-        download "https://github.com/Atmosphere/atmosphere/archive/refs/heads/main.tar.gz" "$tmp_dir/archive.tar.gz"
+        download "$SOURCE_TARBALL_URL" "$tmp_dir/archive.tar.gz"
         tar xzf "$tmp_dir/archive.tar.gz" -C "$tmp_dir"
         src_dir=$(find "$tmp_dir" -maxdepth 2 -type d -name "$sample" | head -1)
 
@@ -572,10 +646,12 @@ install_source() {
 
 # ── Build from source ──────────────────────────────────────────────────────
 
-# Download the latest source tarball from main (always fresh)
+# Download the source tarball for the resolved ref (always fresh). The cache
+# file is named per ref so a `main` tarball can never be mistaken for the
+# release sources the built JAR is supposed to come from.
 download_source_tarball() {
-    tarball="$CACHE_DIR/atmosphere-main.tar.gz"
-    info "Downloading latest source from main..." >&2
+    tarball="$CACHE_DIR/atmosphere-src-$SOURCE_REF.tar.gz"
+    info "Downloading source from $SOURCE_REF..." >&2
     download "$SOURCE_TARBALL_URL" "$tarball" || {
         rm -f "$tarball"
         die "Download failed. Check your network connection."
@@ -613,9 +689,12 @@ patch_pom_for_standalone() {
     pom="$1"
     tmp_pom="${pom}.tmp"
     # 1. Remove relativePath so parent resolves from Maven Central
-    # 2. Pin parent version to the released VERSION (source is from main/SNAPSHOT)
+    # 2. Pin parent version to the released VERSION (source carries -SNAPSHOT).
+    #    Honour ATMOSPHERE_VERSION_OVERRIDE the same way install_source does, so
+    #    the pinned artefacts and the ref the source came from always agree.
+    pom_version="${ATMOSPHERE_VERSION_OVERRIDE:-$VERSION}"
     sed -e 's|<relativePath>../../pom.xml</relativePath>|<relativePath/>|' \
-        -e 's|<version>[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*-SNAPSHOT</version>|<version>'"$VERSION"'</version>|' \
+        -e 's|<version>[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*-SNAPSHOT</version>|<version>'"$pom_version"'</version>|' \
         "$pom" > "$tmp_pom"
     mv "$tmp_pom" "$pom"
 }
@@ -656,7 +735,12 @@ build_sample() {
         # Quarkus: cache the entire quarkus-app directory
         quarkus_app="$build_dir/samples/$sample/target/quarkus-app"
         if [ -d "$quarkus_app" ]; then
-            cache_qdir="$(dirname "$jar_file")/quarkus-chat-app"
+            # Namespace the cached app directory per sample. A shared name lets
+            # a second Quarkus sample overwrite the first one's exploded app
+            # while the first sample's marker still points at it — the next
+            # `atmosphere run <first-sample>` then reports a cache hit and boots
+            # the *other* application.
+            cache_qdir="$(dirname "$jar_file")/$sample-quarkus-app"
             rm -rf "$cache_qdir"
             cp -r "$quarkus_app" "$cache_qdir"
             # Create a marker file so cmd_run knows this is a quarkus app
@@ -693,6 +777,7 @@ cmd_run() {
     # Parse --env flags
     env_args=""
     extra_args=""
+    port_override=""
     while [ $# -gt 0 ]; do
         case "$1" in
             --env)
@@ -702,7 +787,10 @@ cmd_run() {
                 ;;
             --port|-p)
                 [ -z "$2" ] && die "--port requires a port number"
-                env_args="$env_args -Dserver.port=$2"
+                # Resolved once the sample's packaging is known: the HTTP port
+                # property differs per stack, and the banner has to name the
+                # port we actually bind rather than the registry default.
+                port_override="$2"
                 shift 2
                 ;;
             --)
@@ -722,6 +810,23 @@ cmd_run() {
 
     packaging=$(get_sample_field "$sample" "packaging" "$json")
     port=$(get_sample_field "$sample" "port" "$json")
+
+    # `--port` has to map to the HTTP port property of the sample's own stack.
+    # Spring Boot reads server.port; Quarkus reads quarkus.http.port and ignores
+    # server.port outright, so a single hard-coded property silently no-ops on
+    # every Quarkus sample. `port` also drives the "Open http://localhost:N"
+    # banner, which must name the port we bind, not the registry default.
+    if [ -n "$port_override" ]; then
+        case "$port_override" in
+            ''|*[!0-9]*) die "--port requires a numeric port number (got '$port_override')" ;;
+        esac
+        port="$port_override"
+        if [ "$packaging" = "quarkus" ]; then
+            env_args="$env_args -Dquarkus.http.port=$port_override"
+        else
+            env_args="$env_args -Dserver.port=$port_override"
+        fi
+    fi
 
     ensure_cache_dir
     jar_dir="$CACHE_DIR/v$VERSION"
@@ -841,6 +946,23 @@ strip_competing_adapters() {
 # cli/runtime-overlays.json before injecting — this turns `--runtime <X>` into
 # a deterministic swap on samples that pre-pin a different provider.
 #
+# Validate a runtime name against cli/runtime-overlays.json without touching a
+# pom. `cmd_new` calls this before the network clone so a typo fails fast
+# instead of leaving a half-created project directory behind — and wedging the
+# project name, since the retry then trips the "already exists" guard.
+#
+# Usage: validate_runtime_name <runtime-name>
+validate_runtime_name() {
+    _vrn_runtime="$1"
+    [ -z "$_vrn_runtime" ] && return 0
+    has_jq || die "--runtime requires jq. Install with: brew install jq"
+    _vrn_overlays=$(get_runtime_overlays_json)
+    printf '%s' "$_vrn_overlays" | jq -e ".overlays[\"$_vrn_runtime\"]" >/dev/null 2>&1 || {
+        _vrn_names=$(printf '%s' "$_vrn_overlays" | jq -r '.overlays | keys | join(", ")')
+        die "Unknown runtime: $_vrn_runtime (available: $_vrn_names)"
+    }
+}
+
 # Usage: apply_runtime_overlay <runtime-name> <pom-path> [force]
 apply_runtime_overlay() {
     runtime="$1"
@@ -1113,6 +1235,11 @@ cmd_new() {
     if [ "$routing" = "true" ] && ! is_routing_template "$template"; then
         die "--routing requires an AI template that ships an application.yml (one of: $ROUTING_AI_TEMPLATES); template '$template' is not eligible."
     fi
+
+    # Same discipline for --runtime: reject an unknown adapter name BEFORE the
+    # clone. Validating it inside apply_runtime_overlay (i.e. after the clone)
+    # leaves the half-created project on disk when the name is a typo.
+    validate_runtime_name "$runtime"
 
     json=$(get_samples_json)
     info "Scaffolding '$project_name' from sample '$source_sample'..."
@@ -1557,6 +1684,58 @@ POMEOF
 
 # ── Compose (multi-agent project generator) ────────────────────────────────
 
+# Print the directory holding ComposeGenerator.java *and* its templates/.
+#
+# ComposeGenerator reads -Djbang.source to find templates/ and otherwise walks
+# the CWD for generator/templates. jbang does not set jbang.source (verified
+# against jbang 0.137.0), and neither cli/install.sh nor the Homebrew formula
+# installs generator/templates, so `atmosphere compose` died with
+# "Cannot find generator templates" for every user who was not standing inside
+# a checkout of this repo. Materialise the generator from the pinned source ref
+# and hand jbang an explicit -Djbang.source.
+resolve_compose_generator() {
+    _rcg_script_dir="$(cd "$(dirname "$0")" && pwd)"
+    if [ -f "$_rcg_script_dir/../generator/ComposeGenerator.java" ] \
+       && [ -d "$_rcg_script_dir/../generator/templates/compose" ]; then
+        (cd "$_rcg_script_dir/../generator" && pwd)
+        return 0
+    fi
+
+    # The generator also reads its *parent* directory: mvnw + .mvn/wrapper are
+    # copied into the generated project, and the reactor root pom.xml supplies
+    # <spring-boot.version>. Stage those alongside generator/ so a cached copy
+    # produces byte-identical output to an in-repo run.
+    _rcg_root="$CACHE_DIR/generator-src-$SOURCE_REF"
+    if [ -f "$_rcg_root/generator/ComposeGenerator.java" ] \
+       && [ -d "$_rcg_root/generator/templates/compose" ]; then
+        printf '%s\n' "$_rcg_root/generator"
+        return 0
+    fi
+
+    ensure_cache_dir
+    _rcg_tarball=$(download_source_tarball)
+    _rcg_prefix=$(tar tzf "$_rcg_tarball" | head -1 | cut -d'/' -f1)
+    _rcg_stage=$(mktemp -d)
+    tar xzf "$_rcg_tarball" -C "$_rcg_stage" --strip-components=1 \
+        "$_rcg_prefix/generator" \
+        "$_rcg_prefix/mvnw" \
+        "$_rcg_prefix/mvnw.cmd" \
+        "$_rcg_prefix/.mvn/wrapper" \
+        "$_rcg_prefix/pom.xml" \
+        "$_rcg_prefix/modules/spring-boot-starter/pom.xml" 2>/dev/null || {
+        rm -rf "$_rcg_stage"
+        die "Could not extract the compose generator from the $SOURCE_REF source archive."
+    }
+    if [ ! -d "$_rcg_stage/generator/templates/compose" ]; then
+        rm -rf "$_rcg_stage"
+        die "The $SOURCE_REF source archive has no generator/templates/compose directory."
+    fi
+    chmod +x "$_rcg_stage/mvnw" 2>/dev/null || true
+    rm -rf "$_rcg_root"
+    mv "$_rcg_stage" "$_rcg_root"
+    printf '%s\n' "$_rcg_root/generator"
+}
+
 cmd_compose() {
     local compose_name=""
     local compose_group="com.example"
@@ -1670,19 +1849,15 @@ COMPOSEEOF
 
     need_cmd jbang
 
-    # Resolve the ComposeGenerator.java script
-    local script_dir
-    script_dir="$(cd "$(dirname "$0")" && pwd)"
-    local generator_script=""
-    if [ -f "$script_dir/../generator/ComposeGenerator.java" ]; then
-        generator_script="$script_dir/../generator/ComposeGenerator.java"
-    else
-        generator_script="https://raw.githubusercontent.com/Atmosphere/atmosphere/main/generator/ComposeGenerator.java"
-    fi
+    local generator_dir
+    generator_dir=$(resolve_compose_generator)
+    local generator_script="$generator_dir/ComposeGenerator.java"
 
     info "Generating multi-agent project..."
+    # -Djbang.source is what tells ComposeGenerator where its templates live;
+    # without it the generator walks the CWD and only works inside a checkout.
     # shellcheck disable=SC2086
-    jbang "$generator_script" $jbang_args $skill_args
+    jbang "-Djbang.source=$generator_script" "$generator_script" $jbang_args $skill_args
 }
 
 cmd_skills() {
@@ -1789,17 +1964,25 @@ cmd_checkpoint() {
     local subcmd="${1:-list}"
     shift || true
 
-    # Parse --base-url flag (overrides env var)
-    local rest=""
-    while [ $# -gt 0 ]; do
+    # Parse --base-url flag (overrides env var). Rotate the positional
+    # parameters instead of flattening them into one string: `rest="$rest $1"`
+    # followed by an unquoted `set -- $rest` re-splits on IFS, so
+    # `--by 'alice smith'` reached the wire as `by=alice` and the durable
+    # approval record named the wrong operator — with exit status 0.
+    local remaining=$#
+    while [ "$remaining" -gt 0 ]; do
         case "$1" in
-            --base-url) base="$2"; shift 2 ;;
-            --base-url=*) base="${1#--base-url=}"; shift ;;
-            *) rest="$rest $1"; shift ;;
+            --base-url)
+                [ -z "$2" ] && die "--base-url requires a value"
+                base="$2"; shift 2; remaining=$((remaining - 2)) ;;
+            --base-url=*)
+                base="${1#--base-url=}"
+                [ -z "$base" ] && die "--base-url requires a value"
+                shift; remaining=$((remaining - 1)) ;;
+            *)
+                set -- "$@" "$1"; shift; remaining=$((remaining - 1)) ;;
         esac
     done
-    # shellcheck disable=SC2086
-    set -- $rest
 
     # Curl with sane defaults: fail on HTTP errors, silent, show errors.
     ac_curl() { curl -sSf "$@"; }
@@ -1816,9 +1999,9 @@ cmd_checkpoint() {
                     *) shift ;;
                 esac
             done
-            [ -n "$coordination" ] && qs="${qs}&coordination=${coordination}"
-            [ -n "$agent" ]        && qs="${qs}&agent=${agent}"
-            [ -n "$limit" ]        && qs="${qs}&limit=${limit}"
+            [ -n "$coordination" ] && qs="${qs}&coordination=$(urlencode "$coordination")"
+            [ -n "$agent" ]        && qs="${qs}&agent=$(urlencode "$agent")"
+            [ -n "$limit" ]        && qs="${qs}&limit=$(urlencode "$limit")"
             qs="${qs#&}"
             local url="${base}/api/checkpoints${qs:+?$qs}"
             info "GET $url"
@@ -1828,7 +2011,7 @@ cmd_checkpoint() {
         show)
             local id="$1"
             [ -z "$id" ] && die "Usage: atmosphere checkpoint show <id>"
-            ac_curl "${base}/api/checkpoints/${id}" \
+            ac_curl "${base}/api/checkpoints/$(urlencode "$id")" \
                 || die "Checkpoint $id not found"
             printf "\n"
             ;;
@@ -1842,7 +2025,7 @@ cmd_checkpoint() {
                     *) shift ;;
                 esac
             done
-            local url="${base}/api/checkpoints/${id}/fork${state:+?state=$state}"
+            local url="${base}/api/checkpoints/$(urlencode "$id")/fork${state:+?state=$(urlencode "$state")}"
             ac_curl -X POST "$url" \
                 || die "Failed to fork $id"
             printf "\n"
@@ -1857,7 +2040,7 @@ cmd_checkpoint() {
                     *) shift ;;
                 esac
             done
-            ac_curl -X POST "${base}/api/checkpoints/${id}/approve?by=${by}" \
+            ac_curl -X POST "${base}/api/checkpoints/$(urlencode "$id")/approve?by=$(urlencode "$by")" \
                 || die "Failed to approve $id"
             printf "\n"
             ;;
@@ -1865,7 +2048,7 @@ cmd_checkpoint() {
             local id="$1"
             [ -z "$id" ] && die "Usage: atmosphere checkpoint delete <id>"
             ac_curl -X DELETE -o /dev/null -w "%{http_code}\n" \
-                "${base}/api/checkpoints/${id}" \
+                "${base}/api/checkpoints/$(urlencode "$id")" \
                 || die "Failed to delete $id"
             ;;
         help|--help|-h|"")
