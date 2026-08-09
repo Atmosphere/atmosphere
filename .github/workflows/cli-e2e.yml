@@ -49,6 +49,20 @@ jobs:
     steps:
     - uses: actions/checkout@v7
 
+    # The CLI requires Java 21+ and refuses to run on anything older, so the job
+    # that tests it must supply the baseline. Without this the suite ran against
+    # whatever JDK ubuntu-latest happened to ship, and the CLI's own version
+    # check — once it correctly stopped failing open on an unparseable banner —
+    # started answering "Java 21+ is required" to tests that were asserting on
+    # something else entirely.
+    - name: Set up JDK 21
+      uses: actions/setup-java@v5
+      with:
+        java-version: 21
+        distribution: temurin
+        # Supply-chain hardening: GPG-verify the Temurin JDK archive (setup-java >= v5.5.0)
+        verify-signature: true
+
     - name: Install jq + xmllint
       run: sudo apt-get update && sudo apt-get install -y jq libxml2-utils
 
