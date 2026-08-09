@@ -802,11 +802,16 @@ cmd_run() {
         esac
     done
 
-    ensure_java
+    # Validate the argument before the toolchain: a sample that cannot be run at
+    # all should say so whatever Java is installed. When ensure_java came first,
+    # `atmosphere run chat` reported the JDK on the box instead of the fact that
+    # `chat` is a WAR, and the message a user got depended on their machine.
     json=$(get_samples_json)
 
     runnable=$(get_sample_field "$sample" "runnable" "$json")
     [ "$runnable" != "true" ] && die "'$sample' is not directly runnable. See: atmosphere info $sample"
+
+    ensure_java
 
     packaging=$(get_sample_field "$sample" "packaging" "$json")
     port=$(get_sample_field "$sample" "port" "$json")
