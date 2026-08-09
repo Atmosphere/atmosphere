@@ -18,7 +18,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { AppState } from 'react-native';
 import type { AtmosphereRequest } from '../../types';
 import type { StreamingHandle, SessionStats, RoutingInfo, SendOptions } from '../../streaming/types';
-import { subscribeStreaming } from '../../streaming';
+import { subscribeStreaming, buildStreamingPayload } from '../../streaming';
 import { useAtmosphereContext } from '../react/provider';
 import { getRegisteredNetInfo } from '../../react-native/platform';
 import { ConnectionStatus } from '../../resilience';
@@ -49,6 +49,34 @@ export interface UseStreamingRNOptions {
 }
 
 /**
+ * What {@link useStreamingRN}'s `send` did with the message.
+ *
+ * - `sent` — handed to the open stream.
+ * - `queued` — parked in `request.offlineQueue`; the transport drains it
+ *   onto the wire when the connection reopens.
+ * - `rejected` — not sent and not queued. The hook's `error` state is set
+ *   and `onError` fired, so the message never disappears unannounced.
+ */
+export type StreamingSendOutcome = 'sent' | 'queued' | 'rejected';
+
+/**
+ * Outcome of a {@link useStreamingRN} `send` call.
+ *
+ * Every call returns one of these. There is no path on which a message is
+ * dropped without either reaching the wire, entering the offline queue, or
+ * raising an error.
+ */
+export interface StreamingSendResult {
+  readonly outcome: StreamingSendOutcome;
+  /** `queued` only — id of the {@code TrackedMessage} in the offline queue. */
+  readonly messageId?: string;
+  /** `queued` only — messages waiting in the queue after this enqueue. */
+  readonly queueSize?: number;
+  /** `rejected` only — why. Mirrored into the hook's `error` state. */
+  readonly reason?: string;
+}
+
+/**
  * Return type of {@link useStreamingRN}.
  */
 export interface UseStreamingRNResult {
@@ -61,14 +89,41 @@ export interface UseStreamingRNResult {
   routing: RoutingInfo;
   aiEvents: { event: string; data: Record<string, unknown> }[];
   error: string | null;
+  /**
+   * Device reachability as reported by NetInfo — and nothing else.
+   *
+   * It says the handset has a network, not that this stream can carry a
+   * message: with the server down the radio is still up, so this stays
+   * `true` while the socket is dead. Gate UI that means "your message can
+   * go out now" on {@link #canSend}; use this one only to explain *why*
+   * (airplane mode vs. server unreachable).
+   *
+   * Defaults to `true` when NetInfo was never registered via
+   * {@code setupReactNative({ netInfo })} — an unmeasured device is
+   * assumed reachable rather than assumed offline.
+   */
   isConnected: boolean;
+  /**
+   * Whether a `send` right now would reach the wire: the hook is enabled,
+   * the device is reachable, and the stream is open.
+   *
+   * This is the flag a Send button should consult. When it is `false`,
+   * `send` queues (if `request.offlineQueue` is set) or rejects — it never
+   * silently discards.
+   */
+  canSend: boolean;
   /**
    * Reactive snapshot of the resilience state (phase + last event +
    * transport + attempt counter + viaFallback flag). Drives the
    * {@code <ConnectionStatusBadgeRN />} component.
    */
   connectionStatus: ConnectionStatusSnapshot;
-  send: (message: string | object, options?: SendOptions) => void;
+  /**
+   * Send a prompt. Returns what happened to it — sent, queued, or
+   * rejected — so the caller can render a pending bubble or an error
+   * instead of guessing.
+   */
+  send: (message: string | object, options?: SendOptions) => StreamingSendResult;
   reset: () => void;
   close: () => void;
 }
@@ -80,7 +135,27 @@ export interface UseStreamingRNResult {
  * awareness:
  * - Pauses streaming when app moves to background
  * - Resumes streaming when app returns to foreground
- * - Suppresses sends when device is offline (if NetInfo installed)
+ * - Diverts sends away from an unusable stream — into
+ *   {@code request.offlineQueue} when one is configured, otherwise into
+ *   the hook's `error` state. A send is never silently dropped.
+ *
+ * "Unusable" means either the device is offline (NetInfo) or the stream
+ * is not open (resilience phase). Both are folded into {@link
+ * UseStreamingRNResult#canSend}; {@link UseStreamingRNResult#isConnected}
+ * keeps its narrower device-reachability meaning.
+ *
+ * To keep offline prompts instead of rejecting them, pass an
+ * {@code OfflineQueue} on the request — the same primitive the web
+ * Console uses, drained by the transport on reopen:
+ *
+ * ```tsx
+ * const offline = useOfflineQueue<string>({ maxSize: 50 });
+ * const { canSend, send } = useStreamingRN({
+ *   request: { url, transport: 'websocket', offlineQueue: offline.queue },
+ * });
+ *
+ * const result = send(prompt);   // 'sent' | 'queued' | 'rejected'
+ * ```
  *
  * Exposes the full classic Atmosphere 3.x lifecycle surface
  * (`onOpen`/`onClose`/`onReconnect`/`onReopen`/`onClientTimeout`/
@@ -107,17 +182,21 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(true);
 
-  // Connection-status tracking. The seed instance is replaced with the
-  // streaming handle's own instance once subscribe() resolves.
-  const statusInstanceRef = useRef<ConnectionStatus>(
-    new ConnectionStatus({ initialTransport: request.transport }),
-  );
+  // Connection-status tracking. Seeded with an idle snapshot; the streaming
+  // handle's own tracker takes over (and stays bound) once subscribe()
+  // resolves — see the subscription effect below.
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatusSnapshot>(
-    statusInstanceRef.current.snapshot,
+    () => new ConnectionStatus({ initialTransport: request.transport }).snapshot,
   );
 
   const handleRef = useRef<StreamingHandle | null>(null);
   const pausedInBackgroundRef = useRef(false);
+
+  // `send` must read the request that is current at call time — the offline
+  // queue can be attached after mount — without re-creating the callback on
+  // every parent render.
+  const requestRef = useRef(request);
+  requestRef.current = request;
 
   // Keep lifecycle callbacks in a ref so the subscribe effect doesn't re-run
   // when callers pass fresh closures every render.
@@ -135,6 +214,7 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
     if (!enabled) return;
 
     let cancelled = false;
+    let unbindStatus: (() => void) | null = null;
 
     (async () => {
       try {
@@ -210,8 +290,12 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
 
         if (!cancelled) {
           handleRef.current = handle;
-          statusInstanceRef.current = handle.connectionStatus;
+          // Bind to the handle's tracker here, in the same effect that owns
+          // the handle, so the binding is unconditional and torn down with
+          // it. Reading the snapshot and subscribing happen back-to-back
+          // with no await between, so no transition can slip through.
           setConnectionStatus(handle.connectionStatus.snapshot);
+          unbindStatus = handle.connectionStatus.onChange(setConnectionStatus);
         } else {
           await handle.close();
         }
@@ -224,16 +308,13 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
 
     return () => {
       cancelled = true;
+      unbindStatus?.();
+      unbindStatus = null;
       handleRef.current?.close();
       handleRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [atmosphere, request.url, request.transport, enabled]);
-
-  // Mirror ConnectionStatus changes into React state.
-  useEffect(() => {
-    return statusInstanceRef.current.onChange(setConnectionStatus);
-  }, [connectionStatus.phase === 'idle' ? 'idle' : 'live']);
 
   // --- AppState integration ---
   useEffect(() => {
@@ -265,12 +346,47 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
     return () => unsubscribe();
   }, []);
 
-  const send = useCallback((message: string | object, sendOpts?: SendOptions) => {
-    if (!isConnected) return; // Don't send when offline
-    setIsStreaming(true);
-    setError(null);
-    handleRef.current?.send(message, sendOpts);
-  }, [isConnected]);
+  // A send only reaches the wire when the device has a network *and* the
+  // stream is open. NetInfo alone is not enough: with the server down the
+  // radio stays up and `isConnected` stays true while the socket is dead.
+  const canSend = enabled && isConnected && connectionStatus.phase === 'open';
+
+  const send = useCallback((message: string | object, sendOpts?: SendOptions): StreamingSendResult => {
+    const handle = handleRef.current;
+
+    if (canSend && handle) {
+      setIsStreaming(true);
+      setError(null);
+      handle.send(message, sendOpts);
+      return { outcome: 'sent' };
+    }
+
+    // Not sendable. Park it if the caller gave us somewhere to park it —
+    // the transport drains `request.offlineQueue` onto the wire when the
+    // connection reopens (BaseTransport.drainOfflineQueue).
+    const queue = requestRef.current.offlineQueue;
+    if (queue) {
+      const tracked = queue.enqueue(buildStreamingPayload(message, sendOpts));
+      // The drain path pushes bytes straight through the transport, so it
+      // never runs handle.send()'s session reset. Do it here or the drained
+      // turn answers under a new server session id and every frame is
+      // discarded by the stale-session guard.
+      handle?.resetSession();
+      // Deliberately not clearing `error`: whatever knocked the stream over
+      // is still the reason this message is sitting in a queue.
+      return { outcome: 'queued', messageId: tracked.id, queueSize: queue.size };
+    }
+
+    // Nowhere to park it. Surface it — the one thing we must not do is
+    // drop it quietly.
+    const reason = !isConnected
+      ? 'Message not sent — device is offline.'
+      : `Message not sent — connection is ${connectionStatus.phase}.`;
+    setError(reason);
+    setIsStreaming(false);
+    lifecycleRef.current.onError?.(reason);
+    return { outcome: 'rejected', reason };
+  }, [canSend, isConnected, connectionStatus.phase]);
 
   const reset = useCallback(() => {
     setStreamingTexts([]);
@@ -293,9 +409,9 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
   return useMemo(
     () => ({
       fullText, streamingTexts, isStreaming, progress, metadata, stats, routing, aiEvents,
-      error, isConnected, connectionStatus, send, reset, close,
+      error, isConnected, canSend, connectionStatus, send, reset, close,
     }),
     [fullText, streamingTexts, isStreaming, progress, metadata, stats, routing, aiEvents,
-     error, isConnected, connectionStatus, send, reset, close],
+     error, isConnected, canSend, connectionStatus, send, reset, close],
   );
 }

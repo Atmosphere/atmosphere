@@ -16,7 +16,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SendOptions } from '../../streaming/types';
-import { useStreamingRN, type UseStreamingRNOptions, type UseStreamingRNResult } from './useStreamingRN';
+import {
+  useStreamingRN,
+  type StreamingSendResult,
+  type UseStreamingRNOptions,
+  type UseStreamingRNResult,
+} from './useStreamingRN';
 
 export type ChatRole = 'system' | 'user' | 'assistant' | 'tool';
 export type ChatMessageStatus = 'submitted' | 'streaming' | 'complete' | 'error';
@@ -41,12 +46,24 @@ export interface UseChatRNResult {
   messages: ChatMessage[];
   input: string;
   setInput: (input: string) => void;
-  append: (message: ChatInputMessage, options?: SendOptions) => void;
-  handleSubmit: () => void;
-  reload: (options?: SendOptions) => void;
+  /**
+   * Append a user message and send it. Returns what happened to it so the
+   * chat UI can mark the bubble queued or failed — the same contract as
+   * {@link useStreamingRN}'s `send`, not a narrowing of it.
+   */
+  append: (message: ChatInputMessage, options?: SendOptions) => StreamingSendResult;
+  /**
+   * Submit the current `input`. Returns the send outcome, or `null` when
+   * there was nothing to submit.
+   */
+  handleSubmit: () => StreamingSendResult | null;
+  /** Re-send the last user message. Returns `null` when there is none. */
+  reload: (options?: SendOptions) => StreamingSendResult | null;
   stop: () => void;
   reset: () => void;
   isLoading: boolean;
+  /** @see UseStreamingRNResult#canSend */
+  canSend: boolean;
   error: string | null;
   progress: string | null;
   metadata: Record<string, unknown>;
@@ -111,21 +128,21 @@ export function useChatRN(options: UseChatRNOptions): UseChatRNResult {
     activeAssistantIdRef.current = assistantMessage.id;
     streaming.reset();
     setMessages((previous) => [...previous, userMessage, assistantMessage]);
-    streaming.send(userMessage.content, optionsOverride ?? sendOptions);
+    return streaming.send(userMessage.content, optionsOverride ?? sendOptions);
   }, [generateId, normalizeMessage, sendOptions, streaming]);
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback((): StreamingSendResult | null => {
     const prompt = input.trim();
-    if (!prompt) return;
+    if (!prompt) return null;
     setInput('');
-    append(prompt);
+    return append(prompt);
   }, [append, input]);
 
-  const reload = useCallback((optionsOverride?: SendOptions) => {
+  const reload = useCallback((optionsOverride?: SendOptions): StreamingSendResult | null => {
     const lastUserMessage = [...messages].reverse().find((message) => message.role === 'user');
-    if (!lastUserMessage) return;
+    if (!lastUserMessage) return null;
     setMessages((previous) => previous.slice(0, previous.findIndex((m) => m.id === lastUserMessage.id)));
-    append(lastUserMessage, optionsOverride);
+    return append(lastUserMessage, optionsOverride);
   }, [append, messages]);
 
   const stop = useCallback(() => {
@@ -149,6 +166,7 @@ export function useChatRN(options: UseChatRNOptions): UseChatRNResult {
     stop,
     reset,
     isLoading: streaming.isStreaming,
+    canSend: streaming.canSend,
     error: streaming.error,
     progress: streaming.progress,
     metadata: streaming.metadata,

@@ -19,6 +19,7 @@ import {
   setupReactNative,
   AtmosphereProvider,
   useStreamingRN,
+  useOfflineQueue,
   ConnectionStatusBadgeRN,
 } from 'atmosphere.js/react-native';
 
@@ -39,6 +40,8 @@ const SERVER_URL = Platform.select({
 interface UserMessage {
   role: 'user';
   text: string;
+  /** Parked in the offline queue; goes out when the connection returns. */
+  queued?: boolean;
 }
 
 interface AssistantMessage {
@@ -121,6 +124,11 @@ function Classroom({
   const flatListRef = useRef<FlatList>(null);
   const roomConfig = ROOMS.find((r) => r.id === room);
 
+  // Questions typed while the connection is down are parked here and
+  // flushed by the transport on reopen, so a bad tunnel or a restarted
+  // server costs the student a delay instead of their question.
+  const offline = useOfflineQueue<string | object>({ maxSize: 25 });
+
   const request = useMemo(
     () => ({
       url: `${SERVER_URL}/atmosphere/classroom/${room}`,
@@ -132,8 +140,9 @@ function Classroom({
       trackMessageLength: true,
       enableProtocol: false,
       contentType: 'application/json',
+      offlineQueue: offline.queue,
     }),
-    [room],
+    [room, offline.queue],
   );
 
   const {
@@ -143,6 +152,7 @@ function Classroom({
     stats,
     error,
     isConnected,
+    canSend,
     connectionStatus,
     send,
     reset,
@@ -192,14 +202,36 @@ function Classroom({
     }
   }, [messages, fullText]);
 
+  // Once the queue drains, the "Queued" footnote on those bubbles is stale.
+  useEffect(() => {
+    if (offline.size > 0) return;
+    setMessages((prev) =>
+      prev.some((m) => m.role === 'user' && m.queued)
+        ? prev.map((m) => (m.role === 'user' && m.queued ? { ...m, queued: false } : m))
+        : prev,
+    );
+  }, [offline.size]);
+
   const handleSend = useCallback(() => {
     const text = input.trim();
     if (!text || isStreaming) return;
-    setMessages((prev) => [...prev, { role: 'user', text }]);
+
+    // Only clear the previous turn when this one is actually going out; a
+    // queued send leaves the last answer on screen.
+    if (canSend) reset();
+
+    const result = send(text);
+    if (result.outcome === 'rejected') {
+      // The hook put the reason in `error`, which the banner below renders.
+      // Keep the text in the box so the question is not lost.
+      return;
+    }
+    setMessages((prev) => [
+      ...prev,
+      { role: 'user', text, queued: result.outcome === 'queued' },
+    ]);
     setInput('');
-    reset();
-    send(text);
-  }, [input, isStreaming, reset, send]);
+  }, [canSend, input, isStreaming, reset, send]);
 
   const renderMessage = useCallback(
     ({ item }: { item: Message }) => {
@@ -209,9 +241,13 @@ function Classroom({
             style={[
               styles.userBubble,
               { backgroundColor: roomConfig?.color ?? '#667eea' },
+              item.queued && styles.userBubbleQueued,
             ]}
           >
             <Text style={styles.userText}>{item.text}</Text>
+            {item.queued && (
+              <Text style={styles.queuedNote}>Queued &middot; will send on reconnect</Text>
+            )}
           </View>
         );
       }
@@ -256,11 +292,16 @@ function Classroom({
         <ConnectionStatusBadgeRN status={connectionStatus} />
       </View>
 
-      {/* Connection status */}
-      {!isConnected && (
+      {/* Connection status. Gated on canSend, not isConnected: the stream is
+          equally unusable when the server is down, and in that case NetInfo
+          still reports the device as online. */}
+      {!canSend && (
         <View style={styles.offlineBanner}>
           <Text style={styles.offlineBannerText}>
-            Offline - waiting for network...
+            {isConnected
+              ? 'Server unreachable - questions will be sent on reconnect'
+              : 'Offline - questions will be sent when the network returns'}
+            {offline.size > 0 ? ` (${offline.size} waiting)` : ''}
           </Text>
         </View>
       )}
@@ -303,8 +344,8 @@ function Classroom({
         {stats && !isStreaming && (
           <View style={styles.statsBar}>
             <Text style={styles.statsText}>
-              {stats.totalTokens ?? 0} tokens &middot; {stats.elapsedMs ?? 0}ms &middot;{' '}
-              {(stats.tokensPerSecond ?? 0).toFixed(1)} tok/s
+              {stats.totalStreamingTexts} chunks &middot; {stats.elapsedMs}ms &middot;{' '}
+              {stats.streamingTextsPerSecond.toFixed(1)} chunks/s
             </Text>
           </View>
         )}
@@ -322,16 +363,20 @@ function Classroom({
             returnKeyType="send"
             blurOnSubmit={false}
           />
+          {/* The button never promises delivery it cannot make: while the
+              stream is down it says "Queue", and the tap parks the question
+              in the offline queue instead of dropping it. */}
           <TouchableOpacity
             style={[
               styles.sendButton,
               { backgroundColor: roomConfig?.color ?? '#667eea' },
               (isStreaming || !input.trim()) && styles.sendButtonDisabled,
+              !canSend && !!input.trim() && !isStreaming && styles.sendButtonQueue,
             ]}
             onPress={handleSend}
             disabled={isStreaming || !input.trim()}
           >
-            <Text style={styles.sendButtonText}>Send</Text>
+            <Text style={styles.sendButtonText}>{canSend ? 'Send' : 'Queue'}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -561,10 +606,22 @@ const styles = StyleSheet.create({
     maxWidth: '85%',
     marginBottom: 8,
   },
+  userBubbleQueued: {
+    opacity: 0.65,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: ATMOSPHERE.textPrimary,
+  },
   userText: {
     color: ATMOSPHERE.bgDark,
     fontSize: 15,
     lineHeight: 21,
+  },
+  queuedNote: {
+    color: ATMOSPHERE.bgDark,
+    fontSize: 11,
+    fontStyle: 'italic',
+    marginTop: 4,
   },
   assistantBubble: {
     alignSelf: 'flex-start',
@@ -642,6 +699,9 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     opacity: 0.4,
+  },
+  sendButtonQueue: {
+    backgroundColor: ATMOSPHERE.goldDark,
   },
   sendButtonText: {
     color: ATMOSPHERE.bgDark,

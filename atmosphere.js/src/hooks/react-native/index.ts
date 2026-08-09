@@ -27,7 +27,12 @@ export { useAtmosphereRN } from './useAtmosphereRN';
 export type { UseAtmosphereRNOptions, UseAtmosphereRNResult, BackgroundBehavior } from './useAtmosphereRN';
 
 export { useStreamingRN } from './useStreamingRN';
-export type { UseStreamingRNOptions, UseStreamingRNResult } from './useStreamingRN';
+export type {
+  UseStreamingRNOptions,
+  UseStreamingRNResult,
+  StreamingSendOutcome,
+  StreamingSendResult,
+} from './useStreamingRN';
 export { useChatRN } from './useChatRN';
 export type { UseChatRNOptions, UseChatRNResult } from './useChatRN';
 

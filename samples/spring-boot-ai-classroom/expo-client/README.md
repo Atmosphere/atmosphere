@@ -8,7 +8,8 @@ React Native / Expo client for the [AI Classroom](../README.md) backend. Demonst
 - 4 classroom rooms: **Math**, **Code**, **Science**, **General**
 - AI responses stream text-by-text using `useStreamingRN`
 - AppState-aware: suspends connection when app goes to background
-- NetInfo-aware: shows offline banner, suppresses sends when offline
+- Connection-aware: a question asked while the stream is down is queued and
+  sent on reconnect — never dropped (see [Offline behaviour](#offline-behaviour))
 
 ## Prerequisites
 
@@ -61,29 +62,56 @@ bunx expo start
 
 ## How it works
 
-The app uses three things from `atmosphere.js/react-native`:
+The app uses four things from `atmosphere.js/react-native`:
 
 - **`setupReactNative()`** — Called once at startup. Installs the EventSource polyfill, detects ReadableStream support, recommends transports. Pass `{ netInfo: NetInfo }` for network-aware reconnection.
 - **`AtmosphereProvider`** — React context providing the Atmosphere client instance.
 - **`useStreamingRN`** — Hook that manages the WebSocket connection with AppState/NetInfo awareness.
+- **`useOfflineQueue`** — Holds questions typed while the stream is down; the transport flushes it on reconnect.
 
 ```typescript
 import NetInfo from '@react-native-community/netinfo';
-import { setupReactNative, AtmosphereProvider, useStreamingRN } from 'atmosphere.js/react-native';
+import {
+  setupReactNative, AtmosphereProvider, useStreamingRN, useOfflineQueue,
+} from 'atmosphere.js/react-native';
 
 setupReactNative({ netInfo: NetInfo });
 
 function Classroom({ room }) {
-  const { fullText, isStreaming, isConnected, send, reset } = useStreamingRN({
+  const offline = useOfflineQueue({ maxSize: 25 });
+  const { fullText, isStreaming, canSend, send, reset } = useStreamingRN({
     request: {
       // Each room is a path segment — the backend routes on {room}.
       url: `http://your-server:8080/atmosphere/classroom/${room}`,
       transport: 'websocket',
+      offlineQueue: offline.queue,
     },
   });
   // ...
 }
 ```
+
+## Offline behaviour
+
+`send()` reports what happened to every message, so nothing disappears:
+
+| Outcome | When | What the UI does |
+|---|---|---|
+| `sent` | `canSend` is true | Normal user bubble, answer streams in |
+| `queued` | Stream unusable, `offlineQueue` configured | Dashed "Queued · will send on reconnect" bubble; flushed automatically on reopen |
+| `rejected` | Stream unusable, no queue configured | Error banner, text stays in the input box |
+
+Two flags, deliberately not the same thing:
+
+- **`isConnected`** — NetInfo only: does the handset have a network. With the
+  server stopped but the phone on Wi-Fi, this stays `true`.
+- **`canSend`** — device reachable **and** stream open. This is what the Send
+  button and the banner consult; the button reads "Queue" when it is false.
+
+To see it: start the app, stop the backend, and ask a question. The badge
+flips to reconnecting, the banner explains the server is unreachable, the
+button says "Queue", and the question parks itself until you restart the
+server.
 
 ## Transport Compatibility
 

@@ -119,6 +119,14 @@ export async function subscribeStreaming(
     },
   }));
 
+  const resetSession = () => {
+    sessionId = null;
+    lastSeq = -1;
+    streamingTextCount = 0;
+    startTime = null;
+    routing = {};
+  };
+
   return {
     get sessionId() {
       return sessionId;
@@ -126,21 +134,34 @@ export async function subscribeStreaming(
     connectionStatus,
     send(message: string | object, options?: SendOptions) {
       // Reset tracking state for new session
-      sessionId = null;
-      lastSeq = -1;
-      streamingTextCount = 0;
-      startTime = null;
-      routing = {};
-
-      const payload = options && (options.maxCost !== undefined || options.maxLatencyMs !== undefined)
-        ? { prompt: message, hints: { maxCost: options.maxCost, maxLatencyMs: options.maxLatencyMs } }
-        : message;
-      sub.push(payload);
+      resetSession();
+      sub.push(buildStreamingPayload(message, options));
     },
+    resetSession,
     async close() {
       await sub.close();
     },
   };
+}
+
+/**
+ * Build the wire payload for a prompt: the bare message, or the
+ * {@code { prompt, hints }} envelope the server's cost/latency router
+ * expects when {@link SendOptions} carry routing hints.
+ *
+ * Exported so code paths that must produce the exact same bytes without
+ * going through {@link StreamingHandle#send} — chiefly an
+ * {@code request.offlineQueue} enqueue while the transport is unusable —
+ * cannot drift from the shape the handle would have pushed.
+ */
+export function buildStreamingPayload(
+  message: string | object,
+  options?: SendOptions,
+): string | object {
+  if (options && (options.maxCost !== undefined || options.maxLatencyMs !== undefined)) {
+    return { prompt: message, hints: { maxCost: options.maxCost, maxLatencyMs: options.maxLatencyMs } };
+  }
+  return message;
 }
 
 interface TrackingState {

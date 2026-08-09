@@ -18,7 +18,11 @@ export default defineConfig([
     dts: true,
     splitting: false,
     sourcemap: true,
-    clean: true,
+    // No config cleans: `npm run build` cleans once, up front. When this config
+    // cleaned, it raced the react-native config below and deleted the
+    // declarations tsup had just written for it — the build still exited 0 and
+    // the package published advertising a .d.ts it did not contain.
+    clean: false,
     minify: true,
     outDir: 'dist',
     target: 'es2020',

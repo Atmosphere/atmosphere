@@ -224,6 +224,18 @@ export interface StreamingHandle {
   readonly connectionStatus: import('../resilience').ConnectionStatus;
   /** Send a prompt/message to the server to start or continue streaming. */
   send(message: string | object, options?: SendOptions): void;
+  /**
+   * Forget the current session id and sequence watermark so the next batch
+   * of server frames is adopted as a fresh turn.
+   *
+   * {@link #send} already does this for every message it pushes. Call it
+   * explicitly when a prompt reaches the server by some path that bypasses
+   * {@link #send} — notably an {@code request.offlineQueue} entry drained by
+   * the transport on reconnect. Without the reset the drained turn arrives
+   * carrying a new server session id, fails the `msg.sessionId !== sessionId`
+   * guard, and every frame of the answer is discarded.
+   */
+  resetSession(): void;
   /** Close the streaming session. */
   close(): Promise<void>;
 }

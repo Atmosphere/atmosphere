@@ -130,6 +130,13 @@ export function useOfflineQueue<T = string | object | ArrayBuffer>(
 
   useEffect(() => {
     queue.setHandlers({
+      // onEnqueue covers the enqueues that never pass through this hook's
+      // own `enqueue` wrapper — `subscription.push()` while the transport
+      // is disconnected, and `useStreamingRN.send()` parking a prompt while
+      // the stream is unusable. Without it a queued message is invisible to
+      // the UI until the next drain. The Vue and Svelte adapters already
+      // wire it; React was the odd one out.
+      onEnqueue: bumpTick,
       onDrain: bumpTick,
       onAck: bumpTick,
       onFailed: bumpTick,

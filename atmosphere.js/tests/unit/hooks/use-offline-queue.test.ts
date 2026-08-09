@@ -125,6 +125,22 @@ describe('useOfflineQueue (react)', () => {
     expect(result.current.messages.map((m) => m.data)).toEqual(['b', 'c']);
   });
 
+  it('re-renders for an enqueue that bypasses the hook wrapper', () => {
+    // `subscription.push()` while disconnected, and `useStreamingRN.send()`
+    // parking a prompt, both call queue.enqueue() directly. Without the
+    // hook's onEnqueue handler the message sits in the queue invisible to
+    // the UI until the next drain — the Vue and Svelte adapters wired this
+    // from the start, React did not.
+    const { result } = renderHook(() => useOfflineQueue<string>());
+
+    act(() => {
+      result.current.queue.enqueue('parked by the transport');
+    });
+
+    expect(result.current.size).toBe(1);
+    expect(result.current.messages.map((m) => m.data)).toEqual(['parked by the transport']);
+  });
+
   it('queue identity is stable across re-renders', () => {
     const { result, rerender } = renderHook(() => useOfflineQueue<string>());
 

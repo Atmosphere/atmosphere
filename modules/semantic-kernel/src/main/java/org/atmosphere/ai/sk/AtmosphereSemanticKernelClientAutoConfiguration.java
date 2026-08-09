@@ -52,20 +52,54 @@ public class AtmosphereSemanticKernelClientAutoConfiguration {
     private static final Logger logger =
         LoggerFactory.getLogger(AtmosphereSemanticKernelClientAutoConfiguration.class);
 
+    /**
+     * Build a client when there is something to talk to — a credentialed remote
+     * endpoint, or a locally served one.
+     *
+     * <p>The gate used to be an API key alone, and the base URL defaulted to
+     * OpenAI. A local backend (Ollama, vLLM, LM Studio) needs no credential, so
+     * with {@code llm.mode=local} no client was built at all and Semantic Kernel
+     * could never serve a keyless local deployment — the same defect already
+     * fixed in the LangChain4j, Koog and built-in paths. A missing key says
+     * nothing about whether a model is reachable.</p>
+     *
+     * <p>{@code LLM_MODE} is honoured alongside {@code llm.mode} because several
+     * samples configure the backend entirely through the environment and declare
+     * no {@code llm} block at all.</p>
+     */
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnExpression("'${llm.api-key:}' != ''")
+    @ConditionalOnExpression(
+            "'${llm.api-key:}' != '' or '${llm.mode:}' == 'local' or '${LLM_MODE:}' == 'local'")
     public OpenAIAsyncClient atmosphereSemanticKernelOpenAIAsyncClient(
             @Value("${llm.api-key:}") String apiKey,
-            @Value("${llm.base-url:https://api.openai.com/v1}") String baseUrl) {
+            @Value("${llm.base-url:}") String baseUrl,
+            @Value("${llm.mode:}") String mode,
+            @Value("${LLM_MODE:}") String environmentMode) {
 
-        logger.info("Auto-building SK OpenAIAsyncClient endpoint={}", baseUrl);
-        return SemanticKernelOpenAiClientFactory.forEndpoint(baseUrl, apiKey);
+        var local = "local".equalsIgnoreCase(mode) || "local".equalsIgnoreCase(environmentMode);
+
+        // Spring's @Value default only applies when the property is absent; an
+        // empty value still binds. Resolve the fallback here so a blank
+        // llm.base-url cannot send a local run to OpenAI.
+        var resolvedBaseUrl = (baseUrl == null || baseUrl.isBlank())
+                ? (local ? "http://localhost:11434/v1" : "https://api.openai.com/v1")
+                : baseUrl;
+
+        // A local server ignores the credential but the factory still needs a
+        // non-blank one, so send a placeholder rather than failing to construct.
+        var resolvedApiKey = (apiKey == null || apiKey.isBlank())
+                ? (local ? "not-needed-for-local" : apiKey)
+                : apiKey;
+
+        logger.info("Auto-building SK OpenAIAsyncClient endpoint={} local={}", resolvedBaseUrl, local);
+        return SemanticKernelOpenAiClientFactory.forEndpoint(resolvedBaseUrl, resolvedApiKey);
     }
 
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnExpression("'${llm.api-key:}' != ''")
+    @ConditionalOnExpression(
+            "'${llm.api-key:}' != '' or '${llm.mode:}' == 'local' or '${LLM_MODE:}' == 'local'")
     public ChatCompletionService atmosphereSemanticKernelChatCompletionService(
             OpenAIAsyncClient client,
             @Value("${llm.model:gpt-4o-mini}") String model) {
