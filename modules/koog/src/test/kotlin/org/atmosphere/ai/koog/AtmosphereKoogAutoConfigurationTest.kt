@@ -17,6 +17,7 @@ package org.atmosphere.ai.koog
 
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLModel
+import org.atmosphere.ai.AiConfig
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -113,5 +114,60 @@ class AtmosphereKoogAutoConfigurationTest {
         clearExecutor()
         AtmosphereKoogAutoConfiguration().koogAgentRuntime("qwen2.5:3b", "", "", "LOCAL")
         assertNotNull(executor())
+    }
+
+    @Test
+    fun `a blank base url derives Gemini for a remote non-OpenAI model`() {
+        // The regression this closes is a *config* one, but it can only be fixed
+        // here. samples/spring-boot-multi-agent-startup-team defaulted
+        // atmosphere.koog.base-url to the Gemini URL so the keyed quickstart
+        // worked; a configured URL out-ranks mode at every resolver, so
+        // LLM_MODE=local was unreachable and a keyless local run silently dialled
+        // Google. The sample can only drop that default if a blank base-url still
+        // reaches Gemini for the gemini-2.5-flash it asks for.
+        assertEquals(AiConfig.GEMINI_ENDPOINT,
+            AtmosphereKoogAutoConfiguration.resolveEndpoint("", "remote", "gemini-2.5-flash"),
+            "a blank base-url in remote mode must derive the provider from the model id")
+    }
+
+    @Test
+    fun `a blank base url in local mode wins over the model-derived provider`() {
+        // The half that was broken in the sample: LLM_MODE=local and nothing else
+        // exported must reach loopback Ollama, even though the configured model
+        // id still names a cloud model.
+        assertEquals(AiConfig.OLLAMA_ENDPOINT,
+            AtmosphereKoogAutoConfiguration.resolveEndpoint("", "local", "gemini-2.5-flash"),
+            "local mode must reach loopback Ollama, not the model's cloud provider")
+    }
+
+    @Test
+    fun `an explicit base url out-ranks both mode and model`() {
+        assertEquals("http://gpu-box:8000/v1",
+            AtmosphereKoogAutoConfiguration.resolveEndpoint(
+                "http://gpu-box:8000/v1", "local", "gemini-2.5-flash"),
+            "LLM_BASE_URL must still win — that is how vLLM / LM Studio are reached")
+    }
+
+    @Test
+    fun `an OpenAI-shaped model keeps the native client branch`() {
+        // Collapsing back to blank is what keeps OpenAIModels resolution (and
+        // Koog's own client settings) in charge for real OpenAI ids.
+        assertEquals("",
+            AtmosphereKoogAutoConfiguration.resolveEndpoint("", "remote", "gpt-4o"),
+            "an OpenAI model must not be pinned to an explicit endpoint")
+    }
+
+    @Test
+    fun `a blank base url with a Gemini model keeps the model id verbatim`() {
+        // Wiring-level proof of the same fix: before it, a blank base-url took the
+        // native OpenAI branch, where 'gemini-2.5-flash' is absent from
+        // OpenAIModels and got silently coerced to gpt-4o — a Gemini key sent to
+        // api.openai.com under the wrong model name.
+        clearExecutor()
+        AtmosphereKoogAutoConfiguration().koogAgentRuntime(
+            "gemini-2.5-flash", "test-key", "", "remote")
+        assertNotNull(executor())
+        assertEquals("gemini-2.5-flash", defaultModel().id,
+            "a Gemini id must survive verbatim when no base-url is configured")
     }
 }

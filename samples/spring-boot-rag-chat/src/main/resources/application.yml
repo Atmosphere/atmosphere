@@ -54,7 +54,12 @@ spring:
           model: ${LLM_MODEL:gemini-2.5-flash}
       embedding:
         options:
-          model: text-embedding-004
+          # Distinct from LLM_MODEL (a chat model id): the embedding model has to
+          # match whatever SPRING_AI_BASE_URL points at, so a local run pairs
+          # SPRING_AI_BASE_URL=http://localhost:11434/v1 with
+          # EMBEDDING_MODEL=nomic-embed-text. A literal here would make that
+          # unreachable. Pinned by SampleLlmEnvPlaceholderLintTest.
+          model: ${EMBEDDING_MODEL:text-embedding-004}
 
 # Actuator — expose all metric endpoints
 management:

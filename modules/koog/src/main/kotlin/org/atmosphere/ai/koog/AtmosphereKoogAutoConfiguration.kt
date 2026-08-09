@@ -21,6 +21,7 @@ import ai.koog.prompt.executor.llms.MultiLLMPromptExecutor
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
+import org.atmosphere.ai.AiConfig
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -31,9 +32,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
  * from environment variables, using Koog 1.0's stable `OpenAILLMClient`.
  *
  * Two modes:
- *  - **OpenAI** (no base URL): talks to `api.openai.com`; the model is resolved
- *    from [OpenAIModels].
- *  - **OpenAI-compatible** (`atmosphere.koog.base-url` / `LLM_BASE_URL` set):
+ *  - **OpenAI** (no base URL, OpenAI-shaped model id): talks to `api.openai.com`;
+ *    the model is resolved from [OpenAIModels].
+ *  - **OpenAI-compatible** (`atmosphere.koog.base-url` / `LLM_BASE_URL` set, or
+ *    derived by [AiConfig.resolveBaseUrl] from mode/model when neither is):
  *    points the same client at any OpenAI-compatible endpoint. This is the
  *    supported path for Gemini — Koog 1.0's native Google client ships only on
  *    the beta track (`1.0.0-beta-preview7`, incompatible with stable `1.0.0`) —
@@ -52,6 +54,34 @@ open class AtmosphereKoogAutoConfiguration {
 
     companion object {
         private val logger = LoggerFactory.getLogger(AtmosphereKoogAutoConfiguration::class.java)
+
+        /**
+         * The endpoint the executor will talk to, or `""` to use Koog's own
+         * OpenAI client defaults.
+         *
+         * A configured [baseUrl] always wins — that is what lets `LLM_BASE_URL`
+         * point at vLLM or LM Studio. With nothing configured, resolution is
+         * delegated to [AiConfig.resolveBaseUrl], the same resolver the built-in
+         * runtime uses, so mode and model steer the endpoint identically across
+         * runtimes: `local` yields loopback Ollama and a remote non-OpenAI model
+         * id (`gemini-*`, ...) yields Gemini's OpenAI-compatible surface.
+         *
+         * Deriving Gemini here rather than hard-coding it in a sample's YAML is
+         * load-bearing. A configured URL out-ranks mode, so a sample that
+         * defaults `atmosphere.koog.base-url` to the Gemini URL makes
+         * `LLM_MODE=local` unreachable and a keyless local run silently dials
+         * Google. With the default left blank, both quickstarts work.
+         *
+         * An OpenAI endpoint collapses back to `""` so the native branch keeps
+         * Koog's own client settings and its [OpenAIModels] catalogue.
+         */
+        internal fun resolveEndpoint(baseUrl: String, mode: String, model: String): String {
+            if (baseUrl.isNotBlank()) {
+                return baseUrl
+            }
+            val derived = AiConfig.resolveBaseUrl(mode, null, model)
+            return if (derived == AiConfig.OPENAI_ENDPOINT) "" else derived
+        }
     }
 
     @org.springframework.context.annotation.Bean
@@ -76,7 +106,8 @@ open class AtmosphereKoogAutoConfiguration {
         // The local server ignores the credential but the client still requires a
         // non-blank one, so send a placeholder rather than failing to construct.
         val resolvedApiKey = if (apiKey.isBlank()) "not-needed-for-local" else apiKey
-        val resolvedBaseUrl = if (baseUrl.isBlank() && local) "http://localhost:11434/v1" else baseUrl
+
+        val resolvedBaseUrl = resolveEndpoint(baseUrl, mode, modelName)
 
         val executor: PromptExecutor
         val model: LLModel

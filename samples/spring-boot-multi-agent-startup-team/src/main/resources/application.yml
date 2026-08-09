@@ -26,9 +26,16 @@ atmosphere:
   # has no stable Google client, so Gemini is reached through Koog's OpenAI client
   # pointed at Google's OpenAI-compatible surface. Works out-of-box with just
   # GEMINI_API_KEY; override LLM_MODEL / LLM_BASE_URL for any OpenAI-compatible provider.
+  #
+  # base-url MUST default blank, not to the Gemini URL: a configured URL wins over
+  # mode in every resolver, so a hard-defaulted endpoint makes LLM_MODE=local
+  # unreachable and a keyless local run silently dials Google. Blank hands the
+  # choice to AtmosphereKoogAutoConfiguration -> AiConfig.resolveBaseUrl, which
+  # still picks Gemini for the gemini-2.5-flash default and Ollama for
+  # LLM_MODE=local. Pinned by SampleLlmEnvPlaceholderLintTest.
   koog:
     model: ${LLM_MODEL:gemini-2.5-flash}
-    base-url: ${LLM_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}
+    base-url: ${LLM_BASE_URL:}
     api-key: ${LLM_API_KEY:${GEMINI_API_KEY:}}
   # Session tape: record every agent's AI turn (typed AiEvent steps) as a durable
   # artifact. Each specialist's run links to the CEO's run via parentRunId, so
