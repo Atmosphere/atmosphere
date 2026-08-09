@@ -49,6 +49,79 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# --- artifact selection: pinned to the current reactor version ---------------
+#
+# samples/*/target is never cleaned between builds, so it holds one jar per
+# version ever packaged there. The previous selector here was a bare
+# `find … | head -1` with NO sort at all — i.e. whatever the filesystem
+# happened to return first. Measured on a working tree at 4.0.66-SNAPSHOT it
+# picked atmosphere-spring-boot-ai-chat-4.0.64-SNAPSHOT.jar and
+# atmosphere-jetty-embedded-websocket-4.0.63-SNAPSHOT.jar: this smoke gate was
+# certifying the startup of two releases ago while reporting a pass for HEAD.
+#
+# Pin to the reactor version and fail loudly when it is absent. A smoke test
+# that boots an arbitrary artifact proves nothing about the build under test
+# (Invariant #5, runtime truth).
+reactor_version() {
+  # First <version> in the root pom is the project's own: atmosphere-project
+  # declares no <parent>, and "<version>" is not a substring of "<modelVersion>".
+  local v
+  v="$(sed -n 's:^[[:space:]]*<version>\([^<]*\)</version>.*:\1:p' "$ROOT/pom.xml" 2>/dev/null | head -1)"
+  if [[ ! "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT)?$ ]]; then
+    echo "ERROR cannot read the reactor version from $ROOT/pom.xml (got '${v:-<empty>}')" >&2
+    return 1
+  fi
+  echo "$v"
+}
+REACTOR_VERSION="$(reactor_version)"
+echo "[smoke] reactor version: $REACTOR_VERSION — artifacts pinned to it"
+
+# sample_jar <sample> — echoes the CURRENT-version boot jar, or explains
+# exactly which stale artifacts were rejected and exits non-zero.
+sample_jar() {
+  local sample="$1" dir="$ROOT/samples/$1/target" jar
+  # `original-*.jar` is the shade plugin's pre-shade copy and carries the same
+  # version suffix, so excluding it is load-bearing, not cosmetic.
+  jar="$(find "$dir" -maxdepth 1 -name "*-$REACTOR_VERSION.jar" \
+    ! -name 'original-*' ! -name '*-sources.jar' ! -name '*-javadoc.jar' \
+    ! -name '*-tests.jar' 2>/dev/null | sort | head -1)"
+  if [[ -n "$jar" ]]; then
+    echo "$jar"
+    return 0
+  fi
+  {
+    echo "ERROR [$sample] no $REACTOR_VERSION artifact in samples/$sample/target"
+    local other
+    other="$(find "$dir" -maxdepth 1 -name '*-[0-9]*.jar' ! -name 'original-*' \
+      ! -name '*-sources.jar' ! -name '*-javadoc.jar' ! -name '*-tests.jar' 2>/dev/null | sort)"
+    if [[ -n "$other" ]]; then
+      echo "      stale artifacts present (deliberately NOT booted):"
+      while IFS= read -r o; do [[ -n "$o" ]] && echo "        $(basename "$o")"; done <<<"$other"
+    fi
+    echo "      run: ./mvnw package -pl samples/$sample -DskipTests"
+  } >&2
+  return 1
+}
+
+# quarkus_app_is_current <sample> — quarkus-run.jar carries no version in its
+# name, so a quarkus-app/ left behind by an earlier build boots silently and
+# looks identical. The application jar Quarkus copies into quarkus-app/app/ is
+# the only honest freshness signal.
+quarkus_app_is_current() {
+  local sample="$1" appdir="$ROOT/samples/$1/target/quarkus-app/app"
+  if [[ -n "$(find "$appdir" -maxdepth 1 -name "*-$REACTOR_VERSION.jar" 2>/dev/null | head -1)" ]]; then
+    return 0
+  fi
+  {
+    echo "ERROR [$sample] target/quarkus-app is stale — no $REACTOR_VERSION application jar."
+    echo "      present in quarkus-app/app/ (deliberately NOT booted):"
+    find "$appdir" -maxdepth 1 -name '*.jar' 2>/dev/null \
+      | while IFS= read -r j; do echo "        $(basename "$j")"; done
+    echo "      run: ./mvnw package -pl samples/$sample -DskipTests"
+  } >&2
+  return 1
+}
+
 # boot_and_probe <name> <jar> <url> [ENV=VALUE...]
 # Boots `java -jar <jar>` with the given env, polls <url> until it returns
 # HTTP 200 or BOOT_TIMEOUT elapses, then tears the JVM down by PID.
@@ -204,50 +277,62 @@ fail=0
 # e2e fixture (modules/integration-tests/e2e/fixtures/sample-server.ts) — a
 # dummy key lets the Quarkus LangChain4j StreamingChatModel bean materialise
 # without a real provider. GET / serves the chat page (META-INF/resources).
-boot_and_probe quarkus-ai-chat \
-  "$ROOT/samples/quarkus-ai-chat/target/quarkus-app/quarkus-run.jar" \
-  "http://127.0.0.1:18810/" \
-  LLM_API_KEY=dummy-not-real QUARKUS_HTTP_PORT=18810 || fail=1
+if quarkus_app_is_current quarkus-ai-chat; then
+  boot_and_probe quarkus-ai-chat \
+    "$ROOT/samples/quarkus-ai-chat/target/quarkus-app/quarkus-run.jar" \
+    "http://127.0.0.1:18810/" \
+    LLM_API_KEY=dummy-not-real QUARKUS_HTTP_PORT=18810 || fail=1
+else
+  fail=1
+fi
 
 # spring-boot-ai-chat: Spring Boot startup canary. Empty LLM_API_KEY forces
 # the keyless demo provider regardless of the caller's shell env, matching
 # what CI runners see. GET / is a 302 to the bundled Atmosphere Console
 # (AiChatApplication.addRedirectViewController), so probe the console
 # directly — it's the sample's real UI.
-SPRING_JAR="$(find "$ROOT/samples/spring-boot-ai-chat/target" -maxdepth 1 -name '*.jar' \
-  ! -name '*-sources.jar' ! -name '*-javadoc.jar' 2>/dev/null | head -1 || true)"
-boot_and_probe spring-boot-ai-chat \
-  "${SPRING_JAR:-$ROOT/samples/spring-boot-ai-chat/target/missing.jar}" \
-  "http://127.0.0.1:8080/atmosphere/console/" \
-  LLM_API_KEY= GEMINI_API_KEY= || fail=1
+if SPRING_JAR="$(sample_jar spring-boot-ai-chat)"; then
+  boot_and_probe spring-boot-ai-chat \
+    "$SPRING_JAR" \
+    "http://127.0.0.1:8080/atmosphere/console/" \
+    LLM_API_KEY= GEMINI_API_KEY= || fail=1
+else
+  fail=1
+fi
 
 # kotlin-dsl-chat: maven-shade fat jar. Regressions the exploded run can't see —
 # the WS upgrade answered 501 (jakarta.websocket container missing) and SLF4J
 # no-oped (logback-core dropped). Reads -Dserver.port; WS at /chat.
-KOTLIN_JAR="$(find "$ROOT/samples/kotlin-dsl-chat/target" -maxdepth 1 -name 'atmosphere-kotlin-dsl-chat-*.jar' \
-  ! -name 'original-*' ! -name '*-sources.jar' ! -name '*-javadoc.jar' 2>/dev/null | head -1 || true)"
-boot_ws_and_check kotlin-dsl-chat \
-  "${KOTLIN_JAR:-$ROOT/samples/kotlin-dsl-chat/target/missing.jar}" \
-  18099 /chat || fail=1
+if KOTLIN_JAR="$(sample_jar kotlin-dsl-chat)"; then
+  boot_ws_and_check kotlin-dsl-chat \
+    "$KOTLIN_JAR" \
+    18099 /chat || fail=1
+else
+  fail=1
+fi
 
 # embedded-jetty-websocket-chat: maven-shade fat jar serving Atmosphere on an
 # embedded Jetty with a classpath /webapp/. WS at /chat; same shade-drop risks.
-JETTY_JAR="$(find "$ROOT/samples/embedded-jetty-websocket-chat/target" -maxdepth 1 -name '*.jar' \
-  ! -name 'original-*' ! -name '*-sources.jar' ! -name '*-javadoc.jar' 2>/dev/null | head -1 || true)"
-boot_ws_and_check embedded-jetty-websocket-chat \
-  "${JETTY_JAR:-$ROOT/samples/embedded-jetty-websocket-chat/target/missing.jar}" \
-  18080 /chat || fail=1
+if JETTY_JAR="$(sample_jar embedded-jetty-websocket-chat)"; then
+  boot_ws_and_check embedded-jetty-websocket-chat \
+    "$JETTY_JAR" \
+    18080 /chat || fail=1
+else
+  fail=1
+fi
 
 # spring-boot-otel-chat: Spring Boot fat jar whose OTLP exporter dies at export
 # time on an OpenTelemetry BOM skew (NoClassDefFoundError InstrumentationUtil).
 # The WS connect emits a span; the post-101 settle window lets it export so a
 # skew surfaces in the log. Empty keys force the keyless demo provider.
-OTEL_JAR="$(find "$ROOT/samples/spring-boot-otel-chat/target" -maxdepth 1 -name '*.jar' \
-  ! -name 'original-*' ! -name '*-sources.jar' ! -name '*-javadoc.jar' 2>/dev/null | head -1 || true)"
-boot_ws_and_check spring-boot-otel-chat \
-  "${OTEL_JAR:-$ROOT/samples/spring-boot-otel-chat/target/missing.jar}" \
-  18090 /atmosphere/ai-chat \
-  LLM_API_KEY= GEMINI_API_KEY= || fail=1
+if OTEL_JAR="$(sample_jar spring-boot-otel-chat)"; then
+  boot_ws_and_check spring-boot-otel-chat \
+    "$OTEL_JAR" \
+    18090 /atmosphere/ai-chat \
+    LLM_API_KEY= GEMINI_API_KEY= || fail=1
+else
+  fail=1
+fi
 
 if ((fail != 0)); then
   echo "Sample startup smoke FAILED" >&2

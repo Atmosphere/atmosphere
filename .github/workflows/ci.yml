@@ -144,6 +144,15 @@ jobs:
         verify-signature: true
         cache: 'maven'
 
+    # Runs before the build because it needs no build: it drives every sample
+    # boot path against synthetic target/ trees and asserts each one selects the
+    # artifact for the CURRENT reactor version rather than globbing for "the
+    # newest jar present". samples/*/target is never cleaned, so a version-blind
+    # glob boots a leftover from an earlier release and reports a pass for code
+    # that is not in the artifact it tested. Fails fast, in seconds.
+    - name: Artifact-selection regression (stale sample jars)
+      run: ./scripts/test-sample-jar-selection.sh
+
     - name: Build & Package Samples
       # Full-reactor prime, then package — the same proven pattern as
       # samples-ci.yml. A scoped -pl ... -am build fails Quarkus's extension

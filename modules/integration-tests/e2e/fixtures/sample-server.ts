@@ -1,6 +1,6 @@
 import { type ChildProcess, spawn } from 'child_process';
 import { resolve } from 'path';
-import { readdirSync } from 'fs';
+import { readdirSync, readFileSync } from 'fs';
 import net from 'net';
 import { WebSocket } from 'ws';
 
@@ -269,24 +269,91 @@ export const SAMPLES: Record<string, SampleConfig> = {
 };
 
 /**
- * Find the latest JAR in a sample's target/ directory.
+ * The reactor version, read from the root pom. atmosphere-project declares no
+ * <parent>, and "<version>" is not a substring of "<modelVersion>", so the
+ * first match is the project's own version.
+ */
+let reactorVersionCache: string | undefined;
+function reactorVersion(): string {
+  if (reactorVersionCache === undefined) {
+    const pom = readFileSync(resolve(ROOT, 'pom.xml'), 'utf8');
+    const m = /<version>([^<]+)<\/version>/.exec(pom);
+    if (!m || !/^\d+\.\d+\.\d+(-SNAPSHOT)?$/.test(m[1])) {
+      throw new Error(`Cannot read the reactor version from ${resolve(ROOT, 'pom.xml')}`);
+    }
+    reactorVersionCache = m[1];
+  }
+  return reactorVersionCache;
+}
+
+/**
+ * Resolve the sample's boot JAR for the CURRENT reactor version.
+ *
+ * This used to take `jars.sort().reverse()[0]` — "the latest SNAPSHOT". That
+ * is wrong in three ways, and samples/<x>/target keeps one jar per version ever
+ * packaged there (23 of 29 sample targets held 2-5 versions when this was
+ * written), so all three are reachable:
+ *
+ *   1. String sort is not version sort. 4.0.7/4.0.8/4.0.9 are real released
+ *      versions of this project and "9" > "6", so a leftover 4.0.9 jar wins
+ *      over 4.0.66. Same trap at every 10x boundary (4.0.99 vs 4.0.100).
+ *   2. "Latest present" is not "current". A sample that was not repackaged for
+ *      this build boots the previous release and the spec goes green for code
+ *      that is not in the artifact it tested.
+ *   3. `original-*.jar` — the shade plugin's PRE-SHADE copy — was not excluded,
+ *      and it sorts above the real artifact ('o' > 'a'). Measured on the real
+ *      tree, this selector returned
+ *      original-atmosphere-jetty-embedded-websocket-4.0.66-SNAPSHOT.jar, i.e.
+ *      the unshaded jar, for the very samples that exist to catch shade
+ *      regressions. Only the exec:java boot types spared them today; adding a
+ *      shaded sample to SAMPLES with type 'spring-boot' would have booted it.
+ *
+ * Absent is a hard failure that names the stale artifacts, never a fallback.
  */
 function findJar(sampleDir: string, type: string): string {
   const targetDir = resolve(ROOT, 'samples', sampleDir, 'target');
+  const version = reactorVersion();
 
   if (type === 'quarkus') {
+    // quarkus-run.jar is unversioned; the app jar under quarkus-app/app/ is the
+    // only honest freshness signal for a quarkus-app/ left by an earlier build.
+    const appDir = resolve(targetDir, 'quarkus-app', 'app');
+    let appJars: string[] = [];
+    try {
+      appJars = readdirSync(appDir).filter((f) => f.endsWith('.jar'));
+    } catch {
+      throw new Error(`No quarkus-app in ${targetDir}. Run: ./mvnw package -pl samples/${sampleDir} -DskipTests`);
+    }
+    if (!appJars.some((f) => f.endsWith(`-${version}.jar`))) {
+      throw new Error(
+        `samples/${sampleDir}/target/quarkus-app is stale — no ${version} application jar ` +
+          `(found: ${appJars.join(', ') || 'nothing'}). ` +
+          `Run: ./mvnw package -pl samples/${sampleDir} -DskipTests`,
+      );
+    }
     return resolve(targetDir, 'quarkus-app', 'quarkus-run.jar');
   }
 
-  const jars = readdirSync(targetDir).filter(
-    (f) => f.endsWith('.jar') && !f.endsWith('-sources.jar') && !f.endsWith('-javadoc.jar'),
+  const all = readdirSync(targetDir).filter(
+    (f) =>
+      f.endsWith('.jar') &&
+      !f.startsWith('original-') &&
+      !f.endsWith('-sources.jar') &&
+      !f.endsWith('-javadoc.jar') &&
+      !f.endsWith('-tests.jar'),
   );
-  // Prefer the one with the latest SNAPSHOT version
-  jars.sort().reverse();
-  if (jars.length === 0) {
-    throw new Error(`No JAR found in ${targetDir}. Run: ./mvnw package -pl samples/${sampleDir} -DskipTests`);
+  const current = all.filter((f) => f.endsWith(`-${version}.jar`)).sort();
+  if (current.length === 0) {
+    const stale = all.filter((f) => /-\d/.test(f));
+    throw new Error(
+      `No ${version} JAR in ${targetDir}.` +
+        (stale.length
+          ? ` Stale artifacts present and deliberately NOT booted: ${stale.join(', ')}.`
+          : '') +
+        ` Run: ./mvnw package -pl samples/${sampleDir} -DskipTests`,
+    );
   }
-  return resolve(targetDir, jars[0]);
+  return resolve(targetDir, current[0]);
 }
 
 /**

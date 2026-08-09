@@ -26,6 +26,9 @@
 #   * Packaged-artifact boot only (java -jar / quarkus-run.jar), never
 #     spring-boot:run or quarkus:dev — the artifact level is where the
 #     2026-06 and 2026-07 sweeps found their bugs.
+#   * The artifact is pinned to the CURRENT reactor version (read from the root
+#     pom). samples/*/target accumulates one jar per version ever packaged
+#     there, and booting a leftover is how a sweep records a false pass.
 #   * Refuses to start if something already answers on the port. A green
 #     probe against someone else's process is a false pass (Invariant #5).
 #   * Kills by PID only, never pkill. Every started JVM is recorded in a
@@ -41,6 +44,8 @@
 #   sweep-sample.sh status
 #   sweep-sample.sh log   <sample> [lines]
 #   sweep-sample.sh warnings <sample>     # WARN/ERROR/exception lines only
+#   sweep-sample.sh jar   <sample>        # artifact that WOULD boot (no boot)
+#   sweep-sample.sh stale [sample...]     # leftover non-current jars + bytes
 #
 # Example:
 #   sweep-sample.sh start spring-boot-ai-chat --port 9101 \
@@ -94,6 +99,10 @@ boot_type() {
     local sample="$1" dir="$ROOT/samples/$1"
     [[ -d "$dir" ]] || die "no such sample: samples/$1"
     if [[ -f "$dir/target/quarkus-app/quarkus-run.jar" ]]; then
+        # quarkus-run.jar carries no version in its name, so the honest check is
+        # the application jar Quarkus copies into quarkus-app/app/. A stale
+        # quarkus-app/ left by an earlier version boots happily otherwise.
+        assert_quarkus_app_current "$sample"
         echo quarkus; return
     fi
     if grep -q '<packaging>war</packaging>' "$dir/pom.xml" 2>/dev/null; then
@@ -101,7 +110,13 @@ boot_type() {
     fi
     local jar; jar="$(find_jar "$sample")" || jar=""
     if [[ -z "$jar" ]]; then
-        # No jar at all is still an exec candidate; otherwise it is a build gap.
+        # Stale-but-present is a BUILD GAP, not an exec sample: this target/ was
+        # produced by `mvn package` at some other version and simply was not
+        # repackaged for this build. Falling through to `exec` (or to the newest
+        # leftover) is exactly the silent-stale-boot this guard exists to stop.
+        assert_no_stale_only "$sample"
+        # No versioned jar at all is still an exec candidate (grpc-chat ships
+        # target/atmosphere-grpc-chat.jar with no version in the name).
         if grep -q 'exec-maven-plugin' "$dir/pom.xml" 2>/dev/null; then
             echo exec; return
         fi
@@ -123,15 +138,95 @@ boot_type() {
     die "samples/$sample: $(basename "$jar") has no Main-Class, is not a Spring Boot jar, and declares no exec-maven-plugin — it is not runnable (check cli/samples.json runnable flag)"
 }
 
+# --- artifact selection: pinned to the current reactor version ---------------
+#
+# samples/*/target is never cleaned between builds, so it accumulates one jar
+# per version ever packaged there. When this guard was written, 23 of the 29
+# sample target/ directories held 2-5 different versions (spring-boot-rag-chat:
+# 4.0.60, 4.0.62, 4.0.64 and 4.0.66-SNAPSHOT side by side).
+#
+# The previous selector was `find … | sort -r | head -1` — "newest wins". It is
+# wrong twice over:
+#
+#   1. `sort -r` is LEXICOGRAPHIC, not version-aware. 4.0.7/4.0.8/4.0.9 are real
+#      released versions of this project, and "9" sorts above "6", so a leftover
+#      atmosphere-<sample>-4.0.9-SNAPSHOT.jar outranks the current 4.0.66
+#      one. The same trap re-arms at every 10x boundary (4.0.99 vs 4.0.100).
+#   2. Even with a correct ordering, "newest present" is not "current". If the
+#      sample was simply not repackaged for this build, the glob silently
+#      returns the newest OLD jar and the sweep drives last release's code while
+#      recording a pass for this one. That is not hypothetical — it cost the
+#      2026-08 sweep two wrong readings before the artifact was checked.
+#
+# So: resolve the reactor version from the root pom and select by EXACT name.
+# Absent is a hard, loud failure (Invariant #5, runtime truth) — never a
+# fallback to whatever else happens to be lying in target/.
+
+reactor_version() {
+    # The first <version> in the root pom is the project's own: atmosphere-project
+    # declares no <parent>, and the literal string "<version>" is not a substring
+    # of "<modelVersion>", so the first match cannot be the model version.
+    local v
+    v="$(sed -n 's:^[[:space:]]*<version>\([^<]*\)</version>.*:\1:p' "$ROOT/pom.xml" 2>/dev/null | head -1)"
+    [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT)?$ ]] \
+        || die "cannot read the reactor version from $ROOT/pom.xml (got '${v:-<empty>}')"
+    echo "$v"
+}
+
 find_jar() {
-    local dir="$ROOT/samples/$1/target"
+    local dir="$ROOT/samples/$1/target" version
     [[ -d "$dir" ]] || return 1
+    version="$(reactor_version)"
     local jar
-    jar="$(find "$dir" -maxdepth 1 -name '*.jar' \
+    # `original-*.jar` is the shade plugin's pre-shade copy and DOES carry the
+    # same version suffix, so that exclusion is load-bearing here.
+    jar="$(find "$dir" -maxdepth 1 -name "*-$version.jar" \
         ! -name '*-sources.jar' ! -name '*-javadoc.jar' \
-        ! -name 'original-*.jar' ! -name '*-tests.jar' 2>/dev/null | sort -r | head -1)"
+        ! -name 'original-*.jar' ! -name '*-tests.jar' 2>/dev/null | sort | head -1)"
     [[ -n "$jar" ]] || return 1
     echo "$jar"
+}
+
+# Versioned artifacts in target/ that are NOT this reactor version. `-name
+# '*-[0-9]*.jar'` keeps deliberately unversioned artifacts (grpc-chat ships
+# target/atmosphere-grpc-chat.jar) out of the stale set.
+stale_jars() {
+    local dir="$ROOT/samples/$1/target" version
+    [[ -d "$dir" ]] || return 0
+    version="$(reactor_version)"
+    find "$dir" -maxdepth 1 -name '*-[0-9]*.jar' ! -name "*-$version.jar" \
+        ! -name '*-sources.jar' ! -name '*-javadoc.jar' \
+        ! -name 'original-*.jar' ! -name '*-tests.jar' 2>/dev/null | sort
+}
+
+assert_no_stale_only() {
+    local sample="$1" version stale
+    version="$(reactor_version)"
+    stale="$(stale_jars "$sample")"
+    [[ -n "$stale" ]] || return 0
+    {
+        echo "ERROR: samples/$sample/target has NO $version artifact, only stale ones:"
+        while IFS= read -r j; do [[ -n "$j" ]] && echo "         $(basename "$j")"; done <<<"$stale"
+        echo "       Booting one of those would test a previous release and record a false pass."
+        echo "       Run: ./mvnw package -pl samples/$sample -DskipTests"
+    } >&2
+    exit 1
+}
+
+assert_quarkus_app_current() {
+    local sample="$1" appdir="$ROOT/samples/$1/target/quarkus-app/app" version found
+    version="$(reactor_version)"
+    found="$(find "$appdir" -maxdepth 1 -name "*-$version.jar" 2>/dev/null | head -1)"
+    [[ -n "$found" ]] && return 0
+    {
+        echo "ERROR: samples/$sample/target/quarkus-app is stale — no $version application jar."
+        echo "       quarkus-run.jar is unversioned, so booting it would silently run:"
+        find "$appdir" -maxdepth 1 -name '*.jar' 2>/dev/null | while IFS= read -r j; do
+            echo "         $(basename "$j")"
+        done
+        echo "       Run: ./mvnw package -pl samples/$sample -DskipTests"
+    } >&2
+    exit 1
 }
 
 port_answers() {
@@ -185,17 +280,31 @@ cmd_start() {
     local dir="$ROOT/samples/$sample"
     info "$sample: boot type=$kind port=$port log=${log#"$ROOT"/}"
 
+    # Resolve the artifact ONCE and say which one out loud. The sweep ledger has
+    # to be able to show which file was actually booted — "it passed" is
+    # meaningless without the artifact identity behind it.
+    local jar=""
+    case "$kind" in
+        spring-boot|main-jar)
+            jar="$(find_jar "$sample")" \
+                || die "samples/$sample: no $(reactor_version) jar in target/ (this should have been caught by boot_type)"
+            info "$sample: artifact $(basename "$jar")" ;;
+        quarkus)
+            jar="$dir/target/quarkus-app/quarkus-run.jar"
+            info "$sample: artifact quarkus-app/quarkus-run.jar ($(reactor_version) verified in quarkus-app/app/)" ;;
+    esac
+
     # ${arr[@]+"${arr[@]}"} — expanding an EMPTY array as "${arr[@]}" aborts
     # under `set -u` on bash 3.2, which is still /bin/bash on macOS.
     local -a cmd=()
     case "$kind" in
         quarkus)
             envs+=("QUARKUS_HTTP_PORT=$port")
-            cmd=(java ${jvm_args[@]+"${jvm_args[@]}"} -jar "$dir/target/quarkus-app/quarkus-run.jar") ;;
+            cmd=(java ${jvm_args[@]+"${jvm_args[@]}"} -jar "$jar") ;;
         spring-boot)
-            cmd=(java ${jvm_args[@]+"${jvm_args[@]}"} -jar "$(find_jar "$sample")" "--server.port=$port") ;;
+            cmd=(java ${jvm_args[@]+"${jvm_args[@]}"} -jar "$jar" "--server.port=$port") ;;
         main-jar)
-            cmd=(java "-Dserver.port=$port" ${jvm_args[@]+"${jvm_args[@]}"} -jar "$(find_jar "$sample")") ;;
+            cmd=(java "-Dserver.port=$port" ${jvm_args[@]+"${jvm_args[@]}"} -jar "$jar") ;;
         war)
             cmd=("$MVNW" -B jetty:run "-Djetty.port=$port") ;;
         exec)
@@ -320,6 +429,45 @@ cmd_warnings() {
     fi
 }
 
+# Report which artifact would boot, without booting it. This is the seam the
+# stale-jar regression test drives, and the fastest way for an operator to
+# confirm a sweep is about to run THIS build.
+cmd_jar() {
+    local sample="${1:?usage: $0 jar <sample>}"
+    local kind; kind="$(boot_type "$sample")"
+    case "$kind" in
+        spring-boot|main-jar) echo "$(find_jar "$sample")" ;;
+        quarkus)              echo "$ROOT/samples/$sample/target/quarkus-app/quarkus-run.jar" ;;
+        *)                    info "$sample: boot type=$kind (no packaged jar is booted)" ;;
+    esac
+}
+
+cmd_stale() {
+    local version; version="$(reactor_version)"
+    local -a samples=()
+    if [[ $# -gt 0 ]]; then samples=("$@")
+    else
+        local d
+        for d in "$ROOT"/samples/*/; do samples+=("$(basename "$d")"); done
+    fi
+    local total=0 count=0 s j sz
+    for s in "${samples[@]}"; do
+        local listed=0
+        while IFS= read -r j; do
+            [[ -n "$j" ]] || continue
+            [[ "$listed" == 1 ]] || { echo "$s:"; listed=1; }
+            sz="$(wc -c <"$j" | tr -d ' ')"
+            total=$((total + sz)); count=$((count + 1))
+            printf '  %6s MB  %s\n' "$((sz / 1000000))" "$(basename "$j")"
+        done < <(stale_jars "$s")
+    done
+    echo
+    echo "current reactor version: $version"
+    echo "stale jars: $count   reclaimable: $((total / 1000000)) MB"
+    echo "cleanup (maintainer runs this deliberately — the sweep never deletes build output):"
+    echo "  ./mvnw clean -pl \$(ls -d samples/*/ | sed 's:/\$::' | paste -sd, -)"
+}
+
 case "${1:-}" in
     start)    shift; cmd_start "$@" ;;
     stop)     shift; cmd_stop "$@" ;;
@@ -327,5 +475,10 @@ case "${1:-}" in
     status)   cmd_status ;;
     log)      shift; cmd_log "$@" ;;
     warnings) shift; cmd_warnings "$@" ;;
-    *) sed -n '17,50p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 1 ;;
+    jar)      shift; cmd_jar "$@" ;;
+    stale)    shift; cmd_stale "$@" ;;
+    # Print the header block as usage. Anchored on the banner text, not on line
+    # numbers — editing the header used to silently truncate the help output.
+    *) awk '/^# sweep-sample\.sh —/,/^# -{20,}$/' "${BASH_SOURCE[0]}" \
+         | sed 's/^# \{0,1\}//; $d'; exit 1 ;;
 esac

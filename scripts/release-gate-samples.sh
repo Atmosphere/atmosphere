@@ -228,39 +228,75 @@ kill_pid() {
     wait "$pid" 2>/dev/null || true
 }
 
+# samples/*/target is never cleaned between builds, so it holds one jar per
+# version ever packaged there. Selecting with `sort -r | head -1` ("newest
+# wins") is wrong twice: `sort -r` is LEXICOGRAPHIC, so a leftover 4.0.9
+# artifact — a real released version of this project — outranks 4.0.66; and
+# "newest present" is not "current", so a sample that was not repackaged for
+# this build silently boots the previous release and the gate goes green for
+# code that is not in the artifact it tested. Pin to the reactor version.
+reactor_version() {
+    # First <version> in the root pom is the project's own: atmosphere-project
+    # has no <parent>, and "<version>" is not a substring of "<modelVersion>".
+    local v
+    v="$(sed -n 's:^[[:space:]]*<version>\([^<]*\)</version>.*:\1:p' "$ROOT/pom.xml" 2>/dev/null | head -1)"
+    if [[ ! "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT)?$ ]]; then
+        echo "ERROR cannot read the reactor version from $ROOT/pom.xml (got '${v:-<empty>}')" >&2
+        return 1
+    fi
+    echo "$v"
+}
+
 find_boot_jar() {
-    local dir="$ROOT/samples/$1/target"
+    local dir="$ROOT/samples/$1/target" version
     [[ -d "$dir" ]] || return 1
-    # Exclude sources/javadoc/original-* (shade) and *-tests; newest wins.
-    find "$dir" -maxdepth 1 -name '*.jar' \
+    version="$(reactor_version)" || return 1
+    # Exact reactor version only. `original-*.jar` (the shade plugin's pre-shade
+    # copy) carries the same version suffix, so that exclusion is load-bearing.
+    local jar
+    jar="$(find "$dir" -maxdepth 1 -name "*-$version.jar" \
         ! -name '*-sources.jar' ! -name '*-javadoc.jar' \
         ! -name 'original-*.jar' ! -name '*-tests.jar' 2>/dev/null \
-        | sort -r | head -1
+        | sort | head -1)"
+    [[ -n "$jar" ]] || return 1
+    echo "$jar"
+}
+
+# quarkus-run.jar is unversioned, so its freshness has to be read from the
+# application jar Quarkus copies into quarkus-app/app/.
+quarkus_app_is_current() {
+    local appdir="$ROOT/samples/$1/target/quarkus-app/app" version
+    version="$(reactor_version)" || return 1
+    [[ -n "$(find "$appdir" -maxdepth 1 -name "*-$version.jar" 2>/dev/null | head -1)" ]]
 }
 
 sample_jar() {
     local sample="$1" tier="$2"
     if [[ "$tier" == quarkus ]]; then
+        quarkus_app_is_current "$sample" || return 1
         echo "$ROOT/samples/$sample/target/quarkus-app/quarkus-run.jar"
     else
         find_boot_jar "$sample" || true
     fi
 }
 
-# Package the sample only when its artifact is missing — in CI the workflow's
-# full-reactor install already produced every jar; locally this fills gaps.
+# Package the sample only when its CURRENT-version artifact is missing — in CI
+# the workflow's full-reactor install already produced every jar; locally this
+# fills gaps. A stale-only target/ now takes the repackage path instead of
+# being reused, which is the whole point of the version pin above.
 ensure_packaged() {
-    local sample="$1" kind="$2" jar
-    jar="$(sample_jar "$sample" "$kind")"
+    local sample="$1" kind="$2" jar version
+    version="$(reactor_version)" || return 1
+    jar="$(sample_jar "$sample" "$kind")" || jar=""
     if [[ -n "$jar" && -f "$jar" ]]; then
         echo "[$sample] reusing packaged artifact: ${jar#"$ROOT"/}"
         return 0
     fi
-    echo "[$sample] packaging (artifact missing)..."
+    echo "[$sample] packaging ($version artifact missing)..."
     "$MVNW" -q -B package -pl "samples/$sample" -DskipTests -Dgpg.skip=true
-    jar="$(sample_jar "$sample" "$kind")"
+    jar="$(sample_jar "$sample" "$kind")" || jar=""
     if [[ -z "$jar" || ! -f "$jar" ]]; then
-        echo "ERROR [$sample] no packaged artifact after mvn package" >&2
+        echo "ERROR [$sample] no $version artifact after mvn package" >&2
         return 1
     fi
     echo "[$sample] packaged: ${jar#"$ROOT"/}"
