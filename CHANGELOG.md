@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.66] - 2026-08-09
+
+### Added
+
+- add opt-in durable batch job API at /atmosphere/v1/batches riding AiPipeline SQLite-backed submit/poll/results/cancel, default off; eval dataset runner is the first consumer
+- opt-in Ed25519 state sealing wires AgentStateIntegrity into FileSystemAgentState
+- give the classroom a @RoomService chat channel with history A templated @RoomService path created one shared room for every path value, so two classrooms saw each other's members and history
+
+### Fixed
+
+- report a non-runnable sample before checking the JDK
+- scaffold from the ref that matches the pinned version, and make compose work anywhere
+- stop provider defaults from shadowing a local backend
+- boot the reactor version, never the newest jar lying in target/
+- never drop a React Native send, and ship the types we advertise
+- send tool-call arguments as a JSON object on the OpenAI wire
+- screen tool-call arguments in deny lists and reach local Koog backends
+- treat a local backend as reachable without a credential
+- report the ms-governance rule count from the loaded policies
+- render every streamed chunk and scope tool cards to their turn
+- build a default model for keyless local backends
+- boot exec-type samples through the helper instead of by hand grpc-chat is the matrix's only exec sample and the helper died on it, so it had to be started manually with the LLM env scrubbed by hand
+- use the Session-bearing SendResult constructors WebSocket 2.2 deprecates the no-Session forms and the build is -Werror.
+- register @Message payload types in the Quarkus deployment processor The Spring AOT half landed separately on main; this is the Jandex-side equivalent, so the Quarkus native lane stops dying on the payload
+- stop the demo runtime shadowing a locally served model A local backend needs no key, so a blank key was the wrong test for "no backend" — LLM_MODE=local reached Ollama and still answered from the canned script
+- restore the request body after reading it for a room command Draining the stream without writing it back meant a @Message sent over long-polling or SSE never reached the annotated method
+- register the payload types an annotated method carries Encoders were registered but not the DTO they convert, so a native image invoked the codec and then failed on the payload
+- register RoomServiceProcessor so @RoomService works under GraalVM It was the one @AtmosphereAnnotation processor missing from the registry; the guarding test only checked the list was non-empty, so it never bit
+- scrub ambient LLM env in the launcher; raise boot timeout to 300s Inherited LLM_BASE_URL sent local-mode samples to Gemini; also logs the 2026-08-07 drift.
+- stage cli/samples.json with the docs it is validated against Every release landed one commit where the docs named the new version and the guard's source of truth still named the old one, turning CI red
+
+### Changed
+
+- pin JDK 21 in the CLI unit job to match the CLI's own baseline
+- log the false-green prime and the premature stops Two 2026-08-08 slips: -Pfastinstall disarmed -Werror; halting on actionable work.
+- stop asserting which sweeper evicts the expired session Two sweepers race at a 1ms TTL; assert the eviction outcome, not the count.
+- state the personal-assistant workspace's real persistence scope
+- websocket-api 2.2.0 + client-api, kotlinx 1.11.0, setup-python v7 The API split at 2.1.0; client types need the companion artifact. Lands #2750/#2748/#2751.
+- exclude unpatchable fastjson 1.x from the Alibaba framework GHSA-crf3-v9rr-v7hj critical RCE; 1.2.83 is the last 1.x and no fix exists.
+- make three tests hermetic against machine state Pin fake LLM mode, drain to quiescence after join, retry the Docker probe.
+- micrometer 1.16.6, pin jsoup 1.23.1 Closes GHSA-g3pr-3p32-fp23 + GHSA-w737-wx49-qj23 (server DoS) and GHSA-pmhh-3w7g-xqp8.
+- drive WebSocket, SSE and the room protocol against the native binaries A JDK-only probe proves fan-out, @Message codecs and rooms; READMEs drop the now-false unproven lists
+- drop hard counts that drift, and scope the gRPC native section The counts went stale within hours of being written; gRPC is registered but built natively by no lane
+- re-add the AI dispatch job now that discovery survives native image The blocker that forced its removal is fixed; whether @AiEndpoint works natively stays unproven until this job is green
+- correct LLM_MODE=local endpoint claim after shakedown run Runtime resolves mode=local to Gemini on the Spring path; add jstack + boot-hang triage.
+- add release-sample-sweep skill and contributor doc Covers 31 samples, the Expo client and the atmosphere CLI as pre-release gates.
+- prepare next development version 5.0.41
+- bump version to 4.0.65
+- prepare for next development iteration 4.0.66-SNAPSHOT
+
 ## [4.0.65] - 2026-08-07
 
 ### Added
