@@ -311,7 +311,21 @@ jobs:
         # where the docs said the new version and samples.json still said the old
         # one — the doc guard and CI: Core both went red on it until a later job
         # committed the file. Sweeping it here keeps that commit self-consistent.
-        for p in pom.xml '**/pom.xml' README.md '**/README.md' ':(glob)docs/**/*.md' ':(glob)samples/**/*.md' '**/SKILLCARD.yaml' CHANGELOG.md cli/samples.json; do
+        # The CLI's own version files move in this same commit. Sweeping
+        # cli/samples.json alone (the fix for docs-vs-samples.json skew) just
+        # relocated the problem: samples.json said the new version while
+        # cli/atmosphere still said the old one, and cli/test-cli.sh's
+        # "version matches samples.json" assertion went red on BOTH this commit
+        # and the next-dev one, until the post-publish update-cli job caught up.
+        # 4.0.66 shipped with CI: CLI and CI: Samples red for exactly that window.
+        # update-cli re-runs these same seds later and its
+        # `git diff --cached --quiet ||` guard makes that a no-op.
+        RELEASE_VERSION="${{ inputs.release_version }}"
+        sed -i "s/^VERSION=\"[^\"]*\"/VERSION=\"$RELEASE_VERSION\"/" cli/atmosphere
+        sed -i "s/^VERSION=\"[^\"]*\"/VERSION=\"$RELEASE_VERSION\"/" cli/install.sh
+        sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$RELEASE_VERSION\"/" cli/npx/package.json
+
+        for p in pom.xml '**/pom.xml' README.md '**/README.md' ':(glob)docs/**/*.md' ':(glob)samples/**/*.md' '**/SKILLCARD.yaml' CHANGELOG.md cli/samples.json cli/atmosphere cli/install.sh cli/npx/package.json; do
           git add -- "$p" 2>/dev/null || echo "sweep pathspec matched nothing (ok): $p"
         done
         git commit -m "release: Atmosphere ${{ inputs.release_version }}"
