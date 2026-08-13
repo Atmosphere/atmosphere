@@ -53,7 +53,7 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- tools.jackson pinned one patch above Spring Boot 4.0.7's
+            <!-- tools.jackson pinned one patch above Spring Boot 4.1.0's
                  managed 3.1.4: 3.1.5 closes GHSA-5gvw-p9qm-jgwh
                  (jackson-databind DoS). Imported BEFORE spring-boot-dependencies
                  so Maven's first-declared-wins rule takes the patched line. -->
@@ -154,7 +154,7 @@
             <scope>test</scope>
         </dependency>
         <!-- JDBC driver for the JdbcAuditSink against the Postgres container.
-             Explicit 42.7.12: Spring Boot 4.0.7 manages 42.7.11, which is
+             Explicit 42.7.12: Spring Boot 4.1.0 manages 42.7.11, which is
              GHSA-j92g-9f8w-j867. -->
         <dependency>
             <groupId>org.postgresql</groupId>

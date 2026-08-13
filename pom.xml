@@ -1375,8 +1375,8 @@
         <maven-shade-plugin.version>3.6.2</maven-shade-plugin.version>
         <maven-install-plugin.version>3.1.4</maven-install-plugin.version>
         <lettuce.version>6.5.5.RELEASE</lettuce.version>
-        <spring-boot.version>4.0.7</spring-boot.version>
-        <!-- Override Spring Boot 4.0.7's netty 4.2.x pin (4.2.15.Final) to
+        <spring-boot.version>4.1.0</spring-boot.version>
+        <!-- Override Spring Boot 4.1.0's netty 4.2.x pin (4.2.15.Final) to
              4.2.16.Final, closing the codec-family batch: GHSA-jppx-w49h-x2qq /
              GHSA-mvh2-crg5-v77c / GHSA-6jqx-86gh-f27w (codec-http),
              GHSA-93wv-jw9v-4972 (codec-http2), GHSA-558v-64gr-wgg4

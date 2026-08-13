@@ -207,7 +207,7 @@ mvn test -pl samples/spring-boot-chat
 
 ```
 spring-boot-chat/
-├── pom.xml                              # Spring Boot 4.0.7 parent
+├── pom.xml                              # Spring Boot 4.1.0 parent
 └── src/main/
     ├── java/org/atmosphere/samples/springboot/chat/
     │   ├── ChatApplication.java         # @SpringBootApplication entry point

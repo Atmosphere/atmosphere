@@ -2,14 +2,14 @@
 
 Example applications demonstrating Atmosphere 4.0 across different deployment targets.
 
-All samples inherit their Atmosphere version from the parent POM. The target stack is Java 21, Spring Boot 4.0.7, and Quarkus 3.36.3.
+All samples inherit their Atmosphere version from the parent POM. The target stack is Java 21, Spring Boot 4.1.0, and Quarkus 3.36.3.
 
 ### Chat & Messaging
 
 | Sample | Stack | Packaging | Rooms | Metrics | Native Image |
 |--------|-------|-----------|-------|---------|-------------|
 | [chat](chat/) | Servlet (WAR) | WAR | — | — | — |
-| [spring-boot-chat](spring-boot-chat/) | Spring Boot 4.0.7 | JAR | ✅ | ✅ | ✅ |
+| [spring-boot-chat](spring-boot-chat/) | Spring Boot 4.1.0 | JAR | ✅ | ✅ | ✅ |
 | [quarkus-chat](quarkus-chat/) | Quarkus 3.36.3 | JAR | — | — | ✅ |
 | [quarkus-ai-chat](quarkus-ai-chat/) | Quarkus 3.36.3 + LangChain4j | JAR | — | — | profile only, no CI lane |
 | [embedded-jetty-websocket-chat](embedded-jetty-websocket-chat/) | Embedded Jetty | JAR | — | — | — |
@@ -63,11 +63,11 @@ One agent class — slash commands and AI work on Web, Slack, Telegram, Discord,
 
 | Sample | Stack | Description |
 |--------|-------|-------------|
-| [spring-boot-durable-sessions](spring-boot-durable-sessions/) | Spring Boot 4.0.7 | Persistent sessions with SQLite/Redis |
-| [spring-boot-otel-chat](spring-boot-otel-chat/) | Spring Boot 4.0.7 | OpenTelemetry observability |
-| [spring-boot-reattach-harness](spring-boot-reattach-harness/) | Spring Boot 4.0.7 | Deterministic harness for the mid-stream reattach contract (`RunRegistry` + `RunEventReplayBuffer`); driven by `e2e/tests/reattach.spec.ts` |
-| [spring-boot-passivation-agent](spring-boot-passivation-agent/) | Spring Boot 4.0.7 + `atmosphere-checkpoint` | Snapshot a paused agent conversation and resume it from where it left off (`AgentPassivation` + `CheckpointStore`); proven offline by `PassivationDeliveryTest` |
-| [spring-boot-admin-bundle](spring-boot-admin-bundle/) | Spring Boot 4.0.7 + `atmosphere-admin-bundle` (sole Atmosphere dep) | Single-dependency wiring proof — `AdminBundleWiringTest` boots a real context and asserts the auto-configured beans the bundle brings in (runtime, AI, coordinator, durable sessions) plus the RAG/checkpoint SPIs it aggregates |
+| [spring-boot-durable-sessions](spring-boot-durable-sessions/) | Spring Boot 4.1.0 | Persistent sessions with SQLite/Redis |
+| [spring-boot-otel-chat](spring-boot-otel-chat/) | Spring Boot 4.1.0 | OpenTelemetry observability |
+| [spring-boot-reattach-harness](spring-boot-reattach-harness/) | Spring Boot 4.1.0 | Deterministic harness for the mid-stream reattach contract (`RunRegistry` + `RunEventReplayBuffer`); driven by `e2e/tests/reattach.spec.ts` |
+| [spring-boot-passivation-agent](spring-boot-passivation-agent/) | Spring Boot 4.1.0 + `atmosphere-checkpoint` | Snapshot a paused agent conversation and resume it from where it left off (`AgentPassivation` + `CheckpointStore`); proven offline by `PassivationDeliveryTest` |
+| [spring-boot-admin-bundle](spring-boot-admin-bundle/) | Spring Boot 4.1.0 + `atmosphere-admin-bundle` (sole Atmosphere dep) | Single-dependency wiring proof — `AdminBundleWiringTest` boots a real context and asserts the auto-configured beans the bundle brings in (runtime, AI, coordinator, durable sessions) plus the RAG/checkpoint SPIs it aggregates |
 | [shared-resources](shared-resources/) | — | Shared static assets (CSS, Grafana dashboard). Not a Maven module — no `pom.xml`. |
 
 ## Quick Start
