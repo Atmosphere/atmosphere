@@ -4,6 +4,25 @@ import { resolve } from 'path';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
 import { WebSocket } from 'ws';
 
+/*
+ * NOT WIRED INTO CI — and it cannot be, as written.
+ *
+ * `rebuildSample()` below runs a full Maven build of the sample from inside a
+ * `beforeAll` hook. Playwright's hook timeout is 90s; on a CI runner that build
+ * does not finish, so the hook times out and the half-started server keeps port
+ * 8100, which turns every retry into "Port 8100 is already in use". Observed
+ * directly: adding `mcp-client` to the e2e matrix on 2026-08-15 failed both the
+ * SB3 and SB4 legs this way, with 0ms test durations because no test ever ran.
+ *
+ * The spec passes locally, where the Maven build is already warm. That is why it
+ * sat with zero references anywhere in .github/ while still looking like coverage.
+ *
+ * To make it CI-viable the sample build has to move OUT of the hook — the e2e
+ * workflow already has a "Rebuild Spring Boot samples" step that could own it,
+ * leaving the hook to only `startSample`. Until that is done this file is a
+ * local-only harness, and the outbound-MCP path it covers has no CI validation.
+ */
+
 /**
  * Outbound MCP — proves the spring-boot-personal-assistant sample's
  * UpstreamMcpAgent endpoint discovers tools advertised by a remote MCP
