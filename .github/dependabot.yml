@@ -60,6 +60,18 @@ updates:
       - dependency-name: "io.grpc:*"                     # hold current minor (lockstep)
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
+      # The Maven wrapper distribution (.mvn/wrapper/maven-wrapper.properties,
+      # currently 3.9.11). Central's <release> for this coordinate is a Maven
+      # 4.0.0 release candidate, and Dependabot has failed the whole `maven in /.`
+      # job with `org.apache.maven:apache-maven | unknown_error` on every run
+      # since that RC was published. Switching the build tool across a major line
+      # is a deliberate, verified migration, never an unattended auto-PR — hold 3.x
+      # and keep taking 3.9.x patches. (Unlike the pre-1.0 case documented above,
+      # a major-only ignore is the right shape here: the pin is already past 1.0,
+      # so it holds the line rather than blocking a GA transition.)
+      - dependency-name: "org.apache.maven:apache-maven" # hold 3.x
+        update-types: ["version-update:semver-major"]
+
   # Sample frontends + atmosphere.js + spring-boot-starter front-end.
   # Without watchers here, postcss/react/etc. CVEs in sample lockfiles
   # accumulate as alerts but never get auto-PR'd. Consolidated under one
