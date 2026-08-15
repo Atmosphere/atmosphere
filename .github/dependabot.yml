@@ -60,17 +60,21 @@ updates:
       - dependency-name: "io.grpc:*"                     # hold current minor (lockstep)
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
-      # The Maven wrapper distribution (.mvn/wrapper/maven-wrapper.properties,
-      # currently 3.9.11). Central's <release> for this coordinate is a Maven
-      # 4.0.0 release candidate, and Dependabot has failed the whole `maven in /.`
-      # job with `org.apache.maven:apache-maven | unknown_error` on every run
-      # since that RC was published. Switching the build tool across a major line
-      # is a deliberate, verified migration, never an unattended auto-PR — hold 3.x
-      # and keep taking 3.9.x patches. (Unlike the pre-1.0 case documented above,
-      # a major-only ignore is the right shape here: the pin is already past 1.0,
-      # so it holds the line rather than blocking a GA transition.)
-      - dependency-name: "org.apache.maven:apache-maven" # hold 3.x
-        update-types: ["version-update:semver-major"]
+      # The Maven wrapper distribution (.mvn/wrapper/maven-wrapper.properties).
+      # Dependabot's `maven-wrapper-updater` experiment shells out to
+      # `maven-wrapper-plugin:wrapper` to rewrite that file, and the subprocess
+      # dies inside their container:
+      #     Updating org.apache.maven:apache-maven from 3.9.11 to 3.9.16
+      #     ERROR ... (HelperSubprocessFailed)
+      #       maven/file_updater/wrapper_updater.rb:220 run_wrapper_command
+      # which fails the whole `maven in /.` job — every other update in the run is
+      # discarded with it. This is not version-specific (3.9.11 -> 3.9.16 is a patch
+      # bump, so an update-types ignore does not prevent the attempt) and nothing in
+      # this repo triggers it: the job passed 2026-08-07 and has failed on every run
+      # since 2026-08-14, matching the feature's rollout, with .mvn/ untouched
+      # throughout. Ignore the coordinate outright — same shape as the org.json:json
+      # suppression above. Wrapper bumps stay a deliberate manual change.
+      - dependency-name: "org.apache.maven:apache-maven"
 
   # Sample frontends + atmosphere.js + spring-boot-starter front-end.
   # Without watchers here, postcss/react/etc. CVEs in sample lockfiles
