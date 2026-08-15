@@ -51,7 +51,7 @@
       "note": "Targets Spring Boot 3.5 — build with -Pspring-boot3 (Spring AI Alibaba 1.1.2.0 transitively pulls Spring AI 1.1.2 which references Spring Boot 3.x autoconfigure classes that don't exist in SB4). Streaming is buffered: ReactAgent.call() is sync, so the full reply ships as one chunk through Atmosphere transport (no incremental token deltas from the LLM). Provide your own ReactAgent @Bean to add tools / sub-agents / custom graph compile config; the autoconfig builds a default agent on top of any Spring AI ChatModel bean."
     },
     "embabel": {
-      "description": "Embabel GOAP agent platform (Spring Boot 3.5 only)",
+      "description": "Embabel GOAP agent platform",
       "deps": [
         { "groupId": "org.atmosphere", "artifactId": "atmosphere-embabel" },
         { "groupId": "com.embabel.agent", "artifactId": "embabel-agent-api", "version": "${embabel.version}" },
@@ -61,7 +61,7 @@
         "id": "embabel-releases",
         "url": "https://repo.embabel.com/artifactory/libs-release"
       },
-      "note": "Embabel targets Spring Boot 3.5 — build with -Pspring-boot3 (Atmosphere's parent profile pins SB 3.5 + atmosphere-spring-boot3-starter)."
+      "note": "Embabel 1.5.0 is built on Spring Boot 4.1 / Spring AI 2.0, so this overlay builds on the default Spring Boot 4 profile — no -Pspring-boot3 needed."
     },
     "semantic-kernel": {
       "description": "Microsoft Semantic Kernel (Java)",

@@ -222,14 +222,14 @@ editing the dependencies in `pom.xml`:
 |---------|---------|---------|-------|
 | **JetBrains Koog** | Yes | — | `atmosphere-koog` (requires Kotlin 2.x stdlib, pinned in `dependencyManagement`) |
 | **Google ADK** | No | — | `atmosphere-adk` + `google-adk` (Gemini-only) |
-| **Embabel** | No | `-Pspring-boot3` | `atmosphere-embabel` + Embabel starters (requires SB 3.5) |
+| **Embabel** | No | — | `atmosphere-embabel` + Embabel starters (Spring Boot 4) |
 | **Spring AI** | No | — | `atmosphere-spring-ai` + `spring-ai-openai` |
 | **LangChain4j** | No | — | `atmosphere-langchain4j` + `langchain4j-open-ai` |
 
 To switch to Embabel:
 1. Comment out the active Koog dependency in `pom.xml`
 2. Uncomment Embabel dependencies
-3. Run with: `./mvnw spring-boot:run -pl samples/spring-boot-multi-agent-startup-team -Pspring-boot3`
+3. Run with: `./mvnw spring-boot:run -pl samples/spring-boot-multi-agent-startup-team`
 
 The console will show `Runtime: embabel` (or whichever runtime is active).
 

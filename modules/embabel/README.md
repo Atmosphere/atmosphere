@@ -2,7 +2,7 @@
 
 `AgentRuntime` implementation backed by Embabel `AgentPlatform`. When this JAR is on the classpath, `@AiEndpoint` can run Embabel agents and stream their output to browser clients.
 
-Use this adapter when Embabel's goal-oriented action planning (GOAP) is already your agent layer. Atmosphere keeps Embabel in charge of native planning and adds the service layer around it — real-time client transports (WebSocket, SSE, long-polling, gRPC), `@Agent`/`@AiEndpoint` dispatch, governance and HITL approval, durable sessions and session-tape replay, and MCP/A2A/AG-UI exposure of the same agent. It runs on top of Embabel; it does not replace it. **Spring Boot 3 only today:** this adapter requires `atmosphere-spring-boot3-starter` and the `-Pspring-boot3` profile.
+Use this adapter when Embabel's goal-oriented action planning (GOAP) is already your agent layer. Atmosphere keeps Embabel in charge of native planning and adds the service layer around it — real-time client transports (WebSocket, SSE, long-polling, gRPC), `@Agent`/`@AiEndpoint` dispatch, governance and HITL approval, durable sessions and session-tape replay, and MCP/A2A/AG-UI exposure of the same agent. It runs on top of Embabel; it does not replace it. **Spring Boot 4:** this adapter runs on the default `atmosphere-spring-boot-starter` build; no `-Pspring-boot3` profile is needed.
 
 ## Maven Coordinates
 
@@ -192,7 +192,7 @@ floor registers — never both. Pinned by `EmbabelAgentRuntimeVfsTest`
 
 A per-request `ToolLoopPolicy` (`ai.toolLoop.policy` metadata, e.g.
 `ToolLoopPolicy.strict(3)`) is enforced **inside** Embabel's own tool loop on
-the Atmosphere-native path. Embabel 0.5.0's `PromptRunner` exposes
+the Atmosphere-native path. Embabel 1.5.0's `PromptRunner` exposes
 `withToolLoopInspectors` / `withToolLoopTransformers`, and `EmbabelToolLoopBridge`
 registers on both:
 
@@ -246,6 +246,6 @@ dispatch path so the approval gate applies.
 
 - Java 21+
 - `atmosphere-ai` (transitive)
-- Embabel Agent API 0.5.0+
+- Embabel Agent API 1.5.0+
 - Kotlin runtime
-- **Spring Boot 3.5** — Embabel framework does not yet support Spring Boot 4. Use `atmosphere-spring-boot3-starter` and the `-Pspring-boot3` Maven profile.
+- **Spring Boot 4** — Embabel 1.5.0 is built on Spring Boot 4.1 / Spring AI 2.0, so this adapter runs on the default `atmosphere-spring-boot-starter` build; no `-Pspring-boot3` profile is needed. Embabel's 1.0.x line targets Spring Boot 3.5, but this adapter is neither built nor tested against it.

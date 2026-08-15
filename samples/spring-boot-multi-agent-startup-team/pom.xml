@@ -19,7 +19,6 @@
         <!-- Self-contained netty pin: covers samples scaffolded standalone against
              a released parent POM that may not yet declare netty.version. -->
         <netty.version>4.2.16.Final</netty.version>
-        <embabel.version>0.3.5-SNAPSHOT</embabel.version>
         <maven.deploy.skip>true</maven.deploy.skip>
         <atmosphere.starter>atmosphere-spring-boot-starter</atmosphere.starter>
         <checkstyle.skip>true</checkstyle.skip>
@@ -188,7 +187,7 @@
         </dependency>
         -->
 
-        <!-- Embabel runtime (uncomment + use -Pspring-boot3 to switch execution engine)
+        <!-- Embabel runtime (uncomment to switch execution engine)
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-embabel</artifactId>

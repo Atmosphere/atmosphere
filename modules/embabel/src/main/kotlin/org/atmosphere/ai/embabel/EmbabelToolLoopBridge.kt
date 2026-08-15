@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Native [ToolLoopPolicy] enforcement inside Embabel's tool loop, built on
- * the Embabel 0.5.0 tool-callback API.
+ * the Embabel 1.5.0 tool-callback API.
  * [EmbabelAgentRuntime.executeAtmosphereNative] creates one bridge per
  * dispatch when the request metadata carries a policy and registers it via
  * both `PromptRunner.withToolLoopInspectors` and

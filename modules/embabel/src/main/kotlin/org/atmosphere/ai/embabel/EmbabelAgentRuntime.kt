@@ -623,7 +623,7 @@ class EmbabelAgentRuntime : AgentRuntime {
                         "conversation store", published.size)
                 }
             }
-            // Native ToolLoopPolicy enforcement: Embabel 0.5.0's PromptRunner
+            // Native ToolLoopPolicy enforcement: Embabel 1.5.0's PromptRunner
             // exposes withToolLoopInspectors / withToolLoopTransformers, so a
             // per-request policy is enforced inside Embabel's own loop —
             // EmbabelToolLoopBridge strips tool calls on the transformer seam

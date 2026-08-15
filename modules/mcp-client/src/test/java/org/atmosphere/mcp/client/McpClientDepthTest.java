@@ -75,15 +75,18 @@ class McpClientDepthTest {
 
     @Test
     void renamePreservesOriginalNameOnTheWire() throws Exception {
-        var schema = new McpSchema.JsonSchema(
-                "object", Map.of("q", Map.of("type", "string")),
-                List.of("q"), Boolean.FALSE, null, null);
-        var tool = new McpSchema.Tool("search", null, "Search the web", schema, null, null, null);
+        var schema = Map.<String, Object>of(
+                "type", "object",
+                "properties", Map.of("q", Map.of("type", "string")),
+                "required", List.of("q"),
+                "additionalProperties", Boolean.FALSE);
+        var tool = McpSchema.Tool.builder("search", schema)
+                .description("Search the web").build();
 
         var client = mock(McpSyncClient.class);
         when(client.callTool(any(McpSchema.CallToolRequest.class)))
                 .thenReturn(new McpSchema.CallToolResult(
-                        List.of(new McpSchema.TextContent("hit")), Boolean.FALSE, null, null));
+                        List.of(new McpSchema.TextContent(null, "hit", null)), Boolean.FALSE, null, null));
 
         var original = toDefinition(tool, client, "srv");
         var renamed = McpToolSource.rename(original, "web_search");
@@ -95,6 +98,37 @@ class McpClientDepthTest {
         org.mockito.Mockito.verify(client).callTool(captor.capture());
         assertEquals("search", captor.getValue().name(),
                 "the executor must call the server's ORIGINAL tool name, not the alias");
+    }
+
+    @Test
+    void schemaFacetsOutsideTheOldRecordShapeDoNotBreakTranslation() throws Exception {
+        // MCP SDK 2.0.0 hands back inputSchema as the raw Map. Through 1.x it was a
+        // JsonSchema record with a fixed field set, so anything a server sent beyond
+        // those fields was dropped on deserialization. Assert that sibling facets a
+        // real server emits — $schema, title, and a vendor extension — coexist with
+        // properties/required without disturbing the translated parameter tree.
+        var schema = Map.<String, Object>of(
+                "$schema", "https://json-schema.org/draft/2020-12/schema",
+                "title", "SearchInput",
+                "x-vendor-hint", Map.of("cacheable", Boolean.TRUE),
+                "type", "object",
+                "properties", Map.of(
+                        "q", Map.of("type", "string", "description", "Query"),
+                        "limit", Map.of("type", "integer")),
+                "required", List.of("q"),
+                "additionalProperties", Boolean.FALSE);
+        var tool = McpSchema.Tool.builder("search", schema)
+                .description("Search the web").build();
+
+        var def = toDefinition(tool, mock(McpSyncClient.class), "srv");
+
+        var byName = def.parameters().stream()
+                .collect(java.util.stream.Collectors.toMap(p -> p.name(), p -> p));
+        assertEquals(2, byName.size(), "only `properties` entries become parameters");
+        assertTrue(byName.containsKey("q") && byName.containsKey("limit"));
+        assertTrue(byName.get("q").required(), "`required` still drives the required flag");
+        assertTrue(!byName.get("limit").required());
+        assertEquals("Query", byName.get("q").description());
     }
 
     @Test

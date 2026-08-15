@@ -945,7 +945,7 @@ strip_competing_adapters() {
 # Apply a runtime overlay (cli/runtime-overlays.json) to a scaffolded sample's
 # pom.xml. Appends <dependency> blocks before </dependencies> and an optional
 # <repository> before </repositories> (creating the section if absent). Prints
-# any "note" the overlay carries (e.g., Embabel's Spring Boot 3.5 reminder).
+# any "note" the overlay carries (e.g., Embabel's release-repository requirement).
 #
 # When force=true, strips every adapter dep declared in
 # cli/runtime-overlays.json before injecting — this turns `--runtime <X>` into

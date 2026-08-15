@@ -27,6 +27,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -38,9 +39,9 @@ import org.junit.jupiter.api.io.TempDir;
  * <p>The engine probe runs {@code <engine> info --format {{.ServerVersion}}} as a
  * subprocess, so these tests substitute a stub executable for {@code <engine>} and
  * drive each real-world outcome deterministically — no container engine needed on
- * the host. Every stub records its argument vector to a marker file, so the tests
- * can assert not just the verdict but <em>whether the engine was invoked at all</em>
- * and <em>with which arguments</em>.</p>
+ * the host. The stub records its argument vector, so the tests can assert not just
+ * the verdict but <em>whether the engine was invoked at all</em> and <em>with which
+ * arguments</em>.</p>
  *
  * <p>The load-bearing case is {@link #daemonDownIsNotAvailableEvenThoughCliExitsZero()}.
  * A real {@code docker info} <em>exits 0 even when the daemon is unreachable</em>: the
@@ -48,27 +49,64 @@ import org.junit.jupiter.api.io.TempDir;
  * daemon" on stderr. An exit-code-only probe therefore reported the engine as available
  * whenever the CLI was merely installed, which advertised the {@code code_exec} tool on
  * hosts where it could not possibly run.</p>
+ *
+ * <p><b>One stub, written once.</b> The executable is created and exec'd a single time
+ * for the whole class; per-test behaviour comes from a data file it sources. macOS runs
+ * a security check the first time a freshly written executable is exec'd, and a binary
+ * per test paid that cost on every case — under concurrent build load one stall
+ * exceeded a minute, far past {@code PROBE_TIMEOUT_MILLIS}, so a healthy stub read as
+ * an unreachable engine and the suite failed non-deterministically here while passing
+ * on Linux CI. Reusing one warm binary keeps that stall out of the measurement instead
+ * of widening a production timeout to accommodate a test artifact.</p>
  */
 class ContainerEngineProbeTest {
 
     /** Server version emitted by the stub standing in for a reachable daemon. */
     private static final String SERVER_VERSION = "28.1.1";
 
+    /** Data file the shared stub sources to pick up the current test's behaviour. */
+    private static final String MODE_FILE = "mode.sh";
+
+    @TempDir
+    static Path shared;
+
+    private static Path sharedStub;
+
     @BeforeAll
-    static void requirePosixShell() {
+    static void createSharedStub() throws IOException {
         assumeFalse(System.getProperty("os.name", "").toLowerCase(Locale.ROOT).startsWith("windows"),
                 "engine stubs are POSIX shell scripts");
+
+        sharedStub = shared.resolve("fake-engine");
+        Files.writeString(sharedStub,
+                "#!/bin/sh\n"
+                        + "dir=$(dirname \"$0\")\n"
+                        + "printf '%s\\n' \"$*\" >> \"$dir/invocations\"\n"
+                        + "[ -f \"$dir/" + MODE_FILE + "\" ] && . \"$dir/" + MODE_FILE + "\"\n"
+                        + "exit 0\n");
+        assumeTrue(sharedStub.toFile().setExecutable(true), "cannot mark stub executable");
+
+        // Pay the first-exec security check here, off the probe path.
+        try {
+            new ProcessBuilder(sharedStub.toString(), "--warmup")
+                    .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                    .redirectError(ProcessBuilder.Redirect.DISCARD)
+                    .start()
+                    .waitFor(120, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        Files.deleteIfExists(marker());
     }
 
     // --- runtime truth ---------------------------------------------------------
 
     @Test
-    void daemonDownIsNotAvailableEvenThoughCliExitsZero(@TempDir Path tmp) throws IOException {
+    void daemonDownIsNotAvailableEvenThoughCliExitsZero() throws IOException {
         // Exactly what `docker info --format {{.ServerVersion}}` does with the daemon
         // stopped: diagnostic on stderr, EMPTY stdout, and exit status 0.
-        var engine = stub(tmp, """
+        var engine = stub("""
                 echo "Cannot connect to the Docker daemon at unix:///var/run/docker.sock." >&2
-                exit 0
                 """);
 
         assertFalse(factoryFor(engine).isAvailable(),
@@ -78,65 +116,64 @@ class ContainerEngineProbeTest {
     }
 
     @Test
-    void reachableDaemonIsAvailable(@TempDir Path tmp) throws IOException {
-        var engine = stub(tmp, "echo \"" + SERVER_VERSION + "\"\nexit 0\n");
+    void reachableDaemonIsAvailable() throws IOException {
+        var engine = stub("echo \"" + SERVER_VERSION + "\"\n");
 
         assertTrue(factoryFor(engine).isAvailable(),
                 "a daemon that reports a server version must be advertised as available");
     }
 
     @Test
-    void blankServerVersionIsNotAvailable(@TempDir Path tmp) throws IOException {
+    void blankServerVersionIsNotAvailable() throws IOException {
         // Whitespace-only stdout is still "no server version" — guards against a probe
         // that checks for output rather than for a meaningful value.
-        var engine = stub(tmp, "echo \"   \"\nexit 0\n");
+        var engine = stub("echo \"   \"\n");
 
         assertFalse(factoryFor(engine).isAvailable(),
                 "whitespace-only server version must count as unreachable");
     }
 
     @Test
-    void nonZeroExitIsNotAvailable(@TempDir Path tmp) throws IOException {
-        var engine = stub(tmp, "echo \"" + SERVER_VERSION + "\"\nexit 1\n");
+    void nonZeroExitIsNotAvailable() throws IOException {
+        var engine = stub("echo \"" + SERVER_VERSION + "\"\nexit 1\n");
 
         assertFalse(factoryFor(engine).isAvailable(),
                 "a failing probe must not be advertised as available regardless of stdout");
     }
 
     @Test
-    void absentEngineBinaryIsNotAvailable(@TempDir Path tmp) {
-        assertFalse(factoryFor(tmp.resolve("no-such-engine")).isAvailable(),
+    void absentEngineBinaryIsNotAvailable() {
+        assertFalse(factoryFor(shared.resolve("no-such-engine")).isAvailable(),
                 "an engine binary that is not invocable must not be advertised as available");
     }
 
     // --- the probe command itself ----------------------------------------------
 
     @Test
-    void probeAsksTheEngineForItsServerVersion(@TempDir Path tmp) throws IOException {
+    void probeAsksTheEngineForItsServerVersion() throws IOException {
         // Pins the command, not just the decision rule. The "empty stdout means
         // unreachable" contract only holds for a template that renders empty when the
         // daemon is down; switching it to something that always prints (e.g. `{{json .}}`)
         // would keep every other test green while silently restoring the original bug.
-        var engine = stub(tmp, "echo \"" + SERVER_VERSION + "\"\nexit 0\n");
+        var engine = stub("echo \"" + SERVER_VERSION + "\"\n");
 
         assertTrue(factoryFor(engine).isAvailable());
 
-        assertEquals(List.of("info --format {{.ServerVersion}}"), invocations(tmp),
+        assertEquals(List.of("info --format {{.ServerVersion}}"), invocations(),
                 "the probe must ask the engine for its server version");
     }
 
     @Test
-    void oversizedEngineOutputIsBoundedAndDoesNotHang(@TempDir Path tmp) throws IOException {
+    void oversizedEngineOutputIsBoundedAndDoesNotHang() throws IOException {
         // A misbehaving engine that floods stdout must neither exhaust memory nor stall
         // the probe. Historically stdout was a pipe read only after waitFor(), so output
-        // larger than the pipe buffer blocked the child and timed the probe out.
-        var engine = stub(tmp, """
+        // larger than the pipe buffer (64 KiB) blocked the child and timed the probe out.
+        var engine = stub("""
                 i=0
                 while [ $i -lt 4000 ]; do
                   printf '%s\\n' "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
                   i=$((i+1))
                 done
-                exit 0
                 """);
 
         assertTrue(factoryFor(engine).isAvailable(),
@@ -146,58 +183,58 @@ class ContainerEngineProbeTest {
     // --- probe caching (Invariant #3: no unbounded work on a per-request path) --
 
     @Test
-    void negativeProbeResultIsCached(@TempDir Path tmp) throws IOException {
+    void negativeProbeResultIsCached() throws IOException {
         // isAvailable() runs per inbound message. Before this was fixed the TTL guard
         // keyed on the resolved engine name, which is null after any FAILED probe — so
         // a daemon-down host re-forked the engine CLI on every single message, serialized
         // on a JVM-wide lock, burning the probe timeout each time.
-        var engine = stub(tmp, "exit 0\n");
+        var engine = stub("");
         var factory = factoryFor(engine);
 
         assertFalse(factory.isAvailable());
         assertFalse(factory.isAvailable());
         assertFalse(factory.isAvailable());
 
-        assertEquals(1, invocations(tmp).size(),
+        assertEquals(1, invocations().size(),
                 "a negative probe result must be cached for the probe TTL, not re-run per call");
     }
 
     @Test
-    void positiveProbeResultIsCached(@TempDir Path tmp) throws IOException {
-        var engine = stub(tmp, "echo \"" + SERVER_VERSION + "\"\nexit 0\n");
+    void positiveProbeResultIsCached() throws IOException {
+        var engine = stub("echo \"" + SERVER_VERSION + "\"\n");
         var factory = factoryFor(engine);
 
         assertTrue(factory.isAvailable());
         assertTrue(factory.isAvailable());
 
-        assertEquals(1, invocations(tmp).size(),
+        assertEquals(1, invocations().size(),
                 "a positive probe result must be cached for the probe TTL");
     }
 
     // --- default deny ----------------------------------------------------------
 
     @Test
-    void disabledConfigIsNotAvailableWithoutProbing(@TempDir Path tmp) throws IOException {
+    void disabledConfigIsNotAvailableWithoutProbing() throws IOException {
         // Default deny (Invariant #6): the master switch wins, and must short-circuit
         // BEFORE the engine is invoked — asserting only the boolean would let a refactor
         // that reordered the guards fork the CLI on every message of a deployment that
         // has code execution switched off.
-        var engine = stub(tmp, "echo \"" + SERVER_VERSION + "\"\nexit 0\n");
+        var engine = stub("echo \"" + SERVER_VERSION + "\"\n");
 
         var disabled = config(false, engine.toString(), "example/playwright:pinned");
         assertFalse(new ContainerCodeSandboxFactory(disabled).isAvailable(),
                 "code execution disabled must stay unavailable");
-        assertTrue(invocations(tmp).isEmpty(), "a disabled config must never invoke the engine");
+        assertTrue(invocations().isEmpty(), "a disabled config must never invoke the engine");
     }
 
     @Test
-    void missingImageIsNotAvailableWithoutProbing(@TempDir Path tmp) throws IOException {
-        var engine = stub(tmp, "echo \"" + SERVER_VERSION + "\"\nexit 0\n");
+    void missingImageIsNotAvailableWithoutProbing() throws IOException {
+        var engine = stub("echo \"" + SERVER_VERSION + "\"\n");
 
         var noImage = config(true, engine.toString(), "");
         assertFalse(new ContainerCodeSandboxFactory(noImage).isAvailable(),
                 "no configured image must stay unavailable");
-        assertTrue(invocations(tmp).isEmpty(), "a config with no image must never invoke the engine");
+        assertTrue(invocations().isEmpty(), "a config with no image must never invoke the engine");
     }
 
     // --- helpers ---------------------------------------------------------------
@@ -213,27 +250,24 @@ class ContainerEngineProbeTest {
                 1.0d, 256, Duration.ofSeconds(60), Duration.ofSeconds(300), 256 * 1024, "");
     }
 
-    /** Path the stubs append their argument vector to, one line per invocation. */
-    private static Path marker(Path dir) {
-        return dir.resolve("invocations");
+    /** File the shared stub appends its argument vector to, one line per invocation. */
+    private static Path marker() {
+        return shared.resolve("invocations");
     }
 
     /** Argument vectors the stub was invoked with, in order; empty when never run. */
-    private static List<String> invocations(Path dir) throws IOException {
-        Path marker = marker(dir);
-        return Files.exists(marker) ? Files.readAllLines(marker) : List.of();
+    private static List<String> invocations() throws IOException {
+        return Files.exists(marker()) ? Files.readAllLines(marker()) : List.of();
     }
 
     /**
-     * Write an executable stub standing in for the container-engine CLI. The stub
-     * records its arguments before running {@code body}, so tests can assert both
-     * invocation count and argv.
+     * Point the shared stub at {@code body} for this test and reset its invocation
+     * record. Only this data file changes between tests — the executable itself is
+     * written and warmed once in {@link #createSharedStub()}.
      */
-    private static Path stub(Path dir, String body) throws IOException {
-        Path stub = dir.resolve("fake-engine");
-        Files.writeString(stub, "#!/bin/sh\nprintf '%s\\n' \"$*\" >> '"
-                + marker(dir) + "'\n" + body);
-        assumeTrue(stub.toFile().setExecutable(true), "cannot mark stub executable");
-        return stub;
+    private static Path stub(String body) throws IOException {
+        Files.writeString(shared.resolve(MODE_FILE), body);
+        Files.deleteIfExists(marker());
+        return sharedStub;
     }
 }

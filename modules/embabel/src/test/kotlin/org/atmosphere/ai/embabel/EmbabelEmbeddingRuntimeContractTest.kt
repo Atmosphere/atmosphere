@@ -41,7 +41,8 @@ internal class EmbabelEmbeddingRuntimeContractTest : AbstractEmbeddingRuntimeCon
         // Embabel 0.3.5 dropped the AiModel<Any> super-interface from
         // EmbeddingService — the `model` property is no longer part of the
         // contract. Embabel 0.5.0 then re-added a `pricingModel` member via
-        // the EmbeddingServiceMetadata super-interface; a fake embedder is
+        // the EmbeddingServiceMetadata super-interface, which 1.5.0 (the
+        // currently pinned version) still carries; a fake embedder is
         // free, so it reports ALL_YOU_CAN_EAT. The stub thus needs the
         // metadata trio (name / provider / dimensions), the pricing model,
         // and the two embed() overloads.

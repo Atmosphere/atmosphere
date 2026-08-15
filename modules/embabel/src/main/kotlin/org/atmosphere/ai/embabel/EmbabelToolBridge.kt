@@ -17,7 +17,6 @@ package org.atmosphere.ai.embabel
 
 import com.embabel.agent.api.common.AgentImage
 import com.embabel.agent.api.tool.Tool
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.atmosphere.ai.Content
 import org.atmosphere.ai.StreamingSession
 import org.atmosphere.ai.approval.ApprovalStrategy
@@ -26,6 +25,7 @@ import org.atmosphere.ai.tool.ToolDefinition
 import org.atmosphere.ai.tool.ToolExecutionHelper
 import org.atmosphere.ai.tool.ToolParameter
 import org.slf4j.LoggerFactory
+import tools.jackson.databind.ObjectMapper
 
 /**
  * Bridges Atmosphere's [ToolDefinition] list to Embabel's

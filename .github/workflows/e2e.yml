@@ -41,7 +41,7 @@ jobs:
     - name: Rebuild Spring Boot samples with SB3
       if: matrix.spring-boot-version == 3
       run: |
-        SB_SAMPLES=$(ls -d samples/spring-boot-*/pom.xml | grep -v embabel | sed 's|/pom.xml||' | paste -sd, -)
+        SB_SAMPLES=$(ls -d samples/spring-boot-*/pom.xml | sed 's|/pom.xml||' | paste -sd, -)
         ./mvnw -B package -DskipTests -Dgpg.skip=true -Pspring-boot3 -pl "$SB_SAMPLES"
 
     - name: Package build output
@@ -97,7 +97,7 @@ jobs:
           # admin-coverage, and orchestration-primitives specs are now
           # remapped into their matching legs.
           - name: protocols
-            projects: "mcp-server,mcp-tools,a2a-agent,a2a-discovery,agui-chat,multi-agent-startup-team,browser-agent"
+            projects: "mcp-server,mcp-tools,mcp-client,a2a-agent,a2a-discovery,agui-chat,multi-agent-startup-team,browser-agent"
           - name: protocols-extra
             projects: "grpc-browser,rooms-api,room-typing-direct,channels-chat"
           - name: resilience

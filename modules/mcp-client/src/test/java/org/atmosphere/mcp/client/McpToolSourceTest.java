@@ -54,18 +54,16 @@ class McpToolSourceTest {
 
     @Test
     void translatesToolWithRequiredAndOptionalParameters() throws Exception {
-        var schema = new McpSchema.JsonSchema(
-                "object",
-                Map.of(
+        var schema = Map.<String, Object>of(
+                "type", "object",
+                "properties", Map.of(
                         "city", Map.of("type", "string", "description", "City name"),
                         "units", Map.of("type", "string", "description", "metric or imperial")
                 ),
-                List.of("city"),
-                Boolean.FALSE,
-                null,
-                null);
-        var tool = new McpSchema.Tool(
-                "get_weather", null, "Look up current weather", schema, null, null, null);
+                "required", List.of("city"),
+                "additionalProperties", Boolean.FALSE);
+        var tool = McpSchema.Tool.builder("get_weather", schema)
+                .description("Look up current weather").build();
 
         var defs = invokeTranslate(tool, mock(McpSyncClient.class), "test://server");
 
@@ -86,9 +84,9 @@ class McpToolSourceTest {
         // A remote server's enum / array / nested-object contract must survive
         // the import. Before this, only type+description were read, so the
         // local model saw an under-specified schema for every remote tool.
-        var schema = new McpSchema.JsonSchema(
-                "object",
-                Map.of(
+        var schema = Map.<String, Object>of(
+                "type", "object",
+                "properties", Map.of(
                         "unit", Map.of("type", "string", "description", "Unit",
                                 "enum", List.of("CELSIUS", "FAHRENHEIT")),
                         "tags", Map.of("type", "array", "items", Map.of("type", "string")),
@@ -98,9 +96,10 @@ class McpToolSourceTest {
                                         "lon", Map.of("type", "number")),
                                 "required", List.of("lat"))
                 ),
-                List.of("unit"),
-                Boolean.FALSE, null, null);
-        var tool = new McpSchema.Tool("convert", null, "Convert", schema, null, null, null);
+                "required", List.of("unit"),
+                "additionalProperties", Boolean.FALSE);
+        var tool = McpSchema.Tool.builder("convert", schema)
+                .description("Convert").build();
 
         var def = invokeTranslate(tool, mock(McpSyncClient.class), "test://server").get(0);
         var byName = def.parameters().stream()
@@ -117,9 +116,13 @@ class McpToolSourceTest {
 
     @Test
     void breakerShortCircuitsAfterConsecutiveFailures() throws Exception {
-        var schema = new McpSchema.JsonSchema(
-                "object", Map.of(), List.of(), Boolean.FALSE, null, null);
-        var tool = new McpSchema.Tool("flaky", null, "Flaky tool", schema, null, null, null);
+        var schema = Map.<String, Object>of(
+                "type", "object",
+                "properties", Map.of(),
+                "required", List.of(),
+                "additionalProperties", Boolean.FALSE);
+        var tool = McpSchema.Tool.builder("flaky", schema)
+                .description("Flaky tool").build();
 
         var client = mock(McpSyncClient.class);
         when(client.callTool(any(McpSchema.CallToolRequest.class)))
@@ -147,9 +150,13 @@ class McpToolSourceTest {
         // ToolDefinition rejects blank descriptions — verify the source
         // fills them rather than failing the whole listTools roundtrip when
         // a remote server ships a tool without a docstring.
-        var schema = new McpSchema.JsonSchema(
-                "object", Map.of(), List.of(), Boolean.FALSE, null, null);
-        var tool = new McpSchema.Tool("undocumented_tool", null, "", schema, null, null, null);
+        var schema = Map.<String, Object>of(
+                "type", "object",
+                "properties", Map.of(),
+                "required", List.of(),
+                "additionalProperties", Boolean.FALSE);
+        var tool = McpSchema.Tool.builder("undocumented_tool", schema)
+                .description("").build();
 
         var defs = invokeTranslate(tool, mock(McpSyncClient.class), "test://server");
 
@@ -159,18 +166,18 @@ class McpToolSourceTest {
 
     @Test
     void executorRoundTripsToCallTool() throws Exception {
-        var schema = new McpSchema.JsonSchema(
-                "object",
-                Map.of("question", Map.of("type", "string")),
-                List.of("question"),
-                Boolean.FALSE, null, null);
-        var tool = new McpSchema.Tool(
-                "ask", null, "Ask a question", schema, null, null, null);
+        var schema = Map.<String, Object>of(
+                "type", "object",
+                "properties", Map.of("question", Map.of("type", "string")),
+                "required", List.of("question"),
+                "additionalProperties", Boolean.FALSE);
+        var tool = McpSchema.Tool.builder("ask", schema)
+                .description("Ask a question").build();
 
         var client = mock(McpSyncClient.class);
         when(client.callTool(any(McpSchema.CallToolRequest.class)))
                 .thenReturn(new McpSchema.CallToolResult(
-                        List.of(new McpSchema.TextContent("answer-42")),
+                        List.of(new McpSchema.TextContent(null, "answer-42", null)),
                         Boolean.FALSE, null, null));
 
         var def = invokeTranslate(tool, client, "test://server").get(0);
@@ -185,14 +192,18 @@ class McpToolSourceTest {
         // string so the agent loop decides what to do, NOT thrown — throwing
         // would abort the loop. This matches how a local @AiTool failure
         // surfaces after ToolExecutionHelper wraps the exception.
-        var schema = new McpSchema.JsonSchema(
-                "object", Map.of(), List.of(), Boolean.FALSE, null, null);
-        var tool = new McpSchema.Tool("flaky", null, "Sometimes fails", schema, null, null, null);
+        var schema = Map.<String, Object>of(
+                "type", "object",
+                "properties", Map.of(),
+                "required", List.of(),
+                "additionalProperties", Boolean.FALSE);
+        var tool = McpSchema.Tool.builder("flaky", schema)
+                .description("Sometimes fails").build();
 
         var client = mock(McpSyncClient.class);
         when(client.callTool(any(McpSchema.CallToolRequest.class)))
                 .thenReturn(new McpSchema.CallToolResult(
-                        List.of(new McpSchema.TextContent("rate limited")),
+                        List.of(new McpSchema.TextContent(null, "rate limited", null)),
                         Boolean.TRUE, null, null));
 
         var def = invokeTranslate(tool, client, "test://server").get(0);
@@ -206,9 +217,13 @@ class McpToolSourceTest {
 
     @Test
     void emptyContentReturnsEmptyString() throws Exception {
-        var schema = new McpSchema.JsonSchema(
-                "object", Map.of(), List.of(), Boolean.FALSE, null, null);
-        var tool = new McpSchema.Tool("noop", null, "Returns nothing", schema, null, null, null);
+        var schema = Map.<String, Object>of(
+                "type", "object",
+                "properties", Map.of(),
+                "required", List.of(),
+                "additionalProperties", Boolean.FALSE);
+        var tool = McpSchema.Tool.builder("noop", schema)
+                .description("Returns nothing").build();
 
         var client = mock(McpSyncClient.class);
         when(client.callTool(any(McpSchema.CallToolRequest.class)))
@@ -222,14 +237,18 @@ class McpToolSourceTest {
 
     @Test
     void executorRecordsMetrics() throws Exception {
-        var schema = new McpSchema.JsonSchema(
-                "object", Map.of(), List.of(), Boolean.FALSE, null, null);
-        var tool = new McpSchema.Tool("counted", null, "metered", schema, null, null, null);
+        var schema = Map.<String, Object>of(
+                "type", "object",
+                "properties", Map.of(),
+                "required", List.of(),
+                "additionalProperties", Boolean.FALSE);
+        var tool = McpSchema.Tool.builder("counted", schema)
+                .description("metered").build();
 
         var client = mock(McpSyncClient.class);
         when(client.callTool(any(McpSchema.CallToolRequest.class)))
                 .thenReturn(new McpSchema.CallToolResult(
-                        List.of(new McpSchema.TextContent("ok")), Boolean.FALSE, null, null));
+                        List.of(new McpSchema.TextContent(null, "ok", null)), Boolean.FALSE, null, null));
 
         var metrics = new McpToolMetrics();
         var def = invokeTranslateWithMetrics(tool, client, "test://server", metrics);
@@ -244,14 +263,18 @@ class McpToolSourceTest {
 
     @Test
     void executorIncrementsErrorOnServerReportedError() throws Exception {
-        var schema = new McpSchema.JsonSchema(
-                "object", Map.of(), List.of(), Boolean.FALSE, null, null);
-        var tool = new McpSchema.Tool("flaky", null, "fails", schema, null, null, null);
+        var schema = Map.<String, Object>of(
+                "type", "object",
+                "properties", Map.of(),
+                "required", List.of(),
+                "additionalProperties", Boolean.FALSE);
+        var tool = McpSchema.Tool.builder("flaky", schema)
+                .description("fails").build();
 
         var client = mock(McpSyncClient.class);
         when(client.callTool(any(McpSchema.CallToolRequest.class)))
                 .thenReturn(new McpSchema.CallToolResult(
-                        List.of(new McpSchema.TextContent("rate limited")),
+                        List.of(new McpSchema.TextContent(null, "rate limited", null)),
                         Boolean.TRUE, null, null));
 
         var metrics = new McpToolMetrics();

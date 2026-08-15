@@ -16,93 +16,13 @@
 
     <properties>
         <atmosphere.module.name>org.atmosphere.embabel</atmosphere.module.name>
-        <kotlin.version>2.1.10</kotlin.version>
+        <!-- Match the Kotlin line Embabel 1.5.0 ships (stdlib + reflect 2.2.21).
+             This module declares kotlin-stdlib directly, so a lower value here wins
+             nearest-first and pins stdlib below the kotlin-reflect that arrives
+             transitively from embabel-agent-api — a split runtime, and one that
+             leaks to consumers because kotlin-stdlib is compile scope. -->
+        <kotlin.version>2.2.21</kotlin.version>
     </properties>
-
-    <dependencyManagement>
-        <dependencies>
-            <!-- Pin Spring AI 1.1.x transitives pulled by embabel-agent-api
-                 0.3.5 to 1.1.6. Closes vector-store FilterExpression Converter
-                 injection (< 1.1.5) and the SpEL FilterExpression-key injection
-                 (< 1.1.4). embabel ships against the Spring AI 1.1.x line; 1.1.6
-                 is binary-compatible within the 1.1.x ABI. -->
-            <dependency>
-                <groupId>org.springframework.ai</groupId>
-                <artifactId>spring-ai-vector-store</artifactId>
-                <version>${spring-ai-alibaba-spring-ai.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.ai</groupId>
-                <artifactId>spring-ai-commons</artifactId>
-                <version>${spring-ai-alibaba-spring-ai.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.ai</groupId>
-                <artifactId>spring-ai-client-chat</artifactId>
-                <version>${spring-ai-alibaba-spring-ai.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.ai</groupId>
-                <artifactId>spring-ai-model</artifactId>
-                <version>${spring-ai-alibaba-spring-ai.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.ai</groupId>
-                <artifactId>spring-ai-retry</artifactId>
-                <version>${spring-ai-alibaba-spring-ai.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.ai</groupId>
-                <artifactId>spring-ai-template-st</artifactId>
-                <version>${spring-ai-alibaba-spring-ai.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.ai</groupId>
-                <artifactId>spring-ai-starter-mcp-client</artifactId>
-                <version>${spring-ai-alibaba-spring-ai.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.ai</groupId>
-                <artifactId>spring-ai-autoconfigure-mcp-client-httpclient</artifactId>
-                <version>${spring-ai-alibaba-spring-ai.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.ai</groupId>
-                <artifactId>spring-ai-autoconfigure-mcp-client-common</artifactId>
-                <version>${spring-ai-alibaba-spring-ai.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.ai</groupId>
-                <artifactId>spring-ai-mcp</artifactId>
-                <version>${spring-ai-alibaba-spring-ai.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.ai</groupId>
-                <artifactId>spring-ai-mcp-annotations</artifactId>
-                <version>${spring-ai-alibaba-spring-ai.version}</version>
-            </dependency>
-            <!-- embabel-agent-api's Spring AI 1.1.x transitives resolve
-                 spring-core from the 6.2.x line; 6.2.19 closes
-                 GHSA-659m-px2c-25wj. spring-web/spring-beans carry no open
-                 advisory but are pinned alongside so the provided compile
-                 classpath stays on a single 6.2.x patch level. -->
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-core</artifactId>
-                <version>6.2.19</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-web</artifactId>
-                <version>6.2.19</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-beans</artifactId>
-                <version>6.2.19</version>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
 
     <dependencies>
         <dependency>

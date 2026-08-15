@@ -50,8 +50,17 @@ import java.util.function.UnaryOperator;
  * @param nameMapper         maps a server's original tool name to the name the
  *                           model sees; {@code null} falls back to
  *                           {@link #toolNamePrefix}
- * @param elicitationHandler handles a server elicitation request; {@code null}
- *                           means the client does not advertise elicitation
+ * @param elicitationHandler handles a server <em>form</em> elicitation request;
+ *                           {@code null} means the client does not advertise
+ *                           elicitation at all. URL-mode elicitation
+ *                           ({@code McpSchema.ElicitUrlRequest}, added in MCP
+ *                           SDK 2.0.0) is deliberately not supported: the
+ *                           advertised capability leaves both sub-modes unset,
+ *                           so a spec-compliant server never sends one. A
+ *                           non-compliant server that sends one anyway is
+ *                           rejected by the SDK rather than silently mishandled
+ *                           here. Supporting it would mean registering a second
+ *                           handler via {@code spec.urlElicitation(...)}
  * @param samplingHandler    handles a server sampling request; {@code null}
  *                           means the client does not advertise sampling
  * @param breakerFailureThreshold consecutive per-tool failures that open the
@@ -63,7 +72,7 @@ public record McpClientOptions(
         String toolNamePrefix,
         Predicate<String> toolFilter,
         UnaryOperator<String> nameMapper,
-        Function<McpSchema.ElicitRequest, McpSchema.ElicitResult> elicitationHandler,
+        Function<McpSchema.ElicitFormRequest, McpSchema.ElicitResult> elicitationHandler,
         Function<McpSchema.CreateMessageRequest, McpSchema.CreateMessageResult> samplingHandler,
         int breakerFailureThreshold,
         long breakerOpenMillis) {
@@ -90,7 +99,7 @@ public record McpClientOptions(
      */
     public McpClientOptions(String toolNamePrefix, Predicate<String> toolFilter,
                             UnaryOperator<String> nameMapper,
-                            Function<McpSchema.ElicitRequest, McpSchema.ElicitResult> elicitationHandler,
+                            Function<McpSchema.ElicitFormRequest, McpSchema.ElicitResult> elicitationHandler,
                             Function<McpSchema.CreateMessageRequest,
                                     McpSchema.CreateMessageResult> samplingHandler) {
         this(toolNamePrefix, toolFilter, nameMapper, elicitationHandler, samplingHandler,
@@ -123,7 +132,7 @@ public record McpClientOptions(
         private String toolNamePrefix = "";
         private Predicate<String> toolFilter;
         private UnaryOperator<String> nameMapper;
-        private Function<McpSchema.ElicitRequest, McpSchema.ElicitResult> elicitationHandler;
+        private Function<McpSchema.ElicitFormRequest, McpSchema.ElicitResult> elicitationHandler;
         private Function<McpSchema.CreateMessageRequest, McpSchema.CreateMessageResult> samplingHandler;
         private int breakerFailureThreshold = DEFAULT_BREAKER_FAILURE_THRESHOLD;
         private long breakerOpenMillis = DEFAULT_BREAKER_OPEN_MILLIS;
@@ -154,7 +163,7 @@ public record McpClientOptions(
 
         /** Register an elicitation handler and advertise the capability. */
         public Builder elicitationHandler(
-                Function<McpSchema.ElicitRequest, McpSchema.ElicitResult> handler) {
+                Function<McpSchema.ElicitFormRequest, McpSchema.ElicitResult> handler) {
             this.elicitationHandler = handler;
             return this;
         }

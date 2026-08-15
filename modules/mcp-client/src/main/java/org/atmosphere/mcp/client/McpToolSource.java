@@ -320,19 +320,22 @@ public final class McpToolSource implements AutoCloseable {
     }
 
     private static List<ToolParameter> extractParameters(McpSchema.Tool tool) {
+        // MCP SDK 2.0.0 hands back the raw JSON Schema object as a Map rather than
+        // the JsonSchema record it used through 1.x, so the facets are read by key.
+        // Reading the map directly is also more faithful: the record modelled a
+        // fixed set of facets and dropped anything else the server sent.
         var schema = tool.inputSchema();
-        if (schema == null) {
+        if (schema == null || schema.isEmpty()) {
             return List.of();
         }
-        Map<String, Object> properties = schema.properties();
-        if (properties == null || properties.isEmpty()) {
+        if (!(schema.get("properties") instanceof Map<?, ?> properties) || properties.isEmpty()) {
             return List.of();
         }
-        var required = schema.required() == null ? List.<String>of() : schema.required();
+        var required = schema.get("required") instanceof List<?> list ? list : List.of();
         var out = new ArrayList<ToolParameter>(properties.size());
         for (var entry : properties.entrySet()) {
-            out.add(toParameter(entry.getKey(), entry.getValue(),
-                    required.contains(entry.getKey())));
+            var key = String.valueOf(entry.getKey());
+            out.add(toParameter(key, entry.getValue(), required.contains(key)));
         }
         return out;
     }
@@ -405,7 +408,7 @@ public final class McpToolSource implements AutoCloseable {
             // probe slot and wedge the breaker permanently (Invariant #2 —
             // every path after acquiring must record success or failure).
             result = client.callTool(new McpSchema.CallToolRequest(
-                    toolName, arguments == null ? Map.of() : arguments));
+                    toolName, arguments == null ? Map.of() : arguments, null));
         } catch (RuntimeException ex) {
             metrics.recordCall((System.nanoTime() - startNanos) / 1_000_000L);
             metrics.recordError();

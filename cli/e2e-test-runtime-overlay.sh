@@ -102,7 +102,7 @@ fi
 #   $1 — overlay name (passed to --runtime)
 #   $2 — expected AgentRuntime.name() value
 #   $3 — server port (each invocation gets a unique port to allow parallelism)
-#   $4 — extra mvn args (e.g. -Pspring-boot3 for embabel)
+#   $4 — extra mvn args (e.g. -Pspring-boot3 for spring-ai-alibaba)
 #   $5 — template (default: "ai-chat") — set to "ai-tools" for the
 #        force-swap variant where the sample pre-pins a different adapter
 #   $6 — extra `atmosphere new` flags (e.g. "--force") — used by the
@@ -257,7 +257,8 @@ printf "\n${BOLD}Atmosphere CLI --runtime overlay E2E${RESET}\n"
 #
 # Per-runtime notes:
 #   - adk's name() is "google-adk" (matches the underlying SDK groupId)
-#   - embabel needs -Pspring-boot3 (targets SB 3.5) AND its own Gemini-only
+#   - embabel builds on the default Spring Boot 4 profile (1.5.0 targets SB 4.1
+#     / Spring AI 2.0) but needs its own Gemini-only
 #     default-LLM property: embabel-agent-starter-gemini's ConfigurableModel-
 #     Provider validates that the configured default model is in its
 #     registry, and ignores Atmosphere's `llm.model`. Pass the override via
@@ -269,12 +270,12 @@ test_runtime langchain4j       "langchain4j"       18803 ""
 test_runtime semantic-kernel   "semantic-kernel"   18804 ""
 test_runtime adk               "google-adk"        18805 ""
 test_runtime koog              "koog"              18806 ""
-test_runtime embabel           "embabel"           18807 "-Pspring-boot3" "" "" "" \
+test_runtime embabel           "embabel"           18807 "" "" "" "" \
     'SPRING_APPLICATION_JSON={"embabel":{"models":{"default-llm":"gemini-2.5-flash"}}}'
 test_runtime agentscope        "agentscope"        18808 ""
 # spring-ai-alibaba 1.1.2.0 transitively pulls Spring AI 1.1.2 which targets
 # Spring Boot 3.x autoconfigure classes (RestClientAutoConfiguration moved
-# in SB4) — same situation as embabel. -Pspring-boot3 routes the parent
+# in SB4). -Pspring-boot3 routes the parent
 # atmosphere profile to the SB 3.5 starter so the boot succeeds.
 test_runtime spring-ai-alibaba "spring-ai-alibaba" 18809 "-Pspring-boot3"
 

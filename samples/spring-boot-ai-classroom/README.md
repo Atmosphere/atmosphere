@@ -28,7 +28,7 @@ This sample demonstrates what makes Atmosphere unique: **broadcasting streamed L
            ┌────────▼────────┐
            │  AgentRuntime   │  Pluggable backend (Built-in, Spring AI,
            │  (auto-detect)  │  LangChain4j, ADK, Koog, Semantic Kernel,
-           │                 │  AgentScope; Embabel/Spring AI Alibaba on SB3)
+           │                 │  AgentScope, Embabel; Spring AI Alibaba on SB3)
            └─────────────────┘
 ```
 
@@ -188,7 +188,7 @@ The `session.stream(message)` call is **framework-agnostic**. To switch AI backe
 | JetBrains Koog | Add `atmosphere-koog` dependency |
 | Microsoft Semantic Kernel | Add `atmosphere-semantic-kernel` dependency |
 | Alibaba AgentScope | Add `atmosphere-agentscope` dependency |
-| Embabel | Use the Spring Boot 3.5 profile/sample path and add `atmosphere-embabel` |
+| Embabel | Add `atmosphere-embabel` dependency |
 | Spring AI Alibaba | Use the Spring Boot 3.5 profile/sample path and add `atmosphere-spring-ai-alibaba` |
 
 **Zero code changes.** The `AgentRuntime` SPI auto-detects the best available backend via `ServiceLoader`.

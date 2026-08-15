@@ -24,10 +24,13 @@
             <artifactId>atmosphere-ai</artifactId>
         </dependency>
 
+        <!-- Version comes from the root dependencyManagement, which pins mcp,
+             mcp-core and mcp-json-jackson3 in lockstep. An inline version here
+             would beat that management and leave the one module that actually
+             calls the SDK on the old line. -->
         <dependency>
             <groupId>io.modelcontextprotocol.sdk</groupId>
             <artifactId>mcp</artifactId>
-            <version>1.1.1</version>
         </dependency>
 
         <dependency>

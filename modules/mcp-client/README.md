@@ -129,8 +129,8 @@ front of the connection.
 
 ## Tested with
 
-* MCP Java SDK `1.1.1` (`mcp` aggregator pulling `mcp-core 1.0.0` per the
-  CVE-driven pin in the root `pom.xml`)
+* MCP Java SDK `2.0.0` (the `mcp` aggregator, pinned in the root `pom.xml`
+  together with `mcp-core` and `mcp-json-jackson3`)
 * `spring-boot-mcp-server` (the bundled Atmosphere upstream sample) — verified
   end-to-end via chrome-devtools under **two** AgentRuntime implementations:
   Built-in (priority 0) and LangChain4j (priority 100). Same sample, same

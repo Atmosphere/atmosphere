@@ -549,7 +549,7 @@ SKILLEOF
         # resolves and compiles. Catches the things unit tests can't:
         # malformed XML in the injected block, missing transitive deps,
         # version-property refs that don't resolve outside the reactor,
-        # repository-block placement, and the SB3-only path for embabel.
+        # and repository-block placement.
         printf "\n  ${BOLD}--runtime scaffold + compile${RESET}\n"
 
         rt_compile() {
@@ -581,10 +581,9 @@ SKILLEOF
         rt_compile langchain4j ""
         rt_compile adk ""
         rt_compile koog ""
-        # Embabel targets Spring Boot 3.5; activate -Pspring-boot3 so the
-        # parent swaps to atmosphere-spring-boot3-starter and brings the
-        # SB3-compatible AI adapter chain.
-        rt_compile embabel "-Pspring-boot3"
+        # Embabel 1.5.0 is built on Spring Boot 4.1 / Spring AI 2.0, so it
+        # compiles on the default Spring Boot 4 profile like the others.
+        rt_compile embabel ""
         rt_compile semantic-kernel ""
         # Native HTTP+SSE runtimes (no third-party SDK, no provider deps): they
         # shipped without scaffold coverage and went unscaffoldable for days

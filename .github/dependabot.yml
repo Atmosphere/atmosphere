@@ -30,7 +30,15 @@ updates:
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "dev.langchain4j:*"             # hold 1.x
         update-types: ["version-update:semver-major"]
-      - dependency-name: "com.embabel.agent:*"           # hold 0.x
+      # hold 1.x. NOTE: an ignore of semver-major on a dependency that is still
+      # on 0.x means "never reach 1.0" — it suppresses the GA transition, which
+      # is the one bump you most want reviewed. This rule read `hold 0.x` from
+      # 2026-06-30 until the 1.5.0 bump, and Embabel shipped nothing but
+      # major-crossing releases in that window (1.0.0-RC1, 1.0.0, 1.5.0), so it
+      # suppressed 100% of available upgrades and the pin sat on 0.5.0 for 25
+      # days after 1.0.0 GA. Only apply a major-only ignore to a dependency
+      # already past 1.0.
+      - dependency-name: "com.embabel.agent:*"           # hold 1.x
         update-types: ["version-update:semver-major"]
       - dependency-name: "com.google.adk:*"              # hold 1.x
         update-types: ["version-update:semver-major"]
@@ -38,7 +46,7 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "io.agentscope:*"               # hold 1.x
         update-types: ["version-update:semver-major"]
-      - dependency-name: "io.modelcontextprotocol.sdk:*" # hold mcp-core 1.0.x (force-pinned to the CVE-fixed 1.0.1; paired with mcp 1.1.x)
+      - dependency-name: "io.modelcontextprotocol.sdk:*" # hold 2.0.x (mcp + mcp-core + mcp-json-jackson3 pinned in lockstep)
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       # Quarkus + gRPC + Netty move in lockstep — version skew across the three
       # triggers AbstractMethodError at runtime. Hold all three to patch-only so
