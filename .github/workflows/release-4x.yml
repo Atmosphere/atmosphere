@@ -12,7 +12,7 @@ on:
         required: false
         type: string
       publish_js:
-        description: 'Also publish atmosphere.js to NPM?'
+        description: 'Leave TRUE. Runs the NPM job, which also publishes create-atmosphere-app (the npx shim). atmosphere.js itself self-skips when unchanged, so true is safe on every release; false silently skips the npx distribution too.'
         required: true
         type: boolean
         default: true
@@ -589,10 +589,37 @@ jobs:
         git diff --cached --quiet || git commit -m "release(js): atmosphere.js ${JS_VERSION}"
         git tag "js-v${JS_VERSION}"
 
+    # Deliberately NOT gated on steps.detect.outputs.has_changes. That flag means
+    # "atmosphere.js changed since its last tag", but this package's version tracks the
+    # RELEASE version (bumped by the CLI job), not atmosphere.js. Coupling the two meant the
+    # npx distribution silently stopped publishing whenever atmosphere.js was unchanged —
+    # npm sat on 4.0.65 while 4.0.66 and 4.0.67 shipped, and nothing failed.
+    #
+    # The previous body was `npm publish ... 2>/dev/null || echo "...may already exist"`,
+    # which discarded stderr AND the exit code, so a real publish failure was
+    # indistinguishable from success. Already-published is now detected explicitly (the only
+    # legitimate no-op, e.g. on a re-run), every other failure is fatal, and the registry is
+    # asserted to actually serve the version afterwards.
     - name: Publish create-atmosphere-app to NPM
-      if: steps.detect.outputs.has_changes == 'true'
       working-directory: cli/npx
-      run: npm publish --provenance --access public 2>/dev/null || echo "create-atmosphere-app publish skipped (may already exist)"
+      run: |
+        set -euo pipefail
+        VERSION=$(node -p "require('./package.json').version")
+        if [ "$(npm view "create-atmosphere-app@$VERSION" version 2>/dev/null || true)" = "$VERSION" ]; then
+          echo "create-atmosphere-app@$VERSION is already on NPM — nothing to publish"
+          exit 0
+        fi
+        npm publish --provenance --access public
+        for attempt in 1 2 3 4 5 6; do
+          sleep 5
+          if [ "$(npm view "create-atmosphere-app@$VERSION" version 2>/dev/null || true)" = "$VERSION" ]; then
+            echo "verified: create-atmosphere-app@$VERSION is live on NPM"
+            exit 0
+          fi
+          echo "  not visible yet (attempt $attempt) — retrying"
+        done
+        echo "::error::create-atmosphere-app@$VERSION was published but the registry does not serve it"
+        exit 1
 
     - name: Bump to next patch version
       if: steps.detect.outputs.has_changes == 'true'
