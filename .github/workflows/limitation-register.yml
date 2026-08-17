@@ -1,0 +1,51 @@
+name: "CI: Limitation Register"
+
+# The register gates run at pre-push (Tier 1), but a local hook only protects
+# the person who has it installed — a contributor PR or a push from another
+# machine reaches main ungated. This runs the same gates in CI, with no Maven
+# build: ripgrep over the sources, seconds not minutes.
+#
+# What it enforces: deferral prose ("is the follow-up", "not yet wired") is
+# banned unless the line carries a LIMITATION(registre#n) marker naming the
+# limited item and pointing at an issue in Atmosphere/atmosphere-carnet, plus
+# feature-phases.yaml stays parseable. See .registre/README.md.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '**.java'
+      - '**.kt'
+      - '**.ts'
+      - '**.tsx'
+      - '**.js'
+      - 'registre.toml'
+      - 'feature-phases.yaml'
+      - '.registre'
+      - '.github/workflows/limitation-register.yml'
+  pull_request:
+    paths:
+      - '**.java'
+      - '**.kt'
+      - '**.ts'
+      - '**.tsx'
+      - '**.js'
+      - 'registre.toml'
+      - 'feature-phases.yaml'
+      - '.registre'
+      - '.github/workflows/limitation-register.yml'
+
+jobs:
+  limitation-register:
+    name: Limitation Register Gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The gates live in the .registre submodule.
+          submodules: true
+
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
+      - name: Run the limitation register gates
+        run: ./.registre/limitation-gates.sh modules cli generator samples atmosphere.js e2e

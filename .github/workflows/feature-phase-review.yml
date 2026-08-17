@@ -1,0 +1,23 @@
+name: "Monitor: Feature Phase Review"
+
+# Weekly caller of the llm-registre review workflow: reads feature-phases.yaml
+# and opens an issue in the private Atmosphere/atmosphere-carnet register for
+# any dark-launched feature whose review_by date has passed, so a feature that
+# shipped disarmed cannot stay that way unnoticed.
+on:
+  schedule:
+    - cron: "23 9 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    uses: dravr-ai/llm-registre/.github/workflows/feature-phase-review-reusable.yml@main
+    with:
+      tracker: Atmosphere/atmosphere-carnet
+      repo_label: atmosphere
+      title_prefix: atmosphere
+    secrets:
+      tracker_token: ${{ secrets.ATMOSPHERE_CARNET_TOKEN }}
