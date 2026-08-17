@@ -11,3 +11,7 @@ extensions = "java,ts,js"
 
 # Worktrees carry full copies of the tree; scanning them double-reports every hit.
 exclude = "**/.claude/**"
+
+# Every dark-launched feature must be ledgered, so an unarmed phase always
+# carries a review date.
+require_ledger = true

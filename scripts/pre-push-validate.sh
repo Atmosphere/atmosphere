@@ -198,6 +198,10 @@ ORPHAN_CLASS_REGEX='^modules/.*/src/main/.*\.java$|^scripts/validate-no-orphan-c
 FACTS_REGISTRY_REGEX='\.md$|^\.harness/facts\.json$|^scripts/validate-facts-registry\.sh$'
 THIRDPARTY_VERSION_REGEX='\.md$|^pom\.xml$|^scripts/validate-doc-thirdparty-versions\.sh$|^\.harness/thirdparty-version-allowlist\.txt$'
 ATMO_DOC_VERSION_REGEX='\.md$|^cli/samples\.json$|^scripts/validate-atmosphere-doc-version\.sh$|^\.harness/atmosphere-doc-version-allowlist\.txt$'
+# Limitation register (llm-registre, vendored at .registre): bans deferral prose
+# that documents debt without registering it, and keeps feature-phases.yaml
+# parseable. Runs on any source the gates scan, plus its own config.
+LIMITATION_REGISTRE_REGEX='^(modules|samples|cli|generator|e2e)/.*\.(java|kt|ts|tsx|js)$|^atmosphere\.js/.*\.(ts|js)$|^registre\.toml$|^feature-phases\.yaml$'
 
 SIGNIFICANT_FILES=""
 IGNORED_FILES=""
@@ -217,10 +221,14 @@ RUN_PHANTOM_JAVADOC=false
 RUN_FACTS_REGISTRY=false
 RUN_THIRDPARTY_VERSION=false
 RUN_ATMO_DOC_VERSION=false
+RUN_LIMITATION_REGISTRE=false
 while IFS= read -r file; do
     [ -z "$file" ] && continue
     if echo "$file" | grep -qE "$ARCHITECTURAL_REGEX"; then
         RUN_ARCHITECTURAL=true
+    fi
+    if echo "$file" | grep -qE "$LIMITATION_REGISTRE_REGEX"; then
+        RUN_LIMITATION_REGISTRE=true
     fi
     if echo "$file" | grep -qE "$CAPABILITY_CLAIMS_REGEX"; then
         RUN_CAPABILITY_CLAIMS=true
@@ -325,6 +333,24 @@ if [ "$DRY_RUN" = false ]; then
         fi
     else
         echo "Skipping architectural validation (no Java/config/workflow changes in pushed commits)."
+    fi
+    echo ""
+
+    if [ "$RUN_LIMITATION_REGISTRE" = true ]; then
+        echo "Running limitation-register gates."
+        if [ ! -x .registre/limitation-gates.sh ]; then
+            echo ""
+            echo "llm-registre not checked out — run: git submodule update --init --recursive"
+            exit 1
+        fi
+        if ! .registre/limitation-gates.sh modules cli generator samples atmosphere.js e2e; then
+            echo ""
+            echo "Deferral prose must be implemented or registered — see .registre/README.md"
+            echo "and file the gap in Atmosphere/atmosphere-carnet."
+            exit 1
+        fi
+    else
+        echo "Skipping limitation-register gates (no scanned source changed)."
     fi
     echo ""
 
@@ -516,6 +542,7 @@ if [ "$DRY_RUN" = false ]; then
 else
     echo "Dry-run — selected Tier 1 checks:"
     echo "  architectural validation : $RUN_ARCHITECTURAL"
+    echo "  limitation register      : $RUN_LIMITATION_REGISTRE"
     echo "  capability claims        : $RUN_CAPABILITY_CLAIMS"
     echo "  drift log                : $RUN_DRIFT_LOG"
     echo "  backend-class refs       : $RUN_BACKEND_CLASS_REFS"

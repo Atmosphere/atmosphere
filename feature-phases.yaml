@@ -1,0 +1,14 @@
+# ABOUTME: Dark-launch register — every feature shipped disarmed (flag off, shadow mode, log-only)
+# ABOUTME: Fixed shape, one line per key: the review workflow parses it with awk, no YAML dep
+#
+# Format (the parsers depend on this indentation):
+#   - name: kebab-case-feature-name
+#     surface: path/to/the/flag/or/mode
+#     current: what ships today (the disarmed state)
+#     advance_when: the criterion that arms the next phase
+#     review_by: YYYY-MM-DD
+#
+# Nothing is dark-launched today — an empty list is valid, and this file exists
+# so the next disarmed feature has a home instead of a comment.
+
+features: []
