@@ -40,7 +40,23 @@ curl -X POST http://localhost:8096/harness/synthetic-run
 # Reconnect against the @AiEndpoint carrying the run id; the onReady hook
 # fires reattachPendingRun → replayPendingRun and drains the buffer onto
 # the reconnecting resource.
-curl -H 'X-Atmosphere-Run-Id: <runId>' http://localhost:8096/atmosphere/agent/harness
+#
+# The transport headers are REQUIRED, not decoration. AiEndpointHandler suspends the
+# resource — and calls reattachPendingRun — only when the transport resolves to
+# WEBSOCKET, SSE or LONG_POLLING. A bare GET resolves to none of those, so the whole
+# block is skipped and the request returns 200 with an empty body in ~2ms and no
+# replay: it looks like the feature is broken when it is only mis-invoked.
+curl -H 'X-Atmosphere-Run-Id: <runId>' \
+     -H 'X-Atmosphere-Transport: long-polling' \
+     -H 'X-Atmosphere-Framework: 4.0' \
+     -H 'X-Atmosphere-tracking-id: 0' \
+     http://localhost:8096/atmosphere/agent/harness
+# → the 3 buffered events plus the terminal frame, in order:
+#   {"type":"streaming-text","data":"replay-event-0",…,"seq":1}
+#   {"type":"streaming-text","data":"replay-event-1",…,"seq":2}
+#   {"type":"streaming-text","data":"replay-event-2",…,"seq":3}
+#   {"type":"complete","data":"synthetic",…}
+# and the server logs: `Reattach run <id> for resource <uuid>: replayed 4/4 event(s)`
 ```
 
 ## Why a sample, not an integration test
