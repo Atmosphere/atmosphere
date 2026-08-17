@@ -32,6 +32,9 @@
  * adapters — the declarative layer is additive, so existing applications that wire
  * {@code AiGuardrail} beans directly keep working unchanged. This package ships the SPI
  * surface only; parser implementations, the pipeline wiring, and auto-configuration
- * bridges land in follow-up commits.</p>
+ * bridges all ship: three ServiceLoader-registered {@code PolicyParser}
+ * implementations (YAML, Rego, Cedar), {@code PolicyAdmissionGate} /
+ * {@code PolicyRegistry} / {@code PolicyRing}, and the Spring and Quarkus
+ * auto-configuration bridges.</p>
  */
 package org.atmosphere.ai.governance;

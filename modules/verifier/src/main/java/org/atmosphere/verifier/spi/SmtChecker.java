@@ -37,10 +37,11 @@ import java.util.ServiceLoader;
  *       conjunction of declared invariants holds in Z3."</li>
  * </ul>
  *
- * <p>Implementations are discovered via {@link ServiceLoader}. The
- * shipped default is the {@link NoOpSmtChecker} — the SPI is in place
- * so a Z3-backed implementation can be dropped in without touching
- * {@link org.atmosphere.verifier.checks.SmtVerifier}'s call site.</p>
+ * <p>Implementations are discovered via {@link ServiceLoader}. Alongside the
+ * {@link NoOpSmtChecker} fallback, a Z3-backed checker and an SMTInterpol
+ * checker both ship and are ServiceLoader-registered, so a solver is selected
+ * without touching {@link org.atmosphere.verifier.checks.SmtVerifier}'s call
+ * site.</p>
  *
  * <p>Why a separate SPI from {@link PlanVerifier}? Two reasons:</p>
  * <ol>

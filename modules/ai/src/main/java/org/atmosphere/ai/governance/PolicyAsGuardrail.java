@@ -20,8 +20,9 @@ import org.atmosphere.ai.AiRequest;
 
 /**
  * Adapter that exposes a {@link GovernancePolicy} as an {@link AiGuardrail} so
- * declarative policies land on the existing {@code AiPipeline} admission seam
- * before native pipeline wiring arrives.
+ * declarative policies land on the existing {@code AiPipeline} admission seam.
+ * Native pipeline wiring ships as {@code PolicyAdmissionGate}; this adapter
+ * remains the bridge for applications wiring {@code AiGuardrail} beans.
  *
  * <p>On {@link AiGuardrail#inspectRequest(AiRequest)} the adapter builds a
  * {@link PolicyContext.Phase#PRE_ADMISSION} context and maps the returned

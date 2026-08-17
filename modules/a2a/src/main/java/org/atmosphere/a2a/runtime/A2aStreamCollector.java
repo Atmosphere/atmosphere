@@ -96,7 +96,8 @@ public class A2aStreamCollector implements StreamingSession {
 
     @Override
     public void sendMetadata(String key, Object value) {
-        // A2A tasks don't propagate metadata; silently ignore.
+        // LIMITATION(registre#11): dropped. A2A Task and TaskStatusUpdateEvent
+        // both carry metadata maps, so this collector could propagate it.
     }
 
     @Override

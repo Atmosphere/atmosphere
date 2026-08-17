@@ -60,9 +60,10 @@ import java.util.concurrent.ConcurrentHashMap;
  *       map — idle users leave no residue.</li>
  *   <li>A hard cap ({@value #DEFAULT_MAX_TRACKED_USERS}) on distinct tracked
  *       users prevents a flood of novel ids from exhausting the heap. When
- *       the cap is reached the rate-limiter fails open (returns {@code true})
- *       to avoid cascading 429s; this is logged via the rate-limit
- *       rejection counter semantics upstream.</li>
+ *       the cap is reached the limiter sweeps once more and, if that reclaims
+ *       nothing, fails closed for the new user (returns {@code false}) with a
+ *       {@code WARN} naming the cap — an unbounded id flood is refused rather
+ *       than admitted.</li>
  * </ol>
  */
 public final class PerUserRateLimiter {
