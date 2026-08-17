@@ -23,7 +23,7 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.vectorstore.SimpleVectorStore;
 import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
@@ -87,11 +87,28 @@ public class VectorStoreConfig {
     }
 
     /**
-     * When embeddings are available, also load documents into a vector store
-     * for semantic similarity search via the framework's RAG pipeline.
+     * Builds the Spring AI vector store and ingests the chunked knowledge base.
+     *
+     * <p>Gated on the {@code atmosphere.rag.vector-store.enabled} <em>property</em>, not on
+     * {@code @ConditionalOnBean(EmbeddingModel.class)}. That distinction is the bug this
+     * sample shipped until 4.0.67: {@code @ConditionalOnBean} is only contractually reliable
+     * inside auto-configuration classes. This is a user {@code @Configuration}, and Spring
+     * parses user configurations <em>before</em> auto-configurations (which arrive via
+     * {@code DeferredImportSelector}), so {@code EmbeddingModel} — produced by
+     * {@code OpenAiEmbeddingAutoConfiguration} — was never in the registry when the condition
+     * was evaluated. The condition was therefore <em>always</em> false and the store was never
+     * created, on any configuration. A property condition is evaluated against the
+     * {@code Environment}, which is fully populated at parse time, so it behaves correctly
+     * here; the {@code EmbeddingModel} argument is resolved later, at bean-creation time,
+     * once every definition is registered.</p>
+     *
+     * <p>Ingestion is best-effort: embedding every chunk requires a reachable embedding
+     * endpoint, and this sample must still boot with none. A failure is logged and leaves an
+     * empty store rather than aborting startup.</p>
      */
     @Bean
-    @ConditionalOnBean(EmbeddingModel.class)
+    @ConditionalOnProperty(name = "atmosphere.rag.vector-store.enabled", havingValue = "true",
+            matchIfMissing = true)
     public VectorStore vectorStore(EmbeddingModel embeddingModel) {
         var store = SimpleVectorStore.builder(embeddingModel).build();
 
@@ -104,8 +121,15 @@ public class VectorStoreConfig {
                 })
                 .toList();
         if (!springDocs.isEmpty()) {
-            store.add(springDocs);
-            logger.info("Loaded {} chunks into SimpleVectorStore with embeddings", springDocs.size());
+            try {
+                store.add(springDocs);
+                logger.info("Loaded {} chunks into SimpleVectorStore with embeddings", springDocs.size());
+            } catch (RuntimeException e) {
+                logger.warn("Embedding the knowledge base failed ({}); retrieval will return no "
+                        + "results. Point spring.ai.openai.base-url at a reachable embedding "
+                        + "endpoint (e.g. Ollama with nomic-embed-text) to enable semantic search.",
+                        e.toString());
+            }
         }
 
         return store;

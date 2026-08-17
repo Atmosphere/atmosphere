@@ -40,14 +40,20 @@ llm:
   base-url: ${LLM_BASE_URL:}
   api-key: ${LLM_API_KEY:${GEMINI_API_KEY:}}
 
-# Spring AI OpenAI configuration (used for embeddings)
-# The API key is shared with the LLM config above
+# Spring AI OpenAI configuration (used for EMBEDDINGS ONLY — the chat path belongs to
+# Atmosphere's AgentRuntime, and the OpenAI chat auto-configuration is excluded in
+# RagChatApplication).
 spring:
   ai:
     openai:
-      api-key: ${LLM_API_KEY:${GEMINI_API_KEY:}}
-      # Spring AI appends /v1/chat/completions internally, so base-url must NOT include /v1.
-      # Use SPRING_AI_BASE_URL to override, or defaults to Gemini.
+      # Shared with the LLM config above, but falls back to a non-blank placeholder:
+      # Spring AI refuses to build a client with a blank key, which would take the
+      # EmbeddingModel bean away and silently disable retrieval. Local endpoints such as
+      # Ollama ignore the value.
+      api-key: ${LLM_API_KEY:${GEMINI_API_KEY:not-needed-for-local}}
+      # Include the /v1 suffix. Spring AI appends only the resource path
+      # (/chat/completions, /embeddings) to this base, which is why the local Ollama recipe
+      # below is http://localhost:11434/v1 and the Gemini default likewise ends in /openai.
       base-url: ${SPRING_AI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}
       chat:
         options:

@@ -155,6 +155,15 @@
             <version>${logback-version}</version>
             <scope>runtime</scope>
         </dependency>
+
+        <!-- ApplicationContextRunner, used by VectorStoreWiringTest to assert the
+             VectorStore bean is actually produced with production auto-configuration
+             ordering. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

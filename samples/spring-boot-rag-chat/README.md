@@ -14,14 +14,42 @@ screen) and a richer **`@Agent`** with AI tools and slash commands.
 5. **AI tools** (`search_knowledge_base`, `list_sources`, `get_document_excerpt`) the LLM can call for multi-hop reasoning
 6. **Real-time streaming** over WebSocket/SSE
 
-When a Spring AI embedding model is configured (API key present), each Markdown
-document is chunked with `RagChunker`, indexed into a `SimpleVectorStore`, and
-**retrieved with real `VectorStore.similaritySearch`** on every turn — by both
-the endpoint's automatic RAG (via `SpringAiVectorStoreContextProvider`) and the
-agent's `search_knowledge_base` tool. Chunk metadata preserves the source
-document and offsets so citations point to the right passage. Without a key the
-sample degrades to the built-in word-overlap retriever, so it still runs in demo
-mode.
+Each Markdown document is chunked with `RagChunker`, indexed into a
+`SimpleVectorStore`, and **retrieved with real `VectorStore.similaritySearch`** on every
+turn — by both the endpoint's automatic RAG (via `SpringAiVectorStoreContextProvider`) and
+the agent's `search_knowledge_base` tool. Chunk metadata preserves the source document and
+offsets so citations point to the right passage.
+
+Retrieval needs a reachable **embedding** endpoint, which is separate from the chat model.
+If embedding the corpus fails the sample still boots, logs a warning, and falls back to the
+built-in word-overlap retriever, so demo mode keeps working.
+
+### Grounded retrieval with local Ollama (no API key)
+
+```bash
+ollama pull nomic-embed-text
+SPRING_AI_BASE_URL=http://localhost:11434/v1 \
+EMBEDDING_MODEL=nomic-embed-text \
+LLM_MODE=local LLM_MODEL=qwen2.5:7b-instruct-q4_K_M \
+  ./mvnw spring-boot:run -pl samples/spring-boot-rag-chat
+```
+
+`SPRING_AI_BASE_URL` **includes the `/v1` suffix** — Spring AI 2.0 delegates to the official
+`com.openai` Java SDK, whose base URL is `https://api.openai.com/v1` by default and which
+appends only the resource path (`/embeddings`, `/chat/completions`).
+
+Confirm retrieval is real rather than plausible-sounding: ask a corpus question and check the
+log for `Loaded N chunks into SimpleVectorStore with embeddings`. If you instead see
+`No ContextProvider configured` or `VectorStore not configured`, the store was not built.
+
+Set `atmosphere.rag.vector-store.enabled=false` to skip the vector store entirely (the
+knowledge base and `@AiTool` search still work).
+
+> **Note (fixed in 4.0.67):** this sample previously excluded
+> `OpenAiEmbeddingAutoConfiguration` *and* gated its `VectorStore` on
+> `@ConditionalOnBean(EmbeddingModel.class)` from a plain `@Configuration`. Both independently
+> prevented the store from ever being created, so answers looked plausible but were never
+> grounded in the corpus. See `VectorStoreConfig` and `VectorStoreWiringTest`.
 
 ## Architecture
 

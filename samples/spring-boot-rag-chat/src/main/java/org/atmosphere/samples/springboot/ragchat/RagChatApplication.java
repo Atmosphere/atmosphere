@@ -18,12 +18,24 @@ package org.atmosphere.samples.springboot.ragchat;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
+/**
+ * The chat path belongs to Atmosphere's own {@code AgentRuntime} (selected via
+ * {@code LLM_*}), so Spring AI's chat/audio/image/moderation auto-configurations are
+ * excluded to keep a single owner of the model call and to let the app boot keyless.
+ *
+ * <p><strong>{@code OpenAiEmbeddingAutoConfiguration} is deliberately NOT excluded.</strong>
+ * It is the only producer of the {@link org.springframework.ai.embedding.EmbeddingModel}
+ * bean that {@link VectorStoreConfig} needs to build the vector store. Excluding it — as
+ * this sample did until 4.0.67 — silently disabled retrieval: the store was never created,
+ * so {@code SpringAiVectorStoreContextProvider} logged "VectorStore not configured" and every
+ * answer was ungrounded while still looking plausible. If you add an exclusion here, check it
+ * is not the producer of a bean some other configuration is conditional on.</p>
+ */
 @SpringBootApplication(excludeName = {
         "org.springframework.ai.model.openai.autoconfigure.OpenAiAutoConfiguration",
         "org.springframework.ai.model.openai.autoconfigure.OpenAiAudioSpeechAutoConfiguration",
         "org.springframework.ai.model.openai.autoconfigure.OpenAiAudioTranscriptionAutoConfiguration",
         "org.springframework.ai.model.openai.autoconfigure.OpenAiChatAutoConfiguration",
-        "org.springframework.ai.model.openai.autoconfigure.OpenAiEmbeddingAutoConfiguration",
         "org.springframework.ai.model.openai.autoconfigure.OpenAiImageAutoConfiguration",
         "org.springframework.ai.model.openai.autoconfigure.OpenAiModerationAutoConfiguration"
 })
