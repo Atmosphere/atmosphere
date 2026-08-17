@@ -357,6 +357,16 @@ assert_contains "$out" "Unknown template: nonesuch" "error lists the bad templat
 assert_contains "$out" "multi-agent" "error lists known templates including multi-agent"
 assert_contains "$out" "classroom" "error lists known templates including classroom"
 
+# Flag typed in the project-name slot. The name is positional and consumed before the
+# option loop, so before 4.0.67 this scaffolded a real directory literally named
+# "--list-templates". That flag exists on the npx shim, so it is a realistic mistype.
+out=$("$CLI" new --list-templates 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 1 "new rejects a flag-shaped project name"
+assert_contains "$out" "Invalid project name" "error names the bad project name"
+assert_not_contains "$out" "Scaffolding" "no scaffold is attempted for a flag-shaped name"
+[ -e "./--list-templates" ] && fail "new created a directory named after the flag" \
+    || pass "new created no flag-named directory"
+
 # Unknown argument
 out=$("$CLI" new foo --bogus 2>&1) && ec=0 || ec=$?
 assert_exit_code "$ec" 1 "new with unknown option exits with error"

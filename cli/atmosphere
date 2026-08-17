@@ -1164,6 +1164,14 @@ ROUTING_BLOCK
 
 cmd_new() {
     [ -z "$1" ] && die "Usage: atmosphere new <project-name> [--template <template>] [--runtime <runtime> [--force]] [--routing] [--skill-file <path>]"
+    # The project name is positional and consumed before the option loop below, so without this
+    # guard a flag typed in the name slot becomes the directory name: `atmosphere new
+    # --list-templates` used to scaffold a real ./--list-templates/ directory. That flag is a
+    # genuine one on the npx shim (create-atmosphere-app --list-templates), so it is a realistic
+    # thing to type here.
+    case "$1" in
+        -*) die "Invalid project name '$1' — it looks like an option. Usage: atmosphere new <project-name> [--template <template>]. To list templates: npx create-atmosphere-app --list-templates" ;;
+    esac
     project_name="$1"; shift
 
     template="chat"
@@ -2001,6 +2009,11 @@ cmd_checkpoint() {
                     --coordination) coordination="$2"; shift 2 ;;
                     --agent)        agent="$2";        shift 2 ;;
                     --limit)        limit="$2";        shift 2 ;;
+                    # Reject unknown options instead of dropping them. Silently ignoring
+                    # `--url` (the plausible mistype for `--base-url`) made the command query
+                    # the default host and fail with a confusing connection error against a
+                    # port the user never asked for.
+                    -*) die "Unknown option for 'checkpoint list': $1 (did you mean --base-url?)" ;;
                     *) shift ;;
                 esac
             done
