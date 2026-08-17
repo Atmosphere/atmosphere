@@ -12,6 +12,13 @@ atmosphere:
       # retriever order on any error/timeout — in keyless demo mode the demo
       # runtime's canned reply is unparseable, so ranking simply falls back.
       reranker: llm
+    vector-store:
+      # Build the Spring AI vector store and ingest the corpus. OFF by default because it is
+      # only useful with a reachable EMBEDDING endpoint: an empty store still becomes the
+      # retrieval source and starves the keyless demo path of its word-overlap context, which
+      # is worse than no store at all. Turn it on together with an embedding endpoint —
+      # see the README's Ollama recipe (nomic-embed-text).
+      enabled: ${RAG_VECTOR_STORE_ENABLED:false}
   web-transport:
     enabled: true
     port: 4445

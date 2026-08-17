@@ -55,24 +55,26 @@ class VectorStoreWiringTest {
             .withUserConfiguration(VectorStoreConfig.class);
 
     @Test
-    void vectorStoreBeanIsCreatedWhenAnEmbeddingModelIsContributedByAutoConfiguration() {
-        runner.run(context -> {
-            assertThat(context).hasNotFailed();
-            assertThat(context).hasSingleBean(VectorStore.class);
-        });
+    void vectorStoreBeanIsCreatedWhenEnabledAndAnEmbeddingModelIsAutoConfigured() {
+        runner.withPropertyValues("atmosphere.ai.vector-store.enabled=true")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(VectorStore.class);
+                });
     }
 
     /**
-     * The sample must still boot when an operator turns the store off, so the property is a
-     * real switch rather than decoration.
+     * Default-off is load-bearing, not a preference: an empty store becomes the retrieval
+     * source and starves the keyless demo path of word-overlap context, which the
+     * `rag-chat-commands` e2e pins via its "Relevant context" assertion. Enabling this by
+     * default is exactly the regression that spec caught.
      */
     @Test
-    void vectorStoreIsOmittedWhenExplicitlyDisabled() {
-        runner.withPropertyValues("atmosphere.rag.vector-store.enabled=false")
-                .run(context -> {
-                    assertThat(context).hasNotFailed();
-                    assertThat(context).doesNotHaveBean(VectorStore.class);
-                });
+    void vectorStoreIsAbsentByDefaultSoTheKeylessPathKeepsItsContextProvider() {
+        runner.run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context).doesNotHaveBean(VectorStore.class);
+        });
     }
 
     /**

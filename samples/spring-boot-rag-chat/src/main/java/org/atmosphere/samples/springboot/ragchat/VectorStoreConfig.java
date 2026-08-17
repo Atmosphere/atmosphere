@@ -89,7 +89,7 @@ public class VectorStoreConfig {
     /**
      * Builds the Spring AI vector store and ingests the chunked knowledge base.
      *
-     * <p>Gated on the {@code atmosphere.rag.vector-store.enabled} <em>property</em>, not on
+     * <p>Gated on the {@code atmosphere.ai.vector-store.enabled} <em>property</em>, not on
      * {@code @ConditionalOnBean(EmbeddingModel.class)}. That distinction is the bug this
      * sample shipped until 4.0.67: {@code @ConditionalOnBean} is only contractually reliable
      * inside auto-configuration classes. This is a user {@code @Configuration}, and Spring
@@ -102,13 +102,21 @@ public class VectorStoreConfig {
      * here; the {@code EmbeddingModel} argument is resolved later, at bean-creation time,
      * once every definition is registered.</p>
      *
-     * <p>Ingestion is best-effort: embedding every chunk requires a reachable embedding
-     * endpoint, and this sample must still boot with none. A failure is logged and leaves an
-     * empty store rather than aborting startup.</p>
+     * <p><strong>Opt-in, and deliberately so.</strong> Declaring a {@link VectorStore} bean makes
+     * {@code AtmosphereRagAutoConfiguration} wire {@code SpringAiVectorStoreContextProvider} as
+     * the retrieval source. Without a reachable embedding endpoint the store stays empty, that
+     * provider returns nothing, and the keyless demo path loses the word-overlap context it
+     * would otherwise inject — the sample silently gets *worse* than having no store at all.
+     * So the store is created only when an operator has actually pointed the sample at an
+     * embedding endpoint and set {@code atmosphere.ai.vector-store.enabled=true}; see the
+     * README's Ollama recipe. Enabling it without a working endpoint is the one configuration
+     * this sample cannot make useful, which is why it is not the default.</p>
+     *
+     * <p>Ingestion is best-effort even then: a failure is logged and leaves an empty store
+     * rather than aborting startup.</p>
      */
     @Bean
-    @ConditionalOnProperty(name = "atmosphere.rag.vector-store.enabled", havingValue = "true",
-            matchIfMissing = true)
+    @ConditionalOnProperty(name = "atmosphere.ai.vector-store.enabled", havingValue = "true")
     public VectorStore vectorStore(EmbeddingModel embeddingModel) {
         var store = SimpleVectorStore.builder(embeddingModel).build();
 
