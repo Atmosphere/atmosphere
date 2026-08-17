@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.67] - 2026-08-17
+
+### Fixed
+
+- make the vector store opt-in so keyless retrieval keeps its provider An empty store becomes the retrieval source and starves the demo path — the rag-chat-commands e2e caught it.
+- scrub SPRING_AI_* and read warnings from binary sample logs Relaxed binding let an ambient SPRING_AI_OPENAI_BASE_URL redirect samples off the keyless-local backend.
+- reject flag-shaped project names and unknown checkpoint options `atmosphere new --list-templates` scaffolded a directory named after the flag; checkpoint silently ignored --url.
+- build the vector store so retrieval is actually grounded Un-exclude OpenAiEmbeddingAutoConfiguration and gate the bean on a property, not @ConditionalOnBean.
+- treat unreachable container daemon as engine unavailable
+
+### Changed
+
+- allowlist ConditionalOnBean/ConditionalOnProperty doc symbols Sibling Spring conditions were already listed; these two were missing.
+- document the transport headers replay requires A bare curl returns 200 with an empty body because reattach only runs for WS/SSE/long-polling.
+- unwire mcp-client spec until its build moves out of the hook
+- stop dependabot rewriting the maven wrapper
+- hold the Maven wrapper on 3.x in dependabot
+- bump Embabel to 1.5.0 and MCP Java SDK to 2.0.0
+- bump Spring Boot 4.0.7 to 4.1.0
+- bump org.jetbrains.kotlinx:kotlinx-serialization-core-jvm (#2748)
+- bump every version-bearing file in one commit
+- prepare next development version 5.0.42
+- bump version to 4.0.66
+- prepare for next development iteration 4.0.67-SNAPSHOT
+
 ## [4.0.66] - 2026-08-09
 
 ### Added
