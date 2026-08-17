@@ -22,9 +22,11 @@ AutoConfiguration
 Autowired
 Bean
 Component
+ConditionalOnBean
 ConditionalOnClass
 ConditionalOnMissingBean
 ConditionalOnExpression
+ConditionalOnProperty
 Configuration
 EventListener
 RestController
