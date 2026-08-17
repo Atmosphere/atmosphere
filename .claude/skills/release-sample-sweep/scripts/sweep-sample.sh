@@ -81,9 +81,18 @@ MVNW="$ROOT/mvnw"
 # Note the ordering guarantee this relies on: `env -u FOO FOO=bar` unsets first
 # and then applies the assignment, so an explicit --env always outranks a scrub.
 # Set SWEEP_KEEP_ENV=1 to inherit the caller's values instead.
+# SPRING_AI_* is not optional here. Spring Boot relaxed binding maps the environment
+# variable SPRING_AI_OPENAI_BASE_URL straight onto the property spring.ai.openai.base-url,
+# and an environment variable outranks the application.yml placeholder that the sample
+# reads. So a maintainer profile exporting SPRING_AI_OPENAI_BASE_URL / _API_KEY silently
+# redirects every Spring AI sample at a real remote account no matter what LLM_MODE says —
+# the keyless-local premise of the sweep quietly stops holding, and the sample's own
+# ${SPRING_AI_BASE_URL:...} default never gets a chance to apply. Found on 2026-08-16, when
+# rag-chat embedded against Gemini while the run believed it was on local Ollama.
 SCRUB_VARS=(LLM_API_KEY LLM_BASE_URL LLM_MODEL LLM_MODE
             OPENAI_API_KEY GEMINI_API_KEY GOOGLE_API_KEY ANTHROPIC_API_KEY
-            COHERE_API_KEY AZURE_OPENAI_API_KEY)
+            COHERE_API_KEY AZURE_OPENAI_API_KEY
+            SPRING_AI_OPENAI_API_KEY SPRING_AI_OPENAI_BASE_URL)
 
 mkdir -p "$STATE_DIR"
 
@@ -424,7 +433,11 @@ cmd_warnings() {
     local sample="${1:?usage: $0 warnings <sample>}"
     local log="$STATE_DIR/$sample.log"
     [[ -f "$log" ]] || die "no log for $sample"
-    if ! grep -nE 'WARN|ERROR|SEVERE|Exception|Caused by|SLF4J' "$log"; then
+    # -a: some samples log raw frame bytes (spring-boot-otel-chat does), which makes the log a
+    # binary file. Without -a, grep prints "Binary file <log> matches" and NOTHING else — which
+    # looks like output while suppressing the entire warning inventory. That hid 8 lines,
+    # including "SEVERE: Failed to export spans", during the 2026-08-16 sweep.
+    if ! grep -anE 'WARN|ERROR|SEVERE|Exception|Caused by|SLF4J' "$log"; then
         echo "(no WARN/ERROR/exception lines in $log)"
     fi
 }
