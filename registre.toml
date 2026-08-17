@@ -1,0 +1,13 @@
+# ABOUTME: llm-registre configuration — where this repo's limitation issues are filed
+# ABOUTME: The tracker is PRIVATE because this repo is public (see the gates' README)
+
+# Atmosphere/atmosphere-carnet is this project's own register. Registers are per
+# project: this repo is PUBLIC, and a limitation issue states precisely where a
+# defence or a capability is incomplete, so it never goes on this repo's tracker.
+tracker = "Atmosphere/atmosphere-carnet"
+
+# A Java project with a TypeScript/JavaScript client alongside it.
+extensions = "java,ts,js"
+
+# Worktrees carry full copies of the tree; scanning them double-reports every hit.
+exclude = "**/.claude/**"

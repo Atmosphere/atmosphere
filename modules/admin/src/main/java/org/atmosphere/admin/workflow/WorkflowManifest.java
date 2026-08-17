@@ -28,9 +28,10 @@ import java.util.regex.Pattern;
  * conditional branch, a fan-out, an approval gate); edges describe how the
  * output of one node reaches the input of the next.
  *
- * <p>This is the on-disk format the authoring UI saves and the runtime
- * (planned in a follow-up commit on this branch) executes by dispatching
- * each node through {@code @Coordinator} / {@code AgentFleet}.</p>
+ * <p>This is the on-disk format the authoring UI saves.
+ * LIMITATION(registre#1): no runtime executes a saved manifest — the module
+ * is authoring and persistence only, so nothing dispatches these nodes
+ * through {@code @Coordinator} / {@code AgentFleet} yet.</p>
  *
  * <p>Identifier safety: workflow / node / edge identifiers and node types
  * are validated against {@code [A-Za-z0-9_-]+} at construction time so

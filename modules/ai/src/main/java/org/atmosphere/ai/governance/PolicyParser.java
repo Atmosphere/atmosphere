@@ -27,8 +27,9 @@ import java.util.List;
  * Rego or Cedar evaluator by providing the parser plus a {@link GovernancePolicy}
  * adapter that delegates evaluation to the external engine.</p>
  *
- * <p>This interface is the SPI only; it ships in the Phase A skeleton commit. A YAML
- * implementation backed by SnakeYAML is added in a follow-up commit and declares
+ * <p>Three implementations ship today, each ServiceLoader-registered:
+ * {@code YamlPolicyParser} in {@code modules/ai}, plus {@code RegoPolicyParser}
+ * and {@code CedarPolicyParser} in their own modules. The YAML parser declares
  * SnakeYAML as an explicit {@code modules/ai} runtime dependency — SnakeYAML is NOT
  * transitively pulled in by Quarkus or bare-JVM / Jetty-embedded deployments, so the
  * dep has to be declared explicitly on the out-of-box path.</p>
