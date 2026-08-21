@@ -156,6 +156,34 @@ public class ToolBridgeUtilsTest {
         assertEquals("abc123", result.get("count"));
     }
 
+    /**
+     * Regression (registre#37): a payload cut off mid-string used to deliver
+     * the truncated remainder as the argument value — the tool received a
+     * value the caller never sent, with no error and no marker. The
+     * truncated pair must be dropped so a required argument fails
+     * validation with a structured error instead.
+     */
+    @Test
+    public void testTruncatedStringValueIsDroppedNotDelivered() {
+        var result = ToolBridgeUtils.parseJsonArgs(
+                "{\"city\":\"Paris\",\"body\":\"Dear customer, your refund of $4");
+
+        assertEquals("Paris", result.get("city"),
+                "complete leading pairs stay salvageable");
+        assertFalse(result.containsKey("body"),
+                "a truncated string must never pass through as a shortened value: "
+                        + result.get("body"));
+    }
+
+    @Test
+    public void testCompleteFinalStringWithoutClosingBraceStillParses() {
+        // Truncation after a COMPLETE value (only the brace missing) keeps
+        // every pair — only an unterminated string is dropped.
+        var result = ToolBridgeUtils.parseJsonArgs("{\"a\":\"x\",\"b\":\"y\"");
+        assertEquals("x", result.get("a"));
+        assertEquals("y", result.get("b"));
+    }
+
     @Test
     public void testFindMatchingCloseBracketRespectsNesting() {
         assertEquals(8, ToolBridgeUtils.findMatchingCloseBracket("[[1,2],3]", 0));

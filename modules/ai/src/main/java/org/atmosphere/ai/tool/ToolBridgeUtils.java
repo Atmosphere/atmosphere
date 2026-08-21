@@ -203,6 +203,14 @@ public final class ToolBridgeUtils {
                 // String value
                 int valStart = i + 1;
                 int valEnd = findUnescapedQuote(trimmed, valStart);
+                if (valEnd >= trimmed.length()) {
+                    // Unterminated string: the payload was cut off mid-value.
+                    // Never deliver the truncated remainder as though the
+                    // model sent it — drop the pair, so a required argument
+                    // fails validation with a structured error instead of
+                    // the tool silently receiving a shortened value.
+                    break;
+                }
                 result.put(key, trimmed.substring(valStart, valEnd));
                 i = valEnd + 1;
             } else if (trimmed.charAt(i) == 't' || trimmed.charAt(i) == 'f') {
