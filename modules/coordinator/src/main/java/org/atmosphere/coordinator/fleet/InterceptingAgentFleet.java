@@ -36,7 +36,9 @@ import java.util.Objects;
  * <p>Dispatches denied here are not invisible — they can be observed
  * through the wrapped fleet's activity listener / journal if those are
  * installed ahead of this wrapper. Order of wrapping matters; compose
- * {@code journal(intercepting(base))} to record denies, or
+ * {@code journal(intercepting(base))} to record denies — the framework's
+ * default composition in {@code CoordinatorProcessor}, upholding
+ * {@link FleetInterceptor.Decision.Deny}'s audit guarantee — or
  * {@code intercepting(journal(base))} to deny before journaling.</p>
  */
 public final class InterceptingAgentFleet implements AgentFleet {

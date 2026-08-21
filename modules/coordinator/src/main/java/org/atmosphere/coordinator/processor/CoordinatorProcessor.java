@@ -289,6 +289,14 @@ public class CoordinatorProcessor implements Processor<Object> {
             var journal = journalResolution.journal();
             AgentFleet fleet = new DefaultAgentFleet(proxies, evaluators,
                     DefaultAgentFleet.DEFAULT_PARALLEL_TIMEOUT_MS, activityListeners);
+            // Governance wraps INSIDE journaling (journal(intercepting(base)))
+            // so a policy denial is recorded in the journaled event stream as
+            // the failed dispatch it is — Decision.Deny's documented audit
+            // guarantee. The previous order let a denial short-circuit before
+            // any journal write, leaving auditors no trace that a policy
+            // blocked a dispatch.
+            fleet = applyPresetGovernance(fleet,
+                    features.contains(Harness.DELEGATION), framework, coordinatorName);
             if (journal != CoordinationJournal.NOOP) {
                 // Externally-managed journals (e.g. Spring-wired beans) own
                 // their own lifecycle — calling start() here would re-start
@@ -305,8 +313,6 @@ public class CoordinatorProcessor implements Processor<Object> {
                 }
                 fleet = new JournalingAgentFleet(fleet, journal, coordinatorName);
             }
-            fleet = applyPresetGovernance(fleet,
-                    features.contains(Harness.DELEGATION), framework, coordinatorName);
             // Publish the finished fleet into the framework property bag so the
             // admin read plane (/api/admin/coordinators, CoordinatorController)
             // reports the live roster (Runtime Truth). String-bridged key — the
