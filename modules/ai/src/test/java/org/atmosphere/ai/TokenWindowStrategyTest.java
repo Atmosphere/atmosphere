@@ -40,6 +40,62 @@ class TokenWindowStrategyTest {
         assertEquals(1, result.size());
     }
 
+    /**
+     * Regression (registre#33): an assistant message carrying an
+     * arbitrarily large toolCalls payload scored as 1 token, so tool-heavy
+     * histories blew straight through the budget the strategy exists to
+     * protect. Tool-call payloads must count like text.
+     */
+    @Test
+    void toolCallPayloadsCountTowardTheBudget() {
+        var strategy = new TokenWindowStrategy(200);
+        var bigToolCall = ChatMessage.assistantToolCalls(List.of(
+                new ChatMessage.ToolCall("tc-1", "search",
+                        "{\"q\":\"" + "x".repeat(4000) + "\"}")));
+        var result = strategy.select(List.of(
+                ChatMessage.user("small question"), bigToolCall), 100);
+
+        assertTrue(result.stream().noneMatch(m -> !m.toolCalls().isEmpty()),
+                "a ~1000-token tool-call payload cannot fit a 200-token budget: "
+                        + result);
+    }
+
+    /**
+     * Regression (registre#33): the documented maxMessages parameter was
+     * silently ignored — a direct caller got an unbounded message count.
+     */
+    @Test
+    void maxMessagesCapsTheSelectionAlongsideTheTokenBudget() {
+        var strategy = new TokenWindowStrategy(100_000);
+        var messages = new java.util.ArrayList<ChatMessage>();
+        for (int i = 0; i < 10; i++) {
+            messages.add(ChatMessage.user("m" + i));
+        }
+        var result = strategy.select(messages, 3);
+
+        assertEquals(3, result.size(),
+                "maxMessages must cap the selection even under a huge token budget");
+        assertEquals("m9", result.get(result.size() - 1).content(),
+                "the newest messages win the cap");
+    }
+
+    /**
+     * Regression (registre#33): sizing the budget to the model's FULL
+     * context window left zero headroom for the system prompt, tool
+     * catalog, RAG documents, or the completion itself.
+     */
+    @Test
+    void forModelReservesCompletionHeadroom() {
+        var window = ModelWindowCatalog.contextWindow("gpt-4o");
+        var strategy = TokenWindowStrategy.forModel("gpt-4o");
+
+        assertEquals((int) (window * TokenWindowStrategy.HISTORY_WINDOW_FRACTION),
+                strategy.maxTokens(),
+                "history must get a headroom-reserving share of the window, "
+                        + "never all of it");
+        assertTrue(strategy.maxTokens() < window);
+    }
+
     @Test
     void withinBudgetReturnsAll() {
         var strategy = new TokenWindowStrategy(1000);

@@ -26,8 +26,9 @@ import java.util.List;
  * enough for context window management without requiring a tokenizer).
  *
  * <p>The {@code maxMessages} parameter from {@link AiConversationMemory} is
- * reinterpreted as the maximum token count (not message count). This allows
- * fine-grained control over context window usage.</p>
+ * honored as an additional cap on the number of retained non-system
+ * messages (values {@code <= 0} disable it); the token budget bounds the
+ * total size. Tool-call payloads count toward the estimate like text.</p>
  *
  * <p>The budget can be sized to the resolved model's actual context window via
  * {@link #forModel(String)} / {@link ModelWindowCatalog}, so a 200k-token model
@@ -63,15 +64,27 @@ public class TokenWindowStrategy implements MemoryStrategy {
     }
 
     /**
-     * Build a model-aware strategy whose token budget is {@code model}'s context
-     * window from {@link ModelWindowCatalog}, or the documented default when the
-     * model is unknown. Never throws on an unknown model.
+     * Fraction of a model's context window budgeted to retained history.
+     * The remainder is headroom for the system prompt, the tool catalog,
+     * grounded facts / RAG documents, and the completion itself — filling
+     * the whole window with history guarantees an over-limit request.
+     */
+    static final double HISTORY_WINDOW_FRACTION = 0.75;
+
+    /**
+     * Build a model-aware strategy whose token budget is
+     * {@value #HISTORY_WINDOW_FRACTION} of {@code model}'s context window
+     * from {@link ModelWindowCatalog} (headroom stays reserved for the
+     * system prompt, tool catalog and completion), or the documented
+     * default when the model is unknown. Never throws on an unknown model.
      *
      * @param model the resolved model id (may be {@code null}/blank → default)
-     * @return a strategy budgeted to the model's context window
+     * @return a strategy budgeted to a headroom-reserving share of the
+     *         model's context window
      */
     public static TokenWindowStrategy forModel(String model) {
-        return new TokenWindowStrategy(ModelWindowCatalog.contextWindow(model));
+        var window = ModelWindowCatalog.contextWindow(model);
+        return new TokenWindowStrategy(Math.max(1, (int) (window * HISTORY_WINDOW_FRACTION)));
     }
 
     /**
@@ -84,6 +97,11 @@ public class TokenWindowStrategy implements MemoryStrategy {
     @Override
     public List<ChatMessage> select(List<ChatMessage> fullHistory, int maxMessages) {
         var tokenBudget = maxTokens;
+        // Both constraints apply: the token budget bounds size, and a
+        // positive maxMessages additionally caps the number of non-system
+        // messages — the parameter used to be silently ignored, leaving a
+        // direct caller with an unbounded message count.
+        var messageBudget = maxMessages > 0 ? maxMessages : Integer.MAX_VALUE;
 
         // Always include system messages first
         var systemMessages = new ArrayList<ChatMessage>();
@@ -104,6 +122,9 @@ public class TokenWindowStrategy implements MemoryStrategy {
             var msg = fullHistory.get(i);
             if ("system".equals(msg.role())) {
                 continue;
+            }
+            if (selected.size() >= messageBudget) {
+                break;
             }
             var tokens = estimateTokens(msg);
             if (tokenBudget - tokens < 0) {
@@ -126,6 +147,18 @@ public class TokenWindowStrategy implements MemoryStrategy {
 
     private static int estimateTokens(ChatMessage msg) {
         var content = msg.content();
-        return content != null ? Math.max(1, content.length() / CHARS_PER_TOKEN) : 1;
+        var chars = content != null ? content.length() : 0;
+        // Tool-call payloads consume context exactly like text — an
+        // assistant message carrying a large arguments JSON used to score
+        // as 1 token, blowing the budget the strategy exists to protect.
+        for (var toolCall : msg.toolCalls()) {
+            if (toolCall.name() != null) {
+                chars += toolCall.name().length();
+            }
+            if (toolCall.argumentsJson() != null) {
+                chars += toolCall.argumentsJson().length();
+            }
+        }
+        return Math.max(1, chars / CHARS_PER_TOKEN);
     }
 }
