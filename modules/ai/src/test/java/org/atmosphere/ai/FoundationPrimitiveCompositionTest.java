@@ -66,7 +66,11 @@ class FoundationPrimitiveCompositionTest {
                 StandardCharsets.UTF_8);
         Files.writeString(workspaceRoot.resolve("SOUL.md"),
                 "Calm, focused, terse.", StandardCharsets.UTF_8);
-        Files.writeString(workspaceRoot.resolve("USER.md"),
+        // USER.md is user-scoped: the "chef" caller below reads it from
+        // users/chef/, never from the shared root (registre#12).
+        var chefDir = workspaceRoot.resolve("users").resolve("chef");
+        Files.createDirectories(chefDir);
+        Files.writeString(chefDir.resolve("USER.md"),
                 "Address the user as Alice.", StandardCharsets.UTF_8);
         Files.writeString(workspaceRoot.resolve("IDENTITY.md"),
                 "name: pierre\nvibe: focused", StandardCharsets.UTF_8);

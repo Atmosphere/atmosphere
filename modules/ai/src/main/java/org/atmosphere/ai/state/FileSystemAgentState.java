@@ -46,13 +46,17 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * <pre>
  * {workspaceRoot}/
- *   AGENTS.md                           ← operating rules
- *   SOUL.md                             ← persona
- *   USER.md                             ← user profile
- *   IDENTITY.md                         ← agent identity
+ *   AGENTS.md                           ← operating rules (shared default)
+ *   SOUL.md                             ← persona (shared default)
+ *   USER.md                             ← user profile (single-tenant only)
+ *   IDENTITY.md                         ← agent identity (shared default)
  *   MEMORY.md                           ← durable facts (one per line)
  *   memory/YYYY-MM-DD.md                ← daily notes (one per line)
+ *   agents/{agentId}/IDENTITY.md        ← per-agent overrides (also SOUL.md,
+ *                                         AGENTS.md); win over root defaults
  *   agents/{agentId}/sessions/{sessionId}.jsonl   ← conversation transcripts
+ *   users/{userId}/USER.md              ← per-user profile; when a userId is
+ *                                         passed, the root USER.md never applies
  * </pre>
  *
  * <h2>Boundary safety</h2>
@@ -254,10 +258,22 @@ public class FileSystemAgentState implements AgentState {
 
     @Override
     public RuleSet getRules(String userId, String agentId) {
-        var identity = readFile(workspaceRoot.resolve("IDENTITY.md"));
-        var persona = readFile(workspaceRoot.resolve("SOUL.md"));
-        var userProfile = readFile(workspaceRoot.resolve("USER.md"));
-        var rules = readFile(workspaceRoot.resolve("AGENTS.md"));
+        var identity = agentScopedOrRoot(agentId, "IDENTITY.md");
+        var persona = agentScopedOrRoot(agentId, "SOUL.md");
+        var rules = agentScopedOrRoot(agentId, "AGENTS.md");
+        // USER.md is user-scoped data: with a userId present it is read
+        // exclusively from users/{userId}/USER.md — the shared root
+        // profile is never promoted across users (same default-deny
+        // posture as memoryMdPath). Without a userId the deployment has
+        // no user concept and the single-tenant root USER.md applies.
+        String userProfile;
+        if (userId == null || userId.isBlank()) {
+            userProfile = readFile(workspaceRoot.resolve("USER.md"));
+        } else {
+            var safeUser = validateSegment("userId", userId);
+            userProfile = readFile(
+                    resolveSafe(workspaceRoot.resolve("users"), safeUser).resolve("USER.md"));
+        }
 
         var composed = new StringBuilder();
         appendSection(composed, "Identity", identity);
@@ -268,11 +284,34 @@ public class FileSystemAgentState implements AgentState {
         return new RuleSet(composed.toString().trim(), identity, persona, userProfile, rules);
     }
 
+    /**
+     * Read an agent-level document ({@code IDENTITY.md} / {@code SOUL.md} /
+     * {@code AGENTS.md}): the per-agent override under
+     * {@code agents/{agentId}/} wins when it exists, else the shared root
+     * file applies. Unlike user-scoped data, sharing agent defaults across
+     * agents is intended layering, not a cross-scope leak.
+     */
+    private String agentScopedOrRoot(String agentId, String fileName) {
+        if (agentId != null && !agentId.isBlank()) {
+            var safeAgent = validateSegment("agentId", agentId);
+            var scoped = resolveSafe(workspaceRoot.resolve("agents"), safeAgent)
+                    .resolve(fileName);
+            if (Files.exists(scoped)) {
+                return readFile(scoped);
+            }
+        }
+        return readFile(workspaceRoot.resolve(fileName));
+    }
+
     // ---------- Workspace ----------
 
     @Override
     public Optional<Path> workspaceRoot(String agentId) {
-        return Optional.of(workspaceRoot);
+        if (agentId == null || agentId.isBlank()) {
+            return Optional.of(workspaceRoot);
+        }
+        var safeAgent = validateSegment("agentId", agentId);
+        return Optional.of(resolveSafe(workspaceRoot.resolve("agents"), safeAgent));
     }
 
     // ---------- Helpers ----------

@@ -136,8 +136,10 @@ class FileSystemAgentStateTest {
     void rulesAssembleFromWorkspaceFiles(@TempDir Path root) throws Exception {
         Files.writeString(root.resolve("IDENTITY.md"), "I am Pierre", StandardCharsets.UTF_8);
         Files.writeString(root.resolve("SOUL.md"), "calm, direct", StandardCharsets.UTF_8);
-        Files.writeString(root.resolve("USER.md"), "call them Alice", StandardCharsets.UTF_8);
         Files.writeString(root.resolve("AGENTS.md"), "be helpful", StandardCharsets.UTF_8);
+        var userDir = root.resolve("users").resolve("u1");
+        Files.createDirectories(userDir);
+        Files.writeString(userDir.resolve("USER.md"), "call them Alice", StandardCharsets.UTF_8);
 
         var state = new FileSystemAgentState(root);
         var rules = state.getRules("u1", "a1");
@@ -150,6 +152,47 @@ class FileSystemAgentStateTest {
         assertTrue(rules.systemPrompt().contains("I am Pierre"));
         assertTrue(rules.systemPrompt().contains("## Persona"));
         assertTrue(rules.systemPrompt().contains("calm, direct"));
+    }
+
+    /**
+     * Regression: {@code getRules} used to ignore both scoping
+     * parameters, so every user received the same root {@code USER.md}
+     * in their composed system prompt — a cross-user profile leak. A
+     * per-user profile must reach only its own user, and the shared
+     * root profile must never be promoted to a scoped user.
+     */
+    @Test
+    void userProfilesNeverBleedAcrossUsers(@TempDir Path root) throws Exception {
+        Files.writeString(root.resolve("USER.md"), "root-tenant profile", StandardCharsets.UTF_8);
+        var alice = root.resolve("users").resolve("alice");
+        Files.createDirectories(alice);
+        Files.writeString(alice.resolve("USER.md"), "alice's private profile",
+                StandardCharsets.UTF_8);
+
+        var state = new FileSystemAgentState(root);
+
+        assertEquals("alice's private profile",
+                state.getRules("alice", "a1").userProfile());
+        assertEquals("", state.getRules("bob", "a1").userProfile(),
+                "bob must see neither alice's profile nor the shared root "
+                + "profile — default deny on cross-scope access");
+        assertEquals("root-tenant profile",
+                state.getRules(null, "a1").userProfile(),
+                "without a user concept the single-tenant root profile applies");
+    }
+
+    /** Per-agent document overrides win over the shared root defaults. */
+    @Test
+    void agentDocsResolvePerAgentBeforeRootDefaults(@TempDir Path root) throws Exception {
+        Files.writeString(root.resolve("SOUL.md"), "shared persona", StandardCharsets.UTF_8);
+        var a2 = root.resolve("agents").resolve("a2");
+        Files.createDirectories(a2);
+        Files.writeString(a2.resolve("SOUL.md"), "a2-specific persona", StandardCharsets.UTF_8);
+
+        var state = new FileSystemAgentState(root);
+
+        assertEquals("shared persona", state.getRules(null, "a1").persona());
+        assertEquals("a2-specific persona", state.getRules(null, "a2").persona());
     }
 
     @Test
@@ -173,11 +216,24 @@ class FileSystemAgentStateTest {
                 () -> state.appendConversation("agent1", "sess/with/slash", ChatMessage.user("x")));
     }
 
+    /**
+     * Regression: {@code workspaceRoot(agentId)} used to ignore its
+     * parameter and return the shared root, so the admin UI rendered
+     * agent A's tree when asked for agent B. Each agent gets its own
+     * subtree; the shared root is only returned when no agent is named.
+     */
     @Test
-    void workspaceRootReturnsConfiguredRoot(@TempDir Path root) {
+    void workspaceRootIsScopedPerAgent(@TempDir Path root) {
         var state = new FileSystemAgentState(root);
-        assertEquals(root.toAbsolutePath().normalize(),
+        var normalizedRoot = root.toAbsolutePath().normalize();
+
+        assertEquals(normalizedRoot.resolve("agents").resolve("agent1"),
                 state.workspaceRoot("agent1").orElseThrow());
+        assertEquals(normalizedRoot.resolve("agents").resolve("agent2"),
+                state.workspaceRoot("agent2").orElseThrow());
+        assertEquals(normalizedRoot, state.workspaceRoot(null).orElseThrow());
+        assertThrows(IllegalArgumentException.class,
+                () -> state.workspaceRoot("../escape"));
     }
 
     @Test

@@ -56,8 +56,12 @@ class ChangelogClaimsTest {
             throws IOException {
         Files.writeString(ws.resolve("AGENTS.md"), "Be concise.");
         Files.writeString(ws.resolve("SOUL.md"), "You are a careful assistant.");
-        Files.writeString(ws.resolve("USER.md"), "User is a Java champion.");
         Files.writeString(ws.resolve("IDENTITY.md"), "Codename: Sentinel.");
+        // USER.md is user-scoped: a scoped caller reads it from
+        // users/{userId}/, never from the shared root (registre#12).
+        var userDir = ws.resolve("users").resolve("user-1");
+        Files.createDirectories(userDir);
+        Files.writeString(userDir.resolve("USER.md"), "User is a Java champion.");
 
         var state = new FileSystemAgentState(ws);
         var rules = state.getRules("user-1", "agent-1");

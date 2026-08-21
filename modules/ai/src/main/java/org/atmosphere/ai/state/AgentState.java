@@ -169,7 +169,9 @@ public interface AgentState {
      * if the backend has no filesystem concept (any non-file implementation an
      * application supplies; every in-tree backend is file-backed).
      * Admin inspection endpoints use this to surface the workspace tree to
-     * end users.
+     * end users. With an {@code agentId} the returned path is that agent's
+     * own subtree — one agent's tree is never rendered for another; a
+     * {@code null}/blank id returns the shared root.
      */
     Optional<Path> workspaceRoot(String agentId);
 }
