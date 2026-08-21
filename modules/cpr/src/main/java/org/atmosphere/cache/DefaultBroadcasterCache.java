@@ -77,12 +77,20 @@ public class DefaultBroadcasterCache implements BroadcasterCache {
 
     @Override
     public BroadcasterCache addBroadcasterCacheListener(BroadcasterCacheListener l) {
-        return null;
+        // This cache never stores messages, so no cache event will ever
+        // fire — say so instead of silently discarding the registration,
+        // and honor the fluent contract (returning null NPEs the
+        // BroadcasterConfig registration loop).
+        logger.warn("BroadcasterCacheListener {} registered on the no-op "
+                + "DefaultBroadcasterCache — it will receive no events. Install a real "
+                + "BroadcasterCache (e.g. UUIDBroadcasterCache) for cache events.",
+                l != null ? l.getClass().getName() : null);
+        return this;
     }
 
     @Override
     public BroadcasterCache removeBroadcasterCacheListener(BroadcasterCacheListener l) {
-        return null;
+        return this;
     }
 
     @Override
