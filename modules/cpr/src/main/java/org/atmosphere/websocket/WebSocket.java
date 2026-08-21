@@ -376,8 +376,12 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
 
     /**
      * Allow the underlying WebSocket to close with a code and a reason.
+     * The base implementation closes the socket without transmitting the
+     * code and reason — bindings whose native API can carry them override
+     * this. It must never silently leave the connection open.
      */
     public void close(int statusCode, String reasonText) {
+        close();
     }
 
     public String uuid() {
@@ -391,7 +395,9 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
     }
 
     /**
-     * Send a WebSocket Ping
+     * Send a WebSocket Ping. Supported by the JSR356 binding (every servlet
+     * container); bindings whose native API has no control-frame access
+     * throw {@link UnsupportedOperationException}.
      *
      * @param payload the bytes to send
      * @return this
@@ -401,7 +407,9 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
     }
 
     /**
-     * Send a WebSocket Pong
+     * Send a WebSocket Pong. Supported by the JSR356 binding (every servlet
+     * container); bindings whose native API has no control-frame access
+     * throw {@link UnsupportedOperationException}.
      *
      * @param payload the bytes to send
      * @return this

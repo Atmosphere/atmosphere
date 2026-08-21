@@ -146,6 +146,52 @@ public class JSR356WebSocket extends WebSocket {
         }
     }
 
+    @Override
+    public void close(int statusCode, String reasonText) {
+
+        if (!session.isOpen() || closed.getAndSet(true)) return;
+
+        logger.trace("WebSocket.close({}, {}) for AtmosphereResource {}", statusCode, reasonText,
+                resource() != null ? resource().uuid() : "null");
+        try {
+            // RFC 6455 caps the close reason at 123 UTF-8 bytes; truncate
+            // rather than let the container reject the whole close frame.
+            var reason = reasonText != null && reasonText.length() > 123
+                    ? reasonText.substring(0, 123) : reasonText;
+            session.close(new jakarta.websocket.CloseReason(
+                    jakarta.websocket.CloseReason.CloseCodes.getCloseCode(statusCode), reason));
+            // Tomcat may throw  https://gist.github.com/jfarcand/6702738
+        } catch (Exception e) {
+            logger.trace("", e);
+        }
+    }
+
+    @Override
+    public WebSocket sendPing(byte[] payload) {
+        if (!isOpen()) {
+            throw new IllegalStateException("Socket closed");
+        }
+        try {
+            session.getBasicRemote().sendPing(ByteBuffer.wrap(payload));
+        } catch (IOException | IllegalArgumentException e) {
+            throw new IllegalStateException("Failed to send WebSocket ping", e);
+        }
+        return this;
+    }
+
+    @Override
+    public WebSocket sendPong(byte[] payload) {
+        if (!isOpen()) {
+            throw new IllegalStateException("Socket closed");
+        }
+        try {
+            session.getBasicRemote().sendPong(ByteBuffer.wrap(payload));
+        } catch (IOException | IllegalArgumentException e) {
+            throw new IllegalStateException("Failed to send WebSocket pong", e);
+        }
+        return this;
+    }
+
     private final class WriteResult implements SendHandler {
 
         private final AtmosphereResource r;
