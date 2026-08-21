@@ -36,7 +36,10 @@ public interface MessagingChannel {
     ChannelType channelType();
 
     /**
-     * Webhook path this channel listens on (e.g., "/webhook/telegram").
+     * Webhook path this channel listens on (e.g., "/webhook/telegram"), or
+     * {@code null} when the channel receives messages by another mechanism
+     * (e.g. Discord's Gateway) and must not expose a webhook route at all —
+     * an unauthenticated no-op endpoint is attack surface, not a feature.
      */
     String webhookPath();
 

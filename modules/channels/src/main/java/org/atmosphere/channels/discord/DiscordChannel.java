@@ -86,7 +86,9 @@ public class DiscordChannel implements MessagingChannel {
 
     @Override
     public String webhookPath() {
-        return "/webhook/discord"; // Not used — Gateway receives messages directly
+        // Discord receives via the Gateway; null keeps the webhook
+        // controller from registering an unauthenticated dead route.
+        return null;
     }
 
     @Override
@@ -96,13 +98,16 @@ public class DiscordChannel implements MessagingChannel {
 
     @Override
     public void verifySignature(Map<String, String> headers, byte[] body) {
-        // Gateway handles authentication via the bot token — no webhook verification needed
+        // No webhook surface exists (webhookPath() is null). Fail closed if
+        // anything ever routes a webhook here — never verify-as-pass.
+        throw new ChannelException(ChannelType.DISCORD,
+                "Discord receives via the Gateway; webhook delivery is not supported");
     }
 
     @Override
     public List<IncomingMessage> receive(Map<String, String> headers, byte[] body) {
-        // Messages arrive via the Gateway, not webhooks
-        return List.of();
+        throw new ChannelException(ChannelType.DISCORD,
+                "Discord receives via the Gateway; webhook delivery is not supported");
     }
 
     @Override

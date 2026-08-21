@@ -15,19 +15,21 @@
  */
 package org.atmosphere.channels.discord;
 
+import org.atmosphere.channels.ChannelException;
 import org.atmosphere.channels.ChannelType;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
- * Tests for {@link DiscordChannel} covering channel metadata and
- * gateway-based receive behavior (which returns empty since messages
- * arrive via the Gateway, not webhooks).
+ * Tests for {@link DiscordChannel}. Discord receives via the Gateway, so
+ * the channel exposes no webhook surface at all (registre#44): the path is
+ * {@code null} — the webhook controller registers no route — and the
+ * webhook-only SPI methods fail closed instead of verifying-as-pass.
  */
 class DiscordChannelTest {
 
@@ -42,8 +44,9 @@ class DiscordChannelTest {
     }
 
     @Test
-    void webhookPathIsCorrect() {
-        assertEquals("/webhook/discord", channel.webhookPath());
+    void webhookPathIsNullSoNoRouteIsRegistered() {
+        assertNull(channel.webhookPath(),
+                "a Gateway channel must not expose an unauthenticated webhook route");
     }
 
     @Test
@@ -52,14 +55,14 @@ class DiscordChannelTest {
     }
 
     @Test
-    void verifySignatureDoesNotThrow() {
-        // Gateway-based — no signature verification needed
-        channel.verifySignature(Map.of(), new byte[0]);
+    void verifySignatureFailsClosedRatherThanVerifyingAsPass() {
+        assertThrows(ChannelException.class,
+                () -> channel.verifySignature(Map.of(), new byte[0]));
     }
 
     @Test
-    void receiveReturnsEmptyListBecauseGatewayHandlesMessages() {
-        List<?> messages = channel.receive(Map.of(), new byte[0]);
-        assertTrue(messages.isEmpty());
+    void receiveFailsClosedBecauseGatewayHandlesMessages() {
+        assertThrows(ChannelException.class,
+                () -> channel.receive(Map.of(), new byte[0]));
     }
 }

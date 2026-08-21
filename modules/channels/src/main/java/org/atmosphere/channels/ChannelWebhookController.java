@@ -69,8 +69,17 @@ public class ChannelWebhookController {
         this.filterChain = filterChain;
         this.seenMessages = seenMessages != null ? seenMessages : SeenMessageCache.disabled();
         for (MessagingChannel channel : channels) {
-            channelsByPath.put(channel.webhookPath(), channel);
-            log.info("Registered {} channel at {}", channel.channelType().id(), channel.webhookPath());
+            var path = channel.webhookPath();
+            if (path == null || path.isBlank()) {
+                // Gateway-style channels (Discord) have no webhook surface;
+                // registering a route that verifies nothing and processes
+                // nothing would be an unauthenticated dead endpoint.
+                log.info("Channel {} receives without webhooks — no route registered",
+                        channel.channelType().id());
+                continue;
+            }
+            channelsByPath.put(path, channel);
+            log.info("Registered {} channel at {}", channel.channelType().id(), path);
         }
         log.info("Inbound webhook deduplication {}",
                 this.seenMessages.isEnabled() ? "enabled" : "disabled");

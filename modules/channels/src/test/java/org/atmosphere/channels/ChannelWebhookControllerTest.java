@@ -150,6 +150,28 @@ class ChannelWebhookControllerTest {
         assertNotNull(multiController.filterChain());
     }
 
+    /**
+     * Regression (registre#44): channels without a webhook surface used to
+     * be registered unconditionally, exposing an unauthenticated route that
+     * verified nothing and returned 200 having done nothing. A {@code null}
+     * webhook path must register no route at all.
+     */
+    @Test
+    void channelsWithoutAWebhookPathGetNoRoute() {
+        var gatewayChannel = mock(MessagingChannel.class);
+        when(gatewayChannel.channelType()).thenReturn(ChannelType.DISCORD);
+        when(gatewayChannel.webhookPath()).thenReturn(null);
+
+        var gatewayController = new ChannelWebhookController(
+                List.of(gatewayChannel), filterChain);
+        var response = gatewayController.handleWebhook("discord", new byte[0],
+                mock(jakarta.servlet.http.HttpServletRequest.class));
+
+        assertTrue(response.getStatusCode().is4xxClientError(),
+                "an unregistered webhook path must 404, not accept-and-drop: "
+                        + response.getStatusCode());
+    }
+
     // ── inbound idempotency ──
 
     @Test
