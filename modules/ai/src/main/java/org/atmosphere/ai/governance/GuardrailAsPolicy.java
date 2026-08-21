@@ -105,7 +105,8 @@ public final class GuardrailAsPolicy implements GovernancePolicy {
     public PolicyDecision evaluate(PolicyContext context) {
         var result = switch (context.phase()) {
             case PRE_ADMISSION -> guardrail.inspectRequest(context.request());
-            case POST_RESPONSE -> guardrail.inspectResponse(context.accumulatedResponse());
+            case POST_RESPONSE -> guardrail.inspectResponse(
+                    context.request(), context.accumulatedResponse());
         };
         return switch (result) {
             case AiGuardrail.GuardrailResult.Pass ignored -> PolicyDecision.admit();

@@ -95,6 +95,9 @@ final class DispatchDecorators {
      * @param responseType      declared structured type, or {@code null}/{@code Void}
      * @param confidence        confidence elicitation, or {@code null}; ignored
      *                          when {@code responseType} is declared
+     * @param originatingRequest the request that produces the stream, handed to
+     *                          the guardrail layer so identity-scoped output
+     *                          checks keep their subject; or {@code null}
      */
     record Spec(
             AiConversationMemory memory,
@@ -110,7 +113,8 @@ final class DispatchDecorators {
             AiBudget budget,
             List<AiGuardrail> guardrails,
             Class<?> responseType,
-            AiConfidenceElicitation confidence) {
+            AiConfidenceElicitation confidence,
+            AiRequest originatingRequest) {
     }
 
     /**
@@ -183,7 +187,8 @@ final class DispatchDecorators {
         }
 
         if (spec.guardrails() != null && !spec.guardrails().isEmpty()) {
-            target = new GuardrailCapturingSession(target, spec.guardrails());
+            target = new GuardrailCapturingSession(target, spec.guardrails(),
+                    spec.originatingRequest());
             layers.add("guardrails");
         }
 

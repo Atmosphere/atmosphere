@@ -27,14 +27,12 @@ import org.atmosphere.ai.AiRequest;
  * <p>On {@link AiGuardrail#inspectRequest(AiRequest)} the adapter builds a
  * {@link PolicyContext.Phase#PRE_ADMISSION} context and maps the returned
  * {@link PolicyDecision} to a {@link AiGuardrail.GuardrailResult}. On
- * {@link AiGuardrail#inspectResponse(String)} the adapter builds a
- * {@link PolicyContext.Phase#POST_RESPONSE} context around a placeholder
- * request — the guardrail response path does not carry the request object, so
- * the adapter reconstructs an empty {@link AiRequest} that policies reading
- * only {@code accumulatedResponse} handle correctly. A policy that inspects
- * request fields from the post-response context will see an empty message —
- * intended, because the existing {@code AiGuardrail} response SPI does not
- * thread the request through.</p>
+ * {@link AiGuardrail#inspectResponse(AiRequest, String)} the adapter builds a
+ * {@link PolicyContext.Phase#POST_RESPONSE} context around the originating
+ * request, so identity-scoped output authorization keeps its subject
+ * (userId / sessionId / agentId / conversationId). Only the legacy
+ * {@link AiGuardrail#inspectResponse(String)} entry point — used by callers
+ * with no request context — falls back to an empty placeholder request.</p>
  *
  * <p>{@link PolicyDecision.Transform} on the post-response path is mapped to
  * {@link AiGuardrail.GuardrailResult#pass()} and a warning is logged — the
@@ -101,12 +99,20 @@ public final class PolicyAsGuardrail implements AiGuardrail {
 
     @Override
     public GuardrailResult inspectResponse(String accumulatedResponse) {
-        // The existing guardrail response SPI does not pass the request through;
-        // build a placeholder so policies that read only accumulated text keep
-        // working. Policies that require the original request on the response
-        // path will observe an empty placeholder — intentional, documented on
-        // the class.
-        var ctx = PolicyContext.postResponse(new AiRequest(""), accumulatedResponse);
+        // Legacy text-only entry point: no request context is available, so
+        // the policy observes an empty placeholder. Producers that hold the
+        // originating request call the identity-aware overload below.
+        return inspectResponse(new AiRequest(""), accumulatedResponse);
+    }
+
+    @Override
+    public GuardrailResult inspectResponse(AiRequest originatingRequest,
+                                           String accumulatedResponse) {
+        // POST_RESPONSE evaluates against the originating request so
+        // identity-scoped output authorization (e.g. AcsManifestPolicy's
+        // userId/sessionId/agentId/conversationId snapshot) keeps its
+        // subject at the output intervention point.
+        var ctx = PolicyContext.postResponse(originatingRequest, accumulatedResponse);
         var startNs = System.nanoTime();
         try {
             var decision = policy.evaluate(ctx);

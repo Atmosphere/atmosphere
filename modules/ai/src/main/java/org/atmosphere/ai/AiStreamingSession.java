@@ -931,7 +931,8 @@ public class AiStreamingSession implements StreamingSession {
                 AiBudget.from(request.metadata()),
                 effectiveGuardrails,
                 effectiveResponseType,
-                AiConfidenceElicitation.from(request.metadata())));
+                AiConfidenceElicitation.from(request.metadata()),
+                request));
         StreamingSession target = composed.target();
         var structuredSchemaText = composed.structuredSchemaText();
         if (structuredSchemaText != null) {

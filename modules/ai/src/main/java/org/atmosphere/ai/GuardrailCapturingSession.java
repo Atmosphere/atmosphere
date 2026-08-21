@@ -35,6 +35,7 @@ class GuardrailCapturingSession extends DelegatingStreamingSession {
     private static final int DEFAULT_CHECK_INTERVAL = 200;
 
     private final List<AiGuardrail> guardrails;
+    private final AiRequest originatingRequest;
     private final int checkInterval;
     private final ReentrantLock lock = new ReentrantLock();
     private final StringBuilder accumulated = new StringBuilder();
@@ -42,13 +43,28 @@ class GuardrailCapturingSession extends DelegatingStreamingSession {
     private volatile boolean blocked;
 
     GuardrailCapturingSession(StreamingSession delegate, List<AiGuardrail> guardrails) {
-        this(delegate, guardrails, DEFAULT_CHECK_INTERVAL);
+        this(delegate, guardrails, null, DEFAULT_CHECK_INTERVAL);
     }
 
     GuardrailCapturingSession(StreamingSession delegate, List<AiGuardrail> guardrails,
                               int checkInterval) {
+        this(delegate, guardrails, null, checkInterval);
+    }
+
+    GuardrailCapturingSession(StreamingSession delegate, List<AiGuardrail> guardrails,
+                              AiRequest originatingRequest) {
+        this(delegate, guardrails, originatingRequest, DEFAULT_CHECK_INTERVAL);
+    }
+
+    GuardrailCapturingSession(StreamingSession delegate, List<AiGuardrail> guardrails,
+                              AiRequest originatingRequest, int checkInterval) {
         super(delegate);
         this.guardrails = guardrails;
+        // Identity-scoped output checks (registre#9) receive the request
+        // that produced the stream; an empty request only when the
+        // producer genuinely has no request context.
+        this.originatingRequest = originatingRequest != null
+                ? originatingRequest : new AiRequest("");
         this.checkInterval = checkInterval;
     }
 
@@ -161,7 +177,7 @@ class GuardrailCapturingSession extends DelegatingStreamingSession {
         var response = accumulated.toString();
         for (var guardrail : guardrails) {
             try {
-                var result = guardrail.inspectResponse(response);
+                var result = guardrail.inspectResponse(originatingRequest, response);
                 if (result instanceof AiGuardrail.GuardrailResult.Block block) {
                     logger.warn("Response blocked by guardrail {}: {}",
                             guardrail.getClass().getSimpleName(), block.reason());

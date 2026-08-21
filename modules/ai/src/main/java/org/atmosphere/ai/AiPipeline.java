@@ -585,7 +585,8 @@ public class AiPipeline {
                 AiBudget.from(baseMetadata),
                 mergeForPostResponse(guardrails, effectivePolicies),
                 effectiveResponseType,
-                AiConfidenceElicitation.from(baseMetadata)));
+                AiConfidenceElicitation.from(baseMetadata),
+                request));
         StreamingSession target = composed.target();
         var budgetSession = composed.budgetSession();
         var structuredSchemaText = composed.structuredSchemaText();

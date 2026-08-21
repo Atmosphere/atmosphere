@@ -74,6 +74,37 @@ class PolicyAsGuardrailTest {
         assertInstanceOf(AiGuardrail.GuardrailResult.Pass.class, result);
     }
 
+    /**
+     * Regression (registre#9): POST_RESPONSE used to evaluate against
+     * {@code new AiRequest("")}, dropping userId / sessionId / agentId /
+     * conversationId — identity-scoped output authorization silently ran
+     * without a subject. The identity-aware entry point must hand the
+     * policy the originating request.
+     */
+    @Test
+    void postResponseKeepsCallerIdentityForThePolicy() {
+        var seen = new java.util.concurrent.atomic.AtomicReference<AiRequest>();
+        var capturing = new GovernancePolicy() {
+            @Override public String name() { return "identity-capture"; }
+            @Override public String source() { return "code:test"; }
+            @Override public String version() { return "test"; }
+            @Override public PolicyDecision evaluate(PolicyContext context) {
+                seen.set(context.request());
+                return PolicyDecision.admit();
+            }
+        };
+        var originating = new AiRequest("hello", null, null,
+                "alice", "sess-9", "agent-9", "conv-9", java.util.Map.of(), null);
+
+        new PolicyAsGuardrail(capturing).inspectResponse(originating, "the answer");
+
+        assertEquals("alice", seen.get().userId(),
+                "output authorization must evaluate with the caller as subject");
+        assertEquals("sess-9", seen.get().sessionId());
+        assertEquals("agent-9", seen.get().agentId());
+        assertEquals("conv-9", seen.get().conversationId());
+    }
+
     @Test
     void rejectsNullPolicy() {
         assertThrows(IllegalArgumentException.class, () -> new PolicyAsGuardrail(null));

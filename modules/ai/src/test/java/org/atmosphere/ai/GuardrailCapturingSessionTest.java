@@ -34,14 +34,44 @@ class GuardrailCapturingSessionTest {
 
     private AiGuardrail passingGuardrail() {
         var g = Mockito.mock(AiGuardrail.class);
-        when(g.inspectResponse(any())).thenReturn(new AiGuardrail.GuardrailResult.Pass());
+        when(g.inspectResponse(any(AiRequest.class), any(String.class)))
+                .thenReturn(new AiGuardrail.GuardrailResult.Pass());
         return g;
     }
 
     private AiGuardrail blockingGuardrail(String reason) {
         var g = Mockito.mock(AiGuardrail.class);
-        when(g.inspectResponse(any())).thenReturn(new AiGuardrail.GuardrailResult.Block(reason));
+        when(g.inspectResponse(any(AiRequest.class), any(String.class)))
+                .thenReturn(new AiGuardrail.GuardrailResult.Block(reason));
         return g;
+    }
+
+    /**
+     * Regression (registre#9): response checks must receive the request
+     * that produced the stream so identity-scoped output authorization
+     * evaluates with a subject, not an empty placeholder.
+     */
+    @Test
+    void originatingRequestReachesGuardrailOnResponseChecks() {
+        var delegate = mockDelegate();
+        var seen = new java.util.concurrent.atomic.AtomicReference<AiRequest>();
+        var capturing = new AiGuardrail() {
+            @Override
+            public GuardrailResult inspectResponse(AiRequest originatingRequest,
+                                                   String accumulatedResponse) {
+                seen.set(originatingRequest);
+                return GuardrailResult.pass();
+            }
+        };
+        var originating = new AiRequest("q", null, null,
+                "alice", "sess-1", "agent-1", "conv-1", java.util.Map.of(), null);
+        var session = new GuardrailCapturingSession(
+                delegate, List.of(capturing), originating, 1);
+
+        session.send("hi");
+
+        assertTrue("alice".equals(seen.get().userId()),
+                "the guardrail must observe the originating caller identity");
     }
 
     @Test

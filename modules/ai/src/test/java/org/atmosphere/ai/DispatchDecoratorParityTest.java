@@ -56,7 +56,7 @@ class DispatchDecoratorParityTest {
                 null, "client-1", "hello",
                 "user-1", "agent-1", "conv-1",
                 AiMetrics.NOOP, "test-model", "test-runtime", "test-model",
-                budget, List.of(), responseType, confidence);
+                budget, List.of(), responseType, confidence, new AiRequest("hello"));
     }
 
     @Test
@@ -78,7 +78,7 @@ class DispatchDecoratorParityTest {
                                 "test"),
                         "test-model", "test-runtime", "test-model",
                         budget, List.of(new org.atmosphere.ai.guardrails.PiiRedactionGuardrail()),
-                        null, AiConfidenceElicitation.defaults()));
+                        null, AiConfidenceElicitation.defaults(), new AiRequest("hello")));
 
         assertEquals(List.of("lineage", "metrics", "cost", "budget",
                         "guardrails", "confidence"),

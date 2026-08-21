@@ -84,6 +84,25 @@ public interface AiGuardrail {
     }
 
     /**
+     * Identity-aware variant of {@link #inspectResponse(String)}: the
+     * originating request rides along so output-side checks can evaluate
+     * against the caller's userId / sessionId / agentId / conversationId
+     * (identity-scoped output authorization). The default delegates to the
+     * text-only variant, so existing guardrails are unaffected; override
+     * this one when the check needs the subject.
+     *
+     * @param originatingRequest  the request that produced this response;
+     *                            never {@code null} (an empty request when
+     *                            the producer has no request context)
+     * @param accumulatedResponse the response text accumulated so far
+     * @return the guardrail result (pass or block)
+     */
+    default GuardrailResult inspectResponse(AiRequest originatingRequest,
+                                            String accumulatedResponse) {
+        return inspectResponse(accumulatedResponse);
+    }
+
+    /**
      * Result of a guardrail check.
      */
     sealed interface GuardrailResult {
