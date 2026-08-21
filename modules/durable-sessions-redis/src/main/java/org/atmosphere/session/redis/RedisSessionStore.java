@@ -174,17 +174,36 @@ public class RedisSessionStore implements SessionStore {
 
     @Override
     public List<DurableSession> removeExpired(Duration ttl) {
-        // Redis TTL handles expiration automatically via SETEX.
-        // Clean up the index set by removing tokens whose keys no longer exist.
-        // The key data is already gone (expired by Redis), so we return stub
-        // sessions with the token so callers can perform any cleanup.
-        // N+1 Redis queries are acceptable here: this is a periodic maintenance
-        // operation on a typically small index set, not a hot path.
+        // The CONFIGURED ttl passed on every cleanup tick is authoritative —
+        // the sibling stores honor it via lastSeen, and this store must not
+        // silently substitute its constructor default. Redis's native key
+        // TTL (SETEX) stays on as a safety net for missed sweeps.
+        // N+1 Redis queries are acceptable here: this is a periodic
+        // maintenance operation on a typically small index set, not a hot
+        // path.
         var expired = new ArrayList<DurableSession>();
+        var cutoff = Instant.now().minus(ttl);
         var tokens = commands.smembers(INDEX_KEY);
         for (var token : tokens) {
-            if (commands.exists(KEY_PREFIX + token) == 0) {
+            var key = KEY_PREFIX + token;
+            var json = commands.get(key);
+            if (json == null) {
+                // Already expired by Redis's own TTL — return a stub with
+                // the token so callers can perform any cleanup.
                 expired.add(DurableSession.create(token, ""));
+                commands.srem(INDEX_KEY, token);
+                continue;
+            }
+            try {
+                var session = fromJson(json);
+                if (session.lastSeen().isBefore(cutoff)) {
+                    commands.del(key);
+                    commands.srem(INDEX_KEY, token);
+                    expired.add(session);
+                }
+            } catch (RuntimeException e) {
+                logger.warn("Removing unparseable session {} during expiry sweep", token, e);
+                commands.del(key);
                 commands.srem(INDEX_KEY, token);
             }
         }

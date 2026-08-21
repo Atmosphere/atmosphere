@@ -226,6 +226,35 @@ public class RedisSessionStoreTest {
         }
     }
 
+    /**
+     * Regression (registre#11): {@code removeExpired(ttl)} ignored its
+     * parameter, so a configured {@code atmosphere.durable-sessions.session-ttl}
+     * was discarded and sessions expired only on the store's constructor
+     * default. The configured TTL must be authoritative — a session idle
+     * longer than the passed ttl is removed even when the store default is
+     * far longer.
+     */
+    @Timeout(value = 15_000, unit = TimeUnit.MILLISECONDS)
+    @Test
+    public void testConfiguredTtlOverridesTheStoreDefault() {
+        skipIfNoDocker();
+
+        // Store default is 24h — under the old behavior this session would
+        // have survived any removeExpired call for a day.
+        store.save(DurableSession.create("tok-configured-ttl", "res-1"));
+        assertTrue(store.restore("tok-configured-ttl").isPresent());
+
+        await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            var expired = store.removeExpired(Duration.ofMillis(200));
+            assertTrue(expired.stream()
+                            .anyMatch(s -> "tok-configured-ttl".equals(s.token())),
+                    "the configured ttl must expire the idle session despite the "
+                    + "24h store default; got: " + expired);
+        });
+        assertTrue(store.restore("tok-configured-ttl").isEmpty(),
+                "the expired session must actually be removed from Redis");
+    }
+
     @Test
     public void testRemoveExpiredReturnsEmptyWhenNothingExpired() {
         skipIfNoDocker();
