@@ -99,13 +99,16 @@ public class StreamTransport extends AbstractTransport {
     /**
      * Read data from the streaming response as it arrives. Data is read in chunks
      * (not line-by-line) because Atmosphere does not add newline delimiters.
+     * Decoding goes through an incremental UTF-8 reader — a per-chunk
+     * {@code new String(bytes)} corrupts any multi-byte character split
+     * across a buffer boundary (Boundary Safety, Invariant #4).
      */
     protected void readLoop(HttpResponse<java.io.InputStream> response) {
-        try (var is = response.body()) {
-            var buf = new byte[4096];
+        try (var reader = new java.io.InputStreamReader(response.body(), StandardCharsets.UTF_8)) {
+            var buf = new char[4096];
             int n;
-            while ((n = is.read(buf)) != -1) {
-                var chunk = new String(buf, 0, n, StandardCharsets.UTF_8).strip();
+            while ((n = reader.read(buf)) != -1) {
+                var chunk = new String(buf, 0, n).strip();
                 if (!chunk.isEmpty()) {
                     dispatchMessage(Event.MESSAGE, chunk, decoders, resolver);
                 }
