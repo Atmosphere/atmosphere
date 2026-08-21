@@ -108,6 +108,45 @@ class WorkspaceExtensionsTest {
         assertTrue(WorkspaceExtensions.load("/no/such/atmosphere/workspace/dir").isEmpty());
     }
 
+    /**
+     * Regression (registre#39): a second workspace's RUNTIME.md silently
+     * reconfigured the process-wide {@link AiConfig} — one agent's runtime
+     * file changed the model for every other agent in the JVM with only an
+     * INFO line. The cross-workspace clobber must be a WARN naming both
+     * workspaces and the changed values.
+     */
+    @Test
+    void secondWorkspaceClobberingLiveConfigWarnsLoudly(@TempDir Path rootA,
+                                                        @TempDir Path rootB) throws IOException {
+        write(rootA, "RUNTIME.md", "mode: fake\nmodel: model-a");
+        write(rootB, "RUNTIME.md", "mode: fake\nmodel: model-b");
+        var defA = loadFixture(rootA);
+        var defB = loadFixture(rootB);
+
+        var logbackLogger = (ch.qos.logback.classic.Logger)
+                org.slf4j.LoggerFactory.getLogger(WorkspaceExtensions.class);
+        var appender = new ch.qos.logback.core.read.ListAppender
+                <ch.qos.logback.classic.spi.ILoggingEvent>();
+        appender.start();
+        logbackLogger.addAppender(appender);
+        try {
+            assertTrue(WorkspaceExtensions.applyRuntime(defA));
+            assertTrue(WorkspaceExtensions.applyRuntime(defB));
+        } finally {
+            logbackLogger.detachAppender(appender);
+        }
+
+        assertTrue(appender.list.stream().anyMatch(e ->
+                        e.getLevel() == ch.qos.logback.classic.Level.WARN
+                                && e.getFormattedMessage().contains("PROCESS-WIDE")
+                                && e.getFormattedMessage().contains(defA.name())
+                                && e.getFormattedMessage().contains(defB.name())),
+                "the cross-workspace clobber must WARN naming both workspaces; got: "
+                        + appender.list.stream().map(Object::toString).toList());
+        assertEquals("model-b", AiConfig.get().model(),
+                "last-write-wins stays the documented behavior — only the signal changed");
+    }
+
     @Test
     void applyRuntimeConfiguresAiConfig(@TempDir Path root) throws IOException {
         write(root, "RUNTIME.md", String.join("\n",
