@@ -73,10 +73,23 @@ public class ExecutorsFactory {
         if (!shared || config.properties().get(BROADCASTER_THREAD_POOL) == null) {
             boolean useVirtualThreads = config.getInitParameter(ApplicationConfig.USE_VIRTUAL_THREADS, true);
             ExecutorService service;
-            
+
             if (useVirtualThreads) {
-                logger.info("Using Virtual Threads for message dispatching (unlimited scalability)");
-                service = Executors.newVirtualThreadPerTaskExecutor();
+                // An operator who explicitly bounded processing concurrency
+                // must get that bound — silently ignoring it in the default
+                // VT mode turns a configured backpressure limit into
+                // unbounded concurrency (registre#7).
+                int bound = explicitBound(config,
+                        ApplicationConfig.BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE);
+                if (bound > 0) {
+                    logger.info("Using Virtual Threads for message dispatching bounded to {} "
+                            + "concurrent tasks ({} is set)", bound,
+                            ApplicationConfig.BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE);
+                    service = boundedVirtualThreadExecutor(bound, shared, name + "-DispatchOp-");
+                } else {
+                    logger.info("Using Virtual Threads for message dispatching (unlimited scalability)");
+                    service = Executors.newVirtualThreadPerTaskExecutor();
+                }
             } else {
                 // Traditional thread pool only when virtual threads explicitly disabled
                 int threads = config.getInitParameter(
@@ -120,8 +133,20 @@ public class ExecutorsFactory {
             ExecutorService service;
 
             if (useVirtualThreads) {
-                logger.info("Using Virtual Threads for async I/O (unlimited scalability)");
-                service = Executors.newVirtualThreadPerTaskExecutor();
+                // Same contract as the message dispatcher: an explicitly
+                // configured async-write bound is honored in VT mode
+                // (registre#7).
+                int bound = explicitBound(config,
+                        ApplicationConfig.BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE);
+                if (bound > 0) {
+                    logger.info("Using Virtual Threads for async I/O bounded to {} "
+                            + "concurrent tasks ({} is set)", bound,
+                            ApplicationConfig.BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE);
+                    service = boundedVirtualThreadExecutor(bound, shared, name + "-AsyncOp-");
+                } else {
+                    logger.info("Using Virtual Threads for async I/O (unlimited scalability)");
+                    service = Executors.newVirtualThreadPerTaskExecutor();
+                }
             } else {
                 // Traditional thread pool only when virtual threads explicitly disabled
                 int threads = config.getInitParameter(
@@ -186,6 +211,40 @@ public class ExecutorsFactory {
         } else {
             return (ScheduledExecutorService) config.properties().get(SCHEDULER_THREAD_POOL);
         }
+    }
+
+    /**
+     * The pool bound the operator explicitly configured for {@code key}, or
+     * {@code -1} when the parameter is absent or non-positive (unbounded /
+     * cached semantics). Only an explicit init-param counts — defaults never
+     * introduce a bound in virtual-thread mode.
+     */
+    private static int explicitBound(AtmosphereConfig config, String key) {
+        var raw = config.getInitParameter(key);
+        if (raw == null || raw.isBlank()) {
+            return -1;
+        }
+        try {
+            var bound = Integer.parseInt(raw.trim());
+            return bound > 0 ? bound : -1;
+        } catch (NumberFormatException e) {
+            logger.warn("Ignoring non-numeric value '{}' for {}", raw, key);
+            return -1;
+        }
+    }
+
+    /**
+     * A fixed pool of virtual worker threads: the operator's configured
+     * concurrency bound is honored while tasks still run on virtual threads
+     * (cheap blocking). Excess tasks queue, matching the platform-thread
+     * fixed-pool semantics the same knob configures with virtual threads
+     * disabled.
+     */
+    private static ExecutorService boundedVirtualThreadExecutor(int bound, boolean shared,
+                                                                String name) {
+        return Executors.newFixedThreadPool(bound, Thread.ofVirtual()
+                .name(shared ? "Atmosphere-Shared-" : name, 0)
+                .factory());
     }
 
     private static void configureThreadPool(ExecutorService service, AtmosphereConfig config) {

@@ -325,16 +325,20 @@ public interface ApplicationConfig {
      */
     String BROADCASTER_SHARABLE_THREAD_POOLS = "org.atmosphere.cpr.broadcaster.shareableThreadPool";
     /**
-     * The maximum number of Thread created when processing broadcast operations {@link BroadcasterConfig#setExecutorService(java.util.concurrent.ExecutorService)}.
+     * The maximum number of concurrent broadcast-processing tasks {@link BroadcasterConfig#setExecutorService(java.util.concurrent.ExecutorService)}.
+     * Honored in both executor modes: with {@link #USE_VIRTUAL_THREADS} (the default) an explicit
+     * value bounds the virtual-thread pool; without it, it sizes the platform-thread pool.
      * <p/>
      * Default: unlimited<br>
      * Value: org.atmosphere.cpr.broadcaster.maxProcessingThreads
      */
     String BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE = "org.atmosphere.cpr.broadcaster.maxProcessingThreads";
     /**
-     * The maximum number of Thread created when writing requests {@link BroadcasterConfig#setAsyncWriteService(java.util.concurrent.ExecutorService)}.
+     * The maximum number of concurrent async write tasks {@link BroadcasterConfig#setAsyncWriteService(java.util.concurrent.ExecutorService)}.
+     * Honored in both executor modes: with {@link #USE_VIRTUAL_THREADS} (the default) an explicit
+     * value bounds the virtual-thread pool; unset means unbounded virtual threads.
      * <p/>
-     * Default: 200<br>
+     * Default: 200 (platform-thread mode); unbounded in virtual-thread mode unless set<br>
      * Value: org.atmosphere.cpr.broadcaster.maxAsyncWriteThreads
      */
     String BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE = "org.atmosphere.cpr.broadcaster.maxAsyncWriteThreads";
