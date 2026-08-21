@@ -294,7 +294,18 @@ public final class AgUiHandler implements AtmosphereHandler {
             emit(new AiEvent.TextDelta(text));
         }
 
-        @Override public void sendMetadata(String key, Object value) { }
+        @Override
+        public void sendMetadata(String key, Object value) {
+            // AG-UI's CUSTOM event is the protocol's app-specific escape
+            // hatch — response metadata (model used, cache hit, budget
+            // degradation, binary-drop breadcrumbs) rides it so the client
+            // actually learns what happened instead of the frame vanishing.
+            if (closed.get()) {
+                return;
+            }
+            writer.write(new AgUiEvent.Custom(key, String.valueOf(value)));
+        }
+
         @Override public void progress(String message) { emit(new AiEvent.Progress(message, null)); }
 
         @Override
@@ -345,7 +356,11 @@ public final class AgUiHandler implements AtmosphereHandler {
         }
 
         @Override public boolean isClosed() { return closed.get(); }
-        @Override public void sendContent(Content content) { }
+        // sendContent intentionally NOT overridden: the StreamingSession
+        // default routes Content.Text through send() (a TextDelta on the
+        // wire) and drops binary variants with a content.binary.dropped
+        // metadata breadcrumb — the empty override here used to swallow
+        // code-execution artifacts with no event and no breadcrumb.
 
         @Override
         public void emit(AiEvent event) {

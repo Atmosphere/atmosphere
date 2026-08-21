@@ -179,6 +179,52 @@ class ResourceAgUiSessionCompletionTest {
                 "frames after RUN_FINISHED are protocol violations — send() after complete() must write nothing");
     }
 
+    /**
+     * Regression (registre#13): {@code sendContent} was an empty body on the
+     * live AG-UI session, so every code-execution artifact was dropped with
+     * no event and no breadcrumb. Text content must reach the wire as
+     * TEXT_MESSAGE frames; binary content must leave a
+     * {@code content.binary.dropped} breadcrumb via CUSTOM.
+     */
+    @Test
+    void sendContentReachesTheWireInsteadOfVanishing() {
+        session.sendContent(new Content.Text("artifact output"));
+        session.sendContent(new Content.Image(new byte[] {1, 2, 3}, "png"));
+        session.complete();
+
+        var frames = frames();
+        assertTrue(types(frames).contains("TEXT_MESSAGE_CONTENT"),
+                "text content must stream as message content: " + types(frames));
+        assertTrue(frame(frames, "TEXT_MESSAGE_CONTENT").contains("artifact output"));
+        assertTrue(frame(frames, "CUSTOM").contains("content.binary.dropped"),
+                "binary content must leave a breadcrumb, not vanish: " + frames);
+    }
+
+    /**
+     * Regression (registre#13): {@code sendMetadata} was an empty body, so a
+     * client never learned which model answered, whether the cache hit, or
+     * that the budget degraded. Metadata rides AG-UI's CUSTOM event.
+     */
+    @Test
+    void sendMetadataEmitsACustomEvent() {
+        session.sendMetadata("ai.model.used", "claude-sonnet-5");
+        session.complete();
+
+        var custom = frame(frames(), "CUSTOM");
+        assertTrue(custom.contains("ai.model.used") && custom.contains("claude-sonnet-5"),
+                "response metadata must reach the client: " + custom);
+    }
+
+    @Test
+    void sendMetadataAfterTerminalFrameWritesNothing() {
+        session.complete();
+        var terminal = output.toString();
+
+        session.sendMetadata("late", "value");
+
+        assertEquals(terminal, output.toString());
+    }
+
     /** Parsed SSE frame: {@code type} + raw JSON payload. */
     private record Frame(String type, String data) {
     }
