@@ -360,6 +360,29 @@ public final class AgentStateSealer {
                     + "' (from -D" + KEY_FILE_PROPERTY + " / " + KEY_FILE_ENV + ") does not "
                     + "exist — refusing to start with sealing enabled but no key.");
         }
+        // Pre-existing key files get the same owner-only guarantee as freshly
+        // generated ones: tighten, then verify. A group/world-accessible
+        // private key voids the trust the seals assert, so this fails loud
+        // (same posture as the pairing probe below) rather than running with
+        // a leaked key.
+        try {
+            restrictToOwner(keyFile, false);
+            var perms = readPosixPermissions(keyFile);
+            if (perms != null) {
+                var leaked = perms.stream()
+                        .filter(p -> !p.name().startsWith("OWNER_"))
+                        .toList();
+                if (!leaked.isEmpty()) {
+                    throw new AgentStateSealException("Agent state seal key file '" + keyFile
+                            + "' remains accessible beyond its owner (" + leaked + ") after "
+                            + "tightening — fix the file ownership/permissions before "
+                            + "enabling sealing.");
+                }
+            }
+        } catch (IOException e) {
+            throw new AgentStateSealException("Failed to restrict permissions of agent state "
+                    + "seal key '" + keyFile + "' to the owner", e);
+        }
         try {
             var props = new Properties();
             props.load(new StringReader(Files.readString(keyFile, StandardCharsets.UTF_8)));
@@ -441,6 +464,21 @@ public final class AgentStateSealer {
                     + "signature failed to verify. Fix the key file before enabling sealing.");
         }
         return candidate;
+    }
+
+    /**
+     * The file's POSIX permission set, or {@code null} on filesystems with
+     * no POSIX view (Windows) — where enforcement stays the best-effort
+     * {@code File}-API path in {@link #restrictToOwner} and cannot be
+     * re-verified.
+     */
+    private static java.util.Set<java.nio.file.attribute.PosixFilePermission>
+            readPosixPermissions(Path path) throws IOException {
+        try {
+            return Files.getPosixFilePermissions(path);
+        } catch (UnsupportedOperationException e) {
+            return null;
+        }
     }
 
     private static void restrictToOwner(Path path, boolean directory) throws IOException {

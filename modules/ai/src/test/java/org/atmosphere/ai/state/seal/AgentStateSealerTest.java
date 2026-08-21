@@ -94,6 +94,36 @@ class AgentStateSealerTest {
                 "no second key may be generated when the operator supplied one");
     }
 
+    /**
+     * Regression (registre#17): owner-only permissions used to be applied
+     * only when a key was freshly generated — a pre-existing key file was
+     * loaded with whatever permissions it had, silently. Loading must
+     * tighten the file back to owner-only.
+     */
+    @Test
+    void preExistingKeyFileIsTightenedToOwnerOnlyOnLoad(@TempDir Path tmp) throws IOException {
+        var ws = Files.createDirectories(tmp.resolve("ws"));
+        // First boot generates the key with 0600...
+        AgentStateSealer.forWorkspace(ws, null, false);
+        var keyFile = tmp.resolve("ws.seal").resolve(AgentStateSealer.KEY_FILE_NAME);
+        try {
+            // ...then the operator (or a backup/restore) loosens it.
+            Files.setPosixFilePermissions(keyFile,
+                    java.nio.file.attribute.PosixFilePermissions.fromString("rw-r--r--"));
+        } catch (UnsupportedOperationException e) {
+            assumeTrue(false, "non-POSIX filesystem — permission assertion skipped");
+        }
+
+        // Simulated restart with the now world-readable key.
+        AgentStateSealer.forWorkspace(ws, null, false);
+
+        assertEquals(java.util.Set.of(PosixFilePermission.OWNER_READ,
+                        PosixFilePermission.OWNER_WRITE),
+                Files.getPosixFilePermissions(keyFile),
+                "a pre-existing key file must be restored to owner-only on load, "
+                + "not trusted as-is");
+    }
+
     @Test
     void missingOperatorKeyFailsLoudlyNotSilently(@TempDir Path tmp) throws IOException {
         var ws = Files.createDirectories(tmp.resolve("ws"));
