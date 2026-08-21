@@ -67,12 +67,25 @@ public final class RunReattachSupport {
     }
 
     /**
-     * Marker value AiEndpointHandler uses when no principal has been
-     * resolved for the run. A replay request with a matching anonymous
-     * caller gets through (open/demo deployments); but the replay of
-     * an authenticated run to an anonymous caller is always refused.
+     * Marker value AiEndpointHandler uses when the container reported
+     * no principal for the run — no auth is configured. A replay
+     * request with a matching anonymous caller gets through (open/demo
+     * deployments); but the replay of an authenticated run to an
+     * anonymous caller is always refused.
      */
     static final String ANONYMOUS = "anonymous";
+
+    /**
+     * Marker value AiEndpointHandler uses when the container REFUSED to
+     * resolve the principal (some servlet containers throw ISE when the
+     * principal is not yet bound to the dispatching thread — routine
+     * under Atmosphere's async/virtual-thread dispatch). Unlike
+     * {@link #ANONYMOUS}, this does not mean "no auth configured" — it
+     * means "unknown", so such runs fail closed: no caller can ever
+     * match this owner and reattach is always refused. Deployments that
+     * hit this set {@code ai.userId} via an AtmosphereInterceptor.
+     */
+    public static final String UNRESOLVED = "unresolved-principal";
 
     private RunReattachSupport() {
         // Static utility.
@@ -83,10 +96,15 @@ public final class RunReattachSupport {
      * replay the run iff its resolved user id matches the user id the
      * registry recorded for the run. An anonymous run (no auth
      * configured) is the one exception — the runId's UUID entropy is
-     * the only protection there.
+     * the only protection there. A run whose owner could not be
+     * resolved at registration ({@link #UNRESOLVED}) fails closed:
+     * ownership is indeterminate, so no caller is ever a match.
      */
     private static boolean callerOwnsRun(
             org.atmosphere.cpr.AtmosphereRequest req, String runUserId) {
+        if (UNRESOLVED.equals(runUserId)) {
+            return false;
+        }
         if (runUserId == null || runUserId.isBlank() || ANONYMOUS.equals(runUserId)) {
             return true;
         }

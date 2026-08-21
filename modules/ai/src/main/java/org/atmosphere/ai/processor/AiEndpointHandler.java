@@ -501,6 +501,52 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         return "anonymous";
     }
 
+    /**
+     * Resolve the owner identity a new run registers under, and default
+     * the {@code ai.userId} request attribute the rest of the ai module
+     * reads (ToolExecutionHelper.resolveMode, AiStreamingSession.stream)
+     * from the servlet Principal when nothing upstream set it. Apps that
+     * integrate their own auth stack set {@code ai.userId} via an
+     * AtmosphereInterceptor and the fallback no-op's.
+     *
+     * <p>A thrown {@code getUserPrincipal} (some containers ISE when the
+     * principal is not yet bound to the async/virtual-thread dispatch) is
+     * NOT the same as a null principal: null means no auth is configured,
+     * a throw means ownership is indeterminate. Registering an
+     * indeterminate run as {@code "anonymous"} would disable the reattach
+     * ownership check — any runId holder could replay the stream — so
+     * those runs register with the fail-closed
+     * {@link org.atmosphere.ai.resume.RunReattachSupport#UNRESOLVED}
+     * owner instead, which refuses every reattach.</p>
+     */
+    static String resolveRunOwner(AtmosphereResource resource) {
+        var principalUnresolvable = false;
+        if (resource.getRequest() != null
+                && resource.getRequest().getAttribute("ai.userId") == null) {
+            try {
+                var principal = resource.getRequest().getUserPrincipal();
+                if (principal != null && principal.getName() != null
+                        && !principal.getName().isBlank()) {
+                    resource.getRequest().setAttribute("ai.userId", principal.getName());
+                }
+            } catch (RuntimeException e) {
+                principalUnresolvable = true;
+                logger.warn("Unable to resolve userPrincipal for {}; run registers with an "
+                        + "unresolved owner and reattach/replay will be refused. Set the "
+                        + "ai.userId request attribute via an AtmosphereInterceptor to "
+                        + "restore reattach. Cause: {}", resource.uuid(), e.toString());
+            }
+        }
+        var userIdAttr = resource.getRequest() != null
+                ? resource.getRequest().getAttribute("ai.userId") : null;
+        if (userIdAttr != null) {
+            return userIdAttr.toString();
+        }
+        return principalUnresolvable
+                ? org.atmosphere.ai.resume.RunReattachSupport.UNRESOLVED
+                : "anonymous";
+    }
+
     @Override
     public void onStateChange(AtmosphereResourceEvent event) throws IOException {
         var resource = event.getResource();
@@ -736,29 +782,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 t.interrupt();
             }
         });
-        // Default producer for the ai.userId request attribute that the
-        // rest of the ai module reads (ToolExecutionHelper.resolveMode,
-        // AiStreamingSession.stream, this handler's RunRegistry register):
-        // if nothing upstream has set it, fall back to the servlet
-        // Principal's name. Without this hook, PermissionMode resolution
-        // always saw null and fell to DEFAULT regardless of the
-        // AgentIdentity wiring. Apps that integrate their own auth stack
-        // set ai.userId via an AtmosphereInterceptor and this no-op's.
-        if (resource.getRequest() != null
-                && resource.getRequest().getAttribute("ai.userId") == null) {
-            try {
-                var principal = resource.getRequest().getUserPrincipal();
-                if (principal != null && principal.getName() != null
-                        && !principal.getName().isBlank()) {
-                    resource.getRequest().setAttribute("ai.userId", principal.getName());
-                }
-            } catch (RuntimeException e) {
-                logger.trace("unable to resolve userPrincipal for request attr", e);
-            }
-        }
-        var userIdAttr = resource.getRequest() != null
-                ? resource.getRequest().getAttribute("ai.userId") : null;
-        var runUserId = userIdAttr != null ? userIdAttr.toString() : "anonymous";
+        var runUserId = resolveRunOwner(resource);
         var handle = org.atmosphere.ai.resume.RunRegistryHolder.get().register(
                 pathTemplate, runUserId, resource.uuid(), runExecutionHandle);
         session.setRunId(handle.runId());

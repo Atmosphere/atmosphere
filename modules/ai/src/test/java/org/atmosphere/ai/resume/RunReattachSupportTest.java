@@ -187,6 +187,39 @@ class RunReattachSupportTest {
     }
 
     /**
+     * Fail-closed carve-in: a run whose owner could not be resolved at
+     * registration (the container threw from getUserPrincipal, so
+     * ownership is indeterminate — NOT the same as "no auth
+     * configured") must refuse every reattach. Regression for the
+     * authenticated-deployment leak where such runs registered as
+     * "anonymous" and the anonymous carve-out waved any runId holder
+     * through.
+     */
+    @Test
+    void replayRefusedForUnresolvedOwnerRunRegardlessOfCaller() {
+        var unresolved = registry.register("agent-a",
+                RunReattachSupport.UNRESOLVED, "sess-x",
+                new ExecutionHandle.Settable(() -> { }));
+        unresolved.replayBuffer().capture("streaming-text", "indeterminate-owner event");
+
+        var writes = new ArrayList<String>();
+        // Anonymous caller — exactly the caller the old bug admitted.
+        var anonCaller = mockResourceWithRunIdAndCaller(
+                unresolved.runId(), null, null, writes);
+        assertEquals(0, RunReattachSupport.replayPendingRun(anonCaller, registry),
+                "an unresolved-owner run must fail closed for anonymous callers");
+
+        // Defense in depth: even a caller presenting the sentinel string
+        // itself as its identity must not match.
+        var sentinelCaller = mockResourceWithRunIdAndCaller(
+                unresolved.runId(), null, RunReattachSupport.UNRESOLVED, writes);
+        assertEquals(0, RunReattachSupport.replayPendingRun(sentinelCaller, registry),
+                "the sentinel value must never satisfy the ownership check");
+        assertTrue(writes.isEmpty() || writes.get(0).isEmpty(),
+                "no bytes may be written on a refused replay");
+    }
+
+    /**
      * Replay MUST apply the broadcaster's BroadcastFilter chain to
      * each frame so response-path protections (PII redaction, content
      * safety, etc.) see replayed frames identically to live frames.
