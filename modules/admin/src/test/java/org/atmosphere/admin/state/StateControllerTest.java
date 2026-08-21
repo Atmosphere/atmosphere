@@ -117,7 +117,11 @@ class StateControllerTest {
         var controller = new StateController(state);
 
         var result = controller.getWorkspaceRoot("pierre");
-        assertEquals(root.toAbsolutePath().normalize().toString(), result.get("workspaceRoot"));
+        // Per-agent subtree (registre#12): the admin UI must never render
+        // one agent's tree when asked for another's.
+        assertEquals(root.toAbsolutePath().normalize()
+                        .resolve("agents").resolve("pierre").toString(),
+                result.get("workspaceRoot"));
     }
 
     @Test
