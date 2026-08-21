@@ -29,8 +29,10 @@ import java.util.Objects;
  * Bridge from {@link FleetInterceptor} to a {@link GovernancePolicy} chain.
  * Each outbound {@link AgentCall} is synthesized into an {@link AiRequest}
  * (skill + serialized args as message text) and evaluated against the
- * configured policies. Deny short-circuits the dispatch; transform
- * rewrites the message field back into the call's args; admit proceeds.
+ * configured policies. Deny short-circuits the dispatch; admit proceeds.
+ * Transform is re-applied per String arg value — the policy is evaluated
+ * once more against each arg so message rewrites (PII redaction, scope
+ * redirect) land on the exact payload the target agent receives.
  *
  * <p>Goal-hijacking prevention at the agent-to-agent edge.
  * A coordinator dispatching {@code call("research", "write_code", …)} is
@@ -97,13 +99,85 @@ public final class GovernanceFleetInterceptor implements FleetInterceptor {
                 case PolicyDecision.Transform transform -> {
                     // Rewrite the call's message-proxy so the next policy sees it.
                     context = PolicyContext.preAdmission(transform.modifiedRequest());
-                    currentCall = new AgentCall(currentCall.agentName(),
-                            currentCall.skill(),
-                            java.util.Map.copyOf(currentCall.args()));
+                    // The transformed message is the summarized call — a
+                    // skill + args.toString() concatenation with no inverse
+                    // mapping onto the structured args. Land the rewrite on
+                    // the real payload instead: re-run the policy against
+                    // each String arg value and apply its per-arg decision.
+                    var result = transformArgs(policy, currentCall);
+                    if (result.denyReason() != null) {
+                        logger.info("Fleet dispatch denied by {} during arg transform: {}",
+                                policy.name(), result.denyReason());
+                        return Decision.deny(result.denyReason());
+                    }
+                    if (result.call() == currentCall) {
+                        logger.warn("Policy {} transformed the summarized dispatch of "
+                                + "agent={} skill={} but no String arg matched — the "
+                                + "rewrite could not be applied to the structured args "
+                                + "and the call proceeds unchanged",
+                                policy.name(), currentCall.agentName(), currentCall.skill());
+                    }
+                    currentCall = result.call();
                 }
             }
         }
         return currentCall == call ? Decision.proceed() : Decision.rewrite(currentCall);
+    }
+
+    /** Outcome of the per-arg transform pass: the (possibly rewritten) call, or a deny. */
+    private record ArgTransformResult(AgentCall call, String denyReason) { }
+
+    /**
+     * Apply a transforming policy to each String arg value. The policy is
+     * evaluated once per String arg with that value as the request message,
+     * so message-rewriting policies (PII redaction, scope redirect) land on
+     * the exact payload the target agent receives. Non-String values pass
+     * through untouched — a message rewrite has no defined projection onto
+     * structured values. A per-arg Deny fails the dispatch closed.
+     */
+    private static ArgTransformResult transformArgs(GovernancePolicy policy, AgentCall call) {
+        var rewritten = new java.util.LinkedHashMap<String, Object>(call.args());
+        var changed = false;
+        for (var entry : rewritten.entrySet()) {
+            if (!(entry.getValue() instanceof String argValue)) {
+                continue;
+            }
+            var argRequest = new AiRequest(argValue,
+                    null, null, null, null, null, null,
+                    java.util.Map.of("fleet.dispatch.agent", call.agentName(),
+                            "fleet.dispatch.skill", call.skill(),
+                            "fleet.dispatch.arg", entry.getKey()),
+                    null);
+            PolicyDecision decision;
+            try {
+                decision = policy.evaluate(PolicyContext.preAdmission(argRequest));
+            } catch (RuntimeException e) {
+                logger.error("GovernancePolicy {} threw during per-arg transform — fail-closed",
+                        policy.name(), e);
+                return new ArgTransformResult(call,
+                        "policy '" + policy.name() + "' evaluation failed on arg '"
+                                + entry.getKey() + "'");
+            }
+            switch (decision) {
+                case PolicyDecision.Transform argTransform -> {
+                    var modified = argTransform.modifiedRequest().message();
+                    if (modified != null && !modified.equals(argValue)) {
+                        entry.setValue(modified);
+                        changed = true;
+                    }
+                }
+                case PolicyDecision.Deny deny -> {
+                    return new ArgTransformResult(call, deny.reason());
+                }
+                case PolicyDecision.Admit ignored -> { /* arg passes unchanged */ }
+                case PolicyDecision.Prefer ignored -> { /* advisory only */ }
+            }
+        }
+        if (!changed) {
+            return new ArgTransformResult(call, null);
+        }
+        return new ArgTransformResult(new AgentCall(call.agentName(), call.skill(),
+                java.util.Map.copyOf(rewritten)), null);
     }
 
     private static String summarize(AgentCall call) {

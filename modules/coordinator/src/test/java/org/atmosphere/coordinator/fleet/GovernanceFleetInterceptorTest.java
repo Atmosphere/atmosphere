@@ -110,6 +110,90 @@ class GovernanceFleetInterceptorTest {
         assertEquals("web_search", capturing.seen.get("fleet.dispatch.skill"));
     }
 
+    /**
+     * Regression: the Transform arm used to rebuild an identical
+     * AgentCall without ever reading {@code modifiedRequest()}, then
+     * report {@code Decision.rewrite} — a PII-redaction policy showed
+     * success in the audit trail while the original arguments passed
+     * through untouched. The rewrite must land on the actual dispatched
+     * arg values.
+     */
+    @Test
+    void transformAppliesRedactionToTheActualDispatchedArgs() {
+        var redacting = new GovernancePolicy() {
+            @Override public String name() { return "pii"; }
+            @Override public String source() { return "test"; }
+            @Override public String version() { return "1"; }
+            @Override public PolicyDecision evaluate(PolicyContext c) {
+                var msg = c.request().message();
+                if (msg != null && msg.contains("alice@example.com")) {
+                    return PolicyDecision.transform(c.request()
+                            .withMessage(msg.replace("alice@example.com", "[redacted]")));
+                }
+                return PolicyDecision.admit();
+            }
+        };
+        var interceptor = new GovernanceFleetInterceptor(List.of(redacting));
+        var decision = interceptor.before(call("web_search",
+                Map.of("q", "contact alice@example.com about the outage", "limit", 3)));
+
+        var rewrite = assertInstanceOf(FleetInterceptor.Decision.Rewrite.class, decision);
+        assertEquals("contact [redacted] about the outage",
+                rewrite.modifiedCall().args().get("q"),
+                "the redaction must reach the arg value the agent receives — "
+                + "reporting a rewrite while dispatching the original is worse "
+                + "than failing outright");
+        assertEquals(3, rewrite.modifiedCall().args().get("limit"),
+                "non-String args pass through untouched");
+    }
+
+    /**
+     * A transform that fires on the summarized call but matches no
+     * String arg cannot be applied — the dispatch must proceed as an
+     * honest {@code Proceed}, not report a rewrite that never happened.
+     */
+    @Test
+    void transformThatCannotLandOnArgsProceedsUnchanged() {
+        var summaryOnly = new GovernancePolicy() {
+            @Override public String name() { return "summary-only"; }
+            @Override public String source() { return "test"; }
+            @Override public String version() { return "1"; }
+            @Override public PolicyDecision evaluate(PolicyContext c) {
+                var msg = c.request().message();
+                // Matches the "skill args" summary, never a bare arg value.
+                if (msg != null && msg.startsWith("web_search {")) {
+                    return PolicyDecision.transform(c.request().withMessage("rewritten"));
+                }
+                return PolicyDecision.admit();
+            }
+        };
+        var interceptor = new GovernanceFleetInterceptor(List.of(summaryOnly));
+        assertInstanceOf(FleetInterceptor.Decision.Proceed.class,
+                interceptor.before(call("web_search", Map.of("q", "hi"))),
+                "an unapplied transform must not be reported as a rewrite");
+    }
+
+    /** A per-arg Deny during the transform pass fails the dispatch closed. */
+    @Test
+    void perArgDenyDuringTransformFailsClosed() {
+        var strictPerArg = new GovernancePolicy() {
+            @Override public String name() { return "strict"; }
+            @Override public String source() { return "test"; }
+            @Override public String version() { return "1"; }
+            @Override public PolicyDecision evaluate(PolicyContext c) {
+                var msg = c.request().message();
+                if (msg != null && msg.startsWith("web_search {")) {
+                    return PolicyDecision.transform(c.request().withMessage("rewritten"));
+                }
+                return PolicyDecision.deny("bare arg refused");
+            }
+        };
+        var interceptor = new GovernanceFleetInterceptor(List.of(strictPerArg));
+        var deny = assertInstanceOf(FleetInterceptor.Decision.Deny.class,
+                interceptor.before(call("web_search", Map.of("q", "hi"))));
+        assertTrue(deny.reason().contains("bare arg refused"));
+    }
+
     @Test
     void proceedWhenAllAdmitEvenWithManyPolicies() {
         var policies = java.util.stream.IntStream.range(0, 10)
