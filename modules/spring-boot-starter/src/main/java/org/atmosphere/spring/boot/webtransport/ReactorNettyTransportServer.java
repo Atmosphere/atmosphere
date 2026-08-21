@@ -476,9 +476,13 @@ public class ReactorNettyTransportServer {
                 io.netty.buffer.Unpooled.compositeBuffer();
 
         /**
-         * Process incoming data using newline-delimited framing.
-         * Buffers partial lines and delivers each complete {@code \n}-terminated
-         * line as a separate message to the Atmosphere protocol handler.
+         * Process incoming data using the bidi stream framing: a
+         * {@code 0x00} marker opens a length-prefixed binary frame (marker +
+         * 4-byte big-endian length + payload, delivered to the byte-message
+         * protocol path untouched); anything else is a newline-delimited
+         * UTF-8 text message. Binary payloads must never pass through the
+         * text decode/split path — splitting on a payload's {@code 0x0A}
+         * bytes and UTF-8 decoding silently corrupted them (Invariant #4).
          */
         private void processData(ByteBuf buf) {
             if (state == null || state.session == null) {
@@ -486,60 +490,70 @@ public class ReactorNettyTransportServer {
                 return;
             }
 
-            // Accumulate raw bytes first, then scan for newline delimiter
+            // Accumulate raw bytes first, then scan for complete frames
             byteAccumulator.addComponent(true, buf.retain());
             buf.release();
 
-            // DoS protection: reject oversized frames
-            if (byteAccumulator.readableBytes() > MAX_FRAME_BYTES) {
+            // DoS protection: reject oversized frames (+5 headroom for a
+            // maximal binary frame's marker and length prefix)
+            if (byteAccumulator.readableBytes() > MAX_FRAME_BYTES + 5) {
                 logger.warn("WebTransport frame exceeds {} bytes, dropping", MAX_FRAME_BYTES);
-                // Release all component buffers, not just reset indices
-                while (byteAccumulator.numComponents() > 0) {
-                    byteAccumulator.removeComponent(0);
-                }
-                byteAccumulator.discardReadBytes();
+                dropAccumulator();
                 return;
             }
 
-            // Extract complete newline-delimited frames from the byte accumulator
-            int nlIdx;
-            while ((nlIdx = findNewline(byteAccumulator)) >= 0) {
-                var frameBytes = new byte[nlIdx];
-                byteAccumulator.readBytes(frameBytes);
-                byteAccumulator.readByte(); // consume the newline
-                byteAccumulator.discardReadBytes();
-
-                var message = new String(frameBytes, StandardCharsets.UTF_8);
-                if (message.isEmpty()) {
-                    continue;
-                }
-                logger.trace("WebTransport bidi message: {}", message);
+            var drained = BidiFraming.drain(byteAccumulator, MAX_FRAME_BYTES);
+            if (drained.corrupt()) {
+                logger.warn("WebTransport binary frame length out of bounds, "
+                        + "dropping stream buffer");
+                dropAccumulator();
+            }
+            for (var frame : drained.frames()) {
                 var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
                         .getWebTransportProcessor(framework);
-                processor.invokeWebTransportProtocol(state.session, message);
+                switch (frame) {
+                    case BidiFraming.Frame.Text text -> {
+                        logger.trace("WebTransport bidi message: {}", text.message());
+                        processor.invokeWebTransportProtocol(state.session, text.message());
+                    }
+                    case BidiFraming.Frame.Binary binary -> {
+                        logger.trace("WebTransport bidi binary message: {} bytes",
+                                binary.payload().length);
+                        processor.invokeWebTransportProtocol(state.session,
+                                binary.payload(), 0, binary.payload().length);
+                    }
+                }
             }
         }
 
-        private static int findNewline(ByteBuf buf) {
-            for (int i = buf.readerIndex(); i < buf.writerIndex(); i++) {
-                if (buf.getByte(i) == '\n') {
-                    return i - buf.readerIndex();
-                }
+        /** Release every accumulated component and reset the read indices. */
+        private void dropAccumulator() {
+            while (byteAccumulator.numComponents() > 0) {
+                byteAccumulator.removeComponent(0);
             }
-            return -1;
+            byteAccumulator.discardReadBytes();
         }
 
         @Override
         public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-            // Flush any remaining buffered data as a final message
+            // Flush any remaining buffered TEXT as a final message. A partial
+            // binary frame at close is incomplete by definition — decode only
+            // complete framed messages (Invariant #4), never text-decode
+            // binary remainder.
             if (state != null && state.session != null && byteAccumulator.isReadable()) {
-                var remaining = new byte[byteAccumulator.readableBytes()];
-                byteAccumulator.readBytes(remaining);
-                var message = new String(remaining, StandardCharsets.UTF_8);
-                logger.trace("WebTransport bidi final message: {}", message);
-                var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
-                        .getWebTransportProcessor(framework);
-                processor.invokeWebTransportProtocol(state.session, message);
+                if (byteAccumulator.getByte(byteAccumulator.readerIndex())
+                        == BidiFraming.BINARY_FRAME_MARKER) {
+                    logger.warn("WebTransport bidi stream closed mid binary frame — {} "
+                            + "buffered bytes dropped", byteAccumulator.readableBytes());
+                } else {
+                    var remaining = new byte[byteAccumulator.readableBytes()];
+                    byteAccumulator.readBytes(remaining);
+                    var message = new String(remaining, StandardCharsets.UTF_8);
+                    logger.trace("WebTransport bidi final message: {}", message);
+                    var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
+                            .getWebTransportProcessor(framework);
+                    processor.invokeWebTransportProtocol(state.session, message);
+                }
             }
             if (state != null && state.session != null) {
                 logger.debug("WebTransport bidi stream closed");

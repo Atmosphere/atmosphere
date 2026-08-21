@@ -89,16 +89,25 @@ class ReactorNettyWebTransportSessionTest {
         frame.release();
     }
 
+    /**
+     * Regression (registre#15): raw unframed binary landed in the peer's
+     * newline-splitting UTF-8 text path and was silently corrupted. Binary
+     * writes now carry the bidi binary frame — 0x00 marker + 4-byte
+     * big-endian length + exact payload — so the payload (0x0A bytes
+     * included) survives untouched.
+     */
     @Test
-    void binaryWriteDoesNotAppendNewline() throws IOException {
+    void binaryWriteCarriesTheLengthPrefixedBinaryFrame() throws IOException {
         var payload = new byte[]{0x01, 0x02, 0x0A, 0x03}; // 0x0A = '\n' embedded
         session.write(payload, 0, payload.length);
         var frame = channel.<ByteBuf>readOutbound();
-        assertEquals(4, frame.readableBytes(),
-                "binary writes must preserve exact byte count — no framing added");
+        assertEquals(9, frame.readableBytes(),
+                "marker + 4-byte length + payload");
+        assertEquals(0x00, frame.readByte(), "binary frame marker");
+        assertEquals(4, frame.readInt(), "big-endian payload length");
         var bytes = new byte[frame.readableBytes()];
         frame.readBytes(bytes);
-        assertArrayEquals(payload, bytes);
+        assertArrayEquals(payload, bytes, "the payload must survive byte-for-byte");
         frame.release();
     }
 
@@ -107,6 +116,7 @@ class ReactorNettyWebTransportSessionTest {
         var source = new byte[]{0x10, 0x20, 0x30, 0x40, 0x50};
         session.write(source, 1, 3); // expect 0x20, 0x30, 0x40
         var frame = channel.<ByteBuf>readOutbound();
+        frame.skipBytes(5); // marker + length prefix
         var bytes = new byte[frame.readableBytes()];
         frame.readBytes(bytes);
         assertArrayEquals(new byte[]{0x20, 0x30, 0x40}, bytes,

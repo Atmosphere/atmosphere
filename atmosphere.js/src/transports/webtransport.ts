@@ -34,8 +34,14 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private textDecoder = new TextDecoder();
   private textEncoder = new TextEncoder();
-  /** Buffers partial lines from server between newline delimiters. */
-  private incomingBuffer = '';
+  /**
+   * Buffers partial frames between reads. Frames are byte-level: a 0x00
+   * marker opens a length-prefixed binary frame (marker + 4-byte big-endian
+   * length + payload); anything else is newline-delimited UTF-8 text.
+   * Binary payloads must never pass through the text decode/split path —
+   * that silently corrupted them. Mirrors the server's BidiFraming.
+   */
+  private incomingBytes = new Uint8Array(0);
 
   get name(): string {
     return 'webtransport';
@@ -128,14 +134,20 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
       throw new Error('WebTransport is not connected');
     }
     const outgoing = this.applyOutgoing(message);
-    // Append newline delimiter — QUIC streams don't preserve message
-    // boundaries, so the server splits on \n to reconstruct messages.
-    const delimited =
-      typeof outgoing === 'string' ? outgoing + '\n' : outgoing;
-    const bytes =
-      typeof delimited === 'string'
-        ? this.textEncoder.encode(delimited)
-        : new Uint8Array(delimited);
+    // QUIC streams don't preserve message boundaries, so every message is
+    // framed: text gets a trailing \n; binary gets the 0x00-marker
+    // length-prefixed frame (sending it raw would land in the server's
+    // newline-splitting UTF-8 text path and corrupt it).
+    let bytes: Uint8Array;
+    if (typeof outgoing === 'string') {
+      bytes = this.textEncoder.encode(outgoing + '\n');
+    } else {
+      const payload = new Uint8Array(outgoing);
+      bytes = new Uint8Array(5 + payload.length);
+      bytes[0] = 0x00;
+      new DataView(bytes.buffer).setUint32(1, payload.length);
+      bytes.set(payload, 5);
+    }
     this.writer.write(bytes).catch((error: Error) => {
       logger.error('WebTransport write failed:', error);
       this.handleError(error);
@@ -227,24 +239,15 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
         if (done || this.readLoopAborted) {
           break;
         }
-        const data = this.textDecoder.decode(value, { stream: true });
-        // Server sends newline-delimited messages — buffer and split
-        this.incomingBuffer += data;
-        let nlIdx: number;
-        while ((nlIdx = this.incomingBuffer.indexOf('\n')) >= 0) {
-          const message = this.incomingBuffer.slice(0, nlIdx);
-          this.incomingBuffer = this.incomingBuffer.slice(nlIdx + 1);
-          if (message.length > 0) {
-            this.handleMessage(message);
-          }
-        }
+        const merged = new Uint8Array(this.incomingBytes.length + value.length);
+        merged.set(this.incomingBytes);
+        merged.set(value, this.incomingBytes.length);
+        this.incomingBytes = merged;
+        this.drainFrames(false);
       }
-      // Flush any remaining decoder and buffer state
-      this.textDecoder.decode(new Uint8Array(), { stream: false });
-      if (this.incomingBuffer.length > 0) {
-        this.handleMessage(this.incomingBuffer);
-        this.incomingBuffer = '';
-      }
+      // Flush any trailing text; an incomplete binary frame at close is
+      // dropped — decode only complete framed messages.
+      this.drainFrames(true);
     } catch (error) {
       if (!this.readLoopAborted) {
         this.handleError(error as Error);
@@ -254,6 +257,76 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
     if (!this.readLoopAborted) {
       this.handleClose();
     }
+  }
+
+  /**
+   * Deliver every complete frame buffered in {@code incomingBytes}. With
+   * {@code final} set, trailing unterminated TEXT is flushed as a last
+   * message (stream closed mid-line) while a partial binary frame is
+   * discarded rather than misread.
+   */
+  private drainFrames(final_: boolean): void {
+    for (;;) {
+      if (this.incomingBytes.length === 0) {
+        return;
+      }
+      if (this.incomingBytes[0] === 0x00) {
+        if (this.incomingBytes.length < 5) {
+          if (final_) {
+            this.incomingBytes = new Uint8Array(0);
+          }
+          return;
+        }
+        const view = new DataView(
+          this.incomingBytes.buffer,
+          this.incomingBytes.byteOffset,
+          this.incomingBytes.byteLength,
+        );
+        const length = view.getUint32(1);
+        if (this.incomingBytes.length < 5 + length) {
+          if (final_) {
+            this.incomingBytes = new Uint8Array(0);
+          }
+          return;
+        }
+        const payload = this.incomingBytes.slice(5, 5 + length);
+        this.incomingBytes = this.incomingBytes.slice(5 + length);
+        this.handleBinaryMessage(payload.buffer);
+        continue;
+      }
+      const nlIdx = this.incomingBytes.indexOf(0x0a);
+      if (nlIdx < 0) {
+        if (final_) {
+          const message = this.textDecoder.decode(this.incomingBytes);
+          this.incomingBytes = new Uint8Array(0);
+          if (message.length > 0) {
+            this.handleMessage(message);
+          }
+        }
+        return;
+      }
+      const message = this.textDecoder.decode(this.incomingBytes.slice(0, nlIdx));
+      this.incomingBytes = this.incomingBytes.slice(nlIdx + 1);
+      if (message.length > 0) {
+        this.handleMessage(message);
+      }
+    }
+  }
+
+  /** Binary frames pass through untouched, mirroring the WebSocket transport. */
+  private handleBinaryMessage(data: ArrayBuffer): void {
+    const response: AtmosphereResponse<T> = {
+      status: 200,
+      reasonPhrase: 'OK',
+      responseBody: data as T,
+      messages: [data],
+      headers: {},
+      state: 'messageReceived',
+      transport: 'webtransport',
+      error: null,
+      request: this.request,
+    };
+    this.notifyMessage(response);
   }
 
   private handleMessage(data: string): void {
@@ -350,7 +423,7 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
 
     this.reconnectTimer = setTimeout(() => {
       this.protocol.reset();
-      this.incomingBuffer = '';
+      this.incomingBytes = new Uint8Array(0);
       this.connect().catch((error) => {
         logger.error('Reconnection failed:', error);
         // Re-enter the close flow so the retry/quota logic runs — without

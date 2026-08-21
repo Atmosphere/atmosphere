@@ -65,9 +65,14 @@ public class ReactorNettyWebTransportSession extends WebTransportSession {
         if (!isOpen()) {
             throw new IOException("WebTransport session is closed for " + uuid());
         }
-        // Binary writes must preserve exact bytes — no newline framing.
-        // Text writes (write(String)) handle their own framing.
-        var buf = channel.alloc().buffer(length);
+        // Binary writes carry the bidi binary frame: 0x00 marker + 4-byte
+        // big-endian length + exact payload bytes. Unframed raw bytes would
+        // land in the peer's newline-splitting UTF-8 text path and corrupt
+        // (Invariant #4 — frame at the boundary). Text writes
+        // (write(String)) keep their newline framing.
+        var buf = channel.alloc().buffer(length + 5);
+        buf.writeByte(0);
+        buf.writeInt(length);
         buf.writeBytes(b, offset, length);
         channel.writeAndFlush(buf);
         lastWrite = System.currentTimeMillis();

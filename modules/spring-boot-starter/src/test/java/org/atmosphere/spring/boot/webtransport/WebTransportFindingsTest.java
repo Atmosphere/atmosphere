@@ -187,9 +187,11 @@ class WebTransportFindingsTest {
     }
 
     private static int invokeFindNewline(ByteBuf buf) {
+        // The newline scanner moved into the shared BidiFraming codec when
+        // binary frames were introduced (registre#15); the framing semantics
+        // under test are unchanged.
         try {
-            Method method = Class.forName(
-                    "org.atmosphere.spring.boot.webtransport.ReactorNettyTransportServer$WebTransportBidiStreamHandler")
+            Method method = BidiFraming.class
                     .getDeclaredMethod("findNewline", ByteBuf.class);
             method.setAccessible(true);
             return (int) method.invoke(null, buf);

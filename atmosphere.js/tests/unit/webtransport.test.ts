@@ -66,6 +66,18 @@ function createMockReader() {
         readQueue.push(result);
       }
     },
+    // Test helper to push raw bytes with no added framing (binary frames,
+    // partial deliveries).
+    pushBytes(bytes: Uint8Array) {
+      const result = { value: bytes, done: false };
+      if (waitingResolve) {
+        const resolve = waitingResolve;
+        waitingResolve = null;
+        resolve(result);
+      } else {
+        readQueue.push(result);
+      }
+    },
     // Test helper to signal stream end
     pushDone() {
       const result = { value: undefined as Uint8Array | undefined, done: true };
@@ -272,19 +284,50 @@ describe('WebTransportTransport', () => {
       );
     });
 
-    it('should write ArrayBuffer through stream writer', async () => {
+    // Regression (registre#15): an unframed ArrayBuffer landed in the
+    // server's newline-splitting UTF-8 text path and was silently
+    // corrupted. Binary sends carry the 0x00-marker length-prefixed frame.
+    it('should frame ArrayBuffer sends with the binary marker and length', async () => {
       await transport.connect();
 
-      const buffer = new TextEncoder().encode('binary data').buffer;
-      transport.send(buffer as ArrayBuffer);
+      const payload = new Uint8Array([0x01, 0x0a, 0xff, 0x02]); // \n + non-UTF8
+      transport.send(payload.buffer as ArrayBuffer);
 
-      expect(mockWriter.write).toHaveBeenCalledWith(
-        expect.any(Uint8Array),
-      );
+      const written = mockWriter.write.mock.calls.at(-1)![0] as Uint8Array;
+      expect(written[0]).toBe(0x00);
+      expect(new DataView(written.buffer, written.byteOffset).getUint32(1)).toBe(4);
+      expect(Array.from(written.slice(5))).toEqual([0x01, 0x0a, 0xff, 0x02]);
     });
 
     it('should throw error if not connected', () => {
       expect(() => transport.send('test')).toThrow('WebTransport is not connected');
+    });
+
+    // Regression (registre#15): inbound binary used to be UTF-8 decoded and
+    // newline-split. A framed binary message — even split across reads,
+    // with 0x0A and non-UTF-8 bytes inside — must reach the message
+    // handler as an untouched ArrayBuffer.
+    it('should deliver inbound binary frames byte-for-byte as ArrayBuffer', async () => {
+      await transport.connect();
+
+      const payload = new Uint8Array([0x0a, 0xff, 0x80, 0x00, 0x42]);
+      const framed = new Uint8Array(5 + payload.length);
+      framed[0] = 0x00;
+      new DataView(framed.buffer).setUint32(1, payload.length);
+      framed.set(payload, 5);
+      // Worst case: split mid-header and mid-payload.
+      mockReader.pushBytes(framed.slice(0, 3));
+      mockReader.pushBytes(framed.slice(3, 7));
+      mockReader.pushBytes(framed.slice(7));
+      await vi.waitFor(() => {
+        expect(mockHandlers.message).toHaveBeenCalled();
+      });
+
+      const response = (mockHandlers.message as any).mock.calls.at(-1)![0];
+      expect(response.responseBody).toBeInstanceOf(ArrayBuffer);
+      expect(Array.from(new Uint8Array(response.responseBody))).toEqual(
+        [0x0a, 0xff, 0x80, 0x00, 0x42],
+      );
     });
 
     it('should apply outgoing interceptors to sent messages', async () => {

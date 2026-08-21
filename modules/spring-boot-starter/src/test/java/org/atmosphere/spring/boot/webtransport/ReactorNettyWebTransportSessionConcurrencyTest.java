@@ -214,15 +214,21 @@ class ReactorNettyWebTransportSessionConcurrencyTest {
                 expectedTotalBytes += i;
             }
 
-            int totalBytes = 0;
+            int totalPayloadBytes = 0;
             int framesObserved = 0;
             ByteBuf frame;
             while ((frame = ch.readOutbound()) != null) {
-                totalBytes += frame.readableBytes();
+                // Each write carries the bidi binary frame: 0x00 marker +
+                // 4-byte length + payload (registre#15).
+                assertEquals(0x00, frame.readByte(), "binary frame marker");
+                var declared = frame.readInt();
+                assertEquals(declared, frame.readableBytes(),
+                        "declared length MUST match the carried payload");
+                totalPayloadBytes += frame.readableBytes();
                 framesObserved++;
                 frame.release();
             }
-            assertEquals(expectedTotalBytes, totalBytes,
+            assertEquals(expectedTotalBytes, totalPayloadBytes,
                     "sequential binary writes MUST preserve every input byte (no drops, no truncation)");
             assertEquals(writes, framesObserved,
                     "every write MUST produce its own outbound frame — no coalescing or batching");
