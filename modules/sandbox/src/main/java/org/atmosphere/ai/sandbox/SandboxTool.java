@@ -49,9 +49,22 @@ public @interface SandboxTool {
     /**
      * Preferred {@link SandboxProvider#name()} for this tool
      * ({@code "docker"} by default). When the named provider is not
-     * available the invocation fails hard.
+     * available the invocation fails hard. An empty string selects the
+     * strongest available provider that meets {@link #minTier()} via
+     * {@link Sandboxes#select(IsolationTier)} instead of naming one.
      */
     String backend() default "docker";
+
+    /**
+     * The minimum {@link IsolationTier} this tool's execution warrants —
+     * the governance floor. The resolved backend (named or tier-selected)
+     * must provide at least this tier or the invocation fails hard; there
+     * is no fallback to a weaker sandbox. Defaults to
+     * {@link IsolationTier#PROCESS} (no floor beyond the sandbox itself);
+     * declare {@link IsolationTier#CONTAINER} or stronger for untrusted
+     * code.
+     */
+    IsolationTier minTier() default IsolationTier.PROCESS;
 
     /**
      * Backend-specific image reference. Required. For Docker this is a

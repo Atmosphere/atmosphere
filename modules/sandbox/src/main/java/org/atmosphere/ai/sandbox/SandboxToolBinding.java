@@ -60,7 +60,8 @@ public final class SandboxToolBinding implements ToolSandboxBinding {
             throw new IllegalArgumentException(
                     "@SandboxTool is not present on " + describe(method));
         }
-        var provider = resolveProvider(annotation.backend(), describe(method));
+        var provider = resolveProvider(annotation.backend(), annotation.minTier(),
+                describe(method));
         var sandbox = provider.create(annotation.image(), limitsFrom(annotation), Map.of(
                 "owner", "sandbox-tool",
                 "tool.method", describe(method)));
@@ -81,11 +82,22 @@ public final class SandboxToolBinding implements ToolSandboxBinding {
 
     /**
      * Resolve the provider named {@code backend} from the ServiceLoader set,
-     * requiring {@link SandboxProvider#isAvailable()}. Runtime truth
-     * (Invariant #5): the error names the provider that is actually missing
-     * or down, never a guess.
+     * requiring {@link SandboxProvider#isAvailable()} and at least the
+     * declared {@link IsolationTier} floor. An empty {@code backend} selects
+     * the strongest available provider meeting the floor via
+     * {@link Sandboxes#select(IsolationTier)}. Runtime truth (Invariant #5):
+     * the error names the provider that is actually missing, down, or too
+     * weak — never a guess. The tier floor fails closed (Invariant #6): a
+     * named backend below the declared floor is refused, never downgraded to.
      */
-    private static SandboxProvider resolveProvider(String backend, String methodRef) {
+    private static SandboxProvider resolveProvider(String backend, IsolationTier minTier,
+                                                   String methodRef) {
+        if (backend.isEmpty()) {
+            return Sandboxes.select(minTier).orElseThrow(() -> new IllegalStateException(
+                    "@SandboxTool on " + methodRef + " requires isolation tier " + minTier
+                            + " or stronger, but no available SandboxProvider meets that "
+                            + "floor. Sandboxed tools never fall back to in-JVM execution."));
+        }
         SandboxProvider named = null;
         var registered = new ArrayList<String>();
         for (var provider : ServiceLoader.load(SandboxProvider.class)) {
@@ -100,6 +112,13 @@ public final class SandboxToolBinding implements ToolSandboxBinding {
                     + "with that name is registered (registered: " + registered + "). "
                     + "Add the backend's module to the classpath — sandboxed tools never "
                     + "fall back to in-JVM execution.");
+        }
+        if (!named.tier().isAtLeast(minTier)) {
+            throw new IllegalStateException("@SandboxTool on " + methodRef
+                    + " declares minTier=" + minTier + ", but backend '" + backend
+                    + "' provides only " + named.tier() + " isolation. Use a stronger "
+                    + "backend or lower the declared floor — sandboxed tools never "
+                    + "fall back to weaker isolation.");
         }
         if (!named.isAvailable()) {
             throw new IllegalStateException("@SandboxTool on " + methodRef

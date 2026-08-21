@@ -141,6 +141,37 @@ public class SandboxToolBindingTest {
         }
     }
 
+    /**
+     * Regression (registre#20): the production resolve path used to pick a
+     * provider purely by name, never consulting the {@link IsolationTier}
+     * governance floor — the documented lever could not constrain anything.
+     * A named backend below the declared floor must be refused, never
+     * silently used.
+     */
+    @Test
+    public void namedBackendBelowDeclaredTierFloorFailsClosed() throws Exception {
+        var thrown = assertThrows(IllegalStateException.class,
+                () -> binding.open(fixture("tierFloorTool")));
+
+        assertTrue(thrown.getMessage().contains("minTier=CONTAINER"), thrown.getMessage());
+        assertTrue(thrown.getMessage().contains("PROCESS"),
+                "the error must name the backend's actual (weaker) tier: "
+                        + thrown.getMessage());
+        assertEquals(0, RecordingSandboxProvider.CREATE_CALLS.get(),
+                "a too-weak backend must not be used");
+    }
+
+    /** Empty backend = tier-driven selection; an unmeetable floor fails closed. */
+    @Test
+    public void tierSelectedBackendWithUnmeetableFloorFailsClosed() throws Exception {
+        var thrown = assertThrows(IllegalStateException.class,
+                () -> binding.open(fixture("microVmFloorTool")));
+
+        assertTrue(thrown.getMessage().contains("MICRO_VM"), thrown.getMessage());
+        assertEquals(0, RecordingSandboxProvider.CREATE_CALLS.get(),
+                "no weaker provider may be substituted for an unmeetable floor");
+    }
+
     @Test
     public void scopeCloseIsIdempotent() throws Exception {
         var scope = binding.open(fixture("networkedTool"));
@@ -182,6 +213,16 @@ public class SandboxToolBindingTest {
 
         @SandboxTool(backend = "in-process", image = "jvm")
         void inProcessBackendTool(Sandbox sandbox) {
+        }
+
+        @SandboxTool(backend = "recording", image = "img",
+                minTier = IsolationTier.CONTAINER)
+        void tierFloorTool(Sandbox sandbox) {
+        }
+
+        @SandboxTool(backend = "", image = "img",
+                minTier = IsolationTier.MICRO_VM)
+        void microVmFloorTool(Sandbox sandbox) {
         }
 
         void plainMethod() {
