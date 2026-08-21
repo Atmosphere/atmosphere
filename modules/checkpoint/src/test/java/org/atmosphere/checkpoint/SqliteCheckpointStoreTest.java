@@ -305,6 +305,37 @@ class SqliteCheckpointStoreTest {
     }
 
     /**
+     * Regression (registre#36): eviction was globally oldest-first, so
+     * sustained traffic from other coordinations could evict a dormant
+     * workflow's newest snapshot — its resume anchor — making it silently
+     * unresumable. The anchor must survive unrelated write pressure; only
+     * a cap smaller than the number of live coordinations may consume it.
+     */
+    @Test
+    void dormantCoordinationsResumeAnchorSurvivesUnrelatedTraffic() {
+        var capped = new SqliteCheckpointStore(tempDir.resolve("anchor.db"), 3);
+        capped.start();
+        try {
+            var base = Instant.parse("2026-01-01T00:00:00Z");
+            // Dormant workflow checkpoints once, then goes quiet.
+            capped.save(snap("dormant", "anchor", base));
+            // Unrelated coordination floods the store far past the cap.
+            for (int i = 0; i < 10; i++) {
+                capped.save(snap("busy", "b" + i, base.plusSeconds(10 + i)));
+            }
+            var dormant = capped.list(CheckpointQuery.forCoordination("dormant"));
+            assertEquals(1, dormant.size(),
+                    "the dormant workflow's resume anchor must never be evicted "
+                    + "by unrelated traffic");
+            assertEquals("anchor", dormant.get(0).state());
+            assertEquals(3, capped.list(CheckpointQuery.builder().build()).size(),
+                    "the size bound still holds");
+        } finally {
+            capped.stop();
+        }
+    }
+
+    /**
      * Migration regression: a database created before the {@code state_type}
      * column existed must keep working. {@code start()} adds the column via
      * {@code ALTER TABLE}, the pre-existing row loads (its untyped state falls

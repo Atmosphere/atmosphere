@@ -262,6 +262,42 @@ class InMemoryCheckpointStoreTest {
         }
     }
 
+    /**
+     * Regression (registre#36): eviction was globally oldest-first, so
+     * sustained traffic from other coordinations could evict a dormant
+     * workflow's newest snapshot — its resume anchor — making it silently
+     * unresumable. The anchor must survive unrelated write pressure.
+     */
+    @Test
+    void dormantCoordinationsResumeAnchorSurvivesUnrelatedTraffic() {
+        var small = new InMemoryCheckpointStore(3);
+        small.start();
+        try {
+            // Dormant workflow: one old snapshot, then nothing.
+            small.save(WorkflowSnapshot.<String>builder()
+                    .coordinationId("dormant")
+                    .state("anchor")
+                    .createdAt(Instant.ofEpochMilli(1L))
+                    .build());
+            // Unrelated coordination floods the store far past the cap.
+            for (int i = 0; i < 10; i++) {
+                small.save(WorkflowSnapshot.<String>builder()
+                        .coordinationId("busy")
+                        .state("b" + i)
+                        .createdAt(Instant.ofEpochMilli(1000L + i))
+                        .build());
+            }
+            var dormant = small.list(CheckpointQuery.forCoordination("dormant"));
+            assertEquals(1, dormant.size(),
+                    "the dormant workflow's resume anchor must never be evicted "
+                    + "by unrelated traffic");
+            assertEquals("anchor", dormant.get(0).state());
+            assertEquals(3, small.size(), "the size bound still holds");
+        } finally {
+            small.stop();
+        }
+    }
+
     @Test
     void rejectsNonPositiveMaxSnapshots() {
         assertThrows(IllegalArgumentException.class, () -> new InMemoryCheckpointStore(0));

@@ -53,18 +53,13 @@ public final class SqliteCheckpointStore implements CheckpointStore {
      * {@code PostgresCheckpointStore} so all three backends bound storage
      * identically.
      *
-     * <p><strong>Resume-anchor caveat:</strong> this is a <em>global</em>
-     * evict-oldest cap, so under sustained write pressure (more than the cap of
-     * newer snapshots from other coordinations) it can evict the newest
-     * snapshot — the resume anchor — of a dormant, hibernated coordination.
-     * That is an accepted limitation of a fixed-size snapshot store: bounding
-     * total size and never evicting a non-terminal run's anchor cannot both
-     * hold without a per-run terminal-status concept, which this SPI does not
-     * model. Durable agent-run resume therefore does not rely on this store's
-     * retention; it uses the dedicated run journal whose retention is
-     * terminal-status-aware. Applications using this store for explicit
-     * {@code Workflow} checkpoints should reap completed runs via
-     * {@link #deleteCoordination(String)} to stay well under the cap.</p>
+     * <p><strong>Resume-anchor protection:</strong> eviction removes the
+     * oldest snapshots that are <em>not</em> a coordination's newest (its
+     * resume anchor) first, so unrelated traffic cannot delete a dormant
+     * coordination's only way back. Anchors are evicted only when the cap is
+     * smaller than the number of live coordinations — logged at WARN, because
+     * bounding storage (Invariant #3) then has to win. Reap completed runs
+     * via {@link #deleteCoordination(String)} to stay well under the cap.</p>
      */
     public static final int DEFAULT_MAX_SNAPSHOTS = 10_000;
 
@@ -517,19 +512,42 @@ public final class SqliteCheckpointStore implements CheckpointStore {
      * order.</p>
      */
     private void pruneIfNeeded() throws SQLException {
-        int total;
-        try (var ps = connection.prepareStatement("SELECT COUNT(*) FROM checkpoints");
-             var rs = ps.executeQuery()) {
-            total = rs.next() ? rs.getInt(1) : 0;
-        }
+        int total = countSnapshots();
         if (total <= maxSnapshots) {
             return;
         }
+        // Evict oldest snapshots that are NOT a coordination's newest (its
+        // resume anchor) first, so unrelated traffic can never delete a
+        // dormant workflow's only way back.
         try (var ps = connection.prepareStatement(
                 "DELETE FROM checkpoints WHERE id IN ("
-                        + "SELECT id FROM checkpoints ORDER BY rowid ASC LIMIT ?)")) {
+                        + "SELECT id FROM checkpoints WHERE rowid NOT IN ("
+                        + "SELECT MAX(rowid) FROM checkpoints GROUP BY coordination_id) "
+                        + "ORDER BY rowid ASC LIMIT ?)")) {
             ps.setInt(1, total - maxSnapshots);
             ps.executeUpdate();
+        }
+        total = countSnapshots();
+        if (total > maxSnapshots) {
+            // Only anchors remain — the cap is smaller than the number of
+            // live coordinations. Bounding storage wins (Invariant #3), but
+            // loudly, because resume anchors are being lost.
+            logger.warn("Checkpoint cap {} is below the number of live coordinations — "
+                    + "evicting {} resume anchor(s). Raise maxSnapshots or reap completed "
+                    + "runs via deleteCoordination().", maxSnapshots, total - maxSnapshots);
+            try (var ps = connection.prepareStatement(
+                    "DELETE FROM checkpoints WHERE id IN ("
+                            + "SELECT id FROM checkpoints ORDER BY rowid ASC LIMIT ?)")) {
+                ps.setInt(1, total - maxSnapshots);
+                ps.executeUpdate();
+            }
+        }
+    }
+
+    private int countSnapshots() throws SQLException {
+        try (var ps = connection.prepareStatement("SELECT COUNT(*) FROM checkpoints");
+             var rs = ps.executeQuery()) {
+            return rs.next() ? rs.getInt(1) : 0;
         }
     }
 

@@ -34,7 +34,10 @@ import java.util.stream.Stream;
  *
  * <p>Enforces a maximum snapshot count to prevent unbounded memory growth.
  * When the limit is exceeded, the oldest snapshots (by {@code createdAt}) are
- * evicted. The default cap is {@value #DEFAULT_MAX_SNAPSHOTS}.</p>
+ * evicted — except each coordination's newest snapshot (its resume anchor),
+ * which is evicted only when the cap is smaller than the number of live
+ * coordinations (logged at WARN). The default cap is
+ * {@value #DEFAULT_MAX_SNAPSHOTS}.</p>
  */
 public final class InMemoryCheckpointStore implements CheckpointStore {
 
@@ -234,21 +237,51 @@ public final class InMemoryCheckpointStore implements CheckpointStore {
             return;
         }
         // Snapshot the entries, sort by createdAt ascending, evict oldest
-        // until within bounds. Concurrent saves during eviction are tolerated:
-        // we only remove entries whose value has not changed since we observed
-        // it, via remove(key, value).
+        // until within bounds — but never a coordination's newest snapshot
+        // (its resume anchor) while non-anchor snapshots remain, so
+        // unrelated traffic cannot delete a dormant workflow's only way
+        // back. Concurrent saves during eviction are tolerated: we only
+        // remove entries whose value has not changed since we observed it,
+        // via remove(key, value).
         var ordered = snapshots.entrySet().stream()
                 .sorted(java.util.Map.Entry.comparingByValue(
                         java.util.Comparator.comparing(WorkflowSnapshot<?>::createdAt)))
                 .toList();
+        // Ascending createdAt order: the last write per coordination wins,
+        // leaving each coordination's newest snapshot id — its anchor.
+        var anchorByCoordination = new java.util.HashMap<String, CheckpointId>();
+        for (var entry : ordered) {
+            anchorByCoordination.put(entry.getValue().coordinationId(), entry.getKey());
+        }
+        var anchors = new java.util.HashSet<>(anchorByCoordination.values());
         int overflow = snapshots.size() - maxSnapshots;
         for (var entry : ordered) {
             if (overflow <= 0) {
                 break;
             }
+            if (anchors.contains(entry.getKey())) {
+                continue;
+            }
             if (snapshots.remove(entry.getKey(), entry.getValue())) {
                 removeFromIndex(entry.getKey(), entry.getValue().coordinationId());
                 overflow--;
+            }
+        }
+        if (overflow > 0) {
+            // Only anchors remain — the cap is smaller than the number of
+            // live coordinations. Bounding storage wins (Invariant #3), but
+            // loudly, because resume anchors are being lost.
+            LOGGER.warn("Checkpoint cap {} is below the number of live coordinations — "
+                    + "evicting {} resume anchor(s). Raise maxSnapshots or reap completed "
+                    + "runs via deleteCoordination().", maxSnapshots, overflow);
+            for (var entry : ordered) {
+                if (overflow <= 0) {
+                    break;
+                }
+                if (snapshots.remove(entry.getKey(), entry.getValue())) {
+                    removeFromIndex(entry.getKey(), entry.getValue().coordinationId());
+                    overflow--;
+                }
             }
         }
     }

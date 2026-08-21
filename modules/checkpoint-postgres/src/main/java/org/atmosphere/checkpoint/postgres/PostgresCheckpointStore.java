@@ -68,15 +68,13 @@ public final class PostgresCheckpointStore implements CheckpointStore {
      * {@code SqliteCheckpointStore}. Beyond this the oldest snapshots are pruned
      * on save so the table cannot grow without bound (Correctness Invariant #3).
      *
-     * <p><strong>Resume-anchor caveat:</strong> this is a <em>global</em>
-     * evict-oldest cap, so under sustained write pressure it can evict the
-     * newest snapshot — the resume anchor — of a dormant coordination. Bounding
-     * total size and never evicting a non-terminal run's anchor cannot both hold
-     * without a per-run terminal-status concept this SPI does not model. Durable
-     * agent-run resume therefore does not rely on this store's retention; it
-     * uses the dedicated run journal whose retention is terminal-status-aware.
-     * Reap completed runs via {@link #deleteCoordination(String)} to stay well
-     * under the cap.</p>
+     * <p><strong>Resume-anchor protection:</strong> eviction removes the
+     * oldest snapshots that are <em>not</em> a coordination's newest (its
+     * resume anchor) first, so unrelated traffic cannot delete a dormant
+     * coordination's only way back. Anchors are evicted only when the cap is
+     * smaller than the number of live coordinations — logged at WARN, because
+     * bounding storage (Invariant #3) then has to win. Reap completed runs
+     * via {@link #deleteCoordination(String)} to stay well under the cap.</p>
      */
     public static final int DEFAULT_MAX_SNAPSHOTS = 10_000;
 
@@ -466,25 +464,50 @@ public final class PostgresCheckpointStore implements CheckpointStore {
      * caller's already-open connection in autocommit mode (post-commit).
      */
     private void pruneIfNeeded(java.sql.Connection conn) throws SQLException {
-        int total;
-        try (var ps = conn.prepareStatement("SELECT COUNT(*) FROM " + table);
-             var rs = ps.executeQuery()) {
-            total = rs.next() ? rs.getInt(1) : 0;
-        }
+        int total = countSnapshots(conn);
         if (total <= maxSnapshots) {
             return;
         }
+        // Evict oldest snapshots that are NOT a coordination's newest (its
+        // resume anchor) first, so unrelated traffic can never delete a
+        // dormant workflow's only way back.
         try (var ps = conn.prepareStatement(
                 "DELETE FROM " + table + " WHERE id IN ("
-                        + "SELECT id FROM " + table + " ORDER BY created_at ASC, id ASC LIMIT ?)")) {
+                        + "SELECT id FROM (SELECT id, ROW_NUMBER() OVER ("
+                        + "PARTITION BY coordination_id "
+                        + "ORDER BY created_at DESC, id DESC) rn, created_at FROM " + table
+                        + ") ranked WHERE rn > 1 ORDER BY created_at ASC, id ASC LIMIT ?)")) {
             ps.setInt(1, total - maxSnapshots);
             ps.executeUpdate();
+        }
+        total = countSnapshots(conn);
+        if (total > maxSnapshots) {
+            // Only anchors remain — the cap is smaller than the number of
+            // live coordinations. Bounding storage wins (Invariant #3), but
+            // loudly, because resume anchors are being lost.
+            logger.warn("Checkpoint cap {} is below the number of live coordinations — "
+                    + "evicting {} resume anchor(s). Raise maxSnapshots or reap completed "
+                    + "runs via deleteCoordination().", maxSnapshots, total - maxSnapshots);
+            try (var ps = conn.prepareStatement(
+                    "DELETE FROM " + table + " WHERE id IN ("
+                            + "SELECT id FROM " + table
+                            + " ORDER BY created_at ASC, id ASC LIMIT ?)")) {
+                ps.setInt(1, total - maxSnapshots);
+                ps.executeUpdate();
+            }
         }
         // A pool may hand out a connection with autoCommit=false; without an
         // explicit commit the prune would be rolled back when the connection is
         // returned (Correctness Invariant #2 — terminal-path completeness).
         if (!conn.getAutoCommit()) {
             conn.commit();
+        }
+    }
+
+    private int countSnapshots(java.sql.Connection conn) throws SQLException {
+        try (var ps = conn.prepareStatement("SELECT COUNT(*) FROM " + table);
+             var rs = ps.executeQuery()) {
+            return rs.next() ? rs.getInt(1) : 0;
         }
     }
 
