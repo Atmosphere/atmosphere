@@ -37,6 +37,14 @@ class StructuredOutputCapturingSession extends DelegatingStreamingSession {
             StructuredOutputCapturingSession.class);
     private static final int PARSE_INTERVAL = 100;
 
+    /**
+     * Metadata key sent when the declared structured type could not be
+     * parsed from the completed response — the caller's signal that the
+     * missing {@code EntityComplete} is a parse failure, not an
+     * intentionally empty answer.
+     */
+    static final String PARSE_FAILED_METADATA_KEY = "ai.structured.parse_failed";
+
     private final StructuredOutputParser parser;
     private final Class<?> responseType;
     private final StringBuilder accumulated = new StringBuilder();
@@ -137,16 +145,16 @@ class StructuredOutputCapturingSession extends DelegatingStreamingSession {
                     responseType.getSimpleName(), entity));
         } catch (Exception e) {
             // A swallowed parse failure is indistinguishable from a model
-            // that legitimately returned nothing: emit a recoverable Error
-            // event before the terminal frame so the caller can tell the
-            // two apart, and log at WARN — the declared responseType was
-            // not honored.
+            // that legitimately returned nothing: send a metadata breadcrumb
+            // before the terminal frame so the caller can tell the two
+            // apart, and log at WARN — the declared responseType was not
+            // honored. Metadata (not an Error event) keeps the turn's
+            // terminal semantics: the text stream itself succeeded, and the
+            // StreamingSession default maps Error events to a hard error().
             logger.warn("Structured output parsing failed for type {}",
                     responseType.getSimpleName(), e);
-            delegate.emit(new AiEvent.Error(
-                    "Structured output parse failed for " + responseType.getSimpleName()
-                            + ": " + e.getMessage(),
-                    "structured_output_parse_failed", true));
+            delegate.sendMetadata(PARSE_FAILED_METADATA_KEY,
+                    responseType.getSimpleName() + ": " + e.getMessage());
         }
     }
 }

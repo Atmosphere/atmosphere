@@ -83,26 +83,25 @@ class StructuredOutputCapturingSessionTest {
      * Regression (registre#30): a parse failure on complete() was logged at
      * DEBUG and swallowed — the client got a clean terminal frame with no
      * EntityComplete, indistinguishable from a model that legitimately
-     * returned nothing. A recoverable Error event must precede the terminal
-     * frame so the caller can tell a parse failure from an empty answer.
+     * returned nothing. A parse-failed metadata breadcrumb must precede the
+     * terminal frame so the caller can tell the two apart. (Metadata, not
+     * an Error event: the StreamingSession default maps Error events to a
+     * hard error(), which would fail turns whose text stream succeeded.)
      */
     @Test
-    void parseFailureOnCompleteEmitsRecoverableErrorEvent() {
+    void parseFailureOnCompleteSendsParseFailedBreadcrumb() {
         session.send("this is not json at all {{{");
         session.complete();
 
         assertTrue(delegate.completed, "the stream still terminates");
-        var errors = delegate.events.stream()
-                .filter(e -> e instanceof AiEvent.Error)
-                .map(e -> (AiEvent.Error) e)
-                .toList();
-        assertEquals(1, errors.size(),
-                "a swallowed parse failure is invisible to the caller: " + delegate.events);
-        assertEquals("structured_output_parse_failed", errors.getFirst().code());
-        assertTrue(errors.getFirst().recoverable(),
-                "the text stream succeeded — only the structured projection failed");
+        var breadcrumb = delegate.metadata.get(
+                StructuredOutputCapturingSession.PARSE_FAILED_METADATA_KEY);
+        assertTrue(breadcrumb != null && breadcrumb.toString().contains("MovieReview"),
+                "a swallowed parse failure is invisible to the caller: " + delegate.metadata);
         assertTrue(delegate.events.stream().noneMatch(e -> e instanceof AiEvent.EntityComplete),
                 "no EntityComplete may be fabricated for an unparseable payload");
+        assertTrue(delegate.events.stream().noneMatch(e -> e instanceof AiEvent.Error),
+                "the text stream succeeded — the turn must not be failed");
     }
 
     @Test
@@ -176,6 +175,7 @@ class StructuredOutputCapturingSessionTest {
         final List<String> sends = new ArrayList<>();
         final List<AiEvent> events = new ArrayList<>();
         final List<String> progresses = new ArrayList<>();
+        final java.util.Map<String, Object> metadata = new java.util.LinkedHashMap<>();
         boolean completed;
         boolean errored;
         String completeSummary;
@@ -190,7 +190,7 @@ class StructuredOutputCapturingSessionTest {
         public void emit(AiEvent event) { events.add(event); }
 
         @Override
-        public void sendMetadata(String key, Object value) {}
+        public void sendMetadata(String key, Object value) { metadata.put(key, value); }
 
         @Override
         public void progress(String message) { progresses.add(message); }
