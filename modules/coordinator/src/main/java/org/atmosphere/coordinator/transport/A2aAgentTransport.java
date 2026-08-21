@@ -70,6 +70,7 @@ public class A2aAgentTransport implements AgentTransport, AutoCloseable {
     private final String baseUrl;
     private final HttpClient httpClient;
     private final Timeouts timeouts;
+    private final java.security.interfaces.EdECPublicKey trustedCardKey;
 
     public A2aAgentTransport(String agentName, String baseUrl) {
         this(agentName, baseUrl, Timeouts.DEFAULT);
@@ -89,9 +90,25 @@ public class A2aAgentTransport implements AgentTransport, AutoCloseable {
 
     public A2aAgentTransport(String agentName, String baseUrl, HttpClient httpClient,
                              Timeouts timeouts) {
+        this(agentName, baseUrl, httpClient, timeouts, null);
+    }
+
+    /**
+     * Constructor pinning the remote agent's card-signing key. With a pinned
+     * key, {@link #isAvailable()} requires the peer's agent card to verify
+     * against it ({@link org.atmosphere.a2a.security.AgentCardSigner#verify})
+     * and fails closed otherwise — identity binding, not just integrity.
+     *
+     * @param trustedCardKey the peer's pinned Ed25519 public key, or
+     *                       {@code null} for integrity-only checking
+     */
+    public A2aAgentTransport(String agentName, String baseUrl, HttpClient httpClient,
+                             Timeouts timeouts,
+                             java.security.interfaces.EdECPublicKey trustedCardKey) {
         this.baseUrl = baseUrl;
         this.httpClient = httpClient;
         this.timeouts = timeouts;
+        this.trustedCardKey = trustedCardKey;
     }
 
     @Override
@@ -322,10 +339,56 @@ public class A2aAgentTransport implements AgentTransport, AutoCloseable {
                     .timeout(timeouts.availability())
                     .build();
             var response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-            return response.statusCode() == 200;
+            if (response.statusCode() != 200) {
+                return false;
+            }
+            return cardTrusted(response.body());
         } catch (Exception e) {
             return false;
         }
+    }
+
+    /**
+     * Enforce agent-card provenance on the consuming side. With a pinned key
+     * the card MUST parse and verify against it (fail closed — a peer whose
+     * card cannot be authenticated is unavailable). Without a pin, a card
+     * that carries signatures must still pass self-integrity so a tampered
+     * signed card is rejected; unsigned cards and pre-1.0 servers that do
+     * not implement {@code GetExtendedAgentCard} keep the legacy
+     * available-on-200 behaviour.
+     */
+    private boolean cardTrusted(String body) {
+        org.atmosphere.a2a.types.AgentCard card = null;
+        try {
+            var json = mapper.readTree(body);
+            if (json.has("result")) {
+                card = mapper.treeToValue(json.get("result"),
+                        org.atmosphere.a2a.types.AgentCard.class);
+            }
+        } catch (RuntimeException e) {
+            logger.debug("A2A agent card at {} could not be parsed: {}", baseUrl, e.toString());
+        }
+        if (trustedCardKey != null) {
+            if (card == null) {
+                logger.warn("A2A peer at {} presented no parseable agent card while a "
+                        + "pinned signing key is configured — treating agent as unavailable",
+                        baseUrl);
+                return false;
+            }
+            if (!org.atmosphere.a2a.security.AgentCardSigner.verify(card, trustedCardKey)) {
+                logger.warn("A2A agent card at {} failed verification against the pinned "
+                        + "key — treating agent as unavailable", baseUrl);
+                return false;
+            }
+            return true;
+        }
+        if (card != null && card.signatures() != null && !card.signatures().isEmpty()
+                && !org.atmosphere.a2a.security.AgentCardSigner.verifyIntegrity(card)) {
+            logger.warn("A2A agent card at {} carries signatures that do not verify — "
+                    + "treating agent as unavailable", baseUrl);
+            return false;
+        }
+        return true;
     }
 
     @Override

@@ -245,4 +245,103 @@ public class A2aAgentTransportTest {
         assertTrue(result.success());
         assertEquals("search results here", result.text());
     }
+
+    // ---- Agent-card provenance on the consuming side (registre#19) ----
+
+    private static org.atmosphere.a2a.types.AgentCard minimalCard() {
+        return new org.atmosphere.a2a.types.AgentCard(
+                "remote-agent", "a peer", null, null, "1.0", null,
+                null, null, null, null, null, null, null, null);
+    }
+
+    private static HttpClient clientReturningCard(String cardJson) throws Exception {
+        var httpClient = mock(HttpClient.class);
+        var httpResponse = mock(HttpResponse.class);
+        when(httpResponse.statusCode()).thenReturn(200);
+        when(httpResponse.body()).thenReturn(
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":" + cardJson + "}");
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(httpResponse);
+        return httpClient;
+    }
+
+    private static String toJson(Object card) {
+        return new tools.jackson.databind.ObjectMapper().writeValueAsString(card);
+    }
+
+    /**
+     * Regression: cards were signed in production but verified nowhere —
+     * the provenance guarantee was decorative. A signed card that fails
+     * self-integrity (tampered after signing) must make the peer
+     * unavailable even without a pinned key.
+     */
+    @Test
+    void isAvailableRejectsTamperedSignedCard() throws Exception {
+        var signer = org.atmosphere.a2a.security.AgentCardSigner.ephemeral();
+        var signed = signer.sign(minimalCard());
+        var tamperedJson = toJson(signed).replace("a peer", "an impostor");
+
+        var transport = new A2aAgentTransport("agent", "http://localhost:9999/a2a",
+                clientReturningCard(tamperedJson));
+
+        assertFalse(transport.isAvailable(),
+                "a signed card altered after signing must fail integrity and "
+                + "mark the peer unavailable");
+    }
+
+    @Test
+    void isAvailableAcceptsIntactSignedCardWithoutPin() throws Exception {
+        var signer = org.atmosphere.a2a.security.AgentCardSigner.ephemeral();
+        var signed = signer.sign(minimalCard());
+
+        var transport = new A2aAgentTransport("agent", "http://localhost:9999/a2a",
+                clientReturningCard(toJson(signed)));
+
+        assertTrue(transport.isAvailable());
+    }
+
+    /** A pinned key binds identity: a card signed by any other key fails closed. */
+    @Test
+    void isAvailableWithPinnedKeyRejectsCardSignedByOtherKey() throws Exception {
+        var peerSigner = org.atmosphere.a2a.security.AgentCardSigner.ephemeral();
+        var pinnedSigner = org.atmosphere.a2a.security.AgentCardSigner.ephemeral();
+        var signed = peerSigner.sign(minimalCard());
+
+        var transport = new A2aAgentTransport("agent", "http://localhost:9999/a2a",
+                clientReturningCard(toJson(signed)),
+                A2aAgentTransport.Timeouts.DEFAULT, pinnedSigner.publicKey());
+
+        assertFalse(transport.isAvailable(),
+                "a pinned key must fail closed against a card signed by a different key");
+    }
+
+    @Test
+    void isAvailableWithPinnedKeyAcceptsMatchingSignature() throws Exception {
+        var signer = org.atmosphere.a2a.security.AgentCardSigner.ephemeral();
+        var signed = signer.sign(minimalCard());
+
+        var transport = new A2aAgentTransport("agent", "http://localhost:9999/a2a",
+                clientReturningCard(toJson(signed)),
+                A2aAgentTransport.Timeouts.DEFAULT, signer.publicKey());
+
+        assertTrue(transport.isAvailable());
+    }
+
+    /** A pinned key also refuses peers that present no card at all. */
+    @Test
+    void isAvailableWithPinnedKeyRejectsMissingCard() throws Exception {
+        var httpClient = mock(HttpClient.class);
+        var httpResponse = mock(HttpResponse.class);
+        when(httpResponse.statusCode()).thenReturn(200);
+        when(httpResponse.body()).thenReturn(
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32601,\"message\":\"no such method\"}}");
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(httpResponse);
+
+        var pinned = org.atmosphere.a2a.security.AgentCardSigner.ephemeral();
+        var transport = new A2aAgentTransport("agent", "http://localhost:9999/a2a",
+                httpClient, A2aAgentTransport.Timeouts.DEFAULT, pinned.publicKey());
+
+        assertFalse(transport.isAvailable());
+    }
 }
