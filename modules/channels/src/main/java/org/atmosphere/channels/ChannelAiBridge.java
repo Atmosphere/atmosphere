@@ -80,6 +80,7 @@ public class ChannelAiBridge {
      */
     static void reset() {
         agentBindings.clear();
+        AMBIGUOUS_ROUTING_WARNED.set(false);
     }
 
     /**
@@ -249,12 +250,11 @@ public class ChannelAiBridge {
     /**
      * Routes natural-language messages through the AI pipeline.
      *
-     * <p><strong>Limitation:</strong> when multiple agents are registered,
-     * NL messages are handled by the first agent that has a pipeline.
-     * There is no content-based routing across agents — only command
-     * routing supports multi-agent dispatch. This is a known design
-     * limitation; a future routing strategy (e.g., keyword-based or
-     * LLM-based agent selection) could address it.</p>
+     * <p>Multi-agent routing: an explicit {@code @name}/{@code name:}
+     * address at the start of the message wins, then the configured
+     * default agent ({@link #DEFAULT_AGENT_PROPERTY}), then the sole
+     * eligible agent on the channel. Ambiguous unaddressed traffic falls
+     * back to first-registered with a one-time WARN.</p>
      */
     private String callAi(IncomingMessage incoming) {
         var clientId = incoming.channelType().id() + ":" + incoming.senderId();
@@ -289,26 +289,137 @@ public class ChannelAiBridge {
             return "";
         }
 
-        // First registered agent with a pipeline handles NL messages
+        // Multi-agent routing for free text: explicit "@agent ..." /
+        // "agent: ..." addressing wins, then the configured default agent
+        // (atmosphere.channels.default-agent), then the sole eligible
+        // agent. Only when several agents share the channel unaddressed
+        // and no default is configured does first-registered apply — with
+        // a one-time WARN, because registration order is not a routing
+        // policy anyone chose.
+        var eligible = new java.util.ArrayList<AgentBinding>();
         for (var binding : agentBindings) {
             if (!binding.allowedChannels().isEmpty()
                     && !binding.allowedChannels().contains(channelId)) {
                 continue;
             }
             if (binding.aiPipeline() != null) {
-                var collector = new CollectingSession();
-                try {
-                    binding.aiPipeline().execute(clientId, text, collector);
-                    return collector.getResponse();
-                } catch (Exception e) {
-                    logger.error("AI pipeline for agent '{}' failed: {}",
-                            binding.name(), e.getMessage());
+                eligible.add(binding);
+            }
+        }
+        if (eligible.isEmpty()) {
+            // Fallback: raw LLM call when no agent pipeline is available
+            return callAiRaw(text);
+        }
+
+        var route = routeFreeText(text, eligible, configuredDefaultAgent());
+        if (route.ambiguous() && AMBIGUOUS_ROUTING_WARNED.compareAndSet(false, true)) {
+            logger.warn("{} agents share channel '{}' and the message names none of "
+                    + "them — routing to first-registered '{}'. Address agents with "
+                    + "'@name ...' or set -D{} to choose the default.",
+                    eligible.size(), channelId, route.binding().name(), DEFAULT_AGENT_PROPERTY);
+        }
+
+        var collector = new CollectingSession();
+        try {
+            route.binding().aiPipeline().execute(clientId, route.text(), collector);
+            return collector.getResponse();
+        } catch (Exception e) {
+            logger.error("AI pipeline for agent '{}' failed: {}",
+                    route.binding().name(), e.getMessage());
+        }
+
+        // Fallback: raw LLM call when the chosen agent pipeline failed
+        return callAiRaw(text);
+    }
+
+    /**
+     * The routing decision for one free-text message: the chosen binding,
+     * the text to dispatch (address prefix stripped), and whether the
+     * choice fell back to registration order with no signal from the
+     * message or configuration.
+     */
+    record Route(AgentBinding binding, String text, boolean ambiguous) { }
+
+    /**
+     * Choose the agent for an unrouted free-text message: explicit
+     * {@code @name} / {@code name:} addressing wins, then the configured
+     * default agent, then the sole eligible agent; several unaddressed
+     * candidates without a default fall back to first-registered and are
+     * flagged {@code ambiguous}.
+     */
+    static Route routeFreeText(String text, List<AgentBinding> eligible,
+                               String defaultAgentName) {
+        var addressed = addressedAgent(text, eligible);
+        if (addressed != null) {
+            return new Route(addressed.binding(), addressed.remainder(), false);
+        }
+        if (eligible.size() == 1) {
+            return new Route(eligible.get(0), text, false);
+        }
+        for (var binding : eligible) {
+            if (binding.name() != null && binding.name().equalsIgnoreCase(defaultAgentName)) {
+                return new Route(binding, text, false);
+            }
+        }
+        return new Route(eligible.get(0), text, true);
+    }
+
+    /** System property naming the agent that receives unaddressed free text on shared channels. */
+    public static final String DEFAULT_AGENT_PROPERTY = "atmosphere.channels.default-agent";
+    /** Environment-variable equivalent of {@link #DEFAULT_AGENT_PROPERTY}. */
+    public static final String DEFAULT_AGENT_ENV = "ATMOSPHERE_CHANNELS_DEFAULT_AGENT";
+
+    private static final java.util.concurrent.atomic.AtomicBoolean AMBIGUOUS_ROUTING_WARNED =
+            new java.util.concurrent.atomic.AtomicBoolean();
+
+    private static String configuredDefaultAgent() {
+        var prop = System.getProperty(DEFAULT_AGENT_PROPERTY);
+        if (prop != null && !prop.isBlank()) {
+            return prop.trim();
+        }
+        var env = System.getenv(DEFAULT_AGENT_ENV);
+        return env != null ? env.trim() : "";
+    }
+
+    /** An explicitly addressed agent plus the message with the address stripped. */
+    private record Addressed(AgentBinding binding, String remainder) { }
+
+    /**
+     * Match "@name ..." or "name: ..." (case-insensitive) at the start of a
+     * free-text message against the eligible bindings. The name must end at
+     * a word boundary so agent "research" never claims a message for
+     * "@researcher".
+     */
+    private static Addressed addressedAgent(String text, List<AgentBinding> eligible) {
+        if (text == null) {
+            return null;
+        }
+        var trimmed = text.stripLeading();
+        for (var binding : eligible) {
+            var name = binding.name();
+            if (name == null || name.isBlank()) {
+                continue;
+            }
+            for (var prefix : new String[] {"@" + name, name + ":"}) {
+                if (!trimmed.regionMatches(true, 0, prefix, 0, prefix.length())) {
+                    continue;
+                }
+                if (prefix.charAt(0) == '@' && trimmed.length() > prefix.length()) {
+                    var boundary = trimmed.charAt(prefix.length());
+                    if (!Character.isWhitespace(boundary) && boundary != ':') {
+                        continue;
+                    }
+                }
+                var rest = trimmed.substring(prefix.length()).stripLeading();
+                if (rest.startsWith(":")) {
+                    rest = rest.substring(1).stripLeading();
+                }
+                if (!rest.isEmpty()) {
+                    return new Addressed(binding, rest);
                 }
             }
         }
-
-        // Fallback: raw LLM call when no agent pipeline is available
-        return callAiRaw(text);
+        return null;
     }
 
     /**
