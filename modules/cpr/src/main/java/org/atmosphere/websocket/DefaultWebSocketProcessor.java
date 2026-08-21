@@ -113,6 +113,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private /* final */ long closingTime;
     private AsynchronousProcessor asynchronousProcessor;
     private /* final */ boolean invokeInterceptors;
+    private /* final */ boolean requireSameOrigin = true;
 
     /**
      * Create a new, unconfigured processor. Callers must invoke {@link #configure(AtmosphereConfig)}
@@ -146,6 +147,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
         closingTime = Long.parseLong(config.getInitParameter(ApplicationConfig.CLOSED_ATMOSPHERE_THINK_TIME, "0"));
         invokeInterceptors = Boolean.parseBoolean(config.getInitParameter(INVOKE_ATMOSPHERE_INTERCEPTOR_ON_WEBSOCKET_MESSAGE, "true"));
+        requireSameOrigin = Boolean.parseBoolean(config.getInitParameter(
+                ApplicationConfig.WEBSOCKET_REQUIRE_SAME_ORIGIN, "true"));
         config.startupHook(framework -> {
             if (framework.getAsyncSupport() instanceof AsynchronousProcessor ap) {
                 asynchronousProcessor = ap;
@@ -165,8 +168,73 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     public boolean handshake(HttpServletRequest request) {
         if (request != null) {
             logger.trace("Processing request {}", request);
+            if (requireSameOrigin && !sameOrigin(request.getHeader("Origin"),
+                    request.getHeader("Host"), request.isSecure())) {
+                logger.warn("Refusing WebSocket handshake for {}: Origin '{}' does not match "
+                        + "Host '{}' (cross-site WebSocket hijacking protection). Legitimate "
+                        + "cross-origin deployments set {}=false explicitly.",
+                        request.getRequestURI(), request.getHeader("Origin"),
+                        request.getHeader("Host"),
+                        ApplicationConfig.WEBSOCKET_REQUIRE_SAME_ORIGIN);
+                return false;
+            }
         }
         return true;
+    }
+
+    /**
+     * RFC 6455 §10.2 origin check. A missing Origin header passes — only
+     * browsers send it, and CSWSH is a browser-borne attack; non-browser
+     * clients (native apps, server-to-server) must not be locked out by the
+     * default-on policy. Anything present but unverifiable — the literal
+     * {@code "null"} origin, a malformed value, a missing Host — fails
+     * closed. Default ports are normalized so {@code https://example.com}
+     * matches {@code example.com:443}.
+     */
+    static boolean sameOrigin(String origin, String host, boolean secure) {
+        if (origin == null || origin.isBlank()) {
+            return true;
+        }
+        if (host == null || host.isBlank()) {
+            return false;
+        }
+        try {
+            var originUri = java.net.URI.create(origin.trim());
+            var originHost = originUri.getHost();
+            if (originHost == null) {
+                return false;
+            }
+            var scheme = originUri.getScheme();
+            var originPort = originUri.getPort() != -1 ? originUri.getPort()
+                    : "https".equalsIgnoreCase(scheme) || "wss".equalsIgnoreCase(scheme)
+                            ? 443 : 80;
+            String hostName;
+            int hostPort;
+            var h = host.trim();
+            if (h.startsWith("[")) {
+                // IPv6 literal, e.g. [::1]:8080 — URI.getHost() keeps brackets.
+                var close = h.indexOf(']');
+                if (close < 0) {
+                    return false;
+                }
+                hostName = h.substring(0, close + 1);
+                hostPort = close + 1 < h.length() && h.charAt(close + 1) == ':'
+                        ? Integer.parseInt(h.substring(close + 2))
+                        : secure ? 443 : 80;
+            } else {
+                var colon = h.lastIndexOf(':');
+                if (colon > -1) {
+                    hostName = h.substring(0, colon);
+                    hostPort = Integer.parseInt(h.substring(colon + 1));
+                } else {
+                    hostName = h;
+                    hostPort = secure ? 443 : 80;
+                }
+            }
+            return originHost.equalsIgnoreCase(hostName) && originPort == hostPort;
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     @Override
