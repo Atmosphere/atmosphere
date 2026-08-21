@@ -336,6 +336,43 @@ class OpenAiChatHandlerTest {
         assertTrue(memory.getHistory(context.conversationId()).isEmpty());
     }
 
+    /**
+     * Regression (registre#6): with no conversation memory on the binding
+     * (the default — {@code @AiEndpoint.conversationMemory()} is false),
+     * the handler used to dispatch only the final user message: an OpenAI
+     * SDK client sending a system prompt plus history got a confident 200
+     * from a model that saw neither. The client's context now threads
+     * through the request itself.
+     */
+    @Test
+    void priorTurnsReachTheModelEvenWithoutConversationMemory() throws Exception {
+        var runtime = new StubRuntime((context, session) -> session.complete("done"));
+        var rig = completionsRig("""
+                {"model":"demo","messages":[
+                  {"role":"system","content":"Client context."},
+                  {"role":"user","content":"First question"},
+                  {"role":"assistant","content":"First answer"},
+                  {"role":"user","content":"Follow-up"}]}""");
+
+        handler(runtime, null).onRequest(rig.resource());
+
+        var context = runtime.lastContext.get();
+        assertEquals("Follow-up", context.message());
+        assertEquals(3, context.history().size(),
+                "the client-sent history must reach the model without memory: "
+                        + context.history());
+        assertEquals("Client context.", context.history().get(0).content());
+        assertEquals("system", context.history().get(0).role());
+        assertEquals("assistant", context.history().get(2).role());
+        // The agent's own system prompt stays authoritative.
+        assertTrue(context.systemPrompt().contains("You are a governed test agent."));
+        // The transport key is consumed — it must not leak to the provider.
+        assertTrue(!context.metadata().containsKey(
+                        org.atmosphere.ai.AiPipeline.REQUEST_HISTORY_METADATA_KEY),
+                "the history metadata key must be consumed before the provider "
+                        + "sees the request: " + context.metadata().keySet());
+    }
+
     @Test
     void resolveTargetHonorsWhitelistDefaultAndExactMatch() {
         var mapped = new OpenAiServing(true, Map.of("gpt-alias", "demo"), null, null);

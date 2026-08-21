@@ -61,7 +61,10 @@ import java.util.concurrent.locks.ReentrantLock;
  * guardrails, budget enforcement, and cost accounting apply identically on
  * this surface (Correctness Invariant #7, Mode Parity). Client-supplied
  * prior turns are staged into the pipeline's conversation memory under a
- * per-request key that is always cleared afterwards; client {@code system}
+ * per-request key that is always cleared afterwards — or, when the binding
+ * has no memory, threaded through the request itself via
+ * {@link AiPipeline#REQUEST_HISTORY_METADATA_KEY} so a standard OpenAI
+ * client's context is never silently discarded. Client {@code system}
  * messages become system-role history and can never replace the agent's own
  * (scope-hardened) system prompt.</p>
  *
@@ -204,21 +207,30 @@ public final class OpenAiChatHandler implements AtmosphereHandler {
         var conversationKey = conversationKey(inbound.user());
         var memory = binding.memory();
         try {
+            var dispatchMetadata = java.util.Map.<String, Object>of();
             if (memory != null) {
                 for (var turn : inbound.priorTurns()) {
                     memory.addMessage(conversationKey, turn);
                 }
             } else if (!inbound.priorTurns().isEmpty()) {
-                logger.debug("Agent '{}' has no conversation memory — {} prior turn(s) from the "
-                        + "OpenAI request are not threaded into the completion",
+                // No memory on the binding: thread the client's own history
+                // (including its system/developer messages, mapped to
+                // system-role turns) through the request itself. An OpenAI
+                // SDK client always sends the full conversation — silently
+                // dispatching only the last user message returned confident
+                // answers from a model that saw none of the context.
+                dispatchMetadata = java.util.Map.of(
+                        AiPipeline.REQUEST_HISTORY_METADATA_KEY, inbound.priorTurns());
+                logger.debug("Agent '{}' has no conversation memory — threading {} prior "
+                        + "turn(s) from the OpenAI request as request history",
                         targetName, inbound.priorTurns().size());
             }
             if (inbound.stream()) {
                 dispatchStreaming(resource, inbound, binding.pipeline(), conversationKey,
-                        completionId, created, echoModel);
+                        completionId, created, echoModel, dispatchMetadata);
             } else {
                 dispatchBlocking(resource, inbound, binding.pipeline(), conversationKey,
-                        completionId, created, echoModel);
+                        completionId, created, echoModel, dispatchMetadata);
             }
         } finally {
             if (memory != null) {
@@ -230,10 +242,11 @@ public final class OpenAiChatHandler implements AtmosphereHandler {
     private void dispatchBlocking(AtmosphereResource resource,
                                   OpenAiWire.InboundChatCompletion inbound, AiPipeline pipeline,
                                   String conversationKey, String completionId, long created,
-                                  String echoModel) throws IOException {
+                                  String echoModel, java.util.Map<String, Object> dispatchMetadata)
+            throws IOException {
         var session = new CollectingCompletionSession();
         try {
-            pipeline.execute(conversationKey, inbound.userMessage(), session);
+            pipeline.execute(conversationKey, inbound.userMessage(), session, dispatchMetadata);
         } catch (RuntimeException e) {
             logger.error("OpenAI-compatible completion dispatch failed (agent key {})",
                     conversationKey, e);
@@ -254,13 +267,14 @@ public final class OpenAiChatHandler implements AtmosphereHandler {
     private void dispatchStreaming(AtmosphereResource resource,
                                    OpenAiWire.InboundChatCompletion inbound, AiPipeline pipeline,
                                    String conversationKey, String completionId, long created,
-                                   String echoModel) throws IOException {
+                                   String echoModel, java.util.Map<String, Object> dispatchMetadata)
+            throws IOException {
         var servletResponse = (jakarta.servlet.http.HttpServletResponse)
                 resource.getResponse().getResponse();
         var writer = new SseChunkWriter(servletResponse, completionId, created, echoModel);
         var session = new StreamingCompletionSession(writer);
         try {
-            pipeline.execute(conversationKey, inbound.userMessage(), session);
+            pipeline.execute(conversationKey, inbound.userMessage(), session, dispatchMetadata);
         } catch (RuntimeException e) {
             logger.error("OpenAI-compatible streaming dispatch failed (agent key {})",
                     conversationKey, e);

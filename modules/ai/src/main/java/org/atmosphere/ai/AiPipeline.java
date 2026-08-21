@@ -126,6 +126,17 @@ public class AiPipeline {
      */
     public static final String CACHE_HIT_METADATA_KEY = "ai.cache.hit";
 
+    /**
+     * Metadata key carrying caller-supplied conversation history
+     * ({@code List<ChatMessage>}) into {@link #execute(String, String,
+     * StreamingSession, Map)}. Applied when the pipeline has no
+     * {@link AiConversationMemory} of its own — the OpenAI-compatible
+     * endpoint uses it so a standard client's system prompt and prior turns
+     * reach the model instead of being silently discarded. Consumed before
+     * the metadata map is handed to the provider.
+     */
+    public static final String REQUEST_HISTORY_METADATA_KEY = "ai.request.history";
+
     public AiPipeline(AgentRuntime runtime, String systemPrompt, String model,
                       AiConversationMemory memory, ToolRegistry toolRegistry,
                       List<AiGuardrail> guardrails, List<ContextProvider> contextProviders,
@@ -406,10 +417,6 @@ public class AiPipeline {
                             runtime != null ? runtime.name() : null,
                             parentRun instanceof String s && !s.isBlank() ? s : null));
         }
-        var history = memory != null
-                ? memory.getHistory(clientId)
-                : List.<org.atmosphere.ai.llm.ChatMessage>of();
-
         // Build the initial request metadata from the caller's map plus the
         // pipeline's default cache policy. When both sides carry an
         // {@code ai.cache.hint} the caller wins (putIfAbsent semantics on the
@@ -418,6 +425,17 @@ public class AiPipeline {
         var baseMetadata = extraMetadata != null && !extraMetadata.isEmpty()
                 ? new java.util.HashMap<String, Object>(extraMetadata)
                 : new java.util.HashMap<String, Object>();
+
+        // Client-supplied conversation history (OpenAI-compatible endpoint,
+        // protocol bridges) rides REQUEST_HISTORY_METADATA_KEY and applies
+        // when the pipeline has no memory of its own — without it, a
+        // standard OpenAI client's history was silently discarded. The key
+        // is consumed either way so the list never leaks into provider
+        // request metadata.
+        var suppliedHistory = consumeSuppliedHistory(baseMetadata);
+        var history = memory != null
+                ? memory.getHistory(clientId)
+                : suppliedHistory;
         var pipelinePolicy = this.defaultCachePolicy;
         if (pipelinePolicy != null
                 && pipelinePolicy != org.atmosphere.ai.llm.CacheHint.CachePolicy.NONE) {
@@ -871,6 +889,26 @@ public class AiPipeline {
         event.clientId = clientId;
         event.cacheHit = cacheHit;
         return event;
+    }
+
+    /**
+     * Pull caller-supplied history out of the request metadata (see
+     * {@link #REQUEST_HISTORY_METADATA_KEY}). Non-{@code ChatMessage}
+     * entries are ignored rather than propagated to the provider.
+     */
+    private static List<org.atmosphere.ai.llm.ChatMessage> consumeSuppliedHistory(
+            Map<String, Object> metadata) {
+        var supplied = metadata.remove(REQUEST_HISTORY_METADATA_KEY);
+        if (!(supplied instanceof List<?> list) || list.isEmpty()) {
+            return List.of();
+        }
+        var history = new java.util.ArrayList<org.atmosphere.ai.llm.ChatMessage>(list.size());
+        for (var entry : list) {
+            if (entry instanceof org.atmosphere.ai.llm.ChatMessage message) {
+                history.add(message);
+            }
+        }
+        return List.copyOf(history);
     }
 
     private static List<AiGuardrail> mergeForPostResponse(List<AiGuardrail> guardrails,
