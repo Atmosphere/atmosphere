@@ -79,6 +79,32 @@ class StructuredOutputCapturingSessionTest {
         assertTrue(entityEvents.getLast() instanceof AiEvent.EntityComplete);
     }
 
+    /**
+     * Regression (registre#30): a parse failure on complete() was logged at
+     * DEBUG and swallowed — the client got a clean terminal frame with no
+     * EntityComplete, indistinguishable from a model that legitimately
+     * returned nothing. A recoverable Error event must precede the terminal
+     * frame so the caller can tell a parse failure from an empty answer.
+     */
+    @Test
+    void parseFailureOnCompleteEmitsRecoverableErrorEvent() {
+        session.send("this is not json at all {{{");
+        session.complete();
+
+        assertTrue(delegate.completed, "the stream still terminates");
+        var errors = delegate.events.stream()
+                .filter(e -> e instanceof AiEvent.Error)
+                .map(e -> (AiEvent.Error) e)
+                .toList();
+        assertEquals(1, errors.size(),
+                "a swallowed parse failure is invisible to the caller: " + delegate.events);
+        assertEquals("structured_output_parse_failed", errors.getFirst().code());
+        assertTrue(errors.getFirst().recoverable(),
+                "the text stream succeeded — only the structured projection failed");
+        assertTrue(delegate.events.stream().noneMatch(e -> e instanceof AiEvent.EntityComplete),
+                "no EntityComplete may be fabricated for an unparseable payload");
+    }
+
     @Test
     void errorDoesNotEmitEntityEvents() {
         session.send("{\"title\": \"Bad\"");

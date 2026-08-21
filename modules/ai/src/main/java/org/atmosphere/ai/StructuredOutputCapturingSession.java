@@ -136,8 +136,17 @@ class StructuredOutputCapturingSession extends DelegatingStreamingSession {
             delegate.emit(new AiEvent.EntityComplete(
                     responseType.getSimpleName(), entity));
         } catch (Exception e) {
-            logger.debug("Structured output parsing failed for type {}",
+            // A swallowed parse failure is indistinguishable from a model
+            // that legitimately returned nothing: emit a recoverable Error
+            // event before the terminal frame so the caller can tell the
+            // two apart, and log at WARN — the declared responseType was
+            // not honored.
+            logger.warn("Structured output parsing failed for type {}",
                     responseType.getSimpleName(), e);
+            delegate.emit(new AiEvent.Error(
+                    "Structured output parse failed for " + responseType.getSimpleName()
+                            + ": " + e.getMessage(),
+                    "structured_output_parse_failed", true));
         }
     }
 }
