@@ -96,18 +96,50 @@ public class Invoker {
         return encodedObject == null ? objectToEncode : encodedObject;
     }
 
+    /** One-shot latches so registration-conflict and decode-failure warnings cannot spam the hot path. */
+    private static final java.util.concurrent.atomic.AtomicBoolean DECODER_CONFLICT_WARNED =
+            new java.util.concurrent.atomic.AtomicBoolean();
+    private static final java.util.concurrent.atomic.AtomicBoolean ENCODER_CONFLICT_WARNED =
+            new java.util.concurrent.atomic.AtomicBoolean();
+    private static final java.util.concurrent.atomic.AtomicBoolean DECODE_FAILURE_WARNED =
+            new java.util.concurrent.atomic.AtomicBoolean();
+
+    /** Test isolation for the one-shot warnings. */
+    static void resetWarningsForTests() {
+        DECODER_CONFLICT_WARNED.set(false);
+        ENCODER_CONFLICT_WARNED.set(false);
+        DECODE_FAILURE_WARNED.set(false);
+    }
+
     @SuppressWarnings({"rawtypes", "unchecked"})
     public static Object matchDecoder(Object instanceType, List<Decoder<?, ?>> decoders) {
         Object decodedObject = decoders.isEmpty() ? instanceType : null;
+        Decoder previousMatch = null;
         for (Decoder d : decoders) {
             Class<?>[] typeArguments = TypeResolver.resolveArguments(d.getClass(), Decoder.class);
             if (instanceType != null && typeArguments.length > 0 && typeArguments[0].isInstance(instanceType)) {
-
+                if (previousMatch != null && DECODER_CONFLICT_WARNED.compareAndSet(false, true)) {
+                    logger.warn("Multiple Decoders match {}: {} overrides {} — the last "
+                            + "registration wins, so behaviour depends on registration order. "
+                            + "Register one Decoder per type.", instanceType.getClass().getName(),
+                            d.getClass().getName(), previousMatch.getClass().getName());
+                }
+                previousMatch = d;
                 logger.trace("{} is trying to decode {}", d, instanceType);
                 try {
                     decodedObject = d.decode(instanceType);
                 } catch (Exception e) {
-                    logger.trace("", e);
+                    // A throwing Decoder is an application bug the developer
+                    // must see — the first occurrence warns, repeats stay at
+                    // DEBUG so a hot loop cannot flood the log.
+                    if (DECODE_FAILURE_WARNED.compareAndSet(false, true)) {
+                        logger.warn("Decoder {} threw decoding {} — the raw message is used "
+                                + "instead. Further decoder failures log at DEBUG.",
+                                d.getClass().getName(), instanceType.getClass().getName(), e);
+                    } else {
+                        logger.debug("Decoder {} threw decoding {}",
+                                d.getClass().getName(), instanceType.getClass().getName(), e);
+                    }
                 }
             }
         }
@@ -119,9 +151,17 @@ public class Invoker {
         if (instanceType == null) return null;
 
         Object encodedObject = encoders.isEmpty() ? instanceType : null;
+        Encoder previousMatch = null;
         for (Encoder d : encoders) {
             Class<?>[] typeArguments = TypeResolver.resolveArguments(d.getClass(), Encoder.class);
             if (typeArguments.length > 0 && typeArguments[0].isInstance(instanceType)) {
+                if (previousMatch != null && ENCODER_CONFLICT_WARNED.compareAndSet(false, true)) {
+                    logger.warn("Multiple Encoders match {}: {} overrides {} — the last "
+                            + "registration wins, so behaviour depends on registration order. "
+                            + "Register one Encoder per type.", instanceType.getClass().getName(),
+                            d.getClass().getName(), previousMatch.getClass().getName());
+                }
+                previousMatch = d;
                 logger.trace("{} is trying to encode {}", d, instanceType);
                 encodedObject = d.encode(instanceType);
             }
