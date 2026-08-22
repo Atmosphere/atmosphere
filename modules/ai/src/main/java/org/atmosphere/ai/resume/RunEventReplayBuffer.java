@@ -44,9 +44,10 @@ import java.util.concurrent.atomic.AtomicLong;
  * {@link RunJournal} via {@link #attachJournal}. When a journal is attached
  * the registry persists captures so a fresh process can rehydrate the run's
  * events after a crash. Journal writes are best-effort (Correctness
- * Invariant #3): a journal failure is logged at TRACE and never thrown into
- * the live stream. By default the journal is {@link RunJournal#NOOP} and
- * capture adds zero extra work.
+ * Invariant #3) and never thrown into the live stream: the first failure is
+ * logged at WARN — durability silently turning itself off is an operator
+ * incident — and repeats at TRACE. By default the journal is
+ * {@link RunJournal#NOOP} and capture adds zero extra work.
  */
 public final class RunEventReplayBuffer {
 
@@ -148,11 +149,29 @@ public final class RunEventReplayBuffer {
         } catch (RuntimeException e) {
             // Best-effort persistence (Correctness Invariant #3): a journal
             // failure must never break the live stream. The run falls back
-            // to in-memory-only replay; surface the cause at TRACE so it is
-            // diagnosable without spamming the hot path.
-            logger.trace("RunJournal.appendEvent failed for run {} ({}): {}",
-                    runId, e.getClass().getSimpleName(), e.getMessage(), e);
+            // to in-memory-only replay — the FIRST failure is an
+            // operator-visible incident (durability silently off is exactly
+            // what a provisioned deployment must not discover at restore
+            // time); repeats stay at TRACE off the hot path.
+            if (DEGRADED_WARNED.compareAndSet(false, true)) {
+                logger.warn("RunJournal.appendEvent failed — durable run replay has "
+                        + "degraded to IN-MEMORY for run {}: buffered events will not "
+                        + "survive a restart until the journal recovers ({}: {})",
+                        runId, e.getClass().getSimpleName(), e.getMessage(), e);
+            } else {
+                logger.trace("RunJournal.appendEvent failed for run {} ({}): {}",
+                        runId, e.getClass().getSimpleName(), e.getMessage(), e);
+            }
         }
+    }
+
+    /** One-shot latch: the first journal failure warns, the rest trace. */
+    private static final java.util.concurrent.atomic.AtomicBoolean DEGRADED_WARNED =
+            new java.util.concurrent.atomic.AtomicBoolean();
+
+    /** Test isolation for the one-shot degradation WARN. */
+    static void resetDegradationWarningForTests() {
+        DEGRADED_WARNED.set(false);
     }
 
     /** Snapshot of all currently retained events, oldest first. */

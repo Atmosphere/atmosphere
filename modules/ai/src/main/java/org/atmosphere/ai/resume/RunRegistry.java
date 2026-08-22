@@ -55,6 +55,18 @@ public final class RunRegistry {
     /** Default TTL — runs idle longer than this are candidates for sweep. */
     public static final Duration DEFAULT_TTL = Duration.ofMinutes(30);
 
+    /**
+     * One-shot latch for the durable-degradation WARN: the first journal
+     * failure is an operator-visible incident, the rest are TRACE noise.
+     */
+    private static final java.util.concurrent.atomic.AtomicBoolean DEGRADED_WARNED =
+            new java.util.concurrent.atomic.AtomicBoolean();
+
+    /** Test isolation for the one-shot degradation WARN. */
+    static void resetDegradationWarningForTests() {
+        DEGRADED_WARNED.set(false);
+    }
+
     private final Map<String, AgentResumeHandle> runs = new ConcurrentHashMap<>();
     private final Clock clock;
     private final Duration ttl;
@@ -122,8 +134,19 @@ public final class RunRegistry {
                 journal.recordRun(new RunJournal.RunRecord(id, agentId, userId, sessionId, createdAt));
                 replayBuffer.attachJournal(journal, id);
             } catch (RuntimeException e) {
-                logger.trace("RunJournal.recordRun failed for run {} ({}): {}",
-                        id, e.getClass().getSimpleName(), e.getMessage(), e);
+                // The degradation itself is the documented design; the
+                // SIGNAL must not be. An operator who provisioned durable
+                // storage learns on the first failure that runs stopped
+                // surviving restart — subsequent failures stay at TRACE.
+                if (DEGRADED_WARNED.compareAndSet(false, true)) {
+                    logger.warn("RunJournal.recordRun failed — durable run state has "
+                            + "degraded to IN-MEMORY: runs will not survive a restart "
+                            + "until the journal recovers. First failing run {} ({}: {})",
+                            id, e.getClass().getSimpleName(), e.getMessage(), e);
+                } else {
+                    logger.trace("RunJournal.recordRun failed for run {} ({}): {}",
+                            id, e.getClass().getSimpleName(), e.getMessage(), e);
+                }
             }
         }
         var handle = new AgentResumeHandle(
