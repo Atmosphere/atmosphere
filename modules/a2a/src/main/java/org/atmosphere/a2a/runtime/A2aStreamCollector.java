@@ -96,8 +96,13 @@ public class A2aStreamCollector implements StreamingSession {
 
     @Override
     public void sendMetadata(String key, Object value) {
-        // LIMITATION(registre#11): dropped. A2A Task and TaskStatusUpdateEvent
-        // both carry metadata maps, so this collector could propagate it.
+        // A2A Task and TaskStatusUpdateEvent both carry metadata maps —
+        // propagate response metadata (model used, cache hit, budget
+        // degradation) so an A2A client learns what the direct streaming
+        // client learns.
+        if (key != null && !key.isBlank()) {
+            taskCtx.putMetadata(java.util.Map.of(key, value != null ? value : ""));
+        }
     }
 
     @Override

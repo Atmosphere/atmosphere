@@ -32,10 +32,15 @@ import java.util.function.Consumer;
 /**
  * Fires {@link DurableTimer}s when their wall-clock time arrives — including
  * timers that became due while the process was down: {@link #start()} polls the
- * {@link DurableTimerStore} so a "wake at T" or "auto-reject after 72h" timer
- * armed before a restart fires on the next poll after recovery (re-arm from
- * store). This is the wall-clock scheduler the framework deliberately lacked;
- * approval expiry was previously only a passive {@code expiresAt} check.
+ * {@link DurableTimerStore} so a "wake at T" timer armed before a restart
+ * fires on the next poll after recovery (re-arm from store).
+ *
+ * <p>LIMITATION(registre#26): no in-tree consumer arms timers yet — live
+ * approval expiry is already enforced by the awaiting caller's
+ * {@code future.get(timeout)}, and giving journaled approvals a
+ * restart-surviving auto-reject through this service requires recording
+ * {@code expiresAt} in the effect journal's pending entries. Until then the
+ * service is operator-wirable infrastructure, not a shipped behaviour.</p>
  *
  * <p>Firing is <strong>exactly-once</strong>: a timer is claimed via
  * {@link DurableTimerStore#remove(String)} before its callback runs, so
