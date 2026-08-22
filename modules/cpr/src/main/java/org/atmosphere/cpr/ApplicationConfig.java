@@ -24,19 +24,19 @@ import org.atmosphere.pool.PoolableBroadcasterFactory;
  */
 public interface ApplicationConfig {
     /**
-     * The location of the atmosphere.xml file.
-     * <p/>
-     * Default: META-INF/<br>
-     * Value: org.atmosphere.atmosphereDotXml
-     */
-    String PROPERTY_ATMOSPHERE_XML = "org.atmosphere.atmosphereDotXml";
-    /**
      * The path that will be used to map request to Jersey.
      * <p/>
      * Default: ""<br>
      * Value: org.atmosphere.jersey.servlet-mapping
      */
     String PROPERTY_SERVLET_MAPPING = "org.atmosphere.jersey.servlet-mapping";
+    /**
+     * The location of the atmosphere.xml file.
+     * <p/>
+     * Default: META-INF/<br>
+     * Value: org.atmosphere.atmosphereDotXml
+     */
+    String PROPERTY_ATMOSPHERE_XML = "org.atmosphere.atmosphereDotXml";
     /**
      * Set Atmosphere to use the {@link org.atmosphere.container.BlockingIOCometSupport}, e.g blocking I/O.
      * <p/>
@@ -197,13 +197,6 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.websocket.messageContentType
      */
     String WEBSOCKET_CONTENT_TYPE = "org.atmosphere.websocket.messageContentType";
-    /**
-     * Tell Atmosphere the content-type to use when a WebSocket message is dispatched as an AtmosphereRequest.
-     * <p/>
-     * Default: text/event-stream<br>
-     * Value: org.atmosphere.sse.contentType
-     */
-    String SSE_CONTENT_TYPE = "org.atmosphere.sse.contentType";
     /**
      * Tell Atmosphere the method to use when a WebSocket message is dispatched as an AtmosphereRequest.
      * <p/>
@@ -393,48 +386,12 @@ public interface ApplicationConfig {
      */
     String SERVLET_CLASS = "org.atmosphere.servlet";
     /**
-     * The Filter's name where Atmosphere will be available.
-     * <p/>
-     * Default: ""<br>
-     * Value: org.atmosphere.filter
-     */
-    String FILTER_CLASS = "org.atmosphere.filter";
-    /**
-     * The Servlet's mapping value to the SERVLET_CLASS.
-     * <p/>
-     * Default: ""<br>
-     * Value: org.atmosphere.mapping
-     */
-    String MAPPING = "org.atmosphere.mapping";
-    /**
-     * The Servlet's mapping value to the FILTER_CLASS.
-     * <p/>
-     * Default: ""<br>
-     * Value: org.atmosphere.filter.name
-     */
-    String FILTER_NAME = "org.atmosphere.filter.name";
-    /**
      * Define when a broadcasted message is cached. Value can be 'beforeFilter' or 'afterFilter'.
      * <p/>
      * Default: afterFilter<br>
      * Value: org.atmosphere.cpr.BroadcasterCache.strategy
      */
     String BROADCASTER_CACHE_STRATEGY = "org.atmosphere.cpr.BroadcasterCache.strategy";
-    /**
-     * Support the Jersey location header for resuming. WARNING: this can cause memory leak if the connection is never
-     * resumed.
-     * <p/>
-     * Default: false<br>
-     * Value: org.atmosphere.jersey.supportLocationHeader
-     */
-    String SUPPORT_LOCATION_HEADER = "org.atmosphere.jersey.supportLocationHeader";
-    /**
-     * WebSocket version to exclude and downgrade to comet. Versions are separated by comma.
-     * <p/>
-     * Default: ""<br>
-     * Value: org.atmosphere.websocket.bannedVersion
-     */
-    String WEB_SOCKET_BANNED_VERSION = "org.atmosphere.websocket.bannedVersion";
     /**
      * Write binary instead of String.
      * <p/>
@@ -458,13 +415,6 @@ public interface ApplicationConfig {
      */
     String ATMOSPHERE_HANDLER_PATH = "org.atmosphere.cpr.atmosphereHandlerPath";
     /**
-     * Jersey's ContainerResponseWriter.
-     * <p/>
-     * Default: ""<br>
-     * Value: org.atmosphere.jersey.containerResponseWriterClass
-     */
-    String JERSEY_CONTAINER_RESPONSE_WRITER_CLASS = "org.atmosphere.jersey.containerResponseWriterClass";
-    /**
      * Execute the {@link org.atmosphere.websocket.WebSocketProtocol#onMessage(org.atmosphere.websocket.WebSocket, byte[], int, int)}.
      * <p/>
      * Default: false<br>
@@ -481,13 +431,6 @@ public interface ApplicationConfig {
     String WEBSOCKET_SUPPRESS_JSR356 = "org.atmosphere.websocket.suppressJSR356";
 
     /**
-     * Enable or disable WebTransport over HTTP/3 support.
-     * <p/>
-     * Default: false<br>
-     * Value: org.atmosphere.useWebTransport
-     */
-    String WEBTRANSPORT_SUPPORT = "org.atmosphere.useWebTransport";
-    /**
      * The {@link org.atmosphere.webtransport.WebTransportProcessor} implementation class.
      * <p/>
      * Value: org.atmosphere.webtransport.WebTransportProcessor
@@ -500,27 +443,6 @@ public interface ApplicationConfig {
      */
     String WEBTRANSPORT_PROTOCOL = "org.atmosphere.webtransport.WebTransportProtocol";
     /**
-     * The content-type to use when dispatching WebTransport messages as AtmosphereRequests.
-     * <p/>
-     * Default: "application/json"<br>
-     * Value: org.atmosphere.webtransport.messageContentType
-     */
-    String WEBTRANSPORT_CONTENT_TYPE = "org.atmosphere.webtransport.messageContentType";
-    /**
-     * The HTTP method to use when dispatching WebTransport messages as AtmosphereRequests.
-     * <p/>
-     * Default: "POST"<br>
-     * Value: org.atmosphere.webtransport.messageMethod
-     */
-    String WEBTRANSPORT_METHOD = "org.atmosphere.webtransport.messageMethod";
-    /**
-     * The write buffer size for WebTransport sessions.
-     * <p/>
-     * Default: 8192<br>
-     * Value: org.atmosphere.webtransport.bufferSize
-     */
-    String WEBTRANSPORT_BUFFER_SIZE = "org.atmosphere.webtransport.bufferSize";
-    /**
      * Use binary write mode for WebTransport sessions.
      * <p/>
      * Default: false<br>
@@ -528,13 +450,6 @@ public interface ApplicationConfig {
      */
     String WEBTRANSPORT_BINARY_WRITE = "org.atmosphere.webtransport.binaryWrite";
 
-    /**
-     * The default content-type value used when Atmosphere requires one.
-     * <p/>
-     * Default: "text/plain"<br>
-     * Value: org.atmosphere.cpr.defaultContentType
-     */
-    String DEFAULT_CONTENT_TYPE = "org.atmosphere.cpr.defaultContentType";
     /**
      * A list of {@link AtmosphereInterceptor} class name that will be invoked before the {@link AtmosphereResource}
      * gets delivered to an application or framework.
@@ -734,13 +649,6 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.cpr.scanClassPath
      */
     String SCAN_CLASSPATH = "org.atmosphere.cpr.scanClassPath";
-    /**
-     * Use a build in {@link jakarta.servlet.http.HttpSession} when using native WebSocket implementation.
-     * <p/>
-     * Default: false<br>
-     * Value: org.atmosphere.cpr.useBuildInSession
-     */
-    String BUILT_IN_SESSION = "org.atmosphere.cpr.useBuildInSession";
     /**
      * The default {@link AtmosphereObjectFactory} class.
      * <p/>
