@@ -58,6 +58,12 @@ public interface RealtimeVoiceProvider {
      * Returns the {@link LoopbackVoiceProvider} fallback when no other provider
      * is registered or available, so a bridge can always be opened (the loopback
      * makes that obvious to the operator rather than failing silently).
+     *
+     * <p>LIMITATION(registre#25): no in-tree endpoint calls this — an
+     * application that wants speech-to-speech opens
+     * {@code VoiceBridge.open(RealtimeVoiceProvider.resolve(), config,
+     * session)} from its own handler; the framework does not yet ship a
+     * voice-mode endpoint that drives the loop.</p>
      */
     static RealtimeVoiceProvider resolve() {
         for (var provider : ServiceLoader.load(RealtimeVoiceProvider.class)) {

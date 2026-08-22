@@ -24,10 +24,13 @@ import java.util.Objects;
  * tool discovery with the {@link McpTrustProvider} for per-user MCP
  * credential resolution.
  *
- * <p>Agent runtimes call {@link #toolsFor(String, int)} to get the subset
- * of registered tools to expose for a given turn, and
- * {@link #mcpCredential(String, String)} when invoking a tool that targets
- * an MCP server registered in the user's {@code MCP.md}.</p>
+ * <p>LIMITATION(registre#24): this facade is embedder-facing — no in-tree
+ * runtime calls {@link #toolsFor(String, int)}; the framework's own
+ * per-request selection path is {@code ToolSelection}, which uses
+ * {@link ToolIndex} and {@link DynamicToolSelector} directly. Likewise
+ * {@link #mcpCredential(String, String)} resolves through the
+ * {@link McpTrustProvider} SPI, which no in-tree MCP invocation path
+ * consults yet — the MCP client has no per-user credential seam.</p>
  *
  * <p>This primitive does NOT own the tool registry itself — tool
  * registration lives in the agent / tool module. The extensibility point

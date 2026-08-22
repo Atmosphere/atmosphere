@@ -61,11 +61,13 @@ a conversation.
 ### `ToolExtensibilityPoint` — `org.atmosphere.ai.extensibility`
 
 How agents acquire new capabilities at runtime. `ToolIndex` scores tool
-descriptors by token-overlap for bounded discovery; `DynamicToolSelector`
-enforces `maxToolsPerRequest` so agents with many tools don't inject every
-descriptor into every prompt. `McpTrustProvider` resolves per-user MCP
-credentials; the default `CredentialStoreBacked` variant reuses the
-`CredentialStore` from `AgentIdentity`.
+descriptors by token-overlap for bounded discovery and `DynamicToolSelector`
+enforces `maxToolsPerRequest` — both wired into every dispatch via
+`ToolSelection`. The `ToolExtensibilityPoint` facade composing them is
+embedder-facing (no in-tree runtime constructs it), and `McpTrustProvider`
+is an operator-implementable SPI for per-user MCP credentials that no
+in-tree MCP invocation path consults yet (registered as
+atmosphere-carnet#24).
 
 ### `Sandbox` — `org.atmosphere.ai.sandbox`
 

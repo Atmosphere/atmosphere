@@ -1,3 +1,5 @@
 # Default dependency-free reference voice provider (echoes audio back).
-# Production deployments register an OpenAI Realtime / Gemini Live provider.
+# A registered provider is resolved by RealtimeVoiceProvider.resolve(),
+# which today is called only by embedder code that opens a VoiceBridge —
+# no in-tree endpoint drives a voice session yet (atmosphere-carnet#25).
 org.atmosphere.ai.voice.LoopbackVoiceProvider

@@ -51,6 +51,7 @@ public class DefaultWebTransportProcessor implements WebTransportProcessor {
 
     private volatile AtmosphereConfig config;
     private volatile WebSocketProcessor wsProcessor;
+    private volatile org.atmosphere.webtransport.WebTransportProtocol customProtocol;
     private final Map<WebTransportSession, WebTransportBridgeWebSocket> bridges = new ConcurrentHashMap<>();
 
     @Override
@@ -58,7 +59,59 @@ public class DefaultWebTransportProcessor implements WebTransportProcessor {
         this.config = config;
         this.wsProcessor = WebSocketProcessorFactory.getDefault()
                 .getWebSocketProcessor(config.framework());
+        // The WEBTRANSPORT_PROTOCOL knob selects a custom
+        // WebTransportProtocol implementation, mirroring the WebSocket
+        // protocol selection — before this the knob was never read and the
+        // advertised extension point did not exist. Unset keeps the
+        // WebSocket-bridge delegation.
+        var protocolClass = config.getInitParameter(
+                org.atmosphere.cpr.ApplicationConfig.WEBTRANSPORT_PROTOCOL);
+        if (protocolClass != null && !protocolClass.isBlank()) {
+            try {
+                var protocol = config.framework().newClassInstance(
+                        org.atmosphere.webtransport.WebTransportProtocol.class,
+                        Class.forName(protocolClass.trim(), true,
+                                        Thread.currentThread().getContextClassLoader())
+                                .asSubclass(org.atmosphere.webtransport.WebTransportProtocol.class));
+                protocol.configure(config);
+                this.customProtocol = protocol;
+                logger.info("WebTransport protocol installed: {}", protocolClass.trim());
+            } catch (Exception e) {
+                // A configured-but-broken protocol must fail loudly, not
+                // silently fall back to a different wire behaviour
+                // (Runtime Truth, Invariant #5).
+                throw new IllegalStateException("Configured "
+                        + org.atmosphere.cpr.ApplicationConfig.WEBTRANSPORT_PROTOCOL
+                        + "=" + protocolClass + " could not be instantiated", e);
+            }
+        }
         return this;
+    }
+
+    /**
+     * Dispatch the requests a custom {@link org.atmosphere.webtransport.WebTransportProtocol}
+     * produced through the framework, responses routed back over the
+     * session's bridge. A {@code null} list means the protocol handled
+     * dispatch manually.
+     */
+    private void dispatchProtocolRequests(WebTransportSession session,
+                                          java.util.List<AtmosphereRequest> requests) {
+        if (requests == null) {
+            return;
+        }
+        var bridge = bridges.get(session);
+        for (var request : requests) {
+            try {
+                var response = AtmosphereResponseImpl.newInstance(config, request, bridge);
+                response.delegateToNativeResponse(false);
+                config.framework().getAsyncSupport().service(request, response);
+            } catch (Exception e) {
+                logger.warn("WebTransportProtocol dispatch failed for session {}",
+                        session.uuid(), e);
+                customProtocol.onError(session,
+                        new WebTransportProcessor.WebTransportException(e.getMessage(), null));
+            }
+        }
     }
 
     @Override
@@ -77,11 +130,18 @@ public class DefaultWebTransportProcessor implements WebTransportProcessor {
         var bridgeResponse = AtmosphereResponseImpl.newInstance(config, request, bridge);
         bridgeResponse.delegateToNativeResponse(false);
         wsProcessor.open(bridge, request, bridgeResponse);
+        if (customProtocol != null) {
+            customProtocol.onOpen(session);
+        }
         logger.debug("WebTransport session opened via bridge for {}", session.uuid());
     }
 
     @Override
     public void invokeWebTransportProtocol(WebTransportSession session, String message) {
+        if (customProtocol != null) {
+            dispatchProtocolRequests(session, customProtocol.onMessage(session, message));
+            return;
+        }
         var bridge = bridges.get(session);
         if (bridge != null) {
             wsProcessor.invokeWebSocketProtocol(bridge, message);
@@ -92,6 +152,11 @@ public class DefaultWebTransportProcessor implements WebTransportProcessor {
 
     @Override
     public void invokeWebTransportProtocol(WebTransportSession session, byte[] data, int offset, int length) {
+        if (customProtocol != null) {
+            dispatchProtocolRequests(session,
+                    customProtocol.onMessage(session, data, offset, length));
+            return;
+        }
         var bridge = bridges.get(session);
         if (bridge != null) {
             wsProcessor.invokeWebSocketProtocol(bridge, data, offset, length);
@@ -102,6 +167,9 @@ public class DefaultWebTransportProcessor implements WebTransportProcessor {
 
     @Override
     public void close(WebTransportSession session, int closeCode) {
+        if (customProtocol != null) {
+            customProtocol.onClose(session);
+        }
         var bridge = bridges.remove(session);
         if (bridge != null) {
             wsProcessor.close(bridge, closeCode);

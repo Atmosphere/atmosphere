@@ -22,8 +22,14 @@ import java.util.List;
 
 /**
  * Protocol for converting WebTransport messages into {@link AtmosphereRequest}
- * objects that can be dispatched through the Atmosphere framework. Mirrors
- * {@link org.atmosphere.websocket.WebSocketProtocol}.
+ * objects that can be dispatched through the Atmosphere framework. Plays the
+ * role {@link org.atmosphere.websocket.WebSocketProtocol} plays for WebSocket:
+ * an implementation is selected by class name via
+ * {@link org.atmosphere.cpr.ApplicationConfig#WEBTRANSPORT_PROTOCOL} and, once
+ * installed, owns the session's message, lifecycle, and error callbacks.
+ * Unlike WebSocket there is no in-tree implementation — when the knob is unset
+ * the WebTransport processor bridges messages to the configured
+ * {@code WebSocketProtocol} machinery instead.
  *
  * @author Jeanfrancois Arcand
  */
