@@ -88,6 +88,27 @@ public final class DockerSandboxProvider implements SandboxProvider {
                     "Docker is not available: ensure `docker` is on PATH and the daemon is running");
         }
         var id = "atmo-sandbox-" + UUID.randomUUID();
+        var create = runProcess(createArgs(id, image, limits, null), Duration.ofSeconds(30));
+        if (create.exitCode() != 0) {
+            throw new IllegalStateException("docker create failed: " + create.stderr());
+        }
+        var start = runProcess(List.of("docker", "start", id), Duration.ofSeconds(15));
+        if (start.exitCode() != 0) {
+            throw new IllegalStateException("docker start failed: " + start.stderr());
+        }
+        return new DockerSandbox(id, limits, metadata == null ? Map.of() : Map.copyOf(metadata));
+    }
+
+    /**
+     * Build the {@code docker create} argument array. Shared between
+     * {@link #create} and {@link DockerSandbox#expose}, which recreates the
+     * container with a published port.
+     *
+     * @param publishPort container port to publish on an ephemeral host
+     *                    port ({@code -p 0:<port>}), or {@code null}
+     */
+    static List<String> createArgs(String id, String image, SandboxLimits limits,
+                                   Integer publishPort) {
         var args = new ArrayList<String>();
         args.add("docker");
         args.add("create");
@@ -112,20 +133,16 @@ public final class DockerSandboxProvider implements SandboxProvider {
             }
             case FULL -> args.add("--network=bridge");
         }
+        if (publishPort != null) {
+            args.add("-p");
+            args.add("0:" + publishPort);
+        }
         // Keep container alive for exec calls; the entrypoint idles.
         args.add("--entrypoint");
         args.add("sleep");
         args.add(image);
         args.add(String.valueOf(limits.wallTime().toSeconds() + 60));
-        var create = runProcess(args, Duration.ofSeconds(30));
-        if (create.exitCode() != 0) {
-            throw new IllegalStateException("docker create failed: " + create.stderr());
-        }
-        var start = runProcess(List.of("docker", "start", id), Duration.ofSeconds(15));
-        if (start.exitCode() != 0) {
-            throw new IllegalStateException("docker start failed: " + start.stderr());
-        }
-        return new DockerSandbox(id, limits, metadata == null ? Map.of() : Map.copyOf(metadata));
+        return args;
     }
 
     /** Package-private — exposed for tests. */
@@ -193,6 +210,10 @@ public final class DockerSandboxProvider implements SandboxProvider {
         private final SandboxLimits limits;
         private final Map<String, String> metadata;
         private final AtomicBoolean closed = new AtomicBoolean();
+        private final AtomicBoolean hibernated = new AtomicBoolean();
+        /** Images `expose` commits as recreation vehicles; removed on close (Invariant #1). */
+        private final List<String> ephemeralImages =
+                java.util.Collections.synchronizedList(new ArrayList<>());
 
         DockerSandbox(String id, SandboxLimits limits, Map<String, String> metadata) {
             this.id = Objects.requireNonNull(id);
@@ -208,6 +229,7 @@ public final class DockerSandboxProvider implements SandboxProvider {
         @Override
         public SandboxExec exec(List<String> command, Duration timeout) {
             checkOpen();
+            resumeIfHibernated();
             var args = new ArrayList<String>();
             args.add("docker");
             args.add("exec");
@@ -222,6 +244,7 @@ public final class DockerSandboxProvider implements SandboxProvider {
         @Override
         public void writeFile(Path pathInsideSandbox, String content) {
             checkOpen();
+            resumeIfHibernated();
             Path tempFile;
             try {
                 tempFile = Files.createTempFile("atmo-sandbox-write-", ".tmp");
@@ -248,12 +271,143 @@ public final class DockerSandboxProvider implements SandboxProvider {
         @Override
         public String readFile(Path pathInsideSandbox) {
             checkOpen();
+            resumeIfHibernated();
             var exec = runProcess(List.of("docker", "exec", id,
                     "cat", pathInsideSandbox.toString()), Duration.ofSeconds(30));
             if (exec.exitCode() != 0) {
                 throw new IllegalStateException("docker exec cat failed: " + exec.stderr());
             }
             return exec.stdout();
+        }
+
+        /**
+         * Publishes a container port on an ephemeral host port. Docker
+         * cannot publish a port on a running container, so this commits the
+         * container's filesystem, removes it, and recreates it under the
+         * same name with {@code -p 0:<port>} from the committed image —
+         * process state is lost (the entrypoint idles anyway), filesystem
+         * state is preserved.
+         */
+        @Override
+        public int expose(int portInsideSandbox) {
+            checkOpen();
+            if (portInsideSandbox < 1 || portInsideSandbox > 65535) {
+                throw new IllegalArgumentException("port out of range: " + portInsideSandbox);
+            }
+            if (limits.networkPolicy().mode() == NetworkPolicy.Mode.NONE) {
+                throw new IllegalStateException(
+                        "cannot expose a port: sandbox network policy is NONE");
+            }
+            resumeIfHibernated();
+            var imageRef = "atmo-expose-" + UUID.randomUUID();
+            var commit = runProcess(List.of("docker", "commit", id, imageRef),
+                    Duration.ofSeconds(60));
+            if (commit.exitCode() != 0) {
+                throw new IllegalStateException("docker commit for expose failed: " + commit.stderr());
+            }
+            ephemeralImages.add(imageRef);
+            var rm = runProcess(List.of("docker", "rm", "-f", id), Duration.ofSeconds(30));
+            if (rm.exitCode() != 0) {
+                throw new IllegalStateException("docker rm for expose failed: " + rm.stderr());
+            }
+            var create = runProcess(createArgs(id, imageRef, limits, portInsideSandbox),
+                    Duration.ofSeconds(30));
+            if (create.exitCode() != 0) {
+                // The original container is gone — this sandbox cannot limp
+                // on. Reach the terminal state loudly (Invariant #2).
+                closed.set(true);
+                removeEphemeralImages();
+                throw new IllegalStateException(
+                        "docker create for expose failed; sandbox " + id
+                                + " is closed: " + create.stderr());
+            }
+            var start = runProcess(List.of("docker", "start", id), Duration.ofSeconds(15));
+            if (start.exitCode() != 0) {
+                closed.set(true);
+                removeEphemeralImages();
+                throw new IllegalStateException(
+                        "docker start for expose failed; sandbox " + id
+                                + " is closed: " + start.stderr());
+            }
+            var port = runProcess(List.of("docker", "port", id, portInsideSandbox + "/tcp"),
+                    Duration.ofSeconds(10));
+            if (port.exitCode() != 0 || port.stdout().isBlank()) {
+                throw new IllegalStateException("docker port lookup failed: " + port.stderr());
+            }
+            // First line looks like "0.0.0.0:49153" (or ":::49153" for v6).
+            var firstLine = port.stdout().lines().findFirst().orElse("");
+            var colon = firstLine.lastIndexOf(':');
+            try {
+                return Integer.parseInt(firstLine.substring(colon + 1).trim());
+            } catch (RuntimeException e) {
+                throw new IllegalStateException(
+                        "unparseable docker port output: " + port.stdout(), e);
+            }
+        }
+
+        /**
+         * Commits the container filesystem to an image; the returned
+         * reference is a Docker image name a caller can restore from with
+         * {@code DockerSandboxProvider.create(reference, ...)}. The image
+         * outlives this sandbox by design — the caller owns it and releases
+         * it with {@code docker rmi} when no longer needed.
+         */
+        @Override
+        public SandboxSnapshot snapshot() {
+            checkOpen();
+            var snapshotId = UUID.randomUUID().toString();
+            var imageRef = "atmo-snapshot-" + snapshotId;
+            var commit = runProcess(List.of("docker", "commit", id, imageRef),
+                    Duration.ofSeconds(60));
+            if (commit.exitCode() != 0) {
+                throw new IllegalStateException("docker commit failed: " + commit.stderr());
+            }
+            return new SandboxSnapshot(snapshotId, imageRef, Instant.now());
+        }
+
+        /**
+         * Freezes the container's processes via the cgroup freezer
+         * ({@code docker pause}) — CPU is reclaimed, filesystem and memory
+         * state are preserved. The next {@link #exec}, {@link #writeFile},
+         * or {@link #readFile} implicitly resumes.
+         */
+        @Override
+        public void hibernate() {
+            checkOpen();
+            if (!hibernated.compareAndSet(false, true)) {
+                return; // already hibernated — idempotent
+            }
+            var pause = runProcess(List.of("docker", "pause", id), Duration.ofSeconds(15));
+            if (pause.exitCode() != 0) {
+                hibernated.set(false);
+                throw new IllegalStateException("docker pause failed: " + pause.stderr());
+            }
+        }
+
+        private void resumeIfHibernated() {
+            if (!hibernated.compareAndSet(true, false)) {
+                return;
+            }
+            var unpause = runProcess(List.of("docker", "unpause", id), Duration.ofSeconds(15));
+            if (unpause.exitCode() != 0) {
+                hibernated.set(true);
+                throw new IllegalStateException("docker unpause failed: " + unpause.stderr());
+            }
+        }
+
+        private void removeEphemeralImages() {
+            List<String> images;
+            synchronized (ephemeralImages) {
+                images = new ArrayList<>(ephemeralImages);
+                ephemeralImages.clear();
+            }
+            for (var image : images) {
+                var rmi = runProcessQuiet(List.of("docker", "rmi", "-f", image));
+                if (rmi.isPresent() && rmi.get().exitCode() != 0) {
+                    logger.debug("docker rmi -f {} returned {}: {}",
+                            image, rmi.get().exitCode(), rmi.get().stderr());
+                }
+            }
         }
 
         @Override
@@ -278,6 +432,7 @@ public final class DockerSandboxProvider implements SandboxProvider {
                 logger.warn("docker rm -f {} returned {}: {}",
                         id, rm.get().exitCode(), rm.get().stderr());
             }
+            removeEphemeralImages();
         }
 
         private void checkOpen() {

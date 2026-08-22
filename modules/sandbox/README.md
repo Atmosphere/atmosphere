@@ -18,24 +18,40 @@ JVM.
 ## Backends shipped in-tree
 
 - **`DockerSandboxProvider`** — default for production. Shells out to the
-  `docker` CLI with argv-form exec (no shell interpolation), per-call
-  `--rm` + `--network none` (unless `NetworkPolicy.FULL` is set), strict
-  working-directory mount. Requires a running Docker daemon; fails hard
-  when absent (Correctness Invariant #5 — Runtime Truth).
+  `docker` CLI with argv-form exec (no shell interpolation). Creates one
+  container per sandbox (`docker create` + `docker start`) and reuses it
+  across `exec` calls; `--network none` when the policy is `NONE`, bridge
+  networking otherwise, `--cpus`/`--memory` from `SandboxLimits`. Requires
+  a running Docker daemon; fails hard when absent (Correctness
+  Invariant #5 — Runtime Truth).
 - **`InProcessSandboxProvider`** — dev-only reference implementation.
   Runs commands via `ProcessBuilder` inside a tempdir. **Not a security
   boundary** — gated behind `-Datmosphere.sandbox.insecure=true` and
   emits a WARN at startup. Tests and samples that cannot run Docker
   locally enable it explicitly.
 
+## Optional capabilities
+
+`expose`, `snapshot`, and `hibernate` are optional `Sandbox` operations
+(the interface defaults throw `UnsupportedOperationException`); both
+in-tree backends implement them:
+
+| Operation | Docker | In-process |
+|---|---|---|
+| `expose(port)` | commits the filesystem and recreates the container with `-p 0:<port>`; returns the ephemeral host port (rejected under `NetworkPolicy.NONE`) | returns the port unchanged — child processes bind host ports directly (no isolation) |
+| `snapshot()` | `docker commit` → the reference is an image name restorable via `create(reference, …)`; the caller owns the image | copies the workdir to a sibling temp directory; the reference is its path, owned by the caller |
+| `hibernate()` | `docker pause` (cgroup freezer); the next `exec`/`readFile`/`writeFile` implicitly resumes | trivially satisfied — no compute persists between `exec` calls |
+
 ## Third-party backends
 
-Firecracker, Kata, Vercel Sandbox, E2B, Modal, Blaxel ship in separate
-modules that implement `SandboxProvider` and register via
-`META-INF/services/org.atmosphere.ai.sandbox.SandboxProvider`. The
-foundation stays free of third-party SDK dependencies (its only
-Atmosphere dependency is `atmosphere-ai`, for the `ToolSandboxBinding`
-tool-layer SPI).
+The `SandboxProvider` SPI is open to third-party isolation backends
+(e.g. Firecracker, Kata, or hosted sandboxes such as Vercel Sandbox,
+E2B, Modal, Blaxel): implement it in your own module and register via
+`META-INF/services/org.atmosphere.ai.sandbox.SandboxProvider`. None ship
+in-tree — Atmosphere ships only the two providers above, which keeps the
+foundation free of third-party SDK dependencies (its only Atmosphere
+dependency is `atmosphere-ai`, for the `ToolSandboxBinding` tool-layer
+SPI).
 
 ## Minimal usage
 

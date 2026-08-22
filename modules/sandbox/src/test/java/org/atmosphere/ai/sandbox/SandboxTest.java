@@ -186,8 +186,7 @@ class SandboxTest {
         var docker = new DockerSandboxProvider();
         // Whether Docker is installed or not, the provider must answer
         // without throwing; the runtime-truth contract forbids silent true.
-        var available = docker.isAvailable();
-        assertTrue(available || !available, "isAvailable returned without throwing");
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(docker::isAvailable);
     }
 
     private static final class Dummy {

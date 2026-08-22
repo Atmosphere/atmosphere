@@ -40,9 +40,10 @@ import java.util.Map;
  *       explicitly flagged as dev-only.</li>
  * </ul>
  *
- * <p>Third-party backends (Firecracker, Kata, Vercel Sandbox, E2B, Modal,
- * Blaxel) implement this SPI in their own modules. This keeps the
- * foundation free of third-party SDK dependencies.</p>
+ * <p>The SPI is open to third-party isolation backends (Firecracker,
+ * Kata, hosted sandboxes) implemented in external modules; none ship
+ * in-tree. This keeps the foundation free of third-party SDK
+ * dependencies.</p>
  *
  * <h2>Terminal-path discipline</h2>
  *
@@ -73,9 +74,11 @@ public interface Sandbox extends AutoCloseable {
 
     /**
      * Expose a TCP port inside the sandbox on the host. Returns the host
-     * port the caller should connect to. Optional — implementations may
-     * throw {@link UnsupportedOperationException} when they do not expose
-     * networking.
+     * port the caller should connect to. Optional — third-party backends
+     * without networking may keep this default throw; both in-tree
+     * backends implement it (Docker recreates the container with the port
+     * published; in-process returns the port unchanged since child
+     * processes bind host ports directly).
      */
     default int expose(int portInsideSandbox) {
         throw new UnsupportedOperationException(
@@ -84,7 +87,10 @@ public interface Sandbox extends AutoCloseable {
 
     /**
      * Capture a snapshot of the sandbox filesystem state. Returns a
-     * {@link SandboxSnapshot} that can be restored later. Optional.
+     * {@link SandboxSnapshot} that can be restored later. Optional —
+     * both in-tree backends implement it (Docker via {@code docker
+     * commit}, in-process via a workdir copy); the caller owns the
+     * snapshot artifact and releases it when no longer needed.
      */
     default SandboxSnapshot snapshot() {
         throw new UnsupportedOperationException(
@@ -93,7 +99,9 @@ public interface Sandbox extends AutoCloseable {
 
     /**
      * Suspend the sandbox to reclaim compute while preserving state. A
-     * subsequent {@link #exec} implicitly resumes. Optional.
+     * subsequent {@link #exec} implicitly resumes. Optional — both
+     * in-tree backends implement it (Docker via {@code docker pause};
+     * in-process trivially, as no compute persists between execs).
      */
     default void hibernate() {
         throw new UnsupportedOperationException(

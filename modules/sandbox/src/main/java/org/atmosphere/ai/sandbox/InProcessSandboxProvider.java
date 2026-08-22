@@ -209,6 +209,63 @@ public final class InProcessSandboxProvider implements SandboxProvider {
             }
         }
 
+        /**
+         * Copies the sandbox workdir to a sibling temp directory; the
+         * snapshot {@code reference} is that directory's absolute path.
+         * The copy outlives this sandbox by design — the caller owns it
+         * and deletes it when no longer needed.
+         */
+        @Override
+        public SandboxSnapshot snapshot() {
+            checkOpen();
+            var snapshotId = UUID.randomUUID().toString();
+            Path target;
+            try {
+                target = Files.createTempDirectory("atmo-in-process-snapshot-");
+                try (var walk = Files.walk(root)) {
+                    for (var source : (Iterable<Path>) walk::iterator) {
+                        var dest = target.resolve(root.relativize(source).toString());
+                        if (Files.isDirectory(source)) {
+                            Files.createDirectories(dest);
+                        } else {
+                            Files.copy(source, dest,
+                                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                throw new IllegalStateException("snapshot copy failed: " + e.getMessage(), e);
+            }
+            return new SandboxSnapshot(snapshotId, target.toAbsolutePath().toString(),
+                    java.time.Instant.now());
+        }
+
+        /**
+         * Trivially satisfied: each {@link #exec} spawns its own child
+         * process, so no compute persists between calls — there is nothing
+         * to suspend, and the tempdir state is preserved by definition.
+         */
+        @Override
+        public void hibernate() {
+            checkOpen();
+        }
+
+        /**
+         * The in-process backend has no network isolation — child
+         * processes bind host ports directly — so the "host" port for a
+         * service inside this sandbox is the port itself. Kept so code
+         * written against the {@link Sandbox} contract ports unchanged to
+         * isolating backends.
+         */
+        @Override
+        public int expose(int portInsideSandbox) {
+            checkOpen();
+            if (portInsideSandbox < 1 || portInsideSandbox > 65535) {
+                throw new IllegalArgumentException("port out of range: " + portInsideSandbox);
+            }
+            return portInsideSandbox;
+        }
+
         @Override
         public SandboxLimits limits() {
             return limits;
