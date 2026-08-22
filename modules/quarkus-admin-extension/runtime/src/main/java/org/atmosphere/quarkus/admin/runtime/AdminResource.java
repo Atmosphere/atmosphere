@@ -432,6 +432,19 @@ public class AdminResource {
         return controller != null ? controller.listCoordinators() : List.of();
     }
 
+    /** Fleet health — availability + circuit state per agent (registre#43). */
+    @GET
+    @Path("/coordinators/{name}/health")
+    public Response getCoordinatorHealth(@PathParam("name") String name) {
+        CoordinatorController controller = admin.coordinatorController();
+        if (controller == null) {
+            return Response.status(404).build();
+        }
+        return controller.getFleetHealth(name)
+                .map(health -> Response.ok(health).build())
+                .orElse(Response.status(404).build());
+    }
+
     @GET
     @Path("/journal")
     public Response queryJournal(

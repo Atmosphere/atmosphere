@@ -634,6 +634,19 @@ public class AtmosphereAdminEndpoint {
         return ResponseEntity.ok(controller.listCoordinators());
     }
 
+    /** Fleet health — availability + circuit state per agent (registre#43). */
+    @GetMapping("/coordinators/{name}/health")
+    public ResponseEntity<Map<String, Object>> getCoordinatorHealth(
+            @PathVariable("name") String name) {
+        CoordinatorController controller = admin.coordinatorController();
+        if (controller == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return controller.getFleetHealth(name)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @GetMapping("/coordinators/{name}/fleet")
     public ResponseEntity<Map<String, Object>> getFleet(@PathVariable("name") String name) {
         CoordinatorController controller = admin.coordinatorController();

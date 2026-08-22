@@ -57,6 +57,16 @@ import java.util.Set;
  *       command shell-friendly.</li>
  * </ol>
  *
+ * <h3>Launching</h3>
+ *
+ * <pre>{@code
+ * ./mvnw -pl modules/verifier exec:java \
+ *     -Dexec.args="--policy policy.json --workflow workflow.json"
+ * }</pre>
+ *
+ * <p>The {@code exec-maven-plugin} mainClass is pinned in this module's
+ * pom, so the command works from a source checkout as shipped.</p>
+ *
  * <h3>Usage</h3>
  * <pre>{@code
  * verify --policy email.policy.json --workflow attack.plan.json

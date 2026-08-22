@@ -37,6 +37,12 @@ import java.util.concurrent.atomic.AtomicReference;
  * Multi-model fan-out streaming: sends the same prompt to N {@link ModelEndpoint}s
  * simultaneously, each streaming through its own child session. The {@link FanOutStrategy}
  * controls completion semantics (all responses, first complete, or fastest producer).
+ *
+ * <p><strong>Application-constructed:</strong> the framework does not fan out
+ * on its own — an endpoint that wants multi-model comparison constructs this
+ * session inside its {@code @Prompt}/handler method. The integration-test
+ * handler {@code FanOutTestHandler} is the reference wiring and the e2e
+ * exercises it end-to-end.</p>
  */
 public final class FanOutStreamingSession implements AutoCloseable {
 

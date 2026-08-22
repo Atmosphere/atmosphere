@@ -53,4 +53,21 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Launcher for the offline policy/plan verifier (registre#43).
+                 Run: ./mvnw exec:java in this module with exec.args naming
+                 the policy and workflow files (see VerifyCli javadoc). The
+                 mainClass is pinned here so the CLI is launchable as
+                 shipped instead of being a main() nothing can reach. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>org.atmosphere.verifier.cli.VerifyCli</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

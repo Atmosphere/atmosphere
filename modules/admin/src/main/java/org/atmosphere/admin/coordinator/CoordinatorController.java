@@ -99,6 +99,34 @@ public final class CoordinatorController {
     }
 
     /**
+     * Live health snapshot of a coordinator's fleet — per-agent
+     * availability, circuit-breaker state, and recent failures — from
+     * {@link org.atmosphere.coordinator.fleet.AgentFleet#health()}
+     * (registre#43: the FleetHealth record finally has a reader).
+     */
+    public Optional<Map<String, Object>> getFleetHealth(String coordinatorName) {
+        var fleet = fleets().get(coordinatorName);
+        if (fleet == null) {
+            return Optional.empty();
+        }
+        var health = fleet.health();
+        var agents = new ArrayList<Map<String, Object>>();
+        for (var agent : health.agents().values()) {
+            var info = new LinkedHashMap<String, Object>();
+            info.put("name", agent.name());
+            info.put("available", agent.available());
+            info.put("circuitState",
+                    agent.circuitState() != null ? agent.circuitState().name() : null);
+            info.put("recentFailures", agent.recentFailures());
+            agents.add(info);
+        }
+        return Optional.of(Map.of(
+                "coordinator", coordinatorName,
+                "timestamp", health.timestamp().toString(),
+                "agents", agents));
+    }
+
+    /**
      * Get the fleet detail for a specific coordinator.
      */
     public Optional<Map<String, Object>> getFleet(String coordinatorName) {
