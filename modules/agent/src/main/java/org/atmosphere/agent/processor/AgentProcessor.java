@@ -522,6 +522,12 @@ public class AgentProcessor implements Processor<Object> {
                         A2aCardDecorations.wirePush(framework, protocolHandler, taskManager, agentName);
                     }
                     var a2aHandler = new org.atmosphere.a2a.runtime.A2aHandler(protocolHandler);
+                    // The A2A protocol is live on this framework — publish its
+                    // bridge so the admin plane reports reachable protocols
+                    // from runtime truth (registre#22).
+                    org.atmosphere.ai.bridge.ProtocolBridgeRegistry.install(
+                            framework.getAtmosphereConfig().properties(),
+                            new org.atmosphere.a2a.bridge.A2aProtocolBridge(framework));
 
                     framework.addAtmosphereHandler(a2aEndpoint, a2aHandler, new java.util.ArrayList<>());
                     A2aCardDecorations.warnIfUnauthenticated(framework, a2aEndpoint, agentName);
@@ -1072,6 +1078,9 @@ public class AgentProcessor implements Processor<Object> {
                     bridge, actionMethod, pipeline);
             framework.addAtmosphereHandler(basePath + "/agui", handler, new java.util.ArrayList<>());
             protocols.add("ag-ui");
+            org.atmosphere.ai.bridge.ProtocolBridgeRegistry.install(
+                    framework.getAtmosphereConfig().properties(),
+                    new org.atmosphere.agui.bridge.AgUiProtocolBridge(framework));
             logger.debug("AG-UI endpoint registered at {}/agui", basePath);
         } catch (Exception e) {
             logger.warn("Failed to register AG-UI endpoint for agent: {}", e.getMessage());

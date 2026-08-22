@@ -325,6 +325,12 @@ public class CoordinatorProcessor implements Processor<Object> {
                     .computeIfAbsent("org.atmosphere.coordinator.fleets",
                             k -> new java.util.concurrent.ConcurrentHashMap<String, AgentFleet>());
             fleetRegistry.put(coordinatorName, fleet);
+            // In-JVM dispatch is live for this coordinator — publish the
+            // in-memory bridge (the SPI file's old comment claimed this
+            // registration existed; now it does — registre#22).
+            org.atmosphere.ai.bridge.ProtocolBridgeRegistry.install(
+                    framework.getAtmosphereConfig().properties(),
+                    new org.atmosphere.coordinator.bridge.InMemoryProtocolBridge(framework));
             var responseType = annotation.responseAs() == Void.class
                     ? null : annotation.responseAs();
             var journalHook = resolveJournalHook(framework, annotation, fleet, journal);
@@ -1249,6 +1255,11 @@ public class CoordinatorProcessor implements Processor<Object> {
             // AiPipeline's pre-admission loop; the framework reference lets the
             // handler resolve the installed governance chain.
             protocolHandler.setFramework(framework);
+            // The A2A protocol is live on this framework — publish its bridge
+            // so the admin plane reports reachable protocols (registre#22).
+            org.atmosphere.ai.bridge.ProtocolBridgeRegistry.install(
+                    framework.getAtmosphereConfig().properties(),
+                    new org.atmosphere.a2a.bridge.A2aProtocolBridge(framework));
             var a2aHandler =
                     new org.atmosphere.a2a.runtime.A2aHandler(protocolHandler);
 
@@ -1329,6 +1340,9 @@ public class CoordinatorProcessor implements Processor<Object> {
                     bridge, actionMethod, pipeline);
             framework.addAtmosphereHandler(basePath + "/agui", handler, new ArrayList<>());
             protocols.add("ag-ui");
+            org.atmosphere.ai.bridge.ProtocolBridgeRegistry.install(
+                    framework.getAtmosphereConfig().properties(),
+                    new org.atmosphere.agui.bridge.AgUiProtocolBridge(framework));
             logger.debug("AG-UI endpoint registered at {}/agui", basePath);
         } catch (Exception e) {
             logger.warn("Failed to register AG-UI endpoint for coordinator: {}",

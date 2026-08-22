@@ -128,6 +128,29 @@ public final class FrameworkController {
     }
 
     /**
+     * List the protocol bridges live on this framework (runtime truth:
+     * populated by the processors that actually wired each protocol —
+     * registre#22). Empty when no protocol registered a bridge.
+     */
+    public List<Map<String, Object>> listProtocolBridges() {
+        var registry = org.atmosphere.ai.bridge.ProtocolBridgeRegistry.installed(
+                framework.getAtmosphereConfig().properties());
+        if (registry == null) {
+            return List.of();
+        }
+        var result = new ArrayList<Map<String, Object>>();
+        for (var bridge : registry.all()) {
+            var info = new LinkedHashMap<String, Object>();
+            info.put("name", bridge.name());
+            info.put("kind", bridge.kind().name());
+            info.put("active", bridge.isActive());
+            info.put("className", bridge.getClass().getSimpleName());
+            result.add(info);
+        }
+        return result;
+    }
+
+    /**
      * List all interceptors in the processing chain.
      */
     public List<Map<String, Object>> listInterceptors() {

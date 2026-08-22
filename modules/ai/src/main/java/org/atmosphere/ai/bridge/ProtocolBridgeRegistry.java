@@ -69,9 +69,38 @@ public final class ProtocolBridgeRegistry {
 
     /** Register an additional bridge at runtime (typically from host-framework wiring). */
     public synchronized void register(ProtocolBridge bridge) {
+        bridges.removeIf(existing -> existing.name().equals(bridge.name()));
         bridges.add(bridge);
         bridges.sort(Comparator.comparingInt(ProtocolBridge::order)
                 .thenComparing(ProtocolBridge::name));
+    }
+
+    /**
+     * Framework-property key under which the process-wide registry lives.
+     * String-bridged so the admin read plane can consume it without a
+     * compile-time dependency on this package's callers.
+     */
+    public static final String PROPERTY = "org.atmosphere.ai.bridge.registry";
+
+    /**
+     * Install {@code bridge} into the framework's shared registry, creating
+     * the registry (with ServiceLoader discovery) on first use. This is the
+     * registration path the protocol processors call at init — the in-tree
+     * bridges all need an {@code AtmosphereFramework} at construction, so
+     * they cannot ride a no-arg ServiceLoader entry.
+     */
+    public static ProtocolBridgeRegistry install(
+            java.util.Map<String, Object> frameworkProperties, ProtocolBridge bridge) {
+        var registry = (ProtocolBridgeRegistry) frameworkProperties
+                .computeIfAbsent(PROPERTY, k -> new ProtocolBridgeRegistry());
+        registry.register(bridge);
+        return registry;
+    }
+
+    /** The framework's shared registry, or {@code null} when no bridge registered. */
+    public static ProtocolBridgeRegistry installed(
+            java.util.Map<String, Object> frameworkProperties) {
+        return (ProtocolBridgeRegistry) frameworkProperties.get(PROPERTY);
     }
 
     private static List<ProtocolBridge> discover() {

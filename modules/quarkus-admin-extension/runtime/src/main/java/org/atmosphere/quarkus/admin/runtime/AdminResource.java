@@ -341,6 +341,12 @@ public class AdminResource {
     }
 
     @GET
+    @Path("/protocols")
+    public List<Map<String, Object>> listProtocolBridges() {
+        return admin.framework().listProtocolBridges();
+    }
+
+    @GET
     @Path("/interceptors")
     public List<Map<String, Object>> listInterceptors() {
         return admin.framework().listInterceptors();

@@ -1,5 +1,5 @@
-# InMemoryProtocolBridge is registered programmatically by CoordinatorProcessor
-# because it requires an AtmosphereFramework reference at construction. A
-# no-arg ServiceLoader entry would not be usable — leave this file present
-# as the contract-visible registration point for third-party bridges but do
-# not list the in-memory bridge here.
+# InMemoryProtocolBridge is registered programmatically by CoordinatorProcessor (fleet publication)
+# via ProtocolBridgeRegistry.install(...) — it requires an AtmosphereFramework
+# reference at construction, so a no-arg ServiceLoader entry would raise a
+# ServiceConfigurationError. This file stays present as the contract-visible
+# registration point for third-party bridges with no-arg constructors.

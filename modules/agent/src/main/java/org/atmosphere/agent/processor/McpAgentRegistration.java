@@ -106,6 +106,11 @@ final class McpAgentRegistration {
                     mcpRegistry,
                     framework.getAtmosphereConfig(),
                     guardrails);
+            // The MCP protocol is live on this framework — publish its bridge
+            // so the admin plane reports reachable protocols (registre#22).
+            org.atmosphere.ai.bridge.ProtocolBridgeRegistry.install(
+                    framework.getAtmosphereConfig().properties(),
+                    new org.atmosphere.mcp.bridge.McpProtocolBridge(framework));
 
             var handler = new McpHandler(protocolHandler);
             framework.addAtmosphereHandler(mcpPath, handler, new ArrayList<>());

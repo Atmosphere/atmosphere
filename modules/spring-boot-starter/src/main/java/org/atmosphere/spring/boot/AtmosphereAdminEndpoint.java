@@ -263,6 +263,12 @@ public class AtmosphereAdminEndpoint {
         return admin.framework().listHandlers();
     }
 
+    /** Protocol bridges live on this framework (runtime truth — registre#22). */
+    @GetMapping("/protocols")
+    public List<Map<String, Object>> listProtocolBridges() {
+        return admin.framework().listProtocolBridges();
+    }
+
     @GetMapping("/interceptors")
     public List<Map<String, Object>> listInterceptors() {
         return admin.framework().listInterceptors();
