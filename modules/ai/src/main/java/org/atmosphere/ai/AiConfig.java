@@ -381,56 +381,103 @@ public final class AiConfig {
     public static LlmSettings configure(String mode, String model, String apiKey, String baseUrl) {
         LOCK.lock();
         try {
-            // Tri-state prompt-cache-key control is resolved once here from the
-            // sysprop (then env) and stored on the settings so every
-            // realization site reads the same value via AiConfig.get(). AUTO
-            // (the default) keeps every path byte-identical to the legacy
-            // host-heuristic behavior.
-            var cacheKeyMode = resolvePromptCacheKeyMode();
-            // Generation parameters (temperature/max-tokens/top-p/stop) are
-            // resolved once here from sysprops (then env) and stored on the
-            // settings so every realization site reads the same opt-in values.
-            // GenerationParams.defaults() (all null) keeps the wire byte-identical
-            // to the pre-feature behavior when nothing is configured.
-            var generation = resolveGenerationParams();
-
-            if ("fake".equalsIgnoreCase(mode)) {
-                logger.info("AI config: mode=fake (using FakeLlmClient — no real API calls)");
-                instance = new LlmSettings(new FakeLlmClient(model), model, mode, "fake", null,
-                        cacheKeyMode, generation);
-                return instance;
-            }
-
-            var resolvedUrl = resolveBaseUrl(mode, baseUrl, model);
-
-            logger.info("AI config: mode={}, model={}, endpoint={}", mode, model, resolvedUrl);
-
-            // Normalize the key exactly as the OpenAiCompatibleClient does: a
-            // non-blank explicit key is stored verbatim, anything else (null,
-            // blank, whitespace) collapses to null. Storing this normalized
-            // value as the record's apiKey component keeps settings.apiKey()
-            // bit-for-bit identical to the OpenAiCompatibleClient's own
-            // apiKey() — the value the ~19 read-side consumers already see —
-            // and crucially does NOT inject an ambient-env fallback into the
-            // built-in path (that would flip the no-key demo-mode contract).
-            // Cross-provider credential resolution is the adapter's job via
-            // CredentialResolver when settings.apiKey() is null.
-            var resolvedKey = (apiKey != null && !apiKey.isBlank()) ? apiKey : null;
-
-            var builder = OpenAiCompatibleClient.builder().baseUrl(resolvedUrl)
-                    .generation(generation);
-            if (resolvedKey != null) {
-                builder.apiKey(resolvedKey);
-            } else if (!"local".equalsIgnoreCase(mode)) {
-                logger.warn("No API key configured for remote mode. Set LLM_API_KEY or GEMINI_API_KEY environment variable.");
-            }
-
-            instance = new LlmSettings(builder.build(), model, mode, resolvedUrl, resolvedKey,
-                    cacheKeyMode, generation);
+            instance = buildSettings(mode, model, apiKey, baseUrl);
             return instance;
         } finally {
             LOCK.unlock();
         }
+    }
+
+    /** Per-agent settings overriding the process-wide singleton (registre#39). */
+    private static final java.util.concurrent.ConcurrentHashMap<String, LlmSettings>
+            AGENT_SETTINGS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Configure settings scoped to one agent — the process-wide singleton is
+     * untouched, so a workspace's {@code RUNTIME.md} reconfigures only its
+     * own agent, never every agent in the JVM (registre#39). The map is
+     * bounded by the number of registered agents.
+     *
+     * @return the resolved agent-scoped settings
+     */
+    public static LlmSettings configureForAgent(String agentId, String mode, String model,
+                                                String apiKey, String baseUrl) {
+        java.util.Objects.requireNonNull(agentId, "agentId");
+        var settings = buildSettings(mode, model, apiKey, baseUrl);
+        AGENT_SETTINGS.put(agentId, settings);
+        logger.info("AI config scoped to agent '{}': mode={}, model={}", agentId, mode, model);
+        return settings;
+    }
+
+    /**
+     * The settings for one agent: its scoped configuration when
+     * {@link #configureForAgent} was called for it, else the process-wide
+     * {@link #get()} value (which may be {@code null} when unconfigured).
+     */
+    public static LlmSettings forAgent(String agentId) {
+        var scoped = agentScoped(agentId);
+        return scoped != null ? scoped : get();
+    }
+
+    /** The agent-scoped settings, or {@code null} when the agent has none. */
+    public static LlmSettings agentScoped(String agentId) {
+        return agentId != null ? AGENT_SETTINGS.get(agentId) : null;
+    }
+
+    /** Remove an agent's scoped settings (undeploy / tests). */
+    public static void resetAgent(String agentId) {
+        if (agentId != null) {
+            AGENT_SETTINGS.remove(agentId);
+        }
+    }
+
+    /** Shared construction for the global and agent-scoped configure paths. */
+    private static LlmSettings buildSettings(String mode, String model, String apiKey, String baseUrl) {
+        // Tri-state prompt-cache-key control is resolved once here from the
+        // sysprop (then env) and stored on the settings so every
+        // realization site reads the same value via AiConfig.get(). AUTO
+        // (the default) keeps every path byte-identical to the legacy
+        // host-heuristic behavior.
+        var cacheKeyMode = resolvePromptCacheKeyMode();
+        // Generation parameters (temperature/max-tokens/top-p/stop) are
+        // resolved once here from sysprops (then env) and stored on the
+        // settings so every realization site reads the same opt-in values.
+        // GenerationParams.defaults() (all null) keeps the wire byte-identical
+        // to the pre-feature behavior when nothing is configured.
+        var generation = resolveGenerationParams();
+
+        if ("fake".equalsIgnoreCase(mode)) {
+            logger.info("AI config: mode=fake (using FakeLlmClient — no real API calls)");
+            return new LlmSettings(new FakeLlmClient(model), model, mode, "fake", null,
+                    cacheKeyMode, generation);
+        }
+
+        var resolvedUrl = resolveBaseUrl(mode, baseUrl, model);
+
+        logger.info("AI config: mode={}, model={}, endpoint={}", mode, model, resolvedUrl);
+
+        // Normalize the key exactly as the OpenAiCompatibleClient does: a
+        // non-blank explicit key is stored verbatim, anything else (null,
+        // blank, whitespace) collapses to null. Storing this normalized
+        // value as the record's apiKey component keeps settings.apiKey()
+        // bit-for-bit identical to the OpenAiCompatibleClient's own
+        // apiKey() — the value the ~19 read-side consumers already see —
+        // and crucially does NOT inject an ambient-env fallback into the
+        // built-in path (that would flip the no-key demo-mode contract).
+        // Cross-provider credential resolution is the adapter's job via
+        // CredentialResolver when settings.apiKey() is null.
+        var resolvedKey = (apiKey != null && !apiKey.isBlank()) ? apiKey : null;
+
+        var builder = OpenAiCompatibleClient.builder().baseUrl(resolvedUrl)
+                .generation(generation);
+        if (resolvedKey != null) {
+            builder.apiKey(resolvedKey);
+        } else if (!"local".equalsIgnoreCase(mode)) {
+            logger.warn("No API key configured for remote mode. Set LLM_API_KEY or GEMINI_API_KEY environment variable.");
+        }
+
+        return new LlmSettings(builder.build(), model, mode, resolvedUrl, resolvedKey,
+                cacheKeyMode, generation);
     }
 
     /**

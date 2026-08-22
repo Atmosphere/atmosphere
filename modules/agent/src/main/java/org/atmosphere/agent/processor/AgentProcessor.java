@@ -135,7 +135,7 @@ public class AgentProcessor implements Processor<Object> {
                     .load(WorkspaceExtensions.resolveLocation(framework))
                     .orElse(null);
             if (workspaceDef != null) {
-                WorkspaceExtensions.applyRuntime(workspaceDef);
+                WorkspaceExtensions.applyRuntime(workspaceDef, agentName);
                 systemPrompt = WorkspaceExtensions.augmentSystemPrompt(systemPrompt, workspaceDef);
                 WorkspaceExtensions.installPolicies(framework,
                         WorkspaceExtensions.permissionPolicies(workspaceDef));

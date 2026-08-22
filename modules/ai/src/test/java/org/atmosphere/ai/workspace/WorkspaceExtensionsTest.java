@@ -147,6 +147,38 @@ class WorkspaceExtensionsTest {
                 "last-write-wins stays the documented behavior — only the signal changed");
     }
 
+    /**
+     * Regression (registre#39, resolved): with an agent id, a workspace's
+     * RUNTIME.md is scoped via {@link AiConfig#configureForAgent} — the
+     * first workspace seeds the process-wide default and a later workspace
+     * never overwrites it, so one agent's runtime file cannot reconfigure
+     * every other agent in the JVM.
+     */
+    @Test
+    void scopedApplyKeepsEachAgentsSettingsAndNeverClobbersTheGlobal(@TempDir Path rootA,
+                                                                     @TempDir Path rootB)
+            throws IOException {
+        write(rootA, "RUNTIME.md", "mode: fake\nmodel: model-a");
+        write(rootB, "RUNTIME.md", "mode: fake\nmodel: model-b");
+        WorkspaceExtensions.resetRuntimeOwnershipForTests();
+        try {
+            assertTrue(WorkspaceExtensions.applyRuntime(loadFixture(rootA), "agent-a"));
+            assertTrue(WorkspaceExtensions.applyRuntime(loadFixture(rootB), "agent-b"));
+
+            assertEquals("model-a", AiConfig.get().model(),
+                    "the first workspace owns the process-wide default");
+            assertEquals("model-a", AiConfig.forAgent("agent-a").model());
+            assertEquals("model-b", AiConfig.forAgent("agent-b").model(),
+                    "the second workspace applies to ITS agent only");
+            assertEquals("model-a", AiConfig.forAgent("agent-with-no-scope").model(),
+                    "unscoped agents fall back to the process-wide default");
+        } finally {
+            AiConfig.resetAgent("agent-a");
+            AiConfig.resetAgent("agent-b");
+            WorkspaceExtensions.resetRuntimeOwnershipForTests();
+        }
+    }
+
     @Test
     void applyRuntimeConfiguresAiConfig(@TempDir Path root) throws IOException {
         write(root, "RUNTIME.md", String.join("\n",

@@ -222,7 +222,7 @@ public class CoordinatorProcessor implements Processor<Object> {
                     .load(org.atmosphere.ai.workspace.WorkspaceExtensions.resolveLocation(framework))
                     .orElse(null);
             if (workspaceDef != null) {
-                org.atmosphere.ai.workspace.WorkspaceExtensions.applyRuntime(workspaceDef);
+                org.atmosphere.ai.workspace.WorkspaceExtensions.applyRuntime(workspaceDef, coordinatorName);
                 systemPrompt = org.atmosphere.ai.workspace.WorkspaceExtensions
                         .augmentSystemPrompt(systemPrompt, workspaceDef);
                 org.atmosphere.ai.workspace.WorkspaceExtensions.installPolicies(framework,

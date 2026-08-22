@@ -45,11 +45,12 @@ import java.util.Optional;
  * that turns that parsed-but-inert content into effect:</p>
  *
  * <ul>
- *   <li>{@code RUNTIME.md} → {@link AiConfig#configure} (model / mode / base URL
- *       / API key) plus the generation knobs ({@code temperature},
- *       {@code maxTokens}, {@code topP}, {@code stop}). <strong>Global, not
- *       per-agent</strong>: {@link AiConfig} is a process-wide singleton, so the
- *       last workspace loaded wins — see {@link #applyRuntime}.</li>
+ *   <li>{@code RUNTIME.md} → agent-scoped {@link AiConfig#configureForAgent}
+ *       (model / mode / base URL / API key) plus the generation knobs
+ *       ({@code temperature}, {@code maxTokens}, {@code topP}, {@code stop}).
+ *       The first workspace also seeds the process-wide default; later
+ *       workspaces stay scoped to their own agent — see
+ *       {@link #applyRuntime(AgentDefinition, String)}.</li>
  *   <li>{@code PERMISSIONS.md} → {@link GovernancePolicy} instances installed
  *       into the framework's {@link GovernancePolicy#POLICIES_PROPERTY} bag, the
  *       single source of truth every dispatch path admits against.</li>
@@ -242,18 +243,28 @@ public final class WorkspaceExtensions {
      * pointing the app at a different model/endpoint via env is not silently
      * overridden by a shipped {@code RUNTIME.md}.</p>
      *
-     * <p><strong>Process-global, last-write-wins.</strong>
-     * LIMITATION(registre#39): {@link AiConfig} is a single framework-wide
-     * singleton — there is no per-agent settings override — so when several
-     * agents each ship a {@code RUNTIME.md}, the last one loaded determines
-     * the model/mode for the whole process. A second workspace changing the
-     * live settings is logged at WARN naming both workspaces (Correctness
-     * Invariant #5, Runtime Truth).</p>
+     * <p><strong>Scoping (registre#39).</strong> With an {@code agentId}, the
+     * settings are stored agent-scoped via
+     * {@link AiConfig#configureForAgent} — dispatches for that agent resolve
+     * them through {@link AiConfig#forAgent}, and no other agent in the JVM
+     * is reconfigured. The process-wide singleton is written only by the
+     * <em>first</em> workspace (so single-agent deployments and paths
+     * without an agent id keep working); a later workspace with different
+     * settings stays scoped to its own agent instead of silently
+     * reconfiguring everyone (the old last-write-wins clobber).</p>
      *
      * @param def the loaded workspace definition, may be {@code null}
      * @return {@code true} when {@code RUNTIME.md} was present and applied
      */
     public static boolean applyRuntime(AgentDefinition def) {
+        return applyRuntime(def, null);
+    }
+
+    /**
+     * As {@link #applyRuntime(AgentDefinition)}, scoping the settings to
+     * {@code agentId} when non-null — see the scoping contract there.
+     */
+    public static boolean applyRuntime(AgentDefinition def, String agentId) {
         if (def == null) {
             return false;
         }
@@ -296,11 +307,30 @@ public final class WorkspaceExtensions {
         applyGenerationSysprop(AiConfig.TOP_P_PROPERTY, firstNonBlank(kv.get("top-p"), kv.get("topp")));
         applyGenerationSysprop(AiConfig.STOP_PROPERTY, kv.get("stop"));
 
-        // Loud cross-workspace clobber signal: silently changing the live
-        // process-wide settings from a different workspace is how one
-        // agent's RUNTIME.md reconfigures every other agent in the JVM
-        // without anyone noticing.
-        var previousWorkspace = LAST_RUNTIME_WORKSPACE.getAndSet(def.name());
+        if (agentId != null) {
+            // Agent-scoped: dispatches for this agent resolve these settings
+            // via AiConfig.forAgent; nothing else in the JVM changes.
+            AiConfig.configureForAgent(agentId, mode, model, apiKey, baseUrl);
+            // First workspace also seeds the global so single-agent
+            // deployments (and paths without an agent id) keep working; a
+            // later workspace never overwrites another's global settings.
+            var owner = GLOBAL_RUNTIME_WORKSPACE.compareAndSet(null, def.name())
+                    ? def.name() : GLOBAL_RUNTIME_WORKSPACE.get();
+            if (def.name().equals(owner)) {
+                AiConfig.configure(mode, model, apiKey, baseUrl);
+                logger.info("Applied RUNTIME.md from workspace '{}': mode={}, model={} "
+                        + "(agent '{}' + process default)", def.name(), mode, model, agentId);
+            } else {
+                logger.info("Applied RUNTIME.md from workspace '{}': mode={}, model={} "
+                        + "(scoped to agent '{}'; process default stays with workspace '{}')",
+                        def.name(), mode, model, agentId, owner);
+            }
+            return true;
+        }
+        // Legacy unscoped path: loud cross-workspace clobber signal — silently
+        // changing the live process-wide settings from a different workspace
+        // is how one RUNTIME.md reconfigures every agent in the JVM.
+        var previousWorkspace = GLOBAL_RUNTIME_WORKSPACE.getAndSet(def.name());
         if (previousWorkspace != null && !previousWorkspace.equals(def.name())
                 && current != null
                 && (!java.util.Objects.equals(current.mode(), mode)
@@ -308,8 +338,8 @@ public final class WorkspaceExtensions {
                         || !java.util.Objects.equals(current.baseUrl(), baseUrl))) {
             logger.warn("RUNTIME.md from workspace '{}' is changing the PROCESS-WIDE AiConfig "
                     + "previously applied by workspace '{}' (mode {} -> {}, model {} -> {}). "
-                    + "AiConfig has no per-agent scoping — every agent in this JVM now uses "
-                    + "the new settings.", def.name(), previousWorkspace,
+                    + "Pass an agentId to applyRuntime for per-agent scoping.",
+                    def.name(), previousWorkspace,
                     current.mode(), mode, current.model(), model);
         }
         AiConfig.configure(mode, model, apiKey, baseUrl);
@@ -318,9 +348,14 @@ public final class WorkspaceExtensions {
         return true;
     }
 
-    /** Name of the workspace whose RUNTIME.md last configured the singleton. */
+    /** Name of the workspace whose RUNTIME.md owns the process-wide settings. */
     private static final java.util.concurrent.atomic.AtomicReference<String>
-            LAST_RUNTIME_WORKSPACE = new java.util.concurrent.atomic.AtomicReference<>();
+            GLOBAL_RUNTIME_WORKSPACE = new java.util.concurrent.atomic.AtomicReference<>();
+
+    /** Clears the global-settings ownership. Test-only isolation hook. */
+    static void resetRuntimeOwnershipForTests() {
+        GLOBAL_RUNTIME_WORKSPACE.set(null);
+    }
 
     private static void applyGenerationSysprop(String property, String value) {
         if (value != null && !value.isBlank()) {

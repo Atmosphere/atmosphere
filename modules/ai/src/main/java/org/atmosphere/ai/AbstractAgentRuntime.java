@@ -37,6 +37,18 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
     private static final Logger lifecycleLogger = LoggerFactory.getLogger(AbstractAgentRuntime.class);
 
     private volatile C nativeClient;
+    /**
+     * Per-agent clients for agents with {@link AiConfig#agentScoped scoped}
+     * settings (workspace RUNTIME.md, registre#39). Keyed by agent id and
+     * rebuilt when the agent's settings instance changes; bounded by the
+     * number of configured agents.
+     */
+    private final java.util.concurrent.ConcurrentHashMap<String, ScopedClient>
+            agentClients = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** One agent's scoped client, pinned to the settings that built it. */
+    private record ScopedClient(AiConfig.LlmSettings settings, Object client) {
+    }
 
     /** Returns the current native client instance, or {@code null} if not yet configured. */
     protected C getNativeClient() {
@@ -197,7 +209,7 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
         if (context != null && context.model() != null && !context.model().isBlank()) {
             return context.model();
         }
-        var settings = AiConfig.get();
+        var settings = AiConfig.forAgent(context != null ? context.agentId() : null);
         if (settings != null && settings.model() != null && !settings.model().isBlank()) {
             return settings.model();
         }
@@ -300,7 +312,7 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
 
     @Override
     public void execute(AgentExecutionContext context, StreamingSession session) {
-        var client = resolveClient();
+        var client = resolveClient(context);
         session.progress("Connecting to " + name() + "...");
         // Install the cross-runtime ToolLoopGuard before fireStart so the guard
         // observes every onModelStart this runtime emits during the execute.
@@ -328,7 +340,7 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
     @Override
     public ExecutionHandle executeWithHandle(
             AgentExecutionContext context, StreamingSession session) {
-        var client = resolveClient();
+        var client = resolveClient(context);
         session.progress("Connecting to " + name() + "...");
         // Same ToolLoopGuard install as #execute — keeps the cap behavior
         // identical across sync and cancel-aware entry points (Mode Parity).
@@ -366,7 +378,20 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
      * {@link #execute} and {@link #executeWithHandle} share identical setup
      * semantics and error messages.
      */
-    private C resolveClient() {
+    @SuppressWarnings("unchecked")
+    private C resolveClient(AgentExecutionContext context) {
+        // Agent-scoped settings (workspace RUNTIME.md, registre#39): build and
+        // cache a dedicated client so one agent's model/endpoint pin never
+        // reconfigures the shared client the rest of the JVM uses.
+        var agentId = context != null ? context.agentId() : null;
+        var scopedSettings = AiConfig.agentScoped(agentId);
+        if (scopedSettings != null) {
+            var scoped = agentClients.compute(agentId, (id, existing) ->
+                    existing != null && existing.settings() == scopedSettings
+                            ? existing
+                            : new ScopedClient(scopedSettings, createNativeClient(scopedSettings)));
+            return (C) scoped.client();
+        }
         var client = nativeClient;
         if (client == null) {
             var settings = AiConfig.get();
