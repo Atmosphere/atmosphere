@@ -212,24 +212,21 @@ public interface AtmosphereConfig {
              *
              * @return the model id
              */
-            @WithDefault("")
-            String model();
+            java.util.Optional<String> model();
 
             /**
              * Synthesized voice name; empty for the provider default.
              *
              * @return the voice name
              */
-            @WithDefault("")
-            String voiceName();
+            java.util.Optional<String> voiceName();
 
             /**
              * Assistant instructions for the session.
              *
              * @return the system prompt
              */
-            @WithDefault("")
-            String systemPrompt();
+            java.util.Optional<String> systemPrompt();
 
             /**
              * MIME type of the audio the client sends; empty for the
@@ -237,8 +234,7 @@ public interface AtmosphereConfig {
              *
              * @return the input MIME type
              */
-            @WithDefault("")
-            String inputMime();
+            java.util.Optional<String> inputMime();
 
             /**
              * MIME type of the audio the provider returns; empty for the
@@ -246,8 +242,7 @@ public interface AtmosphereConfig {
              *
              * @return the output MIME type
              */
-            @WithDefault("")
-            String outputMime();
+            java.util.Optional<String> outputMime();
         }
 
         /**

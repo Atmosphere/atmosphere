@@ -71,8 +71,9 @@ public class AtmosphereVoiceProducer {
                     + "voice endpoint not mounted.");
             return;
         }
-        var sessionConfig = new VoiceSessionConfig(voice.model(), voice.voiceName(),
-                voice.systemPrompt(), voice.inputMime(), voice.outputMime());
+        var sessionConfig = new VoiceSessionConfig(voice.model().orElse(""),
+                voice.voiceName().orElse(""), voice.systemPrompt().orElse(""),
+                voice.inputMime().orElse(null), voice.outputMime().orElse(null));
         var voiceHandler = new VoiceEndpointHandler(sessionConfig);
         var interceptors = new java.util.LinkedList<org.atmosphere.cpr.AtmosphereInterceptor>();
         org.atmosphere.annotation.AnnotationUtil
