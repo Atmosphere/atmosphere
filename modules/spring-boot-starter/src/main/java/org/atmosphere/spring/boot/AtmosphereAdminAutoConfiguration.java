@@ -707,6 +707,30 @@ public class AtmosphereAdminAutoConfiguration {
          * {@link org.atmosphere.admin.workflow.WorkflowStore} bean
          * (JDBC, Redis, etc.) which this method picks up automatically.
          */
+        /**
+         * Agent-state controller backing {@code /api/admin/agents/{id}/...}
+         * (facts, notes, conversation, rules, workspace). Reads the live
+         * per-agent {@link org.atmosphere.ai.state.AgentState} registry the
+         * {@code AgentProcessor} publishes as agents initialize, so the
+         * admin plane inspects the SAME state instances the runtime uses
+         * (registre#21).
+         */
+        @Bean
+        org.atmosphere.admin.state.StateController atmosphereAdminStateController(
+                AtmosphereAdmin admin, AtmosphereFramework framework) {
+            var controller = new org.atmosphere.admin.state.StateController(() -> {
+                @SuppressWarnings("unchecked")
+                var registry = (java.util.Map<String, org.atmosphere.ai.state.AgentState>)
+                        framework.getAtmosphereConfig().properties().getOrDefault(
+                                org.atmosphere.admin.state.StateController.STATES_PROPERTY,
+                                java.util.Map.<String, org.atmosphere.ai.state.AgentState>of());
+                return registry;
+            });
+            admin.setStateController(controller);
+            logger.debug("Atmosphere Admin: State controller wired");
+            return controller;
+        }
+
         @Bean
         org.atmosphere.admin.workflow.WorkflowController atmosphereAdminWorkflowController(
                 AtmosphereAdmin admin,

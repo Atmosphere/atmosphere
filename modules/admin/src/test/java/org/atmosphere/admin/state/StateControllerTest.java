@@ -124,6 +124,34 @@ class StateControllerTest {
                 result.get("workspaceRoot"));
     }
 
+    /**
+     * Regression (registre#21): the controller was a full memory control
+     * plane wired to no transport. Now that both admin transports serve
+     * it, the registry-based resolution must route each agentId to its
+     * own state and 404-classify unknown agents instead of leaking one
+     * agent's memory for another's id.
+     */
+    @Test
+    void registryRoutesEachAgentToItsOwnStateAndRejectsUnknown(@TempDir Path root)
+            throws Exception {
+        var stateA = new FileSystemAgentState(root.resolve("a"));
+        var stateB = new FileSystemAgentState(root.resolve("b"));
+        stateA.addFact("alice", "agent-a", "a-fact");
+        stateB.addFact("alice", "agent-b", "b-fact");
+        var controller = new StateController(
+                () -> java.util.Map.of("agent-a", stateA, "agent-b", stateB));
+
+        var aFacts = controller.listFacts("agent-a", "alice");
+        var bFacts = controller.listFacts("agent-b", "alice");
+        assertEquals("a-fact", aFacts.get(0).get("content"));
+        assertEquals("b-fact", bFacts.get(0).get("content"),
+                "each agent id must resolve to its own state");
+        org.junit.jupiter.api.Assertions.assertThrows(
+                java.util.NoSuchElementException.class,
+                () -> controller.listFacts("ghost", "alice"),
+                "unknown agents must classify as not-found, not fall through");
+    }
+
     @Test
     void blankArgumentsRejected(@TempDir Path root) {
         var state = new FileSystemAgentState(root);

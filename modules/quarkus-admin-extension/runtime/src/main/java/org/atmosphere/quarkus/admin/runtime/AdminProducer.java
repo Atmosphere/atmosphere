@@ -118,6 +118,18 @@ public class AdminProducer {
         var producer = new AdminEventProducer(framework);
         producer.install();
 
+        // Agent-state controller (registre#21): serves the live per-agent
+        // AgentState registry the AgentProcessor publishes.
+        final var stateFramework = framework;
+        admin.setStateController(new org.atmosphere.admin.state.StateController(() -> {
+            @SuppressWarnings("unchecked")
+            var registry = (java.util.Map<String, org.atmosphere.ai.state.AgentState>)
+                    stateFramework.getAtmosphereConfig().properties().getOrDefault(
+                            org.atmosphere.admin.state.StateController.STATES_PROPERTY,
+                            java.util.Map.<String, org.atmosphere.ai.state.AgentState>of());
+            return registry;
+        }));
+
         // Wire optional AI runtime controller
         try {
             Class.forName("org.atmosphere.ai.AgentRuntimeResolver");

@@ -476,6 +476,154 @@ public class AdminResource {
                 .orElse(Response.status(404).build());
     }
 
+    // ── Agent state (registre#21) ──
+
+    @GET
+    @Path("/agents/{agentId}/rules")
+    public Response getAgentRules(@PathParam("agentId") String agentId,
+                                  @QueryParam("userId") String userId) {
+        var controller = admin.stateController();
+        if (controller == null) {
+            return Response.status(503).entity(Map.of(
+                    "error", "State controller not wired")).build();
+        }
+        try {
+            return Response.ok(controller.getRules(agentId, userId)).build();
+        } catch (java.util.NoSuchElementException e) {
+            return Response.status(404).build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(400).entity(Map.of("error", e.getMessage())).build();
+        }
+    }
+
+    @GET
+    @Path("/agents/{agentId}/facts")
+    public Response listAgentFacts(@PathParam("agentId") String agentId,
+                                   @QueryParam("userId") String userId) {
+        var controller = admin.stateController();
+        if (controller == null) {
+            return Response.status(503).entity(Map.of(
+                    "error", "State controller not wired")).build();
+        }
+        try {
+            return Response.ok(controller.listFacts(agentId, userId)).build();
+        } catch (java.util.NoSuchElementException e) {
+            return Response.status(404).build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(400).entity(Map.of("error", e.getMessage())).build();
+        }
+    }
+
+    @POST
+    @Path("/agents/{agentId}/facts")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response addAgentFact(@PathParam("agentId") String agentId,
+                                 @QueryParam("userId") String userId,
+                                 Map<String, String> body,
+                                 @Context SecurityContext sec) {
+        var denied = guardWrite(sec, "agent_state.fact.add", agentId);
+        if (denied != null) {
+            return denied;
+        }
+        var controller = admin.stateController();
+        if (controller == null) {
+            return Response.status(503).entity(Map.of(
+                    "error", "State controller not wired")).build();
+        }
+        try {
+            return Response.ok(controller.addFact(agentId, userId,
+                    body != null ? body.get("content") : null)).build();
+        } catch (java.util.NoSuchElementException e) {
+            return Response.status(404).build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(400).entity(Map.of("error", e.getMessage())).build();
+        }
+    }
+
+    @DELETE
+    @Path("/agents/{agentId}/facts/{factId}")
+    public Response removeAgentFact(@PathParam("agentId") String agentId,
+                                    @PathParam("factId") String factId,
+                                    @QueryParam("userId") String userId,
+                                    @Context SecurityContext sec) {
+        var denied = guardWrite(sec, "agent_state.fact.remove", agentId);
+        if (denied != null) {
+            return denied;
+        }
+        var controller = admin.stateController();
+        if (controller == null) {
+            return Response.status(503).entity(Map.of(
+                    "error", "State controller not wired")).build();
+        }
+        try {
+            controller.removeFact(agentId, userId, factId);
+            return Response.ok(Map.of("removed", factId)).build();
+        } catch (java.util.NoSuchElementException e) {
+            return Response.status(404).build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(400).entity(Map.of("error", e.getMessage())).build();
+        }
+    }
+
+    @GET
+    @Path("/agents/{agentId}/conversation/{sessionId}")
+    public Response getAgentConversation(@PathParam("agentId") String agentId,
+                                         @PathParam("sessionId") String sessionId) {
+        var controller = admin.stateController();
+        if (controller == null) {
+            return Response.status(503).entity(Map.of(
+                    "error", "State controller not wired")).build();
+        }
+        try {
+            return Response.ok(controller.getConversation(agentId, sessionId)).build();
+        } catch (java.util.NoSuchElementException e) {
+            return Response.status(404).build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(400).entity(Map.of("error", e.getMessage())).build();
+        }
+    }
+
+    @DELETE
+    @Path("/agents/{agentId}/conversation/{sessionId}")
+    public Response clearAgentConversation(@PathParam("agentId") String agentId,
+                                           @PathParam("sessionId") String sessionId,
+                                           @Context SecurityContext sec) {
+        var denied = guardWrite(sec, "agent_state.conversation.clear", agentId);
+        if (denied != null) {
+            return denied;
+        }
+        var controller = admin.stateController();
+        if (controller == null) {
+            return Response.status(503).entity(Map.of(
+                    "error", "State controller not wired")).build();
+        }
+        try {
+            controller.clearConversation(agentId, sessionId);
+            return Response.ok(Map.of("cleared", sessionId)).build();
+        } catch (java.util.NoSuchElementException e) {
+            return Response.status(404).build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(400).entity(Map.of("error", e.getMessage())).build();
+        }
+    }
+
+    @GET
+    @Path("/agents/{agentId}/workspace")
+    public Response getAgentWorkspace(@PathParam("agentId") String agentId) {
+        var controller = admin.stateController();
+        if (controller == null) {
+            return Response.status(503).entity(Map.of(
+                    "error", "State controller not wired")).build();
+        }
+        try {
+            return Response.ok(controller.getWorkspaceRoot(agentId)).build();
+        } catch (java.util.NoSuchElementException e) {
+            return Response.status(404).build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(400).entity(Map.of("error", e.getMessage())).build();
+        }
+    }
+
     // ── A2A Tasks ──
 
     @GET

@@ -33,14 +33,33 @@ test.describe('Admin control plane', () => {
   test('exposes workspace state endpoints for a known agent', async ({
     request,
   }) => {
-    // Shape check against the StateController endpoints registered in
-    // modules/admin. We don't assert specific content because the test
-    // runs against any sample; we only confirm the endpoint routes exist.
-    const rulesRes = await request.get(
-      '/atmosphere/admin/agents/primary-assistant/rules?userId=alice'
-    );
-    // Either 200 (sample has this agent) or 404 (agent not registered) —
-    // both confirm the route is wired. 405 or 500 would indicate a wiring bug.
-    expect([200, 404]).toContain(rulesRes.status());
+    // registre#21 regression: this used to accept [200, 404], which a
+    // MISSING route also satisfies — the test could not fail whether the
+    // feature existed or not. Discriminate instead: a listed agent must
+    // serve its rules with the real shape; with no agents registered, an
+    // unknown id must 404 (wired route, honest classification) while a
+    // 405/500/503 still fails.
+    const agentsRes = await request.get('/atmosphere/admin/agents');
+    expect(agentsRes.status()).toBe(200);
+    const agents: Array<{ name?: string }> = await agentsRes.json();
+
+    if (agents.length > 0 && agents[0].name) {
+      const rulesRes = await request.get(
+        `/atmosphere/admin/agents/${agents[0].name}/rules?userId=alice`
+      );
+      expect(rulesRes.status(), 'a registered agent must serve its rules').toBe(200);
+      const rules = await rulesRes.json();
+      expect(rules, 'rules payload carries the composed system prompt').toHaveProperty(
+        'systemPrompt'
+      );
+    } else {
+      const rulesRes = await request.get(
+        '/atmosphere/admin/agents/no-such-agent/rules?userId=alice'
+      );
+      expect(
+        rulesRes.status(),
+        'an unknown agent must classify as 404 on the wired route'
+      ).toBe(404);
+    }
   });
 });

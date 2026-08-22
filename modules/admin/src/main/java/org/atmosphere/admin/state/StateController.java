@@ -38,10 +38,45 @@ import java.util.Objects;
  */
 public final class StateController {
 
-    private final AgentState state;
+    /**
+     * Framework-property key of the per-agent {@link AgentState} registry
+     * ({@code Map<String, AgentState>}, agentName → state) that
+     * {@code AgentProcessor} populates as agents initialize. String-bridged
+     * so this module needs no compile-time dependency on the processor.
+     */
+    public static final String STATES_PROPERTY = "org.atmosphere.agent.states";
 
+    private final java.util.function.Supplier<java.util.Map<String, AgentState>> states;
+
+    /**
+     * Single-state controller: every agentId resolves to {@code state}.
+     * For embedders and tests; production transports use the registry
+     * variant so each agent's state stays its own.
+     */
     public StateController(AgentState state) {
-        this.state = Objects.requireNonNull(state, "state");
+        Objects.requireNonNull(state, "state");
+        this.states = () -> java.util.Map.of("*", state);
+    }
+
+    /**
+     * Registry-backed controller: {@code agentId} selects the agent's own
+     * state; unknown agents raise {@link java.util.NoSuchElementException},
+     * which the transports map to 404.
+     */
+    public StateController(java.util.function.Supplier<java.util.Map<String, AgentState>> states) {
+        this.states = Objects.requireNonNull(states, "states");
+    }
+
+    private AgentState state(String agentId) {
+        var registry = states.get();
+        var resolved = registry.get(agentId);
+        if (resolved == null) {
+            resolved = registry.get("*");
+        }
+        if (resolved == null) {
+            throw new java.util.NoSuchElementException("No such agent: " + agentId);
+        }
+        return resolved;
     }
 
     // ---------- Facts ----------
@@ -51,7 +86,7 @@ public final class StateController {
      * a list of entry maps with keys {@code id}, {@code content}, {@code createdAt}.
      */
     public List<Map<String, Object>> listFacts(String agentId, String userId) {
-        return state.getFacts(requireSegment("userId", userId), requireSegment("agentId", agentId))
+        return state(agentId).getFacts(requireSegment("userId", userId), requireSegment("agentId", agentId))
                 .stream()
                 .map(StateController::toMap)
                 .toList();
@@ -61,7 +96,7 @@ public final class StateController {
      * Append a new fact. Returns the stored entry.
      */
     public Map<String, Object> addFact(String agentId, String userId, String content) {
-        var entry = state.addFact(
+        var entry = state(agentId).addFact(
                 requireSegment("userId", userId),
                 requireSegment("agentId", agentId),
                 requireContent(content));
@@ -73,7 +108,7 @@ public final class StateController {
      * is unknown.
      */
     public void removeFact(String agentId, String userId, String factId) {
-        state.removeFact(
+        state(agentId).removeFact(
                 requireSegment("userId", userId),
                 requireSegment("agentId", agentId),
                 requireSegment("factId", factId));
@@ -87,7 +122,7 @@ public final class StateController {
      */
     public List<Map<String, Object>> listDailyNotes(String agentId, String userId, String date) {
         var localDate = LocalDate.parse(requireSegment("date", date));
-        return state.getDailyNotes(
+        return state(agentId).getDailyNotes(
                         requireSegment("userId", userId),
                         requireSegment("agentId", agentId),
                         localDate)
@@ -100,7 +135,7 @@ public final class StateController {
      * Append a daily note to today's notes.
      */
     public Map<String, Object> addDailyNote(String agentId, String userId, String content) {
-        var entry = state.addDailyNote(
+        var entry = state(agentId).addDailyNote(
                 requireSegment("userId", userId),
                 requireSegment("agentId", agentId),
                 requireContent(content));
@@ -115,7 +150,7 @@ public final class StateController {
      * optionally {@code toolCallId}.
      */
     public List<Map<String, Object>> getConversation(String agentId, String sessionId) {
-        return state.getConversation(
+        return state(agentId).getConversation(
                         requireSegment("agentId", agentId),
                         requireSegment("sessionId", sessionId))
                 .stream()
@@ -135,7 +170,7 @@ public final class StateController {
      * Clear the conversation transcript for a session.
      */
     public void clearConversation(String agentId, String sessionId) {
-        state.clearConversation(
+        state(agentId).clearConversation(
                 requireSegment("agentId", agentId),
                 requireSegment("sessionId", sessionId));
     }
@@ -149,7 +184,7 @@ public final class StateController {
      * its individual components.
      */
     public Map<String, Object> getRules(String agentId, String userId) {
-        var rules = state.getRules(
+        var rules = state(agentId).getRules(
                 requireSegment("userId", userId),
                 requireSegment("agentId", agentId));
         var map = new LinkedHashMap<String, Object>();
@@ -167,7 +202,7 @@ public final class StateController {
      */
     public Map<String, Object> getWorkspaceRoot(String agentId) {
         var map = new LinkedHashMap<String, Object>();
-        state.workspaceRoot(requireSegment("agentId", agentId))
+        state(agentId).workspaceRoot(requireSegment("agentId", agentId))
                 .ifPresent(path -> map.put("workspaceRoot", path.toString()));
         return map;
     }

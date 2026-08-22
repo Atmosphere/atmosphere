@@ -478,6 +478,151 @@ public class AtmosphereAdminEndpoint {
         return admin.agents().listSessions(name);
     }
 
+    // ── Agent state (registre#21: memory control plane, wired + guarded) ──
+
+    private ResponseEntity<Map<String, Object>> stateUnavailable() {
+        return ResponseEntity.status(503).body(Map.of(
+                "error", "State controller not wired"));
+    }
+
+    @GetMapping("/agents/{agentId}/rules")
+    public ResponseEntity<Map<String, Object>> getAgentRules(
+            @PathVariable("agentId") String agentId,
+            @RequestParam("userId") String userId) {
+        var controller = admin.stateController();
+        if (controller == null) {
+            return stateUnavailable();
+        }
+        try {
+            return ResponseEntity.ok(controller.getRules(agentId, userId));
+        } catch (java.util.NoSuchElementException e) {
+            return ResponseEntity.notFound().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/agents/{agentId}/facts")
+    public ResponseEntity<Object> listAgentFacts(
+            @PathVariable("agentId") String agentId,
+            @RequestParam("userId") String userId) {
+        var controller = admin.stateController();
+        if (controller == null) {
+            return ResponseEntity.status(503).body(Map.of("error", "State controller not wired"));
+        }
+        try {
+            return ResponseEntity.ok(controller.listFacts(agentId, userId));
+        } catch (java.util.NoSuchElementException e) {
+            return ResponseEntity.notFound().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/agents/{agentId}/facts")
+    public ResponseEntity<Map<String, Object>> addAgentFact(
+            @PathVariable("agentId") String agentId,
+            @RequestParam("userId") String userId,
+            @RequestBody Map<String, String> body,
+            HttpServletRequest request) {
+        var guard = guardWrite(request, "agent_state.fact.add", agentId);
+        if (guard != null) {
+            return guard;
+        }
+        var controller = admin.stateController();
+        if (controller == null) {
+            return stateUnavailable();
+        }
+        try {
+            return ResponseEntity.ok(controller.addFact(agentId, userId,
+                    body != null ? body.get("content") : null));
+        } catch (java.util.NoSuchElementException e) {
+            return ResponseEntity.notFound().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/agents/{agentId}/facts/{factId}")
+    public ResponseEntity<Map<String, Object>> removeAgentFact(
+            @PathVariable("agentId") String agentId,
+            @PathVariable("factId") String factId,
+            @RequestParam("userId") String userId,
+            HttpServletRequest request) {
+        var guard = guardWrite(request, "agent_state.fact.remove", agentId);
+        if (guard != null) {
+            return guard;
+        }
+        var controller = admin.stateController();
+        if (controller == null) {
+            return stateUnavailable();
+        }
+        try {
+            controller.removeFact(agentId, userId, factId);
+            return ResponseEntity.ok(Map.of("removed", factId));
+        } catch (java.util.NoSuchElementException e) {
+            return ResponseEntity.notFound().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/agents/{agentId}/conversation/{sessionId}")
+    public ResponseEntity<Object> getAgentConversation(
+            @PathVariable("agentId") String agentId,
+            @PathVariable("sessionId") String sessionId) {
+        var controller = admin.stateController();
+        if (controller == null) {
+            return ResponseEntity.status(503).body(Map.of("error", "State controller not wired"));
+        }
+        try {
+            return ResponseEntity.ok(controller.getConversation(agentId, sessionId));
+        } catch (java.util.NoSuchElementException e) {
+            return ResponseEntity.notFound().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/agents/{agentId}/conversation/{sessionId}")
+    public ResponseEntity<Map<String, Object>> clearAgentConversation(
+            @PathVariable("agentId") String agentId,
+            @PathVariable("sessionId") String sessionId,
+            HttpServletRequest request) {
+        var guard = guardWrite(request, "agent_state.conversation.clear", agentId);
+        if (guard != null) {
+            return guard;
+        }
+        var controller = admin.stateController();
+        if (controller == null) {
+            return stateUnavailable();
+        }
+        try {
+            controller.clearConversation(agentId, sessionId);
+            return ResponseEntity.ok(Map.of("cleared", sessionId));
+        } catch (java.util.NoSuchElementException e) {
+            return ResponseEntity.notFound().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/agents/{agentId}/workspace")
+    public ResponseEntity<Map<String, Object>> getAgentWorkspace(
+            @PathVariable("agentId") String agentId) {
+        var controller = admin.stateController();
+        if (controller == null) {
+            return stateUnavailable();
+        }
+        try {
+            return ResponseEntity.ok(controller.getWorkspaceRoot(agentId));
+        } catch (java.util.NoSuchElementException e) {
+            return ResponseEntity.notFound().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     // ── Coordinators ──
 
     @GetMapping("/coordinators")

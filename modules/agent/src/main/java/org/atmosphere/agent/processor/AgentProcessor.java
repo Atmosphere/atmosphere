@@ -191,6 +191,20 @@ public class AgentProcessor implements Processor<Object> {
                 agentInjectables.put(Class.class, responseType);
             }
             buildFoundationPrimitives(agentName, agentInjectables);
+            // Publish the agent's state into the framework registry so the
+            // admin control plane can serve /api/admin/agents/{id}/... from
+            // the SAME instances the runtime uses (registre#21). String-
+            // bridged key: StateController.STATES_PROPERTY.
+            if (agentInjectables.get(org.atmosphere.ai.state.AgentState.class)
+                    instanceof org.atmosphere.ai.state.AgentState agentState) {
+                @SuppressWarnings("unchecked")
+                var stateRegistry = (java.util.Map<String, org.atmosphere.ai.state.AgentState>)
+                        framework.getAtmosphereConfig().properties().computeIfAbsent(
+                                "org.atmosphere.agent.states",
+                                k -> new java.util.concurrent.ConcurrentHashMap<
+                                        String, org.atmosphere.ai.state.AgentState>());
+                stateRegistry.put(agentName, agentState);
+            }
             if (workspaceDef != null) {
                 agentInjectables.put(AgentDefinition.class, workspaceDef);
             }
