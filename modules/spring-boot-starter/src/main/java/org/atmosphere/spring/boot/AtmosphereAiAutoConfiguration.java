@@ -993,20 +993,6 @@ public class AtmosphereAiAutoConfiguration {
     }
 
     /**
-     * Installs the durable-execution spine on startup when
-     * {@code atmosphere.durable-runs.enabled=true}, or when the property is
-     * unset and the harness preset
-     * ({@code atmosphere.ai.harness.enabled=true}) implies it — see
-     * {@link OnDurableRunsEnabled}. Off by default — turning it on is the
-     * operator's explicit opt-in (Correctness Invariant #6). The journal is
-     * resolved as: a user-supplied {@link org.atmosphere.ai.resume.EffectJournal}
-     * bean, else the bundled crash-durable SQLite store when the optional
-     * {@code atmosphere-checkpoint} module is present, else the in-memory journal
-     * with a NOT-crash-durable warning (Correctness Invariant #5). The spine is
-     * uninstalled and a journal this installer created is closed on shutdown
-     * (Ownership, Correctness Invariant #1).
-     */
-    /**
      * Mounts the framework's voice-mode endpoint
      * ({@link org.atmosphere.ai.voice.VoiceEndpointHandler}) when
      * {@code atmosphere.ai.voice.enabled=true} — the production driver of
@@ -1069,6 +1055,20 @@ public class AtmosphereAiAutoConfiguration {
         };
     }
 
+    /**
+     * Installs the durable-execution spine on startup when
+     * {@code atmosphere.durable-runs.enabled=true}, or when the property is
+     * unset and the harness preset
+     * ({@code atmosphere.ai.harness.enabled=true}) implies it — see
+     * {@link OnDurableRunsEnabled}. Off by default — turning it on is the
+     * operator's explicit opt-in (Correctness Invariant #6). The journal is
+     * resolved as: a user-supplied {@link org.atmosphere.ai.resume.EffectJournal}
+     * bean, else the bundled crash-durable SQLite store when the optional
+     * {@code atmosphere-checkpoint} module is present, else the in-memory journal
+     * with a NOT-crash-durable warning (Correctness Invariant #5). The spine is
+     * uninstalled and a journal this installer created is closed on shutdown
+     * (Ownership, Correctness Invariant #1).
+     */
     @Bean
     @ConditionalOnMissingBean(DurableRunSpineInstaller.class)
     @org.springframework.context.annotation.Conditional(OnDurableRunsEnabled.class)
