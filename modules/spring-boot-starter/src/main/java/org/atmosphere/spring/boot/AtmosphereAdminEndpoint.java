@@ -821,6 +821,85 @@ public class AtmosphereAdminEndpoint {
         }
     }
 
+    /**
+     * Execute a saved workflow (registre#1). Blocks until the run reaches
+     * its terminal state — approval gates in the manifest park the request's
+     * virtual thread until resolved via the approvals endpoint below or
+     * their timeout expires.
+     */
+    @PostMapping("/workflow/{id}/run")
+    public ResponseEntity<Object> runWorkflow(
+            @PathVariable("id") String id,
+            @org.springframework.web.bind.annotation.RequestParam(value = "coordinator", required = false)
+            String coordinator,
+            @org.springframework.web.bind.annotation.RequestBody(required = false)
+            Map<String, Object> input,
+            HttpServletRequest request) {
+        var guard = guardWrite(request, "workflow.run", id);
+        if (guard != null) {
+            return ResponseEntity.status(guard.getStatusCode()).body(guard.getBody());
+        }
+        org.atmosphere.admin.workflow.WorkflowController controller = admin.workflowController();
+        if (controller == null) {
+            return ResponseEntity.status(503).body(Map.of(
+                    "error", "Workflow controller not wired"));
+        }
+        try {
+            var run = controller.run(id, coordinator,
+                    input != null ? input : Map.of(), resolvePrincipal(request));
+            return ResponseEntity.ok(run);
+        } catch (java.util.NoSuchElementException nse) {
+            return ResponseEntity.status(404).body(Map.of("error", nse.getMessage()));
+        } catch (IllegalStateException ise) {
+            return ResponseEntity.status(503).body(Map.of("error", ise.getMessage()));
+        } catch (IllegalArgumentException iae) {
+            return ResponseEntity.badRequest().body(Map.of("error", iae.getMessage()));
+        } catch (SecurityException se) {
+            return ResponseEntity.status(403).body(Map.of("error", se.getMessage()));
+        }
+    }
+
+    /** Approval gates currently parking a workflow run. */
+    @GetMapping("/workflow/approvals")
+    public ResponseEntity<Object> listWorkflowApprovals() {
+        org.atmosphere.admin.workflow.WorkflowController controller = admin.workflowController();
+        if (controller == null || controller.runner() == null) {
+            return ResponseEntity.status(503).body(Map.of(
+                    "error", "Workflow runner not wired"));
+        }
+        return ResponseEntity.ok(controller.runner().pendingApprovals());
+    }
+
+    /** Resolve a parked approval gate: body {@code {"approve": true|false}}. */
+    @PostMapping("/workflow/approvals/{approvalId}")
+    public ResponseEntity<Object> resolveWorkflowApproval(
+            @PathVariable("approvalId") String approvalId,
+            @org.springframework.web.bind.annotation.RequestBody Map<String, Object> body,
+            HttpServletRequest request) {
+        var guard = guardWrite(request, "workflow.approve", approvalId);
+        if (guard != null) {
+            return ResponseEntity.status(guard.getStatusCode()).body(guard.getBody());
+        }
+        org.atmosphere.admin.workflow.WorkflowController controller = admin.workflowController();
+        if (controller == null) {
+            return ResponseEntity.status(503).body(Map.of(
+                    "error", "Workflow controller not wired"));
+        }
+        var approve = Boolean.TRUE.equals(body.get("approve"));
+        try {
+            var resolved = controller.resolveApproval(approvalId, approve, resolvePrincipal(request));
+            if (!resolved) {
+                return ResponseEntity.status(404).body(Map.of(
+                        "error", "No pending approval: " + approvalId));
+            }
+            return ResponseEntity.ok(Map.of("approvalId", approvalId, "approved", approve));
+        } catch (IllegalStateException ise) {
+            return ResponseEntity.status(503).body(Map.of("error", ise.getMessage()));
+        } catch (SecurityException se) {
+            return ResponseEntity.status(403).body(Map.of("error", se.getMessage()));
+        }
+    }
+
     private String resolvePrincipal(HttpServletRequest request) {
         if (request == null) {
             return null;

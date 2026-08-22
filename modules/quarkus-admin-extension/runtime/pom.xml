@@ -56,6 +56,13 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Optional: coordinator roster + workflow execution -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-coordinator</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Override parent's SLF4J 1.x with Quarkus-compatible version -->
         <dependency>
             <groupId>org.slf4j</groupId>

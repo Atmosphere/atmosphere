@@ -40,6 +40,47 @@ class WorkflowControllerTest {
     }
 
     @Test
+    void runRequiresAuthorization() {
+        var runner = new WorkflowRunner(Map::of);
+        var controller = new WorkflowController(store, ControlAuthorizer.DENY_ALL, auditLog, runner);
+
+        assertThrows(SecurityException.class,
+                () -> controller.run("wf1", "ops", Map.of(), "alice"),
+                "default-deny authorizer must reject runs");
+    }
+
+    @Test
+    void runWithoutRunnerFailsLoudly() {
+        var controller = new WorkflowController(store, ControlAuthorizer.ALLOW_ALL, auditLog);
+        store.save(WorkflowManifest.create(
+                "wf1", "Workflow 1", null,
+                List.of(new WorkflowManifest.Node("a", "agent", "A", Map.of())),
+                List.of(), "alice"));
+
+        assertThrows(IllegalStateException.class,
+                () -> controller.run("wf1", "ops", Map.of(), "alice"),
+                "a deployment without a runner must not silently pretend to execute");
+    }
+
+    @Test
+    void runUnknownWorkflowThrowsNoSuchElement() {
+        var runner = new WorkflowRunner(Map::of);
+        var controller = new WorkflowController(store, ControlAuthorizer.ALLOW_ALL, auditLog, runner);
+
+        assertThrows(java.util.NoSuchElementException.class,
+                () -> controller.run("ghost", "ops", Map.of(), "alice"));
+    }
+
+    @Test
+    void approvalResolutionRequiresAuthorization() {
+        var runner = new WorkflowRunner(Map::of);
+        var controller = new WorkflowController(store, ControlAuthorizer.DENY_ALL, auditLog, runner);
+
+        assertThrows(SecurityException.class,
+                () -> controller.resolveApproval("appr-1", true, "alice"));
+    }
+
+    @Test
     void saveRequiresAuthorization() {
         var controller = new WorkflowController(store, ControlAuthorizer.DENY_ALL, auditLog);
 

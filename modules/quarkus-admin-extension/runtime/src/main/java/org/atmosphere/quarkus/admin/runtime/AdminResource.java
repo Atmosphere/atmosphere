@@ -489,6 +489,167 @@ public class AdminResource {
                 .orElse(Response.status(404).build());
     }
 
+    // ── Workflows (registre#1) ──
+
+    private org.atmosphere.admin.workflow.WorkflowController workflowController() {
+        return admin.workflowController();
+    }
+
+    @GET
+    @Path("/workflow")
+    public Response listWorkflows() {
+        var controller = workflowController();
+        if (controller == null) {
+            return Response.status(503).entity(Map.of(
+                    "error", "Workflow controller not wired")).build();
+        }
+        return Response.ok(controller.list()).build();
+    }
+
+    @GET
+    @Path("/workflow/{id}")
+    public Response getWorkflow(@PathParam("id") String id) {
+        var controller = workflowController();
+        if (controller == null) {
+            return Response.status(503).entity(Map.of(
+                    "error", "Workflow controller not wired")).build();
+        }
+        return controller.get(id)
+                .map(manifest -> Response.ok(manifest).build())
+                .orElse(Response.status(404).build());
+    }
+
+    @POST
+    @Path("/workflow")
+    public Response saveWorkflow(@Context SecurityContext sec,
+                                 org.atmosphere.admin.workflow.WorkflowManifest manifest) {
+        var denied = guardWrite(sec, "workflow.write", manifest.id());
+        if (denied != null) {
+            return denied;
+        }
+        var controller = workflowController();
+        if (controller == null) {
+            return Response.status(503).entity(Map.of(
+                    "error", "Workflow controller not wired")).build();
+        }
+        try {
+            var saved = controller.save(manifest, resolvePrincipalName(sec));
+            return Response.ok(Map.of(
+                    "id", saved.id(),
+                    "name", saved.name(),
+                    "version", saved.version(),
+                    "updatedAt", saved.updatedAt().toString())).build();
+        } catch (org.atmosphere.admin.workflow.WorkflowStoreException wse) {
+            var status = wse.kind()
+                    == org.atmosphere.admin.workflow.WorkflowStoreException.Kind.VERSION_CONFLICT
+                    ? 409 : 500;
+            return Response.status(status).entity(Map.of(
+                    "error", wse.getMessage(), "kind", wse.kind().name())).build();
+        } catch (IllegalArgumentException iae) {
+            return Response.status(400).entity(Map.of("error", iae.getMessage())).build();
+        } catch (SecurityException se) {
+            return Response.status(403).entity(Map.of("error", se.getMessage())).build();
+        }
+    }
+
+    @DELETE
+    @Path("/workflow/{id}")
+    public Response deleteWorkflow(@Context SecurityContext sec, @PathParam("id") String id) {
+        var denied = guardWrite(sec, "workflow.delete", id);
+        if (denied != null) {
+            return denied;
+        }
+        var controller = workflowController();
+        if (controller == null) {
+            return Response.status(503).entity(Map.of(
+                    "error", "Workflow controller not wired")).build();
+        }
+        try {
+            controller.delete(id, resolvePrincipalName(sec));
+            return Response.ok(Map.of("deleted", id)).build();
+        } catch (SecurityException se) {
+            return Response.status(403).entity(Map.of("error", se.getMessage())).build();
+        }
+    }
+
+    /**
+     * Execute a saved workflow (registre#1). Blocks until the run reaches
+     * its terminal state — approval gates park the request's thread until
+     * resolved via the approvals endpoints or their timeout expires.
+     */
+    @POST
+    @Path("/workflow/{id}/run")
+    public Response runWorkflow(@Context SecurityContext sec,
+                                @PathParam("id") String id,
+                                @QueryParam("coordinator") String coordinator,
+                                Map<String, Object> input) {
+        var denied = guardWrite(sec, "workflow.run", id);
+        if (denied != null) {
+            return denied;
+        }
+        var controller = workflowController();
+        if (controller == null) {
+            return Response.status(503).entity(Map.of(
+                    "error", "Workflow controller not wired")).build();
+        }
+        try {
+            var run = controller.run(id, coordinator,
+                    input != null ? input : Map.of(), resolvePrincipalName(sec));
+            return Response.ok(run).build();
+        } catch (java.util.NoSuchElementException nse) {
+            return Response.status(404).entity(Map.of("error", nse.getMessage())).build();
+        } catch (IllegalStateException ise) {
+            return Response.status(503).entity(Map.of("error", ise.getMessage())).build();
+        } catch (IllegalArgumentException iae) {
+            return Response.status(400).entity(Map.of("error", iae.getMessage())).build();
+        } catch (SecurityException se) {
+            return Response.status(403).entity(Map.of("error", se.getMessage())).build();
+        }
+    }
+
+    /** Approval gates currently parking a workflow run. */
+    @GET
+    @Path("/workflow/approvals")
+    public Response listWorkflowApprovals() {
+        var controller = workflowController();
+        if (controller == null || controller.runner() == null) {
+            return Response.status(503).entity(Map.of(
+                    "error", "Workflow runner not wired")).build();
+        }
+        return Response.ok(controller.runner().pendingApprovals()).build();
+    }
+
+    /** Resolve a parked approval gate: body {@code {"approve": true|false}}. */
+    @POST
+    @Path("/workflow/approvals/{approvalId}")
+    public Response resolveWorkflowApproval(@Context SecurityContext sec,
+                                            @PathParam("approvalId") String approvalId,
+                                            Map<String, Object> body) {
+        var denied = guardWrite(sec, "workflow.approve", approvalId);
+        if (denied != null) {
+            return denied;
+        }
+        var controller = workflowController();
+        if (controller == null) {
+            return Response.status(503).entity(Map.of(
+                    "error", "Workflow controller not wired")).build();
+        }
+        var approve = body != null && Boolean.TRUE.equals(body.get("approve"));
+        try {
+            var resolved = controller.resolveApproval(
+                    approvalId, approve, resolvePrincipalName(sec));
+            if (!resolved) {
+                return Response.status(404).entity(Map.of(
+                        "error", "No pending approval: " + approvalId)).build();
+            }
+            return Response.ok(Map.of("approvalId", approvalId, "approved", approve)).build();
+        } catch (IllegalStateException ise) {
+            return Response.status(503).entity(Map.of("error", ise.getMessage())).build();
+        } catch (SecurityException se) {
+            return Response.status(403).entity(Map.of("error", se.getMessage())).build();
+        }
+    }
+
     // ── Agent state (registre#21) ──
 
     @GET

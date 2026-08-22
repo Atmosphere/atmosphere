@@ -659,7 +659,17 @@ public class AtmosphereAdminAutoConfiguration {
             // of bean-vs-framework startup ordering. (This wiring was previously
             // an empty immutable map — /api/admin/coordinators always returned
             // [] and the "populated later" hook it referenced never existed.)
-            var controller = new CoordinatorController(() -> {
+            var controller = new CoordinatorController(fleetsSupplier(framework),
+                    org.atmosphere.coordinator.journal.CoordinationJournal.NOOP);
+            admin.setCoordinatorController(controller);
+            logger.debug("Atmosphere Admin: Coordinator controller wired");
+            return controller;
+        }
+
+        private static java.util.function.Supplier<java.util.Map<String,
+                org.atmosphere.coordinator.fleet.AgentFleet>> fleetsSupplier(
+                org.atmosphere.cpr.AtmosphereFramework framework) {
+            return () -> {
                 try {
                     var cfg = framework.getAtmosphereConfig();
                     if (cfg != null && cfg.properties()
@@ -673,10 +683,7 @@ public class AtmosphereAdminAutoConfiguration {
                     logger.debug("Coordinator fleets not available", e);
                 }
                 return java.util.Map.<String, org.atmosphere.coordinator.fleet.AgentFleet>of();
-            }, org.atmosphere.coordinator.journal.CoordinationJournal.NOOP);
-            admin.setCoordinatorController(controller);
-            logger.debug("Atmosphere Admin: Coordinator controller wired");
-            return controller;
+            };
         }
 
         /**
@@ -734,12 +741,17 @@ public class AtmosphereAdminAutoConfiguration {
         @Bean
         org.atmosphere.admin.workflow.WorkflowController atmosphereAdminWorkflowController(
                 AtmosphereAdmin admin,
+                org.atmosphere.cpr.AtmosphereFramework framework,
                 org.springframework.beans.factory.ObjectProvider<
                         org.atmosphere.admin.workflow.WorkflowStore> storeProvider) {
             var store = storeProvider.getIfAvailable(
                     org.atmosphere.admin.workflow.InMemoryWorkflowStore::new);
+            // The runner dispatches saved manifests against the same live
+            // fleet roster the coordinator controller reports (registre#1).
+            var runner = new org.atmosphere.admin.workflow.WorkflowRunner(
+                    fleetsSupplier(framework));
             var controller = new org.atmosphere.admin.workflow.WorkflowController(
-                    store, admin.authorizer(), admin.auditLog());
+                    store, admin.authorizer(), admin.auditLog(), runner);
             admin.setWorkflowController(controller);
             logger.debug("Atmosphere Admin: Workflow controller wired (store={})", store.name());
             return controller;

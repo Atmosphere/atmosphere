@@ -139,8 +139,38 @@ public class AdminProducer {
             // atmosphere-ai not on classpath
         }
 
+        // Coordinator roster + workflow execution. Both modules are optional
+        // dependencies, so the coordinator-typed wiring lives in holder
+        // classes only loaded behind these guards (native-image force-links
+        // types referenced from reachable code).
+        var coordinatorPresent = classPresent("org.atmosphere.coordinator.fleet.AgentFleet");
+        if (coordinatorPresent) {
+            CoordinatorAdminWiring.install(admin, framework);
+            if (classPresent("org.atmosphere.ai.approval.ApprovalRegistry")) {
+                WorkflowAdminWiring.install(admin, framework);
+            }
+        }
+        if (admin.workflowController() == null) {
+            // Authoring/persistence only — the run endpoint reports itself
+            // unavailable loudly instead of pretending manifests execute.
+            admin.setWorkflowController(new org.atmosphere.admin.workflow.WorkflowController(
+                    new org.atmosphere.admin.workflow.InMemoryWorkflowStore(),
+                    admin.authorizer(), admin.auditLog()));
+            logger.info("Atmosphere Admin: workflow execution unavailable "
+                    + "(coordinator/ai modules absent) — authoring only");
+        }
+
         logger.info("Atmosphere Admin control plane enabled at /api/admin/*");
         logger.info("Atmosphere Admin dashboard at /admin/");
         return admin;
+    }
+
+    private static boolean classPresent(String className) {
+        try {
+            Class.forName(className);
+            return true;
+        } catch (ClassNotFoundException absent) {
+            return false;
+        }
     }
 }

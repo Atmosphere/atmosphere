@@ -53,12 +53,29 @@ public final class WorkflowController {
     private final WorkflowStore store;
     private final ControlAuthorizer authorizer;
     private final ControlAuditLog auditLog;
+    private final WorkflowRunner runner;
 
     public WorkflowController(WorkflowStore store, ControlAuthorizer authorizer,
                               ControlAuditLog auditLog) {
+        this(store, authorizer, auditLog, null);
+    }
+
+    /**
+     * @param runner the execution engine behind {@link #run}; when
+     *               {@code null} the run surface reports itself unavailable
+     *               loudly instead of pretending manifests execute
+     */
+    public WorkflowController(WorkflowStore store, ControlAuthorizer authorizer,
+                              ControlAuditLog auditLog, WorkflowRunner runner) {
         this.store = store != null ? store : new InMemoryWorkflowStore();
         this.authorizer = authorizer != null ? authorizer : ControlAuthorizer.DENY_ALL;
         this.auditLog = auditLog;
+        this.runner = runner;
+    }
+
+    /** The execution engine, or {@code null} when this deployment wired none. */
+    public WorkflowRunner runner() {
+        return runner;
     }
 
     /** Read-only list. No authorization check — the read surface mirrors {@code FlowController}. */
@@ -108,6 +125,72 @@ public final class WorkflowController {
         }
         store.delete(id);
         record("workflow.delete", id, principal, "workflow deleted");
+    }
+
+    /**
+     * Execute a saved workflow through the wired {@link WorkflowRunner}.
+     * Blocks the calling (virtual) thread until the run reaches its
+     * terminal state — including any approval gates the manifest parks on.
+     *
+     * @param id              the workflow to run
+     * @param coordinatorName the coordinator fleet to dispatch against; when
+     *                        {@code null} the runner's single registered
+     *                        fleet is used
+     * @param input           run input; {@code input.get("input")} seeds the
+     *                        root nodes
+     * @return the completed run record
+     * @throws SecurityException        if the principal lacks {@code workflow.run}
+     * @throws java.util.NoSuchElementException if the workflow id is unknown
+     * @throws IllegalStateException    if no runner is wired
+     * @throws IllegalArgumentException if the coordinator cannot be resolved
+     */
+    public WorkflowRun run(String id, String coordinatorName,
+                           java.util.Map<String, Object> input, String principal) {
+        if (!authorizer.authorize("workflow.run", id, principal)) {
+            logger.warn("workflow.run denied: principal={} workflow={}", principal, id);
+            throw new SecurityException(
+                    "principal " + principal + " is not authorized to run workflow " + id);
+        }
+        if (runner == null) {
+            throw new IllegalStateException("no WorkflowRunner wired — workflow execution "
+                    + "is unavailable in this deployment");
+        }
+        var manifest = store.findById(id).orElseThrow(() ->
+                new java.util.NoSuchElementException("no workflow: " + id));
+        var coordinator = coordinatorName != null && !coordinatorName.isBlank()
+                ? coordinatorName
+                : runner.defaultCoordinator();
+        if (coordinator == null) {
+            throw new IllegalArgumentException(
+                    "coordinator must be specified — zero or multiple fleets are registered");
+        }
+        var run = runner.run(manifest, coordinator, input);
+        record("workflow.run", id, principal,
+                "workflow executed (run=" + run.runId() + " coordinator=" + coordinator
+                        + " status=" + run.status() + ")");
+        return run;
+    }
+
+    /**
+     * Resolve an approval gate a running workflow is parked on.
+     *
+     * @throws SecurityException if the principal lacks {@code workflow.approve}
+     * @throws IllegalStateException if no runner is wired
+     */
+    public boolean resolveApproval(String approvalId, boolean approve, String principal) {
+        if (!authorizer.authorize("workflow.approve", approvalId, principal)) {
+            logger.warn("workflow.approve denied: principal={} approval={}", principal, approvalId);
+            throw new SecurityException(
+                    "principal " + principal + " is not authorized to resolve approval " + approvalId);
+        }
+        if (runner == null) {
+            throw new IllegalStateException("no WorkflowRunner wired — workflow execution "
+                    + "is unavailable in this deployment");
+        }
+        var resolved = runner.resolveApproval(approvalId, approve);
+        record("workflow.approve", approvalId, principal,
+                (approve ? "approved" : "denied") + " (resolved=" + resolved + ")");
+        return resolved;
     }
 
     private void record(String action, String target, String principal, String detail) {

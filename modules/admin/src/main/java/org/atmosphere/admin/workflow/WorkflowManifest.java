@@ -29,9 +29,9 @@ import java.util.regex.Pattern;
  * output of one node reaches the input of the next.
  *
  * <p>This is the on-disk format the authoring UI saves.
- * LIMITATION(registre#1): no runtime executes a saved manifest — the module
- * is authoring and persistence only, so nothing dispatches these nodes
- * through {@code @Coordinator} / {@code AgentFleet} yet.</p>
+ * {@link WorkflowRunner} executes a saved manifest against a registered
+ * {@code AgentFleet}; see its class javadoc for per-node-type dispatch
+ * semantics.</p>
  *
  * <p>Identifier safety: workflow / node / edge identifiers and node types
  * are validated against {@code [A-Za-z0-9_-]+} at construction time so
