@@ -17,8 +17,11 @@ test.afterAll(async () => {
 
 test.describe('gRPC → Browser Cross-Transport', () => {
   test('gRPC client pushes a message that the browser receives via WebSocket', async ({ page }) => {
-    // 1. Open a WebSocket connection in the browser
-    await page.goto('about:blank');
+    // 1. Open a WebSocket connection in the browser. The page browses the
+    // server's own origin: about:blank gives WebSocket an Origin of
+    // literal "null", which the default-on same-origin handshake check
+    // (WEBSOCKET_REQUIRE_SAME_ORIGIN, registre#18) rightly refuses.
+    await page.goto(server.baseUrl);
     const wsUrl = `${server.wsUrl}/echo?X-Atmosphere-Transport=websocket&X-Atmosphere-tracking-id=browser-1&X-Atmosphere-Framework=5.0.0`;
 
     await page.evaluate((url) => {
@@ -67,7 +70,7 @@ test.describe('gRPC → Browser Cross-Transport', () => {
     await grpc.subscribe('/echo');
 
     // 2. Open WebSocket in browser
-    await page.goto('about:blank');
+    await page.goto(server.baseUrl);
     const wsUrl = `${server.wsUrl}/echo?X-Atmosphere-Transport=websocket&X-Atmosphere-tracking-id=browser-2&X-Atmosphere-Framework=5.0.0`;
 
     await page.evaluate((url) => {
@@ -98,7 +101,7 @@ test.describe('gRPC → Browser Cross-Transport', () => {
     await grpc.connect();
     await grpc.subscribe('/echo');
 
-    await page.goto('about:blank');
+    await page.goto(server.baseUrl);
     const wsUrl = `${server.wsUrl}/echo?X-Atmosphere-Transport=websocket&X-Atmosphere-tracking-id=browser-3&X-Atmosphere-Framework=5.0.0`;
 
     await page.evaluate((url) => {
