@@ -122,14 +122,21 @@ class ToolApprovalDurabilityTest {
         assertEquals(1, strategy.prompts.get());
         assertEquals(1, executions.get());
 
-        // Crash window: the tool result never committed — flip the TOOL_CALL
-        // effect to FAILED so the resume re-drives it live.
-        var toolCallKey = EffectKeys.toolCall(RUN_ID, "delete_row", ARGS, 0);
-        journal.markFailed(RUN_ID, toolCallKey, "simulated crash before tool commit");
+        // Crash window: the approval commit was durable but the tool result
+        // commit was lost. A crash cannot demote a committed effect
+        // (markFailed refuses COMMITTED→FAILED — the durable-timer guard),
+        // so model it honestly: the resumed journal holds ONLY the durably
+        // committed approval, and the TOOL_CALL effect is simply absent.
+        var approvalKey = EffectKeys.approval(RUN_ID, "delete_row", ARGS, 0);
+        var recordedApproval = journal.lookupCommitted(RUN_ID, approvalKey).orElseThrow();
+        var resumedJournal = new InMemoryEffectJournal();
+        resumedJournal.appendPending(RUN_ID, recordedApproval.kind(), approvalKey,
+                recordedApproval.requestDigest());
+        resumedJournal.commit(RUN_ID, approvalKey, recordedApproval.resultPayload());
 
         // Drive 2: a resumed process — fresh context, fresh cursors.
         DurableRunScopeHolder.install(RUN_ID,
-                new DurableRunContext(RUN_ID, journal, true, "owner", "alice"));
+                new DurableRunContext(RUN_ID, resumedJournal, true, "owner", "alice"));
         assertEquals("deleted row-7", drive(tool, strategy));
 
         assertEquals(1, strategy.prompts.get(),
@@ -152,11 +159,19 @@ class ToolApprovalDurabilityTest {
         assertEquals(0, executions.get(), "a timed-out gate never runs the tool");
 
         // Re-drive after the crash: an expiry is the ABSENCE of a decision —
-        // the resumed run must re-prompt, never replay a timeout.
-        journal.markFailed(RUN_ID, EffectKeys.toolCall(RUN_ID, "delete_row", ARGS, 0),
-                "simulated crash");
+        // the resumed run must re-prompt, never replay a timeout. Model the
+        // resumed journal honestly: the approval effect survived as FAILED
+        // (the timeout marked it), the tool result commit was lost.
+        var approvalKey = EffectKeys.approval(RUN_ID, "delete_row", ARGS, 0);
+        var expiredApproval = journal.fold(RUN_ID).stream()
+                .filter(r -> r.idempotencyKey().equals(approvalKey))
+                .findFirst().orElseThrow();
+        var resumedJournal = new InMemoryEffectJournal();
+        resumedJournal.appendPending(RUN_ID, expiredApproval.kind(), approvalKey,
+                expiredApproval.requestDigest());
+        resumedJournal.markFailed(RUN_ID, approvalKey, "approval timed out before a decision");
         DurableRunScopeHolder.install(RUN_ID,
-                new DurableRunContext(RUN_ID, journal, true, "owner", "alice"));
+                new DurableRunContext(RUN_ID, resumedJournal, true, "owner", "alice"));
         drive(tool, strategy);
         assertEquals(2, strategy.prompts.get(),
                 "a timeout must not be replayed as a durable decision");
