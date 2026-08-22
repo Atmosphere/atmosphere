@@ -284,11 +284,14 @@ public final class CohereChatClient extends AbstractSseLlmClient {
                         usageHolder[0] = parsed;
                     }
                 }
-                // Lifecycle / RAG events with no SPI mapping yet — silently
-                // tracked so future capability passes can wire them up.
+                // Grounded-generation citations stream as first-class
+                // AiEvents so the "citations render without lossy
+                // translation" pitch is real (registre#16).
+                case "citation-start" -> handleCitationStart(event, session);
+                // Lifecycle events with no SPI mapping — silently tracked so
+                // future capability passes can wire them up.
                 case "message-start", "content-start", "content-end",
-                        "tool-call-end",
-                        "citation-start", "citation-end" -> { /* no-op */ }
+                        "tool-call-end", "citation-end" -> { /* no-op */ }
                 default -> logger.trace("Unhandled Cohere SSE event: {}", type);
             }
         });
@@ -392,6 +395,33 @@ public final class CohereChatClient extends AbstractSseLlmClient {
             acc.appendArguments(seedArgs.toString());
         }
         toolBuffers.put(index, acc);
+    }
+
+    /**
+     * Map a Cohere v2 {@code citation-start} frame to
+     * {@link org.atmosphere.ai.AiEvent.Citation}: the cited answer span plus
+     * the source ids backing it.
+     */
+    private void handleCitationStart(JsonNode event, StreamingSession session) {
+        var citation = event.path("delta").path("message").path("citations");
+        if (citation.isMissingNode() || citation.isNull()) {
+            return;
+        }
+        var sources = new java.util.ArrayList<String>();
+        var sourceNodes = citation.path("sources");
+        if (sourceNodes.isArray()) {
+            for (var source : sourceNodes) {
+                var id = source.path("id").asString("");
+                if (!id.isEmpty()) {
+                    sources.add(id);
+                }
+            }
+        }
+        session.emit(new org.atmosphere.ai.AiEvent.Citation(
+                citation.path("text").asString(""),
+                citation.path("start").asInt(-1),
+                citation.path("end").asInt(-1),
+                sources));
     }
 
     private void handleToolCallDelta(JsonNode event,

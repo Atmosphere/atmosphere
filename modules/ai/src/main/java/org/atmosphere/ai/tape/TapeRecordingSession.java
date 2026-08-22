@@ -324,6 +324,16 @@ public final class TapeRecordingSession extends DelegatingStreamingSession {
                     payload("approvalId", approval.approvalId(), "toolName", approval.toolName(),
                             "arguments", approval.arguments(), "message", approval.message(),
                             "expiresIn", approval.expiresIn()), approval);
+            case AiEvent.ReasoningDelta reasoning -> record(reasoning.eventType(),
+                    payload("text", reasoning.redacted() ? null : reasoning.text(),
+                            "redacted", reasoning.redacted()), reasoning);
+            case AiEvent.ReasoningComplete rc -> recordBoundary(rc.eventType(),
+                    payload("signature", rc.signature()), rc);
+            case AiEvent.Citation citation -> record(citation.eventType(),
+                    payload("text", citation.text(), "start", citation.start(),
+                            "end", citation.end(),
+                            "sources", citation.sources().isEmpty()
+                                    ? null : citation.sources()), citation);
         }
         super.emit(event);
     }

@@ -270,6 +270,12 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
         // entries accumulate their partial_json into a single JSON string.
         var textBuffers = new LinkedHashMap<Integer, StringBuilder>();
         var toolBuffers = new LinkedHashMap<Integer, ToolCallAccumulator>();
+        // Reasoning ("thinking") blocks stream as first-class AiEvents so
+        // clients that sell extended thinking can actually render it
+        // (registre#16): the indexes of open thinking blocks plus their
+        // accumulated integrity signatures.
+        var thinkingBlocks = new java.util.HashSet<Integer>();
+        var thinkingSignatures = new LinkedHashMap<Integer, StringBuilder>();
         // Mutable holder so the per-event mapper lambda can update the running
         // usage across message_delta events (Anthropic streams usage twice).
         var usageHolder = new TokenUsage[1];
@@ -280,9 +286,20 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
         var completed = runRound(httpRequest, session, cancelled, event -> {
             var type = event.path("type").asString("");
             switch (type) {
-                case "content_block_start" -> handleContentBlockStart(event, textBuffers, toolBuffers);
-                case "content_block_delta" -> handleContentBlockDelta(event, session, textBuffers, toolBuffers);
-                case "content_block_stop" -> { /* finalisation handled lazily */ }
+                case "content_block_start" -> handleContentBlockStart(event, session,
+                        textBuffers, toolBuffers, thinkingBlocks);
+                case "content_block_delta" -> handleContentBlockDelta(event, session,
+                        textBuffers, toolBuffers, thinkingSignatures);
+                case "content_block_stop" -> {
+                    // Text/tool finalisation stays lazy; a closing thinking
+                    // block emits its terminal reasoning event here.
+                    var stopIndex = event.path("index").asInt(-1);
+                    if (thinkingBlocks.remove(stopIndex)) {
+                        var sig = thinkingSignatures.remove(stopIndex);
+                        session.emit(new org.atmosphere.ai.AiEvent.ReasoningComplete(
+                                sig != null && !sig.isEmpty() ? sig.toString() : null));
+                    }
+                }
                 case "message_delta" -> {
                     var parsed = parseMessageDelta(event, usageHolder[0]);
                     if (parsed != null) {
@@ -348,9 +365,10 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
                 toolResults, false);
     }
 
-    private void handleContentBlockStart(JsonNode event,
+    private void handleContentBlockStart(JsonNode event, StreamingSession session,
                                          Map<Integer, StringBuilder> textBuffers,
-                                         Map<Integer, ToolCallAccumulator> toolBuffers) {
+                                         Map<Integer, ToolCallAccumulator> toolBuffers,
+                                         java.util.Set<Integer> thinkingBlocks) {
         var index = event.path("index").asInt(-1);
         if (index < 0) {
             return;
@@ -378,14 +396,28 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
                 }
                 toolBuffers.put(index, acc);
             }
-            default -> { /* thinking / image / unsupported — ignored */ }
+            case "thinking" -> {
+                thinkingBlocks.add(index);
+                var seed = block.path("thinking").asString("");
+                if (!seed.isEmpty()) {
+                    session.emit(new org.atmosphere.ai.AiEvent.ReasoningDelta(seed, false));
+                }
+            }
+            case "redacted_thinking" -> {
+                // Content is provider-encrypted; signal that reasoning
+                // happened without exposing it.
+                thinkingBlocks.add(index);
+                session.emit(new org.atmosphere.ai.AiEvent.ReasoningDelta("", true));
+            }
+            default -> { /* image / unsupported — ignored */ }
         }
     }
 
     private void handleContentBlockDelta(JsonNode event,
                                          StreamingSession session,
                                          Map<Integer, StringBuilder> textBuffers,
-                                         Map<Integer, ToolCallAccumulator> toolBuffers) {
+                                         Map<Integer, ToolCallAccumulator> toolBuffers,
+                                         Map<Integer, StringBuilder> thinkingSignatures) {
         var index = event.path("index").asInt(-1);
         var delta = event.path("delta");
         var deltaType = delta.path("type").asString("");
@@ -417,7 +449,16 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
                     }
                 }
             }
-            default -> { /* thinking_delta / signature_delta — ignored for now */ }
+            case "thinking_delta" -> {
+                var chunk = delta.path("thinking").asString("");
+                if (!chunk.isEmpty()) {
+                    session.emit(new org.atmosphere.ai.AiEvent.ReasoningDelta(chunk, false));
+                }
+            }
+            case "signature_delta" -> thinkingSignatures
+                    .computeIfAbsent(index, k -> new StringBuilder())
+                    .append(delta.path("signature").asString(""));
+            default -> { /* unsupported delta — ignored */ }
         }
     }
 

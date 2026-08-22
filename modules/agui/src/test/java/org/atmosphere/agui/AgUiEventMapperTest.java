@@ -210,4 +210,55 @@ class AgUiEventMapperTest {
         assertEquals("tc-2", callResult2.toolCallId());
         assertEquals("tc-2", callEnd2.toolCallId());
     }
+
+    /**
+     * Regression (registre#16 / #29): the six Reasoning* AG-UI event types
+     * were advertised but never constructed — no producer existed. A
+     * reasoning stream must open the REASONING scope, carry content, and
+     * close it, and a redacted delta opens the scope without content.
+     */
+    @org.junit.jupiter.api.Test
+    void reasoningEventsMapToTheReasoningScope() {
+        var mapper = new AgUiEventMapper();
+
+        var first = mapper.toAgUi(new org.atmosphere.ai.AiEvent.ReasoningDelta("thinking...", false));
+        org.junit.jupiter.api.Assertions.assertEquals(
+                java.util.List.of("REASONING_START", "REASONING_MESSAGE_START",
+                        "REASONING_MESSAGE_CONTENT"),
+                first.stream().map(e -> e.type()).toList());
+
+        var second = mapper.toAgUi(new org.atmosphere.ai.AiEvent.ReasoningDelta(" more", false));
+        org.junit.jupiter.api.Assertions.assertEquals(
+                java.util.List.of("REASONING_MESSAGE_CONTENT"),
+                second.stream().map(e -> e.type()).toList(),
+                "an open scope only appends content");
+
+        var closing = mapper.toAgUi(new org.atmosphere.ai.AiEvent.ReasoningComplete("sig"));
+        org.junit.jupiter.api.Assertions.assertEquals(
+                java.util.List.of("REASONING_MESSAGE_END", "REASONING_END"),
+                closing.stream().map(e -> e.type()).toList());
+    }
+
+    @org.junit.jupiter.api.Test
+    void redactedReasoningOpensTheScopeWithoutContent() {
+        var mapper = new AgUiEventMapper();
+
+        var events = mapper.toAgUi(new org.atmosphere.ai.AiEvent.ReasoningDelta("", true));
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                java.util.List.of("REASONING_START", "REASONING_MESSAGE_START"),
+                events.stream().map(e -> e.type()).toList(),
+                "the client learns reasoning happened without seeing redacted content");
+    }
+
+    @org.junit.jupiter.api.Test
+    void citationsMapToACustomEvent() {
+        var mapper = new AgUiEventMapper();
+
+        var events = mapper.toAgUi(new org.atmosphere.ai.AiEvent.Citation(
+                "the cited span", 10, 24, java.util.List.of("doc-1")));
+
+        org.junit.jupiter.api.Assertions.assertEquals(1, events.size());
+        org.junit.jupiter.api.Assertions.assertEquals("CUSTOM", events.get(0).type());
+    }
 }

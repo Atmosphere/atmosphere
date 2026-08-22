@@ -306,4 +306,55 @@ public sealed interface AiEvent {
             return "approval-required";
         }
     }
+
+    /**
+     * A chunk of the model's reasoning ("thinking") stream — extended
+     * thinking on Anthropic models, reasoning traces on OpenAI o-series.
+     * {@code redacted} marks encrypted/redacted reasoning the provider
+     * withholds: the chunk signals that reasoning happened without
+     * exposing its content.
+     *
+     * @param text     the reasoning text chunk; empty for redacted chunks
+     * @param redacted whether the provider redacted this chunk's content
+     */
+    record ReasoningDelta(String text, boolean redacted) implements AiEvent {
+        @Override
+        public String eventType() {
+            return "reasoning-delta";
+        }
+    }
+
+    /**
+     * The reasoning stream for the current response closed.
+     *
+     * @param signature the provider's integrity signature over the
+     *                  reasoning block, or {@code null} when none was sent
+     */
+    record ReasoningComplete(String signature) implements AiEvent {
+        @Override
+        public String eventType() {
+            return "reasoning-complete";
+        }
+    }
+
+    /**
+     * A source citation attached to a span of the streamed answer
+     * (Cohere-style grounded generation).
+     *
+     * @param text    the cited answer span
+     * @param start   inclusive start offset of the span in the full answer
+     * @param end     exclusive end offset of the span in the full answer
+     * @param sources provider source identifiers backing the span
+     */
+    record Citation(String text, int start, int end,
+                    java.util.List<String> sources) implements AiEvent {
+        public Citation {
+            sources = sources != null ? java.util.List.copyOf(sources) : java.util.List.of();
+        }
+
+        @Override
+        public String eventType() {
+            return "citation";
+        }
+    }
 }

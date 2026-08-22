@@ -45,6 +45,7 @@ public final class AgUiEventMapper {
 
     private volatile String currentMessageId;
     private volatile String currentToolCallId;
+    private volatile String currentReasoningId;
 
     /**
      * Convert an {@link AiEvent} into zero or more {@link AgUiEvent}s.
@@ -138,6 +139,39 @@ public final class AgUiEventMapper {
                         "entity", complete.entity()));
                 yield List.<AgUiEvent>of(new AgUiEvent.StateSnapshot(json));
             }
+            case AiEvent.ReasoningDelta reasoning -> {
+                // Reasoning streams inside its own REASONING_* scope
+                // (registre#16 / #29): open lazily on the first delta, close
+                // on ReasoningComplete. Redacted chunks open the scope (the
+                // client learns reasoning happened) without content.
+                var events = new ArrayList<AgUiEvent>();
+                if (currentReasoningId == null) {
+                    currentReasoningId = "rsn-" + messageCounter.incrementAndGet();
+                    events.add(new AgUiEvent.ReasoningStart());
+                    events.add(new AgUiEvent.ReasoningMessageStart(currentReasoningId));
+                }
+                if (!reasoning.redacted() && !reasoning.text().isEmpty()) {
+                    events.add(new AgUiEvent.ReasoningMessageContent(
+                            currentReasoningId, reasoning.text()));
+                }
+                yield events;
+            }
+            case AiEvent.ReasoningComplete ignored -> {
+                if (currentReasoningId == null) {
+                    yield List.of();
+                }
+                var closing = List.<AgUiEvent>of(
+                        new AgUiEvent.ReasoningMessageEnd(currentReasoningId),
+                        new AgUiEvent.ReasoningEnd());
+                currentReasoningId = null;
+                yield closing;
+            }
+            case AiEvent.Citation citation -> List.<AgUiEvent>of(new AgUiEvent.Custom(
+                    "citation", serializeQuietly(java.util.Map.of(
+                            "text", citation.text(),
+                            "start", citation.start(),
+                            "end", citation.end(),
+                            "sources", citation.sources()))));
             default -> List.of();
         };
     }
@@ -168,6 +202,7 @@ public final class AgUiEventMapper {
     public void reset() {
         currentMessageId = null;
         currentToolCallId = null;
+        currentReasoningId = null;
     }
 
     private String serializeQuietly(Object obj) {
