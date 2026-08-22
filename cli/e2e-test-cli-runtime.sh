@@ -188,6 +188,33 @@ else
     pass "spring-boot-chat clean shutdown"
 fi
 
+# ── 1b. run --env overrides an ambient environment export ────────────────────
+# Regression (2026-08-22 sweep): --env only set -D system properties, and an
+# ambient LLM_MODEL/LLM_BASE_URL exported in the operator's shell silently
+# outranked them — a "--env LLM_MODE=local" run talked to a remote provider.
+# --env must reach the child as a REAL environment variable that beats the
+# inherited one. Asserted on the boot log's resolved "AI config:" line.
+printf "${BOLD}1b. run --env beats an ambient export${RESET}\n"
+
+envtest_tmp=$(make_tmp_dir)
+LLM_MODEL="ambient-wrong-model" LLM_MODE="remote" \
+    "$CLI" run spring-boot-ai-chat --port 8091 \
+    --env LLM_MODE=local --env LLM_MODEL=env-flag-wins --env LLM_API_KEY=test \
+    > "$envtest_tmp/stdout.log" 2>&1 &
+ENV_PID=$!
+
+if wait_for_port 8091 120; then
+    if grep -q "AI config: mode=local, model=env-flag-wins" "$envtest_tmp/stdout.log"; then
+        pass "--env values override ambient exports (AI config line)"
+    else
+        fail "--env values override ambient exports" \
+            "resolved: $(grep -m1 'AI config:' "$envtest_tmp/stdout.log" || echo '<no AI config line>')"
+    fi
+else
+    fail "--env override boot" "server did not start within 120s"
+fi
+kill_server $ENV_PID
+
 printf "\n"
 
 # ── 2. atmosphere run --port 9999 overrides port ────────────────────────────

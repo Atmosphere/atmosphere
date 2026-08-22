@@ -71,7 +71,7 @@ this response is a canned placeholder"; with it, real Ollama content arrives.
 | 4 | `quarkus-chat` | 9104 | quarkus | `/` | Console | Quarkus WS broadcast round-trip |
 | 5 | `chat` (WAR) | 9105 | war | `/` | Console | `@ManagedService` WAR on Jetty (JSR-356) round-trip. Slowest boot — Maven resolves before Jetty starts |
 | 6 | `grpc-chat` | 9106 | exec (`-Dhttp.port=9106`; gRPC listener defaults to 9090) | `/` | Console | Transport badge reads `Connected · grpc` (Connect protocol, JSON mode) and a message round-trips. `runnable=false` in `cli/samples.json` — Maven boot is expected, not a finding |
-| 7 | `kotlin-dsl-chat` | 9107 | main-jar | `/chat` | headless WS + POST | `ping` → `pong` delivered over a real WebSocket, **and** zero SLF4J NOP-logger lines in the server log (both were the 2026-06 PARTIAL) |
+| 7 | `kotlin-dsl-chat` | 9107 | main-jar | `/chat` | headless WS + POST | `ping` → `pong` delivered over a real WebSocket, **and** zero SLF4J NOP-logger lines in the server log (both were the 2026-06 PARTIAL). **Use the 7b model** — the agent registers a `word_count` tool, and qwen2.5:3b tool-calling yields a silent empty completion (2026-08-22) |
 
 ## Agents — built-in and single-dependency
 

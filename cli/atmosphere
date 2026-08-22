@@ -776,13 +776,25 @@ cmd_run() {
 
     # Parse --env flags
     env_args=""
+    env_exports=""
     extra_args=""
     port_override=""
     while [ $# -gt 0 ]; do
         case "$1" in
             --env)
                 [ -z "$2" ] && die "--env requires KEY=VALUE"
+                case "$2" in
+                    *=*) ;;
+                    *) die "--env requires KEY=VALUE" ;;
+                esac
+                # Set a REAL environment variable on the launched JVM (and keep
+                # the -D mirror for sysprop readers). Env is what the flag name
+                # promises, and an explicit child env also beats an ambient
+                # export from the operator's shell profile — with only -D, an
+                # inherited LLM_BASE_URL silently redirected a "--env
+                # LLM_MODE=local" run to a remote provider.
                 env_args="$env_args -D$2"
+                env_exports="$env_exports $2"
                 shift 2
                 ;;
             --port|-p)
@@ -873,10 +885,10 @@ cmd_run() {
         # Quarkus: jar_file is a marker containing the quarkus-app path
         quarkus_dir=$(cat "$jar_file")
         # shellcheck disable=SC2086
-        exec java $JAVA_OPTS $env_args -jar "$quarkus_dir/quarkus-run.jar" $extra_args
+        exec env $env_exports java $JAVA_OPTS $env_args -jar "$quarkus_dir/quarkus-run.jar" $extra_args
     else
         # shellcheck disable=SC2086
-        exec java $JAVA_OPTS $env_args -jar "$jar_file" $extra_args
+        exec env $env_exports java $JAVA_OPTS $env_args -jar "$jar_file" $extra_args
     fi
 }
 
