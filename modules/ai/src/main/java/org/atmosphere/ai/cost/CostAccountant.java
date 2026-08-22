@@ -46,6 +46,16 @@ public interface CostAccountant {
      */
     void record(String tenantId, TokenUsage usage, String model);
 
+    /**
+     * The priced cost (USD) of this usage sample, or {@link Double#NaN}
+     * when the accountant does not price. Pricing accountants override so
+     * the session layer can surface {@code business.session.cost} as
+     * response metadata.
+     */
+    default double priceUsd(TokenUsage usage, String model) {
+        return Double.NaN;
+    }
+
     /** No-op accountant for deployments that don't track cost. */
     CostAccountant NOOP = (tenantId, usage, model) -> { };
 }

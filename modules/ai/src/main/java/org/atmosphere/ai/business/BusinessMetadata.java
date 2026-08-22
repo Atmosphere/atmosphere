@@ -61,14 +61,18 @@ public final class BusinessMetadata {
 
     /**
      * Pre-call budget for the session, in the currency implied by
-     * {@link #SESSION_CURRENCY}. Observability exporters emit this as a
-     * span attribute so cost dashboards can compute utilisation per user.
+     * {@link #SESSION_CURRENCY}. Application-supplied — the framework
+     * carries it through MDC/metadata for observability exporters but
+     * never writes it itself.
      */
     public static final String SESSION_REVENUE = "business.session.revenue";
 
     /**
-     * Actual cost of the in-flight call, populated by the
-     * {@code GatewayTraceExporter} after the LLM returns token usage.
+     * Actual cost of the in-flight call (USD), emitted as response metadata
+     * by the cost-accounting session layer when a pricing
+     * {@link org.atmosphere.ai.cost.CostAccountant} (e.g.
+     * {@code CostCeilingAccountant} with {@code TokenPricing}) is
+     * installed. Without a pricing accountant the key is never written.
      */
     public static final String SESSION_COST = "business.session.cost";
 
@@ -89,9 +93,13 @@ public final class BusinessMetadata {
     public static final String EVENT_SUBJECT = "business.event.subject";
 
     /**
-     * Canonical event kinds. Applications supply the wire name via
-     * {@link #wireName()} rather than the enum directly so the metadata
-     * map stays JSON-serializable for off-process exporters.
+     * Canonical event kinds. This is an application-supplied taxonomy —
+     * apps tag calls with the wire name via {@link #wireName()} (rather
+     * than the enum directly, so the metadata map stays JSON-serializable
+     * for off-process exporters), and the framework's only in-tree
+     * consumer is {@code AiEndpointHandler}, which parses tags back via
+     * {@link #fromWire(String)} for the business MDC. The framework never
+     * constructs kinds on its own.
      */
     public enum EventKind {
         NEW_CONVERSATION("new_conversation"),

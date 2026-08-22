@@ -55,4 +55,9 @@ public final class CostCeilingAccountant implements CostAccountant {
             guardrail.addCost(tenantId, cost);
         }
     }
+
+    @Override
+    public double priceUsd(TokenUsage usage, String model) {
+        return pricing.costUsd(usage, model);
+    }
 }

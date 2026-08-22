@@ -25,6 +25,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -71,6 +72,60 @@ class CostAccountingSessionTest {
 
         assertEquals(0.002, guardrail.spent("acme"), 1e-9,
                 "CostAccountingSession must feed the guardrail with the pricing-computed cost");
+    }
+
+    /**
+     * Regression (registre#42): {@code business.session.cost} was
+     * documented as populated but never written anywhere. With a pricing
+     * accountant installed, the actual USD cost of the call must reach
+     * the client as response metadata.
+     */
+    @Test
+    void pricedCostSurfacesAsSessionCostMetadata() {
+        var guardrail = new CostCeilingGuardrail(10.0);
+        var pricing = TokenPricing.flat(1.00, 2.00);
+        var accountant = new CostCeilingAccountant(guardrail, pricing);
+        var recording = new org.atmosphere.ai.StreamingSession() {
+            final java.util.Map<String, Object> metadata = new java.util.LinkedHashMap<>();
+            @Override public String sessionId() { return "cost-test"; }
+            @Override public void send(String text) { }
+            @Override public void sendMetadata(String key, Object value) { metadata.put(key, value); }
+            @Override public void progress(String message) { }
+            @Override public void complete() { }
+            @Override public void complete(String summary) { }
+            @Override public void error(Throwable t) { }
+            @Override public boolean isClosed() { return false; }
+        };
+        var session = new CostAccountingSession(recording, accountant);
+
+        session.usage(TokenUsage.of(1000, 500, 1500, "gpt-4"));
+
+        assertEquals(0.002, (double) recording.metadata.get("business.session.cost"), 1e-9,
+                "the priced cost must reach the client as business.session.cost");
+    }
+
+    /**
+     * A non-pricing accountant must not fabricate a cost figure.
+     */
+    @Test
+    void nonPricingAccountantWritesNoCostMetadata() {
+        var recording = new org.atmosphere.ai.StreamingSession() {
+            final java.util.Map<String, Object> metadata = new java.util.LinkedHashMap<>();
+            @Override public String sessionId() { return "cost-test"; }
+            @Override public void send(String text) { }
+            @Override public void sendMetadata(String key, Object value) { metadata.put(key, value); }
+            @Override public void progress(String message) { }
+            @Override public void complete() { }
+            @Override public void complete(String summary) { }
+            @Override public void error(Throwable t) { }
+            @Override public boolean isClosed() { return false; }
+        };
+        var session = new CostAccountingSession(recording, (tenantId, usage, model) -> { });
+
+        session.usage(TokenUsage.of(1000, 500, 1500, "gpt-4"));
+
+        assertFalse(recording.metadata.containsKey("business.session.cost"),
+                "no pricing means no fabricated cost: " + recording.metadata);
     }
 
     /**

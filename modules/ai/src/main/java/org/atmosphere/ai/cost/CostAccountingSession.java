@@ -80,6 +80,14 @@ public final class CostAccountingSession extends DelegatingStreamingSession {
             var tenant = tenantSnapshot;
             try {
                 accountant.record(tenant, usage, usage.model());
+                // Surface the actual priced cost of the call as response
+                // metadata (business.session.cost) — the documented signal
+                // used to name an exporter that never touched it.
+                var costUsd = accountant.priceUsd(usage, usage.model());
+                if (!Double.isNaN(costUsd)) {
+                    delegate.sendMetadata(
+                            org.atmosphere.ai.business.BusinessMetadata.SESSION_COST, costUsd);
+                }
             } catch (RuntimeException e) {
                 // Never let accounting break the session — the LLM turn
                 // should still complete so the user gets a response.
