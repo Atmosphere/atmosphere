@@ -178,6 +178,46 @@ public final class CoordinatorController {
     }
 
     /**
+     * The coordination's causal DAG, rendered from the parent/child
+     * {@code EventEnvelope} lineage {@code JournalingAgentFleet} writes on
+     * every dispatch. This is the read-back that justifies authoring the
+     * lineage at runtime cost: fan-out forks, retries, and evaluator runs
+     * render as a tree rather than the flat event list of
+     * {@link #queryJournal}. Empty when the coordination is unknown.
+     */
+    public Optional<List<Map<String, Object>>> getCoordinationTree(String coordinationId) {
+        var projection = org.atmosphere.coordinator.journal.CoordinationProjection
+                .from(journal, coordinationId);
+        if (projection.envelopes().isEmpty()) {
+            return Optional.empty();
+        }
+        var roots = new ArrayList<Map<String, Object>>();
+        for (var root : projection.roots()) {
+            roots.add(treeNode(projection, root));
+        }
+        return Optional.of(roots);
+    }
+
+    private Map<String, Object> treeNode(
+            org.atmosphere.coordinator.journal.CoordinationProjection projection,
+            org.atmosphere.coordinator.journal.EventEnvelope envelope) {
+        var node = new LinkedHashMap<String, Object>();
+        node.put("eventId", envelope.eventId());
+        if (envelope.parentEventId() != null) {
+            node.put("parentEventId", envelope.parentEventId());
+        }
+        node.putAll(eventToMap(envelope.event()));
+        var children = new ArrayList<Map<String, Object>>();
+        for (var child : projection.children(envelope.eventId())) {
+            children.add(treeNode(projection, child));
+        }
+        if (!children.isEmpty()) {
+            node.put("children", children);
+        }
+        return node;
+    }
+
+    /**
      * Get the formatted log for a specific coordination.
      */
     public Optional<String> getJournalLog(String coordinationId) {

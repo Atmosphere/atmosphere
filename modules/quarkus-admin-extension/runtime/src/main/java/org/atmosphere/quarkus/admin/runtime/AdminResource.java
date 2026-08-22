@@ -457,6 +457,19 @@ public class AdminResource {
                 sinceInstant, untilInstant, limit != null ? limit : 100)).build();
     }
 
+    /** The coordination's causal DAG from the journaled envelope lineage (registre#23). */
+    @GET
+    @Path("/journal/{coordinationId}/tree")
+    public Response getJournalTree(@PathParam("coordinationId") String coordinationId) {
+        CoordinatorController controller = admin.coordinatorController();
+        if (controller == null) {
+            return Response.status(404).build();
+        }
+        return controller.getCoordinationTree(coordinationId)
+                .map(tree -> Response.ok(tree).build())
+                .orElse(Response.status(404).build());
+    }
+
     // ── A2A Tasks ──
 
     @GET

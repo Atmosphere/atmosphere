@@ -541,6 +541,19 @@ public class AtmosphereAdminEndpoint {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    /** The coordination's causal DAG from the journaled envelope lineage (registre#23). */
+    @GetMapping("/journal/{coordinationId}/tree")
+    public ResponseEntity<List<Map<String, Object>>> getJournalTree(
+            @PathVariable("coordinationId") String coordinationId) {
+        CoordinatorController controller = admin.coordinatorController();
+        if (controller == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return controller.getCoordinationTree(coordinationId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     // ── Agent-to-Agent Flow Graph ──
 
     @GetMapping("/flow")
