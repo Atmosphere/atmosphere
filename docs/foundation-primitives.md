@@ -62,12 +62,14 @@ a conversation.
 
 How agents acquire new capabilities at runtime. `ToolIndex` scores tool
 descriptors by token-overlap for bounded discovery and `DynamicToolSelector`
-enforces `maxToolsPerRequest` — both wired into every dispatch via
-`ToolSelection`. The `ToolExtensibilityPoint` facade composing them is
-embedder-facing (no in-tree runtime constructs it), and `McpTrustProvider`
-is an operator-implementable SPI for per-user MCP credentials that no
-in-tree MCP invocation path consults yet (registered as
-atmosphere-carnet#24).
+enforces `maxToolsPerRequest`. `ToolSelection` composes them through the
+`ToolExtensibilityPoint` facade on every dispatch (stream and non-stream),
+so the facade is the per-request composition root, not just an embedder
+convenience. `McpTrustProvider` is the per-user MCP credential SPI consumed
+by `McpToolSource.connectForUser` (atmosphere-mcp-client): the resolved
+credential rides the outbound `Authorization: Bearer` header, and a user
+who has not authorized the server is refused before any network I/O
+(fail closed).
 
 ### `Sandbox` — `org.atmosphere.ai.sandbox`
 

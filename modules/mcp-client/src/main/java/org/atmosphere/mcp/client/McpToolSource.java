@@ -139,6 +139,47 @@ public final class McpToolSource implements AutoCloseable {
         return connect(builder.build(), endpoint.toString(), options);
     }
 
+    /**
+     * Connect to a user's personal MCP server with the credential the
+     * {@link org.atmosphere.ai.extensibility.McpTrustProvider} resolves for
+     * {@code (userId, mcpServerId)} — the per-user credential seam the trust
+     * SPI documents (registre#24). The credential is attached as an
+     * {@code Authorization: Bearer} header on every request the transport
+     * makes and is never logged.
+     *
+     * <p>Fail-closed: when the provider resolves no credential the connect is
+     * refused before any network I/O — per the SPI contract, an absent
+     * credential means "user has not yet authorized this server"
+     * (Correctness Invariant #6).</p>
+     *
+     * @param endpoint    base URL (with optional explicit MCP path)
+     * @param userId      the user the agent is acting on behalf of
+     * @param mcpServerId the server's identifier in the user's {@code MCP.md}
+     * @param trust       resolves the user's credential for the server
+     * @param options     filtering, renaming, and callback configuration
+     * @throws IllegalStateException when the user has not authorized the server
+     */
+    public static McpToolSource connectForUser(java.net.URI endpoint, String userId,
+            String mcpServerId, org.atmosphere.ai.extensibility.McpTrustProvider trust,
+            McpClientOptions options) {
+        Objects.requireNonNull(endpoint, "endpoint");
+        Objects.requireNonNull(userId, "userId");
+        Objects.requireNonNull(mcpServerId, "mcpServerId");
+        Objects.requireNonNull(trust, "trust");
+        var credential = trust.resolve(userId, mcpServerId).orElseThrow(() ->
+                new IllegalStateException("user " + userId + " has not authorized MCP server "
+                        + mcpServerId + " (trust provider '" + trust.name()
+                        + "' resolved no credential) — refusing to connect"));
+        var path = endpoint.getPath();
+        var builder = HttpClientStreamableHttpTransport.builder(stripPath(endpoint));
+        if (path != null && !path.isEmpty() && !"/".equals(path)) {
+            builder.endpoint(path);
+        }
+        builder.httpRequestCustomizer((request, method, uri, body, context) ->
+                request.header("Authorization", "Bearer " + credential));
+        return connect(builder.build(), mcpServerId + " (user " + userId + ")", options);
+    }
+
     private static String stripPath(java.net.URI uri) {
         // The SDK's transport builder takes a *base* URL and appends the
         // SSE path itself; passing the full URL with path leads it to

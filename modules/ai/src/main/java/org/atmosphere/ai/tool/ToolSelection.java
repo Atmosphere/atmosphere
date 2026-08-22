@@ -63,7 +63,13 @@ public final class ToolSelection {
         for (var tool : all) {
             index.register(new ToolDescriptor(tool.name(), tool.description(), List.of()));
         }
-        var picked = new DynamicToolSelector(index, maxTools).select(query);
+        // Compose through the ToolExtensibilityPoint facade so the same
+        // composition root serves per-request selection and embedder use
+        // (registre#24); selection needs no MCP credentials, hence NONE.
+        var point = new org.atmosphere.ai.extensibility.ToolExtensibilityPoint(
+                index, new DynamicToolSelector(index, maxTools),
+                org.atmosphere.ai.extensibility.McpTrustProvider.NONE);
+        var picked = point.toolsFor(query, maxTools);
         if (picked.isEmpty()) {
             // No lexical overlap with the query — fall back to a deterministic
             // first-N (the blank-query path) so the model keeps a usable subset

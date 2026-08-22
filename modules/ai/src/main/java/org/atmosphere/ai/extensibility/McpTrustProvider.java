@@ -41,11 +41,32 @@ import java.util.Optional;
 public interface McpTrustProvider {
 
     /**
+     * Null-object for deployments without per-user MCP servers: resolves
+     * nothing, so any credentialed connect attempt fails fast. Used by
+     * {@code ToolSelection} when composing the per-request
+     * {@link ToolExtensibilityPoint} — tool selection needs no
+     * credentials.
+     */
+    McpTrustProvider NONE = new McpTrustProvider() {
+        @Override
+        public Optional<String> resolve(String userId, String mcpServerId) {
+            return Optional.empty();
+        }
+
+        @Override
+        public String name() {
+            return "none";
+        }
+    };
+
+    /**
      * Resolve the credential for a user's configured MCP server. Returns
      * {@link Optional#empty()} if the user has no credential configured
      * for that server — callers must treat this as "user has not yet
      * authorized this server" and fail the tool call fast rather than
      * attempting to call the MCP server without credentials.
+     * {@code McpToolSource.connectForUser} in the {@code atmosphere-mcp-client}
+     * module is the in-tree caller honouring that contract.
      *
      * @param userId        the user the agent is acting on behalf of
      * @param mcpServerId   identifier of the MCP server in the user's

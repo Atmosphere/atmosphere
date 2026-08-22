@@ -24,13 +24,14 @@ import java.util.Objects;
  * tool discovery with the {@link McpTrustProvider} for per-user MCP
  * credential resolution.
  *
- * <p>LIMITATION(registre#24): this facade is embedder-facing — no in-tree
- * runtime calls {@link #toolsFor(String, int)}; the framework's own
- * per-request selection path is {@code ToolSelection}, which uses
- * {@link ToolIndex} and {@link DynamicToolSelector} directly. Likewise
- * {@link #mcpCredential(String, String)} resolves through the
- * {@link McpTrustProvider} SPI, which no in-tree MCP invocation path
- * consults yet — the MCP client has no per-user credential seam.</p>
+ * <p>Production consumers: the framework's per-request selection path
+ * ({@code ToolSelection}, called from both the {@code AiPipeline} and
+ * {@code AiStreamingSession} tool-assembly seams) composes this facade and
+ * routes through {@link #toolsFor(String, int)}; and
+ * {@code McpToolSource.connectForUser} in {@code atmosphere-mcp-client}
+ * consults the {@link McpTrustProvider} SPI to attach per-user credentials
+ * to outbound MCP connections, failing fast when the user has not
+ * authorized the server.</p>
  *
  * <p>This primitive does NOT own the tool registry itself — tool
  * registration lives in the agent / tool module. The extensibility point

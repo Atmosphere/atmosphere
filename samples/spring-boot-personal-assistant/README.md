@@ -32,9 +32,13 @@ crew (scheduler, research, drafter) dispatched through
   code does not change.
 - **`AgentIdentity`** — permission modes govern crew dispatch; audit events
   record who delegated what.
-- **`ToolExtensibilityPoint`** — per-user MCP servers listed in `MCP.md`
-  surface to the drafter / research agents with credentials resolved
-  through the trust provider backed by the user's `CredentialStore`.
+- **`ToolExtensibilityPoint`** — every dispatch routes tool selection
+  through the facade (via `ToolSelection`), capping the catalog to the
+  most relevant tools per turn. The upstream MCP source here is a shared,
+  unauthenticated `McpToolSource.connect`; for per-user MCP servers with
+  credentials resolved through an `McpTrustProvider`, use
+  `McpToolSource.connectForUser`, which refuses to connect for a user who
+  has not authorized the server.
 - **`AiGateway`** — every LLM call enters the gateway for rate limiting
   and trace emission.
 - **`LongTermMemory`** — the `UpstreamMcpAgent` endpoint recalls stored
