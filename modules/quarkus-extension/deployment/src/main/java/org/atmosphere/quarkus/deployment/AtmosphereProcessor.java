@@ -796,6 +796,23 @@ class AtmosphereProcessor {
     }
 
     /**
+     * Quarkus parity for the Spring Boot starter's voice-endpoint lifecycle:
+     * registers the producer that mounts {@code VoiceEndpointHandler} when
+     * {@code quarkus.atmosphere.ai.voice.enabled=true} (registre#25). The
+     * observer is a no-op while the flag stays off.
+     */
+    @BuildStep
+    void registerVoiceProducer(BuildProducer<AdditionalBeanBuildItem> beans) {
+        if (!isClassPresent("org.atmosphere.ai.voice.VoiceEndpointHandler")) {
+            return;
+        }
+        beans.produce(AdditionalBeanBuildItem.unremovableOf(
+                "org.atmosphere.quarkus.runtime.AtmosphereVoiceProducer"));
+        logger.info("Atmosphere voice endpoint producer registered "
+                + "(quarkus.atmosphere.ai.voice.enabled gates the mount)");
+    }
+
+    /**
      * Quarkus parity for the Spring Boot starters' {@code TapeInstaller} (in
      * {@code AtmosphereAiAutoConfiguration}). Requires {@code atmosphere-ai} on
      * the classpath ({@code TapeSupport} lives there). When present the producer

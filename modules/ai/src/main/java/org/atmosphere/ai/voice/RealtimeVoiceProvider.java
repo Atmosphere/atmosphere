@@ -59,11 +59,13 @@ public interface RealtimeVoiceProvider {
      * is registered or available, so a bridge can always be opened (the loopback
      * makes that obvious to the operator rather than failing silently).
      *
-     * <p>LIMITATION(registre#25): no in-tree endpoint calls this — an
-     * application that wants speech-to-speech opens
-     * {@code VoiceBridge.open(RealtimeVoiceProvider.resolve(), config,
-     * session)} from its own handler; the framework does not yet ship a
-     * voice-mode endpoint that drives the loop.</p>
+     * <p>Production consumer: {@link VoiceEndpointHandler} — the framework's
+     * voice-mode endpoint — resolves the provider here on every client
+     * connect and drives the loop through {@link VoiceBridge}. The Spring /
+     * Quarkus integrations mount it behind
+     * {@code atmosphere.ai.voice.enabled}; embedders on other containers can
+     * register it on any path via
+     * {@code framework.addAtmosphereHandler(path, new VoiceEndpointHandler(config))}.</p>
      */
     static RealtimeVoiceProvider resolve() {
         for (var provider : ServiceLoader.load(RealtimeVoiceProvider.class)) {

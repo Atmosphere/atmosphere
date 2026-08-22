@@ -174,6 +174,83 @@ public interface AtmosphereConfig {
         Rag rag();
 
         /**
+         * Voice-mode endpoint configuration block.
+         *
+         * @return the voice sub-configuration block
+         */
+        Voice voice();
+
+        /**
+         * Voice-mode endpoint, bound to {@code quarkus.atmosphere.ai.voice.*}.
+         * When enabled, {@code VoiceEndpointHandler} is mounted on
+         * {@link #path()} and drives the speech-to-speech loop against the
+         * {@code RealtimeVoiceProvider} resolved per connect. Off by default —
+         * opening realtime provider sessions is the operator's explicit
+         * opt-in (Correctness Invariant #6).
+         */
+        interface Voice {
+
+            /**
+             * Master switch for the voice endpoint.
+             *
+             * @return whether the voice endpoint is mounted
+             */
+            @WithDefault("false")
+            boolean enabled();
+
+            /**
+             * Mount path of the voice endpoint.
+             *
+             * @return the Atmosphere handler path
+             */
+            @WithDefault("/atmosphere/voice")
+            String path();
+
+            /**
+             * Realtime model id (provider-specific); empty for the provider
+             * default.
+             *
+             * @return the model id
+             */
+            @WithDefault("")
+            String model();
+
+            /**
+             * Synthesized voice name; empty for the provider default.
+             *
+             * @return the voice name
+             */
+            @WithDefault("")
+            String voiceName();
+
+            /**
+             * Assistant instructions for the session.
+             *
+             * @return the system prompt
+             */
+            @WithDefault("")
+            String systemPrompt();
+
+            /**
+             * MIME type of the audio the client sends; empty for the
+             * framework default ({@code audio/pcm;rate=16000}).
+             *
+             * @return the input MIME type
+             */
+            @WithDefault("")
+            String inputMime();
+
+            /**
+             * MIME type of the audio the provider returns; empty for the
+             * framework default ({@code audio/pcm;rate=24000}).
+             *
+             * @return the output MIME type
+             */
+            @WithDefault("")
+            String outputMime();
+        }
+
+        /**
          * RAG sub-configuration. Currently carries the injection-safety screen.
          */
         interface Rag {

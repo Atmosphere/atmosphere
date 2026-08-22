@@ -1006,6 +1006,69 @@ public class AtmosphereAiAutoConfiguration {
      * uninstalled and a journal this installer created is closed on shutdown
      * (Ownership, Correctness Invariant #1).
      */
+    /**
+     * Mounts the framework's voice-mode endpoint
+     * ({@link org.atmosphere.ai.voice.VoiceEndpointHandler}) when
+     * {@code atmosphere.ai.voice.enabled=true} — the production driver of
+     * the speech-to-speech loop (registre#25). The provider is resolved per
+     * connect through the {@code RealtimeVoiceProvider} ServiceLoader SPI;
+     * without a registered provider the loopback echoes audio, which makes
+     * the missing provider obvious rather than silent. Off by default —
+     * opening realtime provider sessions is the operator's explicit opt-in
+     * (Correctness Invariant #6).
+     */
+    @Bean
+    @ConditionalOnProperty(name = "atmosphere.ai.voice.enabled", havingValue = "true")
+    public org.springframework.context.SmartLifecycle atmosphereVoiceEndpointLifecycle(
+            org.atmosphere.cpr.AtmosphereFramework framework,
+            org.springframework.core.env.Environment env) {
+        var path = env.getProperty("atmosphere.ai.voice.path", "/atmosphere/voice");
+        var voiceConfig = new org.atmosphere.ai.voice.VoiceSessionConfig(
+                env.getProperty("atmosphere.ai.voice.model", ""),
+                env.getProperty("atmosphere.ai.voice.voice", ""),
+                env.getProperty("atmosphere.ai.voice.system-prompt", ""),
+                env.getProperty("atmosphere.ai.voice.input-mime", ""),
+                env.getProperty("atmosphere.ai.voice.output-mime", ""));
+        return new org.springframework.context.SmartLifecycle() {
+            private volatile boolean running;
+            private org.atmosphere.ai.voice.VoiceEndpointHandler handler;
+
+            @Override
+            public void start() {
+                if (running) {
+                    return;
+                }
+                handler = new org.atmosphere.ai.voice.VoiceEndpointHandler(voiceConfig);
+                java.util.List<org.atmosphere.cpr.AtmosphereInterceptor> interceptors =
+                        new java.util.LinkedList<>();
+                org.atmosphere.annotation.AnnotationUtil
+                        .defaultManagedServiceInterceptors(framework, interceptors);
+                framework.addAtmosphereHandler(path, handler, interceptors);
+                running = true;
+                logger.info("Voice endpoint mounted at {} (provider resolved per connect)", path);
+            }
+
+            @Override
+            public void stop() {
+                running = false;
+                framework.removeAtmosphereHandler(path);
+                if (handler != null) {
+                    handler.destroy();
+                }
+            }
+
+            @Override
+            public boolean isRunning() {
+                return running;
+            }
+
+            @Override
+            public int getPhase() {
+                return Integer.MAX_VALUE - 2;
+            }
+        };
+    }
+
     @Bean
     @ConditionalOnMissingBean(DurableRunSpineInstaller.class)
     @org.springframework.context.annotation.Conditional(OnDurableRunsEnabled.class)
