@@ -708,13 +708,6 @@ public class AtmosphereAdminAutoConfiguration {
         }
 
         /**
-         * Wires the workflow-authoring controller backing the
-         * {@code /api/admin/workflow} endpoints. Uses an in-memory store
-         * by default; production deployments should provide a
-         * {@link org.atmosphere.admin.workflow.WorkflowStore} bean
-         * (JDBC, Redis, etc.) which this method picks up automatically.
-         */
-        /**
          * Agent-state controller backing {@code /api/admin/agents/{id}/...}
          * (facts, notes, conversation, rules, workspace). Reads the live
          * per-agent {@link org.atmosphere.ai.state.AgentState} registry the
@@ -738,6 +731,13 @@ public class AtmosphereAdminAutoConfiguration {
             return controller;
         }
 
+        /**
+         * Wires the workflow authoring + execution controller backing the
+         * {@code /api/admin/workflow} endpoints. Uses an in-memory store
+         * by default; production deployments should provide a
+         * {@link org.atmosphere.admin.workflow.WorkflowStore} bean
+         * (JDBC, Redis, etc.) which this method picks up automatically.
+         */
         @Bean
         org.atmosphere.admin.workflow.WorkflowController atmosphereAdminWorkflowController(
                 AtmosphereAdmin admin,
