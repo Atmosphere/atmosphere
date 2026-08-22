@@ -1250,37 +1250,29 @@ public final class McpProtocolHandler {
 
     // ── Helpers ──────────────────────────────────────────────────────────
 
+    /**
+     * Shared JSON-RPC binder (registre#27): parameter binding, primitive
+     * conversion, and injectable resolution delegate to the protocol-common
+     * {@link org.atmosphere.protocol.ParameterBinder} instead of a
+     * hand-rolled copy of the same logic. MCP contributes only its
+     * injectable predicate and resolver.
+     */
+    private final org.atmosphere.protocol.ParameterBinder parameterBinder =
+            new org.atmosphere.protocol.ParameterBinder(
+                    McpRegistry::isInjectableType, this::resolveInjectable);
+
+    private static List<org.atmosphere.protocol.ParameterBinder.ParamInfo> paramInfos(
+            List<McpRegistry.ParamEntry> paramEntries) {
+        return paramEntries.stream()
+                .map(p -> new org.atmosphere.protocol.ParameterBinder.ParamInfo(
+                        p.name(), p.description(), p.required(), p.type()))
+                .toList();
+    }
+
     private Object[] bindArguments(java.lang.reflect.Method method,
                                    List<McpRegistry.ParamEntry> paramEntries,
                                    JsonNode arguments) {
-        var methodParams = method.getParameters();
-        var args = new Object[methodParams.length];
-        int paramIdx = 0;
-
-        // Resolve the topic from JSON arguments (used for Broadcaster/StreamingSession injection)
-        String topic = null;
-        if (arguments != null && arguments.has("topic")) {
-            topic = arguments.get("topic").stringValue();
-        }
-
-        for (int i = 0; i < methodParams.length; i++) {
-            var type = methodParams[i].getType();
-            if (McpRegistry.isInjectableType(type)) {
-                args[i] = resolveInjectable(type, topic);
-            } else if (paramIdx < paramEntries.size()) {
-                var param = paramEntries.get(paramIdx);
-                if (arguments != null && arguments.has(param.name())) {
-                    args[i] = convertParam(arguments.get(param.name()), param.type());
-                } else if (param.required()) {
-                    throw new IllegalArgumentException(
-                            "Missing required parameter: " + param.name());
-                } else {
-                    args[i] = defaultValue(param.type());
-                }
-                paramIdx++;
-            }
-        }
-        return args;
+        return parameterBinder.bindArguments(method, paramInfos(paramEntries), arguments);
     }
 
     /**
@@ -1354,45 +1346,7 @@ public final class McpProtocolHandler {
      */
     private Map<String, Object> bindArgumentsAsMap(List<McpRegistry.ParamEntry> paramEntries,
                                                    JsonNode arguments) {
-        var map = new LinkedHashMap<String, Object>();
-        for (var param : paramEntries) {
-            if (arguments != null && arguments.has(param.name())) {
-                map.put(param.name(), convertParam(arguments.get(param.name()), param.type()));
-            } else if (param.required()) {
-                throw new IllegalArgumentException(
-                        "Missing required parameter: " + param.name());
-            } else {
-                map.put(param.name(), defaultValue(param.type()));
-            }
-        }
-        // Also include any extra arguments not declared in params
-        if (arguments != null) {
-            for (var field : arguments.properties()) {
-                map.putIfAbsent(field.getKey(), mapper.convertValue(field.getValue(), Object.class));
-            }
-        }
-        return map;
-    }
-
-    private Object convertParam(JsonNode node, Class<?> type) {
-        if (node == null || node.isNull()) return defaultValue(type);
-        if (type == String.class) return node.isString() ? node.stringValue() : node.toString();
-        if (type == int.class || type == Integer.class) return node.asInt();
-        if (type == long.class || type == Long.class) return node.asLong();
-        if (type == double.class || type == Double.class) return node.asDouble();
-        if (type == float.class || type == Float.class) return (float) node.asDouble();
-        if (type == boolean.class || type == Boolean.class) return node.asBoolean();
-        // Complex types — try Jackson deserialization
-        return mapper.convertValue(node, type);
-    }
-
-    private Object defaultValue(Class<?> type) {
-        if (type == int.class) return 0;
-        if (type == long.class) return 0L;
-        if (type == double.class) return 0.0;
-        if (type == float.class) return 0.0f;
-        if (type == boolean.class) return false;
-        return null;
+        return parameterBinder.bindArgumentsAsMap(paramInfos(paramEntries), arguments);
     }
 
     private Object idValue(JsonNode id) {

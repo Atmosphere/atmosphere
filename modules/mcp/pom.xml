@@ -24,6 +24,13 @@
             <artifactId>atmosphere-runtime</artifactId>
         </dependency>
 
+        <!-- Shared JSON-RPC parameter binding (registre#27: one binder, not
+             a hand-rolled copy per protocol handler) -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-protocol-common</artifactId>
+        </dependency>
+
         <!-- Optional: enables StreamingSession injection in @McpTool methods -->
         <dependency>
             <groupId>org.atmosphere</groupId>

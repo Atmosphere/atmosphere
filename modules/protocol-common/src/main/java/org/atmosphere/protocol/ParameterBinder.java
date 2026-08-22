@@ -35,7 +35,7 @@ public final class ParameterBinder {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    private final Set<Class<?>> injectableTypes;
+    private final java.util.function.Predicate<Class<?>> injectablePredicate;
     private final BiFunction<Class<?>, String, Object> injectableResolver;
 
     /**
@@ -44,8 +44,29 @@ public final class ParameterBinder {
      */
     public ParameterBinder(Set<Class<?>> injectableTypes,
                            BiFunction<Class<?>, String, Object> injectableResolver) {
-        this.injectableTypes = injectableTypes;
+        this(type -> isAssignableFromAny(injectableTypes, type), injectableResolver);
+    }
+
+    /**
+     * Predicate variant for handlers whose injectable set is logic rather
+     * than a fixed type set (e.g. MCP's reflective StreamingSession check).
+     *
+     * @param injectablePredicate true when a parameter type is framework-injected
+     * @param injectableResolver  resolver function: (type, topic) → injected value
+     */
+    public ParameterBinder(java.util.function.Predicate<Class<?>> injectablePredicate,
+                           BiFunction<Class<?>, String, Object> injectableResolver) {
+        this.injectablePredicate = injectablePredicate;
         this.injectableResolver = injectableResolver;
+    }
+
+    private static boolean isAssignableFromAny(Set<Class<?>> types, Class<?> type) {
+        for (var injectable : types) {
+            if (injectable.isAssignableFrom(type)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -113,12 +134,7 @@ public final class ParameterBinder {
 
     /** Check if a type is injectable. */
     public boolean isInjectable(Class<?> type) {
-        for (var injectable : injectableTypes) {
-            if (injectable.isAssignableFrom(type)) {
-                return true;
-            }
-        }
-        return false;
+        return injectablePredicate.test(type);
     }
 
     /** Convert a JSON node to the target type. */
@@ -133,13 +149,13 @@ public final class ParameterBinder {
         return MAPPER.convertValue(node, type);
     }
 
-    /** Extract a plain Java value from a JSON node. */
+    /** Extract a plain Java value from a JSON node (objects/arrays become Maps/Lists). */
     private static Object nodeToObject(JsonNode node) {
         if (node == null || node.isNull()) return null;
         if (node.isString()) return node.stringValue();
         if (node.isNumber()) return node.numberValue();
         if (node.isBoolean()) return node.booleanValue();
-        return node.toString();
+        return MAPPER.convertValue(node, Object.class);
     }
 
     /** Return the default value for a primitive type. */
