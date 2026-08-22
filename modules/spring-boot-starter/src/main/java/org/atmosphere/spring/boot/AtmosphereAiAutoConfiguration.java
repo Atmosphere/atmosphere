@@ -1062,6 +1062,12 @@ public class AtmosphereAiAutoConfiguration {
         // Non-null only when this installer created the journal — so destroy()
         // closes a journal we own but never a user-supplied bean (Invariant #1).
         private org.atmosphere.ai.resume.EffectJournal ownedJournal;
+        // Set when the bundled SQLite journal opened, so the approval-expiry
+        // backstop can put its timer store beside it (registre#26).
+        private String sqliteJournalPath;
+        // The timer service + store the expiry factory created; closed on
+        // shutdown (Invariant #1).
+        private AutoCloseable expiryHandle;
 
         DurableRunSpineInstaller(AtmosphereProperties.DurableRunsProperties config,
                                  org.springframework.beans.factory.ObjectProvider<
@@ -1093,6 +1099,19 @@ public class AtmosphereAiAutoConfiguration {
                         + "Add the atmosphere-checkpoint dependency (journal=sqlite) for crash survival "
                         + "(Correctness Invariant #5).", journal.name());
             }
+            if (sqliteJournalPath != null) {
+                // Restart-surviving approval expiry (registre#26): durable
+                // timers beside the crash-durable journal auto-fail approvals
+                // whose deadline passed while the process was down.
+                try {
+                    expiryHandle = DurableApprovalExpiryFactory.start(sqliteJournalPath, journal);
+                    logger.info("Durable approval-expiry backstop armed (timers={}.timers)",
+                            sqliteJournalPath);
+                } catch (RuntimeException e) {
+                    logger.warn("Durable approval-expiry backstop could not start ({}); "
+                            + "approvals expire only via the live await deadline", e.toString());
+                }
+            }
         }
 
         private org.atmosphere.ai.resume.EffectJournal resolveBundledJournal() {
@@ -1105,7 +1124,9 @@ public class AtmosphereAiAutoConfiguration {
                 var path = config.getPath().replace(
                         "${java.io.tmpdir}", System.getProperty("java.io.tmpdir"));
                 try {
-                    return SqliteEffectJournalFactory.create(path, maxRuns, maxEffects);
+                    var journal = SqliteEffectJournalFactory.create(path, maxRuns, maxEffects);
+                    sqliteJournalPath = path;
+                    return journal;
                 } catch (RuntimeException e) {
                     logger.error("Failed to open the SQLite effect journal at {} — falling back to the "
                             + "in-memory journal (NOT crash-durable)", path, e);
@@ -1123,6 +1144,14 @@ public class AtmosphereAiAutoConfiguration {
         @Override
         public void destroy() {
             org.atmosphere.ai.resume.DurableRunSpineHolder.reset();
+            org.atmosphere.ai.approval.ApprovalExpiryHolder.reset();
+            if (expiryHandle != null) {
+                try {
+                    expiryHandle.close();
+                } catch (Exception e) {
+                    logger.debug("Error closing the approval-expiry backstop on shutdown", e);
+                }
+            }
             if (ownedJournal instanceof AutoCloseable closeable) {
                 try {
                     closeable.close();

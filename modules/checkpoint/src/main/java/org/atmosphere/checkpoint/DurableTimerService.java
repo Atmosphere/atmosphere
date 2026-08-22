@@ -35,12 +35,14 @@ import java.util.function.Consumer;
  * {@link DurableTimerStore} so a "wake at T" timer armed before a restart
  * fires on the next poll after recovery (re-arm from store).
  *
- * <p>LIMITATION(registre#26): no in-tree consumer arms timers yet — live
- * approval expiry is already enforced by the awaiting caller's
- * {@code future.get(timeout)}, and giving journaled approvals a
- * restart-surviving auto-reject through this service requires recording
- * {@code expiresAt} in the effect journal's pending entries. Until then the
- * service is operator-wirable infrastructure, not a shipped behaviour.</p>
+ * <p>Production consumer: {@link DurableApprovalExpiry} arms an
+ * {@code approval-expiry} timer for every journaled approval awaiting a human
+ * (registre#26) — the Spring / Quarkus durable-run wiring builds this service
+ * over the SQLite timer store when the crash-durable journal is active, so an
+ * approval whose deadline passes while the process is down is auto-failed on
+ * the first poll after recovery. Live expiry for the awaiting caller remains
+ * {@code future.get(timeout)}; this service is the restart-surviving
+ * backstop.</p>
  *
  * <p>Firing is <strong>exactly-once</strong>: a timer is claimed via
  * {@link DurableTimerStore#remove(String)} before its callback runs, so

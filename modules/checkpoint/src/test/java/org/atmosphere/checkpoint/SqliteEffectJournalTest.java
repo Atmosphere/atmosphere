@@ -101,6 +101,22 @@ class SqliteEffectJournalTest {
     }
 
     @Test
+    void markFailedRefusesToDemoteACommittedEffect() {
+        // Guards the approval-expiry-timer-vs-decision race (registre#26):
+        // a COMMITTED→FAILED flip would re-run the side effect on resume.
+        try (var journal = new SqliteEffectJournal(tempDir.resolve("nodemote.db"))) {
+            journal.appendPending("r1", org.atmosphere.ai.resume.EffectKind.APPROVAL, "k1", "d1");
+            journal.commit("r1", "k1", "{\"outcome\":\"APPROVED\"}");
+
+            journal.markFailed("r1", "k1", "late expiry");
+
+            org.junit.jupiter.api.Assertions.assertTrue(
+                    journal.lookupCommitted("r1", "k1").isPresent(),
+                    "the committed decision must survive a late markFailed");
+        }
+    }
+
+    @Test
     void maxEffectsPerRunOverflowFailsRatherThanDrops() {
         try (var journal = new SqliteEffectJournal(tempDir.resolve("d.db"), 100, 3)) {
             journal.appendPending("r1", EffectKind.TOOL_CALL, "k0", "d");

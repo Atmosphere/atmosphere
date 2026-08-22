@@ -162,6 +162,14 @@ public final class InMemoryEffectJournal implements EffectJournal {
                 return;
             }
             var existing = state.bySeq.get(idx);
+            if (existing.status() == EffectStatus.COMMITTED) {
+                // Never demote a committed effect: a COMMITTED→FAILED flip
+                // would re-run the recorded side effect on resume. Guards the
+                // expiry-timer-vs-decision race (Correctness Invariant #2).
+                logger.trace("markFailed ignored for committed key {} in run {}",
+                        idempotencyKey, runId);
+                return;
+            }
             state.bySeq.set(idx, new EffectRecord(existing.runId(), existing.seq(),
                     existing.kind(), existing.idempotencyKey(), EffectStatus.FAILED,
                     existing.requestDigest(), reason, existing.recordedAt()));

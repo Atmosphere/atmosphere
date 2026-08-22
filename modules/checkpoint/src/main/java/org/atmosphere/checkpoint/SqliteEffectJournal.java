@@ -240,7 +240,20 @@ public final class SqliteEffectJournal implements EffectJournal, AutoCloseable {
     public void markFailed(String runId, String idempotencyKey, String reason) {
         lock.lock();
         try {
-            int updated = updateStatus(runId, idempotencyKey, EffectStatus.FAILED, reason);
+            // Never demote a committed effect: a COMMITTED→FAILED flip would
+            // re-run the recorded side effect on resume. Guards the
+            // expiry-timer-vs-decision race (Correctness Invariant #2).
+            int updated;
+            try (var ps = connection.prepareStatement("UPDATE effect_journal "
+                    + "SET status = ?, result_payload = ? "
+                    + "WHERE run_id = ? AND idempotency_key = ? AND status != ?")) {
+                ps.setString(1, EffectStatus.FAILED.name());
+                ps.setString(2, reason);
+                ps.setString(3, runId);
+                ps.setString(4, idempotencyKey);
+                ps.setString(5, EffectStatus.COMMITTED.name());
+                updated = ps.executeUpdate();
+            }
             if (updated == 0) {
                 // Best-effort: never mask the original failure with a journal error.
                 logger.trace("markFailed without appendPending for key {} in run {}",

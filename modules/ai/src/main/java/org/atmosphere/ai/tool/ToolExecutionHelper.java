@@ -865,6 +865,22 @@ public final class ToolExecutionHelper {
                     + "the decision will not survive a crash", toolName, e.toString());
             return awaitLiveApproval(toolName, tool, args, session, strategy);
         }
+        // Arm the wall-clock backstop BEFORE parking: if the process dies
+        // while awaiting, the durable timer marks the stale PENDING effect
+        // FAILED at its deadline (registre#26 — expiry no longer happens
+        // only "when someone happens to look"). markFailed never demotes a
+        // COMMITTED decision, so the timer-vs-decision race is safe.
+        var expiry = org.atmosphere.ai.approval.ApprovalExpiryHolder.current();
+        if (expiry != null) {
+            var timeout = tool.approvalTimeout() > 0 ? tool.approvalTimeout() : 300;
+            try {
+                expiry.arm(ctx.runId(), key, toolName, Instant.now().plusSeconds(timeout));
+            } catch (RuntimeException e) {
+                logger.warn("Tool {} approval expiry backstop could not be armed ({}); "
+                        + "a crash while parked will leave the effect PENDING until resume",
+                        toolName, e.toString());
+            }
+        }
         var resolution = awaitLiveApproval(toolName, tool, args, session, strategy);
         try {
             if (resolution.outcome() == ApprovalStrategy.ApprovalOutcome.TIMED_OUT) {
@@ -878,6 +894,15 @@ public final class ToolExecutionHelper {
             logger.warn("Tool {} approval decision could not be committed to the effect "
                     + "journal ({}); the decision stands but will not survive a crash",
                     toolName, e.toString());
+        }
+        if (expiry != null) {
+            try {
+                expiry.cancel(ctx.runId(), key);
+            } catch (RuntimeException e) {
+                logger.debug("Tool {} approval expiry backstop cancel failed ({}); the fired "
+                        + "timer is harmless — the decision is already terminal",
+                        toolName, e.toString());
+            }
         }
         return resolution;
     }

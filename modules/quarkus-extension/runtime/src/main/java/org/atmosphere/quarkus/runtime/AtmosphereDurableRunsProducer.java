@@ -70,6 +70,12 @@ public class AtmosphereDurableRunsProducer {
     @Inject
     Instance<EffectJournal> journalInstance;
 
+    // Set when the bundled SQLite journal opened, so the approval-expiry
+    // backstop can put its timer store beside it (registre#26).
+    private String sqliteJournalPath;
+    // Timer service + store the expiry wiring created; closed on shutdown
+    // (Invariant #1).
+    private java.util.List<AutoCloseable> expiryCloseables = java.util.List.of();
     // Non-null only when this bean created the journal — so onShutdown() closes a
     // journal we own but never a user-supplied bean (Correctness Invariant #1).
     private volatile EffectJournal ownedJournal;
@@ -118,6 +124,9 @@ public class AtmosphereDurableRunsProducer {
         var owner = "atmosphere-" + UUID.randomUUID();
         DurableRunSpineHolder.install(new DurableRunSpine(journal, spineConfig, owner));
         installed = true;
+        if (sqliteJournalPath != null) {
+            startApprovalExpiry(sqliteJournalPath, journal);
+        }
         if (journal.durable()) {
             logger.info("Durable agent runs enabled (journal={}, crash-durable, retainOnSuccess={})",
                     journal.name(), durable.retainOnSuccess());
@@ -138,7 +147,9 @@ public class AtmosphereDurableRunsProducer {
             var path = durable.path().replace(
                     "${java.io.tmpdir}", System.getProperty("java.io.tmpdir"));
             try {
-                return createSqliteJournal(path, maxRuns, maxEffects);
+                var journal = createSqliteJournal(path, maxRuns, maxEffects);
+                sqliteJournalPath = path;
+                return journal;
             } catch (RuntimeException e) {
                 logger.error("Failed to open the SQLite effect journal at {} — falling back to the "
                         + "in-memory journal (NOT crash-durable)", path, e);
@@ -200,6 +211,37 @@ public class AtmosphereDurableRunsProducer {
         }
     }
 
+    /**
+     * Arms the restart-surviving approval-expiry backstop (registre#26):
+     * durable timers beside the crash-durable journal auto-fail approvals
+     * whose deadline passed while the process was down. Constructed entirely
+     * through reflection for the same GraalVM link-at-build-time reasons as
+     * {@link #createSqliteJournal} — every optional class name reaches
+     * {@link #loadClass} as a parameter. A failure degrades to the live
+     * await-deadline-only behaviour with a WARN, never a startup failure.
+     */
+    private void startApprovalExpiry(String journalPath, EffectJournal journal) {
+        try {
+            var storeClass = loadClass("org.atmosphere.checkpoint.SqliteDurableTimerStore");
+            var store = storeClass.getConstructor(java.nio.file.Path.class)
+                    .newInstance(java.nio.file.Path.of(journalPath + ".timers"));
+            var storeInterface = loadClass("org.atmosphere.checkpoint.DurableTimerStore");
+            var serviceClass = loadClass("org.atmosphere.checkpoint.DurableTimerService");
+            var service = serviceClass.getConstructor(storeInterface).newInstance(store);
+            var expiryClass = loadClass("org.atmosphere.checkpoint.DurableApprovalExpiry");
+            var expiry = (org.atmosphere.ai.approval.ApprovalExpiry) expiryClass
+                    .getConstructor(serviceClass, EffectJournal.class)
+                    .newInstance(service, journal);
+            serviceClass.getMethod("start").invoke(service);
+            org.atmosphere.ai.approval.ApprovalExpiryHolder.install(expiry);
+            expiryCloseables = java.util.List.of((AutoCloseable) service, (AutoCloseable) store);
+            logger.info("Durable approval-expiry backstop armed (timers={}.timers)", journalPath);
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            logger.warn("Durable approval-expiry backstop could not start ({}); "
+                    + "approvals expire only via the live await deadline", e.toString());
+        }
+    }
+
     // name reaches Class.forName as a parameter (not a compile-time constant at the
     // call site) with initialize=false, so GraalVM cannot constant-fold the lookup
     // and link the loaded class at native build time — same pattern as isClassPresent.
@@ -225,7 +267,16 @@ public class AtmosphereDurableRunsProducer {
             return;
         }
         DurableRunSpineHolder.reset();
+        org.atmosphere.ai.approval.ApprovalExpiryHolder.reset();
         installed = false;
+        for (var closeable : expiryCloseables) {
+            try {
+                closeable.close();
+            } catch (Exception e) {
+                logger.debug("Error closing the approval-expiry backstop on shutdown", e);
+            }
+        }
+        expiryCloseables = java.util.List.of();
         if (ownedJournal instanceof AutoCloseable closeable) {
             try {
                 closeable.close();
