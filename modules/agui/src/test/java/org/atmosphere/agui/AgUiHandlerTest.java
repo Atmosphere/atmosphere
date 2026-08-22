@@ -118,6 +118,10 @@ class AgUiHandlerTest {
         assertTrue(output.contains("event: RUN_STARTED"), "Should emit RunStarted event");
         assertTrue(output.contains("\"runId\":\"r1\""), "Should contain the runId");
         assertTrue(output.contains("\"threadId\":\"t1\""), "Should contain the threadId");
+        // registre#29: MESSAGES_SNAPSHOT was advertised but never
+        // constructed — a run arriving with history must snapshot it.
+        assertTrue(output.contains("event: MESSAGES_SNAPSHOT"),
+                "a run carrying messages must emit the authoritative snapshot: " + output);
     }
 
     @Test

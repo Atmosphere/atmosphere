@@ -159,6 +159,17 @@ public final class AgUiHandler implements AtmosphereHandler {
 
         // Emit RunStarted immediately and flush
         sseWriter.write(new AgUiEvent.RunStarted(runContext.runId(), runContext.threadId()));
+        // MESSAGES_SNAPSHOT gives the client the authoritative conversation
+        // state at run start (registre#29 — this event type was advertised
+        // but never constructed). Only sent when the run carries history.
+        if (runContext.messages() != null && !runContext.messages().isEmpty()) {
+            try {
+                sseWriter.write(new AgUiEvent.MessagesSnapshot(
+                        MAPPER.writeValueAsString(runContext.messages())));
+            } catch (RuntimeException e) {
+                logger.debug("MESSAGES_SNAPSHOT serialization failed", e);
+            }
+        }
 
         // Execute on virtual thread
         var finalRunContext = runContext;

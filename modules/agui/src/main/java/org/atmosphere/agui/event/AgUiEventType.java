@@ -16,8 +16,16 @@
 package org.atmosphere.agui.event;
 
 /**
- * All 27 AG-UI event type string constants as defined by the AG-UI protocol specification.
- * Each enum constant maps to its wire-format event type string.
+ * All 27 AG-UI event type string constants as defined by the AG-UI protocol
+ * specification. Each enum constant maps to its wire-format event type string.
+ *
+ * <p><strong>Produced vs parsed (runtime truth):</strong> the server emits
+ * the lifecycle, text START/CONTENT/END, tool START/ARGS/END/RESULT,
+ * STATE_SNAPSHOT/STATE_DELTA, MESSAGES_SNAPSHOT, the REASONING_* family,
+ * and CUSTOM. The alternative single-frame encodings the protocol also
+ * permits — TEXT_MESSAGE_CHUNK, TOOL_CALL_CHUNK, REASONING_MESSAGE_CHUNK —
+ * plus ACTIVITY_SNAPSHOT and RAW are accepted on parse but deliberately
+ * not produced: the server always streams the framed form.</p>
  */
 public enum AgUiEventType {
 
