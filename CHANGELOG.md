@@ -7,6 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.68] - 2026-08-23
+
+### Added
+
+- scope workspace RUNTIME.md settings to their agent via AiConfig.configureForAgent First workspace seeds the process default, later ones stay agent-scoped; the built-in runtime serves scoped agents from their own client (registre#39)
+- ship the voice-mode endpoint driving the speech-to-speech loop VoiceEndpointHandler resolves RealtimeVoiceProvider per connect; mounted behind atmosphere.ai.voice.enabled on Spring and Quarkus (registre#25)
+- per-user MCP credentials via McpTrustProvider, facade on the selection path connectForUser sends the resolved Bearer credential and fails closed unauthorized; ToolSelection composes ToolExtensibilityPoint per request (registre#24)
+- arm durable approval-expiry timers for journaled approvals DurableApprovalExpiry is DurableTimerService's production consumer, wired by both durable-run installers; markFailed never demotes COMMITTED (registre#26)
+- implement expose, snapshot and hibernate on both shipped backends Docker uses pause/commit/port-publishing recreation, in-process copies its workdir (registre#5); README stops naming non-existent backend modules
+- execute saved workflow manifests through AgentFleet with run/approval endpoints WorkflowRunner dispatches agent/condition/fan-out/join/approval/output nodes (registre#1); Quarkus gains the workflow surface and live coordinator wiring
+- read WEBTRANSPORT_PROTOCOL knob to install custom WebTransport protocols Custom protocol owns message/lifecycle callbacks (registre#28); tool/voice SPI docs made truthful (registre#24, registre#25); exec-maven-plugin version pinned
+- expose fleet health, make VerifyCli launchable, honest fan-out contract GET /coordinators/{name}/health reads AgentFleet.health(); exec mainClass pinned for the verifier CLI; FanOutStreamingSession documented app-constructed (registre#43)
+- surface priced call cost as business.session.cost response metadata CostAccountant gains priceUsd; the accounting session emits the real figure and BusinessMetadata docs now state who writes what (registre#42)
+- emit MESSAGES_SNAPSHOT at run start and document the produced event set 23 of 27 AG-UI types now have producers; the chunked/raw alternates are documented parse-only by design (registre#29)
+- stream reasoning and citations as first-class AiEvents Anthropic thinking blocks and Cohere citations now produce ReasoningDelta/ReasoningComplete/Citation, mapped to AG-UI's REASONING_* and CUSTOM (registre#16)
+- wire the agent-state control plane to both admin transports StateController serves the live per-agent AgentState registry with guarded mutations; the vacuous [200,404] e2e now discriminates (registre#21)
+- register live protocol bridges and list them on the admin plane Processors install Mcp/A2a/AgUi/InMemory bridges via ProtocolBridgeRegistry.install; GET /api/admin/protocols reports runtime truth and the false SPI comments are corrected (registre#22)
+- render the coordination causal tree from the journaled lineage GET /journal/{id}/tree reads CoordinationProjection on both admin transports, giving the envelope lineage its production consumer (registre#23)
+- route shared-channel free text by address, default agent, or sole binding @name/name: addressing beats registration order; atmosphere.channels.default-agent catches the rest; ambiguity now warns (registre#34)
+
+### Fixed
+
+- run --env sets real child environment variables that beat ambient exports -D-only mapping let an inherited LLM_BASE_URL silently redirect a local run to a remote provider; e2e regression added, sweep matrix model guidance corrected
+- voice config strings are Optional, SmallRye rejects empty-string defaults
+- propagate response metadata to the task and retire the mispointed marker sendMetadata lands on TaskContext (Task/TaskStatusUpdateEvent carry it); DurableTimerService docs now register the unwired-consumer limitation (registre#26)
+- surface encoder/decoder registration conflicts and decode failures Last-wins codec conflicts and the first throwing Decoder now WARN instead of passing silently at trace (registre#40)
+- warn once when durable run state degrades to in-memory The first RunJournal failure is an operator-visible WARN instead of TRACE; repeats stay quiet off the hot path (registre#32)
+- journal denied dispatches by wrapping governance inside journaling journal(intercepting(base)) is now the default composition, upholding Decision.Deny's documented audit guarantee (registre#8)
+- count tool-call payloads, honor maxMessages and reserve headroom in TokenWindowStrategy Tool arguments now consume the token estimate, maxMessages caps the selection, and forModel budgets 75 percent of the window (registre#33)
+- warn loudly when a second workspace clobbers the process-wide AiConfig RUNTIME.md application stays last-write-wins but now registers the limitation and names both workspaces on the WARN (registre#39)
+- honor the configured session TTL in the Redis store removeExpired(ttl) now expires on lastSeen against the passed ttl like the sibling stores, instead of discarding it (registre#11)
+- protect each coordination's resume anchor from global eviction Oldest non-anchor snapshots evict first in all three stores; anchors go only when the cap is below the live-coordination count, with a WARN (registre#36)
+- honor configured pool bounds in virtual-thread mode An explicit maxProcessingThreads/maxAsyncWriteThreads now bounds a virtual-thread pool instead of being silently ignored (registre#7)
+- signal structured-output parse failure via metadata breadcrumb An AiEvent.Error hard-failed minimal sessions through the default emit mapping; ai.structured.parse_failed keeps terminal semantics (registre#30)
+- frame binary payloads instead of corrupting them as text Binary rides a 0x00 length-prefixed frame on server and JS client; text keeps newline framing; console bundles re-synced (registre#15)
+- thread client history to the OpenAI-compatible endpoint without memory Prior turns and client system messages ride REQUEST_HISTORY_METADATA_KEY so standard SDK clients no longer lose their context (registre#6)
+- surface structured-output parse failures as a recoverable Error event A parse failure on complete() was swallowed at DEBUG, leaving a clean terminal frame indistinguishable from an empty answer (registre#30)
+- drop tool string arguments truncated mid-value instead of delivering them An unterminated string in cut-off model JSON now fails required-arg validation rather than silently shortening the value (registre#37)
+- deliver content and metadata on the live AG-UI session sendContent now uses the default text/breadcrumb routing and sendMetadata rides the CUSTOM event instead of vanishing (registre#13)
+- honor the fluent contract on DefaultBroadcasterCache listener registration Returning null NPE'd the BroadcasterConfig loop; registration now warns that the no-op cache fires no events (registre#14)
+- implement WebSocket ping/pong and close(code, reason) JSR356 binding transmits control frames and coded closes; the base close(code, reason) now closes instead of silently no-oping (registre#10)
+- decode the stream transport incrementally to keep split UTF-8 intact Per-chunk new String() corrupted multi-byte characters at buffer boundaries (registre#38)
+- stop registering webhook routes for Gateway-only channels DiscordChannel returns a null webhookPath (no unauthenticated dead route) and its webhook SPI methods fail closed (registre#44)
+- enforce the documented same-origin policy on WebSocket handshakes WEBSOCKET_REQUIRE_SAME_ORIGIN is now read (default true); cross-origin browser handshakes are refused unless explicitly disabled (registre#18)
+- enforce the isolation-tier floor on the production resolve path @SandboxTool gains minTier; named backends below the floor are refused and empty backend selects by tier via Sandboxes (registre#20)
+- tighten and verify seal key permissions for pre-existing key files loadKey now restores owner-only permissions and fails loud when the key stays accessible beyond its owner (registre#17)
+- verify A2A agent-card signatures on the consuming side isAvailable now enforces self-integrity on signed cards and supports a pinned peer key that fails closed (registre#19)
+- carry caller identity into POST_RESPONSE policy evaluation inspectResponse gains an identity-aware overload wired through DispatchDecorators, so output authorization keeps its subject (registre#9)
+- honor user/agent scoping in agent-state rules and workspace root getRules reads users/{userId}/USER.md and agents/{agentId} overrides; workspaceRoot returns the per-agent subtree (registre#12)
+- apply PolicyDecision.Transform to the dispatched fleet args Transform now re-evaluates per String arg so redaction lands on the real payload; unapplied transforms report Proceed, not a false rewrite (registre#4)
+- fail closed when the run owner principal cannot be resolved A thrown getUserPrincipal now registers the run as unresolved-principal, refusing reattach instead of granting the anonymous carve-out (registre#3)
+- publish create-atmosphere-app on every release and fail loudly It was gated on atmosphere.js changes and swallowed publish errors, so npm sat on 4.0.65 through two releases.
+
+### Changed
+
+- reattach the durable-run spine javadoc
+- model the crash window without demoting committed effects markFailed refuses COMMITTED->FAILED since the expiry-race guard; the durability tests rebuild the resumed journal from the surviving effects instead
+- reattach the workflow bean javadoc
+- delete 13 never-read ApplicationConfig constants Dead knobs promised behavior nothing implements (registre#18 sweep); WEBTRANSPORT_PROTOCOL is now read and PROPERTY_SERVLET_MAPPING has a live reader, both stay
+- bind JSON-RPC parameters through the shared ParameterBinder protocol-common's binder replaces the hand-rolled copy; MCP contributes only its injectable predicate and resolver (registre#27)
+- browse the server origin in grpc-browser instead of about:blank about:blank hands WebSocket a literal null Origin, which the default-on same-origin handshake check rightly refuses (registre#18)
+- pin the per-agent workspaceRoot contract in StateControllerTest Follows the agent-state scoping fix (registre#12)
+- correct five stale javadocs, register the metadata drop
+- run the limitation gates in CI and review phases weekly
+- enforce the limitation gates in pre-push validation
+- adopt limitation register, fix two stale javadocs
+- prepare next development version 5.0.43
+- prepare for next development iteration 4.0.68-SNAPSHOT
+
 ## [4.0.67] - 2026-08-17
 
 ### Fixed
