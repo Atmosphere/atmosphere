@@ -89,11 +89,22 @@ screenshot             → evidence for the report
 | 2 | All four rooms render and are selectable | `ui_describe_all` lists Math / Code / Science / General |
 | 3 | AI response streams **text-by-text** | Two `ui_describe_all` reads during one turn show a growing string — a single atomic message means `useStreamingRN` collapsed |
 | 4 | AppState-aware suspend | Background the app (`press_home`-equivalent), return, confirm it reconnects rather than dying |
-| 5 | NetInfo offline banner | Toggle the simulator's network off: the offline banner shows and sends are suppressed, not silently dropped |
+| 5 | NetInfo offline banner | **Do not drive this one.** See below — record it PARTIAL against its unit coverage |
 
-Assertions 4 and 5 are the ones no other test in the repo covers — they are the
-reason this pass exists. If the simulator makes the network toggle impractical,
-say so and mark that row PARTIAL; do not quietly drop it.
+Assertion 4 is the one no other test in the repo covers — it is the reason this
+pass exists.
+
+**Assertion 5 is off-limits to the sweep.** The simulator has no network of its
+own: it rides the host's. Taking it offline means turning off the machine's
+Wi-Fi, which severs every session the maintainer has open — remote shells, other
+agent sessions, calls, downloads — and an interrupted sweep can strand the
+machine offline indefinitely. That happened on 2026-08-23 and it is never
+acceptable. **Never run `networksetup`, `ifconfig down`, or any other host
+network command.** Record assertion 5 as PARTIAL, name the reason, and cite the
+unit coverage that does gate it:
+`tests/unit/react-native/use-streaming-rn-offline-send.test.ts` and
+`tests/unit/hooks/use-offline-queue.test.ts`. If a real offline drill is ever
+needed, ask the maintainer to perform it at a time of their choosing.
 
 ## Teardown
 

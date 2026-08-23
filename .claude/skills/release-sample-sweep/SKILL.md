@@ -78,7 +78,13 @@ say so in the ledger, and note which already-passed samples were re-run.
    `spring-boot:run` / `quarkus:dev`. Both historical bugs above existed *only*
    at artifact level.
 5. **Kill by PID, never `pkill -f`.** Never touch a port or process the sweep
-   did not start — if a port is occupied, move to another port.
+   did not start — if a port is occupied, move to another port. The same rule
+   covers the machine's **network**: never run `networksetup`, never take an
+   interface down, never touch VPN/DNS/proxy settings. The host's Wi-Fi carries
+   every session the maintainer has open, and a sweep interrupted mid-toggle can
+   leave the machine offline indefinitely. Any assertion that needs real network
+   loss is recorded PARTIAL with its unit coverage cited — see
+   `references/expo-sweep.md`.
 6. **Model limitation ≠ framework bug.** A small local model emitting invalid
    tool-call arguments is a model limitation; record it as such and prove it by
    re-running the same flow on a capable model before calling it a regression.
