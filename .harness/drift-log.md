@@ -2842,3 +2842,78 @@ reads as transparency but functions as a stall when the work is mine to do.
 
 **Gate added:** none automated. Recorded rule: if a report names an open item
 that needs no decision, do the item instead of naming it.
+
+## 2026-08-25 — Blog intro implied retrieval lives behind the runtime adapter
+
+### "Your LangChain4j StreamingChatModel sitting behind your retrieval pipeline"
+
+**Claim:** a new opening paragraph for the 4.x AI blog post argued that an
+OpenAI-compatible base URL "cannot reach ... the LangChain4j
+`StreamingChatModel` sitting behind your retrieval pipeline" — framing RAG as
+something reached *through* a framework runtime adapter, and implicitly as
+something Atmosphere does not provide itself.
+
+**Truth:** retrieval sits *above* the runtime seam. `ContextProvider` is
+declared in core (`modules/ai/src/main/java/org/atmosphere/ai/ContextProvider.java`)
+and driven from the shared streaming path at
+`modules/ai/src/main/java/org/atmosphere/ai/AiStreamingSession.java:784`, with
+query transform, filter, rerank, RRF fusion, and a `SafetyContextProvider`
+injection screen. `modules/rag` ships six providers and its `pom.xml` has zero
+dependency on `atmosphere-spring-ai` or `atmosphere-langchain4j` — a Spring AI
+`VectorStore` or LangChain4j `EmbeddingStore` is reachable while the built-in
+OpenAI-compatible runtime serves the call. The paragraph both misplaced the
+layer and undersold a shipped module.
+
+**Slip path:** the paragraph was composed from the argument I wanted to make
+rather than from the file I was editing. The same post already described the
+RAG layer correctly ~300 lines below the insertion point
+(`atmosphere-4x-ai.astro`, "For retrieval, there's a pluggable RAG layer with a
+`ContextProvider` SPI and six backends"), so the contradiction was on disk
+before I wrote it. I verified the capability snapshot and the runtime SPI, then
+asserted the retrieval topology without reading either the module or the rest
+of the document. The project maintainer caught it on first read.
+
+**Gate added:** none automated. Recorded rules: (1) when inserting prose into
+an existing document, read the whole document first — a contradiction the file
+already refutes is the cheapest possible catch; (2) for "X is only reachable
+through Y" architecture claims, check the module `pom.xml` for the coupling
+being asserted, not the narrative.
+
+## 2026-08-25 — Blog "why a seam" section invented a transport-layer precedent
+
+### "I have run this ledger to the end once before … thirty-seven classes … on main that package is six"
+
+**Claim:** a synthesized paragraph for the 4.x AI blog post presented the
+`org.atmosphere.container` package shrinking from 37 files on
+`atmosphere-2.6.x` to 6 on `main` as the payoff of the `AsyncSupport` seam —
+a precedent for the `AgentRuntime` SPI — in the author's first-person voice.
+
+**Truth:** `origin/atmosphere-3.0.x` has 36 files and `origin/atmosphere-3.x`
+already has 7; the collapse landed in 3.x (`9f6379a579`, 2022-01-07) as
+container-support pruning. It is not an abstraction payoff, and 4.x had
+nothing to do with it. The narrative was built from a two-branch diff that
+skipped the 3.x line entirely, then attributed a memory to the author.
+
+**Second miss, same session:** the summary to the maintainer stated that
+`AiPipeline` never calls `ContextProvider.retrieve` on the dispatch path,
+relayed from a subagent's negative grep. `AiStreamingSession.java:96,287` and
+`AiPipeline.java:56,142-153` hold the `ContextProvider` list on the shared
+path. A negative grep is not evidence; it was repeated without a positive
+check.
+
+**How it slipped through:** the blog draft was produced by a fan-out workflow
+whose verifiers caught eleven overstatements in the section, but every
+verifier checked the numbers (37, 10, 7, 5, 4, 6 — all recount correctly)
+and none checked whether the *story* those numbers told was true. Correct
+arithmetic on the wrong two refs.
+
+**Fix:** paragraph removed the same session (`atmosphere.github.io`
+`docs(blog): drop the fabricated container-ledger precedent`); the section
+now leads with the verifiable point — the features, not just the call, are
+abstracted as `org.atmosphere` types above the seam.
+
+**Gate added:** none automated. Recorded rule: a historical "before/after"
+claim about this codebase must be checked against every release line between
+the two refs, not just the endpoints; and any first-person recollection
+written for the maintainer's voice must be a fact the maintainer stated, never
+one inferred from git.
