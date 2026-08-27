@@ -31,6 +31,7 @@
 #
 # Usage:
 #   scripts/release-gate-samples.sh --list            # print the coverage map
+#   scripts/release-gate-samples.sh --map             # machine-readable "<sample>\t<coverage>"
 #   scripts/release-gate-samples.sh --list-shards     # print shard names
 #   scripts/release-gate-samples.sh --shard <name>    # run one CI shard
 #   scripts/release-gate-samples.sh <sample>...       # run specific samples
@@ -458,6 +459,15 @@ case "${1:-}" in
         print_map
         exit 0
         ;;
+    --map)
+        # Machine-readable: "<sample>\t<coverage>", one per line, no verification.
+        # scripts/e2e-coverage-map.sh consumes this so the coverage map has exactly
+        # one definition; a second hand-maintained copy is what drifted before.
+        while IFS= read -r _dir; do
+            printf '%s\t%s\n' "$_dir" "$(coverage_of "$_dir")"
+        done < <(list_sample_dirs)
+        exit 0
+        ;;
     --list-shards)
         echo "$SHARDS"
         exit 0
@@ -472,7 +482,7 @@ if [[ "${1:-}" == "--shard" ]]; then
 elif [[ $# -gt 0 ]]; then
     TARGETS=("$@")
 else
-    echo "Usage: $0 --list | --list-shards | --shard <name> | <sample>..." >&2
+    echo "Usage: $0 --list | --map | --list-shards | --shard <name> | <sample>..." >&2
     exit 2
 fi
 
