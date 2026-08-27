@@ -36,6 +36,7 @@ import org.atmosphere.config.service.BroadcasterListenerService;
 import org.atmosphere.config.service.BroadcasterService;
 import org.atmosphere.config.service.EndpointMapperService;
 import org.atmosphere.config.service.ManagedService;
+import org.atmosphere.config.service.RoomService;
 import org.atmosphere.config.service.UUIDProviderService;
 import org.atmosphere.config.service.WebSocketFactoryService;
 import org.atmosphere.config.service.WebSocketHandlerService;
@@ -79,7 +80,8 @@ import java.util.Set;
         AtmosphereResourceFactoryService.class,
         AtmosphereFrameworkListenerService.class,
         AtmosphereResourceListenerService.class,
-        UUIDProviderService.class
+        UUIDProviderService.class,
+        RoomService.class
 })
 public class AnnotationScanningServletContainerInitializer implements ServletContainerInitializer {
 

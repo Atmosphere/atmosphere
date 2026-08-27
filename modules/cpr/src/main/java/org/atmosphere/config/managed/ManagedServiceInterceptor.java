@@ -18,6 +18,7 @@ package org.atmosphere.config.managed;
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.PathParam;
 import org.atmosphere.config.service.Singleton;
+import org.atmosphere.cpr.AtmosphereAnnotations;
 import org.atmosphere.cpr.AtmosphereHandlerWrapper;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -89,13 +90,16 @@ public final class ManagedServiceInterceptor extends ServiceInterceptor {
     }
 
     protected ManagedAnnotation managed(AnnotatedProxy ap, final AtmosphereResource r){
-        final ManagedService a = ap.target().getClass().getAnnotation(ManagedService.class);
-        if (a == null) return null;
+        // Not @ManagedService only: a @RoomService is registered through the same AnnotatedProxy and
+        // the same interceptor chain, so resolving its templated path here is what makes @PathParam
+        // work on it. AtmosphereAnnotations owns the list of path-bearing service annotations.
+        final String targetPath = AtmosphereAnnotations.servicePath(ap.target().getClass());
+        if (targetPath == null) return null;
 
         return new ManagedAnnotation() {
             @Override
             public String path() {
-                return a.path();
+                return targetPath;
             }
 
             @Override

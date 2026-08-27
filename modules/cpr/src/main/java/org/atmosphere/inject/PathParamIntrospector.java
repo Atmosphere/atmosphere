@@ -15,8 +15,8 @@
  */
 package org.atmosphere.inject;
 
-import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.PathParam;
+import org.atmosphere.cpr.AtmosphereAnnotations;
 import org.atmosphere.cpr.AtmosphereHandlerWrapper;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.FrameworkConfig;
@@ -57,11 +57,11 @@ public class PathParamIntrospector extends InjectIntrospectorAdapter<String> {
 
             if (w != null) {
                 if (w.atmosphereHandler() instanceof AnnotatedProxy ap) {
-                    if (ap.target().getClass().isAnnotationPresent(ManagedService.class)) {
-                        String targetPath = ap.target().getClass().getAnnotation(ManagedService.class).path();
-                        if (targetPath.contains("{") && targetPath.contains("}")) {
-                            paths = new String[] { Utils.pathInfo(r.getRequest()), targetPath };
-                        }
+                    // Every path-bearing service annotation, not @ManagedService alone — a templated
+                    // @RoomService reaches here with the same wrapper and used to fall through to null.
+                    String targetPath = AtmosphereAnnotations.servicePath(ap.target().getClass());
+                    if (targetPath != null && targetPath.contains("{") && targetPath.contains("}")) {
+                        paths = new String[] { Utils.pathInfo(r.getRequest()), targetPath };
                     }
                 }
 

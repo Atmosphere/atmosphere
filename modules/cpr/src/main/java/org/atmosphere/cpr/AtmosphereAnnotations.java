@@ -95,6 +95,34 @@ public final class AtmosphereAnnotations {
     }
 
     /**
+     * Returns the path declared by the service annotation carried by {@code annotatedClass}, or
+     * {@code null} when it carries none.
+     *
+     * <p>{@link ManagedService} and {@link RoomService} both declare a {@code path()} that may hold a
+     * <code>{template}</code> segment, and both are registered through the same
+     * {@link org.atmosphere.handler.AnnotatedProxy} wrapper and the same interceptor chain. Path
+     * resolution therefore has to treat them identically: testing for {@code @ManagedService} alone
+     * silently skips a {@code @RoomService}, and every {@code @PathParam} field on it injects
+     * {@code null}.</p>
+     *
+     * @param annotatedClass the user class behind an {@code AnnotatedProxy}
+     * @return the declared path, or {@code null} if the class carries no path-bearing service annotation
+     */
+    public static String servicePath(Class<?> annotatedClass) {
+        ManagedService managed = annotatedClass.getAnnotation(ManagedService.class);
+        if (managed != null) {
+            return managed.path();
+        }
+
+        RoomService room = annotatedClass.getAnnotation(RoomService.class);
+        if (room != null) {
+            return room.path();
+        }
+
+        return null;
+    }
+
+    /**
      * Returns the fully-qualified class names of all core Atmosphere annotations.
      * Useful for modules that work with string-based annotation names (e.g. Jandex {@code DotName}).
      *

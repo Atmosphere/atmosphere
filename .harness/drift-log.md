@@ -2917,3 +2917,49 @@ claim about this codebase must be checked against every release line between
 the two refs, not just the endpoints; and any first-person recollection
 written for the maintainer's voice must be a fact the maintainer stated, never
 one inferred from git.
+
+## 2026-08-27 — Sample-surface audit relayed a second broken @PathParam site that works
+
+### "both existing @PathParam usages in the gallery — ClassroomChat (@RoomService) and AiClassroom (@AiEndpoint) — inject null today"
+
+**Claim:** the synthesis agent of the 31-sample audit workflow reported two
+framework bugs, and named two samples affected by the first one. The
+`@AiEndpoint` half was stated with the same confidence as the `@RoomService`
+half, complete with a line-number list of "read sites".
+
+**Truth:** only the `@RoomService` half is real. `@AiEndpoint` resolves path
+parameters through a different path that works —
+`AiEndpointHandler.java:390` calls `AnnotatedLifecycle.injectPathParams`,
+which sets the `PathParam.class.getName()` attribute itself rather than
+relying on `ManagedServiceInterceptor`. `AiClassroom` injects correctly.
+`grep -n "injectPathParams"` over `modules/` returns exactly one caller and
+would have shown this in one command.
+
+**How it slipped through:** the agent verified the *negative* branch
+thoroughly — it read `ManagedServiceInterceptor.managed()` and
+`PathParamIntrospector.injectable()` and correctly established that both
+test for `@ManagedService` alone — then generalized "so every non-managed
+annotation is broken" without enumerating who else sets the attribute. The
+`@RoomService` conclusion was right for the right reason; the `@AiEndpoint`
+conclusion was right-shaped and wrong, inherited from the same premise.
+
+**Second miss, same session, mine:** the first status message to the
+maintainer reported "20 of the 35 annotations in `org.atmosphere.config.service`
+have zero usage" from `git grep -l "@Name" -- samples/` — a *file* count over
+a tree containing README and Javadoc prose. `@RoomService` scored 4 that way
+and has exactly one Java usage. The verified figure is 9 of 39 annotations
+covered, counting samples and excluding prose. Corrected in the next message.
+
+**Fix:** the `@AiEndpoint` claim was dropped before it reached the maintainer
+report or the vault audit; the vault note records the correction explicitly
+rather than silently omitting it. The `@RoomService` bug was fixed this
+session with a regression test that fails on the old code.
+
+**Gate added:** `AnnotationScanningServletContainerInitializerTest` pins the
+hand-written `@HandlesTypes` list against `AtmosphereAnnotations.coreAnnotations()`
+in both directions, closing the second bug's drift class permanently.
+No automated gate for the first. Recorded rule: before claiming a framework
+mechanism is broken *everywhere*, grep for every writer of the state it
+depends on — establishing that one reader is narrow does not prove no other
+writer exists. Annotation-usage counts are per-sample over `*.java`, never
+`grep -l` file hits over a tree that contains prose.
