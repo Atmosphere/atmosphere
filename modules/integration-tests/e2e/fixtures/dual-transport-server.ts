@@ -11,8 +11,16 @@ export async function startDualTransportServer(httpPort: number, grpcPort: numbe
   const mvnw = resolve(ROOT, 'mvnw');
   const cwd = resolve(ROOT, 'modules', 'integration-tests');
 
+  // Offline in CI. These fixtures run AFTER the workflow's full `mvnw install`, so every
+  // artifact is already in the local repository — but Maven still re-verifies artifacts whose
+  // `_remote.repositories` names a repo id absent from this build context, and Central answers
+  // that with HTTP 429 on a busy runner. The boot then dies as an opaque "port not ready"
+  // timeout. Offline mode skips the re-verification; locally we stay online so a first-time
+  // contributor can still resolve what they are missing.
   const proc = spawn(mvnw, [
-    '-B', 'exec:java',
+    '-B',
+    ...(process.env.CI ? ['-o'] : []),
+    'exec:java',
     `-Dexec.mainClass=org.atmosphere.integrationtests.DualTransportChatServer`,
     `-Dserver.port=${httpPort}`,
     `-Dgrpc.port=${grpcPort}`,
