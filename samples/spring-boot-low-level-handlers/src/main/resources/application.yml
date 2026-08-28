@@ -1,0 +1,11 @@
+server:
+  port: ${SERVER_PORT:8106}
+
+atmosphere:
+  console-subtitle: The layer under @ManagedService — a raw AtmosphereHandler and its annotated twin
+  console-endpoint: /atmosphere/managed/ops
+  packages: org.atmosphere.samples.springboot.lowlevel
+
+logging:
+  level:
+    org.atmosphere.samples.springboot.lowlevel: INFO

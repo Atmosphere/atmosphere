@@ -624,6 +624,7 @@
         <module>samples/kotlin-dsl-chat</module>
         <module>samples/spring-boot-chat</module>
         <module>samples/spring-boot-team-rooms</module>
+        <module>samples/spring-boot-low-level-handlers</module>
         <module>samples/quarkus-chat</module>
         <module>samples/quarkus-ai-chat</module>
         <module>samples/spring-boot-ai-chat</module>
