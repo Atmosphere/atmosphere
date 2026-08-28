@@ -145,8 +145,16 @@ public final class AnnotatedLifecycle {
             return;
         }
         try {
+            // Not getRequestURI() alone: the WebTransport path never populates it
+            // (ReactorNettyTransportServer sets pathInfo from the HTTP/3 CONNECT
+            // :path), so every WebTransport client got an empty URI here and every
+            // @PathParam field injected null. Utils.pathInfo composes
+            // servletPath + pathInfo and is transport-agnostic.
             var requestUri = resource.getRequest().getRequestURI();
-            if (requestUri != null && pathTemplate != null) {
+            if (requestUri == null || requestUri.isEmpty()) {
+                requestUri = Utils.pathInfo(resource.getRequest());
+            }
+            if (requestUri != null && !requestUri.isEmpty() && pathTemplate != null) {
                 resource.getRequest().setAttribute(
                         PathParam.class.getName(),
                         new String[]{requestUri, pathTemplate});

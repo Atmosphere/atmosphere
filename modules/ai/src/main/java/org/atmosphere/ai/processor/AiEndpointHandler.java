@@ -40,11 +40,13 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceHeartbeatEventListener;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.cpr.RawMessage;
+import org.atmosphere.util.Utils;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1304,12 +1306,35 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * gets its own {@link org.atmosphere.cpr.Broadcaster}. This provides
      * per-path message isolation — messages broadcast in one room stay in that room.
      */
+    /**
+     * The concrete request path, resolved the same way on every transport.
+     *
+     * <p>{@code getRequestURI()} is populated by the WebSocket / SSE / long-polling
+     * paths but NOT by WebTransport: {@code ReactorNettyTransportServer} fills
+     * {@code pathInfo} from the HTTP/3 CONNECT {@code :path}. Reading only the URI
+     * therefore yielded the empty string for every WebTransport client, so
+     * {@link #assignPerPathBroadcaster} bailed and every room shared one broadcaster
+     * with an empty id, and {@link #extractPathParams} never set a value so
+     * {@code @PathParam} injected null.</p>
+     *
+     * <p>{@link Utils#pathInfo} is the framework's transport-agnostic resolver
+     * (servletPath + pathInfo) and is what {@code PathParamIntrospector} already
+     * uses; the URI is kept as the first choice so no existing behaviour shifts.</p>
+     */
+    private static String resolvePath(AtmosphereRequest request) {
+        var uri = request.getRequestURI();
+        if (uri != null && !uri.isEmpty()) {
+            return uri;
+        }
+        return Utils.pathInfo(request);
+    }
+
     private void assignPerPathBroadcaster(AtmosphereResource resource) {
         if (pathTemplate == null || !pathTemplate.contains("{")) {
             return;
         }
-        var requestUri = resource.getRequest().getRequestURI();
-        if (requestUri == null || requestUri.equals(pathTemplate)) {
+        var requestUri = resolvePath(resource.getRequest());
+        if (requestUri == null || requestUri.isEmpty() || requestUri.equals(pathTemplate)) {
             return;
         }
         var factory = resource.getAtmosphereConfig().getBroadcasterFactory();
@@ -1327,8 +1352,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         if (pathTemplate == null || !pathTemplate.contains("{")) {
             return;
         }
-        var requestUri = resource.getRequest().getRequestURI();
-        if (requestUri == null) {
+        var requestUri = resolvePath(resource.getRequest());
+        if (requestUri == null || requestUri.isEmpty()) {
             return;
         }
         var templateParts = pathTemplate.split("/");
