@@ -40,6 +40,7 @@ const TEMPLATES = {
   'guarded-agent':   'Guarded email agent with approval flows',
   'assistant':       'Personal assistant with memory and tools',
   'browser-agent':   'Code-as-action agent driving a headless browser (requires Docker)',
+  'classic-rooms':   "Multi-room chat from Atmosphere's classic annotations (no AI)",
 };
 
 function die(msg) { console.error(`${RED}error:${RESET} ${msg}`); process.exit(1); }

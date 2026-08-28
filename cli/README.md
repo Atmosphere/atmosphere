@@ -69,7 +69,7 @@ atmosphere new my-ai-app --template ai-tools --runtime spring-ai --force
 atmosphere new my-ai-app --template ai-chat --routing
 ```
 
-Available templates: `chat`, `one-dep-agent`, `ai-chat`, `ai-tools`, `mcp-server`, `rag`, `agent`, `multi-agent`, `classroom`, `ms-governance`, `coding-agent`, `guarded-agent`, `assistant`, `browser-agent`. Each template sparse-clones the matching sample from `cli/samples.json` into a directory you name.
+Available templates: `chat`, `one-dep-agent`, `ai-chat`, `ai-tools`, `mcp-server`, `rag`, `agent`, `multi-agent`, `classroom`, `ms-governance`, `coding-agent`, `guarded-agent`, `assistant`, `browser-agent`, `classic-rooms`. Each template sparse-clones the matching sample from `cli/samples.json` into a directory you name.
 
 Available runtimes (`--runtime`): `builtin` (default — no extra deps), `spring-ai`, `langchain4j`, `adk`, `koog`, `semantic-kernel`, `agentscope`, `anthropic`, `cohere`, `crewai`, `embabel`, `spring-ai-alibaba`. The CLI appends the matching adapter dependencies (and any required repository, such as Embabel's release repository) to the scaffolded `pom.xml` — Atmosphere's `AgentRuntime` SPI then picks the highest-priority runtime present, so transparent templates like `ai-chat` swap runtime adapters without code changes. `spring-ai-alibaba` currently targets the Spring Boot 3.5 profile (`-Pspring-boot3`); `embabel` builds on the default Spring Boot 4 profile.
 
@@ -199,6 +199,7 @@ Every template sparse-clones the matching sample from `cli/samples.json` into th
 | `multi-agent` | `spring-boot-multi-agent-startup-team` | A `@Coordinator` (CEO) dispatching to 4 `@Agent` specialists over A2A |
 | `classroom` | `spring-boot-ai-classroom` | Shared streaming AI responses across web + Expo React Native clients |
 | `browser-agent` | `spring-boot-browser-agent` | Code-as-action agent — the model writes Playwright that drives a headless browser in an isolated sandbox container; screenshots stream to the Console live (requires Docker) |
+| `classic-rooms` | `spring-boot-team-rooms` | Atmosphere's classic annotations with no AI on the classpath: one templated `@ManagedService` per room, a global redaction `@BroadcasterFilterService`, presence via `@BroadcasterListenerService`, a bounded replay `@BroadcasterCacheService`, and a 429 rate limiter as an `@AtmosphereInterceptorService` |
 
 ⭐ marks the five **flagship enterprise templates** — the canonical agent
 shapes most teams reach for first. Each one is a real sample with a working

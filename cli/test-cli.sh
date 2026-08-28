@@ -1096,6 +1096,40 @@ if [ -z "$SKIP_NPX" ]; then
     assert_contains "$out" "classroom" "npx --list-templates shows classroom"
     assert_contains "$out" "ms-governance" "npx --list-templates shows ms-governance"
     assert_contains "$out" "assistant" "npx --list-templates shows assistant"
+    assert_contains "$out" "classic-rooms" "npx --list-templates shows classic-rooms"
+
+    # Lockstep: cli/npx/index.js carries its own copy of the template map, and its
+    # own comment says it "must stay in lockstep with the cmd_new template map in
+    # cli/atmosphere" — but nothing enforced that. A template added to one and not
+    # the other is invisible until a user picks the missing name. Compare the two
+    # lists directly, both directions.
+    cli_templates=$(sed -n '/^    case "$template" in$/,/^    esac$/p' "$CLI" \
+        | sed -nE 's/^[[:space:]]*([a-z][a-z0-9-]*)\)[[:space:]]*source_sample=.*/\1/p' | sort -u)
+    npx_templates=$(node -e "
+        const fs=require('fs');
+        const src=fs.readFileSync('$NPX','utf8');
+        const body=src.slice(src.indexOf('const TEMPLATES'), src.indexOf('};', src.indexOf('const TEMPLATES')));
+        const names=[...body.matchAll(/'([a-z][a-z0-9-]*)':/g)].map(m=>m[1]);
+        console.log([...new Set(names)].sort().join('\n'));
+    ")
+    lockstep_tmp=$(mktemp -d)
+    printf '%s\n' "$cli_templates" > "$lockstep_tmp/cli.txt"
+    printf '%s\n' "$npx_templates" > "$lockstep_tmp/npx.txt"
+    only_cli=$(comm -23 "$lockstep_tmp/cli.txt" "$lockstep_tmp/npx.txt" | tr '\n' ' ')
+    only_npx=$(comm -13 "$lockstep_tmp/cli.txt" "$lockstep_tmp/npx.txt" | tr '\n' ' ')
+    rm -rf "$lockstep_tmp"
+    if [ -z "$only_cli" ]; then
+        pass "every cmd_new template is also in cli/npx/index.js TEMPLATES"
+    else
+        fail "every cmd_new template is also in cli/npx/index.js TEMPLATES" \
+            "missing from the npx shim: $only_cli"
+    fi
+    if [ -z "$only_npx" ]; then
+        pass "every cli/npx/index.js template is also in the cmd_new map"
+    else
+        fail "every cli/npx/index.js template is also in the cmd_new map" \
+            "missing from cmd_new: $only_npx"
+    fi
 
     # No name
     out=$(node "$NPX" 2>&1) && ec=0 || ec=$?
