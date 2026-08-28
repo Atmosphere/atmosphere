@@ -431,20 +431,6 @@ async function isPortInUse(port: number): Promise<boolean> {
 /**
  * Start a sample application and return a handle to stop it.
  */
-/**
- * Maven offline flag, in CI only.
- *
- * These fixtures spawn Maven AFTER the workflow's full `mvnw install`, so everything they need
- * is already in the local repository. Maven still re-verifies artifacts whose
- * `_remote.repositories` names a repo id absent from the current build context, and Central
- * answers that with HTTP 429 on a busy runner — surfacing as an opaque "port not ready"
- * timeout. Offline mode skips the re-verification. Locally we stay online so a first-time
- * contributor can still resolve what they are missing.
- */
-function offlineInCi(): string[] {
-  return process.env.CI ? ['-o'] : [];
-}
-
 export async function startSample(config: SampleConfig): Promise<SampleServer> {
   if (await isPortInUse(config.port)) {
     throw new Error(`Port ${config.port} is already in use. Stop the conflicting process first.`);
@@ -457,7 +443,7 @@ export async function startSample(config: SampleConfig): Promise<SampleServer> {
   if (config.type === 'jetty-war') {
     // WAR-based samples use mvn jetty:run
     const mvnw = resolve(ROOT, 'mvnw');
-    proc = spawn(mvnw, ['-B', ...offlineInCi(), `jetty:run`, `-Djetty.port=${config.port}`], {
+    proc = spawn(mvnw, ['-B', `jetty:run`, `-Djetty.port=${config.port}`], {
       cwd: samplePath,
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -465,7 +451,7 @@ export async function startSample(config: SampleConfig): Promise<SampleServer> {
   } else if (config.type === 'embedded-jetty') {
     // Embedded Jetty samples use mvn exec:java with explicit mainClass
     const mvnw = resolve(ROOT, 'mvnw');
-    proc = spawn(mvnw, ['-B', ...offlineInCi(), 'exec:java', `-Dexec.mainClass=${config.mainClass}`, `-Dserver.port=${config.port}`], {
+    proc = spawn(mvnw, ['-B', 'exec:java', `-Dexec.mainClass=${config.mainClass}`, `-Dserver.port=${config.port}`], {
       cwd: samplePath,
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
