@@ -3001,3 +3001,45 @@ to `src/`. Never `grep -r` over a tree that contains `target/`. And when a
 recount disagrees with the previous value, reconcile the *command* before
 editing the number; a count that moves in the wrong direction is evidence about
 the method, not the subject.
+
+## 2026-08-28 — An unverified CI "fix" turned one red leg into twenty
+
+### "These fixtures run AFTER the workflow's full `mvnw install`, so every artifact is already in the local repository"
+
+**Claim:** `CI: E2E (Playwright)` failed with `Port 8087 not ready after 45000ms`,
+whose real cause — visible in the fixture's own output dump — was Maven Central
+answering HTTP 429 while re-verifying an artifact already present locally. The
+fix added `-o` (offline) to all four fixture sites that spawn Maven, reasoning
+that `e2e.yml:39` runs a full `mvnw install` first so nothing is needed from the
+network.
+
+**Truth:** the reasoning holds for *project* artifacts and fails for *Maven
+plugins*. The `pw:dev` tier boots through `jetty:run`, whose plugin dependency
+tree a project `install` does not guarantee into the local repository. Offline
+mode starved it. One failing leg became **twenty**, every one timing out in
+`beforeAll` at 90s. Reverted in `3b6373a7c7`; `main` returned to 8/8 green — and
+the original `grpc-browser` leg passed on that same run, confirming the 429 was
+transient and the fix had been unnecessary as well as harmful.
+
+**How it slipped through:** the evidence was already in hand and unused. The
+coverage map written earlier the same session documents `pw:dev` as "Maven
+dev-mode boot", explicitly a different boot path from the packaged-jar tiers.
+One change was applied to four call sites without checking whether those sites
+boot the same way. No attempt was made to establish whether the failure was
+recurring for that SHA before changing anything — a single intermittent failure
+was treated as a standing defect.
+
+**Second miss, same session:** a final coverage figure was reported as "28 of 39
+annotations" from a grep matching annotation *names*. `@ApplicationScoped`
+matched `jakarta.enterprise.context.ApplicationScoped` in a Quarkus sample —
+CDI's annotation, not Atmosphere's. An import-aware recount gives 27 of 39. The
+figure was corrected before it reached any committed artifact.
+
+**Gate added:** none automated. Recorded rules: (1) before changing a shared
+fixture, enumerate the distinct boot paths it serves and confirm the change is
+valid for each — "they all call Maven" is not "they all resolve the same
+things"; (2) an intermittent CI failure needs its recurrence established before
+it justifies a code change, and reverting to a known state beats a second guess;
+(3) annotation-usage greps must match the *import*, never the bare name — the
+framework shares `@ApplicationScoped`, `@RequestScoped` and `@Singleton` with
+jakarta, and a name-only match silently counts the wrong one.
