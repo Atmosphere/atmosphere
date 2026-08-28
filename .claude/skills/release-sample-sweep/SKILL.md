@@ -1,6 +1,6 @@
 ---
 name: release-sample-sweep
-description: Run the pre-release end-to-end sweep of every user-facing surface — the 31 samples under samples/ (booted from their packaged artifacts and driven in a real browser via chrome-devtools MCP), the Expo/React Native client, and the atmosphere CLI. Use before cutting a release, and after any change to the Console bundle, a shared module, atmosphere.js, the CLI, or several samples at once. Covers preconditions, the keyless Ollama backend, the per-sample launch/drive/collect/teardown loop, the evidence ledger, the fix phase (every issue gets a biting regression test in the right suite), the re-test subset, and the report.
+description: Run the pre-release end-to-end sweep of every user-facing surface — the 33 samples under samples/ (booted from their packaged artifacts and driven in a real browser via chrome-devtools MCP), the Expo/React Native client, and the atmosphere CLI. Use before cutting a release, and after any change to the Console bundle, a shared module, atmosphere.js, the CLI, or several samples at once. Covers preconditions, the keyless Ollama backend, the per-sample launch/drive/collect/teardown loop, the evidence ledger, the fix phase (every issue gets a biting regression test in the right suite), the re-test subset, and the report.
 ---
 
 # Release sample sweep (chrome-devtools)
@@ -12,7 +12,7 @@ Three surfaces, three drivers — all three are release gates:
 
 | Surface | What | Driver |
 |---|---|---|
-| **Samples** (31) | `samples/*`, booted from packaged artifacts | chrome-devtools MCP, or the wire protocol for the headless ones |
+| **Samples** (33) | `samples/*`, booted from packaged artifacts | chrome-devtools MCP, or the wire protocol for the headless ones |
 | **Expo client** (1) | `samples/spring-boot-ai-classroom/expo-client/` | iOS simulator MCP — it is a native app, chrome-devtools cannot reach it |
 | **CLI** | `atmosphere run` / `new` / `compose` / `import` / `checkpoint` + its four distributions | Shell, then chrome-devtools against what `atmosphere run` booted |
 
@@ -45,7 +45,7 @@ rendering, streaming, transport headers, tool cards, and console errors.
 
 ```
 Step 0   Preconditions  — build everything, start Ollama, free the ports, open the ledger
-Step 1a  Samples        — 31 samples: launch → drive → collect → verdict → teardown
+Step 1a  Samples        — 33 samples: launch → drive → collect → verdict → teardown
 Step 1b  Expo client    — the RN client in the iOS simulator
 Step 1c  CLI            — atmosphere run/new/compose/import/checkpoint + distributions
                            ALL OF PHASE 1 IS COLLECT-ONLY. Do not fix anything mid-sweep.

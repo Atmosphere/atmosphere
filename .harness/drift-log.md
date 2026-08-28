@@ -2963,3 +2963,41 @@ mechanism is broken *everywhere*, grep for every writer of the state it
 depends on — establishing that one reader is narrow does not prove no other
 writer exists. Annotation-usage counts are per-sample over `*.java`, never
 `grep -l` file hits over a tree that contains prose.
+
+## 2026-08-28 — A "verified" sample count was inflated by untracked build output
+
+### "The Console is the validation surface for 25 samples"
+
+**Claim:** `40d4a25869` corrected three stale `26` counts in
+`.claude/skills/release-sample-sweep/references/retest-subset.md` and, to stop
+the same drift recurring, embedded the recount command next to each figure. The
+Console figure was written as **25**, sourced from
+`grep -rl atmosphere/console samples/ | cut -d/ -f2 | sort -u | wc -l`.
+
+**Truth:** the tracked figure is **22**. The command was run in a working copy
+where several samples had been built, and `grep -r` walked `samples/*/target/`,
+counting the Console bundle that the build copies there. Three samples —
+`spring-boot-checkpoint-agent`, `spring-boot-one-dep-agent`,
+`spring-boot-passivation-agent` — have **zero** tracked references to
+`atmosphere/console` and were counted purely from build output. The same command
+in a clean checkout returns a different number, which is what exposed it.
+
+**How it slipped through:** the count was checked, and the check was even
+promoted into the document so the next reader could repeat it — but the command
+was never audited for what it actually walks. Two separate rules were satisfied
+in form (numerical claims have a source; the source is written down) while the
+source itself was wrong. A recount command that is sensitive to whether you have
+run a build is not a source of truth, and shipping it made the error
+reproducible rather than catching it.
+
+**Fix:** corrected to 24 (the tracked figure once the two new samples land) and
+the embedded command changed to `git grep -l ... -- samples/`, with an inline
+note saying why `grep -r` is wrong here. The `spring-boot-*` figure was
+unaffected — it counts directories, which no build creates.
+
+**Gate added:** none automated. Recorded rule: a recount command published
+beside a number must read tracked files only — `git grep`, or a `find` restricted
+to `src/`. Never `grep -r` over a tree that contains `target/`. And when a
+recount disagrees with the previous value, reconcile the *command* before
+editing the number; a count that moves in the wrong direction is evidence about
+the method, not the subject.

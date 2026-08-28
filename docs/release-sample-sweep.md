@@ -19,7 +19,7 @@ Three user-facing surfaces, three drivers. All three are release gates.
 
 | Surface | What | Driven with |
 |---|---|---|
-| **Samples** (31) | Everything under `samples/`, booted from its packaged artifact | A real browser (Chrome DevTools), or the wire protocol for the headless ones |
+| **Samples** (33) | Everything under `samples/`, booted from its packaged artifact | A real browser (Chrome DevTools), or the wire protocol for the headless ones |
 | **Expo client** (1) | `samples/spring-boot-ai-classroom/expo-client/` | The iOS simulator — it is a native app, a browser cannot reach it |
 | **CLI** | `atmosphere run` / `new` / `compose` / `import` / `checkpoint`, plus the curl installer, npx, the Homebrew tap and SDKMAN | Shell, then a browser against whatever `atmosphere run` booted |
 
@@ -58,7 +58,7 @@ old one.
 
 ```
 Step 0   Preconditions  build the reactor, start Ollama, open the ledger
-Step 1a  Samples        31 samples: launch → drive → collect → verdict → teardown
+Step 1a  Samples        33 samples: launch → drive → collect → verdict → teardown
 Step 1b  Expo client    the RN client in the iOS simulator
 Step 1c  CLI            run / new / compose / import / checkpoint + distributions
 Step 2   Triage         classify every finding, rank by blast radius

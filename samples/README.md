@@ -22,6 +22,26 @@ Still asserted by **no** native lane: transport negotiation and fallback (an atm
 
 Separately from any sample, `atmosphere-runtime` ships `META-INF/native-image/org.atmosphere/atmosphere-runtime/reachability-metadata.json`, which GraalVM reads automatically. That covers the framework's own load-by-name types — the broadcaster caches (`UUIDBroadcasterCache` and the other three) among them — and the `ServiceLoader` files it reads at startup, with no configuration and no integration module. It closes a class of failure; it is not a claim that the `—` samples build or run natively, because nothing builds them natively.
 
+### Classic Atmosphere (no AI on the classpath)
+
+The annotations Atmosphere was built on, before the agent era. Neither sample pulls
+`atmosphere-ai`.
+
+| Sample | Demonstrates | Packaging |
+|--------|--------------|-----------|
+| [spring-boot-team-rooms](spring-boot-team-rooms/) | `@ManagedService` + `@PathParam` (one endpoint, N rooms), `@Singleton`, `@DeliverTo`, `@BroadcasterFilterService`, `@BroadcasterListenerService`, `@AtmosphereInterceptorService`, `@BroadcasterCacheService` + inspector + cache listener | JAR |
+| [spring-boot-low-level-handlers](spring-boot-low-level-handlers/) | `@AtmosphereHandlerService` and `@RoomAuth` beside a `@ManagedService` twin answering the same verbs (`@Get`/`@Post`/`@Put`/`@Delete`/`@Resume`), plus `@AtmosphereResourceListenerService`, `@AsyncSupportListenerService`, `@AtmosphereFrameworkListenerService` | JAR |
+
+Two constraints these samples exist to make concrete, both verified in the framework source
+and pinned by their tests:
+
+- **`@Singleton` and `@PathParam` do not mix.** `ManagedServiceInterceptor.mapAnnotatedService`
+  skips per-request instantiation for a singleton, so a shared `@PathParam` field becomes
+  whatever the last request wrote.
+- **`@RoomAuth` only resolves on the registered handler class.** On a `@ManagedService` or
+  `@RoomService` POJO the registered handler is a `ManagedAtmosphereHandler` wrapper, so the
+  annotation is silently ignored and no authorizer is installed.
+
 ### AI / LLM Streaming
 
 | Sample | AI Backend | Tool Calling | Description |

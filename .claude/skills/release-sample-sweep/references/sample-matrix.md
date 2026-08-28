@@ -1,6 +1,6 @@
 # Sample matrix — sweep order, ports, and headline assertions
 
-31 samples. `samples/shared-resources` is a resource pack, not a sample.
+33 samples. `samples/shared-resources` is a resource pack, not a sample.
 
 **Two surfaces are not in this table** and have their own passes:
 `samples/spring-boot-ai-classroom/expo-client/` (Step 1b, `expo-sweep.md` —
@@ -14,7 +14,7 @@ ls -d samples/*/ | grep -v shared-resources | wc -l
 python3 -c "import json;d=json.load(open('cli/samples.json'));print(len(d['samples']))"
 ```
 
-If they disagree with the 31 rows here, the matrix is stale — reconcile it
+If they disagree with the 33 rows here, the matrix is stale — reconcile it
 first (and `scripts/release-gate-samples.sh` has a drift gate that fails when a
 sample directory has no coverage entry, so check there too).
 
@@ -114,6 +114,8 @@ browser-driving; it is not a curl exemption for UI samples.
 | 29 | `spring-boot-browser-agent` | 9129 | spring-boot | `/atmosphere/ai-chat` | Console | Without `COHERE_API_KEY` + Docker it must **degrade gracefully with guidance and no crash** — that is the out-of-box pass condition |
 | 30 | `spring-boot-admin-bundle` | 9130 | spring-boot | `/atmosphere/admin/` | Admin dashboard | Single-dep bundle: Admin Control Plane renders, event stream connects, broadcaster count and runtime are shown |
 | 31 | `quarkus-ai-chat` | 18810 | quarkus | `/atmosphere/ai-chat` | Console | Real Ollama **content** through the `atmosphere-quarkus-langchain4j` bridge. Needs explicit config — `LLM_MODE` does not reach LangChain4j here: `--env LLM_BASE_URL=http://localhost:11434/v1 --env LLM_API_KEY=ollama --env LLM_MODEL=qwen2.5:3b` (its properties otherwise default to the Gemini base URL with api-key `dummy`) |
+| 32 | `spring-boot-team-rooms` | 9131 | spring-boot | `/atmosphere/console/` | Console | Classic-annotation stack with no AI on the classpath. Point the Console at `/atmosphere/rooms/<name>`; two different room names must show independent membership and history. `GET /api/presence` reports per-room occupancy (from the `@BroadcasterListenerService`) and replay counters (from the `@BroadcasterCacheListenerService`). Posting a bearer-token-shaped string must come back `[redacted]` — that is the `@BroadcasterFilterService` on the wire, not a client-side mask |
+| 33 | `spring-boot-low-level-handlers` | 9132 | spring-boot | `/atmosphere/console/` | Console | Two feeds one layer apart: `/atmosphere/raw/ops` (raw `AtmosphereHandler`) and `/atmosphere/managed/ops` (`@ManagedService` twin). `GET /api/health` must show all three listener layers — resource, transport, framework — with `framework.ready` true. `@RoomAuth` is on the raw handler only; it cannot resolve on the managed twin |
 
 ## Gating summary — expected PARTIALs
 

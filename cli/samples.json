@@ -3,7 +3,7 @@
   "samples": [
     {
       "name": "spring-boot-checkpoint-agent",
-      "description": "Durable agent execution — @Coordinator + CheckpointStore + HITL approval via REST",
+      "description": "Durable agent execution \u2014 @Coordinator + CheckpointStore + HITL approval via REST",
       "category": "agent",
       "tags": [
         "spring-boot",
@@ -21,7 +21,7 @@
     },
     {
       "name": "spring-boot-passivation-agent",
-      "description": "Agent passivation — snapshot a paused conversation and resume it from where it left off (AgentPassivation + CheckpointStore)",
+      "description": "Agent passivation \u2014 snapshot a paused conversation and resume it from where it left off (AgentPassivation + CheckpointStore)",
       "category": "agent",
       "tags": [
         "spring-boot",
@@ -55,12 +55,12 @@
       "packaging": "spring-boot",
       "hasFrontend": false,
       "envVars": {
-        "GEMINI_API_KEY": "Google Gemini API key (optional — demo mode without)"
+        "GEMINI_API_KEY": "Google Gemini API key (optional \u2014 demo mode without)"
       }
     },
     {
       "name": "spring-boot-dentist-agent",
-      "description": "Dr. Molar — dental emergency agent with @Agent, slash commands, AI tools, Slack and Telegram",
+      "description": "Dr. Molar \u2014 dental emergency agent with @Agent, slash commands, AI tools, Slack and Telegram",
       "category": "agent",
       "tags": [
         "spring-boot",
@@ -77,7 +77,7 @@
       "packaging": "spring-boot",
       "hasFrontend": false,
       "envVars": {
-        "LLM_API_KEY": "API key for your LLM provider (optional — demo mode without)",
+        "LLM_API_KEY": "API key for your LLM provider (optional \u2014 demo mode without)",
         "TELEGRAM_BOT_TOKEN": "Telegram bot token from @BotFather",
         "TELEGRAM_WEBHOOK_SECRET": "Any random string for webhook verification",
         "SLACK_BOT_TOKEN": "Slack bot token (xoxb-...)",
@@ -86,7 +86,7 @@
     },
     {
       "name": "spring-boot-orchestration-demo",
-      "description": "Support Desk — handoffs, approval gates, commands",
+      "description": "Support Desk \u2014 handoffs, approval gates, commands",
       "category": "agent",
       "tags": [
         "spring-boot",
@@ -102,12 +102,12 @@
       "packaging": "spring-boot",
       "hasFrontend": false,
       "envVars": {
-        "LLM_API_KEY": "API key for your LLM provider (optional — demo mode without)"
+        "LLM_API_KEY": "API key for your LLM provider (optional \u2014 demo mode without)"
       }
     },
     {
       "name": "spring-boot-channels-chat",
-      "description": "Omnichannel AI chat — one @Agent on Web, Telegram, Slack, Discord, WhatsApp, Messenger",
+      "description": "Omnichannel AI chat \u2014 one @Agent on Web, Telegram, Slack, Discord, WhatsApp, Messenger",
       "category": "ai",
       "tags": [
         "spring-boot",
@@ -125,12 +125,12 @@
       "packaging": "spring-boot",
       "hasFrontend": false,
       "envVars": {
-        "LLM_API_KEY": "API key for your LLM provider (optional — demo mode without)"
+        "LLM_API_KEY": "API key for your LLM provider (optional \u2014 demo mode without)"
       }
     },
     {
       "name": "spring-boot-ai-chat",
-      "description": "AI streaming chat — Atmosphere Console UI, WebTransport-first with WS fallback, swap backend via one dependency, OpenAI-compatible /atmosphere/v1/chat/completions serving",
+      "description": "AI streaming chat \u2014 Atmosphere Console UI, WebTransport-first with WS fallback, swap backend via one dependency, OpenAI-compatible /atmosphere/v1/chat/completions serving",
       "category": "ai",
       "tags": [
         "spring-boot",
@@ -156,7 +156,7 @@
     },
     {
       "name": "spring-boot-browser-agent",
-      "description": "Code-as-action agent — the model writes Playwright that drives a headless browser in an isolated sandbox container; screenshots stream to the Console live (requires Docker)",
+      "description": "Code-as-action agent \u2014 the model writes Playwright that drives a headless browser in an isolated sandbox container; screenshots stream to the Console live (requires Docker)",
       "category": "ai",
       "tags": [
         "spring-boot",
@@ -177,7 +177,7 @@
     },
     {
       "name": "spring-boot-ai-classroom",
-      "description": "AI classroom — multiple clients share streaming AI responses",
+      "description": "AI classroom \u2014 multiple clients share streaming AI responses",
       "category": "ai",
       "tags": [
         "spring-boot",
@@ -216,7 +216,7 @@
     },
     {
       "name": "spring-boot-ai-tools",
-      "description": "Enterprise AI starter — portable @AiTool calls, HITL approval, cost metering, audit listener",
+      "description": "Enterprise AI starter \u2014 portable @AiTool calls, HITL approval, cost metering, audit listener",
       "category": "tools",
       "tags": [
         "spring-boot",
@@ -235,7 +235,7 @@
     },
     {
       "name": "spring-boot-rag-chat",
-      "description": "RAG agent — chunked vector-store ingestion + similaritySearch retrieval, @Agent tools for knowledge search, slash commands",
+      "description": "RAG agent \u2014 chunked vector-store ingestion + similaritySearch retrieval, @Agent tools for knowledge search, slash commands",
       "category": "agent",
       "tags": [
         "spring-boot",
@@ -251,13 +251,13 @@
       "envVars": {
         "LLM_API_KEY": "API key for your LLM provider",
         "LLM_MODEL": "Model name",
-        "SPRING_AI_BASE_URL": "Embeddings endpoint override — REQUIRED for a local backend. spring.ai.openai.base-url defaults to Gemini's OpenAI-compatible surface and Spring AI has no Atmosphere mode, so LLM_MODE=local and LLM_BASE_URL do not redirect embeddings. For Ollama: http://localhost:11434/v1",
+        "SPRING_AI_BASE_URL": "Embeddings endpoint override \u2014 REQUIRED for a local backend. spring.ai.openai.base-url defaults to Gemini's OpenAI-compatible surface and Spring AI has no Atmosphere mode, so LLM_MODE=local and LLM_BASE_URL do not redirect embeddings. For Ollama: http://localhost:11434/v1",
         "EMBEDDING_MODEL": "Embedding model id, must match SPRING_AI_BASE_URL (default text-embedding-004; for Ollama: nomic-embed-text)"
       }
     },
     {
       "name": "spring-boot-spring-ai-advisors",
-      "description": "Bind your own Spring AI ChatClient via SpringAiAgentRuntime.setChatClient(...) — Atmosphere keeps your defaultAdvisors and you attach more advisors per request",
+      "description": "Bind your own Spring AI ChatClient via SpringAiAgentRuntime.setChatClient(...) \u2014 Atmosphere keeps your defaultAdvisors and you attach more advisors per request",
       "category": "agent",
       "tags": [
         "spring-boot",
@@ -274,7 +274,7 @@
     },
     {
       "name": "spring-boot-mcp-server",
-      "description": "MCP server — expose tools, resources, and prompts to AI agents",
+      "description": "MCP server \u2014 expose tools, resources, and prompts to AI agents",
       "category": "mcp",
       "tags": [
         "spring-boot",
@@ -290,7 +290,7 @@
     },
     {
       "name": "spring-boot-a2a-agent",
-      "description": "Headless A2A agent — AI-powered skills discoverable via Agent Card",
+      "description": "Headless A2A agent \u2014 AI-powered skills discoverable via Agent Card",
       "category": "agent",
       "tags": [
         "spring-boot",
@@ -305,12 +305,12 @@
       "packaging": "spring-boot",
       "hasFrontend": false,
       "envVars": {
-        "LLM_API_KEY": "API key for Gemini/OpenAI/Ollama (optional — demo mode without)"
+        "LLM_API_KEY": "API key for Gemini/OpenAI/Ollama (optional \u2014 demo mode without)"
       }
     },
     {
       "name": "spring-boot-agui-chat",
-      "description": "AG-UI chat — streaming agent state to frontends via SSE (CopilotKit compatible)",
+      "description": "AG-UI chat \u2014 streaming agent state to frontends via SSE (CopilotKit compatible)",
       "category": "agent",
       "tags": [
         "spring-boot",
@@ -345,7 +345,7 @@
     },
     {
       "name": "spring-boot-durable-sessions",
-      "description": "Durable sessions — survive server restarts with SQLite",
+      "description": "Durable sessions \u2014 survive server restarts with SQLite",
       "category": "infrastructure",
       "tags": [
         "spring-boot",
@@ -404,7 +404,7 @@
       "envVars": {
         "LLM_API_KEY": "API key for your LLM provider (or GEMINI_API_KEY)",
         "LLM_MODEL": "Model name",
-        "LLM_BASE_URL": "Endpoint override — REQUIRED for a local backend. quarkus.langchain4j.openai.base-url defaults to Gemini's OpenAI-compatible surface and Quarkus LangChain4j has no local mode, so LLM_MODE=local alone does not redirect it. For Ollama: http://localhost:11434/v1"
+        "LLM_BASE_URL": "Endpoint override \u2014 REQUIRED for a local backend. quarkus.langchain4j.openai.base-url defaults to Gemini's OpenAI-compatible surface and Quarkus LangChain4j has no local mode, so LLM_MODE=local alone does not redirect it. For Ollama: http://localhost:11434/v1"
       }
     },
     {
@@ -425,7 +425,7 @@
     },
     {
       "name": "kotlin-dsl-chat",
-      "description": "Kotlin-first chat — endpoint built with the Atmosphere Kotlin DSL, agent declared with the Kotlin agent DSL, delivery via coroutine extensions (offline)",
+      "description": "Kotlin-first chat \u2014 endpoint built with the Atmosphere Kotlin DSL, agent declared with the Kotlin agent DSL, delivery via coroutine extensions (offline)",
       "category": "chat",
       "tags": [
         "kotlin",
@@ -474,7 +474,7 @@
     },
     {
       "name": "spring-boot-coding-agent",
-      "description": "Coding agent — Sandbox SPI + Git clone (reads repo README in an isolated sandbox)",
+      "description": "Coding agent \u2014 Sandbox SPI + Git clone (reads repo README in an isolated sandbox)",
       "category": "agent",
       "tags": [
         "spring-boot",
@@ -487,12 +487,12 @@
       "packaging": "spring-boot",
       "hasFrontend": false,
       "envVars": {
-        "OPENAI_API_KEY": "API key for the LLM provider (optional — sample works without)"
+        "OPENAI_API_KEY": "API key for the LLM provider (optional \u2014 sample works without)"
       }
     },
     {
       "name": "spring-boot-guarded-email-agent",
-      "description": "Plan-and-Verify (Meijer) — statically refuses unsafe LLM-emitted plans before any tool fires: taint (inbox exfiltration) and SMT (over-quota bulk send)",
+      "description": "Plan-and-Verify (Meijer) \u2014 statically refuses unsafe LLM-emitted plans before any tool fires: taint (inbox exfiltration) and SMT (over-quota bulk send)",
       "category": "governance",
       "tags": [
         "spring-boot",
@@ -528,7 +528,7 @@
       "packaging": "spring-boot",
       "hasFrontend": false,
       "envVars": {
-        "OPENAI_API_KEY": "API key for the LLM provider (optional — demo mode without)"
+        "OPENAI_API_KEY": "API key for the LLM provider (optional \u2014 demo mode without)"
       }
     },
     {
@@ -546,11 +546,11 @@
       "packaging": "spring-boot",
       "hasFrontend": false,
       "envVars": {},
-      "note": "Test harness for the reattach contract — used by Playwright reattach.spec.ts; not a typical user starter."
+      "note": "Test harness for the reattach contract \u2014 used by Playwright reattach.spec.ts; not a typical user starter."
     },
     {
       "name": "spring-boot-admin-bundle",
-      "description": "Single-dependency proof — pulling only atmosphere-admin-bundle self-wires the six families",
+      "description": "Single-dependency proof \u2014 pulling only atmosphere-admin-bundle self-wires the six families",
       "category": "infrastructure",
       "tags": [
         "spring-boot",
@@ -563,7 +563,7 @@
       "packaging": "spring-boot",
       "hasFrontend": false,
       "envVars": {},
-      "note": "Wiring proof for atmosphere-admin-bundle — @SpringBootTest asserts the auto-configured beans; not a typical user starter."
+      "note": "Wiring proof for atmosphere-admin-bundle \u2014 @SpringBootTest asserts the auto-configured beans; not a typical user starter."
     },
     {
       "name": "spring-boot-one-dep-agent",
@@ -582,8 +582,45 @@
       "packaging": "spring-boot",
       "hasFrontend": false,
       "envVars": {
-        "LLM_API_KEY": "Optional — stream from a real OpenAI-compatible provider; omit for the keyless demo runtime"
+        "LLM_API_KEY": "Optional \u2014 stream from a real OpenAI-compatible provider; omit for the keyless demo runtime"
       }
+    },
+    {
+      "name": "spring-boot-team-rooms",
+      "description": "Multi-room team chat built from Atmosphere's classic annotations \u2014 one endpoint per room, global redaction filter, presence listener, bounded replay cache, 429 on flood",
+      "category": "classic",
+      "tags": [
+        "spring-boot",
+        "annotations",
+        "rooms",
+        "broadcaster-filter",
+        "broadcaster-cache",
+        "interceptor",
+        "presence"
+      ],
+      "port": 8105,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": false,
+      "envVars": {}
+    },
+    {
+      "name": "spring-boot-low-level-handlers",
+      "description": "The layer under @ManagedService \u2014 a raw AtmosphereHandler with @RoomAuth beside its annotated twin, plus the three listener layers",
+      "category": "classic",
+      "tags": [
+        "spring-boot",
+        "annotations",
+        "atmosphere-handler",
+        "room-auth",
+        "listeners",
+        "http-verbs"
+      ],
+      "port": 8106,
+      "runnable": true,
+      "packaging": "spring-boot",
+      "hasFrontend": false,
+      "envVars": {}
     }
   ]
 }

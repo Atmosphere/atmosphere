@@ -114,9 +114,11 @@ coverage_of() {
         spring-boot-ms-governance-chat)        echo "smoke:8102|/atmosphere/console/" ;;
         spring-boot-multi-agent-startup-team)  echo "pw:boot:multi-agent-startup-team" ;;
         spring-boot-one-dep-agent)             echo "smoke:8101|/atmosphere/console/" ;;
+        spring-boot-team-rooms)                echo "smoke:8105|/atmosphere/console/" ;;
         spring-boot-orchestration-demo)        echo "pw:boot:orchestration-primitives" ;;
         spring-boot-otel-chat)                 echo "pw:boot:otel-chat" ;;
         spring-boot-passivation-agent)         echo "smoke:8097|/atmosphere/console/" ;;
+        spring-boot-low-level-handlers)        echo "smoke:8106|/atmosphere/console/" ;;
         spring-boot-personal-assistant)        echo "fnd:personal-assistant.spec.ts|8110|GET|/actuator/health" ;;
         spring-boot-rag-chat)                  echo "pw:boot:rag-chat" ;;
         spring-boot-reattach-harness)          echo "fnd:reattach.spec.ts|8096|GET|/atmosphere/agent/harness/" ;;
@@ -135,7 +137,7 @@ shard_samples() {
         agents)       echo "spring-boot-a2a-agent spring-boot-agui-chat spring-boot-multi-agent-startup-team spring-boot-dentist-agent" ;;
         coordination) echo "spring-boot-orchestration-demo spring-boot-checkpoint-agent spring-boot-durable-sessions spring-boot-mcp-server" ;;
         foundation)   echo "kotlin-dsl-chat spring-boot-spring-ai-advisors spring-boot-reattach-harness spring-boot-personal-assistant spring-boot-coding-agent spring-boot-guarded-email-agent" ;;
-        smoke)        echo "spring-boot-admin-bundle spring-boot-passivation-agent spring-boot-ms-governance-chat spring-boot-one-dep-agent" ;;
+        smoke)        echo "spring-boot-admin-bundle spring-boot-passivation-agent spring-boot-ms-governance-chat spring-boot-one-dep-agent spring-boot-team-rooms spring-boot-low-level-handlers" ;;
         *)            echo "" ;;
     esac
 }
