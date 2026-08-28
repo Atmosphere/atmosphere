@@ -154,6 +154,12 @@ list_sample_dirs() {
 # Drift gate: a new sample directory MUST get a coverage-map entry (even a
 # skip:<reason>) or the gate fails. This is what keeps the map from becoming
 # a silent cap as samples are added.
+# The case-arm labels of coverage_of(), read out of the function itself so this
+# list can never drift from the map it describes.
+map_labels() {
+    declare -f coverage_of | sed -nE 's/^[[:space:]]*([a-z0-9][a-z0-9._-]*)\)[[:space:]]*$/\1/p'
+}
+
 verify_map() {
     local dir bad=0
     while IFS= read -r dir; do
@@ -162,6 +168,29 @@ verify_map() {
             bad=1
         fi
     done < <(list_sample_dirs)
+
+    # Reverse direction. The pass above walks list_sample_dirs(), i.e. `find
+    # samples/` — it can only see directories that EXIST, so an entry left behind
+    # by a deleted sample is invisible to it. Such an entry survives --list and
+    # only explodes later, when --shard tries to boot a sample that is gone.
+    local known label
+    known="$(list_sample_dirs)"
+    while IFS= read -r label; do
+        [[ -n "$label" ]] || continue
+        if ! grep -qxF "$label" <<< "$known"; then
+            echo "ERROR: coverage_of() maps '$label' but samples/$label does not exist — remove the stale entry" >&2
+            bad=1
+        fi
+    done < <(map_labels)
+
+    local shard
+    while IFS= read -r label; do
+        [[ -n "$label" ]] || continue
+        if ! grep -qxF "$label" <<< "$known"; then
+            echo "ERROR: shard_samples() lists '$label' but samples/$label does not exist — remove the stale entry" >&2
+            bad=1
+        fi
+    done < <(for shard in $SHARDS; do shard_samples "$shard" | tr ' ' '\n'; done)
     # And every mapped, runnable sample must sit in exactly one shard.
     local shard s found
     while IFS= read -r dir; do

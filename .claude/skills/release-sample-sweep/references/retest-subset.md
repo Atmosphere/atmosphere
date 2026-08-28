@@ -43,7 +43,7 @@ grep -rln 'web-transport\|webTransport' samples/*/src/main/resources/
 
 | Container | Samples |
 |---|---|
-| Spring Boot | the 26 `spring-boot-*` samples |
+| Spring Boot | the 25 `spring-boot-*` samples (recount: `find samples -maxdepth 1 -type d -name 'spring-boot-*' | wc -l`) |
 | Quarkus | `quarkus-chat`, `quarkus-ai-chat` |
 | Embedded Jetty | `embedded-jetty-websocket-chat`, `kotlin-dsl-chat`, `grpc-chat` |
 | Servlet WAR | `chat` |
@@ -54,9 +54,9 @@ grep -rln 'web-transport\|webTransport' samples/*/src/main/resources/
 |---|---|---|
 | One sample's own `src/` or `pom.xml` | **That sample only** | Nothing else links the artifact. The 2026-07 langchain4j fix was exactly this — samples already verified stayed byte-identical |
 | `modules/cpr` (core runtime) | One sample **per container and per transport**: `spring-boot-chat`, `spring-boot-ai-chat` (WebTransport), `quarkus-chat`, `chat` (WAR), `embedded-jetty-websocket-chat`, `grpc-chat`, `kotlin-dsl-chat`, `spring-boot-agui-chat` (SSE) | Core sits under every transport and every container |
-| Console bundle (`modules/spring-boot-starter/frontend/`) or `atmosphere.js` | One sample **per Console surface class**: `spring-boot-chat` (chat), `guarded-email-agent` (Validation), `checkpoint-agent` (Checkpoints), `coding-agent` (Interactions), `multi-agent-startup-team` (Tape + fleet), `admin-bundle` (admin), plus `rag-chat` / `agui-chat` / `grpc-chat` for the non-WS transports | The Console is the validation surface for ~26 samples; a bundle change invalidates all of their UI evidence |
+| Console bundle (`modules/spring-boot-starter/frontend/`) or `atmosphere.js` | One sample **per Console surface class**: `spring-boot-chat` (chat), `guarded-email-agent` (Validation), `checkpoint-agent` (Checkpoints), `coding-agent` (Interactions), `multi-agent-startup-team` (Tape + fleet), `admin-bundle` (admin), plus `rag-chat` / `agui-chat` / `grpc-chat` for the non-WS transports | The Console is the validation surface for 25 samples (`grep -rl atmosphere/console samples/ | cut -d/ -f2 | sort -u | wc -l`); a bundle change invalidates all of their UI evidence |
 | `modules/ai` | One sample **per AI runtime**: `ai-chat` (built-in), `dentist-agent` + `ai-tools` (LangChain4j), `rag-chat` (Spring AI), `browser-agent` (Cohere), `multi-agent-startup-team` (multi-runtime) | Dispatch, tool bridging, and streaming are shared; runtimes diverge |
-| `modules/spring-boot-starter` (Java) | `ai-chat`, `spring-boot-chat`, `one-dep-agent`, `admin-bundle` | Auto-configuration reaches all 26 Spring Boot samples; these four cover AI, plain, single-dep, and bundle wiring |
+| `modules/spring-boot-starter` (Java) | `ai-chat`, `spring-boot-chat`, `one-dep-agent`, `admin-bundle` | Auto-configuration reaches all 25 Spring Boot samples; these four cover AI, plain, single-dep, and bundle wiring |
 | `modules/quarkus-extension`, `modules/quarkus-*` | `quarkus-chat`, `quarkus-ai-chat` | Only two Quarkus samples — re-run both, no subsetting needed |
 | `modules/admin` / admin bundle | `admin-bundle`, `ms-governance-chat` (Policies/Decisions), `checkpoint-agent` (Checkpoints), `multi-agent-startup-team` (Tape) | Admin surfaces are tab-conditional; each tab is a separate wiring path |
 | `modules/coordinator` | `checkpoint-agent`, `multi-agent-startup-team`, `personal-assistant`, `orchestration-demo` | The `@Coordinator` / `@Fleet` consumers |
