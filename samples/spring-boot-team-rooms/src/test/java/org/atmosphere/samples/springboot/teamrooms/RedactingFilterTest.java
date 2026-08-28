@@ -18,9 +18,11 @@ package org.atmosphere.samples.springboot.teamrooms;
 import java.time.Instant;
 
 import org.atmosphere.cpr.BroadcastFilter;
+import org.atmosphere.cpr.RawMessage;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -82,5 +84,41 @@ class RedactingFilterTest {
     void toleratesANonChatPayload() {
         BroadcastFilter.BroadcastAction a = filter.filter("/x", "raw", "raw");
         assertEquals("raw", a.message(), "non-Message payloads must pass through");
+    }
+
+    // ── The shapes that actually reach the wire ────────────────────────────
+    // The 2026-08-28 sweep drove this sample over a real WebSocket and got the
+    // secret back VERBATIM, despite every test above passing. Cause:
+    // ManagedAtmosphereHandler encodes a @Message return value BEFORE the
+    // broadcast filters run and delivers a RawMessage wrapping the JSON string,
+    // so a filter matching only the domain type never fires. These cases pin the
+    // encoded shapes; without them the filter is decorative on the managed path.
+
+    @Test
+    void redactsTheEncodedJsonString() {
+        String encoded = "{\"room\":\"build\",\"author\":\"alice\","
+                + "\"text\":\"bearer abcdef0123456789 leak\"}";
+        BroadcastFilter.BroadcastAction a = filter.filter("/atmosphere/rooms/build", encoded, encoded);
+        String out = assertInstanceOf(String.class, a.message());
+        assertTrue(out.contains(RedactingFilter.REDACTED), "encoded JSON survived unredacted: " + out);
+        assertFalse(out.contains("abcdef0123456789"), "raw token still on the wire: " + out);
+    }
+
+    @Test
+    void redactsInsideARawMessageWrapper() {
+        String encoded = "{\"text\":\"bearer abcdef0123456789 leak\"}";
+        BroadcastFilter.BroadcastAction a = filter.filter(
+                "/atmosphere/rooms/build", encoded, new RawMessage(encoded));
+        RawMessage out = assertInstanceOf(RawMessage.class, a.message());
+        String inner = String.valueOf(out.message());
+        assertTrue(inner.contains(RedactingFilter.REDACTED), "RawMessage payload survived: " + inner);
+        assertFalse(inner.contains("abcdef0123456789"));
+    }
+
+    @Test
+    void leavesACleanEncodedStringIdentical() {
+        String encoded = "{\"text\":\"ship it\"}";
+        BroadcastFilter.BroadcastAction a = filter.filter("/x", encoded, encoded);
+        assertSame(encoded, a.message(), "a clean payload must pass through untouched");
     }
 }

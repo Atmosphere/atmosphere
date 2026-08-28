@@ -19,6 +19,7 @@ import java.util.regex.Pattern;
 
 import org.atmosphere.config.service.BroadcasterFilterService;
 import org.atmosphere.cpr.BroadcastFilter;
+import org.atmosphere.cpr.RawMessage;
 
 /**
  * Moderation that cannot be bypassed by a client. Installed on <em>every</em> Broadcaster
@@ -40,12 +41,32 @@ public class RedactingFilter implements BroadcastFilter {
 
     @Override
     public BroadcastAction filter(String broadcasterId, Object originalMessage, Object message) {
+        return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, redact(message));
+    }
+
+    /**
+     * Redacts whatever actually reaches the wire.
+     *
+     * <p>A {@code @Message}-annotated method's return value is encoded <em>before</em>
+     * the broadcast filters run — {@code ManagedAtmosphereHandler} calls the encoder and
+     * hands {@code IOUtils.deliver} a {@link RawMessage} wrapping the encoded JSON. So a
+     * filter that only matches the domain type never fires on the managed path: the
+     * secret goes out verbatim. Handling the encoded {@code String} (and the
+     * {@code RawMessage} it arrives in) is what makes this filter actually moderate.</p>
+     */
+    private Object redact(Object message) {
+        if (message instanceof RawMessage raw) {
+            Object inner = redact(raw.message());
+            return inner == raw.message() ? raw : new RawMessage(inner);
+        }
         if (message instanceof Message m && m.text() != null) {
             String cleaned = SECRET.matcher(m.text()).replaceAll(REDACTED);
-            if (!cleaned.equals(m.text())) {
-                return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, m.withText(cleaned));
-            }
+            return cleaned.equals(m.text()) ? m : m.withText(cleaned);
         }
-        return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);
+        if (message instanceof String s) {
+            String cleaned = SECRET.matcher(s).replaceAll(REDACTED);
+            return cleaned.equals(s) ? s : cleaned;
+        }
+        return message;
     }
 }

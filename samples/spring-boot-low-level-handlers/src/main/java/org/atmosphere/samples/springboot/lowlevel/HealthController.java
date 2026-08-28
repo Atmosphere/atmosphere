@@ -32,9 +32,7 @@ public class HealthController {
         return Map.of(
                 "resource", Map.of(
                         "suspended", ConnectionHealth.suspended(),
-                        "resumed", ConnectionHealth.resumed(),
-                        "disconnected", ConnectionHealth.disconnected(),
-                        "thrown", ConnectionHealth.thrown()),
+                        "disconnected", ConnectionHealth.disconnected()),
                 "transport", Map.of(
                         "timeouts", TransportHealth.timeouts(),
                         "closes", TransportHealth.closes()),

@@ -20,7 +20,7 @@ import org.atmosphere.config.service.AtmosphereFrameworkListenerService;
 import org.atmosphere.config.service.AtmosphereResourceListenerService;
 import org.atmosphere.cpr.AsyncSupportListener;
 import org.atmosphere.cpr.AtmosphereFrameworkListener;
-import org.atmosphere.cpr.AtmosphereResourceEventListener;
+import org.atmosphere.cpr.AtmosphereResourceListener;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -35,9 +35,29 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ListenerLayerInstallationTest {
 
     @Test
-    void resourceLayerIsInstalled() {
+    void resourceLayerImplementsTheInterfaceTheProcessorActuallyInstalls() {
         assertTrue(ConnectionHealth.class.isAnnotationPresent(AtmosphereResourceListenerService.class));
-        assertTrue(AtmosphereResourceEventListener.class.isAssignableFrom(ConnectionHealth.class));
+        // AtmosphereResourceListenerServiceProcessor calls
+        // newClassInstance(AtmosphereResourceListener.class, ...). Extending
+        // AtmosphereResourceEventListenerAdapter instead compiles, carries the
+        // annotation, and installs NOTHING — the failure is swallowed into a warn.
+        // The 2026-08-28 sweep found the counters stuck at zero for that reason.
+        assertTrue(AtmosphereResourceListener.class.isAssignableFrom(ConnectionHealth.class),
+                "must implement AtmosphereResourceListener (onSuspended/onDisconnect by uuid), "
+                        + "not the similarly-named AtmosphereResourceEventListener");
+    }
+
+    @Test
+    void resourceLayerActuallyCountsWhenTheListenerFires() {
+        long before = ConnectionHealth.suspended();
+        new ConnectionHealth().onSuspended("uuid-1");
+        assertTrue(ConnectionHealth.suspended() > before,
+                "onSuspended must increment — asserting the annotation alone is SPI presence, "
+                        + "not runtime presence");
+
+        long beforeD = ConnectionHealth.disconnected();
+        new ConnectionHealth().onDisconnect("uuid-1");
+        assertTrue(ConnectionHealth.disconnected() > beforeD, "onDisconnect must increment");
     }
 
     @Test

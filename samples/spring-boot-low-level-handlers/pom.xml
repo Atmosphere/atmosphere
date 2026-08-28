@@ -72,6 +72,24 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- The parent overrides Spring Boot's SLF4J/Logback pins for SB4
+             compatibility, so the starter does not drag a binding in. Without an
+             explicit one SLF4J falls back to JUL and every logger call in this
+             sample is silently lost — which is how the redaction defect stayed
+             invisible during the 2026-08-28 sweep. -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback-version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <version>${logback-version}</version>
+            <scope>runtime</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -79,6 +97,18 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot.version}</version>
+                <!-- The reactor parent is atmosphere-project, not
+                     spring-boot-starter-parent, so `repackage` is NOT bound by
+                     default. Without this execution the module builds a plain
+                     Maven jar with no Main-Class and `java -jar` fails. -->
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
