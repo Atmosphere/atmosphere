@@ -359,6 +359,26 @@ function findJar(sampleDir: string, type: string): string {
 /**
  * Wait for a TCP port to accept connections.
  */
+/**
+ * Rejects if the spawned process exits before the server becomes reachable.
+ *
+ * Without this, every wait below keeps polling for its full timeout after the process
+ * has already died — turning a one-line boot error into an opaque "port not ready" or,
+ * worse, a blown beforeAll hook that names no cause at all.
+ */
+function rejectOnEarlyExit(proc: ChildProcess): Promise<never> {
+  const p = new Promise<never>((_, reject) => {
+    proc.once('exit', (code, signal) => {
+      const how = signal ? `signal ${signal}` : `exit code ${code}`;
+      reject(new Error(`process exited before the server became reachable (${how})`));
+    });
+  });
+  // The happy path never awaits this promise; swallow its rejection so Node does
+  // not report an unhandled rejection once the server does come up.
+  p.catch(() => {});
+  return p;
+}
+
 async function waitForPort(port: number, timeoutMs = 30_000): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -476,18 +496,25 @@ export async function startSample(config: SampleConfig): Promise<SampleServer> {
   proc.stdout?.on('data', (d) => { output += d.toString(); });
   proc.stderr?.on('data', (d) => { output += d.toString(); });
 
+  // A dead process satisfies none of the waits below, and together they can burn
+  // 165s before giving up — long enough to blow the enclosing beforeAll hook and
+  // report a timeout instead of the boot error that actually happened. Racing each
+  // wait against process exit surfaces the real cause immediately.
+  const died = rejectOnEarlyExit(proc);
+
   try {
-    await waitForPort(config.port, 90_000);
+    await Promise.race([waitForPort(config.port, 90_000), died]);
     // Port open doesn't mean the app is ready — wait for HTTP 200
-    await waitForHttp(`http://127.0.0.1:${config.port}/`, 30_000);
+    await Promise.race([waitForHttp(`http://127.0.0.1:${config.port}/`, 30_000), died]);
     // Wait for the Atmosphere endpoint to be initialized (servlet may
     // start after the web server is ready, especially on slow CI runners)
     if (config.readyPath) {
-      await waitForHttp(`http://127.0.0.1:${config.port}${config.readyPath}`, 30_000);
+      await Promise.race([
+        waitForHttp(`http://127.0.0.1:${config.port}${config.readyPath}`, 30_000), died]);
       if (!config.httpOnlyReady) {
         // Verify the WebSocket layer is fully initialized (not just HTTP)
         const wsUrl = `ws://127.0.0.1:${config.port}${config.readyPath}`;
-        await waitForWebSocket(wsUrl, 15_000);
+        await Promise.race([waitForWebSocket(wsUrl, 15_000), died]);
       }
     }
   } catch (e) {

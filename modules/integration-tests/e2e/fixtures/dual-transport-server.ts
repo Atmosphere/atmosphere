@@ -26,9 +26,11 @@ export async function startDualTransportServer(httpPort: number, grpcPort: numbe
   proc.stdout?.on('data', (d) => { output += d.toString(); });
   proc.stderr?.on('data', (d) => { output += d.toString(); });
 
+  const died = rejectOnEarlyExit(proc);
+
   try {
-    await waitForPort(httpPort, 45_000);
-    await waitForPort(grpcPort, 10_000);
+    await Promise.race([waitForPort(httpPort, 45_000), died]);
+    await Promise.race([waitForPort(grpcPort, 10_000), died]);
   } catch (e) {
     proc.kill('SIGTERM');
     console.error(`=== DualTransportServer output ===\n${output.slice(-2000)}`);
@@ -36,6 +38,28 @@ export async function startDualTransportServer(httpPort: number, grpcPort: numbe
   }
 
   return new DualServer(proc, httpPort, grpcPort, output);
+}
+
+/**
+ * Rejects if the spawned process exits before the port opens.
+ *
+ * A dead child cannot open a port, but the startup wait had no way to know that: it
+ * kept polling for the full timeout after Maven had already exited, turning a one-line
+ * Maven error — an unresolvable plugin, a missing build extension, a bad mainClass —
+ * into an opaque "port not ready after Nms". Racing the poll against process exit
+ * surfaces the real cause immediately, and the captured output goes with it.
+ */
+function rejectOnEarlyExit(proc: ChildProcess): Promise<never> {
+  const p = new Promise<never>((_, reject) => {
+    proc.once('exit', (code, signal) => {
+      const how = signal ? `signal ${signal}` : `exit code ${code}`;
+      reject(new Error(`process exited before the port opened (${how})`));
+    });
+  });
+  // The happy path never awaits this promise, so swallow its rejection to keep
+  // Node from reporting an unhandled rejection once the port does open.
+  p.catch(() => {});
+  return p;
 }
 
 async function waitForPort(port: number, timeoutMs = 30_000): Promise<void> {
