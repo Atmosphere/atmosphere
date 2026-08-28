@@ -623,6 +623,7 @@
         <module>samples/embedded-jetty-websocket-chat</module>
         <module>samples/kotlin-dsl-chat</module>
         <module>samples/spring-boot-chat</module>
+        <module>samples/spring-boot-team-rooms</module>
         <module>samples/quarkus-chat</module>
         <module>samples/quarkus-ai-chat</module>
         <module>samples/spring-boot-ai-chat</module>

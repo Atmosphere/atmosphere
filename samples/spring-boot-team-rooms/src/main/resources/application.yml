@@ -1,0 +1,11 @@
+server:
+  port: ${SERVER_PORT:8105}
+
+atmosphere:
+  console-subtitle: Multi-room team chat built from Atmosphere's classic annotations
+  console-endpoint: /atmosphere/rooms/general
+  packages: org.atmosphere.samples.springboot.teamrooms
+
+logging:
+  level:
+    org.atmosphere.samples.springboot.teamrooms: INFO
