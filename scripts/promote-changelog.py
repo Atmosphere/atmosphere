@@ -30,6 +30,14 @@ CONVENTIONAL = re.compile(
     r"^(feat|fix|refactor|perf|chore|docs|ci|test|build|style)"
     r"(\([^)]+\))?: (.+)$"
 )
+
+# `Revert "<subject>"` — git's own revert subject format.
+REVERT = re.compile(r'^Revert "(.+)"$')
+# Version-bump commits the release workflow itself creates; they are plumbing,
+# not user-visible change.
+PLUMBING = re.compile(
+    r"^chore(\([^)]+\))?: prepare (for )?next develop", re.IGNORECASE
+)
 ADDED_KINDS = {"feat"}
 FIXED_KINDS = {"fix"}
 CHANGED_KINDS = {"refactor", "perf", "chore", "docs", "ci", "test", "build", "style"}
@@ -46,17 +54,48 @@ def previous_tag() -> str:
         return run("git", "rev-list", "--max-parents=0", "HEAD").splitlines()[0]
 
 
+def select_subjects(log: list[str]) -> list[str]:
+    """Drop reverted work and release plumbing from a newest-first subject list.
+
+    A `Revert "X"` commit and the `X` it reverts cancel out: shipping a bullet
+    for code that is no longer in the tree credits a fix that does not exist.
+    git log is newest-first, so the revert is always seen before its target.
+    """
+    reverted: set[str] = set()
+    kept: list[str] = []
+    for subject in log:
+        revert = REVERT.match(subject)
+        if revert:
+            reverted.add(revert.group(1))
+            continue
+        if subject in reverted:
+            reverted.discard(subject)
+            continue
+        if PLUMBING.match(subject):
+            continue
+        kept.append(subject)
+    return kept
+
+
 def generate_from_commits(from_ref: str) -> str:
     print(f"[promote-changelog] generating from {from_ref}..HEAD", file=sys.stderr)
-    log = subprocess.check_output(
-        ["git", "log", "--no-merges", f"{from_ref}..HEAD", "--format=%s"],
+    # %B + a NUL delimiter, not %s: git folds a subject and a body that are not
+    # separated by a blank line into a single %s, which then ships as one
+    # run-on bullet. Take the first line of the full message instead.
+    raw = subprocess.check_output(
+        ["git", "log", "--no-merges", f"{from_ref}..HEAD", "--format=%B%x00"],
         text=True,
-    ).splitlines()
+    )
+    log = [
+        message.strip().splitlines()[0].strip()
+        for message in raw.split("\0")
+        if message.strip()
+    ]
 
     feats: list[str] = []
     fixes: list[str] = []
     changes: list[str] = []
-    for subject in log:
+    for subject in select_subjects(log):
         m = CONVENTIONAL.match(subject)
         if not m:
             continue

@@ -57,7 +57,8 @@ ${BOLD}Options:${RESET}
   --template, -t <name>     Template to use (default: chat)
   --runtime, -r <name>      AI runtime adapter to inject (builtin | spring-ai |
                             langchain4j | adk | koog | agentscope | embabel |
-                            spring-ai-alibaba | semantic-kernel)
+                            spring-ai-alibaba | semantic-kernel | anthropic |
+                            cohere | crewai)
   --skill-file, -s <path>   Scaffold an @Agent that loads this skill file
   --list-templates          List available templates
   --help, -h                Show this help

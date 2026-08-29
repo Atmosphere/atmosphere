@@ -526,7 +526,14 @@ with `serverCertificateHashes`. Falls back to WebSocket if WebTransport is unava
 genuinely wired: the HTTP/3 server binds a real UDP port, `/api/webtransport-info`
 advertises runtime-confirmed state only, the `Alt-Svc` advertisement is present in
 the servlet chain, and the `WebTransportProcessor` SPI resolves the starter's real
-processor (not the no-op fallback). The full HTTP/3 browser round-trip is covered
+processor (not the no-op fallback). Browser-level coverage lives in `modules/integration-tests/e2e/webtransport*.spec.ts`, but note
+what those specs do and do not assert. They cover the `/api/webtransport-info` discovery endpoint,
+transport negotiation, the fallback badge contract (`data-transport` / `data-via-fallback`), and a
+message round-trip over *whichever* transport was negotiated. They do **not** hard-assert that the
+connection is WebTransport: each one passes on the WebSocket fallback, and they skip entirely when
+`netty-codec-http3` is off the classpath. An HTTP/3-only browser round-trip is not gated in CI
+today — verify it by reading `data-transport` and `data-via-fallback`, not just the word
+"Connected".
 separately by the Playwright specs in `modules/integration-tests/e2e/webtransport*.spec.ts`.
 
 ## Console Output

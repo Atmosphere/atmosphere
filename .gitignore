@@ -58,3 +58,7 @@ samples/*/src/main/resources/certs/
 # every run and machine-specific; the reproducible seed is reported in the
 # failure output and pinned via junit-platform.properties instead.
 .jqwik-database
+
+# Python bytecode from running scripts/*.py directly
+__pycache__/
+*.pyc

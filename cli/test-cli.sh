@@ -11,6 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CLI="$SCRIPT_DIR/atmosphere"
 NPX="$SCRIPT_DIR/npx/index.js"
 SAMPLES_JSON="$SCRIPT_DIR/samples.json"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PASS=0
 FAIL=0
 TESTS=""
@@ -1129,6 +1130,65 @@ if [ -z "$SKIP_NPX" ]; then
     else
         fail "every cli/npx/index.js template is also in the cmd_new map" \
             "missing from cmd_new: $only_npx"
+    fi
+
+    # Same lockstep, extended to the PROSE lists. ac56cbe5dc gated the two code
+    # maps against each other but touched no prose, so samples/README.md shipped
+    # 13 of 15 templates and the published tutorial 12 of 15 — a reader concludes
+    # the missing samples are unreachable via `atmosphere new`. Both files are
+    # unhedged exhaustive enumerations, so compare them the same way.
+    prose_tmp=$(mktemp -d)
+    printf '%s\n' "$cli_templates" > "$prose_tmp/cli.txt"
+
+    # samples/README.md: the single "Available `--template` values:" line.
+    grep -h '^Available `--template` values:' "$REPO_ROOT/samples/README.md" \
+        | grep -oE '`[a-z][a-z0-9-]+`' | tr -d '`' \
+        | grep -vx 'template' | sort -u > "$prose_tmp/samples.txt"
+    only_code=$(comm -23 "$prose_tmp/cli.txt" "$prose_tmp/samples.txt" | tr '\n' ' ')
+    only_prose=$(comm -13 "$prose_tmp/cli.txt" "$prose_tmp/samples.txt" | tr '\n' ' ')
+    if [ -z "$only_code" ] && [ -z "$only_prose" ]; then
+        pass "samples/README.md --template list matches the cmd_new map"
+    else
+        fail "samples/README.md --template list matches the cmd_new map" \
+            "missing from the doc: ${only_code:-none}; stale in the doc: ${only_prose:-none}"
+    fi
+
+    # cli/README.md: the Available Templates table.
+    grep -oE '^\| `[a-z][a-z0-9-]+`' "$REPO_ROOT/cli/README.md" \
+        | tr -d '|` ' | sort -u > "$prose_tmp/clidoc.txt"
+    only_code=$(comm -23 "$prose_tmp/cli.txt" "$prose_tmp/clidoc.txt" | tr '\n' ' ')
+    only_prose=$(comm -13 "$prose_tmp/cli.txt" "$prose_tmp/clidoc.txt" | tr '\n' ' ')
+    if [ -z "$only_code" ] && [ -z "$only_prose" ]; then
+        pass "cli/README.md template table matches the cmd_new map"
+    else
+        fail "cli/README.md template table matches the cmd_new map" \
+            "missing from the doc: ${only_code:-none}; stale in the doc: ${only_prose:-none}"
+    fi
+    rm -rf "$prose_tmp"
+
+    # The npx shim only forwards --runtime (cli/atmosphere validates it against
+    # cli/runtime-overlays.json, so the shell CLI cannot drift), but its help
+    # text hardcodes the list and listed 9 of 12 — anthropic, cohere and crewai
+    # all work and were unadvertised. Gate the help string against the JSON.
+    rt_tmp=$(mktemp -d)
+    node -e "
+        const fs=require('fs');
+        const d=JSON.parse(fs.readFileSync('$SCRIPT_DIR/runtime-overlays.json','utf8'));
+        const names=Object.keys(d.overlays||d).sort();
+        console.log(names.join('\n'));
+    " > "$rt_tmp/json.txt"
+    sed -n '/--runtime, -r <name>/,/)$/p' "$NPX" \
+        | grep -oE '[a-z][a-z0-9-]+' \
+        | grep -vxE 'runtime|r|name|AI|adapter|to|inject' \
+        | sort -u > "$rt_tmp/help.txt"
+    only_json=$(comm -23 "$rt_tmp/json.txt" "$rt_tmp/help.txt" | tr '\n' ' ')
+    only_help=$(comm -13 "$rt_tmp/json.txt" "$rt_tmp/help.txt" | tr '\n' ' ')
+    rm -rf "$rt_tmp"
+    if [ -z "$only_json" ] && [ -z "$only_help" ]; then
+        pass "npx --runtime help text matches cli/runtime-overlays.json"
+    else
+        fail "npx --runtime help text matches cli/runtime-overlays.json" \
+            "missing from help: ${only_json:-none}; not a real overlay: ${only_help:-none}"
     fi
 
     # No name

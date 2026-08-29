@@ -282,14 +282,20 @@ register a `LongTermMemoryProvider` (ServiceLoader) or bridge a
 `RedisLongTermMemory` (`atmosphere-durable-sessions-redis`) bean — the
 preset picks it up through the same resolution chain.
 
-> Facts are keyed by `userId`. The recall block only appears once an
-> authenticated `userId` is present on the request and facts have been
-> stored for that user; an anonymous request gets the original prompt
-> unchanged.
+> Facts are keyed by the `ai.userId` request attribute, and the recall block
+> appears once facts have been stored for that id. **This sample does not
+> authenticate anyone.** Both endpoints set `ai.userId` in `@Ready` from the
+> `?user=` query parameter (`/atmosphere/console/?user=alice`), falling back to
+> `demo-user`. Any client can read another id's facts by guessing it, and two
+> visitors who both omit `?user=` share the `demo-user` bucket — fine for a
+> keyless demo, never for production. A real app resolves the identity from its
+> auth stack (a servlet `Principal`, or an `AtmosphereInterceptor` that sets the
+> attribute) before the harness reads it. Only a genuinely blank `ai.userId`
+> short-circuits recall and the on-close extraction.
 
 Proven by `LongTermMemoryConsumerTest` (in the sample's `src/test`): a fact
 extracted when one session closes is recalled into a later session's system
-prompt for the same user, and never leaks to a different user.
+prompt for the same user, and never leaks between distinct `?user=` values.
 
 ## Notes
 

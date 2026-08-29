@@ -73,5 +73,5 @@ counters sat at zero until the 2026-08-28 sweep drove a real connect/disconnect 
 ./mvnw test -pl samples/spring-boot-low-level-handlers
 ```
 
-14 tests covering the raw/managed parity claim, the `@RoomAuth` placement constraint, the
+15 tests covering the raw/managed parity claim, the `@RoomAuth` placement constraint, the
 fail-closed authorization contract, and the three listener layers.

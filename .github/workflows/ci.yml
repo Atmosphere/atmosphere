@@ -60,6 +60,13 @@ jobs:
     - name: Verify Atmosphere doc versions match the release
       run: ./scripts/validate-atmosphere-doc-version.sh
 
+    # The release workflow auto-generates CHANGELOG bullets from commit subjects
+    # whenever [Unreleased] is empty (the normal state per the repo rule). A
+    # Revert pair that is not cancelled ships a Fixed bullet for code that was
+    # taken back out of the tree.
+    - name: Verify the CHANGELOG generator drops reverted and plumbing commits
+      run: ./scripts/test-promote-changelog.sh
+
   build-and-test:
     name: Build & Test (JDK ${{ matrix.java-version }})
     runs-on: ubuntu-latest
