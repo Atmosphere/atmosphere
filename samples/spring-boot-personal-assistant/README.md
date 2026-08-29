@@ -225,10 +225,13 @@ across both runtimes.
 
 ## Long-term memory — cross-session fact recall
 
-The `UpstreamMcpAgent` endpoint is also a real consumer of the
-`LongTermMemory` primitive, so the assistant remembers facts about a user
-across separate WebSocket connections — exactly what a "long-lived,
-memory-bearing assistant" should do.
+Both agent surfaces are real consumers of the `LongTermMemory` primitive, so
+the assistant remembers facts about a user across separate WebSocket
+connections — exactly what a "long-lived, memory-bearing assistant" should do.
+`PrimaryAssistant` (`/atmosphere/agent/primary-assistant` — the endpoint the
+Console and the demo flow above drive) gets it from the `@Coordinator` harness
+default and needs nothing else running; `UpstreamMcpAgent` opts in explicitly
+and additionally needs the MCP server on 8083.
 
 The sample contains **zero memory wiring**. One annotation attribute
 opts the endpoint into the deep-agent harness:

@@ -23,8 +23,8 @@ grep -rln 'web-transport\|webTransport' samples/*/src/main/resources/
 
 | Runtime | Samples |
 |---|---|
-| Built-in | `ai-chat`, `ai-classroom`, `channels-chat`, `agui-chat`, `checkpoint-agent`, `coding-agent`, `guarded-email-agent`, `ms-governance-chat`, `mcp-server`, `a2a-agent`, `passivation-agent`, `reattach-harness`, `durable-sessions`, `otel-chat`, `one-dep-agent`, `admin-bundle` |
-| LangChain4j | `ai-tools`, `dentist-agent`, `orchestration-demo`, `personal-assistant`, `quarkus-ai-chat` |
+| Built-in | `ai-chat`, `ai-classroom`, `channels-chat`, `agui-chat`, `checkpoint-agent`, `coding-agent`, `guarded-email-agent`, `ms-governance-chat`, `mcp-server`, `a2a-agent`, `passivation-agent`, `reattach-harness`, `durable-sessions`, `otel-chat`, `one-dep-agent`, `admin-bundle`, `personal-assistant` (see note) |
+| LangChain4j | `ai-tools`, `dentist-agent`, `orchestration-demo`, `quarkus-ai-chat` |
 | Spring AI | `rag-chat`, `spring-ai-advisors` |
 | Cohere | `browser-agent` |
 | Multi-runtime | `multi-agent-startup-team` (adk + embabel + koog + langchain4j + spring-ai) |
@@ -67,6 +67,13 @@ grep -rln 'web-transport\|webTransport' samples/*/src/main/resources/
 | A sample renamed, added, or removed | That sample's own pass **plus** the CLI registry checks, `cmd_new` template map, and `release-gate-samples.sh` coverage map | Sample changes must land with `samples.json`, the CLI map, the READMEs, and CI in the same commit |
 | Root `pom.xml`, `bom/`, a managed dependency version | **Full re-sweep** — all three surfaces | A managed-version change reaches every artifact. This is exactly the class that produced both historical sweep bugs |
 | Build/CI scripts only, docs only | Nothing — but the CI lanes must be green | No artifact changed |
+
+> **Note — `personal-assistant` is profile-gated.** Its `atmosphere-langchain4j` dependency
+> lives only in the non-default `runtime-langchain4j` Maven profile (no `<activation>`), so the
+> sweep boots it on the **Built-in** runtime. Filing it under LangChain4j meant a `modules/ai`
+> change did not pull it into the blast radius — which is how the long-term-memory regression
+> reached a release candidate. Verify with `./mvnw dependency:list -pl <sample>` before trusting
+> a runtime row: the pom's default profile set is the source of truth, not the README's prose.
 
 ## Rules
 

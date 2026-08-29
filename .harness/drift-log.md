@@ -2931,7 +2931,7 @@ half, complete with a line-number list of "read sites".
 parameters through a different path that works —
 `AiEndpointHandler.java:390` calls `AnnotatedLifecycle.injectPathParams`,
 which sets the `PathParam.class.getName()` attribute itself rather than
-relying on `ManagedServiceInterceptor`. `AiClassroom` injects correctly.
+relying on `ManagedServiceInterceptor`. `AiClassroom` injects correctly **over WebSocket** — see the 2026-08-28 correction below: that verdict was scoped to one transport and does not hold on WebTransport.
 `grep -n "injectPathParams"` over `modules/` returns exactly one caller and
 would have shown this in one command.
 
@@ -3043,3 +3043,85 @@ it justifies a code change, and reverting to a known state beats a second guess;
 (3) annotation-usage greps must match the *import*, never the bare name — the
 framework shares `@ApplicationScoped`, `@RequestScoped` and `@Singleton` with
 jakarta, and a name-only match silently counts the wrong one.
+
+---
+
+## 2026-08-28 — "`AiClassroom` injects correctly" was true on one transport only
+
+**Claim:** the 2026-08-27 entry closed a reported `@AiEndpoint` `@PathParam`
+bug as a false positive, on the grounds that `AiEndpointHandler` calls
+`AnnotatedLifecycle.injectPathParams` and therefore does not depend on
+`ManagedServiceInterceptor`. The verdict was stated without qualification.
+
+**Truth:** the mechanism was described correctly and the conclusion was still
+wrong. `injectPathParams` read `request.getRequestURI()`, which
+`ReactorNettyTransportServer` does not populate on a WebTransport session — it
+carries the path in `pathInfo`. So on WebTransport the template never matched:
+every room resolved to `null` and collapsed onto a single empty-id broadcaster.
+Driving `/atmosphere/classroom/math` in the browser showed `room 'null'`. The
+original report was right about the symptom and wrong about the cause; the
+rebuttal was right about the cause and wrong about the symptom.
+
+**How it slipped through:** the check was a code read on one transport. Both
+`AiEndpointHandler.resolvePath()` and `AnnotatedLifecycle.injectPathParams` now
+fall back to `Utils.pathInfo`, and the sweep's classroom row requires the
+`· webtransport` badge plus cross-room silence, so the same bug cannot pass as
+"fan-out works" again.
+
+**Second-order:** a "false positive" verdict is a claim like any other. This one
+was recorded as a *correction of someone else's error*, which made it read as
+settled. Scope such verdicts to the surface actually exercised — "correct over
+WebSocket" would have been true and would have left the gap visible.
+
+---
+
+## 2026-08-28 — A green unit suite certified two samples that could not run
+
+**Claim:** `spring-boot-team-rooms` and `spring-boot-low-level-handlers` shipped
+and were registered across every gate and doc on a fully green suite — 36 tests
+across 7 classes, every one passing.
+
+**Truth:** both samples were broken at runtime while that suite was green. The
+suite asserted that annotations were *present* and that classes were wired the
+way the sample intended; it never booted either app. Three defects survived it:
+
+1. `RedactingFilter` matched only the domain type. On the managed path
+   `ManagedAtmosphereHandler` runs the `@Message` encoder *before* the broadcast
+   filters and hands `IOUtils.deliver` a `RawMessage`, so the filter never fired
+   and the secret went out verbatim — the exact opposite of the README's
+   "moderation a client cannot bypass".
+2. `ConnectionHealth` extended `AtmosphereResourceEventListenerAdapter` while
+   the processor installs `AtmosphereResourceListener`. It compiled, carried its
+   annotation, and installed nothing.
+3. Neither sample bound `spring-boot-maven-plugin:repackage` (the reactor parent
+   is not `spring-boot-starter-parent`), so neither produced a runnable jar.
+
+**How it slipped through:** every assertion was structural. "The annotation is
+on the class" and "the bean is registered" are cheap to assert and prove almost
+nothing about behaviour; the sweep matrix rows for both samples asked for the
+same structural evidence (`GET /api/health` returns three keys — which it does
+with zero connections, and with a listener that was never installed).
+
+**Gate:** the four matrix rows that certified without evidence now require it —
+row 33 reads `/api/health` before and after a drive and requires the counters to
+*move*; row 32 requires redaction to be proven with a raw WS client against the
+received frame, not the Console DOM; row 25 requires two rooms and cross-room
+*silence*; row 13 requires a real disconnect plus a second user. Structure-only
+assertions are the failure mode, and "the suite is green" is not coverage.
+
+---
+
+## 2026-08-28 — The blast-radius table filed a sample under the wrong runtime
+
+**Claim:** `retest-subset.md` listed `personal-assistant` under LangChain4j, so
+a `modules/ai` (Built-in) change did not pull it into the re-test subset.
+
+**Truth:** its `atmosphere-langchain4j` dependency lives only in the non-default
+`runtime-langchain4j` profile, which has no `<activation>`. The sweep boots it
+on the **Built-in** runtime. The row was derived from the sample's prose rather
+than from its resolved dependency set, and the misfiling is why a long-term
+memory regression on the Built-in path reached a release candidate.
+
+**Gate:** the row moved to Built-in with a note requiring
+`./mvnw dependency:list -pl <sample>` before trusting any runtime attribution —
+the pom's default profile set is the source of truth, not the README.
