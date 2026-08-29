@@ -57,6 +57,7 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -521,6 +522,42 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * {@link org.atmosphere.ai.resume.RunReattachSupport#UNRESOLVED}
      * owner instead, which refuses every reattach.</p>
      */
+    /**
+     * Resolved owner identity per connection uuid.
+     *
+     * <p>Tomcat can fire the disconnect listener with a recycled request: the event
+     * still carries its uuid but the {@code ai.userId} attribute is gone with the
+     * request. Without this, that path called the interceptors with a null userId and
+     * {@code LongTermMemoryInterceptor.onDisconnect} returned early — dropping every
+     * fact from the conversation even when the application HAD configured an identity,
+     * on the very path a closed browser tab takes.</p>
+     *
+     * <p>Bounded by connection lifetime: {@link #forgetRunOwner} is called from
+     * {@code cleanupDisconnected}, which every disconnect path reaches (Invariant #3).
+     * Anonymous connections are never recorded — they deliberately get no memory.</p>
+     */
+    private static final Map<String, String> RUN_OWNERS = new ConcurrentHashMap<>();
+
+    /** Records the resolved owner for {@code uuid}. No-op for a blank identity. */
+    static void rememberRunOwner(String uuid, String userId) {
+        if (uuid == null || userId == null || userId.isBlank()) {
+            return;
+        }
+        RUN_OWNERS.put(uuid, userId);
+    }
+
+    /** The owner recorded at connect time, or null. */
+    static String recallRunOwner(String uuid) {
+        return uuid == null ? null : RUN_OWNERS.get(uuid);
+    }
+
+    /** Releases the entry. Called on every disconnect path so the map stays bounded. */
+    static void forgetRunOwner(String uuid) {
+        if (uuid != null) {
+            RUN_OWNERS.remove(uuid);
+        }
+    }
+
     static String resolveRunOwner(AtmosphereResource resource) {
         var principalUnresolvable = false;
         if (resource.getRequest() != null
@@ -785,6 +822,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             }
         });
         var runUserId = resolveRunOwner(resource);
+        rememberRunOwner(resource.uuid(), runUserId);
         var handle = org.atmosphere.ai.resume.RunRegistryHolder.get().register(
                 pathTemplate, runUserId, resource.uuid(), runExecutionHandle);
         session.setRunId(handle.runId());
@@ -1033,12 +1071,16 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 logger.debug("handleDisconnect invoked after resource recycled — reclaiming session "
                         + "state for uuid {} (event.isClosedByClient={}, isCancelled={})",
                         uuid, event.isClosedByClient(), event.isCancelled());
-                cleanupDisconnected(null, uuid);
+                cleanupDisconnected(recallRunOwner(uuid), uuid);
             }
             lifecycle.onDisconnect(target, event);
             return;
         }
-        cleanupDisconnected(disconnectUserId(resource), resource.uuid());
+        var ownerAtDisconnect = disconnectUserId(resource);
+        if (ownerAtDisconnect == null) {
+            ownerAtDisconnect = recallRunOwner(resource.uuid());
+        }
+        cleanupDisconnected(ownerAtDisconnect, resource.uuid());
         lifecycle.onDisconnect(target, event);
         logger.info(logMessage, resource.uuid());
     }
@@ -1070,6 +1112,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      */
     private void cleanupDisconnected(String userIdStr, String uuid) {
         notifyInterceptorsOnDisconnect(userIdStr, uuid);
+        forgetRunOwner(uuid);
         if (memory != null) {
             memory.clear(uuid);
         }

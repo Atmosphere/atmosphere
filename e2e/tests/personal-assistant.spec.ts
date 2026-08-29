@@ -160,6 +160,47 @@ test.describe('Personal assistant sample', () => {
    * (Correctness Invariant #5). If the batteries-on default regresses, or
    * the per-feature gating drops a primitive, these assertions go red.
    */
+  /**
+   * Cross-session fact recall — the sample's headline claim, and the item
+   * `project_e2e_100pct_coverage` left open since 2026-07-03.
+   *
+   * Recall is keyed on `ai.userId`; a blank identity makes
+   * LongTermMemoryInterceptor short-circuit BOTH recall and on-disconnect
+   * extraction. Until 2026-08-29 only `/atmosphere/personal-assistant/upstream-tools`
+   * set it, while the README, the sweep matrix and the Console all drive
+   * `/atmosphere/agent/primary-assistant` — so the feature was unreachable where
+   * anyone looked for it, and the only in-tree assertion was that the battery
+   * reports ACTIVE (attach-truth, not recall).
+   *
+   * This drives the real path: state a fact, DISCONNECT, reconnect as the same
+   * user, and require the fact back. The isolation half matters as much — recall
+   * that leaks across users is worse than no recall.
+   */
+  test('recalls a fact stated in an earlier session, and only for that user', async ({ page }) => {
+    const ask = async (user: string, message: string) => {
+      await page.goto(`/atmosphere/console/?user=${user}`);
+      const input = page.locator('textarea, input[type="text"]').first();
+      await input.waitFor({ state: 'visible', timeout: 30_000 });
+      await input.fill(message);
+      await page.keyboard.press('Enter');
+      // Wait for a completed turn: the Console renders token metrics when done.
+      await page.getByText(/tok\/s/).first().waitFor({ timeout: 120_000 });
+      return (await page.locator('body').innerText()).toLowerCase();
+    };
+
+    // Session 1 — state the fact, then leave (page navigation ends the connection).
+    await ask('sweep-alice', 'Remember this: my project codename is Bluefin.');
+
+    // Session 2 — a NEW connection for the same user must recall it. Asserting in
+    // the same session would only prove the model can read its own context window.
+    const recalled = await ask('sweep-alice', 'What is my project codename? Answer only from memory.');
+    expect(recalled, 'cross-session recall for the same ai.userId').toContain('bluefin');
+
+    // Session 3 — a DIFFERENT user must not see it.
+    const other = await ask('sweep-bob', 'What is my project codename? Answer only from memory.');
+    expect(other, 'long-term memory must not leak across users').not.toContain('bluefin');
+  });
+
   test('console info reports the harness batteries genuinely ACTIVE', async ({
     request,
   }) => {

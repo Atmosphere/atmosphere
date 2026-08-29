@@ -51,13 +51,21 @@ events. `/api/health` shows all three at once.
 
 | Annotation | Class | Sees |
 |---|---|---|
-| `@AtmosphereResourceListenerService` | `ConnectionHealth` | per-resource suspend/resume/disconnect/throwable |
+| `@AtmosphereResourceListenerService` | `ConnectionHealth` | per-resource suspend + disconnect, keyed by uuid |
 | `@AsyncSupportListenerService` | `TransportHealth` | container-level timeouts and closes, including ones that never reach a resource event |
 | `@AtmosphereFrameworkListenerService` | `FrameworkUptime` | framework init/destroy |
 
 `FrameworkUptime` stamps its clock in `onPostInit`, never in `onPreInit` or a constructor —
 it reports *confirmed* runtime state, not configuration intent. A unit test asserts uptime is
 still zero before init runs.
+
+**Mind which interface you implement.** `@AtmosphereResourceListenerService` installs
+`AtmosphereResourceListener` — `onSuspended(String uuid)` / `onDisconnect(String uuid)`. That is
+*not* `AtmosphereResourceEventListener` (`onSuspend(AtmosphereResourceEvent)`, `onResume`,
+`onThrowable`, …), whose adapter has a confusingly similar name. Extending the wrong one
+compiles, carries the annotation, and installs **nothing**: the processor's `newClassInstance`
+fails and the exception is swallowed into a warn. This sample shipped that exact bug — its
+counters sat at zero until the 2026-08-28 sweep drove a real connect/disconnect and noticed.
 
 ## Tests
 

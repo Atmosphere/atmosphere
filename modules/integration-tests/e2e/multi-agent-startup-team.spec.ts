@@ -19,16 +19,16 @@ function sendAndCollect(
   path: string,
   message: string,
   timeoutMs = 30_000,
-): Promise<{ texts: string[]; fullText: string }> {
+): Promise<{ texts: string[]; fullText: string; streamedText: string }> {
   return new Promise((resolve, reject) => {
     const wsUrl = baseUrl.replace('http://', 'ws://') + path;
     const ws = new WebSocket(wsUrl);
     const texts: string[] = [];
+    // Streamed synthesis ONLY — see the note on `streamedText` below.
+    const streamed: string[] = [];
     let opened = false;
-    const timer = setTimeout(() => {
-      ws.close();
-      resolve({ texts, fullText: texts.join('') });
-    }, timeoutMs);
+    const done = () => ({ texts, fullText: texts.join(''), streamedText: streamed.join('') });
+    const timer = setTimeout(() => { ws.close(); resolve(done()); }, timeoutMs);
 
     ws.on('open', () => { opened = true; ws.send(message); });
     ws.on('message', (data) => {
@@ -36,16 +36,30 @@ function sendAndCollect(
       const parts = raw.split('|');
       for (const part of parts) {
         const trimmed = part.trim();
-        if (trimmed && !trimmed.match(/^\d+$/) && trimmed !== 'X') {
-          texts.push(trimmed);
+        if (!trimmed || trimmed.match(/^\d+$/) || trimmed === 'X') continue;
+        texts.push(trimmed);
+        // CeoCoordinator emits ToolResult('write_report', <the whole report>)
+        // BEFORE it calls session.stream(). Both land on this socket, so an
+        // assertion over every frame passes even when the synthesis emits
+        // nothing at all — which is exactly how a Koog synthesis failure went
+        // undetected while this spec stayed green (2026-08-28 sweep, row 14).
+        // Only `streaming-text` frames are the synthesis.
+        try {
+          const frame = JSON.parse(trimmed);
+          if (frame && frame.type === 'streaming-text' && typeof frame.data === 'string') {
+            streamed.push(frame.data);
+          }
+        } catch {
+          // Non-JSON frame: raw streamed text on transports that do not wrap.
+          streamed.push(trimmed);
         }
       }
     });
-    ws.on('close', () => { clearTimeout(timer); resolve({ texts, fullText: texts.join('') }); });
+    ws.on('close', () => { clearTimeout(timer); resolve(done()); });
     ws.on('error', (err) => {
       clearTimeout(timer);
       if (!opened) reject(new Error(`WebSocket failed: ${err.message}`));
-      else resolve({ texts, fullText: texts.join('') });
+      else resolve(done());
     });
   });
 }
@@ -239,8 +253,10 @@ test.describe('Multi-Agent Startup Team', () => {
       '/atmosphere/agent/ceo', 'Analyze the market for AI fitness apps', 25_000);
 
     // In demo mode, the CEO synthesizes from demo agent responses.
-    // The response should contain structured output from the pipeline.
-    expect(result.fullText.length).toBeGreaterThan(20);
+    // Assert the STREAMED synthesis, not every frame: the write_report tool card
+    // carries the full report text and is emitted before session.stream(), so
+    // `fullText` is non-empty even when the synthesis produces nothing.
+    expect(result.streamedText.length).toBeGreaterThan(20);
   });
 
   test('individual agent failure doesn\'t crash coordinator', async () => {

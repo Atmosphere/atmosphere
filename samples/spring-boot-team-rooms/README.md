@@ -34,7 +34,7 @@ is a separate room with separate membership and separate history.
 | `@BroadcasterCacheInspectorService` | `RecentOnlyInspector` | *What* is worth caching, as opposed to how much |
 | `@BroadcasterCacheListenerService` | `CacheAuditListener` | Make the replay path observable instead of a black box |
 
-## Three things worth copying
+## Four things worth copying
 
 **`@Singleton` and `@PathParam` do not mix.** `RoomChat` is deliberately *not* `@Singleton`.
 `ManagedServiceInterceptor.mapAnnotatedService` skips per-request instantiation for a
@@ -52,12 +52,22 @@ init parameters, overwriting anything a subclass constructor set. `ReplayCache` 
 `Action.CANCELLED` with a `429` rather than silently discarding the message, and its tracking
 map is capped — a map keyed by a client-controlled id with no bound is a DoS vector.
 
+**A broadcast filter sees the ENCODED payload, not your domain type.** This is the one that
+bit hardest. `ManagedAtmosphereHandler` runs the `@Message` encoder *before* the broadcast
+filters and hands `IOUtils.deliver` a `RawMessage` wrapping the encoded JSON. A filter written
+as `if (message instanceof Message m)` therefore never fires on the managed path — it compiles,
+it is installed, its unit tests pass, and the secret goes out verbatim. `RedactingFilter`
+handles `Message`, the encoded `String`, and the `RawMessage` wrapper, and
+`RedactingFilterTest` feeds it all three shapes. Test your filter with what the wire actually
+carries, not with the object you returned.
+
 ## Tests
 
 ```bash
 ./mvnw test -pl samples/spring-boot-team-rooms
 ```
 
-22 tests. They assert behaviour, not absence of exceptions: neutering `RedactingFilter` to a
-pass-through fails 3 of them by name, loosening a cache bound past the framework default
-fails another, and deleting the `configure()` override fails it a different way.
+25 tests. They assert behaviour, not absence of exceptions: neutering `RedactingFilter` to a
+pass-through fails 3 of them by name, feeding it the encoded JSON or a `RawMessage` fails 2
+more, loosening a cache bound past the framework default fails another, and deleting the
+`configure()` override fails it a different way.

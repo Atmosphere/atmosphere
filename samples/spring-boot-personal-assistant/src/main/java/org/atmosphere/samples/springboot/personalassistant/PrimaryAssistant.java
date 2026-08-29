@@ -22,6 +22,8 @@ import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiTool;
 import org.atmosphere.ai.annotation.Param;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.config.service.Ready;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.coordinator.annotation.AgentRef;
 import org.atmosphere.coordinator.annotation.Coordinator;
 import org.atmosphere.coordinator.annotation.Fleet;
@@ -87,6 +89,29 @@ import java.util.Map;
 public class PrimaryAssistant {
 
     private static final Logger logger = LoggerFactory.getLogger(PrimaryAssistant.class);
+
+    /**
+     * Give the connection a stable identity so long-term memory has something to
+     * key on.
+     *
+     * <p>{@code LongTermMemoryInterceptor} short-circuits both recall and
+     * on-disconnect extraction when {@code ai.userId} is blank — an anonymous
+     * connection deliberately gets no memory. {@link UpstreamMcpAgent} has always
+     * done this, but THIS is the endpoint the README, the sweep matrix and the
+     * Console all drive, so without it the sample's headline "cross-session fact
+     * recall" was unreachable where anyone would look for it.</p>
+     *
+     * <p>A real app resolves this from its auth stack (a {@code Principal} or an
+     * {@code AtmosphereInterceptor}); the demo derives it from {@code ?user=} and
+     * falls back to {@code demo-user}. Two tabs with the same {@code ?user=} share
+     * memory; different values do not.</p>
+     */
+    @Ready
+    public void onReady(AtmosphereResource resource) {
+        var user = resource.getRequest().getParameter("user");
+        resource.getRequest().setAttribute("ai.userId",
+                user != null && !user.isBlank() ? user : "demo-user");
+    }
 
     @Prompt
     public void onPrompt(String message, AgentFleet fleet, StreamingSession session) {
