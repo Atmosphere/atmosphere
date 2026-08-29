@@ -505,24 +505,6 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     }
 
     /**
-     * Resolve the owner identity a new run registers under, and default
-     * the {@code ai.userId} request attribute the rest of the ai module
-     * reads (ToolExecutionHelper.resolveMode, AiStreamingSession.stream)
-     * from the servlet Principal when nothing upstream set it. Apps that
-     * integrate their own auth stack set {@code ai.userId} via an
-     * AtmosphereInterceptor and the fallback no-op's.
-     *
-     * <p>A thrown {@code getUserPrincipal} (some containers ISE when the
-     * principal is not yet bound to the async/virtual-thread dispatch) is
-     * NOT the same as a null principal: null means no auth is configured,
-     * a throw means ownership is indeterminate. Registering an
-     * indeterminate run as {@code "anonymous"} would disable the reattach
-     * ownership check — any runId holder could replay the stream — so
-     * those runs register with the fail-closed
-     * {@link org.atmosphere.ai.resume.RunReattachSupport#UNRESOLVED}
-     * owner instead, which refuses every reattach.</p>
-     */
-    /**
      * Resolved owner identity per connection uuid.
      *
      * <p>Tomcat can fire the disconnect listener with a recycled request: the event
@@ -558,6 +540,24 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         }
     }
 
+    /**
+     * Resolve the owner identity a new run registers under, and default
+     * the {@code ai.userId} request attribute the rest of the ai module
+     * reads (ToolExecutionHelper.resolveMode, AiStreamingSession.stream)
+     * from the servlet Principal when nothing upstream set it. Apps that
+     * integrate their own auth stack set {@code ai.userId} via an
+     * AtmosphereInterceptor and the fallback no-op's.
+     *
+     * <p>A thrown {@code getUserPrincipal} (some containers ISE when the
+     * principal is not yet bound to the async/virtual-thread dispatch) is
+     * NOT the same as a null principal: null means no auth is configured,
+     * a throw means ownership is indeterminate. Registering an
+     * indeterminate run as {@code "anonymous"} would disable the reattach
+     * ownership check — any runId holder could replay the stream — so
+     * those runs register with the fail-closed
+     * {@link org.atmosphere.ai.resume.RunReattachSupport#UNRESOLVED}
+     * owner instead, which refuses every reattach.</p>
+     */
     static String resolveRunOwner(AtmosphereResource resource) {
         var principalUnresolvable = false;
         if (resource.getRequest() != null
@@ -1344,12 +1344,6 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     }
 
     /**
-     * When the path template contains {@code {param}} placeholders, each unique
-     * request path (e.g. {@code /classroom/math} vs {@code /classroom/code})
-     * gets its own {@link org.atmosphere.cpr.Broadcaster}. This provides
-     * per-path message isolation — messages broadcast in one room stay in that room.
-     */
-    /**
      * The concrete request path, resolved the same way on every transport.
      *
      * <p>{@code getRequestURI()} is populated by the WebSocket / SSE / long-polling
@@ -1372,6 +1366,12 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         return Utils.pathInfo(request);
     }
 
+    /**
+     * When the path template contains {@code {param}} placeholders, each unique
+     * request path (e.g. {@code /classroom/math} vs {@code /classroom/code})
+     * gets its own {@link org.atmosphere.cpr.Broadcaster}. This provides
+     * per-path message isolation — messages broadcast in one room stay in that room.
+     */
     private void assignPerPathBroadcaster(AtmosphereResource resource) {
         if (pathTemplate == null || !pathTemplate.contains("{")) {
             return;
