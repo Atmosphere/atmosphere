@@ -38,15 +38,26 @@ const pkg = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
 const missing = [];
 let checked = 0;
 
-for (const [entry, conditions] of Object.entries(pkg.exports ?? {})) {
-  if (typeof conditions !== 'object' || conditions === null) continue;
-  for (const [condition, relative] of Object.entries(conditions)) {
-    if (typeof relative !== 'string') continue;
+// Conditions nest: `"require": { "types": "./x.d.cts", "default": "./x.cjs" }`.
+// Walk recursively — a non-recursive walk silently skips every nested target and
+// still reports success, which is how adding per-condition types quietly took this
+// check from 33 targets down to 11 without failing.
+function walk(entry, path, node) {
+  if (typeof node === 'string') {
     checked += 1;
-    if (!existsSync(resolve(root, relative))) {
-      missing.push(`${entry} → ${condition}: ${relative}`);
+    if (!existsSync(resolve(root, node))) {
+      missing.push(`${entry} → ${path}: ${node}`);
     }
+    return;
   }
+  if (typeof node !== 'object' || node === null) return;
+  for (const [condition, child] of Object.entries(node)) {
+    walk(entry, path ? `${path}.${condition}` : condition, child);
+  }
+}
+
+for (const [entry, conditions] of Object.entries(pkg.exports ?? {})) {
+  walk(entry, '', conditions);
 }
 
 if (checked === 0) {

@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "preserve",
+    "allowJs": true,
+    "noResolve": true,
+    "noLib": true,
+    "skipLibCheck": true,
+    "isolatedModules": false
+  },
+  "files": ["p0.ts", "p0.tsx", "p0.js", "p0.jsx"]
+}

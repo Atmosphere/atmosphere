@@ -8,59 +8,125 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      },
+      "types": "./dist/index.d.ts"
     },
     "./react": {
-      "types": "./dist/react.d.ts",
-      "import": "./dist/react.js",
-      "require": "./dist/react.cjs"
+      "import": {
+        "types": "./dist/react.d.ts",
+        "default": "./dist/react.js"
+      },
+      "require": {
+        "types": "./dist/react.d.cts",
+        "default": "./dist/react.cjs"
+      },
+      "types": "./dist/react.d.ts"
     },
     "./vue": {
-      "types": "./dist/vue.d.ts",
-      "import": "./dist/vue.js",
-      "require": "./dist/vue.cjs"
+      "import": {
+        "types": "./dist/vue.d.ts",
+        "default": "./dist/vue.js"
+      },
+      "require": {
+        "types": "./dist/vue.d.cts",
+        "default": "./dist/vue.cjs"
+      },
+      "types": "./dist/vue.d.ts"
     },
     "./svelte": {
-      "types": "./dist/svelte.d.ts",
-      "import": "./dist/svelte.js",
-      "require": "./dist/svelte.cjs"
+      "import": {
+        "types": "./dist/svelte.d.ts",
+        "default": "./dist/svelte.js"
+      },
+      "require": {
+        "types": "./dist/svelte.d.cts",
+        "default": "./dist/svelte.cjs"
+      },
+      "types": "./dist/svelte.d.ts"
     },
     "./chat": {
-      "types": "./dist/chat.d.ts",
-      "import": "./dist/chat.js",
-      "require": "./dist/chat.cjs"
+      "import": {
+        "types": "./dist/chat.d.ts",
+        "default": "./dist/chat.js"
+      },
+      "require": {
+        "types": "./dist/chat.d.cts",
+        "default": "./dist/chat.cjs"
+      },
+      "types": "./dist/chat.d.ts"
     },
     "./react-native": {
-      "types": "./dist/react-native.d.ts",
-      "import": "./dist/react-native.js",
-      "require": "./dist/react-native.cjs"
+      "import": {
+        "types": "./dist/react-native.d.ts",
+        "default": "./dist/react-native.js"
+      },
+      "require": {
+        "types": "./dist/react-native.d.cts",
+        "default": "./dist/react-native.cjs"
+      },
+      "types": "./dist/react-native.d.ts"
     },
     "./room": {
-      "types": "./dist/room.d.ts",
-      "import": "./dist/room.js",
-      "require": "./dist/room.cjs"
+      "import": {
+        "types": "./dist/room.d.ts",
+        "default": "./dist/room.js"
+      },
+      "require": {
+        "types": "./dist/room.d.cts",
+        "default": "./dist/room.cjs"
+      },
+      "types": "./dist/room.d.ts"
     },
     "./streaming": {
-      "types": "./dist/streaming.d.ts",
-      "import": "./dist/streaming.js",
-      "require": "./dist/streaming.cjs"
+      "import": {
+        "types": "./dist/streaming.d.ts",
+        "default": "./dist/streaming.js"
+      },
+      "require": {
+        "types": "./dist/streaming.d.cts",
+        "default": "./dist/streaming.cjs"
+      },
+      "types": "./dist/streaming.d.ts"
     },
     "./queue": {
-      "types": "./dist/queue.d.ts",
-      "import": "./dist/queue.js",
-      "require": "./dist/queue.cjs"
+      "import": {
+        "types": "./dist/queue.d.ts",
+        "default": "./dist/queue.js"
+      },
+      "require": {
+        "types": "./dist/queue.d.cts",
+        "default": "./dist/queue.cjs"
+      },
+      "types": "./dist/queue.d.ts"
     },
     "./history": {
-      "types": "./dist/history.d.ts",
-      "import": "./dist/history.js",
-      "require": "./dist/history.cjs"
+      "import": {
+        "types": "./dist/history.d.ts",
+        "default": "./dist/history.js"
+      },
+      "require": {
+        "types": "./dist/history.d.cts",
+        "default": "./dist/history.cjs"
+      },
+      "types": "./dist/history.d.ts"
     },
     "./interactions": {
-      "types": "./dist/interactions.d.ts",
-      "import": "./dist/interactions.js",
-      "require": "./dist/interactions.cjs"
+      "import": {
+        "types": "./dist/interactions.d.ts",
+        "default": "./dist/interactions.js"
+      },
+      "require": {
+        "types": "./dist/interactions.d.cts",
+        "default": "./dist/interactions.cjs"
+      },
+      "types": "./dist/interactions.d.ts"
     }
   },
   "peerDependencies": {
