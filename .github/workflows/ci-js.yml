@@ -19,7 +19,10 @@ jobs:
     
     strategy:
       matrix:
-        node-version: [20, 22]
+        # jsdom 30 (the vitest environment) requires ^22.13.0 || >=24.0.0, and
+        # Node 20 reached end-of-life in April 2026. The matrix tracks jsdom's
+        # supported range: current LTS plus the line after it.
+        node-version: [22, 24]
       fail-fast: false
     
     defaults:
@@ -52,7 +55,7 @@ jobs:
       run: npm test
     
     - name: Upload Coverage
-      if: matrix.node-version == 20
+      if: matrix.node-version == 22
       uses: codecov/codecov-action@v7
       with:
         files: ./atmosphere.js/coverage/coverage-final.json
@@ -65,7 +68,7 @@ jobs:
         fail_ci_if_error: false
     
     - name: Upload Build Artifacts
-      if: matrix.node-version == 20
+      if: matrix.node-version == 22
       uses: actions/upload-artifact@v7
       with:
         name: atmosphere-js-dist
@@ -82,10 +85,10 @@ jobs:
     steps:
     - uses: actions/checkout@v7
     
-    - name: Setup Node.js 20
+    - name: Setup Node.js 22
       uses: actions/setup-node@v7
       with:
-        node-version: 20
+        node-version: 22
         cache: 'npm'
         cache-dependency-path: atmosphere.js/package-lock.json
     
