@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.69] - 2026-08-30
+
+### Added
+
+- add the classic-rooms template and gate the two template maps in lockstep
+- add spring-boot-low-level-handlers, the layer under @ManagedService
+- add spring-boot-team-rooms, a classic-annotation multi-room chat
+
+### Fixed
+
+- stop the personal assistant overwriting an upstream-resolved ai.userId
+- skip cross-session recall when the resolved runtime is the demo fallback
+- reattach two Javadoc comments orphaned by the owner-reclaim insert
+- stop the CHANGELOG generator crediting reverted commits
+- keep the run owner across a recycled request so fact extraction still runs
+- make the classic-annotation samples work at runtime, not just in tests
+- resolve templated endpoint paths on WebTransport, not just requestURI
+- fail a fixture boot as soon as the process dies, not after the timeout
+- fail the coverage map on entries for samples that no longer exist
+- resolve e2e coverage entries to real specs, projects and CI legs
+- resolve @PathParam on @RoomService and add it to the servlet scan
+
+### Changed
+
+- require evidence in the four matrix rows that certified without it
+- log the offline-maven CI regression and the CDI annotation false positive
+- register the two classic-annotation samples across every gate and doc
+- log the fabricated container-ledger blog claim and the relayed RAG negative grep
+- forbid host-network toggles, record the NetInfo assertion as PARTIAL
+
 ## [4.0.68] - 2026-08-23
 
 ### Added
