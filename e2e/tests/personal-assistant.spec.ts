@@ -176,7 +176,23 @@ test.describe('Personal assistant sample', () => {
    * user, and require the fact back. The isolation half matters as much — recall
    * that leaks across users is worse than no recall.
    */
-  test('recalls a fact stated in an earlier session, and only for that user', async ({ page }) => {
+  test('recalls a fact stated in an earlier session, and only for that user', async ({
+    page,
+    request,
+  }) => {
+    // Runtime truth, not config intent (Invariant #5): ask the server which
+    // AgentRuntime it actually resolved. The fallback DemoAgentRuntime answers
+    // from a canned script, so it can neither store a fact nor recall one — and
+    // its reply would satisfy the isolation half vacuously. Guarding on
+    // LLM_API_KEY the way the tool-call tests above do would be wrong in both
+    // directions: it skips a reachable keyless local model, and it runs when a
+    // key is set but nothing is listening.
+    const info = await (await request.get('/api/console/info')).json();
+    test.skip(
+      info.runtime === 'demo',
+      `resolved runtime is "${info.runtime}"; cross-session recall needs a real model`
+    );
+
     const ask = async (user: string, message: string) => {
       await page.goto(`/atmosphere/console/?user=${user}`);
       const input = page.locator('textarea, input[type="text"]').first();
