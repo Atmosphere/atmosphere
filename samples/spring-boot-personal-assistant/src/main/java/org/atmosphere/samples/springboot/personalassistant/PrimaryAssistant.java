@@ -105,11 +105,22 @@ public class PrimaryAssistant {
      * {@code AtmosphereInterceptor}); the demo derives it from {@code ?user=} and
      * falls back to {@code demo-user}. Two tabs with the same {@code ?user=} share
      * memory; different values do not.</p>
+     *
+     * <p>Set only when absent, matching how the framework's own stamping sites
+     * behave ({@code InteractionsAutoConfiguration}, {@code
+     * InteractionsDemoPrincipalInterceptor}). An authenticated deployment resolves
+     * the real principal upstream of {@code @Ready}; overwriting it here would
+     * quietly collapse every logged-in user's memory onto the {@code demo-user}
+     * bucket — a demo default must never downgrade a real identity.</p>
      */
     @Ready
     public void onReady(AtmosphereResource resource) {
-        var user = resource.getRequest().getParameter("user");
-        resource.getRequest().setAttribute("ai.userId",
+        var request = resource.getRequest();
+        if (request.getAttribute("ai.userId") != null) {
+            return;
+        }
+        var user = request.getParameter("user");
+        request.setAttribute("ai.userId",
                 user != null && !user.isBlank() ? user : "demo-user");
     }
 
