@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "declaration": true,
+    "declarationMap": false,
+    "sourceMap": false,
+    "outDir": "./.dts-staging",
+    "declarationDir": "./.dts-staging"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "tests", "consumer-check"]
+}

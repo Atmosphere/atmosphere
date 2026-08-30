@@ -15,7 +15,11 @@ export default defineConfig([
       interactions: 'src/interactions.ts',
     },
     format: ['esm', 'cjs'],
-    dts: true,
+    // Declarations come from scripts/build-dts.mjs (TypeScript 7's own
+    // emitter). tsup 8.5.1 cannot emit them under TS 7: its vendored
+    // rollup-plugin-dts calls the removed ts.sys.useCaseSensitiveFileNames,
+    // and experimentalDts calls the removed parseJsonConfigFileContent.
+    dts: false,
     splitting: false,
     sourcemap: true,
     // No config cleans: `npm run build` cleans once, up front. When this config
@@ -35,7 +39,11 @@ export default defineConfig([
       'react-native': 'src/hooks/react-native/index.ts',
     },
     format: ['esm', 'cjs'],
-    dts: true,
+    // Declarations come from scripts/build-dts.mjs (TypeScript 7's own
+    // emitter). tsup 8.5.1 cannot emit them under TS 7: its vendored
+    // rollup-plugin-dts calls the removed ts.sys.useCaseSensitiveFileNames,
+    // and experimentalDts calls the removed parseJsonConfigFileContent.
+    dts: false,
     splitting: false,
     sourcemap: true,
     clean: false,

@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "noEmit": true, "strict": true, "skipLibCheck": true,
+    "target": "ES2022", "module": "node16", "moduleResolution": "node16",
+    "lib": ["ES2022", "DOM"], "jsx": "react-jsx", "types": []
+  },
+  "files": ["consume.ts"]
+}

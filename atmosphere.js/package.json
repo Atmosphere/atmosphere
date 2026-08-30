@@ -94,7 +94,8 @@
   ],
   "scripts": {
     "dev": "tsup --watch",
-    "build": "npm run clean && tsup && node scripts/check-export-types.mjs",
+    "build": "npm run clean && tsup && node scripts/build-dts.mjs && node scripts/check-export-types.mjs && npm run verify:types",
+    "verify:types": "tsc -p consumer-check/tsconfig.bundler.json && tsc -p consumer-check/tsconfig.node16.json && tsc -p consumer-check/tsconfig.cjs.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
@@ -148,7 +149,7 @@
     "react-dom": "^19.2.5",
     "svelte": "^5.55.7",
     "tsup": "^8.5.1",
-    "typescript": "^6.0.2",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.10",
     "vue": "^3.5.31"
   },

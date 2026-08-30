@@ -34,3 +34,6 @@ yarn-error.log*
 # Temporary files
 *.tmp
 .cache/
+
+# Staging tree for scripts/build-dts.mjs (removed on success, survives a tsc failure).
+.dts-staging/
