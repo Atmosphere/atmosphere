@@ -3156,3 +3156,30 @@ it, not the build.
 when a `sed` expression matches inside comments, re-read every changed comment
 against the source of truth — a mechanical bump may leave prose that is now a
 fabricated claim.
+
+---
+
+## 2026-08-30 — The netty comment's Quarkus baseline was wrong, and a bump propagated it
+
+**Claim:** five Quarkus poms asserted "Netty BOM pinned to 4.1.137.Final, one
+patch above the 4.1.136.Final that Quarkus 3.36.3 ships."
+
+**Truth:** `quarkus-bom-3.36.3.pom` pins exactly one io.netty 4.x version and it
+is **4.1.135.Final**. So the cited baseline was wrong and the arithmetic with it:
+4.1.137 is *two* patches above 4.1.135, not one.
+
+**Slip path:** the false baseline was introduced by an earlier sweep
+(`2ff99a62fe`), where the comment read "pinned to 4.1.136.Final, one patch above
+the 4.1.136.Final that Quarkus ships" — visibly self-contradictory, yet it
+survived review because both numbers matched the pin being added. The present
+sweep's `sed` updated only the first number (the pin), leaving the second, which
+*removed* the self-contradiction and made the sentence read as coherent, correct
+prose. A mechanical bump can launder an obviously-broken claim into a
+plausible-looking one, which is harder to catch on the next read, not easier.
+
+**Gate:** the comment now cites 4.1.135.Final and names the artifact it was
+verified against (`quarkus-bom-3.36.3.pom`), so the claim carries its own source.
+Working rule, extending the Tomcat entry above: a version cited in prose *as a
+fact about a third party* must be re-read against that third party's own POM
+whenever the surrounding pin moves — the two numbers are independent, and a
+`sed` that touches one will silently leave the other stale.

@@ -23,8 +23,10 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Netty BOM pinned to 4.1.137.Final, one patch above the
-                 4.1.136.Final that Quarkus 3.36.3 ships. Imported BEFORE
+            <!-- Netty BOM pinned to 4.1.137.Final, two patches above the
+                 4.1.135.Final that Quarkus 3.36.3 ships (verified against
+                 quarkus-bom-3.36.3.pom, whose only io.netty 4.x pin is
+                 4.1.135.Final). Imported BEFORE
                  quarkus-bom and retained as an explicit sample-scope floor
                  closing CVE-2026-42577 (handler-proxy header injection),
                  CVE-2026-42578 (chunked-extension request smuggling),
