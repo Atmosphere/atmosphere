@@ -16,12 +16,12 @@
 
     <properties>
         <quarkus.version>3.36.3</quarkus.version>
-        <netty.version>4.1.136.Final</netty.version>
+        <netty.version>4.1.137.Final</netty.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
-            <!-- Netty BOM pinned to 4.1.136.Final, one patch above the
+            <!-- Netty BOM pinned to 4.1.137.Final, one patch above the
                  4.1.136.Final that Quarkus 3.36.3 ships. Imported BEFORE
                  quarkus-bom and retained as an explicit floor so the patched
                  netty stays in place regardless of transitive drift. 4.1.136

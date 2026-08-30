@@ -28,6 +28,7 @@
   },
   "overrides": {
     "esbuild": ">=0.28.1",
-    "happy-dom": ">=20.0.0"
+    "happy-dom": ">=20.0.0",
+    "nanoid": "^3.3.18"
   }
 }

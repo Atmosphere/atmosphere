@@ -221,7 +221,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.5.4</version>
+                <version>3.5.6</version>
                 <configuration>
                     <forkCount>1</forkCount>
                     <reuseForks>false</reuseForks>
@@ -1254,6 +1254,46 @@
                 <artifactId>lz4-java</artifactId>
                 <version>1.11.1</version>
             </dependency>
+            <!-- Force the Log4j artifacts to 2.25.5 (CVE-2026-49844 on
+                 log4j-api). Log4j reaches the tree transitively across 33
+                 manifests through Spring/Quarkus/AWS/Kafka BOMs that still
+                 resolve the 2.13.1..2.25.4 range. The project logs through
+                 SLF4J: `dependency:tree` shows log4j-api and the log4j-to-slf4j
+                 bridge only — log4j-core is genuinely absent, so there is no
+                 api/core pair to skew. log4j-to-slf4j IS pinned in lockstep: it
+                 implements log4j-api's Provider SPI, and the tree otherwise
+                 resolves it at 2.24.3 / 2.25.4 against a 2.25.5 api. -->
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-api</artifactId>
+                <version>${log4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-to-slf4j</artifactId>
+                <version>${log4j.version}</version>
+            </dependency>
+            <!-- Force the HttpComponents 5.x family, pulled transitively through
+                 google-adk / agentscope / koog HTTP clients. httpcore5 and
+                 httpcore5-h2 MUST move in lockstep (same 5.4.x line) — h2 links
+                 against core internals. 5.4.3 closes CVE-2026-54399 (httpcore5)
+                 and CVE-2026-54428 (httpcore5-h2); httpclient5 5.6.3 closes
+                 CVE-2026-64607 and requires the 5.4.x core line. -->
+            <dependency>
+                <groupId>org.apache.httpcomponents.core5</groupId>
+                <artifactId>httpcore5</artifactId>
+                <version>${httpcore5.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.httpcomponents.core5</groupId>
+                <artifactId>httpcore5-h2</artifactId>
+                <version>${httpcore5.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.httpcomponents.client5</groupId>
+                <artifactId>httpclient5</artifactId>
+                <version>${httpclient5.version}</version>
+            </dependency>
             <!-- NOTE: spring-webflux is intentionally NOT force-pinned here.
                  Globally pinning to 6.2.17 (the patched 6.x) drags Spring 6's
                  webflux into modules using Spring 7 (Spring Boot 4) and
@@ -1346,7 +1386,7 @@
              wherever the API is consumed, and both track this one version. -->
         <jakarta-websocket-api.version>2.2.0</jakarta-websocket-api.version>
         <jakarta-inject-api.version>2.0.1</jakarta-inject-api.version>
-        <opentelemetry-api.version>1.63.0</opentelemetry-api.version>
+        <opentelemetry-api.version>1.65.0</opentelemetry-api.version>
         <slf4j-impl-version>2.0.17</slf4j-impl-version>
         <slf4j-version>2.0.17</slf4j-version>
         <logback-version>1.5.37</logback-version>
@@ -1368,6 +1408,11 @@
         <jackson2.version>2.22.1</jackson2.version>
         <jackson-annotations.version>2.22</jackson-annotations.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
+        <!-- CVE force-pin properties (entries in the dependencyManagement
+             force-pin block above). -->
+        <log4j.version>2.25.5</log4j.version>
+        <httpcore5.version>5.4.3</httpcore5.version>
+        <httpclient5.version>5.6.3</httpclient5.version>
         <snakeyaml.version>2.3</snakeyaml.version>
         <mockito.version>5.23.0</mockito.version>
         <mockito-kotlin.version>6.3.0</mockito-kotlin.version>
@@ -1398,14 +1443,14 @@
         <lettuce.version>6.5.5.RELEASE</lettuce.version>
         <spring-boot.version>4.1.0</spring-boot.version>
         <!-- Override Spring Boot 4.1.0's netty 4.2.x pin (4.2.15.Final) to
-             4.2.16.Final, closing the codec-family batch: GHSA-jppx-w49h-x2qq /
+             4.2.17.Final, closing the codec-family batch: GHSA-jppx-w49h-x2qq /
              GHSA-mvh2-crg5-v77c / GHSA-6jqx-86gh-f27w (codec-http),
              GHSA-93wv-jw9v-4972 (codec-http2), GHSA-558v-64gr-wgg4
              (codec-compression), GHSA-hpcc-26xq-25fv (codec-http3) and the
              medium-severity codec/dns advisories. spring-boot-dependencies
              reads ${netty.version} from caller properties, so this wins precedence
              over the BOM pin without forcing a netty-bom import. -->
-        <netty.version>4.2.16.Final</netty.version>
+        <netty.version>4.2.17.Final</netty.version>
         <!-- 3.36.3 closes GHSA-qcxp-gm7m-4j5v (quarkus-vertx-http). -->
         <quarkus.version>3.36.3</quarkus.version>
         <atmosphere.module.name>org.atmosphere</atmosphere.module.name>

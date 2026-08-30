@@ -21,12 +21,12 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Pin netty 4.1.x to 4.1.136.Final. Integration tests pull
+            <!-- Pin netty 4.1.x to 4.1.137.Final. Integration tests pull
                  lettuce/grpc-netty-shaded transitively with older netty. -->
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
-                <version>4.1.136.Final</version>
+                <version>4.1.137.Final</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -197,7 +197,7 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>42.7.12</version>
+            <version>42.7.13</version>
             <scope>test</scope>
         </dependency>
         <dependency>

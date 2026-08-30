@@ -16,7 +16,7 @@
 
     <properties>
         <quarkus.version>3.36.3</quarkus.version>
-        <netty.version>4.1.136.Final</netty.version>
+        <netty.version>4.1.137.Final</netty.version>
     </properties>
 
     <dependencyManagement>
