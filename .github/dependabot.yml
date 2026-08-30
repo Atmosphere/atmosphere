@@ -53,6 +53,15 @@ updates:
       # a minor/major bump is a deliberate, coordinated human change rather than
       # an isolated auto-PR. (Quarkus/gRPC were previously surfaced as watch-only
       # tracking issues by dependency-update-check.yml, now removed.)
+      # OpenTelemetry: samples/quarkus-ai-chat pins opentelemetry-api / -common /
+      # -context together at Quarkus's 1.60.1 baseline. api >= 1.62 moved
+      # ApiUsageLogger into io.opentelemetry.common.impl, so a lone api bump
+      # against the pinned 1.60.1 -common throws NoClassDefFoundError at startup.
+      # PR #2694 made exactly that bump and broke the sample; PR #2752 re-proposed
+      # it. Hold to patch-only so the trio can only move as a deliberate,
+      # coordinated change, and re-evaluate when Quarkus ships OTel 1.62+.
+      - dependency-name: "io.opentelemetry:*"            # lockstep with Quarkus's baseline
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "io.netty:*"                    # hold 4.2.x
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "io.quarkus:*"                  # hold current minor (lockstep)

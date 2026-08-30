@@ -3125,3 +3125,34 @@ memory regression on the Built-in path reached a release candidate.
 **Gate:** the row moved to Built-in with a note requiring
 `./mvnw dependency:list -pl <sample>` before trusting any runtime attribution —
 the pom's default profile set is the source of truth, not the README.
+
+---
+
+## 2026-08-30 — A sed over comment prose turned a true statement false
+
+**Claim:** `samples/spring-boot-chat/pom.xml` asserted "Align core back to Spring
+Boot 3.5.15's Tomcat" directly above `<tomcat-version>10.1.54</tomcat-version>`.
+
+**Truth:** Boot 3.5.15 ships Tomcat **10.1.55**; 10.1.54 is Boot 3.5.**14**'s.
+The dependency sweep bumped `spring-boot.version` 3.5.14 → 3.5.15 with a
+repo-wide `sed` whose expressions also rewrote the surrounding comment text
+(`3.5.14's Tomcat` → `3.5.15's Tomcat`). The version *number* in the prose was
+substituted; the *pin the prose describes* was not. The comment therefore
+documented an alignment that the very same commit had broken — and the pin it
+guards exists to stop a `NoSuchMethodError(getLock)` core/websocket skew during
+long-polling.
+
+**Slip path:** comment text was treated as bulk-substitutable string data.
+`sed` cannot tell a version cited *as a fact about a third party* ("Boot 3.5.15
+ships X") from one cited *as a description of the adjacent code*. Neither the
+compiler, checkstyle, PMD, the architectural validator, nor the 36-minute full
+reactor build reads prose, so every gate passed — the code was internally
+consistent, only its documentation lied. An adversarial doc-vs-BOM audit caught
+it, not the build.
+
+**Gate:** the pin now carries an explicit invariant naming both mappings
+(3.5.14 → 10.1.54, 3.5.15 → 10.1.55) and requiring the value to track
+`<tomcat.version>` in the matching `spring-boot-dependencies` POM. Working rule:
+when a `sed` expression matches inside comments, re-read every changed comment
+against the source of truth — a mechanical bump may leave prose that is now a
+fabricated claim.
