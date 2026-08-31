@@ -146,6 +146,16 @@
             <version>${jetty-version}</version>
             <optional>true</optional>
         </dependency>
+        <!-- Jetty 12.1 moved the QUIC server connector out of jetty-quic-server
+             (which now ships only ServerQuicConfiguration + ServerProtocolSession)
+             into jetty-quic-quiche-server. Optional, like jetty-http3-server:
+             JettyHttp3AsyncSupport only engages when these are on the classpath. -->
+        <dependency>
+            <groupId>org.eclipse.jetty.quic</groupId>
+            <artifactId>jetty-quic-quiche-server</artifactId>
+            <version>${jetty-version}</version>
+            <optional>true</optional>
+        </dependency>
     </dependencies>
 </project>
 

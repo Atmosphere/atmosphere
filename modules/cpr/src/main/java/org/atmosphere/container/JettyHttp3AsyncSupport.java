@@ -18,8 +18,8 @@ package org.atmosphere.container;
 import jakarta.servlet.ServletContext;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.eclipse.jetty.http3.server.HTTP3ServerConnectionFactory;
-import org.eclipse.jetty.quic.server.QuicServerConnector;
-import org.eclipse.jetty.quic.server.ServerQuicConfiguration;
+import org.eclipse.jetty.quic.quiche.server.QuicheServerConnector;
+import org.eclipse.jetty.quic.quiche.server.QuicheServerQuicConfiguration;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.slf4j.Logger;
@@ -33,9 +33,17 @@ import java.nio.file.Path;
  * Extends {@link JSR356AsyncSupport} and adds an HTTP/3 (QUIC/UDP) connector
  * to the embedded Jetty server when {@code jetty-http3-server} is on the classpath.
  *
- * <p>Uses {@link QuicServerConnector} with {@link HTTP3ServerConnectionFactory}
+ * <p>Uses {@link QuicheServerConnector} with {@link HTTP3ServerConnectionFactory}
  * to add a QUIC/UDP connector alongside the existing HTTP/1.1 and/or HTTP/2
  * connectors on the Jetty server.</p>
+ *
+ * <p>Jetty 12.1 moved the QUIC server implementation out of
+ * {@code jetty-quic-server} into {@code jetty-quic-quiche-server}, renaming
+ * {@code QuicServerConnector} to {@link QuicheServerConnector} and
+ * {@code ServerQuicConfiguration} to {@link QuicheServerQuicConfiguration}. The
+ * {@link org.eclipse.jetty.util.ssl.SslContextFactory.Server} also moved from the
+ * configuration onto the connector, and the connection factory no longer takes the
+ * QUIC configuration.</p>
  *
  * <p>The HTTP/3 connector uses a self-signed certificate by default for
  * development. For production, configure a proper keystore via
@@ -50,7 +58,7 @@ public class JettyHttp3AsyncSupport extends JSR356AsyncSupport {
     private static final Logger logger = LoggerFactory.getLogger(JettyHttp3AsyncSupport.class);
     private static final int DEFAULT_HTTP3_PORT = 4443;
 
-    private QuicServerConnector http3Connector;
+    private QuicheServerConnector http3Connector;
 
     public JettyHttp3AsyncSupport(AtmosphereConfig config) {
         super(config);
@@ -67,9 +75,9 @@ public class JettyHttp3AsyncSupport extends JSR356AsyncSupport {
             Path pemWorkDir = Files.createTempDirectory("jetty-http3-pem");
             pemWorkDir.toFile().deleteOnExit();
 
-            var quicConfig = new ServerQuicConfiguration(sslContextFactory, pemWorkDir);
-            var h3Factory = new HTTP3ServerConnectionFactory(quicConfig);
-            http3Connector = new QuicServerConnector(server, quicConfig, h3Factory);
+            var quicConfig = new QuicheServerQuicConfiguration(pemWorkDir);
+            var h3Factory = new HTTP3ServerConnectionFactory();
+            http3Connector = new QuicheServerConnector(server, sslContextFactory, quicConfig, h3Factory);
             http3Connector.setPort(port);
 
             server.addConnector(http3Connector);
