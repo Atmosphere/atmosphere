@@ -18,12 +18,15 @@ package org.atmosphere.samples.springboot.personalassistant;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.StreamingSession;
+import java.security.Principal;
+
 import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiTool;
 import org.atmosphere.ai.annotation.Param;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.config.service.Ready;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.coordinator.annotation.AgentRef;
 import org.atmosphere.coordinator.annotation.Coordinator;
 import org.atmosphere.coordinator.annotation.Fleet;
@@ -91,37 +94,35 @@ public class PrimaryAssistant {
     private static final Logger logger = LoggerFactory.getLogger(PrimaryAssistant.class);
 
     /**
-     * Give the connection a stable identity so long-term memory has something to
-     * key on.
+     * Key long-term memory on the authenticated principal.
      *
-     * <p>{@code LongTermMemoryInterceptor} short-circuits both recall and
-     * on-disconnect extraction when {@code ai.userId} is blank — an anonymous
-     * connection deliberately gets no memory. {@link UpstreamMcpAgent} has always
-     * done this, but THIS is the endpoint the README, the sweep matrix and the
-     * Console all drive, so without it the sample's headline "cross-session fact
-     * recall" was unreachable where anyone would look for it.</p>
+     * <p>{@code AuthInterceptor} validates the Console's sign-in token and stores
+     * the resolved principal under {@link FrameworkConfig#AUTH_PRINCIPAL}. It does
+     * NOT set {@code ai.userId}, and {@code AiEndpointHandler.resolveRunOwner}
+     * reads only {@code ai.userId} or the servlet {@code getUserPrincipal()} —
+     * which token auth never populates. Without this bridge an authenticated
+     * caller still falls through to {@code anonymous}, so every visitor shares one
+     * memory bucket.</p>
      *
-     * <p>A real app resolves this from its auth stack (a {@code Principal} or an
-     * {@code AtmosphereInterceptor}); the demo derives it from {@code ?user=} and
-     * falls back to {@code demo-user}. Two tabs with the same {@code ?user=} share
-     * memory; different values do not.</p>
-     *
-     * <p>Set only when absent, matching how the framework's own stamping sites
-     * behave ({@code InteractionsAutoConfiguration}, {@code
-     * InteractionsDemoPrincipalInterceptor}). An authenticated deployment resolves
-     * the real principal upstream of {@code @Ready}; overwriting it here would
-     * quietly collapse every logged-in user's memory onto the {@code demo-user}
-     * bucket — a demo default must never downgrade a real identity.</p>
+     * <p>An earlier version read a {@code ?user=} query parameter instead. That
+     * never worked: the Console forwards only {@code token} onto the transport, so
+     * the parameter never arrived and user B was told user A's facts. The
+     * 2026-08-31 sweep caught it; the unit test that "covered" it hand-built a
+     * request already carrying the parameter, so it passed while proving nothing
+     * about the production path.</p>
      */
     @Ready
     public void onReady(AtmosphereResource resource) {
         var request = resource.getRequest();
-        if (request.getAttribute("ai.userId") != null) {
+        if (request == null || request.getAttribute("ai.userId") != null) {
             return;
         }
-        var user = request.getParameter("user");
-        request.setAttribute("ai.userId",
-                user != null && !user.isBlank() ? user : "demo-user");
+        if (request.getAttribute(FrameworkConfig.AUTH_PRINCIPAL) instanceof Principal p
+                && p.getName() != null && !p.getName().isBlank()) {
+            request.setAttribute("ai.userId", p.getName());
+        }
+        // No authenticated principal -> no identity -> no memory. Deliberately not
+        // defaulting: a shared fallback identity is exactly what leaked facts.
     }
 
     @Prompt

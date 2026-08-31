@@ -15,8 +15,10 @@
  */
 package org.atmosphere.samples.springboot.personalassistant;
 
+import org.atmosphere.auth.TokenValidator;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -47,6 +49,33 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  */
 @SpringBootApplication
 public class PersonalAssistantApplication {
+
+    /**
+     * Resolves the demo sign-in token to the principal that long-term memory
+     * keys on.
+     *
+     * <p>Long-term memory is per-user, so the sample needs a real identity on
+     * the connection. The Console sends its {@code ?token=} as
+     * {@code X-Atmosphere-Auth} on REST and as a query parameter on the
+     * WebSocket, and {@code AiEndpointHandler.resolveRunOwner} defaults
+     * {@code ai.userId} from the resolved {@code Principal}. That is the only
+     * identity channel that actually reaches the endpoint.</p>
+     *
+     * <p>A {@code ?user=} page parameter does NOT: the Console reads only
+     * {@code token} from the page URL and never forwards other query
+     * parameters onto the transport, so every visitor collapsed onto one
+     * bucket and each user was told the previous user's facts. Sign in as
+     * {@code /?token=alice} and {@code /?token=bob} to see two separate
+     * memories. Any non-blank token is accepted here because this is a demo;
+     * a real deployment validates OIDC/JWT/mTLS and returns the verified
+     * subject.</p>
+     */
+    @Bean
+    public TokenValidator demoUserTokenValidator() {
+        return token -> token == null || token.isBlank()
+                ? new TokenValidator.Invalid("sign in with ?token=<user>")
+                : new TokenValidator.Valid(token.trim());
+    }
 
     public static void main(String[] args) {
         SpringApplication.run(PersonalAssistantApplication.class, args);

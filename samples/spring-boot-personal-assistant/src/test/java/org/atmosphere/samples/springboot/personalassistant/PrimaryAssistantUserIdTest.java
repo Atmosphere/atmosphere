@@ -15,110 +15,55 @@
  */
 package org.atmosphere.samples.springboot.personalassistant;
 
-import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereRequestImpl;
-import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.auth.TokenValidator;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Proxy;
-import java.util.Map;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 /**
- * The primary assistant must give every connection a stable {@code ai.userId}.
+ * The sample's identity channel: a sign-in token resolves to the principal that
+ * long-term memory keys on.
  *
- * <p>{@code LongTermMemoryInterceptor} short-circuits BOTH recall and
- * on-disconnect extraction when the identity is blank, so without this stamp the
- * sample's headline cross-session recall is silently dead on
- * {@code /atmosphere/agent/primary-assistant} — the endpoint the README, the
- * sweep matrix and the Console all drive. {@link LongTermMemoryConsumerTest}
- * proves the interceptor recalls and isolates correctly once it HAS an identity;
- * this test proves the identity actually arrives.</p>
- *
- * <p>The end-to-end proof lives in {@code e2e/tests/personal-assistant.spec.ts},
- * which needs a real model and skips against the demo runtime. These assertions
- * need neither, so they run on every CI build.</p>
+ * <p>This replaces a test that hand-built an {@code AtmosphereRequest} already
+ * carrying a {@code ?user=} parameter and asserted an {@code @Ready} hook copied
+ * it to {@code ai.userId}. That test passed for eleven days while the feature was
+ * dead: the Console forwards only {@code token} onto the transport, so the
+ * parameter never arrived, every visitor collapsed onto one {@code demo-user}
+ * bucket, and each user was told the previous user's facts. Constructing the
+ * input the production path never produces is how a green test hides a broken
+ * feature — so this pins the channel the Console actually uses.</p>
  */
 class PrimaryAssistantUserIdTest {
 
-    private static final String ATTRIBUTE = "ai.userId";
+    private final TokenValidator validator = new PersonalAssistantApplication().demoUserTokenValidator();
 
-    /**
-     * Minimal {@link AtmosphereResource} standing in for a live connection: only
-     * {@code getRequest()} is reached from the {@code @Ready} callback, and the
-     * resource type is sealed-adjacent enough that a dynamic proxy is cheaper
-     * (and more honest) than mocking it.
-     */
-    private static AtmosphereResource resourceFor(AtmosphereRequest request) {
-        return (AtmosphereResource) Proxy.newProxyInstance(
-                AtmosphereResource.class.getClassLoader(),
-                new Class<?>[] {AtmosphereResource.class},
-                (proxy, method, args) -> switch (method.getName()) {
-                    case "getRequest" -> request;
-                    case "toString" -> "resourceFor(" + request + ")";
-                    case "hashCode" -> System.identityHashCode(proxy);
-                    case "equals" -> proxy == args[0];
-                    default -> {
-                        var returnType = method.getReturnType();
-                        yield returnType == boolean.class ? Boolean.FALSE : null;
-                    }
-                });
-    }
-
-    private static AtmosphereRequest requestWithUser(String user) {
-        var builder = new AtmosphereRequestImpl.Builder().pathInfo("/atmosphere/agent/primary-assistant");
-        if (user != null) {
-            builder.queryStrings(Map.of("user", new String[] {user}));
-        }
-        return builder.build();
+    @Test
+    void tokenResolvesToAPrincipalNamedForThatUser() {
+        var alice = validator.validate("alice");
+        assertInstanceOf(TokenValidator.Valid.class, alice,
+                "a non-blank sign-in token must resolve to a principal");
+        assertEquals("alice", ((TokenValidator.Valid) alice).principal().getName(),
+                "long-term memory keys on this principal — it must be the signed-in user");
     }
 
     @Test
-    void stampsTheUserQueryParameterAsTheMemoryIdentity() {
-        var request = requestWithUser("sweep-alice");
-
-        new PrimaryAssistant().onReady(resourceFor(request));
-
-        assertEquals("sweep-alice", request.getAttribute(ATTRIBUTE),
-                "?user= must become ai.userId — two tabs with the same value share long-term "
-                        + "memory, and LongTermMemoryInterceptor does nothing at all without it");
+    void differentTokensResolveToDifferentPrincipals() {
+        var alice = ((TokenValidator.Valid) validator.validate("alice")).principal().getName();
+        var bob = ((TokenValidator.Valid) validator.validate("bob")).principal().getName();
+        assertNotEquals(alice, bob,
+                "two users must not share a memory bucket — this is the cross-user leak "
+                        + "the 2026-08-31 sweep found, where both resolved to 'demo-user'");
     }
 
     @Test
-    void fallsBackToTheDemoIdentityWhenNoUserIsSupplied() {
-        var request = requestWithUser(null);
-
-        new PrimaryAssistant().onReady(resourceFor(request));
-
-        assertEquals("demo-user", request.getAttribute(ATTRIBUTE),
-                "an anonymous connection still needs a non-blank identity; a blank one makes the "
-                        + "interceptor skip both recall and extraction, which reads as 'memory is broken'");
-    }
-
-    @Test
-    void treatsABlankUserParameterAsAbsent() {
-        var request = requestWithUser("   ");
-
-        new PrimaryAssistant().onReady(resourceFor(request));
-
-        assertEquals("demo-user", request.getAttribute(ATTRIBUTE),
-                "?user= with only whitespace must not become the memory key — a blank identity "
-                        + "disables long-term memory outright");
-    }
-
-    @Test
-    void neverOverwritesAnIdentityResolvedUpstream() {
-        // An authenticated deployment stamps the real principal before @Ready runs
-        // (InteractionsAutoConfiguration / InteractionsDemoPrincipalInterceptor both
-        // set the attribute only when absent). Clobbering it here would collapse every
-        // logged-in user's memory onto one shared bucket.
-        var request = requestWithUser("sweep-alice");
-        request.setAttribute(ATTRIBUTE, "authenticated-principal");
-
-        new PrimaryAssistant().onReady(resourceFor(request));
-
-        assertEquals("authenticated-principal", request.getAttribute(ATTRIBUTE),
-                "a demo default must never downgrade an identity the auth stack already resolved");
+    void anonymousIsRejectedRatherThanBucketedTogether() {
+        // Refusing is the point: a shared fallback identity for every anonymous
+        // visitor is precisely what leaked one user's facts to the next.
+        assertInstanceOf(TokenValidator.Invalid.class, validator.validate(null),
+                "an anonymous caller must not resolve to a shared identity");
+        assertInstanceOf(TokenValidator.Invalid.class, validator.validate("   "),
+                "a blank token must not resolve to a shared identity");
     }
 }

@@ -225,6 +225,29 @@ across both runtimes.
 
 ## Long-term memory — cross-session fact recall
 
+### Signing in — long-term memory is per-user
+
+Long-term memory keys on the authenticated principal, so open the sample with a
+sign-in token and use different tokens for different people:
+
+```
+http://localhost:8080/?token=alice     # alice's memory
+http://localhost:8080/?token=bob       # bob's memory — separate
+```
+
+The Console persists `?token=` and replays it as `X-Atmosphere-Auth` on REST and
+as a query parameter on the WebSocket. `AuthInterceptor` validates it through the
+sample's `TokenValidator` and stores the principal under
+`FrameworkConfig.AUTH_PRINCIPAL`; `PrimaryAssistant.onReady` copies that to
+`ai.userId`, which is what `LongTermMemoryInterceptor` keys on. Without a token
+there is no identity and therefore **no memory** — deliberately, because a shared
+fallback identity is what leaks one user's facts to the next.
+
+> A `?user=` page parameter does **not** work and never did: the Console forwards
+> only `token` onto the transport. Until 2026-08-31 this sample documented
+> `?user=`, and every visitor silently shared one `demo-user` memory bucket.
+
+
 Both agent surfaces are real consumers of the `LongTermMemory` primitive, so
 the assistant remembers facts about a user across separate WebSocket
 connections — exactly what a "long-lived, memory-bearing assistant" should do.
@@ -286,19 +309,19 @@ register a `LongTermMemoryProvider` (ServiceLoader) or bridge a
 preset picks it up through the same resolution chain.
 
 > Facts are keyed by the `ai.userId` request attribute, and the recall block
-> appears once facts have been stored for that id. **This sample does not
-> authenticate anyone.** Both endpoints set `ai.userId` in `@Ready` from the
-> `?user=` query parameter (`/atmosphere/console/?user=alice`), falling back to
-> `demo-user`. Any client can read another id's facts by guessing it, and two
-> visitors who both omit `?user=` share the `demo-user` bucket — fine for a
-> keyless demo, never for production. A real app resolves the identity from its
-> auth stack (a servlet `Principal`, or an `AtmosphereInterceptor` that sets the
-> attribute) before the harness reads it. Only a genuinely blank `ai.userId`
-> short-circuits recall and the on-close extraction.
+> appears once facts have been stored for that id. **This sample's
+> authentication is a demo stand-in**: its `TokenValidator` accepts any
+> non-blank `?token=` and resolves it to a principal of that name, so anyone
+> who guesses another user's token reads that user's facts. That is fine for a
+> keyless demo and wrong for production — a real app validates OIDC/JWT/mTLS and
+> uses the verified subject. What the sample does get right is that identity
+> comes from the authenticated principal rather than a guessable page
+> parameter, and that an unauthenticated caller gets **no** identity at all: a
+> genuinely blank `ai.userId` short-circuits both recall and the on-close
+> extraction, which is what keeps anonymous visitors from sharing one bucket.
 
 Proven by `LongTermMemoryConsumerTest` (in the sample's `src/test`): a fact
 extracted when one session closes is recalled into a later session's system
-prompt for the same user, and never leaks between distinct `?user=` values.
 
 ## Notes
 
