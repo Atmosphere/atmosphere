@@ -17,6 +17,9 @@ package org.atmosphere.ai.governance.owasp;
 
 import java.util.List;
 
+import org.atmosphere.ai.gateway.AiGateway;
+import org.atmosphere.ai.gateway.GatewayProfiles;
+
 /**
  * Atmosphere's self-assessment against the <a
  * href="https://genai.owasp.org/resource/agentic-ai-top-10/">OWASP Agentic AI
@@ -347,8 +350,18 @@ public final class OwaspAgenticMatrix {
                                     "",
                                     "PerUserRateLimiter",
                                     "Default-on per-user rate limiter on the AiGateway admission path "
-                                            + "that every AbstractAgentRuntime call traverses; "
-                                            + "permissive 1M-calls/hour backstop, tighten via "
+                                            + "that every AbstractAgentRuntime call traverses. "
+                                            + "GatewayProfiles.safeDefault() allows "
+                                            + GatewayProfiles.SAFE_DEFAULT_MAX_REQUESTS_PER_WINDOW
+                                            + " requests / "
+                                            + GatewayProfiles.SAFE_DEFAULT_WINDOW_SECONDS
+                                            + "s per principal; unauthenticated callers share one "
+                                            + AiGateway.ANONYMOUS_USER + " bucket of "
+                                            + GatewayProfiles.SAFE_DEFAULT_ANONYMOUS_MAX_REQUESTS
+                                            + " / " + GatewayProfiles.SAFE_DEFAULT_WINDOW_SECONDS
+                                            + "s, which is a whole-deployment ceiling rather than a "
+                                            + "per-person one. Tighten with "
+                                            + "atmosphere.ai.gateway.profile=production or "
                                             + "AiGatewayHolder.install(...)"),
                             new Evidence("org.atmosphere.ai.guardrails.CostCeilingGuardrail",
                                     "org.atmosphere.ai.guardrails.GuardrailsTest",
