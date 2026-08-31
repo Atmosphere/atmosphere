@@ -18,15 +18,10 @@ package org.atmosphere.samples.springboot.personalassistant;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.StreamingSession;
-import java.security.Principal;
-
 import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiTool;
 import org.atmosphere.ai.annotation.Param;
 import org.atmosphere.ai.annotation.Prompt;
-import org.atmosphere.config.service.Ready;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.coordinator.annotation.AgentRef;
 import org.atmosphere.coordinator.annotation.Coordinator;
 import org.atmosphere.coordinator.annotation.Fleet;
@@ -93,37 +88,18 @@ public class PrimaryAssistant {
 
     private static final Logger logger = LoggerFactory.getLogger(PrimaryAssistant.class);
 
-    /**
-     * Key long-term memory on the authenticated principal.
-     *
-     * <p>{@code AuthInterceptor} validates the Console's sign-in token and stores
-     * the resolved principal under {@link FrameworkConfig#AUTH_PRINCIPAL}. It does
-     * NOT set {@code ai.userId}, and {@code AiEndpointHandler.resolveRunOwner}
-     * reads only {@code ai.userId} or the servlet {@code getUserPrincipal()} —
-     * which token auth never populates. Without this bridge an authenticated
-     * caller still falls through to {@code anonymous}, so every visitor shares one
-     * memory bucket.</p>
-     *
-     * <p>An earlier version read a {@code ?user=} query parameter instead. That
-     * never worked: the Console forwards only {@code token} onto the transport, so
-     * the parameter never arrived and user B was told user A's facts. The
-     * 2026-08-31 sweep caught it; the unit test that "covered" it hand-built a
-     * request already carrying the parameter, so it passed while proving nothing
-     * about the production path.</p>
-     */
-    @Ready
-    public void onReady(AtmosphereResource resource) {
-        var request = resource.getRequest();
-        if (request == null || request.getAttribute("ai.userId") != null) {
-            return;
-        }
-        if (request.getAttribute(FrameworkConfig.AUTH_PRINCIPAL) instanceof Principal p
-                && p.getName() != null && !p.getName().isBlank()) {
-            request.setAttribute("ai.userId", p.getName());
-        }
-        // No authenticated principal -> no identity -> no memory. Deliberately not
-        // defaulting: a shared fallback identity is exactly what leaked facts.
-    }
+    // Identity is resolved by the framework: AuthInterceptor validates the
+    // Console's sign-in token and publishes the principal as
+    // FrameworkConfig.AUTH_PRINCIPAL, which AiEndpointHandler.resolveRunOwner
+    // reads to default `ai.userId` — the key long-term memory uses. The sample
+    // supplies only the TokenValidator (see PersonalAssistantApplication).
+    //
+    // An earlier version read a `?user=` query parameter in an @Ready hook. It
+    // never worked: the Console forwards only `token` onto the transport, so the
+    // parameter never arrived and every visitor shared one `demo-user` bucket —
+    // user B was told user A's facts. The 2026-08-31 sweep caught it; the unit
+    // test that "covered" it hand-built a request already carrying the parameter,
+    // so it passed while proving nothing about the production path.
 
     @Prompt
     public void onPrompt(String message, AgentFleet fleet, StreamingSession session) {

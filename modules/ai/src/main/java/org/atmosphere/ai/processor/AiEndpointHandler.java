@@ -36,7 +36,10 @@ import org.atmosphere.ai.tool.ToolRegistry;
 import org.atmosphere.config.managed.AnnotatedLifecycle;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
+import java.security.Principal;
+
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.AtmosphereResourceHeartbeatEventListener;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
@@ -562,18 +565,32 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         var principalUnresolvable = false;
         if (resource.getRequest() != null
                 && resource.getRequest().getAttribute("ai.userId") == null) {
-            try {
-                var principal = resource.getRequest().getUserPrincipal();
-                if (principal != null && principal.getName() != null
-                        && !principal.getName().isBlank()) {
-                    resource.getRequest().setAttribute("ai.userId", principal.getName());
+            // Atmosphere's own AuthInterceptor validates the connection's token and
+            // publishes the resolved principal as FrameworkConfig.AUTH_PRINCIPAL. It
+            // sets neither ai.userId nor the servlet getUserPrincipal(), so before
+            // 4.0.70 an app using the framework's token auth still landed on
+            // "anonymous": every authenticated caller shared one identity, and
+            // per-user features keyed on ai.userId — long-term memory above all —
+            // silently pooled every user into a single bucket.
+            var authenticated = resource.getRequest().getAttribute(FrameworkConfig.AUTH_PRINCIPAL)
+                    instanceof Principal p ? p : null;
+            if (authenticated != null && authenticated.getName() != null
+                    && !authenticated.getName().isBlank()) {
+                resource.getRequest().setAttribute("ai.userId", authenticated.getName());
+            } else {
+                try {
+                    var principal = resource.getRequest().getUserPrincipal();
+                    if (principal != null && principal.getName() != null
+                            && !principal.getName().isBlank()) {
+                        resource.getRequest().setAttribute("ai.userId", principal.getName());
+                    }
+                } catch (RuntimeException e) {
+                    principalUnresolvable = true;
+                    logger.warn("Unable to resolve userPrincipal for {}; run registers with an "
+                            + "unresolved owner and reattach/replay will be refused. Set the "
+                            + "ai.userId request attribute via an AtmosphereInterceptor to "
+                            + "restore reattach. Cause: {}", resource.uuid(), e.toString());
                 }
-            } catch (RuntimeException e) {
-                principalUnresolvable = true;
-                logger.warn("Unable to resolve userPrincipal for {}; run registers with an "
-                        + "unresolved owner and reattach/replay will be refused. Set the "
-                        + "ai.userId request attribute via an AtmosphereInterceptor to "
-                        + "restore reattach. Cause: {}", resource.uuid(), e.toString());
             }
         }
         var userIdAttr = resource.getRequest() != null
