@@ -1604,6 +1604,67 @@ else
     printf "${BOLD}Import (Remote Skills)${RESET} ${DIM}— skipped (set ATMOSPHERE_TEST_REMOTE=true)${RESET}\n\n"
 fi
 
+# ── Run: ambient LLM_BASE_URL footgun ───────────────────────────────────────
+# LLM_BASE_URL outranks LLM_MODE by design, and an ambient one from the
+# operator's shell applies to every key the caller did not override. So
+# `--env LLM_MODE=local` with an inherited remote base URL silently runs against
+# that remote provider — it burns quota and fails with a model-not-found error
+# that reads like a broken sample. The 2026-08-31 sweep hit exactly this.
+printf "${BOLD}Run (ambient LLM_BASE_URL)${RESET}\n"
+
+# Match the EMITTED warning, with comment lines stripped. Grepping the raw file
+# for a phrase that also appears in a nearby code comment made this check pass
+# against a build with the warning deleted — a gate that walks its own artifact.
+if grep -v '^[[:space:]]*#' "$CLI" | grep -q 'warn "LLM_MODE=local but an inherited LLM_BASE_URL'; then
+    pass "run: warns when LLM_MODE=local meets an inherited remote LLM_BASE_URL"
+else
+    fail "run: no warning — a local run silently goes remote and looks like a sample bug"
+fi
+
+# The warning must be suppressed when the caller pins the base URL themselves,
+# otherwise it cries wolf on every correct invocation.
+if grep -q '\*" LLM_BASE_URL="\*) ;;' "$CLI"; then
+    pass "run: warning suppressed when --env LLM_BASE_URL is supplied"
+else
+    fail "run: warning is not suppressed for an explicit --env LLM_BASE_URL"
+fi
+
+# Only off-host URLs are worth warning about.
+if grep -qF "localhost|127" "$CLI"; then
+    pass "run: a localhost LLM_BASE_URL does not trigger the warning"
+else
+    fail "run: no localhost carve-out — the warning would fire on a correct local setup"
+fi
+
+printf "\n"
+
+# ── Compose: non-interactive safety ─────────────────────────────────────────
+# The generator prompts for any option not supplied on the command line. With no
+# TTY that prompt blocks on stdin forever — `atmosphere compose --name x a.md`
+# from a script or CI hung indefinitely at "Choose frontend [1-2] [2]:" until
+# 4.0.70. This asserts the CLI supplies defaults when stdin is not a terminal,
+# which is what makes compose scriptable at all.
+printf "${BOLD}Compose (non-interactive)${RESET}\n"
+
+# The guard itself: every interactive-only option must have a non-TTY default.
+for opt in compose_protocol compose_transport compose_frontend compose_ai compose_deploy; do
+    if grep -q "\[ -z \"\$$opt\" \]" "$CLI"; then
+        pass "compose: $opt has a non-TTY default"
+    else
+        fail "compose: $opt has NO non-TTY default — a scripted compose will hang on its prompt"
+    fi
+done
+
+# The guard must be reached only when stdin is not a terminal, so an interactive
+# run still asks rather than silently choosing for the user.
+if grep -q 'if \[ ! -t 0 \]; then' "$CLI"; then
+    pass "compose: defaults are gated on a non-TTY stdin (interactive run still prompts)"
+else
+    fail "compose: no '[ ! -t 0 ]' guard — defaults would override the interactive prompt"
+fi
+
+printf "\n"
+
 # ── Summary ─────────────────────────────────────────────────────────────────
 total=$((PASS + FAIL))
 printf "${BOLD}Results: %s passed, %s failed${RESET} (out of %s)\n\n" "$PASS" "$FAIL" "$total"

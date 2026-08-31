@@ -877,6 +877,26 @@ cmd_run() {
 
     # Run
     printf "\n"
+    # An ambient LLM_BASE_URL from the operator's shell profile applies to every key
+    # the caller did not override, and it outranks LLM_MODE by design. So
+    # `--env LLM_MODE=local` with an inherited remote base URL runs against that
+    # remote provider — burning quota and reporting a model-not-found error that
+    # looks like a broken sample. Say so rather than let it fail confusingly.
+    case " $env_exports " in
+        *" LLM_MODE=local "*)
+            case " $env_exports " in
+                *" LLM_BASE_URL="*) ;;   # caller pinned it — nothing to warn about
+                *)
+                    if [ -n "${LLM_BASE_URL:-}" ] && \
+                       ! printf '%s' "$LLM_BASE_URL" | grep -qE 'localhost|127\.0\.0\.1|\[::1\]'; then
+                        warn "LLM_MODE=local but an inherited LLM_BASE_URL=$LLM_BASE_URL points off-host;"
+                        warn "it outranks the mode. Pass --env LLM_BASE_URL=http://localhost:11434/v1 to stay local."
+                    fi
+                    ;;
+            esac
+            ;;
+    esac
+
     info "Starting $sample on port $port..."
     info "Open ${BOLD}http://localhost:$port${RESET} in your browser"
     printf "${DIM}Press Ctrl+C to stop${RESET}\n\n"
@@ -1857,6 +1877,20 @@ COMPOSEEOF
                 ;;
         esac
     done
+
+    # The generator prompts for any option not supplied on the command line. With no
+    # TTY (CI, a script, `atmosphere compose ... | tee`) that prompt blocks forever on
+    # stdin, which reads as a hang rather than a question. Supply the generator's own
+    # documented defaults for the interactive-only options so a non-interactive run
+    # completes instead of stalling. An explicit flag always wins; an interactive run
+    # is unchanged and still asks.
+    if [ ! -t 0 ]; then
+        [ -z "$compose_protocol" ]  && compose_protocol="a2a"
+        [ -z "$compose_transport" ] && compose_transport="websocket"
+        [ -z "$compose_frontend" ]  && compose_frontend="none"
+        [ -z "$compose_ai" ]        && compose_ai="builtin"
+        [ -z "$compose_deploy" ]    && compose_deploy="single-jar"
+    fi
 
     # Build jbang args
     local jbang_args=""
