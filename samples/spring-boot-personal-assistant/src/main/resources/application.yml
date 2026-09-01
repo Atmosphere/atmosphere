@@ -7,6 +7,16 @@ atmosphere:
   # packages and the crew never registers.
   packages: org.atmosphere.samples.springboot.personalassistant
 
+  auth:
+    # The TokenValidator in PersonalAssistantApplication exists so long-term memory
+    # has a principal to key on — NOT to gate the transport. A validator bean
+    # otherwise activates AuthInterceptor, which REJECTS every connection that
+    # carries no token: the sample would refuse to open at all, which is how the
+    # 2026-08-31 e2e cross-tab-isolation run went red. Keep the validator for the
+    # admin write surface and leave the transport open; PrimaryAssistant.onReady
+    # reads the token itself, and a caller without one simply gets no memory.
+    transport-enabled: false
+
   # Workspace the foundation primitives load from on startup. Override with
   # --atmosphere.workspace=/path/to/workspace to point at your own OpenClaw
   # directory. Defaults resolve to the bundled workspace under

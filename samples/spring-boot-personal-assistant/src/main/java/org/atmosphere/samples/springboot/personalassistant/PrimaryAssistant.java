@@ -22,6 +22,8 @@ import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiTool;
 import org.atmosphere.ai.annotation.Param;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.config.service.Ready;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.coordinator.annotation.AgentRef;
 import org.atmosphere.coordinator.annotation.Coordinator;
 import org.atmosphere.coordinator.annotation.Fleet;
@@ -88,18 +90,42 @@ public class PrimaryAssistant {
 
     private static final Logger logger = LoggerFactory.getLogger(PrimaryAssistant.class);
 
-    // Identity is resolved by the framework: AuthInterceptor validates the
-    // Console's sign-in token and publishes the principal as
-    // FrameworkConfig.AUTH_PRINCIPAL, which AiEndpointHandler.resolveRunOwner
-    // reads to default `ai.userId` — the key long-term memory uses. The sample
-    // supplies only the TokenValidator (see PersonalAssistantApplication).
-    //
-    // An earlier version read a `?user=` query parameter in an @Ready hook. It
-    // never worked: the Console forwards only `token` onto the transport, so the
-    // parameter never arrived and every visitor shared one `demo-user` bucket —
-    // user B was told user A's facts. The 2026-08-31 sweep caught it; the unit
-    // test that "covered" it hand-built a request already carrying the parameter,
-    // so it passed while proving nothing about the production path.
+    /**
+     * Give the connection an identity when the caller supplied a sign-in token.
+     *
+     * <p>Long-term memory keys on {@code ai.userId}. The framework defaults it from
+     * an authenticated principal ({@code FrameworkConfig.AUTH_PRINCIPAL}, set by
+     * {@code AuthInterceptor}, or the servlet {@code Principal}), but this sample
+     * deliberately leaves the transport ungated — a demo that refuses to open
+     * without a token is not a demo — so no interceptor runs and no principal is
+     * published. This reads the token off the connection itself.</p>
+     *
+     * <p><b>No token means no identity, and therefore no memory — deliberately.</b>
+     * The previous version defaulted every anonymous visitor to a shared
+     * {@code demo-user} bucket, so user B was told user A's facts. A shared
+     * fallback identity is the leak. Falling through to anonymous is safe in the
+     * only direction that matters: worst case the assistant forgets, never that it
+     * remembers someone else's.</p>
+     *
+     * <p>It reads {@code token}, not {@code user}: the Console persists {@code ?token=}
+     * and replays it, whereas an arbitrary {@code ?user=} page parameter is never
+     * forwarded onto the transport at all — which is why the previous attempt looked
+     * wired and did nothing.</p>
+     */
+    @Ready
+    public void onReady(AtmosphereResource resource) {
+        var request = resource.getRequest();
+        if (request == null || request.getAttribute("ai.userId") != null) {
+            return;
+        }
+        var token = request.getParameter("token");
+        if (token == null || token.isBlank()) {
+            token = request.getHeader("X-Atmosphere-Auth");
+        }
+        if (token != null && !token.isBlank()) {
+            request.setAttribute("ai.userId", token.trim());
+        }
+    }
 
     @Prompt
     public void onPrompt(String message, AgentFleet fleet, StreamingSession session) {
