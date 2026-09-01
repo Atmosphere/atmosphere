@@ -31,15 +31,26 @@ LLM_BASE_URL=http://localhost:3000/v1 LLM_API_KEY=embacle LLM_MODEL=copilot:clau
 
 The server starts on `http://localhost:8080`. Without Embacle or an API key, it runs in demo mode with simulated responses.
 
-2. **Configure the server URL:**
+2. **Configure the server URL** (only if it is not the default):
 
-Edit `App.tsx` and set `SERVER_URL` to your machine's LAN IP if testing on a physical device:
+Set `EXPO_PUBLIC_SERVER_URL` — no source edit needed:
 
-```typescript
-const SERVER_URL = 'http://192.168.1.100:8080';
+```bash
+# physical device in Expo Go: your machine's LAN IP
+EXPO_PUBLIC_SERVER_URL=http://192.168.1.100:8080 bunx expo start
+
+# a server on a non-default port
+EXPO_PUBLIC_SERVER_URL=http://localhost:9125 bunx expo start
 ```
 
-For Android emulator, `10.0.2.2` maps to the host. For iOS simulator, `localhost` works.
+Without it the platform defaults apply: `10.0.2.2` on the Android emulator (which
+maps to the host), `localhost` on the iOS simulator.
+
+> **Pass `--clear` when you change this.** Expo inlines `EXPO_PUBLIC_*` at bundle
+> time and Metro's transform cache does **not** invalidate when the variable
+> changes — a rebuild silently reuses the previously baked-in URL, so the app
+> connects to the old address and looks like a client bug. Use
+> `bunx expo start --clear` (or `expo export --clear`) after changing it.
 
 3. **Install and start:**
 

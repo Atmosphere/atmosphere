@@ -29,12 +29,25 @@ console.log('Atmosphere RN capabilities:', caps);
 
 // --- Configuration ---
 // Point this at your running spring-boot-ai-classroom server.
-// For Expo Go on a physical device, use your machine's LAN IP.
-// For emulator: Android = 10.0.2.2, iOS simulator = localhost.
-const SERVER_URL = Platform.select({
-  android: 'http://10.0.2.2:8080',
-  default: 'http://localhost:8080',
-});
+//
+// Set EXPO_PUBLIC_SERVER_URL to override — no source edit required:
+//
+//   EXPO_PUBLIC_SERVER_URL=http://192.168.1.100:8080 bunx expo start   # physical device
+//   EXPO_PUBLIC_SERVER_URL=http://localhost:9125     bunx expo start   # non-default port
+//
+// Expo inlines EXPO_PUBLIC_* at bundle time, so this works in Expo Go and in a
+// production build alike. Without it the platform defaults apply:
+// Android emulator reaches the host at 10.0.2.2, the iOS simulator at localhost.
+//
+// It is an override rather than an edit on purpose: the release sweep runs this
+// sample on port 9125, and hand-editing the constant for a run meant either a
+// dirty tree at commit time or a sweep that silently connected nowhere.
+const SERVER_URL =
+  process.env.EXPO_PUBLIC_SERVER_URL ??
+  Platform.select({
+    android: 'http://10.0.2.2:8080',
+    default: 'http://localhost:8080',
+  });
 
 // --- Types ---
 interface UserMessage {

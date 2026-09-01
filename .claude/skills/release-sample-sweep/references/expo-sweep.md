@@ -47,12 +47,24 @@ cd atmosphere.js && npm run build
 cd samples/spring-boot-ai-classroom/expo-client && bun install
 ```
 
-**The port gotcha.** `App.tsx` hardcodes `SERVER_URL`, and its README assumes
-the backend on `:8080`. The sweep runs the classroom sample on **9125**, so
-`SERVER_URL` must be pointed at the sweep port or the client silently fails to
-connect. Edit it for the run and **revert before committing** — a stray edit to
-a sample is a dirty-tree violation, and shipping the sweep port would break the
-documented flow for users.
+**The port gotcha.** The sweep runs the classroom sample on **9125** while the
+client defaults to `:8080`, so the client must be pointed at the sweep port or it
+silently fails to connect. Since 4.0.71 that is an environment override, not a
+source edit:
+
+```bash
+EXPO_PUBLIC_SERVER_URL=http://localhost:9125 bunx expo start --clear
+```
+
+**`--clear` is not optional here.** Expo inlines `EXPO_PUBLIC_*` at bundle time
+and Metro's transform cache does not invalidate when the variable changes: a
+rebuild reuses the previously baked-in URL, so the app connects to the *old*
+address and the failure looks like a client bug. Verified 2026-09-01 by exporting
+twice — the second bundle still carried the first run's URL until `--clear`.
+
+(Before 4.0.71 this said to edit `SERVER_URL` in `App.tsx` and revert before
+committing. That is how a sweep port reaches a user: forget the revert and the
+sample ships pointing at 9125.)
 
 Host addressing, per the client README:
 
