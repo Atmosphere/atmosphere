@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.70] - 2026-09-01
+
+### Fixed
+
+- keep the personal-assistant transport open while keying memory on the token
+- stop compose hanging without a TTY and warn on an inherited LLM_BASE_URL
+- resolve the run owner from the AuthInterceptor principal
+- key personal-assistant memory on the authenticated principal
+- track Boot 3.5.15's Tomcat 10.1.55 in the spring-boot3 profile pin
+- close 72 of the 74 open Dependabot alerts across nine packages
+
+### Changed
+
+- pin the parity trail in save order, not as a sorted multiset
+- log the blog-audit drift entries
+- cite the shipping rate limits in the OWASP A09 evidence
+- move to Jetty 12.1.12 and port HTTP/3 to the relocated QUIC API
+- type-check the Console on TypeScript 7 and make .d.cts reachable
+- move atmosphere.js and the e2e suite to TypeScript 7
+- take the sample-frontend group bumps, holding TypeScript at 6
+- cite Quarkus 3.36.3's real netty baseline in the five BOM pins
+
 ## [4.0.69] - 2026-08-30
 
 ### Added
