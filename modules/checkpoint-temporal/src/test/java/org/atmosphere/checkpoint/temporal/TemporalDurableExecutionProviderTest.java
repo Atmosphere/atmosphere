@@ -17,7 +17,8 @@ package org.atmosphere.checkpoint.temporal;
 
 import io.temporal.activity.Activity;
 import io.temporal.testing.TestWorkflowEnvironment;
-import org.atmosphere.checkpoint.CheckpointQuery;
+import org.atmosphere.checkpoint.CheckpointEvent;
+import org.atmosphere.checkpoint.CheckpointId;
 import org.atmosphere.checkpoint.InMemoryCheckpointStore;
 import org.atmosphere.checkpoint.workflow.DurableExecutionProvider;
 import org.atmosphere.checkpoint.workflow.InMemoryDurableExecutionProvider;
@@ -31,6 +32,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -213,25 +215,43 @@ class TemporalDurableExecutionProviderTest {
                 step("publish", s -> StepOutcome.done(s + ":published")));
 
         var temporalStore = newStore();
+        var temporalSaves = recordSaveOrder(temporalStore);
         var viaTemporal = new Workflow<>("t-parity", "coord-parity", steps, temporalStore);
         viaTemporal.run("doc");
         viaTemporal.run(null);
 
         var localStore = newStore();
+        var localSaves = recordSaveOrder(localStore);
         var viaLocal = new Workflow<>("t-parity", "coord-parity", steps, localStore);
         var local = new InMemoryDurableExecutionProvider();
         local.run(viaLocal, "doc");
         local.run(viaLocal, null);
 
-        assertEquals(trail(localStore), trail(temporalStore),
-                "both engines must leave the identical snapshot trail (Mode Parity)");
+        assertEquals(trail(localStore, localSaves), trail(temporalStore, temporalSaves),
+                "both engines must leave the identical snapshot trail, in the same save order (Mode Parity)");
     }
 
-    private static List<String> trail(InMemoryCheckpointStore store) {
-        return store.list(CheckpointQuery.builder().coordinationId("coord-parity").build()).stream()
+    /**
+     * Collects checkpoint ids in save order. {@code Saved} events dispatch
+     * synchronously from {@code save()}, so arrival order is chronological even
+     * when two saves land in the same {@code createdAt} clock tick — which is why
+     * the trail is captured here instead of sorting {@code list()} output.
+     */
+    private static List<CheckpointId> recordSaveOrder(InMemoryCheckpointStore store) {
+        var ids = new CopyOnWriteArrayList<CheckpointId>();
+        store.addListener(event -> {
+            if (event instanceof CheckpointEvent.Saved saved && "coord-parity".equals(saved.coordinationId())) {
+                ids.add(saved.checkpointId());
+            }
+        });
+        return ids;
+    }
+
+    private static List<String> trail(InMemoryCheckpointStore store, List<CheckpointId> saveOrder) {
+        return saveOrder.stream()
+                .map(id -> store.load(id).orElseThrow())
                 .map(s -> s.metadata().getOrDefault(Workflow.META_LAST_STEP, "?")
                         + "/" + s.metadata().getOrDefault(Workflow.META_DONE, "?"))
-                .sorted()
                 .collect(Collectors.toList());
     }
 
