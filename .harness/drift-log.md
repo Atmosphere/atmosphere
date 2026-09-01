@@ -3183,3 +3183,37 @@ Working rule, extending the Tomcat entry above: a version cited in prose *as a
 fact about a third party* must be re-read against that third party's own POM
 whenever the surrounding pin moves — the two numbers are independent, and a
 `sed` that touches one will silently leave the other stale.
+
+---
+
+## 2026-08-31 — The blog said the Temporal parity test pins an "ordered sequence"; it pins a sorted multiset
+
+**Claim:** the Atmosphere 4 AI blog post (atmosphere.github.io,
+`atmosphere-4x-ai.astro`) said the checkpoint-parity test pins the two engines'
+snapshot trails as "the same ordered sequence of (last-completed-step, done)
+entries."
+
+**Truth:** `TemporalDurableExecutionProviderTest.snapshotTrailMatchesTheInTreeEngine()`
+builds `META_LAST_STEP + "/" + META_DONE` strings and calls `.sorted()` before
+`assertEquals` — an order-insensitive multiset comparison. A Temporal adapter that
+wrote the seed snapshot after the ingest snapshot would still pass. The `.sorted()`
+is deliberate (createdAt ties break on a random checkpoint id), so simply removing
+it would make the test flaky rather than stronger.
+
+**Slip path:** the prose described the guarantee the test *ought* to give, not the
+assertion it makes. Same class as "grep the runtime execute path, not the doc":
+a claim about what a test pins must be read from the assertion, including any
+normalization (`sorted()`, `toSet()`, `contains` vs `equals`) applied before it.
+
+**Gate:** blog now says "the same set of (last-completed-step, done) entries."
+Full-post ultracode audit (2026-08-31, 410 claims / 11 sections / 2-refuter
+adversarial verify) also caught two stale counts ("thirty-one" samples → 33,
+"fourteen starters" → 15 — both went stale via d99ed0a05f on 2026-08-28, nine
+days after the post's date), a dropped wasync fallback hop (chain is WebSocket →
+SSE → chunked streaming → long-polling), and a CrewAI "no base URL" absolute that
+`ATMOSPHERE_CREWAI_SIDECAR_URL` contradicts. Working rule: counts in evergreen
+marketing prose drift the moment samples/templates land; a release-time sweep of
+the live blog's numerals against `cli/samples.json` and the `cmd_new` map belongs
+in the release checklist. Follow-up worth doing: strengthen the parity test to
+pin chronological order via a `CheckpointListener` capturing save order, then the
+stronger blog sentence could return.
