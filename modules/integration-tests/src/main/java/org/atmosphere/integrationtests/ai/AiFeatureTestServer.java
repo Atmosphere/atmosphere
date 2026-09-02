@@ -34,12 +34,15 @@ public class AiFeatureTestServer {
     public static void main(String[] args) throws Exception {
         int port = Integer.getInteger("server.port", 8090);
 
+        // Every handler is registered BEFORE start(), and start() initialises the framework
+        // before Jetty accepts a connection: the Playwright fixture treats the first HTTP
+        // response as "ready", and a request that raced handler registration used to find
+        // no /ai/* mapping at all.
         try (var server = new EmbeddedAtmosphereServer()
                 .withPort(port)
+                .withInitOnStart()
                 .withInitParam(ApplicationConfig.ANNOTATION_PACKAGE, "NONE")
                 .withInitParam(ApplicationConfig.WEBSOCKET_SUPPORT, "true")) {
-            server.start();
-
             var framework = server.getFramework();
 
             // Register AI test handlers
@@ -122,6 +125,8 @@ public class AiFeatureTestServer {
                         new org.atmosphere.integrationtests.ai.real.RealLlmChatTestHandler());
                 logger.info("Real-LLM handler registered at /ai/real/chat (LLM_MODE={})", llmMode);
             }
+
+            server.start();
 
             logger.info("AI Feature Test Server started on port {}", server.getPort());
             logger.info("Endpoints: /ai/filters, /ai/fanout, /ai/cache, /ai/routing, /ai/budget, "

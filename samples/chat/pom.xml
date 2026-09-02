@@ -54,6 +54,9 @@
     <properties>
         <doclint>none</doclint>
         <maven.deploy.skip>true</maven.deploy.skip>
+        <!-- One Jetty line for both boot paths: `mvn jetty:run` in development and the
+             jetty-runner the Playwright fixture deploys the packaged WAR under in CI. -->
+        <jetty11.version>11.0.26</jetty11.version>
     </properties>
     <build>
         <finalName>${project.artifactId}</finalName>
@@ -61,7 +64,36 @@
             <plugin>
                 <groupId>org.eclipse.jetty</groupId>
                 <artifactId>jetty-maven-plugin</artifactId>
-                <version>11.0.26</version>
+                <version>${jetty11.version}</version>
+            </plugin>
+            <!-- Boot artifact for the Playwright fixture (e2e/fixtures/sample-server.ts, jetty-war):
+                 `java -jar target/e2e-runner/jetty-runner.jar` with the port and the packaged WAR.
+                 Booting through `mvn jetty:run` at test time put Maven Central on the critical
+                 path of every spec; the runner is fetched once, by the build. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.10.0</version>
+                <executions>
+                    <execution>
+                        <id>e2e-runner</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <configuration>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>org.eclipse.jetty</groupId>
+                                    <artifactId>jetty-runner</artifactId>
+                                    <version>${jetty11.version}</version>
+                                    <destFileName>jetty-runner.jar</destFileName>
+                                </artifactItem>
+                            </artifactItems>
+                            <outputDirectory>${project.build.directory}/e2e-runner</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

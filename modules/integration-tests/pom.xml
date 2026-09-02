@@ -239,6 +239,28 @@
                     <skip>true</skip>
                 </configuration>
             </plugin>
+            <!-- Runtime classpath for the Playwright fixtures (e2e/fixtures/packaged-build.ts).
+                 AiFeatureTestServer and DualTransportChatServer boot as plain
+                 `java -cp target/classes:target/e2e-lib/*`, so the E2E job never runs Maven,
+                 and never touches Maven Central, at test time. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.10.0</version>
+                <executions>
+                    <execution>
+                        <id>e2e-runtime-classpath</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <includeScope>runtime</includeScope>
+                            <outputDirectory>${project.build.directory}/e2e-lib</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 

@@ -398,9 +398,49 @@ case_playwright_fixture() {
     fi
 }
 
+# ---------------------------------------------------------------------------
+# Case: the Playwright fixtures boot the PACKAGED artifact, never a Maven goal.
+#
+# Three boot paths used to be `./mvnw exec:java` / `./mvnw jetty:run` spawned
+# from the fixture: AiFeatureTestServer, DualTransportChatServer and the WAR
+# sample. In CI the E2E job restores a Maven cache but never runs a build, and a
+# plugin PREFIX like `exec:` makes Maven resolve the descriptor of every plugin
+# the project declares — release, eclipse, m2e-lifecycle — none of which
+# `install -DskipTests` ever downloads. Every boot therefore went to a live
+# Maven Central, and one HTTP 429 became an opaque "port not ready" timeout
+# (ai-ux-flows SB3, run 33464934108; grpc-browser before it). Offline mode was
+# tried and reverted (3b6373a7c7): the plugins were never cached to begin with.
+#
+# The fixtures now run `java` over what the build produced (target/e2e-lib,
+# the shaded jar, target/e2e-runner/jetty-runner.jar). This case pins that:
+# no fixture may spawn the wrapper or name a Maven goal in live code. Error
+# hints such as "Run: ./mvnw package ..." are strings, not spawns, and stay.
+# ---------------------------------------------------------------------------
+case_fixture_boots_artifact() {
+    local dir="$ROOT/modules/integration-tests/e2e/fixtures"
+    if [[ ! -d "$dir" ]]; then
+        fail "fixture_boots_artifact" "missing ${dir#"$ROOT"/} — update this test if the fixtures moved"
+        return
+    fi
+    local f rel code hit found=0
+    for f in "$dir"/*.ts; do
+        rel="${f#"$ROOT"/}"
+        code="$(sed -E '/^[[:space:]]*(\*|\/\/|\/\*)/d' "$f")"
+        hit="$(grep -nE "spawn(Sync)?\([^)]*mvnw|[a-z-]+:(java|run|dev)\b" <<<"$code" | grep -vE '^[0-9]+:[^`]*Run: ' | head -1)"
+        if [[ -n "$hit" ]]; then
+            found=1
+            fail "fixture_boots_artifact" "$rel boots through Maven at test time -> $hit"
+        fi
+    done
+    if [[ $found -eq 0 ]]; then
+        pass "fixture_boots_artifact: no fixture spawns mvnw or names a Maven goal (comments stripped)"
+    fi
+}
+
 CASES=(case_lexicographic case_stale_only case_original_excluded
        case_quarkus_stale case_smoke_selector case_unversioned_exec
-       case_no_version_blind_glob case_playwright_fixture)
+       case_no_version_blind_glob case_playwright_fixture
+       case_fixture_boots_artifact)
 
 echo "Sample artifact selection — stale-jar regression"
 echo "==============================================="

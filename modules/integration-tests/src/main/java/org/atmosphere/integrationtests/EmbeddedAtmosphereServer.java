@@ -37,7 +37,8 @@ public class EmbeddedAtmosphereServer implements AutoCloseable {
     private final ServerConnector connector;
     private final Map<String, String> initParams = new HashMap<>();
     private String annotationPackage = "org.atmosphere.integrationtests";
-    private AtmosphereServlet atmosphereServlet;
+    private final AtmosphereServlet atmosphereServlet = new AtmosphereServlet();
+    private boolean initOnStart;
 
     public EmbeddedAtmosphereServer() {
         server = new Server();
@@ -63,14 +64,34 @@ public class EmbeddedAtmosphereServer implements AutoCloseable {
         return this;
     }
 
+    /**
+     * Initialise Atmosphere during {@link #start()} instead of on the first request.
+     * <p>
+     * Jetty binds the listening socket before it starts the servlet tree, so a TCP connect
+     * succeeds long before a lazily initialised servlet exists. The E2E fixtures boot the
+     * server mains out of process and can only observe the port, so for them "the server
+     * answers HTTP" must mean "the framework, and every handler registered on
+     * {@link #getFramework()} before {@code start()}, is initialised". With this set, Jetty
+     * runs the servlet's {@code init()} while starting its handler tree, and only then starts
+     * accepting on the connector. Tests that call {@code getFramework()} after {@code start()}
+     * keep the default lazy init so their handlers are still mapped before the framework
+     * initialises on the first request.
+     */
+    public EmbeddedAtmosphereServer withInitOnStart() {
+        this.initOnStart = true;
+        return this;
+    }
+
     public void start() throws Exception {
         var context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
 
         JakartaWebSocketServletContainerInitializer.configure(context, null);
 
-        atmosphereServlet = new AtmosphereServlet();
         var holder = new ServletHolder(atmosphereServlet);
+        if (initOnStart) {
+            holder.setInitOrder(1);
+        }
         holder.setInitParameter(ApplicationConfig.ANNOTATION_PACKAGE, annotationPackage);
         holder.setInitParameter(ApplicationConfig.WEBSOCKET_SUPPORT, "true");
 
@@ -97,6 +118,10 @@ public class EmbeddedAtmosphereServer implements AutoCloseable {
         return "ws://localhost:" + getPort();
     }
 
+    /**
+     * The framework behind the servlet. Available before {@link #start()} so handlers can be
+     * registered ahead of initialisation; see {@link #withInitOnStart()}.
+     */
     public org.atmosphere.cpr.AtmosphereFramework getFramework() {
         return atmosphereServlet.framework();
     }

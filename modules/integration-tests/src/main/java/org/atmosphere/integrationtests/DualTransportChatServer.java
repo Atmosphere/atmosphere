@@ -32,8 +32,11 @@ public class DualTransportChatServer {
         int httpPort = Integer.getInteger("server.port", 8080);
         int grpcPort = Integer.getInteger("grpc.port", 9090);
 
+        // Initialise on start so the port only answers once the annotated handlers are
+        // mapped; the Playwright fixture treats the first HTTP response as "ready".
         var server = new EmbeddedAtmosphereServer()
-                .withPort(httpPort);
+                .withPort(httpPort)
+                .withInitOnStart();
         server.start();
         logger.info("Jetty started on port {}", server.getPort());
 

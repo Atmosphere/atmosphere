@@ -1,10 +1,9 @@
 import { type ChildProcess, spawn } from 'child_process';
 import { resolve } from 'path';
-import { readdirSync, readFileSync } from 'fs';
+import { existsSync, readdirSync } from 'fs';
 import net from 'net';
 import { WebSocket } from 'ws';
-
-const ROOT = resolve(__dirname, '..', '..', '..', '..');
+import { ROOT, reactorVersion } from './packaged-build';
 
 /** Sample application configuration. */
 export interface SampleConfig {
@@ -12,14 +11,18 @@ export interface SampleConfig {
   /** Directory under samples/ */
   dir: string;
   port: number;
-  /** How to start: spring-boot JAR, embedded-jetty JAR, quarkus, or jetty-war (mvn jetty:run) */
+  /**
+   * How the sample boots. Every type runs the artifact the build produced under plain
+   * `java` — a Spring Boot fat jar, a shaded jar, quarkus-run.jar, or the WAR under the
+   * jetty-runner the sample's build copies next to it. None of them invoke Maven: a Maven
+   * goal at test time puts Maven Central on the critical path of every spec, and one HTTP
+   * 429 from Central turns into an opaque "port not ready" timeout (see packaged-build.ts).
+   */
   type: 'spring-boot' | 'embedded-jetty' | 'quarkus' | 'jetty-war';
   /** Extra environment variables (e.g. API keys) */
   env?: Record<string, string>;
   /** Extra JVM args */
   jvmArgs?: string[];
-  /** Main class for embedded-jetty type (exec:java) */
-  mainClass?: string;
   /** Atmosphere endpoint path to check for readiness (e.g. /atmosphere/ai-chat) */
   readyPath?: string;
   /** Skip WebSocket readiness probe — use for endpoints that only serve HTTP */
@@ -44,7 +47,6 @@ export const SAMPLES: Record<string, SampleConfig> = {
     dir: 'embedded-jetty-websocket-chat',
     port: 8080,
     type: 'embedded-jetty',
-    mainClass: 'org.atmosphere.samples.chat.EmbeddedJettyWebSocketChat',
   },
   'quarkus-chat': {
     name: 'quarkus-chat',
@@ -273,19 +275,6 @@ export const SAMPLES: Record<string, SampleConfig> = {
  * <parent>, and "<version>" is not a substring of "<modelVersion>", so the
  * first match is the project's own version.
  */
-let reactorVersionCache: string | undefined;
-function reactorVersion(): string {
-  if (reactorVersionCache === undefined) {
-    const pom = readFileSync(resolve(ROOT, 'pom.xml'), 'utf8');
-    const m = /<version>([^<]+)<\/version>/.exec(pom);
-    if (!m || !/^\d+\.\d+\.\d+(-SNAPSHOT)?$/.test(m[1])) {
-      throw new Error(`Cannot read the reactor version from ${resolve(ROOT, 'pom.xml')}`);
-    }
-    reactorVersionCache = m[1];
-  }
-  return reactorVersionCache;
-}
-
 /**
  * Resolve the sample's boot JAR for the CURRENT reactor version.
  *
@@ -354,6 +343,56 @@ function findJar(sampleDir: string, type: string): string {
     );
   }
   return resolve(targetDir, current[0]);
+}
+
+/**
+ * Resolve a WAR sample's boot pair: the jetty-runner its build copied into
+ * target/e2e-runner, and the one WAR under target/.
+ *
+ * The WAR is named by <finalName> and so carries no version — like quarkus-run.jar
+ * above, a stale one is invisible to any filename check. Freshness is read off the
+ * exploded webapp the war plugin assembled it from: every atmosphere-* jar in its
+ * WEB-INF/lib must be the CURRENT reactor version. Absent or stale is a hard failure
+ * that names the build command, never a fallback.
+ */
+function findWar(sampleDir: string): { runner: string; war: string } {
+  const targetDir = resolve(ROOT, 'samples', sampleDir, 'target');
+  const build = `./mvnw clean package -pl samples/${sampleDir} -DskipTests`;
+
+  const runner = resolve(targetDir, 'e2e-runner', 'jetty-runner.jar');
+  if (!existsSync(runner)) {
+    throw new Error(`No jetty-runner.jar in ${targetDir}/e2e-runner. Run: ${build}`);
+  }
+
+  let wars: string[] = [];
+  try {
+    wars = readdirSync(targetDir).filter((f) => f.endsWith('.war'));
+  } catch {
+    throw new Error(`No target/ in samples/${sampleDir}. Run: ${build}`);
+  }
+  if (wars.length !== 1) {
+    throw new Error(
+      `Expected exactly one WAR in ${targetDir}, found: ${wars.join(', ') || 'none'}. Run: ${build}`,
+    );
+  }
+
+  const version = reactorVersion();
+  const explodedLib = resolve(targetDir, wars[0].replace(/\.war$/, ''), 'WEB-INF', 'lib');
+  let libs: string[] = [];
+  try {
+    libs = readdirSync(explodedLib).filter((f) => f.startsWith('atmosphere-') && f.endsWith('.jar'));
+  } catch {
+    throw new Error(`No exploded webapp at ${explodedLib} to verify ${wars[0]} against. Run: ${build}`);
+  }
+  const stale = libs.filter((f) => !f.endsWith(`-${version}.jar`));
+  if (libs.length === 0 || stale.length > 0) {
+    throw new Error(
+      `samples/${sampleDir}/target/${wars[0]} is stale — expected only ${version} atmosphere jars in ` +
+        `${explodedLib} (found: ${libs.join(', ') || 'nothing'}). Run: ${build}`,
+    );
+  }
+
+  return { runner, war: resolve(targetDir, wars[0]) };
 }
 
 /**
@@ -461,25 +500,23 @@ export async function startSample(config: SampleConfig): Promise<SampleServer> {
   const env = { ...process.env, ...(config.env ?? {}) };
 
   if (config.type === 'jetty-war') {
-    // WAR-based samples use mvn jetty:run
-    const mvnw = resolve(ROOT, 'mvnw');
-    proc = spawn(mvnw, ['-B', `jetty:run`, `-Djetty.port=${config.port}`], {
-      cwd: samplePath,
-      env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-  } else if (config.type === 'embedded-jetty') {
-    // Embedded Jetty samples use mvn exec:java with explicit mainClass
-    const mvnw = resolve(ROOT, 'mvnw');
-    proc = spawn(mvnw, ['-B', 'exec:java', `-Dexec.mainClass=${config.mainClass}`, `-Dserver.port=${config.port}`], {
+    // The packaged WAR, deployed by the jetty-runner the sample's build copied into
+    // target/e2e-runner (the same Jetty line as its jetty-maven-plugin).
+    const { runner, war } = findWar(config.dir);
+    proc = spawn('java', [...(config.jvmArgs ?? []), '-jar', runner, '--port', String(config.port), war], {
       cwd: samplePath,
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
   } else {
     const jar = findJar(config.dir, config.type);
-    const args = [...(config.jvmArgs ?? []), '-jar', jar];
+    const args = [...(config.jvmArgs ?? [])];
 
+    if (config.type === 'embedded-jetty') {
+      // The shaded jar's manifest names the main class; the sample reads -Dserver.port.
+      args.push(`-Dserver.port=${config.port}`);
+    }
+    args.push('-jar', jar);
     if (config.type === 'spring-boot') {
       args.push(`--server.port=${config.port}`);
     }
