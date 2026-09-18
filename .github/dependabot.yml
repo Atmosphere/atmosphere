@@ -6,14 +6,6 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 3
     ignore:
-      # org.json:json was retired from this repo in 4.0.42-SNAPSHOT (replaced by
-      # Jackson 3 / tools.jackson.*). GitHub's dependency graph still carries a
-      # stale entry pointing at /modules/runtime — a directory that doesn't
-      # exist (the artifact lives at /modules/cpr) — so security-advisory jobs
-      # for org.json:json keep failing with "path not found". Suppress until
-      # the graph self-heals.
-      - dependency-name: "org.json:json"
-
       # ── In-track pins ───────────────────────────────────────────────────
       # Replaces the AUTO-BUMP tier of the removed dependency-update-check.yml
       # workflow (Dependabot now owns every Maven update PR). Each tracked
@@ -81,8 +73,8 @@ updates:
       # bump, so an update-types ignore does not prevent the attempt) and nothing in
       # this repo triggers it: the job passed 2026-08-07 and has failed on every run
       # since 2026-08-14, matching the feature's rollout, with .mvn/ untouched
-      # throughout. Ignore the coordinate outright — same shape as the org.json:json
-      # suppression above. Wrapper bumps stay a deliberate manual change.
+      # throughout. Ignore the coordinate outright. Wrapper bumps stay a
+      # deliberate manual change.
       - dependency-name: "org.apache.maven:apache-maven"
 
   # Sample frontends + atmosphere.js + spring-boot-starter front-end.
