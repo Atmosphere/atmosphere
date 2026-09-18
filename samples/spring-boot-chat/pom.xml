@@ -141,17 +141,23 @@
                 <spring-boot.version>3.5.15</spring-boot.version>
                 <netty.version>4.1.137.Final</netty.version>
                 <atmosphere.starter>atmosphere-spring-boot3-starter</atmosphere.starter>
-                <!-- The root POM pins only tomcat-embed-core to ${tomcat-version}
-                     (11.0.22) for the Spring Boot 4 / Tomcat 11 baseline. Under
+                <!-- The root POM pins only tomcat-embed-core to ${tomcat-version},
+                     its Tomcat 11 line for the Spring Boot 4 baseline. Under
                      Spring Boot 3.5.15 that core is skewed against the BOM's
                      tomcat-embed-el / -websocket 10.1.x, and the mismatched
                      SocketWrapperBase throws NoSuchMethodError(getLock) during
-                     long-polling. Align core back to Spring Boot 3.5.15's Tomcat.
-                     This value MUST track <tomcat.version> in the
-                     spring-boot-dependencies POM for the spring-boot.version above
-                     (3.5.14 -> 10.1.54, 3.5.15 -> 10.1.55); bumping Boot without it
-                     re-creates the very skew this pin exists to prevent. -->
-                <tomcat-version>10.1.55</tomcat-version>
+                     long-polling. Keep core on Boot 3.5's Tomcat 10.1 line.
+                     This value MUST stay on the 10.1 line of <tomcat.version> in
+                     the spring-boot-dependencies POM for the spring-boot.version
+                     above (3.5.14 -> 10.1.54, 3.5.15 -> 10.1.55); bumping Boot
+                     without it re-creates the very skew this pin exists to
+                     prevent. It may lead the BOM within that line: 10.1.60 closes
+                     the same three auth bypasses (CVE-2026-65182, CVE-2026-65905,
+                     CVE-2026-68525) that the root pin closes for Tomcat 11 — GHSA
+                     lists 10.1.58 as first patched, but that release vote failed
+                     and 10.1.59 is the first published fix — while Boot 3.5.16
+                     still manages the vulnerable 10.1.55. -->
+                <tomcat-version>10.1.60</tomcat-version>
             </properties>
         </profile>
         <profile>

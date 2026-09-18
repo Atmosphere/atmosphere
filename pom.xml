@@ -1184,14 +1184,24 @@
                  dependencyManagement level overrides the transitive choice
                  in every leaf module reactor-wide. -->
             <dependency>
-                <!-- Tomcat 11.0.21 had 3 critical (security-constraint bypass
-                     GHSA-5m62-pw8w-7w9f, digest-auth bypass GHSA-h6fc-48rj-7qqh,
-                     HTTP/2 header validation GHSA-r29c-68gh-xp6x) plus
-                     GHSA-5mp6-jrq3-r938, GHSA-fv25-8xcx-gqjc,
-                     GHSA-gx5v-xp9w-j4cg, GHSA-9m89-8frq-c98c. Fixed in 11.0.22.
-                     Only tomcat-embed-core is pinned here — tomcat-embed-el
-                     and -websocket follow their respective Spring Boot BOMs so
-                     the 3.5.x starter can keep its 10.1.x line. -->
+                <!-- Tomcat < 11.0.25 has three auth bypasses rated critical by
+                     GHSA (Apache rates them Important / Low / Low):
+                     security-constraint bypass CVE-2026-65182
+                     (GHSA-gcx9-497g-6cp6), DIGEST replay CVE-2026-65905
+                     (GHSA-9xv2-5v5q-p794) and FORM-redirect method-constraint
+                     bypass CVE-2026-68525 (GHSA-h3x4-894j-xpx5). 11.0.22 itself
+                     closed GHSA-5m62-pw8w-7w9f, GHSA-h6fc-48rj-7qqh,
+                     GHSA-r29c-68gh-xp6x, GHSA-5mp6-jrq3-r938, GHSA-fv25-8xcx-gqjc,
+                     GHSA-gx5v-xp9w-j4cg and GHSA-9m89-8frq-c98c. Spring Boot 4.1.0
+                     still manages 11.0.22 (4.1.1: 11.0.24), so the pin leads the
+                     BOM within the 11.0 patch line. Only tomcat-embed-core is
+                     pinned here — tomcat-embed-el and -websocket follow their
+                     respective Spring Boot BOMs so the Boot 3.5 lanes keep their
+                     10.1.x line; there the same CVEs need >= 10.1.59 (GHSA lists
+                     10.1.58 as first patched, but that release vote failed and
+                     10.1.59 is the first published fix) — see
+                     modules/spring-boot3-starter/pom.xml and the spring-boot3
+                     profile in samples/spring-boot-chat/pom.xml. -->
                 <groupId>org.apache.tomcat.embed</groupId>
                 <artifactId>tomcat-embed-core</artifactId>
                 <version>${tomcat-version}</version>
@@ -1373,7 +1383,7 @@
         <maven-plugin.version>1.0.0</maven-plugin.version>
         <servlet-version-range>6.0.0</servlet-version-range>
         <jetty-version>12.1.12</jetty-version>
-        <tomcat-version>11.0.22</tomcat-version>
+        <tomcat-version>11.0.26</tomcat-version>
         <shade-version>1.2.1</shade-version>
         <bnd-maven-plugin.version>7.2.3</bnd-maven-plugin.version>
         <jakarta-servlet-api.version>5.0.0</jakarta-servlet-api.version>

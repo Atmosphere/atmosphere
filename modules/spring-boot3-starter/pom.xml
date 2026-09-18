@@ -21,6 +21,16 @@
              CVE-2026-24400 by pulling 3.27.7. -->
         <spring-boot.version>3.5.15</spring-boot.version>
         <spring-framework.version>6.2.19</spring-framework.version>
+        <!-- The root POM force-pins tomcat-embed-core to its Tomcat 11 baseline;
+             without this override the test classpath boots an 11.0.x core against
+             Boot 3.5's 10.1.x tomcat-embed-el / -websocket (the SocketWrapperBase
+             skew samples/spring-boot-chat's spring-boot3 profile documents). Keep
+             core on the 10.1 line of Boot 3.5.15's <tomcat.version> (10.1.55);
+             10.1.60 leads it to close CVE-2026-65182 / CVE-2026-65905 /
+             CVE-2026-68525 (GHSA lists 10.1.58 as first patched, but that
+             release vote failed and 10.1.59 is the first published fix); Boot
+             3.5.16 still manages the vulnerable 10.1.55. -->
+        <tomcat-version>10.1.60</tomcat-version>
     </properties>
 
     <dependencyManagement>
