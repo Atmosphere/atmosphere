@@ -996,7 +996,9 @@
             </dependency>
             <!-- Pin Bouncy Castle over docker-java-core's transitive 1.82
                  (carries GHSA-t5c0-jh73-xrrh LDAP injection + GHSA-4xfg-p6qx-qm55
-                 risky-crypto). Forces 1.84+ into the resolved dep tree. -->
+                 risky-crypto, both closed in 1.84). 1.85 closes the name-constraints
+                 bypass CVE-2026-8763 (GHSA-9pwp-9qqc-pr26) and the ASN.1
+                 nesting-depth reset CVE-2026-13506 (GHSA-qp49-qgx5-5m26). -->
             <dependency>
                 <groupId>org.bouncycastle</groupId>
                 <artifactId>bcprov-jdk18on</artifactId>
@@ -1427,11 +1429,13 @@
         <mockito.version>5.23.0</mockito.version>
         <mockito-kotlin.version>6.3.0</mockito-kotlin.version>
         <assertj.version>3.27.7</assertj.version>
-        <!-- Pin Bouncy Castle >= 1.84 to override docker-java-core's transitive
-             1.82, which carries an LDAP injection (GHSA) and a risky-crypto
-             advisory. Provided-scope only (DockerSandboxProvider uses
-             docker-java), but the advisory closes cleanly on 1.84+. -->
-        <bouncycastle.version>1.84</bouncycastle.version>
+        <!-- Pin Bouncy Castle >= 1.85 to override docker-java-core's transitive
+             1.82: 1.84 closed an LDAP injection and a risky-crypto advisory,
+             1.85 the name-constraints bypass CVE-2026-8763 and the ASN.1
+             nesting-depth reset CVE-2026-13506. Provided-scope only
+             (DockerSandboxProvider uses docker-java), but the advisories close
+             cleanly on the pin. -->
+        <bouncycastle.version>1.86</bouncycastle.version>
         <!-- 1.16.6 closes two high-severity server-instrumentation DoS
              advisories affecting 1.16.0–1.16.5: GHSA-g3pr-3p32-fp23 (HTTP
              server instrumentations) and GHSA-w737-wx49-qj23 (gRPC server
