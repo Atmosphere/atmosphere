@@ -42,6 +42,11 @@ public final class McpMethod {
     public static final String RESOURCES_READ = "resources/read";
     public static final String RESOURCES_SUBSCRIBE = "resources/subscribe";
     public static final String RESOURCES_UNSUBSCRIBE = "resources/unsubscribe";
+    public static final String RESOURCES_TEMPLATES_LIST = "resources/templates/list";
+
+    // Completion (MCP 2025-06-18+) — argument autocompletion for prompts and
+    // resource templates, gated on the server's "completions" capability.
+    public static final String COMPLETION_COMPLETE = "completion/complete";
 
     // Prompts
     public static final String PROMPTS_LIST = "prompts/list";

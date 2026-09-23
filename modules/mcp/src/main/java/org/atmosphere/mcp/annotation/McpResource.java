@@ -39,7 +39,14 @@ import java.lang.annotation.Target;
 @Documented
 public @interface McpResource {
 
-    /** URI or URI template for this resource. */
+    /**
+     * URI or URI template for this resource. A URI containing {@code {name}}
+     * variables (RFC 6570 simple expansion) is a <em>resource template</em>:
+     * it is listed by {@code resources/templates/list} instead of
+     * {@code resources/list}, and {@code resources/read} of a matching
+     * concrete URI binds each variable to the {@link McpParam} of the same
+     * name.
+     */
     String uri();
 
     /** Human-readable name of this resource. */

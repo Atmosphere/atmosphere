@@ -48,9 +48,10 @@ public class MyTools {
 | Annotation | Target | Description |
 |-----------|--------|-------------|
 | `@McpTool` | Method | Exposes a method as a callable tool (`tools/call`) |
-| `@McpResource` | Method | Exposes a method as a read-only resource (`resources/read`) |
+| `@McpResource` | Method | Exposes a method as a read-only resource (`resources/read`). A URI with `{name}` variables is a resource template: listed by `resources/templates/list`, and a read of a matching URI binds each variable to the `@McpParam` of the same name |
 | `@McpPrompt` | Method | Exposes a method as a prompt template (`prompts/get`) |
 | `@McpParam` | Parameter | Annotates method parameters with name, description, and required flag |
+| `@McpComplete` | Method | Supplies `completion/complete` values for one prompt argument or template variable; enum-typed arguments complete automatically, and the `completions` capability is advertised only when a source exists |
 
 ## Supported Transports
 
@@ -74,7 +75,7 @@ session dialect. No flag day: every `2024-11-05 … 2025-11-25` client is unaffe
 |-----------|-------------------|
 | **Stateless core** | No `Mcp-Session-Id`, no handshake — client info/capabilities/version ride `_meta` on every request, so the server runs behind a plain round-robin load balancer with no sticky sessions |
 | **Operability headers** | `Mcp-Method` / `Mcp-Name` routing headers, validated against the body |
-| **Cacheable list/read** | `ttlMs` + `cacheScope` (always `public` — catalogs/reads are not principal-specific) on `tools/list`, `resources/list`, `resources/read` results |
+| **Cacheable list/read** | `ttlMs` + `cacheScope` on `server/discover`, `tools/list`, `resources/list`, `resources/read`, `prompts/list` results. `cacheScope` is `private` by default; `org.atmosphere.mcp.cacheScope=public` opts a static catalog into `public` for anonymous requests only (an authenticated principal always gets `private`) |
 | **W3C trace context** | `traceparent` / `tracestate` / `baggage` read from `_meta` and bridged into the OpenTelemetry span (with `atmosphere-tracing`) |
 | **Tasks extension** | `io.modelcontextprotocol/tasks` — a `@McpTool(longRunning = true)` call returns a task handle the client polls via `tasks/get` |
 | **Multi-round-trip** | `InputRequiredResult` + base64 `requestState`: the server can ask the client for more input mid-call and resume statelessly |
@@ -90,6 +91,8 @@ The relevant `@McpTool` attributes:
 | `longRunning` | `false` | Run the call as a Tasks-extension task; the client gets a handle and polls `tasks/get` |
 | `uiResource` | `""` | A `ui://` resource URI advertised in the tool's `_meta.ui.resourceUri` (MCP Apps) |
 | `title` / `iconUrl` | `""` | Display title / icon (MCP `2025-06-18` / `2025-11-25`) |
+| `readOnlyHint` / `destructiveHint` / `idempotentHint` / `openWorldHint` | spec defaults (`false` / `true` / `false` / `true`) | Tool `annotations` in `tools/list`; emitted only when a tool departs from the defaults |
+| `outputType` | `void.class` | Record type advertised as `outputSchema`; results must be a JSON object with its required properties (sent as `structuredContent`), otherwise the call returns `isError` |
 
 > **Client scope (honest caveat):** this is the **server** track. The outbound
 > `atmosphere-mcp-client` wraps the official MCP Java SDK and cannot yet negotiate the

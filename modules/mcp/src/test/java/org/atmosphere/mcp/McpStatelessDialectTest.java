@@ -170,7 +170,7 @@ public class McpStatelessDialectTest {
         // DiscoverResult extends CacheableResult: ttlMs + cacheScope are required.
         // Runtime registry mutation means caps are not durably cacheable → ttlMs 0.
         assertEquals(0, result.get("ttlMs").asInt());
-        assertEquals("public", result.get("cacheScope").stringValue());
+        assertEquals("private", result.get("cacheScope").stringValue());
     }
 
     @Test
@@ -267,7 +267,7 @@ public class McpStatelessDialectTest {
             assertNotNull(result, () -> "no result for: " + req);
             assertEquals("complete", result.get("resultType").stringValue());
             assertEquals(0, result.get("ttlMs").asInt(), () -> "default ttlMs is 0 for: " + req);
-            assertEquals("public", result.get("cacheScope").stringValue(), () -> "cacheScope for: " + req);
+            assertEquals("private", result.get("cacheScope").stringValue(), () -> "cacheScope for: " + req);
         }
     }
 
@@ -295,7 +295,7 @@ public class McpStatelessDialectTest {
         var req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{" + meta() + "}}";
         var result = mapper.readTree(tunedHandler.handleMessage(resource, req)).get("result");
         assertEquals(60000, result.get("ttlMs").asInt());
-        assertEquals("public", result.get("cacheScope").stringValue());
+        assertEquals("private", result.get("cacheScope").stringValue());
     }
 
     // ── SEP-414 trace context propagation does not break dispatch ────────
@@ -379,6 +379,67 @@ public class McpStatelessDialectTest {
         assertEquals("{\"status\":\"ok\"}",
                 result.get("contents").get(0).get("text").stringValue());
         // SEP-2549 cache metadata still rides the read result.
-        assertEquals("public", result.get("cacheScope").stringValue());
+        assertEquals("private", result.get("cacheScope").stringValue());
+    }
+
+    // ── SEP-2549 cacheScope: private by default, public only by opt-in ────
+
+    private McpProtocolHandler handlerWithScope(String scope) {
+        var config = mock(AtmosphereConfig.class);
+        when(config.getInitParameter(McpProtocolHandler.CACHE_SCOPE_INIT_PARAM)).thenReturn(scope);
+        var registry = new McpRegistry();
+        registry.scan(new TestMcpServer());
+        return new McpProtocolHandler("test-server", "1.0.0", registry, config);
+    }
+
+    private static List<String> cacheableRequests() {
+        return List.of(
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{" + meta() + "}}",
+                "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"resources/list\",\"params\":{" + meta() + "}}",
+                "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"resources/read\",\"params\":{"
+                        + "\"uri\":\"test://data/status\"," + meta() + "}}",
+                "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"prompts/list\",\"params\":{" + meta() + "}}",
+                "{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"server/discover\",\"params\":{}}");
+    }
+
+    @Test
+    public void testAuthenticatedRequestIsNeverPublicEvenWithOptIn() throws Exception {
+        // A shared cache keyed only on the request must not replay a
+        // principal's catalog or resource read to another tenant.
+        var publicHandler = handlerWithScope("public");
+        java.security.Principal alice = () -> "alice";
+        when(request.getUserPrincipal()).thenReturn(alice);
+        for (var req : cacheableRequests()) {
+            var result = mapper.readTree(publicHandler.handleMessage(resource, req)).get("result");
+            assertEquals("private", result.get("cacheScope").stringValue(), () -> "cacheScope for: " + req);
+        }
+    }
+
+    @Test
+    public void testAiUserIdAttributeCountsAsAuthenticated() throws Exception {
+        var publicHandler = handlerWithScope("public");
+        when(request.getAttribute("ai.userId")).thenReturn("bob");
+        var req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{" + meta() + "}}";
+        var result = mapper.readTree(publicHandler.handleMessage(resource, req)).get("result");
+        assertEquals("private", result.get("cacheScope").stringValue());
+    }
+
+    @Test
+    public void testPublicScopeIsExplicitOptInForAnonymousRequests() throws Exception {
+        var publicHandler = handlerWithScope(" PUBLIC ");
+        for (var req : cacheableRequests()) {
+            var result = mapper.readTree(publicHandler.handleMessage(resource, req)).get("result");
+            assertEquals("public", result.get("cacheScope").stringValue(), () -> "cacheScope for: " + req);
+        }
+    }
+
+    @Test
+    public void testInvalidScopeFallsBackToPrivate() throws Exception {
+        for (var scope : new String[] {"shared", "", "private"}) {
+            var h = handlerWithScope(scope);
+            var req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{" + meta() + "}}";
+            var result = mapper.readTree(h.handleMessage(resource, req)).get("result");
+            assertEquals("private", result.get("cacheScope").stringValue(), () -> "scope=" + scope);
+        }
     }
 }

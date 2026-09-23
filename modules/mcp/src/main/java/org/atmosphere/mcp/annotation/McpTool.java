@@ -78,4 +78,40 @@ public @interface McpTool {
      * string means the tool has no associated UI.
      */
     String uiResource() default "";
+
+    /**
+     * Tool annotation hint (MCP 2025-03-26+): the tool does not modify its
+     * environment. Spec default {@code false}.
+     */
+    boolean readOnlyHint() default false;
+
+    /**
+     * Tool annotation hint: the tool may perform destructive updates. Only
+     * meaningful when {@link #readOnlyHint()} is {@code false}. Spec default
+     * {@code true}.
+     */
+    boolean destructiveHint() default true;
+
+    /**
+     * Tool annotation hint: calling the tool repeatedly with the same
+     * arguments has no additional effect. Spec default {@code false}.
+     */
+    boolean idempotentHint() default false;
+
+    /**
+     * Tool annotation hint: the tool interacts with an open world of external
+     * entities (e.g. the web) rather than a closed domain. Spec default
+     * {@code true}.
+     */
+    boolean openWorldHint() default true;
+
+    /**
+     * Type of the structured result (MCP 2025-06-18+). When set, the tool
+     * advertises an {@code outputSchema} generated from this type (a record's
+     * components become required properties) and every successful call must
+     * return a JSON object carrying those properties as
+     * {@code structuredContent}; a result that does not is reported as a tool
+     * error. {@code void.class} (the default) declares no output schema.
+     */
+    Class<?> outputType() default void.class;
 }

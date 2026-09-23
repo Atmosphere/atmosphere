@@ -15,6 +15,7 @@
  */
 package org.atmosphere.mcp.registry;
 
+import org.atmosphere.mcp.annotation.McpComplete;
 import org.atmosphere.mcp.annotation.McpParam;
 import org.atmosphere.mcp.annotation.McpPrompt;
 import org.atmosphere.mcp.annotation.McpResource;
@@ -22,9 +23,13 @@ import org.atmosphere.mcp.annotation.McpTool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -32,6 +37,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Registry for MCP tools, resources, and prompts. Supports both annotation-based
@@ -211,6 +218,72 @@ public final class McpRegistry {
         }
     }
 
+    /**
+     * Tool behavior hints (MCP 2025-03-26+ {@code ToolAnnotations}). A
+     * {@code null} hint is left out of the wire object, so clients apply the
+     * spec default for it.
+     */
+    public record ToolAnnotations(Boolean readOnlyHint, Boolean destructiveHint,
+                                  Boolean idempotentHint, Boolean openWorldHint) {
+
+        /** The hints as the wire {@code annotations} object; empty when all unset. */
+        public Map<String, Object> toWire() {
+            var out = new LinkedHashMap<String, Object>();
+            if (readOnlyHint != null) {
+                out.put("readOnlyHint", readOnlyHint);
+            }
+            if (destructiveHint != null) {
+                out.put("destructiveHint", destructiveHint);
+            }
+            if (idempotentHint != null) {
+                out.put("idempotentHint", idempotentHint);
+            }
+            if (openWorldHint != null) {
+                out.put("openWorldHint", openWorldHint);
+            }
+            return out;
+        }
+
+        static ToolAnnotations of(McpTool a) {
+            // Spec defaults: readOnly=false, destructive=true, idempotent=false,
+            // openWorld=true. Only a tool that departs from them says anything.
+            if (!a.readOnlyHint() && a.destructiveHint() && !a.idempotentHint()
+                    && a.openWorldHint()) {
+                return null;
+            }
+            return new ToolAnnotations(a.readOnlyHint(), a.destructiveHint(),
+                    a.idempotentHint(), a.openWorldHint());
+        }
+    }
+
+    /**
+     * Supplies {@code completion/complete} candidates for one argument.
+     * {@code context} holds the other arguments the client already resolved.
+     */
+    @FunctionalInterface
+    public interface CompletionHandler {
+        List<String> complete(String value, Map<String, String> context) throws Exception;
+    }
+
+    /** Wire {@code ref.type} for a prompt completion reference. */
+    public static final String REF_PROMPT = "ref/prompt";
+    /** Wire {@code ref.type} for a resource-template completion reference. */
+    public static final String REF_RESOURCE = "ref/resource";
+    /** Spec cap on the number of values in one {@code completion/complete} reply. */
+    public static final int MAX_COMPLETION_VALUES = 100;
+
+    /** The outcome of a completion lookup: capped values plus the uncapped total. */
+    public record Completion(List<String> values, int total, boolean hasMore) {}
+
+    /** A registered resource matched to a concrete URI, with its bound template variables. */
+    public record ResolvedResource(ResourceEntry entry, Map<String, String> variables) {}
+
+    private record CompletionKey(String refType, String ref, String argument) {}
+
+    private record UriTemplate(Pattern pattern, List<String> variables) {}
+
+    private static final Pattern TEMPLATE_VARIABLE = Pattern.compile("\\{([A-Za-z0-9_.]+)}");
+
     private final Map<String, ToolEntry> tools = new ConcurrentHashMap<>();
     private final Map<String, ResourceEntry> resources = new ConcurrentHashMap<>();
     private final Map<String, PromptEntry> prompts = new ConcurrentHashMap<>();
@@ -224,6 +297,10 @@ public final class McpRegistry {
     // Tools flagged @McpTool(uiResource=...) — MCP App tools (SEP-1865) that
     // declare a ui:// UI resource. Sidecar set, like longRunningTools.
     private final Set<String> appTools = ConcurrentHashMap.newKeySet();
+    private final Map<String, ToolAnnotations> toolAnnotations = new ConcurrentHashMap<>();
+    private final Map<String, Map<String, Object>> toolOutputSchemas = new ConcurrentHashMap<>();
+    private final Map<String, UriTemplate> uriTemplates = new ConcurrentHashMap<>();
+    private final Map<CompletionKey, CompletionHandler> completions = new ConcurrentHashMap<>();
 
     /**
      * Scan the given instance for @McpTool, @McpResource, @McpPrompt methods.
@@ -249,12 +326,20 @@ public final class McpRegistry {
                 if (a.longRunning()) {
                     longRunningTools.add(a.name());
                 }
+                var hints = ToolAnnotations.of(a);
+                if (hints != null) {
+                    toolAnnotations.put(a.name(), hints);
+                }
+                if (a.outputType() != void.class && a.outputType() != Void.class) {
+                    toolOutputSchemas.put(a.name(), outputSchema(a.outputType()));
+                }
             }
             if (method.isAnnotationPresent(McpResource.class)) {
                 var a = method.getAnnotation(McpResource.class);
                 var params = extractParams(method);
                 resources.put(a.uri(), new ResourceEntry(a.uri(), a.name(), a.description(),
                         a.mimeType(), method, instance, params));
+                indexTemplate(a.uri());
                 var meta = new EntryMetadata(a.title(), a.iconUrl(), Map.of());
                 if (!meta.isEmpty()) {
                     resourceMetadata.put(a.uri(), meta);
@@ -269,6 +354,59 @@ public final class McpRegistry {
                     promptMetadata.put(a.name(), meta);
                 }
             }
+        }
+        // Completion methods are bound after the scan so they may reference a
+        // prompt or template declared later in the same class.
+        for (var method : instance.getClass().getMethods()) {
+            if (method.isAnnotationPresent(McpComplete.class)) {
+                registerCompletionMethod(method.getAnnotation(McpComplete.class), method, instance);
+            }
+        }
+    }
+
+    private void registerCompletionMethod(McpComplete a, Method method, Object instance) {
+        var hasPrompt = !a.prompt().isEmpty();
+        var hasResource = !a.resource().isEmpty();
+        if (hasPrompt == hasResource) {
+            throw new IllegalArgumentException("@McpComplete on " + method
+                    + " must set exactly one of prompt or resource");
+        }
+        var types = method.getParameterTypes();
+        var withContext = types.length == 2 && types[0] == String.class
+                && Map.class.isAssignableFrom(types[1]);
+        if (!(types.length == 1 && types[0] == String.class) && !withContext) {
+            throw new IllegalArgumentException("@McpComplete method " + method
+                    + " must take (String) or (String, Map<String, String>)");
+        }
+        if (!Collection.class.isAssignableFrom(method.getReturnType())) {
+            throw new IllegalArgumentException("@McpComplete method " + method
+                    + " must return a Collection of String values");
+        }
+        CompletionHandler handler = (value, context) -> {
+            try {
+                var raw = withContext
+                        ? method.invoke(instance, value, context)
+                        : method.invoke(instance, value);
+                var out = new ArrayList<String>();
+                if (raw instanceof Collection<?> values) {
+                    for (var v : values) {
+                        if (v != null) {
+                            out.add(String.valueOf(v));
+                        }
+                    }
+                }
+                return out;
+            } catch (InvocationTargetException e) {
+                if (e.getCause() instanceof Exception cause) {
+                    throw cause;
+                }
+                throw e;
+            }
+        };
+        if (hasPrompt) {
+            registerPromptCompletion(a.prompt(), a.argument(), handler);
+        } else {
+            registerResourceCompletion(a.resource(), a.argument(), handler);
         }
     }
 
@@ -302,6 +440,8 @@ public final class McpRegistry {
     public boolean removeTool(String name) {
         longRunningTools.remove(name);
         appTools.remove(name);
+        toolAnnotations.remove(name);
+        toolOutputSchemas.remove(name);
         return tools.remove(name) != null;
     }
 
@@ -336,6 +476,166 @@ public final class McpRegistry {
         return !appTools.isEmpty();
     }
 
+    /**
+     * Attach behavior hints to a tool (the programmatic equivalent of the
+     * {@code @McpTool} hint attributes). {@code null} removes them.
+     */
+    public void setToolAnnotations(String name, ToolAnnotations annotations) {
+        if (annotations == null || annotations.toWire().isEmpty()) {
+            toolAnnotations.remove(name);
+        } else {
+            toolAnnotations.put(name, annotations);
+        }
+    }
+
+    /** Behavior hints declared for a tool, if any. */
+    public Optional<ToolAnnotations> toolAnnotations(String name) {
+        return Optional.ofNullable(toolAnnotations.get(name));
+    }
+
+    /**
+     * Declare a tool's {@code outputSchema} (the programmatic equivalent of
+     * {@code @McpTool(outputType = ...)}). The root must be {@code type: object}
+     * per the spec. {@code null} removes it.
+     */
+    public void setToolOutputSchema(String name, Map<String, Object> schema) {
+        if (schema == null) {
+            toolOutputSchemas.remove(name);
+            return;
+        }
+        if (!"object".equals(schema.get("type"))) {
+            throw new IllegalArgumentException(
+                    "outputSchema for tool '" + name + "' must have type \"object\"");
+        }
+        toolOutputSchemas.put(name, Map.copyOf(schema));
+    }
+
+    /** The {@code outputSchema} declared for a tool, if any. */
+    public Optional<Map<String, Object>> toolOutputSchema(String name) {
+        return Optional.ofNullable(toolOutputSchemas.get(name));
+    }
+
+    /**
+     * JSON Schema 2020-12 {@code outputSchema} for a structured result type. A
+     * record maps to an object whose components are required properties; any
+     * other type maps to a bare {@code {"type":"object"}} (the spec requires an
+     * object root, so arrays and scalars cannot be declared as output types).
+     */
+    public static Map<String, Object> outputSchema(Class<?> type) {
+        if (type.isArray() || Collection.class.isAssignableFrom(type) || type.isPrimitive()
+                || type == String.class || Number.class.isAssignableFrom(type)
+                || type == Boolean.class || type.isEnum()) {
+            throw new IllegalArgumentException("outputType " + type.getName()
+                    + " is not an object type; MCP outputSchema must describe a JSON object");
+        }
+        var schema = new LinkedHashMap<String, Object>();
+        schema.put("$schema", JSON_SCHEMA_DIALECT);
+        schema.put("type", "object");
+        if (type.isRecord()) {
+            var facets = schemaFacets(type, type, 0);
+            if (facets.get("properties") != null) {
+                schema.put("properties", facets.get("properties"));
+                schema.put("required", facets.get("required"));
+            }
+        }
+        return schema;
+    }
+
+    // ── Completions (completion/complete) ────────────────────────────────
+
+    /** Register completions for one argument of a prompt. */
+    public void registerPromptCompletion(String prompt, String argument, CompletionHandler handler) {
+        completions.put(new CompletionKey(REF_PROMPT, prompt, argument), handler);
+    }
+
+    /** Register completions for one variable of a resource template. */
+    public void registerResourceCompletion(String uriTemplate, String argument,
+                                           CompletionHandler handler) {
+        completions.put(new CompletionKey(REF_RESOURCE, uriTemplate, argument), handler);
+    }
+
+    /**
+     * Whether any completion source exists — an explicit handler or an
+     * enum-typed prompt/template argument. Gates advertising the
+     * {@code completions} capability (Runtime Truth).
+     */
+    public boolean hasCompletions() {
+        if (!completions.isEmpty()) {
+            return true;
+        }
+        for (var p : prompts.values()) {
+            if (p.params().stream().anyMatch(param -> param.type().isEnum())) {
+                return true;
+            }
+        }
+        for (var r : resources.values()) {
+            if (uriTemplates.containsKey(r.uri())
+                    && r.params().stream().anyMatch(param -> param.type().isEnum())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Resolve {@code completion/complete} for {@code ref}: an explicit handler
+     * wins, otherwise an enum-typed argument completes from its constants
+     * (case-insensitive prefix match); an argument with no source completes to
+     * nothing. Returns empty when the reference itself does not exist.
+     *
+     * @throws IllegalArgumentException if {@code refType} is not a known type
+     */
+    public Optional<Completion> complete(String refType, String ref, String argument,
+                                         String value, Map<String, String> context)
+            throws Exception {
+        List<ParamEntry> params;
+        if (REF_PROMPT.equals(refType)) {
+            var prompt = prompts.get(ref);
+            if (prompt == null) {
+                return Optional.empty();
+            }
+            params = prompt.params();
+        } else if (REF_RESOURCE.equals(refType)) {
+            var resource = resources.get(ref);
+            if (resource == null || !uriTemplates.containsKey(ref)) {
+                return Optional.empty();
+            }
+            params = resource.params();
+        } else {
+            throw new IllegalArgumentException("Unknown completion ref type: " + refType);
+        }
+        var partial = value == null ? "" : value;
+        List<String> candidates;
+        var handler = completions.get(new CompletionKey(refType, ref, argument));
+        if (handler != null) {
+            var produced = handler.complete(partial, context == null ? Map.of() : context);
+            candidates = produced == null ? List.of() : produced;
+        } else {
+            candidates = params.stream()
+                    .filter(p -> p.name().equals(argument) && p.type().isEnum())
+                    .findFirst()
+                    .map(p -> enumCompletions(p.type(), partial))
+                    .orElse(List.of());
+        }
+        var total = candidates.size();
+        var capped = total > MAX_COMPLETION_VALUES
+                ? List.copyOf(candidates.subList(0, MAX_COMPLETION_VALUES))
+                : List.copyOf(candidates);
+        return Optional.of(new Completion(capped, total, total > MAX_COMPLETION_VALUES));
+    }
+
+    private static List<String> enumCompletions(Class<?> enumType, String partial) {
+        var prefix = partial.toLowerCase(java.util.Locale.ROOT);
+        var out = new ArrayList<String>();
+        for (var constant : enumType.getEnumConstants()) {
+            var name = ((Enum<?>) constant).name();
+            if (name.toLowerCase(java.util.Locale.ROOT).startsWith(prefix)) {
+                out.add(name);
+            }
+        }
+        return out;
+    }
+
     // ── Programmatic Resource Registration ───────────────────────────────
 
     /**
@@ -345,6 +645,7 @@ public final class McpRegistry {
                                  String mimeType, List<ParamEntry> params,
                                  ResourceHandler handler) {
         resources.put(uri, new ResourceEntry(uri, name, description, mimeType, params, handler));
+        indexTemplate(uri);
     }
 
     /**
@@ -359,7 +660,108 @@ public final class McpRegistry {
      * Remove a previously registered resource.
      */
     public boolean removeResource(String uri) {
+        uriTemplates.remove(uri);
+        completions.keySet().removeIf(k -> REF_RESOURCE.equals(k.refType()) && k.ref().equals(uri));
         return resources.remove(uri) != null;
+    }
+
+    /** Whether {@code uri} is a URI template ({@code {name}} variables), not a concrete URI. */
+    public static boolean isTemplate(String uri) {
+        return uri != null && TEMPLATE_VARIABLE.matcher(uri).find();
+    }
+
+    private void indexTemplate(String uri) {
+        if (!isTemplate(uri)) {
+            uriTemplates.remove(uri);
+            return;
+        }
+        var regex = new StringBuilder("^");
+        var variables = new ArrayList<String>();
+        Matcher m = TEMPLATE_VARIABLE.matcher(uri);
+        int last = 0;
+        while (m.find()) {
+            regex.append(Pattern.quote(uri.substring(last, m.start())));
+            // RFC 6570 simple expansion: the value is a single segment, so it
+            // cannot contain a reserved '/', '?' or '#'.
+            regex.append("([^/?#]+)");
+            variables.add(m.group(1));
+            last = m.end();
+        }
+        regex.append(Pattern.quote(uri.substring(last))).append('$');
+        uriTemplates.put(uri, new UriTemplate(Pattern.compile(regex.toString()), List.copyOf(variables)));
+    }
+
+    /** Registered resources that are concrete URIs (listed by {@code resources/list}). */
+    public Map<String, ResourceEntry> concreteResources() {
+        var out = new LinkedHashMap<String, ResourceEntry>();
+        resources.forEach((uri, entry) -> {
+            if (!uriTemplates.containsKey(uri)) {
+                out.put(uri, entry);
+            }
+        });
+        return Collections.unmodifiableMap(out);
+    }
+
+    /** Registered resource templates (listed by {@code resources/templates/list}). */
+    public Map<String, ResourceEntry> resourceTemplates() {
+        var out = new LinkedHashMap<String, ResourceEntry>();
+        resources.forEach((uri, entry) -> {
+            if (uriTemplates.containsKey(uri)) {
+                out.put(uri, entry);
+            }
+        });
+        return Collections.unmodifiableMap(out);
+    }
+
+    /**
+     * Resolve a concrete URI from {@code resources/read} or
+     * {@code resources/subscribe}: an exact registration wins; otherwise the
+     * first template whose pattern matches binds its variables
+     * (percent-decoded). A variable whose decoded value contains a path
+     * separator or {@code ..} is rejected, so a template can never be used to
+     * address outside the segment it declares (Boundary Safety).
+     */
+    public Optional<ResolvedResource> resolveResource(String uri) {
+        if (uri == null) {
+            return Optional.empty();
+        }
+        var exact = resources.get(uri);
+        if (exact != null && !uriTemplates.containsKey(uri)) {
+            return Optional.of(new ResolvedResource(exact, Map.of()));
+        }
+        for (var e : uriTemplates.entrySet()) {
+            var m = e.getValue().pattern().matcher(uri);
+            if (!m.matches()) {
+                continue;
+            }
+            var entry = resources.get(e.getKey());
+            if (entry == null) {
+                continue;
+            }
+            var vars = new LinkedHashMap<String, String>();
+            for (int i = 0; i < e.getValue().variables().size(); i++) {
+                var decoded = percentDecode(m.group(i + 1));
+                if (decoded == null || decoded.isEmpty() || decoded.contains("/")
+                        || decoded.contains("\\") || decoded.equals("..")
+                        || decoded.equals(".")) {
+                    return Optional.empty();
+                }
+                vars.put(e.getValue().variables().get(i), decoded);
+            }
+            return Optional.of(new ResolvedResource(entry, Map.copyOf(vars)));
+        }
+        return Optional.empty();
+    }
+
+    private static String percentDecode(String raw) {
+        try {
+            // URLDecoder is form-decoding: protect a literal '+' so it is not
+            // turned into a space (URI templates percent-encode spaces).
+            return URLDecoder.decode(raw.replace("+", "%2B"), StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            logger.debug("Malformed percent-encoding in resource URI segment '{}'", raw, e);
+            return null;
+        }
     }
 
     // ── Programmatic Prompt Registration ─────────────────────────────────
@@ -383,6 +785,7 @@ public final class McpRegistry {
      * Remove a previously registered prompt.
      */
     public boolean removePrompt(String name) {
+        completions.keySet().removeIf(k -> REF_PROMPT.equals(k.refType()) && k.ref().equals(name));
         return prompts.remove(name) != null;
     }
 

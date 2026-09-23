@@ -24,6 +24,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.mcp.protocol.JsonRpc;
+import org.atmosphere.mcp.protocol.Mcp2026;
 import org.atmosphere.mcp.protocol.McpInputContext;
 import org.atmosphere.mcp.protocol.McpInputRequiredException;
 import org.atmosphere.mcp.protocol.McpMethod;
@@ -83,12 +84,24 @@ public final class McpProtocolHandler {
      */
     public static final String CACHE_TTL_INIT_PARAM = "org.atmosphere.mcp.cacheTtlMs";
 
+    /**
+     * Init-param selecting the SEP-2549 {@code cacheScope} advertised on the
+     * stateless dialect's cacheable results. Defaults to {@code private}: a
+     * shared cache must not serve one caller's catalog or resource read to
+     * another once visibility depends on the principal or tenant. Set it to
+     * {@code public} only for a static catalog that every caller sees
+     * identically; even then, a request carrying an authenticated principal is
+     * still answered with {@code private}.
+     */
+    public static final String CACHE_SCOPE_INIT_PARAM = "org.atmosphere.mcp.cacheScope";
+
     private final String serverName;
     private final String serverVersion;
     private final McpRegistry registry;
     private final AtmosphereConfig config;
     private final List<String> guardrails;
     private final long cacheTtlMs;
+    private final boolean publicCacheScope;
     private final McpAuthorization authorization;
     private final McpTaskManager taskManager = new McpTaskManager();
     private volatile McpTracing tracing;
@@ -131,6 +144,7 @@ public final class McpProtocolHandler {
         this.config = config;
         this.guardrails = guardrails != null ? List.copyOf(guardrails) : List.of();
         this.cacheTtlMs = resolveCacheTtl(config);
+        this.publicCacheScope = resolvePublicCacheScope(config);
         this.authorization = McpAuthorization.from(config);
     }
 
@@ -169,6 +183,38 @@ public final class McpProtocolHandler {
     }
 
     /**
+     * Resolve {@link #CACHE_SCOPE_INIT_PARAM}: {@code true} only for an explicit
+     * {@code public}; unset, blank, {@code private} or anything else keeps the
+     * fail-closed {@code private} default.
+     */
+    private static boolean resolvePublicCacheScope(AtmosphereConfig config) {
+        if (config == null) {
+            return false;
+        }
+        String raw;
+        try {
+            raw = config.getInitParameter(CACHE_SCOPE_INIT_PARAM);
+        } catch (RuntimeException e) {
+            logger.trace("Could not read {}; defaulting cacheScope to private",
+                    CACHE_SCOPE_INIT_PARAM, e);
+            return false;
+        }
+        if (raw == null || raw.isBlank()) {
+            return false;
+        }
+        var value = raw.trim();
+        if (Mcp2026.CACHE_SCOPE_PUBLIC.equalsIgnoreCase(value)) {
+            logger.info("MCP stateless results advertise cacheScope=public ({}); "
+                    + "authenticated requests still get private", CACHE_SCOPE_INIT_PARAM);
+            return true;
+        }
+        if (!Mcp2026.CACHE_SCOPE_PRIVATE.equalsIgnoreCase(value)) {
+            logger.warn("Invalid {} '{}'; defaulting to private", CACHE_SCOPE_INIT_PARAM, raw);
+        }
+        return false;
+    }
+
+    /**
      * Set the optional MCP tracing instance for OpenTelemetry instrumentation.
      */
     public void setTracing(McpTracing tracing) {
@@ -203,6 +249,18 @@ public final class McpProtocolHandler {
     /** The SEP-2549 {@code ttlMs} cache hint advertised on cacheable results. */
     long cacheTtlMs() {
         return cacheTtlMs;
+    }
+
+    /**
+     * The SEP-2549 {@code cacheScope} for a cacheable result served to
+     * {@code resource}: {@code public} only when the deployment opted in via
+     * {@link #CACHE_SCOPE_INIT_PARAM} and the request is anonymous.
+     */
+    String cacheScopeFor(AtmosphereResource resource) {
+        if (publicCacheScope && resolvePrincipal(resource) == null) {
+            return Mcp2026.CACHE_SCOPE_PUBLIC;
+        }
+        return Mcp2026.CACHE_SCOPE_PRIVATE;
     }
 
     /**
@@ -299,6 +357,8 @@ public final class McpProtocolHandler {
             case McpMethod.TOOLS_CALL -> handleToolsCall(resource, idVal, params);
             case McpMethod.RESOURCES_LIST -> handleResourcesList(idVal);
             case McpMethod.RESOURCES_READ -> handleResourcesRead(idVal, params);
+            case McpMethod.RESOURCES_TEMPLATES_LIST -> handleResourceTemplatesList(idVal);
+            case McpMethod.COMPLETION_COMPLETE -> handleCompletion(idVal, params);
             case McpMethod.RESOURCES_SUBSCRIBE -> handleResourcesSubscribe(resource, idVal, params);
             case McpMethod.RESOURCES_UNSUBSCRIBE -> handleResourcesUnsubscribe(resource, idVal, params);
             case McpMethod.PROMPTS_LIST -> handlePromptsList(idVal);
@@ -349,6 +409,10 @@ public final class McpProtocolHandler {
         }
         if (!registry.prompts().isEmpty()) {
             serverCapabilities.put("prompts", Map.of("listChanged", true));
+        }
+        // completion/complete (2025-06-18+) — only when something can answer it.
+        if (registry.hasCompletions()) {
+            serverCapabilities.put("completions", Map.of());
         }
         // MCP 2025-11-25 (experimental): advertise task support for the
         // request types we accept task-augmentation on. Tools/call is the
@@ -418,6 +482,12 @@ public final class McpProtocolHandler {
                 tool.put("description", entry.description());
             }
             tool.put("inputSchema", McpRegistry.inputSchema(entry));
+            registry.toolOutputSchema(entry.name())
+                    .ifPresent(schema -> tool.put("outputSchema", schema));
+            registry.toolAnnotations(entry.name())
+                    .map(McpRegistry.ToolAnnotations::toWire)
+                    .filter(wire -> !wire.isEmpty())
+                    .ifPresent(wire -> tool.put("annotations", wire));
             toolList.add(tool);
         }
         return JsonRpc.Response.success(id, Map.of("tools", toolList));
@@ -701,27 +771,83 @@ public final class McpProtocolHandler {
                 result = tool.method().invoke(tool.instance(), args);
             }
 
-            // MCP 2025-06-18 added `structuredContent`: tools that return a
-            // typed object (not a plain String) emit both the legacy text
-            // content AND the structured form. Older clients ignore the
-            // unknown field; newer ones consume the typed payload directly.
-            var resultMap = new LinkedHashMap<String, Object>();
-            String text;
-            if (result instanceof String s) {
-                text = s;
-            } else {
-                text = mapper.writeValueAsString(result);
-                if (result != null) {
-                    resultMap.put("structuredContent", result);
-                }
-            }
-            resultMap.put("content", List.of(Map.of("type", "text", "text", text)));
-            resultMap.put("isError", false);
-
-            return JsonRpc.Response.success(id, resultMap);
+            return JsonRpc.Response.success(id, toolResult(tool.name(), result));
         } catch (InvocationTargetException e) {
             throw e;
         }
+    }
+
+    /**
+     * Shape a tool's return value into a {@code CallToolResult}. MCP 2025-06-18
+     * added {@code structuredContent}, which the schema types as a JSON
+     * <em>object</em>: a typed result that serializes to an object is emitted
+     * both as structured content and as the legacy serialized-JSON text block;
+     * arrays and scalars stay text-only. A tool that declared an
+     * {@code outputSchema} must return an object carrying the schema's
+     * required properties (a JSON-object String counts); anything else is
+     * reported as a tool error rather than sent as non-conforming output.
+     */
+    private Map<String, Object> toolResult(String toolName, Object result) {
+        var declared = registry.toolOutputSchema(toolName);
+        String text;
+        JsonNode structured = null;
+        if (result instanceof String str) {
+            text = str;
+            if (declared.isPresent()) {
+                try {
+                    var parsed = mapper.readTree(str);
+                    if (parsed != null && parsed.isObject()) {
+                        structured = parsed;
+                    }
+                } catch (JacksonException e) {
+                    logger.debug("Tool '{}' declared an outputSchema but returned non-JSON text",
+                            toolName, e);
+                }
+            }
+        } else {
+            text = mapper.writeValueAsString(result);
+            if (result != null) {
+                var tree = mapper.valueToTree(result);
+                if (tree instanceof JsonNode node && node.isObject()) {
+                    structured = node;
+                }
+            }
+        }
+        if (declared.isPresent()) {
+            var problem = outputSchemaViolation(declared.get(), structured);
+            if (problem != null) {
+                logger.warn("Tool '{}' result does not match its outputSchema: {}", toolName, problem);
+                return errorCallResult("Tool '" + toolName
+                        + "' returned a result that does not match its outputSchema: " + problem);
+            }
+        }
+        var resultMap = new LinkedHashMap<String, Object>();
+        if (structured != null) {
+            resultMap.put("structuredContent", structured);
+        }
+        resultMap.put("content", List.of(Map.of("type", "text", "text", text)));
+        resultMap.put("isError", false);
+        return resultMap;
+    }
+
+    /**
+     * Top-level conformance check of structured output against a declared
+     * {@code outputSchema}: the value must be an object and carry every
+     * {@code required} property. Returns a description of the first
+     * violation, or {@code null} when it conforms.
+     */
+    private static String outputSchemaViolation(Map<String, Object> schema, JsonNode structured) {
+        if (structured == null || !structured.isObject()) {
+            return "expected a JSON object";
+        }
+        if (schema.get("required") instanceof List<?> required) {
+            for (var name : required) {
+                if (!structured.has(String.valueOf(name))) {
+                    return "missing required property '" + name + "'";
+                }
+            }
+        }
+        return null;
     }
 
     /**
@@ -1048,7 +1174,9 @@ public final class McpProtocolHandler {
 
     JsonRpc.Response handleResourcesList(Object id) {
         var resourceList = new ArrayList<Map<String, Object>>();
-        for (var entry : registry.resources().values()) {
+        // Templates are not concrete resources: they are listed by
+        // resources/templates/list and addressed by a matching URI.
+        for (var entry : registry.concreteResources().values()) {
             var res = new LinkedHashMap<String, Object>();
             res.put("uri", entry.uri());
             if (!entry.name().isEmpty()) {
@@ -1074,19 +1202,108 @@ public final class McpProtocolHandler {
         return JsonRpc.Response.success(id, Map.of("resources", resourceList));
     }
 
+    /**
+     * {@code resources/templates/list} (MCP 2024-11-05+): every registered
+     * resource whose URI is an RFC 6570 template.
+     */
+    JsonRpc.Response handleResourceTemplatesList(Object id) {
+        var templates = new ArrayList<Map<String, Object>>();
+        for (var entry : registry.resourceTemplates().values()) {
+            var t = new LinkedHashMap<String, Object>();
+            t.put("uriTemplate", entry.uri());
+            t.put("name", entry.name().isEmpty() ? entry.uri() : entry.name());
+            registry.resourceMetadata(entry.uri()).ifPresent(meta -> {
+                if (!meta.title().isEmpty()) {
+                    t.put("title", meta.title());
+                }
+                if (!meta.iconUrl().isEmpty()) {
+                    t.put("icons", List.of(Map.of("src", meta.iconUrl())));
+                }
+                if (!meta.meta().isEmpty()) {
+                    t.put("_meta", meta.meta());
+                }
+            });
+            if (!entry.description().isEmpty()) {
+                t.put("description", entry.description());
+            }
+            t.put("mimeType", entry.mimeType());
+            templates.add(t);
+        }
+        return JsonRpc.Response.success(id, Map.of("resourceTemplates", templates));
+    }
+
+    /**
+     * {@code completion/complete} (MCP 2025-06-18+): argument autocompletion
+     * for a prompt ({@code ref/prompt}) or a resource template
+     * ({@code ref/resource}). Unknown references and malformed params are
+     * {@code -32602}; a known reference with no completion source for the
+     * argument answers an empty list.
+     */
+    JsonRpc.Response handleCompletion(Object id, JsonNode params) {
+        var ref = params != null ? params.get("ref") : null;
+        var argument = params != null ? params.get("argument") : null;
+        if (ref == null || !ref.isObject() || !ref.has("type") || !ref.get("type").isString()
+                || argument == null || !argument.isObject()
+                || !argument.has("name") || !argument.get("name").isString()) {
+            return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS,
+                    "completion/complete requires ref.type and argument.name");
+        }
+        var refType = ref.get("type").stringValue();
+        var refKey = McpRegistry.REF_PROMPT.equals(refType) ? "name" : "uri";
+        if (!ref.has(refKey) || !ref.get(refKey).isString()) {
+            return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS,
+                    "completion ref of type '" + refType + "' requires '" + refKey + "'");
+        }
+        var refName = ref.get(refKey).stringValue();
+        var value = argument.has("value") && argument.get("value").isString()
+                ? argument.get("value").stringValue() : "";
+        var context = new LinkedHashMap<String, String>();
+        var ctxArgs = params.path("context").path("arguments");
+        if (ctxArgs.isObject()) {
+            for (var name : ctxArgs.propertyNames()) {
+                var v = ctxArgs.get(name);
+                if (v != null && v.isString()) {
+                    context.put(name, v.stringValue());
+                }
+            }
+        }
+        try {
+            var completion = registry.complete(refType, refName,
+                    argument.get("name").stringValue(), value, context);
+            if (completion.isEmpty()) {
+                return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS,
+                        "Unknown completion reference: " + refType + " " + refName);
+            }
+            var c = completion.get();
+            var body = new LinkedHashMap<String, Object>();
+            body.put("values", c.values());
+            body.put("total", c.total());
+            body.put("hasMore", c.hasMore());
+            return JsonRpc.Response.success(id, Map.of("completion", body));
+        } catch (IllegalArgumentException e) {
+            return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, e.getMessage());
+        } catch (Exception e) {
+            logger.warn("Completion for {} {} failed", refType, refName, e);
+            return JsonRpc.Response.error(id, JsonRpc.INTERNAL_ERROR,
+                    "Completion failed: " + e.getMessage());
+        }
+    }
+
     JsonRpc.Response handleResourcesRead(Object id, JsonNode params) {
         if (params == null || !params.has("uri")) {
             return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, "Missing resource URI");
         }
         var uri = params.get("uri").stringValue();
-        var resOpt = registry.resource(uri);
-        if (resOpt.isEmpty()) {
+        var resolved = registry.resolveResource(uri);
+        if (resolved.isEmpty()) {
             return JsonRpc.Response.error(id, JsonRpc.METHOD_NOT_FOUND,
                     "Unknown resource: " + uri);
         }
 
-        var res = resOpt.get();
-        var arguments = params.has("arguments") ? params.get("arguments") : null;
+        var res = resolved.get().entry();
+        var arguments = withTemplateVariables(
+                params.has("arguments") ? params.get("arguments") : null,
+                resolved.get().variables());
         int argCount = arguments != null ? arguments.size() : 0;
 
         try {
@@ -1102,6 +1319,23 @@ public final class McpProtocolHandler {
             return JsonRpc.Response.error(id, JsonRpc.INTERNAL_ERROR,
                     "Resource read failed: " + e.getMessage());
         }
+    }
+
+    /**
+     * Merge URI-template variables into the read's arguments. The variables
+     * come from the URI being read, so they win over a same-named explicit
+     * argument.
+     */
+    private static JsonNode withTemplateVariables(JsonNode arguments, Map<String, String> variables) {
+        if (variables.isEmpty()) {
+            return arguments;
+        }
+        var merged = mapper.createObjectNode();
+        if (arguments != null && arguments.isObject()) {
+            merged.setAll((tools.jackson.databind.node.ObjectNode) arguments);
+        }
+        variables.forEach(merged::put);
+        return merged;
     }
 
     private JsonRpc.Response executeResourceRead(Object id, McpRegistry.ResourceEntry res,
@@ -1131,7 +1365,7 @@ public final class McpProtocolHandler {
             return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, "Missing resource URI");
         }
         var uri = params.get("uri").stringValue();
-        if (registry.resource(uri).isEmpty()) {
+        if (registry.resolveResource(uri).isEmpty()) {
             return JsonRpc.Response.error(id, JsonRpc.METHOD_NOT_FOUND,
                     "Unknown resource: " + uri);
         }

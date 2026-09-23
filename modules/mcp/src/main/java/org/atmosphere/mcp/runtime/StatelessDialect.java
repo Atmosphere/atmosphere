@@ -95,7 +95,7 @@ final class StatelessDialect implements ProtocolDialect {
         // version the client guessed — it exists precisely so the client can
         // learn what we support. Every other method is gated on a version match.
         if (McpMethod.SERVER_DISCOVER.equals(method)) {
-            return handleDiscover(ctx.id());
+            return handleDiscover(ctx);
         }
 
         var requested = ctx.protocolVersion();
@@ -106,16 +106,20 @@ final class StatelessDialect implements ProtocolDialect {
         logger.debug("Stateless MCP request '{}' from {} (v{})",
                 method, ctx.clientName(), requested);
 
-        // tools/list, resources/list, resources/read, prompts/list are
-        // CacheableResult per schema → carry ttlMs + cacheScope (SEP-2549).
-        // tools/call, prompts/get and ping are not cacheable → resultType only.
+        // tools/list, resources/list, resources/templates/list, resources/read,
+        // prompts/list are CacheableResult per schema → carry ttlMs + cacheScope
+        // (SEP-2549). tools/call, prompts/get, completion/complete and ping are
+        // not cacheable → resultType only.
         return switch (method) {
             case McpMethod.PING -> complete(JsonRpc.Response.success(ctx.id(), Map.of()));
-            case McpMethod.TOOLS_LIST -> cacheable(core.handleToolsList(ctx.id()));
+            case McpMethod.TOOLS_LIST -> cacheable(ctx, core.handleToolsList(ctx.id()));
             case McpMethod.TOOLS_CALL -> handleToolsCall(ctx);
-            case McpMethod.RESOURCES_LIST -> cacheable(core.handleResourcesList(ctx.id()));
+            case McpMethod.RESOURCES_LIST -> cacheable(ctx, core.handleResourcesList(ctx.id()));
             case McpMethod.RESOURCES_READ -> handleResourcesRead(ctx);
-            case McpMethod.PROMPTS_LIST -> cacheable(core.handlePromptsList(ctx.id()));
+            case McpMethod.RESOURCES_TEMPLATES_LIST ->
+                    cacheable(ctx, core.handleResourceTemplatesList(ctx.id()));
+            case McpMethod.COMPLETION_COMPLETE -> complete(core.handleCompletion(ctx.id(), ctx.params()));
+            case McpMethod.PROMPTS_LIST -> cacheable(ctx, core.handlePromptsList(ctx.id()));
             case McpMethod.PROMPTS_GET -> complete(core.handlePromptsGet(ctx.id(), ctx.params()));
             // Tasks extension (SEP-2663) — gated on the negotiated capability.
             case McpMethod.TASKS_GET -> handleTasksGet(ctx);
@@ -323,11 +327,13 @@ final class StatelessDialect implements ProtocolDialect {
     private JsonRpc.Response handleResourcesRead(McpRequestContext ctx) {
         var params = ctx.params();
         if (params != null && params.has("uri") && params.get("uri").isString()
-                && core.registry().resource(params.get("uri").stringValue()).isEmpty()) {
+                && core.registry().resolveResource(params.get("uri").stringValue()).isEmpty()) {
+            // SEP-2164: the error SHOULD carry the requested uri in data.
+            var uri = params.get("uri").stringValue();
             return JsonRpc.Response.error(ctx.id(), JsonRpc.INVALID_PARAMS,
-                    "Resource not found: " + params.get("uri").stringValue());
+                    "Resource not found: " + uri, Map.of("uri", uri));
         }
-        return cacheable(core.handleResourcesRead(ctx.id(), params));
+        return cacheable(ctx, core.handleResourcesRead(ctx.id(), params));
     }
 
     /** Result of resolving a {@code taskId} param: exactly one of task/error is set. */
@@ -401,7 +407,8 @@ final class StatelessDialect implements ProtocolDialect {
      * the stateless revision first, then the handshake revisions that remain
      * reachable via {@code initialize}.
      */
-    private JsonRpc.Response handleDiscover(Object id) {
+    private JsonRpc.Response handleDiscover(McpRequestContext ctx) {
+        var id = ctx.id();
         var supported = new ArrayList<String>();
         supported.add(Mcp2026.VERSION);
         for (var v : McpProtocolHandler.SUPPORTED_VERSIONS) {
@@ -418,7 +425,7 @@ final class StatelessDialect implements ProtocolDialect {
         // 0 (always revalidate), honest about capabilities being mutable via
         // runtime registry changes; a deployment with a static catalog can raise
         // it via the cacheTtlMs init-param.
-        return cacheable(JsonRpc.Response.success(id, result));
+        return cacheable(ctx, JsonRpc.Response.success(id, result));
     }
 
     /**
@@ -439,6 +446,9 @@ final class StatelessDialect implements ProtocolDialect {
         }
         if (!core.registry().prompts().isEmpty()) {
             caps.put("prompts", Map.of());
+        }
+        if (core.registry().hasCompletions()) {
+            caps.put("completions", Map.of());
         }
         // SEP-2133 extensions map. Advertise each extension only when the server
         // actually has something to back it (Runtime Truth): Tasks when a
@@ -491,14 +501,18 @@ final class StatelessDialect implements ProtocolDialect {
     /**
      * Stamp {@code resultType} plus the {@code CacheableResult} fields
      * ({@code ttlMs}/{@code cacheScope}, SEP-2549) onto a list/read/discover
-     * result. {@code cacheScope} is {@code "public"}: tool/resource/prompt
-     * catalogs and reads are not principal-specific in this server.
+     * result. {@code cacheScope} is {@code "private"} unless the deployment
+     * opted into {@code "public"} for a static catalog and this request is
+     * anonymous — see {@link McpProtocolHandler#CACHE_SCOPE_INIT_PARAM}. A
+     * shared cache must never serve one principal's catalog or resource read
+     * to another.
      */
-    private JsonRpc.Response cacheable(JsonRpc.Response response) {
+    private JsonRpc.Response cacheable(McpRequestContext ctx, JsonRpc.Response response) {
         var ttl = core.cacheTtlMs();
+        var scope = core.cacheScopeFor(ctx.resource());
         return stamp(response, fields -> {
             fields.put(Mcp2026.CACHE_TTL_MS, ttl);
-            fields.put(Mcp2026.CACHE_SCOPE, Mcp2026.CACHE_SCOPE_PUBLIC);
+            fields.put(Mcp2026.CACHE_SCOPE, scope);
         });
     }
 
