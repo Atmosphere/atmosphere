@@ -15,19 +15,18 @@
     <url>https://github.com/Atmosphere/atmosphere</url>
 
     <properties>
-        <quarkus.version>3.36.3</quarkus.version>
-        <netty.version>4.1.137.Final</netty.version>
+        <quarkus.version>3.39.5</quarkus.version>
+        <netty.version>4.1.138.Final</netty.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
-            <!-- Netty BOM pinned to 4.1.137.Final, two patches above the
-                 4.1.135.Final that Quarkus 3.36.3 ships (verified against
-                 quarkus-bom-3.36.3.pom, whose only io.netty 4.x pin is
-                 4.1.135.Final). Imported BEFORE
+            <!-- Netty BOM pinned to 4.1.138.Final, the version Quarkus 3.39.5
+                 ships (verified against quarkus-bom-3.39.5.pom, whose only
+                 io.netty 4.x pin is 4.1.138.Final). Imported BEFORE
                  quarkus-bom and retained as an explicit floor so the patched
                  netty stays in place regardless of transitive drift. 4.1.137
-                 closes CVE-2026-59903 (codec-http); 4.1.136 closed the
+                 closed CVE-2026-59903 (codec-http); 4.1.136 closed the
                  codec-family batch (GHSA-jppx-w49h-x2qq /
                  GHSA-mvh2-crg5-v77c / GHSA-6jqx-86gh-f27w codec-http,
                  GHSA-93wv-jw9v-4972 codec-http2, GHSA-558v-64gr-wgg4 codec,

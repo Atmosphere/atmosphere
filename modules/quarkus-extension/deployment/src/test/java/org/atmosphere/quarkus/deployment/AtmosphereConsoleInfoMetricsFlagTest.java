@@ -48,7 +48,7 @@ public class AtmosphereConsoleInfoMetricsFlagTest {
     private static List<Dependency> prometheusDeps() {
         return List.of(new ArtifactDependency("io.quarkus",
                 "quarkus-micrometer-registry-prometheus", null, "jar",
-                System.getProperty("quarkus.version", "3.36.0")));
+                System.getProperty("quarkus.version", "3.39.5")));
     }
 
     @RegisterExtension

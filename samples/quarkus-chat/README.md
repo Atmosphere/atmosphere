@@ -158,7 +158,7 @@ Registration is a union across providers — no provider can suppress another's 
 
 ```
 quarkus-chat/
-├── pom.xml                                  # Quarkus 3.36.3 BOM
+├── pom.xml                                  # Quarkus 3.39.5 BOM
 └── src/main/
     ├── java/org/atmosphere/samples/quarkus/chat/
     │   ├── Chat.java                        # @ManagedService handler

@@ -155,8 +155,9 @@
              via setForcedDependencies on the per-test QuarkusExtensionTest
              instance rather than relying on the flat reactor classpath
              (which previously caused Prometheus' OpenTelemetry exemplar
-             sampler to crash because Quarkus 3.36.x pins OTel-API 1.60.1
-             while atmosphere-runtime resolves 1.62.0). The dependencies
+             sampler to crash when the Quarkus BOM's OTel baseline and the
+             opentelemetry-api version atmosphere-runtime resolves diverged —
+             1.60.1 vs 1.62.0 on Quarkus 3.36.x). The dependencies
              stay declared here so Maven downloads them; test code uses
              setForcedDependencies(...) to scope them to a single test
              rather than the reactor classpath. -->

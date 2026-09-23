@@ -64,7 +64,7 @@ public class AtmosphereTracingBuildStepTest {
     private static List<Dependency> otelDeps() {
         return List.of(
                 new ArtifactDependency("io.quarkus", "quarkus-opentelemetry",
-                        null, "jar", System.getProperty("quarkus.version", "3.36.0")));
+                        null, "jar", System.getProperty("quarkus.version", "3.39.5")));
     }
 
     @Test

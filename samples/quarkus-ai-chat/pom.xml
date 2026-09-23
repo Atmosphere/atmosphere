@@ -23,10 +23,9 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Netty BOM pinned to 4.1.137.Final, two patches above the
-                 4.1.135.Final that Quarkus 3.36.3 ships (verified against
-                 quarkus-bom-3.36.3.pom, whose only io.netty 4.x pin is
-                 4.1.135.Final). Imported BEFORE
+            <!-- Netty BOM pinned to 4.1.138.Final, the version Quarkus 3.39.5
+                 ships (verified against quarkus-bom-3.39.5.pom, whose only
+                 io.netty 4.x pin is 4.1.138.Final). Imported BEFORE
                  quarkus-bom and retained as an explicit sample-scope floor
                  closing CVE-2026-42577 (handler-proxy header injection),
                  CVE-2026-42578 (chunked-extension request smuggling),
@@ -36,11 +35,11 @@
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
-                <version>4.1.137.Final</version>
+                <version>4.1.138.Final</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- brotli4j pinned to 1.23.0, the version Quarkus 3.36.x ships
+            <!-- brotli4j pinned to 1.23.0, the version Quarkus 3.36.x ships (still 1.23.0 in 3.39.5)
                  (up from 1.16.0 in 3.35.x). 1.23.0 is the release Netty
                  4.1.133's BrotliDecoder.decompress was compiled against — it
                  calls DecoderJNI$Wrapper.pull(int), absent from 1.16.0's
@@ -90,48 +89,40 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- atmosphere-runtime resolves opentelemetry-api 1.62.0 via the
-                 root POM, but quarkus-micrometer-registry-prometheus' OTel
-                 exemplar sampler was compiled against the OTel API 1.60.x
-                 shape Quarkus 3.35.x and 3.36.x (incl. 3.36.3) still ship. The 1.62.0
-                 API jar moved its internal ApiUsageLogger from
-                 io.opentelemetry.api.internal to io.opentelemetry.common.impl
-                 — running the prom exemplar code against the 1.62.0 API jar
-                 paired with the older opentelemetry-common throws
-                 NoClassDefFoundError. Direct pins on opentelemetry-api /
-                 -common keep Maven dependency resolution from picking the
-                 cpr-side 1.62.0 over Quarkus's 1.60.1 baseline (direct
-                 dependencyManagement entries beat BOM-imported ones, which
-                 would otherwise lose to a transitive direct dep at any
-                 reasonable depth).
+            <!-- The root POM manages opentelemetry-api at
+                 ${opentelemetry-api.version} (a direct dependencyManagement
+                 entry, which beats the imported quarkus-bom), while
+                 opentelemetry-common / -context would still come from the
+                 Quarkus BOM. quarkus-micrometer-registry-prometheus' OTel
+                 exemplar sampler is compiled against the OTel shape Quarkus
+                 ships, and the api jar reaches into -common
+                 (io.opentelemetry.common.impl.ApiUsageLogger since 1.62), so
+                 an api / -common split throws NoClassDefFoundError at
+                 startup. Pin the trio together at the Quarkus 3.39.5 baseline
+                 (verified against quarkus-bom-3.39.5.pom: api, common and
+                 context are all 1.62.0). Do NOT bump one independently —
+                 dependabot #2694 bumped api alone against a pinned -common
+                 and broke this sample.
 
-                 GHSA-rcgg-9c38-7xpx / CVE-2026-45292 (medium, unbounded
-                 memory in W3C Baggage Propagation) is fixed in 1.62.0 but
-                 cannot be picked up here until Quarkus's BOM moves off 1.60.1.
-                 Dependabot alert #1146 is dismissed as tolerable_risk
-                 (sample, baggage propagation not enabled, Vert.x enforces
-                 the 8 KiB header limit recommended by the advisory).
-                 Re-evaluate when Quarkus ships OTel 1.62+. -->
-            <!-- Keep opentelemetry-api pinned to Quarkus's 1.60.1 baseline in
-                 lockstep with -common / -context below. Do NOT bump independently:
-                 api >=1.62 references io.opentelemetry.common.impl.ApiUsageLogger,
-                 which only exists in -common >=1.62, so a lone api bump against the
-                 pinned 1.60.1 -common throws NoClassDefFoundError at startup
-                 (dependabot #2694 did exactly that and broke this sample). -->
+                 1.62.0 carries the fix for GHSA-rcgg-9c38-7xpx /
+                 CVE-2026-45292 (medium, unbounded memory in W3C Baggage
+                 Propagation), which the previous 1.60.1 pin (Quarkus 3.35.x /
+                 3.36.x baseline) could not pick up. Move the trio when the
+                 Quarkus BOM moves. -->
             <dependency>
                 <groupId>io.opentelemetry</groupId>
                 <artifactId>opentelemetry-api</artifactId>
-                <version>1.60.1</version>
+                <version>1.62.0</version>
             </dependency>
             <dependency>
                 <groupId>io.opentelemetry</groupId>
                 <artifactId>opentelemetry-common</artifactId>
-                <version>1.60.1</version>
+                <version>1.62.0</version>
             </dependency>
             <dependency>
                 <groupId>io.opentelemetry</groupId>
                 <artifactId>opentelemetry-context</artifactId>
-                <version>1.60.1</version>
+                <version>1.62.0</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

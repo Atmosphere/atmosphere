@@ -2,7 +2,7 @@
 
 Example applications demonstrating Atmosphere 4.0 across different deployment targets.
 
-All samples inherit their Atmosphere version from the parent POM. The target stack is Java 21, Spring Boot 4.1.0, and Quarkus 3.36.3.
+All samples inherit their Atmosphere version from the parent POM. The target stack is Java 21, Spring Boot 4.1.0, and Quarkus 3.39.5.
 
 ### Chat & Messaging
 
@@ -10,8 +10,8 @@ All samples inherit their Atmosphere version from the parent POM. The target sta
 |--------|-------|-----------|-------|---------|-------------|
 | [chat](chat/) | Servlet (WAR) | WAR | — | — | — |
 | [spring-boot-chat](spring-boot-chat/) | Spring Boot 4.1.0 | JAR | ✅ | ✅ | ✅ |
-| [quarkus-chat](quarkus-chat/) | Quarkus 3.36.3 | JAR | — | — | ✅ |
-| [quarkus-ai-chat](quarkus-ai-chat/) | Quarkus 3.36.3 + LangChain4j | JAR | — | — | profile only, no CI lane |
+| [quarkus-chat](quarkus-chat/) | Quarkus 3.39.5 | JAR | — | — | ✅ |
+| [quarkus-ai-chat](quarkus-ai-chat/) | Quarkus 3.39.5 + LangChain4j | JAR | — | — | profile only, no CI lane |
 | [embedded-jetty-websocket-chat](embedded-jetty-websocket-chat/) | Embedded Jetty | JAR | — | — | — |
 | [kotlin-dsl-chat](kotlin-dsl-chat/) | Kotlin DSL + coroutines (Embedded Jetty) | JAR | — | — | — |
 | [grpc-chat](grpc-chat/) | gRPC + Spring Boot | JAR | — | — | — |

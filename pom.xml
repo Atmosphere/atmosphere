@@ -1465,8 +1465,9 @@
              reads ${netty.version} from caller properties, so this wins precedence
              over the BOM pin without forcing a netty-bom import. -->
         <netty.version>4.2.17.Final</netty.version>
-        <!-- 3.36.3 closes GHSA-qcxp-gm7m-4j5v (quarkus-vertx-http). -->
-        <quarkus.version>3.36.3</quarkus.version>
+        <!-- 3.39.5 BOM: netty 4.1.138.Final, OTel 1.62.0, grpc 1.81.0.
+             (3.36.3 was the floor for GHSA-qcxp-gm7m-4j5v, quarkus-vertx-http.) -->
+        <quarkus.version>3.39.5</quarkus.version>
         <atmosphere.module.name>org.atmosphere</atmosphere.module.name>
         <!-- AI framework versions (single source of truth) -->
         <spring-ai.version>2.0.0</spring-ai.version>
