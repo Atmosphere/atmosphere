@@ -31,8 +31,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
@@ -45,6 +47,22 @@ public final class DefaultAgentFleet implements AgentFleet {
 
     /** Default per-agent timeout for parallel calls: 2 minutes. */
     public static final long DEFAULT_PARALLEL_TIMEOUT_MS = 120_000L;
+
+    /**
+     * Default cap on simultaneous sub-agent dispatches per fleet: 16. Shared
+     * by every {@link #parallel} / {@link #parallelCancellable} call on the
+     * fleet (and on the fleets derived from it through
+     * {@link #withActivityListener} / {@link #withParentRun}), so neither one
+     * large fan-out nor many concurrent fan-outs can open an unbounded number
+     * of downstream agent or LLM requests (Correctness Invariant #3).
+     */
+    public static final int DEFAULT_MAX_PARALLEL = 16;
+
+    /**
+     * System property overriding {@link #DEFAULT_MAX_PARALLEL} for fleets that
+     * do not set an explicit limit (e.g. {@code @Fleet(maxParallel = 0)}).
+     */
+    public static final String MAX_PARALLEL_PROPERTY = "atmosphere.coordinator.max-parallel";
 
     /**
      * System property toggling the first-run-sequential warm-up. Defaults to
@@ -72,6 +90,8 @@ public final class DefaultAgentFleet implements AgentFleet {
     private final List<ResultEvaluator> evaluators;
     private final long parallelTimeoutMs;
     private final List<AgentActivityListener> activityListeners;
+    private final int maxParallel;
+    private final Semaphore dispatchPermits;
 
     public DefaultAgentFleet(Map<String, AgentProxy> proxies) {
         this(proxies, List.of());
@@ -92,10 +112,63 @@ public final class DefaultAgentFleet implements AgentFleet {
                              List<ResultEvaluator> evaluators,
                              long parallelTimeoutMs,
                              List<AgentActivityListener> activityListeners) {
+        this(proxies, evaluators, parallelTimeoutMs, activityListeners, 0);
+    }
+
+    /**
+     * @param maxParallel maximum simultaneous sub-agent dispatches across all
+     *                    fan-outs on this fleet; {@code 0} (or negative) means
+     *                    {@link #MAX_PARALLEL_PROPERTY} or
+     *                    {@link #DEFAULT_MAX_PARALLEL}
+     */
+    public DefaultAgentFleet(Map<String, AgentProxy> proxies,
+                             List<ResultEvaluator> evaluators,
+                             long parallelTimeoutMs,
+                             List<AgentActivityListener> activityListeners,
+                             int maxParallel) {
+        this(proxies, evaluators, parallelTimeoutMs, activityListeners,
+                resolveMaxParallel(maxParallel), null);
+    }
+
+    private DefaultAgentFleet(Map<String, AgentProxy> proxies,
+                              List<ResultEvaluator> evaluators,
+                              long parallelTimeoutMs,
+                              List<AgentActivityListener> activityListeners,
+                              int maxParallel,
+                              Semaphore sharedPermits) {
         this.proxies = Map.copyOf(proxies);
         this.evaluators = List.copyOf(evaluators);
         this.parallelTimeoutMs = parallelTimeoutMs;
         this.activityListeners = List.copyOf(activityListeners);
+        this.maxParallel = maxParallel;
+        this.dispatchPermits = sharedPermits != null
+                ? sharedPermits : new Semaphore(maxParallel, true);
+    }
+
+    /** Maximum simultaneous sub-agent dispatches this fleet allows. */
+    public int maxParallel() {
+        return maxParallel;
+    }
+
+    private static int resolveMaxParallel(int requested) {
+        if (requested > 0) {
+            return requested;
+        }
+        var raw = System.getProperty(MAX_PARALLEL_PROPERTY);
+        if (raw != null && !raw.isBlank()) {
+            try {
+                var parsed = Integer.parseInt(raw.trim());
+                if (parsed > 0) {
+                    return parsed;
+                }
+                logger.warn("Ignoring non-positive {}={}; using {}",
+                        MAX_PARALLEL_PROPERTY, raw, DEFAULT_MAX_PARALLEL);
+            } catch (NumberFormatException e) {
+                logger.warn("Ignoring invalid {}={}; using {}",
+                        MAX_PARALLEL_PROPERTY, raw, DEFAULT_MAX_PARALLEL, e);
+            }
+        }
+        return DEFAULT_MAX_PARALLEL;
     }
 
     /**
@@ -120,7 +193,8 @@ public final class DefaultAgentFleet implements AgentFleet {
                 newProxies.put(entry.getKey(), proxy);
             }
         }
-        return new DefaultAgentFleet(newProxies, evaluators, parallelTimeoutMs, combined);
+        return new DefaultAgentFleet(newProxies, evaluators, parallelTimeoutMs, combined,
+                maxParallel, dispatchPermits);
     }
 
     @Override
@@ -137,7 +211,8 @@ public final class DefaultAgentFleet implements AgentFleet {
         for (var entry : proxies.entrySet()) {
             newProxies.put(entry.getKey(), entry.getValue().withDispatchMetadata(md));
         }
-        return new DefaultAgentFleet(newProxies, evaluators, parallelTimeoutMs, activityListeners);
+        return new DefaultAgentFleet(newProxies, evaluators, parallelTimeoutMs,
+                activityListeners, maxParallel, dispatchPermits);
     }
 
     @Override
@@ -204,7 +279,8 @@ public final class DefaultAgentFleet implements AgentFleet {
                 if (FIRST_RUN_COMPLETED.contains(name) || warmedThisCall.contains(name)) {
                     continue;
                 }
-                var warm = dispatchOne(entry.call(), true);
+                var warm = dispatchBounded(entry.call(), true,
+                        timeoutFor(agent(name)), new AtomicBoolean());
                 results.put(entry.key(), warm);
                 warmedThisCall.add(name);
                 if (warm.success()) {
@@ -216,20 +292,22 @@ public final class DefaultAgentFleet implements AgentFleet {
         ExecutorService vtExecutor = Executors.newVirtualThreadPerTaskExecutor();
         var futures = new LinkedHashMap<String, CompletableFuture<AgentResult>>();
         var timeouts = new HashMap<String, Long>();
+        var started = new HashMap<String, AtomicBoolean>();
         for (var entry : ordered) {
             if (results.containsKey(entry.key())) {
                 continue;
             }
-            var proxy = agent(entry.call().agentName());
-            // Use per-agent timeout if configured, otherwise fleet default
-            var agentTimeoutMs = proxy instanceof DefaultAgentProxy dap
-                    && !dap.limits().isDefaultTimeout()
-                    ? dap.limits().timeout().toMillis()
-                    : parallelTimeoutMs;
+            // The per-agent deadline covers the wait for a dispatch permit
+            // plus the call itself, so a call queued behind maxParallel past
+            // its deadline still resolves to a failure result.
+            var agentTimeoutMs = timeoutFor(agent(entry.call().agentName()));
+            var startedFlag = new AtomicBoolean();
             timeouts.put(entry.key(), agentTimeoutMs);
+            started.put(entry.key(), startedFlag);
             futures.put(entry.key(),
                     CompletableFuture.supplyAsync(
-                            () -> dispatchOne(entry.call(), false),
+                            () -> dispatchBounded(entry.call(), false,
+                                    agentTimeoutMs, startedFlag),
                             vtExecutor)
                             .orTimeout(agentTimeoutMs, TimeUnit.MILLISECONDS));
         }
@@ -250,8 +328,11 @@ public final class DefaultAgentFleet implements AgentFleet {
                     var cause = e.getCause();
                     var actualTimeout =
                             timeouts.getOrDefault(entry.getKey(), parallelTimeoutMs);
+                    var neverStarted = !started.get(entry.getKey()).get();
                     var msg = cause instanceof TimeoutException
-                            ? "Agent timed out after " + actualTimeout + "ms"
+                            ? neverStarted
+                                    ? queuedMessage(actualTimeout)
+                                    : "Agent timed out after " + actualTimeout + "ms"
                             : "Parallel call failed: " + e.getMessage();
                     logger.error("Parallel call to '{}' failed: {}", entry.getKey(), msg);
                     results.put(entry.getKey(), AgentResult.failure(
@@ -285,6 +366,88 @@ public final class DefaultAgentFleet implements AgentFleet {
 
         logger.debug("Parallel fan-out complete: {} results", results.size());
         return results;
+    }
+
+    /**
+     * Bounded counterpart of {@link #parallel}: every handle's dispatch waits
+     * for the same fleet-wide permit, so the non-blocking fan-out honors
+     * {@link #maxParallel()} exactly like the blocking one (Mode Parity).
+     * Cancelling a handle that is still queued interrupts its wait and
+     * releases nothing it did not acquire.
+     */
+    @Override
+    public Map<String, AgentExecution> parallelCancellable(AgentCall... calls) {
+        var results = new LinkedHashMap<String, AgentExecution>();
+        var nameCount = new HashMap<String, Integer>();
+        for (var agentCall : calls) {
+            var name = agentCall.agentName();
+            var count = nameCount.merge(name, 1, Integer::sum);
+            var key = count == 1 ? name : name + "#" + count;
+            var timeoutMs = timeoutFor(agent(name));
+            var future = new CompletableFuture<AgentResult>();
+            var worker = Thread.ofVirtual().unstarted(() -> {
+                try {
+                    future.complete(dispatchBounded(agentCall, false, timeoutMs,
+                            new AtomicBoolean()));
+                } catch (RuntimeException e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            // CompletableFuture.cancel(true) does not interrupt the runner;
+            // do it here so a cancelled handle stops waiting for a permit.
+            future.whenComplete((r, t) -> {
+                if (future.isCancelled()) {
+                    worker.interrupt();
+                }
+            });
+            worker.start();
+            results.put(key, new AgentExecution.Running(name, agentCall.skill(),
+                    java.time.Instant.now(), future));
+        }
+        return results;
+    }
+
+    /** Per-agent timeout if configured, otherwise the fleet default. */
+    private long timeoutFor(AgentProxy proxy) {
+        return proxy instanceof DefaultAgentProxy dap && !dap.limits().isDefaultTimeout()
+                ? dap.limits().timeout().toMillis()
+                : parallelTimeoutMs;
+    }
+
+    private String queuedMessage(long timeoutMs) {
+        return "Agent queued for " + timeoutMs + "ms without a dispatch slot (maxParallel="
+                + maxParallel + ")";
+    }
+
+    /**
+     * Acquire one of the fleet's {@link #maxParallel()} dispatch permits, run
+     * the call, and release the permit on every exit path. A call that cannot
+     * get a permit within {@code timeoutMs} returns a failure result instead of
+     * being dropped; an interrupt while queued (sibling failure, cancelled
+     * handle) propagates as an exception and acquires nothing.
+     */
+    private AgentResult dispatchBounded(AgentCall agentCall, boolean firstRun,
+                                        long timeoutMs, AtomicBoolean started) {
+        boolean acquired;
+        try {
+            acquired = dispatchPermits.tryAcquire(timeoutMs, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new java.util.concurrent.CancellationException(
+                    "Interrupted while queued for a dispatch slot");
+        }
+        if (!acquired) {
+            logger.warn("Sub-agent '{}' got no dispatch slot within {}ms (maxParallel={})",
+                    agentCall.agentName(), timeoutMs, maxParallel);
+            return AgentResult.failure(agentCall.agentName(), agentCall.skill(),
+                    queuedMessage(timeoutMs), Duration.ofMillis(timeoutMs));
+        }
+        try {
+            started.set(true);
+            return dispatchOne(agentCall, firstRun);
+        } finally {
+            dispatchPermits.release();
+        }
     }
 
     /**

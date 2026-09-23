@@ -55,7 +55,7 @@ Only `general-purpose` is spawned dynamically; for a named specialist that alrea
 
 ## Parallel Fan-out and Sequential Pipeline
 
-`AgentFleet` provides two execution patterns. `parallel()` dispatches all calls concurrently on virtual threads and waits for all results. `pipeline()` executes calls in declaration order and aborts immediately on the first failure.
+`AgentFleet` provides two execution patterns. `parallel()` dispatches all calls concurrently on virtual threads and waits for all results. Concurrency is bounded per fleet: at most `@Fleet(maxParallel = ...)` dispatches run at once across every `parallel()` / `parallelCancellable()` call (default 16, or the `atmosphere.coordinator.max-parallel` system property); extra calls queue, and a call still queued when its timeout expires returns a failure result. `pipeline()` executes calls in declaration order and aborts immediately on the first failure.
 
 ```java
 @Prompt
@@ -333,7 +333,7 @@ Circular fleet dependencies (coordinator A manages coordinator B which manages A
 | Class / Interface | Description |
 |-------------------|-------------|
 | `@Coordinator` | Marks a class as a coordinator; attributes: `name`, `skillFile`, `description`, `version`, `responseAs` (structured-output type), `journalFormat` (auto-emit journal as tool card) |
-| `@Fleet` | Declares the set of agents this coordinator manages |
+| `@Fleet` | Declares the set of agents this coordinator manages; `maxParallel` caps simultaneous sub-agent dispatches (default 16) |
 | `@AgentRef` | Reference to a single agent by class (`type`) or name (`value`); attributes: `version`, `required`, `weight`, `maxRetries`, `circuitBreaker`, `timeoutMs` |
 | `AgentFleet` | Injected into `@Prompt` methods; provides `agent()`, `agents()`, `available()`, `call()`, `parallel()`, `pipeline()`, `evaluate()`, `journal()` |
 | `AgentProxy` | Proxy to a single agent; exposes `call()`, `callAsync()`, `stream()`, `isAvailable()`, `isLocal()`, `weight()` |

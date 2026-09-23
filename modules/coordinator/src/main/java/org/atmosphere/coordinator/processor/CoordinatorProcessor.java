@@ -288,7 +288,8 @@ public class CoordinatorProcessor implements Processor<Object> {
             var journalResolution = resolveJournal(framework);
             var journal = journalResolution.journal();
             AgentFleet fleet = new DefaultAgentFleet(proxies, evaluators,
-                    DefaultAgentFleet.DEFAULT_PARALLEL_TIMEOUT_MS, activityListeners);
+                    DefaultAgentFleet.DEFAULT_PARALLEL_TIMEOUT_MS, activityListeners,
+                    fleetAnnotation.maxParallel());
             // Governance wraps INSIDE journaling (journal(intercepting(base)))
             // so a policy denial is recorded in the journaled event stream as
             // the failed dispatch it is — Decision.Deny's documented audit

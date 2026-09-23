@@ -43,4 +43,14 @@ public @interface Fleet {
 
     /** The agents this coordinator manages. */
     AgentRef[] value();
+
+    /**
+     * Maximum simultaneous sub-agent dispatches across every
+     * {@code parallel()} / {@code parallelCancellable()} fan-out of this
+     * fleet. Calls beyond the limit queue; a call still queued when its
+     * per-agent timeout expires resolves to a failure result. {@code 0}
+     * (the default) uses the {@code atmosphere.coordinator.max-parallel}
+     * system property, or 16 when it is unset.
+     */
+    int maxParallel() default 0;
 }
