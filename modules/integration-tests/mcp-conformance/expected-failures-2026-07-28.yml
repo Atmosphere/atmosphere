@@ -1,0 +1,101 @@
+# Known failures of ConformanceMcpServer against @modelcontextprotocol/conformance
+# (server mode, --requirements 2026-07-28: the stateless dialect). Same rules as
+# expected-failures-2025-11-25.yml: an unlisted failure or a listed entry that
+# now passes fails the run, so this list can only shrink.
+server:
+  # Tool results are a single text content block; no image/audio/embedded-resource content.
+  - tools-call-image:tools-call-image
+  - tools-call-audio:tools-call-audio
+  - tools-call-embedded-resource:tools-call-embedded-resource
+  - tools-call-mixed-content:tools-call-mixed-content
+  # resources/read answers text contents only; no blob (binary) form.
+  - resources-read-binary:resources-read-binary
+  # No progress-notification API for a running tool.
+  - tools-call-with-progress:tools-call-with-progress
+  # No Host/Origin validation against DNS rebinding on a localhost server.
+  - dns-rebinding-protection:localhost-host-rebinding-rejected
+  # Stateless dialect (SEP-2575): invalid/missing _meta is not -32602 + HTTP 400;
+  # unsupported version and header mismatch are not HTTP 400 (-32020); removed
+  # methods are not HTTP 404; serverInfo is not echoed in result _meta. The
+  # 'Not testable' checks need diagnostic fixture tools (test_missing_capability,
+  # test_streaming_elicitation, test_logging_tool) that are not implemented.
+  - server-stateless:sep-2575-request-meta-invalid-missing-meta
+  - server-stateless:sep-2575-http-server-meta-invalid-400
+  - server-stateless:sep-2575-request-meta-invalid-missing-protocol-version
+  - server-stateless:sep-2575-request-meta-invalid-missing-client-capabilities
+  - server-stateless:sep-2575-server-identifies-in-result-meta
+  - server-stateless:sep-2575-server-unsupported-version-error
+  - server-stateless:sep-2575-http-server-unsupported-version-400
+  - server-stateless:sep-2575-http-server-header-mismatch-400
+  - server-stateless:sep-2575-server-rejects-undeclared-capability
+  - server-stateless:sep-2575-missing-capability-http-400
+  - server-stateless:sep-2575-http-server-method-not-found-404-initialize
+  - server-stateless:sep-2575-http-server-method-not-found-404-ping
+  - server-stateless:sep-2575-http-server-method-not-found-404-logging-setlevel
+  - server-stateless:sep-2575-http-server-method-not-found-404-resources-subscribe
+  - server-stateless:sep-2575-http-server-method-not-found-404-resources-unsubscribe
+  - server-stateless:sep-2575-http-server-method-not-found-404
+  - server-stateless:sep-2575-http-server-no-independent-requests-on-stream
+  - server-stateless:sep-2575-server-no-log-without-loglevel
+  # SEP-2243 routing headers: a mismatch is answered 200/-32600 instead of HTTP 400
+  # with -32020 HeaderMismatch.
+  - http-header-validation:sep-2243-server-reject-error-code
+  - http-header-validation:sep-2243-server-reject-invalid-headers
+  # SEP-2243 x-mcp-header tool annotations are not implemented (pending scenario).
+  - http-custom-header-server-validation:sep-2243-server-no-xmcp-tool
+  - http-custom-header-server-validation:sep-2243-server-decode-base64
+  - http-custom-header-server-validation:sep-2243-server-validate-param-match
+  - http-custom-header-server-validation:sep-2243-server-reject-invalid-param-chars
+  - http-custom-header-server-validation:sep-2243-server-reject-param-mismatch
+  # json_schema_2020_12_tool fixture needs $defs / composition keywords that
+  # @McpParam cannot express (pending scenario).
+  - json-schema-2020-12:json-schema-2020-12-tool-found
+  # SEP-2322 multi-round-trip: the test_input_required_result_* fixture tools and
+  # prompt are not implemented yet, so these checks cannot reach the runtime's
+  # McpInputContext / InputRequiredResult support.
+  - input-required-result-basic-elicitation:sep-2322-elicitation-incomplete
+  - input-required-result-basic-list-roots:sep-2322-list-roots-incomplete
+  - input-required-result-basic-sampling:sep-2322-sampling-incomplete
+  - input-required-result-capability-check:sep-2322-respect-client-capabilities
+  - input-required-result-ignore-extra-params:sep-2322-ignore-unexpected-params
+  - input-required-result-missing-input-response:sep-2322-missing-response-rerequests
+  - input-required-result-multi-round:sep-2322-multi-round-r1
+  - input-required-result-multiple-input-requests:sep-2322-multiple-inputs-incomplete
+  - input-required-result-non-tool-request:sep-2322-non-tool-incomplete
+  - input-required-result-request-state:sep-2322-request-state-incomplete
+  - input-required-result-result-type:sep-2322-result-type-included
+  - input-required-result-tampered-state:sep-2322-reject-tampered-state
+  # Tasks extension (SEP-2663, extension scenarios): the task fixture tools
+  # (slow_compute, greet, failing_job, confirm_delete, ...) are not implemented,
+  # so the extension is not advertised; methods called without the negotiated
+  # extension answer -32003 where the draft now requires -32021.
+  - tasks-capability-negotiation:tasks-extension-advertised
+  - tasks-capability-negotiation:sep-2663-tasks-methods-non-declaring
+  - tasks-capability-negotiation:sep-2663-server-rejects-undeclared-client
+  - tasks-capability-negotiation:tasks-per-request-meta-opt-in
+  - tasks-dispatch-and-envelope:tasks-server-directed-creation-no-hint
+  - tasks-dispatch-and-envelope:sep-2663-legacy-task-param-ignored
+  - tasks-dispatch-and-envelope:tasks-immediate-result-shortcut
+  - tasks-dispatch-and-envelope:tasks-result-type-complete-on-non-task-responses
+  - tasks-dispatch-and-envelope:sep-2663-durable-create-strong-consistency
+  - tasks-lifecycle:tasks-sync-tool-call
+  - tasks-lifecycle:sep-2663-result-type-task-on-create
+  - tasks-lifecycle:sep-2663-tasks-get-status-working
+  - tasks-lifecycle:sep-2663-tasks-get-status-completed
+  - tasks-lifecycle:sep-2663-tool-error-uses-completed-status
+  - tasks-lifecycle:sep-2663-tasks-get-status-failed
+  - tasks-lifecycle:sep-2663-cancel-ack-empty-result
+  - tasks-lifecycle:tasks-cancel-terminal-idempotent-ack
+  - tasks-mrtr-composition:sep-2663-mrtr-synchronous-before-task-creation
+  - tasks-mrtr-input:sep-2663-tasks-get-status-input-required
+  - tasks-mrtr-input:tasks-mrtr-tasks-update-resumes
+  - tasks-mrtr-input:tasks-mrtr-partial-fulfillment
+  - tasks-request-headers:tasks-headers-tolerate-mcp-method-on-tools-call
+  - tasks-request-headers:sep-2663-routing-headers-accepted-on-tasks-get
+  - tasks-request-headers:tasks-headers-reject-mismatched-method
+  - tasks-request-headers:sep-2663-server-rejects-mismatched-mcp-name-on-tasks-get
+  - tasks-request-state-removal:tasks-request-state-removal-setup
+  - tasks-required-task-error:sep-2663-server-returns-missing-capability-when-required
+  - tasks-wire-fields:tasks-wire-field-renames
+  - tasks-wire-fields:tasks-no-early-ttl-expiry
+  - tasks-wire-fields:tasks-no-related-task-meta-on-inlined-result

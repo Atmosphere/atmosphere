@@ -1,0 +1,82 @@
+name: "CI: MCP Conformance"
+
+# Runs the official MCP conformance suite (@modelcontextprotocol/conformance,
+# server mode) against ConformanceMcpServer — an @Agent MCP endpoint in
+# modules/integration-tests whose tools/resources/prompts follow the suite's
+# reference "everything server" — on both dialects the runtime serves:
+#   - session/handshake: --spec-version 2025-11-25
+#   - stateless:         --requirements 2026-07-28
+# Each lane is gated by a checked-in expected-failures baseline
+# (modules/integration-tests/mcp-conformance/). The suite fails the job on any
+# failure missing from the baseline AND on any baseline entry that now passes,
+# so spec drift in modules/mcp (e.g. a wrong extension id or capability shape)
+# cannot land silently and closed gaps must be removed from the baseline.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ '**' ]
+    paths:
+      - 'modules/mcp/**'
+      - 'modules/agent/**'
+      - 'modules/cpr/**'
+      - 'modules/protocol-common/**'
+      - 'modules/integration-tests/pom.xml'
+      - 'modules/integration-tests/mcp-conformance/**'
+      - 'modules/integration-tests/src/main/java/org/atmosphere/integrationtests/EmbeddedAtmosphereServer.java'
+      - 'modules/integration-tests/src/main/java/org/atmosphere/integrationtests/mcpconformance/**'
+      - 'pom.xml'
+      - '.github/workflows/mcp-conformance.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'modules/mcp/**'
+      - 'modules/agent/**'
+      - 'modules/cpr/**'
+      - 'modules/protocol-common/**'
+      - 'modules/integration-tests/pom.xml'
+      - 'modules/integration-tests/mcp-conformance/**'
+      - 'modules/integration-tests/src/main/java/org/atmosphere/integrationtests/EmbeddedAtmosphereServer.java'
+      - 'modules/integration-tests/src/main/java/org/atmosphere/integrationtests/mcpconformance/**'
+      - 'pom.xml'
+      - '.github/workflows/mcp-conformance.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  mcp-conformance:
+    name: MCP Conformance
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v6
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        verify-signature: true
+        cache: 'maven'
+
+    - name: Set up Node
+      uses: actions/setup-node@v7
+      with:
+        node-version: '22'
+
+    # package (via install) materialises target/classes + target/e2e-lib, the
+    # plain-java classpath run.sh boots the fixture from — no Maven at test time.
+    - name: Build integration-tests and dependencies
+      run: ./mvnw -B install -pl modules/integration-tests -am -DskipTests -Dgpg.skip=true
+
+    - name: Run MCP conformance suite (both dialects)
+      run: modules/integration-tests/mcp-conformance/run.sh "$RUNNER_TEMP/mcp-conformance"
+
+    - name: Upload conformance results
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: mcp-conformance-results
+        path: ${{ runner.temp }}/mcp-conformance/

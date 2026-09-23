@@ -1,0 +1,32 @@
+# Known failures of ConformanceMcpServer against @modelcontextprotocol/conformance
+# (server mode, --spec-version 2025-11-25). The runner exits non-zero on any
+# failure NOT listed here AND on any entry listed here that now passes, so this
+# file can only shrink as gaps close. Every entry is a real server-side gap in
+# the Atmosphere MCP runtime, not a fixture shortcut, unless stated otherwise.
+server:
+  # Tool results are shaped into a single text content block; @McpTool has no
+  # way to return image, audio or embedded-resource content blocks.
+  - tools-call-image:tools-call-image
+  - tools-call-audio:tools-call-audio
+  - tools-call-embedded-resource:tools-call-embedded-resource
+  - tools-call-mixed-content:tools-call-mixed-content
+  # resources/read always answers text contents; there is no blob (binary) form.
+  - resources-read-binary:resources-read-binary
+  # No progress-notification API for a running tool.
+  - tools-call-with-progress:tools-call-with-progress
+  # No logging capability: logging/setLevel is METHOD_NOT_FOUND.
+  - logging-set-level:logging-set-level
+  - tools-call-with-logging:tools-call-with-logging
+  # Server-to-client requests (sampling/createMessage, elicitation/create) are
+  # queued for the standalone GET stream; the SDK client expects them on the
+  # tools/call POST response stream, so they never reach it.
+  - tools-call-sampling:tools-call-sampling
+  - tools-call-elicitation:tools-call-elicitation
+  # SEP-1034 / SEP-1330 elicitation fixtures are not implemented (they also
+  # depend on the POST-stream delivery above).
+  - elicitation-sep1034-defaults:elicitation-sep1034-general
+  - elicitation-sep1330-enums:elicitation-sep1330-general
+  # No Host/Origin validation against DNS rebinding on a localhost server.
+  - dns-rebinding-protection:localhost-host-rebinding-rejected
+  # A request carrying a terminated Mcp-Session-Id is answered 200, not 404.
+  - server-session-lifecycle:server-session-terminated-returns-404

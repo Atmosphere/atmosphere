@@ -254,6 +254,7 @@ test_step_patterns = [
     "test-cli\\.sh",                # cli-e2e.yml unit + runtime suites
     "e2e-test-[a-z-]*\\.sh",        # cli-e2e.yml overlay/runtime e2e
     "pytest",                       # sidecar suites
+    "mcp-conformance/run\\.sh",     # mcp-conformance.yml runs the official MCP suite
     # native-image-ci.yml's test is an inline boot probe, not a script: it
     # backgrounds the native binary, polls an actuator/health endpoint with
     # `curl -sf`, and `exit 1`s if the app never answers. For a native-image
