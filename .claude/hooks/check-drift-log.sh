@@ -79,6 +79,37 @@ fi
 # (it blocked even after the entry was correctly logged on the worktree branch).
 # Scan every worktree, using the path relative to each root so `git -C` resolves
 # it in that worktree's tree, not the main checkout's.
+#
+# Session-scoped: a change only counts if it happened after this session
+# started (the transcript's first timestamp). The previous "drift-log touched in
+# the last 3 commits of any worktree" test let a stale worktree whose branch
+# carried an old drift-log commit satisfy the hook forever, so it silently never
+# blocked in a checkout that kept such a worktree around.
+SESSION_START="$(python3 - "$TRANSCRIPT" <<'PY_START' 2>/dev/null || true
+import json, sys
+from datetime import datetime, timezone
+first = None
+with open(sys.argv[1], encoding="utf-8", errors="replace") as fh:
+    for line in fh:
+        try:
+            ts = json.loads(line).get("timestamp")
+        except (ValueError, AttributeError):
+            continue
+        if isinstance(ts, str) and ts:
+            first = ts
+            break
+if first:
+    dt = datetime.fromisoformat(first.replace("Z", "+00:00")).astimezone(timezone.utc)
+    print(int(dt.timestamp()))
+PY_START
+)"
+if [ -z "$SESSION_START" ]; then
+    # No timestamp in the transcript: fall back to a 12-hour window rather than
+    # to any-commit-ever, which is what made the old check unconditional.
+    SESSION_START="$(( $(date +%s) - 43200 ))"
+fi
+SESSION_START_ISO="$(python3 -c 'import sys,datetime;print(datetime.datetime.fromtimestamp(int(sys.argv[1]),datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))' "$SESSION_START")"
+
 log_changed=false
 LOG_REL=".harness/drift-log.md"
 
@@ -93,27 +124,25 @@ if [ "${#roots[@]}" -eq 0 ]; then
     roots=("$REPO_ROOT")
 fi
 
+modified_this_session() {
+    python3 -c 'import os,sys;sys.exit(0 if os.path.getmtime(sys.argv[1]) >= int(sys.argv[2]) else 1)' \
+        "$1/$LOG_REL" "$SESSION_START" 2>/dev/null
+}
+
 for root in "${roots[@]}"; do
     [ -d "$root" ] || continue
 
-    # (a) staged or unstaged changes in this worktree's tree
-    if ! git -C "$root" diff --quiet -- "$LOG_REL" 2>/dev/null; then
-        log_changed=true; break
-    fi
-    if ! git -C "$root" diff --cached --quiet -- "$LOG_REL" 2>/dev/null; then
-        log_changed=true; break
-    fi
-
-    # (b) untracked path (added but not yet staged)
+    # (a) staged/unstaged changes or (b) an untracked file in this worktree,
+    # written after the session started.
     porcelain="$(git -C "$root" status --porcelain -- "$LOG_REL" 2>/dev/null || true)"
-    if echo "$porcelain" | grep -q '^??'; then
+    if [ -n "$porcelain" ] && modified_this_session "$root"; then
         log_changed=true; break
     fi
 
-    # (c) modified in any of the last 3 commits on this worktree's branch.
+    # (c) committed on this worktree's branch since the session started.
     # Capture output first because `git log | grep -q` triggers SIGPIPE that
     # `set -o pipefail` reports as a non-zero pipeline exit (false negative).
-    recent_files="$(git -C "$root" log -3 --name-only --pretty=format: 2>/dev/null || true)"
+    recent_files="$(git -C "$root" log --since="$SESSION_START_ISO" --name-only --pretty=format: -- "$LOG_REL" 2>/dev/null || true)"
     if echo "$recent_files" | grep -q '^\.harness/drift-log\.md$'; then
         log_changed=true; break
     fi
