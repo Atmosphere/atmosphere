@@ -16,8 +16,6 @@
 package org.atmosphere.quarkus.runtime;
 
 import java.lang.annotation.Annotation;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -52,7 +50,8 @@ public class AtmosphereServletInstanceFactory implements InstanceFactory<Quarkus
         // framework.init() -> configureObjectFactory(). Setting it programmatically here
         // does not survive the init() lifecycle.
 
-        Map<Class<? extends Annotation>, Set<Class<?>>> resolvedMap = resolveAnnotationMap();
+        Map<Class<? extends Annotation>, Set<Class<?>>> resolvedMap =
+                AtmosphereBootstrap.resolveAnnotationMap(annotationClassNames);
         servlet.setAnnotationMap(resolvedMap);
 
         logger.debug("Created QuarkusAtmosphereServlet with {} annotation entries", resolvedMap.size());
@@ -67,33 +66,5 @@ public class AtmosphereServletInstanceFactory implements InstanceFactory<Quarkus
             public void release() {
             }
         };
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<Class<? extends Annotation>, Set<Class<?>>> resolveAnnotationMap() {
-        Map<Class<? extends Annotation>, Set<Class<?>>> resolved = new HashMap<>();
-        ClassLoader tccl = Thread.currentThread().getContextClassLoader();
-
-        for (Map.Entry<String, List<String>> entry : annotationClassNames.entrySet()) {
-            try {
-                Class<? extends Annotation> annotationClass =
-                        (Class<? extends Annotation>) tccl.loadClass(entry.getKey());
-                Set<Class<?>> classes = new HashSet<>();
-                for (String className : entry.getValue()) {
-                    try {
-                        classes.add(tccl.loadClass(className));
-                    } catch (ClassNotFoundException e) {
-                        logger.warn("Could not load annotated class: {}", className, e);
-                    }
-                }
-                if (!classes.isEmpty()) {
-                    resolved.put(annotationClass, classes);
-                }
-            } catch (ClassNotFoundException e) {
-                logger.warn("Could not load annotation class: {}", entry.getKey(), e);
-            }
-        }
-
-        return resolved;
     }
 }
