@@ -50,6 +50,17 @@ if [ ! -f "$LOG" ]; then
     exit 0
 fi
 
+# One block per session. stop_hook_active only guards the stop that follows a
+# block; the drift phrases stay in the transcript, so without a record the hook
+# re-blocked at the end of every later turn after a deliberate (b) skip.
+SESSION_ID="$(printf '%s' "$INPUT_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("session_id",""))' 2>/dev/null || echo "")"
+ACK_DIR="$(git -C "$REPO_ROOT" rev-parse --git-common-dir 2>/dev/null || echo "$REPO_ROOT/.git")/drift-log-hook-blocked"
+case "$ACK_DIR" in /*) ;; *) ACK_DIR="$REPO_ROOT/$ACK_DIR" ;; esac
+if [ -n "$SESSION_ID" ] && [ -f "$ACK_DIR/$SESSION_ID" ]; then
+    echo '{}'
+    exit 0
+fi
+
 # High-precision drift-correction patterns. Each is intentionally narrow to
 # minimize false positives. Add new patterns only with concrete real-session
 # evidence that they're not over-broad.
@@ -155,6 +166,9 @@ fi
 
 # Drift correction signal present, log unchanged. Block the stop and tell the
 # agent what to do.
+if [ -n "$SESSION_ID" ]; then
+    mkdir -p "$ACK_DIR" 2>/dev/null && : > "$ACK_DIR/$SESSION_ID" 2>/dev/null || true
+fi
 python3 <<'PY'
 import json
 print(json.dumps({
