@@ -3217,3 +3217,41 @@ the live blog's numerals against `cli/samples.json` and the `cmd_new` map belong
 in the release checklist. Follow-up worth doing: strengthen the parity test to
 pin chronological order via a `CheckpointListener` capturing save order, then the
 stronger blog sentence could return.
+
+---
+
+## 2026-09-24 — Vert.x-mode design: unverified claims stated as fact
+
+**Session:** reviewing an external Atmosphere/Quarkus assessment for a Gatling
+POC, then proposing a Vert.x container mode for the Quarkus extension. The
+project maintainer challenged the session with "you seem to hallucinate"; a
+re-check against the jars and source followed.
+
+**Claim 1:** reusing `BlockingIOCometSupport` on virtual threads is a drop-in
+suspend/resume for a Vert.x mode.
+**Truth:** its class Javadoc documents `org.atmosphere.container.blockingIO.defaultTimeout`
+and `org.atmosphere.container.blockingIO.jdk25SafeMode`, but neither key is read
+anywhere in `modules/` — the JDK 25 safe mode it describes has no
+implementation. CLAUDE.md also records that tests on this class are excluded on
+JDK 25+. The design rested on an unproven class.
+
+**Claim 2:** the "two security filter chains" concern about servlet mode on
+Quarkus was "overstated" because Undertow is mounted on the Vert.x router.
+**Truth:** the mounting part holds (`UndertowBuildStep` produces
+`RouteBuildItem`/`DefaultRouteBuildItem`), but `quarkus-undertow` also ships
+`ServletHttpSecurityPolicy`, a servlet-specific policy layered on the HTTP
+permission checks — the concern was partly valid.
+
+**Claim 3:** effort estimates ("a few weeks", "several weeks", "1–2 weeks",
+"~200 lines") and "optional Undertow shrinks native images".
+**Truth:** none was measured; the effort estimate moved three times as prior
+art (`Atmosphere/atmosphere-vertx`) was found, which had not been searched first.
+
+**Slip path:** reasoning from framework knowledge and class names instead of
+reading the class body and the dependency jars before presenting a design;
+prior art in the org was not searched before estimating.
+
+**Gate:** none automated. Working rule: before a design leans on an existing
+class, read its body (not only its Javadoc) and grep every config key its
+Javadoc advertises; before an effort estimate, search the org for prior art.
+The phantom `blockingIO.*` keys are a standing Javadoc drift to fix or register.
