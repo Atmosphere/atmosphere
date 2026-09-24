@@ -43,13 +43,13 @@ import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnResume
  * This {@link org.atmosphere.cpr.AsyncSupport} implementation uses a blocking approach, meaning
  * the request thread will be blocked until another Thread invoke the {@link Broadcaster#broadcast}.
  * <p/>
- * <b>JDK 25+ Compatibility:</b> On JDK 25 and later, this class automatically uses a default timeout
- * instead of infinite wait to avoid deadlocks caused by changes in AbstractQueuedSynchronizer.
- * This can be configured via:
- * <ul>
- *   <li>{@code org.atmosphere.container.blockingIO.defaultTimeout} - timeout in milliseconds (default: 300000 = 5 minutes)</li>
- *   <li>{@code org.atmosphere.container.blockingIO.jdk25SafeMode} - enable/disable safe mode (default: auto-detect JDK version)</li>
- * </ul>
+ * <b>Suspend timeout:</b> a suspended request waits for the suspend timeout the application
+ * set ({@link Action#timeout()}); a timeout of {@code -1} waits until the resource is resumed
+ * or cancelled. There is no container-level default timeout.
+ * <p/>
+ * <b>Virtual threads:</b> the wait parks the calling thread on a {@link CountDownLatch}, which
+ * unmounts a virtual thread rather than pinning its carrier, so one virtual thread per suspended
+ * connection is viable ({@code BlockingIOCometSupportVirtualThreadTest}).
  *
  * @author Jeanfrancois Arcand
  */

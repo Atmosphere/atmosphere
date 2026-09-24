@@ -244,9 +244,6 @@ Before committing, verify these for every changed file:
 
 ### Test Notes
 - Surefire uses `--add-opens` for concurrent locks (configured in root pom.xml)
-- Some tests excluded on JDK 25+ (BlockingIOCometSupport incompatibility)
-- `JSR356WebSocketTest` excluded (Mockito cannot mock sealed interfaces on JDK 21+)
-- `BroadcasterCacheTest` excluded (BlockingIOCometSupport incompatibility)
 - JUnit 5 is the test framework for all modules
 - Spring Boot starter uses JUnit 5 via `spring-boot-starter-test`
 - Quarkus extension uses JUnit 5 via `quarkus-junit5`
