@@ -106,19 +106,25 @@ jobs:
     # CPU benchmarks (no executors, threads, or latches) whose inputs
     # are built from fixed values in @Setup, and they cover hot paths
     # worth protecting: per-turn interceptor dispatch and governance
-    # admission. The 200%
-    # alert-threshold is sized for cross-runner hardware variance:
-    # quiet on runner-to-runner drift, red when a change makes a hot
-    # path 2x slower (an accidental allocation, O(n^2) loop, or a new
-    # lock shifts these ns/us-scale scores far past that). Comparison
-    # data lives on the benchmark-data branch (dev/bench-gate),
-    # refreshed only by main pushes.
+    # admission.
+    #
+    # The gate is a same-runner A/B: the subset runs for the base commit
+    # (the previous main for a push, the merge-base for a PR) and for the
+    # candidate, in this job, on this machine, and
+    # scripts/benchmarks/ab-gate.py fails only when a benchmark is more
+    # than 2x slower AND the gap exceeds both runs' error bars. The old
+    # gate compared against scores stored from earlier runners; on
+    # 2026-09-24 every gated benchmark read ~2x slower on one runner
+    # while a local A/B of the same commits showed no change. The stored
+    # history (dev/bench-gate) is kept for charts, advisory only.
     name: JMH Regression Gate (stable subset)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 75
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v6
@@ -140,19 +146,54 @@ jobs:
             -f 1 -wi 3 -i 5 \
             -rf json -rff target/jmh-gate-results.json
 
-      - name: Gate on hot-path regression
+      - name: Resolve the base commit
+        id: base
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "pull_request" ]; then
+            BASE=$(git merge-base "$PR_BASE" HEAD)
+          elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] \
+               && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            BASE="$BEFORE"
+          else
+            BASE=$(git rev-parse HEAD~1)
+          fi
+          echo "sha=$BASE" >> "$GITHUB_OUTPUT"
+          echo "A/B base commit: $BASE"
+
+      - name: Build and run the same subset at the base commit
+        env:
+          BASE: ${{ steps.base.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git worktree add --detach "$RUNNER_TEMP/bench-base" "$BASE"
+          cd "$RUNNER_TEMP/bench-base"
+          ./mvnw -Pperf -pl modules/benchmarks -am package -DskipTests -q
+          java -jar modules/benchmarks/target/benchmarks.jar \
+            'AiInterceptorChainBenchmark|PolicyEvalBenchmark' \
+            -f 1 -wi 3 -i 5 \
+            -rf json -rff "$GITHUB_WORKSPACE/target/jmh-gate-base.json"
+
+      - name: Gate on hot-path regression (same-runner A/B)
+        run: python3 scripts/benchmarks/ab-gate.py target/jmh-gate-base.json target/jmh-gate-results.json --threshold 2.0
+
+      - name: Record gate history (advisory chart)
         uses: benchmark-action/github-action-benchmark@v1
-        if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+        if: github.ref == 'refs/heads/main'
         with:
           name: 'Atmosphere JMH Stable Gate'
           tool: 'jmh'
           output-file-path: target/jmh-gate-results.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
           gh-pages-branch: benchmark-data
-          auto-push: ${{ github.ref == 'refs/heads/main' }}
+          auto-push: true
           alert-threshold: '200%'
-          comment-on-alert: true
-          fail-on-alert: true
+          comment-on-alert: false
+          fail-on-alert: false
           benchmark-data-dir-path: 'dev/bench-gate'
 
       - name: Upload gate results artifact
@@ -160,7 +201,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: jmh-gate-results
-          path: target/jmh-gate-results.json
+          path: |
+            target/jmh-gate-results.json
+            target/jmh-gate-base.json
 
   vt-pinning:
     name: Virtual Thread Pinning Check
