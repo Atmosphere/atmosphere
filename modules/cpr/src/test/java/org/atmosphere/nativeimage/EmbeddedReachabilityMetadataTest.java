@@ -84,6 +84,26 @@ class EmbeddedReachabilityMetadataTest {
     }
 
     @Test
+    void optionalPoolTypesAreGatedOnCommonsPool2BeingReached() throws Exception {
+        // The file is generated where commons-pool2 (an optional dependency) is
+        // present, so without a condition the pool providers were registered
+        // for every application image; Mandrel 25 with --link-at-build-time
+        // then initialized UnboundedApachePoolableProvider against a missing
+        // PooledObjectFactory and aborted the Quarkus native build.
+        var content = Files.readString(METADATA, StandardCharsets.UTF_8);
+        for (var type : org.atmosphere.cpr.AtmosphereReflectiveTypes.poolTypes()) {
+            var entry = "\"condition\": { \"typeReached\": "
+                    + "\"org.apache.commons.pool2.PooledObjectFactory\" },\n"
+                    + "      \"type\": \"" + type + "\"";
+            assertTrue(content.contains(entry),
+                    type + " must be registered only when commons-pool2 is reached");
+        }
+        assertTrue(!content.contains("\"typeReached\": \"org.apache.commons.pool2."
+                        + "PooledObjectFactory\" },\n      \"type\": \"org.atmosphere.cpr."),
+                "core types must stay unconditional");
+    }
+
+    @Test
     void theMetadataCoversTheTypesThatBrokeNativeImage() throws Exception {
         var content = Files.readString(METADATA, StandardCharsets.UTF_8);
 

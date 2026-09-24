@@ -91,6 +91,24 @@ public interface NativeImageMetadataProvider {
     }
 
     /**
+     * A type whose reachability gates every reflective type this provider
+     * declares, emitted as GraalVM's {@code "condition": {"typeReached": ...}}.
+     *
+     * <p>{@link #isAvailable()} is evaluated where the metadata is collected —
+     * for the file shipped inside {@code atmosphere-runtime}, that is the
+     * framework's own build, where optional dependencies are present. A
+     * provider covering an optional dependency therefore also names a type from
+     * that dependency here, so an application image without it skips the
+     * registration instead of asking GraalVM to link a type whose supertype is
+     * missing.</p>
+     *
+     * @return a fully-qualified type name, or {@code null} for unconditional
+     */
+    default String typeReachedCondition() {
+        return null;
+    }
+
+    /**
      * Ordering hint; higher runs first. Only affects the order metadata is
      * emitted, never whether it is emitted — registration is a union, so no
      * provider can suppress another's types.

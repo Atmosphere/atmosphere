@@ -458,12 +458,14 @@
       "allDeclaredFields": true
     },
     {
+      "condition": { "typeReached": "org.apache.commons.pool2.PooledObjectFactory" },
       "type": "org.atmosphere.pool.UnboundedApachePoolableProvider",
       "allDeclaredConstructors": true,
       "allDeclaredMethods": true,
       "allDeclaredFields": true
     },
     {
+      "condition": { "typeReached": "org.apache.commons.pool2.PooledObjectFactory" },
       "type": "org.atmosphere.pool.BoundedApachePoolableProvider",
       "allDeclaredConstructors": true,
       "allDeclaredMethods": true,

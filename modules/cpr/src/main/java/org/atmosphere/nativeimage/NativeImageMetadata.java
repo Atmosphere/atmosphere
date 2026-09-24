@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.Set;
@@ -48,13 +49,16 @@ public final class NativeImageMetadata {
     private final List<String> reflectiveTypes;
     private final List<String> resourcePatterns;
     private final List<String> providerNames;
+    private final Map<String, String> typeConditions;
 
     private NativeImageMetadata(List<String> reflectiveTypes,
                                 List<String> resourcePatterns,
-                                List<String> providerNames) {
+                                List<String> providerNames,
+                                Map<String, String> typeConditions) {
         this.reflectiveTypes = List.copyOf(reflectiveTypes);
         this.resourcePatterns = List.copyOf(resourcePatterns);
         this.providerNames = List.copyOf(providerNames);
+        this.typeConditions = Map.copyOf(typeConditions);
     }
 
     /** Collect using the class loader that loaded this class. */
@@ -78,6 +82,8 @@ public final class NativeImageMetadata {
         var types = new LinkedHashSet<String>();
         var resources = new LinkedHashSet<String>();
         var names = new ArrayList<String>();
+        var conditions = new java.util.HashMap<String, String>();
+        var unconditional = new java.util.HashSet<String>();
 
         for (var provider : load(classLoader)) {
             try {
@@ -86,7 +92,17 @@ public final class NativeImageMetadata {
                             provider.name());
                     continue;
                 }
-                addAll(types, provider.reflectiveTypes(), provider, "reflectiveTypes");
+                var declared = new LinkedHashSet<String>();
+                addAll(declared, provider.reflectiveTypes(), provider, "reflectiveTypes");
+                types.addAll(declared);
+                var condition = provider.typeReachedCondition();
+                for (var type : declared) {
+                    if (condition == null || condition.isBlank()) {
+                        unconditional.add(type);
+                    } else {
+                        conditions.putIfAbsent(type, condition.trim());
+                    }
+                }
                 addAll(resources, provider.resourcePatterns(), provider, "resourcePatterns");
                 names.add(provider.name());
             } catch (RuntimeException | LinkageError e) {
@@ -99,7 +115,12 @@ public final class NativeImageMetadata {
         logger.debug("Native metadata: {} type(s), {} resource pattern(s) from provider(s) {}",
                 types.size(), resources.size(), names);
 
-        return new NativeImageMetadata(new ArrayList<>(types), new ArrayList<>(resources), names);
+        // A type any provider registers unconditionally stays unconditional:
+        // registration is a union, so a condition can only narrow a type that
+        // nothing else needs.
+        conditions.keySet().removeAll(unconditional);
+        return new NativeImageMetadata(new ArrayList<>(types), new ArrayList<>(resources), names,
+                conditions);
     }
 
     private static void addAll(Set<String> sink, java.util.Collection<String> values,
@@ -149,5 +170,16 @@ public final class NativeImageMetadata {
     /** Names of the providers that contributed, for logging and generated-file provenance. */
     public List<String> providerNames() {
         return providerNames;
+    }
+
+    /**
+     * The {@code typeReached} condition for a reflective type, when its provider
+     * declared one (see {@link NativeImageMetadataProvider#typeReachedCondition()}).
+     *
+     * @param type a name from {@link #reflectiveTypes()}
+     * @return the gating type name, or {@code null} when unconditional
+     */
+    public String typeReachedCondition(String type) {
+        return typeConditions.get(type);
     }
 }

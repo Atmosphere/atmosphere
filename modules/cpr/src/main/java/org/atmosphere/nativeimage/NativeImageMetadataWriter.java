@@ -58,7 +58,7 @@ public final class NativeImageMetadataWriter {
         out.append("  \"comment\": \"").append(escape(comment)).append("\",\n");
 
         out.append("  \"reflection\": [\n");
-        appendReflection(out, metadata.reflectiveTypes());
+        appendReflection(out, metadata);
         out.append("  ],\n");
 
         out.append("  \"resources\": [\n");
@@ -69,9 +69,15 @@ public final class NativeImageMetadataWriter {
         return out.toString();
     }
 
-    private static void appendReflection(StringBuilder out, List<String> types) {
+    private static void appendReflection(StringBuilder out, NativeImageMetadata metadata) {
+        List<String> types = metadata.reflectiveTypes();
         for (int i = 0; i < types.size(); i++) {
             out.append("    {\n");
+            var condition = metadata.typeReachedCondition(types.get(i));
+            if (condition != null) {
+                out.append("      \"condition\": { \"typeReached\": \"")
+                        .append(escape(condition)).append("\" },\n");
+            }
             out.append("      \"type\": \"").append(escape(types.get(i))).append("\",\n");
             out.append("      \"allDeclaredConstructors\": true,\n");
             out.append("      \"allDeclaredMethods\": true,\n");

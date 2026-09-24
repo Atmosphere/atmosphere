@@ -46,6 +46,17 @@ public class PoolNativeImageMetadataProvider implements NativeImageMetadataProvi
         }
     }
 
+    /**
+     * {@link #isAvailable()} alone is not enough for the metadata shipped in
+     * the {@code atmosphere-runtime} jar: it is generated where commons-pool2 is
+     * on the classpath, so the condition keeps an application image without
+     * commons-pool2 from initializing these types against a missing supertype.
+     */
+    @Override
+    public String typeReachedCondition() {
+        return "org.apache.commons.pool2.PooledObjectFactory";
+    }
+
     @Override
     public Collection<String> reflectiveTypes() {
         return AtmosphereReflectiveTypes.poolTypes();
