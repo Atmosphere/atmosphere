@@ -26,6 +26,8 @@ import io.quarkus.runtime.ShutdownContext;
 import io.quarkus.runtime.annotations.Recorder;
 import io.undertow.servlet.api.InstanceFactory;
 import io.undertow.websockets.ServerWebSocketContainer;
+import io.vertx.core.Handler;
+import io.vertx.ext.web.RoutingContext;
 import org.atmosphere.container.JSR356Endpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,6 +72,26 @@ public class AtmosphereRecorder {
             } catch (jakarta.servlet.ServletException e) {
                 throw new RuntimeException("Failed to initialize Atmosphere framework at runtime", e);
             }
+        }
+    }
+
+    /**
+     * Starts the framework for the Vert.x container mode and returns the route
+     * handler serving the Atmosphere mapping. The framework and its executor are
+     * released on shutdown.
+     */
+    public Handler<RoutingContext> createVertxHandler(Map<String, String> initParams,
+                                                      Map<String, List<String>> annotationClassNames,
+                                                      String mapping, long maxBodyBytes,
+                                                      long drainTimeoutMs,
+                                                      ShutdownContext shutdownContext) {
+        try {
+            var container = VertxAtmosphereContainer.start(initParams, annotationClassNames,
+                    mapping, maxBodyBytes, drainTimeoutMs);
+            shutdownContext.addShutdownTask(container::stop);
+            return container.handler();
+        } catch (jakarta.servlet.ServletException e) {
+            throw new RuntimeException("Failed to initialize Atmosphere on the Vert.x router", e);
         }
     }
 

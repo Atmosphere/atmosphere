@@ -60,7 +60,7 @@ public class VoidServletConfig implements ServletConfig {
 
     @Override
     public Enumeration<String> getInitParameterNames() {
-        return Collections.enumeration(initParams.values());
+        return Collections.enumeration(initParams.keySet());
     }
 }
 

@@ -22,6 +22,7 @@ import java.util.Optional;
 
 import io.quarkus.runtime.annotations.ConfigPhase;
 import io.quarkus.runtime.annotations.ConfigRoot;
+import io.quarkus.runtime.configuration.MemorySize;
 import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 
@@ -119,6 +120,56 @@ public interface AtmosphereConfig {
      */
     @WithDefault("false")
     boolean cacheEnabled();
+
+    /**
+     * Container the Atmosphere endpoint runs on. {@code servlet} (the default)
+     * registers the Atmosphere servlet on Undertow with Servlet 3.0 async and
+     * JSR-356 WebSocket. {@code vertx} serves the {@link #servletPath()} mapping
+     * directly from a Vert.x route with no servlet container in the request path:
+     * each request runs on a virtual thread (a suspended connection parks it) and
+     * WebSockets are upgraded on the router. HTTP permissions and
+     * {@code SecurityIdentity} apply the same way in both modes.
+     *
+     * @return the container mode
+     */
+    @WithDefault("servlet")
+    Container container();
+
+    /** Container modes for {@link #container()}. */
+    enum Container {
+        /** Undertow servlet, Servlet 3.0 async, JSR-356 WebSocket. */
+        SERVLET,
+        /** Vert.x route, virtual-thread blocking suspend, Vert.x WebSocket. */
+        VERTX
+    }
+
+    /**
+     * Vert.x container settings, used when {@link #container()} is {@code vertx}.
+     *
+     * @return the Vert.x sub-configuration block
+     */
+    Vertx vertx();
+
+    /** Vert.x container settings. */
+    interface Vertx {
+
+        /**
+         * Largest request body accepted; a larger one is answered {@code 413}.
+         *
+         * @return the body size limit
+         */
+        @WithDefault("10M")
+        MemorySize maxBodySize();
+
+        /**
+         * How long a writer waits for a full HTTP or WebSocket write queue to
+         * drain before the slow consumer's connection is closed.
+         *
+         * @return the drain timeout
+         */
+        @WithDefault("30s")
+        Duration drainTimeout();
+    }
 
     /**
      * WebTransport over HTTP/3 configuration.

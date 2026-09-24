@@ -322,6 +322,7 @@ This frees up runners for the new push. Without this, stale queued runs accumula
 
 ## Quarkus Extension Notes
 - Target: Quarkus 3.21+ (tested on 3.39.5)
+- `quarkus.atmosphere.container=vertx` serves the Atmosphere mapping from a Vert.x route (BlockingIOCometSupport on virtual threads, Vert.x WebSocket); default `servlet` — see `modules/quarkus-extension/README.md`
 - Config prefix: `quarkus.atmosphere.*`
 - `loadOnStartup` must be > 0 (Quarkus skips if <=0)
 - Use `BUILD_AND_RUN_TIME_FIXED` for config used in `@BuildStep`

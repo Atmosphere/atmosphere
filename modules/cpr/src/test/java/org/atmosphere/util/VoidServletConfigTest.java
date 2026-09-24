@@ -57,6 +57,17 @@ class VoidServletConfigTest {
     }
 
     @Test
+    void initParameterNamesAreTheKeysNotTheValues() {
+        // Regression: getInitParameterNames() enumerated the values, so a caller
+        // iterating names (the wrapping ServletConfig in AtmosphereFramework) looked
+        // up each value as a parameter name and lost every param.
+        var cfg = new VoidServletConfig(Map.of("org.atmosphere.cpr.packages", "com.example"));
+        var names = java.util.Collections.list(cfg.getInitParameterNames());
+        assertEquals(java.util.List.of("org.atmosphere.cpr.packages"), names);
+        assertEquals("com.example", cfg.getInitParameter(names.get(0)));
+    }
+
+    @Test
     void customInitParamsMissing() {
         var cfg = new VoidServletConfig(Map.of("key", "value"));
         assertNull(cfg.getInitParameter("other"));

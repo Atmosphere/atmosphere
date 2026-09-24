@@ -38,6 +38,15 @@
             <artifactId>quarkus-websockets-client</artifactId>
         </dependency>
 
+        <!-- Annotation-only: the Vert.x API classes the container=vertx mode compiles
+             against carry io.vertx.codegen annotations; without the jar javac
+             -Xlint:classfile warns (and -Werror fails). Not needed at runtime. -->
+        <dependency>
+            <groupId>io.vertx</groupId>
+            <artifactId>vertx-codegen</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
 
         <dependency>
             <groupId>jakarta.servlet</groupId>

@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -41,6 +42,7 @@ import io.quarkus.deployment.builditem.nativeimage.RuntimeInitializedClassBuildI
 import io.quarkus.smallrye.health.deployment.spi.HealthBuildItem;
 import io.quarkus.undertow.deployment.IgnoredServletContainerInitializerBuildItem;
 import io.quarkus.undertow.deployment.ServletBuildItem;
+import io.quarkus.vertx.http.deployment.RouteBuildItem;
 import io.quarkus.vertx.http.deployment.NonApplicationRootPathBuildItem;
 import io.quarkus.websockets.client.deployment.ServerWebSocketContainerBuildItem;
 import org.atmosphere.cpr.AtmosphereAnnotations;
@@ -217,7 +219,10 @@ class AtmosphereProcessor {
      */
     @BuildStep
     @Record(ExecutionTime.RUNTIME_INIT)
-    void deferredFrameworkInit(AtmosphereRecorder recorder) {
+    void deferredFrameworkInit(AtmosphereRecorder recorder, AtmosphereConfig config) {
+        if (config.container() != AtmosphereConfig.Container.SERVLET) {
+            return;
+        }
         recorder.performDeferredInit();
     }
 
@@ -413,7 +418,13 @@ class AtmosphereProcessor {
     @BuildStep
     @Record(ExecutionTime.STATIC_INIT)
     void registerWebSocketEndpoints(AtmosphereRecorder recorder,
+                                    AtmosphereConfig config,
                                     ServerWebSocketContainerBuildItem container) {
+        // Vert.x mode upgrades WebSockets on its own route; JSR-356 endpoints
+        // would shadow it on the same paths.
+        if (config.container() != AtmosphereConfig.Container.SERVLET) {
+            return;
+        }
         recorder.registerWebSocketEndpoints(container.getContainer());
     }
 
@@ -429,11 +440,20 @@ class AtmosphereProcessor {
         recorder.registerShutdownHook(shutdownContext);
     }
 
+    /**
+     * Registers the Atmosphere servlet on Undertow ({@code quarkus.atmosphere.container=servlet},
+     * the default). The Vert.x container mode registers a route instead
+     * ({@link #registerVertxRoute}).
+     */
     @BuildStep
     @Record(ExecutionTime.STATIC_INIT)
-    ServletBuildItem registerServlet(AtmosphereRecorder recorder,
-                                     AtmosphereConfig config,
-                                     AtmosphereAnnotationsBuildItem annotations) {
+    void registerServlet(AtmosphereRecorder recorder,
+                         AtmosphereConfig config,
+                         AtmosphereAnnotationsBuildItem annotations,
+                         BuildProducer<ServletBuildItem> servlets) {
+        if (config.container() != AtmosphereConfig.Container.SERVLET) {
+            return;
+        }
         ServletBuildItem.Builder builder = ServletBuildItem.builder(
                         "AtmosphereServlet", QuarkusAtmosphereServlet.class.getName())
                 .addMapping(config.servletPath())
@@ -441,35 +461,74 @@ class AtmosphereProcessor {
                 .setAsyncSupported(true)
                 .setInstanceFactory(
                         recorder.createInstanceFactory(annotations.getAnnotationClassNames()));
+        atmosphereInitParams(config, "org.atmosphere.quarkus.runtime.QuarkusJSR356AsyncSupport")
+                .forEach(builder::addInitParam);
+        servlets.produce(builder.build());
+    }
 
-        builder.addInitParam("org.atmosphere.cpr.AtmosphereFramework.DISABLE_ATMOSPHERE_INITIALIZER", "true");
+    /**
+     * Serves the Atmosphere mapping from a Vert.x route when
+     * {@code quarkus.atmosphere.container=vertx}: no servlet in the request path,
+     * a virtual thread per request, WebSockets upgraded on the router. The
+     * framework gets the same init-params as in servlet mode.
+     */
+    @BuildStep
+    @Record(ExecutionTime.RUNTIME_INIT)
+    void registerVertxRoute(AtmosphereRecorder recorder,
+                            AtmosphereConfig config,
+                            AtmosphereAnnotationsBuildItem annotations,
+                            ShutdownContextBuildItem shutdownContext,
+                            BuildProducer<RouteBuildItem> routes) {
+        if (config.container() != AtmosphereConfig.Container.VERTX) {
+            return;
+        }
+        if (config.sessionSupport()) {
+            logger.warn("quarkus.atmosphere.session-support is ignored with container=vertx: "
+                    + "there is no servlet HttpSession on the Vert.x route");
+        }
+        var params = atmosphereInitParams(config, "org.atmosphere.quarkus.runtime.vertx.VertxBlockingAsyncSupport");
+        params.remove("org.atmosphere.cpr.sessionSupport");
+        var handler = recorder.createVertxHandler(params,
+                annotations.getAnnotationClassNames(), config.servletPath(),
+                config.vertx().maxBodySize().asLongValue(), config.vertx().drainTimeout().toMillis(),
+                shutdownContext);
+        routes.produce(RouteBuildItem.builder().route(config.servletPath()).handler(handler).build());
+    }
+
+    /**
+     * The framework init-params both container modes share, so a servlet-mode and
+     * a Vert.x-mode application are configured identically (Mode Parity).
+     */
+    static Map<String, String> atmosphereInitParams(AtmosphereConfig config, String asyncSupportClass) {
+        var params = new LinkedHashMap<String, String>();
+        params.put("org.atmosphere.cpr.AtmosphereFramework.DISABLE_ATMOSPHERE_INITIALIZER", "true");
 
         // Tell Atmosphere to use our Quarkus-aware object factory. Setting this via init param
         // ensures the factory is created during framework.init() -> configureObjectFactory(),
         // which is the correct lifecycle point. Setting it programmatically before init() does
         // not survive because lookupDefaultObjectFactoryType() can overwrite it.
-        builder.addInitParam("org.atmosphere.cpr.objectFactory",
+        params.put("org.atmosphere.cpr.objectFactory",
                 "org.atmosphere.quarkus.runtime.QuarkusAtmosphereObjectFactory");
 
-        // Use our Quarkus-specific async support instead of JSR356AsyncSupport.
+        // Servlet mode: our Quarkus-specific async support instead of JSR356AsyncSupport.
         // JSR356AsyncSupport's constructor calls container.addEndpoint() which fails in
         // Quarkus with "Cannot add endpoint after deployment" (UT003017). Our replacement
         // extends Servlet30CometSupport + supportWebSocket()=true, while the actual
         // endpoints are registered via registerWebSocketEndpoints() at STATIC_INIT.
-        builder.addInitParam("org.atmosphere.cpr.asyncSupport",
-                "org.atmosphere.quarkus.runtime.QuarkusJSR356AsyncSupport");
+        // Vert.x mode: VertxBlockingAsyncSupport (virtual-thread blocking suspend).
+        params.put("org.atmosphere.cpr.asyncSupport", asyncSupportClass);
 
         // Use "all" to trigger scan of the pre-populated Jandex annotation map.
         // Atmosphere's scan(String) checks getClass().getClassLoader().getResource() which
         // fails with Quarkus's classloader for real package names. "all" bypasses that check.
-        builder.addInitParam("org.atmosphere.cpr.packages", "all");
+        params.put("org.atmosphere.cpr.packages", "all");
 
         if (config.sessionSupport()) {
-            builder.addInitParam("org.atmosphere.cpr.sessionSupport", "true");
+            params.put("org.atmosphere.cpr.sessionSupport", "true");
         }
 
         config.broadcasterClass().ifPresent(b ->
-                builder.addInitParam("org.atmosphere.cpr.broadcasterClass", b));
+                params.put("org.atmosphere.cpr.broadcasterClass", b));
 
         // Explicit broadcaster-cache-class config wins. Otherwise, when
         // quarkus.atmosphere.cache-enabled=true (Spring Boot parity for
@@ -477,23 +536,23 @@ class AtmosphereProcessor {
         // and install MessageAckInterceptor so missed-message recovery
         // works out of the box.
         if (config.broadcasterCacheClass().isPresent()) {
-            builder.addInitParam("org.atmosphere.cpr.broadcasterCacheClass",
+            params.put("org.atmosphere.cpr.broadcasterCacheClass",
                     config.broadcasterCacheClass().get());
         } else if (config.cacheEnabled()) {
-            builder.addInitParam("org.atmosphere.cpr.broadcasterCacheClass",
+            params.put("org.atmosphere.cpr.broadcasterCacheClass",
                     "org.atmosphere.cache.BoundedMemoryCache");
             // AtmosphereInterceptor init params accept a comma-separated list of
             // FQNs that AtmosphereFramework.configureAtmosphereInterceptor() expands
             // into the running interceptor chain — same hook Spring Boot's
             // @Bean MessageAckInterceptor uses, just plumbed through the servlet
             // init param instead of an autoconfigured bean.
-            builder.addInitParam("org.atmosphere.cpr.AtmosphereInterceptor",
+            params.put("org.atmosphere.cpr.AtmosphereInterceptor",
                     "org.atmosphere.interceptor.MessageAckInterceptor");
             logger.info("Atmosphere cache enabled — installing BoundedMemoryCache + MessageAckInterceptor");
         }
 
         config.heartbeatInterval().ifPresent(h ->
-                builder.addInitParam("org.atmosphere.cpr.AtmosphereResource.heartbeatFrequencyInSeconds",
+                params.put("org.atmosphere.cpr.AtmosphereResource.heartbeatFrequencyInSeconds",
                         String.valueOf(h.toSeconds())));
 
         // RAG injection-safety screen (OWASP Agentic A04): AiEndpointProcessor
@@ -503,10 +562,10 @@ class AtmosphereProcessor {
         // literals mirroring RagSafetyConfig in atmosphere-ai so this build-time
         // deployment module needs no compile dep on the AI runtime module.
         var ragSafety = config.ai().rag().safety();
-        builder.addInitParam("org.atmosphere.ai.rag.safety.enabled", String.valueOf(ragSafety.enabled()));
-        builder.addInitParam("org.atmosphere.ai.rag.safety.tier", ragSafety.tier());
-        builder.addInitParam("org.atmosphere.ai.rag.safety.on-breach", ragSafety.onBreach());
-        builder.addInitParam("org.atmosphere.ai.rag.safety.fail-open", String.valueOf(ragSafety.failOpen()));
+        params.put("org.atmosphere.ai.rag.safety.enabled", String.valueOf(ragSafety.enabled()));
+        params.put("org.atmosphere.ai.rag.safety.tier", ragSafety.tier());
+        params.put("org.atmosphere.ai.rag.safety.on-breach", ragSafety.onBreach());
+        params.put("org.atmosphere.ai.rag.safety.fail-open", String.valueOf(ragSafety.failOpen()));
 
         // Long-term-memory injection-safety screen (OWASP Agentic A03):
         // AiEndpointProcessor screens every fact extracted into a LongTermMemory
@@ -514,10 +573,10 @@ class AtmosphereProcessor {
         // with quarkus.atmosphere.ai.memory.safety.enabled=false. Keys are
         // literals mirroring MemorySafetyConfig in atmosphere-ai.
         var memorySafety = config.ai().memory().safety();
-        builder.addInitParam("org.atmosphere.ai.memory.safety.enabled", String.valueOf(memorySafety.enabled()));
-        builder.addInitParam("org.atmosphere.ai.memory.safety.tier", memorySafety.tier());
-        builder.addInitParam("org.atmosphere.ai.memory.safety.on-breach", memorySafety.onBreach());
-        builder.addInitParam("org.atmosphere.ai.memory.safety.fail-open", String.valueOf(memorySafety.failOpen()));
+        params.put("org.atmosphere.ai.memory.safety.enabled", String.valueOf(memorySafety.enabled()));
+        params.put("org.atmosphere.ai.memory.safety.tier", memorySafety.tier());
+        params.put("org.atmosphere.ai.memory.safety.on-breach", memorySafety.onBreach());
+        params.put("org.atmosphere.ai.memory.safety.fail-open", String.valueOf(memorySafety.failOpen()));
 
         // Durable governance feedback (opt-in, off by default): when enabled,
         // AiEndpointProcessor persists deny/prefer decisions to the resolved
@@ -527,13 +586,13 @@ class AtmosphereProcessor {
         // mirroring GovernanceMemoryConfig in atmosphere-ai so this build-time module
         // needs no compile dep on the AI runtime module.
         var governanceMemory = config.ai().governance().memory();
-        builder.addInitParam("org.atmosphere.ai.governance.memory.enabled",
+        params.put("org.atmosphere.ai.governance.memory.enabled",
                 String.valueOf(governanceMemory.enabled()));
-        builder.addInitParam("org.atmosphere.ai.governance.memory.ttl-seconds",
+        params.put("org.atmosphere.ai.governance.memory.ttl-seconds",
                 String.valueOf(governanceMemory.ttlSeconds()));
-        builder.addInitParam("org.atmosphere.ai.governance.memory.confidence",
+        params.put("org.atmosphere.ai.governance.memory.confidence",
                 String.valueOf(governanceMemory.confidence()));
-        builder.addInitParam("org.atmosphere.ai.governance.memory.min-confidence",
+        params.put("org.atmosphere.ai.governance.memory.min-confidence",
                 String.valueOf(governanceMemory.minConfidence()));
 
         // Agent-harness preset: the app-wide switch governing Atmosphere's
@@ -548,19 +607,19 @@ class AtmosphereProcessor {
         // independent of the harness, so they bridge whenever set.
         var harness = config.ai().harness();
         harness.enabled().ifPresent(enabled ->
-                builder.addInitParam("org.atmosphere.ai.harness.enabled", String.valueOf(enabled)));
+                params.put("org.atmosphere.ai.harness.enabled", String.valueOf(enabled)));
         harness.excludePaths().ifPresent(paths ->
-                builder.addInitParam("org.atmosphere.ai.harness.exclude-paths", String.join(",", paths)));
+                params.put("org.atmosphere.ai.harness.exclude-paths", String.join(",", paths)));
         harness.compaction().ifPresent(strategy ->
-                builder.addInitParam("org.atmosphere.ai.compaction", strategy));
+                params.put("org.atmosphere.ai.compaction", strategy));
         harness.promptCacheDefault().ifPresent(policy ->
-                builder.addInitParam("org.atmosphere.ai.prompt-cache.default", policy));
+                params.put("org.atmosphere.ai.prompt-cache.default", policy));
 
         for (Map.Entry<String, String> entry : config.initParams().entrySet()) {
-            builder.addInitParam(entry.getKey(), entry.getValue());
+            params.put(entry.getKey(), entry.getValue());
         }
 
-        return builder.build();
+        return params;
     }
 
     /**
