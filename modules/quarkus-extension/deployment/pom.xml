@@ -171,6 +171,14 @@
             <artifactId>quarkus-micrometer-deployment</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Test-scope: embedded-users HTTP security for the Vert.x container
+             tests, forced per test via setForcedDependencies(...) so the other
+             deployment tests keep running without a security extension. -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-elytron-security-properties-file-deployment</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
