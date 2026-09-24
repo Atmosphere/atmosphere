@@ -610,15 +610,18 @@ jobs:
           exit 0
         fi
         npm publish --provenance --access public
-        for attempt in 1 2 3 4 5 6; do
-          sleep 5
+        # npm now answers "Your package is being processed and may take a few
+        # minutes to become available". 4.0.71 was published but a 30s window
+        # (6 x 5s) declared it missing and failed the run; allow 5 minutes.
+        for attempt in $(seq 1 30); do
+          sleep 10
           if [ "$(npm view "create-atmosphere-app@$VERSION" version 2>/dev/null || true)" = "$VERSION" ]; then
             echo "verified: create-atmosphere-app@$VERSION is live on NPM"
             exit 0
           fi
-          echo "  not visible yet (attempt $attempt) — retrying"
+          echo "  not visible yet (attempt $attempt/30) — retrying"
         done
-        echo "::error::create-atmosphere-app@$VERSION was published but the registry does not serve it"
+        echo "::error::create-atmosphere-app@$VERSION was published but the registry did not serve it within 5 minutes"
         exit 1
 
     - name: Bump to next patch version
