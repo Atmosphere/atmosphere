@@ -1103,22 +1103,19 @@ describe('WebTransportTransport', () => {
 
       const queue = new OfflineQueue({ maxSize: 10, drainOnReconnect: true });
 
-      let connectCount = 0;
-      let secondWriter: ReturnType<typeof createMockWriter> | null = null;
+      // Every connection's writer, in connect order. The first connection ends
+      // after 5ms to force a reconnect; later ones stay open. The assertion
+      // looks at every reconnected writer, so an extra reconnect on a slow
+      // runner cannot hide where the drained messages went.
+      const writers: ReturnType<typeof createMockWriter>[] = [];
       (globalThis as any).WebTransport = vi.fn(function() {
-        connectCount++;
         const w = createMockWriter();
         const r = createMockReader();
         const inst = createMockTransportInstance(r, w);
-
-        if (connectCount === 1) {
-          // First connect: end stream to trigger reconnect
+        writers.push(w);
+        if (writers.length === 1) {
           setTimeout(() => r.pushDone(), 5);
-        } else {
-          secondWriter = w;
-          // Second connect stays open
         }
-
         return inst;
       });
 
@@ -1132,16 +1129,16 @@ describe('WebTransportTransport', () => {
       queue.enqueue('queued-msg-1');
       queue.enqueue('queued-msg-2');
 
-      // Wait for reconnect to succeed and drain
-      await new Promise((r) => setTimeout(r, 300));
+      // Poll instead of a fixed sleep: the reconnect timing depends on the runner.
+      await vi.waitFor(() => {
+        expect(writers.length).toBeGreaterThan(1);
+        expect(queue.size).toBe(0);
+        const reconnectedWrites = writers.slice(1).reduce((n, w) => n + w.write.mock.calls.length, 0);
+        expect(reconnectedWrites).toBeGreaterThanOrEqual(2);
+      }, { timeout: 5000, interval: 20 });
 
-      // The offline queue should have been drained on reopen
-      expect(queue.size).toBe(0);
-
-      // The second writer should have received the queued messages
-      if (secondWriter) {
-        expect(secondWriter.write).toHaveBeenCalled();
-      }
+      // Nothing queued may have gone to the connection that was already closing.
+      expect(writers[0].write).not.toHaveBeenCalled();
 
       await transport.disconnect();
     });
