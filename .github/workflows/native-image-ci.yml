@@ -269,8 +269,12 @@ jobs:
     - name: Install Atmosphere Modules
       run: ./mvnw -B install -DskipTests -Dgpg.skip=true
 
+    # The builder image moves in lockstep with Quarkus: 3.39 rejects anything
+    # older than GraalVM/Mandrel 25 ("Out of date version of GraalVM or Mandrel
+    # detected: 23.1"), which is what the jdk-21 tag ships. The app bytecode
+    # stays --release 21; only the native-image toolchain is JDK 25.
     - name: Build Quarkus Native Image (container build)
-      run: ./mvnw -B -Dnative -Dquarkus.native.container-build=true -Dquarkus.native.builder-image=quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-21 package -DskipTests -Dgpg.skip=true -pl samples/quarkus-chat
+      run: ./mvnw -B -Dnative -Dquarkus.native.container-build=true -Dquarkus.native.builder-image=quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-25 package -DskipTests -Dgpg.skip=true -pl samples/quarkus-chat
       timeout-minutes: 20
 
     - name: Verify Native Binary Exists
