@@ -123,28 +123,35 @@ class DefaultAgentFleetMaxParallelTest {
     }
 
     @Test
-    void callQueuedPastTimeoutGetsFailureResultNotDropped() {
-        // "slow" holds the only permit for 1s under a 5s limit; "queued" has a
-        // 300ms limit, so it expires while still waiting for the permit.
-        var transport = new GatedTransport(null, 1_000);
+    void callQueuedPastTimeoutGetsFailureResultNotDropped() throws Exception {
+        // "slow" takes the only permit first (confirmed at the transport) and
+        // holds it for 2s; only then is "queued" dispatched, with a 300ms limit,
+        // so it deterministically expires while still waiting for the permit.
+        var release = new CountDownLatch(1);
+        var transport = new GatedTransport(release, 0);
         var proxies = new LinkedHashMap<String, AgentProxy>();
         proxies.put("slow", new DefaultAgentProxy("slow", "1.0.0", 1, true, 0, transport,
-                List.of(), AgentLimits.withTimeout(Duration.ofSeconds(5))));
+                List.of(), AgentLimits.withTimeout(Duration.ofSeconds(10))));
         proxies.put("queued", new DefaultAgentProxy("queued", "1.0.0", 1, true, 0, transport,
                 List.of(), AgentLimits.withTimeout(Duration.ofMillis(300))));
         var fleet = new DefaultAgentFleet(proxies, List.of(), 10_000, List.of(), 1);
 
-        var results = fleet.parallel(new AgentCall("slow", "s", Map.of()),
-                new AgentCall("queued", "s", Map.of()));
+        var holder = Thread.ofVirtual().start(() -> fleet.parallel(new AgentCall("slow", "s", Map.of())));
+        var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (!transport.entered.contains("slow") && System.nanoTime() < deadline) {
+            Thread.sleep(5);
+        }
+        assertTrue(transport.entered.contains("slow"), "slow must hold the permit before queued is sent");
 
-        assertEquals(2, results.size(), "every call must have a result");
-        assertTrue(results.get("slow").success(), results.toString());
+        var results = fleet.parallel(new AgentCall("queued", "s", Map.of()));
+        release.countDown();
+        holder.join(10_000);
+
+        assertEquals(1, results.size(), "the queued call must still get a result");
         var queued = results.get("queued");
         assertFalse(queued.success());
-        assertTrue(queued.text().contains("without a dispatch slot (maxParallel=1)"),
-                queued.text());
-        assertEquals(Set.of("slow"), transport.entered,
-                "the queued call must never reach the transport");
+        assertTrue(queued.text().contains("without a dispatch slot (maxParallel=1)"), queued.text());
+        assertEquals(Set.of("slow"), transport.entered, "the queued call must never reach the transport");
     }
 
     @Test
