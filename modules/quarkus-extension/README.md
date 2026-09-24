@@ -60,6 +60,7 @@ All properties are under the `quarkus.atmosphere.*` prefix:
 | `quarkus.atmosphere.packages` | (none) | Comma-separated packages to scan |
 | `quarkus.atmosphere.servlet-path` | `/atmosphere/*` | Servlet URL mapping |
 | `quarkus.atmosphere.session-support` | `false` | Enable HTTP session support |
+| `quarkus.atmosphere.websocket-support` | (enabled) | `false` turns the WebSocket transport off: no JSR-356 endpoint in servlet mode, the upgrade is refused (`501`) in `vertx` mode, and clients fall back to SSE, streaming or long-polling |
 | `quarkus.atmosphere.broadcaster-class` | (default) | Custom `Broadcaster` implementation |
 | `quarkus.atmosphere.broadcaster-cache-class` | (default) | Custom `BroadcasterCache` implementation |
 | `quarkus.atmosphere.cache-enabled` | `false` | When `true`, the deployment processor wires `BoundedMemoryCache` as the default `BroadcasterCache` and installs `MessageAckInterceptor` for missed-message recovery (Spring Boot parity for `atmosphere.cache.enabled`). Explicit `broadcaster-cache-class` overrides this default. |

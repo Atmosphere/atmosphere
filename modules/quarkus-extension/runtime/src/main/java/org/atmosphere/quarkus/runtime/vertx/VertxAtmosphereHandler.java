@@ -93,6 +93,12 @@ public final class VertxAtmosphereHandler implements Handler<RoutingContext> {
     public void handle(RoutingContext rc) {
         var request = rc.request();
         if (isWebSocketUpgrade(request)) {
+            if (!framework.webSocketEnabled()) {
+                // quarkus.atmosphere.websocket-support=false: refuse the upgrade so
+                // the client falls back to an HTTP transport.
+                rc.response().setStatusCode(501).end();
+                return;
+            }
             upgrade(rc);
             return;
         }

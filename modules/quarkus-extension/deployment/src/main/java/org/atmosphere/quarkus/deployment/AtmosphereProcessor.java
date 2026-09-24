@@ -421,8 +421,10 @@ class AtmosphereProcessor {
                                     AtmosphereConfig config,
                                     ServerWebSocketContainerBuildItem container) {
         // Vert.x mode upgrades WebSockets on its own route; JSR-356 endpoints
-        // would shadow it on the same paths.
-        if (config.container() != AtmosphereConfig.Container.SERVLET) {
+        // would shadow it on the same paths. With websocket-support=false there
+        // is nothing to upgrade to, so no endpoint is registered at all.
+        if (config.container() != AtmosphereConfig.Container.SERVLET
+                || !config.websocketSupport().orElse(true)) {
             return;
         }
         recorder.registerWebSocketEndpoints(container.getContainer());
@@ -526,6 +528,11 @@ class AtmosphereProcessor {
         if (config.sessionSupport()) {
             params.put("org.atmosphere.cpr.sessionSupport", "true");
         }
+
+        // quarkus.atmosphere.websocket-support: explicit on/off for the WebSocket
+        // transport (ApplicationConfig.WEBSOCKET_SUPPORT). Unset keeps the default.
+        config.websocketSupport().ifPresent(ws ->
+                params.put("org.atmosphere.useWebSocket", String.valueOf(ws)));
 
         config.broadcasterClass().ifPresent(b ->
                 params.put("org.atmosphere.cpr.broadcasterClass", b));

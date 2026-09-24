@@ -69,7 +69,10 @@ public interface AtmosphereConfig {
     Optional<String> broadcasterCacheClass();
 
     /**
-     * Whether to enable WebSocket support.
+     * Explicitly enable or disable the WebSocket transport. Unset keeps the
+     * framework default (enabled). {@code false} registers no JSR-356 endpoint
+     * in servlet mode and refuses the upgrade (501) in Vert.x mode, so clients
+     * fall back to SSE, streaming or long-polling.
      */
     Optional<Boolean> websocketSupport();
 
