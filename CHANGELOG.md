@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.71] - 2026-09-24
+
+### Added
+
+- serve Atmosphere from a Vert.x route with quarkus.atmosphere.container=vertx
+- add completions, resource templates, tool annotations and outputSchema
+
+### Fixed
+
+- advertise MCP Apps under the spec id io.modelcontextprotocol/ui
+- block the drift-log stop hook at most once per session
+- register the commons-pool2 pool providers only when commons-pool2 is reached
+- scope the drift-log stop hook to changes made during the session
+- bound parallel fan-out with a fleet-wide maxParallel permit pool
+- bump Bouncy Castle to 1.86 for CVE-2026-8763 and CVE-2026-13506
+- close Tomcat auth-bypass CVEs and the vitest mocker path traversal
+- boot fixture servers from packaged artifacts instead of Maven goals
+- make the Expo client server URL an env override, not a source edit
+
+### Changed
+
+- make the queued-past-timeout maxParallel test deterministic
+- pin the router behaviours a Vert.x container mode relies on
+- prove BlockingIOCometSupport suspends on virtual threads; drop stale JDK 25 notes
+- log unverified claims in the Vert.x-mode design session
+- extract framework bootstrap helpers from the servlet
+- build Quarkus native with the Mandrel JDK 25 builder image
+- bump Quarkus to 3.39.5
+- run the official MCP conformance suite on both dialects
+- drop the org.json Dependabot ignore and the inert dependency-graph config
+
 ## [4.0.70] - 2026-09-01
 
 ### Fixed
