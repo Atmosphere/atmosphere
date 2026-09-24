@@ -24,7 +24,7 @@ The `DemoMcpServer` exposes:
   `text/html;profile=mcp-app`
 
 **MCP App (SEP-1865):** `clock_app` advertises `_meta.ui.resourceUri` and the
-server advertises the `io.modelcontextprotocol/apps` extension. The bundled
+server advertises the `io.modelcontextprotocol/ui` (MCP Apps) extension. The bundled
 Atmosphere **console** (`http://localhost:8083/atmosphere/console/`) acts as the
 host: its **MCP Apps** tab lists app tools, reads the `ui://` HTML over the
 stateless `2026-07-28` protocol, and renders it.

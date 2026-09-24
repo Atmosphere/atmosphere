@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Tests for MCP Apps server-side support (SEP-1865): a {@code @McpTool(uiResource)}
  * declares {@code _meta.ui.resourceUri} in {@code tools/list}, the server
- * advertises the {@code io.modelcontextprotocol/apps} extension, and the
+ * advertises the {@code io.modelcontextprotocol/ui} (MCP Apps) extension, and the
  * {@code ui://} resource is served as {@code text/html;profile=mcp-app}.
  */
 public class McpAppsTest {
@@ -102,9 +102,12 @@ public class McpAppsTest {
     public void testDiscoverAdvertisesAppsExtension() throws Exception {
         var req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"server/discover\",\"params\":{" + meta() + "}}";
         var caps = mapper.readTree(handler.handleMessage(resource, req)).get("result").get("capabilities");
-        var apps = caps.get("extensions").get("io.modelcontextprotocol/apps");
+        var apps = caps.get("extensions").get("io.modelcontextprotocol/ui");
         assertNotNull(apps, "server with an app tool advertises the apps extension");
         assertEquals("text/html;profile=mcp-app", apps.get("mimeTypes").get(0).stringValue());
+        // The spec id is io.modelcontextprotocol/ui; the earlier .../apps id is not
+        // recognized by hosts and must not be advertised alongside it.
+        assertNull(caps.get("extensions").get("io.modelcontextprotocol/apps"));
     }
 
     @Test

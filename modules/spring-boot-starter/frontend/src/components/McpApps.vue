@@ -66,7 +66,7 @@ function meta() {
     'io.modelcontextprotocol/protocolVersion': '2026-07-28',
     'io.modelcontextprotocol/clientInfo': { name: 'atmosphere-console', version: '1.0' },
     'io.modelcontextprotocol/clientCapabilities': {
-      extensions: { 'io.modelcontextprotocol/apps': {} },
+      extensions: { 'io.modelcontextprotocol/ui': {} },
     },
   }
 }

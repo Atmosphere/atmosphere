@@ -72,7 +72,7 @@ public @interface McpTool {
      * Associates this tool with an MCP App UI (SEP-1865). When set to a
      * {@code ui://} URI, the tool advertises {@code _meta.ui.resourceUri} in
      * {@code tools/list} and the server advertises the
-     * {@code io.modelcontextprotocol/apps} extension. A host fetches that
+     * {@code io.modelcontextprotocol/ui} (MCP Apps) extension. A host fetches that
      * {@code ui://} resource (served as {@code text/html;profile=mcp-app}, e.g.
      * via an {@link McpResource}) and renders it in a sandboxed iframe. Empty
      * string means the tool has no associated UI.
