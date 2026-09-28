@@ -1404,7 +1404,7 @@
         <logback-version>1.5.37</logback-version>
         <commons-pool2>2.12.0</commons-pool2>
         <junit-jupiter.version>5.11.4</junit-jupiter.version>
-        <jackson.version>3.2.1</jackson.version>
+        <jackson.version>3.2.2</jackson.version>
         <!-- Mozilla Rhino: pure-Java JS engine backing the optional, default-off
              in-process 'eval' tool (org.atmosphere.ai.code). Sandboxed via a
              deny-all ClassShutter + interpreted-mode instruction budget. -->
@@ -1417,7 +1417,7 @@
              the earlier GHSA-72hv-8253-57qq fix. 2.21.x cannot close CVE-2026-54515
              (needs >= 2.21.5, unpublished), so we move to the 2.22 line. 2.22.1
              closes GHSA-5gvw-p9qm-jgwh on the Jackson 2 side. -->
-        <jackson2.version>2.22.1</jackson2.version>
+        <jackson2.version>2.22.3</jackson2.version>
         <jackson-annotations.version>2.22</jackson-annotations.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
         <!-- CVE force-pin properties (entries in the dependencyManagement
