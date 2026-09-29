@@ -1166,6 +1166,17 @@ FAIL_RE='^api user' auto_claim "$(edit_payload)"
 ac_context
 assert_grep "a logged-out gh is reported too" 'carnet#42 — .*gh auth login' "$tmp/ac.ctx"
 
+# A comment stream it cannot read is not a free issue: no claim over a holder nobody could see,
+# no block either — the model is told, and the issue stays armed.
+reset; set_pending 42
+comments < <(claim_marker "$PEER" PeerSession peer "$HOST" "$peer_pid")
+FAIL_RE='/comments --paginate' auto_claim "$(edit_payload)"
+assert_eq "an unreadable marker stream neither blocks the edit" "$rc" 0
+assert_eq "nor claims over the holder it could not see" "$(count_calls "$WRITES")" 0
+ac_context
+assert_grep "and the model is told why" 'carnet#42 — .*cannot read the comments of carnet#42' "$tmp/ac.ctx"
+assert_grep "with the issue still armed" '^42$' "$pending_dir/$ME.txt"
+
 # Retried within the list's hour, three attempts in all: a tracker that stays down must not cost
 # every later write a round of gh calls.
 reset; set_pending 42
