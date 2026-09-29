@@ -18,6 +18,13 @@
 # ABOUTME: No network, no real tracker: run `.agents/skills/carnet/test.sh` from anywhere
 set -euo pipefail
 
+# Isolated from the developer's git config: no signing prompt, a fixed identity. The fixture
+# commits below would otherwise obey a global commit.gpgsign — failing the suite where the
+# signer needs a prompt, and signing throwaway commits with a real key where it does not.
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.invalid
+export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.invalid
+
 here=$(cd "$(dirname "$0")" && pwd)
 carnet="$here/carnet.sh"
 tmp=$(mktemp -d)
@@ -319,12 +326,21 @@ assert_grep "prints the URL" "issues/321" "$tmp/out"
 assert_grep "prints the marker hint for a limitation" 'LIMITATION\(registre#321\)' "$tmp/out"
 # An audit reading the ledger offline credits a registered limitation from this line alone.
 assert_grep "the ledger records the limitation label" '"kind":"limitation","tracker":"Atmosphere/atmosphere-carnet","issue":321' "$ledger"
+# bilan caps a session that filed an issue and left it open, and this line is all it reads:
+# the one writer of the cross-skill contract, pinned here rather than through bilan's fixtures.
+assert_grep "the ledger records the issue as filed by this session" '"kind":"filed","tracker":"Atmosphere/atmosphere-carnet","issue":321' "$ledger"
 assert_grep "checked the tracker is private" '^CALL api repos/Atmosphere/atmosphere-carnet -q .private' "$S/calls.log"
 
 reset
 run_carnet create --title "[registre] Already prefixed" --body b
 assert_grep "an existing prefix is kept" '^TITLE \[registre\] Already prefixed' "$S/calls.log"
+# The absence check below reads this ledger, so it must exist — a missing file would pass it.
+assert_grep "an issue filed without the label is still recorded as filed" '"kind":"filed","tracker":"Atmosphere/atmosphere-carnet","issue":321' "$ledger"
 assert_no_grep "an issue filed without the label is not recorded as a limitation" '"kind":"limitation"' "$ledger"
+
+reset
+run_carnet create --title "Only looking" --body b --dry-run
+[ -f "$ledger" ] && bad "create --dry-run records nothing as filed" || ok "create --dry-run records nothing as filed"
 
 reset
 printf 'false\n' > "$S/private.txt"
