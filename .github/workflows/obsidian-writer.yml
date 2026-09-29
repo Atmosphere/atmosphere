@@ -6,8 +6,10 @@ name: "CI: Obsidian Writer Skill"
 # status — a session reads 0 from push as "published", so the suite pins that
 # push exits 0 only when origin/main holds each of its notes (the files under
 # the paths that the vault changed from origin) exactly as committed, whatever
-# else the rebase kept and whatever shape the path had, and never judges a file
-# the vault left as origin had it; that pull and push exit non-zero when local
+# else the rebase kept and whatever shape the path had, and every other file
+# under the paths as the vault holds it or as changed since by edits made on
+# top of that version (named, not a failure), never with an edit made without
+# that version merged over it; that pull and push exit non-zero when local
 # commits leave main or the rebase does not run; that the guards fire before
 # anything is staged; and that a rebase failing without a conflict resets nothing.
 #

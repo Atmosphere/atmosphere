@@ -21,9 +21,11 @@
 # session reads: for `push`, 0 only when origin/main ends up holding each of its
 # notes (every file under the given paths that the vault changed from the
 # origin/main it forked from) exactly as committed — whatever else the rebase
-# kept, and whatever shape the path was given in — while a file the vault left
-# as origin had it is never judged, and any failure after the commit names the
-# notes; for both commands, non-zero whenever local commits left main or the
+# kept, and whatever shape the path was given in — and any other file under the
+# paths either as committed or changed since only by edits made on top of the
+# vault's version (named, never a failure), while an edit made without that
+# version merged over it fails the push; any failure after the commit names the
+# notes. For both commands, non-zero whenever local commits left main or the
 # rebase did not run. The guards must fire before the vault is touched, and
 # nothing that fails without a conflict may reset anything.
 #
@@ -98,6 +100,14 @@ timer_push() {
   git -C "$T/peer" pull -q origin main
 }
 
+# The same, while the peer holds a commit it made before pulling: it merges the timer's push
+# (clean, or left conflicted for the scenario to resolve).
+timer_push_to_diverged_peer() {
+  vault_commit "vault: auto-save"
+  git -C "$T/vault" push -q origin main
+  git -C "$T/peer" pull -q --no-rebase --no-edit origin main > /dev/null 2>&1
+}
+
 # Two notes in "Claude Outputs" on both sides.
 outputs() {
   mkdir -p "$T/vault/Claude Outputs"
@@ -123,8 +133,12 @@ pull() {
 }
 
 origin_has() { git -C "$T/origin.git" show "main:$1" 2>&1; }
+parents() { git -C "$T/origin.git" log -1 --format=%P "$1" | wc -w | tr -d ' '; }
 backups() { git -C "$T/vault" branch --list 'vault-sync/backup-*' --format='%(refname:short)'; }
-named() { printf '%s\n' "$out" | grep -cxF -- "vault-sync:   $1"; }   # listed as not published?
+listed() { printf '%s\n' "$out" | sed -n "/$1/,/^vault-sync: [^ ]/p" | grep -cxF -- "vault-sync:   $2"; }
+named() { listed 'not published' "$1"; }                         # listed as not published?
+since_named() { listed 'then changed there by later edits' "$1"; }   # listed as changed since?
+says() { printf '%s\n' "$out" | grep -cF -- "$1"; }
 
 echo "1. a new note publishes"
 setup
@@ -323,7 +337,7 @@ push "add new" new.md
 check "fetch failed: exit 1, names the file" 1 "$rc" "not verified as published: new.md" "$out"
 check "fetch failed: the commit stays on main" "add new" "$(git -C "$T/vault" log -1 --format=%s main)" "" ""
 
-echo "15. a push is judged on the notes the vault changed, never on a file it left as origin had it"
+echo "15. a push is judged on the notes the vault changed; a file it left as origin had it may change upstream on top of that"
 setup
 outputs
 printf 'BAR-PEER\n' > "$T/peer/Claude Outputs/bar.md"
@@ -332,6 +346,7 @@ printf 'FOO-MINE\n' > "$T/vault/Claude Outputs/foo.md"
 push "my foo" "Claude Outputs"
 check "directory, a sibling edited upstream: exit 0, pushed" 0 "$rc" "pushed" "$out"
 check "directory, a sibling edited upstream: the sibling is not named" 0 "$(named 'Claude Outputs/bar.md')" "" "$out"
+check "directory, a sibling edited upstream: the sibling is named as changed since" 1 "$(since_named 'Claude Outputs/bar.md')" "" "$out"
 check "directory, a sibling edited upstream: origin holds the note" FOO-MINE "$(origin_has 'Claude Outputs/foo.md')" "" ""
 check "directory, a sibling edited upstream: origin keeps the peer's sibling" BAR-PEER "$(origin_has 'Claude Outputs/bar.md')" "" ""
 setup
@@ -348,7 +363,9 @@ timer_push
 printf 'BAR-PEER\n' > "$T/peer/Claude Outputs/bar.md"
 peer_push "peer edits bar"
 push "my foo" "Claude Outputs"
-check "directory the timer pushed, a sibling edited since: exit 0" 0 "$rc" "already has these changes" "$out"
+check "directory the timer pushed, a sibling edited since: exit 0" 0 "$rc" "nothing to push" "$out"
+check "directory the timer pushed, a sibling edited since: names the sibling as changed since" 1 "$(since_named 'Claude Outputs/bar.md')" "" "$out"
+check "directory the timer pushed, a sibling edited since: not claimed as already there" 0 "$(says 'already has these changes')" "" "$out"
 setup
 outputs
 printf 'line one\nPEER\n' > "$T/peer/note.md"
@@ -362,7 +379,8 @@ timer_push
 printf 'line one\nMINE\nappended\n' > "$T/peer/note.md"
 peer_push "peer appends"
 push "my edit" note.md
-check "an edit the timer pushed, appended to since: exit 0" 0 "$rc" "already has these changes" "$out"
+check "an edit the timer pushed, appended to since: exit 0" 0 "$rc" "nothing to push" "$out"
+check "an edit the timer pushed, appended to since: named as changed since" 1 "$(since_named note.md)" "" "$out"
 setup
 printf 'line one\nMINE\n' > "$T/vault/note.md"
 timer_push
@@ -371,7 +389,8 @@ git -C "$T/vault" update-ref refs/remotes/origin/main "$(git -C "$T/vault" rev-p
 printf 'line one\nMINE\nappended\n' > "$T/peer/note.md"
 peer_push "peer appends"
 push "my edit" note.md
-check "the same, origin/main lagging in the vault: exit 0" 0 "$rc" "already has these changes" "$out"
+check "the same, origin/main lagging in the vault: exit 0" 0 "$rc" "nothing to push" "$out"
+check "the same, origin/main lagging in the vault: named as changed since" 1 "$(since_named note.md)" "" "$out"
 setup
 printf 'line one\nMINE\n' > "$T/vault/note.md"
 timer_push
@@ -417,6 +436,80 @@ peer_push "peer edits"
 printf 'line one\nline two\n' > "$T/vault/note.md"
 push "restore line two" note.md
 check "restoring the forked version, lost upstream: exit 1, names it" 1 "$rc" "vault-sync:   note.md" "$out"
+
+echo "16. a note the timer already pushed is judged by what origin did to it after"
+setup
+printf 'line one\nMINE\n' > "$T/vault/note.md"
+timer_push
+printf 'line one\nPEER2\n' > "$T/peer/note.md"
+peer_push "peer overwrites"
+push "my edit" note.md
+check "overwritten after, on top of it: origin holds the peer's line" PEER2 "$(origin_has note.md | tail -1)" "" ""
+check "overwritten after, on top of it: exit 0" 0 "$rc" "nothing to push" "$out"
+check "overwritten after, on top of it: named as changed since" 1 "$(since_named note.md)" "" "$out"
+check "overwritten after, on top of it: not claimed as already there" 0 "$(says 'already has these changes')" "" "$out"
+setup
+mkdir "$T/vault/Claude Outputs"
+printf 'my session output\n' > "$T/vault/Claude Outputs/Session.md"
+timer_push
+git -C "$T/peer" rm -q "Claude Outputs/Session.md"
+peer_push "peer deletes the note"
+push "docs(claude-output): session" "Claude Outputs/Session.md"
+check "deleted after, on top of it: origin no longer has it" absent "$(git -C "$T/origin.git" cat-file -e "main:Claude Outputs/Session.md" 2> /dev/null && echo present || echo absent)" "" ""
+check "deleted after, on top of it: exit 0" 0 "$rc" "nothing to push" "$out"
+check "deleted after, on top of it: named as deleted since" 1 "$(since_named 'Claude Outputs/Session.md (deleted)')" "" "$out"
+check "deleted after, on top of it: not claimed as already there" 0 "$(says 'already has these changes')" "" "$out"
+# A peer edits line 2 without pulling, the timer pushes the session's edit, and the peer's
+# merge of that push keeps the peer's line: an edit made without the session's version won.
+setup
+printf 'line one\nPEER\n' > "$T/peer/note.md"
+git -C "$T/peer" commit -qam "peer edits, before pulling"
+printf 'line one\nMINE\n' > "$T/vault/note.md"
+timer_push_to_diverged_peer
+printf 'line one\nPEER\n' > "$T/peer/note.md"
+peer_push "peer merges the timer's push, keeps its line"
+push "my edit" note.md
+check "a concurrent edit merged over it: origin/main is the peer's merge" 2 "$(parents main)" "" ""
+check "a concurrent edit merged over it: origin holds the peer's line" PEER "$(origin_has note.md | tail -1)" "" ""
+check "a concurrent edit merged over it: exit 1, names it" 1 "$rc" "vault-sync:   note.md" "$out"
+check "a concurrent edit merged over it: says an edit made without it was merged over it" 1 "$(says 'an edit made without that version was merged over it')" "" "$out"
+setup
+ten_lines
+printf 'a\nPEER\nc\nd\ne\nf\ng\nh\ni\nj\n' > "$T/peer/note.md"
+git -C "$T/peer" commit -qam "peer edits line 2, before pulling"
+printf 'a\nb\nc\nd\ne\nf\ng\nh\ni\nMINE-END\n' > "$T/vault/note.md"
+timer_push_to_diverged_peer
+git -C "$T/peer" push -q origin main
+push "my end" note.md
+check "a concurrent edit merged cleanly into it: origin/main is the peer's merge" 2 "$(parents main)" "" ""
+check "a concurrent edit merged cleanly into it: origin holds both edits" "PEER MINE-END" "$(origin_has note.md | sed -n '2p;10p' | tr '\n' ' ' | sed 's/ $//')" "" ""
+check "a concurrent edit merged cleanly into it: exit 1, names it" 1 "$rc" "vault-sync:   note.md" "$out"
+setup
+printf 'line one\nPEER\n' > "$T/peer/note.md"
+git -C "$T/peer" commit -qam "peer edits, before pulling"
+printf 'line one\nMINE\n' > "$T/vault/note.md"
+timer_push_to_diverged_peer
+printf 'line one\nMINE\n' > "$T/peer/note.md"
+git -C "$T/peer" add -A
+git -C "$T/peer" commit -qm "peer merges the timer's push, keeps the session's line"
+printf 'line one\nMINE\nappended\n' > "$T/peer/note.md"
+peer_push "peer appends"
+push "my edit" note.md
+check "a concurrent edit the merge discarded, then an append: the append sits on the peer's merge" 2 "$(parents main~1)" "" ""
+check "a concurrent edit the merge discarded, then an append: origin holds the session's line" "line one|MINE|appended" "$(origin_has note.md | tr '\n' '|' | sed 's/|$//')" "" ""
+check "a concurrent edit the merge discarded, then an append: exit 0" 0 "$rc" "nothing to push" "$out"
+check "a concurrent edit the merge discarded, then an append: named as changed since" 1 "$(since_named note.md)" "" "$out"
+setup
+printf 'line one\nMINE\n' > "$T/peer/note.md"
+git -C "$T/peer" commit -qam "peer makes the same edit, before pulling"
+printf 'line one\nMINE\n' > "$T/vault/note.md"
+timer_push_to_diverged_peer
+printf 'line one\nMINE\nappended\n' > "$T/peer/note.md"
+peer_push "peer appends"
+push "my edit" note.md
+check "the same edit made concurrently, then an append: the append sits on the peer's merge" 2 "$(parents main~1)" "" ""
+check "the same edit made concurrently, then an append: exit 0" 0 "$rc" "nothing to push" "$out"
+check "the same edit made concurrently, then an append: named as changed since" 1 "$(since_named note.md)" "" "$out"
 
 echo "$pass passed · $fail failed ($("$BASH_BIN" -c 'echo "bash $BASH_VERSION"'))"
 [ "$fail" = 0 ]

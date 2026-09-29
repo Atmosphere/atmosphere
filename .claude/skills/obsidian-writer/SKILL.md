@@ -115,14 +115,18 @@ relative to the vault — never the whole tree):
 Exit 0 means published: after the sync and push, origin/main holds each of your notes
 exactly as committed. Your notes are the files under the paths that the push's commit
 changed, and those the vault holds differently from the origin/main it forked from (an
-earlier unpushed commit, such as the timer's, changed them). A directory or a glob is judged
-on those files only, never on the others, and a note the timer already pushed is not judged
-again. Any other exit means not published, and the output names each note origin/main does
-not hold as committed, and why. Most often someone edited the same note at the same time
-and the remote's side won or was merged in; the vault then holds origin's version, so
-re-read those notes and redo your change if it is gone. A backup branch, a rebase that did
-not run and a push still rejected are named as such. Never report a note as published on a
-non-zero exit.
+earlier unpushed commit, such as the timer's, changed them). Every other file under the
+paths (a directory's other notes, a note the timer already pushed) was already on
+origin/main as the vault holds it, and must still be there or have changed since only by
+edits made on top of that version. The output lists those under "already on origin/main …
+then changed there by later edits" without failing the push: someone edited or deleted the
+note after it was published, so re-read it before you report it. Any other exit means not
+published, and the output names each file origin/main does not hold as committed, and why.
+Most often someone edited the same note at the same time and the remote's side won or was
+merged in, whether over your push or over a timer push that got there first; the vault then
+holds origin's version, so re-read those notes and redo your change if it is gone. A backup
+branch, a rebase that did not run and a push still rejected are named as such. Never report
+a note as published on a non-zero exit.
 
 The vault's history uses `docs(adr)`, `docs(plan)` and `docs(claude-output)` prefixes for
 these commits; the timers' commits are `vault: auto-save`.
