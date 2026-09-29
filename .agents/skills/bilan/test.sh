@@ -332,6 +332,10 @@ sed -i.bak 's#limitation-gates.sh modules cli#limitation-gates.sh $SCAN_DIRS#' "
 rm -f "$R/.github/workflows/limitation-register.yml.bak"
 out=$(scope_json "$R")
 check "a lane passing a variable names no directory" "dirs" "$(printf '%s' "$out" | jq -r .unknown)"
+# The gate reads its directories from its caller, never from registre.toml, so the remedy points
+# at the lane's call — a scan_dirs declared instead would move bilan's scope and not the gate's.
+check "…and the remedy points at the lane's gate call, not at a key the gate never reads" 1 \
+    "$(printf '%s' "$out" | jq -r .remedy | grep -c 'gate call in .github/workflows/limitation-register.yml')"
 git -C "$R" checkout -q -- .github/workflows/limitation-register.yml
 # Only the lane bilan.yml's path filter names is read, and only an invocation of the gate in it:
 # another workflow that runs the gate elsewhere and sorts first decides nothing, and neither does a

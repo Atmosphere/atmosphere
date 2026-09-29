@@ -227,11 +227,14 @@ marker one tool honoured would be invisible to the other.
   probed: it runs once with a recording ripgrep first on `PATH`, and bilan lists files with exactly
   the directories and globs the gate composed — which is what `--list-files` itself runs. Either
   way nothing is copied. `bilan.sh scope` prints the answer and how it was reached.
-- **The directories.** `scan_dirs` in `registre.toml` when it declares them (`REGISTRE_SCAN_DIRS`
-  wins, as it does for the gate); otherwise the directories the CI lane passes the gate
-  (`.github/workflows/limitation-register.yml`), read out of the workflow rather than restated. The
-  suite checks that bilan resolves the same directories `scripts/pre-push-validate.sh` runs the
-  gate on, so the callers cannot drift apart without a failing test.
+- **The directories.** The ones the CI lane passes the gate
+  (`.github/workflows/limitation-register.yml`, the only workflow read), read out of the workflow
+  rather than restated. `scan_dirs` in `registre.toml`, and `REGISTRE_SCAN_DIRS` over it, replace
+  them for bilan alone: the gate this repo pins reads neither, and both of its callers name the
+  directories on the command line, so either setting narrows what bilan verifies and never what the
+  gate scans. The suite checks that bilan resolves the same directories
+  `scripts/pre-push-validate.sh` runs the gate on, so a committed `scan_dirs` that disagrees fails a
+  test; the environment variable is a local override no test sees.
 - **Test trees are outside it.** A gap in test *coverage* is therefore marked on the production
   item the tests leave uncovered, not on the test that fails to cover it.
 - **Only what the session added.** Markers are read from the session's diff against the merge

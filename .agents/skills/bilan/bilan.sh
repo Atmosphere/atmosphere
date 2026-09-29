@@ -737,12 +737,14 @@ toml_value() { # <key>
         | head -1 | sed 's/[[:space:]]*#.*$//' | tr -d '"'\''' | tr -d '[:space:]'
 }
 
-# The directories the register scans, one per line. registre.toml declares them in `scan_dirs`
-# for a gate new enough to read that key (REGISTRE_SCAN_DIRS wins, as it does for the gate);
-# otherwise they are whatever the CI lane passes the gate — the lane that holds main to the
-# register — read out of the workflow rather than restated here, so a directory added there is
-# a directory bilan scans. A lane whose arguments are not literal (a variable, a quote) names
-# nothing bilan can read, and the scope is then unknown rather than guessed.
+# The directories the register scans, one per line: whatever the CI lane passes the gate — the
+# lane that holds main to the register — read out of the workflow rather than restated here, so
+# a directory added there is a directory bilan scans. `scan_dirs` in registre.toml, and
+# REGISTRE_SCAN_DIRS over it, replace them for bilan alone: the gate this repo pins reads
+# neither, and both of its callers name the directories on the command line, so either setting
+# narrows what bilan verifies and never what the gate scans. A lane whose arguments are not
+# literal (a variable, a quote) names nothing bilan can read, and the scope is then unknown
+# rather than guessed.
 scan_dirs() {
     local v wf line w out words=()
     v=${REGISTRE_SCAN_DIRS:-}
@@ -864,7 +866,7 @@ register_scope() { # -> 0 with every in-scope path in $SCOPE; 1 when the registe
 scope_remedy() {
     case "$(scope_unknown_reason)" in
         gate) printf '%s' "git submodule update --init .registre (bilan asks the register's gate which files it scans), then rerun" ;;
-        dirs) printf '%s' "declare scan_dirs in registre.toml — none of the directories the register is run on exists here — then rerun" ;;
+        dirs) printf '%s' "none of the directories the register is run on exists here — give the gate call in .github/workflows/limitation-register.yml literal directories (REGISTRE_SCAN_DIRS and registre.toml scan_dirs move bilan's scope alone, never the gate's), then rerun" ;;
         rg)   printf '%s' "install ripgrep (the register scans with it), then rerun" ;;
         *)    printf '%s' "run .registre/limitation-gates.sh by hand — it listed nothing bilan could read — then rerun" ;;
     esac
