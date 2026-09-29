@@ -56,5 +56,8 @@ jq -e 'select(.kind == "claim")' "$ledger" >/dev/null 2>&1 || exit 0
 # another register, or none, and every claim would then stay held. Each ledger line names its
 # own register, and `release --all` releases it there.
 cd "${CLAUDE_PROJECT_DIR:-$here/../../../..}" 2>/dev/null || exit 0
-bash "$carnet" release --all --session "$sid" --reason session-ended || true
+# Each release takes the ledger lock once, after its tracker writes. A lock that stays held — its
+# holder stuck, or its pid reused — must cost each release a few seconds, not this hook's whole
+# timeout: every claim after the first would keep its label and assignee.
+CARNET_LOCK_WAIT=5 bash "$carnet" release --all --session "$sid" --reason session-ended || true
 exit 0

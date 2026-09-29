@@ -167,6 +167,39 @@ run_carnet() { # args... ; sets rc, writes $tmp/out and $tmp/err
     bash "$carnet" "$@" > "$tmp/out" 2> "$tmp/err" || rc=$?
 }
 
+# A run that must end. The failures below used to hang, and a suite that hangs proves nothing:
+# after <secs> the run's whole process group is killed and rc is 124. Job control gives the run
+# its own group, so nothing it started outlives the kill.
+bounded() { # <secs> <out-file> <cmd>... ; stdout to <out-file>, stderr to <out-file>.err
+    local secs=$1 out=$2 p i=0
+    shift 2
+    set -m
+    "$@" > "$out" 2> "$out.err" &
+    p=$!
+    set +m
+    while kill -0 "$p" 2>/dev/null && [ "$i" -lt $((secs * 10)) ]; do sleep 0.1; i=$((i + 1)); done
+    if kill -0 "$p" 2>/dev/null; then
+        { kill -KILL -- "-$p"; wait "$p"; } 2>/dev/null || true
+        rc=124
+    else
+        rc=0; wait "$p" || rc=$?
+    fi
+}
+
+# A new executable's first run can take many seconds on a loaded macOS host while it is
+# assessed. Each shim below runs once when it is made, so that stall never lands inside a run
+# a test is timing or racing.
+shim() { # <dir> <name> <script> — the script is the shim's body, after its shebang
+    mkdir -p "$1"
+    printf '#!/usr/bin/env bash\n%s\n' "$3" > "$1/$2"
+    chmod +x "$1/$2"
+    "$1/$2" --version >/dev/null 2>&1 || true
+}
+# The ledger lock refused the way a sandboxed command, or a directory flagged immutable, refuses
+# it: EPERM, with no lock there to wait for.
+shim "$tmp/eperm" mkdir "for a in \"\$@\"; do case \$a in *.jsonl.lock) echo \"mkdir: \$a: Operation not permitted\" >&2; exit 1 ;; esac; done
+exec $(command -v mkdir) \"\$@\""
+
 section() { printf '\n%s\n' "$1"; }
 
 # ================================================================== syntax
@@ -538,9 +571,8 @@ assert_eq "and writes nothing to the tracker" "$(count_calls "$WRITES")" 0
 reset
 seed_ledger 1 2 3
 comments < <(claim_marker "$ME" TestSession tester "$HOST" "$$")
-mkdir -p "$tmp/slowmv"
-printf '#!/usr/bin/env bash\nsleep 0.5\nexec %s "$@"\n' "$(command -v mv)" > "$tmp/slowmv/mv"
-chmod +x "$tmp/slowmv/mv"
+shim "$tmp/slowmv" mv "sleep 0.5
+exec $(command -v mv) \"\$@\""
 rc1=0; rc2=0
 PATH="$tmp/slowmv:$PATH" bash "$carnet" close 1 --why x > /dev/null 2>&1 & c1=$!
 PATH="$tmp/slowmv:$PATH" bash "$carnet" close 2 --why x > /dev/null 2>&1 & c2=$!
@@ -561,6 +593,75 @@ assert_eq "close --dry-run writes nothing" "$(count_calls "$WRITES")" 0
 assert_grep "close --dry-run keeps the filed line" '"kind":"filed","tracker":"Atmosphere/atmosphere-carnet","issue":42' "$ledger"
 run_carnet close 42 --why "fixed"
 assert_no_grep "a real close drops it" '"kind":"filed"' "$ledger"
+
+# ================================================================== ledger lock
+# Broken only when its holder is gone, and never waited on forever: a mkdir refused with no lock
+# there — what a sandboxed command, or a directory flagged immutable, gets for the config dir —
+# and a holder alive past CARNET_LOCK_WAIT each end in an error, the update not made.
+section "ledger lock"
+reset
+bounded 40 "$tmp/o" env PATH="$tmp/eperm:$PATH" bash "$carnet" claim 42
+assert_eq "a ledger that refuses its lock fails the claim, instead of hanging on it" "$rc" 1
+assert_grep "saying why" 'cannot lock the ledger: .*Operation not permitted' "$tmp/o.err"
+assert_eq "before any tracker write" "$(count_calls "$WRITES")" 0
+[ -f "$ledger" ] && bad "and with nothing in the ledger" || ok "and with nothing in the ledger"
+
+reset
+seed_ledger 42
+issue_held
+comments < <(claim_marker "$ME" TestSession tester "$HOST" "$$")
+bounded 40 "$tmp/o" env PATH="$tmp/eperm:$PATH" bash "$carnet" close 42 --why fixed
+assert_eq "close, its issue closed, fails there too instead of hanging" "$rc" 1
+assert_grep "and says why" 'cannot lock the ledger' "$tmp/o.err"
+assert_grep "the ledger still lists the claim it could not drop" '"kind":"claim","tracker":"Atmosphere/atmosphere-carnet","issue":42' "$ledger"
+
+# A live holder is waited on and never broken, however long it takes: an update that loses its
+# lock half-way is the lost write the lock prevents. Past CARNET_LOCK_WAIT the wait gives up.
+reset
+mkdir -p "$ledger.lock"
+printf '%s\n' "$peer_pid" > "$ledger.lock/pid"
+CARNET_LOCK_WAIT=1 bounded 40 "$tmp/o" bash "$carnet" claim 42
+assert_eq "a lock whose holder is alive is waited on, and then the claim fails" "$rc" 1
+assert_grep "naming the holder" "ledger lock .* is still held by pid $peer_pid after 1s" "$tmp/o.err"
+assert_eq "the live holder's lock is left as it is" "$(cat "$ledger.lock/pid" 2>/dev/null)" "$peer_pid"
+assert_eq "and nothing was written to the tracker" "$(count_calls "$WRITES")" 0
+rm -rf "$ledger.lock"
+# Nor is a lock broken for its age alone: one that names no holder yet may be a holder between
+# its mkdir and its pid, and on a loaded machine that holder can be many seconds from done.
+reset
+mkdir -p "$ledger.lock"
+CARNET_LOCK_WAIT=1 bounded 40 "$tmp/o" bash "$carnet" claim 42
+assert_eq "a lock naming no holder is waited on too, and the claim fails" "$rc" 1
+[ -d "$ledger.lock" ] && ok "that lock is left as it is" || bad "that lock is left as it is"
+assert_eq "and nothing was written to the tracker either" "$(count_calls "$WRITES")" 0
+rm -rf "$ledger.lock"
+
+# One whose holder is gone, killed inside an update, is broken at once.
+reset
+sleep 0 & dead_pid=$!
+wait "$dead_pid" || true
+mkdir -p "$ledger.lock"
+printf '%s\n' "$dead_pid" > "$ledger.lock/pid"
+bounded 40 "$tmp/o" bash "$carnet" claim 42
+assert_eq "a lock whose holder is gone is broken, and the claim goes through" "$rc" 0
+assert_grep "into the ledger" '"kind":"claim","tracker":"Atmosphere/atmosphere-carnet","issue":42' "$ledger"
+[ -e "$ledger.lock" ] && bad "and the lock is released after it" || ok "and the lock is released after it"
+
+# A claim is listed once, even when two run at once in one session. The jq shim stalls every
+# lookup of the ledger's claims for a second, so both runs look before either appends: a test
+# made outside the lock lets both append.
+reset
+seed_ledger
+shim "$tmp/slowjq" jq "case \"\$*\" in *'select(.kind == \"claim\"'*) sleep 1 ;; esac
+exec $(command -v jq) \"\$@\""
+rc1=0; rc2=0
+PATH="$tmp/slowjq:$PATH" bash "$carnet" claim 42 > /dev/null 2>&1 & c1=$!
+PATH="$tmp/slowjq:$PATH" bash "$carnet" claim 42 > /dev/null 2>&1 & c2=$!
+wait "$c1" || rc1=$?
+wait "$c2" || rc2=$?
+assert_eq "two claims of one issue at once both answer" "$rc1 $rc2" "0 0"
+assert_eq "and the ledger lists the claim once" \
+    "$(grep -c '"kind":"claim","tracker":"Atmosphere/atmosphere-carnet","issue":42' "$ledger")" 1
 
 # ================================================================== create
 section "create"
@@ -963,6 +1064,19 @@ for d in "$tmp/elsewhere" "$tmp/nested"; do
     assert_grep "session-end hook: run from $(basename "$d"), still releases" '^🔓 carnet#42 released \(session-ended\)' "$tmp/hook5"
     [ -f "$ledger" ] && bad "and finishes the ledger ($(basename "$d"))" || ok "and finishes the ledger ($(basename "$d"))"
 done
+
+# A ledger lock that stays held costs each release a few seconds, never the hook's whole 30 s:
+# every claim still comes off the tracker, though none can leave the ledger.
+reset
+seed_ledger 42 43
+comments < <(claim_marker "$ME" TestSession tester "$HOST" "$$")
+mkdir -p "$ledger.lock"
+printf '%s\n' "$peer_pid" > "$ledger.lock/pid"
+bounded 28 "$tmp/hook7" sh -c 'printf "{\"session_id\":\"%s\"}" "$1" | bash "$2"' _ "$ME" "$here/hooks/session-end-release.sh"
+assert_eq "session-end hook: a ledger lock held throughout does not run it out of time" "$rc" 0
+assert_grep "the first claim comes off the tracker" 'issues/42/labels/in-progress -X DELETE' "$S/calls.log"
+assert_grep "and so does the next one" 'issues/43/labels/in-progress -X DELETE' "$S/calls.log"
+rm -rf "$ledger.lock"
 
 # ================================================================== auto-claim
 section "auto-claim (PreToolUse)"

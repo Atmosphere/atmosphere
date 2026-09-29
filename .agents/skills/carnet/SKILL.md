@@ -197,7 +197,7 @@ also names the caller's gh login.
 |---|---|
 | Tracker | `registre.toml` → `tracker` = `Atmosphere/atmosphere-carnet` (PRIVATE); `REGISTRE_TRACKER` overrides it, as it does for the limitation gates |
 | Title prefix + label | the repo name from `origin` — `[atmosphere]` and `atmosphere` — never the checkout's basename, which in a worktree is the branch or agent name |
-| Ledger | `${CLAUDE_CONFIG_DIR:-~/.claude}/carnet-claims/<session-id>.jsonl`; every line names its tracker. Subagents share their session's ledger, so every change to it holds `<session-id>.jsonl.lock` (a directory) while it is written. `carnet-claims/` is kept at 0700: its cache holds private titles |
+| Ledger | `${CLAUDE_CONFIG_DIR:-~/.claude}/carnet-claims/<session-id>.jsonl`; every line names its tracker. Subagents share their session's ledger, so every change to it holds `<session-id>.jsonl.lock` (a directory naming its holder's pid) while it is written. The lock is broken only when that process is gone; a live holder is waited on for `CARNET_LOCK_WAIT` seconds (30 unless set, 5 from the hooks), and a mkdir the directory refuses fails at once — an error either way, never a hang. `carnet-claims/` is kept at 0700: its cache holds private titles |
 | Status cache | `${CLAUDE_CONFIG_DIR:-~/.claude}/carnet-claims/cache/<tracker>/<n>`, one minute |
 | Tests | `.agents/skills/carnet/test.sh` — stub `gh`, every refusal path fires; CI runs it from `.github/workflows/carnet.yml` |
 

@@ -238,18 +238,55 @@ ledger_file() { [ -n "$SESSION_ID" ] && printf '%s' "$LEDGER_DIR/$SESSION_ID.jso
 # session's id — so its ledger. Two of them closing issues at once would each rewrite the file
 # from the copy they read, and the second rename would bring back the line the first dropped.
 # The lock is a directory beside the ledger (<id>.jsonl.lock, which no *.jsonl reader lists):
-# mkdir is atomic everywhere, and flock does not exist on macOS. No update takes anywhere near
-# ten seconds, so a lock that old was left by a holder killed inside one, and is broken.
+# mkdir is atomic everywhere, and flock does not exist on macOS. It holds its holder's pid.
+#
+# A lock is broken only when that holder is gone, killed inside an update. A live holder is
+# never broken, however long it takes: an update that loses its lock half-way is the very lost
+# write the lock prevents, and a loaded machine can stall a live holder for many seconds. Nor is
+# anything waited on forever, and each of these ends in an error with the update not made:
+#   * a mkdir refused with no lock there — no queue at all, but a read-only or full file system
+#     or a directory this process may not write (a sandboxed command cannot write the config
+#     dir), which would refuse it for good;
+#   * a stale lock that cannot be removed;
+#   * a holder still there after CARNET_LOCK_WAIT seconds (30 unless set; the hooks set less
+#     than their own timeouts) — stuck, or a stranger that reused a dead holder's pid.
 ledger_lock() { # <ledger-file>
-    local d="$1.lock" i=0
-    mkdir -p "$LEDGER_DIR"
-    until mkdir "$d" 2>/dev/null; do
-        i=$((i + 1))
-        if [ "$i" -ge 200 ]; then rmdir "$d" 2>/dev/null || true; i=0; fi
+    local d="$1.lock" err owner limit=${CARNET_LOCK_WAIT:-30} start=$SECONDS
+    [[ $limit =~ ^[0-9]+$ ]] || limit=30
+    mkdir -p "$LEDGER_DIR" || return 1
+    until err=$(mkdir "$d" 2>&1); do
+        if [ ! -d "$d" ]; then
+            # Once more, for a holder that let go between that mkdir and this test.
+            err=$(mkdir "$d" 2>&1) && break
+            [ -d "$d" ] || { printf '❌ cannot lock the ledger: %s\n' "$err" >&2; return 1; }
+        fi
+        owner=$(cat "$d/pid" 2>/dev/null || true)
+        if [[ $owner =~ ^[0-9]+$ ]] && ! kill -0 "$owner" 2>/dev/null; then
+            # Read again before removing: another waiter may have broken it already, for a new holder.
+            if [ "$(cat "$d/pid" 2>/dev/null || true)" = "$owner" ]; then
+                rm -f "$d/pid" 2>/dev/null
+                rmdir "$d" 2>/dev/null || [ ! -d "$d" ] || {
+                    printf '❌ cannot remove the ledger lock %s, whose holder (pid %s) is gone\n' "$d" "$owner" >&2
+                    return 1
+                }
+            fi
+            continue
+        fi
+        if [ $((SECONDS - start)) -ge "$limit" ]; then
+            printf '❌ the ledger lock %s is still held%s after %ss — not waiting any longer (remove it if no carnet.sh is running)\n' \
+                "$d" "${owner:+ by pid $owner}" "$limit" >&2
+            return 1
+        fi
         sleep 0.05
     done
+    printf '%s\n' "${BASHPID:-$$}" > "$d/pid" || { rmdir "$d" 2>/dev/null; return 1; }
 }
-ledger_unlock() { rmdir "$1.lock" 2>/dev/null || true; }
+# Only a lock this process holds: one it lost is someone else's now.
+ledger_unlock() { # <ledger-file>
+    [ "$(cat "$1.lock/pid" 2>/dev/null || true)" = "${BASHPID:-$$}" ] || return 0
+    rm -f "$1.lock/pid" 2>/dev/null || true
+    rmdir "$1.lock" 2>/dev/null || true
+}
 
 # The identity line, written once, under the lock: two first appends must not each write it.
 ledger_init() { # <ledger-file>
@@ -265,21 +302,36 @@ ledger_filter() { # <ledger-file> <n> <kind>
         && mv "$tmp" "$1"
 }
 
+# One line after the identity line. The caller holds the lock.
+ledger_put() { # <ledger-file> <kind> <n>
+    ledger_init "$1" \
+        && jq -cn --arg k "$2" --arg t "$TRACKER" --argjson n "$3" --arg at "$(now)" \
+               '{kind:$k, tracker:$t, issue:$n, at:$at}' >> "$1"
+}
+
 # Every function below returns the failure rather than exiting inside the lock, so a jq error
 # never strands it; the callers' errexit still stops them on that status.
 ledger_append() { # <kind> <n>
     local f rc=0
     f=$(ledger_file) || return 0
-    ledger_lock "$f"
-    ledger_init "$f" \
-        && jq -cn --arg k "$1" --arg t "$TRACKER" --argjson n "$2" --arg at "$(now)" \
-               '{kind:$k, tracker:$t, issue:$n, at:$at}' >> "$f" \
-        || rc=1
+    ledger_lock "$f" || return 1
+    ledger_put "$f" "$1" "$2" || rc=1
     ledger_unlock "$f"
     return $rc
 }
 
-ledger_add() { ledger_append claim "$1"; }
+# A claim is listed once: the test and the append are one step under the lock, so neither a
+# retried claim nor two run at once — parallel subagents share the session's ledger — lists it
+# twice, which `mine` and the end-of-session audit would each report as two claims.
+ledger_add() { # <n>
+    local f rc=0
+    f=$(ledger_file) || return 0
+    ledger_lock "$f" || return 1
+    jq -e --arg t "$TRACKER" --argjson n "$1" 'select(.kind == "claim" and .tracker == $t and .issue == $n)' \
+        "$f" >/dev/null 2>&1 || ledger_put "$f" claim "$1" || rc=1
+    ledger_unlock "$f"
+    return $rc
+}
 
 # Filed, not claimed. The tracker cannot say which session filed an issue, so the ledger
 # records it, for an end-of-session audit to ask, per issue, why it is residue rather than the
@@ -295,7 +347,7 @@ ledger_filed() { ledger_append filed "$1"; }
 ledger_limitation() { # <n> <on|off>
     local f rc=0
     f=$(ledger_file) || return 0
-    ledger_lock "$f"
+    ledger_lock "$f" || return 1
     ledger_init "$f" \
         && ledger_filter "$f" "$1" limitation \
         && { [ "$2" = off ] || jq -cn --arg t "$TRACKER" --argjson n "$1" --arg at "$(now)" \
@@ -311,7 +363,7 @@ ledger_drop_filed() {
     local f rc=0
     f=$(ledger_file) || return 0
     [ -f "$f" ] || return 0
-    ledger_lock "$f"
+    ledger_lock "$f" || return 1
     [ ! -f "$f" ] || ledger_filter "$f" "$1" filed || rc=1
     ledger_unlock "$f"
     return $rc
@@ -321,7 +373,7 @@ ledger_drop() {
     local f rc=0
     f=$(ledger_file) || return 0
     [ -f "$f" ] || return 0
-    ledger_lock "$f"
+    ledger_lock "$f" || return 1
     if [ -f "$f" ]; then
         ledger_filter "$f" "$1" claim || rc=1
         # A ledger holding only its identity line is finished. "filed" lines count: they outlive
@@ -450,7 +502,7 @@ cmd_claim() { # <n> <steal>
     # a hook timeout — has already assigned and labelled; with its line in the ledger, `release`
     # and the SessionEnd hook can take back what landed, where a line written last would leave
     # an assignee and a label that nothing could release. A retried claim adds no second line.
-    [ "$DRY_RUN" = 1 ] || ledger_has "$n" || ledger_add "$n"
+    [ "$DRY_RUN" = 1 ] || ledger_add "$n"
     if [ -n "$prev_user" ] && [ "$prev_user" != "$USER_LOGIN" ]; then
         api_unassign "$n" "$prev_user"
     fi
