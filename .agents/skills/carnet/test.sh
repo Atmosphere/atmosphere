@@ -36,6 +36,11 @@ trap cleanup EXIT
 # Reads come from canned files under $CARNET_STUB; every call is appended to calls.log. A
 # comment and a new issue travel as a JSON payload file (--input) that carnet.sh deletes
 # afterwards, so the stub unwraps .body and .title out of it and logs them as BODY and TITLE.
+#
+# A call whose arguments match $FAIL_RE fails the way gh does: what a --paginate run printed
+# before its failing page ($FAIL_OUT) on stdout, the error on stderr ($FAIL_MSG, a 502 unless
+# set), exit 1. The call is still logged, followed by FAILED. A case that needs two issues at
+# once gives one of them its own issue-<n>.json and comments-<n>.txt.
 mkdir -p "$tmp/bin" "$tmp/stub"
 cat > "$tmp/bin/gh" <<'EOF'
 #!/usr/bin/env bash
@@ -54,13 +59,20 @@ done
   [ -z "$labels" ] || printf 'LABELS %s\n' "$labels"
   [ -z "$body" ]  || printf 'BODY %s\n' "$body"
   printf 'END\n'; } >> "$S/calls.log"
+if [ -n "${FAIL_RE:-}" ] && printf '%s' "$*" | grep -qE -- "$FAIL_RE"; then
+    printf 'FAILED\n' >> "$S/calls.log"
+    [ -z "${FAIL_OUT:-}" ] || printf '%s\n' "$FAIL_OUT"
+    printf 'gh: %s\n' "${FAIL_MSG:-Server Error (HTTP 502)}" >&2
+    exit 1
+fi
+n=$(printf '%s' "${2:-}" | sed -nE 's#^repos/[^/]+/[^/]+/issues/([0-9]+).*#\1#p')
 # Order matters: /issues/N/comments and /issues?query both also match the bare-read pattern.
-case "$1 $2" in
+case "$1 ${2:-}" in
     "api user")                 printf 'tester\n' ;;
-    "api repos/"*"/comments")   cat "$S/comments.txt" 2>/dev/null || true ;;
+    "api repos/"*"/comments")   f="$S/comments-$n.txt"; [ -f "$f" ] || f="$S/comments.txt"; cat "$f" 2>/dev/null || true ;;
     "api repos/"*"/issues?"*)   cat "$S/list.txt" 2>/dev/null || true ;;
     "api repos/"*"/issues")     printf 'https://github.com/Atmosphere/atmosphere-carnet/issues/321\n' ;;
-    "api repos/"*"/issues/"*)   cat "$S/issue.json" ;;
+    "api repos/"*"/issues/"*)   f="$S/issue-$n.json"; [ -f "$f" ] || f="$S/issue.json"; cat "$f" ;;
     "api repos/"*)              cat "$S/private.txt" 2>/dev/null || printf 'true\n' ;;
     *) : ;;
 esac
@@ -114,7 +126,21 @@ release_marker() { # <session>
     printf '<!-- carnet-release {"v":1,"session":"%s","name":"x","user":"x","host":"x","pid":1,"repo":"atmosphere","branch":"main","at":"2026-09-02T11:00:00Z","reason":"done"} -->\n🔓 Released\n' "$1"
 }
 comments() { cat > "$S/comments.txt"; }
-reset() { : > "$S/calls.log"; : > "$S/comments.txt"; rm -rf "$tmp/cfg/carnet-claims"; rm -f "$S/private.txt" "$S/list.txt"; issue_open; }
+reset() {
+    : > "$S/calls.log"; : > "$S/comments.txt"; rm -rf "$tmp/cfg/carnet-claims"
+    rm -f "$S/private.txt" "$S/list.txt" "$S"/issue-*.json "$S"/comments-*.txt; issue_open
+}
+seed_ledger() { # <issue>... — this session's ledger: its identity, then a claim on each issue here
+    local n
+    mkdir -p "$tmp/cfg/carnet-claims"
+    printf '{"kind":"identity","v":1,"session":"%s","name":"TestSession","user":"tester","host":"%s","pid":%s,"at":"2026-09-02T09:00:00Z"}\n' "$ME" "$HOST" "$$" > "$ledger"
+    for n in "$@"; do
+        printf '{"kind":"claim","tracker":"Atmosphere/atmosphere-carnet","issue":%s,"at":"2026-09-02T10:00:00Z"}\n' "$n" >> "$ledger"
+    done
+}
+# Any claim this user made on this machine left the login behind; `reset` wipes it, which no
+# real machine does.
+seed_login() { mkdir -p "$tmp/cfg/carnet-claims"; printf 'tester' > "$tmp/cfg/carnet-claims/gh-login"; }
 
 # ------------------------------------------------------------------ assertions
 pass=0; fail=0
@@ -244,6 +270,84 @@ assert_eq "dry-run writes nothing" "$(count_calls "$WRITES")" 0
 assert_grep "dry-run prints the edit" '\[dry-run\] api repos/Atmosphere/atmosphere-carnet/issues/42' "$tmp/err"
 [ -f "$ledger" ] && bad "dry-run must not touch the ledger" || ok "dry-run leaves no ledger"
 
+# The marker stream is the only thing that says who holds an issue. Read blind — a 502, or a
+# page failing after the earlier ones printed — it must stop the claim, never read as "free".
+reset
+comments < <(claim_marker "$PEER" PeerSession peer "$HOST" "$peer_pid")
+FAIL_RE='/comments --paginate' run_carnet claim 42
+assert_eq "an unreadable comment stream stops the claim (exit 1)" "$rc" 1
+assert_grep "and says why" 'cannot read the comments of carnet#42' "$tmp/err"
+assert_eq "with no tracker write" "$(count_calls "$WRITES")" 0
+reset
+FAIL_RE='/comments --paginate' FAIL_OUT="$(release_marker "$DEAD")" run_carnet claim 42
+assert_eq "a stream failing after its first page stops the claim too" "$rc" 1
+assert_eq "even though that page held an older release marker" "$(count_calls "$WRITES")" 0
+
+# A claim that dies after its first write has assigned and labelled. Its ledger line, written
+# before that write, is what lets release and the SessionEnd hook take back what landed.
+reset
+mkdir -p "$tmp/tmpdir"
+TMPDIR="$tmp/tmpdir" FAIL_RE='issues/42/comments -X POST' run_carnet claim 42
+assert_eq "a claim whose marker POST fails exits 1" "$rc" 1
+assert_grep "after assigning and labelling" 'issues/42/labels -X POST -f labels\[\]=in-progress' "$S/calls.log"
+assert_grep "the ledger already names the half-made claim" '"kind":"claim","tracker":"Atmosphere/atmosphere-carnet","issue":42' "$ledger"
+assert_eq "and the failed run leaves no temp file behind" "$(find "$tmp/tmpdir" -mindepth 1 | wc -l | tr -d ' ')" 0
+issue_held
+: > "$S/calls.log"
+run_carnet release 42
+assert_eq "release takes a half-made claim back" "$rc" 0
+assert_grep "its label" 'issues/42/labels/in-progress -X DELETE' "$S/calls.log"
+assert_grep "its assignee" 'issues/42/assignees -X DELETE -f assignees\[\]=tester' "$S/calls.log"
+[ -f "$ledger" ] && bad "and the ledger is done with it" || ok "and the ledger is done with it"
+reset
+FAIL_RE='issues/42/comments -X POST' run_carnet claim 42
+issue_held
+: > "$S/calls.log"
+run_carnet release --all --session "$ME" --reason session-ended
+assert_eq "so does the SessionEnd path" "$rc" 0
+assert_grep "label off" 'issues/42/labels/in-progress -X DELETE' "$S/calls.log"
+[ -f "$ledger" ] && bad "SessionEnd path: ledger removed" || ok "SessionEnd path: ledger removed"
+reset
+FAIL_RE='issues/42/comments -X POST' run_carnet claim 42
+run_carnet claim 42
+assert_eq "retrying a half-made claim completes it" "$rc" 0
+assert_eq "without a second ledger line" "$(grep -c '"kind":"claim"' "$ledger")" 1
+
+# The ledger, the login and the status cache belong to this account: the tracker is private.
+# A directory an older copy left world-readable is tightened too.
+reset
+( umask 022; mkdir -p "$tmp/cfg/carnet-claims"; chmod 755 "$tmp/cfg/carnet-claims" )
+rc=0; ( umask 022; bash "$carnet" claim 42 ) > /dev/null 2>&1 || rc=$?
+assert_eq "a claim under umask 022 exits 0" "$rc" 0
+assert_eq "the ledger directory ends up private, even one created open" "$(ls -ld "$tmp/cfg/carnet-claims" | cut -c1-10)" "drwx------"
+assert_eq "the ledger is readable by this account only" "$(ls -l "$ledger" | cut -c1-10)" "-rw-------"
+
+# ================================================================== manual claims
+# Outside Claude Code every caller records the session "manual". Such a claim is its human's:
+# another person's shell — or a non-Claude agent under another login — must not read it as its
+# own, and so must not release it, close it, or skip claiming it.
+section "manual claims"
+manual() { rc=0; env -u CLAUDE_CODE_SESSION_ID -u CLAUDE_PID bash "$carnet" "$@" > "$tmp/out" 2> "$tmp/err" || rc=$?; }
+reset
+issue_held
+comments < <(claim_marker manual shell alice alice-mbp 4242)
+manual claim 42
+assert_eq "another user's manual claim is not this manual caller's" "$rc" 2
+assert_grep "it names the holder" 'held by @alice' "$tmp/err"
+manual release 42
+assert_eq "so it cannot release it" "$rc" 2
+manual close 42 --why dup
+assert_eq "nor close it" "$rc" 2
+assert_eq "and none of that wrote to the tracker" "$(count_calls "$WRITES")" 0
+manual status 42 --short
+assert_no_grep "status does not call it this caller's" 'THIS session' "$tmp/out"
+comments < <(claim_marker manual shell tester "$HOST" 4242)
+manual claim 42
+assert_eq "the same user's manual claim is still theirs" "$rc" 0
+assert_grep "already held, from any of their shells" 'already held by this session' "$tmp/out"
+manual release 42
+assert_eq "and they can release it" "$rc" 0
+
 # ================================================================== release
 section "release"
 reset
@@ -269,6 +373,86 @@ comments < <(claim_marker "$PEER" PeerSession peer "$HOST" "$peer_pid")
 run_carnet release 42
 assert_eq "cannot release another session's claim" "$rc" 2
 assert_grep "points at claim --steal" "claim 42 --steal" "$tmp/err"
+
+# Exit 2 means a holder that may still be working. One whose session ENDED is not that: a plain
+# claim takes a stale claim over, so the answer is 1, and --steal (the user's call) never comes up.
+reset
+comments < <(claim_marker "$DEAD" GoneSession peer "$HOST" 999999)
+run_carnet release 42
+assert_eq "releasing an ended session's claim is an error, not a live-peer refusal" "$rc" 1
+assert_grep "it says a plain claim takes it over" "'claim 42' takes the stale claim over" "$tmp/err"
+assert_no_grep "and never prescribes --steal for it" '--steal' "$tmp/err"
+
+# Displaced: this session claimed #42, then another took it (a --steal, or a race this one lost).
+# Its ledger must not go on saying it holds #42 — bilan would cap it, SessionEnd would fail on it.
+reset
+seed_ledger 42
+comments < <(claim_marker "$PEER" PeerSession peer "$HOST" "$peer_pid")
+run_carnet release 42
+assert_eq "a displaced session can release what it no longer holds" "$rc" 0
+assert_grep "and says who holds it now" 'taken over by @peer · session PeerSession' "$tmp/out"
+assert_eq "posting nothing: the label, assignee and marker are the new holder's" "$(count_calls "$WRITES")" 0
+[ -f "$ledger" ] && bad "and the line leaves its ledger" || ok "and the line leaves its ledger"
+reset
+seed_ledger 42
+comments < <(claim_marker "$PEER" PeerSession peer "$HOST" "$peer_pid")
+run_carnet release --all --session "$ME" --reason session-ended
+assert_eq "the SessionEnd path clears a displaced claim too" "$rc" 0
+assert_eq "without a write" "$(count_calls "$WRITES")" 0
+[ -f "$ledger" ] && bad "and removes the finished ledger" || ok "and removes the finished ledger"
+
+# Blind is not free: an unreadable marker stream releases nothing, alone or under --all.
+reset
+seed_ledger 42
+comments < <(claim_marker "$PEER" PeerSession peer "$HOST" "$peer_pid")
+FAIL_RE='/comments --paginate' run_carnet release 42
+assert_eq "an unreadable comment stream stops release (exit 1)" "$rc" 1
+FAIL_RE='/comments --paginate' run_carnet release --all --session "$ME" --reason session-ended
+assert_eq "and release --all" "$rc" 1
+assert_eq "neither wrote to the tracker" "$(count_calls "$WRITES")" 0
+assert_grep "and the ledger still holds the claim" '"kind":"claim","tracker":"Atmosphere/atmosphere-carnet","issue":42' "$ledger"
+
+# The label is one of the claim's three carriers. When it does not come off, the release stops
+# before its marker and its ledger drop would say it did — except for a 404, a label already gone.
+reset
+seed_ledger 42
+issue_held
+comments < <(claim_marker "$ME" TestSession tester "$HOST" "$$")
+FAIL_RE='labels/in-progress -X DELETE' run_carnet release 42
+assert_eq "a label that will not come off stops the release" "$rc" 1
+assert_grep "saying so" 'could not remove the in-progress label' "$tmp/err"
+assert_eq "before any release marker is posted" "$(count_calls 'api repos/[^ ]*/issues/42/comments -X POST')" 0
+assert_grep "and the claim stays in the ledger" '"kind":"claim","tracker":"Atmosphere/atmosphere-carnet","issue":42' "$ledger"
+FAIL_RE='labels/in-progress -X DELETE' run_carnet release --all --session "$ME" --reason session-ended
+assert_eq "the same under release --all" "$rc" 1
+assert_eq "no marker there either" "$(count_calls 'api repos/[^ ]*/issues/42/comments -X POST')" 0
+FAIL_RE='labels/in-progress -X DELETE' FAIL_MSG='Label does not exist (HTTP 404)' run_carnet release 42
+assert_eq "a label already gone (404) is no obstacle" "$rc" 0
+[ -f "$ledger" ] && bad "and that release drops the claim" || ok "and that release drops the claim"
+
+# release --all runs each release in a subshell. Every failure there must stop that release as
+# it would stop `release <n>` alone, not be reported as released and dropped.
+reset
+seed_ledger 42
+issue_held
+comments < <(claim_marker "$ME" TestSession tester "$HOST" "$$")
+FAIL_RE='assignees -X DELETE' run_carnet release --all --session "$ME" --reason session-ended
+assert_eq "a failed unassign fails release --all" "$rc" 1
+assert_eq "before its marker is posted" "$(count_calls 'api repos/[^ ]*/issues/42/comments -X POST')" 0
+assert_grep "and keeps the claim for another try" '"kind":"claim","tracker":"Atmosphere/atmosphere-carnet","issue":42' "$ledger"
+
+# One ledger serves every checkout a session claims from, each line naming its register. The
+# SessionEnd release walks all of them, each against its own tracker.
+reset
+seed_ledger 42
+printf '{"kind":"claim","tracker":"some-org/some-carnet","issue":7,"at":"2026-09-02T10:00:00Z"}\n' >> "$ledger"
+comments < <(claim_marker "$ME" TestSession tester "$HOST" "$$")
+run_carnet release --all --session "$ME" --reason session-ended
+assert_eq "release --all over two registers exits 0" "$rc" 0
+assert_grep "releases this register's claim" '^CALL api repos/Atmosphere/atmosphere-carnet/issues/42/comments -X POST' "$S/calls.log"
+assert_grep "and the other register's, on its own tracker" '^CALL api repos/some-org/some-carnet/issues/7/comments -X POST' "$S/calls.log"
+assert_grep "naming it by its register" 'some-org/some-carnet#7 released \(session-ended\)' "$tmp/out"
+[ -f "$ledger" ] && bad "then the ledger is finished" || ok "then the ledger is finished"
 
 # ================================================================== close
 section "close"
@@ -303,6 +487,56 @@ comments < <(claim_marker "$ME" TestSession tester "$HOST" "$$")
 run_carnet close 42 --why "done"
 assert_eq "closing my own held issue works" "$rc" 0
 assert_grep "and drops label + assignee first" 'issues/42/labels/in-progress -X DELETE' "$S/calls.log"
+
+reset
+issue_held
+comments < <(claim_marker "$ME" TestSession tester "$HOST" "$$")
+FAIL_RE='labels/in-progress -X DELETE' run_carnet close 42 --why "done"
+assert_eq "a label that will not come off stops the close" "$rc" 1
+assert_eq "before the issue is closed" "$(count_calls 'api repos/[^ ]*/issues/42 -X PATCH')" 0
+assert_eq "or its closing comment posted" "$(count_calls 'api repos/[^ ]*/issues/42/comments -X POST')" 0
+
+reset
+comments < <(claim_marker "$PEER" PeerSession peer "$HOST" "$peer_pid")
+FAIL_RE='/comments --paginate' run_carnet close 42 --why x
+assert_eq "an unreadable comment stream stops close (exit 1)" "$rc" 1
+assert_eq "without closing anything" "$(count_calls "$WRITES")" 0
+
+reset
+comments < <(claim_marker "$DEAD" GoneSession peer "$HOST" 999999)
+run_carnet close 42 --why x
+assert_eq "closing over an ended session's claim is an error, not a live-peer refusal" "$rc" 1
+assert_grep "it says to claim first, plainly" "'claim 42' takes the stale claim over, then close" "$tmp/err"
+assert_no_grep "never with --steal" '--steal' "$tmp/err"
+
+# A displaced session is refused the close — the issue is the new holder's — but its ledger
+# stops claiming the issue either way.
+reset
+seed_ledger 42
+comments < <(claim_marker "$PEER" PeerSession peer "$HOST" "$peer_pid")
+run_carnet close 42 --why x
+assert_eq "a displaced session cannot close the new holder's issue" "$rc" 2
+assert_eq "and writes nothing to the tracker" "$(count_calls "$WRITES")" 0
+[ -f "$ledger" ] && bad "but its stale claim leaves its ledger" || ok "but its stale claim leaves its ledger"
+
+# Subagents inherit their session's id, so parallel closes rewrite ONE ledger. The mv shim holds
+# every rename for half a second: both closes have read the ledger before either writes it, so
+# without a lock the second rename is certain — not merely likely — to bring back the first's line.
+reset
+seed_ledger 1 2 3
+comments < <(claim_marker "$ME" TestSession tester "$HOST" "$$")
+mkdir -p "$tmp/slowmv"
+printf '#!/usr/bin/env bash\nsleep 0.5\nexec %s "$@"\n' "$(command -v mv)" > "$tmp/slowmv/mv"
+chmod +x "$tmp/slowmv/mv"
+rc1=0; rc2=0
+PATH="$tmp/slowmv:$PATH" bash "$carnet" close 1 --why x > /dev/null 2>&1 & c1=$!
+PATH="$tmp/slowmv:$PATH" bash "$carnet" close 2 --why x > /dev/null 2>&1 & c2=$!
+wait "$c1" || rc1=$?
+wait "$c2" || rc2=$?
+assert_eq "two concurrent closes under one session both succeed" "$rc1 $rc2" "0 0"
+assert_eq "and the shared ledger keeps only the claim neither closed" \
+    "$(jq -r 'select(.kind == "claim") | .issue' "$ledger" 2>/dev/null | tr '\n' ' ')" "3 "
+[ -d "$ledger.lock" ] && bad "the ledger lock is released" || ok "the ledger lock is released"
 
 # A dry run closes nothing, so it must not forget that this session filed the issue.
 reset
@@ -420,6 +654,12 @@ assert_eq "relabelling does not duplicate the line" "$(grep -c '"kind":"limitati
 run_carnet label 42 -limitation
 assert_no_grep "removing the label drops the line" '"kind":"limitation"' "$ledger"
 
+reset
+run_carnet label 42 +limitation
+FAIL_RE='labels/limitation -X DELETE' run_carnet label 42 -limitation
+assert_eq "a label that will not come off fails the command" "$rc" 1
+assert_grep "and the ledger keeps the limitation it still has" '"kind":"limitation","tracker":"Atmosphere/atmosphere-carnet","issue":42' "$ledger"
+
 # ================================================================== status
 section "status"
 reset
@@ -445,6 +685,11 @@ assert_grep "another host" '\[other host\]' "$tmp/out"
 issue_closed
 run_carnet status 42 --short
 assert_grep "closed" '^carnet#42 · closed' "$tmp/out"
+issue_held
+comments < <(claim_marker "$PEER" PeerSession peer "$HOST" "$peer_pid")
+FAIL_RE='/comments --paginate' run_carnet status 42 --short
+assert_eq "an unreadable comment stream fails status" "$rc" 1
+assert_no_grep "rather than calling a held issue unclaimed" 'unclaimed' "$tmp/out"
 
 reset
 printf '42\n' > "$S/list.txt"
@@ -459,14 +704,34 @@ section "mine"
 reset
 run_carnet mine
 assert_grep "empty ledger" 'holds nothing' "$tmp/out"
+# The offline audit: not even the login lookup, which is the call a logged-out gh fails.
+assert_eq "mine asks gh nothing, not even the login" "$(wc -c < "$S/calls.log" | tr -d ' ')" 0
 run_carnet claim 42 >/dev/null 2>&1
+: > "$S/calls.log"
 run_carnet mine
 assert_grep "lists the held issue without an API call" 'carnet#42 · since' "$tmp/out"
+assert_eq "and without one" "$(wc -c < "$S/calls.log" | tr -d ' ')" 0
+
+# With gh logged out and the login cache gone, the ledger still answers.
+reset
+seed_ledger 42
+FAIL_RE='^api user' run_carnet mine
+assert_eq "mine answers with gh logged out" "$rc" 0
+assert_grep "from the ledger alone" 'carnet#42 · since 2026-09-02T10:00:00Z' "$tmp/out"
+
+# Another register's claim on the same number is not this one's, nor its date.
+reset
+seed_ledger 42
+printf '{"kind":"claim","tracker":"some-org/some-carnet","issue":42,"at":"2026-01-01T00:00:00Z"}\n' >> "$ledger"
+run_carnet mine
+assert_grep "mine dates this register's claim from its own line" 'carnet#42 · since 2026-09-02T10:00:00Z$' "$tmp/out"
+assert_no_grep "never from another register's line on the same number" '2026-01-01' "$tmp/out"
 
 # A RESUMED session gets a new id and a new, empty ledger. The previous
 # incarnation's claims stay in its own file, so `mine` used to answer "holds
 # nothing" — a false all-clear, and exactly when someone is auditing.
 reset
+seed_login
 prior="$tmp/cfg/carnet-claims/$DEAD.jsonl"
 mkdir -p "$tmp/cfg/carnet-claims"
 printf '{"kind":"identity","v":1,"session":"%s","name":"EarlierMe","user":"tester","host":"%s","pid":1,"repo":"r","branch":"main","at":"2026-01-01T00:00:00Z"}\n' "$DEAD" "$HOST" > "$prior"
@@ -482,6 +747,7 @@ assert_eq "surfacing them costs no API call" "$(count_calls 'api repos/[^ ]*/iss
 # "an earlier me" — adopting a peer's claim would be worse than the false
 # all-clear this fixes.
 reset
+seed_login
 foreign="$tmp/cfg/carnet-claims/$PEER.jsonl"
 mkdir -p "$tmp/cfg/carnet-claims"
 printf '{"kind":"identity","v":1,"session":"%s","name":"SomeoneElse","user":"other","host":"%s","pid":1,"repo":"r","branch":"main","at":"2026-01-01T00:00:00Z"}\n' "$PEER" "$HOST" > "$foreign"
@@ -490,6 +756,7 @@ run_carnet mine
 assert_no_grep "another user's ledger is not surfaced" 'SomeoneElse' "$tmp/out"
 
 reset
+seed_login
 elsewhere="$tmp/cfg/carnet-claims/$PEER.jsonl"
 mkdir -p "$tmp/cfg/carnet-claims"
 printf '{"kind":"identity","v":1,"session":"%s","name":"OtherBox","user":"tester","host":"not-this-host","pid":1,"repo":"r","branch":"main","at":"2026-01-01T00:00:00Z"}\n' "$PEER" > "$elsewhere"
@@ -500,6 +767,7 @@ assert_no_grep "another machine's ledger is not surfaced" 'OtherBox' "$tmp/out"
 # One config dir serves every checkout on the machine. A claim this user holds in ANOTHER
 # register is that register's business: it is neither this session's nor an earlier one's.
 reset
+seed_login
 mkdir -p "$tmp/cfg/carnet-claims"
 printf '{"kind":"identity","v":1,"session":"%s","name":"OtherRegister","user":"tester","host":"%s","pid":1,"repo":"r","branch":"main","at":"2026-01-01T00:00:00Z"}\n' "$DEAD" "$HOST" > "$prior"
 printf '{"kind":"claim","tracker":"some-org/some-carnet","issue":94,"at":"2026-01-01T00:00:00Z"}\n' >> "$prior"

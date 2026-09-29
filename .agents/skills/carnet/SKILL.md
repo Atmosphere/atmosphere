@@ -36,16 +36,22 @@ the one path that keeps the three carriers consistent and the title shape unifor
    stop. The auto-claim hook enforces this once: it blocks your first edit and names the
    holder. It does not block again — after that you are accountable, not the hook. Do not
    `--steal` on your own judgement — stealing is the user's call, and the stolen-from session
-   is warned on the issue.
+   is warned on the issue. A claim whose session has *ended* is not a refusal: `release` and
+   `close` exit 1 on it and say so, and a plain `claim` takes it over.
 3. **Release when you stop, close when it is fixed.** `release <n>` when you abandon or hand
    off; `close <n> --why "…" --commit <sha>` when the work landed. Both drop the label and
-   the assignee and post a marker. A session that ends still holding claims is released by
-   the SessionEnd hook, so a forgotten release is not fatal — but do not rely on it.
-4. **Every close says why.** `--why` is mandatory and is what the next reader sees first.
+   the assignee and post a marker. If another session took the issue over, `release` posts
+   nothing and only drops it from this session's ledger. A session that ends still holding
+   claims is released by the SessionEnd hook, so a forgotten release is not fatal — but do
+   not rely on it.
+4. **Unreadable is not unclaimed.** When the issue's comments cannot be read in full, `claim`,
+   `release`, `close` and `status` exit 1 and change nothing: the newest marker is the only
+   record of who holds the issue, and deciding without it is how two sessions end up on one.
+5. **Every close says why.** `--why` is mandatory and is what the next reader sees first.
    Add `--commit <sha>` whenever a commit resolved it: the tracker is a different repository,
    so `carnet#N` in a commit message is plain text to GitHub and never closes anything there.
    `--commit` posts the commit's URL on `origin`.
-5. **File through `create`.** It reads the tracker from `registre.toml`, refuses a tracker that
+6. **File through `create`.** It reads the tracker from `registre.toml`, refuses a tracker that
    is not private (or whose visibility it cannot read), prefixes the title with the project —
    `[atmosphere] ` — unless the title already starts with `[`, and always adds the
    `atmosphere` label. Titles are `[<project>] <Thing>` — one shape, no variants, capitalised
@@ -64,7 +70,7 @@ $C claim 12 --steal               # take it from a live or remote session — th
 $C release 12 --reason "handed to the transport session"
 $C status 12                      # who holds it, is that session alive, which branch
 $C status                         # every in-progress issue in the tracker
-$C mine                           # what this session holds (no API call); --verify to check the tracker
+$C mine                           # what this session holds (no API call, works with gh logged out); --verify to check the tracker
 $C create --title "<Thing that is incomplete>" --label bug --body-file /tmp/body.md --claim
 $C close 12 --why "<what resolved it>" --commit <sha>
 $C label 12 +critical -bug
@@ -168,7 +174,9 @@ removes it on exit. A claim on this host is **running** when that file exists wi
 session id and the pid answers `kill -0`; otherwise it **ended** and `claim` takes it over
 with a "took over" line. A claim from another host cannot be checked, so it is refused
 without `--steal`. Outside Claude Code (`session=manual`) a claim is advisory: it records the
-human, and nothing auto-releases it.
+human, and nothing auto-releases it. It is that human's alone — every shell outside Claude Code
+records the same `manual` session, so a manual claim counts as the caller's own only when it
+also names the caller's gh login.
 
 ## Where things are
 
@@ -176,7 +184,7 @@ human, and nothing auto-releases it.
 |---|---|
 | Tracker | `registre.toml` → `tracker` = `Atmosphere/atmosphere-carnet` (PRIVATE); `REGISTRE_TRACKER` overrides it, as it does for the limitation gates |
 | Title prefix + label | the repo name from `origin` — `[atmosphere]` and `atmosphere` — never the checkout's basename, which in a worktree is the branch or agent name |
-| Ledger | `${CLAUDE_CONFIG_DIR:-~/.claude}/carnet-claims/<session-id>.jsonl`; every line names its tracker |
+| Ledger | `${CLAUDE_CONFIG_DIR:-~/.claude}/carnet-claims/<session-id>.jsonl`; every line names its tracker. Subagents share their session's ledger, so every change to it holds `<session-id>.jsonl.lock` (a directory) while it is written. `carnet-claims/` is kept at 0700: its cache holds private titles |
 | Status cache | `${CLAUDE_CONFIG_DIR:-~/.claude}/carnet-claims/cache/<tracker>/<n>`, one minute |
 | Tests | `.agents/skills/carnet/test.sh` — stub `gh`, every refusal path fires; CI runs it from `.github/workflows/carnet.yml` |
 

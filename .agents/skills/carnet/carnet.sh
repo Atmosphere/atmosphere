@@ -31,6 +31,10 @@
 #       <!-- carnet-release {…,"reason":"…"} -->
 # `status` reads the newest marker; the label and assignee are the list-view mirrors of it.
 set -euo pipefail
+# Everything written here is this account's alone: the ledger, the gh login and the prompt
+# hook's status cache, which holds the private tracker's issue titles. A shared host's default
+# umask would leave them readable by every other local user.
+umask 077
 
 MARKER_VERSION=1
 CLAIM_LABEL="in-progress"
@@ -72,11 +76,16 @@ UNSIGNED='def unsigned: split("\n")
     | until(length == 0 or (last | test("^\\s*(-{3,})?\\s*$") | not); .[:-1])
     | join("\n") + "\n";'
 
+# Temp files live in one directory per run ($SCRATCH, made in main), removed on every exit:
+# a claim that dies half-way — a 5xx on the comment POST — must not leave its payload and marker
+# body behind in $TMPDIR. Subshells reset the EXIT trap, so only the script's own exit clears it.
+tmpfile() { mktemp "$SCRATCH/carnet.XXXXXX"; }
+
 # The body reaches the API as JSON built by jq, never as a shell argument, so backticks,
 # quotes and newlines in a marker comment cannot corrupt the request.
 api_comment() { # <n> <body-file>
     local payload
-    payload=$(mktemp)
+    payload=$(tmpfile)
     jq -n --rawfile b "$2" "$UNSIGNED"'{body:($b|unsigned)}' > "$payload"
     run api "repos/$TRACKER/issues/$1/comments" -X POST --input "$payload" >/dev/null
     rm -f "$payload"
@@ -87,7 +96,17 @@ api_unassign()  { run api "repos/$TRACKER/issues/$1/assignees" -X DELETE -f "ass
 api_label_add() { run api "repos/$TRACKER/issues/$1/labels"    -X POST   -f "labels[]=$2"    >/dev/null; }
 # Removing a label the issue does not carry answers 404. `gh issue edit --remove-label`
 # tolerated that, and release/close both call this unconditionally, so it stays tolerated.
-api_label_rm()  { run api "repos/$TRACKER/issues/$1/labels/$(uri "$2")" -X DELETE >/dev/null 2>&1 || true; }
+# Nothing else is: a 5xx, a 403 or a rate limit returns 1 with gh's error, and each caller
+# stops there — before a release marker and a dropped ledger line would claim the label went.
+api_label_rm() {
+    local path err
+    path="repos/$TRACKER/issues/$1/labels/$(uri "$2")"
+    if [ "$DRY_RUN" = 1 ]; then run api "$path" -X DELETE; return 0; fi
+    err=$(api "$path" -X DELETE 2>&1 >/dev/null) && return 0
+    case $err in *"(HTTP 404)"*) return 0 ;; esac
+    printf '%s\n' "$err" >&2
+    return 1
+}
 
 usage() {
     cat <<'EOF'
@@ -96,7 +115,8 @@ carnet — the private register, from the command line
   carnet.sh claim   <n> [--steal]                 hold carnet#n: assign me, label in-progress, marker comment
   carnet.sh release <n> [--reason <why>]          let go of carnet#n (inverse of claim)
   carnet.sh release --all [--reason <why>] [--session <uuid>]
-                                                   release everything this session (or <uuid>) still holds
+                                                   release everything this session (or <uuid>) still holds,
+                                                   in every register its ledger names
   carnet.sh status  [<n>] [--short]               who holds carnet#n — or every in-progress issue
   carnet.sh mine    [--verify]                    what this session holds, from its local ledger
   carnet.sh create  --title <t> [--label <l>]... (--body <b> | --body-file <f> | stdin) [--claim]
@@ -128,6 +148,7 @@ fi
 # The tracker is spliced into every API path, so anything but a bare owner/repo is refused
 # before it reaches one.
 [[ $TRACKER =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || die "tracker must be owner/repo, got: $TRACKER"
+CHECKOUT_TRACKER=$TRACKER
 
 # The repo name comes from origin, never from the checkout's basename: a worktree is named
 # after its branch or its agent (.claude/worktrees/agent-…), which is not a project.
@@ -147,6 +168,10 @@ BRANCH=${BRANCH//--/-}
 # a manual one: it still records the human, and nothing auto-releases it.
 CFG=${CLAUDE_CONFIG_DIR:-$HOME/.claude}
 LEDGER_DIR="$CFG/carnet-claims"
+# The umask covers what this run creates, not a tree an older copy of these scripts left at
+# 0755 — mkdir -p never changes an existing directory's mode. At 0700 the top of the tree cuts
+# off everything below it, whoever wrote it.
+[ ! -d "$LEDGER_DIR" ] || chmod 700 "$LEDGER_DIR" 2>/dev/null || true
 SESSION_ID=${CLAUDE_CODE_SESSION_ID:-}
 SESSION_PID=${CLAUDE_PID:-}
 HOST=$(hostname -s 2>/dev/null || hostname)
@@ -193,6 +218,15 @@ identity_json() {
           pid:($pid|tonumber), repo:$repo, branch:$branch, at:$at}'
 }
 
+# Whether a claim marker names the caller. A Claude Code session is its id. Every caller outside
+# Claude Code records the same session, "manual", so a manual marker is the caller's only when it
+# also names the caller's gh login: otherwise any two shells — two people, or a person and a
+# non-Claude agent — would each read the other's claim as their own, then release or close it.
+held_by_me() { # <holder-json>
+    [ "$(jq -r .session <<<"$1")" = "${SESSION_ID:-manual}" ] || return 1
+    [ -n "$SESSION_ID" ] || [ "$(jq -r .user <<<"$1")" = "$USER_LOGIN" ]
+}
+
 # ------------------------------------------------------------------ local ledger
 # One JSON-lines file per session: line 1 is the identity, then one line per held issue.
 # The SessionEnd hook reads it to release what the session still holds; `mine` reads it
@@ -200,69 +234,102 @@ identity_json() {
 # checkouts that file into different registers.
 ledger_file() { [ -n "$SESSION_ID" ] && printf '%s' "$LEDGER_DIR/$SESSION_ID.jsonl"; }
 
-ledger_add() {
-    local f
-    f=$(ledger_file) || return 0
+# Every change to a ledger is an append or a read-modify-write, and subagents inherit their
+# session's id — so its ledger. Two of them closing issues at once would each rewrite the file
+# from the copy they read, and the second rename would bring back the line the first dropped.
+# The lock is a directory beside the ledger (<id>.jsonl.lock, which no *.jsonl reader lists):
+# mkdir is atomic everywhere, and flock does not exist on macOS. No update takes anywhere near
+# ten seconds, so a lock that old was left by a holder killed inside one, and is broken.
+ledger_lock() { # <ledger-file>
+    local d="$1.lock" i=0
     mkdir -p "$LEDGER_DIR"
-    [ -s "$f" ] || identity_json | jq -c '. + {kind:"identity"}' > "$f"
-    jq -cn --arg t "$TRACKER" --argjson n "$1" --arg at "$(now)" \
-        '{kind:"claim", tracker:$t, issue:$n, at:$at}' >> "$f"
+    until mkdir "$d" 2>/dev/null; do
+        i=$((i + 1))
+        if [ "$i" -ge 200 ]; then rmdir "$d" 2>/dev/null || true; i=0; fi
+        sleep 0.05
+    done
 }
+ledger_unlock() { rmdir "$1.lock" 2>/dev/null || true; }
+
+# The identity line, written once, under the lock: two first appends must not each write it.
+ledger_init() { # <ledger-file>
+    [ -s "$1" ] || identity_json | jq -c '. + {kind:"identity"}' > "$1"
+}
+
+# Drops this tracker's <kind> line for issue n. The caller holds the lock.
+ledger_filter() { # <ledger-file> <n> <kind>
+    local tmp
+    tmp=$(tmpfile) || return 1
+    jq -c --arg t "$TRACKER" --argjson n "$2" --arg k "$3" \
+        'select((.kind == $k and .tracker == $t and .issue == $n) | not)' "$1" > "$tmp" \
+        && mv "$tmp" "$1"
+}
+
+# Every function below returns the failure rather than exiting inside the lock, so a jq error
+# never strands it; the callers' errexit still stops them on that status.
+ledger_append() { # <kind> <n>
+    local f rc=0
+    f=$(ledger_file) || return 0
+    ledger_lock "$f"
+    ledger_init "$f" \
+        && jq -cn --arg k "$1" --arg t "$TRACKER" --argjson n "$2" --arg at "$(now)" \
+               '{kind:$k, tracker:$t, issue:$n, at:$at}' >> "$f" \
+        || rc=1
+    ledger_unlock "$f"
+    return $rc
+}
+
+ledger_add() { ledger_append claim "$1"; }
 
 # Filed, not claimed. The tracker cannot say which session filed an issue, so the ledger
 # records it, for an end-of-session audit to ask, per issue, why it is residue rather than the
 # work the session was asked to do. That audit is bilan (check_carnet_filed in
 # .agents/skills/bilan/bilan.sh), which caps the session at 6 while such an issue stays open;
 # within this skill the lines also keep the ledger alive while they exist (ledger_drop).
-ledger_filed() {
-    local f
-    f=$(ledger_file) || return 0
-    mkdir -p "$LEDGER_DIR"
-    [ -s "$f" ] || identity_json | jq -c '. + {kind:"identity"}' > "$f"
-    jq -cn --arg t "$TRACKER" --argjson n "$1" --arg at "$(now)" \
-        '{kind:"filed", tracker:$t, issue:$n, at:$at}' >> "$f"
-}
+ledger_filed() { ledger_append filed "$1"; }
 
 # Labelled `limitation` by this session. A filed issue that is a registered limitation — the
 # label plus a LIMITATION(registre#n) marker in source — is not residue, and an audit that
 # reads the ledger offline, never touching the network, can only see the label through this
 # line. `off` drops it when the label is removed.
 ledger_limitation() { # <n> <on|off>
-    local f tmp
+    local f rc=0
     f=$(ledger_file) || return 0
-    mkdir -p "$LEDGER_DIR"
-    [ -s "$f" ] || identity_json | jq -c '. + {kind:"identity"}' > "$f"
-    tmp=$(mktemp)
-    jq -c --arg t "$TRACKER" --argjson n "$1" \
-        'select((.kind == "limitation" and .tracker == $t and .issue == $n) | not)' "$f" > "$tmp"
-    mv "$tmp" "$f"
-    [ "$2" = off ] || jq -cn --arg t "$TRACKER" --argjson n "$1" --arg at "$(now)" \
-        '{kind:"limitation", tracker:$t, issue:$n, at:$at}' >> "$f"
+    ledger_lock "$f"
+    ledger_init "$f" \
+        && ledger_filter "$f" "$1" limitation \
+        && { [ "$2" = off ] || jq -cn --arg t "$TRACKER" --argjson n "$1" --arg at "$(now)" \
+                 '{kind:"limitation", tracker:$t, issue:$n, at:$at}' >> "$f"; } \
+        || rc=1
+    ledger_unlock "$f"
+    return $rc
 }
 
 # Closing an issue this session filed clears its "filed" line: an issue opened and fixed in
 # the same session is not residue, so the record of it has to end when the fix lands.
 ledger_drop_filed() {
-    local f tmp
+    local f rc=0
     f=$(ledger_file) || return 0
     [ -f "$f" ] || return 0
-    tmp=$(mktemp)
-    jq -c --arg t "$TRACKER" --argjson n "$1" \
-        'select((.kind == "filed" and .tracker == $t and .issue == $n) | not)' "$f" > "$tmp"
-    mv "$tmp" "$f"
+    ledger_lock "$f"
+    [ ! -f "$f" ] || ledger_filter "$f" "$1" filed || rc=1
+    ledger_unlock "$f"
+    return $rc
 }
 
 ledger_drop() {
-    local f tmp
+    local f rc=0
     f=$(ledger_file) || return 0
     [ -f "$f" ] || return 0
-    tmp=$(mktemp)
-    jq -c --arg t "$TRACKER" --argjson n "$1" \
-        'select((.kind == "claim" and .tracker == $t and .issue == $n) | not)' "$f" > "$tmp"
-    mv "$tmp" "$f"
-    # A ledger holding only its identity line is finished. "filed" lines count: they outlive
-    # the claims on purpose, so the end of the session can still see them.
-    if [ "$(jq -c 'select(.kind == "claim" or .kind == "filed")' "$f" | wc -l | tr -d ' ')" = 0 ]; then rm -f "$f"; fi
+    ledger_lock "$f"
+    if [ -f "$f" ]; then
+        ledger_filter "$f" "$1" claim || rc=1
+        # A ledger holding only its identity line is finished. "filed" lines count: they outlive
+        # the claims on purpose, so the end of the session can still see them.
+        if [ $rc = 0 ] && [ "$(jq -c 'select(.kind == "claim" or .kind == "filed")' "$f" | wc -l | tr -d ' ')" = 0 ]; then rm -f "$f"; fi
+    fi
+    ledger_unlock "$f"
+    return $rc
 }
 
 ledger_issues() { # <file>
@@ -280,19 +347,33 @@ ledger_has() {
 # REST names the field `html_url` and lower-cases the state, while three call sites below
 # compare `.state` to "OPEN". Normalise here so those consumers are untouched by the
 # transport change — a silent lower-case would make every claim die as "already closed".
+#
+# Only a 404 means the issue does not exist. A 5xx, a rate limit or an expired login say nothing
+# about the issue, and the auto-claim hook retries those later but not a missing issue.
 issue_json() {
-    local raw
-    raw=$(api "repos/$TRACKER/issues/$1" 2>/dev/null) \
-        || die "carnet#$1 does not exist in $TRACKER"
+    local raw errf
+    errf=$(tmpfile)
+    raw=$(api "repos/$TRACKER/issues/$1" 2>"$errf") || {
+        grep -q '(HTTP 404)' "$errf" && die "carnet#$1 does not exist in $TRACKER"
+        die "cannot read carnet#$1 from $TRACKER: $(grep -v '^$' "$errf" | tail -1)"
+    }
     jq -c '{number, title, url: .html_url, state: (.state | ascii_upcase), labels, assignees}' <<<"$raw"
 }
 
 # Newest marker comment on the issue, or nothing. Claims and releases share one stream, so the
 # last one wins.
+#
+# A stream that could not be read in full is a failure (return 1), never "no marker": gh prints
+# the pages it got before one fails, so an older marker — or none — would pass for the newest,
+# and claim, close and release would each act over a holder they could not see. Every caller
+# dies on it, explicitly: `release --all` runs each release in a subshell, and a die inside the
+# command substitution alone would only end that substitution.
 last_marker() {
-    api "repos/$TRACKER/issues/$1/comments" --paginate -q '.[].body' 2>/dev/null \
-        | grep -oE '<!-- carnet-(claim|release) \{.*\} -->' | tail -1 || true
+    local out
+    out=$(api "repos/$TRACKER/issues/$1/comments" --paginate -q '.[].body' 2>/dev/null) || return 1
+    printf '%s\n' "$out" | grep -oE '<!-- carnet-(claim|release) \{.*\} -->' | tail -1 || true
 }
+UNREADABLE="refusing to decide who holds it without reading every marker"
 marker_kind() { local k=${1#<!-- carnet-}; printf '%s' "${k%% *}"; }
 marker_json() { local j=${1#<!-- carnet-* }; printf '%s' "${j% -->}"; }
 
@@ -311,19 +392,35 @@ holder_alive() { # <host> <pid> <session>
 
 has_label() { jq -e --arg l "$2" '.labels[]? | select(.name == $l)' >/dev/null 2>&1 <<<"$1"; }
 
+# The newest marker is another session's claim, and release or close was asked for. Exit 2 means
+# what the usage says: that session may still be working it — running on this host, or on one
+# whose liveness this host cannot see. A holder whose session ENDED is refused with 1 instead: a
+# plain `claim` takes a stale claim over, so --steal (the user's call) is never the answer to it.
+refuse_foreign() { # <n> <holder-json> <release|close>
+    local n=$1 verb=$3 hs hn hu hh hp st
+    hs=$(jq -r .session <<<"$2"); hn=$(jq -r .name <<<"$2"); hu=$(jq -r .user <<<"$2")
+    hh=$(jq -r .host <<<"$2");    hp=$(jq -r .pid <<<"$2")
+    if holder_alive "$hh" "$hp" "$hs"; then st=0; else st=$?; fi
+    case $st in
+        1) die "carnet#$n is held by ended session $hn (${hs:0:8}) of @$hu — 'claim $n' takes the stale claim over, then $verb" 1 ;;
+        0) die "carnet#$n is held by @$hu · session $hn (${hs:0:8}), still running — not this session's to $verb; taking it over ('claim $n --steal') is your user's call" 2 ;;
+        *) die "carnet#$n is held by @$hu · session $hn (${hs:0:8}) on host $hh, whose liveness cannot be checked from $HOST — not this session's to $verb; taking it over ('claim $n --steal') is your user's call" 2 ;;
+    esac
+}
+
 # ------------------------------------------------------------------ claim
 cmd_claim() { # <n> <steal>
     local n=$1 steal=$2 issue marker holder extra="" prev_user="" st
     issue=$(issue_json "$n")
     [ "$(jq -r .state <<<"$issue")" = "OPEN" ] || die "carnet#$n is closed — nothing to claim"
 
-    marker=$(last_marker "$n")
+    marker=$(last_marker "$n") || die "cannot read the comments of carnet#$n — $UNREADABLE"
     if [ -n "$marker" ] && [ "$(marker_kind "$marker")" = claim ]; then
         holder=$(marker_json "$marker")
         local hs hn hu hh hp ha
         hs=$(jq -r .session <<<"$holder"); hn=$(jq -r .name <<<"$holder"); hu=$(jq -r .user <<<"$holder")
         hh=$(jq -r .host <<<"$holder");    hp=$(jq -r .pid <<<"$holder");  ha=$(jq -r .at <<<"$holder")
-        if [ "$hs" = "${SESSION_ID:-manual}" ]; then
+        if held_by_me "$holder"; then
             say "🔒 carnet#$n is already held by this session ($NAME)"
             return 0
         fi
@@ -341,7 +438,7 @@ cmd_claim() { # <n> <steal>
     fi
 
     local body
-    body=$(mktemp)
+    body=$(tmpfile)
     {
         printf '<!-- carnet-claim %s -->\n' "$(identity_json)"
         printf '🔒 Claimed by @%s · session **%s** (`%s`) on %s · `%s` @ `%s` · %s\n' \
@@ -349,6 +446,11 @@ cmd_claim() { # <n> <steal>
         [ -z "$extra" ] || printf '\n%s\n' "$extra"
     } > "$body"
 
+    # Recorded BEFORE the first write. A claim that dies part-way — a 5xx on the comment POST,
+    # a hook timeout — has already assigned and labelled; with its line in the ledger, `release`
+    # and the SessionEnd hook can take back what landed, where a line written last would leave
+    # an assignee and a label that nothing could release. A retried claim adds no second line.
+    [ "$DRY_RUN" = 1 ] || ledger_has "$n" || ledger_add "$n"
     if [ -n "$prev_user" ] && [ "$prev_user" != "$USER_LOGIN" ]; then
         api_unassign "$n" "$prev_user"
     fi
@@ -356,7 +458,6 @@ cmd_claim() { # <n> <steal>
     api_label_add "$n" "$CLAIM_LABEL"
     api_comment "$n" "$body"
     rm -f "$body"
-    [ "$DRY_RUN" = 1 ] || ledger_add "$n"
     say "🔒 carnet#$n claimed by @$USER_LOGIN · session $NAME ($SHORT_ID) · $(jq -r .title <<<"$issue")"
 }
 
@@ -369,15 +470,26 @@ release_comment() { # <reason> [extra lines...]
     for line in "$@"; do printf '%s\n' "$line"; done
 }
 
+# carnet#n in this checkout's register, owner/repo#n in another one: `release --all` walks every
+# register a session's ledger names.
+issue_ref() { if [ "$TRACKER" = "$CHECKOUT_TRACKER" ]; then printf 'carnet#%s' "$1"; else printf '%s#%s' "$TRACKER" "$1"; fi; }
+
 cmd_release() { # <n> <reason>
     local n=$1 reason=${2:-done} marker holder held_by_me=0
-    marker=$(last_marker "$n")
+    marker=$(last_marker "$n") || die "cannot read the comments of $(issue_ref "$n") — $UNREADABLE"
     if [ -n "$marker" ] && [ "$(marker_kind "$marker")" = claim ]; then
         holder=$(marker_json "$marker")
-        if [ "$(jq -r .session <<<"$holder")" = "${SESSION_ID:-manual}" ]; then
+        if held_by_me "$holder"; then
             held_by_me=1
+        elif ledger_has "$n"; then
+            # Displaced: another session claimed it after this one did — a --steal, or a claim
+            # race this one lost. The label and the assignee are the new holder's now, so nothing
+            # is posted; what goes is this session's own record of a claim it no longer holds.
+            [ "$DRY_RUN" = 1 ] || ledger_drop "$n"
+            say "↪ $(issue_ref "$n") was taken over by @$(jq -r .user <<<"$holder") · session $(jq -r .name <<<"$holder") — this session no longer holds it: dropped from its ledger, nothing posted"
+            return 0
         else
-            die "carnet#$n is held by @$(jq -r .user <<<"$holder") · session $(jq -r .name <<<"$holder") — take it over with 'claim $n --steal' rather than releasing someone else's claim" 2
+            refuse_foreign "$n" "$holder" release
         fi
     fi
     if [ $held_by_me = 0 ] && ! ledger_has "$n"; then
@@ -385,18 +497,19 @@ cmd_release() { # <n> <reason>
     fi
 
     local body
-    body=$(mktemp)
+    body=$(tmpfile)
     release_comment "$reason" > "$body"
-    api_label_rm "$n" "$CLAIM_LABEL"
+    api_label_rm "$n" "$CLAIM_LABEL" \
+        || die "$(issue_ref "$n"): could not remove the $CLAIM_LABEL label — not released, the claim stands"
     api_unassign "$n" "$USER_LOGIN"
     api_comment "$n" "$body"
     rm -f "$body"
     [ "$DRY_RUN" = 1 ] || ledger_drop "$n"
-    say "🔓 carnet#$n released ($reason)"
+    say "🔓 $(issue_ref "$n") released ($reason)"
 }
 
 cmd_release_all() { # <reason> <session-or-empty>
-    local reason=${1:-done} sid=$2 f n rc=0
+    local reason=${1:-done} sid=$2 f row t n st rc=0
     if [ -n "$sid" ]; then
         # The SessionEnd hook path: the session's own process file may already be gone, so the
         # identity comes from the ledger it wrote when it claimed.
@@ -411,10 +524,24 @@ cmd_release_all() { # <reason> <session-or-empty>
         f=$(ledger_file) || { say "not inside a Claude Code session — nothing to release"; return 0; }
         [ -s "$f" ] || { say "this session holds nothing"; return 0; }
     fi
+    # Every claim line, each under the register it names: one ledger serves every checkout the
+    # session claimed from, and releasing only this checkout's register would leave the others
+    # holding an assignee, a label and a claim marker for good.
+    #
     # Each release runs in a subshell: die() exits the shell it is in, and one refused issue
-    # must not stop the others from being released.
-    for n in $(ledger_issues "$f"); do
-        ( cmd_release "$n" "$reason" ) || { rc=1; warn "carnet#$n was not released"; }
+    # must not stop the others from being released. Errexit is switched back on inside it: a
+    # subshell on the left of || runs with errexit ignored, and a failed gh call would then be
+    # reported as released and dropped from the ledger — unlike the same `release <n>` run alone.
+    for row in $(jq -r --arg d "$TRACKER" 'select(.kind == "claim") | "\(.tracker // $d)|\(.issue)"' "$f" | sort -u); do
+        t=${row%%|*}; n=${row#*|}
+        if ! [[ $t =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ && $n =~ ^[0-9]+$ ]]; then
+            rc=1; warn "the ledger names a malformed claim: $row"; continue
+        fi
+        set +e
+        ( set -e; TRACKER=$t; cmd_release "$n" "$reason" )
+        st=$?
+        set -e
+        [ "$st" = 0 ] || { rc=1; warn "$(TRACKER=$t; issue_ref "$n") was not released"; }
     done
     return $rc
 }
@@ -432,16 +559,19 @@ cmd_close() { # <n> <why> <commit>
         commit_url="https://github.com/$ORIGIN_SLUG/commit/$(git -C "$REPO_ROOT" rev-parse "$commit")"
     fi
 
-    marker=$(last_marker "$n")
+    marker=$(last_marker "$n") || die "cannot read the comments of carnet#$n — $UNREADABLE"
     if [ -n "$marker" ] && [ "$(marker_kind "$marker")" = claim ]; then
         holder=$(marker_json "$marker")
-        if [ "$(jq -r .session <<<"$holder")" != "${SESSION_ID:-manual}" ]; then
-            die "carnet#$n is held by @$(jq -r .user <<<"$holder") · session $(jq -r .name <<<"$holder") — 'claim $n' (or 'claim $n --steal') first, then close" 2
+        if ! held_by_me "$holder"; then
+            # Still listed in this session's ledger, it was taken from this session: that record
+            # goes whatever the answer, since the close is refused — the issue is not its to close.
+            if [ "$DRY_RUN" != 1 ] && ledger_has "$n"; then ledger_drop "$n"; fi
+            refuse_foreign "$n" "$holder" close
         fi
     fi
 
     local body
-    body=$(mktemp)
+    body=$(tmpfile)
     {
         printf '<!-- carnet-release %s -->\n' "$(identity_json | jq -c '. + {reason:"closed"}')"
         printf '✅ Closed by @%s · session **%s** (`%s`) · `%s` @ `%s`\n\n' "$USER_LOGIN" "$NAME" "$SHORT_ID" "$REPO_NAME" "$BRANCH"
@@ -449,7 +579,8 @@ cmd_close() { # <n> <why> <commit>
         [ -z "$commit_url" ] || printf '\n**Commit:** %s\n' "$commit_url"
     } > "$body"
     if has_label "$issue" "$CLAIM_LABEL" || [ "$(jq '.assignees | length' <<<"$issue")" != 0 ]; then
-        api_label_rm "$n" "$CLAIM_LABEL"
+        api_label_rm "$n" "$CLAIM_LABEL" \
+            || die "carnet#$n: could not remove the $CLAIM_LABEL label — not closed"
         api_unassign "$n" "$USER_LOGIN"
     fi
     api_comment "$n" "$body"
@@ -476,7 +607,7 @@ cmd_create() { # <title> <body> <body_file> <claim> labels...
     esac
 
     local bf
-    bf=$(mktemp)
+    bf=$(tmpfile)
     if [ -n "$body_file" ]; then
         [ -f "$body_file" ] || die "no such body file: $body_file"
         cat "$body_file" > "$bf"
@@ -495,7 +626,7 @@ cmd_create() { # <title> <body> <body_file> <claim> labels...
     done
 
     local payload
-    payload=$(mktemp)
+    payload=$(tmpfile)
     jq -n --arg t "$title" --rawfile b "$bf" --args \
         "$UNSIGNED"'{title:$t, body:($b|unsigned), labels:$ARGS.positional}' "${labels[@]}" > "$payload"
 
@@ -525,7 +656,7 @@ cmd_label() { # <n> [+label|-label|label]...
     local a
     for a in "$@"; do
         case "$a" in
-            -*) api_label_rm  "$n" "${a#-}"
+            -*) api_label_rm  "$n" "${a#-}" || die "carnet#$n: could not remove the ${a#-} label"
                 [ "$DRY_RUN" = 1 ] || [ "${a#-}" != limitation ] || ledger_limitation "$n" off ;;
             +*) api_label_add "$n" "${a#+}"
                 [ "$DRY_RUN" = 1 ] || [ "${a#+}" != limitation ] || ledger_limitation "$n" on ;;
@@ -545,14 +676,16 @@ status_line() { # <n> <short>
     if [ "$state" != OPEN ]; then
         line="carnet#$n · closed"
     else
-        marker=$(last_marker "$n")
+        # Unreadable is not unclaimed: an "open · unclaimed" line would send a reader, and the
+        # prompt hook's shared cache, to work an issue whose holder nobody could see.
+        marker=$(last_marker "$n") || die "cannot read the comments of carnet#$n — its holder is unknown, not absent"
         if [ -n "$marker" ] && [ "$(marker_kind "$marker")" = claim ]; then
             holder=$(marker_json "$marker")
             local hs hn hu hh hp ha hb live
             hs=$(jq -r .session <<<"$holder"); hn=$(jq -r .name <<<"$holder"); hu=$(jq -r .user <<<"$holder")
             hh=$(jq -r .host <<<"$holder");    hp=$(jq -r .pid <<<"$holder");  ha=$(jq -r .at <<<"$holder")
             hb=$(jq -r .branch <<<"$holder")
-            if [ "$hs" = "${SESSION_ID:-manual}" ]; then
+            if held_by_me "$holder"; then
                 line="carnet#$n · held by THIS session ($hn) · $hb · since $ha"
             else
                 if holder_alive "$hh" "$hp" "$hs"; then live="running"; else
@@ -598,6 +731,8 @@ cmd_status_all() {
 # gone holder `[session ended — stale]`.
 mine_elsewhere() {
     local other id ident who claims any=0
+    # No login known (none cached, none in this session's ledger): no ledger is "an earlier me".
+    [ -n "$USER_LOGIN" ] || return 0
     for other in "$LEDGER_DIR"/*.jsonl; do
         [ -f "$other" ] || continue
         id=$(basename "$other" .jsonl)
@@ -627,7 +762,7 @@ cmd_mine() { # <verify>
         say "session $NAME ($SHORT_ID) holds:"
         for n in $(ledger_issues "$f"); do
             if [ "$1" = 1 ]; then status_line "$n" 1; else
-                say "  carnet#$n · since $(jq -r --argjson n "$n" 'select(.kind == "claim" and .issue == $n) | .at' "$f")"
+                say "  carnet#$n · since $(jq -r --arg t "$TRACKER" --argjson n "$n" 'select(.kind == "claim" and .tracker == $t and .issue == $n) | .at' "$f")"
             fi
         done
     else
@@ -645,6 +780,12 @@ case "$sub" in
     # No identity and no API call: the prompt hook keys its status cache by this, because one
     # config dir serves every checkout on the machine and their registers' numbers overlap.
     tracker) say "$TRACKER"; exit 0 ;;
+esac
+
+SCRATCH=$(mktemp -d "${TMPDIR:-/tmp}/carnet.XXXXXX") || die "cannot create a temp directory"
+trap 'rm -rf "$SCRATCH"' EXIT
+
+case "$sub" in
     label)
         [ $# -ge 1 ] || die "label needs an issue number"
         n=$1; shift
@@ -692,7 +833,19 @@ issue_arg() {
     printf '%s' "$n"
 }
 
-load_identity
+# `mine` is the offline audit, and it has to answer exactly when the tracker cannot: a logged-out
+# gh would otherwise stop it at the login lookup, before the ledger is read. The login is only
+# needed to recognise "an earlier me" in other ledgers, so the cached one serves at any age, and
+# this session's own identity line after it. --verify asks the tracker, so it needs gh anyway.
+if [ "$sub" = mine ] && [ "$verify" = 0 ]; then
+    NAME=$(session_name)
+    SHORT_ID=${SESSION_ID:0:8}
+    [ -n "$SHORT_ID" ] || SHORT_ID=manual
+    USER_LOGIN=$(cat "$LEDGER_DIR/gh-login" 2>/dev/null || true)
+    [ -n "$USER_LOGIN" ] || USER_LOGIN=$(head -1 "$(ledger_file || true)" 2>/dev/null | jq -r '.user // empty' 2>/dev/null || true)
+else
+    load_identity
+fi
 
 case "$sub" in
     claim)   cmd_claim "$(issue_arg)" "$steal" ;;
