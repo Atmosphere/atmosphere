@@ -121,9 +121,10 @@ bilan.sh ack --why "a peer's version bump, written into this shared checkout at 
 ```
 
 That **clears** the cap rather than softening it, and carries the reason into every later
-report. It is keyed to the exact set of paths, so dirtying one more file brings the cap
-straight back, and ownership is a property of the files rather than their contents, so a peer
-changing those same files again stays covered.
+report. It is keyed to the exact set of paths the cap names — what the baseline already calls
+inherited is not in it — so dirtying one more file brings the cap straight back, and ownership is
+a property of the files rather than their contents, so a peer changing those same files again
+stays covered.
 
 **Why not attribute automatically?** It was tried and it does not work. Claude Code records the
 paths a session touched under `file-history-snapshot.trackedFileBackups`, but only for the

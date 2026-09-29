@@ -613,6 +613,24 @@ git -C "$R" checkout -q -- a.txt
 # what is in them. So clear it before exercising the baseline on the same file.
 rm -f "$CFG/bilan/"*.ack.json
 
+# The ack signs the set the cap is looked up by: the session's own paths, never the ones the
+# baseline already calls inherited. Signing every dirty path made an ack beside an inherited file
+# a no-op that still printed "accounted for" — in the shared checkout it exists for.
+echo peer-was-mid-edit >> "$R/a.txt"
+baseline_now "$R"
+echo peer-later > "$R/d.txt" && git -C "$R" add d.txt
+check "a peer's file dirtied after the baseline caps at 7 beside an inherited one" 7 "$(run "$R" | jq -r .score)"
+( cd "$R" && CLAUDE_CONFIG_DIR="$CFG" CLAUDE_CODE_SESSION_ID="$SID" \
+    bash "$BILAN" ack --why "a peer's d.txt, written after this session opened" >/dev/null 2>&1 )
+out=$(run "$R")
+check "an ack made beside an inherited file clears the cap" 0 "$(real_caps "$out")"
+check "…and signs the session's own set, not the inherited file" "d.txt" \
+    "$(jq -r .files "$CFG/bilan/$SID.ack.json" 2>/dev/null)"
+git -C "$R" rm -q -f --cached d.txt >/dev/null 2>&1; rm -f "$R/d.txt"
+git -C "$R" checkout -q -- a.txt
+rm -f "$CFG/bilan/"*.ack.json "$CFG/bilan/"*.baseline*
+baseline_now "$R"                       # the next case needs a baseline taken on a clean tree
+
 # ---- files already dirty when the session opened are not this session's, automatically.
 echo peer-was-mid-edit >> "$R/a.txt"
 check "a file dirty before the baseline caps at 7 without one" 7 "$(run "$R" | jq -r .score)"

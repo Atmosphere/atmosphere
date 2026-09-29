@@ -331,20 +331,43 @@ not_mine_commits() { # <shas> -> prints the inherited subset
     printf '%s\n' "$1" | grep -Fxf "${f}.commits" 2>/dev/null || true
 }
 
+without() { # <paths> <paths to drop> -> the first list minus the second
+    [ -n "$2" ] || { printf '%s' "$1"; return 0; }
+    printf '%s\n' "$1" | grep -Fxv -f <(printf '%s\n' "$2") 2>/dev/null || true
+}
+
+# The checkout's uncommitted paths, split the way they are scored: INHERITED is what the baseline
+# says was already dirty, OWN_TRACKED the tracked rest, UNTRACKED what git does not track.
+# check_worktree scores these and ack signs them, both through this one function: when the two
+# computed the set apart, ack signed every dirty path while the check looked up only the owned
+# ones, so an ack made beside an inherited file never matched — it printed "accounted for", and
+# the cap came straight back.
+INHERITED=""
+OWN_TRACKED=""
+UNTRACKED=""
+split_dirty() {
+    local porcelain tracked
+    porcelain=$(git status --porcelain 2>/dev/null)
+    tracked=$(printf '%s\n' "$porcelain" | grep -v '^??' | sed 's/^...//')
+    UNTRACKED=$(printf '%s\n' "$porcelain" | grep '^??' | sed 's/^...//')
+    INHERITED=$(not_mine "$tracked")
+    OWN_TRACKED=$(without "$tracked" "$INHERITED")
+}
+
 cmd_ack() { # <why>
-    local why=$1 f tracked commits up sig csig
+    local why=$1 f commits up sig csig
     [ -n "$why" ] || die "ack needs --why: say whose work this is and why you are leaving it"
     f=$(ack_file) || die "not inside a Claude Code session"
-    tracked=$(git status --porcelain 2>/dev/null | grep -v '^??' | sed 's/^...//')
+    split_dirty
     commits=""
     up=$(push_base) && commits=$(git rev-list "$up..HEAD" 2>/dev/null || true)
-    [ -n "$tracked$commits" ] || { say "nothing uncommitted or unpushed to account for"; return 0; }
-    sig=$(signature_of "$tracked"); csig=$(signature_of "$commits")
+    [ -n "$OWN_TRACKED$commits" ] || { say "nothing uncommitted or unpushed to account for"; return 0; }
+    sig=$(signature_of "$OWN_TRACKED"); csig=$(signature_of "$commits")
     mkdir -p "$(dirname "$f")"
     jq -n --arg s "$sig" --arg c "$csig" --arg w "$why" --arg at "$(now)" \
-       --arg files "$(printf '%s' "$tracked" | tr '\n' ' ')" \
+       --arg files "$(printf '%s' "$OWN_TRACKED" | tr '\n' ' ')" \
        '{signature:$s, commit_signature:$c, why:$w, at:$at, files:$files}' > "$f"
-    say "📌 accounted for: $(printf '%s\n' "$tracked" | grep -c .) file(s), $(printf '%s\n' "$commits" | grep -c .) commit(s) — $why"
+    say "📌 accounted for: $(printf '%s\n' "$OWN_TRACKED" | grep -c .) file(s), $(printf '%s\n' "$commits" | grep -c .) commit(s) — $why"
     say "   this covers exactly that set; dirty one more file or make one more commit and the cap returns."
     return 0
 }
@@ -368,24 +391,15 @@ name_files() { # <max> <newline-separated paths>
 }
 
 check_worktree() {
-    local porcelain tracked untracked inherited owned t_n u_n i_n why
-    porcelain=$(git status --porcelain 2>/dev/null)
-    [ -n "$porcelain" ] || return 0
-    tracked=$(printf '%s\n' "$porcelain" | grep -v '^??' | sed 's/^...//')
-    untracked=$(printf '%s\n' "$porcelain" | grep '^??' | sed 's/^...//')
-
-    inherited=$(not_mine "$tracked")
-    if [ -n "$inherited" ]; then
-        owned=$(printf '%s\n' "$tracked" | grep -Fxv -f <(printf '%s\n' "$inherited") 2>/dev/null || true)
-    else
-        owned=$tracked
-    fi
-    i_n=$(printf '%s\n' "$inherited" | grep -cv '^$')
-    t_n=$(printf '%s\n' "$owned" | grep -cv '^$')
-    u_n=$(printf '%s\n' "$untracked" | grep -cv '^$')
+    local t_n u_n i_n why
+    split_dirty
+    [ -n "$INHERITED$OWN_TRACKED$UNTRACKED" ] || return 0
+    i_n=$(printf '%s\n' "$INHERITED" | grep -cv '^$')
+    t_n=$(printf '%s\n' "$OWN_TRACKED" | grep -cv '^$')
+    u_n=$(printf '%s\n' "$UNTRACKED" | grep -cv '^$')
 
     # Inherited dirt is stated, never scored. It is not this session's completion.
-    [ "${i_n:-0}" -gt 0 ] && say_note "$i_n file(s) were already uncommitted when this session opened — not its work: $(name_files 5 "$inherited")"
+    [ "${i_n:-0}" -gt 0 ] && say_note "$i_n file(s) were already uncommitted when this session opened — not its work: $(name_files 5 "$INHERITED")"
 
     if [ "${t_n:-0}" -gt 0 ]; then
         # An ack is a recorded statement of ownership, so it CLEARS rather than softens: a
@@ -393,15 +407,15 @@ check_worktree() {
         # that had done everything right still could not reach 10. It stays visible in every
         # later report, is keyed to the exact path set, and returns the moment one more file
         # goes dirty.
-        if why=$(ack_reason_for signature "$(signature_of "$owned")"); then
+        if why=$(ack_reason_for signature "$(signature_of "$OWN_TRACKED")"); then
             say_note "$t_n uncommitted file(s) declared not this session's: $why"
         else
-            cap 7 "❌" "$t_n tracked file(s) modified and uncommitted: $(name_files 8 "$owned")" \
+            cap 7 "❌" "$t_n tracked file(s) modified and uncommitted: $(name_files 8 "$OWN_TRACKED")" \
                   "commit them — or, if they are a peer's in this shared checkout, bilan.sh ack --why '…'"
         fi
     fi
     if [ "${u_n:-0}" -gt 0 ]; then
-        cap 9 "⚠️" "$u_n untracked file(s): $(name_files 8 "$untracked")" \
+        cap 9 "⚠️" "$u_n untracked file(s): $(name_files 8 "$UNTRACKED")" \
               "add them, delete them, or move them to the scratchpad"
     fi
 }
