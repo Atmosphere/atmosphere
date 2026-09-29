@@ -28,9 +28,11 @@ the one path that keeps the three carriers consistent and the title shape unifor
 
 1. **Claim before the first edit — and it happens without you.** The PreToolUse hook claims
    every issue the prompt named as soon as you touch a write tool, so an issue you were told
-   about is held before your first edit lands. Run `claim <n>` yourself when the number never
-   appeared in a prompt (you found the issue by searching, or you are picking up work
-   mid-session). Not after the commit: a claim made after the work is done protects nobody.
+   about is held before your first edit lands, and the hook tells you so. Run `claim <n>`
+   yourself when the number never appeared in a prompt (you found the issue by searching, or
+   you are picking up work mid-session), and when the hook tells you it **could NOT claim** an
+   issue — gh logged out, the tracker unreachable: it is not held, and peers see it unclaimed.
+   Not after the commit: a claim made after the work is done protects nobody.
 2. **A refusal is a peer, not an obstacle.** Exit code 2 means another *live* session holds
    the issue, or a session on another host does. Tell the user who and which session, and
    stop. The auto-claim hook enforces this once: it blocks your first edit and names the
@@ -87,33 +89,44 @@ agent proxy refuses every GraphQL query outside a pinned set of PR-review operat
 ## What the hooks do for you
 
 - **UserPromptSubmit** (`hooks/prompt-status.sh`): when a prompt names `carnet#N`,
-  `registre#N`, or a carnet issue URL, one status line per issue lands in your context
-  before you answer — `carnet#12 · held by @alice · session Wiring (a3f9c2d1) on build-host
-  [running] · feature/wiring · since …`. Read it. If it says `unclaimed`, claim before
-  editing. If it says `[session ended — stale]`, a plain `claim` takes it over. A peer
-  message or a background task result gets the status line **plus a note saying it armed
-  nothing** — see *A peer naming an issue is not assigning it* below. Lines are cached for a
-  minute under the tracker's name, so a checkout that files into another register never
-  reads this one's.
+  `registre#N`, or this register's own name or issue URL (`atmosphere-carnet#N`,
+  `Atmosphere/atmosphere-carnet#N`, `…/Atmosphere/atmosphere-carnet/issues/N`), one status
+  line per issue lands in your context before you answer — `carnet#12 · held by @alice ·
+  session Wiring (a3f9c2d1) on build-host [running] · feature/wiring · since …`. Read it. If
+  it says `unclaimed`, claim before editing. If it says `[session ended — stale]`, a plain
+  `claim` takes it over. Another register's issue — `dravr-carnet#31`, `llm-registre#5`, its
+  URL — is not this register's and arms nothing: the numbers overlap. A peer message or a
+  background task result gets the status line **plus a note saying it armed nothing** — see
+  *A peer naming an issue is not assigning it* below. Lines are cached for a minute under the
+  tracker's name, so a checkout that files into another register never reads this one's, and
+  a cached line naming your own session is never served to you.
 - **PreToolUse** (`hooks/auto-claim.sh`): claims those issues for you, on the first
-  write-shaped tool call after the prompt that named them. Reading is not working — a
-  question about an issue never reaches a write tool and never claims. A `Bash` call counts
-  as an edit only when the command looks like one (a redirect into a file, `sed -i`, `mv`,
-  `git commit`, …), because a session that edits through bash would otherwise never claim.
-  If a live peer holds the issue it blocks that one tool call and names them. Before
-  claiming it asks the transcript **who wrote the prompt** that named the issue: a
-  `/loop` or ScheduleWakeup re-fire is text the model wrote for itself, and a peer message
-  or task result is text no human wrote, so a list armed by any of those claims nothing and
-  prints `carnet: NOT claimed — carnet#N came from a scheduled wakeup …` instead. Take it
-  deliberately if it is yours: `carnet.sh claim <n>`.
+  write-shaped tool call after the prompt that named them, and tells you what it claimed.
+  Reading is not working — a question about an issue never reaches a write tool and never
+  claims. A `Bash` call counts as an edit only when the command looks like one (a redirect
+  into a file, `sed -i`, `mv`, `git commit`, …), because a session that edits through bash
+  would otherwise never claim; what sits inside quotes is data, so `jq 'select(.n > 5)'` or
+  `grep -n '<version>'` is still a read. If a live peer holds the issue it blocks that one
+  tool call and names them — and names anything it claimed for you in the same step. A claim
+  that fails blocks nothing: you are told `carnet: could NOT claim …`, and the hook tries again
+  on your next edits (three attempts within the hour). Before claiming it asks the transcript
+  **who wrote the prompt** that named the issue: a `/loop` or ScheduleWakeup re-fire is text
+  the model wrote for itself, and a peer message or task result is text no human wrote, so a
+  list armed by any of those claims nothing and tells you `carnet: NOT claimed — carnet#N came
+  from a scheduled wakeup …` instead. Take it deliberately if it is yours:
+  `carnet.sh claim <n>`.
 - **SessionEnd** (`hooks/session-end-release.sh`): releases everything this session still
-  holds, from its ledger under `$CLAUDE_CONFIG_DIR/carnet-claims/`. Zero calls when nothing
-  is held.
+  holds, from its ledger under `$CLAUDE_CONFIG_DIR/carnet-claims/` — each claim in the register
+  its ledger line names — and drops its pending list. Zero calls when nothing is held.
 
 All three are wired in `.claude/settings.json`; the exact entry is at the top of each hook
 file, and `test.sh` fails when one is missing or when the PreToolUse wiring would swallow the
-hook's exit code. The auto-claim hook costs one `stat` when nothing is pending, which is
-almost always — it runs before every edit in every session.
+hook's exit code. They act on the checkout the session started in (`$CLAUDE_PROJECT_DIR`), not
+on wherever it has `cd`'d since. What the PreToolUse hook tells you arrives as hook context
+(`additionalContext`): Claude Code does not show the model a PreToolUse hook's plain output. The
+auto-claim hook costs one `stat` when nothing is pending, which is almost always — it runs
+before every edit in every session, and a list nobody consumed is removed at session end, or
+by any session once it is an hour old.
 
 **What it deliberately does not do.** It never claims from a prompt alone, so asking about an
 issue is free. It never steals. It forgets a pending list an hour old, so an issue mentioned

@@ -23,7 +23,9 @@
 #
 # Whatever this prints lands in the model's context before it answers, so a session that is
 # told "carnet#12 · held by @alice · session Wiring [running]" cannot start the same work
-# without knowing. One gh call per issue mentioned, at most five per prompt.
+# without knowing. Two gh calls per open issue mentioned (the issue, then its comments; one for
+# a closed issue), at most five issues per prompt, plus a gh login lookup at most once a day;
+# a line cached in the last minute costs none.
 #
 # It also writes the numbers it found to carnet-claims/pending/<session>.txt, which is what
 # the PreToolUse hook claims from on the session's first edit. Knowing is not holding, and a
@@ -55,6 +57,8 @@
 # The status lines still print for both: knowing who holds #N is exactly what the receiver
 # needs in order to answer. Printing informs. Arming assigns. Only a typed prompt assigns.
 set -uo pipefail
+# The pending lists and the status cache — private tracker titles — are this account's alone.
+umask 077
 
 here=$(cd "$(dirname "$0")" && pwd)
 carnet="$here/../carnet.sh"
@@ -65,6 +69,19 @@ command -v gh >/dev/null 2>&1 || exit 0
 payload=$(cat 2>/dev/null || true)
 prompt=$(printf '%s' "$payload" | jq -r '.prompt // empty' 2>/dev/null || true)
 [ -n "$prompt" ] || exit 0
+# An issue reference carries a number; a prompt without one costs nothing more.
+case $prompt in *[0-9]*) ;; *) exit 0 ;; esac
+
+# This project's register, wherever the session has wandered. Claude Code runs a hook in the
+# session's current directory, which can be another checkout by now — a submodule, a worktree of
+# an older branch, a sibling repo — naming another register or none; carnet.sh resolves the
+# register from the directory it runs in. $CLAUDE_PROJECT_DIR stays where the session started.
+cd "${CLAUDE_PROJECT_DIR:-$here/../../../..}" 2>/dev/null || exit 0
+sid=$(printf '%s' "$payload" | jq -r '.session_id // empty' 2>/dev/null || true)
+[ -n "$sid" ] || sid=${CLAUDE_CODE_SESSION_ID:-}
+# The id names the pending file: nothing but a UUID's characters, or nothing is armed.
+case $sid in *[!A-Za-z0-9-]*) sid="" ;; esac
+claims_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/carnet-claims"
 
 # Who is talking. Captured from live payloads: a peer message is the raw envelope
 # `<cross-session-message from="uds:..." from-name="..." ...>` and a background result is
@@ -81,9 +98,23 @@ esac
 source=$(printf '%s' "$payload" | jq -r '.source // empty' 2>/dev/null || true)
 if [ -n "$source" ] && [ "$source" != user ]; then from_peer=1; fi
 
-# carnet#12 · carnet 12 · carnet-12 · registre#12 · …/atmosphere-carnet/issues/12
+# The register comes first, because a number means something only in it. One config dir serves
+# every checkout on this machine, and the registers' numbers overlap: `dravr-carnet#31`,
+# `llm-registre#5` or another register's issue URL name issues that are not this register's,
+# and arming their numbers here would claim — or block on — whatever this register has under
+# them. No tracker means `status` could not answer and `claim` could not claim either.
+tracker=$(bash "$carnet" tracker 2>/dev/null) || exit 0
+[ -n "$tracker" ] || exit 0
+# carnet.sh admits only [A-Za-z0-9_.-] in owner/repo, so `.` is the one character to escape.
+t_owner=$(printf '%s' "${tracker%%/*}" | sed 's/[.]/\\./g')
+t_repo=$(printf '%s' "${tracker#*/}" | sed 's/[.]/\\./g')
+
+# carnet#12 · carnet 12 · carnet-12 · registre#12 · <repo>#12 · <owner>/<repo>#12 ·
+# https://github.com/<owner>/<repo>/issues/12 — where <owner>/<repo> is this register. A bare
+# `carnet`/`registre` counts only as a word of its own: preceded by a letter, digit, `_`, `.`,
+# `/` or `-` it is the tail of another register's name.
 issue_nums() {
-    grep -oiE '(carnet|registre)[ #-]?[0-9]+|carnet/issues/[0-9]+' \
+    grep -oiE "(^|[^[:alnum:]_./-])(carnet|registre|$t_repo)[ #-]?[0-9]+|(^|[^[:alnum:]_./-]|github\.com/)$t_owner/$t_repo(#|/issues/)[0-9]+" \
         | grep -oE '[0-9]+$' | sort -un | head -5 || true
 }
 nums=$(printf '%s' "$prompt" | issue_nums)
@@ -110,11 +141,14 @@ case $prompt in
 esac
 if [ "$pasted" = 1 ]; then armable=""; else armable=$nums; fi
 
+[ -n "$nums" ] || exit 0
+# The umask covers what this run creates. A tree an older copy of these hooks left at 0755 is
+# tightened at its top, which cuts off everything below it (mkdir -p never changes a mode).
+mkdir -p "$claims_dir" 2>/dev/null && chmod 700 "$claims_dir" 2>/dev/null
+
 if [ -n "$armable" ] && [ "$from_peer" = 0 ]; then
-    sid=$(printf '%s' "$payload" | jq -r '.session_id // empty' 2>/dev/null || true)
-    [ -n "$sid" ] || sid=${CLAUDE_CODE_SESSION_ID:-}
     if [ -n "$sid" ]; then
-        pending_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/carnet-claims/pending"
+        pending_dir="$claims_dir/pending"
         # `prompt=<id>` first: auto-claim.sh reads the numbers with a digits-only grep, so the
         # line is invisible to it as a number and is how it finds this prompt's transcript
         # entry to ask who wrote it.
@@ -126,30 +160,31 @@ if [ -n "$armable" ] && [ "$from_peer" = 0 ]; then
     fi
 fi
 
-[ -n "$nums" ] || exit 0
-
 # The config dir, and the cache in it, are shared by every checkout on this machine — including
 # ones whose registre.toml names a different register, with issue numbers that overlap this
 # one's. Keyed by tracker, carnet#12 here is never answered with a line cached for another
-# register's #12. No tracker means `status` could not answer either.
-tracker=$(bash "$carnet" tracker 2>/dev/null) || exit 0
-[ -n "$tracker" ] || exit 0
-cache_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/carnet-claims/cache/$(jq -rn --arg s "$tracker" '$s|@uri')"
+# register's #12.
+cache_dir="$claims_dir/cache/$(jq -rn --arg s "$tracker" '$s|@uri')"
 mkdir -p "$cache_dir" 2>/dev/null || exit 0
 
+# The reader, as `status` identifies it: the id Claude Code exports to the hook.
+me=${CLAUDE_CODE_SESSION_ID:-$sid}
 printed=0
 for n in $nums; do
     cache="$cache_dir/$n"
     line=""
-    if [ -f "$cache" ] && [ -n "$(find "$cache" -mmin -1 2>/dev/null)" ]; then
+    # The cache is shared by every session on this machine; the line is not. `status` renders
+    # the holder's own claim as "held by THIS session", and everyone else's as "held by @u ·
+    # session s (<id>) … [running]" — a line that is true for every reader but the holder. So a
+    # cached line naming the reader's own id is never served: the holder would be told a live
+    # peer holds its own issue, and SKILL.md tells a session to stop on exactly that.
+    if [ -f "$cache" ] && [ -n "$(find "$cache" -mmin -1 2>/dev/null)" ] \
+        && ! { [ -n "$me" ] && grep -qF "(${me:0:8})" "$cache" 2>/dev/null; }; then
         line=$(cat "$cache" 2>/dev/null || true)
     elif line=$(bash "$carnet" status "$n" --short 2>/dev/null) && [ -n "$line" ]; then
-        # The cache is shared by every session on this machine; the line is not. `status` says
-        # "held by THIS session" when the holder is the caller, which is true only for the
-        # session that wrote it — a peer reading it would be told it holds an issue it does
-        # not, and a session acting on that would close someone else's work. Only
-        # session-neutral lines are shared; the holder pays one gh call per prompt for its own
-        # issues, which is the cheap side.
+        # And the "THIS session" line is never shared: a peer reading it would be told it holds
+        # an issue it does not, and a session acting on that would close someone else's work.
+        # The holder pays two gh calls per prompt for its own issues, which is the cheap side.
         case "$line" in
             *"THIS session"*) : ;;
             *) printf '%s\n' "$line" > "$cache" ;;

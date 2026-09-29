@@ -26,6 +26,7 @@
 # prompt hook shows it as unclaimed). A kill -9 skips this hook; the liveness check in
 # `carnet.sh claim` then reads the claim as stale and takes it over.
 set -uo pipefail
+umask 077
 
 here=$(cd "$(dirname "$0")" && pwd)
 carnet="$here/../carnet.sh"
@@ -36,9 +37,24 @@ payload=$(cat 2>/dev/null || true)
 sid=$(printf '%s' "$payload" | jq -r '.session_id // empty' 2>/dev/null || true)
 [ -n "$sid" ] || sid=${CLAUDE_CODE_SESSION_ID:-}
 [ -n "$sid" ] || exit 0
+# The id becomes a file name below, and one of them is removed: nothing but a UUID's characters.
+case $sid in *[!A-Za-z0-9-]*) exit 0 ;; esac
 
-ledger="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/carnet-claims/$sid.jsonl"
+claims="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/carnet-claims"
+# The session's pending list and its warned list end with it. Only its own next write consumes
+# a pending list, so a session that named an issue and never wrote would leave it behind — and
+# one leftover list sends every write of every session past auto-claim's one-stat exit.
+rm -f "$claims/pending/$sid.txt" "$claims/warned/$sid.txt" 2>/dev/null
+
+ledger="$claims/$sid.jsonl"
 [ -s "$ledger" ] || exit 0
+# Nothing held, nothing to call: a ledger outlives its claims on its "filed" lines alone.
+jq -e 'select(.kind == "claim")' "$ledger" >/dev/null 2>&1 || exit 0
 
+# This project's register, not the one of wherever the session last cd'd: Claude Code runs the
+# hook in the session's current directory, which can be another checkout by the end — naming
+# another register, or none, and every claim would then stay held. Each ledger line names its
+# own register, and `release --all` releases it there.
+cd "${CLAUDE_PROJECT_DIR:-$here/../../../..}" 2>/dev/null || exit 0
 bash "$carnet" release --all --session "$sid" --reason session-ended || true
 exit 0

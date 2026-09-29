@@ -97,6 +97,9 @@ head_sha=$(git rev-parse HEAD)
 export CLAUDE_CONFIG_DIR="$tmp/cfg"
 export CLAUDE_CODE_SESSION_ID="11111111-aaaa-bbbb-cccc-000000000001"
 export CLAUDE_PID=$$
+# Claude Code exports the directory the session started in to every hook, and the hooks act on
+# that checkout, wherever the session has cd'd since.
+export CLAUDE_PROJECT_DIR="$tmp/repo"
 mkdir -p "$tmp/cfg/sessions"
 printf '{"pid":%s,"sessionId":"%s","name":"TestSession"}\n' "$$" "$CLAUDE_CODE_SESSION_ID" > "$tmp/cfg/sessions/$$.json"
 HOST=$(hostname -s 2>/dev/null || hostname)
@@ -262,6 +265,16 @@ issue_closed
 run_carnet claim 42
 assert_eq "cannot claim a closed issue" "$rc" 1
 assert_grep "says closed" "is closed" "$tmp/err"
+
+# Only a 404 says an issue does not exist; a 5xx says nothing about it, and the auto-claim hook
+# retries the one and not the other.
+reset
+FAIL_RE='issues/42$' run_carnet claim 42
+assert_eq "an issue that cannot be read is an error" "$rc" 1
+assert_grep "named as unreadable, with gh's reason" 'cannot read carnet#42 from Atmosphere/atmosphere-carnet: gh: Server Error \(HTTP 502\)' "$tmp/err"
+assert_no_grep "not as missing" 'does not exist' "$tmp/err"
+FAIL_RE='issues/42$' FAIL_MSG='Not Found (HTTP 404)' run_carnet claim 42
+assert_grep "a 404 is a missing issue" 'carnet#42 does not exist in Atmosphere/atmosphere-carnet' "$tmp/err"
 
 reset
 run_carnet claim 42 --dry-run
@@ -804,6 +817,46 @@ assert_no_grep "prompt hook: a line cached for another register is never served"
 assert_grep "prompt hook: the line comes from this register" '^carnet#42 · open · unclaimed · \[atmosphere\] Thing' "$tmp/hookx"
 assert_grep "prompt hook: and is cached under this register" '\[atmosphere\] Thing' "$cache_root/Atmosphere%2Fatmosphere-carnet/42"
 
+# A held issue's line depends on who reads it: the holder gets "held by THIS session", everyone
+# else "held by @u · session s (<id>) … [running]". A peer's prompt caches the second form — and
+# served to the holder, it would say a live session holds the holder's own issue.
+reset
+issue_held
+comments < <(claim_marker "$ME" TestSession tester "$HOST" "$$")
+mkdir -p "$cache_root/Atmosphere%2Fatmosphere-carnet"
+printf 'carnet#42 · held by @tester · session TestSession (%s) on %s [running] · main · since 2026-09-02T10:00:00Z · [atmosphere] Thing\n' \
+    "${ME:0:8}" "$HOST" > "$cache_root/Atmosphere%2Fatmosphere-carnet/42"
+printf '{"prompt":"continue carnet#42","session_id":"%s"}' "$ME" | bash "$here/hooks/prompt-status.sh" > "$tmp/hookc"
+assert_grep "prompt hook: the holder is told the claim is its own" 'held by THIS session \(TestSession\)' "$tmp/hookc"
+assert_no_grep "never a peer's cached view of it" '\[running\]' "$tmp/hookc"
+: > "$S/calls.log"
+printf '{"prompt":"is carnet#42 taken?","session_id":"%s"}' "$PEER" \
+    | CLAUDE_CODE_SESSION_ID=$PEER bash "$here/hooks/prompt-status.sh" > "$tmp/hookc2"
+assert_grep "prompt hook: a peer is still served that cached line" '\[running\]' "$tmp/hookc2"
+assert_eq "without a tracker read" "$(count_calls 'api repos/[^ ]*/issues/42$')" 0
+
+# The cache holds the private tracker's titles, the pending lists what a session was asked about.
+# Neither is any other local user's business — nor is a tree an older copy left world-readable.
+reset
+( umask 022; mkdir -p "$cache_root"; chmod 755 "$tmp/cfg/carnet-claims" "$cache_root" )
+( umask 022; printf '{"prompt":"please fix carnet#42","session_id":"%s"}' "$ME" | bash "$here/hooks/prompt-status.sh" ) > /dev/null
+assert_eq "prompt hook: the claims directory ends up private" "$(ls -ld "$tmp/cfg/carnet-claims" | cut -c1-10)" "drwx------"
+assert_eq "prompt hook: a cached line — a private title — is this account's only" \
+    "$(ls -l "$cache_root/Atmosphere%2Fatmosphere-carnet/42" | cut -c1-10)" "-rw-------"
+assert_eq "prompt hook: and so is the pending list" "$(ls -l "$pending_dir_h/$ME.txt" | cut -c1-10)" "-rw-------"
+
+# Claude Code runs a hook in the session's CURRENT directory, and a session cds — into a
+# submodule, a worktree of an older branch, a scratch directory. carnet.sh finds the register
+# from the directory it runs in, so the hooks run it from $CLAUDE_PROJECT_DIR, where the session
+# started: from anywhere else the SessionEnd release would release nothing, or another register.
+mkdir -p "$tmp/elsewhere"
+git init -q "$tmp/nested"                     # a checkout that names no register
+reset
+( cd "$tmp/nested" && printf '{"prompt":"go fix carnet#42","session_id":"%s"}' "$ME" \
+    | bash "$here/hooks/prompt-status.sh" ) > "$tmp/hook6"
+assert_grep "prompt hook: from another checkout, still this project's register" '^carnet#42 · open · unclaimed' "$tmp/hook6"
+assert_grep "and it arms there" '^42$' "$pending_dir_h/$ME.txt"
+
 # A peer NAMING an issue is not your user ASSIGNING it. Both non-user vectors reach `.prompt`
 # byte-identically to a typed prompt (verified against captured live payloads), and arming on
 # them claims issues off messages that only mention them — a peer replying "not mine" included.
@@ -875,6 +928,42 @@ assert_grep "session-end hook: marker names the ended session" "^BODY <!-- carne
 printf '{"session_id":"%s"}' "$DEAD" | bash "$here/hooks/session-end-release.sh"
 assert_eq "session-end hook: no ledger, no call" "$(wc -c < "$S/calls.log" | tr -d ' ')" 0
 
+# "Zero calls when nothing is held": a ledger kept alive by a filed line holds nothing.
+reset
+mkdir -p "$tmp/cfg/carnet-claims"
+printf '{"kind":"identity","v":1,"session":"%s","name":"TestSession","user":"tester","host":"%s","pid":%s}\n{"kind":"filed","tracker":"Atmosphere/atmosphere-carnet","issue":42,"at":"2026-09-02T10:00:00Z"}\n' "$ME" "$HOST" "$$" > "$ledger"
+printf '{"session_id":"%s"}' "$ME" | bash "$here/hooks/session-end-release.sh"
+assert_eq "session-end hook: a ledger holding only a filed line costs no call" "$(wc -c < "$S/calls.log" | tr -d ' ')" 0
+assert_grep "and keeps that line for the end-of-session audit" '"kind":"filed"' "$ledger"
+
+# A pending list is consumed only by its own session's next write: one that named an issue and
+# never wrote would leave it behind for good, and any list at all defeats auto-claim's fast exit.
+reset
+mkdir -p "$pending_dir_h" "$tmp/cfg/carnet-claims/warned"
+printf '42\n' > "$pending_dir_h/$ME.txt"
+printf '42\n' > "$tmp/cfg/carnet-claims/warned/$ME.txt"
+printf '{"session_id":"%s"}' "$ME" | bash "$here/hooks/session-end-release.sh"
+[ -f "$pending_dir_h/$ME.txt" ] && bad "session-end hook: the session's pending list goes with it" \
+    || ok "session-end hook: the session's pending list goes with it"
+[ -f "$tmp/cfg/carnet-claims/warned/$ME.txt" ] && bad "and so does its warned list" || ok "and so does its warned list"
+# That id comes from the hook payload, and it names the file removed: never a path.
+reset
+mkdir -p "$pending_dir_h"
+printf 'keep\n' > "$tmp/cfg/carnet-claims/victim.txt"
+printf '{"session_id":"../victim"}' | bash "$here/hooks/session-end-release.sh"
+[ -f "$tmp/cfg/carnet-claims/victim.txt" ] && ok "session-end hook: a session id that is a path removes nothing" \
+    || bad "session-end hook: a session id that is a path removes nothing"
+
+# From wherever the session last cd'd, the release still happens in this project's register.
+for d in "$tmp/elsewhere" "$tmp/nested"; do
+    reset
+    seed_ledger 42
+    comments < <(claim_marker "$ME" TestSession tester "$HOST" "$$")
+    ( cd "$d" && printf '{"session_id":"%s"}' "$ME" | bash "$here/hooks/session-end-release.sh" ) > "$tmp/hook5" 2>&1
+    assert_grep "session-end hook: run from $(basename "$d"), still releases" '^🔓 carnet#42 released \(session-ended\)' "$tmp/hook5"
+    [ -f "$ledger" ] && bad "and finishes the ledger ($(basename "$d"))" || ok "and finishes the ledger ($(basename "$d"))"
+done
+
 # ================================================================== auto-claim
 section "auto-claim (PreToolUse)"
 
@@ -886,6 +975,16 @@ pending_dir="$tmp/cfg/carnet-claims/pending"
 set_pending() { mkdir -p "$pending_dir"; printf '%s\n' "$@" > "$pending_dir/$ME.txt"; }
 edit_payload() { printf '{"tool_name":"Edit","session_id":"%s","tool_input":{"file_path":"/x"}}' "$ME"; }
 bash_payload() { printf '{"tool_name":"Bash","session_id":"%s","tool_input":{"command":"%s"}}' "$ME" "$1"; }
+# Any command at all, quotes included: printf-built JSON breaks on a double quote.
+bash_payload_q() { jq -cn --arg c "$1" --arg s "$ME" '{tool_name:"Bash", session_id:$s, tool_input:{command:$c}}'; }
+# What reaches the model. For a PreToolUse hook that exits 0, Claude Code shows the model only
+# hookSpecificOutput.additionalContext; plain stdout goes to the debug log (hooks reference,
+# code.claude.com/docs/en/hooks). So stdout must be exactly that one JSON object.
+ac_is_json() {
+    [ "$(wc -l < "$tmp/ac.out" | tr -d ' ')" = 1 ] \
+        && jq -e '.hookSpecificOutput.hookEventName == "PreToolUse"' "$tmp/ac.out" >/dev/null 2>&1
+}
+ac_context() { jq -r '.hookSpecificOutput.additionalContext // empty' "$tmp/ac.out" > "$tmp/ac.ctx" 2>/dev/null || : > "$tmp/ac.ctx"; }
 
 # Nothing pending is the common case and must cost nothing at all.
 reset; rm -rf "$pending_dir"
@@ -904,7 +1003,10 @@ assert_grep "a prompt naming none leaves the list alone" '^42$' "$pending_dir/$M
 reset; set_pending 42
 auto_claim "$(edit_payload)"
 assert_eq "an edit claims the pending issue" "$rc" 0
-assert_grep "and says so" '^🔒 carnet auto-claimed: 42' "$tmp/ac.out"
+ac_is_json && ok "stdout is the one PreToolUse JSON object Claude Code reads" \
+    || bad "stdout is the one PreToolUse JSON object Claude Code reads — got: $(head -c 200 "$tmp/ac.out")"
+ac_context
+assert_grep "and it tells the model so, as additionalContext" '^🔒 carnet auto-claimed: 42' "$tmp/ac.ctx"
 assert_grep "the claim reached the tracker" 'issues/42/labels -X POST -f labels\[\]=in-progress' "$S/calls.log"
 assert_grep "the marker names this session" "^BODY <!-- carnet-claim \{.*\"session\":\"$ME\"" "$S/calls.log"
 
@@ -950,6 +1052,26 @@ assert_eq "git add --dry-run claims nothing" "$(wc -c < "$S/calls.log" | tr -d '
 auto_claim "$(bash_payload 'git apply --check my.patch')"
 assert_eq "git apply --check claims nothing" "$(wc -c < "$S/calls.log" | tr -d ' ')" 0
 
+# A quoted argument is data. A comparison in a jq or awk program, a Java generic in a grep
+# pattern, `->` in a --format string — or a verb inside a grep for it — redirects and records
+# nothing, and read as a write it would claim every pending issue off a pure read.
+for c in 'jq ".[] | select(.count > 5)" data.json' \
+         "awk '\$3 > 100' report.txt" \
+         "gh api repos/o/r/pulls -q '.[] | select(.comments >= 2) | .number'" \
+         'grep -rn "Map<String, List<Foo>>" modules/' \
+         'git log --format="%h -> %s" -5' \
+         "grep -n '<version>' pom.xml" \
+         "grep -rn 'git add -A' docs/"; do
+    reset; set_pending 42
+    auto_claim "$(bash_payload_q "$c")"
+    assert_eq "a read whose quoted argument holds '>' or a verb claims nothing: $c" "$(wc -c < "$S/calls.log" | tr -d ' ')" 0
+done
+assert_grep "and the list stays armed for the first real write" '^42$' "$pending_dir/$ME.txt"
+reset; set_pending 42
+comments < <(claim_marker "$PEER" PeerSession peer "$HOST" "$peer_pid")
+auto_claim "$(bash_payload_q 'jq ".[] | select(.count > 5)" data.json')"
+assert_eq "nor is such a read blocked when a live peer holds the issue" "$rc" 0
+
 # ...but a redirect into a real file is still an edit, /dev/null nearby or not.
 reset; set_pending 42
 auto_claim "$(bash_payload 'grep -rn TODO src/ 2>/dev/null > findings.txt')"
@@ -977,6 +1099,16 @@ assert_grep "git apply without --check still claims" 'issues/42/labels -X POST -
 reset; set_pending 42
 auto_claim "$(bash_payload 'git reset --hard origin/main')"
 assert_grep "git reset still claims" 'issues/42/labels -X POST -f labels\[\]=in-progress' "$S/calls.log"
+# A quoted span stands in as a word, so what surrounds it is still judged as shell.
+reset; set_pending 42
+auto_claim "$(bash_payload_q 'echo x > "out file.txt"')"
+assert_grep "a redirect into a quoted file name still claims" 'issues/42/labels -X POST -f labels\[\]=in-progress' "$S/calls.log"
+reset; set_pending 42
+auto_claim "$(bash_payload_q 'git commit -m "fix: keep a > b"')"
+assert_grep "a commit whose message holds a '>' still claims" 'issues/42/labels -X POST -f labels\[\]=in-progress' "$S/calls.log"
+reset; set_pending 42
+auto_claim "$(bash_payload_q 'git commit -m "honour the --check flag"')"
+assert_grep "a commit whose message names --check still claims" 'issues/42/labels -X POST -f labels\[\]=in-progress' "$S/calls.log"
 
 # A live peer holding it blocks the edit once, and names them.
 reset; set_pending 42
@@ -997,6 +1129,106 @@ auto_claim "$(edit_payload)"
 assert_eq "an hour-old list is dropped, not claimed" "$(wc -c < "$S/calls.log" | tr -d ' ')" 0
 [ -f "$pending_dir/$ME.txt" ] && bad "stale list removed" || ok "stale list removed"
 
+# ...and so is ANOTHER session's: only its own session would consume it, and one that ended
+# without a write leaves it for good — defeating the fast exit for every write on the machine.
+reset; mkdir -p "$pending_dir"
+printf '7\n' > "$pending_dir/$DEAD.txt"
+touch -t 202001010000 "$pending_dir/$DEAD.txt"
+printf '7\n' > "$pending_dir/$PEER.txt"
+auto_claim "$(edit_payload)"
+[ -f "$pending_dir/$DEAD.txt" ] && bad "an edit removes another session's list over an hour old" \
+    || ok "an edit removes another session's list over an hour old"
+[ -f "$pending_dir/$PEER.txt" ] && ok "but never a live one" || bad "but never a live one"
+
+# A claim that FAILS blocks nothing — an unreachable tracker must not stop the work — but it is
+# never silent: the session was promised the claim happens without it. It is told, through the
+# one channel it reads, and the issue stays armed for its next write.
+reset; set_pending 42
+FAIL_RE='issues/42$' auto_claim "$(edit_payload)"
+assert_eq "a claim that fails leaves the tool alone" "$rc" 0
+ac_is_json && ok "the failure notice is the PreToolUse JSON object" \
+    || bad "the failure notice is the PreToolUse JSON object — got: $(head -c 200 "$tmp/ac.out")"
+ac_context
+assert_grep "it tells the model the claim failed" '^carnet: could NOT claim' "$tmp/ac.ctx"
+assert_grep "naming the issue and gh's reason" 'carnet#42 — .*cannot read carnet#42 .*HTTP 502' "$tmp/ac.ctx"
+assert_grep "that the issue is NOT held" '^carnet#42 is NOT held, and peers see it as unclaimed' "$tmp/ac.ctx"
+assert_grep "the command to claim it by hand" 'carnet\.sh claim <n>' "$tmp/ac.ctx"
+assert_grep "and that the hook will try again" 'tries again on your next edit' "$tmp/ac.ctx"
+assert_grep "the issue stays armed" '^42$' "$pending_dir/$ME.txt"
+auto_claim "$(edit_payload)"
+assert_grep "the next write claims it once the tracker answers" 'issues/42/labels -X POST -f labels\[\]=in-progress' "$S/calls.log"
+ac_context
+assert_grep "and says so" '^🔒 carnet auto-claimed: 42' "$tmp/ac.ctx"
+[ -f "$pending_dir/$ME.txt" ] && bad "then the list is consumed" || ok "then the list is consumed"
+
+reset; set_pending 42
+FAIL_RE='^api user' auto_claim "$(edit_payload)"
+ac_context
+assert_grep "a logged-out gh is reported too" 'carnet#42 — .*gh auth login' "$tmp/ac.ctx"
+
+# Retried within the list's hour, three attempts in all: a tracker that stays down must not cost
+# every later write a round of gh calls.
+reset; set_pending 42
+for attempt in 1 2 3; do
+    FAIL_RE='issues/42$' auto_claim "$(edit_payload)"
+    [ "$attempt" = 3 ] || assert_grep "attempt $attempt keeps the issue armed" '^42$' "$pending_dir/$ME.txt"
+done
+[ -f "$pending_dir/$ME.txt" ] && bad "three failed attempts drop the list" || ok "three failed attempts drop the list"
+ac_context
+assert_grep "and the last one says the hook has stopped trying" 'stopped trying' "$tmp/ac.ctx"
+: > "$S/calls.log"
+FAIL_RE='issues/42$' auto_claim "$(edit_payload)"
+assert_eq "after which a write asks nothing" "$(wc -c < "$S/calls.log" | tr -d ' ')" 0
+
+# A closed issue cannot become claimable: it is reported once and not retried.
+reset; set_pending 42
+issue_closed
+auto_claim "$(edit_payload)"
+ac_context
+assert_grep "a closed issue is reported" 'carnet#42 — .*is closed' "$tmp/ac.ctx"
+assert_no_grep "without telling the model to claim what cannot be claimed" 'Claim it yourself' "$tmp/ac.ctx"
+[ -f "$pending_dir/$ME.txt" ] && bad "and not retried" || ok "and not retried"
+reset; set_pending 42
+FAIL_RE='issues/42$' FAIL_MSG='Not Found (HTTP 404)' auto_claim "$(edit_payload)"
+ac_context
+assert_grep "a number with no issue behind it is reported" 'carnet#42 does not exist in Atmosphere/atmosphere-carnet' "$tmp/ac.ctx"
+[ -f "$pending_dir/$ME.txt" ] && bad "and not retried either" || ok "and not retried either"
+
+# A block stops the session — which must still learn what the same step claimed for it, or it
+# walks away holding an issue it was never told about.
+reset; set_pending 42 43
+claim_marker "$PEER" PeerSession peer "$HOST" "$peer_pid" > "$S/comments-42.txt"
+auto_claim "$(edit_payload)"
+assert_eq "one issue held by a live peer blocks the edit" "$rc" 2
+assert_grep "the other issue was claimed in the same step" 'issues/43/labels -X POST -f labels\[\]=in-progress' "$S/calls.log"
+assert_grep "and the block says so" 'Claimed for you in the same step.*carnet#43' "$tmp/ac.err"
+[ -f "$pending_dir/$ME.txt" ] && bad "a list fully decided is consumed" || ok "a list fully decided is consumed"
+
+# The ledger names claims in every register the session touched, and their numbers overlap.
+# Another register's #42 is no reason to skip this one's — nor to miss that a peer holds it.
+reset; set_pending 42
+seed_ledger
+printf '{"kind":"claim","tracker":"some-org/some-carnet","issue":42,"at":"2026-09-02T10:00:00Z"}\n' >> "$ledger"
+auto_claim "$(edit_payload)"
+assert_grep "another register's #42 in the ledger does not suppress this register's claim" \
+    'repos/Atmosphere/atmosphere-carnet/issues/42/labels -X POST -f labels\[\]=in-progress' "$S/calls.log"
+reset; set_pending 42
+seed_ledger
+printf '{"kind":"claim","tracker":"some-org/some-carnet","issue":42,"at":"2026-09-02T10:00:00Z"}\n' >> "$ledger"
+comments < <(claim_marker "$PEER" PeerSession peer "$HOST" "$peer_pid")
+auto_claim "$(edit_payload)"
+assert_eq "nor a live peer's hold on it" "$rc" 2
+reset; set_pending 42
+seed_ledger 42
+auto_claim "$(edit_payload)"
+assert_eq "this register's own #42 in the ledger is held already: no call" "$(count_calls 'api ')" 0
+
+# From wherever the session has cd'd, the claim goes to this project's register.
+reset; set_pending 42
+( cd "$tmp/nested" && printf '%s' "$(edit_payload)" | bash "$here/hooks/auto-claim.sh" ) > "$tmp/ac.out" 2> "$tmp/ac.err"
+assert_grep "auto-claim from a checkout that names no register still claims in the project's" \
+    'repos/Atmosphere/atmosphere-carnet/issues/42/labels -X POST -f labels\[\]=in-progress' "$S/calls.log"
+
 # Who wrote the prompt that armed the list. The transcript entry with that promptId says:
 # `promptSource` "typed"/"queued" for the composer, "system" for a peer message, a task
 # notification or a scheduled wakeup; the wakeup also carries `isMeta` and `scheduledTaskId`.
@@ -1016,14 +1248,18 @@ reset; set_pending "prompt=$W1" 42
 auto_claim "$(edit_payload_t)"
 assert_eq "a wakeup-armed list: allows the tool" "$rc" 0
 assert_no_grep "a wakeup-armed list: claims nothing" 'labels\[\]=in-progress' "$S/calls.log"
-assert_grep "a wakeup-armed list: says so, naming the issue" '^carnet: NOT claimed — carnet#42 came from a scheduled wakeup' "$tmp/ac.out"
-assert_grep "a wakeup-armed list: says how to take it deliberately" 'carnet.sh claim <n>' "$tmp/ac.out"
+ac_is_json && ok "a wakeup-armed list: the notice is the PreToolUse JSON object" \
+    || bad "a wakeup-armed list: the notice is the PreToolUse JSON object — got: $(head -c 200 "$tmp/ac.out")"
+ac_context
+assert_grep "a wakeup-armed list: tells the model, naming the issue" '^carnet: NOT claimed — carnet#42 came from a scheduled wakeup' "$tmp/ac.ctx"
+assert_grep "a wakeup-armed list: says how to take it deliberately" 'carnet.sh claim <n>' "$tmp/ac.ctx"
 [ -f "$pending_dir/$ME.txt" ] && bad "a wakeup-armed list is consumed" || ok "a wakeup-armed list is consumed"
 
 reset; set_pending "prompt=$N1" 42
 auto_claim "$(edit_payload_t)"
 assert_no_grep "a task-notification-armed list: claims nothing" 'labels\[\]=in-progress' "$S/calls.log"
-assert_grep "a task-notification-armed list: names the machine origin" 'came from a machine-injected prompt' "$tmp/ac.out"
+ac_context
+assert_grep "a task-notification-armed list: names the machine origin" 'came from a machine-injected prompt' "$tmp/ac.ctx"
 
 reset; set_pending "prompt=$T1" 42
 auto_claim "$(edit_payload_t)"
@@ -1079,6 +1315,34 @@ eq "394" "$(arms 'fix carnet#394 please')" \
     "the user asking in their own words still arms"
 eq "343 400" "$(arms 'take carnet#343 and also look at registre 400')" \
     "and every number in their own words arms"
+
+# One config dir serves every checkout on the machine, and registers' numbers overlap: another
+# register's issue named in a prompt here would otherwise claim — or block on — whatever this
+# register holds under the same number.
+section "Only this register's issues arm"
+reset
+eq "" "$(arms 'port the fix from https://github.com/dravr-ai/dravr-carnet/issues/12')" \
+    "another register's issue URL arms nothing"
+eq "" "$(arms 'same root cause as dravr-carnet#31, port it here')" \
+    "another register's short form arms nothing"
+eq "" "$(arms 'see dravr-ai/dravr-carnet#8 for the root cause')" \
+    "nor its owner/repo form"
+eq "" "$(arms 'the gate bug is upstream, see llm-registre#5')" \
+    "a repo whose name ends in registre arms nothing"
+eq "" "$(arms 'bump .registre to llm-registre 1.4')" \
+    "nor a version beside it"
+eq "" "$(arms 'a fork has it too: someone/atmosphere-carnet#12')" \
+    "nor a fork of this register"
+eq "12" "$(arms 'take atmosphere-carnet#12')" \
+    "this register's name arms"
+eq "42" "$(arms 'Atmosphere/atmosphere-carnet#42 is ours')" \
+    "so does its owner/repo form"
+eq "7" "$(arms 'https://github.com/Atmosphere/atmosphere-carnet/issues/7')" \
+    "and its issue URL"
+eq "5" "$(arms 'registre#5 is ours')" \
+    "and a bare registre#N"
+eq "9" "$(arms 'LIMITATION(registre#9) names it')" \
+    "and a LIMITATION marker's reference"
 
 # ================================================== skill discovery + hook wiring
 # The scripts above are only half the mechanism. Claude Code finds the skill through
