@@ -1383,9 +1383,11 @@ cmd_sweep() {
             # this ledger up, and it is only here because the session was killed before it could.
             #
             # Only this repo's register. The ledger directory is shared by every repo on the
-            # machine, so another repo's claim is that repo's sweep to report — and asking THIS
-            # tracker about it would answer for a different issue that shares the number, and
-            # delete a live claim from a dead session's ledger on the strength of it.
+            # machine, and asking THIS tracker about another register's claim would answer for a
+            # different issue that shares the number, and delete a live claim from a dead
+            # session's ledger on the strength of it. That claim is left alone here — not because
+            # its own repo's sweep is sure to report it: not every sweep sharing the directory
+            # keeps to its own register ("The three call sites" in SKILL.md names two that do not).
             issues=""
             for row in $(ledger_rows "$f" claim); do
                 n=${row%%|*}

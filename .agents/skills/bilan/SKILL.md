@@ -140,8 +140,17 @@ to clear such a cap would be to take the peer's servers down.
 what a dead session left behind. A `kill -9`, a closed terminal or an exhausted context fires no
 exit hook, so the dead session can never report on itself; the session that opens after it looks
 instead, across every worktree of this repo and every ledger on the machine. It reports only this
-repo's register (another repo's sweep reports its own), and drops a dead session's claim once the
-tracker says the issue is closed, so a long-resolved issue does not keep reappearing as abandoned.
+repo's register, and drops a dead session's claim once the tracker says the issue is closed, so a
+long-resolved issue does not keep reappearing as abandoned.
+
+The ledger directory is shared, and not every sweep that reads it keeps to its own register. This
+one asks each claim's own tracker and leaves another register's lines alone. The sweeps of
+dravr-platform and mirroir-mcp, as they stand, do not: each asks its own tracker about every claim
+number in a ledger whose session it takes for ended, whatever register the line names. A claim held
+here can then be reported there as that repo's own `carnet#n`, or be deleted — and the ledger with
+it, once nothing is left — because that repo's issue of the same number is closed, before this sweep
+ever sees it. The claim marker on the tracker is untouched: `carnet.sh status <n>` still shows who
+holds the issue and whether that session has ended.
 
 A ledger belongs to its session, so the sweep rewrites or deletes one only when that session has
 certainly ended. A session is judged by its id, not by the pid its ledger recorded — carnet writes

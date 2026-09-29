@@ -842,9 +842,9 @@ check "an unverifiable claim is still reported, not dropped" 1 \
 check "and the ledger is left intact when it cannot be checked" 1 \
     "$(grep -c '"issue":236' "$sweep_ledger")"
 rm -rf "$MUTE"
-# The ledger directory is shared by every repo on the machine. A claim on ANOTHER register is
-# that repo's sweep to report: asking this tracker about it would answer for a different issue
-# that happens to share the number — here, a closed one — and delete a live claim on its word.
+# The ledger directory is shared by every repo on the machine. A claim on ANOTHER register is not
+# this sweep's to judge: asking this tracker about it would answer for a different issue that
+# happens to share the number — here, a closed one — and delete a live claim on its word.
 cat >> "$sweep_ledger" <<LEDGER
 {"kind":"claim","tracker":"acme/other-carnet","issue":236,"at":"2026-09-03T11:07:02Z"}
 {"kind":"claim","tracker":"Atmosphere/atmosphere-carnet","issue":237,"at":"2026-09-03T11:07:02Z"}
