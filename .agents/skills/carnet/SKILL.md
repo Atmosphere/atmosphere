@@ -109,7 +109,11 @@ agent proxy refuses every GraphQL query outside a pinned set of PR-review operat
   `grep -n '<version>'` is still a read. If a live peer holds the issue it blocks that one
   tool call and names them — and names anything it claimed for you in the same step. A claim
   that fails blocks nothing: you are told `carnet: could NOT claim …`, and the hook tries again
-  on your next edits (three attempts within the hour). Before claiming it asks the transcript
+  on your next edits (three attempts within the hour). Whether you hold an issue already is the
+  newest claim marker's to say, never the ledger's: a claim cut off half-way — by the hook's
+  timeout, or a failed marker POST — is in the ledger and still not held, and the next attempt
+  finishes it. Subagents share the session's id, so one hook run at a time works the list; a
+  write made meanwhile goes through and leaves it to that run. Before claiming it asks the transcript
   **who wrote the prompt** that named the issue: a `/loop` or ScheduleWakeup re-fire is text
   the model wrote for itself, and a peer message or task result is text no human wrote, so a
   list armed by any of those claims nothing and tells you `carnet: NOT claimed — carnet#N came

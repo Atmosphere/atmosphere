@@ -43,8 +43,10 @@ case $sid in *[!A-Za-z0-9-]*) exit 0 ;; esac
 claims="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/carnet-claims"
 # The session's pending list and its warned list end with it. Only its own next write consumes
 # a pending list, so a session that named an issue and never wrote would leave it behind — and
-# one leftover list sends every write of every session past auto-claim's one-stat exit.
-rm -f "$claims/pending/$sid.txt" "$claims/warned/$sid.txt" 2>/dev/null
+# one leftover list sends every write of every session past auto-claim's one-stat exit. The lock
+# an auto-claim run holds while it works the list goes too: a run that was killed leaves it.
+rm -f "$claims/pending/$sid.txt" "$claims/warned/$sid.txt" "$claims/pending/$sid.lock/pid" 2>/dev/null
+rmdir "$claims/pending/$sid.lock" 2>/dev/null
 
 ledger="$claims/$sid.jsonl"
 [ -s "$ledger" ] || exit 0

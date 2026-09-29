@@ -41,6 +41,9 @@ trap cleanup EXIT
 # before its failing page ($FAIL_OUT) on stdout, the error on stderr ($FAIL_MSG, a 502 unless
 # set), exit 1. The call is still logged, followed by FAILED. A case that needs two issues at
 # once gives one of them its own issue-<n>.json and comments-<n>.txt.
+#
+# Every call can be slowed by $GH_DELAY seconds, for runs that must overlap. A call matching
+# $HANG_RE never answers: it touches $S/hanging, so a test knows the moment to cut the run off.
 mkdir -p "$tmp/bin" "$tmp/stub"
 cat > "$tmp/bin/gh" <<'EOF'
 #!/usr/bin/env bash
@@ -59,6 +62,11 @@ done
   [ -z "$labels" ] || printf 'LABELS %s\n' "$labels"
   [ -z "$body" ]  || printf 'BODY %s\n' "$body"
   printf 'END\n'; } >> "$S/calls.log"
+[ -z "${GH_DELAY:-}" ] || sleep "$GH_DELAY"
+if [ -n "${HANG_RE:-}" ] && printf '%s' "$*" | grep -qE -- "$HANG_RE"; then
+    : > "$S/hanging"
+    sleep 60
+fi
 if [ -n "${FAIL_RE:-}" ] && printf '%s' "$*" | grep -qE -- "$FAIL_RE"; then
     printf 'FAILED\n' >> "$S/calls.log"
     [ -z "${FAIL_OUT:-}" ] || printf '%s\n' "$FAIL_OUT"
@@ -1043,10 +1051,13 @@ reset
 mkdir -p "$pending_dir_h" "$tmp/cfg/carnet-claims/warned"
 printf '42\n' > "$pending_dir_h/$ME.txt"
 printf '42\n' > "$tmp/cfg/carnet-claims/warned/$ME.txt"
+mkdir -p "$pending_dir_h/$ME.lock"
+printf '1\n' > "$pending_dir_h/$ME.lock/pid"
 printf '{"session_id":"%s"}' "$ME" | bash "$here/hooks/session-end-release.sh"
 [ -f "$pending_dir_h/$ME.txt" ] && bad "session-end hook: the session's pending list goes with it" \
     || ok "session-end hook: the session's pending list goes with it"
 [ -f "$tmp/cfg/carnet-claims/warned/$ME.txt" ] && bad "and so does its warned list" || ok "and so does its warned list"
+[ -e "$pending_dir_h/$ME.lock" ] && bad "and the lock a killed auto-claim run left" || ok "and the lock a killed auto-claim run left"
 # That id comes from the hook payload, and it names the file removed: never a path.
 reset
 mkdir -p "$pending_dir_h"
@@ -1265,7 +1276,7 @@ ac_is_json && ok "the failure notice is the PreToolUse JSON object" \
 ac_context
 assert_grep "it tells the model the claim failed" '^carnet: could NOT claim' "$tmp/ac.ctx"
 assert_grep "naming the issue and gh's reason" 'carnet#42 — .*cannot read carnet#42 .*HTTP 502' "$tmp/ac.ctx"
-assert_grep "that the issue is NOT held" '^carnet#42 is NOT held, and peers see it as unclaimed' "$tmp/ac.ctx"
+assert_grep "that the issue is not confirmed as held" '^carnet#42 is not confirmed as held by this session, so peers may see it as unclaimed' "$tmp/ac.ctx"
 assert_grep "the command to claim it by hand" 'carnet\.sh claim <n>' "$tmp/ac.ctx"
 assert_grep "and that the hook will try again" 'tries again on your next edit' "$tmp/ac.ctx"
 assert_grep "the issue stays armed" '^42$' "$pending_dir/$ME.txt"
@@ -1343,10 +1354,95 @@ printf '{"kind":"claim","tracker":"some-org/some-carnet","issue":42,"at":"2026-0
 comments < <(claim_marker "$PEER" PeerSession peer "$HOST" "$peer_pid")
 auto_claim "$(edit_payload)"
 assert_eq "nor a live peer's hold on it" "$rc" 2
+# Whether the session holds an issue already is the newest marker's to say: `claim` answers it
+# without a write, and the hook passes the issue by in silence.
 reset; set_pending 42
 seed_ledger 42
+comments < <(claim_marker "$ME" TestSession tester "$HOST" "$$")
 auto_claim "$(edit_payload)"
-assert_eq "this register's own #42 in the ledger is held already: no call" "$(count_calls 'api ')" 0
+assert_eq "an issue this session's marker holds costs no tracker write" "$(count_calls "$WRITES")" 0
+ac_context
+assert_no_grep "and is not announced as a new claim" 'auto-claimed' "$tmp/ac.ctx"
+[ -f "$pending_dir/$ME.txt" ] && bad "and its list is consumed" || ok "and its list is consumed"
+
+# Not the ledger's: its line is written before the first tracker write, so it also lists a claim
+# cut off half-way. Here the hook is cancelled at its timeout while the label POST hangs — it
+# has assigned, its line is in, and no marker says this session holds the issue. The kill takes
+# the run's whole process group, as the harshest cancellation would.
+reset; set_pending "prompt=p-1" 42
+rm -f "$S/hanging"
+set -m
+( printf '%s' "$(edit_payload)" | HANG_RE='issues/42/labels -X POST' bash "$here/hooks/auto-claim.sh" ) > /dev/null 2>&1 &
+hook_pid=$!
+set +m
+i=0; while [ ! -f "$S/hanging" ] && [ "$i" -lt 300 ]; do sleep 0.1; i=$((i + 1)); done
+{ kill -KILL -- "-$hook_pid"; wait "$hook_pid"; } 2>/dev/null || true
+assert_grep "a claim cut off at the hook's timeout is in the ledger" '"kind":"claim","tracker":"Atmosphere/atmosphere-carnet","issue":42' "$ledger"
+assert_eq "with no claim marker posted" "$(count_calls 'api repos/[^ ]*/issues/42/comments -X POST')" 0
+assert_grep "and its list still armed" '^42$' "$pending_dir/$ME.txt"
+[ -d "$pending_dir/$ME.lock" ] && ok "the killed run left its lock behind" || bad "the killed run left its lock behind"
+: > "$S/calls.log"
+auto_claim "$(edit_payload)"
+assert_eq "the next write finishes the claim: its marker is posted" "$(count_calls 'api repos/[^ ]*/issues/42/comments -X POST')" 1
+ac_context
+assert_grep "and the model is told" '^🔒 carnet auto-claimed: 42' "$tmp/ac.ctx"
+[ -f "$pending_dir/$ME.txt" ] && bad "then the list is consumed" || ok "then the list is consumed"
+[ -d "$pending_dir/$ME.lock" ] && bad "and the dead run's lock is gone" || ok "and the dead run's lock is gone"
+assert_eq "with the claim listed once" "$(grep -c '"kind":"claim"' "$ledger")" 1
+
+# A failed marker POST re-arms the issue with tries=1. A new prompt naming it arms it afresh, and
+# the next write still has to finish the claim, not pass it by as held.
+reset; set_pending "prompt=p-1" 42
+FAIL_RE='issues/42/comments -X POST' auto_claim "$(edit_payload)"
+assert_grep "a failed marker POST re-arms the issue" '^tries=1$' "$pending_dir/$ME.txt"
+printf '{"prompt":"back to carnet#42","session_id":"%s","prompt_id":"p-2"}' "$ME" \
+    | bash "$here/hooks/prompt-status.sh" > /dev/null
+assert_grep "the user names it again, and the prompt hook arms it afresh" '^prompt=p-2$' "$pending_dir/$ME.txt"
+: > "$S/calls.log"
+auto_claim "$(edit_payload)"
+assert_eq "the next write finishes the claim" "$(count_calls 'api repos/[^ ]*/issues/42/comments -X POST')" 1
+ac_context
+assert_grep "and says so" '^🔒 carnet auto-claimed: 42' "$tmp/ac.ctx"
+
+# Subagents fire PreToolUse under their parent's session_id, so two runs can work one list at
+# once. Each gh call takes half a second here, so the two overlap for certain; one claims.
+reset; set_pending "prompt=p-1" 42
+export GH_DELAY=0.5
+( printf '%s' "$(edit_payload)" | bash "$here/hooks/auto-claim.sh" ) > /dev/null 2>&1 & h1=$!
+sleep 0.2
+( printf '%s' "$(edit_payload)" | bash "$here/hooks/auto-claim.sh" ) > /dev/null 2>&1 & h2=$!
+rc1=0; wait "$h1" || rc1=$?
+rc2=0; wait "$h2" || rc2=$?
+unset GH_DELAY
+assert_eq "two writes of one session at once both go through" "$rc1 $rc2" "0 0"
+assert_eq "and the issue is claimed once: one marker" "$(count_calls 'api repos/[^ ]*/issues/42/comments -X POST')" 1
+assert_eq "one assign" "$(count_calls 'api repos/[^ ]*/issues/42/assignees -X POST')" 1
+assert_eq "one ledger line" "$(grep -c '"kind":"claim"' "$ledger")" 1
+[ -f "$pending_dir/$ME.txt" ] && bad "and the list is consumed" || ok "and the list is consumed"
+
+# While a live run holds the list, a write goes through and leaves it to that run.
+reset; set_pending 42
+mkdir -p "$pending_dir/$ME.lock"
+printf '%s\n' "$peer_pid" > "$pending_dir/$ME.lock/pid"
+auto_claim "$(edit_payload)"
+assert_eq "a write while a live run works the list goes through" "$rc" 0
+assert_eq "without a tracker call" "$(wc -c < "$S/calls.log" | tr -d ' ')" 0
+assert_grep "and leaves the list to that run" '^42$' "$pending_dir/$ME.txt"
+# A lock older than any run can last is stale, whoever its pid names by now (reused, or hung).
+touch -t 202001010000 "$pending_dir/$ME.lock"
+auto_claim "$(edit_payload)"
+assert_grep "a lock older than any run is broken, and the list claimed" 'issues/42/labels -X POST -f labels\[\]=in-progress' "$S/calls.log"
+[ -d "$pending_dir/$ME.lock" ] && bad "and that run releases its own lock" || ok "and that run releases its own lock"
+
+# A ledger that refuses its lock fails the claim at once — not a hook cancelled at its timeout on
+# every write, its list never consumed — and the model is told; the issue stays armed.
+reset; set_pending "prompt=p-1" 42
+bounded 40 "$tmp/ac.out" env PATH="$tmp/eperm:$PATH" \
+    sh -c 'printf "%s" "$1" | bash "$2"' _ "$(edit_payload)" "$here/hooks/auto-claim.sh"
+assert_eq "a ledger that refuses its lock leaves the tool alone, at once" "$rc" 0
+ac_context
+assert_grep "and tells the model the claim failed, and why" 'carnet#42 — .*cannot lock the ledger' "$tmp/ac.ctx"
+assert_grep "with the issue armed for another try" '^tries=1$' "$pending_dir/$ME.txt"
 
 # From wherever the session has cd'd, the claim goes to this project's register.
 reset; set_pending 42

@@ -154,6 +154,39 @@ if [ -z "$(find "$pending" -mmin -60 2>/dev/null)" ]; then
     exit 0
 fi
 
+# One run per session works the list. Subagents fire PreToolUse under their parent's session_id
+# (only agent_id tells their calls apart), so two of them writing at once would each read this
+# list and claim it twice over: two claim markers, a second assign-and-label round. A run that
+# finds a live one working it lets its tool call through, as with nothing pending. The list
+# itself stays where it is meanwhile, so a run cancelled at the hook's timeout leaves it armed
+# for the next write; and a run that died holding the lock — its pid gone, or the lock older
+# than any run can last — holds nothing. If the directory refuses the lock, the list is worked
+# unlocked, as it always was.
+run_lock="$PENDING_DIR/$sid.lock"
+if ! mkdir "$run_lock" 2>/dev/null; then
+    if [ -d "$run_lock" ]; then
+        owner=$(cat "$run_lock/pid" 2>/dev/null || true)
+        if { ! [[ $owner =~ ^[0-9]+$ ]] || kill -0 "$owner" 2>/dev/null; } \
+            && [ -z "$(find "$run_lock" -maxdepth 0 -mmin +1 2>/dev/null)" ]; then
+            exit 0
+        fi
+        # Read again before removing it: another run may have broken it already, and hold it now.
+        [ "$(cat "$run_lock/pid" 2>/dev/null || true)" = "$owner" ] || exit 0
+        rm -f "$run_lock/pid" 2>/dev/null
+        rmdir "$run_lock" 2>/dev/null
+        mkdir "$run_lock" 2>/dev/null || exit 0
+    else
+        run_lock=""
+    fi
+fi
+if [ -n "$run_lock" ]; then
+    printf '%s\n' "$$" > "$run_lock/pid"
+    # Released on every exit, and only while it is still this run's.
+    trap '[ "$(cat "$run_lock/pid" 2>/dev/null)" != "$$" ] || { rm -f "$run_lock/pid"; rmdir "$run_lock" 2>/dev/null; }' EXIT
+fi
+# Worked and consumed by the run that held the lock before this one.
+[ -s "$pending" ] || exit 0
+
 armed=$(cat "$pending" 2>/dev/null || true)
 nums=$(printf '%s\n' "$armed" | tr -d ' \r' | grep -E '^[0-9]+$' | sort -un || true)
 prompt_id=$(printf '%s\n' "$armed" | grep -m1 '^prompt=' | cut -d= -f2- || true)
@@ -195,29 +228,23 @@ fi
 # directory it runs in. The prompt hook armed this list against the same project.
 cd "${CLAUDE_PROJECT_DIR:-$here/../../../..}" 2>/dev/null || exit 0
 
-ledger="$CFG/carnet-claims/$sid.jsonl"
 warned="$CFG/carnet-claims/warned/$sid.txt"
 mkdir -p "$(dirname "$warned")" 2>/dev/null || true
-
-# What this session already holds IN THIS REGISTER: the ledger lists claims in every register
-# the session touched, and their numbers overlap — another register's #42 is no reason to skip
-# this one's. Not consulted on a retry: a claim that failed part-way already has its line (it is
-# written before the first tracker write), and only `claim` can finish that claim.
-held=""
-if [ "$tries" = 0 ] && [ -s "$ledger" ]; then
-    tracker=$(bash "$carnet" tracker 2>/dev/null || true)
-    held=$(jq -r --arg t "$tracker" 'select(.kind == "claim" and .tracker == $t) | .issue' "$ledger" 2>/dev/null || true)
-fi
 
 claimed=""
 blocked=""
 failed=""
 transient=""
 for n in $nums; do
-    printf '%s\n' $held | grep -qx "$n" && continue     # this session already holds it
-    out=$(bash "$carnet" claim "$n" 2>&1); rc=$?
+    # Whether this session holds the issue already is `claim`'s to say, from the newest marker,
+    # and it says so without a write. The ledger cannot: its line goes in before the first
+    # tracker write, so a claim cut off half-way — at this hook's timeout, or by a failed marker
+    # POST — is listed there and still not held, and only another `claim` finishes it. The
+    # ledger wait stays well under this hook's own timeout: a stuck ledger lock is then a claim
+    # that failed, told and retried, rather than a hook cancelled on every write.
+    out=$(CARNET_LOCK_WAIT=5 bash "$carnet" claim "$n" 2>&1); rc=$?
     case $rc in
-        0) claimed="$claimed $n" ;;
+        0) case $out in *"already held by this session"*) : ;; *) claimed="$claimed $n" ;; esac ;;
         2)
             # Refused: a live peer holds it. Say so once, then stop repeating it.
             if ! { [ -f "$warned" ] && grep -qx "$n" "$warned"; }; then
@@ -288,8 +315,10 @@ if [ -n "$failed" ]; then
 "
     msg="${msg}carnet: could NOT claim:$failed"
     if [ -n "$transient" ]; then
+        # Not "is not held": a failed read says nothing either way, and this session may hold it
+        # from an earlier claim.
         msg="$msg
-$(refs $transient) is NOT held, and peers see it as unclaimed. Claim it yourself before working on it: .agents/skills/carnet/carnet.sh claim <n>"
+$(refs $transient) is not confirmed as held by this session, so peers may see it as unclaimed. Claim it yourself before working on it: .agents/skills/carnet/carnet.sh claim <n>"
         if [ -n "$retry" ]; then msg="$msg
 (the hook tries again on your next edit)"
         else msg="$msg
