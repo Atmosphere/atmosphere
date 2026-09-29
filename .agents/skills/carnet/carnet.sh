@@ -211,8 +211,9 @@ ledger_add() {
 
 # Filed, not claimed. The tracker cannot say which session filed an issue, so the ledger
 # records it, for an end-of-session audit to ask, per issue, why it is residue rather than the
-# work the session was asked to do. No such audit ships in this repo: within the skill these
-# lines only keep the ledger alive while they exist (ledger_drop).
+# work the session was asked to do. That audit is bilan (check_carnet_filed in
+# .agents/skills/bilan/bilan.sh), which caps the session at 6 while such an issue stays open;
+# within this skill the lines also keep the ledger alive while they exist (ledger_drop).
 ledger_filed() {
     local f
     f=$(ledger_file) || return 0

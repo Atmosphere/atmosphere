@@ -189,3 +189,6 @@ human, and nothing auto-releases it.
   the marker line to fill in — then write the marker.
 - An open decision in a plan or audit is filed the same way — one issue per decision, so each
   gets its own close.
+- **bilan** (`.agents/skills/bilan/`) reads this skill's ledger: a claim still held, or an issue
+  filed this session and still open (unless it is a registered limitation), caps the session's
+  completion score at 6.
