@@ -1393,14 +1393,14 @@ cmd_scope() {
 # this repo, and names what a session that is no longer running left behind.
 #
 # A ledger belongs to its session, so the sweep rewrites or deletes one only when that session has
-# certainly ended — a running one may be appending to it that moment. Liveness is decided by
-# session id, never by the pid the ledger recorded: carnet writes that identity line once, at the
+# certainly ended — a running one may be appending to it that moment. A running session is found by
+# its id, never by the pid the ledger recorded: carnet writes that identity line once, at the
 # session's first carnet write, and `claude --resume` keeps the session id under a new pid. Claude
 # Code keeps sessions/<pid>.json under its config dir for every running session and removes it on
 # exit, so a file naming the id with a live pid is a running session, however often it resumed.
 # The config dir is $CFG as well as every $HOME/.claude*, as carnet's holder_alive has it; looking
 # only in the second called every live session dead when CLAUDE_CONFIG_DIR was elsewhere.
-live_session_ids() { # -> the id of every running session, one per line
+session_registrations() { # -> "<id> running" or "<id> unseen" per session file
     local d f sid p seen=""
     for d in "$CFG/sessions" "$HOME"/.claude*/sessions; do
         [ -d "$d" ] || continue
@@ -1413,8 +1413,13 @@ live_session_ids() { # -> the id of every running session, one per line
             [ -n "$sid" ] || continue
             p=$(jq -r '.pid // empty' "$f" 2>/dev/null)
             case $p in '' | *[!0-9]*) p=$(basename "$f" .json) ;; esac
-            case $p in '' | *[!0-9]*) continue ;; esac
-            kill -0 "$p" 2>/dev/null && printf '%s\n' "$sid"
+            # A file whose pid cannot be checked still names the session: unseen, never skipped.
+            case $p in '' | *[!0-9]*) printf '%s unseen\n' "$sid"; continue ;; esac
+            if kill -0 "$p" 2>/dev/null; then
+                printf '%s running\n' "$sid"
+            else
+                printf '%s unseen\n' "$sid"
+            fi
         done
     done
     return 0
@@ -1423,16 +1428,23 @@ live_session_ids() { # -> the id of every running session, one per line
 # 0 = running · 1 = ended · 2 = cannot be told from here, with the reason on stdout. Only 1 lets
 # the sweep touch the ledger; 2 is reported and left alone, because a session that might still be
 # running is its ledger's owner.
-session_state() { # <session-id> <ledger> <running ids> <this host>
-    local pid host
-    printf '%s\n' "$3" | grep -qxF "$1" && return 0
-    pid=$(head -1 "$2" | jq -r '.pid // empty' 2>/dev/null)
-    host=$(head -1 "$2" | jq -r '.host // empty' 2>/dev/null)
-    # carnet's rule too: a pid recorded on another host means nothing on this one.
-    if [ -n "$host" ] && [ "$host" != "$4" ]; then
-        printf 'it ran on %s, where this machine cannot look' "$host"
+#
+# The host name carnet stamps into the identity line decides nothing. The ledger sits in this
+# machine's config dir, and a machine's name changes under it — a Mac renames itself when its name
+# is taken on the network — so a rule that read another name as another machine never cleared a
+# session this machine had run and lost to a kill -9, and reported it at every SessionStart as
+# possibly running. What does mark a session this machine cannot see is its session file: a file
+# still naming it, under a pid that does not run here, is either a leftover of a crash or a session
+# running in another pid namespace that shares this config dir — a container — and nothing here
+# tells the two apart.
+session_state() { # <session-id> <ledger> <registrations>
+    local pid
+    printf '%s\n' "$3" | grep -qxF "$1 running" && return 0
+    if printf '%s\n' "$3" | grep -qxF "$1 unseen"; then
+        printf 'a session file still names it, under a pid that does not run here'
         return 2
     fi
+    pid=$(head -1 "$2" | jq -r '.pid // empty' 2>/dev/null)
     # 0 is no pid either: `kill -0 0` asks about this process group, and always answers yes.
     case $pid in
         '' | 0 | *[!0-9]*) printf 'its ledger names no pid'; return 2 ;;
@@ -1470,13 +1482,11 @@ worktree_is_live() { # <path>
 
 cmd_sweep() {
     local dir f id name at issues found=0 busy=0 path="" branch="" dirty ahead what line row n t tmp healed="" seen=""
-    local live host state why
+    local registered state why
     say "BILAN SWEEP · $(basename "$REPO_ROOT")"
     say ""
-    # Once per sweep, not per ledger: which sessions are running, and the host they would run on
-    # — spelled the way carnet.sh spells it into the identity line.
-    live=$(live_session_ids)
-    host=$(hostname -s 2>/dev/null || hostname)
+    # Once per sweep, not per ledger: which sessions a session file names, and whether each runs.
+    registered=$(session_registrations)
     # Both accounts' config dirs, plus this session's own if CLAUDE_CONFIG_DIR points somewhere
     # the glob does not reach — a session configured outside $HOME was invisible to its own
     # sweep. Deduped, since the common case is that $CFG is already one of the globbed dirs.
@@ -1488,7 +1498,7 @@ cmd_sweep() {
             [ -s "$f" ] || continue
             id=$(basename "$f" .jsonl)
             [ "$id" = "${SESSION_ID:-}" ] && continue
-            why=$(session_state "$id" "$f" "$live" "$host"); state=$?
+            why=$(session_state "$id" "$f" "$registered"); state=$?
             [ "$state" = 0 ] && continue
             name=$(head -1 "$f" | jq -r '.name // "?"')
             at=$(head -1 "$f"   | jq -r '.at // "?"')

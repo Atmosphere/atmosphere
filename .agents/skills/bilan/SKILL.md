@@ -158,8 +158,13 @@ certainly ended. A session is judged by its id, not by the pid its ledger record
 that pid once, and `claude --resume` keeps the id under a new one — from the session files Claude
 Code keeps under its config dir (`$CLAUDE_CONFIG_DIR` and every `~/.claude*`): a file naming the id
 with a live pid is a running session, and the sweep leaves it alone. When the sweep cannot tell —
-the ledger was written on another host, or its recorded pid still runs with no session file to say
-whose it is — it reports the claims as possibly still held, and clears nothing.
+a session file still names the session under a pid that does not run here (a leftover of a crash,
+or a session in another pid namespace sharing the config dir, such as a container), the ledger's
+recorded pid still runs with no session file to say whose it is, or the ledger names no pid — it
+reports the claims as possibly still held, and clears nothing. The host name carnet stamps into the
+ledger decides nothing: the ledger sits in this machine's config dir, and a machine's name changes
+under it — a Mac renames itself when its name is taken on the network — so a session this machine
+ran under an earlier name is still judged, and cleared, as this machine's.
 
 The ledger directory is shared, and not every sweep that reads it keeps to its own register. This
 one asks each claim's own tracker and leaves another register's lines alone. The sweeps of

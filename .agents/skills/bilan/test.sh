@@ -995,8 +995,8 @@ git -C "$R" checkout -q main && git -C "$R" branch -q -D no-upstream
 # the sweep exists to print. HOME is the sandbox's: the sweep reads every ledger under
 # $HOME/.claude*, and a test has no business reading, healing or deleting the real ones.
 FAKE_HOME="$CFG/home"; mkdir -p "$FAKE_HOME"
-# The host carnet.sh stamps into the identity line. A ledger from another host names a pid that
-# means nothing here, so only one from this host can be judged to have ended.
+# The host carnet.sh stamps into the identity line, spelled the way carnet spells it. It is not what
+# decides whether a session ended — the Renamed case below says why — but every ledger carries it.
 THIS_HOST=$(hostname -s 2>/dev/null || hostname)
 sweep_ledger="$CFG/carnet-claims/11111111-1111-1111-1111-111111111111.jsonl"
 mkdir -p "$(dirname "$sweep_ledger")"
@@ -1055,9 +1055,12 @@ PEER=33333333-3333-3333-3333-333333333333
 printf '{"pid":%s,"sessionId":"%s"}\n' "$PEER_PID" "$PEER" > "$CFG/sessions/$PEER_PID.json"
 { identity_of "$PEER" QuietPeer "$THIS_HOST" "$PEER_PID"
   printf '{"kind":"limitation","tracker":"Atmosphere/atmosphere-carnet","issue":2001,"at":"2026-09-03T11:07:02Z"}\n'; } > "$(led "$PEER")"
-# Two whose liveness this machine cannot establish: one written on another host, and one whose
-# recorded pid still runs with no session file to say whose it is.
+# Two whose liveness this machine cannot establish: one a session file still names under a pid
+# that does not run here — a crash's leftover, or a session in a container sharing this config
+# dir, which has its own host name and its own pids — and one whose recorded pid still runs with no
+# session file to say whose it is.
 ELSEWHERE=44444444-4444-4444-4444-444444444444
+printf '{"pid":999999,"sessionId":"%s"}\n' "$ELSEWHERE" > "$CFG/sessions/999999.json"
 { identity_of "$ELSEWHERE" Elsewhere another-host 999999; claim_of 236; claim_of 237; } > "$(led "$ELSEWHERE")"
 STRAY=55555555-5555-5555-5555-555555555555
 { identity_of "$STRAY" Stray "$THIS_HOST" "$STRAY_PID"; claim_of 236; claim_of 237; } > "$(led "$STRAY")"
@@ -1069,8 +1072,8 @@ check "…and its ledger is left byte for byte, though an issue it holds has clo
     "$(cmp -s "$CFG/$RESUMED.before" "$(led "$RESUMED")"; echo $?)"
 check "a running session's ledger with nothing to report is not deleted" 0 \
     "$(cmp -s "$CFG/$PEER.before" "$(led "$PEER")"; echo $?)"
-check "a session on another host is reported as possibly running, never as ended" 1 \
-    "$(printf '%s' "$sweep_out" | grep -c 'Elsewhere .*may still be running — it ran on another-host.*holding: carnet#237$')"
+check "a session a session file still names, under a pid not running here, is reported as possibly running" 1 \
+    "$(printf '%s' "$sweep_out" | grep -c 'Elsewhere .*may still be running — a session file still names it.*holding: carnet#237$')"
 check "a recorded pid that still runs, with no session file, is not proof the session ended" 1 \
     "$(printf '%s' "$sweep_out" | grep -c "Stray .*may still be running — its pid $STRAY_PID still runs.*holding: carnet#237\$")"
 check "…neither is told a plain claim takes it over" 0 \
@@ -1081,6 +1084,17 @@ check "…and nothing is reported as cleared" 0 "$(printf '%s' "$sweep_out" | gr
 kill "$RESUMED_PID" "$PEER_PID" "$STRAY_PID" 2>/dev/null; wait "$RESUMED_PID" "$PEER_PID" "$STRAY_PID" 2>/dev/null
 for s in "$RESUMED" "$PEER" "$ELSEWHERE" "$STRAY"; do rm -f "$(led "$s")" "$CFG/$s.before"; done
 rm -rf "$CFG/sessions"
+# A host name is not a machine. The ledger sits in this machine's config dir, and a Mac renames
+# itself when its name is taken on the network, so a session this machine ran under an earlier
+# name, and lost to a kill -9, is still this machine's to judge: no session file names it and its
+# pid is gone, so it ended — its closed claim is cleared, and its open one reported as abandoned.
+RENAMED=66666666-6666-6666-6666-666666666666
+{ identity_of "$RENAMED" Renamed "an-earlier-name-of-$THIS_HOST" 999999; claim_of 236; claim_of 237; } > "$(led "$RENAMED")"
+sweep_out=$( ( cd "$R" && HOME="$FAKE_HOME" CLAUDE_CONFIG_DIR="$CFG" PATH="$STUB:$PATH" bash "$BILAN" sweep 2>/dev/null ) )
+check "a session this machine ran under an earlier host name is judged ended" 1 \
+    "$(printf '%s' "$sweep_out" | grep -c 'Renamed .*ended holding: carnet#237$')"
+check "…and its claim on a closed issue is cleared from its ledger" 0 "$(grep -c '"issue":236' "$(led "$RENAMED")")"
+rm -f "$(led "$RENAMED")"
 
 # A worktree branch here has no upstream, so the sweep measures it against origin/main — a dead
 # agent's committed, never-landed work would otherwise be invisible to it. Quiet means no live
