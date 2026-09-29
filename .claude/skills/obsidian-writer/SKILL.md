@@ -112,10 +112,14 @@ relative to the vault — never the whole tree):
   "Architecture/ADRs/ADR-0042 Adopt Virtual Threads.md"
 ```
 
-Exit 0 means published: origin/main holds every file the paths name exactly as the push
-committed it. Any other exit means not published, and the output names each file origin/main
-does not hold as committed, and why. Most often someone edited the same note at the same
-time and the remote's side won or was merged in; the vault then holds origin's version, so
+Exit 0 means published: after the sync and push, origin/main holds each of your notes
+exactly as committed. Your notes are the files under the paths that the push's commit
+changed, and those the vault holds differently from the origin/main it forked from (an
+earlier unpushed commit, such as the timer's, changed them). A directory or a glob is judged
+on those files only, never on the others, and a note the timer already pushed is not judged
+again. Any other exit means not published, and the output names each note origin/main does
+not hold as committed, and why. Most often someone edited the same note at the same time
+and the remote's side won or was merged in; the vault then holds origin's version, so
 re-read those notes and redo your change if it is gone. A backup branch, a rebase that did
 not run and a push still rejected are named as such. Never report a note as published on a
 non-zero exit.

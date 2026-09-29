@@ -18,12 +18,14 @@
 # (a bare origin, the vault clone, a peer clone) in a temp dir.
 #
 # The contract under test is the exit status, because it is what a calling
-# session reads: for `push`, 0 only when origin/main ends up holding every file
-# the given paths name exactly as the push committed it — whatever else the
-# rebase kept, and whatever shape the path was given in, and any failure after
-# the commit names the files; for both commands, non-zero whenever local commits
-# left main or the rebase did not run. The guards must fire before the vault is
-# touched, and nothing that fails without a conflict may reset anything.
+# session reads: for `push`, 0 only when origin/main ends up holding each of its
+# notes (every file under the given paths that the vault changed from the
+# origin/main it forked from) exactly as committed — whatever else the rebase
+# kept, and whatever shape the path was given in — while a file the vault left
+# as origin had it is never judged, and any failure after the commit names the
+# notes; for both commands, non-zero whenever local commits left main or the
+# rebase did not run. The guards must fire before the vault is touched, and
+# nothing that fails without a conflict may reset anything.
 #
 #   bash .claude/skills/obsidian-writer/test.sh [<bash-binary>]
 # ---------------------------------------------------------------------------
@@ -87,6 +89,21 @@ peer_push() {
 vault_commit() {
   git -C "$T/vault" add -A
   git -C "$T/vault" commit -qm "$1"
+}
+
+# What an auto-commit timer that also pushes does; the peer then pulls it.
+timer_push() {
+  vault_commit "vault: auto-save"
+  git -C "$T/vault" push -q origin main
+  git -C "$T/peer" pull -q origin main
+}
+
+# Two notes in "Claude Outputs" on both sides.
+outputs() {
+  mkdir -p "$T/vault/Claude Outputs"
+  printf 'foo\n' > "$T/vault/Claude Outputs/foo.md"
+  printf 'bar\n' > "$T/vault/Claude Outputs/bar.md"
+  timer_push
 }
 
 # A pre-rebase hook in the vault: its body runs inside every rebase the sync starts.
@@ -305,6 +322,101 @@ printf 'fresh\n' > "$T/vault/new.md"
 push "add new" new.md
 check "fetch failed: exit 1, names the file" 1 "$rc" "not verified as published: new.md" "$out"
 check "fetch failed: the commit stays on main" "add new" "$(git -C "$T/vault" log -1 --format=%s main)" "" ""
+
+echo "15. a push is judged on the notes the vault changed, never on a file it left as origin had it"
+setup
+outputs
+printf 'BAR-PEER\n' > "$T/peer/Claude Outputs/bar.md"
+peer_push "peer edits bar"
+printf 'FOO-MINE\n' > "$T/vault/Claude Outputs/foo.md"
+push "my foo" "Claude Outputs"
+check "directory, a sibling edited upstream: exit 0, pushed" 0 "$rc" "pushed" "$out"
+check "directory, a sibling edited upstream: the sibling is not named" 0 "$(named 'Claude Outputs/bar.md')" "" "$out"
+check "directory, a sibling edited upstream: origin holds the note" FOO-MINE "$(origin_has 'Claude Outputs/foo.md')" "" ""
+check "directory, a sibling edited upstream: origin keeps the peer's sibling" BAR-PEER "$(origin_has 'Claude Outputs/bar.md')" "" ""
+setup
+outputs
+git -C "$T/peer" rm -q "Claude Outputs/bar.md"
+peer_push "peer deletes bar"
+printf 'FOO-MINE\n' > "$T/vault/Claude Outputs/foo.md"
+push "my foo" "Claude Outputs"
+check "directory, a sibling deleted upstream: exit 0, pushed" 0 "$rc" "pushed" "$out"
+setup
+outputs
+printf 'FOO-MINE\n' > "$T/vault/Claude Outputs/foo.md"
+timer_push
+printf 'BAR-PEER\n' > "$T/peer/Claude Outputs/bar.md"
+peer_push "peer edits bar"
+push "my foo" "Claude Outputs"
+check "directory the timer pushed, a sibling edited since: exit 0" 0 "$rc" "already has these changes" "$out"
+setup
+outputs
+printf 'line one\nPEER\n' > "$T/peer/note.md"
+peer_push "peer edits note"
+printf 'FOO-MINE\n' > "$T/vault/Claude Outputs/foo.md"
+push "my foo" '*.md'
+check "glob, another note edited upstream: exit 0, pushed" 0 "$rc" "pushed" "$out"
+setup
+printf 'line one\nMINE\n' > "$T/vault/note.md"
+timer_push
+printf 'line one\nMINE\nappended\n' > "$T/peer/note.md"
+peer_push "peer appends"
+push "my edit" note.md
+check "an edit the timer pushed, appended to since: exit 0" 0 "$rc" "already has these changes" "$out"
+setup
+printf 'line one\nMINE\n' > "$T/vault/note.md"
+timer_push
+# A push that left the vault's own origin/main behind: the fork point is taken after the fetch.
+git -C "$T/vault" update-ref refs/remotes/origin/main "$(git -C "$T/vault" rev-parse HEAD~1)"
+printf 'line one\nMINE\nappended\n' > "$T/peer/note.md"
+peer_push "peer appends"
+push "my edit" note.md
+check "the same, origin/main lagging in the vault: exit 0" 0 "$rc" "already has these changes" "$out"
+setup
+printf 'line one\nMINE\n' > "$T/vault/note.md"
+timer_push
+printf 'edited\n' > "$T/vault/gone.md"
+vault_commit "vault: auto-save"
+git -C "$T/peer" rm -q gone.md
+peer_push "peer deletes gone"
+push "my edit" note.md
+check "nothing new to publish, another local commit parked: exit 1" 1 "$rc" "saved as vault-sync/backup-" "$out"
+check "nothing new to publish, another local commit parked: says so" 1 "$rc" "changed nothing origin/main did not already have" "$out"
+setup
+printf '# Hub\n\n- [[ADR-0001 Old]]\n' > "$T/vault/Hub.md"
+timer_push
+printf '%s\n' '- [[ADR-0002 New]]' >> "$T/vault/Hub.md"
+timer_push
+printf '%s\n' '- [[Peer Note]]' >> "$T/peer/Hub.md"
+peer_push "peer links its note"
+printf 'new decision\n' > "$T/vault/ADR-0002 New.md"
+push "docs(adr): ADR-0002 New" "ADR-0002 New.md" Hub.md
+check "new note plus a hub link the timer pushed: exit 0, pushed" 0 "$rc" "pushed" "$out"
+check "new note plus a hub link the timer pushed: origin holds the note" "new decision" "$(origin_has 'ADR-0002 New.md')" "" ""
+setup
+outputs
+printf 'FOO-PEER\n' > "$T/peer/Claude Outputs/foo.md"
+printf 'BAR-PEER\n' > "$T/peer/Claude Outputs/bar.md"
+peer_push "peer edits both"
+printf 'FOO-MINE\n' > "$T/vault/Claude Outputs/foo.md"
+push "my foo" "Claude Outputs"
+check "directory, its own note lost: exit 1, names it" 1 "$rc" "vault-sync:   Claude Outputs/foo.md" "$out"
+check "directory, its own note lost: not the sibling" 0 "$(named 'Claude Outputs/bar.md')" "" "$out"
+setup
+printf 'line one\nMINE\n' > "$T/vault/note.md"
+vault_commit "vault: auto-save"
+printf 'line one\nPEER\n' > "$T/peer/note.md"
+peer_push "peer edits"
+push "my edit" note.md
+check "an edit only the timer committed, lost upstream: exit 1, names it" 1 "$rc" "vault-sync:   note.md" "$out"
+setup
+printf 'line one\nTIMER\n' > "$T/vault/note.md"
+vault_commit "vault: auto-save"
+printf 'line one\nPEER\n' > "$T/peer/note.md"
+peer_push "peer edits"
+printf 'line one\nline two\n' > "$T/vault/note.md"
+push "restore line two" note.md
+check "restoring the forked version, lost upstream: exit 1, names it" 1 "$rc" "vault-sync:   note.md" "$out"
 
 echo "$pass passed · $fail failed ($("$BASH_BIN" -c 'echo "bash $BASH_VERSION"'))"
 [ "$fail" = 0 ]

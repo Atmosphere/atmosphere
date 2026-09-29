@@ -43,14 +43,20 @@
 #      origin now tracks leaves the tracked edits applied, and still in the stash;
 #      untracked files it had restored stay in place).
 #
-# `push` exits 0 only when its notes are PUBLISHED: after the final sync and push,
-# origin/main holds, for every file the given paths name, exactly the object this
-# push committed for it (absent, for a deletion). Git expands the paths, so `x.md`,
-# `./x.md`, an absolute path inside the vault and a directory (every file under it)
-# name the same files. Anything else exits 1 and names each file origin/main does not
-# hold as committed — including a note the remote also edited and git merged cleanly,
-# whose merged version the vault then holds: re-read it. A failure that stops the sync
-# itself after the commit (fetch, stash) exits 1 naming every file as not verified.
+# `push` exits 0 only when its notes are PUBLISHED. Its notes are the files under the
+# given paths that the vault changed: every file its commit (HEAD, when there was
+# nothing to commit) holds differently from the commit before it or from the
+# origin/main commit it forked from, as the push's first fetch returned origin/main —
+# so a change an earlier unpushed commit made (the timer's) counts, and a file the
+# vault still holds as origin/main had it (a directory's other notes, a note the timer
+# already pushed) does not. Git expands the paths, so `x.md`, `./x.md`, an absolute
+# path inside the vault, a glob and a directory name the same notes. PUBLISHED means
+# that after the final sync and push origin/main holds every note exactly as that
+# commit holds it (absent, for a deletion), and the sync went through. Anything else
+# exits 1 and names each note origin/main does not hold as committed — including a note
+# the remote also edited and git merged cleanly, whose merged version the vault then
+# holds: re-read it. A failure that stops the sync itself after the commit (fetch,
+# stash) exits 1 naming every note as not verified.
 #
 # Usage:
 #   vault-sync.sh pull
@@ -203,28 +209,47 @@ case "$cmd" in
     fi
     committed="$(g rev-parse HEAD)"
     short="$(g rev-parse --short HEAD)"
-
-    # What this push has to publish: every file the given paths name at the commit it
-    # made, plus every file that commit deleted, each with its object ("-" when deleted).
-    # Git expands the paths, so "x.md", "./x.md", an absolute path inside the vault, a
-    # glob and a directory all come out as the same repo-relative file names.
+    empty_tree="$(g hash-object -t tree /dev/null)"
     named="$(mktemp "${TMPDIR:-/tmp}/vault-sync.XXXXXX")"
     trap 'rm -f "$named"' EXIT
-    g diff --name-only -z --no-renames "$(g hash-object -t tree /dev/null)" "$committed" -- "${paths[@]}" > "$named"
-    g diff --name-only -z --no-renames --diff-filter=D "$before" "$committed" -- "${paths[@]}" >> "$named"
-    files=()
-    wanted=()
-    while IFS= read -r -d '' f; do
-      files+=("$f")
-      wanted+=("$(object_at "$committed" "$f")")
-    done < "$named"
-    [ "${#files[@]}" -gt 0 ] || die "the given paths name no file in the vault — nothing to publish"
-    UNVERIFIED="$(printf '%s, ' "${files[@]}")"
-    UNVERIFIED="${UNVERIFIED%, }"
+
+    # What this push publishes, its NOTES: every file under the given paths that the commit
+    # holds differently from the commit before it (this push's own change) or from the
+    # origin/main commit it forked from (a change an earlier unpushed commit made, such as
+    # the timer's), each with its object at the commit ("-" when deleted). Git expands the
+    # paths, so "x.md", "./x.md", an absolute path inside the vault, a glob and a directory
+    # come out as the same repo-relative names. A file the vault still holds as origin/main
+    # had it (a directory's other notes, a note the timer already pushed) is not a note of
+    # this push, so an edit to it on origin cannot fail the push.
+    notes_of_push() { # <origin/main as last fetched>
+      local base f
+      base="$(g merge-base "$committed" "$1" 2>/dev/null)" || base="$empty_tree"
+      {
+        g diff --name-only -z --no-renames "$before" "$committed" -- "${paths[@]}"
+        g diff --name-only -z --no-renames "$base" "$committed" -- "${paths[@]}"
+      } > "$named"
+      LC_ALL=C sort -zu -o "$named" "$named"
+      files=()
+      wanted=()
+      UNVERIFIED=""
+      while IFS= read -r -d '' f; do
+        files+=("$f")
+        wanted+=("$(object_at "$committed" "$f")")
+        UNVERIFIED="$UNVERIFIED${UNVERIFIED:+, }$f"
+      done < "$named"
+    }
+    # Against origin/main as the vault last fetched it, until the first sync fetches it anew.
+    notes_of_push "origin/$BRANCH"
+    if [ "${#files[@]}" = 0 ]; then
+      g diff --name-only -z --no-renames "$empty_tree" "$committed" -- "${paths[@]}" > "$named"
+      [ -s "$named" ] || die "the given paths name no file in the vault — nothing to publish"
+    fi
 
     outcome=rejected
     for attempt in 1 2 3; do
       sync_remote_first
+      # The notes again, against origin/main as this first fetch returned it.
+      [ "$attempt" != 1 ] || notes_of_push "origin/$BRANCH"
       if [ -n "$BACKUP" ]; then outcome=backup; break; fi
       if [ "$REFUSED" = 1 ]; then outcome=refused; break; fi
       if [ "$(g rev-list --count "origin/$BRANCH..HEAD")" = 0 ]; then outcome=current; break; fi
@@ -237,8 +262,8 @@ case "$cmd" in
     done
 
     # The verdict, taken after the final sync and push. The exit status is what a calling
-    # session reads as "published", so it is 0 only when origin/main holds every file as
-    # this push committed it — whatever else the rebase kept or pushed — and the sync
+    # session reads as "published", so it is 0 only when origin/main holds every note of
+    # this push as committed — whatever else the rebase kept or pushed — and the sync
     # itself went through.
     lost=()
     for i in "${!files[@]}"; do
@@ -256,13 +281,15 @@ case "$cmd" in
     fi
     {
       [ -z "$failure" ] || echo "vault-sync: $failure"
-      if [ "${#lost[@]}" = 0 ]; then
+      if [ "${#files[@]}" = 0 ]; then
+        echo "vault-sync: the given paths changed nothing origin/$BRANCH did not already have"
+      elif [ "${#lost[@]}" = 0 ]; then
         echo "vault-sync: the given files are on origin/$BRANCH as this push committed them"
       else
         echo "vault-sync: not published — origin/$BRANCH does not hold these files as this push committed them (at $short):"
         for f in "${lost[@]}"; do echo "vault-sync:   $f"; done
         [ -n "$failure" ] \
-          || echo "vault-sync: origin/$BRANCH changed them too — its side won a conflicting hunk or was merged in, and the vault now holds that version: re-read them ('git -C $VAULT_DIR show $short' has yours)"
+          || echo "vault-sync: origin/$BRANCH changed them too — its side won a conflicting hunk or was merged in, and the vault now holds that version: re-read them ('git -C $VAULT_DIR show $short:<file>' has yours)"
       fi
     } >&2
     exit 1
