@@ -751,23 +751,26 @@ scan_dirs() {
         printf '%s\n' "$v" | tr ',' '\n' | grep .
         return 0
     fi
-    for wf in "$REPO_ROOT"/.github/workflows/*.yml "$REPO_ROOT"/.github/workflows/*.yaml; do
-        [ -f "$wf" ] || continue
-        line=$(grep -E '^[^#]*limitation-gates\.sh[[:space:]]+[^[:space:]#]' "$wf" 2>/dev/null | head -1)
-        [ -n "$line" ] || continue
-        line=${line#*limitation-gates.sh}
-        line=${line%%#*}
-        read -r -a words <<< "$line"
-        out=""
-        for w in ${words[@]+"${words[@]}"}; do
-            case "$w" in
-                -*) continue ;;                          # an option to the gate, not a directory
-                *[!A-Za-z0-9._/-]*) out=""; break ;;     # not literal: nothing to read
-            esac
-            out="$out$w"$'\n'
-        done
-        [ -n "$out" ] && { printf '%s' "$out"; return 0; }
+    # The one lane, the one bilan.yml's path filter names: reading every workflow for the first
+    # line that mentions the gate let any other one — or a step name — decide the scope by
+    # sorting first, in a file whose change never runs the bilan lane. Only an invocation of the
+    # gate counts, never a line that merely names it.
+    wf="$REPO_ROOT/.github/workflows/limitation-register.yml"
+    [ -f "$wf" ] || return 0
+    line=$(grep -E '^[^#]*\.registre/limitation-gates\.sh[[:space:]]+[^[:space:]#]' "$wf" 2>/dev/null | head -1)
+    [ -n "$line" ] || return 0
+    line=${line#*limitation-gates.sh}
+    line=${line%%#*}
+    read -r -a words <<< "$line"
+    out=""
+    for w in ${words[@]+"${words[@]}"}; do
+        case "$w" in
+            -*) continue ;;                          # an option to the gate, not a directory
+            *[!A-Za-z0-9._/-]*) out=""; break ;;     # not literal: nothing to read
+        esac
+        out="$out$w"$'\n'
     done
+    printf '%s' "$out"
     return 0
 }
 

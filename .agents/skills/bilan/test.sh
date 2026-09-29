@@ -333,6 +333,26 @@ rm -f "$R/.github/workflows/limitation-register.yml.bak"
 out=$(scope_json "$R")
 check "a lane passing a variable names no directory" "dirs" "$(printf '%s' "$out" | jq -r .unknown)"
 git -C "$R" checkout -q -- .github/workflows/limitation-register.yml
+# Only the lane bilan.yml's path filter names is read, and only an invocation of the gate in it:
+# another workflow that runs the gate elsewhere and sorts first decides nothing, and neither does a
+# step name that mentions the gate.
+printf 'jobs:\n  fixtures:\n    steps:\n      - run: ./.registre/limitation-gates.sh cli\n' > "$R/.github/workflows/a-gate.yml"
+check "another workflow running the gate does not decide the scope" "modules cli" \
+    "$(scope_json "$R" | jq -r '.dirs | join(" ")')"
+rm -f "$R/.github/workflows/a-gate.yml"
+cat > "$R/.github/workflows/limitation-register.yml" <<'LANE'
+name: "CI: Limitation Register"
+jobs:
+  limitation-register:
+    steps:
+      - name: Run limitation-gates.sh over the samples first
+        run: echo warming up
+      - name: Run the limitation register gates
+        run: ./.registre/limitation-gates.sh modules cli
+LANE
+check "a step name that mentions the gate is not read as its arguments" "modules cli" \
+    "$(scope_json "$R" | jq -r '.dirs | join(" ")')"
+git -C "$R" checkout -q -- .github/workflows/limitation-register.yml
 
 # ---- a registered limitation is a register entry, not work owed
 #
