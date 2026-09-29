@@ -104,8 +104,9 @@ peer's in-flight file is not this session's incompleteness.
 
 Two mechanisms fix it, and the first needs nothing from you.
 
-**The baseline.** The SessionStart hook records which tracked files were already dirty, and which
-commits were already unpushed, when the session opened. A path dirty before the session existed
+**The baseline.** The SessionStart hook records which files were already dirty or untracked — every
+untracked file by name — and which commits were already unpushed, when the session opened. A path
+dirty before the session existed
 is definitionally not its work — that much *is* machine-decidable. Those are stated as a note and
 never scored. The hook records it once per session: SessionStart fires again on resume and after
 a compaction, and re-recording there would declare the session's own uncommitted work inherited.
@@ -120,11 +121,12 @@ the baseline, so you say so once:
 bilan.sh ack --why "a peer's version bump, written into this shared checkout at 10:16"
 ```
 
-That **clears** the cap rather than softening it, and carries the reason into every later
-report. It is keyed to the exact set of paths the cap names — what the baseline already calls
-inherited is not in it — so dirtying one more file brings the cap straight back, and ownership is
-a property of the files rather than their contents, so a peer changing those same files again
-stays covered.
+That **clears** the cap rather than softening it — the tracked-files cap and the untracked-files
+cap alike — and carries the reason into every later report. It is keyed to the exact set of paths
+each cap names — what the baseline already calls inherited is not in it — so dirtying one more
+file brings that cap straight back, and ownership is a property of the files rather than their
+contents, so a peer changing those same files again stays covered. Neither cap's remedy ever says
+to delete a file: the ones it names might be a peer's.
 
 **Why not attribute automatically?** It was tried and it does not work. Claude Code records the
 paths a session touched under `file-history-snapshot.trackedFileBackups`, but only for the

@@ -664,6 +664,35 @@ git -C "$R" worktree remove --force "$WT2" && git -C "$R" branch -q -D wt2
 git -C "$R" checkout -q -- a.txt
 rm -f "$CFG/bilan/"*.baseline
 
+# ---- an untracked file is inherited the same way. One that was there when the session opened is
+# a peer's, not this session's incompleteness — and the remedy must never tell the session to
+# delete it. Every untracked file is named, so a file the session adds inside a directory that was
+# already untracked is still the session's own.
+rm -f "$CFG/bilan/"*.ack.json "$CFG/bilan/"*.baseline*
+echo "peer notes" > "$R/PEER_NOTES.md"
+mkdir -p "$R/peerdir" && echo theirs > "$R/peerdir/theirs.txt"
+baseline_now "$R"
+out=$(run "$R")
+check "an untracked file already there when the session opened does not cap" 10 "$(printf '%s' "$out" | jq -r .score)"
+check "…and is stated as inherited" 1 \
+    "$(printf '%s' "$out" | jq '[.notes[] | select(test("already uncommitted.*PEER_NOTES\\.md"))] | length')"
+echo mine > "$R/peerdir/mine.txt"
+echo scratch > "$R/scratch-of-mine.md"
+out=$(run "$R")
+check "one the session adds caps at 9, even inside an already-untracked directory" 1 \
+    "$(printf '%s' "$out" | jq '[.caps[] | select(.cap==9) | select(.evidence | test("2 untracked file.*peerdir/mine\\.txt"))] | length')"
+check "…and names only the session's own" 0 \
+    "$(printf '%s' "$out" | jq '[.caps[] | select(.evidence | test("PEER_NOTES|theirs\\.txt"))] | length')"
+check "…with a remedy that never says to delete them" 0 \
+    "$(printf '%s' "$out" | jq '[.caps[] | select(.cap==9) | select(.remedy | test("delete"))] | length')"
+( cd "$R" && CLAUDE_CONFIG_DIR="$CFG" CLAUDE_CODE_SESSION_ID="$SID" \
+    bash "$BILAN" ack --why "a peer's files, written into this shared checkout after it opened" >/dev/null 2>&1 )
+check "an ack clears the untracked cap too, for exactly that set" 0 "$(real_caps "$(run "$R")")"
+echo more > "$R/one-more.md"
+check "…and one more untracked file brings it back" 9 "$(run "$R" | jq -r .score)"
+rm -rf "$R/PEER_NOTES.md" "$R/peerdir" "$R/scratch-of-mine.md" "$R/one-more.md"
+rm -f "$CFG/bilan/"*.ack.json "$CFG/bilan/"*.baseline*
+
 # ---- a peer's unpushed commit is inherited the same way a dirty file is
 rm -f "$CFG/bilan/"*.ack.json "$CFG/bilan/"*.baseline*
 baseline_now "$R"                       # observing from here: the commit below is this session's

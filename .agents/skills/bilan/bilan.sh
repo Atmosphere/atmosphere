@@ -270,7 +270,10 @@ cmd_baseline() { # [--if-missing]
         return 0
     fi
     mkdir -p "$(dirname "$f")" 2>/dev/null || return 0
-    git status --porcelain 2>/dev/null | grep -v '^??' | sed 's/^...//' > "$f"
+    # Untracked paths too, each one named: a peer's untracked file is no more this session's than
+    # their edit, and -uall because the default collapses a wholly untracked directory to "dir/",
+    # which would then cover every file the session later adds inside it.
+    git status --porcelain -uall 2>/dev/null | sed 's/^...//' > "$f"
     # Commits carry the same inheritance as files: a peer's cherry-pick sitting unpushed in the
     # shared checkout when this session opened is not this session's to push.
     if up=$(push_base); then
@@ -337,37 +340,41 @@ without() { # <paths> <paths to drop> -> the first list minus the second
 }
 
 # The checkout's uncommitted paths, split the way they are scored: INHERITED is what the baseline
-# says was already dirty, OWN_TRACKED the tracked rest, UNTRACKED what git does not track.
-# check_worktree scores these and ack signs them, both through this one function: when the two
-# computed the set apart, ack signed every dirty path while the check looked up only the owned
-# ones, so an ack made beside an inherited file never matched — it printed "accounted for", and
-# the cap came straight back.
+# says was already there, OWN_TRACKED and OWN_UNTRACKED the rest. check_worktree scores these and
+# ack signs them, both through this one function: when the two computed the set apart, ack signed
+# every dirty path while the check looked up only the owned ones, so an ack made beside an
+# inherited file never matched — it printed "accounted for", and the cap came straight back.
+# -uall names every untracked file, as the baseline records them.
 INHERITED=""
 OWN_TRACKED=""
-UNTRACKED=""
+OWN_UNTRACKED=""
 split_dirty() {
-    local porcelain tracked
-    porcelain=$(git status --porcelain 2>/dev/null)
+    local porcelain tracked untracked
+    porcelain=$(git status --porcelain -uall 2>/dev/null)
     tracked=$(printf '%s\n' "$porcelain" | grep -v '^??' | sed 's/^...//')
-    UNTRACKED=$(printf '%s\n' "$porcelain" | grep '^??' | sed 's/^...//')
-    INHERITED=$(not_mine "$tracked")
+    untracked=$(printf '%s\n' "$porcelain" | grep '^??' | sed 's/^...//')
+    INHERITED=$(not_mine "$(printf '%s\n%s' "$tracked" "$untracked")")
     OWN_TRACKED=$(without "$tracked" "$INHERITED")
+    OWN_UNTRACKED=$(without "$untracked" "$INHERITED")
 }
 
 cmd_ack() { # <why>
-    local why=$1 f commits up sig csig
+    local why=$1 f commits up sig usig csig files
     [ -n "$why" ] || die "ack needs --why: say whose work this is and why you are leaving it"
     f=$(ack_file) || die "not inside a Claude Code session"
     split_dirty
     commits=""
     up=$(push_base) && commits=$(git rev-list "$up..HEAD" 2>/dev/null || true)
-    [ -n "$OWN_TRACKED$commits" ] || { say "nothing uncommitted or unpushed to account for"; return 0; }
-    sig=$(signature_of "$OWN_TRACKED"); csig=$(signature_of "$commits")
+    [ -n "$OWN_TRACKED$OWN_UNTRACKED$commits" ] || { say "nothing uncommitted or unpushed to account for"; return 0; }
+    # One signature per cap, so each clears on its own set: a scratch file made after the ack
+    # brings back the untracked cap, not the tracked one.
+    sig=$(signature_of "$OWN_TRACKED"); usig=$(signature_of "$OWN_UNTRACKED"); csig=$(signature_of "$commits")
+    files=$(printf '%s\n%s\n' "$OWN_TRACKED" "$OWN_UNTRACKED" | grep -v '^$' || true)
     mkdir -p "$(dirname "$f")"
-    jq -n --arg s "$sig" --arg c "$csig" --arg w "$why" --arg at "$(now)" \
-       --arg files "$(printf '%s' "$OWN_TRACKED" | tr '\n' ' ')" \
-       '{signature:$s, commit_signature:$c, why:$w, at:$at, files:$files}' > "$f"
-    say "📌 accounted for: $(printf '%s\n' "$OWN_TRACKED" | grep -c .) file(s), $(printf '%s\n' "$commits" | grep -c .) commit(s) — $why"
+    jq -n --arg s "$sig" --arg u "$usig" --arg c "$csig" --arg w "$why" --arg at "$(now)" \
+       --arg files "$(printf '%s' "$files" | tr '\n' ' ')" \
+       '{signature:$s, untracked_signature:$u, commit_signature:$c, why:$w, at:$at, files:$files}' > "$f"
+    say "📌 accounted for: $(printf '%s\n' "$files" | grep -c .) file(s), $(printf '%s\n' "$commits" | grep -c .) commit(s) — $why"
     say "   this covers exactly that set; dirty one more file or make one more commit and the cap returns."
     return 0
 }
@@ -393,10 +400,10 @@ name_files() { # <max> <newline-separated paths>
 check_worktree() {
     local t_n u_n i_n why
     split_dirty
-    [ -n "$INHERITED$OWN_TRACKED$UNTRACKED" ] || return 0
+    [ -n "$INHERITED$OWN_TRACKED$OWN_UNTRACKED" ] || return 0
     i_n=$(printf '%s\n' "$INHERITED" | grep -cv '^$')
     t_n=$(printf '%s\n' "$OWN_TRACKED" | grep -cv '^$')
-    u_n=$(printf '%s\n' "$UNTRACKED" | grep -cv '^$')
+    u_n=$(printf '%s\n' "$OWN_UNTRACKED" | grep -cv '^$')
 
     # Inherited dirt is stated, never scored. It is not this session's completion.
     [ "${i_n:-0}" -gt 0 ] && say_note "$i_n file(s) were already uncommitted when this session opened — not its work: $(name_files 5 "$INHERITED")"
@@ -414,9 +421,16 @@ check_worktree() {
                   "commit them — or, if they are a peer's in this shared checkout, bilan.sh ack --why '…'"
         fi
     fi
+    # The same rule for untracked files. The remedy acts only on the session's own: a file that
+    # was there before it opened is inherited above, and a peer's made since is what ack is for —
+    # never "delete them", which would be deleting somebody else's work.
     if [ "${u_n:-0}" -gt 0 ]; then
-        cap 9 "⚠️" "$u_n untracked file(s): $(name_files 8 "$UNTRACKED")" \
-              "add them, delete them, or move them to the scratchpad"
+        if why=$(ack_reason_for untracked_signature "$(signature_of "$OWN_UNTRACKED")"); then
+            say_note "$u_n untracked file(s) declared not this session's: $why"
+        else
+            cap 9 "⚠️" "$u_n untracked file(s): $(name_files 8 "$OWN_UNTRACKED")" \
+                  "add them, or move them to the scratchpad — or, if they are a peer's in this shared checkout, bilan.sh ack --why '…'"
+        fi
     fi
 }
 
