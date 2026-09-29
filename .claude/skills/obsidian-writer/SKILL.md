@@ -52,6 +52,11 @@ check whether a relevant note already exists to avoid duplicates:
 obsidian search query="<keywords from the topic>" limit=5
 ```
 
+If `pull` exits non-zero, stop and report what it printed instead of reading or writing the
+vault. Either a conflict it could not auto-resolve moved the unpushed local commits to a
+`vault-sync/backup-<ts>` branch (main now matches origin, so those notes stay missing until
+that branch is merged by hand), or the rebase did not run and nothing was changed (retry).
+
 If a match is found, read it first (`obsidian read file="<name>"`) and decide whether
 to update the existing note or create a new one.
 
@@ -106,6 +111,14 @@ relative to the vault — never the whole tree):
 .claude/skills/obsidian-writer/vault-sync.sh push -m "docs(adr): <what>" \
   "Architecture/ADRs/ADR-0042 Adopt Virtual Threads.md"
 ```
+
+Exit 0 means published: origin/main holds every file the paths name exactly as the push
+committed it. Any other exit means not published, and the output names each file origin/main
+does not hold as committed, and why. Most often someone edited the same note at the same
+time and the remote's side won or was merged in; the vault then holds origin's version, so
+re-read those notes and redo your change if it is gone. A backup branch, a rebase that did
+not run and a push still rejected are named as such. Never report a note as published on a
+non-zero exit.
 
 The vault's history uses `docs(adr)`, `docs(plan)` and `docs(claude-output)` prefixes for
 these commits; the timers' commits are `vault: auto-save`.
@@ -187,10 +200,14 @@ obsidian append file="ADR-0042 Adopt Virtual Threads" \
 - **The vault's remote wins — sync through `vault-sync.sh`, never by hand.** Run
   `.claude/skills/obsidian-writer/vault-sync.sh pull` before reading or writing the vault,
   and publish with `vault-sync.sh push -m "docs(<kind>): <what>" <path>…` (paths relative to
-  the vault, never the whole tree). It fetches, stashes local uncommitted work, rebases onto
-  `origin/main` with the remote side winning every conflict, re-applies the stash (a
-  conflicting stash stays in `git stash list`), and retries a rejected push against the new
-  tip. Never `git merge` origin into the vault or resolve a conflict in favour of local.
+  the vault, never the whole tree). It refuses to touch a vault that is mid-merge, mid-rebase
+  or off `main`; otherwise it fetches, stashes local uncommitted work, rebases onto
+  `origin/main` with the remote side winning every conflicting hunk, re-applies the stash (a
+  stash that does not re-apply stays in `git stash list`), and retries a rejected push against
+  the new tip. A conflict the rebase cannot auto-resolve moves local main to a
+  `vault-sync/backup-<ts>` branch and resets it to origin; a rebase that fails without a
+  conflict changes nothing. Either way `pull` and `push` exit non-zero: stop and report.
+  Never `git merge` origin into the vault or resolve a conflict in favour of local.
 - **Commit explicitly** after writing — `vault-sync.sh push` does it. obsidian-git
   auto-commits every 10 minutes under a generic `vault: auto-save` message; an explicit
   commit is attributable and revertible.

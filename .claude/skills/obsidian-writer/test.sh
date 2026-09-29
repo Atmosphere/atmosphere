@@ -14,13 +14,16 @@
 # the License.
 #
 # ---------------------------------------------------------------------------
-# test.sh — drives `vault-sync.sh push` through its five outcomes against real
-# git repositories (a bare origin, the vault clone, a peer clone) in a temp dir.
+# test.sh — drives `vault-sync.sh` pull and push against real git repositories
+# (a bare origin, the vault clone, a peer clone) in a temp dir.
 #
 # The contract under test is the exit status, because it is what a calling
-# session reads as "published": 0 only when origin/main ends up holding the
-# notes as committed, non-zero whenever they are not published — the remote
-# winning every conflicting hunk, or a rebase that cannot auto-resolve.
+# session reads: for `push`, 0 only when origin/main ends up holding every file
+# the given paths name exactly as the push committed it — whatever else the
+# rebase kept, and whatever shape the path was given in, and any failure after
+# the commit names the files; for both commands, non-zero whenever local commits
+# left main or the rebase did not run. The guards must fire before the vault is
+# touched, and nothing that fails without a conflict may reset anything.
 #
 #   bash .claude/skills/obsidian-writer/test.sh [<bash-binary>]
 # ---------------------------------------------------------------------------
@@ -66,10 +69,30 @@ setup() {
   git -C "$T/peer" pull -q origin main
 }
 
+# A ten-line note.md on both sides, so an edit to line 2 and one to line 10 are separate hunks.
+ten_lines() {
+  printf 'a\nb\nc\nd\ne\nf\ng\nh\ni\nj\n' > "$T/vault/note.md"
+  git -C "$T/vault" commit -qam "ten lines"
+  git -C "$T/vault" push -q origin main
+  git -C "$T/peer" pull -q origin main
+}
+
 peer_push() {
   git -C "$T/peer" add -A
   git -C "$T/peer" commit -qm "$1"
   git -C "$T/peer" push -q origin main
+}
+
+# What an auto-commit timer does: commit everything locally, push nothing.
+vault_commit() {
+  git -C "$T/vault" add -A
+  git -C "$T/vault" commit -qm "$1"
+}
+
+# A pre-rebase hook in the vault: its body runs inside every rebase the sync starts.
+hook() {
+  printf '#!/bin/sh\n%s\n' "$1" > "$T/vault/.git/hooks/pre-rebase"
+  chmod +x "$T/vault/.git/hooks/pre-rebase"
 }
 
 push() { # <message> <path>…
@@ -77,12 +100,21 @@ push() { # <message> <path>…
   rc=$?
 }
 
+pull() {
+  out="$(cd "$T" && VAULT_DIR="$T/vault" "$BASH_BIN" "$SCRIPT" pull 2>&1)"
+  rc=$?
+}
+
+origin_has() { git -C "$T/origin.git" show "main:$1" 2>&1; }
+backups() { git -C "$T/vault" branch --list 'vault-sync/backup-*' --format='%(refname:short)'; }
+named() { printf '%s\n' "$out" | grep -cxF -- "vault-sync:   $1"; }   # listed as not published?
+
 echo "1. a new note publishes"
 setup
 printf 'fresh\n' > "$T/vault/new.md"
 push "add new" new.md
 check "exit 0, reports pushed" 0 "$rc" "pushed" "$out"
-check "origin holds the note" fresh "$(git -C "$T/origin.git" show main:new.md 2>&1)" "" ""
+check "origin holds the note" fresh "$(origin_has new.md)" "" ""
 
 echo "2. the same change already upstream is success"
 setup
@@ -98,8 +130,9 @@ printf 'line one\nPEER\n' > "$T/peer/note.md"
 peer_push "peer edits"
 printf 'line one\nMINE\n' > "$T/vault/note.md"
 push "my edit" note.md
-check "exit 1, names the lost path" 1 "$rc" "kept its own version of: note.md" "$out"
-check "origin keeps the peer's line" PEER "$(git -C "$T/origin.git" show main:note.md | tail -1)" "" ""
+check "exit 1, not published" 1 "$rc" "not published" "$out"
+check "names the lost path" 1 "$(named note.md)" "" "$out"
+check "origin keeps the peer's line" PEER "$(origin_has note.md | tail -1)" "" ""
 
 echo "4. a rebase that cannot auto-resolve is not success"
 setup
@@ -107,9 +140,8 @@ git -C "$T/peer" rm -q note.md
 peer_push "peer deletes"
 printf 'line one\nMINE\n' > "$T/vault/note.md"
 push "my edit" note.md
-check "exit 1, names the backup branch" 1 "$rc" "your commit is on vault-sync/backup-" "$out"
-backup="$(git -C "$T/vault" branch --list 'vault-sync/backup-*' --format='%(refname:short)')"
-check "the backup branch holds the edit" MINE "$(git -C "$T/vault" show "$backup:note.md" 2>&1 | tail -1)" "" ""
+check "exit 1, names the backup branch" 1 "$rc" "saved as vault-sync/backup-" "$out"
+check "the backup branch holds the edit" MINE "$(git -C "$T/vault" show "$(backups):note.md" 2>&1 | tail -1)" "" ""
 
 echo "5. deleting a note the peer already deleted is success"
 setup
@@ -118,6 +150,161 @@ peer_push "peer deletes gone"
 rm "$T/vault/gone.md"
 push "delete gone" gone.md
 check "exit 0, already upstream" 0 "$rc" "already has these changes" "$out"
+
+echo "6. another local commit surviving the rebase does not make a lost edit success"
+setup
+printf 'line one\nPEER\n' > "$T/peer/note.md"
+peer_push "peer edits"
+printf 'auto\n' > "$T/vault/gone.md"
+vault_commit "vault: auto-save"
+printf 'line one\nMINE\n' > "$T/vault/note.md"
+push "my edit" note.md
+check "exit 1, not published" 1 "$rc" "not published" "$out"
+check "names the lost path" 1 "$(named note.md)" "" "$out"
+check "origin keeps the peer's line" PEER "$(origin_has note.md | tail -1)" "" ""
+check "the surviving auto-save commit was pushed" auto "$(origin_has gone.md)" "" ""
+
+echo "7. a commit the remote only partly kept is not success"
+setup
+printf 'line one\nPEER\n' > "$T/peer/note.md"
+peer_push "peer edits"
+printf 'line one\nMINE\n' > "$T/vault/note.md"
+printf 'fresh\n' > "$T/vault/new.md"
+push "two notes" note.md new.md
+check "two paths: exit 1" 1 "$rc" "not published" "$out"
+check "two paths: names the lost one" 1 "$(named note.md)" "" "$out"
+check "two paths: not the published one" 0 "$(named new.md)" "" "$out"
+check "two paths: origin holds the new note" fresh "$(origin_has new.md)" "" ""
+setup
+ten_lines
+printf 'a\nPEER\nc\nd\ne\nf\ng\nh\ni\nj\n' > "$T/peer/note.md"
+peer_push "peer edits line 2"
+printf 'a\nMINE\nc\nd\ne\nf\ng\nh\ni\nMINE-END\n' > "$T/vault/note.md"
+push "two hunks" note.md
+check "two hunks: exit 1, names the note" 1 "$rc" "vault-sync:   note.md" "$out"
+check "two hunks: origin kept the peer's hunk" PEER "$(origin_has note.md | sed -n 2p)" "" ""
+check "two hunks: origin took the other hunk" MINE-END "$(origin_has note.md | tail -1)" "" ""
+
+echo "8. a clean merge with a concurrent edit is not the note as committed"
+setup
+ten_lines
+printf 'a\nPEER\nc\nd\ne\nf\ng\nh\ni\nj\n' > "$T/peer/note.md"
+peer_push "peer edits line 2"
+printf 'a\nb\nc\nd\ne\nf\ng\nh\ni\nMINE-END\n' > "$T/vault/note.md"
+push "my end" note.md
+check "exit 1, names the note" 1 "$rc" "vault-sync:   note.md" "$out"
+check "origin holds both edits" "PEER MINE-END" "$(origin_has note.md | sed -n '2p;10p' | tr '\n' ' ' | sed 's/ $//')" "" ""
+push "my end" note.md
+check "pushing the merged note again is success" 0 "$rc" "already has these changes" "$out"
+
+echo "9. the shape of a path does not change the verdict"
+setup
+printf 'line one\nPEER\n' > "$T/peer/note.md"
+peer_push "peer edits"
+printf 'line one\nMINE\n' > "$T/vault/note.md"
+push "my edit" "$T/vault/note.md"
+check "absolute path: exit 1" 1 "$rc" "not published" "$out"
+check "absolute path: named repo-relative" 1 "$(named note.md)" "" "$out"
+setup
+printf 'line one\nPEER\n' > "$T/peer/note.md"
+peer_push "peer edits"
+printf 'line one\nMINE\n' > "$T/vault/note.md"
+push "my edit" ./note.md
+check "./ path: exit 1, named repo-relative" 1 "$(named note.md)" "" "$out"
+setup
+mkdir "$T/vault/Claude Outputs"
+printf 'mine\n' > "$T/vault/Claude Outputs/foo.md"
+vault_commit "vault: auto-save"
+git -C "$T/vault" push -q origin main
+git -C "$T/peer" pull -q origin main
+printf 'theirs\n' > "$T/peer/Claude Outputs/bar.md"
+peer_push "peer adds bar"
+push "publish the folder" "Claude Outputs"
+check "directory already upstream: exit 0" 0 "$rc" "already has these changes" "$out"
+setup
+mkdir "$T/vault/empty"
+push "nothing" empty
+check "a path that names no file: exit 1" 1 "$rc" "name no file" "$out"
+
+echo "10. pull that parks local commits on a backup branch is not success"
+setup
+printf 'my brand new note\n' > "$T/vault/My Note.md"
+vault_commit "vault: auto-save 1"
+printf 'edited\n' > "$T/vault/gone.md"
+vault_commit "vault: auto-save 2"
+git -C "$T/peer" rm -q gone.md
+peer_push "peer deletes gone"
+pull
+check "exit 1, names the backup branch" 1 "$rc" "saved as vault-sync/backup-" "$out"
+check "the backup branch holds the unrelated note" "my brand new note" "$(git -C "$T/vault" show "$(backups):My Note.md" 2>&1)" "" ""
+
+echo "11. a rebase that fails without a conflict resets nothing"
+setup
+printf 'x\n' > "$T/peer/peer.md"
+peer_push "peer adds a note"
+printf 'auto\n' > "$T/vault/gone.md"
+vault_commit "vault: auto-save"
+hook "printf 'typed\\n' >> '$T/vault/note.md'"
+pull
+check "write during the rebase: exit 1" 1 "$rc" "did not run" "$out"
+check "write during the rebase: no backup branch" "" "$(backups)" "" ""
+check "write during the rebase: HEAD back on main" main "$(git -C "$T/vault" symbolic-ref --short HEAD 2>&1)" "" ""
+check "write during the rebase: local commit still on main" "vault: auto-save" "$(git -C "$T/vault" log -1 --format=%s main)" "" ""
+check "write during the rebase: the write survives" typed "$(tail -1 "$T/vault/note.md")" "" ""
+setup
+printf 'x\n' > "$T/peer/peer.md"
+peer_push "peer adds a note"
+printf 'fresh\n' > "$T/vault/new.md"
+hook "exit 1"
+push "add new" new.md
+check "rebase refused: exit 1, names the note" 1 "$rc" "vault-sync:   new.md" "$out"
+check "rebase refused: no backup branch" "" "$(backups)" "" ""
+check "rebase refused: the commit is still on main" "add new" "$(git -C "$T/vault" log -1 --format=%s main)" "" ""
+
+echo "12. the guards run before anything is staged or committed"
+setup
+printf 'line one\nLOCAL\n' > "$T/vault/note.md"
+vault_commit "local edit"
+printf 'line one\nPEER\n' > "$T/peer/note.md"
+peer_push "peer edits"
+git -C "$T/vault" pull -q --no-rebase origin main > /dev/null 2>&1
+push "my edit" note.md
+check "merge in progress: exit 1" 1 "$rc" "a MERGE_HEAD is in progress" "$out"
+check "merge in progress: the conflict is left unstaged" "UU note.md" "$(git -C "$T/vault" status --porcelain -- note.md)" "" ""
+setup
+git -C "$T/vault" checkout -q --detach
+printf 'fresh\n' > "$T/vault/new.md"
+push "add new" new.md
+check "detached HEAD: exit 1" 1 "$rc" "detached HEAD" "$out"
+check "detached HEAD: nothing staged" "?? new.md" "$(git -C "$T/vault" status --porcelain -- new.md)" "" ""
+check "detached HEAD: nothing committed" base "$(git -C "$T/vault" log -1 --format=%s)" "" ""
+
+echo "13. a stash that does not fully re-apply is reported as it is"
+setup
+printf 'UPSTREAM\n' > "$T/peer/x.md"
+peer_push "peer adds x"
+printf 'MINE\n' > "$T/vault/x.md"
+printf 'line one\nWIP\n' > "$T/vault/note.md"
+pull
+check "untracked collision: names the edited file" 0 "$rc" "uncommitted edits to: note.md" "$out"
+check "untracked collision: the edit is applied" WIP "$(tail -1 "$T/vault/note.md")" "" ""
+check "untracked collision: the stash is kept" 1 "$(git -C "$T/vault" stash list | wc -l | tr -d ' ')" "" ""
+setup
+printf 'line one\nPEER\n' > "$T/peer/note.md"
+peer_push "peer edits"
+printf 'line one\nWIP\n' > "$T/vault/note.md"
+pull
+check "tracked conflict: files left as committed" 0 "$rc" "tracked files left as committed" "$out"
+check "tracked conflict: the note is at the remote's" PEER "$(tail -1 "$T/vault/note.md")" "" ""
+check "tracked conflict: the stash is kept" 1 "$(git -C "$T/vault" stash list | wc -l | tr -d ' ')" "" ""
+
+echo "14. a push that cannot sync names the files it could not verify"
+setup
+git -C "$T/vault" remote set-url origin "$T/missing.git"
+printf 'fresh\n' > "$T/vault/new.md"
+push "add new" new.md
+check "fetch failed: exit 1, names the file" 1 "$rc" "not verified as published: new.md" "$out"
+check "fetch failed: the commit stays on main" "add new" "$(git -C "$T/vault" log -1 --format=%s main)" "" ""
 
 echo "$pass passed · $fail failed ($("$BASH_BIN" -c 'echo "bash $BASH_VERSION"'))"
 [ "$fail" = 0 ]

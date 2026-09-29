@@ -1,11 +1,14 @@
 name: "CI: Obsidian Writer Skill"
 
 # Runs the obsidian-writer skill's suite (.claude/skills/obsidian-writer/test.sh),
-# which drives vault-sync.sh push through its five outcomes against real git
-# repositories in a temp dir: no vault checkout, no network. The contract under
-# test is the exit status — a session reads 0 as "published", so the suite pins
-# that the remote winning every hunk, or a rebase that cannot auto-resolve,
-# exits non-zero.
+# which drives vault-sync.sh pull and push against real git repositories in a
+# temp dir: no vault checkout, no network. The contract under test is the exit
+# status — a session reads 0 from push as "published", so the suite pins that
+# push exits 0 only when origin/main holds every named file exactly as committed
+# (whatever else the rebase kept, whatever shape the path had), that pull and
+# push exit non-zero when local commits leave main or the rebase does not run,
+# that the guards fire before anything is staged, and that a rebase failing
+# without a conflict resets nothing.
 #
 # Path-filtered to the skill; seconds, no Maven build.
 
@@ -26,7 +29,7 @@ permissions:
 
 jobs:
   vault-sync:
-    name: vault-sync push outcomes
+    name: vault-sync pull and push outcomes
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
