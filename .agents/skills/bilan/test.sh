@@ -18,6 +18,14 @@
 # ABOUTME: Run from anywhere: bash .agents/skills/bilan/test.sh (needs the .registre submodule, jq and ripgrep)
 set -uo pipefail
 
+# Isolated from the developer's git config: no signing prompt, a fixed identity. The fixtures
+# commit throughout, and a global commit.gpgsign otherwise signs every one of those throwaway
+# commits with the developer's real key — or, with a signer that cannot prompt, fails them, and
+# each failure reads as a scoring regression ("expected '7', got '10'") rather than as the setup.
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.invalid
+export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.invalid
+
 HERE=$(cd "$(dirname "$0")" && pwd)
 BILAN="$HERE/bilan.sh"
 ROOT=$(cd "$HERE/../../.." && pwd)
@@ -118,6 +126,17 @@ measurable() {
 
 printf '\nbilan tests\n\n'
 measurable
+
+# ---- the fixtures never read the developer's git config (the exports at the top). A HOME whose
+# git config signs every commit, with a signer that always fails, stands in for a developer whose
+# signer cannot prompt: a fixture commit has to go through regardless, and sign with nothing.
+SIGN_HOME="$CFG/signing-home"
+mkdir -p "$SIGN_HOME" && git init -q "$CFG/sign-probe"
+printf '[commit]\n\tgpgsign = true\n[gpg]\n\tprogram = false\n' > "$SIGN_HOME/.gitconfig"
+git -C "$CFG/sign-probe" config user.name t && git -C "$CFG/sign-probe" config user.email t@t.t
+check "a developer's global commit.gpgsign never reaches a fixture commit" 0 \
+    "$( (cd "$CFG/sign-probe" && HOME="$SIGN_HOME" XDG_CONFIG_HOME="$SIGN_HOME" git commit -q --allow-empty -m probe) >/dev/null 2>&1; echo $?)"
+rm -rf "$SIGN_HOME" "$CFG/sign-probe"
 
 # ---- clean repo scores 10
 # The guard runs in a command substitution, so its `exit 2` ends only that subshell and the
