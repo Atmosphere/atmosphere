@@ -7,7 +7,7 @@ description: Write well-formatted notes to the atmosphere-vault Obsidian knowled
   write to the live vault and applies Atmosphere frontmatter and formatting standards.
 user-invocable: true
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   domain: documentation
   triggers: obsidian, vault, note, document, adr, runbook, plan, api-doc, guide, knowledge-base, architecture decision, session output
   role: specialist
@@ -42,11 +42,13 @@ Invoke for any of these document types, whether the user names the type or not:
 
 Use the quick-reference table below. When ambiguous, ask the user which type fits best.
 
-### Step 2 — Search for existing notes
+### Step 2 — Sync, then search for existing notes
 
-Before creating, check whether a relevant note already exists to avoid duplicates:
+Pull the remote first so the search sees every note that has already been pushed, then
+check whether a relevant note already exists to avoid duplicates:
 
 ```
+.claude/skills/obsidian-writer/vault-sync.sh pull
 obsidian search query="<keywords from the topic>" limit=5
 ```
 
@@ -95,6 +97,19 @@ obsidian read file="<Note Title>"
 
 Then update any related notes with a `[[wikilink]]` to the new document.
 
+### Step 6 — Publish
+
+Commit and push only the notes you wrote or edited, through the sync script (paths are
+relative to the vault — never the whole tree):
+
+```
+.claude/skills/obsidian-writer/vault-sync.sh push -m "docs(adr): <what>" \
+  "Architecture/ADRs/ADR-0042 Adopt Virtual Threads.md"
+```
+
+The vault's history uses `docs(adr)`, `docs(plan)` and `docs(claude-output)` prefixes for
+these commits; the timers' commits are `vault: auto-save`.
+
 ## Quick Reference
 
 | Doc Type | Target Directory | Template | Required Tags |
@@ -133,14 +148,14 @@ Then update any related notes with a `[[wikilink]]` to the new document.
 obsidian search query="WebSocket backpressure" limit=5
 
 # Read an existing note before editing
-obsidian read file="ADR-042 Adopt Virtual Threads"
+obsidian read file="ADR-0042 Adopt Virtual Threads"
 
 # Create a new note (Obsidian must be open and vault focused)
-obsidian create name="ADR-042 Adopt Virtual Threads" \
-  path="Architecture/ADRs/ADR-042 Adopt Virtual Threads.md"
+obsidian create name="ADR-0042 Adopt Virtual Threads" \
+  path="Architecture/ADRs/ADR-0042 Adopt Virtual Threads.md"
 
 # Append a section to an existing note
-obsidian append file="ADR-042 Adopt Virtual Threads" \
+obsidian append file="ADR-0042 Adopt Virtual Threads" \
   content="## Update 2026-03-14\nApproved in team review."
 ```
 
@@ -155,10 +170,29 @@ obsidian append file="ADR-042 Adopt Virtual Threads" \
   PATH — fix with `npm uninstall -g obsidian-cli`, do NOT fall back to `claude_docs/`.
   Verify resolution with `command -v obsidian`.
 - Always search first to avoid duplicate notes on the same topic.
-- Always use `[[wikilinks]]` for internal vault references, not relative or absolute paths.
+- Always use `[[wikilinks]]` for internal vault references, not relative or absolute
+  paths, and link by bare basename (`[[ADR-0042 Adopt Virtual Threads]]`): a basename link
+  survives the note moving into a subfolder, a path link breaks on the first move.
+- Never put `#` in the filename of a note you intend to wikilink. Obsidian splits
+  `[[Note#Heading]]` at the first `#`, so `[[Risk #5 gate]]` resolves to a note called "Risk".
 - Frontmatter `date` must be ISO 8601 format (`YYYY-MM-DD`).
-- ADR filenames must include the zero-padded number prefix so they sort chronologically.
-- After writing Claude-generated content, commit explicitly rather than waiting for the
-  obsidian-git auto-commit (auto-commit runs every 10 minutes, explicit commits are
-  easier to attribute and revert).
+- ADR filenames carry a zero-padded four-digit number (`ADR-0001`, `ADR-0002`, …) so they
+  sort chronologically. Check the highest existing number first (`ls Architecture/ADRs/`)
+  and take the next one.
+- **`claude_docs/` is not a general-purpose route.** It is a gitignored symlink to the
+  vault's `Claude Outputs/`, so a note written through it always lands there, must carry
+  its own frontmatter (`date`, `tags: [atmosphere, claude-output]`) — nothing downstream
+  adds it — and is the wrong place for an ADR, runbook or plan. Create those with
+  `obsidian create` into their own folder.
+- **The vault's remote wins — sync through `vault-sync.sh`, never by hand.** Run
+  `.claude/skills/obsidian-writer/vault-sync.sh pull` before reading or writing the vault,
+  and publish with `vault-sync.sh push -m "docs(<kind>): <what>" <path>…` (paths relative to
+  the vault, never the whole tree). It fetches, stashes local uncommitted work, rebases onto
+  `origin/main` with the remote side winning every conflict, re-applies the stash (a
+  conflicting stash stays in `git stash list`), and retries a rejected push against the new
+  tip. Never `git merge` origin into the vault or resolve a conflict in favour of local.
+- **Commit explicitly** after writing — `vault-sync.sh push` does it. obsidian-git
+  auto-commits every 10 minutes (or the launchd `vault-sync` agent does, on machines that
+  run it) under a generic `vault: auto-save` message; an explicit commit is attributable
+  and revertible.
 - See `references/vault-structure.md` for the full directory map and field reference.

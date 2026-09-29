@@ -1,0 +1,45 @@
+name: "CI: Obsidian Writer Skill"
+
+# Runs the obsidian-writer skill's suite (.claude/skills/obsidian-writer/test.sh),
+# which drives vault-sync.sh push through its five outcomes against real git
+# repositories in a temp dir: no vault checkout, no network. The contract under
+# test is the exit status — a session reads 0 as "published", so the suite pins
+# that the remote winning every hunk, or a rebase that cannot auto-resolve,
+# exits non-zero.
+#
+# Path-filtered to the skill; seconds, no Maven build.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.claude/skills/obsidian-writer/**'
+      - '.github/workflows/obsidian-writer.yml'
+  pull_request:
+    paths:
+      - '.claude/skills/obsidian-writer/**'
+      - '.github/workflows/obsidian-writer.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  vault-sync:
+    name: vault-sync push outcomes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Install shellcheck
+      run: |
+        command -v shellcheck > /dev/null 2>&1 || { sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck; }
+        shellcheck --version | head -2
+
+    - name: shellcheck
+      run: shellcheck -S warning .claude/skills/obsidian-writer/vault-sync.sh .claude/skills/obsidian-writer/test.sh
+
+    - name: Suite
+      run: bash .claude/skills/obsidian-writer/test.sh

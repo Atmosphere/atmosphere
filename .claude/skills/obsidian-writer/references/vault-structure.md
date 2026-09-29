@@ -12,8 +12,12 @@ atmosphere-vault/
   Methodology/             Processes, workflows, team practices
   Claude Outputs/          Claude Code session outputs (via claude_docs symlink)
   Claude Plans/            Planning documents from Claude sessions
+  Claude Memory/           Claude Code project memory shared through git — filled by
+                           scripts/sync-claude-memory.sh, never written by hand
   Templates/               Templater templates: ADR.md, Plan.md, Runbook.md
   Assets/                  Images, diagrams, attachments
+  scripts/                 Vault tooling: install-plugins.sh, sync-claude-memory.sh,
+                           build-shared-memory-index.sh
 ```
 
 ## Frontmatter Field Reference
@@ -49,7 +53,7 @@ atmosphere-vault/
 
 | Doc Type | Pattern | Example |
 |----------|---------|---------|
-| ADR | `ADR-NNN Short Title.md` | `ADR-042 Adopt Virtual Threads.md` |
+| ADR | `ADR-NNNN Short Title.md` (zero-padded, four digits) | `ADR-0042 Adopt Virtual Threads.md` |
 | Runbook | `<Service> <Topic>.md` | `Atmosphere Runtime WebSocket Backpressure.md` |
 | Plan | `<Topic> Plan.md` | `Quarkus Extension Refactor Plan.md` |
 | API doc | `<Service> API.md` or `<Endpoint>.md` | `Atmosphere CPR API.md` |
@@ -75,13 +79,21 @@ obsidian read file="ADR"
 Always use wikilinks for internal references — never relative or absolute file paths:
 
 ```markdown
-See [[ADR-042 Adopt Virtual Threads]] for the decision rationale.
+See [[ADR-0042 Adopt Virtual Threads]] for the decision rationale.
 Related: [[Atmosphere Runtime WebSocket Backpressure]] runbook.
-Supersedes: [[ADR-038 Custom Thread Pool]].
+Supersedes: [[ADR-0038 Custom Thread Pool]].
 ```
 
 Wikilinks display with the note title by default. Use `|` for custom display text:
 
 ```markdown
-[[ADR-042 Adopt Virtual Threads|ADR-042]]
+[[ADR-0042 Adopt Virtual Threads|ADR-0042]]
 ```
+
+Link by bare basename, never by path — a basename link survives the note moving between
+folders. Two traps:
+
+- **`#` in a filename** splits the link: `[[Risk #5 gate]]` resolves to a note called
+  "Risk". Don't put `#` in the filename of a note you intend to wikilink.
+- **`|` inside a markdown table** must be escaped as `\|`, including in a wikilink alias:
+  `[[ADR-0042 Adopt Virtual Threads\|ADR-0042]]`.
