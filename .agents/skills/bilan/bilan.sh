@@ -169,25 +169,30 @@ tracker_state() { # <n> <tracker> -> open | closed | "" when it cannot be asked
     printf '%s' "$s"
 }
 
-# When this session began: the ledger's first line when carnet has written one, otherwise the
-# baseline the SessionStart hook recorded, which is written once per session and never rewritten.
+# When this session began: the earlier of two records. The baseline the SessionStart hook writes
+# as the session opens, once and never again, is the session's start. The ledger's first line is
+# NOT — carnet writes it at the session's first carnet write, a claim, a create, a label, which can
+# come long after — and a window that started there dropped a stash the session made before it.
+# The ledger still counts when it is the earlier: without the hook, the baseline is only written
+# by the first bilan run.
 session_started_epoch() {
-    local f at b m
-    f=$(ledger_file) || return 1
-    if [ -s "$f" ]; then
+    local f at b m=0 l=""
+    if f=$(ledger_file) && [ -s "$f" ]; then
         at=$(head -1 "$f" | jq -r '.at // empty' 2>/dev/null)
         # -u: the ledger stamp is UTC, and BSD date otherwise reads it as local time, which put
         # the session's start hours in the future and made every stash look older than the session.
-        if [ -n "$at" ]; then
-            date -j -u -f '%Y-%m-%dT%H:%M:%SZ' "$at" +%s 2>/dev/null || date -u -d "$at" +%s 2>/dev/null
-            return
-        fi
+        [ -z "$at" ] || l=$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' "$at" +%s 2>/dev/null || date -u -d "$at" +%s 2>/dev/null)
+        case $l in *[!0-9]*) l="" ;; esac
     fi
-    b=$(baseline_file) || return 1
-    [ -f "$b" ] || return 1
-    m=$(file_mtime "$b")
-    [ "$m" != 0 ] || return 1
-    printf '%s' "$m"
+    if b=$(baseline_file) && [ -f "$b" ]; then
+        m=$(file_mtime "$b")
+    fi
+    if [ "$m" != 0 ] && { [ -z "$l" ] || [ "$m" -lt "$l" ]; }; then
+        printf '%s' "$m"
+        return 0
+    fi
+    [ -n "$l" ] || return 1
+    printf '%s' "$l"
 }
 
 transcript_path() {

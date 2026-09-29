@@ -721,6 +721,18 @@ check "…it is stated instead" 1 \
 echo mine >> "$R/a.txt" && git -C "$R" stash push -q -m "this session's"
 check "a stash made on this branch during the session caps at 9" 1 \
     "$(run "$R" | jq '[.caps[] | select(.cap==9) | select(.evidence | test("stash entr.* created on main"))] | length')"
+git -C "$R" stash clear
+# The session began when it opened, not at its first carnet write, which can come long after. It
+# opened ten minutes ago, stashed five minutes in, and wrote its ledger's first line a minute ago.
+utc_ago() { python3 -c 'import datetime,sys; print((datetime.datetime.now(datetime.timezone.utc)-datetime.timedelta(seconds=int(sys.argv[1]))).strftime("%Y-%m-%dT%H:%M:%SZ"))' "$1"; }
+python3 -c 'import os,sys,time; t=time.time()-600; os.utime(sys.argv[1],(t,t))' "$CFG/bilan/$SID.baseline"
+echo early >> "$R/a.txt"
+GIT_COMMITTER_DATE="$(( $(date +%s) - 300 )) +0000" git -C "$R" stash push -q -m "five minutes in"
+printf '{"v":1,"session":"%s","name":"test","user":"t","host":"h","pid":1,"repo":"atmosphere","branch":"main","at":"%s","kind":"identity"}\n' \
+    "$SID" "$(utc_ago 60)" > "$CFG/carnet-claims/$SID.jsonl"
+check "a stash made before the session's first carnet write still counts" 1 \
+    "$(run "$R" | jq '[.caps[] | select(.cap==9) | select(.evidence | test("stash entr.* created on main"))] | length')"
+rm -f "$CFG/carnet-claims/$SID.jsonl"
 git -C "$R" stash clear && git -C "$R" branch -q -D elsewhere
 rm -f "$CFG/bilan/"*.baseline*
 
