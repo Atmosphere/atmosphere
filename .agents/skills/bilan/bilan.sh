@@ -152,8 +152,12 @@ issue_label() { # <n> <tracker> -> carnet#n for this repo's register, owner/repo
 # number has to be a number.
 valid_issue_ref() { # <n> <tracker>
     case $1 in '' | *[!0-9]*) return 1 ;; esac
-    case "/$2/" in */./* | */../*) return 1 ;; esac
-    printf '%s' "$2" | grep -Eq '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'
+    # A pattern over the whole string, never grep, which would pass a value that has one good line.
+    case $2 in
+        '' | *[!A-Za-z0-9_./-]* | */*/* | /* | */ | . | .. | ./* | ../* | */. | */..) return 1 ;;
+        */*) return 0 ;;
+    esac
+    return 1
 }
 
 # What an issue's own tracker says its state is: open, closed, or nothing when it cannot be asked.
@@ -1399,8 +1403,9 @@ session_state() { # <session-id> <ledger> <running ids> <this host>
         printf 'it ran on %s, where this machine cannot look' "$host"
         return 2
     fi
+    # 0 is no pid either: `kill -0 0` asks about this process group, and always answers yes.
     case $pid in
-        '' | *[!0-9]*) printf 'its ledger names no pid'; return 2 ;;
+        '' | 0 | *[!0-9]*) printf 'its ledger names no pid'; return 2 ;;
     esac
     # The recorded process is still there, yet no session file names this session: a recycled
     # pid, or a session file out of this sweep's reach. Neither proves the session ended.

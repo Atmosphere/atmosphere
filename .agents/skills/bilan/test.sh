@@ -1068,6 +1068,15 @@ check "file_mtime returns digits on this platform, not the other stat's prose" 1
 check "and it is the file's real mtime" "$(perl -e 'print ((stat($ARGV[0]))[9])' "$R/a.txt" 2>/dev/null || python3 -c 'import os,sys;print(int(os.stat(sys.argv[1]).st_mtime))' "$R/a.txt")" "$mt"
 check "a file that is not there reads as 0, never as empty" 0 "$(mtime_of "$R/does-not-exist")"
 
+# The tracker a REST path is built from comes out of a ledger every repo on the machine writes, so
+# only a plain owner/repo and a number get through — a whole-string match, not a grep that passes
+# a value with one good line in it.
+ref_ok() { bash -c 'eval "$(sed -n "/^valid_issue_ref/,/^}/p" "$1")"; valid_issue_ref "$2" "$3"' _ "$BILAN" "$1" "$2"; echo $?; }
+check "an owner/repo and a number make an issue reference" 0 "$(ref_ok 7 Atmosphere/atmosphere-carnet)"
+check "…a tracker that climbs out of repos/ does not" 1 "$(ref_ok 7 ../../user)"
+check "…nor one with a second line in it" 1 "$(ref_ok 7 "$(printf 'a/b\nc/d')")"
+check "…nor a number that is not one" 1 "$(ref_ok '7/../../x' Atmosphere/atmosphere-carnet)"
+
 # The harness's own guard. `mktemp -d -t <prefix>` returns empty on GNU, `|| exit 1` inside
 # `$(…)` exits only the subshell, and `cd ""` SUCCEEDS in bash — so the suite once ran every
 # case in the developer's real checkout, committed to it and tried to push. Nothing about that
