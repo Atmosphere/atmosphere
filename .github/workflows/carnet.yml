@@ -1,0 +1,53 @@
+name: "CI: Carnet Skill"
+
+# Runs the carnet skill's suite (.agents/skills/carnet/test.sh) against a stub
+# gh: no token, and the Atmosphere/atmosphere-carnet tracker is never touched.
+# The suite makes every refusal path fire — a live peer's claim, a public
+# tracker, a close without a reason — and drives all three hooks with the
+# payload shapes Claude Code sends. It also reads the real .claude/settings.json
+# and .claude/skills/carnet link: a missing hook entry, or a PreToolUse wiring
+# that swallows the hook's exit code, turns claiming off without an error
+# anywhere else, so both are in the path filter below.
+#
+# Path-filtered to the skill and what the suite reads; seconds, no Maven build.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.agents/skills/carnet/**'
+      - '.claude/skills/carnet'
+      - '.claude/settings.json'
+      - '.github/workflows/carnet.yml'
+  pull_request:
+    paths:
+      - '.agents/skills/carnet/**'
+      - '.claude/skills/carnet'
+      - '.claude/settings.json'
+      - '.github/workflows/carnet.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  carnet:
+    name: Claim, release, close and all three hooks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - uses: actions/checkout@v7
+
+    # The suite skips its own shellcheck assertion when the binary is absent, so
+    # make its presence explicit rather than trusting the runner image.
+    - name: Install shellcheck
+      run: |
+        command -v shellcheck > /dev/null 2>&1 || { sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck; }
+        shellcheck --version | head -2
+
+    - name: shellcheck
+      run: shellcheck -S warning .agents/skills/carnet/carnet.sh .agents/skills/carnet/hooks/*.sh .agents/skills/carnet/test.sh
+
+    - name: Suite against a stub gh
+      run: bash .agents/skills/carnet/test.sh

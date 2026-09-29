@@ -557,6 +557,27 @@ above. Apply these tiebreakers, in order:
 - **The apology is not the work.** Don't ship a "sorry, here's my plan"
   message and then stop. The work is the work.
 
+## Carnet & Bilan — Issue Claims and the Completion Number
+
+<important if="you were given a carnet/registre issue number, are about to start, file or finish work an issue tracks, or are about to report how complete the work is">
+
+- **Tracker:** `Atmosphere/atmosphere-carnet` — PRIVATE, resolved from `registre.toml` → `tracker`.
+  This repo is public, so limitation issues and anything naming a security gap go there, never
+  on `Atmosphere/atmosphere`.
+- **`.agents/skills/carnet/carnet.sh` is the only path into the tracker** — never
+  `gh issue create/edit/close` against it by hand. `claim <n>` before the first edit (the
+  PreToolUse hook claims issues a prompt named, on the first write), `release <n>` when you
+  stop, `close <n> --why "…" --commit <sha>` when the work lands. Exit code 2 on `claim` means
+  a live peer holds the issue: say who, and stop — `--steal` is the maintainer's call.
+  Details: `.agents/skills/carnet/SKILL.md`.
+- **The completion number is `.agents/skills/bilan/bilan.sh`'s, not yours.** Run it before
+  reporting a score or calling work done, report the number it prints, and argue with a cap in
+  words if you think it is wrong. `bilan.sh sweep` finds what a dead session left behind. It
+  measures *finished*, never *good*. Details: `.agents/skills/bilan/SKILL.md`.
+- The hooks are wired in `.claude/settings.json`; the suites run in CI (`carnet.yml`,
+  `bilan.yml`).
+</important>
+
 ## Getting Help
 - Always ask for clarification rather than making assumptions
 - If you're having trouble with something, stop and ask for help

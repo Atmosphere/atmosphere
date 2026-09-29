@@ -1,0 +1,78 @@
+name: "CI: Bilan Skill"
+
+# Runs the bilan skill's suite (.agents/skills/bilan/test.sh) and shellcheck on
+# Linux. That is the point of the lane: bilan computes the completion number
+# every session reports, and a GNU/BSD difference in it does not always fail —
+# `stat -f %m` SUCCEEDS on GNU with different output — so only a run on the
+# other platform catches it. The suite builds throwaway git repos and answers
+# gh from a stub: no token, and the Atmosphere/atmosphere-carnet tracker is
+# never touched.
+#
+# The register cases run the REAL llm-registre gate, so the .registre submodule
+# is checked out and ripgrep installed (the gate scans with it; without it the
+# scope bilan asks for is empty). The path filter covers everything bilan
+# reads to decide what counts: registre.toml and the .registre pin (what the
+# register scans), the limitation-register lane (the directories it is run on,
+# which bilan reads from that workflow), scripts/pre-push-validate.sh (the
+# marker it stamps, and the directories the suite checks bilan agrees with),
+# and .githooks/pre-push (the marker's TTL).
+#
+# Path-filtered; seconds, no Maven build.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.agents/skills/bilan/**'
+      - '.claude/skills/bilan'
+      - '.github/workflows/bilan.yml'
+      - 'registre.toml'
+      - '.registre'
+      - '.github/workflows/limitation-register.yml'
+      - 'scripts/pre-push-validate.sh'
+      - '.githooks/pre-push'
+  pull_request:
+    paths:
+      - '.agents/skills/bilan/**'
+      - '.claude/skills/bilan'
+      - '.github/workflows/bilan.yml'
+      - 'registre.toml'
+      - '.registre'
+      - '.github/workflows/limitation-register.yml'
+      - 'scripts/pre-push-validate.sh'
+      - '.githooks/pre-push'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bilan:
+    name: The caps, the register's scope, and the hooks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        # The gate lives in the .registre submodule; the suite runs it for real.
+        submodules: true
+
+    # ubuntu-latest does not ship ripgrep, and the gate suppresses rg's stderr.
+    - name: Install ripgrep
+      run: |
+        command -v rg > /dev/null 2>&1 || sudo apt-get install -y -qq ripgrep
+        rg --version | head -1
+
+    - name: Install shellcheck
+      run: |
+        command -v shellcheck > /dev/null 2>&1 || { sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck; }
+        shellcheck --version | head -2
+
+    # test.sh is linted too: its own empty-path bug is what once made a suite
+    # commit to the real checkout, and shellcheck names that shape.
+    - name: shellcheck
+      run: shellcheck -S warning .agents/skills/bilan/bilan.sh .agents/skills/bilan/test.sh .agents/skills/bilan/hooks/*.sh
+
+    - name: Suite against a stub gh and the real register gate
+      run: bash .agents/skills/bilan/test.sh

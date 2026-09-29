@@ -10,6 +10,53 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 20,
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.agents/skills/bilan/hooks/session-start-sweep.sh\" ] && bash \"$CLAUDE_PROJECT_DIR/.agents/skills/bilan/hooks/session-start-sweep.sh\" || true"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 20,
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.agents/skills/carnet/hooks/prompt-status.sh\" ] && bash \"$CLAUDE_PROJECT_DIR/.agents/skills/carnet/hooks/prompt-status.sh\" || true"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 20,
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.agents/skills/carnet/hooks/auto-claim.sh\" ] || exit 0; bash \"$CLAUDE_PROJECT_DIR/.agents/skills/carnet/hooks/auto-claim.sh\""
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 30,
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.agents/skills/carnet/hooks/session-end-release.sh\" ] && bash \"$CLAUDE_PROJECT_DIR/.agents/skills/carnet/hooks/session-end-release.sh\" || true"
+          }
+        ]
+      }
     ]
   }
 }
