@@ -83,6 +83,8 @@ REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || die "run this inside a
 # Not named GIT_DIR: a caller that exported GIT_DIR would hand this value to every git command
 # below, including the sweep's `git -C <worktree>`.
 DOT_GIT=$(git rev-parse --absolute-git-dir 2>/dev/null) || DOT_GIT="$REPO_ROOT/.git"
+# That git dir with symlinks resolved: the name the baseline records its checkout by.
+THIS_CHECKOUT=$(cd "$DOT_GIT" 2>/dev/null && pwd -P) || THIS_CHECKOUT=""
 # The directory every worktree shares: refs, the stash and the remote-tracking branches.
 COMMON_DIR=$(cd "$REPO_ROOT" 2>/dev/null && cd "$(git rev-parse --git-common-dir 2>/dev/null)" 2>/dev/null && pwd -P) \
     || COMMON_DIR=$DOT_GIT
@@ -278,6 +280,8 @@ cmd_baseline() { # [--if-missing]
     fi
     # HEAD at session start, so "did this session commit anything at all" is answerable.
     git rev-parse HEAD 2>/dev/null > "${f}.head" || : > "${f}.head"
+    # Which checkout all of the above describes (see baseline_here).
+    printf '%s\n' "$THIS_CHECKOUT" > "${f}.checkout"
     # The dev stack, by (name, pid), in a checkout that runs one through bin/dev-processes.sh
     # (see check_dev_stack). A peer starting their stack from a shared checkout writes pid files
     # that are the CHECKOUT's, and dev_owned only asks whether the process is alive and
@@ -294,12 +298,28 @@ cmd_baseline() { # [--if-missing]
     return 0
 }
 
+# The baseline describes the checkout the session opened in — its dirty paths, its unpushed
+# commits, its HEAD — and says nothing about any other. Applied elsewhere it was wrong in the worst
+# direction: a session that opened in the main checkout beside a peer's dirty pom.xml, then edited
+# pom.xml in a worktree it created, had its own edit read as inherited, for a false 10. So in any
+# other checkout nothing is inherited: one the session created holds nothing older than the
+# session, and a peer's pre-existing worktree is what `ack` is for. A baseline recorded before the
+# checkout was kept with it has no .checkout, and applies as it always did.
+baseline_here() {
+    local f c
+    f=$(baseline_file) || return 1
+    [ -f "${f}.checkout" ] || return 0
+    c=$(head -1 "${f}.checkout" 2>/dev/null)
+    [ -n "$c" ] && [ "$c" = "$THIS_CHECKOUT" ]
+}
+
 # Split a newline-separated path list into what this session must answer for and what it
 # inherited. A session that opened into someone else's mid-edit answers for neither.
 not_mine() { # <paths>  -> prints the inherited subset
     local f
     f=$(baseline_file) || return 0
     [ -s "$f" ] || return 0
+    baseline_here || return 0
     printf '%s\n' "$1" | grep -Fxf "$f" 2>/dev/null || true
 }
 
@@ -307,6 +327,7 @@ not_mine_commits() { # <shas> -> prints the inherited subset
     local f
     f=$(baseline_file) || return 0
     [ -s "${f}.commits" ] || return 0
+    baseline_here || return 0
     printf '%s\n' "$1" | grep -Fxf "${f}.commits" 2>/dev/null || true
 }
 
@@ -994,6 +1015,7 @@ check_measurable() {
         todos=$(command ls "$CFG/tasks/$SESSION_ID"/*.json 2>/dev/null | grep -c . )
     [ "${todos:-0}" -gt 0 ] && return 0                 # the session declared what it set out to do
     f=$(baseline_file) || return 0
+    baseline_here || return 0                           # another checkout's HEAD says nothing of this one's
     start_head=$(cat "${f}.head" 2>/dev/null || true)
     [ -n "$start_head" ] || return 0                    # no baseline: cannot tell, do not claim
     [ "$start_head" = "$HEAD_SHA" ] || return 0         # it committed something: that is measurable

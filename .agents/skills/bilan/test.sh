@@ -630,6 +630,19 @@ check "and the cap names only the session's own file" 1 \
 ( cd "$R" && CLAUDE_CONFIG_DIR="$CFG" CLAUDE_CODE_SESSION_ID="$SID" bash "$BILAN" baseline --if-missing >/dev/null 2>&1 )
 check "a second SessionStart keeps the baseline, so the session's own file still caps" 7 "$(run "$R" | jq -r .score)"
 git -C "$R" rm -q -f --cached c.txt >/dev/null 2>&1; rm -f "$R/c.txt"
+# The baseline describes the checkout the session opened in, and no other. A worktree the session
+# creates afterwards has an a.txt of its own, and the main checkout's dirty a.txt says nothing about
+# it: the session's edit there is its own work.
+WT2="$(dirname "$R")/wt2"
+git -C "$R" worktree add -q -b wt2 "$WT2" 2>/dev/null
+echo mine-in-the-worktree >> "$WT2/a.txt"
+out=$(run "$WT2")
+check "a path dirty where the session opened is not inherited in a worktree it made" 7 "$(printf '%s' "$out" | jq -r .score)"
+check "…where the cap names the session's own edit" 1 \
+    "$(printf '%s' "$out" | jq '[.caps[] | select(.cap==7) | select(.evidence | test("a\\.txt"))] | length')"
+check "the checkout it opened in still reads that path as inherited" 1 \
+    "$(run "$R" | jq '[.notes[] | select(test("already uncommitted.*a\\.txt"))] | length')"
+git -C "$R" worktree remove --force "$WT2" && git -C "$R" branch -q -D wt2
 git -C "$R" checkout -q -- a.txt
 rm -f "$CFG/bilan/"*.baseline
 

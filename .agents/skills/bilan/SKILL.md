@@ -109,6 +109,9 @@ commits were already unpushed, when the session opened. A path dirty before the 
 is definitionally not its work — that much *is* machine-decidable. Those are stated as a note and
 never scored. The hook records it once per session: SessionStart fires again on resume and after
 a compaction, and re-recording there would declare the session's own uncommitted work inherited.
+It describes the checkout the session opened in and no other: in a worktree the session reaches
+afterwards, nothing is inherited — a path dirty in the main checkout says nothing about the
+same-named file there, and a peer's pre-existing worktree is what `ack` is for.
 
 **`ack`, for what goes dirty afterwards.** A peer editing during your session is not covered by
 the baseline, so you say so once:
