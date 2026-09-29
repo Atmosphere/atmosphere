@@ -283,7 +283,9 @@ session can act on. For CI on your own commit, ask for that sha by name.
 
 It is read from the check-runs API by full sha, every page: `gh run list --commit` with a short sha
 answers with an empty list, and a failure on the second page of a commit's check runs is still a
-failure. A sha with no check run prints nothing — absent, not green.
+failure. A sha with no check run prints nothing — absent, not green. It is asked whether or not the
+branch has an upstream: a worktree branch landed with `git push origin <branch>:main` has main's
+tip as its HEAD, and that commit's CI is shown like any other.
 
 **Background work is scanned in the session's `tasks/` directory only.** Whether every kind of
 in-flight work can be detected there — a Monitor, a subagent, whose entry is a link to its

@@ -1162,10 +1162,15 @@ check_dev_stack() {
 # either empty answer would read as green. Paginated, because a commit here carries more check
 # runs than one page holds, and a failure on the second page is still a failure. A sha with no
 # check run at all prints nothing: absent is not green.
+#
+# Asked with or without an upstream: check runs are keyed by sha, and a worktree branch here has
+# none — it lands with `git push origin <branch>:main`, which leaves its HEAD at main's tip with
+# main's CI on it. Gating on an upstream hid exactly that verdict. A sha GitHub has never seen
+# answers an error, which prints nothing, as any unanswerable query does.
 check_ci() {
     local slug runs total running bad cancelled
     command -v gh >/dev/null 2>&1 || return 0
-    [ -n "$UPSTREAM" ] || return 0
+    [ -n "$HEAD_SHA" ] || return 0
     slug=$(git remote get-url origin 2>/dev/null \
            | sed -E 's#^(git@github\.com:|https://github\.com/|ssh://git@github\.com/)##; s#\.git$##; s#/$##')
     [ -n "$slug" ] || return 0

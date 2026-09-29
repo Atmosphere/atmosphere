@@ -899,6 +899,16 @@ check "check runs are read across every page, by full sha" 1 \
 check "--cheap never asks" 0 \
     "$( : > "$CFG/gh.log"; ( cd "$R" && GH_STUB_LOG="$CFG/gh.log" CLAUDE_CONFIG_DIR="$CFG" CLAUDE_CODE_SESSION_ID="$SID" \
         PATH="$STUB:$PATH" bash "$BILAN" --cheap --json >/dev/null 2>&1 ); grep -c . "$CFG/gh.log")"
+# A branch with no upstream is this repo's usual worktree shape — landed with a refspec push,
+# never published — and its CI is asked for all the same: check runs are keyed by sha.
+git -C "$R" checkout -q -b no-upstream
+: > "$CFG/gh.log"
+out=$( ( cd "$R" && GH_STUB_LOG="$CFG/gh.log" CLAUDE_CONFIG_DIR="$CFG" CLAUDE_CODE_SESSION_ID="$SID" \
+    PATH="$STUB:$PATH" bash "$BILAN" --json 2>/dev/null ) )
+check "a branch with no upstream still has its head's CI asked for, by sha" 1 \
+    "$(grep -c -- "--paginate repos/.*/commits/$(git -C "$R" rev-parse HEAD)/check-runs?per_page=100" "$CFG/gh.log")"
+check "…and reported" 1 "$(printf '%s' "$out" | jq '[.notes[] | select(test("CI RED.*lint"))] | length')"
+git -C "$R" checkout -q main && git -C "$R" branch -q -D no-upstream
 
 # ---- the sweep must not report a dead session's claim on an issue that is already closed: a
 # ledger outlives its issue, and a recurring false alarm trains the reader to skip the one line
