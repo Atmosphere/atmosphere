@@ -142,6 +142,28 @@ issue_label() { # <n> <tracker> -> carnet#n for this repo's register, owner/repo
     fi
 }
 
+# An issue reference fit to go into a REST path. The tracker comes from a ledger every repo on the
+# machine writes into, so it has to be a plain owner/repo — the check carnet.sh applies — and the
+# number has to be a number.
+valid_issue_ref() { # <n> <tracker>
+    case $1 in '' | *[!0-9]*) return 1 ;; esac
+    case "/$2/" in */./* | */../*) return 1 ;; esac
+    printf '%s' "$2" | grep -Eq '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'
+}
+
+# What an issue's own tracker says its state is: open, closed, or nothing when it cannot be asked.
+# REST, never `gh issue view`: that is GraphQL, which a cloud session's proxy refuses with a 403, so
+# there every answer read as "not closed" — a filed issue a teammate had closed kept its cap, and
+# the sweep never healed a dead session's closed claim. On an HTTP error `gh api` prints the error
+# body to stdout, so a failed call's output is discarded rather than read as a state.
+tracker_state() { # <n> <tracker> -> open | closed | "" when it cannot be asked
+    local s
+    valid_issue_ref "$1" "$2" || return 0
+    command -v gh >/dev/null 2>&1 || return 0
+    s=$(gh api "repos/$2/issues/$1" --jq .state 2>/dev/null) || return 0
+    printf '%s' "$s"
+}
+
 # When this session began: the ledger's first line when carnet has written one, otherwise the
 # baseline the SessionStart hook recorded, which is written once per session and never rewritten.
 session_started_epoch() {
@@ -576,8 +598,9 @@ check_carnet_held() {
 # authority — falling back to the ledger only when the tracker cannot be asked at all.
 labelled_limitation() { # <issue-number> <tracker>
     local f labels
-    if [ "$CHEAP" = 0 ] && [ -n "$2" ] && command -v gh >/dev/null 2>&1 \
-       && labels=$(gh issue view "$1" -R "$2" --json labels -q '.labels[].name' 2>/dev/null); then
+    # REST, for the reason tracker_state gives.
+    if [ "$CHEAP" = 0 ] && valid_issue_ref "$1" "$2" && command -v gh >/dev/null 2>&1 \
+       && labels=$(gh api "repos/$2/issues/$1" --jq '.labels[].name' 2>/dev/null); then
         printf '%s\n' "$labels" | grep -qx limitation
         return
     fi
@@ -594,7 +617,7 @@ registered_limitation() { # <issue-number> <tracker> -> 0 when this is a registe
 }
 
 check_carnet_filed() {
-    local f row n t list="" state
+    local f row n t list="" unknown="" state
     f=$(ledger_file) || return 0
     [ -s "$f" ] || return 0
     for row in $(ledger_rows "$f" filed); do
@@ -602,19 +625,28 @@ check_carnet_filed() {
         t=${row#*|}
         # Someone else may have closed it. Only the full run can tell; --cheap keeps the cap,
         # which is the safe direction for a rule about not walking away from your own issues.
+        state=open
         if [ "$CHEAP" = 0 ] && [ -n "$t" ] && command -v gh >/dev/null 2>&1; then
-            state=$(gh issue view "$n" -R "$t" --json state -q .state 2>/dev/null || echo OPEN)
-            [ "$state" = CLOSED ] && continue
+            state=$(tracker_state "$n" "$t")
+            [ "$state" = closed ] && continue
         fi
         if registered_limitation "$n" "$t"; then
             say_note "$(issue_label "$n" "$t") is a registered limitation, not work owed: labelled \`limitation\` and named by a LIMITATION(registre#$n) marker in the register's scope, which the register contract requires to stay open"
             continue
         fi
-        list="$list $(issue_label "$n" "$t")"
+        # A tracker that did not answer keeps the cap — the safe direction — but is not reported
+        # as an answer: "still open" is what the tracker says, and here it said nothing.
+        if [ -n "$state" ]; then
+            list="$list $(issue_label "$n" "$t")"
+        else
+            unknown="$unknown $(issue_label "$n" "$t")"
+        fi
     done
-    [ -n "${list// /}" ] || return 0
-    cap 6 "❌" "filed this session and still open:${list}" \
+    [ -z "${list// /}" ] || cap 6 "❌" "filed this session and still open:${list}" \
           "fix them and close with carnet.sh close <n> --why … --commit <sha> — a session does not file its way out of work"
+    [ -z "${unknown// /}" ] || cap 6 "❌" "filed this session, and the tracker did not say whether it is closed:${unknown}" \
+          "gh auth status, then rerun — and if it is still open, fix it and close it with carnet.sh close <n> --why … --commit <sha>"
+    return 0
 }
 
 # ------------------------------------------------------------------ the register's scope
@@ -1310,8 +1342,7 @@ cmd_sweep() {
                 n=${row%%|*}
                 t=${row#*|}
                 [ -z "$TRACKER" ] || [ "$t" = "$TRACKER" ] || continue
-                if [ -n "$t" ] && command -v gh >/dev/null 2>&1 \
-                   && [ "$(gh issue view "$n" -R "$t" --json state -q .state 2>/dev/null)" = CLOSED ]; then
+                if [ "$(tracker_state "$n" "$t")" = closed ]; then
                     tmp=$(mktemp "${TMPDIR:-/tmp}/bilan-ledger.XXXXXX") || continue
                     jq -c --argjson n "$n" --arg t "$t" --arg d "$TRACKER" \
                         'select((.kind == "claim" and .issue == $n and ((.tracker // $d) == $t)) | not)' "$f" > "$tmp" \

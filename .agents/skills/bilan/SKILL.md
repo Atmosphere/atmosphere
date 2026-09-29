@@ -54,7 +54,7 @@ when it ages.
 | Evidence | Caps at |
 |---|---|
 | carnet issue claimed by this session, neither closed nor released | **6** |
-| carnet issue **filed** by this session and still open (unless a registered limitation) | **6** |
+| carnet issue **filed** by this session and still open (unless a registered limitation) — or, in the full run, whose state the tracker would not give | **6** |
 | `LIMITATION(registre#…)` marker added in a file the register scans, naming no live issue — missing, closed, a pull request, or not labelled `limitation` (full run only), or no issue number at all | **6** |
 | `LIMITATION(` marker added in a file with an extension the register scans, while the register cannot say what it scans (`.registre` not checked out) | **6** |
 | background task still running | **7** |
@@ -91,6 +91,9 @@ stack can take a peer's work.
 the ledgers of every repo whose sessions use carnet, and each line names the register its issue
 lives in. An issue is a (number, tracker) pair: a question about it goes to its own tracker, and
 an issue on another repo's register is named as `owner/repo#n`, never as this repo's `carnet#n`.
+Every question goes over REST (`gh api`), never `gh issue`: that is GraphQL, which a cloud
+session's proxy refuses, and a refusal read as an answer kept a closed issue's cap. A tracker that
+does not answer at all keeps the cap and says so, rather than reporting the issue as open.
 
 ## Uncommitted files that are not this session's
 

@@ -348,27 +348,25 @@ cat > "$STUB/gh" <<'GH'
 #!/usr/bin/env bash
 # The smallest gh that answers every path bilan asks, logging each call so a case can assert how
 # it was asked as well as what came back.
-#   issue view <n> -R <tracker> --json state|labels   Atmosphere/atmosphere-carnet answers: every
-#       issue OPEN except 236 (CLOSED), and only 2001 labelled `limitation`. Any other tracker is
-#       unreadable, as a private tracker is to a token without access.
-#   api repos/<tracker>/issues/<n> --jq <filter>      the same register over REST, plus a closed
-#       entry (2003) and a pull request (2004); any other number is a 404.
+#   issue …                                           refused, the way a cloud session's proxy
+#       refuses every GraphQL query: the tracker has to be asked over REST.
+#   api repos/<tracker>/issues/<n> --jq <filter>      Atmosphere/atmosphere-carnet over REST: 236
+#       closed, 237 open, 2001 open and labelled `limitation`, 2002 open and labelled `bug`, a
+#       closed limitation (2003) and a pull request (2004). Any other number, and any other
+#       tracker, is a 404 — unreadable, as a private tracker is to a token without access — and,
+#       as real `gh api` does, the error body lands on stdout, not the filtered answer.
 #   api repos/<tracker> --jq <filter>                 the tracker itself, readable only for Atmosphere's.
 #   api --paginate repos/…/check-runs… --jq <filter>  two pages of check runs, one of them red.
 printf '%s\n' "$*" >> "${GH_STUB_LOG:-/dev/null}"
-repo="" path="" filter="" want="" prev=""
+path="" filter="" prev=""
 for a in "$@"; do
-    case "$prev" in -R) repo=$a ;; --jq) filter=$a ;; esac
-    case "$a" in labels) want=labels ;; state) want=state ;; repos/*) path=$a ;; esac
+    case "$prev" in --jq) filter=$a ;; esac
+    case "$a" in repos/*) path=$a ;; esac
     prev=$a
 done
 T=Atmosphere/atmosphere-carnet
-if [ "${1:-}" = issue ] && [ "${2:-}" = view ]; then
-    [ "$repo" = "$T" ] || { echo "gh: Could not resolve to a Repository" >&2; exit 1; }
-    case "$want" in
-        state)  if [ "${3:-}" = 236 ]; then echo CLOSED; else echo OPEN; fi; exit 0 ;;
-        labels) if [ "${3:-}" = 2001 ]; then echo limitation; else echo bug; fi; exit 0 ;;
-    esac
+if [ "${1:-}" = issue ]; then
+    echo "gh: HTTP 403: GraphQL is not served here — use the REST API (gh api)" >&2
     exit 1
 fi
 if [ "${1:-}" = api ]; then
@@ -380,11 +378,13 @@ if [ "${1:-}" = api ]; then
             done
             exit 0 ;;
         "repos/$T")             body='{"full_name":"Atmosphere/atmosphere-carnet"}' ;;
+        "repos/$T/issues/236")  body='{"state":"closed","labels":[]}' ;;
+        "repos/$T/issues/237")  body='{"state":"open","labels":[]}' ;;
         "repos/$T/issues/2001") body='{"state":"open","labels":[{"name":"limitation"}]}' ;;
         "repos/$T/issues/2002") body='{"state":"open","labels":[{"name":"bug"}]}' ;;
         "repos/$T/issues/2003") body='{"state":"closed","labels":[{"name":"limitation"}]}' ;;
         "repos/$T/issues/2004") body='{"state":"open","labels":[{"name":"limitation"}],"pull_request":{}}' ;;
-        *) echo 'gh: Not Found (HTTP 404)' >&2; exit 1 ;;
+        *) echo '{"message":"Not Found","status":"404"}'; echo 'gh: Not Found (HTTP 404)' >&2; exit 1 ;;
     esac
     printf '%s' "$body" | jq -r "$filter"
     exit
@@ -400,6 +400,26 @@ run_full() { local repo=$1; shift; ( cd "$repo" && CLAUDE_CONFIG_DIR="$CFG" \
     CLAUDE_CODE_SESSION_ID="$SID" PATH="$STUB:$PATH" bash "$BILAN" "$@" 2>/dev/null ); }
 filed_caps() { printf '%s' "$1" | jq '[.caps[] | select(.evidence | test("filed this session and still open"))] | length'; }
 mark() { printf '    // LIMITATION(registre#%s): the width this names\n' "$1" >> "$R/$WIDGET"; }
+
+# A filed issue someone else closed is not work owed, and only the tracker can say so. The stub
+# refuses `gh issue` the way a cloud session's proxy refuses every GraphQL query, so the close is
+# seen only when the tracker is asked over REST.
+printf '%s\n%s\n' "$IDENTITY" '{"kind":"filed","tracker":"Atmosphere/atmosphere-carnet","issue":236,"at":"2026-09-08T00:00:00Z"}' \
+    > "$CFG/carnet-claims/$SID.jsonl"
+: > "$CFG/gh.log"
+out=$( (cd "$R" && GH_STUB_LOG="$CFG/gh.log" CLAUDE_CONFIG_DIR="$CFG" CLAUDE_CODE_SESSION_ID="$SID" \
+    PATH="$STUB:$PATH" bash "$BILAN" --json 2>/dev/null) )
+check "a filed issue the tracker reports closed does not cap the full run" 0 "$(filed_caps "$out")"
+check "…and the tracker is asked over REST, never through GraphQL" 0 "$(grep -c '^issue ' "$CFG/gh.log")"
+# A tracker that does not answer keeps the cap, the safe direction, and says it did not answer
+# rather than reporting "still open" as though it had.
+printf '%s\n%s\n' "$IDENTITY" '{"kind":"filed","tracker":"Atmosphere/atmosphere-carnet","issue":1000,"at":"2026-09-08T00:00:00Z"}' \
+    > "$CFG/carnet-claims/$SID.jsonl"
+out=$(run_full "$R" --json)
+check "a filed issue the tracker gives no answer for still caps at 6" 1 \
+    "$(printf '%s' "$out" | jq '[.caps[] | select(.cap == 6) | select(.evidence | test("did not say whether it is closed: carnet#1000"))] | length')"
+check "…and is not reported as still open" 0 "$(filed_caps "$out")"
+rm -f "$CFG/gh.log"
 
 printf '%s\n%s\n' "$IDENTITY" '{"kind":"filed","tracker":"Atmosphere/atmosphere-carnet","issue":2001,"at":"2026-09-08T00:00:00Z"}' \
     > "$CFG/carnet-claims/$SID.jsonl"
