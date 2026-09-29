@@ -823,10 +823,13 @@ check "--cheap never asks" 0 \
 # the sweep exists to print. HOME is the sandbox's: the sweep reads every ledger under
 # $HOME/.claude*, and a test has no business reading, healing or deleting the real ones.
 FAKE_HOME="$CFG/home"; mkdir -p "$FAKE_HOME"
+# The host carnet.sh stamps into the identity line. A ledger from another host names a pid that
+# means nothing here, so only one from this host can be judged to have ended.
+THIS_HOST=$(hostname -s 2>/dev/null || hostname)
 sweep_ledger="$CFG/carnet-claims/11111111-1111-1111-1111-111111111111.jsonl"
 mkdir -p "$(dirname "$sweep_ledger")"
 cat > "$sweep_ledger" <<LEDGER
-{"v":1,"session":"11111111-1111-1111-1111-111111111111","name":"Dead","user":"t","host":"h","pid":999999,"repo":"r","branch":"main","at":"2026-09-03T11:07:02Z","kind":"identity"}
+{"v":1,"session":"11111111-1111-1111-1111-111111111111","name":"Dead","user":"t","host":"$THIS_HOST","pid":999999,"repo":"r","branch":"main","at":"2026-09-03T11:07:02Z","kind":"identity"}
 {"kind":"claim","tracker":"Atmosphere/atmosphere-carnet","issue":236,"at":"2026-09-03T11:07:02Z"}
 LEDGER
 # A gh that cannot answer: the claim must still be REPORTED rather than silently dropped —
@@ -855,6 +858,57 @@ check "a claim still open is reported" 1 "$(printf '%s' "$sweep_out" | grep -c '
 check "another register's claim is neither reported" 0 "$(printf '%s' "$sweep_out" | grep -c 'acme/other-carnet')"
 check "…nor touched" 1 "$(grep -c '"tracker":"acme/other-carnet","issue":236' "$sweep_ledger")"
 rm -f "$sweep_ledger"
+
+# ---- a ledger belongs to its session, so the sweep rewrites or deletes one only when that session
+# has certainly ended. It is judged by its id, never by the pid its ledger recorded: carnet writes
+# that pid once, at the session's first carnet write, and `claude --resume` keeps the id under a new
+# pid. Claude Code keeps sessions/<pid>.json under its config dir — $CFG here, outside $FAKE_HOME,
+# as a CLAUDE_CONFIG_DIR set elsewhere is.
+mkdir -p "$CFG/sessions"
+led() { printf '%s' "$CFG/carnet-claims/$1.jsonl"; }
+identity_of() { # <session> <name> <host> <pid>
+    printf '{"v":1,"session":"%s","name":"%s","user":"t","host":"%s","pid":%s,"repo":"r","branch":"main","at":"2026-09-03T11:07:02Z","kind":"identity"}\n' "$1" "$2" "$3" "$4"
+}
+claim_of() { printf '{"kind":"claim","tracker":"Atmosphere/atmosphere-carnet","issue":%s,"at":"2026-09-03T11:07:02Z"}\n' "$1"; }
+sleep 60 >/dev/null 2>&1 & RESUMED_PID=$!
+sleep 60 >/dev/null 2>&1 & PEER_PID=$!
+sleep 60 >/dev/null 2>&1 & STRAY_PID=$!
+# Resumed: its ledger names a pid long gone; its session file names it under the new one. It holds
+# 236, which has since closed, and 237.
+RESUMED=22222222-2222-2222-2222-222222222222
+printf '{"pid":%s,"sessionId":"%s"}\n' "$RESUMED_PID" "$RESUMED" > "$CFG/sessions/$RESUMED_PID.json"
+{ identity_of "$RESUMED" Resumed "$THIS_HOST" 999999; claim_of 236; claim_of 237; } > "$(led "$RESUMED")"
+# Never resumed, holding nothing the sweep reports: an ended session's ledger would be deleted.
+PEER=33333333-3333-3333-3333-333333333333
+printf '{"pid":%s,"sessionId":"%s"}\n' "$PEER_PID" "$PEER" > "$CFG/sessions/$PEER_PID.json"
+{ identity_of "$PEER" QuietPeer "$THIS_HOST" "$PEER_PID"
+  printf '{"kind":"limitation","tracker":"Atmosphere/atmosphere-carnet","issue":2001,"at":"2026-09-03T11:07:02Z"}\n'; } > "$(led "$PEER")"
+# Two whose liveness this machine cannot establish: one written on another host, and one whose
+# recorded pid still runs with no session file to say whose it is.
+ELSEWHERE=44444444-4444-4444-4444-444444444444
+{ identity_of "$ELSEWHERE" Elsewhere another-host 999999; claim_of 236; claim_of 237; } > "$(led "$ELSEWHERE")"
+STRAY=55555555-5555-5555-5555-555555555555
+{ identity_of "$STRAY" Stray "$THIS_HOST" "$STRAY_PID"; claim_of 236; claim_of 237; } > "$(led "$STRAY")"
+for s in "$RESUMED" "$PEER" "$ELSEWHERE" "$STRAY"; do cp "$(led "$s")" "$CFG/$s.before"; done
+sweep_out=$( ( cd "$R" && HOME="$FAKE_HOME" CLAUDE_CONFIG_DIR="$CFG" PATH="$STUB:$PATH" bash "$BILAN" sweep 2>/dev/null ) )
+check "a resumed session, running under a new pid, is not reported" 0 \
+    "$(printf '%s' "$sweep_out" | grep -c 'Resumed')"
+check "…and its ledger is left byte for byte, though an issue it holds has closed" 0 \
+    "$(cmp -s "$CFG/$RESUMED.before" "$(led "$RESUMED")"; echo $?)"
+check "a running session's ledger with nothing to report is not deleted" 0 \
+    "$(cmp -s "$CFG/$PEER.before" "$(led "$PEER")"; echo $?)"
+check "a session on another host is reported as possibly running, never as ended" 1 \
+    "$(printf '%s' "$sweep_out" | grep -c 'Elsewhere .*may still be running — it ran on another-host.*holding: carnet#237$')"
+check "a recorded pid that still runs, with no session file, is not proof the session ended" 1 \
+    "$(printf '%s' "$sweep_out" | grep -c "Stray .*may still be running — its pid $STRAY_PID still runs.*holding: carnet#237\$")"
+check "…neither is told a plain claim takes it over" 0 \
+    "$(printf '%s' "$sweep_out" | grep -c 'plain claim takes over')"
+check "…nor has anything cleared from its ledger" 0 \
+    "$( { cmp -s "$CFG/$ELSEWHERE.before" "$(led "$ELSEWHERE")" && cmp -s "$CFG/$STRAY.before" "$(led "$STRAY")"; }; echo $?)"
+check "…and nothing is reported as cleared" 0 "$(printf '%s' "$sweep_out" | grep -c 'cleared from a dead session')"
+kill "$RESUMED_PID" "$PEER_PID" "$STRAY_PID" 2>/dev/null; wait "$RESUMED_PID" "$PEER_PID" "$STRAY_PID" 2>/dev/null
+for s in "$RESUMED" "$PEER" "$ELSEWHERE" "$STRAY"; do rm -f "$(led "$s")" "$CFG/$s.before"; done
+rm -rf "$CFG/sessions"
 
 # A worktree branch here has no upstream, so the sweep measures it against origin/main — a dead
 # agent's committed, never-landed work would otherwise be invisible to it. Quiet means no live

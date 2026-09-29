@@ -143,6 +143,14 @@ instead, across every worktree of this repo and every ledger on the machine. It 
 repo's register (another repo's sweep reports its own), and drops a dead session's claim once the
 tracker says the issue is closed, so a long-resolved issue does not keep reappearing as abandoned.
 
+A ledger belongs to its session, so the sweep rewrites or deletes one only when that session has
+certainly ended. A session is judged by its id, not by the pid its ledger recorded — carnet writes
+that pid once, and `claude --resume` keeps the id under a new one — from the session files Claude
+Code keeps under its config dir (`$CLAUDE_CONFIG_DIR` and every `~/.claude*`): a file naming the id
+with a live pid is a running session, and the sweep leaves it alone. When the sweep cannot tell —
+the ledger was written on another host, or its recorded pid still runs with no session file to say
+whose it is — it reports the claims as possibly still held, and clears nothing.
+
 **The Stop gate** (`hooks/stop-gate.sh`) — **disarmed, and deliberately not wired.** It would
 refuse a stop while the score was 8 or below. That is only as good as the number: a gate grading
 something the session did not do — a shared checkout's HEAD, a peer's red CI — blocks every

@@ -1276,13 +1276,57 @@ cmd_scope() {
 # The only thing that catches a session that died: a kill -9 fires no exit hook, so the dead
 # session can never report on itself. Reads every ledger on this machine and every worktree of
 # this repo, and names what a session that is no longer running left behind.
-is_session_alive() { # <session-id> <pid>
-    local f
-    for f in "$HOME"/.claude*/sessions/"$2".json; do
-        [ -f "$f" ] || continue
-        [ "$(jq -r '.sessionId // empty' "$f" 2>/dev/null)" = "$1" ] || continue
-        kill -0 "$2" 2>/dev/null && return 0
+#
+# A ledger belongs to its session, so the sweep rewrites or deletes one only when that session has
+# certainly ended — a running one may be appending to it that moment. Liveness is decided by
+# session id, never by the pid the ledger recorded: carnet writes that identity line once, at the
+# session's first carnet write, and `claude --resume` keeps the session id under a new pid. Claude
+# Code keeps sessions/<pid>.json under its config dir for every running session and removes it on
+# exit, so a file naming the id with a live pid is a running session, however often it resumed.
+# The config dir is $CFG as well as every $HOME/.claude*, as carnet's holder_alive has it; looking
+# only in the second called every live session dead when CLAUDE_CONFIG_DIR was elsewhere.
+live_session_ids() { # -> the id of every running session, one per line
+    local d f sid p seen=""
+    for d in "$CFG/sessions" "$HOME"/.claude*/sessions; do
+        [ -d "$d" ] || continue
+        d=$(cd "$d" 2>/dev/null && pwd -P) || continue
+        case " $seen " in *" $d "*) continue ;; esac
+        seen="$seen $d"
+        for f in "$d"/*.json; do
+            [ -f "$f" ] || continue
+            sid=$(jq -r '.sessionId // empty' "$f" 2>/dev/null)
+            [ -n "$sid" ] || continue
+            p=$(jq -r '.pid // empty' "$f" 2>/dev/null)
+            case $p in '' | *[!0-9]*) p=$(basename "$f" .json) ;; esac
+            case $p in '' | *[!0-9]*) continue ;; esac
+            kill -0 "$p" 2>/dev/null && printf '%s\n' "$sid"
+        done
     done
+    return 0
+}
+
+# 0 = running · 1 = ended · 2 = cannot be told from here, with the reason on stdout. Only 1 lets
+# the sweep touch the ledger; 2 is reported and left alone, because a session that might still be
+# running is its ledger's owner.
+session_state() { # <session-id> <ledger> <running ids> <this host>
+    local pid host
+    printf '%s\n' "$3" | grep -qxF "$1" && return 0
+    pid=$(head -1 "$2" | jq -r '.pid // empty' 2>/dev/null)
+    host=$(head -1 "$2" | jq -r '.host // empty' 2>/dev/null)
+    # carnet's rule too: a pid recorded on another host means nothing on this one.
+    if [ -n "$host" ] && [ "$host" != "$4" ]; then
+        printf 'it ran on %s, where this machine cannot look' "$host"
+        return 2
+    fi
+    case $pid in
+        '' | *[!0-9]*) printf 'its ledger names no pid'; return 2 ;;
+    esac
+    # The recorded process is still there, yet no session file names this session: a recycled
+    # pid, or a session file out of this sweep's reach. Neither proves the session ended.
+    if kill -0 "$pid" 2>/dev/null; then
+        printf 'its pid %s still runs, though no session file names it' "$pid"
+        return 2
+    fi
     return 1
 }
 
@@ -1309,9 +1353,14 @@ worktree_is_live() { # <path>
 }
 
 cmd_sweep() {
-    local dir f id pid name at issues found=0 busy=0 path="" branch="" dirty ahead what line row n t tmp healed="" seen=""
+    local dir f id name at issues found=0 busy=0 path="" branch="" dirty ahead what line row n t tmp healed="" seen=""
+    local live host state why
     say "BILAN SWEEP · $(basename "$REPO_ROOT")"
     say ""
+    # Once per sweep, not per ledger: which sessions are running, and the host they would run on
+    # — spelled the way carnet.sh spells it into the identity line.
+    live=$(live_session_ids)
+    host=$(hostname -s 2>/dev/null || hostname)
     # Both accounts' config dirs, plus this session's own if CLAUDE_CONFIG_DIR points somewhere
     # the glob does not reach — a session configured outside $HOME was invisible to its own
     # sweep. Deduped, since the common case is that $CFG is already one of the globbed dirs.
@@ -1323,8 +1372,8 @@ cmd_sweep() {
             [ -s "$f" ] || continue
             id=$(basename "$f" .jsonl)
             [ "$id" = "${SESSION_ID:-}" ] && continue
-            pid=$(head -1 "$f" | jq -r '.pid // 0')
-            is_session_alive "$id" "$pid" && continue
+            why=$(session_state "$id" "$f" "$live" "$host"); state=$?
+            [ "$state" = 0 ] && continue
             name=$(head -1 "$f" | jq -r '.name // "?"')
             at=$(head -1 "$f"   | jq -r '.at // "?"')
             # A dead session's ledger outlives the issue: once somebody closes it, every session
@@ -1343,6 +1392,9 @@ cmd_sweep() {
                 t=${row#*|}
                 [ -z "$TRACKER" ] || [ "$t" = "$TRACKER" ] || continue
                 if [ "$(tracker_state "$n" "$t")" = closed ]; then
+                    # A session that may still be running owns its ledger: a closed claim is left
+                    # in it, and only left out of the report.
+                    [ "$state" = 1 ] || continue
                     tmp=$(mktemp "${TMPDIR:-/tmp}/bilan-ledger.XXXXXX") || continue
                     jq -c --argjson n "$n" --arg t "$t" --arg d "$TRACKER" \
                         'select((.kind == "claim" and .issue == $n and ((.tracker // $d) == $t)) | not)' "$f" > "$tmp" \
@@ -1353,12 +1405,19 @@ cmd_sweep() {
                 fi
                 issues="$issues $(issue_label "$n" "$t")"
             done
-            # A ledger with nothing left to hold is finished, exactly as carnet's ledger_drop treats it.
-            [ "$(jq -c 'select(.kind == "claim" or .kind == "filed")' "$f" 2>/dev/null | grep -c .)" = 0 ] && rm -f "$f"
+            # A ledger with nothing left to hold is finished, exactly as carnet's ledger_drop treats
+            # it — and only an ended session's ledger is anyone else's to remove.
+            [ "$state" = 1 ] && [ "$(jq -c 'select(.kind == "claim" or .kind == "filed")' "$f" 2>/dev/null | grep -c .)" = 0 ] \
+                && rm -f "$f"
             [ -n "${issues// /}" ] || continue
             found=1
-            say "  ☠️  session $name (${id:0:8}, last claim $at) ended holding:${issues}"
-            say "     → carnet.sh status <n> to see it; a plain claim takes over a stale one"
+            if [ "$state" = 1 ]; then
+                say "  ☠️  session $name (${id:0:8}, last claim $at) ended holding:${issues}"
+                say "     → carnet.sh status <n> to see it; a plain claim takes over a stale one"
+            else
+                say "  ❓ session $name (${id:0:8}, last claim $at) may still be running — $why — holding:${issues}"
+                say "     → carnet.sh status <n> says whether it is; nothing was cleared from its ledger"
+            fi
         done
     done
 
