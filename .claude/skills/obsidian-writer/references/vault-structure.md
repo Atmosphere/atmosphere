@@ -5,7 +5,7 @@
 ```
 atmosphere-vault/
   Architecture/            System design, component diagrams
-    ADRs/                  Architecture Decision Records (ADR-NNN format)
+    ADRs/                  Architecture Decision Records (ADR-NNNN format)
   APIs/                    API endpoint docs, SDK references
   Development/             Developer guides, setup docs
     Runbooks/              Operational runbooks and on-call procedures

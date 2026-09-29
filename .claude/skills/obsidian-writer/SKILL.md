@@ -126,7 +126,7 @@ these commits; the timers' commits are `vault: auto-save`.
 
 **ADR** — required: `date`, `status`, `tags: [atmosphere, adr]`
 - Status values: `proposed` → `accepted` → `deprecated` / `superseded`
-- Filename convention: `ADR-NNN Short Title.md` (zero-padded number)
+- Filename convention: `ADR-NNNN Short Title.md` (zero-padded, four digits)
 
 **Runbook** — required: `date`, `severity`, `service`, `tags: [atmosphere, runbook, sre]`
 - Severity values: `P0` (critical), `P1` (high), `P2` (medium), `P3` (low)
@@ -192,7 +192,6 @@ obsidian append file="ADR-0042 Adopt Virtual Threads" \
   conflicting stash stays in `git stash list`), and retries a rejected push against the new
   tip. Never `git merge` origin into the vault or resolve a conflict in favour of local.
 - **Commit explicitly** after writing — `vault-sync.sh push` does it. obsidian-git
-  auto-commits every 10 minutes (or the launchd `vault-sync` agent does, on machines that
-  run it) under a generic `vault: auto-save` message; an explicit commit is attributable
-  and revertible.
+  auto-commits every 10 minutes under a generic `vault: auto-save` message; an explicit
+  commit is attributable and revertible.
 - See `references/vault-structure.md` for the full directory map and field reference.

@@ -112,9 +112,10 @@ Instruct the user to:
 3. Navigate to `$VAULT_DIR` and click **Open**
 4. When prompted "Trust and enable plugins?", click **Trust author and enable plugins**
 
-Run one 10-minute commit timer per machine. obsidian-git's is the default config; if the
-machine already runs a personal launchd sync agent for the vault (none ships in this repo or
-the vault), set obsidian-git's auto-commit and auto-push intervals to 0 there.
+The vault's commit timer is obsidian-git's, configured by Step 3 to commit and push every
+10 minutes. Run exactly one per machine: if the machine already runs another commit timer of
+its own for the vault (nothing in this repo or the vault ships one), set obsidian-git's
+auto-commit and auto-push intervals to 0 there.
 
 ### Step 6: Verify sync flow
 
@@ -143,4 +144,4 @@ rm "$PROJECT_DIR/claude_docs/test.md"
 - `ls -la $PROJECT_DIR/claude_docs` shows a symlink pointing to `$VAULT_DIR/Claude Outputs`
 - Obsidian opens the vault and shows all folders (Architecture, APIs, Methodology, Development)
 - `command -v obsidian` resolves to the app bundle
-- Exactly one commit timer runs: obsidian-git's, or a personal launchd agent with obsidian-git's intervals at 0
+- Exactly one commit timer commits into the vault on this machine (Step 5)
