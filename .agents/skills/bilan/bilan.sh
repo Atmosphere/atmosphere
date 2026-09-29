@@ -90,7 +90,10 @@ COMMON_DIR=$(cd "$REPO_ROOT" 2>/dev/null && cd "$(git rev-parse --git-common-dir
     || COMMON_DIR=$DOT_GIT
 BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo detached)
 HEAD_SHA=$(git rev-parse HEAD 2>/dev/null || echo "")
-UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || true)
+# Empty when there is none. A branch whose upstream was deleted makes this print the literal
+# `@{u}` and exit 128, and that output kept behind `|| true` read as an upstream: every range
+# built on it failed silently, and commits never landed anywhere scored as pushed.
+UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null) || UPSTREAM=""
 
 # The register this repo files into, resolved the way carnet.sh resolves it: registre.toml at
 # the checkout root, overridable by the environment. Empty is fine — every use is guarded, and a
@@ -557,12 +560,25 @@ check_stash() {
 # The reliable squash-merge tell: `git push origin --delete` is what clears the upstream, so a
 # local branch whose upstream is gone is one the cleanup half-finished. A squash rewrites the
 # sha, so `git branch --merged` cannot see it and is not used here.
+#
+# Read with for-each-ref, not `git branch -vv`, whose first column is a marker for two kinds of
+# branch: "* <name>" for this checkout's and "+ <name>" for one another worktree has checked out.
+# Taking that column as the name reported a peer's branch as "+" — every checkout capped over a
+# branch it cannot delete, with `git branch -D +` as the remedy — and this checkout's own as
+# nothing at all. A branch another worktree has checked out is that worktree's to clean up.
 check_branch_cleanup() {
     local gone
-    gone=$(git branch -vv 2>/dev/null | grep ': gone\]' | awk '{print $1}' | tr -d '*' | tr '\n' ' ')
+    gone=$(git for-each-ref --format='%(refname:lstrip=2)%09%(upstream:track)%09%(worktreepath)' refs/heads 2>/dev/null \
+           | awk -F'\t' -v me="$BRANCH" '$2 == "[gone]" && ($3 == "" || $1 == me) { print $1 }' | tr '\n' ' ')
     [ -n "${gone// /}" ] || return 0
-    cap 9 "⚠️" "local branch(es) whose upstream is deleted: ${gone% }" \
-          "git branch -D ${gone% }"
+    gone=${gone% }
+    case " $gone " in
+        *" $BRANCH "*)
+            cap 9 "⚠️" "local branch(es) whose upstream is deleted: $gone" \
+                  "this checkout is on $BRANCH, and git branch -D refuses a checked-out branch: switch it off $BRANCH (a linked worktree: git worktree remove it from the main checkout), then git branch -D $gone" ;;
+        *)
+            cap 9 "⚠️" "local branch(es) whose upstream is deleted: $gone" "git branch -D $gone" ;;
+    esac
 }
 
 # The marker is scripts/pre-push-validate.sh's, one line "<epoch> <sha>" in this checkout's own

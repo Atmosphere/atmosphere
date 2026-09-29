@@ -60,9 +60,9 @@ when it ages.
 | background task still running | **7** |
 | tracked files modified and uncommitted | **7** |
 | todo still `pending` or `in_progress` | **7** |
-| commits not pushed — to the upstream, or, on a branch without one, not on `origin/main` | **8** |
+| commits not pushed — to the upstream, or, on a branch without one (or whose upstream was deleted), not on `origin/main` | **8** |
 | nothing measurable — no commit, no todo | **9** |
-| untracked files, a stash made on this branch during this session, a local branch whose upstream is gone | **9** |
+| untracked files, a stash made on this branch during this session, a local branch whose upstream is gone — this checkout's own, or one no worktree has checked out | **9** |
 | commits to push but the validation marker is missing, older than the pre-push hook's TTL, or for another sha | **9** |
 | commits that look unpushed against a stale fetch (`--cheap` only) | **9** |
 | dev stack this session started still up — only in a checkout that ships `bin/dev-processes.sh`; this repo has none, so here it never fires | **9** |

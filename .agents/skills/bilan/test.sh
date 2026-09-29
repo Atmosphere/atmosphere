@@ -733,6 +733,28 @@ check "a branch whose upstream is gone caps at 9" 1 \
     "$(printf '%s' "$out" | jq '[.caps[] | select(.cap==9) | select(.evidence | test("upstream is deleted: gone-b"))] | length')"
 git -C "$R" branch -q -D gone-b
 
+# A branch another worktree has checked out is that worktree's to clean up. `git branch -vv` marks
+# it "+ <name>" and this checkout's own "* <name>", and reading its first column as the name
+# reported the one as "+" and the other not at all.
+PWT="$(dirname "$R")/peer-wt"
+git -C "$R" worktree add -q -b peer-gone "$PWT" 2>/dev/null
+git -C "$R" push -q -u origin peer-gone 2>/dev/null
+git -C "$R" push -q origin --delete peer-gone 2>/dev/null
+check "a branch another worktree has out, its upstream gone, is not this checkout's cap" 0 \
+    "$(run "$R" | jq '[.caps[] | select(.evidence | test("upstream is deleted"))] | length')"
+out=$(run "$PWT")
+check "…it is that worktree's, by name" 1 \
+    "$(printf '%s' "$out" | jq '[.caps[] | select(.cap==9) | select(.evidence | test("upstream is deleted: peer-gone$"))] | length')"
+check "…with a remedy that first takes the checkout off it" 1 \
+    "$(printf '%s' "$out" | jq '[.caps[] | select(.remedy | test("switch it off peer-gone"))] | length')"
+# A deleted upstream is no upstream: the branch's commits are measured against origin/main, never
+# read as pushed because a range built on a missing upstream came back empty.
+echo never-landed > "$PWT/n.txt" && git -C "$PWT" add n.txt && git -C "$PWT" commit -qm "never landed"
+git -C "$PWT" fetch -q origin
+check "a commit on a branch whose upstream is gone caps at 8, not read as pushed" 1 \
+    "$(run "$PWT" | jq '[.caps[] | select(.cap==8) | select(.evidence | test("not on origin/main"))] | length')"
+git -C "$R" worktree remove --force "$PWT" && git -C "$R" branch -q -D peer-gone
+
 # ---- background work is the one incompleteness that leaves no trace in git, the ledger or CI.
 # A session can report 10/10 with subagents still running, and closing it throws that work away.
 baseline_now "$R"
