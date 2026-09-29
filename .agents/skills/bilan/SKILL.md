@@ -106,13 +106,13 @@ Two mechanisms fix it, and the first needs nothing from you.
 
 **The baseline.** The SessionStart hook records which files were already dirty or untracked — every
 untracked file by name — and which commits were already unpushed, when the session opened. A path
-dirty before the session existed
-is definitionally not its work — that much *is* machine-decidable. Those are stated as a note and
-never scored. The hook records it once per session: SessionStart fires again on resume and after
-a compaction, and re-recording there would declare the session's own uncommitted work inherited.
-It describes the checkout the session opened in and no other: in a worktree the session reaches
-afterwards, nothing is inherited — a path dirty in the main checkout says nothing about the
-same-named file there, and a peer's pre-existing worktree is what `ack` is for.
+dirty before the session existed is definitionally not its work — that much *is* machine-decidable.
+Those are stated as a note and never scored. The hook records it once per session: SessionStart
+fires again on resume and after a compaction, and re-recording there would declare the session's
+own uncommitted work inherited. It describes the checkout the session opened in and no other: in a
+worktree the session reaches afterwards, nothing is inherited — a path dirty in the main checkout
+says nothing about the same-named file there, and a peer's pre-existing worktree is what `ack` is
+for.
 
 **`ack`, for what goes dirty afterwards.** A peer editing during your session is not covered by
 the baseline, so you say so once:
@@ -149,15 +149,6 @@ instead, across every worktree of this repo and every ledger on the machine. It 
 repo's register, and drops a dead session's claim once the tracker says the issue is closed, so a
 long-resolved issue does not keep reappearing as abandoned.
 
-The ledger directory is shared, and not every sweep that reads it keeps to its own register. This
-one asks each claim's own tracker and leaves another register's lines alone. The sweeps of
-dravr-platform and mirroir-mcp, as they stand, do not: each asks its own tracker about every claim
-number in a ledger whose session it takes for ended, whatever register the line names. A claim held
-here can then be reported there as that repo's own `carnet#n`, or be deleted — and the ledger with
-it, once nothing is left — because that repo's issue of the same number is closed, before this sweep
-ever sees it. The claim marker on the tracker is untouched: `carnet.sh status <n>` still shows who
-holds the issue and whether that session has ended.
-
 A ledger belongs to its session, so the sweep rewrites or deletes one only when that session has
 certainly ended. A session is judged by its id, not by the pid its ledger recorded — carnet writes
 that pid once, and `claude --resume` keeps the id under a new one — from the session files Claude
@@ -165,6 +156,15 @@ Code keeps under its config dir (`$CLAUDE_CONFIG_DIR` and every `~/.claude*`): a
 with a live pid is a running session, and the sweep leaves it alone. When the sweep cannot tell —
 the ledger was written on another host, or its recorded pid still runs with no session file to say
 whose it is — it reports the claims as possibly still held, and clears nothing.
+
+The ledger directory is shared, and not every sweep that reads it keeps to its own register. This
+one asks each claim's own tracker and leaves another register's lines alone. The sweeps of
+dravr-platform and mirroir-mcp, as they stand, do not: each asks its own tracker about every claim
+number in a ledger whose session it takes for ended, whatever register the line names. A claim held
+here can then be reported there as that repo's own `carnet#n`, or be deleted — and the ledger with
+it, once nothing is left — because that repo's issue of the same number is closed; if that sweep
+runs first, this one then finds nothing to report. The claim marker on the tracker is untouched:
+`carnet.sh status <n>` still shows who holds the issue and whether that session has ended.
 
 **The Stop gate** (`hooks/stop-gate.sh`) — **disarmed, and deliberately not wired.** It would
 refuse a stop while the score was 8 or below. That is only as good as the number: a gate grading
