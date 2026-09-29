@@ -313,13 +313,16 @@ cmd_baseline() { # [--if-missing]
     return 0
 }
 
-# The baseline describes the checkout the session opened in — its dirty paths, its unpushed
-# commits, its HEAD — and says nothing about any other. Applied elsewhere it was wrong in the worst
-# direction: a session that opened in the main checkout beside a peer's dirty pom.xml, then edited
-# pom.xml in a worktree it created, had its own edit read as inherited, for a false 10. So in any
-# other checkout nothing is inherited: one the session created holds nothing older than the
-# session, and a peer's pre-existing worktree is what `ack` is for. A baseline recorded before the
-# checkout was kept with it has no .checkout, and applies as it always did.
+# The baseline's paths and HEAD describe the checkout the session opened in, and say nothing about
+# any other. Applied elsewhere they were wrong in the worst direction: a session that opened in the
+# main checkout beside a peer's dirty pom.xml, then edited pom.xml in a worktree it created, had its
+# own edit read as inherited, for a false 10. So in any other checkout no path is inherited: one the
+# session created holds nothing older than the session, and a peer's pre-existing worktree is what
+# `ack` is for. That checkout's HEAD at the session's start comes from its own reflog instead (see
+# start_head_here). The unpushed commits are the exception, and apply everywhere: a sha names the
+# same commit in every checkout, so a peer's commit that was unpushed when the session opened is
+# still the peer's in a worktree made on top of it. A baseline recorded before the checkout was
+# kept with it has no .checkout, and applies as it always did.
 baseline_here() {
     local f c
     f=$(baseline_file) || return 1
@@ -338,11 +341,13 @@ not_mine() { # <paths>  -> prints the inherited subset
     printf '%s\n' "$1" | grep -Fxf "$f" 2>/dev/null || true
 }
 
+# Not checked against baseline_here: a sha is the same commit in every checkout. Checked there, a
+# worktree the session made from the shared checkout called the peer's inherited commit its own,
+# with `git push origin <branch>:main` — landing the peer's work — as the remedy.
 not_mine_commits() { # <shas> -> prints the inherited subset
     local f
     f=$(baseline_file) || return 0
     [ -s "${f}.commits" ] || return 0
-    baseline_here || return 0
     printf '%s\n' "$1" | grep -Fxf "${f}.commits" 2>/dev/null || true
 }
 
@@ -1053,6 +1058,28 @@ check_open_todos() {
           "finish them, or drop the ones you are not doing — an open todo is this session saying it is not done"
 }
 
+# This checkout's HEAD when the session opened, or nothing when that cannot be told. The baseline
+# recorded it for the checkout the session opened in. Any other checkout answers from its own HEAD
+# reflog: the value HEAD held at the session's start, or — for a checkout that came into being
+# after it, the session's own worktree — the commit it was made at. One case the baseline settles
+# anywhere: a HEAD equal to the one the session opened at holds no commit made since.
+start_head_here() {
+    local f h start
+    f=$(baseline_file) || return 0
+    h=$(cat "${f}.head" 2>/dev/null || true)
+    if [ -z "$h" ] || [ "$h" = "$HEAD_SHA" ] || baseline_here; then
+        printf '%s' "$h"
+        return 0
+    fi
+    start=$(session_started_epoch 2>/dev/null) || return 0
+    # Newest first: the first entry at or before the start is HEAD at the start, and when none is,
+    # the oldest entry is the checkout's first HEAD. awk stops at the answer, which cuts a walk of
+    # a long reflog short; the writers upstream of it then die of SIGPIPE, silently.
+    git log -g --date=unix --format='%gd %H' HEAD 2>/dev/null \
+        | sed -n 's/^[^{]*@{\([0-9][0-9]*\)} \([0-9a-f][0-9a-f]*\)$/\1 \2/p' 2>/dev/null \
+        | awk -v s="$start" '$1 <= s { print $2; found = 1; exit } { last = $2 } END { if (!found) printf "%s", last }'
+}
+
 # A score of 10 means "everything I checked is done". When nothing was checkable, 10 means
 # nothing at all — and that is how a session scored 10/10 with its artifact unwritten. bilan
 # reads the repo, the register and CI; a session whose work is research, a design, a document or
@@ -1067,14 +1094,17 @@ check_open_todos() {
 # the first prompt arrives, so this cap would otherwise read "this session made no commit" on a
 # session nobody had yet asked anything of. No ask, no verdict: the request is the thing the
 # verdict would be measured against.
+#
+# "No commit" is a question about this checkout's HEAD, so it is asked of this checkout's own start
+# (start_head_here). Compared with the baseline's HEAD, which is the start of the checkout the
+# session opened in, a worktree made at any other commit read as one that had committed, and
+# scored 10 with nothing done.
 check_measurable() {
-    local f start_head todos=0
+    local start_head todos=0
     [ -d "$CFG/tasks/$SESSION_ID" ] && \
         todos=$(command ls "$CFG/tasks/$SESSION_ID"/*.json 2>/dev/null | grep -c . )
     [ "${todos:-0}" -gt 0 ] && return 0                 # the session declared what it set out to do
-    f=$(baseline_file) || return 0
-    baseline_here || return 0                           # another checkout's HEAD says nothing of this one's
-    start_head=$(cat "${f}.head" 2>/dev/null || true)
+    start_head=$(start_head_here)
     [ -n "$start_head" ] || return 0                    # no baseline: cannot tell, do not claim
     [ "$start_head" = "$HEAD_SHA" ] || return 0         # it committed something: that is measurable
     [ -n "$(opening_ask)" ] || return 0                 # nothing asked yet: nothing to measure against

@@ -728,6 +728,16 @@ out=$(run "$R")
 check "a commit unpushed before the baseline does not cap" 0 "$(real_caps "$out")"
 check "the inherited commit is stated as a note" 1 \
     "$(printf '%s' "$out" | jq '[.notes[] | select(test("already unpushed"))] | length')"
+# A sha is the same commit in every checkout. A worktree the session makes here carries the peer's
+# commit, and landing that branch would land the peer's work — so it stays inherited there too.
+WT3="$(dirname "$R")/wt3"
+git -C "$R" worktree add -q -b wt3 "$WT3" 2>/dev/null
+git -C "$R" fetch -q origin             # a fresh fetch, so this cannot read as "may be on the remote"
+out=$(run "$WT3")
+check "a commit inherited where the session opened is still inherited in a worktree it made" 0 "$(real_caps "$out")"
+check "…where it is stated, not scored" 1 \
+    "$(printf '%s' "$out" | jq '[.notes[] | select(test("already unpushed"))] | length')"
+git -C "$R" worktree remove --force "$WT3" && git -C "$R" branch -q -D wt3
 git -C "$R" push -q origin HEAD:refs/heads/main
 rm -f "$CFG/bilan/"*.baseline*
 
@@ -836,6 +846,11 @@ rm -rf "$CFG/tasks"
 # and without this every session would open at "9/10 nothing measurable" for having done nothing
 # in its first second.
 rm -rf "$CFG/tasks"; rm -f "$CFG/bilan/"*.baseline*
+# A worktree that was already there when the session opened, holding earlier work, pushed.
+PRE="$(dirname "$R")/pre"
+git -C "$R" worktree add -q -b pre "$PRE" 2>/dev/null
+echo pre > "$PRE/p.txt" && git -C "$PRE" add p.txt && git -C "$PRE" commit -qm "earlier work"
+git -C "$PRE" push -q -u origin pre 2>/dev/null
 baseline_now "$R"
 out=$(run "$R")
 check "before anything is asked there is no verdict to withhold" 0 \
@@ -847,6 +862,35 @@ out=$(run "$R")
 check "once asked, no commit and no todo means unmeasured, not 10" 9 "$(printf '%s' "$out" | jq -r .score)"
 check "and it says why, within the width the status line has" 1 \
     "$(printf '%s' "$out" | jq '[.caps[] | select(.evidence | test("nothing measurable")) | select(.evidence | length <= 56)] | length')"
+# "No commit" is asked of the checkout bilan runs in, against where its own HEAD stood when the
+# session opened: a worktree that was already there answers from its reflog, and its earlier work is
+# not a commit of this session's.
+check "a worktree that already existed is judged from where its HEAD stood when the session opened" 9 \
+    "$(run "$PRE" | jq -r .score)"
+git -C "$R" worktree remove --force "$PRE" && git -C "$R" branch -q -D pre
+git -C "$R" push -q origin --delete pre 2>/dev/null
+# A worktree the session makes after opening starts at the commit it was made at — the session's own
+# start HEAD or any other — and neither is a commit of the session's. The session opened ten minutes
+# ago, so every worktree below is younger than it.
+python3 -c 'import os,sys,time; t=time.time()-600; os.utime(sys.argv[1],(t,t))' "$CFG/bilan/$SID.baseline"
+IDLE="$(dirname "$R")/idle"
+git -C "$R" worktree add -q -b idle "$IDLE" 2>/dev/null
+check "a worktree made at the session's start HEAD, with nothing done in it, is unmeasured too" 9 \
+    "$(run "$IDLE" | jq -r .score)"
+git -C "$R" worktree remove --force "$IDLE" && git -C "$R" branch -q -D idle
+# A HEAD still where the session opened holds no commit made since, in any checkout — even one whose
+# HEAD keeps no reflog to ask.
+NOLOG="$(dirname "$R")/nolog"
+git -C "$R" -c core.logAllRefUpdates=false worktree add -q -b nolog "$NOLOG" 2>/dev/null
+check "…and so is one whose HEAD keeps no reflog, still at the session's start HEAD" 9 "$(run "$NOLOG" | jq -r .score)"
+git -C "$R" worktree remove --force "$NOLOG" && git -C "$R" branch -q -D nolog
+AWAY="$(dirname "$R")/away"
+git -C "$R" worktree add -q -b away "$AWAY" HEAD~1 2>/dev/null
+check "…and so is one made at another commit, which is no commit of the session's" 9 "$(run "$AWAY" | jq -r .score)"
+echo away > "$AWAY/w.txt" && git -C "$AWAY" add w.txt && git -C "$AWAY" commit -qm "worktree work"
+check "a commit made in that worktree makes the session measurable" 0 \
+    "$(run "$AWAY" | jq '[.caps[] | select(.evidence | test("nothing measurable"))] | length')"
+git -C "$R" worktree remove --force "$AWAY" && git -C "$R" branch -q -D away
 mkdir -p "$CFG/tasks/$SID"
 printf '{"status":"completed","subject":"published the artifact"}\n' > "$CFG/tasks/$SID/1.json"
 check "a declared todo makes the session measurable" 0 \
