@@ -16,6 +16,7 @@
 package org.atmosphere.samples.springboot.chat;
 
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.wasync.Event;
 import org.atmosphere.wasync.Function;
@@ -50,24 +51,28 @@ class WAsyncChatIntegrationTest {
     private final ObjectMapper mapper = new ObjectMapper();
 
     /**
-     * Wait until the broadcaster at {@code path} reports at least {@code minSubscribers}
-     * suspended {@code AtmosphereResource}s. Long-polling clients appear in this set only
-     * while their current HTTP request is suspended — between polls they vanish. Firing
-     * a broadcast before the LP client re-enters suspend mode drops the message on
-     * runners where poll-reconnect latency is non-trivial (seen on GitHub Actions).
+     * Wait until the broadcaster at {@code path} holds a long-polling
+     * {@code AtmosphereResource}. A plain subscriber count is not enough: the
+     * broadcaster is shared by every test in this Spring context, so resources
+     * an earlier test left behind (still disconnecting) can satisfy the count
+     * before the long-polling receiver's first poll registers — the broadcast
+     * then precedes the receiver, and a resource that registers after a
+     * broadcast is correctly not replayed it. Only this test long-polls, so a
+     * {@code LONG_POLLING} resource is the receiver.
      */
-    private void awaitBroadcasterSubscribers(String path, int minSubscribers, long timeoutMillis)
+    private void awaitLongPollingSubscriber(String path, long timeoutMillis)
             throws InterruptedException {
         long deadline = System.currentTimeMillis() + timeoutMillis;
         while (System.currentTimeMillis() < deadline) {
             Optional<Broadcaster> b = framework.getBroadcasterFactory().findBroadcaster(path);
-            if (b.isPresent() && b.get().getAtmosphereResources().size() >= minSubscribers) {
+            if (b.isPresent() && b.get().getAtmosphereResources().stream()
+                    .anyMatch(r -> r.transport() == AtmosphereResource.TRANSPORT.LONG_POLLING)) {
                 return;
             }
             Thread.sleep(50);
         }
-        throw new AssertionError("Broadcaster " + path + " never reached " + minSubscribers
-                + " suspended subscribers within " + timeoutMillis + "ms");
+        throw new AssertionError("Broadcaster " + path + " never held a long-polling subscriber within "
+                + timeoutMillis + "ms");
     }
 
     @Test
@@ -228,14 +233,10 @@ class WAsyncChatIntegrationTest {
         assertThat(senderOpen.await(10, TimeUnit.SECONDS))
                 .as("Sender should connect").isTrue();
 
-        // Long-polling has a race between Event.OPEN (first poll request
-        // dispatched locally) and server-side AtmosphereResource registration
-        // in the broadcaster. Query the broadcaster directly until BOTH the LP
-        // receiver and the WS sender appear in the suspended-resources set.
-        // This is more reliable than firing on a retry loop because slow CI
-        // runners can leave the LP client between polls for 100s of ms, and
-        // broadcasts during that window are dropped with no cache to replay.
-        awaitBroadcasterSubscribers("/atmosphere/chat", 2, 15_000);
+        // Event.OPEN fires when the first poll is dispatched locally, before the
+        // server registers the resource. Fire only once the receiver itself is
+        // on the broadcaster; the sender's open WebSocket needs no such wait.
+        awaitLongPollingSubscriber("/atmosphere/chat", 15_000);
 
         senderSocket.fire(mapper.writeValueAsString(new Message("Charlie", "Hello via LP!")));
         assertThat(messageLatch.await(15, TimeUnit.SECONDS))
