@@ -375,10 +375,11 @@ export default defineConfig({
       name: 'history-cache',
       testMatch: /history-cache\.spec\.ts/,
     },
-    // ── Client resilience through the shipped sample frontends ──
-    // spring-boot-chat's React app (useOfflineQueue, useMessageHistory,
-    // useOptimistic, the derived presence chip) and spring-boot-ai-classroom's
-    // useStreaming retrofit. These five specs sat in no project until
+    // ── Client resilience through the bundled Atmosphere Console ──
+    // The Console that spring-boot-chat and spring-boot-ai-classroom serve:
+    // its offline queue and the (queued) mark, the sinceId re-join replay,
+    // and the presence chip, with the network cut for real through
+    // helpers/network-switch.ts. These five specs sat in no project until
     // 2026-09-30, so they ran nowhere.
     {
       name: 'offline-queue-browser',

@@ -3864,3 +3864,20 @@ e2e npm dependencies on Node 22 before the gate; pre-push installs them when mis
 a `@flaky` tag, the caller's INCLUDE_FLAKY/CI/SMOKE_ONLY not leaking, a spec that fails to
 load, an empty spec, a double-quoted and a helper-built project, and a string-glob testMatch
 (34 cases). Forcing the listing to INCLUDE_FLAKY=true fails the three @flaky cases.
+
+---
+
+## 2026-09-30 — Comments on the #54/#55 e2e rewrites described what the tests do not do
+
+**Session:** review of the carnet #54/#55 branch.
+
+**Claim 1:** `playwright.config.ts`, above the five resilience projects — they cover
+"spring-boot-chat's React app (useOfflineQueue, useMessageHistory, useOptimistic, the derived
+presence chip) and spring-boot-ai-classroom's useStreaming retrofit".
+**Truth:** that React app was removed in `341bf3bd3b` and the `room-math` page never
+existed; all five specs open `/atmosphere/console/` and drive the bundled Console (their own
+headers and the #54 entry above say so).
+**Slip path:** the comment was written from the specs' old headers before they were
+rewritten, and not re-read after.
+**Gate:** comment rewritten to name the Console features the specs drive; no automated gate
+(prose), the discipline is to write a project comment from the spec's current `goto`.
