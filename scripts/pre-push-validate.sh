@@ -201,7 +201,7 @@ ATMO_DOC_VERSION_REGEX='\.md$|^cli/samples\.json$|^scripts/validate-atmosphere-d
 # Every Playwright project must be run by a workflow or excluded with owner/expiry,
 # and every spec file picked up by such a project: re-check whenever the config,
 # a spec file, a workflow, the exclusion list or the gate changes.
-PW_PROJECT_COVERAGE_REGEX='^modules/integration-tests/playwright\.config\.ts$|^modules/integration-tests/e2e/.*\.spec\.ts$|^\.github/workflows/.*\.ya?ml$|^\.harness/playwright-project-exclusions\.txt$|^scripts/(validate|test)-playwright-project-coverage\.sh$|^scripts/lib/playwright_spec_projects\.mjs$'
+PW_PROJECT_COVERAGE_REGEX='^modules/integration-tests/playwright\.config\.ts$|^modules/integration-tests/e2e/.*\.spec\.ts$|^\.github/workflows/.*\.ya?ml$|^\.harness/playwright-project-exclusions\.txt$|^scripts/(validate|test)-playwright-project-coverage\.sh$|^scripts/lib/playwright_spec_projects\.mjs$|^modules/integration-tests/package(-lock)?\.json$'
 # Limitation register (llm-registre, vendored at .registre): bans deferral prose
 # that documents debt without registering it, and keeps feature-phases.yaml
 # parseable. Runs on any source the gates scan, plus its own config.
@@ -551,6 +551,15 @@ if [ "$DRY_RUN" = false ]; then
 
     if [ "$RUN_PW_PROJECT_COVERAGE" = true ]; then
         echo "Running Playwright project coverage validation."
+        # The gate lists the suite with Playwright itself (no browsers), so it
+        # needs the e2e module's npm dependencies — ci.yml installs them too.
+        if [ ! -d modules/integration-tests/node_modules/@playwright/test ]; then
+            echo "Installing modules/integration-tests npm dependencies for the gate."
+            if ! (cd modules/integration-tests && npm ci --no-audit --no-fund); then
+                echo "npm ci in modules/integration-tests failed — the Playwright coverage gate cannot run."
+                exit 1
+            fi
+        fi
         if ! ./scripts/validate-playwright-project-coverage.sh; then
             echo ""
             echo "A Playwright project runs in no workflow — add it to an e2e.yml matrix"

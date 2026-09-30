@@ -37,12 +37,20 @@
 #      reason), expired, names an unknown project or spec, or names a project
 #      or spec that a workflow already runs (a stale exclusion hides nothing
 #      but misleads);
-#   4. an e2e/**/*.spec.ts file is matched by no project that a workflow runs
-#      and is not excluded. Matching is Playwright's own — the config is
-#      evaluated by scripts/lib/playwright_spec_projects.mjs (node, no
-#      node_modules), so testMatch regex literals are run, not re-parsed. A
-#      spec matched only by an excluded project (the opt-in firefox/webkit
-#      ones) does not count as running.
+#   4. an e2e/**/*.spec.ts file has no test that a workflow-run project runs,
+#      and is not excluded. The answer is Playwright's own: the gate reads
+#      `playwright test --list` through scripts/lib/playwright_spec_projects.mjs,
+#      under the per-push e2e leg's environment (LLM_MODE=fake,
+#      INCLUDE_FLAKY=false), so testMatch/testIgnore AND grep/grepInvert —
+#      per project and top-level — are applied exactly as the leg applies
+#      them. A spec whose tests are all tagged @flaky, or that only a project
+#      with a non-matching grep picks up, runs nothing and fails here. A spec
+#      run only by an excluded project (the opt-in firefox/webkit ones) does
+#      not count as running.
+#
+# The declared project set is the one Playwright evaluates, not a text scrape
+# of the config: a double-quoted name or a project built by a helper is
+# declared all the same, and must run or be excluded.
 #
 # A workflow "references" a project through a `projects: "a,b"` matrix string
 # or a `--project=<name>` / `--project <name>` flag. YAML comment lines are
@@ -50,7 +58,8 @@
 #
 # Inputs are overridable for the self-test (scripts/test-playwright-project-coverage.sh):
 #   PW_CONFIG, WORKFLOWS_DIR, EXCLUSIONS, TODAY (YYYY-MM-DD). Spec files are read
-#   from the config's testDir, next to PW_CONFIG.
+#   from the config's testDir, next to PW_CONFIG, and @playwright/test must
+#   resolve from PW_CONFIG (`npm ci` in modules/integration-tests).
 #
 # Run from anywhere. Exits 0 when every project is covered, 1 otherwise.
 
@@ -69,24 +78,27 @@ for f in "$PW_CONFIG" "$EXCLUSIONS"; do
     [ -f "$f" ] || { echo "$ME: $f not found" >&2; exit 1; }
 done
 [ -d "$WORKFLOWS_DIR" ] || { echo "$ME: $WORKFLOWS_DIR not found" >&2; exit 1; }
-# Without node the spec check cannot run; refuse rather than skip it.
-command -v node > /dev/null 2>&1 || { echo "$ME: node not found — needed to evaluate $PW_CONFIG" >&2; exit 1; }
+# Without node (and the config's node_modules) nothing can be evaluated; refuse
+# rather than skip.
+command -v node > /dev/null 2>&1 || { echo "$ME: node not found — needed to list $PW_CONFIG" >&2; exit 1; }
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-# --- 1. Projects declared in the config -------------------------------------
-# Only `name:` keys after `projects: [` count, and // comments are dropped so a
-# commented-out project is not treated as declared.
-sed -E 's#^[[:space:]]*//.*$##' "$PW_CONFIG" \
-    | awk '/projects:[[:space:]]*\[/ { on = 1 } on' \
-    | { grep -oE "name:[[:space:]]*'[^']+'" || true; } \
-    | sed -E "s/name:[[:space:]]*'//; s/'$//" \
-    | sort -u > "$TMP/declared"
+# --- 1. Projects and spec files, as Playwright lists them --------------------
+# "project\t<name>" per declared project, "spec\t<path relative to testDir>\t
+# <project,...>" per spec file — the projects that run at least one of its tests.
+if ! node "$SPEC_MAPPER" "$PW_CONFIG" > "$TMP/listing" 2> "$TMP/listing.err"; then
+    echo "$ME: could not list $PW_CONFIG with Playwright:" >&2
+    sed 's/^/  /' "$TMP/listing.err" >&2
+    exit 1
+fi
+awk -F'\t' '$1 == "project" { print $2 }' "$TMP/listing" | sort -u > "$TMP/declared"
+awk -F'\t' -v OFS='\t' '$1 == "spec" { print $2, $3 }' "$TMP/listing" > "$TMP/specs"
 
 if [ ! -s "$TMP/declared" ]; then
     # An empty set would make every later check pass vacuously.
-    echo "$ME: no projects parsed from $PW_CONFIG — the parser no longer matches the config" >&2
+    echo "$ME: no projects listed from $PW_CONFIG — the mapper no longer matches the config" >&2
     exit 1
 fi
 
@@ -117,20 +129,14 @@ runs_in() {
 
 trim() { sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' <<<"$1"; }
 
-# --- 3. Spec files and the projects that pick them up -----------------------
-# "<spec path relative to testDir>\t<project,project,...>" per spec file.
-if ! node "$SPEC_MAPPER" "$PW_CONFIG" > "$TMP/specs" 2> "$TMP/specs.err"; then
-    echo "$ME: could not map spec files to projects:" >&2
-    sed 's/^/  /' "$TMP/specs.err" >&2
-    exit 1
-fi
+# --- 3. Spec files and the projects that run their tests --------------------
 cut -f1 "$TMP/specs" | sort -u > "$TMP/specs.names"
 if [ ! -s "$TMP/specs.names" ]; then
     echo "$ME: no spec files mapped from $PW_CONFIG — the mapper no longer matches the config" >&2
     exit 1
 fi
 
-# Projects (comma-separated) that a workflow runs AND that pick up spec $1.
+# Projects (comma-separated) that a workflow runs AND that run a test of spec $1.
 spec_runs_in() {
     awk -F'\t' -v s="$1" '$1 == s { print $2 }' "$TMP/specs" | tr ',' '\n' | sed '/^$/d' \
         | grep -xF -f "$TMP/referenced.names" | paste -sd, - || true
@@ -207,21 +213,21 @@ if [ -n "$unknown" ]; then
     fail=1
 fi
 
-# --- 7. Every spec file is picked up by a project a workflow runs -----------
+# --- 7. Every spec file runs a test in a project a workflow runs ------------
 spec_fail=0
 while read -r spec; do
     grep -qxF "$spec" "$TMP/excluded.specs" && continue
     [ -n "$(spec_runs_in "$spec")" ] && continue
     matched="$(awk -F'\t' -v s="$spec" '$1 == s { print $2 }' "$TMP/specs")"
     if [ -n "$matched" ]; then
-        echo "$ME: spec '$spec' is matched only by project(s) $matched, which no workflow runs" >&2
+        echo "$ME: spec '$spec' runs tests only in project(s) $matched, which no workflow runs" >&2
     else
-        echo "$ME: spec '$spec' is matched by no project in ${PW_CONFIG#"$ROOT"/} — it runs nowhere" >&2
+        echo "$ME: spec '$spec' runs no test in any project of ${PW_CONFIG#"$ROOT"/} — no testMatch picks it up, or grep/grepInvert (under INCLUDE_FLAKY=false) filter out every test it has" >&2
     fi
     spec_fail=1
 done < "$TMP/specs.names"
 if [ "$spec_fail" -ne 0 ]; then
-    echo "$ME: give each such spec a project in a workflow leg, or record why it cannot run in CI (owner, expiry, issue, reason)." >&2
+    echo "$ME: give each such spec a project in a workflow leg with a test that survives its filters, or record why it cannot run in CI (owner, expiry, issue, reason)." >&2
     fail=1
 fi
 

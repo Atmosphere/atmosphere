@@ -40,14 +40,28 @@ jobs:
     - name: Run Architectural Validation
       run: ./scripts/architectural-validation.sh
 
+    # The Playwright coverage gate lists the suite with Playwright itself
+    # (`playwright test --list`, no browsers), so it needs the e2e module's
+    # npm dependencies on the same Node the e2e legs use.
+    - name: Set up Node.js
+      uses: actions/setup-node@v7
+      with:
+        node-version: 22
+        cache: 'npm'
+        cache-dependency-path: modules/integration-tests/package-lock.json
+
+    - name: Install e2e npm dependencies
+      working-directory: modules/integration-tests
+      run: npm ci
+
     # Every project in modules/integration-tests/playwright.config.ts must be
     # selected by a workflow or excluded with owner/expiry/issue in
     # .harness/playwright-project-exclusions.txt. Nine projects once sat in no
     # matrix leg, and three of them were dead without anyone noticing. Every
-    # e2e spec file must also be picked up by a project a workflow runs (five
-    # matched no project at all); the config is evaluated with node, which the
-    # runner image ships. Runs on every push (not path-filtered) so an
-    # exclusion's expiry bites on time.
+    # e2e spec file must also run a test in a project a workflow runs, under
+    # the per-push leg's grep/grepInvert (five matched no project at all).
+    # Runs on every push (not path-filtered) so an exclusion's expiry bites
+    # on time.
     - name: Verify every Playwright project runs in a workflow
       run: ./scripts/validate-playwright-project-coverage.sh
 

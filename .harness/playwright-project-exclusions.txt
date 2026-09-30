@@ -8,8 +8,9 @@
 # that way until 2026-09-30, and three were dead (no-op onStateChange handlers,
 # every test timing out with zero frames) without anyone noticing.
 #
-# Every spec file under modules/integration-tests/e2e must likewise be matched
-# (by the config's evaluated testMatch) by at least one project a workflow runs,
+# Every spec file under modules/integration-tests/e2e must likewise have a test
+# that at least one workflow-run project runs — per `playwright test --list`
+# under the per-push leg's env, so testMatch and grep/grepInvert both apply —
 # OR be listed here by its path relative to e2e/ (e.g. `real-llm/foo.spec.ts`).
 # Five specs matched no project at all until 2026-09-30, so they ran nowhere.
 #

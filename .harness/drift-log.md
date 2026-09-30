@@ -3831,3 +3831,36 @@ quarkus-ai-chat test now drives the Console with WebSocket removed, asserts ever
 request is long-polling, and compares the reply's frame kinds to a WebSocket reference;
 it is keyless, so the scheduled quarantine lane runs it — and fails there until the
 multi-frame loss is fixed (quarantine reason and issue updated to carnet#55).
+
+---
+
+## 2026-09-30 — The spec-coverage gate's mapper ignored grep, so "identical to --list" was false
+
+**Session:** review of carnet #54's spec-coverage gate.
+
+**Claim:** the #54 entry above and the mapper's header —
+`scripts/lib/playwright_spec_projects.mjs` evaluates the config, "output identical to
+`playwright test --list` on all 115 files", so a spec it maps to a workflow-run project runs.
+**Truth:** identical only while no `grep`/`grepInvert` is in effect. The mapper applied
+testMatch/testIgnore and nothing else: a project `{ testMatch: /\/zzz-orphan\.spec\.ts/,
+grep: /@never-matches/ }` in a matrix group passed the gate while `--list` showed 0 tests,
+and a spec whose tests are all tagged `@flaky` passed although every per-push e2e leg sets
+`INCLUDE_FLAKY=false`, which the config turns into a top-level `grepInvert: /@flaky/`. It
+also evaluated the config under the caller's env, not the leg's. The gate's declared-project
+check still scraped single-quoted `name:` literals, so a double-quoted or helper-built project
+no workflow ran passed; and the TypeScript was stripped only on Node ≥ 22.13, while the ci.yml
+job running it pinned no Node.
+
+**Slip path:** a re-implementation of the runner's file selection was checked against the
+runner on the one configuration at hand (no grep set in the shell), and the equivalence was
+written down as general.
+
+**Gate:** the mapper no longer re-implements anything: it runs `playwright test --list
+--reporter=json` under the per-push leg's env (LLM_MODE=fake, INCLUDE_FLAKY=false; CI and
+SMOKE_ONLY unset) and reports, per spec, the projects that run at least one of its tests, and
+the evaluated project set, which the gate now uses as the declared list. ci.yml installs the
+e2e npm dependencies on Node 22 before the gate; pre-push installs them when missing.
+`test-playwright-project-coverage.sh` gains per-project grep and grepInvert, a `@flaky` title,
+a `@flaky` tag, the caller's INCLUDE_FLAKY/CI/SMOKE_ONLY not leaking, a spec that fails to
+load, an empty spec, a double-quoted and a helper-built project, and a string-glob testMatch
+(34 cases). Forcing the listing to INCLUDE_FLAKY=true fails the three @flaky cases.
