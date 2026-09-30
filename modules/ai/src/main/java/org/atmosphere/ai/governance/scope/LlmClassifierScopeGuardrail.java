@@ -15,24 +15,27 @@
  */
 package org.atmosphere.ai.governance.scope;
 
-import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AgentRuntime;
-import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.annotation.AgentScope;
+import org.atmosphere.ai.decision.Answer;
+import org.atmosphere.ai.decision.DecisionModel;
+import org.atmosphere.ai.decision.DecisionModelResolver;
+import org.atmosphere.ai.decision.DecisionRequest;
+import org.atmosphere.ai.decision.NoulGate;
+import org.atmosphere.ai.decision.Question;
+import org.atmosphere.ai.decision.RuntimeDecisionModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 
 /**
  * Opt-in scope classifier for high-stakes scopes where false-negatives cost
- * more than latency (medical / financial / legal-adjacent endpoints). Sends
- * a short yes/no classification prompt to the resolved {@link AgentRuntime}
- * and classifies based on the first token of the response.
+ * more than latency (medical / financial / legal-adjacent endpoints). Asks a
+ * {@link DecisionModel} one boolean question per request — "is this request
+ * off-topic for the declared purpose, or does it touch a forbidden topic?" —
+ * and maps the typed answer through a {@link NoulGate}.
  *
  * <p>~100–500 ms latency typical (one LLM round-trip per request). Most
  * accurate of the three tiers; the correct default only when latency is
@@ -40,43 +43,91 @@ import java.util.Map;
  * {@link AgentScope.Tier#EMBEDDING_SIMILARITY} and operators opt in here
  * via {@code @AgentScope(tier = LLM_CLASSIFIER)}.</p>
  *
- * <h2>Prompt shape</h2>
- * The classifier uses a zero-shot yes/no prompt — no few-shot examples,
- * no chain-of-thought. Any serious refusal-tuned model can answer this
- * reliably; adding examples would bias the classifier and make
- * threshold-free operation fragile.
+ * <p>The model is a {@link RuntimeDecisionModel} over the given
+ * {@link AgentRuntime}, or whatever {@link DecisionModelResolver} resolves. On
+ * the Built-in runtime's chat-completions path, where the endpoint passes its
+ * logprobs gate, the answer carries the model's measured distribution over
+ * {@code true}/{@code false}; elsewhere it carries the model's self-reported
+ * confidence. Either way the same thresholds apply (see {@link NoulGate}).</p>
  *
- * <h2>Failure handling</h2>
- * Timeout / runtime error → {@link ScopeGuardrail.Decision#error} (fail-closed
- * at the {@link ScopePolicy} layer). Unparseable response (neither "yes"
- * nor "no" as the first word) → IN_SCOPE with a DEBUG log — the default
- * posture is to trust the embedding-similarity tier below us rather than
- * over-reject on an LLM quirk. Operators who need stricter behaviour layer
- * a {@code DENY} breach on top of the rule-based tier.
+ * <h2>Mapping</h2>
+ * <ul>
+ *   <li>{@code P(off-topic) >= outOfScopeAt} (default 0.5) →
+ *       {@link ScopeGuardrail.Outcome#OUT_OF_SCOPE}.</li>
+ *   <li>The model answered {@code false} and {@code P(off-topic) < inScopeBelow}
+ *       (default 0.2) → {@link ScopeGuardrail.Outcome#IN_SCOPE}.</li>
+ *   <li>Everything else is <em>uncertain</em>: the band between the thresholds,
+ *       a {@code false} answer with no confidence, a {@code true} answer the
+ *       belief disagrees with, a timeout, no capacity, a runtime error, an empty,
+ *       unparseable or out-of-set reply, a request longer than
+ *       {@link DecisionRequest#MAX_STATE_CHARS} characters, and no decision model
+ *       at all (only the demo runtime installed).</li>
+ * </ul>
+ *
+ * <h2>Failure handling — fail-closed by default</h2>
+ * An uncertain verdict is {@link ScopeGuardrail.Decision#error}, which
+ * {@link ScopePolicy} denies at pre-admission (Correctness Invariant #6). The
+ * explicit, non-default opt-out is {@code failOpen}: the constructors that do
+ * not take it read the {@value #FAIL_OPEN_PROPERTY} system property (the
+ * ServiceLoader-registered instance is built that way), and an uncertain
+ * verdict then admits the request with a WARN log.
  */
 public final class LlmClassifierScopeGuardrail implements ScopeGuardrail {
 
     private static final Logger logger = LoggerFactory.getLogger(LlmClassifierScopeGuardrail.class);
 
     /** Default per-call timeout; tuned for a small-model classifier. */
-    public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(5);
+    public static final Duration DEFAULT_TIMEOUT = DecisionRequest.DEFAULT_TIMEOUT;
 
-    private final AgentRuntime runtime;
+    /**
+     * System property that, when {@code true}, makes an uncertain verdict admit
+     * the request instead of failing closed. Read by the constructors that do
+     * not take a {@code failOpen} argument. Default {@code false}.
+     */
+    public static final String FAIL_OPEN_PROPERTY = "org.atmosphere.ai.scope.llm-classifier.fail-open";
+
+    /** Question id used in the decision request. */
+    static final String QUESTION_ID = "off_topic";
+
+    private final DecisionModel model;
     private final Duration timeout;
+    private final NoulGate gate;
+    private final boolean failOpen;
 
-    /** Default constructor — resolves the highest-priority available {@link AgentRuntime}. */
+    /** Resolves the decision model through {@link DecisionModelResolver} on each call. */
     public LlmClassifierScopeGuardrail() {
-        this(null, DEFAULT_TIMEOUT);
+        this((AgentRuntime) null, DEFAULT_TIMEOUT);
     }
 
-    /** Explicit-runtime constructor — for tests and bare-JVM wiring. */
+    /** Over {@code runtime} ({@code null} resolves through {@link DecisionModelResolver}). */
     public LlmClassifierScopeGuardrail(AgentRuntime runtime) {
         this(runtime, DEFAULT_TIMEOUT);
     }
 
+    /** Over {@code runtime} ({@code null} resolves through {@link DecisionModelResolver}). */
     public LlmClassifierScopeGuardrail(AgentRuntime runtime, Duration timeout) {
-        this.runtime = runtime;
+        this(runtime != null ? new RuntimeDecisionModel(runtime) : null, timeout, NoulGate.DEFAULTS,
+                Boolean.getBoolean(FAIL_OPEN_PROPERTY));
+    }
+
+    /**
+     * @param model    the decision model; {@code null} resolves through
+     *                 {@link DecisionModelResolver} on each call
+     * @param timeout  bound per request ({@code null} means {@link #DEFAULT_TIMEOUT})
+     * @param gate     the thresholds on {@code P(off-topic)} ({@code null} means
+     *                 {@link NoulGate#DEFAULTS})
+     * @param failOpen {@code true} admits a request whose verdict is uncertain;
+     *                 {@code false} (the default everywhere else) fails closed
+     */
+    public LlmClassifierScopeGuardrail(DecisionModel model, Duration timeout, NoulGate gate, boolean failOpen) {
+        this.model = model;
         this.timeout = timeout == null ? DEFAULT_TIMEOUT : timeout;
+        this.gate = gate == null ? NoulGate.DEFAULTS : gate;
+        this.failOpen = failOpen;
+        if (failOpen) {
+            logger.warn("LlmClassifierScopeGuardrail is fail-open: an uncertain, failed or timed-out "
+                    + "scope verdict admits the request");
+        }
     }
 
     @Override
@@ -92,95 +143,58 @@ public final class LlmClassifierScopeGuardrail implements ScopeGuardrail {
         if (request == null || request.message() == null || request.message().isBlank()) {
             return Decision.inScope(Double.NaN);
         }
-
-        var effectiveRuntime = runtime != null ? runtime : AgentRuntimeResolver.resolve();
-        if (effectiveRuntime == null) {
-            logger.warn("No AgentRuntime available — LlmClassifierScopeGuardrail admits all requests. "
-                    + "Install a runtime module or switch the tier to RULE_BASED / EMBEDDING_SIMILARITY.");
-            return Decision.inScope(Double.NaN);
+        var effective = model != null ? model : DecisionModelResolver.resolve().orElse(null);
+        if (effective == null) {
+            logger.warn("No DecisionModel can answer (only the demo runtime is available); "
+                    + "the LLM scope classifier cannot clear the request");
+            return uncertain("no decision model available");
         }
-
-        var classification = buildClassificationContext(config, request.message());
-        String response;
+        var length = request.message().length();
+        if (length > DecisionRequest.MAX_STATE_CHARS) {
+            return uncertain("request of " + length + " chars exceeds the "
+                    + DecisionRequest.MAX_STATE_CHARS + "-char decision state bound");
+        }
+        Answer answer;
         try {
-            response = effectiveRuntime.generate(classification, timeout);
+            var result = effective.decide(DecisionRequest.of(request.message(), QUESTION_ID, question(config))
+                    .withTimeout(timeout));
+            answer = result.answers().get(QUESTION_ID);
         } catch (RuntimeException e) {
-            logger.error("LLM classifier call failed ({}): {}", effectiveRuntime.name(), e.getMessage());
-            return Decision.error("classifier runtime error: " + e.getMessage());
+            logger.error("LLM scope classifier call failed ({}): {}", effective.name(), e.toString());
+            return uncertain("error: " + e.getMessage());
         }
-
-        if (response == null || response.isBlank()) {
-            logger.warn("LLM classifier returned empty response — admitting by default");
-            return Decision.inScope(Double.NaN);
-        }
-
-        var verdict = parseFirstWord(response);
-        return switch (verdict) {
-            case YES -> Decision.inScope(Double.NaN);
-            case NO -> Decision.outOfScope(
-                    "LLM classifier rejected as off-topic (response: "
-                            + truncate(response.trim()) + ")",
-                    Double.NaN);
-            case AMBIGUOUS -> {
-                logger.debug("LLM classifier returned ambiguous response: {} — admitting",
-                        truncate(response));
-                yield Decision.inScope(Double.NaN);
-            }
+        var verdict = gate.judge(answer, "off-topic");
+        return switch (verdict.outcome()) {
+            case FLAGGED -> Decision.outOfScope(
+                    "LLM classifier rejected as off-topic: " + verdict.reason(), Double.NaN);
+            case CLEAR -> Decision.inScope(Double.NaN);
+            case UNCERTAIN -> uncertain(verdict.reason());
         };
     }
 
-    private static AgentExecutionContext buildClassificationContext(ScopeConfig config,
-                                                                     String userMessage) {
-        var systemPrompt = buildSystemPrompt(config);
-        var message = "REQUEST:\n" + userMessage;
-        return new AgentExecutionContext(
-                message, systemPrompt, null,
-                null, "scope-classifier", null, "scope-classifier",
-                List.of(), null, null,
-                List.of(), Map.of(), List.of(),
-                String.class, null);
+    private Decision uncertain(String reason) {
+        if (failOpen) {
+            logger.warn("LLM scope classifier uncertain ({}) — admitting (fail-open mode)", reason);
+            return new Decision(Outcome.IN_SCOPE, "fail-open: LLM scope classifier " + reason, Double.NaN);
+        }
+        return Decision.error("LLM scope classifier " + reason);
     }
 
-    private static String buildSystemPrompt(ScopeConfig config) {
+    /** The boolean question for {@code config}; {@code true} means off-topic. */
+    static Question.Noul question(ScopeConfig config) {
         var sb = new StringBuilder();
-        sb.append("You are a binary scope classifier. Respond with EXACTLY one word: "
-                + "YES or NO.\n\n");
-        sb.append("The endpoint's declared purpose is:\n  ").append(config.purpose()).append("\n\n");
+        sb.append("You are a scope classifier for an AI assistant endpoint. Decide whether the "
+                + "user's REQUEST (the STATE) falls outside the endpoint's declared purpose or "
+                + "touches a forbidden topic.\n\n");
+        sb.append("The endpoint's declared purpose is:\n  ").append(config.purpose()).append('\n');
         if (!config.forbiddenTopics().isEmpty()) {
-            sb.append("Topics that MUST be classified as NO even when the purpose could admit them:\n");
+            sb.append("\nTopics that are off-topic even when the purpose could admit them:\n");
             for (var topic : config.forbiddenTopics()) {
                 sb.append("  - ").append(topic).append('\n');
             }
-            sb.append('\n');
         }
-        sb.append("Answer YES if the user's REQUEST falls within the declared purpose and "
-                + "does not touch any forbidden topic.\n");
-        sb.append("Answer NO if the request is off-topic or touches any forbidden topic.\n");
-        sb.append("Respond with a single word: YES or NO.\n");
-        sb.append("Do not explain, do not apologize, do not elaborate.");
-        return sb.toString();
+        return new Question.Noul(sb.toString(),
+                "the request is off-topic for the declared purpose, or touches any forbidden topic",
+                "the request falls within the declared purpose and touches no forbidden topic");
     }
-
-    /** Classify the first word of the response. */
-    static Verdict parseFirstWord(String response) {
-        if (response == null) return Verdict.AMBIGUOUS;
-        var trimmed = response.trim();
-        if (trimmed.isEmpty()) return Verdict.AMBIGUOUS;
-        // Strip markdown emphasis / punctuation surrounding the first word.
-        // e.g. "**YES**", "YES.", "Yes!", "*no*"
-        var cleaned = trimmed.toLowerCase(Locale.ROOT).replaceAll("^[^a-z]+", "");
-        if (cleaned.startsWith("yes")) return Verdict.YES;
-        if (cleaned.startsWith("no") && !cleaned.startsWith("not")) {
-            return Verdict.NO;
-        }
-        return Verdict.AMBIGUOUS;
-    }
-
-    private static String truncate(String s) {
-        if (s == null) return "";
-        var t = s.length() > 120 ? s.substring(0, 120) + "…" : s;
-        return t.replace("\n", " ").replace("\r", " ");
-    }
-
-    enum Verdict { YES, NO, AMBIGUOUS }
 }

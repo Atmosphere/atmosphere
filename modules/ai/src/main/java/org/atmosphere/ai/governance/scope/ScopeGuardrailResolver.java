@@ -64,9 +64,10 @@ public final class ScopeGuardrailResolver {
             }
         }
         // Built-in fallback chain. SEMANTIC_INTENT and EMBEDDING_SIMILARITY
-        // both use EmbeddingRuntime under the hood; LLM_CLASSIFIER resolves
-        // its own AgentRuntime. All three degrade to rule-based when the
-        // required runtime is absent (impl itself logs a warning).
+        // both use EmbeddingRuntime under the hood and degrade to rule-based
+        // when it is absent (impl itself logs a warning). LLM_CLASSIFIER
+        // resolves a DecisionModel and, when none can answer, reports ERROR,
+        // which ScopePolicy denies (fail-closed).
         return switch (requested) {
             case RULE_BASED -> new RuleBasedScopeGuardrail();
             case EMBEDDING_SIMILARITY -> new EmbeddingScopeGuardrail();
