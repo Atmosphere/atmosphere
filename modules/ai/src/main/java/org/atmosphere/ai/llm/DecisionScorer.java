@@ -21,7 +21,9 @@ import org.atmosphere.ai.TokenLogprob;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,53 +32,65 @@ import java.util.Optional;
 /**
  * Builds the model's probability distribution over a {@link DecisionField}'s
  * allowed values from the {@code top_logprobs} at the tokens that carry the
- * field's value, and turns it into a
+ * choice of the field's value, and turns it into a
  * {@link AiConfidence.Source#DECISION_LOGPROBS} confidence.
  *
  * <h2>Algorithm</h2>
  * <ol>
- *   <li>Concatenate the round's sampled tokens and locate the value of the
- *       top-level property {@code field} in the JSON text (a small
- *       string/depth-aware scan; the first top-level occurrence wins). For an
- *       enum the value starts after the opening quote.</li>
- *   <li>Walk the sampled path from the token that contains the value start.
- *       At each position every top alternative is matched against the allowed
- *       values: an alternative consistent with exactly one value adds its
- *       probability (times the probability of the sampled prefix so far) to
- *       that value; one consistent with none — a formatting or off-schema
- *       token — is dropped. The sampled token narrows the candidate set and
- *       the walk continues while more than one value is still possible.</li>
- *   <li>Renormalise over the attributed mass. The pre-normalisation total is
- *       reported as {@link DecisionDistribution#observedMass()}.</li>
+ *   <li>Concatenate the round's sampled tokens and locate the top-level
+ *       property {@code field} in the JSON text (a small string/depth-aware
+ *       scan; the first top-level occurrence wins): the key's closing quote
+ *       and the start of its value.</li>
+ *   <li>Walk the sampled path from the token that contains the key's closing
+ *       quote. The value can be chosen before its first character — a token
+ *       {@code " \""} whose rival is {@code " \"REJECT"}, or a rival that
+ *       spells the separator differently — so every alternative is read as a
+ *       replacement for its whole position: the fixed text before it, then
+ *       the alternative, parsed past optional whitespace, the colon and (for
+ *       an enum) the opening quote. An alternative consistent with exactly one
+ *       value adds its probability (times the probability of the sampled
+ *       prefix so far) to that value. One consistent with several values — a
+ *       separator variant that has not reached the value yet, or a multi-token
+ *       prefix such as {@code "C"} for {@code CONFIRM} and {@code CANCEL} —
+ *       is <em>ambiguous</em> over that set, because how it would have
+ *       continued was never observed. The rest of the position's
+ *       probability — alternatives outside the requested {@code top_logprobs},
+ *       off-schema or diverging tokens — is <em>unobserved</em> and ambiguous
+ *       over every value still possible. The sampled token narrows the
+ *       candidate set and the walk continues while more than one value is
+ *       still possible.</li>
+ *   <li>Assign the ambiguous and unobserved mass to the values least
+ *       favourably for confidence: the allocation that minimises the largest
+ *       value's probability, computed exactly
+ *       ({@link #leastConcentrated}). The resulting distribution sums to
+ *       {@code 1} without renormalising, and its
+ *       {@link DecisionDistribution#normalizedMargin()} is the lowest
+ *       concentration consistent with what the provider returned — a lower
+ *       bound, so evidence the scorer could not attribute can only move the
+ *       route toward escalation. {@link DecisionDistribution#observedMass()}
+ *       reports the share that was attributed from listed alternatives.</li>
  * </ol>
  *
- * <h2>Approximations (stated, not hidden)</h2>
- * <ul>
- *   <li><b>Multi-token values.</b> Providers return alternatives only along
- *       the sampled path. A non-sampled alternative that is still a prefix of
- *       several allowed values (e.g. {@code "C"} for {@code CONFIRM} and
- *       {@code CANCEL}, when the model actually sampled {@code "ESC"}) has its
- *       probability split evenly among them, because how it would have
- *       continued was never observed. Even splitting can only lower the
- *       concentration, so the error runs toward escalation, never toward
- *       false confidence.</li>
- *   <li><b>Truncated alternatives.</b> Mass outside the requested
- *       {@code top_logprobs} is unobserved; values never offered score
- *       {@code 0} and the distribution is renormalised over what was
- *       observed.</li>
- * </ul>
- *
- * <p>Scoring declines (empty result — the caller stays silent and the
- * model-reported field applies) when the field is absent from the output, the
- * sampled value is not an allowed value, any token on the walked path carries
- * no {@code top_logprobs}, or no mass could be attributed.</p>
+ * <p>A position before the value (the key's closing quote, the colon, the
+ * opening quote) that carries no {@code top_logprobs} contributes its
+ * non-sampled probability as unobserved mass. Scoring declines (empty result
+ * — the caller stays silent and the model-reported field applies) when the
+ * field is absent from the output, the sampled value is not an allowed value,
+ * a token that carries part of the value has no {@code top_logprobs}, or no
+ * mass could be observed.</p>
  */
 final class DecisionScorer {
 
     private static final Logger logger = LoggerFactory.getLogger(DecisionScorer.class);
 
-    /** Bound on tokens walked for one value — no allowed value needs more. */
+    /** Bound on tokens walked for one decision, from the key's closing quote. */
     static final int MAX_DECISION_TOKENS = 16;
+
+    /** Slack on the flow capacities, absorbing floating-point rounding. */
+    private static final double FLOW_EPS = 1e-12;
+
+    /** Re-levelling passes over the ambiguous sets after the flow. */
+    private static final int BALANCE_SWEEPS = 32;
 
     private DecisionScorer() {
     }
@@ -94,43 +108,54 @@ final class DecisionScorer {
             starts[i] = text.length();
             text.append(entries.get(i).sampled().token());
         }
-        var valueStart = locateValue(text, field.name(), field.quoted());
-        if (valueStart < 0) {
+        var location = locate(text, field.name(), field.quoted());
+        if (location == null) {
             return decline(field, "the field is absent from the response JSON");
         }
+        var keyEnd = location[0];
+        var valueStart = location[1];
+        var leadStart = keyEnd + 1;
         var sampledValue = readValue(text, valueStart, field.quoted());
         if (sampledValue == null || !field.values().contains(sampledValue)) {
             return decline(field, "the emitted value is not one of " + field.values());
         }
-        var first = tokenAt(starts, entries, valueStart);
+        var first = tokenAt(starts, entries, keyEnd);
         if (first < 0) {
-            return decline(field, "no token carries the value start");
+            return decline(field, "no token carries the key's closing quote");
         }
 
-        var mass = new LinkedHashMap<String, Double>();
-        for (var v : field.values()) {
-            mass.put(v, 0.0);
-        }
+        var values = field.values();
+        var k = values.size();
+        var firm = new double[k];
+        var ambiguous = new LinkedHashMap<Integer, Double>();
+        var observed = 0.0;
         var valueTokens = new ArrayList<TokenLogprob>();
-        List<String> candidates = field.values();
-        var committed = "";
+        var candidates = (1 << k) - 1;
         var pathMass = 1.0;
-        var prefix = entries.get(first).sampled().token().substring(0, valueStart - starts[first]);
 
         for (int j = first; ; j++) {
             if (j >= entries.size() || j - first >= MAX_DECISION_TOKENS) {
                 // The value never narrowed to one candidate within the bound:
-                // split what the sampled path carries rather than guess.
-                spread(mass, pathMass, candidates);
+                // what the sampled path carries is ambiguous over what is left.
+                ambiguous.merge(candidates, pathMass, Double::sum);
+                observed += pathMass;
                 break;
             }
             var entry = entries.get(j);
-            if (entry.top().isEmpty()) {
-                return decline(field, "the provider returned no top_logprobs for a value token");
-            }
             var sampled = entry.sampled();
-            valueTokens.add(sampled);
-            var tokenPrefix = j == first ? prefix : "";
+            var tokenEnd = starts[j] + sampled.token().length();
+            var carriesValue = tokenEnd > valueStart;
+            if (carriesValue) {
+                if (entry.top().isEmpty()) {
+                    return decline(field, "the provider returned no top_logprobs for a value token");
+                }
+                valueTokens.add(sampled);
+            }
+            // Text every alternative at this position must reproduce before
+            // the key ends, and the fixed text between the key and it.
+            var required = starts[j] < leadStart ? text.substring(starts[j], leadStart) : "";
+            var context = starts[j] >= leadStart ? text.substring(leadStart, starts[j]) : "";
+            var attributed = 0.0;
             var sampledSkipped = false;
             for (var alt : entry.top()) {
                 if (!sampledSkipped && alt.token().equals(sampled.token())) {
@@ -138,42 +163,54 @@ final class DecisionScorer {
                     sampledSkipped = true;
                     continue;
                 }
-                var continuation = continuation(alt.token(), tokenPrefix, field.quoted());
-                if (continuation == null || continuation.isEmpty()) {
+                var set = consistentSet(alt.token(), required, context, values, candidates, field.quoted());
+                if (set == 0) {
                     continue;
                 }
-                var consistent = consistent(committed + continuation, candidates, field.quoted());
-                if (!consistent.isEmpty()) {
-                    spread(mass, pathMass * alt.linearProbability(), consistent);
+                var m = pathMass * alt.linearProbability();
+                attributed += alt.linearProbability();
+                observed += m;
+                if (Integer.bitCount(set) == 1) {
+                    firm[Integer.numberOfTrailingZeros(set)] += m;
+                } else {
+                    ambiguous.merge(set, m, Double::sum);
                 }
             }
-            var sampledContinuation = continuation(sampled.token(), tokenPrefix, field.quoted());
-            var next = committed + (sampledContinuation != null ? sampledContinuation : "");
-            var consistent = consistent(next, candidates, field.quoted());
-            if (consistent.isEmpty()) {
+            var pSampled = sampled.linearProbability();
+            var unobserved = Math.max(0.0, 1.0 - pSampled - attributed);
+            if (unobserved > 0.0) {
+                ambiguous.merge(candidates, pathMass * unobserved, Double::sum);
+            }
+            var next = consistentSet(sampled.token(), required, context, values, candidates, field.quoted());
+            if (next == 0) {
                 return decline(field, "the sampled path left every allowed value");
             }
-            pathMass *= sampled.linearProbability();
-            if (consistent.size() == 1) {
-                spread(mass, pathMass, consistent);
+            pathMass *= pSampled;
+            if (Integer.bitCount(next) == 1) {
+                firm[Integer.numberOfTrailingZeros(next)] += pathMass;
+                observed += pathMass;
                 break;
             }
-            committed = next;
-            candidates = consistent;
+            candidates = next;
         }
 
         var total = 0.0;
-        for (var m : mass.values()) {
+        for (var m : firm) {
             total += m;
         }
-        if (!(total > 0.0)) {
+        for (var m : ambiguous.values()) {
+            total += m;
+        }
+        if (!(total > 0.0) || !(observed > 0.0)) {
             return decline(field, "no probability mass could be attributed to an allowed value");
         }
+        var mass = leastConcentrated(firm, ambiguous);
         var probabilities = new LinkedHashMap<String, Double>();
-        for (Map.Entry<String, Double> e : mass.entrySet()) {
-            probabilities.put(e.getKey(), e.getValue() / total);
+        for (int v = 0; v < k; v++) {
+            probabilities.put(values.get(v), mass[v] / total);
         }
-        var distribution = new DecisionDistribution(field.name(), probabilities, Math.min(1.0, total));
+        var distribution = new DecisionDistribution(field.name(), probabilities,
+                Math.min(1.0, observed / total));
         return Optional.of(AiConfidence.fromDecision(distribution, valueTokens));
     }
 
@@ -184,53 +221,214 @@ final class DecisionScorer {
     }
 
     /**
-     * The part of an alternative token that falls inside the value, given the
-     * sampled token's text before the value start. {@code null} when the
-     * alternative does not share that prefix (it diverged before the value).
-     * For a bare literal a whitespace-only prefix is optional, since JSON
-     * allows either spacing.
+     * Allowed values (as a bit set over {@code values}, restricted to
+     * {@code candidates}) that the text is still consistent with when
+     * {@code token} occupies the current position; {@code 0} when it diverges
+     * from the key, from the JSON separator, or from every value.
      */
-    private static String continuation(String alt, String prefix, boolean quoted) {
-        if (alt.startsWith(prefix)) {
-            var rest = alt.substring(prefix.length());
-            return quoted ? rest : rest.stripLeading();
+    private static int consistentSet(String token, String required, String context,
+                                     List<String> values, int candidates, boolean quoted) {
+        String lead;
+        if (!required.isEmpty()) {
+            if (!token.startsWith(required)) {
+                return 0;
+            }
+            lead = token.substring(required.length());
+        } else {
+            lead = context + token;
         }
-        if (!quoted && prefix.isBlank()) {
-            return alt.stripLeading();
+        var valueText = valueText(lead, quoted);
+        if (valueText == null) {
+            return 0;
         }
-        return null;
+        var set = 0;
+        for (int v = 0; v < values.size(); v++) {
+            if ((candidates & (1 << v)) != 0 && consistent(valueText, values.get(v), quoted)) {
+                set |= 1 << v;
+            }
+        }
+        return set;
     }
 
     /**
-     * Allowed values the text so far is consistent with: either the text is a
+     * The value text inside {@code lead} (the text right after the key's
+     * closing quote): skip whitespace, the colon, whitespace and — for an
+     * enum — the opening quote. An empty string when the lead stops before
+     * the value starts (every value still possible); {@code null} when it
+     * breaks the JSON separator.
+     */
+    private static String valueText(String lead, boolean quoted) {
+        var n = lead.length();
+        var i = skipWhitespace(lead, 0);
+        if (i == n) {
+            return "";
+        }
+        if (lead.charAt(i) != ':') {
+            return null;
+        }
+        i = skipWhitespace(lead, i + 1);
+        if (i == n) {
+            return "";
+        }
+        if (quoted) {
+            return lead.charAt(i) == '"' ? lead.substring(i + 1) : null;
+        }
+        return lead.substring(i);
+    }
+
+    /**
+     * Whether value text so far is consistent with {@code value}: either a
      * prefix of the value as rendered in JSON, or it runs past the complete
      * rendered value (closing quote, or a non-identifier character after a
      * literal).
      */
-    private static List<String> consistent(String text, List<String> candidates, boolean quoted) {
-        var result = new ArrayList<String>(candidates.size());
-        for (var v : candidates) {
-            var rendered = quoted ? v + "\"" : v;
-            if (rendered.startsWith(text)) {
-                result.add(v);
-            } else if (text.startsWith(rendered)) {
-                if (quoted) {
-                    result.add(v);
-                } else {
-                    var after = text.charAt(rendered.length());
-                    if (!Character.isLetterOrDigit(after) && after != '_') {
-                        result.add(v);
+    private static boolean consistent(String text, String value, boolean quoted) {
+        var rendered = quoted ? value + "\"" : value;
+        if (rendered.startsWith(text)) {
+            return true;
+        }
+        if (!text.startsWith(rendered)) {
+            return false;
+        }
+        if (quoted) {
+            return true;
+        }
+        var after = text.charAt(rendered.length());
+        return !Character.isLetterOrDigit(after) && after != '_';
+    }
+
+    /**
+     * Assign each ambiguous mass (bit set of values → mass) to its values so
+     * that the largest resulting value mass is as small as possible, and
+     * return the per-value masses. The optimum {@code T*} is
+     * {@code max over value sets U of (firm(U) + ambiguous mass confined to U) / |U|}
+     * (Hall's condition for the fractional assignment), and an allocation
+     * reaching it is a max flow with value capacities {@code T* - firm(v)}.
+     */
+    static double[] leastConcentrated(double[] firm, Map<Integer, Double> ambiguous) {
+        var k = firm.length;
+        var result = firm.clone();
+        if (ambiguous.isEmpty()) {
+            return result;
+        }
+        var sets = new int[ambiguous.size()];
+        var amounts = new double[ambiguous.size()];
+        var c = 0;
+        for (var e : ambiguous.entrySet()) {
+            sets[c] = e.getKey();
+            amounts[c] = e.getValue();
+            c++;
+        }
+        var target = 0.0;
+        for (int u = 1; u < 1 << k; u++) {
+            var sum = 0.0;
+            for (int v = 0; v < k; v++) {
+                if ((u & (1 << v)) != 0) {
+                    sum += firm[v];
+                }
+            }
+            for (int i = 0; i < c; i++) {
+                if ((sets[i] & ~u) == 0) {
+                    sum += amounts[i];
+                }
+            }
+            target = Math.max(target, sum / Integer.bitCount(u));
+        }
+
+        // Nodes: source 0, ambiguous sets 1..c, values c+1..c+k, sink c+k+1.
+        var n = c + k + 2;
+        var sink = n - 1;
+        var cap = new double[n][n];
+        for (int i = 0; i < c; i++) {
+            cap[0][1 + i] = amounts[i];
+            for (int v = 0; v < k; v++) {
+                if ((sets[i] & (1 << v)) != 0) {
+                    cap[1 + i][1 + c + v] = amounts[i];
+                }
+            }
+        }
+        for (int v = 0; v < k; v++) {
+            cap[1 + c + v][sink] = Math.max(0.0, target - firm[v]) + FLOW_EPS;
+        }
+        var flow = new double[n][n];
+        var parent = new int[n];
+        while (true) {
+            Arrays.fill(parent, -1);
+            parent[0] = 0;
+            var queue = new ArrayDeque<Integer>();
+            queue.add(0);
+            while (!queue.isEmpty() && parent[sink] < 0) {
+                var x = queue.poll();
+                for (int y = 0; y < n; y++) {
+                    if (parent[y] < 0 && cap[x][y] - flow[x][y] > FLOW_EPS) {
+                        parent[y] = x;
+                        queue.add(y);
                     }
+                }
+            }
+            if (parent[sink] < 0) {
+                break;
+            }
+            var push = Double.MAX_VALUE;
+            for (int y = sink; y != 0; y = parent[y]) {
+                push = Math.min(push, cap[parent[y]][y] - flow[parent[y]][y]);
+            }
+            for (int y = sink; y != 0; y = parent[y]) {
+                flow[parent[y]][y] += push;
+                flow[y][parent[y]] -= push;
+            }
+        }
+        var alloc = new double[c][k];
+        for (int i = 0; i < c; i++) {
+            for (int v = 0; v < k; v++) {
+                alloc[i][v] = Math.max(0.0, flow[1 + i][1 + c + v]);
+                result[v] += alloc[i][v];
+            }
+        }
+        // The flow reaches T* but may pile a set's mass on one member. Re-level
+        // each set in turn over its members (water-filling): that never raises
+        // the largest mass, allocates each set's full amount (absorbing flow
+        // rounding), and spreads mass evenly where the evidence cannot tell
+        // the values apart.
+        for (int sweep = 0; sweep < BALANCE_SWEEPS; sweep++) {
+            for (int i = 0; i < c; i++) {
+                for (int v = 0; v < k; v++) {
+                    result[v] -= alloc[i][v];
+                }
+                waterFill(result, sets[i], amounts[i], alloc[i]);
+                for (int v = 0; v < k; v++) {
+                    result[v] += alloc[i][v];
                 }
             }
         }
         return result;
     }
 
-    private static void spread(Map<String, Double> mass, double m, List<String> values) {
-        var share = m / values.size();
-        for (var v : values) {
-            mass.merge(v, share, Double::sum);
+    /**
+     * Spread {@code amount} over the members of {@code set} so the smallest
+     * loads rise to a common level, writing each member's share to
+     * {@code out}.
+     */
+    private static void waterFill(double[] loads, int set, double amount, double[] out) {
+        Arrays.fill(out, 0.0);
+        var members = new ArrayList<Integer>(Integer.bitCount(set));
+        for (int v = 0; v < loads.length; v++) {
+            if ((set & (1 << v)) != 0) {
+                members.add(v);
+            }
+        }
+        members.sort((a, b) -> Double.compare(loads[a], loads[b]));
+        var sum = 0.0;
+        var level = 0.0;
+        for (int p = 0; p < members.size(); p++) {
+            sum += loads[members.get(p)];
+            level = (amount + sum) / (p + 1);
+            if (p + 1 == members.size() || level <= loads[members.get(p + 1)]) {
+                break;
+            }
+        }
+        for (var v : members) {
+            out[v] = Math.max(0.0, level - loads[v]);
         }
     }
 
@@ -246,11 +444,20 @@ final class DecisionScorer {
 
     /**
      * Offset where the value of top-level property {@code name} starts
-     * (after the opening quote when {@code quoted}), or {@code -1}. Tracks
-     * string literals and nesting depth so a same-named nested property or a
-     * string containing the name cannot match.
+     * (after the opening quote when {@code quoted}), or {@code -1}.
      */
     static int locateValue(CharSequence text, String name, boolean quoted) {
+        var location = locate(text, name, quoted);
+        return location == null ? -1 : location[1];
+    }
+
+    /**
+     * {@code {offset of the key's closing quote, offset of the value start}}
+     * for top-level property {@code name}, or {@code null}. Tracks string
+     * literals and nesting depth so a same-named nested property or a string
+     * containing the name cannot match.
+     */
+    private static int[] locate(CharSequence text, String name, boolean quoted) {
         var depth = 0;
         var n = text.length();
         var i = 0;
@@ -259,7 +466,7 @@ final class DecisionScorer {
             if (c == '"') {
                 var end = endOfString(text, i);
                 if (end < 0) {
-                    return -1;
+                    return null;
                 }
                 if (depth == 1) {
                     var colon = skipWhitespace(text, end + 1);
@@ -267,15 +474,15 @@ final class DecisionScorer {
                             && name.contentEquals(text.subSequence(i + 1, end))) {
                         var v = skipWhitespace(text, colon + 1);
                         if (v >= n) {
-                            return -1;
+                            return null;
                         }
                         // Type check both ways: an enum value is a JSON
                         // string, a boolean value is a bare literal.
                         var isString = text.charAt(v) == '"';
                         if (quoted) {
-                            return isString ? v + 1 : -1;
+                            return isString ? new int[] {end, v + 1} : null;
                         }
-                        return isString ? -1 : v;
+                        return isString ? null : new int[] {end, v};
                     }
                 }
                 i = end + 1;
@@ -288,7 +495,7 @@ final class DecisionScorer {
             }
             i++;
         }
-        return -1;
+        return null;
     }
 
     private static String readValue(CharSequence text, int start, boolean quoted) {

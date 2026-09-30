@@ -3384,8 +3384,8 @@ highest-quality signal"; `modules/ai/README.md` *Native logprobs confidence* —
 richer **native** one … the richer signal wins"; the same "richer" wording in the
 `AiConfidenceElicitation` and `LogprobsMode` Javadocs.
 **Truth:** `AiConfidence.fromLogprobs` averages `exp(logprob)` over every response
-token. That measures fluency, not certainty about the answer: the recorded split
-payload in `OpenAiCompatibleClientDecisionConfidenceTest` (one decisive token at
+token. That measures fluency, not certainty about the answer: the hand-authored split
+fixture in `OpenAiCompatibleClientDecisionConfidenceTest` (one decisive token at
 `p ≈ 0.50`, the rest fluent) scores above the 0.9 act threshold and routes to `ACT`,
 while the distribution over the decision field's values escalates. `top_logprobs`
 was never requested, so no signal about the alternatives existed to be "rich".
@@ -3398,6 +3398,47 @@ actually averages over.
 **Gate:** the wording is corrected at every site (Javadoc, runtime comment, README);
 the README now states what `LOGPROBS_NATIVE` measures and when to use
 `withDecisionField(...)` instead. `splitEnumEscalatesWhereTheFluencyMeanWouldAct`
-pins the contrast on one recorded payload — the fluency mean routes `ACT`, the
+pins the contrast on one hand-authored fixture — the fluency mean routes `ACT`, the
 decision distribution routes `ESCALATE` — so the claim cannot be reinstated
 without contradicting a test.
+
+---
+
+## 2026-09-30 — Decision confidence claimed its approximations only err toward escalation
+
+**Session:** review fixes on decision confidence (`DECISION_LOGPROBS`, carnet #51).
+
+**Claim:** `DecisionScorer` Javadoc and `modules/ai/README.md` *Decision confidence* —
+"Even splitting can only lower the concentration, so the error runs toward
+escalation, never toward false confidence"; the README and the
+`OpenAiCompatibleClientDecisionConfidenceTest` Javadoc called the SSE fixtures
+"recorded chat-completions payloads".
+**Truth:** three false statements. (1) An even split is not a bound: with values
+`AB1`/`AB2`/`AC` and an unobserved `B` continuation, splitting evenly gives `AB1` 0.5
+(margin 0.25) where a consistent reading gives 0.35/0.30/0.35 (margin 0.025).
+(2) The scorer read alternatives only from the token holding the value's first
+character and matched them on the sampled token's exact prefix, then renormalised
+over what it attributed. A coin flip made at the opening-quote token (` "` against
+` "REJECT`), or a rival with different separator spacing (` "REJECT` against a
+sampled `"APPROVE`), scored 1.0 and routed `ACT`. (3) The fixtures are
+hand-authored, with round logprob values; no live-provider stream was captured.
+
+**Slip path:** the safety property was argued from the one case the approximation
+was designed for (a prefix shared by values that hold no other mass) and written
+as a general guarantee. The fixtures were all built with the same token layout, so
+no test exercised a rival outside it. "Recorded" described the fixture format and
+was read as provenance.
+
+**Gate:** the walk now starts at the key's closing quote and parses each
+alternative past the separator, so rivals at the quote token and spacing variants
+count. Mass that is ambiguous or unlisted is assigned to minimise the largest
+value's probability (exact min-max, then re-levelled), without renormalising, so
+the margin is a lower bound. `DecisionScorerTest` pins the counterexample
+(`ambiguousMassIsAssignedToTheLeastConcentratedDistribution`, margin 0.025), both
+tokenizations (`rivalCarriedByTheOpeningQuoteTokenIsScored`,
+`rivalWithADifferentSeparatorSpellingIsScored`) and unlisted mass
+(`unobservedMassLowersConfidenceInsteadOfVanishing`). Two new fixtures,
+`decision-split-at-quote.sse` and `decision-spacing-variant.sse`, drive the same
+shapes end to end and assert `ESCALATE`. Each was bite-checked against the old
+behaviour. The README and the test Javadoc now say the fixtures are hand-authored
+and that no live-provider payload has been checked.

@@ -51,9 +51,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Decision confidence ({@link AiConfidence.Source#DECISION_LOGPROBS}) on the
  * Built-in chat-completions path, driven end to end through
- * {@link BuiltInAgentRuntime} against recorded chat-completions SSE payloads
+ * {@link BuiltInAgentRuntime} against hand-authored SSE fixtures in the
+ * chat-completions streaming shape
  * ({@code src/test/resources/fixtures/logprobs/*.sse}, one token per chunk
- * with {@code top_logprobs}, as OpenAI streams them).
+ * with {@code top_logprobs}). The logprob values are chosen by hand to pin
+ * the arithmetic; none of them is a captured provider response, so the
+ * scoring has not yet been checked against a live provider's
+ * {@code top_logprobs} under strict {@code json_schema}.
  *
  * <p>The point of the source: a long, fluent structured answer whose one
  * decisive token was a coin flip must not score as confident. The split
@@ -64,6 +68,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class OpenAiCompatibleClientDecisionConfidenceTest {
 
     private static final double EPS = 1e-9;
+
+    /** Probability of the fixtures' {@code "\":"} / {@code "\":\""} token after the key. */
+    private static final double SEPARATOR = Math.exp(-0.0003);
 
     enum Verdict { APPROVE, REJECT, DEFER }
 
@@ -95,6 +102,10 @@ class OpenAiCompatibleClientDecisionConfidenceTest {
                 fixture = "decision-multitoken";
             } else if (request.contains("case-boolean")) {
                 fixture = "decision-boolean";
+            } else if (request.contains("case-quote-split")) {
+                fixture = "decision-split-at-quote";
+            } else if (request.contains("case-spacing")) {
+                fixture = "decision-spacing-variant";
             } else if (request.contains("case-no-top")) {
                 fixture = "decision-no-top-logprobs";
             } else {
@@ -131,17 +142,18 @@ class OpenAiCompatibleClientDecisionConfidenceTest {
                 "the distribution covers exactly the schema's values, in schema order");
 
         // APPROVE collects its own token and the "AP" prefix alternative; the
-        // lowercase "approve" alternative matches no allowed value and is dropped.
-        var approve = Math.exp(-0.01) + Math.exp(-7.5);
-        var reject = Math.exp(-5.0);
-        var defer = Math.exp(-6.0);
-        var total = approve + reject + defer;
-        assertEquals(approve / total, decision.probabilities().get("APPROVE"), EPS);
-        assertEquals(reject / total, decision.probabilities().get("REJECT"), EPS);
-        assertEquals(defer / total, decision.probabilities().get("DEFER"), EPS);
-        assertEquals(total, decision.observedMass(), EPS);
+        // lowercase "approve" alternative matches no allowed value and is
+        // unobserved. The '":' rival at the separator is ambiguous. Both land
+        // on the least likely value, DEFER.
+        var approve = SEPARATOR * (Math.exp(-0.01) + Math.exp(-7.5));
+        var reject = SEPARATOR * Math.exp(-5.0);
+        assertEquals(approve, decision.probabilities().get("APPROVE"), EPS);
+        assertEquals(reject, decision.probabilities().get("REJECT"), EPS);
+        assertEquals(1 - approve - reject, decision.probabilities().get("DEFER"), EPS);
+        assertEquals(approve + reject + SEPARATOR * Math.exp(-6.0) + Math.exp(-8.4),
+                decision.observedMass(), EPS);
         assertEquals("APPROVE", decision.mostLikely());
-        assertEquals((3 * approve / total - 1) / 2, confidence.aggregate().getAsDouble(), EPS);
+        assertEquals((3 * approve - 1) / 2, confidence.aggregate().getAsDouble(), EPS);
         assertEquals(List.of("APPROVE"), confidence.tokens().stream().map(t -> t.token()).toList(),
                 "tokens carry the decision value, not the whole response");
         assertEquals(ConfidenceRoute.ACT, ConfidenceRouting.defaults().route(confidence));
@@ -154,15 +166,15 @@ class OpenAiCompatibleClientDecisionConfidenceTest {
         assertNotNull(confidence);
         assertEquals(AiConfidence.Source.DECISION_LOGPROBS, confidence.source());
 
-        var approve = Math.exp(-0.69);
-        var reject = Math.exp(-0.70);
-        var total = approve + reject;
+        var approve = SEPARATOR * Math.exp(-0.69);
+        var reject = SEPARATOR * Math.exp(-0.70);
         var decision = confidence.decision().orElseThrow();
-        assertEquals(approve / total, decision.probabilities().get("APPROVE"), EPS);
-        assertEquals(reject / total, decision.probabilities().get("REJECT"), EPS);
-        assertEquals(0.0, decision.probabilities().get("DEFER"), EPS,
-                "a value the provider never offered scores zero");
-        assertEquals((3 * approve / total - 1) / 2, confidence.aggregate().getAsDouble(), EPS);
+        assertEquals(approve, decision.probabilities().get("APPROVE"), EPS);
+        assertEquals(reject, decision.probabilities().get("REJECT"), EPS);
+        assertEquals(1 - approve - reject, decision.probabilities().get("DEFER"), EPS,
+                "a value the provider never offered holds only the unobserved mass");
+        assertEquals(approve + reject, decision.observedMass(), EPS);
+        assertEquals((3 * approve - 1) / 2, confidence.aggregate().getAsDouble(), EPS);
         assertTrue(confidence.aggregate().getAsDouble() < 0.3,
                 "a coin flip between two of three values is weakly concentrated: "
                         + confidence.aggregate());
@@ -193,17 +205,19 @@ class OpenAiCompatibleClientDecisionConfidenceTest {
 
         // "C" (sampled) is a prefix of CONFIRM and CANCEL; "ESC" only of
         // ESCALATE. At the next position "ON" (sampled) resolves CONFIRM and
-        // "AN" resolves CANCEL, each weighted by the probability of "C".
-        var escalate = Math.exp(-2.4);
-        var confirm = Math.exp(-0.1) * Math.exp(-0.5);
-        var cancel = Math.exp(-0.1) * Math.exp(-1.0);
-        var total = escalate + confirm + cancel;
-        assertEquals(confirm / total, decision.probabilities().get("CONFIRM"), EPS);
-        assertEquals(cancel / total, decision.probabilities().get("CANCEL"), EPS);
-        assertEquals(escalate / total, decision.probabilities().get("ESCALATE"), EPS);
-        assertEquals(total, decision.observedMass(), EPS);
+        // "AN" resolves CANCEL, each weighted by the probability of "C". The
+        // unlisted mass at "ON" can only be CONFIRM or CANCEL and goes to the
+        // lighter one, CANCEL; the unlisted mass before it goes to ESCALATE.
+        var escalate = SEPARATOR * Math.exp(-2.4);
+        var confirm = SEPARATOR * Math.exp(-0.1) * Math.exp(-0.5);
+        var cancel = SEPARATOR * Math.exp(-0.1) * Math.exp(-1.0);
+        var unlistedAtOn = SEPARATOR * Math.exp(-0.1) * (1 - Math.exp(-0.5) - Math.exp(-1.0));
+        assertEquals(confirm, decision.probabilities().get("CONFIRM"), EPS);
+        assertEquals(cancel + unlistedAtOn, decision.probabilities().get("CANCEL"), EPS);
+        assertEquals(1 - confirm - cancel - unlistedAtOn, decision.probabilities().get("ESCALATE"), EPS);
+        assertEquals(escalate + confirm + cancel, decision.observedMass(), EPS);
         assertEquals("CONFIRM", decision.mostLikely());
-        assertEquals((3 * confirm / total - 1) / 2, confidence.aggregate().getAsDouble(), EPS);
+        assertEquals((3 * confirm - 1) / 2, confidence.aggregate().getAsDouble(), EPS);
         assertEquals(List.of("C", "ON"), confidence.tokens().stream().map(t -> t.token()).toList(),
                 "the walk stops once the value is determined");
     }
@@ -219,13 +233,51 @@ class OpenAiCompatibleClientDecisionConfidenceTest {
         assertEquals(AiConfidence.Source.DECISION_LOGPROBS, confidence.source());
         var decision = confidence.decision().orElseThrow();
         // " false" and the unspaced "false" both count for false; " null" is
-        // off-schema and dropped.
-        var yes = Math.exp(-0.3);
-        var no = Math.exp(-1.6) + Math.exp(-4.0);
-        var total = yes + no;
-        assertEquals(yes / total, decision.probabilities().get("true"), EPS);
-        assertEquals(no / total, decision.probabilities().get("false"), EPS);
-        assertEquals(2 * yes / total - 1, confidence.aggregate().getAsDouble(), EPS);
+        // off-schema and unobserved, so it lands on the lighter value, false.
+        var yes = SEPARATOR * Math.exp(-0.3);
+        var no = SEPARATOR * (Math.exp(-1.6) + Math.exp(-4.0));
+        assertEquals(yes, decision.probabilities().get("true"), EPS);
+        assertEquals(1 - yes, decision.probabilities().get("false"), EPS);
+        assertEquals(yes + no, decision.observedMass(), EPS);
+        assertEquals(2 * yes - 1, confidence.aggregate().getAsDouble(), EPS);
+    }
+
+    /**
+     * The decision is split at the token carrying the opening quote
+     * ({@code " \""} sampled against {@code " \"REJECT"}); the APPROVE token
+     * after it is certain. Scoring alternatives only from the value's first
+     * character on reported 1.0 and routed a coin flip to ACT.
+     */
+    @Test
+    void decisionSplitAtTheQuoteTokenEscalates() {
+        var session = run("case-quote-split", Triage.class, decisionOn("verdict"));
+        var confidence = session.confidence.get();
+        assertNotNull(confidence);
+        assertEquals(AiConfidence.Source.DECISION_LOGPROBS, confidence.source());
+        var decision = confidence.decision().orElseThrow();
+        assertEquals(SEPARATOR * Math.exp(-0.70) * Math.exp(-0.0001),
+                decision.probabilities().get("APPROVE"), EPS);
+        assertEquals(SEPARATOR * Math.exp(-0.71), decision.probabilities().get("REJECT"), EPS);
+        assertTrue(confidence.aggregate().getAsDouble() < ConfidenceRouting.DEFAULT_CONFIRM_AT,
+                "a coin flip made at the quote token must escalate: " + confidence.aggregate());
+        assertEquals(ConfidenceRoute.ESCALATE, ConfidenceRouting.defaults().route(confidence));
+    }
+
+    /**
+     * The rival spells the separator differently from the sampled token
+     * ({@code " \"REJECT"} against a sampled {@code "\"APPROVE"}). Matching
+     * alternatives on the sampled token's exact prefix dropped it and scored
+     * APPROVE 1.0.
+     */
+    @Test
+    void rivalWithDifferentSeparatorSpacingEscalates() {
+        var session = run("case-spacing", Triage.class, decisionOn("verdict"));
+        var confidence = session.confidence.get();
+        assertNotNull(confidence);
+        var decision = confidence.decision().orElseThrow();
+        assertEquals(SEPARATOR * Math.exp(-0.70), decision.probabilities().get("APPROVE"), EPS);
+        assertEquals(SEPARATOR * Math.exp(-0.71), decision.probabilities().get("REJECT"), EPS);
+        assertEquals(ConfidenceRoute.ESCALATE, ConfidenceRouting.defaults().route(confidence));
     }
 
     @Test
@@ -285,8 +337,7 @@ class OpenAiCompatibleClientDecisionConfidenceTest {
         assertNotNull(confidence);
         assertEquals(AiConfidence.Source.DECISION_LOGPROBS, confidence.source());
         var decision = confidence.decision().orElseThrow();
-        var approve = Math.exp(-0.69);
-        assertEquals(approve / (approve + Math.exp(-0.70)),
+        assertEquals(SEPARATOR * Math.exp(-0.69),
                 decision.probabilities().get("APPROVE"), EPS,
                 "the final round's split decision, not the tool round's REJECT");
     }

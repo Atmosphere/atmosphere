@@ -747,36 +747,46 @@ The Built-in runtime resolves the field against the response type's JSON Schema
 `enum` or a `boolean`, and the schema's values are the allowed ones. The client
 then also sends `top_logprobs` (one slot per allowed value plus three for
 formatting variants, capped at the provider maximum of 20), locates the tokens
-that carry that property's value in the final round's JSON, and builds the
-model's distribution over the allowed values from the alternatives at those
-positions. It emits `AiConfidence.fromDecision(...)`
+from the property's closing quote through its value in the final round's JSON,
+and builds the model's distribution over the allowed values from the
+alternatives at those positions. The walk starts at the key, not at the value's
+first character, because the choice can be made earlier: a sampled ` "` whose
+rival is ` "REJECT`, or a rival that spells the separator differently from the
+sampled token, is read as the value it spells. It emits `AiConfidence.fromDecision(...)`
 (`Source.DECISION_LOGPROBS`):
 
 - `aggregate` is the normalised margin `(k * pMax - 1) / (k - 1)` for `k` allowed
   values — `1.0` when all mass is on one value, `0.0` for an even split, so a
   coin flip between `true` and `false` scores `0`, not `0.5`.
 - `decision()` carries the `DecisionDistribution`: value → probability in schema
-  order, plus `observedMass`, the share of probability the top alternatives
-  could be attributed to an allowed value before renormalising.
+  order, plus `observedMass`, the share of probability carried by listed
+  alternatives that match an allowed value.
 - `tokens()` holds the sampled tokens of the decision value, not the whole
   response.
 
 A `ConfidenceRouting` handler receives the distribution through
 `ConfidenceDecision.confidence().decision()`.
 
-Approximations, stated rather than hidden:
+What the provider does not show is resolved against the answer, never for it:
 
 - **Multi-token values.** `CONFIRM` may be sampled as `C` + `ON` + `FIRM`. The
   client walks the sampled path and multiplies through: at `C` the alternative
   `ESC` resolves `ESCALATE`, at `ON` the alternative `AN` resolves `CANCEL`
   (weighted by `p(C)`). Providers return alternatives only along the sampled
   path, so a non-sampled alternative that is still a prefix of several values
-  has its probability split evenly among them. Even splitting can only lower
-  the concentration, so the error runs toward escalation.
-- **Truncated alternatives.** Probability outside the requested `top_logprobs`
-  is unobserved; a value the provider never offered scores `0`, and the
-  distribution is renormalised over what was observed (`observedMass` says how
-  much that was).
+  (or a separator variant that stops before the value) could have become any
+  of them.
+- **Unlisted probability.** Probability outside the requested `top_logprobs`,
+  and alternatives that match no allowed value, could belong to any value
+  still possible at that position.
+- **Worst case, not a guess.** That ambiguous mass is assigned to the values
+  so the largest probability is as small as possible (computed exactly), and
+  the distribution is not renormalised. The reported margin is therefore the
+  lowest concentration consistent with what the provider returned. Splitting
+  the mass evenly would be a guess that can overstate confidence: with values
+  `AB1`/`AB2`/`AC`, an unobserved `B` continuation split evenly gives `AB1`
+  0.5 (margin 0.25) where a consistent reading gives 0.35/0.30/0.35 (margin
+  0.025). `DecisionScorerTest` pins that case.
 
 When the distribution cannot be built — the provider ignored `top_logprobs`, the
 field is absent from the output, the value is not an allowed one — the runtime
@@ -790,14 +800,20 @@ decision value is walked for at most 16 tokens.
 
 **Mode scope:** decision confidence exists only where native logprobs do — the
 Built-in runtime's chat-completions path, in structured-output mode (strict
-`json_schema` or the `json_object` fallback). The Responses API path sends
+`json_schema` or the `json_object` fallback). In a tool loop the final round —
+the one scored — is sent without the strict schema (`json_object` when JSON
+mode is on), so separator spelling can vary; the walk reads those variants and
+counts anything it cannot attribute against the answer. The Responses API path sends
 neither `logprobs` nor `top_logprobs`, and every other runtime (LangChain4j,
 Spring AI, ADK, Embabel, Koog, and the rest) never emits native logprobs, so
 on those paths `withDecisionField` has no effect and confidence stays on the
 model-reported field. `OpenAiCompatibleClientDecisionConfidenceTest` pins both
-the scoring (recorded chat-completions payloads: confident enum, split enum,
-multi-token enum, boolean, missing `top_logprobs`, tool loop) and the Responses
-API exclusion.
+the scoring and the Responses API exclusion, against hand-authored SSE fixtures
+in the chat-completions streaming shape (confident enum, split enum, split at
+the opening-quote token, a rival with different separator spacing, multi-token
+enum, boolean, missing `top_logprobs`, tool loop). The logprob values in those
+fixtures are chosen by hand; the scoring has not yet been checked against a
+captured live-provider stream with `top_logprobs` under strict `json_schema`.
 
 ### Confidence routing
 

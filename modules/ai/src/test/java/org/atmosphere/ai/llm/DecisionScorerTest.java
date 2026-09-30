@@ -16,11 +16,14 @@
 package org.atmosphere.ai.llm;
 
 import org.atmosphere.ai.AiConfidence;
+import org.atmosphere.ai.ConfidenceRoute;
+import org.atmosphere.ai.ConfidenceRouting;
 import org.atmosphere.ai.TokenLogprob;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -74,47 +77,162 @@ class DecisionScorerTest {
 
     @Test
     void valueStartingMidTokenUsesThePrefix() {
-        // The provider merged the separator and the first letters: '":"AP'.
+        // The provider merged the key's closing quote, the separator and the
+        // first letters: '":"AP'. The '":' rival stops before the value, so
+        // it is ambiguous and lands on the least likely value.
         var entries = List.of(
-                entry("{\"verdict", -0.001),
-                entry("\":\"AP", -0.2, alt("\":\"AP", -0.2), alt("\":\"RE", -1.8), alt("\":", -3.0)),
-                entry("PROVE", -0.001, alt("PROVE", -0.001)),
-                entry("\"}", -0.001));
+                entry("{\"verdict", 0.0, alt("{\"verdict", 0.0)),
+                entry("\":\"AP", -0.2, alt("\":\"AP", -0.2), alt("\":\"RE", -2.0), alt("\":", -3.5)),
+                entry("PROVE", 0.0, alt("PROVE", 0.0)),
+                entry("\"}", 0.0));
         var confidence = DecisionScorer.score(entries, VERDICT).orElseThrow();
         var decision = confidence.decision().orElseThrow();
         var approve = Math.exp(-0.2);
-        var reject = Math.exp(-1.8);
-        assertEquals(approve / (approve + reject), decision.probabilities().get("APPROVE"), EPS);
-        assertEquals(reject / (approve + reject), decision.probabilities().get("REJECT"), EPS);
+        var reject = Math.exp(-2.0);
+        assertEquals(approve, decision.probabilities().get("APPROVE"), EPS);
+        assertEquals(reject, decision.probabilities().get("REJECT"), EPS);
+        assertEquals(1 - approve - reject, decision.probabilities().get("DEFER"), EPS,
+                "the ambiguous and unobserved mass goes where it lowers confidence");
+        assertEquals(approve + reject + Math.exp(-3.5), decision.observedMass(), EPS);
+        assertEquals((3 * approve - 1) / 2, confidence.aggregate().getAsDouble(), EPS);
+    }
+
+    /**
+     * The value is chosen at the token BEFORE its first character: the model
+     * sampled {@code " \""} (p=0.5) while the rival {@code " \"REJECT"} (0.5)
+     * carries the quote and the value in one token. Reading alternatives only
+     * from the value's first character on scored this coin flip 1.0 (ACT).
+     */
+    @Test
+    void rivalCarriedByTheOpeningQuoteTokenIsScored() {
+        var entries = List.of(
+                entry("{\"verdict\":", 0.0, alt("{\"verdict\":", 0.0)),
+                entry(" \"", Math.log(0.5), alt(" \"", Math.log(0.5)), alt(" \"REJECT", Math.log(0.5))),
+                entry("APPROVE", 0.0, alt("APPROVE", 0.0)),
+                entry("\"}", 0.0));
+        var confidence = DecisionScorer.score(entries, VERDICT).orElseThrow();
+        var decision = confidence.decision().orElseThrow();
+        assertEquals(0.5, decision.probabilities().get("APPROVE"), EPS);
+        assertEquals(0.5, decision.probabilities().get("REJECT"), EPS);
+        assertEquals(0.25, confidence.aggregate().getAsDouble(), EPS);
+        assertEquals(ConfidenceRoute.ESCALATE, ConfidenceRouting.defaults().route(confidence));
+    }
+
+    /**
+     * The rival spells the separator differently from the sampled token
+     * ({@code " \"REJECT"} against a sampled {@code "\"APPROVE"}). It is the
+     * same decision, so it must count for REJECT rather than vanish.
+     */
+    @Test
+    void rivalWithADifferentSeparatorSpellingIsScored() {
+        var entries = List.of(
+                entry("{\"verdict\":", 0.0, alt("{\"verdict\":", 0.0)),
+                entry("\"APPROVE", Math.log(0.5), alt("\"APPROVE", Math.log(0.5)), alt(" \"REJECT", Math.log(0.5))),
+                entry("\"}", 0.0));
+        var confidence = DecisionScorer.score(entries, VERDICT).orElseThrow();
+        var decision = confidence.decision().orElseThrow();
+        assertEquals(0.5, decision.probabilities().get("REJECT"), EPS);
+        assertEquals(1.0, decision.observedMass(), EPS);
+        assertEquals(0.25, confidence.aggregate().getAsDouble(), EPS);
+        assertEquals(ConfidenceRoute.ESCALATE, ConfidenceRouting.defaults().route(confidence));
+    }
+
+    /**
+     * Probability the provider did not list is not evidence for the sampled
+     * value: APPROVE at p=0.61 with no listed rival must not score 1.0.
+     */
+    @Test
+    void unobservedMassLowersConfidenceInsteadOfVanishing() {
+        var entries = List.of(
+                entry("{\"verdict\":\"", 0.0, alt("{\"verdict\":\"", 0.0)),
+                entry("APPROVE", -0.5, alt("APPROVE", -0.5)),
+                entry("\"}", 0.0));
+        var confidence = DecisionScorer.score(entries, VERDICT).orElseThrow();
+        var decision = confidence.decision().orElseThrow();
+        var approve = Math.exp(-0.5);
+        assertEquals(approve, decision.probabilities().get("APPROVE"), EPS);
+        assertEquals((1 - approve) / 2, decision.probabilities().get("REJECT"), EPS);
+        assertEquals((1 - approve) / 2, decision.probabilities().get("DEFER"), EPS);
+        assertEquals(approve, decision.observedMass(), EPS);
+        assertEquals((3 * approve - 1) / 2, confidence.aggregate().getAsDouble(), EPS);
+        assertEquals(ConfidenceRoute.ESCALATE, ConfidenceRouting.defaults().route(confidence));
     }
 
     @Test
-    void ambiguousNonSampledPrefixSplitsEvenly() {
+    void separatorTokenWithoutTopLogprobsCountsAsUnobserved() {
+        var entries = List.of(
+                entry("{\"verdict\":", 0.0, alt("{\"verdict\":", 0.0)),
+                entry(" \"", Math.log(0.5)),
+                entry("APPROVE", 0.0, alt("APPROVE", 0.0)),
+                entry("\"}", 0.0));
+        var confidence = DecisionScorer.score(entries, VERDICT).orElseThrow();
+        assertEquals(0.5, confidence.decision().orElseThrow().probabilities().get("APPROVE"), EPS);
+        assertEquals(0.25, confidence.aggregate().getAsDouble(), EPS);
+    }
+
+    @Test
+    void ambiguousPrefixMassIsSpreadOverTheValuesItCouldBe() {
         var field = new DecisionField("action", List.of("CONFIRM", "CANCEL", "ESCALATE"), true);
         // Sampled "ESC" (ESCALATE only); the non-sampled "C" could be CONFIRM
         // or CANCEL, and its continuation was never observed.
         var entries = List.of(
-                entry("{\"action\":\"", -0.001),
+                entry("{\"action\":\"", 0.0, alt("{\"action\":\"", 0.0)),
                 entry("ESC", -0.4, alt("ESC", -0.4), alt("C", -1.2)),
-                entry("ALATE\"}", -0.001));
+                entry("ALATE\"}", 0.0));
         var decision = DecisionScorer.score(entries, field).orElseThrow().decision().orElseThrow();
         var esc = Math.exp(-0.4);
-        var c = Math.exp(-1.2);
-        var total = esc + c;
-        assertEquals(esc / total, decision.probabilities().get("ESCALATE"), EPS);
-        assertEquals(c / 2 / total, decision.probabilities().get("CONFIRM"), EPS);
-        assertEquals(c / 2 / total, decision.probabilities().get("CANCEL"), EPS);
+        assertEquals(esc, decision.probabilities().get("ESCALATE"), EPS);
+        assertEquals((1 - esc) / 2, decision.probabilities().get("CONFIRM"), EPS);
+        assertEquals((1 - esc) / 2, decision.probabilities().get("CANCEL"), EPS);
+    }
+
+    /**
+     * Splitting ambiguous mass evenly is a guess, not a bound: here it would
+     * give AB1 the largest share (0.5, score 0.25) when the unobserved "B"
+     * continuation may equally be AB2, a world where the values sit at
+     * 0.35 / 0.30 / 0.35 and the score is 0.025. The scorer reports the
+     * least concentrated distribution consistent with the evidence.
+     */
+    @Test
+    void ambiguousMassIsAssignedToTheLeastConcentratedDistribution() {
+        var field = new DecisionField("code", List.of("AB1", "AB2", "AC"), true);
+        var entries = List.of(
+                entry("{\"code\":\"", 0.0, alt("{\"code\":\"", 0.0)),
+                entry("A", Math.log(0.6), alt("A", Math.log(0.6)), alt("AB1\"", Math.log(0.35)),
+                        alt("AC", Math.log(0.05))),
+                entry("C", Math.log(0.5), alt("C", Math.log(0.5)), alt("B", Math.log(0.5))),
+                entry("\"}", 0.0));
+        var confidence = DecisionScorer.score(entries, field).orElseThrow();
+        var decision = confidence.decision().orElseThrow();
+        assertEquals(0.35, decision.probabilities().get("AB1"), EPS);
+        assertEquals(0.30, decision.probabilities().get("AB2"), EPS);
+        assertEquals(0.35, decision.probabilities().get("AC"), EPS);
+        assertEquals(0.025, confidence.aggregate().getAsDouble(), EPS);
+    }
+
+    @Test
+    void leastConcentratedReachesTheMinMax() {
+        // firm [0.5, 0, 0]; {0,1}: 0.3, {1,2}: 0.2. The largest mass cannot go
+        // below 0.5, and no set's mass is piled onto value 0.
+        var ambiguous = new LinkedHashMap<Integer, Double>();
+        ambiguous.put(0b011, 0.3);
+        ambiguous.put(0b110, 0.2);
+        var mass = DecisionScorer.leastConcentrated(new double[] {0.5, 0.0, 0.0}, ambiguous);
+        assertEquals(0.5, mass[0], EPS);
+        assertEquals(0.3, mass[1], EPS);
+        assertEquals(0.2, mass[2], EPS);
     }
 
     @Test
     void sampledTokenAbsentFromTopListStillCounts() {
         var entries = List.of(
-                entry("{\"verdict\":\"", -0.001),
-                entry("DEFER", -3.0, alt("APPROVE", -0.3), alt("REJECT", -1.5)),
-                entry("\"}", -0.001));
+                entry("{\"verdict\":\"", 0.0, alt("{\"verdict\":\"", 0.0)),
+                entry("DEFER", -3.0, alt("APPROVE", -0.4), alt("REJECT", -1.6)),
+                entry("\"}", 0.0));
         var decision = DecisionScorer.score(entries, VERDICT).orElseThrow().decision().orElseThrow();
-        var total = Math.exp(-3.0) + Math.exp(-0.3) + Math.exp(-1.5);
-        assertEquals(Math.exp(-3.0) / total, decision.probabilities().get("DEFER"), EPS);
+        assertEquals(Math.exp(-0.4), decision.probabilities().get("APPROVE"), EPS);
+        assertEquals(Math.exp(-1.6), decision.probabilities().get("REJECT"), EPS);
+        assertEquals(1 - Math.exp(-0.4) - Math.exp(-1.6), decision.probabilities().get("DEFER"), EPS);
         assertEquals("APPROVE", decision.mostLikely(),
                 "the most likely value need not be the sampled one");
     }
@@ -122,13 +240,13 @@ class DecisionScorerTest {
     @Test
     void booleanLiteralFollowedByDelimiterInOneToken() {
         var entries = List.of(
-                entry("{\"approved\":", -0.001),
+                entry("{\"approved\":", 0.0, alt("{\"approved\":", 0.0)),
                 entry("false}", -0.1, alt("false}", -0.1), alt("true}", -2.5), alt("trueish", -6.0)));
         var decision = DecisionScorer.score(entries, APPROVED).orElseThrow().decision().orElseThrow();
         var no = Math.exp(-0.1);
-        var yes = Math.exp(-2.5);
-        assertEquals(no / (no + yes), decision.probabilities().get("false"), EPS,
-                "'trueish' is not the literal true and must not count");
+        assertEquals(no, decision.probabilities().get("false"), EPS);
+        assertEquals(no + Math.exp(-2.5), decision.observedMass(), EPS,
+                "'trueish' is not the literal true and must not count as observed");
     }
 
     @Test
@@ -210,8 +328,10 @@ class DecisionScorerTest {
                 + "{\"token\":\"APPROVE\",\"logprob\":-0.5,\"top_logprobs\":" + top + "},"
                 + "{\"token\":\"\\\"}\",\"logprob\":-0.001,\"top_logprobs\":[]}]}"));
         var decision = capture.toConfidence().decision().orElseThrow();
-        assertEquals(1.0, decision.probabilities().get("APPROVE"), EPS);
-        assertEquals(0.0, decision.probabilities().get("REJECT"), EPS);
+        assertEquals(Math.exp(-0.001) * Math.exp(-0.5), decision.observedMass(), EPS,
+                "only the sampled APPROVE is observed; REJECT past the cap is not");
+        assertEquals(decision.probabilities().get("DEFER"), decision.probabilities().get("REJECT"), EPS,
+                "REJECT holds only its share of the unobserved mass, like DEFER");
     }
 
     @Test

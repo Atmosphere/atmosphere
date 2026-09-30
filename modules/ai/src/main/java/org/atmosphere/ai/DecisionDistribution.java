@@ -27,20 +27,23 @@ import java.util.Objects;
  * carry the field's value. Attached to an {@link AiConfidence} with source
  * {@link AiConfidence.Source#DECISION_LOGPROBS}.
  *
- * <p>{@link #probabilities()} is renormalised over the mass the provider's
- * top alternatives could be attributed to an allowed value, so it always
- * sums to {@code 1}. {@link #observedMass()} is that attributed mass before
- * renormalisation — how much of the model's actual probability the
- * distribution is built from. A low observed mass means the top alternatives
- * were mostly formatting or off-schema tokens, and the distribution rests on
- * little evidence.</p>
+ * <p>{@link #probabilities()} sums to {@code 1} over the model's whole
+ * probability at the decision. Mass the top alternatives attribute to exactly
+ * one value is that value's. Mass that could belong to several values — an
+ * alternative whose continuation was never observed, or probability outside
+ * the listed alternatives — is assigned so that the largest value's
+ * probability is as small as possible, so {@link #normalizedMargin()} is the
+ * lowest concentration consistent with the provider's output.
+ * {@link #observedMass()} is the share carried by listed alternatives that
+ * match at least one allowed value; a low observed mass means most of the
+ * distribution is that worst-case assignment rather than evidence.</p>
  *
  * @param field         the decision field's JSON property name
  * @param probabilities allowed value → probability, in the schema's value
- *                      order; values the provider never offered map to
- *                      {@code 0.0}
- * @param observedMass  attributed probability mass before renormalisation,
- *                      in {@code (0, 1]}
+ *                      order
+ * @param observedMass  share of the probability carried by listed
+ *                      alternatives that match an allowed value, in
+ *                      {@code (0, 1]}
  */
 public record DecisionDistribution(String field, Map<String, Double> probabilities,
                                    double observedMass) {
