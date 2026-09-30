@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
-import { quarantined } from './helpers/quarantine';
 
 let server: SampleServer;
 
@@ -179,22 +178,33 @@ test.describe('AG-UI chat via the Atmosphere Console', () => {
       .toBeVisible({ timeout: 30_000 });
   });
 
-  // Revisit with an artificial demo delay, or a wait on a Console "thinking"
-  // affordance once one exists to assert against.
-  quarantined({
-    owner: 'jfarcand',
-    expires: '2026-09-30',
-    issue: 'pending',
-    reason: 'the demo AG-UI handler responds too fast for the input '
-      + 'disable-then-enable cycle to be observable in a headless run',
-  })('input disabled while streaming, re-enabled after @quarantined', async ({ page }) => {
+  // The Console keeps the textarea enabled while a reply streams (a0e1ba5aee)
+  // so the user can type ahead; only the send button gates on streaming.
+  test('input stays enabled while streaming, send works again after', async ({ page }) => {
     await page.goto(server.baseUrl);
-    await expect(page.getByTestId('chat-input')).toBeVisible();
+    await expect(page.getByText('Connected · ag-ui')).toBeVisible({ timeout: 30_000 });
+    const input = page.getByTestId('chat-input');
 
-    await page.getByTestId('chat-input').fill('Hello!');
+    // Record any disable, however brief: an observer installed before the
+    // send sees it even when the demo reply completes within one poll.
+    await input.evaluate((el) => {
+      const w = window as unknown as { sawDisabled: boolean };
+      w.sawDisabled = false;
+      new MutationObserver(() => {
+        if ((el as HTMLTextAreaElement).disabled) {
+          w.sawDisabled = true;
+        }
+      }).observe(el, { attributes: true, attributeFilter: ['disabled'] });
+    });
+
+    await input.fill('Hello!');
     await page.getByTestId('chat-send').click();
+    await expect(page.locator('.message--assistant').filter({ hasText: 'AG-UI protocol' }).first())
+      .toBeVisible({ timeout: 30_000 });
 
-    await expect(page.getByTestId('chat-input')).toBeDisabled();
-    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 30_000 });
+    expect(await page.evaluate(
+      () => (window as unknown as { sawDisabled: boolean }).sawDisabled)).toBe(false);
+    await input.fill('And again');
+    await expect(page.getByTestId('chat-send')).toBeEnabled();
   });
 });

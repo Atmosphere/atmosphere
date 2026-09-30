@@ -3295,3 +3295,23 @@ were corrected; the handler writes frames and `ai-confidence-elicitation` joined
 `e2e.yml` matrix (bite-checked: dropping the route emission fails exactly the 3
 routing tests). The general gap — nine more Playwright projects outside every CI
 matrix — is carnet #53, whose fix is a config-vs-workflow coverage check.
+
+---
+
+## 2026-09-30 — AG-UI quarantine blamed timing for a behavior that no longer exists
+
+**Claim:** the `agui-chat` quarantine (expired 2026-09-30) — "the demo AG-UI handler
+responds too fast for the input disable-then-enable cycle to be observable in a
+headless run."
+**Truth:** the Console's `chat-input` textarea has no `disabled` binding at all;
+`a0e1ba5aee` (2026-03-23, "keep chat textarea always enabled") removed it on purpose.
+A MutationObserver installed before the send recorded zero disables across 5 runs.
+The test asserted retired behavior; no speed would have made it pass.
+
+**Slip path:** the failure was explained from its symptom (a fast reply) without
+checking whether the component still disables the input; the quarantine then hid it
+until the expiry turned `main` red.
+
+**Gate:** the spec now asserts the current contract — the textarea is never disabled
+while a reply streams (observer-based, so a brief disable cannot slip between polls;
+bite-checked with an injected 20 ms disable) and send works again after the reply.
