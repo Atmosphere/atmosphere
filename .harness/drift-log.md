@@ -3615,3 +3615,55 @@ locally against Ollama 0.34.4 / `qwen2.5:1.5b` (Q4_K_M) at temperature 0: three 
 the old benign text ("Tuesday to Sunday" read as not open on Sunday); the text now states it
 literally. Each unit test was bite-checked by reverting its fix. The README and Javadoc sentences
 now describe what runs.
+
+---
+
+## 2026-09-30 — LLM scope and moderation classifiers claimed a timeout fails closed
+
+**Session:** carnet #58, routing `LlmClassifierScopeGuardrail` and `LlmModerationDetector`
+through the `DecisionModel` SPI after the #52 review flagged the same shape the injection tier
+had.
+
+**Claim:** `LlmClassifierScopeGuardrail` Javadoc, *Failure handling* — "Timeout / runtime error →
+`ScopeGuardrail.Decision#error` (fail-closed at the `ScopePolicy` layer)".
+`LlmModerationDetector` Javadoc, *Failure handling* — "Timeout / runtime error →
+`ModerationResult#error(String)`. The guardrail maps that to its fail policy — fail-closed
+(block) by default". `ModerationGuardrail` Javadoc — "A moderation outage therefore degrades to
+refusing traffic, not to silently letting unmoderated content through." `modules/ai/README.md`
+*Guardrails* — "**Fail-closed by default** — a detector outage blocks the turn", written of a
+guardrail whose selectable LLM tier is `LlmModerationDetector`; the Spring Boot 4 bean's Javadoc
+repeated it for `detector=llm`.
+**Truth:** both classes called `AgentRuntime.generate(context, timeout)`, which returns an empty
+string on timeout by contract, and also when the runtime reports its failure on the session
+instead of throwing. The scope tier mapped an empty reply, and any reply whose first word was
+neither YES nor NO, to `IN_SCOPE`; the moderation detector mapped an empty reply, and any reply it
+could not map to a category, to `ModerationResult.clean()`. Only a runtime that *threw* reached
+the error branch. With only the demo runtime installed, the scope tier admitted every request
+(documented as intended) and the moderation detector's "no AgentRuntime → error" branch was
+dead: the resolver returns the demo runtime, whose canned reply parsed as clean. Proven on the
+unmodified code by `LlmClassifierScopeGuardrailFailClosedTest` and
+`LlmModerationDetectorFailClosedTest`: the empty-reply, unparseable-reply, timeout,
+session-reported-error and no-reachable-model cases all admitted (10 of 12 failed); the two
+thrown-error cases already failed closed.
+
+**Slip path:** identical to the injection tier's entry above — the error branch was described
+next to the `catch`, without following `generate()`'s documented timeout result into the
+blank-reply branch below it. The README and `ModerationGuardrail` claims were argued from the
+guardrail's `blockOnError` flag, never from which outcomes the LLM detector reports as errors.
+
+**Gate:** both classes now ask a `DecisionModel` typed `Noul` questions (one per request for
+scope, one per `ModerationCategory` for moderation) and read each answer through `NoulGate`,
+whose default thresholds `NoulGateTest.defaultsMatchTheInjectionTier` pins to the injection
+tier's. Every `Answer.Failed`, the uncertain band, a `false` answer with no confidence, oversize
+state and no decision model are errors: `ScopePolicy` denies, `ModerationGuardrail` blocks. The
+two fail-closed test classes above now pass through the real `ScopePolicy` /
+`ModerationGuardrail`, through `ScopePolicyBuilder` / `ScopePolicyInstaller` with the
+ServiceLoader-registered scope guardrail, and through both Spring Boot starters' moderation bean
+(`AtmosphereModerationGuardrailAutoConfigurationTest`). The explicit opt-outs are
+`org.atmosphere.ai.scope.llm-classifier.fail-open` (scope) and the existing
+`ModerationGuardrail.failOpen()` / `atmosphere.ai.guardrails.moderation.fail-open` (moderation);
+a category the detector did flag now blocks even in fail-open mode
+(`aFlaggedCategoryBlocksEvenWhenTheResultAlsoErroredInFailOpenMode`, bite-checked by restoring
+the old guardrail ordering). The fabricated `0.9` moderation score is gone: a score is the
+measured or self-reported belief, or absent. The Javadoc, the Spring Boot 4 bean Javadoc and the
+README now describe what runs.

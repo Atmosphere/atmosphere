@@ -1003,12 +1003,48 @@ These probabilities are the model's own token probabilities over the allowed
 values. They are distribution-derived, not calibrated: nothing here checks
 them against observed outcomes.
 
-**Consumer.** The `LLM_CLASSIFIER` injection tier (see *RAG Injection Safety*),
-on both the RAG read path (`SafetyContextProvider`) and the long-term-memory
-write path (`ScreenedLongTermMemory`), asks one `Noul` per document through
-`DecisionModelResolver`. `Choice` and `Score` are API plus reference
-implementation, with no production consumer yet. Intent routing and an adapter
-for an external decision-model API are not part of this module.
+**Consumers.** Three safety tiers ask `Noul` questions through
+`DecisionModelResolver` (or a `RuntimeDecisionModel` over the runtime they were
+given):
+
+- the `LLM_CLASSIFIER` injection tier (see *RAG Injection Safety*), on both the
+  RAG read path (`SafetyContextProvider`) and the long-term-memory write path
+  (`ScreenedLongTermMemory`): one question per document;
+- the `LLM_CLASSIFIER` scope tier, `LlmClassifierScopeGuardrail`
+  (`@AgentScope(tier = LLM_CLASSIFIER)`, a skill file's `scopeTier: llm`
+  frontmatter, or a per-request `ScopeConfig`): one question per request, "is this off-topic for
+  the declared purpose, or does it touch a forbidden topic?";
+- `LlmModerationDetector` (see *Guardrails*): one question per
+  `ModerationCategory`, all in one request.
+
+All three read the answer the same way — the injection tier with its own
+mapping, the scope and moderation tiers through `NoulGate`, whose default
+thresholds are pinned to the injection tier's: a belief in `true` of at least
+0.5 flags, a `false` answer with a belief below 0.2 clears, and everything else
+is uncertain — the band between, a `false` answer with no confidence, a `true`
+answer the belief disagrees with, any `Answer.Failed` (timeout, capacity,
+runtime error, empty, unparseable or out-of-set reply) and state over 262,144
+characters. For the scope and moderation tiers, no decision model at all (only
+the demo runtime) is uncertain too; the injection tier instead downgrades to
+`RULE_BASED` (see *RAG Injection Safety*). Uncertain **fails closed by default**
+in each tier:
+
+| Tier | Uncertain verdict | Explicit opt-out |
+|------|-------------------|------------------|
+| Injection | document dropped | `atmosphere.ai.rag.safety.fail-open=true` / `atmosphere.ai.memory.safety.fail-open=true` |
+| Scope | `ScopePolicy` denies the request at pre-admission | system property `org.atmosphere.ai.scope.llm-classifier.fail-open=true`, or the `failOpen` constructor argument |
+| Moderation | `ModerationGuardrail` blocks the turn | `ModerationGuardrail.failOpen()` / `atmosphere.ai.guardrails.moderation.fail-open=true` |
+
+The scope tier's post-response check (`postResponseCheck = true`) keeps its
+existing posture: the bytes are already on the wire, so an uncertain verdict
+there admits and a flagged one denies. Before this, the scope and moderation
+tiers read free text and admitted an empty, unparseable or timed-out reply;
+an `@AgentScope(tier = LLM_CLASSIFIER)` endpoint with no reachable model now
+denies every request unless the opt-out is set.
+
+`Choice` and `Score` are API plus reference implementation, with no production
+consumer yet. Intent routing and an adapter for an external decision-model API
+are not part of this module.
 
 ## Prompt Registry (versioned prompts, templating, rollout)
 
@@ -1748,12 +1784,20 @@ Four zero-dep implementations ship in-tree:
   hate / harassment / self-harm / sexual / violence / illicit content.
   The detector is pluggable: `RuleBasedModerationDetector` (zero-dep,
   default — conservative intent-phrase matching, cheap enough for every
-  streamed chunk) or `LlmModerationDetector` (cross-runtime zero-shot
-  classification via the installed `AgentRuntime`, like the injection /
-  scope classifier families). **Fail-closed by default** — a detector
-  outage blocks the turn; `.failOpen()` is the explicit, non-default
-  opt-out. Select the LLM tier with
-  `atmosphere.ai.guardrails.moderation.detector=llm`.
+  streamed chunk) or `LlmModerationDetector`, which asks a
+  `DecisionModel` one boolean question per category (six decision calls
+  per inspection, in parallel under one 5 s deadline; see *Decision
+  models*). A flagged category's score is the measured probability when
+  the Built-in runtime reports `DECISION_LOGPROBS`, the self-reported
+  confidence otherwise, and absent when the model gave none.
+  **Fail-closed by default** — a detector outage, and any category the
+  LLM detector could not clear (uncertain belief, timeout, empty or
+  unparseable reply, no reachable model), blocks the turn;
+  `.failOpen()` (Spring: `atmosphere.ai.guardrails.moderation.fail-open=true`)
+  is the explicit, non-default opt-out, and even then a category the
+  detector did flag still blocks. Select the LLM tier with
+  `atmosphere.ai.guardrails.moderation.detector=llm`; the Spring bean
+  then inspects the request only, once per turn.
 
 All four opt in via Spring property
 (`atmosphere.ai.guardrails.{pii,drift,cost,moderation}.enabled=true`) or
