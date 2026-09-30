@@ -198,9 +198,10 @@ ORPHAN_CLASS_REGEX='^modules/.*/src/main/.*\.java$|^scripts/validate-no-orphan-c
 FACTS_REGISTRY_REGEX='\.md$|^\.harness/facts\.json$|^scripts/validate-facts-registry\.sh$'
 THIRDPARTY_VERSION_REGEX='\.md$|^pom\.xml$|^scripts/validate-doc-thirdparty-versions\.sh$|^\.harness/thirdparty-version-allowlist\.txt$'
 ATMO_DOC_VERSION_REGEX='\.md$|^cli/samples\.json$|^scripts/validate-atmosphere-doc-version\.sh$|^\.harness/atmosphere-doc-version-allowlist\.txt$'
-# Every Playwright project must be run by a workflow or excluded with owner/expiry:
-# re-check whenever the config, a workflow, the exclusion list or the gate changes.
-PW_PROJECT_COVERAGE_REGEX='^modules/integration-tests/playwright\.config\.ts$|^\.github/workflows/.*\.ya?ml$|^\.harness/playwright-project-exclusions\.txt$|^scripts/(validate|test)-playwright-project-coverage\.sh$'
+# Every Playwright project must be run by a workflow or excluded with owner/expiry,
+# and every spec file picked up by such a project: re-check whenever the config,
+# a spec file, a workflow, the exclusion list or the gate changes.
+PW_PROJECT_COVERAGE_REGEX='^modules/integration-tests/playwright\.config\.ts$|^modules/integration-tests/e2e/.*\.spec\.ts$|^\.github/workflows/.*\.ya?ml$|^\.harness/playwright-project-exclusions\.txt$|^scripts/(validate|test)-playwright-project-coverage\.sh$|^scripts/lib/playwright_spec_projects\.mjs$'
 # Limitation register (llm-registre, vendored at .registre): bans deferral prose
 # that documents debt without registering it, and keeps feature-phases.yaml
 # parseable. Runs on any source the gates scan, plus its own config.

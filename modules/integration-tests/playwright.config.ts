@@ -320,7 +320,14 @@ export default defineConfig({
     },
     {
       name: 'transport-fallback',
-      testMatch: /transport-fallback\.spec\.ts/,
+      // Anchored on the path separator: unanchored, this regex also matched
+      // webtransport-fallback.spec.ts, which ran here by accident rather than
+      // under a project of its own.
+      testMatch: /\/transport-fallback\.spec\.ts/,
+    },
+    {
+      name: 'webtransport-fallback',
+      testMatch: /\/webtransport-fallback\.spec\.ts/,
     },
     {
       name: 'reconnection',
@@ -367,6 +374,31 @@ export default defineConfig({
     {
       name: 'history-cache',
       testMatch: /history-cache\.spec\.ts/,
+    },
+    // ── Client resilience through the shipped sample frontends ──
+    // spring-boot-chat's React app (useOfflineQueue, useMessageHistory,
+    // useOptimistic, the derived presence chip) and spring-boot-ai-classroom's
+    // useStreaming retrofit. These five specs sat in no project until
+    // 2026-09-30, so they ran nowhere.
+    {
+      name: 'offline-queue-browser',
+      testMatch: /\/offline-queue-browser\.spec\.ts/,
+    },
+    {
+      name: 'history-sync',
+      testMatch: /\/history-sync\.spec\.ts/,
+    },
+    {
+      name: 'optimistic-updates',
+      testMatch: /\/optimistic-updates\.spec\.ts/,
+    },
+    {
+      name: 'presence-count',
+      testMatch: /\/presence-count\.spec\.ts/,
+    },
+    {
+      name: 'classroom-resilience',
+      testMatch: /\/classroom-resilience\.spec\.ts/,
     },
     // ── P2: Deeper coverage ──
     {

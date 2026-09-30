@@ -1,31 +1,29 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
+import { hideWebTransport, installNetworkSwitch } from './helpers/network-switch';
 
 /**
- * End-to-end coverage for the resilience-suite retrofit of the
+ * End-to-end coverage for the resilience surface of the
  * spring-boot-ai-classroom sample.
  *
- * The classroom uses {@code useStreaming} (AI streaming protocol, not the
- * raw room protocol), so this spec pins three contracts unique to that
- * surface:
+ * The classroom's UI is the bundled Atmosphere Console: `console-endpoints`
+ * renders a Math / Code / Science room picker, and each room is its own
+ * {@code @AiEndpoint}. (The spec used to drive a bespoke `room-math` React
+ * page with a `useStreaming` retrofit; that page is gone.) Two contracts are
+ * pinned against what the page serves:
  *
  *   1. **Presence** — the server's {@code @Ready} / {@code @Disconnect}
- *      hooks broadcast a {@code {"type":"presence","count":N}} frame on
- *      the room's broadcaster. The client picks it out via
- *      {@code onRawMessage} (the new {@code useStreaming} option) and
- *      renders a {@code data-testid="presence-count"} chip.
+ *      hooks broadcast {@code {"type":"presence","count":N}} on the room's
+ *      broadcaster; the Console renders the count as the
+ *      {@code data-testid="presence-count"} chip, and it follows a second
+ *      student in and back out.
  *
- *   2. **Offline queue** — questions typed while the WebSocket is down
- *      land in the {@code useOfflineQueue} buffer and surface as a
- *      {@code data-testid="offline-queue-size"} chip; they drain
- *      automatically on the next {@code 'open'} event.
- *
- *   3. **Optimistic** — student bubbles get an "(asking…)" suffix until
- *      the first AI streaming chunk arrives. The hook's {@code commit}
- *      runs from the streaming handler so the visual flip is tied to
- *      real round-trip evidence, not a wall-clock timer alone.
+ *   2. **Offline queue** — a question typed while the network is down lands
+ *      in the Console's offline queue ({@code data-testid="offline-queue-size"}),
+ *      drains on reconnect, and is actually answered: an AI endpoint, not
+ *      only the chat-room dialect, survives the round trip.
  */
-test.describe('Classroom resilience (useStreaming + presence + offline + optimistic)', () => {
+test.describe('Classroom resilience (presence + offline queue)', () => {
   let server: SampleServer;
 
   test.beforeAll(async () => {
@@ -37,47 +35,63 @@ test.describe('Classroom resilience (useStreaming + presence + offline + optimis
     await server?.stop();
   });
 
-  test('presence chip reflects one online after joining the math room', async ({ page }) => {
-    await page.goto(server.baseUrl + '/');
+  async function joinRoom(page: Page, room: string) {
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await page.getByTestId(`pick-${room}`).click();
+    await expect(page.getByTestId('atmosphere-connection-status'))
+      .toHaveAttribute('data-phase', 'open', { timeout: 30_000 });
+  }
 
-    // Pick the math room from the selector.
-    const mathButton = page.getByTestId('room-math');
-    await expect(mathButton).toBeVisible({ timeout: 20_000 });
-    await mathButton.click();
+  test('presence chip follows a second student in and out of the math room', async ({ browser }) => {
+    const ctx1 = await browser.newContext();
+    const ctx2 = await browser.newContext();
+    try {
+      const first = await ctx1.newPage();
+      const second = await ctx2.newPage();
+      await hideWebTransport(first);
+      await hideWebTransport(second);
 
-    const badge = page.getByTestId('atmosphere-connection-status');
-    await expect(badge).toHaveAttribute('data-phase', 'open', { timeout: 20_000 });
+      await joinRoom(first, 'math');
+      // @Ready broadcasts presence on connect, so the first frame lands within seconds.
+      const presence = first.getByTestId('presence-count');
+      await expect(presence).toBeVisible({ timeout: 15_000 });
+      await expect(presence).toHaveText(/^\s*1 online\s*$/);
 
-    // The server's @Ready hook broadcasts presence on connect, so the
-    // first presence frame should arrive within seconds.
-    const presence = page.getByTestId('presence-count');
-    await expect(presence).toBeVisible({ timeout: 15_000 });
-    await expect(presence).toHaveText(/1 online/);
+      await joinRoom(second, 'math');
+      await expect(presence).toHaveText(/^\s*2 online\s*$/, { timeout: 15_000 });
+
+      // @Disconnect broadcasts the reduced count to the students still there.
+      await ctx2.close();
+      await expect(presence).toHaveText(/^\s*1 online\s*$/, { timeout: 15_000 });
+    } finally {
+      await ctx1.close();
+      await ctx2.close().catch(() => { /* already closed */ });
+    }
   });
 
-  test('offline-queue chip appears when transport is down, drains on reconnect', async ({
-    page,
-    context,
-  }) => {
-    await page.goto(server.baseUrl + '/');
-    await page.getByTestId('room-code').click();
-
+  test('a question typed offline queues, drains on reconnect, and is answered', async ({ page, context }) => {
+    const net = await installNetworkSwitch(page, context, /\/atmosphere\/classroom\//);
+    await joinRoom(page, 'code');
     const badge = page.getByTestId('atmosphere-connection-status');
-    await expect(badge).toHaveAttribute('data-phase', 'open', { timeout: 20_000 });
 
-    await context.setOffline(true);
+    await net.down();
     await expect(badge).not.toHaveAttribute('data-phase', 'open', { timeout: 15_000 });
 
-    const input = page.getByPlaceholder(/Ask a code question/i);
-    await input.fill('what is a closure?');
-    await page.keyboard.press('Enter');
+    await page.getByTestId('chat-input').fill('what is a closure?');
+    await page.getByTestId('chat-send').click();
 
     const queueChip = page.getByTestId('offline-queue-size');
     await expect(queueChip).toBeVisible();
     await expect(queueChip).toHaveText(/1 queued/);
+    // Nothing can answer while the network is down.
+    await expect(page.locator('.message--assistant')).toHaveCount(0);
 
-    await context.setOffline(false);
-    await expect(badge).toHaveAttribute('data-phase', 'open', { timeout: 20_000 });
+    await net.up();
+    await expect(badge).toHaveAttribute('data-phase', 'open', { timeout: 30_000 });
     await expect(queueChip).not.toBeVisible({ timeout: 15_000 });
+
+    const answer = page.locator('.message--assistant').last();
+    await expect(answer).toBeVisible({ timeout: 30_000 });
+    await expect(answer).not.toBeEmpty();
   });
 });

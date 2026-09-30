@@ -43,8 +43,11 @@ jobs:
     # Every project in modules/integration-tests/playwright.config.ts must be
     # selected by a workflow or excluded with owner/expiry/issue in
     # .harness/playwright-project-exclusions.txt. Nine projects once sat in no
-    # matrix leg, and three of them were dead without anyone noticing. Runs on
-    # every push (not path-filtered) so an exclusion's expiry bites on time.
+    # matrix leg, and three of them were dead without anyone noticing. Every
+    # e2e spec file must also be picked up by a project a workflow runs (five
+    # matched no project at all); the config is evaluated with node, which the
+    # runner image ships. Runs on every push (not path-filtered) so an
+    # exclusion's expiry bites on time.
     - name: Verify every Playwright project runs in a workflow
       run: ./scripts/validate-playwright-project-coverage.sh
 

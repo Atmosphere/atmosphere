@@ -1,22 +1,26 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
+import { installNetworkSwitch } from './helpers/network-switch';
 
 /**
- * Browser-side optimistic-updates end-to-end test.
+ * Browser-side optimistic-update end-to-end test.
  *
- * spring-boot-chat wires {@code useOptimistic} so outbound user bubbles
- * render with a "(sending…)" suffix the moment Enter is hit, then drop
- * the suffix once {@code confirmAfterMs} (600ms in the sample) auto-
- * confirms. This is the canonical "optimistic UI" flow — atmosphere's
- * room broadcast excludes the sender, so there is no server echo to
- * correlate against; the time-based confirm is the demonstrable contract.
+ * spring-boot-chat's UI is the bundled Atmosphere Console. The sample's React
+ * frontend — whose useOptimistic "(sending…)" suffix this spec used to assert —
+ * was removed in 341bf3bd3b, and the Console never had that 600 ms timer. The
+ * optimistic contract the Console does ship is the offline one
+ * (useAtmosphereChat): a message sent while disconnected renders at once as a
+ * user bubble marked "(queued)", before any server has seen it, and the mark
+ * is reconciled away when the offline queue drains on reconnect — the same
+ * bubble, not a duplicate.
  *
  * The spec asserts:
- *   - Sending a message produces a bubble that *briefly* shows the
- *     "(sending…)" suffix.
- *   - That suffix disappears after the confirmAfterMs window.
+ *   - Online, a sent message renders without the pending mark.
+ *   - Offline, the bubble renders immediately with the "(queued)" mark.
+ *   - After the reconnect drain, the mark is gone and the bubble is still
+ *     there exactly once.
  */
-test.describe('Optimistic updates (sending → delivered)', () => {
+test.describe('Optimistic updates (queued → delivered)', () => {
   let server: SampleServer;
 
   test.beforeAll(async () => {
@@ -28,29 +32,37 @@ test.describe('Optimistic updates (sending → delivered)', () => {
     await server?.stop();
   });
 
-  test('outbound bubble shows "(sending…)" then flips to confirmed', async ({ page }) => {
-    await page.goto(server.baseUrl + '/');
-
-    const input = page.getByPlaceholder(/Enter your name to join|Type a message/);
-    await expect(input).toBeVisible({ timeout: 20_000 });
-
-    await input.fill('e2e-optimistic-tester');
-    await page.keyboard.press('Enter');
+  test('offline bubble renders at once as "(queued)", then reconciles on drain', async ({ page, context }) => {
+    const net = await installNetworkSwitch(page, context, /\/atmosphere\/chat/);
+    await page.goto(server.baseUrl + '/atmosphere/console/');
 
     const badge = page.getByTestId('atmosphere-connection-status');
-    await expect(badge).toHaveAttribute('data-phase', 'open', { timeout: 15_000 });
+    await expect(badge).toHaveAttribute('data-phase', 'open', { timeout: 20_000 });
 
-    await input.fill('quick-hello');
-    await page.keyboard.press('Enter');
+    const input = page.getByTestId('chat-input');
+    const list = page.getByTestId('message-list');
+    const userBubbles = page.locator('[data-testid="message-bubble"].message--user');
 
-    // 600ms window — we MUST be able to observe the suffix at least once.
-    // useOptimistic's confirmAfterMs = 600 in the sample; locator.first
-    // captures the bubble closest to the input.
-    const sendingBubble = page.locator('text=quick-hello  (sending…)');
-    await expect(sendingBubble).toBeVisible({ timeout: 500 });
+    // Online: no pending mark.
+    await input.fill('optimistic-online');
+    await page.getByTestId('chat-send').click();
+    await expect(userBubbles.filter({ hasText: 'optimistic-online' })).toHaveCount(1);
+    await expect(list).not.toContainText('(queued)');
 
-    // After the confirmAfterMs window the suffix must drop.
-    await expect(sendingBubble).not.toBeVisible({ timeout: 5_000 });
-    await expect(page.locator('text=quick-hello').first()).toBeVisible();
+    // Offline: the bubble renders before any server round trip, marked pending.
+    await net.down();
+    await expect(badge).not.toHaveAttribute('data-phase', 'open', { timeout: 15_000 });
+    await input.fill('optimistic-offline');
+    await page.getByTestId('chat-send').click();
+    const pending = userBubbles.filter({ hasText: 'optimistic-offline' });
+    await expect(pending).toHaveCount(1);
+    await expect(pending).toContainText('(queued)');
+
+    // Reconnect: the queue drains and the same bubble drops its mark.
+    await net.up();
+    await expect(badge).toHaveAttribute('data-phase', 'open', { timeout: 30_000 });
+    await expect(pending).not.toContainText('(queued)', { timeout: 15_000 });
+    await expect(pending).toHaveCount(1);
+    await expect(list).not.toContainText('(queued)');
   });
 });

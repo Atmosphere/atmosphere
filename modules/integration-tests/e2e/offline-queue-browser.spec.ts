@@ -1,32 +1,32 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
+import { installNetworkSwitch } from './helpers/network-switch';
 
 /**
  * Browser-side offline-queue end-to-end test.
  *
- * Exercises the full client-side resilience loop for messages typed while
- * the transport is disconnected:
+ * Exercises the client-side resilience loop for messages typed while the
+ * transport is disconnected, through the UI spring-boot-chat actually serves:
+ * its root redirects to the bundled Atmosphere Console (the sample's React
+ * frontend was removed in 341bf3bd3b), whose useAtmosphereChat composable
+ * drives atmosphere.js's {@code useOfflineQueue} / {@code OfflineQueue}.
  *
- *   1. Connect via the spring-boot-chat sample's React app
- *      ({@code atmosphere.js} WebSocket transport, {@code useOfflineQueue}
- *      hook driving the {@code OfflineQueue} primitive).
- *   2. Force the browser context offline ({@code context.setOffline(true)}).
- *      Atmosphere transitions out of {@code phase=open}; the UI's pill
- *      flips off "Connected" but the send button stays enabled.
+ *   1. Connect over WebSocket (the network switch hides the WebTransport
+ *      sidecar so the cut below reaches the socket in use).
+ *   2. Cut the network ({@link installNetworkSwitch}). Atmosphere leaves
+ *      {@code phase=open}; the Console keeps the input enabled because a
+ *      first connect has happened, so sends enqueue instead of dropping.
  *   3. Type two messages — they MUST land in the queue, surfacing as the
- *      "N queued" badge ({@code data-testid="offline-queue-size"}).
- *   4. Restore connectivity. The transport drains the queue automatically
- *      on the {@code open} event ({@code BaseTransport.drainOfflineQueue}).
- *      The badge MUST drop back to invisible within a few seconds.
+ *      "2 queued" chip ({@code data-testid="offline-queue-size"}).
+ *   4. Restore the network. The transport drains the queue on reopen
+ *      ({@code BaseTransport.drainOfflineQueue}); the chip MUST disappear.
+ *   5. The drained messages MUST reach the room — a second member, connected
+ *      the whole time, sees both. A queue that emptied without sending would
+ *      pass steps 1-4 and fail here.
  *
- * Pins the offline-queue contract: queue grows offline, drains on reconnect.
- * A regression in either direction (drop on enqueue, no drain on open)
- * surfaces here instead of in user reports.
- *
- * <p>Companion to {@code offline-queue.spec.ts} which exercises the
- * server-side WebSocket {@code X-Atmosphere-Message-Id} handshake at the
- * raw protocol level. This spec exercises the browser/hook side using the
- * shipped sample frontend.</p>
+ * <p>Companion to {@code offline-queue.spec.ts}, which exercises the
+ * server-side WebSocket {@code X-Atmosphere-Message-Id} handshake at the raw
+ * protocol level.</p>
  */
 test.describe('Offline queue (browser)', () => {
   let server: SampleServer;
@@ -40,46 +40,58 @@ test.describe('Offline queue (browser)', () => {
     await server?.stop();
   });
 
-  test('messages typed offline queue, then drain on reconnect', async ({ page, context }) => {
-    await page.goto(server.baseUrl + '/');
+  test('messages typed offline queue, then drain on reconnect', async ({ browser }) => {
+    const senderCtx = await browser.newContext();
+    const observerCtx = await browser.newContext();
+    try {
+      const page = await senderCtx.newPage();
+      const net = await installNetworkSwitch(page, senderCtx, /\/atmosphere\/chat/);
+      const observer = await observerCtx.newPage();
 
-    // Join with a name. spring-boot-chat's first input is the user name.
-    const input = page.getByPlaceholder(/Enter your name to join|Type a message/);
-    await expect(input).toBeVisible({ timeout: 20_000 });
-    await input.fill('e2e-offline-tester');
-    await page.keyboard.press('Enter');
+      await observer.goto(server.baseUrl + '/atmosphere/console/');
+      await expect(observer.getByTestId('atmosphere-connection-status'))
+        .toHaveAttribute('data-phase', 'open', { timeout: 20_000 });
 
-    // Wait for the ConnectionStatusBadge to reach phase=open. Assertion is
-    // on the data attribute, not the label text, so the test is robust to
-    // label tweaks.
-    const badge = page.getByTestId('atmosphere-connection-status');
-    await expect(badge).toHaveAttribute('data-phase', 'open', { timeout: 15_000 });
+      await page.goto(server.baseUrl + '/atmosphere/console/');
+      const badge = page.getByTestId('atmosphere-connection-status');
+      await expect(badge).toHaveAttribute('data-phase', 'open', { timeout: 20_000 });
+      await expect(badge).toHaveAttribute('data-transport', 'websocket');
 
-    // Sanity: no queued messages while online.
-    const queueSize = page.getByTestId('offline-queue-size');
-    await expect(queueSize).not.toBeVisible();
+      // Sanity: no queued messages while online.
+      const queueSize = page.getByTestId('offline-queue-size');
+      await expect(queueSize).not.toBeVisible();
 
-    // --- Disconnect the browser ---
-    await context.setOffline(true);
-    await expect(badge).not.toHaveAttribute('data-phase', 'open', { timeout: 15_000 });
+      // --- Cut the network ---
+      await net.down();
+      await expect(badge).not.toHaveAttribute('data-phase', 'open', { timeout: 15_000 });
 
-    // --- Type two messages while offline ---
-    await input.fill('queued-message-one');
-    await page.keyboard.press('Enter');
-    await input.fill('queued-message-two');
-    await page.keyboard.press('Enter');
+      // --- Type two messages while offline ---
+      const input = page.getByTestId('chat-input');
+      await input.fill('queued-message-one');
+      await page.getByTestId('chat-send').click();
+      await input.fill('queued-message-two');
+      await page.getByTestId('chat-send').click();
 
-    // Queue badge MUST appear with size 2.
-    await expect(queueSize).toBeVisible();
-    await expect(queueSize).toHaveText(/2 queued/);
+      // Queue chip MUST appear with size 2.
+      await expect(queueSize).toBeVisible();
+      await expect(queueSize).toHaveText(/2 queued/);
 
-    // --- Restore connectivity ---
-    await context.setOffline(false);
+      // --- Restore the network ---
+      await net.up();
 
-    // Atmosphere reconnects; phase returns to open.
-    await expect(badge).toHaveAttribute('data-phase', 'open', { timeout: 20_000 });
+      // Atmosphere reconnects; phase returns to open.
+      await expect(badge).toHaveAttribute('data-phase', 'open', { timeout: 30_000 });
 
-    // BaseTransport.drainOfflineQueue empties the queue on open.
-    await expect(queueSize).not.toBeVisible({ timeout: 15_000 });
+      // BaseTransport.drainOfflineQueue empties the queue on reopen.
+      await expect(queueSize).not.toBeVisible({ timeout: 15_000 });
+
+      // The drained sends reached the room.
+      const observed = observer.getByTestId('message-list');
+      await expect(observed).toContainText('queued-message-one', { timeout: 15_000 });
+      await expect(observed).toContainText('queued-message-two', { timeout: 15_000 });
+    } finally {
+      await senderCtx.close();
+      await observerCtx.close();
+    }
   });
 });

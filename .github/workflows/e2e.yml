@@ -83,12 +83,14 @@ jobs:
         # unmapped by any matrix leg, so CI never ran them.
         # scripts/validate-playwright-project-coverage.sh (ci.yml) now fails
         # when a config project is in no leg and not in
-        # .harness/playwright-project-exclusions.txt.
+        # .harness/playwright-project-exclusions.txt, and when a spec file is
+        # matched by no project that a leg runs (five sat that way until
+        # 2026-09-30: the spring-boot-chat / classroom resilience specs).
         group:
           - name: core-chat
-            projects: "chat,spring-boot-chat,multi-client,embedded-jetty-chat"
+            projects: "chat,spring-boot-chat,multi-client,embedded-jetty-chat,offline-queue-browser,history-sync,optimistic-updates,presence-count"
           - name: core-transports
-            projects: "quarkus-chat,quarkus-ai-chat,sse-transport,long-polling-transport,transport-fallback,reconnection"
+            projects: "quarkus-chat,quarkus-ai-chat,sse-transport,long-polling-transport,transport-fallback,webtransport-fallback,reconnection"
           - name: ai-chat-core
             projects: "ai-chat,ai-streaming-dom,ai-chat-features,openai-endpoint"
           - name: ai-chat-memory
@@ -102,7 +104,7 @@ jobs:
           - name: ai-advanced
             projects: "rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cache-hint,ai-embedding,ai-gap-coverage,ai-confidence-elicitation,ai-decision-model"
           - name: ai-routing
-            projects: "ai-cost-routing,ai-cache-coalescing,ai-combined-cost-cache,ai-routing,ai-classroom,spring-boot-ai-classroom"
+            projects: "ai-cost-routing,ai-cache-coalescing,ai-combined-cost-cache,ai-routing,ai-classroom,spring-boot-ai-classroom,classroom-resilience"
           # checkpoint-agent lives under gap-coordinator with the other
           # durable-HITL specs. The previously-quarantined ai-cancel,
           # admin-coverage, and orchestration-primitives specs are now

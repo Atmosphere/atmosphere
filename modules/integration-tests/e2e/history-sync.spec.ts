@@ -1,24 +1,25 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
+import { hideWebTransport, installNetworkSwitch } from './helpers/network-switch';
 
 /**
  * End-to-end coverage for the {@code sinceId} history-sync handshake.
  *
- * Pins the "no duplicates after reconnect" contract: when a client
- * disconnects, more messages land in the room, and the client reconnects
- * with {@code sinceId = lastSeenId}, the server replays *only* the
- * messages that arrived after the cursor — not the full broadcaster
- * cache. Before this work, every reconnect replayed everything and the
- * UI showed duplicates.
+ * Pins the "no duplicates after reconnect" contract: when a member
+ * disconnects, more messages land in the room, and the member reconnects
+ * with {@code sinceId = lastSeenId}, the server replays *only* the messages
+ * that arrived after the cursor — not the whole room history.
  *
- * The {@code spring-boot-chat} sample has been wired to:
- *   - Observe incoming {@code message.id} fields via {@code useMessageHistory}
- *   - Re-send the join frame with {@code sinceId} inside its
- *     {@link useAtmosphere#onReopen} callback
+ * spring-boot-chat's UI is the bundled Atmosphere Console (the sample's React
+ * frontend was removed in 341bf3bd3b). Its useAtmosphereChat records the
+ * server-assigned {@code id} of every Room Protocol message it receives and
+ * re-joins with that cursor as {@code sinceId} on reopen; the lobby room keeps
+ * 50 messages of history ({@code RoomsConfig}).
  *
- * The test drives the visible UI surface (status badge, message list)
- * via {@code page.context().setOffline(...)}; both legs of the round
- * trip run in one browser context to keep the test self-contained.
+ * The room broadcast excludes the sender, so a member never receives its own
+ * messages and its cursor only advances on other members' traffic. The spec
+ * therefore uses two members: Bob talks, Alice listens, loses the network,
+ * misses one message, and comes back.
  */
 test.describe('History sync (sinceId on reconnect)', () => {
   let server: SampleServer;
@@ -32,57 +33,62 @@ test.describe('History sync (sinceId on reconnect)', () => {
     await server?.stop();
   });
 
-  test('reconnect with sinceId does not duplicate messages already seen', async ({
-    page,
-    context,
-  }) => {
-    await page.goto(server.baseUrl + '/');
+  async function send(page: Page, text: string) {
+    await page.getByTestId('chat-input').fill(text);
+    await page.getByTestId('chat-send').click();
+  }
 
-    const input = page.getByPlaceholder(/Enter your name to join|Type a message/);
-    await expect(input).toBeVisible({ timeout: 20_000 });
+  test('reconnect with sinceId replays only what was missed', async ({ browser }) => {
+    const aliceCtx = await browser.newContext();
+    const bobCtx = await browser.newContext();
+    try {
+      const alice = await aliceCtx.newPage();
+      const net = await installNetworkSwitch(alice, aliceCtx, /\/atmosphere\/chat/);
+      const bob = await bobCtx.newPage();
+      await hideWebTransport(bob);
 
-    // Join with a name.
-    await input.fill('e2e-history-tester');
-    await page.keyboard.press('Enter');
+      const aliceBadge = alice.getByTestId('atmosphere-connection-status');
+      await alice.goto(server.baseUrl + '/atmosphere/console/');
+      await expect(aliceBadge).toHaveAttribute('data-phase', 'open', { timeout: 20_000 });
+      await bob.goto(server.baseUrl + '/atmosphere/console/');
+      await expect(bob.getByTestId('atmosphere-connection-status'))
+        .toHaveAttribute('data-phase', 'open', { timeout: 20_000 });
 
-    const badge = page.getByTestId('atmosphere-connection-status');
-    await expect(badge).toHaveAttribute('data-phase', 'open', { timeout: 15_000 });
+      // Both members are in the room before Bob talks.
+      await expect(alice.getByTestId('presence-count')).toHaveText(/^\s*2 online\s*$/, { timeout: 15_000 });
 
-    // Send a couple of online messages — these populate the server-side
-    // history buffer with monotonic ids. Each broadcast echoes back to
-    // the sender carrying its server-assigned id, which the history-sync
-    // hook captures.
-    await input.fill('msg-1');
-    await page.keyboard.press('Enter');
-    await input.fill('msg-2');
-    await page.keyboard.press('Enter');
+      await send(bob, 'hist-msg-1');
+      await send(bob, 'hist-msg-2');
 
-    // Wait until both messages have appeared in the local feed.
-    const messageList = page.locator('text=msg-1');
-    await expect(messageList).toBeVisible({ timeout: 10_000 });
-    await expect(page.locator('text=msg-2')).toBeVisible({ timeout: 10_000 });
+      const aliceList = alice.getByTestId('message-list');
+      await expect(aliceList).toContainText('hist-msg-1', { timeout: 10_000 });
+      await expect(aliceList).toContainText('hist-msg-2', { timeout: 10_000 });
 
-    // --- Disconnect, then bring back online ---
-    await context.setOffline(true);
-    await expect(badge).not.toHaveAttribute('data-phase', 'open', { timeout: 15_000 });
+      // --- Alice loses the network; Bob keeps talking ---
+      await net.down();
+      await expect(aliceBadge).not.toHaveAttribute('data-phase', 'open', { timeout: 15_000 });
+      await send(bob, 'hist-msg-3');
+      // Bob's own bubble proves the send left his side before Alice returns.
+      await expect(bob.getByTestId('message-list')).toContainText('hist-msg-3');
 
-    await context.setOffline(false);
-    await expect(badge).toHaveAttribute('data-phase', 'open', { timeout: 20_000 });
+      // --- Alice comes back and re-joins with her sinceId cursor ---
+      const before = net.connections;
+      await net.up();
+      await expect(aliceBadge).toHaveAttribute('data-phase', 'open', { timeout: 30_000 });
+      expect(net.connections, 'Alice reconnected over a new socket').toBeGreaterThan(before);
 
-    // Wait for the reconnect's join_ack / history-replay window to settle.
-    await page.waitForTimeout(2_000);
-
-    // Verify no duplicates of msg-1 / msg-2 appeared in the chat list.
-    // Each should still occur exactly once.
-    //
-    // Note: the local echo adds one "msg-1" bubble at send time, and
-    // the server's broadcast adds zero copies (the room broadcast
-    // exclude-sender path keeps the sender from receiving its own
-    // message). So after reconnect with sinceId=lastSeenId the chat
-    // should still show exactly 1 of each.
-    const msgOneCount = await page.locator('text=msg-1').count();
-    const msgTwoCount = await page.locator('text=msg-2').count();
-    expect(msgOneCount).toBe(1);
-    expect(msgTwoCount).toBe(1);
+      // The message she missed is replayed ...
+      await expect(aliceList).toContainText('hist-msg-3', { timeout: 15_000 });
+      // ... and nothing she had already seen is replayed again. Give any
+      // stray replay frames time to land before counting.
+      await alice.waitForTimeout(2_000);
+      for (const text of ['hist-msg-1', 'hist-msg-2', 'hist-msg-3']) {
+        await expect(aliceList.getByText(text, { exact: false }),
+          `${text} must appear exactly once in Alice's feed after the reconnect`).toHaveCount(1);
+      }
+    } finally {
+      await aliceCtx.close();
+      await bobCtx.close();
+    }
   });
 });

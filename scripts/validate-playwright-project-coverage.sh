@@ -22,20 +22,35 @@
 # handlers' onStateChange was a no-op, so no frame ever reached the socket and
 # every test timed out with "Events: []" — unnoticed, because nothing ran them.
 #
+# A project that runs is still not enough: a spec FILE that no project's
+# testMatch picks up runs nowhere either, and the project check cannot see it.
+# Until 2026-09-30 five specs (classroom-resilience, history-sync,
+# offline-queue-browser, optimistic-updates, presence-count) sat that way —
+# all five were stale against the UI their samples serve, and presence-count
+# hid a real bug (a dropped connection never announced its leave on the wire).
+#
 # The gate fails when:
 #   1. a config project is referenced by no workflow and not excluded;
 #   2. a workflow references a project the config does not declare (Playwright
 #      would abort the whole leg with "Project(s) ... not found");
 #   3. an exclusion entry is malformed (needs owner, YYYY-MM-DD expiry, issue,
-#      reason), expired, names an unknown project, or names a project that a
-#      workflow already runs (a stale exclusion hides nothing but misleads).
+#      reason), expired, names an unknown project or spec, or names a project
+#      or spec that a workflow already runs (a stale exclusion hides nothing
+#      but misleads);
+#   4. an e2e/**/*.spec.ts file is matched by no project that a workflow runs
+#      and is not excluded. Matching is Playwright's own — the config is
+#      evaluated by scripts/lib/playwright_spec_projects.mjs (node, no
+#      node_modules), so testMatch regex literals are run, not re-parsed. A
+#      spec matched only by an excluded project (the opt-in firefox/webkit
+#      ones) does not count as running.
 #
 # A workflow "references" a project through a `projects: "a,b"` matrix string
 # or a `--project=<name>` / `--project <name>` flag. YAML comment lines are
 # stripped first: a project named only in a comment does not run.
 #
 # Inputs are overridable for the self-test (scripts/test-playwright-project-coverage.sh):
-#   PW_CONFIG, WORKFLOWS_DIR, EXCLUSIONS, TODAY (YYYY-MM-DD).
+#   PW_CONFIG, WORKFLOWS_DIR, EXCLUSIONS, TODAY (YYYY-MM-DD). Spec files are read
+#   from the config's testDir, next to PW_CONFIG.
 #
 # Run from anywhere. Exits 0 when every project is covered, 1 otherwise.
 
@@ -48,11 +63,14 @@ EXCLUSIONS="${EXCLUSIONS:-$ROOT/.harness/playwright-project-exclusions.txt}"
 TODAY="${TODAY:-$(date +%Y-%m-%d)}"
 
 ME="validate-playwright-project-coverage.sh"
+SPEC_MAPPER="$ROOT/scripts/lib/playwright_spec_projects.mjs"
 
 for f in "$PW_CONFIG" "$EXCLUSIONS"; do
     [ -f "$f" ] || { echo "$ME: $f not found" >&2; exit 1; }
 done
 [ -d "$WORKFLOWS_DIR" ] || { echo "$ME: $WORKFLOWS_DIR not found" >&2; exit 1; }
+# Without node the spec check cannot run; refuse rather than skip it.
+command -v node > /dev/null 2>&1 || { echo "$ME: node not found — needed to evaluate $PW_CONFIG" >&2; exit 1; }
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -99,9 +117,29 @@ runs_in() {
 
 trim() { sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' <<<"$1"; }
 
-# --- 3. Exclusion list ------------------------------------------------------
+# --- 3. Spec files and the projects that pick them up -----------------------
+# "<spec path relative to testDir>\t<project,project,...>" per spec file.
+if ! node "$SPEC_MAPPER" "$PW_CONFIG" > "$TMP/specs" 2> "$TMP/specs.err"; then
+    echo "$ME: could not map spec files to projects:" >&2
+    sed 's/^/  /' "$TMP/specs.err" >&2
+    exit 1
+fi
+cut -f1 "$TMP/specs" | sort -u > "$TMP/specs.names"
+if [ ! -s "$TMP/specs.names" ]; then
+    echo "$ME: no spec files mapped from $PW_CONFIG — the mapper no longer matches the config" >&2
+    exit 1
+fi
+
+# Projects (comma-separated) that a workflow runs AND that pick up spec $1.
+spec_runs_in() {
+    awk -F'\t' -v s="$1" '$1 == s { print $2 }' "$TMP/specs" | tr ',' '\n' | sed '/^$/d' \
+        | grep -xF -f "$TMP/referenced.names" | paste -sd, - || true
+}
+
+# --- 4. Exclusion list ------------------------------------------------------
 fail=0
 : > "$TMP/excluded.names"
+: > "$TMP/excluded.specs"
 lineno=0
 while IFS= read -r line || [ -n "$line" ]; do
     lineno=$((lineno + 1))
@@ -111,7 +149,7 @@ while IFS= read -r line || [ -n "$line" ]; do
     issue="$(trim "$issue")"; reason="$(trim "$reason")"
     where="${EXCLUSIONS#"$ROOT"/}:$lineno"
     if [ -z "$name" ] || [ -z "$owner" ] || [ -z "$issue" ] || [ -z "$reason" ] || [ -n "${extra:-}" ]; then
-        echo "$ME: $where malformed exclusion — expected '<project> | <owner> | <YYYY-MM-DD> | <issue> | <reason>'" >&2
+        echo "$ME: $where malformed exclusion — expected '<project or spec> | <owner> | <YYYY-MM-DD> | <issue> | <reason>'" >&2
         fail=1; continue
     fi
     if ! [[ "$expires" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
@@ -119,8 +157,22 @@ while IFS= read -r line || [ -n "$line" ]; do
         fail=1; continue
     fi
     if [[ "$expires" < "$TODAY" ]]; then
-        echo "$ME: $where exclusion '$name' EXPIRED on $expires — wire the project into a workflow or re-justify it with a new expiry" >&2
+        echo "$ME: $where exclusion '$name' EXPIRED on $expires — wire it into a workflow or re-justify it with a new expiry" >&2
         fail=1
+    fi
+    if [[ "$name" == *.spec.ts ]]; then
+        # A spec-file exclusion: path relative to the config's testDir.
+        if ! grep -qxF "$name" "$TMP/specs.names"; then
+            echo "$ME: $where exclusion '$name' names no spec file under the config's testDir — remove the stale entry" >&2
+            fail=1
+        fi
+        runners="$(spec_runs_in "$name")"
+        if [ -n "$runners" ]; then
+            echo "$ME: $where exclusion '$name' is already run by project(s) $runners — remove the stale entry" >&2
+            fail=1
+        fi
+        echo "$name" >> "$TMP/excluded.specs"
+        continue
     fi
     if ! grep -qxF "$name" "$TMP/declared"; then
         echo "$ME: $where exclusion '$name' names no project in ${PW_CONFIG#"$ROOT"/} — remove the stale entry" >&2
@@ -133,8 +185,9 @@ while IFS= read -r line || [ -n "$line" ]; do
     echo "$name" >> "$TMP/excluded.names"
 done < "$EXCLUSIONS"
 sort -u -o "$TMP/excluded.names" "$TMP/excluded.names"
+sort -u -o "$TMP/excluded.specs" "$TMP/excluded.specs"
 
-# --- 4. Every declared project runs or is excluded --------------------------
+# --- 5. Every declared project runs or is excluded --------------------------
 sort -u "$TMP/referenced.names" "$TMP/excluded.names" > "$TMP/accounted"
 uncovered="$(comm -23 "$TMP/declared" "$TMP/accounted")"
 if [ -n "$uncovered" ]; then
@@ -145,7 +198,7 @@ if [ -n "$uncovered" ]; then
     fail=1
 fi
 
-# --- 5. Every workflow reference names a declared project -------------------
+# --- 6. Every workflow reference names a declared project -------------------
 unknown="$(comm -13 "$TMP/declared" "$TMP/referenced.names")"
 if [ -n "$unknown" ]; then
     while read -r p; do
@@ -154,11 +207,31 @@ if [ -n "$unknown" ]; then
     fail=1
 fi
 
+# --- 7. Every spec file is picked up by a project a workflow runs -----------
+spec_fail=0
+while read -r spec; do
+    grep -qxF "$spec" "$TMP/excluded.specs" && continue
+    [ -n "$(spec_runs_in "$spec")" ] && continue
+    matched="$(awk -F'\t' -v s="$spec" '$1 == s { print $2 }' "$TMP/specs")"
+    if [ -n "$matched" ]; then
+        echo "$ME: spec '$spec' is matched only by project(s) $matched, which no workflow runs" >&2
+    else
+        echo "$ME: spec '$spec' is matched by no project in ${PW_CONFIG#"$ROOT"/} — it runs nowhere" >&2
+    fi
+    spec_fail=1
+done < "$TMP/specs.names"
+if [ "$spec_fail" -ne 0 ]; then
+    echo "$ME: give each such spec a project in a workflow leg, or record why it cannot run in CI (owner, expiry, issue, reason)." >&2
+    fail=1
+fi
+
 declared_n=$(wc -l < "$TMP/declared" | tr -d ' ')
 run_n=$(comm -12 "$TMP/declared" "$TMP/referenced.names" | wc -l | tr -d ' ')
 excl_n=$(wc -l < "$TMP/excluded.names" | tr -d ' ')
+specs_n=$(wc -l < "$TMP/specs.names" | tr -d ' ')
+spec_excl_n=$(wc -l < "$TMP/excluded.specs" | tr -d ' ')
 
 if [ "$fail" -ne 0 ]; then
     exit 1
 fi
-echo "$ME: PASS — $declared_n Playwright projects: $run_n run by a workflow, $excl_n excluded with owner/expiry/issue."
+echo "$ME: PASS — $declared_n Playwright projects: $run_n run by a workflow, $excl_n excluded with owner/expiry/issue; $specs_n spec files, each run by a workflow project or one of $spec_excl_n excluded."

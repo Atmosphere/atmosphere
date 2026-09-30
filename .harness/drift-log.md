@@ -3745,3 +3745,52 @@ unrelated prompt while this run's PREFER is in the ring buffer and must render n
 conversation scoping disabled in the interceptor, the spec fails at that step while CARRY still
 passes. Javadoc, README, `docs/governance-policy-plane.md` and the workflow comment describe the
 room and replaced-prompt behaviour.
+
+---
+
+## 2026-09-30 — Five resilience specs ran nowhere, drove a retired UI, and hid a presence bug
+
+**Session:** carnet #54 — spec files that no Playwright project matched.
+
+**Claim 1:** the headers of `offline-queue-browser.spec.ts` ("Connect via the
+spring-boot-chat sample's React app"), `history-sync.spec.ts` ("The spring-boot-chat
+sample has been wired to … useMessageHistory"), `optimistic-updates.spec.ts`
+("spring-boot-chat wires useOptimistic so outbound user bubbles render with a
+'(sending…)' suffix"), `presence-count.spec.ts` and `classroom-resilience.spec.ts`
+(a `room-math` page on `useStreaming`); drift-log entries #29–#31 and #34 cite these
+specs as the e2e gates of the offline-queue, history-sync, presence and classroom work.
+**Truth:** none of the five matched any project in `playwright.config.ts`, so no lane
+ever ran them. `341bf3bd3b` removed spring-boot-chat's React frontend (its root is a
+redirect to the Console), and the `room-math` test id exists nowhere but the spec. Run
+on 2026-09-30, the four spring-boot-chat specs all failed: `context.setOffline(true)`
+leaves an established WebSocket (and a WebTransport session) open, so every "badge
+leaves open" wait timed out; the Console has no "(sending…)" state (it marks offline
+sends "(queued)"). The presence spec then exposed a product bug:
+`RoomProtocolInterceptor` put `presence/leave` on the wire only for an explicit leave
+frame, so a closed tab or lost network left every other member's "N online" chip
+counting a member that was gone.
+
+**Claim 2:** `webtransport-fallback.spec.ts` — "The crossBrowserSpecs regex … already
+matches any spec name containing 'fallback'"; carnet #54 — the spec is "matched only by
+the opt-in firefox/webkit projects".
+**Truth:** `crossBrowserSpecs` is an explicit alternation that names the file. And
+evaluated as Playwright evaluates it, the unanchored `/transport-fallback\.spec\.ts/`
+of the `transport-fallback` project also matched `webtransport-fallback.spec.ts`, so it
+already ran in the core-transports leg under another project's name.
+
+**Slip path:** the specs were written against a sample UI that was later replaced, and
+nothing compared spec files to project `testMatch` patterns, so they went stale without
+a single failing run. Their offline simulation was never checked against what
+Chromium's offline emulation does to an open socket. The #54 description was reasoned
+from reading regexes rather than evaluating them.
+
+**Gate:** `scripts/validate-playwright-project-coverage.sh` now evaluates the config
+(`scripts/lib/playwright_spec_projects.mjs`, node, no `node_modules`; output identical to
+`playwright test --list` on all 115 files) and fails when an `e2e/**/*.spec.ts` is matched
+by no project a workflow runs and is not excluded; `test-playwright-project-coverage.sh`
+adds 10 cases (23 total), and the pre-fix config fails naming exactly the five. The
+specs were rewritten against the Console with `helpers/network-switch.ts` (a real cut:
+proxied WebSocket closed with 1006, context offline), got projects and e2e.yml legs, and
+passed 3x each. `RoomProtocolInterceptor` announces a dropped member's leave once
+(unit tests fail without the fix; `presence-count` fails against the old jar).
+`transport-fallback`'s regex is anchored and `webtransport-fallback` has its own project.

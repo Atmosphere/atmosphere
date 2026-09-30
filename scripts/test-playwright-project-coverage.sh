@@ -16,8 +16,9 @@
 #
 # Proves scripts/validate-playwright-project-coverage.sh bites.
 #
-# Each case copies the real inputs (playwright.config.ts, the workflows, the
-# exclusion list) into a scratch directory, injects exactly one violation, and
+# Each case copies the real inputs (playwright.config.ts with its e2e/ spec
+# tree, the workflows, the exclusion list) into a scratch directory, injects
+# exactly one violation, and
 # asserts that the gate exits 1 WITH the message of the check under test — a
 # non-zero exit from some other check would prove nothing about this one. The
 # real tree must pass, and two cases pin that comment-only mentions count for
@@ -36,6 +37,8 @@ passed=0; failed=0
 setup() {
     rm -rf "$TMP/case"; mkdir -p "$TMP/case/workflows"
     cp "$ROOT/modules/integration-tests/playwright.config.ts" "$TMP/case/playwright.config.ts"
+    # The config's testDir is ./e2e; the gate maps the spec files found there.
+    cp -R "$ROOT/modules/integration-tests/e2e" "$TMP/case/e2e"
     cp "$ROOT"/.github/workflows/*.yml "$TMP/case/workflows/"
     cp "$ROOT/.harness/playwright-project-exclusions.txt" "$TMP/case/exclusions.txt"
 }
@@ -53,6 +56,19 @@ path, entry = sys.argv[1], sys.argv[2]
 s = open(path).read()
 i = s.index('projects: [') + len('projects: [')
 open(path, 'w').write(s[:i] + '\n' + entry + '\n' + s[i:])
+PY
+}
+
+# Replace a literal string in a scratch file — python, so regex
+# metacharacters in the needle need no escaping.
+replace_in() {
+    python3 - "$1" "$2" "$3" <<'PY'
+import sys
+path, old, new = sys.argv[1], sys.argv[2], sys.argv[3]
+s = open(path).read()
+if old not in s:
+    sys.exit(f"replace_in: {old!r} not found in {path}")
+open(path, 'w').write(s.replace(old, new, 1))
 PY
 }
 
@@ -127,6 +143,54 @@ expect "dropping an exclusion uncovers its project" 1 "project 'firefox' is decl
 setup
 printf 'export default {};\n' > "$TMP/case/playwright.config.ts"
 expect "an unparseable config fails instead of passing vacuously" 1 "no projects parsed"
+
+# --- spec files: each must be picked up by a project a workflow runs ---
+
+setup
+touch "$TMP/case/e2e/zzz-orphan.spec.ts"
+expect "a spec no project matches fails" 1 "spec 'zzz-orphan.spec.ts' is matched by no project"
+
+setup
+mkdir -p "$TMP/case/e2e/nested"
+touch "$TMP/case/e2e/nested/zzz-deep.spec.ts"
+expect "a spec in a subdirectory is walked too" 1 "spec 'nested/zzz-deep.spec.ts' is matched by no project"
+
+setup
+touch "$TMP/case/e2e/zzz-orphan.spec.ts"
+add_project "    // { name: 'chat', testMatch: /zzz-orphan\.spec\.ts/ },"
+expect "a //-commented testMatch picks up nothing" 1 "spec 'zzz-orphan.spec.ts' is matched by no project"
+
+setup
+touch "$TMP/case/e2e/zzz-orphan.spec.ts"
+replace_in "$TMP/case/playwright.config.ts" 'testMatch: /\/chat\.spec\.ts/,' 'testMatch: /\/(chat|zzz-orphan)\.spec\.ts/,'
+expect "the testMatch regex is evaluated (an alternation covers the orphan)" 0 "PASS —"
+
+setup
+replace_in "$TMP/case/playwright.config.ts" 'testMatch: /\/webtransport-fallback\.spec\.ts/,' 'testMatch: /\/zzz-nothing\.spec\.ts/,'
+expect "a spec matched only by excluded projects fails" 1 "spec 'webtransport-fallback.spec.ts' is matched only by project(s) firefox,webkit, which no workflow runs"
+
+setup
+touch "$TMP/case/e2e/zzz-orphan.spec.ts"
+printf 'zzz-orphan.spec.ts | jfarcand | 2099-01-01 | carnet#54 | self-test exclusion\n' >> "$TMP/case/exclusions.txt"
+expect "a valid spec exclusion accounts for an orphan spec" 0 "one of 1 excluded"
+
+setup
+touch "$TMP/case/e2e/zzz-orphan.spec.ts"
+printf 'zzz-orphan.spec.ts | jfarcand | 2020-01-01 | carnet#54 | self-test exclusion\n' >> "$TMP/case/exclusions.txt"
+expect "an expired spec exclusion fails" 1 "exclusion 'zzz-orphan.spec.ts' EXPIRED on 2020-01-01"
+
+setup
+printf 'chat.spec.ts | jfarcand | 2099-01-01 | carnet#54 | stale\n' >> "$TMP/case/exclusions.txt"
+expect "excluding a spec a workflow project already runs fails" 1 "exclusion 'chat.spec.ts' is already run by project(s) chat"
+
+setup
+printf 'zzz-gone.spec.ts | jfarcand | 2099-01-01 | carnet#54 | stale\n' >> "$TMP/case/exclusions.txt"
+expect "excluding a spec file that does not exist fails" 1 "exclusion 'zzz-gone.spec.ts' names no spec file"
+
+setup
+add_project "    { name: 'zzz-glob', testMatch: '**/zzz.spec.ts' },"
+printf 'zzz-glob | jfarcand | 2099-01-01 | carnet#54 | self-test\n' >> "$TMP/case/exclusions.txt"
+expect "a testMatch the mapper cannot evaluate fails instead of guessing" 1 "could not map spec files to projects"
 
 echo ""
 echo "$passed passed, $failed failed"

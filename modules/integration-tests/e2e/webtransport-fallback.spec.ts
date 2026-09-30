@@ -17,9 +17,10 @@ import { fetchWebTransportInfo } from './helpers/webtransport-helper';
  * a transport-selector regression on Firefox/WebKit (e.g. throwing instead
  * of falling back) would have shipped silently.
  *
- * <p>The crossBrowserSpecs regex in playwright.config.ts already matches
- * any spec name containing "fallback" — Firefox + WebKit projects pick this
- * file up automatically when {@code E2E_ALL_BROWSERS=true}.</p>
+ * <p>On Chromium this file runs under its own {@code webtransport-fallback}
+ * project (per-push e2e.yml leg). It is also named in the crossBrowserSpecs
+ * regex in playwright.config.ts, so the opt-in Firefox + WebKit projects pick
+ * it up when {@code E2E_ALL_BROWSERS=true}.</p>
  */
 test.describe('WebTransport / WebSocket fallback', () => {
   let server: SampleServer;
