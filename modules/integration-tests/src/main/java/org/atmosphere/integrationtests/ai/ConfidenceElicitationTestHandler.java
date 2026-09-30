@@ -22,11 +22,13 @@ import org.atmosphere.ai.AiConfidenceElicitation;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiMetrics;
 import org.atmosphere.ai.AiPipeline;
+import org.atmosphere.ai.ConfidenceRouting;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.RawMessage;
 
 import java.io.IOException;
 import java.util.List;
@@ -56,6 +58,10 @@ import java.util.Set;
  *       {@code "confidence"}, but per-request metadata overrides to
  *       {@code FIELD}; runtime returns text containing
  *       {@code "FIELD": 0.42}.</li>
+ *   <li>{@code route:high} / {@code route:mid} / {@code route:none} — the
+ *       pipeline has a default {@link ConfidenceRouting} and NO elicitation;
+ *       the runtime reports 0.95, 0.83 or no field, and the wire carries
+ *       {@code ai.confidence.route} ACT, CONFIRM or ESCALATE.</li>
  * </ul>
  */
 public class ConfidenceElicitationTestHandler implements AtmosphereHandler {
@@ -86,6 +92,13 @@ public class ConfidenceElicitationTestHandler implements AtmosphereHandler {
                             AiConfidenceElicitation.withField(fieldName)));
             return;
         }
+        if (prompt.startsWith("route:")) {
+            // Routing alone: the composer must install the default
+            // elicitation itself, or no signal exists to route on.
+            pipeline.setDefaultConfidenceRouting(ConfidenceRouting.defaults());
+            pipeline.execute("client-1", "go", session);
+            return;
+        }
         if (!prompt.equals("disabled")) {
             pipeline.setDefaultConfidenceElicitation(AiConfidenceElicitation.defaults());
         }
@@ -112,7 +125,9 @@ public class ConfidenceElicitationTestHandler implements AtmosphereHandler {
         @Override
         public void execute(AgentExecutionContext context, StreamingSession session) {
             switch (prompt) {
-                case "reported", "disabled" ->
+                case "route:high" -> session.send("answer is 42 {\"confidence\": 0.95}");
+                case "route:none" -> session.send("answer is 42, probably");
+                case "reported", "disabled", "route:mid" ->
                         session.send("answer is 42 {\"confidence\": 0.83}");
                 case "missing" -> session.send("answer is 42, no confidence field present");
                 case "out-of-range" -> session.send("answer {\"confidence\": 5.0}");
@@ -130,7 +145,18 @@ public class ConfidenceElicitationTestHandler implements AtmosphereHandler {
     }
 
     @Override
-    public void onStateChange(AtmosphereResourceEvent event) throws IOException { /* no-op */ }
+    public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+        // StreamingSessions broadcasts each frame to the resource; without
+        // writing it here nothing reaches the client.
+        if (event.isCancelled() || event.isResumedOnTimeout()
+                || event.isClosedByClient() || event.isClosedByApplication()) {
+            return;
+        }
+        if (event.getMessage() instanceof RawMessage raw && raw.message() instanceof String json) {
+            event.getResource().getResponse().write(json);
+            event.getResource().getResponse().flushBuffer();
+        }
+    }
 
     @Override
     public void destroy() { /* no-op */ }

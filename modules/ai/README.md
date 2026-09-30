@@ -724,6 +724,57 @@ stays on the model-reported-field fallback. The opt-in survives every tool-loop
 round, so the aggregate reflects the tokens of the final answer, not just the
 tool-call round.
 
+### Confidence routing
+
+Emitting a confidence routes nothing. `ConfidenceRouting` is the consumer: it
+turns each completed turn's `AiConfidence` into a `ConfidenceRoute` — the answer
+says *what*, the confidence says *whether to act on it*.
+
+```java
+pipeline.setDefaultConfidenceRouting(ConfidenceRouting.of(0.9, 0.5)
+        .withHandler(decision -> {
+            if (decision.route() == ConfidenceRoute.ESCALATE) {
+                reviewQueue.submit(decision.request(), decision.confidence());
+            }
+        }));
+```
+
+| Confidence | Route |
+|------------|-------|
+| `>= actAt` (default 0.9) | `ACT` |
+| `>= confirmAt` (default 0.5) | `CONFIRM` |
+| below `confirmAt` | `ESCALATE` |
+| unknown — no field, out of range, nothing emitted | `unknownRoute`, default `ESCALATE` |
+
+- **Both dispatch paths.** The layer is part of the shared `DispatchDecorators`
+  composer, so `@AiEndpoint` (per-request `ai.confidence.routing` metadata) and
+  `AiPipeline` (`setDefaultConfidenceRouting`, or the same metadata key) behave
+  identically; `DispatchDecoratorParityTest` pins its position.
+- **Signal.** The router sits inside the confidence layer, so it sees native
+  logprobs when a runtime reports them and the parsed field otherwise. A
+  routing with no `AiConfidenceElicitation` installs the default cue, because
+  a turn nobody asked about is always unknown. Native logprobs on the Built-in
+  runtime are requested only when the request metadata carries an
+  elicitation, so set one explicitly to get them.
+- **Structured output.** The cue is not appended (it would break the
+  single-JSON-object parse). Declare the confidence field on the response
+  record; with a routing in scope the field is read from the raw JSON.
+- **Delivery.** Before the terminal frame the route rides the wire as
+  `ai.confidence.route` and the handler receives a `ConfidenceDecision`
+  (route, confidence, originating request). The handler runs on the
+  completing thread — hand long work off. A handler that throws is logged
+  and does not fail the turn.
+- **Not routed:** a turn that errored, or that a guardrail already blocked.
+  There is no answer to act on.
+- **Why not gate tool calls on confidence?** The confidence of a tool-call
+  decision is not known when the tool is about to run: providers return
+  logprobs for content tokens, and the model-reported field arrives on
+  completion. Tool gating stays with `@RequiresApproval` / `ToolApprovalPolicy`.
+
+`ConfidenceThresholdGuardrail` is the older, narrower primitive: it reads only
+the text field, passes when the field is missing, and blocks the stream rather
+than routing the turn.
+
 ## Prompt Registry (versioned prompts, templating, rollout)
 
 System prompts can be managed as **versioned files** instead of inline
@@ -1884,12 +1935,14 @@ prevention, dynamic routing, and long-pause human-in-the-loop:
   `{"confidence": 0.x}` field on stream completion and fires
   `session.confidence(AiConfidence)` ahead of the terminal frame. Three sources
   documented in `AiConfidence.Source`: `LOGPROBS_NATIVE` (native token logprobs
-  from runtimes that override and call `session.confidence()` directly with
-  richer signal — none ship today), `MODEL_REPORTED_FIELD` (the framework's
-  universal-fallback path), `HEURISTIC` (caller-computed). The decorator is
-  skipped when structured-output mode is in play because the schema parser owns
-  the response shape — callers add a `confidence` field to their record schema
-  in that mode.
+  from runtimes that call `session.confidence()` directly — the Built-in runtime
+  does, see *Native logprobs confidence*), `MODEL_REPORTED_FIELD` (the
+  framework's universal-fallback path), `HEURISTIC` (caller-computed). The cue
+  is not appended when structured-output mode is in play because the schema
+  parser owns the response shape — callers add a `confidence` field to their
+  record schema in that mode, which is parsed when a `ConfidenceRouting` is in
+  scope. Acting on the signal is `ConfidenceRouting`'s job — see *Confidence
+  routing*.
 
 - **`PASSIVATION`** — `org.atmosphere.checkpoint.AgentPassivation` captures the
   persistable subset of `AgentExecutionContext` into an `AgentSnapshot` and

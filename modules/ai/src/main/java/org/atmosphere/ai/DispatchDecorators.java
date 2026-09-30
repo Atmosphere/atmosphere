@@ -58,9 +58,14 @@ import java.util.List;
  *       counting layers already observed.</li>
  *   <li><b>Structured output</b> — typed parsing; guardrails see parsed
  *       output through it.</li>
- *   <li><b>Confidence</b> — outermost of the shared layers; skipped when a
- *       structured response type is declared (the cue block would break the
- *       single-JSON-object parse).</li>
+ *   <li><b>Confidence routing</b> — inside the confidence layer so it sees
+ *       every confidence source (runtime logprobs and the parsed field)
+ *       before routing the completed turn.</li>
+ *   <li><b>Confidence</b> — outermost of the shared layers. Without a
+ *       routing it is skipped when a structured response type is declared
+ *       (the cue block would break the single-JSON-object parse); with a
+ *       routing it is installed parse-only there, reading the field the
+ *       response record declares.</li>
  * </ol>
  *
  * <p>Path-specific compensations stay OUT of this composer by design:
@@ -98,6 +103,9 @@ final class DispatchDecorators {
      * @param originatingRequest the request that produces the stream, handed to
      *                          the guardrail layer so identity-scoped output
      *                          checks keep their subject; or {@code null}
+     * @param confidenceRouting routes the completed turn on its confidence, or
+     *                          {@code null}; implies the default elicitation
+     *                          when {@code confidence} is {@code null}
      */
     record Spec(
             AiConversationMemory memory,
@@ -114,7 +122,8 @@ final class DispatchDecorators {
             List<AiGuardrail> guardrails,
             Class<?> responseType,
             AiConfidenceElicitation confidence,
-            AiRequest originatingRequest) {
+            AiRequest originatingRequest,
+            ConfidenceRouting confidenceRouting) {
     }
 
     /**
@@ -144,7 +153,7 @@ final class DispatchDecorators {
     /** Compose the shared decorator layers over {@code base} per the spec. */
     static Composed compose(StreamingSession base, Spec spec) {
         var target = base;
-        var layers = new ArrayList<String>(9);
+        var layers = new ArrayList<String>(10);
 
         if (spec.memory() != null) {
             target = new MemoryCapturingSession(target, spec.memory(),
@@ -201,10 +210,20 @@ final class DispatchDecorators {
             layers.add("structured-output");
         }
 
+        var routing = spec.confidenceRouting();
+        var elicitation = spec.confidence() != null || routing == null
+                ? spec.confidence() : AiConfidenceElicitation.defaults();
+        if (routing != null) {
+            target = new ConfidenceRoutingSession(target, routing, spec.originatingRequest());
+            layers.add("confidence-routing");
+        }
+
         String confidenceCueText = null;
-        if (spec.confidence() != null && !hasStructured) {
-            target = new ConfidenceCapturingSession(target, spec.confidence());
-            confidenceCueText = spec.confidence().effectiveCue();
+        if (elicitation != null && (!hasStructured || routing != null)) {
+            target = new ConfidenceCapturingSession(target, elicitation);
+            if (!hasStructured) {
+                confidenceCueText = elicitation.effectiveCue();
+            }
             layers.add("confidence");
         }
 

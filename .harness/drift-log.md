@@ -3255,3 +3255,43 @@ prior art in the org was not searched before estimating.
 class, read its body (not only its Javadoc) and grep every config key its
 Javadoc advertises; before an effort estimate, search the org for prior art.
 The phantom `blockingIO.*` keys are a standing Javadoc drift to fix or register.
+
+---
+
+## 2026-09-30 — Confidence "escalation" was documented but never wired
+
+**Session:** comparing Atmosphere's confidence primitives against an external
+"confidence-gated routing" design, then implementing `ConfidenceRouting` (carnet #50).
+
+**Claim 1:** `AiConfidence` Javadoc — "high-confidence turns auto-execute,
+low-confidence turns escalate to human review."
+**Truth:** nothing in `src/main` read the signal; `StreamingSession.confidence()`
+only emitted `ai.confidence.*` metadata. No turn was ever routed.
+
+**Claim 2:** `ConfidenceThresholdGuardrail` Javadoc (since `b6cdced49e`) — "Pair
+with `@RequiresApproval` on the @Prompt method to auto-escalate low-confidence
+turns to a human."
+**Truth:** `@RequiresApproval` gates `@AiTool` methods only; a block ends the stream
+with a `SecurityException` and nothing routes the turn to a human. The guardrail
+also had zero production consumers.
+
+**Claim 3:** `modules/ai/README.md` — `LOGPROBS_NATIVE` "… none ship today."
+**Truth:** the Built-in runtime has emitted `AiConfidence.fromLogprobs(...)` since
+`2a58ce36a6`; the same README documents it under *Native logprobs confidence*.
+
+**Claim 4:** `ai-confidence-elicitation.spec.ts` (since `4be20c240c`) presented as
+e2e coverage of the confidence wire signal.
+**Truth:** the project was in no CI matrix, and its handler's `onStateChange` was a
+no-op, so no frame ever reached the socket — all 5 tests time out with zero events.
+
+**Slip path:** a doc sentence describing the intended consumer was written with the
+primitive and never re-checked once the consumer failed to materialise; the e2e spec
+was added to `playwright.config.ts` but not to `e2e.yml`, so it never ran to expose
+the dead handler.
+
+**Gate:** `ConfidenceRouting` now makes Claim 1 true and is pinned by
+`ConfidenceRoutingTest` + `DispatchDecoratorParityTest`; both Javadocs and the README
+were corrected; the handler writes frames and `ai-confidence-elicitation` joined the
+`e2e.yml` matrix (bite-checked: dropping the route emission fails exactly the 3
+routing tests). The general gap — nine more Playwright projects outside every CI
+matrix — is carnet #53, whose fix is a config-vs-workflow coverage check.

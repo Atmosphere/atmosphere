@@ -103,6 +103,12 @@ public class AiPipeline {
      */
     private volatile AiConfidenceElicitation defaultConfidenceElicitation;
     /**
+     * Pipeline-level default {@link ConfidenceRouting}. When set, every
+     * completed turn is routed on its confidence; per-request callers
+     * override via the {@code ai.confidence.routing} metadata key.
+     */
+    private volatile ConfidenceRouting defaultConfidenceRouting;
+    /**
      * Pipeline-level default {@link AiStructuredRetry}. When set and enabled,
      * every {@link #execute(String, String, StreamingSession)} call seeds it
      * into the request metadata so structured-output turns self-heal on schema
@@ -300,6 +306,30 @@ public class AiPipeline {
     }
 
     /**
+     * Install a pipeline-level default {@link ConfidenceRouting}. When
+     * non-null, every {@link #execute(String, String, StreamingSession)}
+     * call routes its completed turn to {@link ConfidenceRoute#ACT},
+     * {@link ConfidenceRoute#CONFIRM} or {@link ConfidenceRoute#ESCALATE},
+     * emits the route as {@value ConfidenceRouting#ROUTE_METADATA_KEY} and
+     * calls the routing's decision handler. Installs the default
+     * elicitation when none is configured, so a signal exists.
+     *
+     * <p>Per-request callers can override via the
+     * {@code ai.confidence.routing} metadata key — caller-supplied
+     * routings win.</p>
+     *
+     * @param routing routing to install, or {@code null} to disable
+     */
+    public void setDefaultConfidenceRouting(ConfidenceRouting routing) {
+        this.defaultConfidenceRouting = routing;
+    }
+
+    /** The currently configured pipeline default routing; {@code null} when none. */
+    public ConfidenceRouting defaultConfidenceRouting() {
+        return defaultConfidenceRouting;
+    }
+
+    /**
      * Install a pipeline-level default {@link AiStructuredRetry}. Applies only
      * to structured-output turns (those with a declared response type). Per-request
      * callers override via the {@code ai.structured.retry} metadata key in the
@@ -458,6 +488,10 @@ public class AiPipeline {
             baseMetadata.putIfAbsent(
                     AiConfidenceElicitation.METADATA_KEY, pipelineElicitation);
         }
+        var pipelineRouting = this.defaultConfidenceRouting;
+        if (pipelineRouting != null) {
+            baseMetadata.putIfAbsent(ConfidenceRouting.METADATA_KEY, pipelineRouting);
+        }
         // Seed the structured-output retry default. Caller-supplied retry wins.
         var pipelineRetry = this.defaultStructuredRetry;
         if (pipelineRetry != null && pipelineRetry.enabled()) {
@@ -604,7 +638,8 @@ public class AiPipeline {
                 mergeForPostResponse(guardrails, effectivePolicies),
                 effectiveResponseType,
                 AiConfidenceElicitation.from(baseMetadata),
-                request));
+                request,
+                ConfidenceRouting.from(baseMetadata)));
         StreamingSession target = composed.target();
         var budgetSession = composed.budgetSession();
         var structuredSchemaText = composed.structuredSchemaText();

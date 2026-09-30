@@ -56,7 +56,7 @@ class DispatchDecoratorParityTest {
                 null, "client-1", "hello",
                 "user-1", "agent-1", "conv-1",
                 AiMetrics.NOOP, "test-model", "test-runtime", "test-model",
-                budget, List.of(), responseType, confidence, new AiRequest("hello"));
+                budget, List.of(), responseType, confidence, new AiRequest("hello"), null);
     }
 
     @Test
@@ -78,10 +78,11 @@ class DispatchDecoratorParityTest {
                                 "test"),
                         "test-model", "test-runtime", "test-model",
                         budget, List.of(new org.atmosphere.ai.guardrails.PiiRedactionGuardrail()),
-                        null, AiConfidenceElicitation.defaults(), new AiRequest("hello")));
+                        null, AiConfidenceElicitation.defaults(), new AiRequest("hello"),
+                        ConfidenceRouting.defaults()));
 
         assertEquals(List.of("lineage", "metrics", "cost", "budget",
-                        "guardrails", "confidence"),
+                        "guardrails", "confidence-routing", "confidence"),
                 composed.layers(),
                 "the canonical shared-layer order is pinned — a reorder or a "
                         + "one-sided addition must fail this test");

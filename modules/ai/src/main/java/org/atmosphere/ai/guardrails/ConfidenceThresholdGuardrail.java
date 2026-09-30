@@ -34,15 +34,16 @@ import java.util.regex.Pattern;
  * passes by default (operators who want strict enforcement pair this
  * with structured-output mode that guarantees the field).
  *
- * <h2>Why "block" not "escalate"</h2>
- * Blocking is the composable primitive — the admission seam raises a
- * {@link SecurityException} with the reason, and the
- * {@code PolicyAdmissionGate} / {@code @RequiresApproval} plumbing handles
- * the human-review workflow. This guardrail should not know about the
- * approval-routing layer (that's a protocol concern).
+ * <h2>Block, not escalate</h2>
+ * A block terminates the stream with a {@link SecurityException}; text
+ * already streamed has reached the client. Nothing routes the blocked turn
+ * to a human — {@code @RequiresApproval} gates {@code @AiTool} methods, not
+ * responses. The guardrail sees only response text, so it never reads a
+ * native-logprobs confidence, and it passes when the field is missing.
  *
- * <p>Pair with {@code @RequiresApproval} on the @Prompt method to
- * auto-escalate low-confidence turns to a human.</p>
+ * <p>To act on confidence instead of cutting the stream — escalate,
+ * confirm, or proceed, with an unknown signal failing closed — install a
+ * {@link org.atmosphere.ai.ConfidenceRouting}.</p>
  */
 public final class ConfidenceThresholdGuardrail implements AiGuardrail {
 

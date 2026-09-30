@@ -99,4 +99,32 @@ test.describe('AI Confidence Elicitation E2E', () => {
       client.close();
     }
   });
+
+  for (const [prompt, route, aggregate] of [
+    ['route:high', 'ACT', 0.95],
+    ['route:mid', 'CONFIRM', 0.83],
+    ['route:none', 'ESCALATE', undefined],
+  ] as const) {
+    test(`confidence routing emits ${route} for ${prompt}`, async () => {
+      const client = new AiWsClient(server.wsUrl, '/ai/confidence-elicitation');
+      try {
+        await client.connect();
+        // The pipeline has a ConfidenceRouting and no elicitation: the
+        // default cue is installed for it, the field is parsed, and the
+        // route rides the wire ahead of the terminal frame. No field at
+        // all fails closed to ESCALATE.
+        client.send(prompt);
+        await client.waitForDone(15_000);
+
+        expect(client.metadata.get('ai.confidence.route')).toBe(route);
+        if (aggregate === undefined) {
+          expect(client.metadata.has('ai.confidence.aggregate')).toBe(false);
+        } else {
+          expect(client.metadata.get('ai.confidence.aggregate')).toBe(aggregate);
+        }
+      } finally {
+        client.close();
+      }
+    });
+  }
 });

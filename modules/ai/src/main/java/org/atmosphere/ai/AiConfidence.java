@@ -22,7 +22,10 @@ import java.util.OptionalDouble;
 /**
  * Per-response confidence signal — the data primitive behind Bonér's
  * "dynamic routing" pattern (high-confidence turns auto-execute,
- * low-confidence turns escalate to human review).
+ * low-confidence turns escalate to human review). {@link ConfidenceRouting}
+ * is what acts on it: install one and each completed turn is routed to
+ * {@link ConfidenceRoute#ACT}, {@link ConfidenceRoute#CONFIRM} or
+ * {@link ConfidenceRoute#ESCALATE}. Emitting the signal alone routes nothing.
  *
  * <p>Three sources, each documenting how the value was derived so callers
  * can weight it appropriately:</p>
