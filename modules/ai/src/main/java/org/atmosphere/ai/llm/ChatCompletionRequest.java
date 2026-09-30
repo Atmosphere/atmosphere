@@ -48,7 +48,8 @@ public record ChatCompletionRequest(
         ToolApprovalPolicy approvalPolicy,
         ToolLoopPolicy toolLoopPolicy,
         String jsonSchema,
-        boolean logprobs
+        boolean logprobs,
+        DecisionField decisionField
 ) {
     /**
      * Canonical constructor. {@code retryPolicy} is a per-request override
@@ -76,6 +77,30 @@ public record ChatCompletionRequest(
         // OpenAiCompatibleClient to request token logprobs (subject to the
         // LogprobsMode endpoint gate) so it can emit a LOGPROBS_NATIVE
         // AiConfidence on completion.
+        // decisionField stays nullable: null keeps the historical wire shape
+        // (no top_logprobs). Non-null — set only alongside logprobs in
+        // structured-output mode — asks the client for top_logprobs and to
+        // score that field's value distribution (DECISION_LOGPROBS).
+    }
+
+    /**
+     * Shim constructor accepting the 16-arg form (without {@code decisionField}).
+     * Defaults {@code decisionField} to {@code null} so every existing call
+     * site — including the prior canonical signature — keeps emitting the
+     * historical wire shape (no {@code top_logprobs} field).
+     */
+    public ChatCompletionRequest(String model, List<ChatMessage> messages,
+                                 double temperature, int maxStreamingTexts,
+                                 boolean jsonMode, List<ToolDefinition> tools,
+                                 String conversationId, ApprovalStrategy approvalStrategy,
+                                 List<org.atmosphere.ai.Content> parts,
+                                 List<org.atmosphere.ai.AgentLifecycleListener> listeners,
+                                 CacheHint cacheHint, RetryPolicy retryPolicy,
+                                 ToolApprovalPolicy approvalPolicy, ToolLoopPolicy toolLoopPolicy,
+                                 String jsonSchema, boolean logprobs) {
+        this(model, messages, temperature, maxStreamingTexts, jsonMode, tools,
+                conversationId, approvalStrategy, parts, listeners, cacheHint, retryPolicy,
+                approvalPolicy, toolLoopPolicy, jsonSchema, logprobs, null);
     }
 
     /**
@@ -95,7 +120,7 @@ public record ChatCompletionRequest(
                                  String jsonSchema) {
         this(model, messages, temperature, maxStreamingTexts, jsonMode, tools,
                 conversationId, approvalStrategy, parts, listeners, cacheHint, retryPolicy,
-                approvalPolicy, toolLoopPolicy, jsonSchema, false);
+                approvalPolicy, toolLoopPolicy, jsonSchema, false, null);
     }
 
     /**
@@ -114,7 +139,7 @@ public record ChatCompletionRequest(
                                  ToolApprovalPolicy approvalPolicy, ToolLoopPolicy toolLoopPolicy) {
         this(model, messages, temperature, maxStreamingTexts, jsonMode, tools,
                 conversationId, approvalStrategy, parts, listeners, cacheHint, retryPolicy,
-                approvalPolicy, toolLoopPolicy, null, false);
+                approvalPolicy, toolLoopPolicy, null, false, null);
     }
 
     /**
@@ -260,6 +285,7 @@ public record ChatCompletionRequest(
         private ToolLoopPolicy toolLoopPolicy = ToolLoopPolicy.DEFAULT;
         private String jsonSchema;
         private boolean logprobs;
+        private DecisionField decisionField;
 
         private Builder(String model) {
             this.model = model;
@@ -415,11 +441,25 @@ public record ChatCompletionRequest(
             return this;
         }
 
+        /**
+         * Designate the structured-response property whose value distribution
+         * {@link OpenAiCompatibleClient} scores from {@code top_logprobs}
+         * (source {@code DECISION_LOGPROBS}). Only takes effect together with
+         * {@link #logprobs(boolean)}; set by {@code BuiltInAgentRuntime} when the
+         * confidence elicitation names a decision field and the response type's
+         * schema makes it an enum or boolean. {@code null} (the default) keeps
+         * the wire shape unchanged.
+         */
+        public Builder decisionField(DecisionField decisionField) {
+            this.decisionField = decisionField;
+            return this;
+        }
+
         public ChatCompletionRequest build() {
             return new ChatCompletionRequest(model, List.copyOf(messages),
                     temperature, maxStreamingTexts, jsonMode, tools, conversationId, approvalStrategy,
                     parts, listeners, cacheHint, retryPolicy, approvalPolicy, toolLoopPolicy,
-                    jsonSchema, logprobs);
+                    jsonSchema, logprobs, decisionField);
         }
     }
 }

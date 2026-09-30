@@ -253,11 +253,13 @@ public class OpenAiCompatibleClient implements LlmClient {
         // Native-logprobs accumulator, one per top-level stream (it spans
         // tool-loop rounds so the aggregate reflects the whole response).
         // Null when the request did not opt in — the SSE forwarders then add
-        // zero capture overhead and the wire behavior is unchanged.
-        var logprobTokens = request.logprobs()
-                ? new ArrayList<org.atmosphere.ai.TokenLogprob>() : null;
+        // zero capture overhead and the wire behavior is unchanged. With a
+        // decision field it also keeps top_logprobs so the decision's value
+        // distribution can be scored (DECISION_LOGPROBS).
+        var logprobCapture = request.logprobs()
+                ? new LogprobCapture(request.decisionField()) : null;
         try {
-            doStreamWithToolLoop(request, session, 0, effective, streamSink, logprobTokens);
+            doStreamWithToolLoop(request, session, 0, effective, streamSink, logprobCapture);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             session.error(e);
@@ -290,7 +292,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                                       StreamingSession session, int toolRound,
                                       java.util.concurrent.atomic.AtomicBoolean cancelled,
                                       java.util.function.Consumer<java.io.Closeable> streamSink,
-                                      List<org.atmosphere.ai.TokenLogprob> logprobTokens)
+                                      LogprobCapture logprobCapture)
             throws InterruptedException, java.io.IOException {
 
         // Durable-run round seam: when a durable scope is installed, each LLM
@@ -311,7 +313,7 @@ public class OpenAiCompatibleClient implements LlmClient {
             var recorded = durableCtx.journal().lookupCommitted(durableCtx.runId(), roundKey);
             if (recorded.isPresent()) {
                 replayRound(recorded.get().resultPayload(), request, session, toolRound,
-                        cancelled, streamSink, logprobTokens);
+                        cancelled, streamSink, logprobCapture);
                 return;
             }
             // Two-phase: record the round PENDING before dispatch; commit it
@@ -415,6 +417,10 @@ public class OpenAiCompatibleClient implements LlmClient {
         // holder mirrors the existing capturedResponseId / toolCallsRequested
         // mutable-output pattern in this method.
         org.atmosphere.ai.TokenUsage[] capturedUsage = new org.atmosphere.ai.TokenUsage[1];
+        if (logprobCapture != null) {
+            // The decision is scored on the final round's tokens only.
+            logprobCapture.beginRound();
+        }
         try (var reader = new BufferedReader(new InputStreamReader(inFlightStream, StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -424,10 +430,10 @@ public class OpenAiCompatibleClient implements LlmClient {
                 if (useResponsesApi) {
                     processResponsesApiSSELine(line, session, accumulators,
                             toolCallsRequested, capturedResponseId, capturedUsage, roundText,
-                            logprobTokens);
+                            logprobCapture);
                 } else {
                     processSSELine(line, session, accumulators, toolCallsRequested,
-                            capturedUsage, roundText, logprobTokens);
+                            capturedUsage, roundText, logprobCapture);
                 }
             }
         } catch (java.io.IOException e) {
@@ -472,7 +478,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                     recordRound(roundText, accumulators, capturedUsage[0]));
         }
         continueAfterRound(request, session, toolRound, toolCallsRequested[0],
-                accumulators, durable, cancelled, streamSink, logprobTokens);
+                accumulators, durable, cancelled, streamSink, logprobCapture);
     }
 
     /**
@@ -489,7 +495,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                                     boolean durable,
                                     java.util.concurrent.atomic.AtomicBoolean cancelled,
                                     java.util.function.Consumer<java.io.Closeable> streamSink,
-                                    List<org.atmosphere.ai.TokenLogprob> logprobTokens)
+                                    LogprobCapture logprobCapture)
             throws InterruptedException, java.io.IOException {
         // If the model requested tool calls, execute them and re-submit
         if (toolCallsRequested && !accumulators.isEmpty() && !request.tools().isEmpty()) {
@@ -508,7 +514,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                             // Terminal-path symmetry (Invariant #2): the
                             // overflow completion emits the same confidence
                             // signal the natural completion does.
-                            emitLogprobConfidence(session, logprobTokens);
+                            emitLogprobConfidence(session, logprobCapture);
                             session.complete();
                         }
                         case FAIL -> session.error(
@@ -603,40 +609,49 @@ public class OpenAiCompatibleClient implements LlmClient {
             // round. jsonSchema is intentionally left at the shim default to
             // keep this round's wire shape unchanged — see the follow-up note
             // in the class Javadoc history rather than widening scope here.
+            // The decision field travels with the logprobs opt-in for the same
+            // reason: the decision value is in the final round, so that round
+            // must also carry top_logprobs.
             var followUp = new ChatCompletionRequest(
                     request.model(), List.copyOf(updatedMessages),
                     request.temperature(), request.maxStreamingTexts(),
                     request.jsonMode(), request.tools(), request.conversationId(),
                     request.approvalStrategy(), request.parts(), request.listeners(),
                     request.cacheHint(), request.retryPolicy(), request.approvalPolicy(),
-                    request.toolLoopPolicy(), null, request.logprobs());
+                    request.toolLoopPolicy(), null, request.logprobs(), request.decisionField());
             if (cancelled.get()) {
                 return;
             }
             doStreamWithToolLoop(followUp, session, toolRound + 1, cancelled, streamSink,
-                    logprobTokens);
+                    logprobCapture);
         } else if (!session.isClosed()) {
             // Fire the native-logprobs confidence BEFORE the terminal frame so
             // the pipeline's ConfidenceCapturingSession observes the explicit
             // LOGPROBS_NATIVE emission and skips its own model-reported-field
             // parse (no double confidence event per response).
-            emitLogprobConfidence(session, logprobTokens);
+            emitLogprobConfidence(session, logprobCapture);
             session.complete();
         }
     }
 
     /**
-     * Emit a {@link org.atmosphere.ai.AiConfidence} with source
-     * {@code LOGPROBS_NATIVE} when the stream captured token logprobs.
-     * Deliberately silent when the provider returned none — emitting an empty
-     * LOGPROBS_NATIVE record would set the capturing decorator's explicit
-     * flag and suppress the model-reported-field fallback, degrading the
-     * signal instead of enriching it.
+     * Emit a {@link org.atmosphere.ai.AiConfidence} when the stream captured
+     * token logprobs: {@code DECISION_LOGPROBS} when the request designated a
+     * decision field, otherwise the whole-response {@code LOGPROBS_NATIVE}
+     * mean. Deliberately silent when the provider returned none, or when a
+     * designated decision could not be scored — emitting an empty native
+     * record would set the capturing decorator's explicit flag and suppress
+     * the model-reported-field fallback, degrading the signal instead of
+     * enriching it.
      */
     private static void emitLogprobConfidence(StreamingSession session,
-                                              List<org.atmosphere.ai.TokenLogprob> logprobTokens) {
-        if (logprobTokens != null && !logprobTokens.isEmpty()) {
-            session.confidence(org.atmosphere.ai.AiConfidence.fromLogprobs(logprobTokens));
+                                              LogprobCapture logprobCapture) {
+        if (logprobCapture == null) {
+            return;
+        }
+        var confidence = logprobCapture.toConfidence();
+        if (confidence != null) {
+            session.confidence(confidence);
         }
     }
 
@@ -651,7 +666,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                              StreamingSession session, int toolRound,
                              java.util.concurrent.atomic.AtomicBoolean cancelled,
                              java.util.function.Consumer<java.io.Closeable> streamSink,
-                             List<org.atmosphere.ai.TokenLogprob> logprobTokens)
+                             LogprobCapture logprobCapture)
             throws InterruptedException, java.io.IOException {
         var round = deserializeRound(payload);
         if (round.assistantText() != null && !round.assistantText().isEmpty()) {
@@ -674,7 +689,7 @@ public class OpenAiCompatibleClient implements LlmClient {
         // a fully-replayed run emits no LOGPROBS_NATIVE confidence and the
         // model-reported-field fallback still fires (runtime truth on replay).
         continueAfterRound(request, session, toolRound, !round.toolCalls().isEmpty(),
-                accumulators, true, cancelled, streamSink, logprobTokens);
+                accumulators, true, cancelled, streamSink, logprobCapture);
     }
 
     /**
@@ -853,7 +868,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                                 boolean[] toolCallsRequested,
                                 org.atmosphere.ai.TokenUsage[] usageHolder,
                                 StringBuilder roundText,
-                                List<org.atmosphere.ai.TokenLogprob> logprobTokens) {
+                                LogprobCapture logprobCapture) {
         if (line.isBlank() || !line.startsWith(DATA_PREFIX)) {
             return;
         }
@@ -890,10 +905,10 @@ public class OpenAiCompatibleClient implements LlmClient {
 
             // Capture per-token logprobs when the request asked for them.
             // OpenAI streams them per-chunk under choices[0].logprobs.content
-            // as [{token, logprob, top_logprobs}, ...]; the accumulated list
-            // feeds AiConfidence.fromLogprobs on completion.
-            if (logprobTokens != null) {
-                captureLogprobs(firstChoice.get("logprobs"), logprobTokens);
+            // as [{token, logprob, top_logprobs}, ...]; the capture feeds the
+            // completion's AiConfidence (LogprobCapture.toConfidence).
+            if (logprobCapture != null) {
+                logprobCapture.capture(firstChoice.get("logprobs"));
             }
 
             // Accumulate tool call fragments. Each argument chunk is also
@@ -954,48 +969,6 @@ public class OpenAiCompatibleClient implements LlmClient {
             }
         } catch (JacksonException e) {
             logger.warn("Failed to parse SSE data: {}", data, e);
-        }
-    }
-
-    /** Bound on captured logprob entries — matches the output ceiling a
-     *  single response can realistically carry; beyond it the capture stops
-     *  and the aggregate reflects the captured prefix (Invariant #3). */
-    private static final int MAX_LOGPROB_TOKENS = 4096;
-
-    /**
-     * Fold one chunk's {@code choices[0].logprobs.content} entries into the
-     * accumulator. Boundary-defensive (Invariant #4): entries missing a
-     * numeric {@code logprob} or a {@code token} string are skipped, NaN is
-     * skipped, and a (theoretically impossible but observed-in-the-wild)
-     * positive logprob is clamped to {@code 0.0} so a single malformed entry
-     * can never abort the stream via {@link TokenLogprob}'s validation.
-     */
-    private static void captureLogprobs(tools.jackson.databind.JsonNode logprobsNode,
-                                        List<org.atmosphere.ai.TokenLogprob> logprobTokens) {
-        if (logprobsNode == null || logprobsNode.isNull()) {
-            return;
-        }
-        var content = logprobsNode.get("content");
-        if (content == null || !content.isArray()) {
-            return;
-        }
-        for (var entry : content) {
-            if (logprobTokens.size() >= MAX_LOGPROB_TOKENS) {
-                logger.debug("Logprob capture truncated at {} tokens", MAX_LOGPROB_TOKENS);
-                return;
-            }
-            var tokenNode = entry.get("token");
-            var logprobNode = entry.get("logprob");
-            if (tokenNode == null || !tokenNode.isString()
-                    || logprobNode == null || !logprobNode.isNumber()) {
-                continue;
-            }
-            var logprob = logprobNode.asDouble();
-            if (Double.isNaN(logprob)) {
-                continue;
-            }
-            logprobTokens.add(new org.atmosphere.ai.TokenLogprob(
-                    tokenNode.stringValue(), Math.min(logprob, 0.0)));
         }
     }
 
@@ -1110,6 +1083,13 @@ public class OpenAiCompatibleClient implements LlmClient {
         // Invariant #7.
         if (request.logprobs() && supportsLogprobs()) {
             body.put("logprobs", true);
+            // Decision confidence: alternatives at each position, so the
+            // client can build the distribution over the designated decision
+            // field's allowed values (DECISION_LOGPROBS). Rides on the same
+            // endpoint gate as logprobs itself.
+            if (request.decisionField() != null) {
+                body.put("top_logprobs", request.decisionField().topLogprobs());
+            }
         }
         return MAPPER.writeValueAsString(body);
     }
@@ -1520,7 +1500,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                                             String[] capturedResponseId,
                                             org.atmosphere.ai.TokenUsage[] usageHolder,
                                             StringBuilder roundText,
-                                            List<org.atmosphere.ai.TokenLogprob> logprobTokens) {
+                                            LogprobCapture logprobCapture) {
         if (line.isBlank() || !line.startsWith(DATA_PREFIX)) {
             return;
         }
@@ -1537,7 +1517,7 @@ public class OpenAiCompatibleClient implements LlmClient {
             if (type == null) {
                 // Fallback: treat as Chat Completions format (shouldn't happen normally)
                 processSSELine(line, session, accumulators, toolCallsRequested, usageHolder,
-                        roundText, logprobTokens);
+                        roundText, logprobCapture);
                 return;
             }
 

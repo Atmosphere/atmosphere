@@ -696,15 +696,21 @@ model-level configuration, so those three remain framework-native.
 `AiCapability.CONFIDENCE_SCORES` has two realizations. The universal one is the
 pipeline-level `ConfidenceCapturingSession`, which appends an elicitation cue to
 the system prompt and parses the model's `"confidence": 0.x` field
-(`AiConfidence.Source.MODEL_REPORTED_FIELD`). The Built-in runtime adds the
-richer **native** one: whenever a request carries an `AiConfidenceElicitation`,
-`BuiltInAgentRuntime` sets `ChatCompletionRequest.logprobs`, `OpenAiCompatibleClient`
-emits `"logprobs": true`, captures `choices[].logprobs.content`, and fires
+(`AiConfidence.Source.MODEL_REPORTED_FIELD`). The Built-in runtime adds a
+**native** one read from the provider's own token probabilities: whenever a
+request carries an `AiConfidenceElicitation`, `BuiltInAgentRuntime` sets
+`ChatCompletionRequest.logprobs`, `OpenAiCompatibleClient` emits
+`"logprobs": true`, captures `choices[].logprobs.content`, and fires
 `AiConfidence.fromLogprobs(...)` (`Source.LOGPROBS_NATIVE`) before the terminal
 frame. The decorator observes that explicit emission and skips its own parse, so
-exactly **one** confidence event fires per response and the richer signal wins
+exactly **one** confidence event fires per response and the native signal wins
 whenever the provider supplies it. If the provider returns no logprobs, the
 runtime stays silent and the model-reported-field fallback still applies.
+
+`LOGPROBS_NATIVE` is the mean of `exp(logprob)` over **every** response token. It
+measures how fluent the text was, not how sure the model was of the answer: a
+long, fluent answer whose one decisive token was a coin flip still scores about
+0.95. When the answer is a decision, score the decision instead (next section).
 
 | Sysprop | Env var | Values | Default |
 |---------|---------|--------|---------|
@@ -723,6 +729,75 @@ against `api.openai.com`) does not request them, so confidence on that path
 stays on the model-reported-field fallback. The opt-in survives every tool-loop
 round, so the aggregate reflects the tokens of the final answer, not just the
 tool-call round.
+
+#### Decision confidence (`DECISION_LOGPROBS`)
+
+For a structured response, name the field that carries the decision:
+
+```java
+enum Verdict { APPROVE, REJECT, DEFER }
+record Triage(Verdict verdict, String reason) { }
+
+pipeline.setDefaultConfidenceElicitation(
+        AiConfidenceElicitation.defaults().withDecisionField("verdict"));
+```
+
+The Built-in runtime resolves the field against the response type's JSON Schema
+(`DecisionField.fromSchema`): it must be a **top-level** property that is a string
+`enum` or a `boolean`, and the schema's values are the allowed ones. The client
+then also sends `top_logprobs` (one slot per allowed value plus three for
+formatting variants, capped at the provider maximum of 20), locates the tokens
+that carry that property's value in the final round's JSON, and builds the
+model's distribution over the allowed values from the alternatives at those
+positions. It emits `AiConfidence.fromDecision(...)`
+(`Source.DECISION_LOGPROBS`):
+
+- `aggregate` is the normalised margin `(k * pMax - 1) / (k - 1)` for `k` allowed
+  values — `1.0` when all mass is on one value, `0.0` for an even split, so a
+  coin flip between `true` and `false` scores `0`, not `0.5`.
+- `decision()` carries the `DecisionDistribution`: value → probability in schema
+  order, plus `observedMass`, the share of probability the top alternatives
+  could be attributed to an allowed value before renormalising.
+- `tokens()` holds the sampled tokens of the decision value, not the whole
+  response.
+
+A `ConfidenceRouting` handler receives the distribution through
+`ConfidenceDecision.confidence().decision()`.
+
+Approximations, stated rather than hidden:
+
+- **Multi-token values.** `CONFIRM` may be sampled as `C` + `ON` + `FIRM`. The
+  client walks the sampled path and multiplies through: at `C` the alternative
+  `ESC` resolves `ESCALATE`, at `ON` the alternative `AN` resolves `CANCEL`
+  (weighted by `p(C)`). Providers return alternatives only along the sampled
+  path, so a non-sampled alternative that is still a prefix of several values
+  has its probability split evenly among them. Even splitting can only lower
+  the concentration, so the error runs toward escalation.
+- **Truncated alternatives.** Probability outside the requested `top_logprobs`
+  is unobserved; a value the provider never offered scores `0`, and the
+  distribution is renormalised over what was observed (`observedMass` says how
+  much that was).
+
+When the distribution cannot be built — the provider ignored `top_logprobs`, the
+field is absent from the output, the value is not an allowed one — the runtime
+emits **no** native confidence, exactly as when a provider returns no logprobs,
+and the model-reported field applies (unknown routes to `ESCALATE` by default).
+It does not fall back to the fluency mean. A decision field that is not a
+top-level enum/boolean of the response type, or a request with no structured
+response type, logs and keeps the `LOGPROBS_NATIVE` mean. Captured data is
+bounded: at most 4096 tokens per response and 20 alternatives per token, and a
+decision value is walked for at most 16 tokens.
+
+**Mode scope:** decision confidence exists only where native logprobs do — the
+Built-in runtime's chat-completions path, in structured-output mode (strict
+`json_schema` or the `json_object` fallback). The Responses API path sends
+neither `logprobs` nor `top_logprobs`, and every other runtime (LangChain4j,
+Spring AI, ADK, Embabel, Koog, and the rest) never emits native logprobs, so
+on those paths `withDecisionField` has no effect and confidence stays on the
+model-reported field. `OpenAiCompatibleClientDecisionConfidenceTest` pins both
+the scoring (recorded chat-completions payloads: confident enum, split enum,
+multi-token enum, boolean, missing `top_logprobs`, tool loop) and the Responses
+API exclusion.
 
 ### Confidence routing
 
@@ -755,7 +830,11 @@ pipeline.setDefaultConfidenceRouting(ConfidenceRouting.of(0.9, 0.5)
   routing with no `AiConfidenceElicitation` installs the default cue, because
   a turn nobody asked about is always unknown. Native logprobs on the Built-in
   runtime are requested only when the request metadata carries an
-  elicitation, so set one explicitly to get them.
+  elicitation, so set one explicitly to get them. For a structured decision,
+  designate it with `withDecisionField(...)` so the route follows how sure the
+  model was of that value (`DECISION_LOGPROBS`, see *Decision confidence*)
+  rather than the fluency of the whole text (`LOGPROBS_NATIVE`), which can
+  route a coin flip to `ACT`.
 - **Structured output.** The cue is not appended (it would break the
   single-JSON-object parse). Declare the confidence field on the response
   record; with a routing in scope the field is read from the raw JSON.
@@ -1933,11 +2012,15 @@ prevention, dynamic routing, and long-pause human-in-the-loop:
   `AiConfidenceElicitation` cue when one is configured, then installs a
   `ConfidenceCapturingSession` decorator that parses the model-emitted
   `{"confidence": 0.x}` field on stream completion and fires
-  `session.confidence(AiConfidence)` ahead of the terminal frame. Three sources
-  documented in `AiConfidence.Source`: `LOGPROBS_NATIVE` (native token logprobs
-  from runtimes that call `session.confidence()` directly — the Built-in runtime
-  does, see *Native logprobs confidence*), `MODEL_REPORTED_FIELD` (the
-  framework's universal-fallback path), `HEURISTIC` (caller-computed). The cue
+  `session.confidence(AiConfidence)` ahead of the terminal frame. Four sources
+  documented in `AiConfidence.Source`: `LOGPROBS_NATIVE` (mean native token
+  probability over the whole response, from runtimes that call
+  `session.confidence()` directly — the Built-in runtime does, see *Native
+  logprobs confidence*), `DECISION_LOGPROBS` (concentration of the native
+  distribution over a designated enum/boolean field's values — Built-in
+  chat-completions path, structured output only, see *Decision confidence*),
+  `MODEL_REPORTED_FIELD` (the framework's universal-fallback path), `HEURISTIC`
+  (caller-computed). The cue
   is not appended when structured-output mode is in play because the schema
   parser owns the response shape — callers add a `confidence` field to their
   record schema in that mode, which is parsed when a `ConfidenceRouting` is in

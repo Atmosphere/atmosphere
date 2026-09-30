@@ -38,8 +38,11 @@ import java.util.Locale;
  * unsupported), so AUTO reuses the same default-deny host allow-list the
  * {@code prompt_cache_key} emission uses — one converged list of endpoints
  * empirically known to honor or gracefully ignore optional OpenAI fields.
- * Suppression only costs the richer {@link org.atmosphere.ai.AiConfidence.Source#LOGPROBS_NATIVE}
- * signal; the pipeline's {@code ConfidenceCapturingSession} model-reported-field
+ * Suppression only costs the native
+ * ({@link org.atmosphere.ai.AiConfidence.Source#LOGPROBS_NATIVE} /
+ * {@link org.atmosphere.ai.AiConfidence.Source#DECISION_LOGPROBS}) signal —
+ * {@code top_logprobs} rides on the same gate; the pipeline's
+ * {@code ConfidenceCapturingSession} model-reported-field
  * fallback still fires, while speculative emission risks a hard request
  * failure on a strict proxy.</p>
  */

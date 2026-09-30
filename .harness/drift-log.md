@@ -3371,3 +3371,33 @@ only boot jars packaged by the build job (the LangChain4j variant builds into
 `target/runtime-langchain4j`); the dispatch test skips without a key; the vacuous
 streaming test asserts with a non-empty input (bite: fails with the gate stripped);
 the quarkus quarantine carries its real reason and a new expiry.
+
+---
+
+## 2026-09-30 — The token-probability mean was called the richest confidence signal
+
+**Session:** implementing decision confidence (`DECISION_LOGPROBS`, carnet #51).
+
+**Claim:** `AiConfidence` Javadoc — `LOGPROBS_NATIVE` is "the richest signal";
+`BuiltInAgentRuntime.buildRequest` comment — "source LOGPROBS_NATIVE — the
+highest-quality signal"; `modules/ai/README.md` *Native logprobs confidence* — "the
+richer **native** one … the richer signal wins"; the same "richer" wording in the
+`AiConfidenceElicitation` and `LogprobsMode` Javadocs.
+**Truth:** `AiConfidence.fromLogprobs` averages `exp(logprob)` over every response
+token. That measures fluency, not certainty about the answer: the recorded split
+payload in `OpenAiCompatibleClientDecisionConfidenceTest` (one decisive token at
+`p ≈ 0.50`, the rest fluent) scores above the 0.9 act threshold and routes to `ACT`,
+while the distribution over the decision field's values escalates. `top_logprobs`
+was never requested, so no signal about the alternatives existed to be "rich".
+
+**Slip path:** "native beats model-reported" was written as a general quality
+ranking when the logprobs path shipped, from the intuition that provider
+probabilities outrank a self-reported number, without asking what the aggregate
+actually averages over.
+
+**Gate:** the wording is corrected at every site (Javadoc, runtime comment, README);
+the README now states what `LOGPROBS_NATIVE` measures and when to use
+`withDecisionField(...)` instead. `splitEnumEscalatesWhereTheFluencyMeanWouldAct`
+pins the contrast on one recorded payload — the fluency mean routes `ACT`, the
+decision distribution routes `ESCALATE` — so the claim cannot be reinstated
+without contradicting a test.

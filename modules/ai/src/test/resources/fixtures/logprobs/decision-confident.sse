@@ -1,0 +1,26 @@
+data: {"id":"chatcmpl-d1","model":"gpt-5-mini","choices":[{"index":0,"delta":{"role":"assistant","content":""},"logprobs":{"content":[]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d1","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"{\""},"logprobs":{"content":[{"token":"{\"","logprob":-0.0001,"top_logprobs":[{"token":"{\"","logprob":-0.0001},{"token":"{\n","logprob":-9.5}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d1","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"verdict"},"logprobs":{"content":[{"token":"verdict","logprob":-0.0002,"top_logprobs":[{"token":"verdict","logprob":-0.0002}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d1","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"\":\""},"logprobs":{"content":[{"token":"\":\"","logprob":-0.0003,"top_logprobs":[{"token":"\":\"","logprob":-0.0003},{"token":"\":","logprob":-8.4}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d1","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"APPROVE"},"logprobs":{"content":[{"token":"APPROVE","logprob":-0.01,"top_logprobs":[{"token":"APPROVE","logprob":-0.01},{"token":"REJECT","logprob":-5.0},{"token":"DE","logprob":-6.0},{"token":"AP","logprob":-7.5},{"token":"approve","logprob":-8.0}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d1","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"\",\""},"logprobs":{"content":[{"token":"\",\"","logprob":-0.001,"top_logprobs":[{"token":"\",\"","logprob":-0.001}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d1","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"reason"},"logprobs":{"content":[{"token":"reason","logprob":-0.001,"top_logprobs":[{"token":"reason","logprob":-0.001}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d1","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"\":\""},"logprobs":{"content":[{"token":"\":\"","logprob":-0.001,"top_logprobs":[{"token":"\":\"","logprob":-0.001}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d1","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"Matches"},"logprobs":{"content":[{"token":"Matches","logprob":-0.2,"top_logprobs":[{"token":"Matches","logprob":-0.2},{"token":"Within","logprob":-1.9}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d1","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":" policy"},"logprobs":{"content":[{"token":" policy","logprob":-0.05,"top_logprobs":[{"token":" policy","logprob":-0.05}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d1","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"\"}"},"logprobs":{"content":[{"token":"\"}","logprob":-0.001,"top_logprobs":[{"token":"\"}","logprob":-0.001}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d1","model":"gpt-5-mini","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":{"prompt_tokens":42,"completion_tokens":10,"total_tokens":52}}
+
+data: [DONE]
+

@@ -1,0 +1,38 @@
+data: {"id":"chatcmpl-d2","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"{\""},"logprobs":{"content":[{"token":"{\"","logprob":-0.0001,"top_logprobs":[{"token":"{\"","logprob":-0.0001}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d2","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"verdict"},"logprobs":{"content":[{"token":"verdict","logprob":-0.0002,"top_logprobs":[{"token":"verdict","logprob":-0.0002}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d2","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"\":\""},"logprobs":{"content":[{"token":"\":\"","logprob":-0.0003,"top_logprobs":[{"token":"\":\"","logprob":-0.0003}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d2","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"APPROVE"},"logprobs":{"content":[{"token":"APPROVE","logprob":-0.69,"top_logprobs":[{"token":"APPROVE","logprob":-0.69},{"token":"REJECT","logprob":-0.70},{"token":"\n","logprob":-7.2}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d2","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"\",\""},"logprobs":{"content":[{"token":"\",\"","logprob":-0.001,"top_logprobs":[{"token":"\",\"","logprob":-0.001}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d2","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"reason"},"logprobs":{"content":[{"token":"reason","logprob":-0.001,"top_logprobs":[{"token":"reason","logprob":-0.001}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d2","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"\":\""},"logprobs":{"content":[{"token":"\":\"","logprob":-0.001,"top_logprobs":[{"token":"\":\"","logprob":-0.001}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d2","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"The"},"logprobs":{"content":[{"token":"The","logprob":-0.01,"top_logprobs":[{"token":"The","logprob":-0.01}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d2","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":" request"},"logprobs":{"content":[{"token":" request","logprob":-0.01,"top_logprobs":[{"token":" request","logprob":-0.01}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d2","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":" is"},"logprobs":{"content":[{"token":" is","logprob":-0.005,"top_logprobs":[{"token":" is","logprob":-0.005}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d2","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":" within"},"logprobs":{"content":[{"token":" within","logprob":-0.02,"top_logprobs":[{"token":" within","logprob":-0.02}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d2","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":" the"},"logprobs":{"content":[{"token":" the","logprob":-0.003,"top_logprobs":[{"token":" the","logprob":-0.003}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d2","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":" documented"},"logprobs":{"content":[{"token":" documented","logprob":-0.02,"top_logprobs":[{"token":" documented","logprob":-0.02}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d2","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":" refund"},"logprobs":{"content":[{"token":" refund","logprob":-0.01,"top_logprobs":[{"token":" refund","logprob":-0.01}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d2","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":" window"},"logprobs":{"content":[{"token":" window","logprob":-0.01,"top_logprobs":[{"token":" window","logprob":-0.01}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d2","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"."},"logprobs":{"content":[{"token":".","logprob":-0.002,"top_logprobs":[{"token":".","logprob":-0.002}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d2","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"\"}"},"logprobs":{"content":[{"token":"\"}","logprob":-0.001,"top_logprobs":[{"token":"\"}","logprob":-0.001}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d2","model":"gpt-5-mini","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":{"prompt_tokens":42,"completion_tokens":17,"total_tokens":59}}
+
+data: [DONE]
+

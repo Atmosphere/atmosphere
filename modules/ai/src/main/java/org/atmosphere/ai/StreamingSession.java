@@ -134,10 +134,12 @@ public interface StreamingSession extends AutoCloseable {
      * and {@code ai.confidence.tokens} metadata keys, mirroring the
      * convention {@link #usage(TokenUsage)} established with
      * {@code ai.tokens.*}. Sessions that want to capture the full record
-     * (including per-token logprobs) override this method.</p>
+     * (including per-token logprobs and a {@link AiConfidence#decision()}
+     * distribution) override this method.</p>
      *
      * <p>Runtimes that natively expose logprobs invoke this directly with
-     * {@link AiConfidence.Source#LOGPROBS_NATIVE}. Runtimes that don't
+     * {@link AiConfidence.Source#LOGPROBS_NATIVE} or
+     * {@link AiConfidence.Source#DECISION_LOGPROBS}. Runtimes that don't
      * expose logprobs still get coverage via the framework-level
      * {@code ConfidenceCapturingSession} decorator — when an elicitation
      * policy is installed, the decorator parses the model-emitted

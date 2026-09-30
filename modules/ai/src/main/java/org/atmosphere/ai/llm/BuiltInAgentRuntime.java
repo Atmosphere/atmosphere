@@ -21,6 +21,8 @@ import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfidenceElicitation;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 
@@ -30,6 +32,8 @@ import java.util.Set;
  * when no framework-specific runtime is on the classpath.
  */
 public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
+
+    private static final Logger logger = LoggerFactory.getLogger(BuiltInAgentRuntime.class);
 
     /**
      * Short-TTL cache for {@link #models()}. Best-effort: a failed or empty
@@ -236,18 +240,60 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
         // Native-logprobs confidence: when the pipeline installed a confidence
         // elicitation for this request (AiPipeline seeds its default into
         // metadata and the caller's own wins), ask the provider for token
-        // logprobs so OpenAiCompatibleClient can emit an AiConfidence with
-        // source LOGPROBS_NATIVE — the highest-quality signal — instead of
-        // relying solely on the model-reported-field parse. The client gates
+        // logprobs so OpenAiCompatibleClient can emit an AiConfidence from the
+        // provider's own token probabilities (LOGPROBS_NATIVE, or
+        // DECISION_LOGPROBS below) instead of relying solely on the
+        // model-reported-field parse. LOGPROBS_NATIVE is the mean over every
+        // token — a fluency measure, not the model's certainty about a
+        // decision; DECISION_LOGPROBS scores the decision. The client gates
         // the actual wire field on LogprobsMode + the shared endpoint
         // allow-list, and the ConfidenceCapturingSession decorator observes
         // the explicit emission and skips its own, so exactly one confidence
         // event fires per response. With no elicitation in scope the flag
         // stays false and the request body is byte-identical to before.
-        if (AiConfidenceElicitation.from(context) != null) {
+        var elicitation = AiConfidenceElicitation.from(context);
+        if (elicitation != null) {
             builder.logprobs(true);
+            // Decision confidence: when the elicitation designates a decision
+            // field and the structured response type makes it an enum or
+            // boolean, the client also requests top_logprobs and scores that
+            // field's value distribution (DECISION_LOGPROBS) instead of the
+            // whole-response mean.
+            if (elicitation.decisionField() != null) {
+                resolveDecisionField(context, elicitation.decisionField())
+                        .ifPresent(builder::decisionField);
+            }
         }
         return builder.build();
+    }
+
+    /**
+     * Resolve the designated decision field against the response type's JSON
+     * Schema — the schema the model is told to follow, so the allowed values
+     * are exactly the ones it can emit. Empty (the request keeps the
+     * whole-response LOGPROBS_NATIVE mean) when there is no structured
+     * response type, or the field is not a top-level enum or boolean property
+     * of it.
+     */
+    private static java.util.Optional<DecisionField> resolveDecisionField(
+            AgentExecutionContext context, String field) {
+        var responseType = context.responseType();
+        if (responseType == null || responseType == Void.class) {
+            logger.debug("Confidence decision field '{}' ignored: the request has no "
+                    + "structured response type", field);
+            return java.util.Optional.empty();
+        }
+        var schema = org.atmosphere.ai.NativeStructuredOutput.schema(context);
+        if (schema == null) {
+            schema = org.atmosphere.ai.NativeStructuredOutput.schemaFor(responseType);
+        }
+        var resolved = DecisionField.fromSchema(schema, field);
+        if (resolved.isEmpty()) {
+            logger.warn("Confidence decision field '{}' is not a top-level enum or boolean "
+                    + "property of {}; confidence stays on the whole-response logprobs mean",
+                    field, responseType.getName());
+        }
+        return resolved;
     }
 
     /**
@@ -375,9 +421,12 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
                 // by LogprobsMode + the shared endpoint allow-list), captures
                 // choices[].logprobs.content, and fires
                 // AiConfidence.fromLogprobs(...) — source LOGPROBS_NATIVE —
-                // before the terminal frame. The decorator sees the explicit
+                // before the terminal frame; when the elicitation designates a
+                // decision field of the structured response, it also requests
+                // top_logprobs and fires AiConfidence.fromDecision(...) —
+                // source DECISION_LOGPROBS — instead. The decorator sees the explicit
                 // emission and suppresses its own parse, so exactly one
-                // confidence event fires per response and the richer signal
+                // confidence event fires per response and the native signal
                 // wins when the provider supplies it.
                 AiCapability.CONFIDENCE_SCORES,
                 // MODEL_ENUMERATION: models() calls the configured

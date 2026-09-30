@@ -17,6 +17,7 @@ package org.atmosphere.ai;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.OptionalDouble;
 
 /**
@@ -27,14 +28,30 @@ import java.util.OptionalDouble;
  * {@link ConfidenceRoute#ACT}, {@link ConfidenceRoute#CONFIRM} or
  * {@link ConfidenceRoute#ESCALATE}. Emitting the signal alone routes nothing.
  *
- * <p>Three sources, each documenting how the value was derived so callers
+ * <p>Four sources, each documenting how the value was derived so callers
  * can weight it appropriately:</p>
  * <ul>
+ *   <li>{@link Source#DECISION_LOGPROBS} — the provider returned token
+ *       logprobs <em>with</em> {@code top_logprobs} alternatives, and the
+ *       runtime located the tokens carrying the value of the decision field
+ *       designated by {@link AiConfidenceElicitation#decisionField()} (a
+ *       top-level enum or boolean property of a structured response). The
+ *       {@code aggregate} is the concentration of the model's distribution
+ *       over the field's allowed values,
+ *       {@link DecisionDistribution#normalizedMargin()}
+ *       {@code = (k * pMax - 1) / (k - 1)}, and the distribution itself is in
+ *       {@link #decision()}. This scores how sure the model was of the
+ *       <em>answer</em>: a coin flip between two values scores {@code 0}
+ *       however fluent the surrounding text. {@link #tokens()} holds the
+ *       sampled tokens of the decision value. Emitted today by the Built-in
+ *       runtime on its chat-completions path only.</li>
  *   <li>{@link Source#LOGPROBS_NATIVE} — provider returned token-level
  *       log probabilities (e.g. OpenAI {@code logprobs: true}); the
  *       {@code aggregate} is the arithmetic mean of {@code exp(logprob)}
- *       over the response tokens, range {@code [0, 1]}. The richest
- *       signal — token-level breakdown lives in {@link #tokens()}.</li>
+ *       over every response token, range {@code [0, 1]}. It measures how
+ *       fluent the text was, not how sure the model was of a decision the
+ *       text carries: a long answer whose one decisive token was a coin flip
+ *       still scores high. Token-level breakdown lives in {@link #tokens()}.</li>
  *   <li>{@link Source#MODEL_REPORTED_FIELD} — provider was prompted to
  *       emit a {@code "confidence": 0.x} field in its response and the
  *       framework parsed it. Universally available because the elicitation
@@ -52,13 +69,18 @@ import java.util.OptionalDouble;
  *
  * @param aggregate scalar confidence in {@code [0, 1]}, or empty when unknown
  * @param tokens    per-token log probabilities; empty unless source is
- *                  {@link Source#LOGPROBS_NATIVE}
+ *                  {@link Source#LOGPROBS_NATIVE} (every response token) or
+ *                  {@link Source#DECISION_LOGPROBS} (the decision value's
+ *                  sampled tokens)
  * @param source    how the aggregate was derived
+ * @param decision  the distribution over the decision field's allowed values;
+ *                  present exactly when source is {@link Source#DECISION_LOGPROBS}
  */
 public record AiConfidence(
         OptionalDouble aggregate,
         List<TokenLogprob> tokens,
-        Source source
+        Source source,
+        Optional<DecisionDistribution> decision
 ) {
 
     /** Metadata key used by {@link StreamingSession#confidence(AiConfidence)}'s
@@ -74,8 +96,10 @@ public record AiConfidence(
 
     /** How a confidence value was derived. */
     public enum Source {
-        /** Native token-level log probabilities from the provider. */
+        /** Mean native token probability over the whole response (fluency). */
         LOGPROBS_NATIVE,
+        /** Concentration of the native distribution over a decision field's allowed values. */
+        DECISION_LOGPROBS,
         /** Model-emitted confidence field elicited via system prompt. */
         MODEL_REPORTED_FIELD,
         /** Runtime-computed heuristic. */
@@ -86,6 +110,11 @@ public record AiConfidence(
         Objects.requireNonNull(aggregate, "aggregate");
         Objects.requireNonNull(source, "source");
         tokens = tokens != null ? List.copyOf(tokens) : List.of();
+        decision = decision != null ? decision : Optional.empty();
+        if (decision.isPresent() && source != Source.DECISION_LOGPROBS) {
+            throw new IllegalArgumentException(
+                    "a decision distribution is carried only by DECISION_LOGPROBS, got " + source);
+        }
         if (aggregate.isPresent()) {
             var v = aggregate.getAsDouble();
             if (v < 0.0 || v > 1.0) {
@@ -93,6 +122,15 @@ public record AiConfidence(
                         "aggregate must be in [0, 1], got " + v);
             }
         }
+    }
+
+    /**
+     * Three-component form (no decision distribution), kept so every caller
+     * written before {@link Source#DECISION_LOGPROBS} existed compiles
+     * unchanged.
+     */
+    public AiConfidence(OptionalDouble aggregate, List<TokenLogprob> tokens, Source source) {
+        this(aggregate, tokens, source, Optional.empty());
     }
 
     /** Build a model-reported confidence (the universal-fallback path). */
@@ -103,7 +141,8 @@ public record AiConfidence(
 
     /** Build a confidence from native logprobs. The aggregate is the
      * arithmetic mean of {@code exp(logprob)} over the supplied tokens
-     * — empty when {@code tokens} is empty. */
+     * — empty when {@code tokens} is empty. It scores the fluency of the
+     * whole text; {@link #fromDecision} scores a decision. */
     public static AiConfidence fromLogprobs(List<TokenLogprob> tokens) {
         if (tokens == null || tokens.isEmpty()) {
             return new AiConfidence(OptionalDouble.empty(), List.of(), Source.LOGPROBS_NATIVE);
@@ -116,6 +155,25 @@ public record AiConfidence(
                 OptionalDouble.of(sum / tokens.size()),
                 tokens,
                 Source.LOGPROBS_NATIVE);
+    }
+
+    /**
+     * Build a decision confidence: the aggregate is the distribution's
+     * {@link DecisionDistribution#normalizedMargin() normalised margin} and
+     * the distribution rides along in {@link #decision()}.
+     *
+     * @param distribution the model's distribution over the decision field's
+     *                     allowed values
+     * @param valueTokens  the sampled tokens that carry the decision value
+     */
+    public static AiConfidence fromDecision(DecisionDistribution distribution,
+                                            List<TokenLogprob> valueTokens) {
+        Objects.requireNonNull(distribution, "distribution");
+        return new AiConfidence(
+                OptionalDouble.of(distribution.normalizedMargin()),
+                valueTokens,
+                Source.DECISION_LOGPROBS,
+                Optional.of(distribution));
     }
 
     /** Build a heuristic confidence — caller computed the value some

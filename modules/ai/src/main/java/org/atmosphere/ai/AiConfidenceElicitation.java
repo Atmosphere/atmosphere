@@ -36,14 +36,34 @@ import java.util.Objects;
  * depends on the model's confidence calibration. Runtimes that natively
  * expose token-level logprobs can additionally call
  * {@link StreamingSession#confidence(AiConfidence)} with
- * {@link AiConfidence.Source#LOGPROBS_NATIVE} for a richer signal.</p>
+ * {@link AiConfidence.Source#LOGPROBS_NATIVE} (the mean token probability of
+ * the whole response, a fluency measure) or
+ * {@link AiConfidence.Source#DECISION_LOGPROBS} (how concentrated the model
+ * was on one value of a decision field) — see {@link AiConfidence} for what
+ * each source measures.</p>
+ *
+ * <h2>Decision field</h2>
+ * <p>{@link #withDecisionField(String)} designates one top-level enum or
+ * boolean property of the structured response type as <em>the decision</em>.
+ * The Built-in runtime then also requests {@code top_logprobs}, locates the
+ * tokens that carry that property's value, and reports
+ * {@link AiConfidence.Source#DECISION_LOGPROBS}: how concentrated the model's
+ * distribution over the allowed values was, instead of how fluent the whole
+ * text was. The designation is honoured only on the Built-in
+ * chat-completions path in structured-output mode; every other runtime, the
+ * OpenAI Responses API path, and a free-text response keep their existing
+ * source and ignore it.</p>
  *
  * @param fieldName       the JSON field the model is asked to emit
  *                        (default {@code "confidence"})
  * @param systemPromptCue text appended to the system prompt;
  *                        {@code null} means use the default cue
+ * @param decisionField   top-level enum/boolean property of the structured
+ *                        response whose value is the decision to score, or
+ *                        {@code null} for none (the default)
  */
-public record AiConfidenceElicitation(String fieldName, String systemPromptCue) {
+public record AiConfidenceElicitation(String fieldName, String systemPromptCue,
+                                      String decisionField) {
 
     /** Metadata key for threading a per-request elicitation through the pipeline. */
     public static final String METADATA_KEY = "ai.confidence.elicitation";
@@ -66,6 +86,14 @@ public record AiConfidenceElicitation(String fieldName, String systemPromptCue) 
         }
         // systemPromptCue is allowed to be null — the decorator falls back
         // to the default cue keyed off fieldName.
+        if (decisionField != null && decisionField.isBlank()) {
+            throw new IllegalArgumentException("decisionField must be null or non-blank");
+        }
+    }
+
+    /** Two-component form (no decision field), kept so existing callers compile unchanged. */
+    public AiConfidenceElicitation(String fieldName, String systemPromptCue) {
+        this(fieldName, systemPromptCue, null);
     }
 
     /** Default elicitation: asks the model to emit a {@code "confidence"} field. */
@@ -82,6 +110,18 @@ public record AiConfidenceElicitation(String fieldName, String systemPromptCue) 
                         + "\"" + fieldName + "\" whose value is your confidence "
                         + "in the answer as a number in [0.0, 1.0]. "
                         + "Example: {\"" + fieldName + "\": 0.83}.");
+    }
+
+    /**
+     * Same elicitation, designating {@code field} as the decision whose value
+     * distribution is scored (see the class Javadoc, <em>Decision field</em>).
+     *
+     * @param field a top-level enum or boolean property of the structured
+     *              response type
+     */
+    public AiConfidenceElicitation withDecisionField(String field) {
+        Objects.requireNonNull(field, "field");
+        return new AiConfidenceElicitation(fieldName, systemPromptCue, field);
     }
 
     /** Effective cue — {@link #systemPromptCue()} if non-null, else

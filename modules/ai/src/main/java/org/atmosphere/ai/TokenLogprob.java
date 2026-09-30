@@ -21,7 +21,9 @@ import java.util.Objects;
  * One token's log probability as reported by a provider that exposes
  * native logprobs (e.g. OpenAI's {@code logprobs: true} option).
  * Used to populate {@link AiConfidence#tokens()} on the
- * {@link AiConfidence.Source#LOGPROBS_NATIVE} path.
+ * {@link AiConfidence.Source#LOGPROBS_NATIVE} path (every response token)
+ * and the {@link AiConfidence.Source#DECISION_LOGPROBS} path (the sampled
+ * tokens of the decision value).
  *
  * <p>{@code logprob} is the natural log of the token probability — always
  * non-positive, where {@code 0.0} means probability {@code 1.0} (perfect

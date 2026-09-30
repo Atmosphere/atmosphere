@@ -1,0 +1,22 @@
+data: {"id":"chatcmpl-d4","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"{\""},"logprobs":{"content":[{"token":"{\"","logprob":-0.0001,"top_logprobs":[{"token":"{\"","logprob":-0.0001}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d4","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"approved"},"logprobs":{"content":[{"token":"approved","logprob":-0.0002,"top_logprobs":[{"token":"approved","logprob":-0.0002}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d4","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"\":"},"logprobs":{"content":[{"token":"\":","logprob":-0.0003,"top_logprobs":[{"token":"\":","logprob":-0.0003}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d4","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":" true"},"logprobs":{"content":[{"token":" true","logprob":-0.3,"top_logprobs":[{"token":" true","logprob":-0.3},{"token":" false","logprob":-1.6},{"token":"false","logprob":-4.0},{"token":" null","logprob":-6.5}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d4","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":",\""},"logprobs":{"content":[{"token":",\"","logprob":-0.001,"top_logprobs":[{"token":",\"","logprob":-0.001}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d4","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"reason"},"logprobs":{"content":[{"token":"reason","logprob":-0.001,"top_logprobs":[{"token":"reason","logprob":-0.001}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d4","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"\":\""},"logprobs":{"content":[{"token":"\":\"","logprob":-0.001,"top_logprobs":[{"token":"\":\"","logprob":-0.001}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d4","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"fine"},"logprobs":{"content":[{"token":"fine","logprob":-0.4,"top_logprobs":[{"token":"fine","logprob":-0.4}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d4","model":"gpt-5-mini","choices":[{"index":0,"delta":{"content":"\"}"},"logprobs":{"content":[{"token":"\"}","logprob":-0.001,"top_logprobs":[{"token":"\"}","logprob":-0.001}]}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-d4","model":"gpt-5-mini","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":{"prompt_tokens":38,"completion_tokens":9,"total_tokens":47}}
+
+data: [DONE]
+

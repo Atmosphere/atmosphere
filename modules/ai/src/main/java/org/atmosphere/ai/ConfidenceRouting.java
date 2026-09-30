@@ -34,7 +34,12 @@ import java.util.function.Consumer;
  * <h2>Where the confidence comes from</h2>
  * The router consumes whatever the turn reported through
  * {@link StreamingSession#confidence(AiConfidence)}: native logprobs from a
- * runtime that exposes them, otherwise the model-reported field. A routing
+ * runtime that exposes them, otherwise the model-reported field. For a
+ * structured response, designate the decision with
+ * {@link AiConfidenceElicitation#withDecisionField(String)} so the Built-in
+ * runtime routes on {@link AiConfidence.Source#DECISION_LOGPROBS} — how sure
+ * the model was of that value — rather than on the fluency of the whole
+ * text. A routing
  * with no {@link AiConfidenceElicitation} in scope installs
  * {@link AiConfidenceElicitation#defaults()} so a signal exists at all. With a
  * structured response type, the elicitation cue is not appended (it would
