@@ -3794,3 +3794,40 @@ proxied WebSocket closed with 1006, context offline), got projects and e2e.yml l
 passed 3x each. `RoomProtocolInterceptor` announces a dropped member's leave once
 (unit tests fail without the fix; `presence-count` fails against the old jar).
 `transport-fallback`'s regex is anchored and `webtransport-fallback` has its own project.
+
+---
+
+## 2026-09-30 — AI endpoints over long-polling: a mocked body hid a dropped prompt
+
+**Session:** carnet #55 — rewriting the quarantined quarkus-ai-chat long-polling test
+against the Console.
+
+**Claim 1:** `AiEndpointHandlerCrossTabIsolationTest.sseLongPollingPostRoutesViaTrackingIdHeader`
+and the `AiEndpointHandler.onRequest` comment — an SSE / long-polling prompt POST is
+routed to its suspended resource through `X-Atmosphere-tracking-id`.
+**Truth:** the routing is right, but the prompt never got that far. The test mocks
+`request.body()` as already holding the prompt; a real HTTP POST's entity is cached on
+the request only when an interceptor reads it (HeartbeatInterceptor does, only with a
+client heartbeat configured). With WebSocket removed, the Console fell back to
+long-polling, `POST` answered 200, and no `Received prompt` was ever logged — on
+quarkus-ai-chat and spring-boot-dentist-agent alike.
+
+**Claim 2:** the quarantine comment in `quarkus-ai-chat.spec.ts` — the long-polling
+blocker was "atmosphere.js v5 not propagating the server-assigned
+X-Atmosphere-tracking-id between long-polling requests".
+**Truth:** every poll and POST carried the server-assigned id (browser network log,
+2026-09-30). The blockers are server-side: the dropped prompt above, and — after fixing
+it — only the first frame of a reply reaches the browser; later frames never reach the
+poll that replaces the resumed one, with or without a `UUIDBroadcasterCache`.
+
+**Slip path:** the transport test pinned the routing decision on a hand-built request
+instead of the request a servlet container delivers, and the one e2e test that would
+have driven long-polling end to end could not run (it targeted a deleted page and was
+gated on a real model), so nothing exercised the path.
+
+**Gate:** `httpTransportPostReadsThePromptFromTheRequestEntity` feeds the prompt through
+the request's input stream with an empty cached body and fails without the fix. The
+quarkus-ai-chat test now drives the Console with WebSocket removed, asserts every chat
+request is long-polling, and compares the reply's frame kinds to a WebSocket reference;
+it is keyless, so the scheduled quarantine lane runs it — and fails there until the
+multi-frame loss is fixed (quarantine reason and issue updated to carnet#55).

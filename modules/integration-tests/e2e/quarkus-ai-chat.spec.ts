@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer, type SampleConfig } from './fixtures/sample-server';
-import { AiWsClient } from './helpers/ai-ws-client';
-import { llmBudget } from './helpers/llm-rate-budget';
+import { AiWsClient, type StreamingEvent } from './helpers/ai-ws-client';
 import { quarantined } from './helpers/quarantine';
+import { llmBudget } from './helpers/llm-rate-budget';
 
 /**
  * E2E coverage for `samples/quarkus-ai-chat` and the underlying
@@ -395,42 +395,135 @@ test.describe('Quarkus AI Chat', () => {
 
   // Long-polling transport coverage.
   //
-  // Per Correctness Invariant #7 (Mode Parity), if a feature works over
-  // WebSocket it must also work over long-polling.
+  // Per Correctness Invariant #7 (Mode Parity), a prompt that round-trips over
+  // WebSocket must round-trip over long-polling with the same wire envelope.
   //
-  // CANNOT PASS AS WRITTEN: it drives the sample's own chat page (#status,
-  // #input, #send, #log) through `/?transport=long-polling`, and that page is
-  // gone — f8930d62f4 replaced index.html with a meta-refresh to the bundled
-  // Console, which has none of those elements and no transport query param.
-  // It has to be rewritten against the Console or a raw long-polling client
-  // (helpers/transport-helper.ts LongPollingClient) before the quarantine can
-  // be retired. The earlier blocker — atmosphere.js v5 not propagating the
-  // server-assigned X-Atmosphere-tracking-id between long-polling requests,
-  // observed with chrome-devtools on 2026-05-02 — has not been re-checked
-  // since the page was removed.
+  // Driven through what the sample serves: its root redirects to the bundled
+  // Console (f8930d62f4 retired the sample's own chat page). The page runs
+  // without a WebSocket constructor, so atmosphere.js takes the Console's
+  // configured long-polling fallback, and every request the chat makes is
+  // asserted to be a long-polling one. The Console is pointed at the
+  // multimodal @Agent by serving /api/console/info with that endpoint — what
+  // `atmosphere.console-endpoint` would do — because a plain-text prompt gets
+  // a fixed reply there without touching the model: keyless, so it runs in
+  // the default fake-mode lane. The same prompt over a raw WebSocket supplies
+  // the envelope to compare against.
+  //
+  // STILL FAILS, on the product side. Driven for real on 2026-09-30 (Quarkus
+  // and spring-boot-dentist-agent alike), an AI endpoint over long-polling
+  // (1) dropped the prompt POST outright — AiEndpointHandler never read an
+  // HTTP request entity; fixed alongside this rewrite — and (2) still delivers
+  // only the first frame of the reply: the long-poll resumes on it and no later
+  // frame ever reaches the poll that replaces it, with or without a
+  // UUIDBroadcasterCache. Not yet proven: DefaultStreamingSession unicasts
+  // every frame to the resource object captured at prompt time
+  // (Set.of(resource)), which for long-polling is the poll that already
+  // resumed. The atmosphere.js tracking-id propagation once blamed here works:
+  // every poll and POST carries the server-assigned id. The quarantine lane
+  // runs this keyless and fails until (2) is fixed.
   quarantined({
     owner: 'jfarcand',
     expires: '2026-10-31',
-    issue: 'pending',
-    reason: 'drives the sample chat page (#status/#send) that f8930d62f4 replaced with '
-      + 'a redirect to the Console; needs a rewrite against the Console or LongPollingClient',
-  })('long-polling transport: prompt round-trips with same wire envelope @quarantined',
-    async ({ page }, testInfo) => {
-      test.skip(!REAL_LLM, 'Long-polling transport test requires LLM_MODE=real-ollama');
-      test.skip(SKIP_REQUEST_HEAVY,
-        'request-heavy: skipped on the Gemini free-tier leg (20 req/day cap); covered on Ollama + OpenAI');
-      testInfo.setTimeout(90_000);
+    issue: 'carnet#55',
+    reason: 'AI endpoint over long-polling delivers only the first reply frame; later frames '
+      + 'never reach the next poll',
+  })('long-polling transport: prompt round-trips with same wire envelope @quarantined', async ({ page }) => {
+    const endpoint = '/atmosphere/agent/multimodal';
+    const prompt = 'long-polling parity check';
+    const reply = `MultiModalAgent accepts 'image:<base64>' prompts. Got plain text: ${prompt}`;
 
-      await page.goto(server.baseUrl + '/?transport=long-polling');
-      await expect(page.locator('#status')).toHaveText(/Connected/i, { timeout: 30_000 });
+    // Reference: the same prompt over WebSocket.
+    const ws = new AiWsClient(server.baseUrl.replace('http', 'ws'), endpoint);
+    let wsKinds: string[];
+    try {
+      await ws.connect();
+      ws.send(prompt);
+      await ws.waitForDone(15_000);
+      expect(ws.errors, 'the WebSocket reference must not error').toEqual([]);
+      expect(ws.fullResponse).toBe(reply);
+      wsKinds = frameKinds(ws.events);
+    } finally {
+      ws.close();
+    }
+    expect(wsKinds).toContain('complete');
 
-      await page.locator('#input').fill('Say hello in one short sentence.');
-      await page.locator('#send').click();
-
-      const assistant = page.locator('#log .assistant').last();
-      await expect(assistant).not.toHaveText(/^< $/, { timeout: 40_000 });
-      const text = await assistant.innerText();
-      expect(text.length, `expected non-empty assistant response, got: ${JSON.stringify(text)}`)
-        .toBeGreaterThan('< '.length);
+    await page.addInitScript(() => {
+      delete (window as { WebSocket?: unknown }).WebSocket;
     });
+    await page.route('**/api/console/info', async (route) => {
+      const response = await route.fetch();
+      const info = await response.json();
+      info.endpoint = endpoint;
+      await route.fulfill({ response, json: info });
+    });
+
+    const notLongPolling: string[] = [];
+    // Bodies of completed polls only: a poll the server still holds open has
+    // no complete body yet, so it is read once it finishes.
+    const lpBodies: string[] = [];
+    page.on('request', (request) => {
+      const url = new URL(request.url());
+      if (url.pathname !== endpoint) return;
+      const transport = url.searchParams.get('X-Atmosphere-Transport')
+        ?? request.headers()['x-atmosphere-transport'];
+      if (transport !== 'long-polling') {
+        notLongPolling.push(`${request.method()} ${request.url()}`);
+      }
+    });
+    page.on('requestfinished', async (request) => {
+      if (new URL(request.url()).pathname !== endpoint || request.method() !== 'GET') return;
+      const response = await request.response();
+      if (response) lpBodies.push(await response.text().catch(() => ''));
+    });
+
+    await page.goto(server.baseUrl + '/atmosphere/console/');
+    await expect(page.getByTestId('status-label')).toHaveText(/^Connected/, { timeout: 30_000 });
+
+    await page.getByTestId('chat-input').fill(prompt);
+    await page.getByTestId('chat-send').click();
+    await expect(page.locator('.message--assistant').last()).toContainText(reply, { timeout: 30_000 });
+
+    expect(notLongPolling, 'every chat request must ride long-polling').toEqual([]);
+
+    // The reply came back in long-polling responses, frame for frame the kinds
+    // the WebSocket delivered.
+    await expect.poll(() => frameKinds(parseFrames(lpBodies.join('\n'))),
+      { timeout: 10_000 }).toEqual(wsKinds);
+  });
 });
+
+/** Kinds of AI frames, in order: the AiEvent name when present, else the legacy type. */
+function frameKinds(events: StreamingEvent[]): string[] {
+  return events.map((e) => e.event ?? e.type);
+}
+
+/**
+ * Decode Atmosphere response bodies into AI frames: newline-separated or
+ * `<length>|<json>` (TrackMessageSizeInterceptor) JSON objects. Non-JSON
+ * lines (padding, the tracking-id handshake) are skipped.
+ */
+function parseFrames(body: string): StreamingEvent[] {
+  const frames: StreamingEvent[] = [];
+  const push = (chunk: string) => {
+    const trimmed = chunk.trim();
+    if (!trimmed.startsWith('{')) return;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && (parsed.type || parsed.event)) frames.push(parsed as StreamingEvent);
+    } catch { /* not a frame */ }
+  };
+  for (const line of body.split('\n')) {
+    let rest = line.trim();
+    let m: RegExpMatchArray | null;
+    if (!/^\d+\|/.test(rest)) {
+      push(rest);
+      continue;
+    }
+    while ((m = rest.match(/^(\d+)\|/)) !== null) {
+      const len = parseInt(m[1], 10);
+      push(rest.substring(m[0].length, m[0].length + len));
+      rest = rest.substring(m[0].length + len);
+    }
+  }
+  return frames;
+}
