@@ -357,6 +357,58 @@ class RuntimeDecisionModelTest {
         never.countDown();
     }
 
+    /**
+     * Correctness Invariant #3: a runtime that keeps streaming past the reply
+     * bound does not grow the buffer until the deadline. The question fails as
+     * unparseable at once and the dispatch is cancelled.
+     */
+    @Test
+    void runawayReplyIsBoundedUnparseableAndCancelled() throws Exception {
+        var self = new java.util.concurrent.atomic.AtomicReference<ScriptedDecisionRuntime>();
+        var chunk = "x".repeat(1024);
+        // Ignores isClosed() and keeps writing until its handle is cancelled.
+        var runtime = new ScriptedDecisionRuntime((ctx, s) -> {
+            s.send("{\"answer\":true,\"confidence\":0.9,\"pad\":\"");
+            for (var i = 0; i < 1_000_000 && self.get().cancelled().getCount() > 0; i++) {
+                s.send(chunk);
+            }
+            s.complete();
+        });
+        self.set(runtime);
+        var start = System.nanoTime();
+        var result = new RuntimeDecisionModel(runtime).decide(
+                DecisionRequest.of("s", "q", NOUL).withTimeout(Duration.ofSeconds(30)));
+        var elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+        var failure = failed(result, "q");
+        assertEquals(Answer.Failed.Reason.UNPARSEABLE, failure.reason());
+        assertTrue(failure.detail().contains("exceeds " + DecisionCapturingSession.MAX_REPLY_CHARS),
+                failure.detail());
+        assertTrue(elapsedMs < 10_000, "an overflow must not wait for the deadline, took " + elapsedMs + "ms");
+        assertTrue(runtime.cancelled().await(2, TimeUnit.SECONDS), "the runaway dispatch must be cancelled");
+    }
+
+    @Test
+    void sessionStopsBufferingAtTheBound() {
+        var sink = new DecisionCapturingSession("bound");
+        sink.send("x".repeat(DecisionCapturingSession.MAX_REPLY_CHARS));
+        assertFalse(sink.overflowed());
+        assertFalse(sink.isClosed());
+        sink.send("y");
+        assertTrue(sink.overflowed());
+        assertTrue(sink.isClosed());
+        sink.send("z".repeat(1024));
+        assertEquals(DecisionCapturingSession.MAX_REPLY_CHARS, sink.text().length());
+    }
+
+    @Test
+    void oversizedSummaryIsBoundedToo() {
+        var runtime = new ScriptedDecisionRuntime((ctx, s) ->
+                s.complete("x".repeat(DecisionCapturingSession.MAX_REPLY_CHARS + 1)));
+        var result = new RuntimeDecisionModel(runtime).decide(DecisionRequest.of("s", "q", NOUL));
+        assertEquals(Answer.Failed.Reason.UNPARSEABLE, failed(result, "q").reason());
+        assertTrue(failed(result, "q").detail().contains("exceeds"), failed(result, "q").detail());
+    }
+
     @Test
     void blockingRuntimeWithoutHandleIsInterrupted() throws Exception {
         var interrupted = new CountDownLatch(1);

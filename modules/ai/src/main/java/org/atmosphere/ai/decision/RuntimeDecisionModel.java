@@ -354,6 +354,13 @@ public final class RuntimeDecisionModel implements DecisionModel {
                         false);
                 return null;
             }
+            if (sink.overflowed()) {
+                // The runtime kept streaming past the reply bound: stop it
+                // rather than let it run on unread.
+                cancelInFlight();
+                return new Answer.Failed(id, Answer.Failed.Reason.UNPARSEABLE, "reply exceeds "
+                        + DecisionCapturingSession.MAX_REPLY_CHARS + " characters");
+            }
             var failure = sink.failure();
             if (failure != null) {
                 if (nativeApplied && !sink.outputSeen() && NativeStructuredOutput.isSchemaRejection(failure)) {
@@ -411,6 +418,18 @@ public final class RuntimeDecisionModel implements DecisionModel {
             if (!future.complete(failure)) {
                 return;
             }
+            cancelInFlight();
+            var sink = session.get();
+            if (sink != null) {
+                sink.abandon();
+            }
+            if (interruptCarrier && carrier != null) {
+                carrier.interrupt();
+            }
+        }
+
+        /** Cancel the runtime's in-flight dispatch, if any, off the calling thread. */
+        private void cancelInFlight() {
             var inFlight = handle.get();
             if (inFlight != null && !inFlight.isDone()) {
                 // Off the calling thread: a runtime whose cancel blocks must
@@ -422,13 +441,6 @@ public final class RuntimeDecisionModel implements DecisionModel {
                         logger.debug("Cancelling decision question {} threw", id, e);
                     }
                 });
-            }
-            var sink = session.get();
-            if (sink != null) {
-                sink.abandon();
-            }
-            if (interruptCarrier && carrier != null) {
-                carrier.interrupt();
             }
         }
     }

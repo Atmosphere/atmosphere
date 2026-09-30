@@ -48,8 +48,17 @@ import java.util.Locale;
  *       {@code p < safeBelow} → {@link InjectionClassifier.Outcome#SAFE} with
  *       confidence {@code 1 - p}; in between →
  *       {@link InjectionClassifier.Outcome#ERROR} ("uncertain").</li>
- *   <li>Not measured: the answered value decides, with the reported confidence
- *       (or {@code NaN} when none).</li>
+ *   <li>Not measured: the model's self-reported confidence {@code c} in its
+ *       answer is read as the same belief, {@code P(injection) = c} for a
+ *       {@code true} answer and {@code 1 - c} for a {@code false} one, and the
+ *       same two thresholds apply, so one belief gets one verdict on every
+ *       runtime. A reported confidence below 0.5 contradicts the answer it
+ *       accompanies and is an {@link InjectionClassifier.Outcome#ERROR}
+ *       ("uncertain"). A {@code false} answer with no usable confidence is an
+ *       {@link InjectionClassifier.Outcome#ERROR} ("uncertain"): the model did
+ *       not affirmatively clear the document. A {@code true} answer with no
+ *       confidence is {@link InjectionClassifier.Outcome#INJECTED} with
+ *       confidence {@code NaN}.</li>
  *   <li>A failed answer — timeout, no capacity, runtime error, unparseable or
  *       out-of-set reply — or a missing model → {@link InjectionClassifier.Outcome#ERROR}.</li>
  * </ul>
@@ -169,24 +178,39 @@ public final class LlmClassifierInjectionClassifier implements InjectionClassifi
     private Decision map(Answer.Noul noul) {
         var source = noul.confidence().source().name();
         if (noul.probabilityTrue().isPresent()) {
-            var p = noul.probabilityTrue().getAsDouble();
-            var measured = String.format(Locale.ROOT, "P(injection)=%.3f [%s]", p, source);
-            if (p >= injectedAt) {
-                return Decision.injected("LLM classifier flagged injection: " + measured, p);
-            }
-            if (p < safeBelow) {
-                return Decision.safe(1.0 - p);
-            }
-            return Decision.error("LLM classifier uncertain: " + measured);
+            return threshold(noul.probabilityTrue().getAsDouble(),
+                    String.format(Locale.ROOT, "P(injection)=%.3f [%s]",
+                            noul.probabilityTrue().getAsDouble(), source));
         }
         var aggregate = noul.confidence().aggregate();
-        var confidence = aggregate.isPresent() ? aggregate.getAsDouble() : Double.NaN;
-        if (noul.value()) {
-            return Decision.injected(String.format(Locale.ROOT,
-                    "LLM classifier flagged injection [%s, confidence=%s]", source,
-                    aggregate.isPresent() ? String.format(Locale.ROOT, "%.3f", confidence) : "unknown"),
-                    confidence);
+        if (aggregate.isEmpty()) {
+            if (noul.value()) {
+                return Decision.injected("LLM classifier flagged injection [" + source
+                        + ", confidence=unknown]", Double.NaN);
+            }
+            return Decision.error("LLM classifier uncertain: answered false with no confidence ["
+                    + source + "]");
         }
-        return Decision.safe(confidence);
+        var reported = aggregate.getAsDouble();
+        if (reported < 0.5) {
+            // Less than even confidence in its own answer: the reply
+            // contradicts itself, so it neither clears nor convicts.
+            return Decision.error(String.format(Locale.ROOT,
+                    "LLM classifier uncertain: answered %s with confidence %.3f [%s]",
+                    noul.value(), reported, source));
+        }
+        var p = noul.value() ? reported : 1.0 - reported;
+        return threshold(p, String.format(Locale.ROOT,
+                "P(injection)=%.3f from answer=%s confidence=%.3f [%s]", p, noul.value(), reported, source));
+    }
+
+    private Decision threshold(double p, String belief) {
+        if (p >= injectedAt) {
+            return Decision.injected("LLM classifier flagged injection: " + belief, p);
+        }
+        if (p < safeBelow) {
+            return Decision.safe(1.0 - p);
+        }
+        return Decision.error("LLM classifier uncertain: " + belief);
     }
 }

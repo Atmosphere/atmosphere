@@ -130,9 +130,13 @@ document is dropped (fail-closed) unless `fail-open=true`. Every enforcement is
 recorded to the `GovernanceDecisionLog`.
 
 `LLM_CLASSIFIER` asks a `DecisionModel` one boolean question per document (see
-*Decision models* below). A measured `P(injection)` of at least 0.5 is an
-injection, below 0.2 is safe, and the band between is an **error** — dropped
-unless `fail-open=true`. A timeout, an empty or unparseable reply, or an answer
+*Decision models* below). A `P(injection)` of at least 0.5 is an injection,
+below 0.2 is safe, and the band between is an **error** — dropped unless
+`fail-open=true`. The thresholds are the same whether the belief was measured
+or self-reported: a model-reported confidence `c` reads as `P(injection) = c`
+for a `true` answer and `1 - c` for a `false` one, and a `false` answer with no
+confidence is an error, so no runtime admits a document the model did not
+confidently clear. A timeout, an empty or unparseable reply, or an answer
 outside `true`/`false` is also an error; none of them admits the document. When
 only the demo runtime is installed (no reachable model, no registered
 `DecisionModel`) the tier downgrades to `RULE_BASED` with a warning, and the
@@ -931,8 +935,10 @@ A question that cannot be answered is an `Answer.Failed` with a reason
 (`TIMEOUT`, `CAPACITY`, `ERROR`, `UNPARSEABLE`, `INVALID_ANSWER`), never a
 missing entry and never a guess. Its confidence is unknown, so
 `DecisionResult.route(...)` sends it to the routing's unknown route
-(`ESCALATE` by default). Requests are bounded: 64 questions, 256 KiB of state,
-and a timeout (default 5 s) that covers the whole request.
+(`ESCALATE` by default). Requests are bounded: 64 questions, 262,144 characters
+of state (`String.length()`, not bytes), and a timeout (default 5 s) that
+covers the whole request. Each reply is bounded at 16,384 characters; a
+runtime that streams past it is cancelled and the question is `UNPARSEABLE`.
 
 **Discovery.** `DecisionModelResolver.resolve()` picks the available
 `META-INF/services/org.atmosphere.ai.decision.DecisionModel` registration with

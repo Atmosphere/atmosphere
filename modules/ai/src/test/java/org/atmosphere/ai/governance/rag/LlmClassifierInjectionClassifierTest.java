@@ -78,17 +78,57 @@ class LlmClassifierInjectionClassifierTest {
     }
 
     @Test
-    void unmeasuredAnswerUsesTheValueAndReportedConfidence() {
-        var injected = classify(answering(new Answer.Noul("injection", true, OptionalDouble.empty(),
-                AiConfidence.reported(0.7))));
+    void unmeasuredAnswerReadsTheReportedConfidenceAsTheSameBelief() {
+        var injected = classify(reported(true, 0.7));
         assertEquals(InjectionClassifier.Outcome.INJECTED, injected.outcome());
         assertEquals(0.7, injected.confidence(), 1e-9);
         assertTrue(injected.reason().contains("MODEL_REPORTED_FIELD"), injected.reason());
 
-        var safe = classify(answering(new Answer.Noul("injection", false, OptionalDouble.empty(),
-                AiConfidence.unknown(AiConfidence.Source.MODEL_REPORTED_FIELD))));
+        var safe = classify(reported(false, 0.95));
         assertEquals(InjectionClassifier.Outcome.SAFE, safe.outcome());
-        assertTrue(Double.isNaN(safe.confidence()));
+        assertEquals(0.95, safe.confidence(), 1e-9);
+
+        // A true answer with no confidence is still flagged, never admitted as safe.
+        var flaggedUnknown = classify(answering(new Answer.Noul("injection", true, OptionalDouble.empty(),
+                AiConfidence.unknown(AiConfidence.Source.MODEL_REPORTED_FIELD))));
+        assertEquals(InjectionClassifier.Outcome.INJECTED, flaggedUnknown.outcome());
+        assertTrue(Double.isNaN(flaggedUnknown.confidence()));
+    }
+
+    /**
+     * Mode parity: an unsure or unmeasured "false" does not clear the document.
+     * A 5%-confident false and a false with no confidence both fail closed, as
+     * the uncertain band does on the measured path.
+     */
+    @Test
+    void unsureOrUnknownFalseFailsClosed() {
+        var unsure = classify(reported(false, 0.05));
+        assertEquals(InjectionClassifier.Outcome.ERROR, unsure.outcome(), unsure.reason());
+        assertTrue(unsure.reason().contains("uncertain"), unsure.reason());
+        assertTrue(unsure.reason().contains("MODEL_REPORTED_FIELD"), unsure.reason());
+        // Inside the uncertain band: 1 - 0.75 = 0.25 is not below safeBelow.
+        assertEquals(InjectionClassifier.Outcome.ERROR, classify(reported(false, 0.75)).outcome());
+        // A true answer the model barely believes never reads as safe either.
+        assertEquals(InjectionClassifier.Outcome.ERROR, classify(reported(true, 0.1)).outcome());
+
+        var unknown = classify(answering(new Answer.Noul("injection", false, OptionalDouble.empty(),
+                AiConfidence.unknown(AiConfidence.Source.MODEL_REPORTED_FIELD))));
+        assertEquals(InjectionClassifier.Outcome.ERROR, unknown.outcome(), unknown.reason());
+        assertTrue(unknown.reason().contains("uncertain"), unknown.reason());
+    }
+
+    /** The same belief gets the same verdict whether it was measured or self-reported. */
+    @Test
+    void measuredAndReportedBeliefsGetTheSameVerdict() {
+        // P(injection) = 0.3: measured, or reported as false with confidence 0.7.
+        assertEquals(InjectionClassifier.Outcome.ERROR, classify(measured(0.3)).outcome());
+        assertEquals(InjectionClassifier.Outcome.ERROR, classify(reported(false, 0.7)).outcome());
+        // P(injection) = 0.1: safe in both modes.
+        assertEquals(InjectionClassifier.Outcome.SAFE, classify(measured(0.1)).outcome());
+        assertEquals(InjectionClassifier.Outcome.SAFE, classify(reported(false, 0.9)).outcome());
+        // P(injection) = 0.8: injected in both modes.
+        assertEquals(InjectionClassifier.Outcome.INJECTED, classify(measured(0.8)).outcome());
+        assertEquals(InjectionClassifier.Outcome.INJECTED, classify(reported(true, 0.8)).outcome());
     }
 
     @Test
@@ -187,6 +227,11 @@ class LlmClassifierInjectionClassifierTest {
 
     private static DecisionModel measured(double p) {
         return model(r -> TestDecisionModels.measured(r, p));
+    }
+
+    private static DecisionModel reported(boolean value, double confidence) {
+        return answering(new Answer.Noul("injection", value, OptionalDouble.empty(),
+                AiConfidence.reported(confidence)));
     }
 
     private static DecisionModel answering(Answer answer) {

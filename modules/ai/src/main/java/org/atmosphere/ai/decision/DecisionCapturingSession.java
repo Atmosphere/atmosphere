@@ -31,8 +31,17 @@ import java.util.concurrent.atomic.AtomicReference;
  * usage, records a failure, and releases a latch on the first terminal event.
  * Events after the terminal one are ignored, so a runtime that keeps writing
  * after its question was abandoned cannot change the recorded reply.
+ *
+ * <p>The reply buffer is bounded at {@value #MAX_REPLY_CHARS} characters
+ * (Correctness Invariant #3). The expected reply is one small JSON object; a
+ * runtime that streams past the bound closes the session as
+ * {@linkplain #overflowed() overflowed}, and the caller cancels the dispatch
+ * and records the question as unparseable instead of buffering more.</p>
  */
 final class DecisionCapturingSession implements StreamingSession {
+
+    /** Upper bound on the buffered reply, in characters. */
+    static final int MAX_REPLY_CHARS = 16 * 1024;
 
     private final String sessionId;
     private final StringBuilder text = new StringBuilder();
@@ -42,6 +51,7 @@ final class DecisionCapturingSession implements StreamingSession {
     private final CountDownLatch done = new CountDownLatch(1);
     private volatile Throwable failure;
     private volatile boolean outputSeen;
+    private volatile boolean overflowed;
 
     DecisionCapturingSession(String sessionId) {
         this.sessionId = sessionId;
@@ -57,10 +67,23 @@ final class DecisionCapturingSession implements StreamingSession {
         if (chunk == null || chunk.isEmpty() || closed.get()) {
             return;
         }
-        synchronized (text) {
-            text.append(chunk);
-        }
         outputSeen = true;
+        append(chunk);
+    }
+
+    /** Append within the bound; past it, close the session as overflowed. */
+    private void append(String chunk) {
+        boolean overflow;
+        synchronized (text) {
+            overflow = text.length() + chunk.length() > MAX_REPLY_CHARS;
+            if (!overflow) {
+                text.append(chunk);
+            }
+        }
+        if (overflow) {
+            overflowed = true;
+            complete();
+        }
     }
 
     @Override
@@ -104,9 +127,7 @@ final class DecisionCapturingSession implements StreamingSession {
     @Override
     public void complete(String summary) {
         if (summary != null && !summary.isEmpty() && !outputSeen && !closed.get()) {
-            synchronized (text) {
-                text.append(summary);
-            }
+            append(summary);
         }
         complete();
     }
@@ -164,6 +185,11 @@ final class DecisionCapturingSession implements StreamingSession {
     /** The failure the runtime reported, or {@code null}. */
     Throwable failure() {
         return failure;
+    }
+
+    /** Whether the reply exceeded {@link #MAX_REPLY_CHARS} and the session closed on it. */
+    boolean overflowed() {
+        return overflowed;
     }
 
     /** Whether any reply text arrived. */

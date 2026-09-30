@@ -3528,3 +3528,31 @@ a measured `P(injection)` between 0.2 and 0.5 is an error too. `LlmClassifierInj
 ambiguous and timed-out replies as ERROR through the historical `(AgentRuntime)` constructor, and
 each was bite-checked by restoring the old SAFE mapping. The Javadoc and the README now describe
 the error paths as they run.
+
+---
+
+## 2026-09-30 — LLM injection classifier claimed it never admits an uncleared document; README counted state in KiB
+
+**Session:** review of the decision-model SPI branch (carnet #52).
+
+**Claim:** `LlmClassifierInjectionClassifier` Javadoc — "No path here admits a document the
+model did not affirmatively clear." `modules/ai/README.md` *Decision models* — "Requests are
+bounded: 64 questions, 256 KiB of state".
+**Truth:** on the model-reported path (every runtime except the Built-in chat-completions path
+with `top_logprobs`, and any distribution below the mass floor) any `false` answer was SAFE,
+including a self-reported confidence of 0.05 and a missing confidence; only the measured path had
+the 0.2..0.5 uncertain band. The same belief was admitted on one runtime and dropped on another
+(Mode Parity, Inv #7). `DecisionRequest.MAX_STATE_CHARS` bounds `String.length()` (UTF-16
+chars), not bytes.
+
+**Slip path:** the fail-closed sentence was written against the measured branch of `map()` and
+not re-read against the unmeasured branch below it, whose unit test pinned SAFE for an unknown
+confidence. The README converted the constant `256 * 1024` to "KiB" without reading the
+`length()` check it bounds.
+
+**Gate:** the unmeasured path now reads the reported confidence `c` as `P(injection) = c`
+(`true`) or `1 - c` (`false`) and applies the same thresholds; a reported confidence below 0.5
+(the reply contradicts itself) and a `false` with no confidence are ERROR. `LlmClassifierInjectionClassifierTest.unsureOrUnknownFalseFailsClosed` and
+`measuredAndReportedBeliefsGetTheSameVerdict` pin both modes to one verdict per belief, and
+were bite-checked by restoring the old `Decision.safe(confidence)` branch. The README now says
+"262,144 characters of state (`String.length()`, not bytes)".
