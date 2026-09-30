@@ -49,6 +49,7 @@ import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.cpr.RawMessage;
+import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.Utils;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.slf4j.Logger;
@@ -359,9 +360,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         //   • SSE / long-polling: the client carries it on every POST as the
         //     X-Atmosphere-tracking-id header.
         if ("POST".equalsIgnoreCase(method)) {
-            AtmosphereRequestImpl.Body body = resource.getRequest().body();
-            if (!body.isEmpty()) {
-                var msg = body.hasString() ? body.asString() : new String(body.asBytes());
+            var msg = readPrompt(resource);
+            if (msg != null) {
                 var target = findOriginatingResource(resource);
                 if (target != null) {
                     target.getBroadcaster().broadcast(msg, target);
@@ -1316,6 +1316,33 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 config.addFilter(filter);
             }
         }
+    }
+
+    /**
+     * The prompt a POST carries, or {@code null} when it carries none.
+     *
+     * <p>A WebSocket frame arrives with its payload already cached on the
+     * request body. A long-polling / SSE / streaming POST arrives as a plain
+     * HTTP request whose entity nothing upstream reads unless an interceptor
+     * happens to (HeartbeatInterceptor does, only when a client heartbeat is
+     * configured) — so without reading it here the prompt was silently
+     * dropped: the POST answered 200 and the suspended request never received
+     * a reply. The read content is cached back on the request for any
+     * downstream reader.</p>
+     */
+    private static String readPrompt(AtmosphereResource resource) throws IOException {
+        var request = resource.getRequest();
+        AtmosphereRequestImpl.Body body = request.body();
+        if (!body.isEmpty()) {
+            return body.hasString() ? body.asString() : new String(body.asBytes());
+        }
+        var read = IOUtils.readEntirelyAsString(resource);
+        if (read.length() == 0) {
+            return null;
+        }
+        var content = read.toString();
+        request.body(content);
+        return content;
     }
 
     /**

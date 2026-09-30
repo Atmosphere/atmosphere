@@ -26,12 +26,17 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceFactory;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.HeaderConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import jakarta.servlet.ReadListener;
+import jakarta.servlet.ServletInputStream;
 
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 
@@ -137,6 +142,64 @@ class AiEndpointHandlerCrossTabIsolationTest {
 
         verify(originatingBroadcaster).broadcast(eq("tab-B-prompt"), eq(originatingResource));
         verify(originatingBroadcaster, never()).broadcast(any());
+    }
+
+    /**
+     * A long-polling / SSE prompt POST is a plain HTTP request: nothing caches
+     * its entity on the request body the way the WebSocket processor caches a
+     * frame. The handler must read it — otherwise the POST answers 200 and the
+     * prompt is dropped without a trace (measured on spring-boot-dentist-agent
+     * and quarkus-ai-chat through the Console's long-polling fallback).
+     */
+    @Test
+    void httpTransportPostReadsThePromptFromTheRequestEntity() throws Exception {
+        var originatingResource = mock(AtmosphereResource.class);
+        when(originatingResource.uuid()).thenReturn("lp-tracking-uuid-C");
+        when(originatingResource.getBroadcaster()).thenReturn(originatingBroadcaster);
+        when(resourcesFactory.findResource("lp-tracking-uuid-C"))
+                .thenReturn(Optional.of(originatingResource));
+
+        var postResource = mock(AtmosphereResourceImpl.class);
+        var request = mock(AtmosphereRequest.class);
+        when(postResource.getRequest()).thenReturn(request);
+        when(postResource.getRequest(false)).thenReturn(request);
+        when(postResource.getAtmosphereConfig()).thenReturn(config);
+        when(request.getMethod()).thenReturn("POST");
+        when(request.body()).thenReturn(new AtmosphereRequestImpl.Body.EmptyBody());
+        when(request.getInputStream()).thenReturn(servletInputStream("tab-C-prompt"));
+        when(request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID)).thenReturn("lp-tracking-uuid-C");
+
+        handler.onRequest(postResource);
+
+        verify(originatingBroadcaster).broadcast(eq("tab-C-prompt"), eq(originatingResource));
+        verify(originatingBroadcaster, never()).broadcast(any());
+        // Cached back for any later reader of the same request.
+        verify(request).body("tab-C-prompt");
+    }
+
+    private static ServletInputStream servletInputStream(String content) {
+        var bytes = new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
+        return new ServletInputStream() {
+            @Override
+            public int read() {
+                return bytes.read();
+            }
+
+            @Override
+            public boolean isFinished() {
+                return bytes.available() == 0;
+            }
+
+            @Override
+            public boolean isReady() {
+                return true;
+            }
+
+            @Override
+            public void setReadListener(ReadListener readListener) {
+                throw new UnsupportedOperationException("blocking test stream");
+            }
+        };
     }
 
     @Test
