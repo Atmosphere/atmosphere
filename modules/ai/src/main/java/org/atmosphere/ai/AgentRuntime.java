@@ -218,10 +218,8 @@ public interface AgentRuntime {
      * no-op for exactly those runtimes: the await could not start until the
      * call it was supposed to bound had already returned, so a stalled
      * provider blocked the caller for its own (much longer) HTTP timeout
-     * times its retry count. The guardrail-admission path
-     * ({@code LlmModerationDetector}, {@code LlmClassifierScopeGuardrail}) and
-     * the coordinator's
-     * {@code LlmResultEvaluator} all sit on request-serving threads and pass
+     * times its retry count. Callers such as the coordinator's
+     * {@code LlmResultEvaluator} sit on request-serving threads and pass
      * short bounds precisely to avoid that stall.</p>
      *
      * <p>On timeout the underlying call is abandoned rather than merely
@@ -265,10 +263,9 @@ public interface AgentRuntime {
                         // already failed, and hand it back to the caller so
                         // dispatching on a carrier stays invisible: before the
                         // carrier existed the throw reached the caller inline,
-                        // and callers such as the scope/moderation guardrails
-                        // branch on it. Swallowing it here would turn a failed
-                        // classifier call into an empty response, which those
-                        // guardrails read as "admit" (Correctness Invariant #2).
+                        // and callers branch on it. Swallowing it here would
+                        // turn a failed call into an empty response a caller
+                        // cannot tell from a real one (Correctness Invariant #2).
                         failureRef.set(e);
                         sink.error(e);
                     }

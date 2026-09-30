@@ -589,14 +589,15 @@ public class AtmosphereAiAutoConfiguration {
      *   <li>{@code rule} (default) — zero-dependency phrase matching
      *       ({@link org.atmosphere.ai.guardrails.RuleBasedModerationDetector}),
      *       cheap enough for {@link org.atmosphere.ai.guardrails.ModerationGuardrail.Scope#BOTH}.</li>
-     *   <li>{@code llm} — cross-runtime zero-shot classification
-     *       ({@link org.atmosphere.ai.guardrails.LlmModerationDetector}) via the
-     *       installed {@code AgentRuntime}; pinned to
+     *   <li>{@code llm} — one boolean decision per category
+     *       ({@link org.atmosphere.ai.guardrails.LlmModerationDetector}) through the
+     *       resolved {@code DecisionModel}; pinned to
      *       {@link org.atmosphere.ai.guardrails.ModerationGuardrail.Scope#REQUEST}
      *       so the model is consulted once per turn, not on every streamed chunk.</li>
      * </ul>
      *
-     * <p>Fail-closed by default (a detector outage blocks the turn); set
+     * <p>Fail-closed by default (a detector outage, or a category the LLM
+     * detector could not clear, blocks the turn); set
      * {@code atmosphere.ai.guardrails.moderation.fail-open=true} to admit on
      * detector error instead.</p>
      */

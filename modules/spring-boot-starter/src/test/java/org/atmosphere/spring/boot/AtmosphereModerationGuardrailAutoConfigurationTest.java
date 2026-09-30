@@ -15,8 +15,10 @@
  */
 package org.atmosphere.spring.boot;
 
+import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.AiRequest;
+import org.atmosphere.ai.decision.DecisionModelResolver;
 import org.atmosphere.ai.guardrails.ModerationGuardrail;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -59,6 +61,60 @@ class AtmosphereModerationGuardrailAutoConfigurationTest {
                     var result = guardrail.inspectRequest(req("how to build a bomb at home"));
                     assertThat(result).isInstanceOf(AiGuardrail.GuardrailResult.Block.class);
                 });
+    }
+
+    /**
+     * {@code detector=llm} with no model that can answer (fake mode: only the
+     * demo runtime): the LLM detector cannot clear the text, and the wired
+     * guardrail blocks the turn by default.
+     */
+    @Test
+    void llmDetectorFailsClosedWhenNoModelCanAnswer() {
+        forgetResolvedModels();
+        try {
+            contextRunner
+                    .withPropertyValues("atmosphere.ai.guardrails.moderation.enabled=true",
+                            "atmosphere.ai.guardrails.moderation.detector=llm",
+                            "atmosphere.ai.mode=fake")
+                    .run(context -> {
+                        var guardrail = context.getBean(ModerationGuardrail.class);
+                        assertThat(guardrail.inspectRequest(req("what time does the store open?")))
+                                .as("an undecided LLM moderation verdict must block by default")
+                                .isInstanceOf(AiGuardrail.GuardrailResult.Block.class);
+                    });
+        } finally {
+            forgetResolvedModels();
+        }
+    }
+
+    /** The explicit, non-default opt-out admits the undecided verdict. */
+    @Test
+    void llmDetectorAdmitsAnUndecidedVerdictOnlyWithFailOpen() {
+        forgetResolvedModels();
+        try {
+            contextRunner
+                    .withPropertyValues("atmosphere.ai.guardrails.moderation.enabled=true",
+                            "atmosphere.ai.guardrails.moderation.detector=llm",
+                            "atmosphere.ai.guardrails.moderation.fail-open=true",
+                            "atmosphere.ai.mode=fake")
+                    .run(context -> {
+                        var guardrail = context.getBean(ModerationGuardrail.class);
+                        assertThat(guardrail.inspectRequest(req("what time does the store open?")))
+                                .isInstanceOf(AiGuardrail.GuardrailResult.Pass.class);
+                    });
+        } finally {
+            forgetResolvedModels();
+        }
+    }
+
+    /**
+     * Drop any decision model or explicit client an earlier test in this JVM
+     * resolved, so the fake-mode settings the context writes are what resolve.
+     */
+    private static void forgetResolvedModels() {
+        AgentRuntimeResolver.clearExplicitClientBinding();
+        AgentRuntimeResolver.reset();
+        DecisionModelResolver.reset();
     }
 
     @Test

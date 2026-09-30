@@ -15,63 +15,121 @@
  */
 package org.atmosphere.ai.guardrails;
 
-import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AgentRuntime;
-import org.atmosphere.ai.AgentRuntimeResolver;
+import org.atmosphere.ai.decision.Answer;
+import org.atmosphere.ai.decision.DecisionModel;
+import org.atmosphere.ai.decision.DecisionModelResolver;
+import org.atmosphere.ai.decision.DecisionRequest;
+import org.atmosphere.ai.decision.NoulGate;
+import org.atmosphere.ai.decision.Question;
+import org.atmosphere.ai.decision.RuntimeDecisionModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.EnumMap;
-import java.util.List;
+import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.SequencedMap;
 
 /**
- * Zero-shot LLM moderation detector. Sends a single classification prompt to the
- * installed {@link AgentRuntime} asking which {@link ModerationCategory
- * categories} (if any) the text falls into, mirroring the
- * {@code LlmClassifierInjectionClassifier} / {@code LlmClassifierScopeGuardrail}
- * idiom so every runtime adapter (Built-in, Spring AI, LangChain4j, ADK, Embabel,
- * Koog, Semantic Kernel, …) participates identically with no provider-specific
- * moderation API.
+ * LLM moderation detector. Asks a {@link DecisionModel} one boolean question
+ * per {@link ModerationCategory} — "does this text contain hate?", "…
+ * violence?" — in a single {@link DecisionRequest}, and maps each typed answer
+ * through a {@link NoulGate}, the same mapping and default thresholds as the
+ * {@code LlmClassifierInjectionClassifier} / {@link
+ * org.atmosphere.ai.governance.scope.LlmClassifierScopeGuardrail} tiers.
  *
- * <p>This is the accurate, context-aware tier — one model round-trip per
- * inspection (~100–500&nbsp;ms). Because {@link ModerationGuardrail} can run a
- * detector on every streamed response chunk, prefer wiring an LLM detector with
- * {@link ModerationGuardrail.Scope#REQUEST} (one call per turn on the user input)
- * unless response-side model moderation is specifically required.</p>
+ * <p>The model is a {@link RuntimeDecisionModel} over the given
+ * {@link AgentRuntime}, or whatever {@link DecisionModelResolver} resolves, so
+ * every runtime adapter participates with no provider-specific moderation API.
+ * On the Built-in runtime's chat-completions path, where the endpoint passes its
+ * logprobs gate, each answer carries the model's measured distribution over
+ * {@code true}/{@code false} and the category score is that measured
+ * probability; elsewhere the model's self-reported confidence is used, and a
+ * flagged category with no confidence carries no score.</p>
  *
- * <h2>Failure handling</h2>
- * Timeout / runtime error → {@link ModerationResult#error(String)}. The guardrail
- * maps that to its fail policy — fail-closed (block) by default, per the
- * Security correctness invariant. A blank or unparseable reply is treated as
- * {@link ModerationResult#clean()} (the model declined to flag anything), which
- * is a successful — not errored — outcome.
+ * <h2>Cost</h2>
+ * One inspection is one isolated decision call per {@link ModerationCategory},
+ * run in parallel under one deadline, bounded by the decision
+ * model's concurrency limit; a call that gets no slot before the deadline is a
+ * {@code CAPACITY} failure, and fails closed. Because {@link ModerationGuardrail}
+ * can run a detector on every streamed response chunk, wire an LLM detector
+ * with {@link ModerationGuardrail.Scope#REQUEST} (one inspection per turn on the
+ * user input) unless response-side model moderation is specifically required.
+ *
+ * <h2>Failure handling — fail-closed by default</h2>
+ * A category is cleared only when the model answered {@code false} with a belief
+ * below the clear threshold. Every other outcome for a category — the band
+ * between the thresholds, a {@code false} answer with no confidence, a timeout,
+ * no capacity, a runtime error, an empty, unparseable or out-of-set reply —
+ * leaves it uncertain, and so does text longer than
+ * {@link DecisionRequest#MAX_STATE_CHARS} characters or the absence of any
+ * decision model (only the demo runtime installed). A result with an uncertain
+ * category is {@link ModerationResult#errored() errored} (it still lists the
+ * categories that were flagged), which {@link ModerationGuardrail} blocks by
+ * default; {@link ModerationGuardrail#failOpen()} is the explicit, non-default
+ * opt-out, and even then a flagged blocked category still blocks.
  */
 public final class LlmModerationDetector implements ModerationDetector {
 
     private static final Logger logger = LoggerFactory.getLogger(LlmModerationDetector.class);
 
-    /** Default per-call timeout; tuned for a small-model classifier. */
-    public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(5);
+    /** Default per-inspection timeout; tuned for a small-model classifier. */
+    public static final Duration DEFAULT_TIMEOUT = DecisionRequest.DEFAULT_TIMEOUT;
 
-    private final AgentRuntime runtime;
-    private final Duration timeout;
+    /** One question per category, keyed by question id, in category order. */
+    static final SequencedMap<String, Question> QUESTIONS;
 
-    /** Default constructor — resolves the highest-priority available {@link AgentRuntime}. */
-    public LlmModerationDetector() {
-        this(null, DEFAULT_TIMEOUT);
+    /** Question id → category. */
+    private static final Map<String, ModerationCategory> CATEGORIES;
+
+    static {
+        var questions = new LinkedHashMap<String, Question>();
+        var categories = new LinkedHashMap<String, ModerationCategory>();
+        for (var category : ModerationCategory.values()) {
+            var id = category.name().toLowerCase(Locale.ROOT);
+            questions.put(id, question(category));
+            categories.put(id, category);
+        }
+        QUESTIONS = Collections.unmodifiableSequencedMap(questions);
+        CATEGORIES = Map.copyOf(categories);
     }
 
-    /** Explicit-runtime constructor — for tests and bare-JVM wiring. */
+    private final DecisionModel model;
+    private final Duration timeout;
+    private final NoulGate gate;
+
+    /** Resolves the decision model through {@link DecisionModelResolver} on each call. */
+    public LlmModerationDetector() {
+        this((AgentRuntime) null, DEFAULT_TIMEOUT);
+    }
+
+    /** Over {@code runtime} ({@code null} resolves through {@link DecisionModelResolver}). */
     public LlmModerationDetector(AgentRuntime runtime) {
         this(runtime, DEFAULT_TIMEOUT);
     }
 
+    /** Over {@code runtime} ({@code null} resolves through {@link DecisionModelResolver}). */
     public LlmModerationDetector(AgentRuntime runtime, Duration timeout) {
-        this.runtime = runtime;
+        this(runtime != null ? new RuntimeDecisionModel(runtime) : null, timeout, NoulGate.DEFAULTS);
+    }
+
+    /**
+     * @param model   the decision model; {@code null} resolves through
+     *                {@link DecisionModelResolver} on each call
+     * @param timeout bound per inspection, covering every category
+     *                ({@code null} means {@link #DEFAULT_TIMEOUT})
+     * @param gate    the thresholds on {@code P(category)} ({@code null} means
+     *                {@link NoulGate#DEFAULTS})
+     */
+    public LlmModerationDetector(DecisionModel model, Duration timeout, NoulGate gate) {
+        this.model = model;
         this.timeout = timeout == null ? DEFAULT_TIMEOUT : timeout;
+        this.gate = gate == null ? NoulGate.DEFAULTS : gate;
     }
 
     @Override
@@ -79,77 +137,74 @@ public final class LlmModerationDetector implements ModerationDetector {
         if (text == null || text.isBlank()) {
             return ModerationResult.clean();
         }
-        var effectiveRuntime = runtime != null ? runtime : AgentRuntimeResolver.resolve();
-        if (effectiveRuntime == null) {
-            logger.warn("No AgentRuntime available — LlmModerationDetector cannot classify. "
-                    + "Install a runtime module or fall back to RuleBasedModerationDetector.");
-            return ModerationResult.error("no AgentRuntime available");
+        var effective = model != null ? model : DecisionModelResolver.resolve().orElse(null);
+        if (effective == null) {
+            logger.warn("No DecisionModel can answer (only the demo runtime is available); "
+                    + "LlmModerationDetector cannot clear the text. Install a runtime module with a "
+                    + "reachable model or fall back to RuleBasedModerationDetector.");
+            return ModerationResult.error("LLM moderation: no decision model available");
         }
-
-        String response;
+        if (text.length() > DecisionRequest.MAX_STATE_CHARS) {
+            return ModerationResult.error("LLM moderation: text of " + text.length()
+                    + " chars exceeds the " + DecisionRequest.MAX_STATE_CHARS + "-char decision state bound");
+        }
+        Map<String, Answer> answers;
         try {
-            response = effectiveRuntime.generate(buildClassificationContext(text), timeout);
+            answers = effective.decide(new DecisionRequest(text, QUESTIONS, timeout)).answers();
         } catch (RuntimeException e) {
-            logger.error("LLM moderation call failed ({}): {}",
-                    effectiveRuntime.name(), e.getMessage());
-            return ModerationResult.error("moderation runtime error: " + e.getMessage());
+            logger.error("LLM moderation call failed ({}): {}", effective.name(), e.toString());
+            return ModerationResult.error("LLM moderation error: " + e.getMessage());
         }
-
-        if (response == null || response.isBlank()) {
-            logger.debug("LLM moderation returned empty response — treating as clean");
-            return ModerationResult.clean();
-        }
-        return parse(response);
-    }
-
-    /** Parse a model reply of the form {@code "violence, illicit"} or {@code "NONE"}. */
-    static ModerationResult parse(String response) {
-        var trimmed = response.trim();
-        var lower = trimmed.toLowerCase(Locale.ROOT);
-        if (lower.startsWith("none") || lower.equals("safe") || lower.startsWith("no,")
-                || lower.equals("no")) {
-            return ModerationResult.clean();
-        }
+        var flagged = EnumSet.noneOf(ModerationCategory.class);
         var scores = new EnumMap<ModerationCategory, Double>(ModerationCategory.class);
-        for (var token : trimmed.split("[,;\\n]")) {
-            ModerationCategory.fromToken(token)
-                    .ifPresent(category -> scores.put(category, 0.9));
+        var uncertain = new EnumMap<ModerationCategory, String>(ModerationCategory.class);
+        var reasons = new StringBuilder();
+        for (var id : QUESTIONS.keySet()) {
+            var category = CATEGORIES.get(id);
+            var verdict = gate.judge(answers.get(id), category.label());
+            switch (verdict.outcome()) {
+                case FLAGGED -> {
+                    flagged.add(category);
+                    if (!Double.isNaN(verdict.confidence())) {
+                        scores.put(category, verdict.confidence());
+                    }
+                    reasons.append(reasons.isEmpty() ? "" : "; ").append(verdict.reason());
+                }
+                case UNCERTAIN -> uncertain.put(category, verdict.reason());
+                case CLEAR -> {
+                    // Affirmatively cleared: nothing to report.
+                }
+            }
         }
-        if (scores.isEmpty()) {
-            // The model said something we couldn't map to a category. Biasing
-            // toward clean here (rather than error) matches the injection
-            // classifier's "ambiguous → trust the cheaper tier" posture; the
-            // rule-based tier and the request-path checks back this up.
-            logger.debug("LLM moderation reply not mappable to a category: {}",
-                    truncate(trimmed));
+        if (!uncertain.isEmpty()) {
+            var detail = new StringBuilder("LLM moderation could not clear ").append(uncertain.keySet())
+                    .append(": ").append(uncertain.values());
+            if (!flagged.isEmpty()) {
+                detail.append("; flagged ").append(flagged).append(": ").append(reasons);
+            }
+            logger.debug("{}", detail);
+            return new ModerationResult(flagged, scores, true, detail.toString());
+        }
+        if (flagged.isEmpty()) {
             return ModerationResult.clean();
         }
-        return ModerationResult.flagged(scores.keySet(), scores,
-                "LLM classifier flagged: " + scores.keySet());
+        return ModerationResult.flagged(flagged, scores,
+                "LLM classifier flagged " + flagged + ": " + reasons);
     }
 
-    private static AgentExecutionContext buildClassificationContext(String text) {
-        var categories = java.util.Arrays.stream(ModerationCategory.values())
-                .map(ModerationCategory::label).toList();
-        var systemPrompt = "You are a content-moderation classifier. Classify the TEXT against "
-                + "these categories: " + categories + ".\n\n"
-                + "Respond with a comma-separated list of every category that applies, using the "
-                + "exact category labels above. If none apply, respond with exactly: NONE.\n"
-                + "Do not explain, do not apologize, do not add any other words.";
-        var message = "TEXT:\n" + text;
-        return new AgentExecutionContext(
-                message, systemPrompt, null,
-                null, "moderation-classifier", null, "moderation-classifier",
-                List.of(), null, null,
-                List.of(), Map.of(), List.of(),
-                String.class, null);
-    }
-
-    private static String truncate(String s) {
-        if (s == null) {
-            return "";
-        }
-        var t = s.length() > 120 ? s.substring(0, 120) + "…" : s;
-        return t.replace("\n", " ").replace("\r", " ");
+    private static Question.Noul question(ModerationCategory category) {
+        var definition = switch (category) {
+            case HATE -> "hateful content targeting a protected class";
+            case HARASSMENT -> "harassing, bullying, or threatening language aimed at an individual";
+            case SELF_HARM -> "content that encourages or describes self-harm or suicide";
+            case SEXUAL -> "sexually explicit content";
+            case VIOLENCE -> "content that depicts, threatens, or instructs real-world violence";
+            case ILLICIT -> "instructions or solicitation for illegal or illicit activity";
+        };
+        return new Question.Noul(
+                "You are a content-moderation classifier. Decide whether the TEXT (the STATE) falls "
+                        + "into the moderation category '" + category.label() + "': " + definition + ".",
+                "the text contains " + definition,
+                "the text contains nothing in the '" + category.label() + "' category");
     }
 }

@@ -37,12 +37,13 @@ import java.util.Set;
  * context-aware classification.</p>
  *
  * <h2>Fail-closed by default</h2>
- * When the detector cannot complete (timeout, runtime error) the guardrail
- * <strong>blocks</strong> the turn. This is mandated by the Security correctness
+ * When the detector cannot complete or cannot decide (timeout, runtime error, an
+ * uncertain or unparseable LLM verdict) the guardrail <strong>blocks</strong> the turn. This is mandated by the Security correctness
  * invariant ("integrity verification MUST fail closed by default"). A moderation
  * outage therefore degrades to refusing traffic, not to silently letting
  * unmoderated content through. Call {@link #failOpen()} to make the opposite
- * (non-default, explicit) choice.
+ * (non-default, explicit) choice; a category the detector did flag still blocks
+ * in fail-open mode.
  *
  * <h2>Request vs response scope</h2>
  * The default {@link Scope#BOTH} inspects the request once and the response on
@@ -168,17 +169,9 @@ public final class ModerationGuardrail implements AiGuardrail {
             result = ModerationDetector.ModerationResult.error(e.getMessage());
         }
 
-        if (result.errored()) {
-            if (blockOnError) {
-                logger.warn("Moderation detector unavailable on {} path ({}) — "
-                        + "blocking (fail-closed)", surface, result.detail());
-                return GuardrailResult.block("moderation unavailable: " + result.detail());
-            }
-            logger.warn("Moderation detector unavailable on {} path ({}) — "
-                    + "admitting (fail-open mode)", surface, result.detail());
-            return GuardrailResult.pass();
-        }
-
+        // A category the detector did flag blocks whatever the fail policy: an
+        // errored result may still carry the categories it could decide
+        // (LlmModerationDetector flags some and leaves others uncertain).
         var matched = EnumSet.noneOf(ModerationCategory.class);
         for (var category : result.flagged()) {
             if (blockedCategories.contains(category)) {
@@ -186,6 +179,15 @@ public final class ModerationGuardrail implements AiGuardrail {
             }
         }
         if (matched.isEmpty()) {
+            if (result.errored()) {
+                if (blockOnError) {
+                    logger.warn("Moderation detector unavailable on {} path ({}) — "
+                            + "blocking (fail-closed)", surface, result.detail());
+                    return GuardrailResult.block("moderation unavailable: " + result.detail());
+                }
+                logger.warn("Moderation detector unavailable on {} path ({}) — "
+                        + "admitting (fail-open mode)", surface, result.detail());
+            }
             return GuardrailResult.pass();
         }
         logger.warn("Moderation blocked {} for categories {} ({})",

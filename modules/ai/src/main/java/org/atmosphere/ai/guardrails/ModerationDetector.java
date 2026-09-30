@@ -28,10 +28,11 @@ import java.util.Set;
  *   <li>{@link RuleBasedModerationDetector} — zero-dependency, deterministic
  *       phrase matching. The default tier; cheap enough to run on every
  *       streamed chunk.</li>
- *   <li>{@link LlmModerationDetector} — delegates a single zero-shot
- *       classification call to the installed {@code AgentRuntime}, so every
- *       runtime adapter participates identically. The accurate tier; one model
- *       round-trip per inspection.</li>
+ *   <li>{@link LlmModerationDetector} — asks a
+ *       {@link org.atmosphere.ai.decision.DecisionModel} one boolean question per
+ *       category (over the installed {@code AgentRuntime} by default), so every
+ *       runtime adapter participates. The accurate tier; one parallel batch of
+ *       model calls per inspection, failing closed on any undecided category.</li>
  * </ul>
  *
  * <p>Provider-native moderation endpoints (OpenAI {@code /moderations}, Azure
@@ -61,8 +62,11 @@ public interface ModerationDetector {
      *                even when {@code flagged} is non-empty (rule-based tiers
      *                report no graded score)
      * @param errored {@code true} when the detector could not complete (timeout,
-     *                runtime error) — the guardrail's fail-closed policy decides
-     *                what to do with an errored result
+     *                runtime error) or could not decide every category — the
+     *                guardrail's fail-closed policy decides what to do with an
+     *                errored result. An errored result may still list the
+     *                categories it did flag; the guardrail blocks on those
+     *                whatever its fail policy
      * @param detail  human-readable explanation, used in audit logs and block
      *                reasons; never {@code null}
      */

@@ -15,14 +15,10 @@
  */
 package org.atmosphere.ai.guardrails;
 
-import org.atmosphere.ai.AgentExecutionContext;
-import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.AiRequest;
-import org.atmosphere.ai.StreamingSession;
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -139,6 +135,24 @@ class ModerationGuardrailTest {
                 "fail-open mode must admit when the detector is unavailable");
     }
 
+    @Test
+    void aFlaggedCategoryBlocksEvenWhenTheResultAlsoErroredInFailOpenMode() {
+        // A detector that decided some categories and could not decide others.
+        ModerationDetector partial = text -> new ModerationDetector.ModerationResult(
+                Set.of(ModerationCategory.VIOLENCE), java.util.Map.of(), true, "hate undecided");
+        var failOpen = new ModerationGuardrail(partial).failOpen();
+        var blocked = assertInstanceOf(AiGuardrail.GuardrailResult.Block.class,
+                failOpen.inspectRequest(req("anything")),
+                "fail-open admits an undecided category, never a flagged one");
+        assertTrue(blocked.reason().contains("VIOLENCE"), blocked.reason());
+        assertInstanceOf(AiGuardrail.GuardrailResult.Pass.class,
+                failOpen.blocking(ModerationCategory.HATE).inspectRequest(req("anything")),
+                "a flagged category the guardrail does not block leaves only the error, which fail-open admits");
+        assertInstanceOf(AiGuardrail.GuardrailResult.Block.class,
+                new ModerationGuardrail(partial).blocking(ModerationCategory.HATE).inspectRequest(req("anything")),
+                "fail-closed blocks on the error");
+    }
+
     // --- ModerationCategory parsing --------------------------------------
 
     @Test
@@ -153,83 +167,6 @@ class ModerationGuardrailTest {
         assertTrue(ModerationCategory.fromToken(null).isEmpty());
     }
 
-    // --- LlmModerationDetector -------------------------------------------
-
-    @Test
-    void llmDetectorParsesCategoryList() {
-        var clean = LlmModerationDetector.parse("NONE");
-        assertFalse(clean.isFlagged());
-        assertFalse(clean.errored());
-
-        var flagged = LlmModerationDetector.parse("violence, illicit");
-        assertEquals(Set.of(ModerationCategory.VIOLENCE, ModerationCategory.ILLICIT),
-                flagged.flagged());
-
-        // Unmappable reply biases to clean (trust the cheaper tier), not error.
-        var weird = LlmModerationDetector.parse("I cannot help with that");
-        assertFalse(weird.isFlagged());
-        assertFalse(weird.errored());
-    }
-
-    @Test
-    void llmDetectorGuardrailBlocksFlaggedRuntime() {
-        var runtime = new StubRuntime("violence");
-        var g = new ModerationGuardrail(new LlmModerationDetector(runtime));
-        assertInstanceOf(AiGuardrail.GuardrailResult.Block.class,
-                g.inspectRequest(req("ambiguous text the rules miss")));
-    }
-
-    @Test
-    void llmDetectorGuardrailFailsClosedOnRuntimeError() {
-        var runtime = new StubRuntime(null) {
-            @Override
-            public String generate(AgentExecutionContext context, Duration timeout) {
-                throw new RuntimeException("model 503");
-            }
-        };
-        var g = new ModerationGuardrail(new LlmModerationDetector(runtime));
-        assertInstanceOf(AiGuardrail.GuardrailResult.Block.class,
-                g.inspectRequest(req("anything")),
-                "a moderation runtime outage must fail closed");
-    }
-
-    /** Minimal AgentRuntime whose {@code generate} returns a canned classification reply. */
-    private static class StubRuntime implements AgentRuntime {
-        private final String reply;
-
-        StubRuntime(String reply) {
-            this.reply = reply;
-        }
-
-        @Override
-        public String name() {
-            return "stub";
-        }
-
-        @Override
-        public boolean isAvailable() {
-            return true;
-        }
-
-        @Override
-        public int priority() {
-            return 0;
-        }
-
-        @Override
-        public void execute(AgentExecutionContext context, StreamingSession session) {
-            session.send(reply == null ? "" : reply);
-            session.complete();
-        }
-
-        @Override
-        public String generate(AgentExecutionContext context, Duration timeout) {
-            return reply;
-        }
-
-        @Override
-        public void configure(org.atmosphere.ai.AiConfig.LlmSettings settings) {
-            // no-op test stub
-        }
-    }
+    // LlmModerationDetector: see LlmModerationDetectorTest and
+    // LlmModerationDetectorFailClosedTest.
 }
