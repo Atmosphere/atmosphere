@@ -396,27 +396,24 @@ test.describe('Quarkus AI Chat', () => {
   // Long-polling transport coverage.
   //
   // Per Correctness Invariant #7 (Mode Parity), if a feature works over
-  // WebSocket it must also work over long-polling. The sample's index.html
-  // honors ?transport=long-polling so the test can force atmosphere.js into
-  // the fallback transport from a Playwright page.
+  // WebSocket it must also work over long-polling.
   //
-  // CURRENTLY BLOCKED on atmosphere.js v5 client side — empirically (chrome-
-  // devtools, 2026-05-02) the v5 ESM build does not propagate the
-  // server-assigned X-Atmosphere-tracking-id between requests on the
-  // long-polling and streaming transports. Every POST goes out with
-  // tracking-id=0 and the server responds with x-atmosphere-first-request:
-  // true, treating each send as a fresh connection rather than a message
-  // on the existing subscription — so the prompt body is dropped on the
-  // server side. This is independent of the Quarkus L4j bridge (which is
-  // transport-agnostic) and reproduces the same way against the existing
-  // spring-boot-ai-chat sample. Tracked as a separate atmosphere.js v5
-  // issue — restore this assertion once that's fixed.
+  // CANNOT PASS AS WRITTEN: it drives the sample's own chat page (#status,
+  // #input, #send, #log) through `/?transport=long-polling`, and that page is
+  // gone — f8930d62f4 replaced index.html with a meta-refresh to the bundled
+  // Console, which has none of those elements and no transport query param.
+  // It has to be rewritten against the Console or a raw long-polling client
+  // (helpers/transport-helper.ts LongPollingClient) before the quarantine can
+  // be retired. The earlier blocker — atmosphere.js v5 not propagating the
+  // server-assigned X-Atmosphere-tracking-id between long-polling requests,
+  // observed with chrome-devtools on 2026-05-02 — has not been re-checked
+  // since the page was removed.
   quarantined({
     owner: 'jfarcand',
-    expires: '2026-09-30',
+    expires: '2026-10-31',
     issue: 'pending',
-    reason: 'atmosphere.js v5 does not propagate X-Atmosphere-tracking-id between '
-      + 'long-polling requests, so the server drops the prompt body',
+    reason: 'drives the sample chat page (#status/#send) that f8930d62f4 replaced with '
+      + 'a redirect to the Console; needs a rewrite against the Console or LongPollingClient',
   })('long-polling transport: prompt round-trips with same wire envelope @quarantined',
     async ({ page }, testInfo) => {
       test.skip(!REAL_LLM, 'Long-polling transport test requires LLM_MODE=real-ollama');

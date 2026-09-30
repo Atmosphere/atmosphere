@@ -40,6 +40,17 @@ jobs:
     - name: Run Architectural Validation
       run: ./scripts/architectural-validation.sh
 
+    # Every project in modules/integration-tests/playwright.config.ts must be
+    # selected by a workflow or excluded with owner/expiry/issue in
+    # .harness/playwright-project-exclusions.txt. Nine projects once sat in no
+    # matrix leg, and three of them were dead without anyone noticing. Runs on
+    # every push (not path-filtered) so an exclusion's expiry bites on time.
+    - name: Verify every Playwright project runs in a workflow
+      run: ./scripts/validate-playwright-project-coverage.sh
+
+    - name: Prove the Playwright project coverage gate bites
+      run: ./scripts/test-playwright-project-coverage.sh
+
   doc-version-check:
     name: Documentation Version Check
     runs-on: ubuntu-latest

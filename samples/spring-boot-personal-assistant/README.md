@@ -211,6 +211,10 @@ to LangChain4j (priority 100) without changing a line of code:
 ./mvnw spring-boot:run -pl samples/spring-boot-personal-assistant -Pruntime-langchain4j
 ```
 
+The profile builds into `target/runtime-langchain4j/`, so packaging it never
+overwrites the default (Built-in) jar in `target/` — both variants can sit side
+by side.
+
 ### Operator visibility
 
 `McpClientAdminController` exposes connection state, tool inventory, and
@@ -221,7 +225,10 @@ curl http://localhost:8080/api/mcp-client/sources | jq
 ```
 
 Validated end-to-end by `modules/integration-tests/e2e/mcp-client.spec.ts`
-across both runtimes.
+across both runtimes, in the `e2e.yml` CI matrix: the upstream connection, the
+advertised tool inventory, the admin endpoint, the Console and the runtime swap.
+The one test that needs a model to decide to call an upstream tool runs only
+when `LLM_API_KEY` (or `GEMINI_API_KEY`) is set, so no CI lane exercises that dispatch today.
 
 ## Long-term memory — cross-session fact recall
 

@@ -44,6 +44,14 @@ jobs:
         SB_SAMPLES=$(ls -d samples/spring-boot-*/pom.xml | sed 's|/pom.xml||' | paste -sd, -)
         ./mvnw -B package -DskipTests -Dgpg.skip=true -Pspring-boot3 -pl "$SB_SAMPLES"
 
+    # mcp-client boots spring-boot-personal-assistant twice: the default
+    # (Built-in runtime) jar in target/, and this -Pruntime-langchain4j variant,
+    # which the profile builds into target/runtime-langchain4j so it never
+    # overwrites the default jar. Packaged here so the spec only boots jars —
+    # a Maven build inside a Playwright hook outlives the hook timeout on CI.
+    - name: Package the LangChain4j variant of spring-boot-personal-assistant
+      run: ./mvnw -B package -DskipTests -Dgpg.skip=true -Pruntime-langchain4j -pl samples/spring-boot-personal-assistant
+
     - name: Package build output
       run: |
         tar czf /tmp/build-targets-sb${{ matrix.spring-boot-version }}.tar.gz \
@@ -73,6 +81,9 @@ jobs:
         # agent, orchestration-primitives, admin-coverage) are now mapped —
         # previously they lived in playwright.config.ts but were silently
         # unmapped by any matrix leg, so CI never ran them.
+        # scripts/validate-playwright-project-coverage.sh (ci.yml) now fails
+        # when a config project is in no leg and not in
+        # .harness/playwright-project-exclusions.txt.
         group:
           - name: core-chat
             projects: "chat,spring-boot-chat,multi-client,embedded-jetty-chat"
@@ -81,11 +92,11 @@ jobs:
           - name: ai-chat-core
             projects: "ai-chat,ai-streaming-dom,ai-chat-features,openai-endpoint"
           - name: ai-chat-memory
-            projects: "ai-memory,ai-memory-strategies"
+            projects: "ai-memory,ai-memory-strategies,ai-episodic-memory,ai-passivation,ai-coordinator-first-run"
           - name: ai-ux-events
-            projects: "ai-identity,ai-error-recovery,ai-events,unified-console"
+            projects: "ai-identity,ai-error-recovery,ai-events,unified-console,ai-budget-circuit-breaker"
           - name: ai-ux-flows
-            projects: "ai-multimodal,ai-retry-policy,ai-lifecycle-listener,ai-models"
+            projects: "ai-multimodal,ai-retry-policy,ai-lifecycle-listener,ai-models,ai-structured-output,ai-jfr-observability,ai-tool-permission"
           - name: ai-tools
             projects: "ai-tools,ai-session-stats,ai-tool-call-delta,ai-hitl-approval,ai-hitl-real-flow,ai-cancel"
           - name: ai-advanced
@@ -121,7 +132,7 @@ jobs:
           - name: gap-admin-smoke
             projects: "console-http-check,sample-matrix-smoke"
           - name: gap-agents
-            projects: "dentist-agent,a2a-discovery"
+            projects: "dentist-agent,a2a-discovery,deep-agent-harness,mcp-client"
           - name: cli-runtime
             projects: "cli-runtime"
           # Cross-tab isolation regression matrix (commit 1fbb0958f0).

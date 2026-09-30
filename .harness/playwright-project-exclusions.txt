@@ -1,0 +1,23 @@
+# Playwright projects deliberately run by NO workflow — read by
+# scripts/validate-playwright-project-coverage.sh.
+#
+# Every project declared in modules/integration-tests/playwright.config.ts must
+# be referenced by a workflow (a `projects: "..."` matrix string or a
+# `--project=<name>` flag under .github/workflows/) OR be listed here. A project
+# in neither is a spec that looks like coverage and never runs: nine of them sat
+# that way until 2026-09-30, and three were dead (no-op onStateChange handlers,
+# every test timing out with zero frames) without anyone noticing.
+#
+# Same metadata the quarantine policy requires (owner, expiry, tracking issue),
+# one entry per line, fields separated by " | ":
+#
+#   <project> | <owner> | <expires YYYY-MM-DD> | <issue> | <reason>
+#
+# The expiry bites: a past date fails the gate, so an exclusion is re-justified
+# or retired instead of sitting here forever. List a project only when it
+# genuinely cannot run in the per-push lanes (a real model, an upstream blocker,
+# an opt-in browser), never because it is failing — fix it or quarantine the
+# failing test with helpers/quarantine.ts instead.
+
+firefox | jfarcand | 2027-03-31 | carnet#53 | opt-in cross-browser project, defined only when E2E_ALL_BROWSERS is set; no workflow sets it, so there is no Firefox lane
+webkit | jfarcand | 2027-03-31 | carnet#53 | opt-in cross-browser project, defined only when E2E_ALL_BROWSERS is set; no workflow sets it, so there is no WebKit lane

@@ -138,6 +138,11 @@
     </dependencies>
 
     <build>
+        <!-- The parent pins these to literal target/... paths. Deriving them from
+             the build directory keeps the runtime-langchain4j profile's classes
+             (it moves the build directory) out of the default jar's classes. -->
+        <outputDirectory>${project.build.directory}/classes</outputDirectory>
+        <testOutputDirectory>${project.build.directory}/test-classes</testOutputDirectory>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
@@ -163,6 +168,11 @@
           differs. Used by modules/integration-tests/e2e/mcp-client.spec.ts
           to validate the SPI claim across runtimes.
 
+          The profile builds into target/runtime-langchain4j, so packaging it
+          never overwrites the default (Built-in) jar in target/: the e2e
+          workflow packages both variants up front and the spec boots each
+          from its own directory, with no Maven build at test time.
+
           Run with: ./mvnw spring-boot:run -pl samples/spring-boot-personal-assistant -Pruntime-langchain4j
         -->
         <profile>
@@ -179,6 +189,7 @@
                 </dependency>
             </dependencies>
             <build>
+                <directory>${project.basedir}/target/runtime-langchain4j</directory>
                 <plugins>
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>

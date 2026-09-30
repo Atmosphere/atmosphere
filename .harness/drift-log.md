@@ -3315,3 +3315,59 @@ until the expiry turned `main` red.
 **Gate:** the spec now asserts the current contract — the textarea is never disabled
 while a reply streams (observer-based, so a brief disable cannot slip between polls;
 bite-checked with an injected 20 ms disable) and send works again after the reply.
+
+---
+
+## 2026-09-30 — Nine Playwright projects ran in no workflow; three were dead
+
+**Session:** carnet #53 — reconciling the 111 projects in
+`modules/integration-tests/playwright.config.ts` against every `projects:` matrix
+string and `--project=` flag under the workflows.
+
+**Claim 1:** `ai-structured-output.spec.ts` header (since `eddea9007b`) — "no live LLM
+key required, so this runs on CI"; `deep-agent-harness.spec.ts` (`8399777dc0`) — "the
+always-on Playwright lane guards them"; the ai-passivation / ai-budget-circuit-breaker
+specs (`4be20c240c`) presented as e2e coverage of their primitives.
+**Truth:** none of the nine projects (`ai-budget-circuit-breaker`,
+`ai-coordinator-first-run`, `ai-episodic-memory`, `ai-jfr-observability`,
+`ai-passivation`, `ai-structured-output`, `ai-tool-permission`, `deep-agent-harness`,
+`mcp-client`) was referenced by any workflow. Three were dead: the
+`PassivationTestHandler`, `BudgetCircuitBreakerTestHandler` and
+`StructuredOutputTestHandler` `onStateChange` were no-ops, so no frame reached the
+socket — 11 of 11 tests timed out with `Events: []`.
+
+**Claim 2:** `mcp-client.spec.ts` — "The test does not require a real LLM API key …
+End-to-end LLM tool-dispatch with a real backend is covered by the e2e-real-llm
+suite"; its tool-dispatch test — "skips the LLM so CI doesn't need a paid key";
+`spring-boot-personal-assistant/README.md` — "Validated end-to-end by
+mcp-client.spec.ts across both runtimes."
+**Truth:** the spec ran `./mvnw install` inside its hooks and sat in no workflow, so
+nothing validated it in CI. Keyless, the tool-dispatch test sees 0 upstream calls (a
+model has to decide to call the tool), the Built-in Console badge reads `demo`, not
+`built-in`; and `e2e-real-llm.yml` runs no MCP spec at all.
+
+**Claim 3:** expired quarantine reasons — `mcp-tools` "the call never reports
+status=sent", `ai-session-stats` "the footer renders only intermittently", and
+`ai-streaming-dom` "a polled toBeDisabled() races the completion"; `quarkus-ai-chat`
+long-polling "blocked on atmosphere.js v5 tracking-id propagation".
+**Truth:** the first two pass 8 of 8 runs keyless. The `ai-streaming-dom` test was
+vacuous: after a send the input is empty, so the button is disabled by the
+empty-input gate — it still passed with the `isStreaming` gate stripped from the
+Console bundle. The quarkus test drives `#status`/`#send` on a page `f8930d62f4`
+replaced with a redirect to the Console, so it cannot pass whatever atmosphere.js does.
+
+**Slip path:** projects were added to `playwright.config.ts` without a matrix leg and
+nothing compared the two lists, so a spec that never ran read as coverage; the dead
+handlers were copied from a no-op template and never executed to expose it. Headers
+described where a spec was meant to run, not where it ran.
+
+**Gate:** `scripts/validate-playwright-project-coverage.sh` (ci.yml on every push +
+pre-push) fails when a config project is in no workflow and not in
+`.harness/playwright-project-exclusions.txt` (owner/expiry/issue/reason; expiry
+bites), and `scripts/test-playwright-project-coverage.sh` proves each check fires
+(13 cases, including comment-only mentions). The three handlers write frames; all
+nine projects joined `e2e.yml` legs (each run 3x locally); the mcp-client hooks now
+only boot jars packaged by the build job (the LangChain4j variant builds into
+`target/runtime-langchain4j`); the dispatch test skips without a key; the vacuous
+streaming test asserts with a non-empty input (bite: fails with the gate stripped);
+the quarkus quarantine carries its real reason and a new expiry.

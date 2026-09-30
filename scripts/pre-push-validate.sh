@@ -198,6 +198,9 @@ ORPHAN_CLASS_REGEX='^modules/.*/src/main/.*\.java$|^scripts/validate-no-orphan-c
 FACTS_REGISTRY_REGEX='\.md$|^\.harness/facts\.json$|^scripts/validate-facts-registry\.sh$'
 THIRDPARTY_VERSION_REGEX='\.md$|^pom\.xml$|^scripts/validate-doc-thirdparty-versions\.sh$|^\.harness/thirdparty-version-allowlist\.txt$'
 ATMO_DOC_VERSION_REGEX='\.md$|^cli/samples\.json$|^scripts/validate-atmosphere-doc-version\.sh$|^\.harness/atmosphere-doc-version-allowlist\.txt$'
+# Every Playwright project must be run by a workflow or excluded with owner/expiry:
+# re-check whenever the config, a workflow, the exclusion list or the gate changes.
+PW_PROJECT_COVERAGE_REGEX='^modules/integration-tests/playwright\.config\.ts$|^\.github/workflows/.*\.ya?ml$|^\.harness/playwright-project-exclusions\.txt$|^scripts/(validate|test)-playwright-project-coverage\.sh$'
 # Limitation register (llm-registre, vendored at .registre): bans deferral prose
 # that documents debt without registering it, and keeps feature-phases.yaml
 # parseable. Runs on any source the gates scan, plus its own config.
@@ -221,6 +224,7 @@ RUN_PHANTOM_JAVADOC=false
 RUN_FACTS_REGISTRY=false
 RUN_THIRDPARTY_VERSION=false
 RUN_ATMO_DOC_VERSION=false
+RUN_PW_PROJECT_COVERAGE=false
 RUN_LIMITATION_REGISTRE=false
 while IFS= read -r file; do
     [ -z "$file" ] && continue
@@ -272,6 +276,9 @@ while IFS= read -r file; do
     if echo "$file" | grep -qE "$ATMO_DOC_VERSION_REGEX"; then
         RUN_ATMO_DOC_VERSION=true
     fi
+    if echo "$file" | grep -qE "$PW_PROJECT_COVERAGE_REGEX"; then
+        RUN_PW_PROJECT_COVERAGE=true
+    fi
     if echo "$file" | grep -qE "$HIGH_BLAST_REGEX"; then
         HAS_HIGH_BLAST=true
     fi
@@ -303,6 +310,7 @@ if [ "$FORCE_FULL" = true ]; then
     RUN_FACTS_REGISTRY=true
     RUN_THIRDPARTY_VERSION=true
     RUN_ATMO_DOC_VERSION=true
+    RUN_PW_PROJECT_COVERAGE=true
 fi
 
 PL_LIST=""
@@ -539,6 +547,24 @@ if [ "$DRY_RUN" = false ]; then
         echo "Skipping Atmosphere own-version doc validation."
     fi
     echo ""
+
+    if [ "$RUN_PW_PROJECT_COVERAGE" = true ]; then
+        echo "Running Playwright project coverage validation."
+        if ! ./scripts/validate-playwright-project-coverage.sh; then
+            echo ""
+            echo "A Playwright project runs in no workflow — add it to an e2e.yml matrix"
+            echo "group or record it in .harness/playwright-project-exclusions.txt."
+            exit 1
+        fi
+        if ! ./scripts/test-playwright-project-coverage.sh; then
+            echo ""
+            echo "The Playwright project coverage gate no longer bites — fix the gate."
+            exit 1
+        fi
+    else
+        echo "Skipping Playwright project coverage validation."
+    fi
+    echo ""
 else
     echo "Dry-run — selected Tier 1 checks:"
     echo "  architectural validation : $RUN_ARCHITECTURAL"
@@ -557,6 +583,7 @@ else
     echo "  facts registry           : $RUN_FACTS_REGISTRY"
     echo "  third-party dep versions : $RUN_THIRDPARTY_VERSION"
     echo "  atmosphere doc version   : $RUN_ATMO_DOC_VERSION"
+    echo "  playwright proj coverage : $RUN_PW_PROJECT_COVERAGE"
     echo ""
 fi
 

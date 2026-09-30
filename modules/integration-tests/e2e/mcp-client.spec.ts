@@ -1,26 +1,20 @@
 import { test, expect } from '@playwright/test';
-import { spawnSync } from 'child_process';
-import { resolve } from 'path';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
 import { WebSocket } from 'ws';
 
 /*
- * NOT WIRED INTO CI — and it cannot be, as written.
+ * Both runtime variants of spring-boot-personal-assistant are packaged BEFORE the
+ * run — the default (Built-in) jar in target/, the -Pruntime-langchain4j jar in
+ * target/runtime-langchain4j (the e2e workflow's build job packages both). The
+ * hooks only boot them.
  *
- * `rebuildSample()` below runs a full Maven build of the sample from inside a
- * `beforeAll` hook. Playwright's hook timeout is 90s; on a CI runner that build
- * does not finish, so the hook times out and the half-started server keeps port
- * 8100, which turns every retry into "Port 8100 is already in use". Observed
- * directly: adding `mcp-client` to the e2e matrix on 2026-08-15 failed both the
- * SB3 and SB4 legs this way, with 0ms test durations because no test ever ran.
- *
- * The spec passes locally, where the Maven build is already warm. That is why it
- * sat with zero references anywhere in .github/ while still looking like coverage.
- *
- * To make it CI-viable the sample build has to move OUT of the hook — the e2e
- * workflow already has a "Rebuild Spring Boot samples" step that could own it,
- * leaving the hook to only `startSample`. Until that is done this file is a
- * local-only harness, and the outbound-MCP path it covers has no CI validation.
+ * This spec used to run `./mvnw install` from inside its beforeAll hooks. On a CI
+ * runner that build outlived Playwright's hook timeout, the half-started server
+ * kept port 8100, and every retry failed with "Port 8100 is already in use" — so
+ * the spec was kept out of every workflow and the outbound-MCP path had no CI
+ * validation. Locally:
+ *   ./mvnw package -pl samples/spring-boot-mcp-server,samples/spring-boot-personal-assistant -am -DskipTests
+ *   ./mvnw package -pl samples/spring-boot-personal-assistant -am -Pruntime-langchain4j -DskipTests
  */
 
 /**
@@ -29,11 +23,12 @@ import { WebSocket } from 'ws';
  * server (spring-boot-mcp-server, port 8083) at startup, and exposes them
  * to the agent loop via the AgentExecutionContext.tools() pipeline.
  *
- * The test does not require a real LLM API key — the assertions target the
- * MCP-client connection lifecycle and the @AiEndpoint registration, which
- * fully exercise the McpToolSource → ToolDefinition translation path
- * without triggering a model round-trip. End-to-end LLM tool-dispatch with
- * a real backend is covered by the e2e-real-llm suite.
+ * All but one test run without an LLM API key — they target the MCP-client
+ * connection lifecycle, the advertised tool inventory, the @AiEndpoint
+ * registration and the Console, none of which needs a model round-trip. The
+ * one test that proves a model-driven tool dispatch through McpToolSource
+ * skips unless LLM_API_KEY (or GEMINI_API_KEY) is set; no CI lane sets one
+ * for this spec, so that dispatch is validated only locally.
  *
  * Two describe-blocks run the same scenario against two AgentRuntime
  * implementations to validate the cross-runtime SPI claim:
@@ -46,23 +41,7 @@ import { WebSocket } from 'ws';
  * {@code ToolDefinition}s flow through {@code AgentExecutionContext.tools()}
  * regardless of which runtime executes the agent loop.
  */
-const ROOT = resolve(__dirname, '..', '..', '..');
-const SAMPLE = 'samples/spring-boot-personal-assistant';
-const SAMPLE_KEY = 'spring-boot-personal-assistant';
 const COMMON_TOOL_COUNT_REGEX = /Connected to MCP server http:\/\/localhost:8083\S* — \d+ tool\(s\) advertised/;
-
-function rebuildSample(profile?: string) {
-  const args = ['install', '-pl', SAMPLE, '-am', '-DskipTests', '-q'];
-  if (profile) args.push(`-P${profile}`);
-  const result = spawnSync(resolve(ROOT, 'mvnw'), args, {
-    cwd: ROOT,
-    stdio: 'inherit',
-    timeout: 600_000,
-  });
-  if (result.status !== 0) {
-    throw new Error(`Maven rebuild failed (profile=${profile ?? 'default'}, exit=${result.status})`);
-  }
-}
 
 let upstream: SampleServer;
 let agent: SampleServer;
@@ -81,8 +60,7 @@ test.afterAll(async () => {
 test.describe('Outbound MCP — Built-in runtime', () => {
 
   test.beforeAll(async () => {
-    rebuildSample();
-    agent = await startSample(SAMPLES[SAMPLE_KEY]);
+    agent = await startSample(SAMPLES['spring-boot-personal-assistant']);
   });
 
   test.afterAll(async () => {
@@ -117,8 +95,13 @@ test.describe('Outbound MCP — Built-in runtime', () => {
     // Without any framework adapter on the classpath, the AgentRuntime
     // resolver picks the Built-in runtime (priority 0). The Console badge
     // surfaces the resolved name verbatim — drift here means a runtime
-    // adapter snuck into the default classpath.
-    await expect(page.getByText(/Runtime:\s*built-in/i)).toBeVisible({ timeout: 15_000 });
+    // adapter snuck into the default classpath. With no API key (CI), the
+    // Built-in runtime has no model to reach and the resolver reports the
+    // DemoAgentRuntime fallback instead, so the badge reads "demo".
+    const expected = process.env.LLM_API_KEY || process.env.GEMINI_API_KEY
+      ? /Runtime:\s*built-in/i
+      : /Runtime:\s*demo/i;
+    await expect(page.getByText(expected)).toBeVisible({ timeout: 15_000 });
   });
 
   test('admin endpoint surfaces remote tool inventory + metrics', async () => {
@@ -173,14 +156,11 @@ test.describe('Outbound MCP — Built-in runtime', () => {
 test.describe('Outbound MCP — LangChain4j runtime (cross-runtime parity)', () => {
 
   test.beforeAll(async () => {
-    rebuildSample('runtime-langchain4j');
-    agent = await startSample(SAMPLES[SAMPLE_KEY]);
+    agent = await startSample(SAMPLES['spring-boot-personal-assistant-langchain4j']);
   });
 
   test.afterAll(async () => {
     await agent?.stop();
-    // Reset to default JAR so the next spec sees a clean default build.
-    rebuildSample();
   });
 
   test('@smoke same upstream connection succeeds under LangChain4j runtime', async () => {
@@ -208,11 +188,16 @@ test.describe('Outbound MCP — LangChain4j runtime (cross-runtime parity)', () 
   });
 
   test('upstream-tools endpoint dispatches a real tool call (chrome-devtools layer)', async () => {
-    // Outbound-MCP roundtrip without an LLM: send a raw tool-name on the
-    // wire, the agent's runtime forwards it through McpToolSource to the
-    // upstream MCP server, and the metrics counter increments. This
-    // mirrors what I drove manually via the Console UI + Gemini key, but
-    // skips the LLM so CI doesn't need a paid key. Confirms the
+    // Needs a real model: the prompt below is natural language, and only a
+    // model decides to call the upstream tool. Keyless (CI) the call never
+    // happens and the counter stays at 0, so the test runs only when a key is
+    // present. The keyless tests above still pin the connection, the
+    // advertised tool inventory and the runtime swap.
+    test.skip(!process.env.LLM_API_KEY && !process.env.GEMINI_API_KEY,
+      'requires LLM_API_KEY (or GEMINI_API_KEY) for a real model to dispatch the tool');
+    // Outbound-MCP roundtrip: the model picks the upstream tool, the agent's
+    // runtime forwards it through McpToolSource to the upstream MCP server,
+    // and the metrics counter increments. Confirms the
     // McpToolsInterceptor → McpToolSource path is live under LangChain4j
     // — the cross-runtime claim of this branch.
     const wsUrl = agent.baseUrl.replace('http://', 'ws://') + '/atmosphere/personal-assistant/upstream-tools';

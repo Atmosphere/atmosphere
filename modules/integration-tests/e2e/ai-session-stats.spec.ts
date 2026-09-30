@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
-import { quarantined } from './helpers/quarantine';
 
 let server: SampleServer;
 
@@ -44,18 +43,10 @@ test.describe('AI Session Stats & UI', () => {
   // `stats` is assigned only on the `complete` frame and only when at least one
   // streaming-text was counted (`streamStartedAt > 0`).
   //
-  // Two findings from un-quarantining these: the previous versions asserted
-  // "streaming texts" / "texts/s", a vocabulary the Console has never rendered,
-  // so they could not have passed even with a working connection; and against
-  // this sample the footer appears only intermittently, which is why they stay
-  // quarantined below — now with metadata and a lane, rather than a bare skip.
-  quarantined({
-    owner: 'jfarcand',
-    expires: '2026-09-30',
-    issue: 'pending',
-    reason: 'the session-stats footer renders only intermittently for this sample; '
-      + '`stats` is assigned on the complete frame and is observed unset on most runs',
-  })('stats bar reports token count and rate after a round @quarantined', async ({ page }) => {
+  // The previous versions asserted "streaming texts" / "texts/s", a vocabulary
+  // the Console has never rendered, so they could not have passed even with a
+  // working connection.
+  test('stats bar reports token count and rate after a round', async ({ page }) => {
     await page.goto(consoleUrl());
     await expect(page.getByText('Connected')).toBeVisible({ timeout: 30_000 });
 
@@ -67,12 +58,7 @@ test.describe('AI Session Stats & UI', () => {
     await expect(stats).toContainText('tok/s');
   });
 
-  quarantined({
-    owner: 'jfarcand',
-    expires: '2026-09-30',
-    issue: 'pending',
-    reason: 'same intermittent session-stats footer as the property above',
-  })('stats bar shows a non-zero token count and elapsed time @quarantined', async ({ page }) => {
+  test('stats bar shows a non-zero token count and elapsed time', async ({ page }) => {
     await page.goto(consoleUrl());
     await expect(page.getByText('Connected')).toBeVisible({ timeout: 30_000 });
 

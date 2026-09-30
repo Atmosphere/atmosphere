@@ -10,6 +10,14 @@ export interface SampleConfig {
   name: string;
   /** Directory under samples/ */
   dir: string;
+  /**
+   * Build directory under the sample that holds the packaged artifact. Defaults to
+   * `target`. A Maven profile that packages a variant of the sample into its own
+   * build directory (spring-boot-personal-assistant's runtime-langchain4j builds
+   * into target/runtime-langchain4j) is booted from there, so both variants can be
+   * packaged up front and neither overwrites the other.
+   */
+  buildDir?: string;
   port: number;
   /**
    * How the sample boots. Every type runs the artifact the build produced under plain
@@ -222,6 +230,16 @@ export const SAMPLES: Record<string, SampleConfig> = {
     type: 'spring-boot',
     readyPath: '/atmosphere/agent/primary-assistant',
   },
+  // Same sample packaged with -Pruntime-langchain4j (LangChain4j AgentRuntime on the
+  // classpath). The profile builds into target/runtime-langchain4j; see buildDir.
+  'spring-boot-personal-assistant-langchain4j': {
+    name: 'spring-boot-personal-assistant-langchain4j',
+    dir: 'spring-boot-personal-assistant',
+    buildDir: 'target/runtime-langchain4j',
+    port: 8100,
+    type: 'spring-boot',
+    readyPath: '/atmosphere/agent/primary-assistant',
+  },
   'quarkus-ai-chat': {
     name: 'quarkus-ai-chat',
     dir: 'quarkus-ai-chat',
@@ -299,8 +317,8 @@ export const SAMPLES: Record<string, SampleConfig> = {
  *
  * Absent is a hard failure that names the stale artifacts, never a fallback.
  */
-function findJar(sampleDir: string, type: string): string {
-  const targetDir = resolve(ROOT, 'samples', sampleDir, 'target');
+function findJar(sampleDir: string, type: string, buildDir = 'target'): string {
+  const targetDir = resolve(ROOT, 'samples', sampleDir, buildDir);
   const version = reactorVersion();
 
   if (type === 'quarkus') {
@@ -509,7 +527,7 @@ export async function startSample(config: SampleConfig): Promise<SampleServer> {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
   } else {
-    const jar = findJar(config.dir, config.type);
+    const jar = findJar(config.dir, config.type, config.buildDir);
     const args = [...(config.jvmArgs ?? [])];
 
     if (config.type === 'embedded-jetty') {

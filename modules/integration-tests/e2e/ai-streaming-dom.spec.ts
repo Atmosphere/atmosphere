@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
-import { quarantined } from './helpers/quarantine';
 
 let server: SampleServer;
 
@@ -58,24 +57,26 @@ test.describe('AI Streaming in DOM', () => {
     await expect(page.getByTestId('chat-input')).toHaveValue('');
   });
 
-  quarantined({
-    owner: 'jfarcand',
-    expires: '2026-09-30',
-    issue: 'pending',
-    reason: 'the keyless demo runtime completes the round in milliseconds, so a '
-      + 'polled toBeDisabled() races the completion and cannot observe the transition',
-  })('send button is disabled during streaming @quarantined', async ({ page }) => {
+  // ChatInput.vue disables send on `!input.trim() || disabled || isStreaming`.
+  // Right after a send the input is empty, so a bare toBeDisabled() would pass on
+  // the empty-input gate alone and prove nothing about streaming. Typing ahead
+  // while the reply streams leaves the input non-empty: only the streaming gate
+  // can then hold the button disabled. The demo runtime streams word-by-word
+  // (30 ms per word), so the round lasts long enough to observe.
+  test('send button is disabled during streaming', async ({ page }) => {
     await page.goto(consoleUrl());
     await expect(page.getByText('Connected')).toBeVisible({ timeout: 30_000 });
 
-    await page.getByTestId('chat-input').fill('What is WebSocket?');
-    await page.getByTestId('chat-send').click();
+    const input = page.getByTestId('chat-input');
+    const send = page.getByTestId('chat-send');
+    await input.fill('What is WebSocket?');
+    await send.click();
 
-    await expect(page.getByTestId('chat-send')).toBeDisabled({ timeout: 5_000 });
+    await input.fill('Follow-up');
+    await expect(send).toBeDisabled({ timeout: 5_000 });
 
     await expect(page.locator('.message--assistant').last())
       .not.toBeEmpty({ timeout: 30_000 });
-    await page.getByTestId('chat-input').fill('Follow-up');
-    await expect(page.getByTestId('chat-send')).toBeEnabled({ timeout: 10_000 });
+    await expect(send).toBeEnabled({ timeout: 30_000 });
   });
 });
