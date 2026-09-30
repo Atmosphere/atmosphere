@@ -219,8 +219,8 @@ public interface AgentRuntime {
      * call it was supposed to bound had already returned, so a stalled
      * provider blocked the caller for its own (much longer) HTTP timeout
      * times its retry count. The guardrail-admission path
-     * ({@code LlmModerationDetector}, {@code LlmClassifierInjectionClassifier},
-     * {@code LlmClassifierScopeGuardrail}) and the coordinator's
+     * ({@code LlmModerationDetector}, {@code LlmClassifierScopeGuardrail}) and
+     * the coordinator's
      * {@code LlmResultEvaluator} all sit on request-serving threads and pass
      * short bounds precisely to avoid that stall.</p>
      *

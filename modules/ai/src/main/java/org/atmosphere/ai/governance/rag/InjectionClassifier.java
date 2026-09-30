@@ -76,9 +76,11 @@ public interface InjectionClassifier {
         EMBEDDING_SIMILARITY,
 
         /**
-         * Zero-shot LLM classifier via
-         * {@link org.atmosphere.ai.AgentRuntime}. Highest recall on novel
-         * payloads at the cost of one LLM round-trip per document —
+         * Zero-shot LLM classifier: one boolean question per document to a
+         * {@link org.atmosphere.ai.decision.DecisionModel} — by default a
+         * {@link org.atmosphere.ai.decision.RuntimeDecisionModel} over the
+         * installed {@link org.atmosphere.ai.AgentRuntime}. Highest recall on
+         * novel payloads at the cost of one LLM round-trip per document —
          * operators opt in for high-stakes RAG (medical / legal corpora).
          */
         LLM_CLASSIFIER

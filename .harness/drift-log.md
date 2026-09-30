@@ -3497,3 +3497,34 @@ completions on `api.openai.com` and drops the stale Responses chain
 stub under an `api.openai.com` path). The token wording now says "up to the one that
 determined it" at all four sites, and both comments say "hand-authored". Each test
 was bite-checked by reverting its fix.
+
+---
+
+## 2026-09-30 — LLM injection classifier claimed a timeout fails closed
+
+**Session:** decision-model SPI (carnet #52), rewiring the `LLM_CLASSIFIER` injection tier.
+
+**Claim:** `LlmClassifierInjectionClassifier` Javadoc, *Failure handling* — "Timeout /
+runtime error → `InjectionClassifier.Decision#error`, which the `SafetyContextProvider`
+maps to the operator's breach policy (default DROP for fail-closed)"; `modules/ai/README.md`
+*RAG Injection Safety* — "Either way the screen never silently fails open."
+**Truth:** the classifier called `AgentRuntime.generate(context, timeout)`, which returns an
+empty string on timeout by contract ("A timed-out call does not come through here: the caller
+asked for a bound and gets the documented empty result"). The classifier mapped an empty reply,
+and any reply whose first word was neither YES nor NO, to `Decision.safe`. A paraphrased
+injection that no rule-based probe matches was therefore admitted whenever the model timed out,
+returned nothing, or answered in prose — the composite floor only catches the canonical
+vectors. Only a runtime that *threw* reached `Decision.error`.
+
+**Slip path:** the Javadoc described the intent of the error branch and was written next to the
+`catch`, without following `generate()`'s documented timeout result into the blank-reply branch
+two lines below it. The README's "never fails open" was argued from the rule-based floor and
+never checked against the LLM layer's own admit paths.
+
+**Gate:** the tier now asks a `DecisionModel` for a typed boolean. Timeout, capacity, runtime
+error, unparseable and out-of-set replies are typed `Answer.Failed` and map to `Decision.error`;
+a measured `P(injection)` between 0.2 and 0.5 is an error too. `LlmClassifierInjectionClassifierTest`
+(`everyFailedAnswerIsAnError`, `runtimeConstructorGoesThroughTheDecisionModel`) pins the empty,
+ambiguous and timed-out replies as ERROR through the historical `(AgentRuntime)` constructor, and
+each was bite-checked by restoring the old SAFE mapping. The Javadoc and the README now describe
+the error paths as they run.

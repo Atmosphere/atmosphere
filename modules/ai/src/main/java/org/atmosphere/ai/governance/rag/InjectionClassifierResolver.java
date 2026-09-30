@@ -15,8 +15,8 @@
  */
 package org.atmosphere.ai.governance.rag;
 
-import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.EmbeddingRuntimeResolver;
+import org.atmosphere.ai.decision.DecisionModelResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,14 +40,16 @@ import java.util.concurrent.ConcurrentHashMap;
  *       present the resolver downgrades to rule-based and logs a warning.</li>
  *   <li>{@link InjectionClassifier.Tier#LLM_CLASSIFIER} resolves a
  *       {@link LlmClassifierInjectionClassifier} on the same rule-based floor,
- *       bound to the installed {@link org.atmosphere.ai.AgentRuntime}.</li>
+ *       bound to the {@link org.atmosphere.ai.decision.DecisionModel} that
+ *       {@link DecisionModelResolver} returns. When none can answer (only the
+ *       demo runtime is installed) the resolver downgrades to rule-based and
+ *       logs a warning.</li>
  * </ul>
  *
  * <p>The rule-based floor under the higher tiers is what keeps the screen from
  * silently failing open: the cheap probes always catch the canonical injection
- * vectors even when the higher tier's runtime is a no-key fallback that would
- * admit every document on its own. Higher tiers only add recall, never subtract
- * coverage.</p>
+ * vectors even when the higher tier is weak or is moved by adversarial text.
+ * Higher tiers only add recall, never subtract coverage.</p>
  *
  * <p>Custom implementations can be registered via
  * {@code META-INF/services/org.atmosphere.ai.governance.rag.InjectionClassifier}
@@ -108,19 +110,31 @@ public final class InjectionClassifierResolver {
                 yield new RuleBasedInjectionClassifier();
             }
             case LLM_CLASSIFIER -> {
-                // AgentRuntimeResolver always resolves a runtime (a no-key
-                // built-in/demo fallback at worst), which would admit-all on
-                // its own — so the rule-based floor is what keeps this tier
-                // fail-closed, not a downgrade.
-                var runtime = AgentRuntimeResolver.resolve();
-                if (runtime != null) {
+                // The LLM tier asks a DecisionModel one boolean question per
+                // document. DecisionModelResolver returns a model only when one
+                // can genuinely answer: a registered DecisionModel, or a
+                // RuntimeDecisionModel over a runtime that is not the demo
+                // fallback (a keyless local model counts). The demo runtime
+                // answers every prompt with a canned script, so with only it
+                // installed there is no LLM layer to add — the tier downgrades
+                // and reports RULE_BASED instead of advertising a composite whose
+                // LLM layer cannot clear a document (Correctness Invariant #5).
+                // When a model is present it still runs on the rule-based floor:
+                // adversarial text can move any model's answer.
+                var model = DecisionModelResolver.resolve();
+                if (model.isPresent()) {
                     yield new CompositeInjectionClassifier(List.of(
                             new RuleBasedInjectionClassifier(),
-                            new LlmClassifierInjectionClassifier(runtime)));
+                            new LlmClassifierInjectionClassifier(model.get(),
+                                    LlmClassifierInjectionClassifier.DEFAULT_TIMEOUT,
+                                    LlmClassifierInjectionClassifier.DEFAULT_INJECTED_AT,
+                                    LlmClassifierInjectionClassifier.DEFAULT_SAFE_BELOW)));
                 }
-                logger.warn("RAG injection-safety tier LLM_CLASSIFIER requested but no AgentRuntime "
-                        + "is installed — downgrading to RULE_BASED so retrieval stays fail-closed. "
-                        + "Install a runtime module or set the tier to RULE_BASED to silence this warning.");
+                logger.warn("RAG injection-safety tier LLM_CLASSIFIER requested but no DecisionModel "
+                        + "can answer (only the demo runtime is available) — downgrading to RULE_BASED "
+                        + "so retrieval stays fail-closed. Configure a reachable model (LLM_MODE=local "
+                        + "or an API key), register a DecisionModel, or set the tier to RULE_BASED to "
+                        + "silence this warning.");
                 yield new RuleBasedInjectionClassifier();
             }
         };
@@ -138,5 +152,6 @@ public final class InjectionClassifierResolver {
     /** Testing / reload hook — clears the cache so a new tier impl can be picked up. */
     public static void reset() {
         CACHE.clear();
+        DecisionModelResolver.reset();
     }
 }

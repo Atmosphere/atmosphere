@@ -16,6 +16,8 @@
 package org.atmosphere.ai.governance.rag;
 
 import org.atmosphere.ai.ContextProvider;
+import org.atmosphere.ai.decision.DecisionModelResolverTestAccess;
+import org.atmosphere.ai.decision.TestDecisionModels;
 import org.atmosphere.ai.governance.GovernanceDecisionLog;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -49,11 +51,15 @@ class RagSafetyConfigTest {
     @BeforeEach
     void setUp() {
         GovernanceDecisionLog.install(50);
+        TestDecisionModels.reset();
+        InjectionClassifierResolver.reset();
     }
 
     @AfterEach
     void tearDown() {
         GovernanceDecisionLog.reset();
+        TestDecisionModels.reset();
+        InjectionClassifierResolver.reset();
     }
 
     @Test
@@ -153,6 +159,58 @@ class RagSafetyConfigTest {
         assertEquals(InjectionClassifier.Tier.RULE_BASED.name(), s.tier());
         assertEquals(SafetyContextProvider.Breach.DROP.name(), s.breach());
         assertEquals(1, s.wrappedProviders());
+    }
+
+    @Test
+    void llmClassifierTierDropsAParaphraseTheRulesAdmitAndAuditsIt() {
+        TestDecisionModels.Preferred.available = true;
+        TestDecisionModels.Preferred.behaviour = r -> TestDecisionModels.measured(r,
+                r.state().contains(InjectionClassifierResolverTest.PARAPHRASE_MARKER) ? 0.97 : 0.02);
+        var paraphrase = new ContextProvider.Document(InjectionClassifierResolverTest.PARAPHRASE,
+                "docs/paraphrase.md", 1.0, Map.of());
+        var benign = new ContextProvider.Document("Paris is the capital of France.", "docs/benign.md",
+                1.0, Map.of());
+        assertEquals(InjectionClassifier.Outcome.SAFE,
+                new RuleBasedInjectionClassifier().evaluate(paraphrase).outcome(),
+                "precondition: the default rule-based tier admits the paraphrase");
+
+        var props = new HashMap<String, Object>();
+        var cfg = mock(AtmosphereConfig.class);
+        when(cfg.properties()).thenReturn(props);
+        var framework = mock(AtmosphereFramework.class);
+        when(framework.getAtmosphereConfig()).thenReturn(cfg);
+        ContextProvider source = (query, max) -> List.of(benign, paraphrase);
+        var providers = new RagSafetyConfig(true, InjectionClassifier.Tier.LLM_CLASSIFIER,
+                SafetyContextProvider.Breach.DROP, false).apply(List.of(source), framework, "/rag");
+
+        var retrieved = providers.get(0).retrieve("q", 10);
+        assertEquals(List.of("docs/benign.md"), retrieved.stream().map(ContextProvider.Document::source).toList());
+        var audit = GovernanceDecisionLog.installed().recent(5);
+        assertEquals(1, audit.size());
+        assertEquals("deny", audit.get(0).decision());
+        assertTrue(audit.get(0).reason().contains("DECISION_LOGPROBS"), audit.get(0).reason());
+        var state = (RagSafetyConfig.RagSafetyRuntimeState) props.get(RagSafetyConfig.RUNTIME_STATE_PROPERTY);
+        assertEquals(InjectionClassifier.Tier.LLM_CLASSIFIER.name(), state.tier());
+    }
+
+    @Test
+    void llmClassifierTierReportsRuleBasedWhenOnlyTheDemoRuntimeIsInstalled() {
+        DecisionModelResolverTestAccess.forceDemoOnly();
+        try {
+            var props = new HashMap<String, Object>();
+            var cfg = mock(AtmosphereConfig.class);
+            when(cfg.properties()).thenReturn(props);
+            var framework = mock(AtmosphereFramework.class);
+            when(framework.getAtmosphereConfig()).thenReturn(cfg);
+            var providers = new RagSafetyConfig(true, InjectionClassifier.Tier.LLM_CLASSIFIER,
+                    SafetyContextProvider.Breach.DROP, false).apply(List.of(new PoisonProvider()), framework, "/rag");
+            var state = (RagSafetyConfig.RagSafetyRuntimeState) props.get(RagSafetyConfig.RUNTIME_STATE_PROPERTY);
+            assertEquals(InjectionClassifier.Tier.RULE_BASED.name(), state.tier(),
+                    "runtime truth: no model can answer, so the rule-based tier is what runs");
+            assertTrue(providers.get(0).retrieve("q", 10).isEmpty(), "and it still enforces");
+        } finally {
+            DecisionModelResolverTestAccess.restore();
+        }
     }
 
     /** A retriever that returns one indirect-prompt-injection document. */

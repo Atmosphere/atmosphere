@@ -118,7 +118,7 @@ Quarkus uses the same keys under `quarkus.atmosphere.ai.rag.safety.*`; a bare
 |------|---------|-------|
 | `RULE_BASED` (default) | none | regex/keyword probes for canonical injection vectors; zero deps |
 | `EMBEDDING_SIMILARITY` | `EmbeddingRuntime` | cosine similarity to known injection exemplars |
-| `LLM_CLASSIFIER` | `AgentRuntime` | zero-shot YES/NO classifier per document |
+| `LLM_CLASSIFIER` | `DecisionModel` (default: over the `AgentRuntime`) | one boolean decision per document; see *Decision models* |
 
 Higher tiers run **on top of the `RULE_BASED` floor** (defense in depth): the
 zero-dependency probes always run first, so the canonical injection vectors are
@@ -128,6 +128,15 @@ ambiguous verdict. When a higher tier's runtime is genuinely absent the screen
 Either way the screen never silently fails open. On a classifier error the
 document is dropped (fail-closed) unless `fail-open=true`. Every enforcement is
 recorded to the `GovernanceDecisionLog`.
+
+`LLM_CLASSIFIER` asks a `DecisionModel` one boolean question per document (see
+*Decision models* below). A measured `P(injection)` of at least 0.5 is an
+injection, below 0.2 is safe, and the band between is an **error** — dropped
+unless `fail-open=true`. A timeout, an empty or unparseable reply, or an answer
+outside `true`/`false` is also an error; none of them admits the document. When
+only the demo runtime is installed (no reachable model, no registered
+`DecisionModel`) the tier downgrades to `RULE_BASED` with a warning, and the
+console reports `RULE_BASED`.
 
 Only `ContextProvider` retrieval is screened **by default**. `@Agent` does not
 auto-wire a `ContextProvider`; tool outputs (`@AiTool`) are a separate trust
@@ -889,6 +898,93 @@ pipeline.setDefaultConfidenceRouting(ConfidenceRouting.of(0.9, 0.5)
 `ConfidenceThresholdGuardrail` is the older, narrower primitive: it reads only
 the text field, passes when the field is missing, and blocks the stream rather
 than routing the turn.
+
+## Decision models (typed choice / score / boolean)
+
+`DecisionModel` (`org.atmosphere.ai.decision`) is a small SPI, separate from
+`AgentRuntime`, for models that **decide** rather than write: given some state
+and up to 64 questions, it returns one typed answer per question. Nothing
+streams. Each question is evaluated in isolation (no question sees another's
+text) and the questions run in parallel.
+
+```java
+var questions = new LinkedHashMap<String, Question>();
+questions.put("intent", new Question.Choice("What does the user want?",
+        new LinkedHashMap<>(Map.of("refund", "money back", "track", "where is my parcel"))));
+questions.put("urgency", new Question.Score("How urgent is it?", List.of("low", "normal", "high")));
+questions.put("abusive", new Question.Noul("Is the message abusive?", null, null));
+
+var model = DecisionModelResolver.resolve().orElseThrow();
+var result = model.decide(new DecisionRequest(message, questions, Duration.ofSeconds(5)));
+if (result.route("intent", ConfidenceRouting.of(0.9, 0.5)) == ConfidenceRoute.ACT) {
+    var intent = result.answer("intent", Answer.Choice.class).orElseThrow().choice();
+}
+```
+
+| Question | Answer | Bounds |
+|----------|--------|--------|
+| `Question.Choice` — pick one option | `Answer.Choice(choice, probabilities, confidence)` | 2..255 options |
+| `Question.Score` — place on an ordered rubric | `Answer.Score(score, probabilities, confidence)`; `score = Σ i·p(i)` when measured, else the chosen level | 2..10 levels |
+| `Question.Noul` — decide a boolean | `Answer.Noul(value, probabilityTrue, confidence)` | optional true/false criteria |
+
+A question that cannot be answered is an `Answer.Failed` with a reason
+(`TIMEOUT`, `CAPACITY`, `ERROR`, `UNPARSEABLE`, `INVALID_ANSWER`), never a
+missing entry and never a guess. Its confidence is unknown, so
+`DecisionResult.route(...)` sends it to the routing's unknown route
+(`ESCALATE` by default). Requests are bounded: 64 questions, 256 KiB of state,
+and a timeout (default 5 s) that covers the whole request.
+
+**Discovery.** `DecisionModelResolver.resolve()` picks the available
+`META-INF/services/org.atmosphere.ai.decision.DecisionModel` registration with
+the highest `priority()`. Without one, it falls back to a `RuntimeDecisionModel`
+over the resolved `AgentRuntime`, but only if that runtime is not the demo
+fallback. A keyless local model (Ollama, `LLM_MODE=local`) counts as reachable.
+Only a found model is cached, so a model configured after the first lookup is
+still picked up.
+
+**Reference implementation: `RuntimeDecisionModel`.** Each question is one
+structured-output call over any `AgentRuntime`. The call has no history, tools,
+memory or context providers, and the reply must be
+`{"answer": <value>, "confidence": <0..1>}`. The `answer` value set is closed:
+a boolean for `Noul`, the codes `"A".."P"` for a `Choice` of at most 16 options
+(mapped back to the option keys), the option keys themselves above 16, and
+`"0".."n-1"` for a `Score`. The schema is always in the system prompt. It is
+also enforced natively when the runtime advertises `NATIVE_STRUCTURED_OUTPUT`,
+with one prompt-only retry if the provider rejects the schema. A reply that is
+not JSON is `UNPARSEABLE`. A value outside the set is `INVALID_ANSWER`. There is
+no lenient yes/no reading of free text. At most 8 questions per instance are in
+flight (`CAPACITY` past that). At the deadline, an unfinished question is
+cancelled through its `ExecutionHandle` and its carrier thread is interrupted.
+`decide()` never waits on a carrier, so a runtime that ignores both still cannot
+hold it past the deadline. The runtime is borrowed, never closed.
+
+**Where the confidence comes from.** Two modes, pinned by `RuntimeDecisionModelTest`:
+
+- **Distribution-derived** (`DECISION_LOGPROBS`). The request designates
+  `answer` as the decision field (see *Decision confidence*), so the Built-in
+  runtime scores the model's distribution over the allowed values. When that
+  distribution covers exactly the allowed values and its `observedMass` is at
+  least 0.5, the answer carries it unchanged: `Choice`/`Score` probabilities,
+  `Noul.probabilityTrue`, and the normalised margin as the aggregate. This is
+  available only on the Built-in runtime's chat-completions path, where the
+  endpoint passes the logprobs gate, and only for value sets of 16 or fewer.
+- **Model-reported** (`MODEL_REPORTED_FIELD`). This covers every other runtime,
+  a `Choice` above 16 options, an endpoint without `top_logprobs`, and a
+  distribution below the mass floor. The reply's `confidence` becomes the
+  aggregate. The probability maps and `probabilityTrue` stay **empty**; they are
+  never inferred from the self-reported number. A missing or out-of-range value
+  is unknown.
+
+These probabilities are the model's own token probabilities over the allowed
+values. They are distribution-derived, not calibrated: nothing here checks
+them against observed outcomes.
+
+**Consumer.** The `LLM_CLASSIFIER` injection tier (see *RAG Injection Safety*),
+on both the RAG read path (`SafetyContextProvider`) and the long-term-memory
+write path (`ScreenedLongTermMemory`), asks one `Noul` per document through
+`DecisionModelResolver`. `Choice` and `Score` are API plus reference
+implementation, with no production consumer yet. Intent routing and an adapter
+for an external decision-model API are not part of this module.
 
 ## Prompt Registry (versioned prompts, templating, rollout)
 

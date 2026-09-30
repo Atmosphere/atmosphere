@@ -16,7 +16,8 @@ name: "CI: E2E (Real LLM — Ollama)"
 #
 # Cost: $0 — Ollama is local to the runner.
 # Coverage: basic chat, structured output, embeddings across 3 runtimes, plus the
-# governance learning-signal loop (soft-preference steers the answer).
+# governance learning-signal loop (soft-preference steers the answer), and the
+# decision-model LLM injection tier (real-llm-decision).
 #
 # NOT ON THE PER-PUSH GATING PATH — runs nightly and on demand. Ollama on
 # GitHub-hosted CPU runners is slow: model-load latency routinely overruns the
@@ -144,7 +145,7 @@ jobs:
           # Pin sampling for reproducibility (LLM_TEMPERATURE -> AiConfig temperature).
           LLM_TEMPERATURE: '0'
         run: |
-          npx playwright test --project=real-llm-chat --reporter=list
+          npx playwright test --project=real-llm-chat --project=real-llm-decision --reporter=list
 
       - name: Run quarkus-ai-chat real-LLM E2E
         working-directory: modules/integration-tests

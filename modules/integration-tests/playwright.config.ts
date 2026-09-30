@@ -119,6 +119,10 @@ export default defineConfig({
       testMatch: /ai-confidence-elicitation\.spec\.ts/,
     },
     {
+      name: 'ai-decision-model',
+      testMatch: /ai-decision-model\.spec\.ts/,
+    },
+    {
       name: 'ai-passivation',
       testMatch: /ai-passivation\.spec\.ts/,
     },
@@ -291,6 +295,10 @@ export default defineConfig({
     {
       name: 'real-llm-chat',
       testMatch: /real-llm-chat\.spec\.ts/,
+    },
+    {
+      name: 'real-llm-decision',
+      testMatch: /real-llm-decision\.spec\.ts/,
     },
     // ── Transport tests ──
     {

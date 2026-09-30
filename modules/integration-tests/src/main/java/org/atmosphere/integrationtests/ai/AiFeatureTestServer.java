@@ -60,6 +60,9 @@ public class AiFeatureTestServer {
                     new BudgetCircuitBreakerTestHandler());
             framework.addAtmosphereHandler("/ai/confidence-elicitation",
                     new ConfidenceElicitationTestHandler());
+            // LLM_CLASSIFIER injection tier over a DecisionModel: RAG documents
+            // screened through SafetyContextProvider on the AiStreamingSession path.
+            framework.addAtmosphereHandler("/ai/decision", new DecisionModelTestHandler());
             framework.addAtmosphereHandler("/ai/passivation",
                     new PassivationTestHandler());
             framework.addAtmosphereHandler("/ai/cache-coalescing", new CacheCoalescingTestHandler());
@@ -123,7 +126,10 @@ public class AiFeatureTestServer {
             if (llmMode.startsWith("real-")) {
                 framework.addAtmosphereHandler("/ai/real/chat",
                         new org.atmosphere.integrationtests.ai.real.RealLlmChatTestHandler());
-                logger.info("Real-LLM handler registered at /ai/real/chat (LLM_MODE={})", llmMode);
+                framework.addAtmosphereHandler("/ai/real/decision",
+                        new org.atmosphere.integrationtests.ai.real.RealLlmDecisionTestHandler());
+                logger.info("Real-LLM handlers registered at /ai/real/chat, /ai/real/decision (LLM_MODE={})",
+                        llmMode);
             }
 
             server.start();
@@ -133,7 +139,7 @@ public class AiFeatureTestServer {
                     + "/ai/cache-coalescing, /ai/cost-routing, /ai/combined-cost-cache, "
                     + "/ai/classroom/math, /ai/classroom/code, /ai/memory, /ai/error-recovery, "
                     + "/ai/events, /ai/identity, /ai/memory-token-window, /ai/memory-summarizing, "
-                    + "/ai/multimodal, /ai/cache-hint, /ai/embedding");
+                    + "/ai/multimodal, /ai/cache-hint, /ai/embedding, /ai/decision");
 
             Thread.currentThread().join();
         }
