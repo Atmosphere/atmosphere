@@ -726,7 +726,9 @@ known-tolerant endpoint with `enabled`.
 **Mode scope:** logprobs are requested on the **chat-completions path only**.
 The OpenAI Responses API path (`/responses`, used when a `conversationId` is set
 against `api.openai.com`) does not request them, so confidence on that path
-stays on the model-reported-field fallback. The opt-in survives every tool-loop
+stays on the model-reported-field fallback. `AiPipeline` and `@AiEndpoint`
+always set a `conversationId`, so on `api.openai.com` a non-durable turn takes
+that path, except a turn with a decision field (next section). The opt-in survives every tool-loop
 round, so the aggregate reflects the tokens of the final answer, not just the
 tool-call round.
 
@@ -752,17 +754,22 @@ and builds the model's distribution over the allowed values from the
 alternatives at those positions. The walk starts at the key, not at the value's
 first character, because the choice can be made earlier: a sampled ` "` whose
 rival is ` "REJECT`, or a rival that spells the separator differently from the
-sampled token, is read as the value it spells. It emits `AiConfidence.fromDecision(...)`
-(`Source.DECISION_LOGPROBS`):
+sampled token, is read as the value it spells. It emits
+`AiConfidence.fromDecision(distribution, answer, tokens)` (`Source.DECISION_LOGPROBS`):
 
-- `aggregate` is the normalised margin `(k * pMax - 1) / (k - 1)` for `k` allowed
-  values — `1.0` when all mass is on one value, `0.0` for an even split, so a
-  coin flip between `true` and `false` scores `0`, not `0.5`.
+- `aggregate` scores the value the model **emitted**,
+  `DecisionDistribution.marginOf(answer)`: `0` unless that value is strictly the
+  most likely one, otherwise `(k * p(answer) - 1) / (k - 1)` for `k` allowed
+  values — `1.0` when all mass is on the answer, `0.0` for an even split, so a
+  coin flip between `true` and `false` scores `0`, not `0.5`. A value sampled
+  against a more likely rival also scores `0`: `false` at 0.04 against `true` at
+  0.96 is not credited with the 0.92 concentration around `true`.
 - `decision()` carries the `DecisionDistribution`: value → probability in schema
   order, plus `observedMass`, the share of probability carried by listed
   alternatives that match an allowed value.
-- `tokens()` holds the sampled tokens of the decision value, not the whole
-  response.
+- `tokens()` holds the sampled tokens of the decision value up to the one that
+  determined it (for `CONFIRM` sampled as `C` + `ON` + `FIRM`, `C` and `ON`), not
+  the whole response.
 
 A `ConfidenceRouting` handler receives the distribution through
 `ConfidenceDecision.confidence().decision()`.
@@ -779,14 +786,17 @@ What the provider does not show is resolved against the answer, never for it:
 - **Unlisted probability.** Probability outside the requested `top_logprobs`,
   and alternatives that match no allowed value, could belong to any value
   still possible at that position.
-- **Worst case, not a guess.** That ambiguous mass is assigned to the values
-  so the largest probability is as small as possible (computed exactly), and
-  the distribution is not renormalised. The reported margin is therefore the
-  lowest concentration consistent with what the provider returned. Splitting
-  the mass evenly would be a guess that can overstate confidence: with values
-  `AB1`/`AB2`/`AC`, an unobserved `B` continuation split evenly gives `AB1`
-  0.5 (margin 0.25) where a consistent reading gives 0.35/0.30/0.35 (margin
-  0.025). `DecisionScorerTest` pins that case.
+- **Worst case, not a guess.** That ambiguous mass never goes to the answer
+  while another value could take it. If a rival could then reach the answer's
+  probability, the rival takes every share it could and the answer scores `0`;
+  otherwise the mass is spread over the rivals so the largest is as small as
+  possible (computed exactly). The distribution is not renormalised. The
+  reported margin is therefore the lowest confidence in the answer consistent
+  with what the provider returned. Splitting the mass evenly would be a guess:
+  with values `AB1`/`AB2`/`AC`, answer `AC` at 0.35 and an unobserved `B`
+  continuation (0.30) that could be `AB1` or `AB2`, `AB1` may hold 0.65, so the
+  answer is not the most likely value and scores `0`. `DecisionScorerTest` pins
+  that case and the minority-answer case.
 
 When the distribution cannot be built — the provider ignored `top_logprobs`, the
 field is absent from the output, the value is not an allowed one — the runtime
@@ -795,20 +805,30 @@ and the model-reported field applies (unknown routes to `ESCALATE` by default).
 It does not fall back to the fluency mean. A decision field that is not a
 top-level enum/boolean of the response type, or a request with no structured
 response type, logs and keeps the `LOGPROBS_NATIVE` mean. Captured data is
-bounded: at most 4096 tokens per response and 20 alternatives per token, and a
-decision value is walked for at most 16 tokens.
+bounded: at most 4096 tokens per response and 20 alternatives per token (with a
+decision field, kept for the current round only), at most 16 allowed values
+(`DecisionField` rejects more), and a decision value is walked for at most 16
+tokens; what the walk has not resolved by then counts against the answer.
 
 **Mode scope:** decision confidence exists only where native logprobs do — the
 Built-in runtime's chat-completions path, in structured-output mode (strict
-`json_schema` or the `json_object` fallback). In a tool loop the final round —
+`json_schema` or the `json_object` fallback). A turn with a decision field is
+kept on that path against `api.openai.com` too: `AiPipeline` and `@AiEndpoint`
+always carry a `conversationId`, which would otherwise select the Responses API
+for every non-durable turn and leave the signal inert on OpenAI itself. The
+turn is sent with its full history, and the cached Responses chain for that
+conversation is dropped, so the next Responses turn starts from the full
+history instead of continuing a chain that lacks the decision turn. In a tool loop the final round —
 the one scored — is sent without the strict schema (`json_object` when JSON
 mode is on), so separator spelling can vary; the walk reads those variants and
 counts anything it cannot attribute against the answer. The Responses API path sends
-neither `logprobs` nor `top_logprobs`, and every other runtime (LangChain4j,
+neither `logprobs` nor `top_logprobs` (a turn without a decision field still
+takes it), and every other runtime (LangChain4j,
 Spring AI, ADK, Embabel, Koog, and the rest) never emits native logprobs, so
 on those paths `withDecisionField` has no effect and confidence stays on the
-model-reported field. `OpenAiCompatibleClientDecisionConfidenceTest` pins both
-the scoring and the Responses API exclusion, against hand-authored SSE fixtures
+model-reported field. `OpenAiCompatibleClientDecisionConfidenceTest` pins
+the scoring, the Responses API exclusion and the `api.openai.com` path selection
+(against a loopback stub), against hand-authored SSE fixtures
 in the chat-completions streaming shape (confident enum, split enum, split at
 the opening-quote token, a rival with different separator spacing, multi-token
 enum, boolean, missing `top_logprobs`, tool loop). The logprob values in those
@@ -2032,7 +2052,7 @@ prevention, dynamic routing, and long-pause human-in-the-loop:
   documented in `AiConfidence.Source`: `LOGPROBS_NATIVE` (mean native token
   probability over the whole response, from runtimes that call
   `session.confidence()` directly — the Built-in runtime does, see *Native
-  logprobs confidence*), `DECISION_LOGPROBS` (concentration of the native
+  logprobs confidence*), `DECISION_LOGPROBS` (margin of the emitted value in the native
   distribution over a designated enum/boolean field's values — Built-in
   chat-completions path, structured output only, see *Decision confidence*),
   `MODEL_REPORTED_FIELD` (the framework's universal-fallback path), `HEURISTIC`

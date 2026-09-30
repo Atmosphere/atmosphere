@@ -31,9 +31,11 @@ import java.util.Objects;
  * probability at the decision. Mass the top alternatives attribute to exactly
  * one value is that value's. Mass that could belong to several values — an
  * alternative whose continuation was never observed, or probability outside
- * the listed alternatives — is assigned so that the largest value's
- * probability is as small as possible, so {@link #normalizedMargin()} is the
- * lowest concentration consistent with the provider's output.
+ * the listed alternatives — is assigned against the value the model emitted:
+ * away from it, and onto a rival that could then reach it when one can
+ * (otherwise spread so the largest rival is as small as possible). So
+ * {@link #marginOf(String) marginOf(emitted value)} is the lowest confidence
+ * in the emitted answer consistent with the provider's output.
  * {@link #observedMass()} is the share carried by listed alternatives that
  * match at least one allowed value; a low observed mass means most of the
  * distribution is that worst-case assignment rather than evidence.</p>
@@ -90,11 +92,45 @@ public record DecisionDistribution(String field, Map<String, Double> probabiliti
     }
 
     /**
+     * Confidence in one answer: {@code 0} unless {@code value} is strictly
+     * more likely than every other allowed value (a tie is not a decision),
+     * and then {@code (k * p(value) - 1) / (k - 1)} for {@code k} allowed
+     * values. Unlike {@link #normalizedMargin()} it never credits an answer
+     * with the concentration around a different value: an emitted
+     * {@code false} at {@code p = 0.05} against {@code true} at {@code 0.95}
+     * scores {@code 0}, not {@code 0.9}. A single allowed value is a forced
+     * choice and scores {@code 1.0}.
+     *
+     * @param value an allowed value of this distribution
+     * @return the margin of {@code value}, in {@code [0, 1]}
+     * @throws IllegalArgumentException when {@code value} is not an allowed value
+     */
+    public double marginOf(String value) {
+        var p = probabilities.get(value);
+        if (p == null) {
+            throw new IllegalArgumentException("'" + value + "' is not a value of " + field);
+        }
+        var k = probabilities.size();
+        if (k == 1) {
+            return 1.0;
+        }
+        for (var entry : probabilities.entrySet()) {
+            if (!entry.getKey().equals(value) && entry.getValue() >= p) {
+                return 0.0;
+            }
+        }
+        var margin = (k * p - 1.0) / (k - 1.0);
+        return Math.min(1.0, Math.max(0.0, margin));
+    }
+
+    /**
      * Concentration of the distribution: {@code (k * pMax - 1) / (k - 1)} for
      * {@code k} allowed values. {@code 1.0} when all mass is on one value,
      * {@code 0.0} when it is spread evenly (a coin flip between two values
      * scores {@code 0}, not {@code 0.5}). A single allowed value is a forced
-     * choice and scores {@code 1.0}.
+     * choice and scores {@code 1.0}. This is the concentration around the
+     * most likely value, whichever it is; to score the answer the model
+     * actually gave, use {@link #marginOf(String)}.
      */
     public double normalizedMargin() {
         var k = probabilities.size();

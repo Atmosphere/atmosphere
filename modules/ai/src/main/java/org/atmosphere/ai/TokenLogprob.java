@@ -23,7 +23,7 @@ import java.util.Objects;
  * Used to populate {@link AiConfidence#tokens()} on the
  * {@link AiConfidence.Source#LOGPROBS_NATIVE} path (every response token)
  * and the {@link AiConfidence.Source#DECISION_LOGPROBS} path (the sampled
- * tokens of the decision value).
+ * tokens of the decision value, up to the one that determined it).
  *
  * <p>{@code logprob} is the natural log of the token probability — always
  * non-positive, where {@code 0.0} means probability {@code 1.0} (perfect

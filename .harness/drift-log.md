@@ -3442,3 +3442,58 @@ tokenizations (`rivalCarriedByTheOpeningQuoteTokenIsScored`,
 shapes end to end and assert `ESCALATE`. Each was bite-checked against the old
 behaviour. The README and the test Javadoc now say the fixtures are hand-authored
 and that no live-provider payload has been checked.
+
+---
+
+## 2026-09-30 — Decision confidence claimed to resolve unseen mass "against the answer" while scoring the argmax
+
+**Session:** second review round on decision confidence (`DECISION_LOGPROBS`, carnet #51).
+
+**Claim:** `modules/ai/README.md` *Decision confidence* — "What the provider does not
+show is resolved against the answer, never for it" and "The reported margin is
+therefore the lowest concentration consistent with what the provider returned";
+`DecisionScorer` Javadoc — the margin is "a lower bound, so evidence the scorer could
+not attribute can only move the route toward escalation". The README, the
+`AiConfidence` Javadoc (class and `@param tokens`) and the `TokenLogprob` Javadoc —
+`tokens()` holds "the sampled tokens of the decision value". The README's pipeline
+example (`setDefaultConfidenceElicitation(defaults().withDecisionField("verdict"))`)
+was presented as the way to get decision confidence, with no caveat for
+`api.openai.com`. Two inline comments in `OpenAiCompatibleClientDecisionConfidenceTest`
+still called the fixtures "recorded" after the previous entry said the test now
+described them as hand-authored.
+**Truth:** (1) The aggregate was `(k * pMax - 1) / (k - 1)` over whichever value was
+most likely, and the sampled value was only checked for membership. `approved=false`
+sampled at `p = 0.05` against `true` at `0.95` scored `0.9`, and at `0.04`/`0.96` it
+scored `0.92` and routed `ACT`. The min-max assignment minimised `pMax`, so with a
+minority answer it moved ambiguous mass onto the answer — for it, not against it.
+(2) A `DecisionField` built directly (public record, public builder) accepted any
+number of values; the scorer's `int` bit masks overflowed at 32+ values and a 33-value
+field scored a 0.5/0.3 split as `1.0`. (3) The walk stops at the token that
+determines the value, so `CONFIRM` sampled as `C`+`ON`+`FIRM` reports `[C, ON]`.
+(4) `AiPipeline` and `@AiEndpoint` always set a `conversationId`, which selects the
+Responses API on `api.openai.com`; that path sends no `top_logprobs`, so the example
+never produced `DECISION_LOGPROBS` on OpenAI itself. (5) The two comments were
+missed when the class Javadoc was corrected.
+
+**Slip path:** "worst case" was argued for the concentration of the distribution and
+then written as a property of the answer, without a test where the sampled value is
+not the most likely one — every fixture sampled the argmax. The value bound was
+enforced at the one call site the runtime uses and assumed for the public
+constructor. The token list was described from intent, while the test pinned the
+truncation. Path selection was reviewed through the request body builders, never
+through a turn carrying a `conversationId` against an `api.openai.com` base URL.
+The previous correction grepped the Javadoc, not the inline comments.
+
+**Gate:** the scorer now scores the emitted value
+(`DecisionDistribution.marginOf(answer)`, `0` unless strictly most likely; new
+`AiConfidence.fromDecision(distribution, answer, tokens)`) and assigns ambiguous mass
+against it (`DecisionScorer.againstTheAnswer`). `minoritySampledValueIsNotScoredAsTheRivalsConcentration`
+pins the 0.04/0.96 case; `ambiguousMassGoesToTheRivalThatCouldOvertakeTheAnswer`
+and the updated quote-split/spacing tests pin the worst-case assignment.
+`DecisionField` rejects more than `MAX_VALUES` values
+(`constructorRejectsMoreThanMaxValues`). A decision turn is sent through chat
+completions on `api.openai.com` and drops the stale Responses chain
+(`decisionTurnOnOpenAiUsesChatCompletionsDespiteAConversationId`, against a loopback
+stub under an `api.openai.com` path). The token wording now says "up to the one that
+determined it" at all four sites, and both comments say "hand-authored". Each test
+was bite-checked by reverting its fix.

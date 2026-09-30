@@ -328,6 +328,21 @@ public class OpenAiCompatibleClient implements LlmClient {
         // re-driven Responses run cannot reuse the provider-side response cache;
         // full chat-completions history keeps deterministic replay sound.
         var useResponsesApi = !durable && isResponsesApiApplicable(conversationId);
+        // A designated decision field is scored from chat-completions
+        // top_logprobs, which the Responses API path never requests. On
+        // api.openai.com every AiPipeline / @AiEndpoint turn carries a
+        // conversationId, so without this the decision signal would never
+        // fire there. The turn is sent with full history like a durable run;
+        // the cached response ID is dropped because the provider-side chain
+        // does not contain this turn, so the next Responses turn starts over
+        // from the full history instead of continuing a stale chain.
+        if (useResponsesApi && request.decisionField() != null
+                && request.logprobs() && supportsLogprobs()) {
+            logger.debug("Decision field '{}' designated: streaming via Chat Completions for top_logprobs,"
+                    + " conversation {}", request.decisionField().name(), conversationId);
+            responseIdCache.remove(conversationId);
+            useResponsesApi = false;
+        }
         String requestBody;
         String endpoint;
 
@@ -1077,7 +1092,9 @@ public class OpenAiCompatibleClient implements LlmClient {
         // prompt_cache_key (LogprobsMode AUTO defers to the shared allow-list;
         // some compat proxies reject the field). Chat-completions only — the
         // Responses API path never requests logprobs, so confidence there
-        // stays on the model-reported-field decorator fallback. That
+        // stays on the model-reported-field decorator fallback (a turn with a
+        // designated decision field is kept off that path; see the path
+        // selection in the tool-loop round). That
         // intentional mode difference is documented in modules/ai/README.md
         // (§ Native logprobs confidence → "Mode scope"), per Correctness
         // Invariant #7.

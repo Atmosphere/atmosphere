@@ -52,7 +52,10 @@ public record DecisionField(String name, List<String> values, boolean quoted) {
     /**
      * Upper bound on allowed values — beyond it the provider's top
      * alternatives cannot cover the value set and the distribution would be
-     * mostly unobserved, so {@link #fromSchema} declines such a field.
+     * mostly unobserved, so {@link #fromSchema} declines such a field. The
+     * constructor enforces it for every caller: the scorer keeps a value set
+     * in an {@code int} bit mask and its worst-case assignment is exponential
+     * in the number of values (Invariant #3).
      */
     static final int MAX_VALUES = 16;
 
@@ -63,12 +66,18 @@ public record DecisionField(String name, List<String> values, boolean quoted) {
         if (name.isBlank() || values.isEmpty()) {
             throw new IllegalArgumentException("name and values must not be empty");
         }
+        if (values.size() > MAX_VALUES) {
+            throw new IllegalArgumentException("a decision field allows at most " + MAX_VALUES
+                    + " values, got " + values.size());
+        }
     }
 
     /**
      * {@code top_logprobs} to request: one alternative slot per allowed value
      * plus three for formatting variants (leading space, quote, a merged
-     * delimiter), capped at the provider maximum of {@value #MAX_TOP_LOGPROBS}.
+     * delimiter), capped at the provider maximum of {@value #MAX_TOP_LOGPROBS}
+     * (not reached while {@link #MAX_VALUES} holds; kept as a guard should
+     * either bound change).
      */
     public int topLogprobs() {
         return Math.min(MAX_TOP_LOGPROBS, values.size() + 3);

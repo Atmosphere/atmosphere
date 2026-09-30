@@ -59,16 +59,21 @@ import java.util.Optional;
  *       over every value still possible. The sampled token narrows the
  *       candidate set and the walk continues while more than one value is
  *       still possible.</li>
- *   <li>Assign the ambiguous and unobserved mass to the values least
- *       favourably for confidence: the allocation that minimises the largest
- *       value's probability, computed exactly
- *       ({@link #leastConcentrated}). The resulting distribution sums to
- *       {@code 1} without renormalising, and its
- *       {@link DecisionDistribution#normalizedMargin()} is the lowest
- *       concentration consistent with what the provider returned — a lower
- *       bound, so evidence the scorer could not attribute can only move the
- *       route toward escalation. {@link DecisionDistribution#observedMass()}
- *       reports the share that was attributed from listed alternatives.</li>
+ *   <li>Assign the ambiguous and unobserved mass against the value the
+ *       model emitted ({@link #againstTheAnswer}): none of it to the emitted
+ *       value while any other value could take it. When some rival could
+ *       then reach the emitted value's probability, that rival takes every
+ *       share it could; otherwise the mass is spread over the rivals so the
+ *       largest is as small as possible ({@link #leastConcentrated}). The
+ *       resulting distribution sums to {@code 1} without renormalising. The
+ *       confidence is {@link DecisionDistribution#marginOf(String)} of the
+ *       emitted value — {@code 0} unless it is strictly the most likely
+ *       value — which is the lowest confidence in the answer consistent with
+ *       what the provider returned: evidence the scorer could not attribute
+ *       can only move the route toward escalation, and a value sampled
+ *       against a more likely rival is never scored as the rival's
+ *       concentration. {@link DecisionDistribution#observedMass()} reports
+ *       the share that was attributed from listed alternatives.</li>
  * </ol>
  *
  * <p>A position before the value (the key's closing quote, the colon, the
@@ -204,14 +209,76 @@ final class DecisionScorer {
         if (!(total > 0.0) || !(observed > 0.0)) {
             return decline(field, "no probability mass could be attributed to an allowed value");
         }
-        var mass = leastConcentrated(firm, ambiguous);
+        var mass = againstTheAnswer(firm, ambiguous, values.indexOf(sampledValue));
         var probabilities = new LinkedHashMap<String, Double>();
         for (int v = 0; v < k; v++) {
             probabilities.put(values.get(v), mass[v] / total);
         }
         var distribution = new DecisionDistribution(field.name(), probabilities,
                 Math.min(1.0, observed / total));
-        return Optional.of(AiConfidence.fromDecision(distribution, valueTokens));
+        return Optional.of(AiConfidence.fromDecision(distribution, sampledValue, valueTokens));
+    }
+
+    /**
+     * Assign each ambiguous mass (bit set of values → mass) as unfavourably
+     * as possible for {@code answer}, the value the model emitted, and return
+     * the per-value masses. The answer keeps only the mass that can be
+     * nothing else (its firm mass, and sets whose only member it is). If
+     * some rival {@code r} could reach it — {@code firm(r)} plus every set
+     * containing {@code r} is at least the answer's mass — the sets
+     * containing the strongest such rival all go to it, so the answer is not
+     * strictly most likely and scores {@code 0}. Otherwise no rival can reach
+     * the answer under any assignment, and the rest is spread over the
+     * rivals with {@link #leastConcentrated}.
+     */
+    static double[] againstTheAnswer(double[] firm, Map<Integer, Double> ambiguous, int answer) {
+        var k = firm.length;
+        var answerBit = 1 << answer;
+        var answerMass = firm[answer];
+        var rivalFirm = firm.clone();
+        rivalFirm[answer] = 0.0;
+        var rivalSets = new LinkedHashMap<Integer, Double>();
+        for (var e : ambiguous.entrySet()) {
+            var set = e.getKey() & ~answerBit;
+            if (set == 0) {
+                answerMass += e.getValue();
+            } else if (Integer.bitCount(set) == 1) {
+                rivalFirm[Integer.numberOfTrailingZeros(set)] += e.getValue();
+            } else {
+                rivalSets.merge(set, e.getValue(), Double::sum);
+            }
+        }
+        var strongest = -1;
+        var strongestReach = -1.0;
+        for (int r = 0; r < k; r++) {
+            if (r == answer) {
+                continue;
+            }
+            var reach = rivalFirm[r];
+            for (var e : rivalSets.entrySet()) {
+                if ((e.getKey() & (1 << r)) != 0) {
+                    reach += e.getValue();
+                }
+            }
+            if (reach > strongestReach) {
+                strongest = r;
+                strongestReach = reach;
+            }
+        }
+        if (strongest >= 0 && strongestReach >= answerMass) {
+            var rest = new LinkedHashMap<Integer, Double>();
+            for (var e : rivalSets.entrySet()) {
+                if ((e.getKey() & (1 << strongest)) != 0) {
+                    rivalFirm[strongest] += e.getValue();
+                } else {
+                    rest.put(e.getKey(), e.getValue());
+                }
+            }
+            rivalSets = rest;
+        }
+        var result = leastConcentrated(rivalFirm, rivalSets);
+        result[answer] = answerMass;
+        return result;
     }
 
     private static Optional<AiConfidence> decline(DecisionField field, String reason) {
@@ -309,6 +376,18 @@ final class DecisionScorer {
         var k = firm.length;
         var result = firm.clone();
         if (ambiguous.isEmpty()) {
+            return result;
+        }
+        if (ambiguous.size() == 1) {
+            // One set: water-filling over its members is already the min-max,
+            // with no subset enumeration (the common case — only unlisted
+            // mass over the candidates).
+            var e = ambiguous.entrySet().iterator().next();
+            var share = new double[k];
+            waterFill(result, e.getKey(), e.getValue(), share);
+            for (int v = 0; v < k; v++) {
+                result[v] += share[v];
+            }
             return result;
         }
         var sets = new int[ambiguous.size()];

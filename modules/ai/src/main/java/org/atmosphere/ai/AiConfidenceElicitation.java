@@ -47,12 +47,14 @@ import java.util.Objects;
  * boolean property of the structured response type as <em>the decision</em>.
  * The Built-in runtime then also requests {@code top_logprobs}, locates the
  * tokens that carry that property's value, and reports
- * {@link AiConfidence.Source#DECISION_LOGPROBS}: how concentrated the model's
- * distribution over the allowed values was, instead of how fluent the whole
- * text was. The designation is honoured only on the Built-in
- * chat-completions path in structured-output mode; every other runtime, the
- * OpenAI Responses API path, and a free-text response keep their existing
- * source and ignore it.</p>
+ * {@link AiConfidence.Source#DECISION_LOGPROBS}: how sure the model was of the
+ * value it emitted, from its distribution over the allowed values, instead of
+ * how fluent the whole text was. The designation is honoured only on the
+ * Built-in chat-completions path in structured-output mode; a decision turn
+ * against {@code api.openai.com} is therefore sent through chat completions
+ * even when its conversation id would otherwise select the Responses API.
+ * Every other runtime and a free-text response keep their existing source and
+ * ignore it.</p>
  *
  * @param fieldName       the JSON field the model is asked to emit
  *                        (default {@code "confidence"})

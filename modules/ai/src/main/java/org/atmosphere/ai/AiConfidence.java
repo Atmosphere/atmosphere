@@ -36,15 +36,17 @@ import java.util.OptionalDouble;
  *       runtime located the tokens carrying the value of the decision field
  *       designated by {@link AiConfidenceElicitation#decisionField()} (a
  *       top-level enum or boolean property of a structured response). The
- *       {@code aggregate} is the concentration of the model's distribution
- *       over the field's allowed values,
- *       {@link DecisionDistribution#normalizedMargin()}
- *       {@code = (k * pMax - 1) / (k - 1)}, and the distribution itself is in
+ *       {@code aggregate} is the margin of the value the model emitted,
+ *       {@link DecisionDistribution#marginOf(String)}: {@code 0} unless that
+ *       value is strictly the most likely one, otherwise
+ *       {@code (k * p(value) - 1) / (k - 1)}; the distribution itself is in
  *       {@link #decision()}. This scores how sure the model was of the
- *       <em>answer</em>: a coin flip between two values scores {@code 0}
- *       however fluent the surrounding text. {@link #tokens()} holds the
- *       sampled tokens of the decision value. Emitted today by the Built-in
- *       runtime on its chat-completions path only.</li>
+ *       <em>answer it gave</em>: a coin flip between two values scores
+ *       {@code 0} however fluent the surrounding text, and so does a value
+ *       sampled against a more likely rival. {@link #tokens()} holds the
+ *       sampled tokens of the decision value up to the one that determined
+ *       it. Emitted today by the Built-in runtime on its chat-completions
+ *       path only.</li>
  *   <li>{@link Source#LOGPROBS_NATIVE} — provider returned token-level
  *       log probabilities (e.g. OpenAI {@code logprobs: true}); the
  *       {@code aggregate} is the arithmetic mean of {@code exp(logprob)}
@@ -71,7 +73,7 @@ import java.util.OptionalDouble;
  * @param tokens    per-token log probabilities; empty unless source is
  *                  {@link Source#LOGPROBS_NATIVE} (every response token) or
  *                  {@link Source#DECISION_LOGPROBS} (the decision value's
- *                  sampled tokens)
+ *                  sampled tokens, up to the one that determined the value)
  * @param source    how the aggregate was derived
  * @param decision  the distribution over the decision field's allowed values;
  *                  present exactly when source is {@link Source#DECISION_LOGPROBS}
@@ -98,7 +100,7 @@ public record AiConfidence(
     public enum Source {
         /** Mean native token probability over the whole response (fluency). */
         LOGPROBS_NATIVE,
-        /** Concentration of the native distribution over a decision field's allowed values. */
+        /** Margin of the emitted value in the native distribution over a decision field's allowed values. */
         DECISION_LOGPROBS,
         /** Model-emitted confidence field elicited via system prompt. */
         MODEL_REPORTED_FIELD,
@@ -159,8 +161,11 @@ public record AiConfidence(
 
     /**
      * Build a decision confidence: the aggregate is the distribution's
-     * {@link DecisionDistribution#normalizedMargin() normalised margin} and
-     * the distribution rides along in {@link #decision()}.
+     * {@link DecisionDistribution#normalizedMargin() normalised margin} — the
+     * concentration around its most likely value — and the distribution rides
+     * along in {@link #decision()}. When the answer the model gave is known,
+     * use {@link #fromDecision(DecisionDistribution, String, List)}, which
+     * scores that answer rather than the most likely one.
      *
      * @param distribution the model's distribution over the decision field's
      *                     allowed values
@@ -171,6 +176,30 @@ public record AiConfidence(
         Objects.requireNonNull(distribution, "distribution");
         return new AiConfidence(
                 OptionalDouble.of(distribution.normalizedMargin()),
+                valueTokens,
+                Source.DECISION_LOGPROBS,
+                Optional.of(distribution));
+    }
+
+    /**
+     * Build a decision confidence for the answer the model gave: the
+     * aggregate is {@link DecisionDistribution#marginOf(String)
+     * marginOf(answer)} — {@code 0} unless {@code answer} is strictly the
+     * most likely value — and the distribution rides along in
+     * {@link #decision()}.
+     *
+     * @param distribution the model's distribution over the decision field's
+     *                     allowed values
+     * @param answer       the value the model emitted, one of the
+     *                     distribution's values
+     * @param valueTokens  the sampled tokens that carry the decision value
+     */
+    public static AiConfidence fromDecision(DecisionDistribution distribution, String answer,
+                                            List<TokenLogprob> valueTokens) {
+        Objects.requireNonNull(distribution, "distribution");
+        Objects.requireNonNull(answer, "answer");
+        return new AiConfidence(
+                OptionalDouble.of(distribution.marginOf(answer)),
                 valueTokens,
                 Source.DECISION_LOGPROBS,
                 Optional.of(distribution));

@@ -89,6 +89,29 @@ class DecisionDistributionTest {
     }
 
     @Test
+    void marginOfScoresOnlyAStrictlyMostLikelyAnswer() {
+        // The answer the model gave, not the concentration around the argmax.
+        assertEquals(0.9, dist(0.95, 0.05).marginOf("V0"), 1e-9);
+        assertEquals(0.0, dist(0.95, 0.05).marginOf("V1"), EPS, "a minority answer scores 0");
+        assertEquals(0.0, dist(0.5, 0.5).marginOf("V0"), EPS, "a tie is not a decision");
+        assertEquals(0.0, dist(0.45, 0.46, 0.09).marginOf("V0"),
+                EPS, "above 1/k but behind a rival still scores 0");
+        assertEquals(0.4, dist(0.6, 0.3, 0.1).marginOf("V0"), 1e-9);
+        assertEquals(1.0, dist(1.0).marginOf("V0"), EPS, "a single value is a forced choice");
+        assertThrows(IllegalArgumentException.class, () -> dist(0.5, 0.5).marginOf("V9"));
+    }
+
+    @Test
+    void fromDecisionWithTheAnswerScoresThatAnswer() {
+        var d = dist(0.95, 0.05);
+        var minority = AiConfidence.fromDecision(d, "V1", List.of(new TokenLogprob("V1", Math.log(0.05))));
+        assertEquals(0.0, minority.aggregate().getAsDouble(), EPS);
+        assertEquals(ConfidenceRoute.ESCALATE, ConfidenceRouting.defaults().route(minority));
+        assertEquals(d, minority.decision().orElseThrow());
+        assertEquals(0.9, AiConfidence.fromDecision(d, "V0", List.of()).aggregate().getAsDouble(), 1e-9);
+    }
+
+    @Test
     void onlyDecisionLogprobsMayCarryADistribution() {
         assertThrows(IllegalArgumentException.class, () -> new AiConfidence(
                 OptionalDouble.of(0.5), List.of(), AiConfidence.Source.LOGPROBS_NATIVE,

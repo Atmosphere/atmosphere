@@ -85,14 +85,32 @@ class OpenAiCompatibleClientDecisionConfidenceTest {
     private static HttpServer server;
     private static int port;
     private static final List<String> BODIES = Collections.synchronizedList(new ArrayList<>());
+    /** Request paths in arrival order, so a test can tell which API a turn used. */
+    private static final List<String> PATHS = Collections.synchronizedList(new ArrayList<>());
 
     @BeforeAll
     static void startServer() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        // The same stub under an "api.openai.com" path segment: the client
+        // selects the Responses API by substring on the base URL, so this
+        // exercises the api.openai.com path selection without the network.
+        server.createContext("/api.openai.com/v1/responses", exchange -> {
+            var request = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            BODIES.add(request);
+            PATHS.add(exchange.getRequestURI().getPath());
+            respond(exchange, "data: [DONE]\n\n");
+        });
+        server.createContext("/api.openai.com/v1/chat/completions", exchange -> {
+            var request = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            BODIES.add(request);
+            PATHS.add(exchange.getRequestURI().getPath());
+            respond(exchange, fixture("decision-confident"));
+        });
         server.createContext("/v1/chat/completions", exchange -> {
             var request = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
             BODIES.add(request);
-            // Marker-driven stub: the user message selects the recorded payload.
+            PATHS.add(exchange.getRequestURI().getPath());
+            // Marker-driven stub: the user message selects the hand-authored fixture.
             String fixture;
             if (request.contains("case-tool")) {
                 fixture = request.contains("\"role\":\"tool\"") ? "decision-split" : "decision-tool-round";
@@ -180,7 +198,7 @@ class OpenAiCompatibleClientDecisionConfidenceTest {
                         + confidence.aggregate());
         assertEquals(ConfidenceRoute.ESCALATE, ConfidenceRouting.defaults().route(confidence));
 
-        // The same recorded response without a decision field keeps the
+        // The same hand-authored response without a decision field keeps the
         // historical whole-response mean — which is fluent enough to ACT.
         var meanSession = run("case-split", Triage.class, AiConfidenceElicitation.defaults());
         assertFalse(lastBody().contains("top_logprobs"),
@@ -255,10 +273,14 @@ class OpenAiCompatibleClientDecisionConfidenceTest {
         assertNotNull(confidence);
         assertEquals(AiConfidence.Source.DECISION_LOGPROBS, confidence.source());
         var decision = confidence.decision().orElseThrow();
-        assertEquals(SEPARATOR * Math.exp(-0.70) * Math.exp(-0.0001),
-                decision.probabilities().get("APPROVE"), EPS);
-        assertEquals(SEPARATOR * Math.exp(-0.71), decision.probabilities().get("REJECT"), EPS);
-        assertTrue(confidence.aggregate().getAsDouble() < ConfidenceRouting.DEFAULT_CONFIRM_AT,
+        var approve = SEPARATOR * Math.exp(-0.70) * Math.exp(-0.0001);
+        assertEquals(approve, decision.probabilities().get("APPROVE"), EPS);
+        // REJECT holds 0.49 listed; with the '"' variant and the unlisted
+        // mass it could exceed APPROVE, so it takes them and the answer
+        // scores 0.
+        assertEquals(1 - approve, decision.probabilities().get("REJECT"), EPS);
+        assertEquals("REJECT", decision.mostLikely());
+        assertEquals(0.0, confidence.aggregate().getAsDouble(), EPS,
                 "a coin flip made at the quote token must escalate: " + confidence.aggregate());
         assertEquals(ConfidenceRoute.ESCALATE, ConfidenceRouting.defaults().route(confidence));
     }
@@ -275,8 +297,11 @@ class OpenAiCompatibleClientDecisionConfidenceTest {
         var confidence = session.confidence.get();
         assertNotNull(confidence);
         var decision = confidence.decision().orElseThrow();
-        assertEquals(SEPARATOR * Math.exp(-0.70), decision.probabilities().get("APPROVE"), EPS);
-        assertEquals(SEPARATOR * Math.exp(-0.71), decision.probabilities().get("REJECT"), EPS);
+        var approve = SEPARATOR * Math.exp(-0.70);
+        assertEquals(approve, decision.probabilities().get("APPROVE"), EPS);
+        assertEquals(1 - approve, decision.probabilities().get("REJECT"), EPS,
+                "REJECT (0.49 listed) could overtake APPROVE with the ambiguous mass");
+        assertEquals(0.0, confidence.aggregate().getAsDouble(), EPS);
         assertEquals(ConfidenceRoute.ESCALATE, ConfidenceRouting.defaults().route(confidence));
     }
 
@@ -401,6 +426,44 @@ class OpenAiCompatibleClientDecisionConfidenceTest {
         assertFalse(body.contains("logprobs"), "the Responses API body carries no logprobs: " + body);
     }
 
+    /**
+     * On api.openai.com every AiPipeline / @AiEndpoint turn carries a
+     * conversationId, which selects the Responses API — and that path never
+     * requests top_logprobs. A turn with a designated decision field must go
+     * to chat completions instead, or DECISION_LOGPROBS never fires on
+     * OpenAI itself. The cached response ID is dropped (the provider-side
+     * chain does not contain this turn), and a turn without a decision field
+     * keeps using the Responses API.
+     */
+    @Test
+    void decisionTurnOnOpenAiUsesChatCompletionsDespiteAConversationId() {
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("http://127.0.0.1:" + port + "/api.openai.com/v1")
+                .apiKey("sk-test")
+                .build();
+        client.seedResponseId("conv-1", "resp_stale");
+        var runtime = runtimeFor(client);
+
+        var before = PATHS.size();
+        var session = run(runtime, "case-confident", Triage.class, decisionOn("verdict"), List.of());
+        assertEquals(List.of("/api.openai.com/v1/chat/completions"),
+                List.copyOf(PATHS.subList(before, PATHS.size())),
+                "a decision turn goes to chat completions, where top_logprobs exist");
+        assertTrue(lastBody().contains("\"top_logprobs\":6"), lastBody());
+        var confidence = session.confidence.get();
+        assertNotNull(confidence);
+        assertEquals(AiConfidence.Source.DECISION_LOGPROBS, confidence.source());
+        assertEquals(ConfidenceRoute.ACT, ConfidenceRouting.defaults().route(confidence));
+
+        before = PATHS.size();
+        run(runtime, "case-confident", Triage.class, AiConfidenceElicitation.defaults(), List.of());
+        assertEquals(List.of("/api.openai.com/v1/responses"),
+                List.copyOf(PATHS.subList(before, PATHS.size())),
+                "a turn without a decision field keeps the Responses API");
+        assertFalse(lastBody().contains("resp_stale"),
+                "the chain cached before the decision turn is not continued: " + lastBody());
+    }
+
     // ---------------------------------------------------------------- helpers
 
     private static AiConfidenceElicitation decisionOn(String field) {
@@ -417,10 +480,13 @@ class OpenAiCompatibleClientDecisionConfidenceTest {
     }
 
     private static BuiltInAgentRuntime configuredRuntime() {
-        var client = OpenAiCompatibleClient.builder()
+        return runtimeFor(OpenAiCompatibleClient.builder()
                 .baseUrl("http://127.0.0.1:" + port + "/v1")
                 .apiKey("sk-test")
-                .build();
+                .build());
+    }
+
+    private static BuiltInAgentRuntime runtimeFor(OpenAiCompatibleClient client) {
         var runtime = new BuiltInAgentRuntime();
         runtime.configure(new org.atmosphere.ai.AiConfig.LlmSettings(
                 client, "gpt-5-mini", "remote", null, "sk-test",
@@ -431,7 +497,12 @@ class OpenAiCompatibleClientDecisionConfidenceTest {
     private CapturingSession run(String message, Class<?> responseType,
                                  AiConfidenceElicitation elicitation,
                                  List<org.atmosphere.ai.tool.ToolDefinition> tools) {
-        var runtime = configuredRuntime();
+        return run(configuredRuntime(), message, responseType, elicitation, tools);
+    }
+
+    private CapturingSession run(BuiltInAgentRuntime runtime, String message, Class<?> responseType,
+                                 AiConfidenceElicitation elicitation,
+                                 List<org.atmosphere.ai.tool.ToolDefinition> tools) {
         var context = new AgentExecutionContext(
                 message, "You are a triage agent", "gpt-5-mini",
                 null, "session-1", "user-1", "conv-1",

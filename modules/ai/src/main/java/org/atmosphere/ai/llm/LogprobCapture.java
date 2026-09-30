@@ -34,7 +34,8 @@ import java.util.List;
  *
  * <p>Bounded (Invariant #3): at most {@value #MAX_LOGPROB_TOKENS} entries, and
  * top alternatives are kept only when a decision field is designated, at most
- * {@value DecisionField#MAX_TOP_LOGPROBS} per entry. Boundary-defensive
+ * {@value DecisionField#MAX_TOP_LOGPROBS} per entry, and only for the current
+ * round. Boundary-defensive
  * (Invariant #4): an entry missing a {@code token} string or a numeric
  * {@code logprob} is skipped, NaN is skipped, and a (theoretically impossible
  * but observed-in-the-wild) positive logprob is clamped to {@code 0.0} so a
@@ -79,9 +80,15 @@ final class LogprobCapture {
     /**
      * Mark the start of a live model round. The decision is scored on the
      * last round only — the final answer — so a tool-call round whose text
-     * happens to mention the field cannot be mistaken for the decision.
+     * happens to mention the field cannot be mistaken for the decision. With
+     * a decision field the earlier rounds are therefore never read (the
+     * whole-response mean is not emitted in that mode), so they are dropped
+     * here instead of holding their alternatives until completion.
      */
     void beginRound() {
+        if (decisionField != null) {
+            entries.clear();
+        }
         roundStart = entries.size();
     }
 

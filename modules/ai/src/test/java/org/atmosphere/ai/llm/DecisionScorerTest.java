@@ -102,6 +102,7 @@ class DecisionScorerTest {
      * sampled {@code " \""} (p=0.5) while the rival {@code " \"REJECT"} (0.5)
      * carries the quote and the value in one token. Reading alternatives only
      * from the value's first character on scored this coin flip 1.0 (ACT).
+     * A tie is not a decision, so the answer scores 0.
      */
     @Test
     void rivalCarriedByTheOpeningQuoteTokenIsScored() {
@@ -114,7 +115,7 @@ class DecisionScorerTest {
         var decision = confidence.decision().orElseThrow();
         assertEquals(0.5, decision.probabilities().get("APPROVE"), EPS);
         assertEquals(0.5, decision.probabilities().get("REJECT"), EPS);
-        assertEquals(0.25, confidence.aggregate().getAsDouble(), EPS);
+        assertEquals(0.0, confidence.aggregate().getAsDouble(), EPS);
         assertEquals(ConfidenceRoute.ESCALATE, ConfidenceRouting.defaults().route(confidence));
     }
 
@@ -133,7 +134,7 @@ class DecisionScorerTest {
         var decision = confidence.decision().orElseThrow();
         assertEquals(0.5, decision.probabilities().get("REJECT"), EPS);
         assertEquals(1.0, decision.observedMass(), EPS);
-        assertEquals(0.25, confidence.aggregate().getAsDouble(), EPS);
+        assertEquals(0.0, confidence.aggregate().getAsDouble(), EPS, "a tie is not a decision");
         assertEquals(ConfidenceRoute.ESCALATE, ConfidenceRouting.defaults().route(confidence));
     }
 
@@ -166,8 +167,11 @@ class DecisionScorerTest {
                 entry("APPROVE", 0.0, alt("APPROVE", 0.0)),
                 entry("\"}", 0.0));
         var confidence = DecisionScorer.score(entries, VERDICT).orElseThrow();
-        assertEquals(0.5, confidence.decision().orElseThrow().probabilities().get("APPROVE"), EPS);
-        assertEquals(0.25, confidence.aggregate().getAsDouble(), EPS);
+        var decision = confidence.decision().orElseThrow();
+        assertEquals(0.5, decision.probabilities().get("APPROVE"), EPS);
+        assertEquals(0.5, decision.probabilities().get("REJECT"), EPS,
+                "the unseen half could all be one rival, which then ties the answer");
+        assertEquals(0.0, confidence.aggregate().getAsDouble(), EPS);
     }
 
     @Test
@@ -188,13 +192,13 @@ class DecisionScorerTest {
 
     /**
      * Splitting ambiguous mass evenly is a guess, not a bound: here it would
-     * give AB1 the largest share (0.5, score 0.25) when the unobserved "B"
-     * continuation may equally be AB2, a world where the values sit at
-     * 0.35 / 0.30 / 0.35 and the score is 0.025. The scorer reports the
-     * least concentrated distribution consistent with the evidence.
+     * give AB1 0.5 against the answer AC at 0.35, while the unobserved "B"
+     * continuation may equally be AB1 entirely — a world where AB1 holds
+     * 0.65. Either way the answer AC is not the most likely value, so it
+     * scores 0, and the reported distribution is that worst world.
      */
     @Test
-    void ambiguousMassIsAssignedToTheLeastConcentratedDistribution() {
+    void ambiguousMassGoesToTheRivalThatCouldOvertakeTheAnswer() {
         var field = new DecisionField("code", List.of("AB1", "AB2", "AC"), true);
         var entries = List.of(
                 entry("{\"code\":\"", 0.0, alt("{\"code\":\"", 0.0)),
@@ -204,10 +208,83 @@ class DecisionScorerTest {
                 entry("\"}", 0.0));
         var confidence = DecisionScorer.score(entries, field).orElseThrow();
         var decision = confidence.decision().orElseThrow();
-        assertEquals(0.35, decision.probabilities().get("AB1"), EPS);
-        assertEquals(0.30, decision.probabilities().get("AB2"), EPS);
+        assertEquals(0.65, decision.probabilities().get("AB1"), EPS);
+        assertEquals(0.0, decision.probabilities().get("AB2"), EPS);
         assertEquals(0.35, decision.probabilities().get("AC"), EPS);
-        assertEquals(0.025, confidence.aggregate().getAsDouble(), EPS);
+        assertEquals(0.0, confidence.aggregate().getAsDouble(), EPS);
+        assertEquals(ConfidenceRoute.ESCALATE, ConfidenceRouting.defaults().route(confidence));
+    }
+
+    /**
+     * When no rival can reach the answer, the ambiguous mass still goes to
+     * the rivals, spread so the largest is as small as possible (two
+     * overlapping sets, so the exact min-max runs, not the one-set fast
+     * path). The margin depends only on the answer's own mass.
+     */
+    @Test
+    void rivalsAreLevelledWhenNoneCanReachTheAnswer() {
+        var field = new DecisionField("code", List.of("AB1", "AB2", "AC", "D"), true);
+        var entries = List.of(
+                entry("{\"code\":\"", 0.0, alt("{\"code\":\"", 0.0)),
+                entry("D", Math.log(0.8), alt("D", Math.log(0.8)), alt("A", Math.log(0.1)),
+                        alt("AB", Math.log(0.06))),
+                entry("\"}", 0.0));
+        var confidence = DecisionScorer.score(entries, field).orElseThrow();
+        var decision = confidence.decision().orElseThrow();
+        assertEquals(0.8, decision.probabilities().get("D"), EPS);
+        // {AB1,AB2,AC} holds 0.1 + the 0.04 unlisted, {AB1,AB2} holds 0.06:
+        // 0.2 over three rivals levels at 0.2 / 3 each.
+        assertEquals(0.2 / 3, decision.probabilities().get("AB1"), 1e-6);
+        assertEquals(0.2 / 3, decision.probabilities().get("AB2"), 1e-6);
+        assertEquals(0.2 / 3, decision.probabilities().get("AC"), 1e-6);
+        assertEquals((4 * 0.8 - 1) / 3, confidence.aggregate().getAsDouble(), EPS);
+    }
+
+    /**
+     * The model sampled the minority value: {@code false} at p=0.04 against
+     * {@code true} at 0.96. The concentration around the most likely value is
+     * 0.92 (at least the 0.9 act threshold), but that concentration is on the
+     * answer the model did not give; the emitted answer scores 0.
+     */
+    @Test
+    void minoritySampledValueIsNotScoredAsTheRivalsConcentration() {
+        var entries = List.of(
+                entry("{\"approved\":", 0.0, alt("{\"approved\":", 0.0)),
+                entry(" false", Math.log(0.04), alt(" true", Math.log(0.96)), alt(" false", Math.log(0.04))),
+                entry("}", 0.0));
+        var confidence = DecisionScorer.score(entries, APPROVED).orElseThrow();
+        var decision = confidence.decision().orElseThrow();
+        assertEquals(0.96, decision.probabilities().get("true"), EPS);
+        assertEquals(0.04, decision.probabilities().get("false"), EPS);
+        assertTrue(decision.normalizedMargin() >= ConfidenceRouting.DEFAULT_ACT_AT,
+                "the distribution itself is concentrated: " + decision.normalizedMargin());
+        assertEquals(0.0, confidence.aggregate().getAsDouble(), EPS);
+        assertEquals(ConfidenceRoute.ESCALATE, ConfidenceRouting.defaults().route(confidence));
+    }
+
+    /**
+     * A decision value is walked for at most {@link DecisionScorer#MAX_DECISION_TOKENS}
+     * tokens from the key's closing quote. Past the bound the value is not
+     * read (the value token here has no top_logprobs, which would decline
+     * the score if it were walked), and the unresolved path mass counts
+     * against the answer.
+     */
+    @Test
+    void decisionWalkIsBoundedAndCountsTheUnwalkedMassAgainstTheAnswer() {
+        assertEquals(16, DecisionScorer.MAX_DECISION_TOKENS, "the bound modules/ai/README.md documents");
+        // key token + ":" + pads, then the value token: pads = bound - 2
+        // puts the value exactly at the bound.
+        var beyond = DecisionScorer.score(padded(DecisionScorer.MAX_DECISION_TOKENS - 2), VERDICT).orElseThrow();
+        var decision = beyond.decision().orElseThrow();
+        assertEquals(0.0, decision.probabilities().get("APPROVE"), EPS,
+                "the answer gets no mass it was never shown to hold");
+        assertTrue(beyond.tokens().isEmpty(), "no value token was walked: " + beyond.tokens());
+        assertEquals(0.0, beyond.aggregate().getAsDouble(), EPS);
+        assertEquals(ConfidenceRoute.ESCALATE, ConfidenceRouting.defaults().route(beyond));
+
+        assertTrue(DecisionScorer.score(padded(DecisionScorer.MAX_DECISION_TOKENS - 3), VERDICT).isEmpty(),
+                "one pad fewer puts the value inside the bound: it is walked and, lacking"
+                        + " top_logprobs, declined");
     }
 
     @Test
@@ -229,12 +306,16 @@ class DecisionScorerTest {
                 entry("{\"verdict\":\"", 0.0, alt("{\"verdict\":\"", 0.0)),
                 entry("DEFER", -3.0, alt("APPROVE", -0.4), alt("REJECT", -1.6)),
                 entry("\"}", 0.0));
-        var decision = DecisionScorer.score(entries, VERDICT).orElseThrow().decision().orElseThrow();
-        assertEquals(Math.exp(-0.4), decision.probabilities().get("APPROVE"), EPS);
+        var confidence = DecisionScorer.score(entries, VERDICT).orElseThrow();
+        var decision = confidence.decision().orElseThrow();
+        assertEquals(Math.exp(-3.0), decision.probabilities().get("DEFER"), EPS,
+                "the answer keeps only its own probability");
         assertEquals(Math.exp(-1.6), decision.probabilities().get("REJECT"), EPS);
-        assertEquals(1 - Math.exp(-0.4) - Math.exp(-1.6), decision.probabilities().get("DEFER"), EPS);
+        assertEquals(1 - Math.exp(-3.0) - Math.exp(-1.6), decision.probabilities().get("APPROVE"), EPS);
         assertEquals("APPROVE", decision.mostLikely(),
                 "the most likely value need not be the sampled one");
+        assertEquals(0.0, confidence.aggregate().getAsDouble(), EPS,
+                "a value sampled against a more likely rival scores 0");
     }
 
     @Test
@@ -334,6 +415,36 @@ class DecisionScorerTest {
                 "REJECT holds only its share of the unobserved mass, like DEFER");
     }
 
+    /**
+     * With a decision field only the final round is scored, so earlier rounds
+     * are dropped when the next one begins rather than held (with their
+     * alternatives) until completion. A tool round that filled the token
+     * bound used to leave no room for the final round, which then could not
+     * be scored at all.
+     */
+    @Test
+    void decisionCaptureDropsEarlierRounds() throws Exception {
+        var capture = new LogprobCapture(VERDICT);
+        var mapper = new ObjectMapper();
+        capture.beginRound();
+        var toolRound = new StringBuilder("{\"content\":[");
+        for (int i = 0; i < LogprobCapture.MAX_LOGPROB_TOKENS; i++) {
+            toolRound.append(i == 0 ? "" : ",")
+                    .append("{\"token\":\"x\",\"logprob\":-0.1,\"top_logprobs\":[{\"token\":\"x\",\"logprob\":-0.1}]}");
+        }
+        capture.capture(mapper.readTree(toolRound.append("]}").toString()));
+        capture.beginRound();
+        capture.capture(mapper.readTree("{\"content\":["
+                + "{\"token\":\"{\\\"verdict\\\":\\\"\",\"logprob\":0,\"top_logprobs\":[]},"
+                + "{\"token\":\"APPROVE\",\"logprob\":-0.01,\"top_logprobs\":"
+                + "[{\"token\":\"APPROVE\",\"logprob\":-0.01}]},"
+                + "{\"token\":\"\\\"}\",\"logprob\":0,\"top_logprobs\":[]}]}"));
+        var confidence = capture.toConfidence();
+        assertTrue(confidence != null, "the final round must still be captured and scored");
+        assertEquals(AiConfidence.Source.DECISION_LOGPROBS, confidence.source());
+        assertEquals(Math.exp(-0.01), confidence.decision().orElseThrow().probabilities().get("APPROVE"), EPS);
+    }
+
     @Test
     void emptyCaptureIsSilent() {
         assertNull(new LogprobCapture(VERDICT).toConfidence());
@@ -378,14 +489,34 @@ class DecisionScorerTest {
     }
 
     @Test
-    void topLogprobsIsCappedAtTheProviderMaximum() {
+    void topLogprobsStaysWithinTheProviderMaximum() {
         var values = new ArrayList<String>();
-        for (int i = 0; i < DecisionField.MAX_TOP_LOGPROBS; i++) {
+        for (int i = 0; i < DecisionField.MAX_VALUES; i++) {
             values.add("V" + i);
         }
-        assertEquals(DecisionField.MAX_TOP_LOGPROBS, new DecisionField("v", values, true).topLogprobs());
-        assertEquals(DecisionField.MAX_TOP_LOGPROBS,
-                new DecisionField("v", values.subList(0, DecisionField.MAX_TOP_LOGPROBS - 3), true).topLogprobs());
+        var largest = new DecisionField("v", values, true).topLogprobs();
+        assertEquals(DecisionField.MAX_VALUES + 3, largest);
+        assertTrue(largest <= DecisionField.MAX_TOP_LOGPROBS, "provider ceiling: " + largest);
+    }
+
+    /**
+     * The value bound holds for every caller, not only {@link DecisionField#fromSchema}:
+     * the scorer's value sets are {@code int} bit masks and its worst-case
+     * assignment is exponential in the number of values. A 33-value field
+     * built directly used to overflow {@code 1 << 33} and score a 0.5 / 0.3
+     * split as 1.0.
+     */
+    @Test
+    void constructorRejectsMoreThanMaxValues() {
+        var values = new ArrayList<String>();
+        for (int i = 0; i <= DecisionField.MAX_VALUES; i++) {
+            values.add("V" + i);
+        }
+        var e = org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> new DecisionField("v", values, true));
+        assertTrue(e.getMessage().contains(Integer.toString(DecisionField.MAX_VALUES)), e.getMessage());
+        assertEquals(DecisionField.MAX_VALUES,
+                new DecisionField("v", values.subList(0, DecisionField.MAX_VALUES), true).values().size());
     }
 
     // ---------------------------------------------------------------- helpers
@@ -396,5 +527,18 @@ class DecisionScorerTest {
 
     private static LogprobCapture.Entry entry(String token, double logprob, TokenLogprob... top) {
         return new LogprobCapture.Entry(new TokenLogprob(token, logprob), List.of(top));
+    }
+
+    /** {@code {"verdict": <pads spaces> "APPROVE"}} with no top_logprobs on the value token. */
+    private static List<LogprobCapture.Entry> padded(int pads) {
+        var entries = new ArrayList<LogprobCapture.Entry>();
+        entries.add(entry("{\"verdict\"", 0.0, alt("{\"verdict\"", 0.0)));
+        entries.add(entry(":", 0.0, alt(":", 0.0)));
+        for (int i = 0; i < pads; i++) {
+            entries.add(entry(" ", 0.0, alt(" ", 0.0)));
+        }
+        entries.add(entry("\"APPROVE", 0.0));
+        entries.add(entry("\"}", 0.0));
+        return entries;
     }
 }
