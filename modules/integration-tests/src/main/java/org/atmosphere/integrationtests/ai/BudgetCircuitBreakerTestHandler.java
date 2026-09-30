@@ -28,6 +28,7 @@ import org.atmosphere.ai.TokenUsage;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.RawMessage;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -172,7 +173,18 @@ public class BudgetCircuitBreakerTestHandler implements AtmosphereHandler {
     }
 
     @Override
-    public void onStateChange(AtmosphereResourceEvent event) throws IOException { /* no-op */ }
+    public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+        // StreamingSessions broadcasts each frame to the resource; without
+        // writing it here nothing reaches the client.
+        if (event.isCancelled() || event.isResumedOnTimeout()
+                || event.isClosedByClient() || event.isClosedByApplication()) {
+            return;
+        }
+        if (event.getMessage() instanceof RawMessage raw && raw.message() instanceof String json) {
+            event.getResource().getResponse().write(json);
+            event.getResource().getResponse().flushBuffer();
+        }
+    }
 
     @Override
     public void destroy() { /* no-op */ }
