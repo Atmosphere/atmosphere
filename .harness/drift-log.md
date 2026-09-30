@@ -3881,3 +3881,14 @@ headers and the #54 entry above say so).
 rewritten, and not re-read after.
 **Gate:** comment rewritten to name the Console features the specs drive; no automated gate
 (prose), the discipline is to write a project comment from the spec's current `goto`.
+
+**Claim 2:** `history-sync.spec.ts` — "Bob's own bubble proves the send left his side before
+Alice returns."
+**Truth:** the Console's `useAtmosphereChat.send()` pushes the user bubble into
+`messages.value` before `transport.send()`, so the bubble proves nothing about the server. If
+hist-msg-3 reached the server after Alice re-joined, she would get it as a live broadcast and
+the test would pass without the sinceId replay it claims to pin.
+**Slip path:** a local echo was read as a server acknowledgement.
+**Gate:** a third member, Carol, stays connected and must receive hist-msg-3 before Alice's
+network comes back (and Alice must not have it yet); with Bob's send removed the test fails on
+Carol's feed. Passed 3x.
