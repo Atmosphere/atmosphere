@@ -134,10 +134,16 @@ recorded to the `GovernanceDecisionLog`.
 below 0.2 is safe, and the band between is an **error** — dropped unless
 `fail-open=true`. The thresholds are the same whether the belief was measured
 or self-reported: a model-reported confidence `c` reads as `P(injection) = c`
-for a `true` answer and `1 - c` for a `false` one, and a `false` answer with no
-confidence is an error, so no runtime admits a document the model did not
-confidently clear. A timeout, an empty or unparseable reply, or an answer
-outside `true`/`false` is also an error; none of them admits the document. When
+for a `true` answer and `1 - c` for a `false` one, with no other gate, so
+custom thresholds give the same verdict in both modes. A document is safe only
+when the model answered `false` **and** the belief is below the safe
+threshold: a `true` answer is never cleared by a measured distribution or a
+self-report that disagrees with it (that is an error), and a `false` answer
+with no confidence is an error. A timeout, an empty or unparseable reply, or an
+answer outside `true`/`false` is also an error. A document longer than 262,144
+characters (the decision state bound) is not sent to the model and is an error
+naming its length. Every error is dropped by default; with `fail-open=true` the
+operator has chosen to admit it, including an oversize document. When
 only the demo runtime is installed (no reachable model, no registered
 `DecisionModel`) the tier downgrades to `RULE_BASED` with a warning, and the
 console reports `RULE_BASED`.
@@ -938,7 +944,10 @@ missing entry and never a guess. Its confidence is unknown, so
 (`ESCALATE` by default). Requests are bounded: 64 questions, 262,144 characters
 of state (`String.length()`, not bytes), and a timeout (default 5 s) that
 covers the whole request. Each reply is bounded at 16,384 characters; a
-runtime that streams past it is cancelled and the question is `UNPARSEABLE`.
+runtime that streams past it is settled as `UNPARSEABLE` from the writing
+thread, then cancelled through its handle and its carrier interrupted, so a
+runtime that streams on the dispatching thread without publishing a handle is
+stopped too.
 
 **Discovery.** `DecisionModelResolver.resolve()` picks the available
 `META-INF/services/org.atmosphere.ai.decision.DecisionModel` registration with
@@ -956,10 +965,14 @@ a boolean for `Noul`, the codes `"A".."P"` for a `Choice` of at most 16 options
 (mapped back to the option keys), the option keys themselves above 16, and
 `"0".."n-1"` for a `Score`. The schema is always in the system prompt. It is
 also enforced natively when the runtime advertises `NATIVE_STRUCTURED_OUTPUT`,
-with one prompt-only retry if the provider rejects the schema. A reply that is
+with one prompt-only retry if the provider rejects the schema. The native
+schema is this per-question one on every native runtime; LangChain4j and
+AgentScope send it rather than deriving a schema from the generic reply record,
+whose `answer` is an untyped object. A reply that is
 not JSON is `UNPARSEABLE`. A value outside the set is `INVALID_ANSWER`. There is
 no lenient yes/no reading of free text. At most 8 questions per instance are in
-flight (`CAPACITY` past that). At the deadline, an unfinished question is
+flight; the rest wait for a slot and are `CAPACITY` only if none frees before
+the deadline. At the deadline, an unfinished question is
 cancelled through its `ExecutionHandle` and its carrier thread is interrupted.
 `decide()` never waits on a carrier, so a runtime that ignores both still cannot
 hold it past the deadline. The runtime is borrowed, never closed.
@@ -970,10 +983,15 @@ hold it past the deadline. The runtime is borrowed, never closed.
   `answer` as the decision field (see *Decision confidence*), so the Built-in
   runtime scores the model's distribution over the allowed values. When that
   distribution covers exactly the allowed values and its `observedMass` is at
-  least 0.5, the answer carries it unchanged: `Choice`/`Score` probabilities,
-  `Noul.probabilityTrue`, and the normalised margin as the aggregate. This is
+  least 0.5, the answer carries its probabilities (`Choice`/`Score`
+  probabilities, `Noul.probabilityTrue`), and its aggregate is the margin of
+  the value the reply actually carries (`DecisionDistribution.marginOf`): `0`
+  unless that value is strictly the most likely. A value sampled against the
+  distribution (sampling above temperature 0) therefore routes to `ESCALATE`
+  instead of inheriting the concentration around another value. This is
   available only on the Built-in runtime's chat-completions path, where the
-  endpoint passes the logprobs gate, and only for value sets of 16 or fewer.
+  endpoint passes the logprobs gate, and only for value sets of 16 or fewer; a
+  larger set names no decision field at all.
 - **Model-reported** (`MODEL_REPORTED_FIELD`). This covers every other runtime,
   a `Choice` above 16 options, an endpoint without `top_logprobs`, and a
   distribution below the mass floor. The reply's `confidence` becomes the

@@ -36,7 +36,8 @@ import java.util.Locale;
  * answer to a {@link InjectionClassifier.Decision}.
  *
  * <p>The model is usually a {@link RuntimeDecisionModel} over the installed
- * {@link AgentRuntime}, so every runtime adapter participates. On the Built-in
+ * {@link AgentRuntime}, so it runs on whichever runtime adapter is installed
+ * (prompt-only where the runtime has no native structured output). On the Built-in
  * runtime's chat-completions path, where the endpoint passes its logprobs gate,
  * the answer carries the model's measured distribution over {@code true} /
  * {@code false}; elsewhere it carries the model's self-reported confidence.</p>
@@ -52,20 +53,29 @@ import java.util.Locale;
  *       answer is read as the same belief, {@code P(injection) = c} for a
  *       {@code true} answer and {@code 1 - c} for a {@code false} one, and the
  *       same two thresholds apply, so one belief gets one verdict on every
- *       runtime. A reported confidence below 0.5 contradicts the answer it
- *       accompanies and is an {@link InjectionClassifier.Outcome#ERROR}
- *       ("uncertain"). A {@code false} answer with no usable confidence is an
- *       {@link InjectionClassifier.Outcome#ERROR} ("uncertain"): the model did
- *       not affirmatively clear the document. A {@code true} answer with no
- *       confidence is {@link InjectionClassifier.Outcome#INJECTED} with
- *       confidence {@code NaN}.</li>
+ *       runtime, whatever the thresholds. A {@code false} answer with no
+ *       usable confidence is an {@link InjectionClassifier.Outcome#ERROR}
+ *       ("uncertain"): the model did not affirmatively clear the document. A
+ *       {@code true} answer with no confidence is
+ *       {@link InjectionClassifier.Outcome#INJECTED} with confidence
+ *       {@code NaN}.</li>
+ *   <li>SAFE also requires the answer itself to be {@code false}. A
+ *       {@code true} answer whose belief falls below {@code safeBelow} — a
+ *       sampled answer the distribution disagrees with, or a self-report that
+ *       contradicts it — is an {@link InjectionClassifier.Outcome#ERROR}
+ *       ("uncertain"), in both modes. A {@code false} answer whose belief
+ *       reaches {@code injectedAt} is INJECTED.</li>
  *   <li>A failed answer — timeout, no capacity, runtime error, unparseable or
  *       out-of-set reply — or a missing model → {@link InjectionClassifier.Outcome#ERROR}.</li>
+ *   <li>A document longer than {@link DecisionRequest#MAX_STATE_CHARS}
+ *       characters is not sent to the model; it is an
+ *       {@link InjectionClassifier.Outcome#ERROR} naming its length.</li>
  * </ul>
  * An ERROR goes through the wrapping {@link SafetyContextProvider}'s (or the
  * memory screen's) breach policy, which drops the document by default
- * ({@code failOpen=false}). No path here admits a document the model did not
- * affirmatively clear. Every reason names the confidence source, so the
+ * ({@code failOpen=false}); with {@code failOpen=true} the operator has chosen
+ * to admit it. No verdict here is SAFE unless the model answered {@code false}
+ * and its belief is below {@code safeBelow}. Every reason names the confidence source, so the
  * governance audit shows whether a distribution or a self-report backed the
  * verdict.
  */
@@ -156,6 +166,15 @@ public final class LlmClassifierInjectionClassifier implements InjectionClassifi
                     + "the LLM injection classifier cannot clear the document");
             return Decision.error("LLM classifier: no decision model available");
         }
+        var length = document.content().length();
+        if (length > DecisionRequest.MAX_STATE_CHARS) {
+            // Explicit, not an IllegalArgumentException caught below: the
+            // reason names the bound so the audit shows why no model ran.
+            logger.warn("Document of {} chars exceeds the {}-char decision state bound; "
+                    + "the LLM injection classifier cannot clear it", length, DecisionRequest.MAX_STATE_CHARS);
+            return Decision.error("LLM classifier: document of " + length + " chars exceeds the "
+                    + DecisionRequest.MAX_STATE_CHARS + "-char decision state bound");
+        }
         Answer answer;
         try {
             var result = effective.decide(
@@ -178,9 +197,9 @@ public final class LlmClassifierInjectionClassifier implements InjectionClassifi
     private Decision map(Answer.Noul noul) {
         var source = noul.confidence().source().name();
         if (noul.probabilityTrue().isPresent()) {
-            return threshold(noul.probabilityTrue().getAsDouble(),
-                    String.format(Locale.ROOT, "P(injection)=%.3f [%s]",
-                            noul.probabilityTrue().getAsDouble(), source));
+            var p = noul.probabilityTrue().getAsDouble();
+            return threshold(noul.value(), p, String.format(Locale.ROOT,
+                    "P(injection)=%.3f with answer=%s [%s]", p, noul.value(), source));
         }
         var aggregate = noul.confidence().aggregate();
         if (aggregate.isEmpty()) {
@@ -192,23 +211,25 @@ public final class LlmClassifierInjectionClassifier implements InjectionClassifi
                     + source + "]");
         }
         var reported = aggregate.getAsDouble();
-        if (reported < 0.5) {
-            // Less than even confidence in its own answer: the reply
-            // contradicts itself, so it neither clears nor convicts.
-            return Decision.error(String.format(Locale.ROOT,
-                    "LLM classifier uncertain: answered %s with confidence %.3f [%s]",
-                    noul.value(), reported, source));
-        }
         var p = noul.value() ? reported : 1.0 - reported;
-        return threshold(p, String.format(Locale.ROOT,
+        return threshold(noul.value(), p, String.format(Locale.ROOT,
                 "P(injection)=%.3f from answer=%s confidence=%.3f [%s]", p, noul.value(), reported, source));
     }
 
-    private Decision threshold(double p, String belief) {
+    /**
+     * One verdict for one belief, measured or reported. SAFE needs both a
+     * belief below {@code safeBelow} and a {@code false} answer: a reply that
+     * flagged the document is never cleared by a number that disagrees with it.
+     */
+    private Decision threshold(boolean answeredInjection, double p, String belief) {
         if (p >= injectedAt) {
             return Decision.injected("LLM classifier flagged injection: " + belief, p);
         }
         if (p < safeBelow) {
+            if (answeredInjection) {
+                return Decision.error("LLM classifier uncertain: the answer flags an injection but "
+                        + belief);
+            }
             return Decision.safe(1.0 - p);
         }
         return Decision.error("LLM classifier uncertain: " + belief);

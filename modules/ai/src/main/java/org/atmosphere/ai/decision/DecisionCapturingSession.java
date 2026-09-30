@@ -35,8 +35,11 @@ import java.util.concurrent.atomic.AtomicReference;
  * <p>The reply buffer is bounded at {@value #MAX_REPLY_CHARS} characters
  * (Correctness Invariant #3). The expected reply is one small JSON object; a
  * runtime that streams past the bound closes the session as
- * {@linkplain #overflowed() overflowed}, and the caller cancels the dispatch
- * and records the question as unparseable instead of buffering more.</p>
+ * {@linkplain #overflowed() overflowed} and runs the overflow callback on the
+ * thread that wrote past it. The caller settles the question as unparseable
+ * there, cancels the dispatch and interrupts its carrier — so a runtime that
+ * streams on the dispatching thread and publishes no handle is stopped too,
+ * not only one that returned a handle.</p>
  */
 final class DecisionCapturingSession implements StreamingSession {
 
@@ -52,9 +55,19 @@ final class DecisionCapturingSession implements StreamingSession {
     private volatile Throwable failure;
     private volatile boolean outputSeen;
     private volatile boolean overflowed;
+    private final Runnable onOverflow;
 
     DecisionCapturingSession(String sessionId) {
+        this(sessionId, () -> { });
+    }
+
+    /**
+     * @param onOverflow run once, on the writing thread, when the reply first
+     *                   exceeds {@link #MAX_REPLY_CHARS}
+     */
+    DecisionCapturingSession(String sessionId, Runnable onOverflow) {
         this.sessionId = sessionId;
+        this.onOverflow = onOverflow;
     }
 
     @Override
@@ -80,8 +93,11 @@ final class DecisionCapturingSession implements StreamingSession {
                 text.append(chunk);
             }
         }
-        if (overflow) {
+        if (overflow && !overflowed) {
             overflowed = true;
+            // Before the latch opens, so a carrier woken by it already sees
+            // the question settled rather than parsing a truncated reply.
+            onOverflow.run();
             complete();
         }
     }

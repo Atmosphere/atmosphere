@@ -304,9 +304,13 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         var generation = settings != null
                 ? settings.generation() : org.atmosphere.ai.GenerationParams.defaults();
         // Provider-native structured output: when the pipeline opts in (response
-        // type declared and NativeStructuredOutputMode != DISABLED), derive an
-        // LC4j JsonSchema from the response type and attach it as a ResponseFormat
-        // so the provider enforces the schema. LC4j owns the wire serialization;
+        // type declared and NativeStructuredOutputMode != DISABLED), attach the
+        // schema the caller stamped in the request metadata — the one every other
+        // native runtime sends (Mode Parity) — as an LC4j raw schema, and derive
+        // one from the response type only when none was stamped. A caller whose
+        // schema is narrower than its carrier class (the decision model's closed
+        // value set over a generic reply record) would otherwise have the
+        // provider enforce the wrong schema. LC4j owns the wire serialization;
         // we only decide WHETHER to attach it. A NativeStructuredOutputMode.AUTO
         // graceful fall-back re-dispatches with the flag cleared if the provider
         // rejects the schema. LC4j forbids setting both .parameters(...) and the
@@ -316,8 +320,7 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         dev.langchain4j.model.chat.request.ResponseFormat nativeResponseFormat = null;
         if (context.responseType() != null
                 && org.atmosphere.ai.NativeStructuredOutput.shouldApply(context)) {
-            var nativeSchema = dev.langchain4j.service.output.JsonSchemas
-                    .jsonSchemaFrom(context.responseType()).orElse(null);
+            var nativeSchema = nativeSchemaFor(context);
             if (nativeSchema != null) {
                 nativeResponseFormat = dev.langchain4j.model.chat.request.ResponseFormat.builder()
                         .type(dev.langchain4j.model.chat.request.ResponseFormatType.JSON)
@@ -576,15 +579,34 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         }
     }
 
+    /**
+     * The LC4j schema to enforce: the stamped
+     * {@link org.atmosphere.ai.NativeStructuredOutput#schema schema} as a
+     * {@link dev.langchain4j.model.chat.request.json.JsonRawSchema}, or, when
+     * none was stamped, one derived from the response type.
+     */
+    static dev.langchain4j.model.chat.request.json.JsonSchema nativeSchemaFor(AgentExecutionContext context) {
+        var stamped = org.atmosphere.ai.NativeStructuredOutput.schema(context);
+        if (stamped != null) {
+            var name = context.responseType().getSimpleName();
+            return dev.langchain4j.model.chat.request.json.JsonSchema.builder()
+                    .name(name.isEmpty() ? "response" : name)
+                    .rootElement(dev.langchain4j.model.chat.request.json.JsonRawSchema.from(stamped))
+                    .build();
+        }
+        return dev.langchain4j.service.output.JsonSchemas
+                .jsonSchemaFrom(context.responseType()).orElse(null);
+    }
+
     @Override
     public Set<AiCapability> capabilities() {
         return Set.of(
                 AiCapability.TEXT_STREAMING,
                 AiCapability.TOOL_CALLING,
                 AiCapability.STRUCTURED_OUTPUT,
-                // NATIVE_STRUCTURED_OUTPUT is honest: doExecuteWithHandle derives an
-                // LC4j JsonSchema from context.responseType() via JsonSchemas and
-                // attaches it as a ChatRequest ResponseFormat (or on the
+                // NATIVE_STRUCTURED_OUTPUT is honest: doExecuteWithHandle attaches
+                // the stamped schema (or, absent one, an LC4j JsonSchema derived
+                // from context.responseType()) as a ChatRequest ResponseFormat (or on the
                 // OpenAiChatRequestParameters builder on the cache path) so the
                 // provider enforces the schema; AUTO mode falls back to prompt
                 // injection on a provider rejection.

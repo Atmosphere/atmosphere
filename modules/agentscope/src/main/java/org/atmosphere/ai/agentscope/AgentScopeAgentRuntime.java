@@ -71,6 +71,10 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
 
     private static volatile ReActAgent staticAgent;
 
+    /** Jackson 2, because AgentScope's schema overload takes its tree type. */
+    private static final com.fasterxml.jackson.databind.ObjectMapper SCHEMA_READER =
+            new com.fasterxml.jackson.databind.ObjectMapper();
+
     /**
      * Inject a pre-built {@link ReActAgent} from Spring auto-configuration.
      * Mirrors the {@code KoogAgentRuntime.setPromptExecutor} /
@@ -218,12 +222,19 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
         // ResponseFormat.jsonSchema). The Class overload lets AgentScope derive
         // its own provider-appropriate schema. AUTO mode falls back to prompt
         // injection on a provider rejection (the pipeline re-dispatches with the
-        // flag cleared, so this drops back to the 2-arg overload).
+        // flag cleared, so this drops back to the 2-arg overload). The schema the
+        // caller stamped in the request metadata wins over the Class overload's
+        // derivation — it is what every other native runtime sends (Mode
+        // Parity), and a caller whose schema is narrower than its carrier class
+        // (the decision model's closed value set) needs exactly it.
         var nativeApply = context.responseType() != null
                 && org.atmosphere.ai.NativeStructuredOutput.shouldApply(context);
-        var eventStream = nativeApply
-                ? activeAgent.stream(msgs, StreamOptions.defaults(), context.responseType())
-                : activeAgent.stream(msgs, StreamOptions.defaults());
+        var stampedSchema = nativeApply ? stampedSchema(context) : null;
+        var eventStream = !nativeApply
+                ? activeAgent.stream(msgs, StreamOptions.defaults())
+                : stampedSchema != null
+                        ? activeAgent.stream(msgs, StreamOptions.defaults(), stampedSchema)
+                        : activeAgent.stream(msgs, StreamOptions.defaults(), context.responseType());
         Disposable subscription = eventStream
                 .subscribe(
                         event -> handleEvent(event, session, lastUsage),
@@ -376,6 +387,25 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
             builder.planNotebook(notebook);
         }
         return builder.build();
+    }
+
+    /**
+     * The stamped {@link org.atmosphere.ai.NativeStructuredOutput#schema schema}
+     * as the Jackson 2 tree AgentScope's schema overload takes, or {@code null}
+     * when none was stamped or it does not parse (the Class overload is used).
+     */
+    static com.fasterxml.jackson.databind.JsonNode stampedSchema(AgentExecutionContext context) {
+        var schema = org.atmosphere.ai.NativeStructuredOutput.schema(context);
+        if (schema == null) {
+            return null;
+        }
+        try {
+            return SCHEMA_READER.readTree(schema);
+        } catch (com.fasterxml.jackson.core.JacksonException e) {
+            logger.debug("Stamped native schema does not parse; deriving one from {}",
+                    context.responseType().getName(), e);
+            return null;
+        }
     }
 
     private static MsgRole toRole(String role) {

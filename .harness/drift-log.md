@@ -3556,3 +3556,62 @@ confidence. The README converted the constant `256 * 1024` to "KiB" without read
 `measuredAndReportedBeliefsGetTheSameVerdict` pin both modes to one verdict per belief, and
 were bite-checked by restoring the old `Decision.safe(confidence)` branch. The README now says
 "262,144 characters of state (`String.length()`, not bytes)".
+
+---
+
+## 2026-09-30 — Decision model claimed its answers and its injection verdicts could not disagree with the reply
+
+**Session:** review round on the decision-model SPI (carnet #52), after rebasing onto the #51 fixes.
+
+**Claim:** `modules/ai/README.md` *Decision models* — with a trusted distribution "the answer
+carries it unchanged ... and the normalised margin as the aggregate"; "At most 8 questions per
+instance are in flight (`CAPACITY` past that)"; "a runtime that streams past it is cancelled and
+the question is `UNPARSEABLE`". `LlmClassifierInjectionClassifier` Javadoc — "No path here admits
+a document the model did not affirmatively clear", "the same two thresholds apply, so one belief
+gets one verdict on every runtime", and "every runtime adapter participates".
+`RealLlmDecisionTestHandler` Javadoc — "what survives is the model's own verdict"; the real-LLM
+spec title — "the LLM tier drops a literal injection".
+**Truth:** (1) `RuntimeDecisionModel` attached whatever aggregate the runtime computed, next to
+the value parsed from the reply, with no check that the two agreed: a runtime reporting the
+argmax margin gave a sampled `B` at `p = 0.03` a confidence of `0.94` and routed it `ACT`. (2)
+The classifier read only `probabilityTrue`, so a reply `{"answer":true}` whose distribution said
+`P(true) = 0.05` was SAFE — admitted, although the model's own answer flagged it. (3) The
+model-reported path had a fixed `reported < 0.5` gate before the configurable thresholds, so with
+`injectedAt = 0.3` a measured 0.4 was INJECTED and the same belief self-reported was ERROR. (4)
+Questions past 8 wait for a permit until the deadline; only then are they `CAPACITY`. (5) The
+overflow check ran on the carrier after `executeWithHandle` returned; a runtime streaming on the
+carrier without a handle never returned, so a runaway reply held its permit until `TIMEOUT`. (6)
+LangChain4j and AgentScope derived the native schema from the generic reply record
+(`answer: Object`), not the per-question schema in the request metadata, so on those runtimes the
+provider was told `answer` is an empty object. (7) A document over 262,144 characters failed
+`DecisionRequest` validation inside the `catch` and came back as a generic error, undocumented.
+(8) The real-LLM spec asserted only that the injection was absent from the reply; a timeout, an
+unparseable reply or the uncertain band drops it just the same, so the spec passed without the
+tier detecting anything. Forcing a 1 ms classifier timeout left it green.
+
+**Slip path:** the confidence and the value were reviewed separately — the confidence against the
+scorer's tests, the value against the parser's — and never against each other; every scripted
+reply sampled the argmax. The parity claim was checked only at the default thresholds, where the
+fixed 0.5 gate happens to coincide with them. The capacity sentence described the semaphore, not
+`tryAcquire(remaining())`. The overflow test used only the asynchronous fixture. "Every runtime
+adapter participates" was argued from the SPI, without reading how each native runtime builds its
+schema.
+
+**Gate:** the answer's confidence is recomputed as `marginOf(<the reply's value>)` whenever a
+distribution is trusted (`sampledMinorityValueScoresZeroAndEscalates`, and through the real
+Built-in chain in `RuntimeDecisionModelBuiltInChainTest.sampledMinorityChoiceEscalates`). SAFE
+requires a `false` answer in both modes, and the reported path goes through the same thresholds
+with no gate of its own (`anAnswerFlaggingInjectionIsNeverClearedByADisagreeingBelief`,
+`measuredAndReportedBeliefsAgreeUnderNonDefaultThresholds`). An overflow is settled from the
+writing thread (`runawayReplyOnTheDispatchingThreadIsSettledAtOnce`). LangChain4j and AgentScope
+send the stamped schema (`LangChain4jDecisionSchemaTest`, `AgentScopeStampedSchemaTest`). An
+oversize document is an explicit error naming its length and is documented under *RAG Injection
+Safety* (`oversizeDocumentIsAnErrorWithoutAModelCall`). The real-LLM handler reports each
+document's verdict and the spec requires `INJECTED` for the injection, `SAFE` for the benign
+document and `decision.value === true`; the forced 1 ms timeout now fails it on `ERROR`. Run
+locally against Ollama 0.34.4 / `qwen2.5:1.5b` (Q4_K_M) at temperature 0: three passes, source
+`DECISION_LOGPROBS`, `P(injection)=0.976` for the literal injection, so the spec now pins
+`DECISION_LOGPROBS` under `LLM_MODE=real-ollama`. The first run failed the new value assertion on
+the old benign text ("Tuesday to Sunday" read as not open on Sunday); the text now states it
+literally. Each unit test was bite-checked by reverting its fix. The README and Javadoc sentences
+now describe what runs.

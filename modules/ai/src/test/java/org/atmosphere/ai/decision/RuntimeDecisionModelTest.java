@@ -17,6 +17,8 @@ package org.atmosphere.ai.decision;
 
 import org.atmosphere.ai.AiConfidence;
 import org.atmosphere.ai.AiConfidenceElicitation;
+import org.atmosphere.ai.ConfidenceRoute;
+import org.atmosphere.ai.ConfidenceRouting;
 import org.atmosphere.ai.DecisionDistribution;
 import org.atmosphere.ai.NativeStructuredOutput;
 import org.atmosphere.ai.TokenLogprob;
@@ -89,6 +91,31 @@ class RuntimeDecisionModelTest {
         var atCeiling = RuntimeDecisionModel.QuestionSpec.of(
                 new Question.Choice("pick", options(RuntimeDecisionModel.MAX_CODED_OPTIONS))).schema();
         assertTrue(DecisionField.fromSchema(atCeiling, "answer").isPresent());
+    }
+
+    /**
+     * A choice the Built-in runtime declines to score names no decision field,
+     * so it does not log a "not a top-level enum" warning on every dispatch.
+     */
+    @Test
+    void unscorableChoiceNamesNoDecisionField() {
+        var runtime = new ScriptedDecisionRuntime((ctx, s) ->
+                ScriptedDecisionRuntime.reply(s, "{\"answer\":\"o0\",\"confidence\":0.9}"));
+        var questions = new LinkedHashMap<String, Question>();
+        questions.put("wide", new Question.Choice("pick", options(RuntimeDecisionModel.MAX_CODED_OPTIONS + 1)));
+        questions.put("coded", new Question.Choice("pick", options(RuntimeDecisionModel.MAX_CODED_OPTIONS)));
+        var result = new RuntimeDecisionModel(runtime).decide(new DecisionRequest("state", questions, null));
+        assertInstanceOf(Answer.Choice.class, result.answers().get("wide"));
+        for (var ctx : runtime.contexts()) {
+            var elicitation = AiConfidenceElicitation.from(ctx);
+            assertEquals("confidence", elicitation.fieldName());
+            if (ctx.systemPrompt().contains("exactly as written")) {
+                assertNull(elicitation.decisionField(), "unscorable choice");
+            } else {
+                assertEquals("answer", elicitation.decisionField(), "coded choice");
+            }
+        }
+        assertEquals(2, runtime.contexts().size());
     }
 
     @Test
@@ -225,7 +252,52 @@ class RuntimeDecisionModelTest {
                 Answer.Noul.class);
         assertTrue(answer.value());
         assertEquals(0.8, answer.probabilityTrue().getAsDouble(), 1e-9);
-        assertSame(confidence, answer.confidence(), "the measured confidence is passed through unchanged");
+        assertEquals(confidence, answer.confidence(),
+                "an answer on the most likely value keeps the measured confidence");
+    }
+
+    /**
+     * A value sampled against its own distribution (temperature above 0) must
+     * not carry the concentration around a different value: the runtime here
+     * attaches the argmax margin, as a runtime scoring the distribution alone
+     * would, and the answer must still score the value it carries.
+     */
+    @Test
+    void sampledMinorityValueScoresZeroAndEscalates() {
+        var routing = ConfidenceRouting.of(0.9, 0.5);
+        var twoOptions = new LinkedHashMap<String, String>();
+        twoOptions.put("approve", "");
+        twoOptions.put("reject", "");
+        var runtime = emitting(AiConfidence.fromDecision(
+                distribution(Map.of("A", 0.97, "B", 0.03), 1.0), List.of()),
+                "{\"answer\":\"B\",\"confidence\":0.2}");
+        var result = new RuntimeDecisionModel(runtime).decide(
+                DecisionRequest.of("state", "q", new Question.Choice("pick", twoOptions)));
+        var choice = assertInstanceOf(Answer.Choice.class, result.answers().get("q"));
+        assertEquals("reject", choice.choice());
+        assertEquals(Map.of("approve", 0.97, "reject", 0.03), choice.probabilities(),
+                "the distribution is still reported as measured");
+        assertEquals(AiConfidence.Source.DECISION_LOGPROBS, choice.confidence().source());
+        assertEquals(0.0, choice.confidence().aggregate().getAsDouble(), 1e-9);
+        assertEquals(ConfidenceRoute.ESCALATE, result.route("q", routing),
+                "a 3% answer must never route ACT");
+
+        var options = new LinkedHashMap<String, String>();
+        options.put("approve", "");
+        options.put("reject", "");
+        options.put("defer", "");
+        var threeWay = new RuntimeDecisionModel(emitting(AiConfidence.fromDecision(
+                distribution(Map.of("A", 0.7, "B", 0.2, "C", 0.1), 1.0), List.of()),
+                "{\"answer\":\"B\",\"confidence\":0.9}")).decide(
+                DecisionRequest.of("state", "q", new Question.Choice("pick", options)));
+        assertEquals(ConfidenceRoute.ESCALATE, threeWay.route("q", ConfidenceRouting.of(0.5, 0.3)));
+
+        var noul = decideOne(emitting(AiConfidence.fromDecision(
+                distribution(Map.of("true", 0.95, "false", 0.05), 1.0), List.of()),
+                "{\"answer\":false,\"confidence\":0.9}"), NOUL, Answer.Noul.class);
+        assertFalse(noul.value());
+        assertEquals(0.0, noul.confidence().aggregate().getAsDouble(), 1e-9);
+        assertEquals(ConfidenceRoute.ESCALATE, routing.route(noul.confidence()));
     }
 
     @Test
@@ -385,6 +457,36 @@ class RuntimeDecisionModelTest {
                 failure.detail());
         assertTrue(elapsedMs < 10_000, "an overflow must not wait for the deadline, took " + elapsedMs + "ms");
         assertTrue(runtime.cancelled().await(2, TimeUnit.SECONDS), "the runaway dispatch must be cancelled");
+    }
+
+    /**
+     * The same runaway on a runtime that streams on the dispatching thread and
+     * publishes no handle: the carrier never returns to check the bound, so the
+     * overflow must be settled from the writing thread and the carrier
+     * interrupted — not left to time out holding its permit.
+     */
+    @Test
+    void runawayReplyOnTheDispatchingThreadIsSettledAtOnce() throws Exception {
+        var chunk = "x".repeat(1024);
+        var stopped = new CountDownLatch(1);
+        var runtime = new ScriptedDecisionRuntime((ctx, s) -> {
+            s.send("{\"answer\":true,\"confidence\":0.9,\"pad\":\"");
+            while (!Thread.currentThread().isInterrupted()) {
+                s.send(chunk);
+                Thread.onSpinWait();
+            }
+            stopped.countDown();
+        }).synchronous();
+        var start = System.nanoTime();
+        var result = new RuntimeDecisionModel(runtime).decide(
+                DecisionRequest.of("s", "q", NOUL).withTimeout(Duration.ofSeconds(30)));
+        var elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+        var failure = failed(result, "q");
+        assertEquals(Answer.Failed.Reason.UNPARSEABLE, failure.reason(), failure.detail());
+        assertTrue(failure.detail().contains("exceeds " + DecisionCapturingSession.MAX_REPLY_CHARS),
+                failure.detail());
+        assertTrue(elapsedMs < 10_000, "an overflow must not wait for the deadline, took " + elapsedMs + "ms");
+        assertTrue(stopped.await(2, TimeUnit.SECONDS), "the streaming carrier must be interrupted");
     }
 
     @Test

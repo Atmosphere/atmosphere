@@ -74,7 +74,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *   <li>{@link Question.Choice} with more options — the option keys
  *       themselves. Beyond {@value #MAX_CODED_OPTIONS} values the Built-in
  *       runtime declines to score the distribution, so these answers are
- *       model-reported only.</li>
+ *       model-reported only, and their elicitation names no decision field.</li>
  *   <li>{@link Question.Score} — a string enum {@code "0"}..{@code "n-1"}.</li>
  * </ul>
  * The schema is always included in the system prompt, so a runtime without
@@ -85,11 +85,16 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * <h2>Confidence</h2>
  * The context carries an {@link AiConfidenceElicitation} whose decision field is
- * {@code answer}. When the runtime reports
- * {@link AiConfidence.Source#DECISION_LOGPROBS} for that field, over exactly the
- * allowed values, with an observed mass of at least {@code minObservedMass},
- * the answer carries that confidence unchanged and its probabilities come from
- * the distribution. Today only the Built-in runtime's chat-completions path
+ * {@code answer} (none for a choice that cannot be scored). When the runtime
+ * reports {@link AiConfidence.Source#DECISION_LOGPROBS} for that field, over
+ * exactly the allowed values, with an observed mass of at least
+ * {@code minObservedMass}, the answer's probabilities come from the
+ * distribution and its confidence is
+ * {@link DecisionDistribution#marginOf(String) the margin of the value the
+ * reply carries} — {@code 0} unless that value is strictly the most likely —
+ * whatever aggregate the runtime computed. A value sampled against the
+ * distribution therefore never inherits the concentration around another
+ * value, and routes to escalation. Today only the Built-in runtime's chat-completions path
  * emits it, on endpoints that pass its logprobs gate. Otherwise the reply's
  * {@code confidence} becomes {@link AiConfidence#reported(double)} and the
  * probabilities stay empty; a missing or out-of-range value is
@@ -138,6 +143,13 @@ public final class RuntimeDecisionModel implements DecisionModel {
 
     private static final AiConfidenceElicitation ELICITATION =
             AiConfidenceElicitation.withField(CONFIDENCE_FIELD).withDecisionField(ANSWER_FIELD);
+
+    /**
+     * For a question whose value set is too large to score: naming a decision
+     * field the runtime is known to decline only produces a warning per dispatch.
+     */
+    private static final AiConfidenceElicitation REPORTED_ONLY_ELICITATION =
+            AiConfidenceElicitation.withField(CONFIDENCE_FIELD);
 
     private static final String PREAMBLE = """
             You are a decision function. You read the STATE the user supplies and answer \
@@ -269,7 +281,7 @@ public final class RuntimeDecisionModel implements DecisionModel {
         private final AtomicReference<DecisionCapturingSession> session = new AtomicReference<>();
         private final AtomicReference<TokenUsage> usage = new AtomicReference<>();
         private volatile boolean dispatched;
-        private Thread carrier;
+        private volatile Thread carrier;
 
         QuestionCall(String id, QuestionSpec spec, String state, boolean nativeSchema, long deadline) {
             this.id = id;
@@ -284,6 +296,9 @@ public final class RuntimeDecisionModel implements DecisionModel {
         }
 
         private void run() {
+            // Published from the carrier itself as well: an overflow settled on
+            // this thread may run before start() has assigned the field.
+            carrier = Thread.currentThread();
             var acquired = false;
             try {
                 acquired = permits.tryAcquire(remaining(), TimeUnit.NANOSECONDS);
@@ -328,7 +343,13 @@ public final class RuntimeDecisionModel implements DecisionModel {
          */
         private Answer attempt(AgentExecutionContext context, boolean nativeApplied)
                 throws InterruptedException {
-            var sink = new DecisionCapturingSession("decision-" + id + "-" + sequence.incrementAndGet());
+            // An overflow is settled from the writing thread: a runtime that
+            // streams on this carrier and publishes no handle never returns
+            // here to see it, so waiting for the check below would hold the
+            // question (and its permit) until the deadline.
+            var sink = new DecisionCapturingSession("decision-" + id + "-" + sequence.incrementAndGet(),
+                    () -> settle(new Answer.Failed(id, Answer.Failed.Reason.UNPARSEABLE, "reply exceeds "
+                            + DecisionCapturingSession.MAX_REPLY_CHARS + " characters"), true));
             session.set(sink);
             try {
                 var published = runtime.executeWithHandle(context, sink);
@@ -354,13 +375,6 @@ public final class RuntimeDecisionModel implements DecisionModel {
                         false);
                 return null;
             }
-            if (sink.overflowed()) {
-                // The runtime kept streaming past the reply bound: stop it
-                // rather than let it run on unread.
-                cancelInFlight();
-                return new Answer.Failed(id, Answer.Failed.Reason.UNPARSEABLE, "reply exceeds "
-                        + DecisionCapturingSession.MAX_REPLY_CHARS + " characters");
-            }
             var failure = sink.failure();
             if (failure != null) {
                 if (nativeApplied && !sink.outputSeen() && NativeStructuredOutput.isSchemaRejection(failure)) {
@@ -375,7 +389,8 @@ public final class RuntimeDecisionModel implements DecisionModel {
 
         private AgentExecutionContext context() {
             var metadata = new HashMap<String, Object>();
-            metadata.put(AiConfidenceElicitation.METADATA_KEY, ELICITATION);
+            metadata.put(AiConfidenceElicitation.METADATA_KEY,
+                    spec.scorable() ? ELICITATION : REPORTED_ONLY_ELICITATION);
             // The per-question schema rides in metadata even when it is not
             // enforced natively: the Built-in runtime resolves the decision
             // field's allowed values from it.
@@ -539,6 +554,15 @@ public final class RuntimeDecisionModel implements DecisionModel {
                     schema, prompt);
         }
 
+        /**
+         * Whether the Built-in runtime can score this question's value
+         * distribution: a closed set of at most {@value #MAX_CODED_OPTIONS}
+         * values ({@code DecisionField.MAX_VALUES}).
+         */
+        boolean scorable() {
+            return wireValues.size() <= MAX_CODED_OPTIONS;
+        }
+
         /** Parse, validate and type the reply. Never throws. */
         Answer answer(String id, String text, AiConfidence captured,
                       StructuredOutputParser parser, double minObservedMass) {
@@ -565,7 +589,12 @@ public final class RuntimeDecisionModel implements DecisionModel {
                         "\"" + ANSWER_FIELD + "\" is " + reply.answer() + ", allowed " + wireValues);
             }
             var distribution = measured(captured, minObservedMass);
-            var confidence = distribution.isPresent() ? captured : reported(reply.confidence());
+            // Score the value this reply carries, not the distribution's most
+            // likely value: a sampled minority answer scores 0 and escalates,
+            // whatever aggregate the runtime attached.
+            var confidence = distribution.isPresent()
+                    ? AiConfidence.fromDecision(distribution.get(), wire, captured.tokens())
+                    : reported(reply.confidence());
             var value = values.get(wire);
             return switch (question) {
                 case Question.Noul ignored -> new Answer.Noul(id, Boolean.parseBoolean(value),

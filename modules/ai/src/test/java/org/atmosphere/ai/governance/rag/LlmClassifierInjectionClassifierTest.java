@@ -97,14 +97,14 @@ class LlmClassifierInjectionClassifierTest {
 
     /**
      * Mode parity: an unsure or unmeasured "false" does not clear the document.
-     * A 5%-confident false and a false with no confidence both fail closed, as
-     * the uncertain band does on the measured path.
+     * A 5%-confident false is the belief P(injection) = 0.95 and is injected,
+     * as a measured 0.95 is; a false with no confidence fails closed.
      */
     @Test
     void unsureOrUnknownFalseFailsClosed() {
         var unsure = classify(reported(false, 0.05));
-        assertEquals(InjectionClassifier.Outcome.ERROR, unsure.outcome(), unsure.reason());
-        assertTrue(unsure.reason().contains("uncertain"), unsure.reason());
+        assertEquals(InjectionClassifier.Outcome.INJECTED, unsure.outcome(), unsure.reason());
+        assertEquals(0.95, unsure.confidence(), 1e-9);
         assertTrue(unsure.reason().contains("MODEL_REPORTED_FIELD"), unsure.reason());
         // Inside the uncertain band: 1 - 0.75 = 0.25 is not below safeBelow.
         assertEquals(InjectionClassifier.Outcome.ERROR, classify(reported(false, 0.75)).outcome());
@@ -129,6 +129,77 @@ class LlmClassifierInjectionClassifierTest {
         // P(injection) = 0.8: injected in both modes.
         assertEquals(InjectionClassifier.Outcome.INJECTED, classify(measured(0.8)).outcome());
         assertEquals(InjectionClassifier.Outcome.INJECTED, classify(reported(true, 0.8)).outcome());
+    }
+
+    /**
+     * A reply that flagged the document is never admitted on a number that
+     * disagrees with it: the sampled {@code true} at P(true) = 0.05 used to be
+     * SAFE because only the distribution was read. Driven end to end through
+     * the RuntimeDecisionModel, as the runtime would deliver it.
+     */
+    @Test
+    void anAnswerFlaggingInjectionIsNeverClearedByADisagreeingBelief() {
+        var sampledAgainst = new ScriptedDecisionRuntime((ctx, s) -> {
+            s.send("{\"answer\":true,\"confidence\":0.99}");
+            s.confidence(AiConfidence.fromDecision(new DecisionDistribution("answer",
+                    Map.of("true", 0.05, "false", 0.95), 1.0), List.of()));
+            s.complete();
+        });
+        var decision = new LlmClassifierInjectionClassifier(sampledAgainst).evaluate(DOC);
+        assertEquals(InjectionClassifier.Outcome.ERROR, decision.outcome(), decision.reason());
+        assertTrue(decision.reason().contains("flags an injection"), decision.reason());
+
+        // The same contradiction on the model-reported path.
+        assertEquals(InjectionClassifier.Outcome.ERROR, classify(reported(true, 0.05)).outcome());
+
+        // The converse is not a clearance either: a sampled false against a
+        // distribution that says injection is injected.
+        var falseAgainst = classify(answering(new Answer.Noul("injection", false, OptionalDouble.of(0.9),
+                AiConfidence.unknown(AiConfidence.Source.DECISION_LOGPROBS))));
+        assertEquals(InjectionClassifier.Outcome.INJECTED, falseAgainst.outcome());
+    }
+
+    /**
+     * Mode parity under non-default thresholds: the reported path has no
+     * fixed gate of its own, so a belief gets the measured verdict whatever
+     * {@code injectedAt}/{@code safeBelow} are.
+     */
+    @Test
+    void measuredAndReportedBeliefsAgreeUnderNonDefaultThresholds() {
+        // P(injection) = 0.4 with injectedAt=0.3: injected in both modes.
+        assertEquals(InjectionClassifier.Outcome.INJECTED, classify(measured(0.4), 0.3, 0.1).outcome());
+        assertEquals(InjectionClassifier.Outcome.INJECTED, classify(reported(true, 0.4), 0.3, 0.1).outcome());
+        assertEquals(InjectionClassifier.Outcome.INJECTED, classify(reported(false, 0.6), 0.3, 0.1).outcome());
+        // P(injection) = 0.2: uncertain in both modes.
+        assertEquals(InjectionClassifier.Outcome.ERROR, classify(measured(0.2), 0.3, 0.1).outcome());
+        assertEquals(InjectionClassifier.Outcome.ERROR, classify(reported(false, 0.8), 0.3, 0.1).outcome());
+        // P(injection) = 0.05: safe in both modes.
+        assertEquals(InjectionClassifier.Outcome.SAFE, classify(measured(0.05), 0.3, 0.1).outcome());
+        assertEquals(InjectionClassifier.Outcome.SAFE, classify(reported(false, 0.95), 0.3, 0.1).outcome());
+        // P(injection) = 0.7 with injectedAt=0.8: uncertain in both modes.
+        assertEquals(InjectionClassifier.Outcome.ERROR, classify(measured(0.7), 0.8, 0.2).outcome());
+        assertEquals(InjectionClassifier.Outcome.ERROR, classify(reported(true, 0.7), 0.8, 0.2).outcome());
+    }
+
+    /**
+     * A document past the decision state bound is an explicit error naming its
+     * length, and no model is called for it.
+     */
+    @Test
+    void oversizeDocumentIsAnErrorWithoutAModelCall() {
+        var calls = new AtomicInteger();
+        var classifier = new LlmClassifierInjectionClassifier(model(r -> {
+            calls.incrementAndGet();
+            return TestDecisionModels.measured(r, 0.0);
+        }), null, 0.5, 0.2);
+        var size = DecisionRequest.MAX_STATE_CHARS + 1;
+        var decision = classifier.evaluate(new ContextProvider.Document("a".repeat(size), "big.md", 1.0));
+        assertEquals(InjectionClassifier.Outcome.ERROR, decision.outcome());
+        assertTrue(decision.reason().contains(size + " chars exceeds"), decision.reason());
+        assertEquals(0, calls.get());
+        assertEquals(InjectionClassifier.Outcome.SAFE, classifier.evaluate(new ContextProvider.Document(
+                "a".repeat(DecisionRequest.MAX_STATE_CHARS), "at-bound.md", 1.0)).outcome());
+        assertEquals(1, calls.get());
     }
 
     @Test
@@ -222,7 +293,12 @@ class LlmClassifierInjectionClassifierTest {
     }
 
     private static InjectionClassifier.Decision classify(DecisionModel model) {
-        return new LlmClassifierInjectionClassifier(model, null, 0.5, 0.2).evaluate(DOC);
+        return classify(model, 0.5, 0.2);
+    }
+
+    private static InjectionClassifier.Decision classify(DecisionModel model, double injectedAt,
+                                                         double safeBelow) {
+        return new LlmClassifierInjectionClassifier(model, null, injectedAt, safeBelow).evaluate(DOC);
     }
 
     private static DecisionModel measured(double p) {
