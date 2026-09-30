@@ -20,6 +20,8 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.interceptor.InvokationOrder;
 import org.atmosphere.room.auth.RoomAuth;
 import org.atmosphere.room.auth.RoomAuthorizer;
@@ -31,7 +33,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Optional;
+import java.util.Set;
+import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * Bridges the atmosphere.js client room protocol to the server-side
@@ -58,6 +65,20 @@ public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
 
     private RoomManager roomManager;
     private RoomAuthorizer authorizer;
+
+    /**
+     * One {@link DropAnnouncer} per (resource, room) membership, keyed by
+     * {@link #membershipKey}. Bounded by live memberships: an entry is removed
+     * on explicit leave (with its listener) and when the connection drops.
+     */
+    private final ConcurrentMap<String, DropAnnouncer> dropAnnouncers = new ConcurrentHashMap<>();
+
+    /**
+     * Rooms whose {@link Room#onPresence} LEAVE events this interceptor already
+     * hears. Weak, so a destroyed room is not pinned by this set.
+     */
+    private final Set<Room> watchedRooms = Collections.synchronizedSet(
+            Collections.newSetFromMap(new WeakHashMap<>()));
 
     @Override
     public void configure(AtmosphereConfig config) {
@@ -121,6 +142,11 @@ public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
                 ? new RoomMember(join.memberId(), join.metadata())
                 : null;
 
+        // Registered before room.join(): DefaultRoom's own auto-leave listener
+        // is added by join(), and listeners run in registration order, so the
+        // announcer still sees the membership it is announcing the end of.
+        announceDropOf(r, join.room(), room, member);
+
         if (member != null) {
             room.join(r, member);
         } else {
@@ -169,6 +195,13 @@ public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
 
         // Look up member info before leaving (for presence broadcast)
         var member = room.memberOf(r).orElse(null);
+
+        // An explicit leave is announced below; the disconnect that follows
+        // must not announce it a second time.
+        var announcer = dropAnnouncers.remove(membershipKey(r, leave.room()));
+        if (announcer != null) {
+            r.removeEventListener(announcer);
+        }
 
         room.leave(r);
 
@@ -230,6 +263,87 @@ public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
 
         logger.debug("Handled TYPING ({}) from {} in room '{}'",
                 typing.typing(), r.uuid(), typing.room());
+    }
+
+    /**
+     * Arrange for the remaining members to receive a wire {@code presence/leave}
+     * when {@code r}'s connection drops without a leave frame — a closed tab or
+     * a lost network, i.e. most real departures. DefaultRoom already untracks
+     * the resource on disconnect, but only server-side {@link PresenceEvent}
+     * listeners heard about it, so every other member's presence view (the
+     * Console's "N online" chip, atmosphere.js {@code AtmosphereRooms}) kept
+     * counting a member that was gone. A re-join on the same connection keeps
+     * the one announcer and refreshes the member identity it announces.
+     */
+    private void announceDropOf(AtmosphereResource r, String roomName, Room room, RoomMember member) {
+        // Any other way the resource leaves the room (the broadcaster dropping
+        // it, a server-side room.leave()) announces too, and retires the
+        // entry, so a connection whose lifecycle never reports a disconnect
+        // does not strand one here.
+        if (watchedRooms.add(room)) {
+            room.onPresence(event -> {
+                if (event.type() == PresenceEvent.Type.LEAVE && event.member() != null) {
+                    var pending = dropAnnouncers.get(membershipKey(event.member(), roomName));
+                    if (pending != null) {
+                        pending.announce();
+                    }
+                }
+            });
+        }
+        var key = membershipKey(r, roomName);
+        var announcer = dropAnnouncers.computeIfAbsent(key, k -> {
+            var created = new DropAnnouncer(k, roomName, room, r);
+            r.addEventListener(created);
+            return created;
+        });
+        announcer.member = member;
+    }
+
+    private static String membershipKey(AtmosphereResource r, String roomName) {
+        return r.uuid() + '\u0000' + roomName;
+    }
+
+    /** Announces a dropped connection's departure; fires at most once. */
+    private final class DropAnnouncer extends AtmosphereResourceEventListenerAdapter {
+        private final String key;
+        private final String roomName;
+        private final Room room;
+        private final AtmosphereResource resource;
+        private volatile RoomMember member;
+
+        DropAnnouncer(String key, String roomName, Room room, AtmosphereResource resource) {
+            this.key = key;
+            this.roomName = roomName;
+            this.room = room;
+            this.resource = resource;
+        }
+
+        @Override
+        public void onDisconnect(AtmosphereResourceEvent event) {
+            announce();
+        }
+
+        @Override
+        public void onClose(AtmosphereResourceEvent event) {
+            announce();
+        }
+
+        void announce() {
+            // remove(key, this) is the close-once guard: onDisconnect, onClose and
+            // the room's LEAVE event can each fire, and an explicit leave
+            // already removed the entry.
+            if (!dropAnnouncers.remove(key, this)) {
+                return;
+            }
+            resource.removeEventListener(this);
+            try {
+                room.broadcast(RoomProtocolCodec.encodePresence(roomName, "leave", member), resource);
+                logger.debug("Announced dropped connection {} leaving room '{}'", resource.uuid(), roomName);
+            } catch (RuntimeException e) {
+                // A room destroyed under the connection has nobody left to tell.
+                logger.debug("Could not announce {} leaving room '{}'", resource.uuid(), roomName, e);
+            }
+        }
     }
 
     private boolean authorize(AtmosphereResource r, String roomName, RoomAction action) {

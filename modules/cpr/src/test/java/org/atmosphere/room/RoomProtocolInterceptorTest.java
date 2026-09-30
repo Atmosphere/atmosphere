@@ -26,6 +26,7 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
@@ -147,6 +148,96 @@ public class RoomProtocolInterceptorTest {
 
         interceptor.inspect(leaveResource);
         assertFalse(room.contains(leaveResource), "Resource should be removed after leave");
+    }
+
+    // --- Dropped connections announce their departure on the wire ---
+
+    /** A virtual member records every frame broadcast into the room, synchronously. */
+    private static final class WireRecorder implements VirtualRoomMember {
+        final java.util.List<String> frames = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+        @Override
+        public String id() {
+            return "wire-recorder";
+        }
+
+        @Override
+        public void onMessage(Room room, String senderId, Object message) {
+            frames.add(String.valueOf(message));
+        }
+
+        long leavesOf(String memberId) {
+            return frames.stream()
+                    .filter(f -> f.contains("\"type\":\"presence\"")
+                            && f.contains("\"action\":\"leave\"")
+                            && f.contains("\"memberId\":\"" + memberId + "\""))
+                    .count();
+        }
+    }
+
+    private WireRecorder recordLobby() {
+        var recorder = new WireRecorder();
+        roomManager.room("lobby").joinVirtual(recorder);
+        return recorder;
+    }
+
+    private static void dropConnection(AtmosphereResource r) {
+        var impl = (AtmosphereResourceImpl) r;
+        impl.notifyListeners(new AtmosphereResourceEventImpl(impl, true, false));
+    }
+
+    @Test
+    public void testDroppedConnectionAnnouncesLeaveToRemainingMembers() throws Exception {
+        var recorder = recordLobby();
+        var alice = createResourceWithBody(
+                """
+                {"type":"join","room":"lobby","memberId":"alice"}"""
+        );
+        interceptor.inspect(alice);
+        assertEquals(0, recorder.leavesOf("alice"));
+
+        // The tab closes: no leave frame, just the connection going away.
+        dropConnection(alice);
+
+        assertEquals(1, recorder.leavesOf("alice"),
+                "remaining members must hear that alice left: " + recorder.frames);
+        assertFalse(roomManager.room("lobby").contains(alice));
+    }
+
+    @Test
+    public void testExplicitLeaveIsNotAnnouncedAgainOnDisconnect() throws Exception {
+        var recorder = recordLobby();
+        var alice = createResourceWithBody(
+                """
+                {"type":"join","room":"lobby","memberId":"alice"}"""
+        );
+        interceptor.inspect(alice);
+
+        alice.getRequest().body("""
+                {"type":"leave","room":"lobby"}""");
+        interceptor.inspect(alice);
+        assertEquals(1, recorder.leavesOf("alice"));
+
+        dropConnection(alice);
+        assertEquals(1, recorder.leavesOf("alice"),
+                "a disconnect after an explicit leave must not announce it twice: " + recorder.frames);
+    }
+
+    @Test
+    public void testServerSideRemovalAnnouncesOnceAndDisconnectAddsNothing() throws Exception {
+        var recorder = recordLobby();
+        var alice = createResourceWithBody(
+                """
+                {"type":"join","room":"lobby","memberId":"alice"}"""
+        );
+        interceptor.inspect(alice);
+
+        roomManager.room("lobby").leave(alice);
+        assertEquals(1, recorder.leavesOf("alice"),
+                "a member removed server-side has left too: " + recorder.frames);
+
+        dropConnection(alice);
+        assertEquals(1, recorder.leavesOf("alice"), "announced once: " + recorder.frames);
     }
 
     // --- Broadcast flow ---
