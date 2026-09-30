@@ -23,6 +23,9 @@ import { hideWebTransport, installNetworkSwitch } from './helpers/network-switch
  *      drains on reconnect, and is actually answered: an AI endpoint, not
  *      only the chat-room dialect, survives the round trip.
  */
+/** A real model answers in its own words; keyless, the sample's demo persona answers. */
+const REAL_LLM = (process.env.LLM_MODE ?? '').startsWith('real-');
+
 test.describe('Classroom resilience (presence + offline queue)', () => {
   let server: SampleServer;
 
@@ -92,6 +95,15 @@ test.describe('Classroom resilience (presence + offline queue)', () => {
 
     const answer = page.locator('.message--assistant').last();
     await expect(answer).toBeVisible({ timeout: 30_000 });
-    await expect(answer).not.toBeEmpty();
+    // The Console renders an AI `error` frame into this same assistant bubble
+    // as "**Error:** …", so a visible, non-empty bubble alone would read a
+    // failed drain as an answer.
+    await expect(answer).not.toContainText('Error:');
+    if (!REAL_LLM) {
+      // Keyless, the sample's DemoResponseProducer answers from the room's
+      // persona: the Code Mentor reply proves the drained question reached the
+      // code room's @AiEndpoint and was answered there, not merely acknowledged.
+      await expect(answer).toContainText('Code Mentor', { timeout: 30_000 });
+    }
   });
 });
