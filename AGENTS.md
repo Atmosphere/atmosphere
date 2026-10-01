@@ -37,7 +37,7 @@ git config core.hooksPath .githooks
 This enables pre-commit, commit-msg, and pre-push hooks. Sessions get archived/revived, so this must run EVERY time you start working.
 
 **NEVER use `--no-verify` when committing or pushing.** The hooks enforce:
-- Apache 2.0 license headers, through the Spotless check that runs when the hook compiles the changed `modules/*` and `samples/*` modules
+- Apache 2.0 license headers, through Spotless: the hook compiles the Maven module owning each staged Java file (nearest `pom.xml`, so `modules/quarkus-*/runtime` too) and its `validate` phase runs `spotless:check`; staged Java files owned by the root project (`generator/`, `scripts/`) get `./mvnw -N spotless:check`. Under the sandbox-only `ATMOSPHERE_OFFLINE_COMMIT` bypass no Maven runs, so headers are then checked only by the CI build
 - No unused or duplicate imports in staged Java files
 - Commit message format (max 2 lines, conventional commits recommended)
 - No AI-generated commit signatures
@@ -153,7 +153,7 @@ cannot fix: copy the header in by hand. Third-party notices go in a separate com
 - **Compiler**: `javac -Xlint:all,-processing,-serial -Werror` is enabled — the compiler flags unchecked casts, deprecation usage, raw types, and other issues as warnings. It does not flag unused imports (javac has no such lint); Spotless does. **Zero compiler warnings are required.**
 - **Spotless**: `spotless:check` runs in `validate` phase and fails the build. Configured inline in the root `pom.xml`: fails on a missing or altered Apache 2.0 license header, on unused, duplicate, `java.lang` and same-package imports and on any tab character in `src/**/*.java` (plus the JBang sources under `generator/` and `scripts/`, checked only from the root project). `./mvnw spotless:apply` adds a missing header, removes the imports and expands leading tabs to spaces; a tab elsewhere in a line (e.g. inside a string literal) is reported for a hand fix. No code formatter is applied.
 - **Not enforced (PMD was removed)**: the build no longer runs PMD, and nothing replaced the rules it enforced on main and test sources: unused local variables, unused private fields, unused private methods, unused parameters of private methods, assignments whose value is never read (`UnusedAssignment`), `size() == 0` instead of `isEmpty()` (`UseCollectionIsEmpty`), `ThreadGroup` use (`AvoidThreadGroup`) and calling `Thread.run()` directly (`DontCallThreadRun`). javac `-Xlint:all` has no lint for any of them; catch them in review or in the IDE.
-- **Pre-commit hook**: blocks commits containing unused or duplicate imports in staged Java files, and compiles the changed `modules/*` and `samples/*` modules (javac `-Werror` plus the Spotless check, so the license header too)
+- **Pre-commit hook**: blocks commits containing unused or duplicate imports in staged Java files, and compiles the Maven module owning each staged Java file (javac `-Werror` plus the Spotless check, so the license header too); root-project Java files (`generator/`, `scripts/`) get `./mvnw -N spotless:check`
 - All checks can be skipped with `-Pfastinstall` for local iteration, but **you MUST run a full `./mvnw compile` (without `-Pfastinstall`) before committing** to verify zero warnings.
 - **Do NOT introduce new `@SuppressWarnings` annotations** without justification. If a suppression is necessary (e.g., unavoidable raw type from a third-party API), add a comment explaining why.
 
@@ -297,7 +297,7 @@ The script picks one of three modes from the diff:
 
 | Mode | Trigger | Maven invocation |
 |------|---------|------------------|
-| `full` | `pom.xml` / `modules/pom.xml` / `bom/pom.xml` / `assembly/pom.xml` / `.mvn/*` / `config/*` changed, or `--full` flag | `./mvnw install -q` |
+| `full` | `pom.xml` / `modules/pom.xml` / `bom/pom.xml` / `assembly/pom.xml` / `.mvn/*` changed, or `--full` flag | `./mvnw install -q` |
 | `none` | only `*.md`, `docs/`, `.github/`, `scripts/`, `atmosphere.js/`, `.claude/` changed | Maven skipped (architectural-validation only) |
 | `incremental` | any Java / leaf-module `pom.xml` change | main checkout: `./mvnw install -q -Dgib.disable=false -Dgib.baseBranch=refs/remotes/$BASE_REF` (routed through the Gitflow Incremental Builder extension declared in `.mvn/extensions.xml`)<br>worktree: `./mvnw install -q -pl <modules> -am` (GIB's JGit backend does not support separate worktrees, so the script falls back to manual `-pl` scoping) |
 

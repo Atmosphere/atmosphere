@@ -9,8 +9,8 @@
 #        - git-diff -> nearest Maven module -> explicit `-pl ... -am`.
 #          We avoid opaque GIB runs so the module list and Maven command are
 #          visible before the build starts.
-#        - Any high-blast-radius path (root pom.xml, config/, .mvn/,
-#          modules/pom.xml) forces a full reactor build regardless.
+#        - Any high-blast-radius path (root pom.xml, .mvn/, modules/pom.xml)
+#          forces a full reactor build regardless.
 #
 # On success the script stamps .git/validation-passed; the pre-push hook
 # consumes that marker.
@@ -167,7 +167,7 @@ echo "Scope:     committed changes only (working tree and untracked files ignore
 echo ""
 
 # High-blast-radius paths force a full build.
-HIGH_BLAST_REGEX='^(pom\.xml|modules/pom\.xml|\.mvn/.*|config/.*|bom/pom\.xml|assembly/pom\.xml)$'
+HIGH_BLAST_REGEX='^(pom\.xml|modules/pom\.xml|\.mvn/.*|bom/pom\.xml|assembly/pom\.xml)$'
 
 # Paths that can never cause Java/Maven behavior change. Filtered out before
 # module computation so a docs-only push is a no-op for Maven. Playwright e2e
@@ -180,7 +180,7 @@ IGNORE_REGEX='(^|/)(\.gitignore|\.editorconfig|LICENSE|NOTICE|README(\.md)?|.*\.
 # Tier-1 checks are selected by committed paths. This keeps README/docs pushes
 # fast while preserving the heavier architectural scan for Java/config/workflow
 # changes that can affect runtime behavior.
-ARCHITECTURAL_REGEX='^pom\.xml$|^(modules|samples)/.*(pom\.xml|src/(main|test)/.*\.(java|kt|kts))$|^(bom|assembly)/pom\.xml$|^config/|^\.mvn/|^\.github/workflows/|^scripts/(architectural-validation|pre-push-validate)\.sh$'
+ARCHITECTURAL_REGEX='^pom\.xml$|^(modules|samples)/.*(pom\.xml|src/(main|test)/.*\.(java|kt|kts))$|^(bom|assembly)/pom\.xml$|^\.mvn/|^\.github/workflows/|^scripts/(architectural-validation|pre-push-validate)\.sh$'
 # `\.md$` is included because validate-capability-claims.sh now also checks
 # "N of M runtimes" enumeration denominators across ALL Markdown (e.g.
 # docs/runtime-selection.md), not just README/capability files.

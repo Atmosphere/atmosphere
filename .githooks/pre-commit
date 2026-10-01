@@ -2,9 +2,13 @@
 # Pre-commit hook for Atmosphere Framework
 # Blocks suspicious files, flags unused/duplicate imports, runs architectural
 # validation and compiles the changed modules. The Apache 2.0 license header is
-# enforced by Spotless (root pom.xml), which runs in the validate phase of that
-# compile: no separate header check here. `./mvnw spotless:apply` adds a
-# missing header.
+# enforced by Spotless (root pom.xml): its check runs in the validate phase of
+# that compile, which builds the Maven module owning each staged Java file
+# (nearest pom.xml, so modules/quarkus-*/runtime too). Staged Java files owned
+# by the root project (generator/, scripts/) get `./mvnw -N spotless:check`.
+# `./mvnw spotless:apply` adds a missing header. With the sandbox-only
+# ATMOSPHERE_OFFLINE_COMMIT bypass no Maven runs, so neither the compile nor
+# the header check happens at commit time; the CI build still checks both.
 
 set -e
 
@@ -94,21 +98,35 @@ check_compile_warnings() {
         return 0
     fi
 
-    # Extract unique Maven module paths from staged Java files
+    # Map each staged Java file to the Maven module that owns it: the nearest
+    # ancestor directory with a pom.xml (modules/cpr/src/... -> modules/cpr,
+    # modules/quarkus-extension/runtime/src/... -> modules/quarkus-extension/runtime).
+    # Files owned by the root project (generator/, scripts/) have no module to
+    # compile; the root project's Spotless check covers their license header.
     local modules=""
+    local root_owned=false
     for file in $java_files; do
-        local module=""
-        if [[ "$file" == modules/* ]]; then
-            # e.g. modules/cpr/src/... -> modules/cpr
-            module=$(echo "$file" | cut -d/ -f1-2)
-        elif [[ "$file" == samples/* ]]; then
-            # e.g. samples/spring-boot-chat/src/... -> samples/spring-boot-chat
-            module=$(echo "$file" | cut -d/ -f1-2)
-        fi
-        if [ -n "$module" ] && [ -f "$module/pom.xml" ]; then
+        local module
+        module=$(dirname "$file")
+        while [ "$module" != "." ] && [ ! -f "$module/pom.xml" ]; do
+            module=$(dirname "$module")
+        done
+        if [ "$module" = "." ]; then
+            root_owned=true
+        else
             modules="$modules $module"
         fi
     done
+
+    if [ "$root_owned" = true ]; then
+        echo "Checking root-project Java sources with Spotless (generator/, scripts/)"
+        if ! ./mvnw -q -N spotless:check 2>&1; then
+            echo ""
+            echo "ERROR: Commit blocked — the Spotless check of the root project failed."
+            echo "'./mvnw -N spotless:apply' fixes license header and import findings."
+            return 1
+        fi
+    fi
 
     # Deduplicate and join with commas (strip leading/trailing whitespace first)
     modules=$(echo "$modules" | tr ' ' '\n' | sed '/^$/d' | sort -u | tr '\n' ',' | sed 's/,$//')
