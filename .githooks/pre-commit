@@ -1,6 +1,10 @@
 #!/bin/bash
 # Pre-commit hook for Atmosphere Framework
-# Checks copyright headers on Java source files and blocks suspicious files
+# Blocks suspicious files, flags unused/duplicate imports, runs architectural
+# validation and compiles the changed modules. The Apache 2.0 license header is
+# enforced by Spotless (root pom.xml), which runs in the validate phase of that
+# compile: no separate header check here. `./mvnw spotless:apply` adds a
+# missing header.
 
 set -e
 
@@ -14,36 +18,6 @@ check_suspicious_files() {
         echo ""
         echo "These files appear to be backups or old versions."
         echo "Please remove them or rename them before committing."
-        return 1
-    fi
-    return 0
-}
-
-# Check for Apache 2.0 copyright headers in Java source files
-check_copyright_headers() {
-    local missing_headers=""
-
-    # Get staged Java files (added or modified) in src/ directories
-    local java_files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.java$' | grep -v '/target/' || true)
-
-    for file in $java_files; do
-        if [ -f "$file" ] && ! grep -q "Copyright 2008-20[0-9][0-9] Async-IO.org" "$file" 2>/dev/null; then
-            missing_headers="$missing_headers\n  - $file"
-        fi
-    done
-
-    if [ -n "$missing_headers" ]; then
-        echo "ERROR: Commit blocked - Missing copyright headers:"
-        echo -e "$missing_headers"
-        echo ""
-        echo "All Java source files must have the Atmosphere copyright header:"
-        echo "  /*"
-        echo "   * Copyright 2008-2026 Async-IO.org"
-        echo "   *"
-        echo "   * Licensed under the Apache License, Version 2.0 ..."
-        echo "   */"
-        echo ""
-        echo "Please add the header to the listed files."
         return 1
     fi
     return 0
@@ -176,8 +150,9 @@ check_compile_warnings() {
     echo "Compiling changed modules: $modules"
     if ! ./mvnw clean compile test-compile -pl "$modules" -DskipTests -q 2>&1; then
         echo ""
-        echo "ERROR: Commit blocked — compilation failed (warnings or errors)."
-        echo "Run './mvnw compile -pl $modules' to see details."
+        echo "ERROR: Commit blocked — compilation or the Spotless check failed."
+        echo "Run './mvnw compile -pl $modules' to see details;"
+        echo "'./mvnw spotless:apply -pl $modules' fixes license header and import findings."
         return 1
     fi
     return 0
@@ -204,10 +179,6 @@ main() {
     local checks_passed=true
 
     if ! check_suspicious_files; then
-        checks_passed=false
-    fi
-
-    if ! check_copyright_headers; then
         checks_passed=false
     fi
 

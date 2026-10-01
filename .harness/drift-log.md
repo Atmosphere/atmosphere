@@ -4314,3 +4314,34 @@ checkstyle config or trying javac; Claim 3 took the task's expectation as fact b
 **Gate added:** none for the prose (Claims 1 and 2 are rewritten). The Spotless steps of Claim 3
 were each proven to fail `validate` on an injected violation; there is no committed test of the
 build configuration itself.
+
+## 2026-10-01 — Spotless license-header assumptions disproved by probes before commit
+
+**Session:** moving the Apache 2.0 header check from the pre-commit grep to Spotless.
+
+**Claim 1 (task premise):** existing Java headers differ only in their end year, so Spotless's
+`$YEAR` handling makes `licenseHeader` pass on the current tree with no rewrite.
+**Truth:** with the default Java delimiter, `spotless:apply` on the reactor changed 61 files. 26 had
+a non-canonical Async-IO block (18 with ` *` lines unindented, one rewrapped, two dated
+`Copyright 2021`, two with no header, one with the header after `package`, two with the next
+comment glued on as `*//*`). In 12 files (`IntrospectionUtils`, `TypeResolver`, `QueryStringDecoder`,
+`ExcludeSessionBroadcaster`, the XIAM-derived `util/annotation` files, ...) it deleted the
+third-party copyright notice that follows our header, because the default delimiter is `package`.
+**Claim 2 (draft pom comment, caught before commit):** a generic `<format>` with `licenseHeader`
+also covers `package-info.java`, which the `<java>` step skips.
+**Truth:** `LicenseHeaderStep` skips `package-info.java` and `module-info.java` by name in every
+format; a package-info stripped of its header passed `spotless:check`.
+**Claim 3 (draft config, caught before commit):** a header `<format>` and the `<java>` format can
+both include `src/**/*.java`.
+**Truth:** both share one up-to-date index per project; with the header format first, `Action.java`
+with an unused import passed `validate` ("552 were skipped because caching determined they were
+already clean"), so the overlap silently disabled the import gate.
+**Slip path:** Claim 1 came from the task text, Claims 2 and 3 from reading the plugin's options;
+none had been run against the tree.
+**Gate added:** one `<java>` format holds every step; a custom `delimiter` ends the header at the
+first comment block that carries the Async-IO line, else prepends; a `forbidRegex` lint covers
+package-info and module-info. The 26 headers were normalized in their own commit. Each case was
+probed with `validate` before commit: missing and altered headers fail and `apply` restores the
+file byte for byte, an unused import still fails, package-info missing or altered fails, a
+`2008-2019` header passes unchanged, and `-Pfastinstall` skips. There is no committed test of the
+build configuration itself.

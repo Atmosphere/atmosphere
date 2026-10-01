@@ -240,9 +240,9 @@
             </plugin>
             <plugin>
                 <!-- Source hygiene gate, bound to validate (fails the build); fix with
-                     `./mvnw spotless:apply`. Import cleanup and tab checks only; no code
-                     formatter is applied to the codebase. removeUnusedImports drops
-                     unused, java.lang and same-package imports; the steps below cover
+                     `./mvnw spotless:apply`. License header, import cleanup and tab checks
+                     only; no code formatter is applied to the codebase. removeUnusedImports
+                     drops unused, java.lang and same-package imports; the steps below cover
                      duplicate imports and tabs. -Pfastinstall skips it. -->
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
@@ -253,7 +253,55 @@
                     <java>
                         <includes>
                             <include>src/**/*.java</include>
+                            <!-- JBang sources outside any module's src/. These two only match
+                                 from the root project: a full reactor build checks them,
+                                 `-pl <module>` does not. -->
+                            <include>generator/**/*.java</include>
+                            <include>scripts/**/*.java</include>
                         </includes>
+                        <!-- The Apache 2.0 header. licenseHeader never touches
+                             package-info.java or module-info.java (Spotless skips them by name);
+                             the forbidRegex after it holds those to the same header. Keep every
+                             step in this one <java> format: Spotless keeps one up-to-date index
+                             per project, so a second format over the same files marks them clean
+                             and the steps of the other format are skipped. -->
+                        <licenseHeader>
+                            <!-- $YEAR keeps the end year a file already carries (2008-2021
+                                 stays 2008-2021); a new or header-less file gets the current
+                                 year. The content is inline, not under config/, so a sample
+                                 built outside the repo needs no repo-local file. -->
+                            <content>/*
+ * Copyright 2008-$YEAR Async-IO.org
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */</content>
+                            <!-- The header is the first comment block when it carries the
+                                 Async-IO copyright line, so a third-party notice kept in a later
+                                 block (IntrospectionUtils, TypeResolver, the XIAM files) is never
+                                 rewritten. A file that does not start with that block gets the
+                                 header prepended, never a replacement of what it starts with.
+                                 A block glued to the next one ("*//*") matches neither and fails
+                                 as a lint error for a hand fix. -->
+                            <delimiter>(?&lt;=\A/\*\n ?\* Copyright [^\n]{0,30}Async-IO\.org\n(?:(?!\*/)[\s\S]){0,2000}\*/\n)|\A(?!/\*\n ?\* Copyright [^\n]{0,30}Async-IO\.org\n)</delimiter>
+                        </licenseHeader>
+                        <forbidRegex>
+                            <!-- Runs after licenseHeader, so it only fires where that step did
+                                 not run (package-info.java, module-info.java). spotless:apply
+                                 cannot fix it: copy the header in by hand. -->
+                            <name>Apache 2.0 license header</name>
+                            <searchRegex>\A(?!/\*\n \* Copyright 2008-20[0-9]{2} Async-IO\.org\n \*\n \* Licensed under the Apache License, Version 2\.0 \(the "License"\); you may not\n \* use this file except in compliance with the License\. You may obtain a copy of\n \* the License at\n \*\n \* http://www\.apache\.org/licenses/LICENSE-2\.0\n \*\n \* Unless required by applicable law or agreed to in writing, software\n \* distributed under the License is distributed on an "AS IS" BASIS, WITHOUT\n \* WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied\. See the\n \* License for the specific language governing permissions and limitations under\n \* the License\.\n \*/\n)[\s\S]</searchRegex>
+                            <lintDetail>Missing or altered Apache 2.0 license header; start the file with the header in the root pom.xml licenseHeader</lintDetail>
+                        </forbidRegex>
                         <removeUnusedImports/>
                         <replaceRegex>
                             <!-- removeUnusedImports keeps a repeated import line; drop the

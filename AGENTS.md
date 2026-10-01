@@ -38,7 +38,7 @@ git config core.hooksPath .githooks
 This enables pre-commit, commit-msg, and pre-push hooks. Sessions get archived/revived, so this must run EVERY time you start working.
 
 **NEVER use `--no-verify` when committing or pushing.** The hooks enforce:
-- Apache 2.0 copyright headers on all Java source files
+- Apache 2.0 license headers, through the Spotless check that runs when the hook compiles the changed `modules/*` and `samples/*` modules
 - No unused or duplicate imports in staged Java files
 - Commit message format (max 2 lines, conventional commits recommended)
 - No AI-generated commit signatures
@@ -103,7 +103,7 @@ atmosphere/
 
 - Java version: **21** (configured in root pom.xml `<release>21</release>`)
 - License: Apache 2.0
-- All Java files MUST have the copyright header (enforced by pre-commit hook)
+- All Java files MUST have the copyright header (enforced by Spotless; `./mvnw spotless:apply` adds a missing one)
 - Commit without AI assistant-related commit messages
 - Do not add AI-generated commit text in commit messages
 - **NEVER add `Co-authored-by:` trailers to commits** — no Copilot, no Claude, no AI attribution of any kind
@@ -113,7 +113,11 @@ atmosphere/
 - NEVER remove code comments unless you can prove they are actively false
 
 ### Copyright Header (Required)
-All Java source files must start with:
+All Java source files must start with the header below. Spotless (`licenseHeader` in the root
+`pom.xml`) enforces it on `src/**/*.java`, `generator/` and `scripts/`: the end year a file already
+carries is kept, and `./mvnw spotless:apply` adds the header with the current year to a file that
+lacks it. `package-info.java` and `module-info.java` are checked by a lint instead, which `apply`
+cannot fix: copy the header in by hand. Third-party notices go in a separate comment block after it.
 ```java
 /*
  * Copyright 2008-2026 Async-IO.org
@@ -149,9 +153,9 @@ All Java source files must start with:
 
 ### Build Enforcement
 - **Compiler**: `javac -Xlint:all,-processing,-serial -Werror` is enabled — the compiler flags unchecked casts, deprecation usage, raw types, and other issues as warnings. It does not flag unused imports (javac has no such lint); Spotless does. **Zero compiler warnings are required.**
-- **Spotless**: `spotless:check` runs in `validate` phase and fails the build. Configured inline in the root `pom.xml`: fails on unused, duplicate, `java.lang` and same-package imports and on any tab character in `src/**/*.java`. `./mvnw spotless:apply` removes the imports and expands leading tabs to spaces; a tab elsewhere in a line (e.g. inside a string literal) is reported for a hand fix. No code formatter is applied.
+- **Spotless**: `spotless:check` runs in `validate` phase and fails the build. Configured inline in the root `pom.xml`: fails on a missing or altered Apache 2.0 license header, on unused, duplicate, `java.lang` and same-package imports and on any tab character in `src/**/*.java` (plus the JBang sources under `generator/` and `scripts/`, checked only from the root project). `./mvnw spotless:apply` adds a missing header, removes the imports and expands leading tabs to spaces; a tab elsewhere in a line (e.g. inside a string literal) is reported for a hand fix. No code formatter is applied.
 - **PMD**: runs in `validate` phase (failsOnError=true). Config in `config/atmosphere-pmd-ruleset.xml`.
-- **Pre-commit hook**: blocks commits containing unused or duplicate imports in staged Java files
+- **Pre-commit hook**: blocks commits containing unused or duplicate imports in staged Java files, and compiles the changed `modules/*` and `samples/*` modules (javac `-Werror` plus the Spotless check, so the license header too)
 - All checks can be skipped with `-Pfastinstall` for local iteration, but **you MUST run a full `./mvnw compile` (without `-Pfastinstall`) before committing** to verify zero warnings.
 - **Do NOT introduce new `@SuppressWarnings` annotations** without justification. If a suppression is necessary (e.g., unavoidable raw type from a third-party API), add a comment explaining why.
 
