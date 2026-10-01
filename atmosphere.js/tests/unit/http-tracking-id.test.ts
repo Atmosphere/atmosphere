@@ -239,12 +239,15 @@ describe('long-polling with the protocol handshake', () => {
 });
 
 /**
- * A client-chosen id names the client for as long as the transport lives, like
- * a server-assigned one does: a reconnect presents the same id, so the server
- * keeps addressing the same client (room membership, the UUID broadcaster cache
- * and anything else keyed by the connection uuid survive the reconnect).
+ * The server unregisters a closing connection by its tracking id alone. A
+ * client that came back under the same id while the server still held its
+ * previous connection (a dropped SSE stream not yet noticed, an abandoned
+ * poll) had its live connection unregistered when that stale one was finally
+ * closed, and received nothing from then on. A client-chosen id therefore
+ * names one subscription: every connect and reconnect picks a new one, while a
+ * long-polling re-poll, which continues the subscription, keeps it.
  */
-describe('client-chosen tracking id continuity', () => {
+describe('client-chosen tracking id per subscription', () => {
   let originalFetch: typeof global.fetch;
   let handlers: SubscriptionHandlers;
 
@@ -258,7 +261,7 @@ describe('client-chosen tracking id continuity', () => {
     vi.unstubAllGlobals();
   });
 
-  it('long-polling keeps its id across re-polls and reconnects', async () => {
+  it('long-polling keeps its id across re-polls and takes a new one on reconnect', async () => {
     const gets: string[] = [];
     const posts: string[] = [];
     global.fetch = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
@@ -268,7 +271,7 @@ describe('client-chosen tracking id continuity', () => {
       }
       gets.push(url);
       if (gets.length <= 2) {
-        // Two completed polls of the first connection.
+        // Two completed polls of the first subscription.
         return Promise.resolve({ ok: true, status: 200, headers: new Headers(), text: () => Promise.resolve('') });
       }
       if (gets.length === 3) {
@@ -282,18 +285,20 @@ describe('client-chosen tracking id continuity', () => {
     await transport.connect();
     await vi.waitFor(() => expect(gets).toHaveLength(4));
 
-    const first = trackingId(gets[0]);
-    expect(first).toMatch(SERVER_VALID_ID);
-    expect(gets.map(trackingId)).toEqual([first, first, first, first]);
-    expect(transport.uuid).toBe(first);
+    const [first, second, third, reconnect] = gets.map(trackingId);
+    expect(second).toBe(first);
+    expect(third).toBe(first);
+    expect(reconnect).not.toBe(first);
+    expect(reconnect).toMatch(SERVER_VALID_ID);
+    expect(transport.uuid).toBe(reconnect);
 
     transport.send('after reconnect');
     await vi.waitFor(() => expect(posts).toHaveLength(1));
-    expect(trackingId(posts[0])).toBe(first);
+    expect(trackingId(posts[0])).toBe(reconnect);
     await transport.disconnect();
   });
 
-  it('SSE keeps its id across reconnects', async () => {
+  it('SSE takes a new id for each connection, reconnects included', async () => {
     const urls: string[] = [];
     const sources: { onopen: (() => void) | null; onerror: (() => void) | null; close: () => void }[] = [];
     vi.stubGlobal('EventSource', vi.fn(function (url: string) {
@@ -315,35 +320,42 @@ describe('client-chosen tracking id continuity', () => {
 
     const ids = urls.map(trackingId);
     expect(ids[0]).toMatch(SERVER_VALID_ID);
-    expect(ids[1]).toBe(ids[0]);
-    expect(transport.uuid).toBe(ids[0]);
+    expect(ids[1]).toMatch(SERVER_VALID_ID);
+    expect(ids[1]).not.toBe(ids[0]);
+    expect(transport.uuid).toBe(ids[1]);
+
+    // A later connect of the same transport is a new subscription too.
+    await transport.disconnect();
+    const again = transport.connect();
+    sources[2].onopen?.();
+    await again;
+    expect(new Set(urls.map(trackingId)).size).toBe(3);
     await transport.disconnect();
   });
 
-  it('streaming keeps its id across reconnects', async () => {
-    const gets: string[] = [];
-    global.fetch = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
-      gets.push(url);
-      if (gets.length === 1) {
-        // A stream the server ends at once: the transport reconnects.
-        const body = new ReadableStream<Uint8Array>({ start: (controller) => controller.close() });
-        return Promise.resolve({ ok: true, status: 200, headers: new Headers(), body });
+  it('resends a refused message under the id of the current subscription', async () => {
+    const posts: string[] = [];
+    let transport: SSETransport | null = null;
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      posts.push(url);
+      if (posts.length === 1) {
+        // The subscription reconnected under a new id while this POST was refused.
+        (transport as unknown as { protocol: AtmosphereProtocol }).protocol.uuid = 'current-subscription';
+        return Promise.resolve({
+          ok: false, status: 503, headers: new Headers({ 'Retry-After': '0' }), text: () => Promise.resolve(''),
+        });
       }
-      const body = new ReadableStream<Uint8Array>({
-        start: (controller) => init?.signal?.addEventListener('abort', () => controller.close()),
-      });
-      return Promise.resolve({ ok: true, status: 200, headers: new Headers(), body });
+      return Promise.resolve({ ok: true, status: 200, headers: new Headers(), text: () => Promise.resolve('') });
     });
-    const transport = new StreamingTransport(
-      { url: 'http://localhost/ai', transport: 'streaming', reconnect: true, reconnectInterval: 1 }, handlers);
-    await transport.connect();
-    await vi.waitFor(() => expect(gets).toHaveLength(2));
+    transport = new SSETransport({ url: 'http://localhost/ai', transport: 'sse' }, handlers);
+    (transport as unknown as { _state: string })._state = 'connected';
+    const before = transport.uuid;
+    transport.send('prompt');
 
-    const ids = gets.map(trackingId);
-    expect(ids[0]).toMatch(SERVER_VALID_ID);
-    expect(ids[1]).toBe(ids[0]);
-    expect(transport.uuid).toBe(ids[0]);
-    await transport.disconnect();
+    await vi.waitFor(() => expect(posts).toHaveLength(2));
+    expect(trackingId(posts[0])).toBe(before);
+    expect(trackingId(posts[1])).toBe('current-subscription');
+    expect(handlers.error).not.toHaveBeenCalled();
   });
 
   it('warns once when it has to fall back to Math.random', async () => {

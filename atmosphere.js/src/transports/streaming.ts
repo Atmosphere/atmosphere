@@ -40,6 +40,7 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
     this._state = 'connecting';
     this.aborted = false;
     this.opened = false;
+    this.beginSubscription();
 
     this.protocol.setPushFunction((msg) => this.send(msg));
 
@@ -120,10 +121,9 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
   }
 
   send(message: string | ArrayBuffer): void {
-    const url = this.protocol.buildUrl(this.request);
     const outgoing = this.applyOutgoing(message);
 
-    this.postMessage(url, {
+    this.postMessage(() => this.protocol.buildUrl(this.request), {
       method: 'POST',
       headers: { 'Content-Type': this.request.contentType ?? 'text/plain' },
       credentials: this.request.withCredentials ? 'include' : 'same-origin',

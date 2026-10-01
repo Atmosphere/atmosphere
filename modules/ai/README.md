@@ -601,8 +601,8 @@ it): it is answered at once over its socket with a terminal
 `subscribeStreaming` and the Console report like any turn error. atmosphere.js sends a `503`'d
 message again, up to 3 attempts, and reports one it cannot deliver to the
 `error` handler; its SSE, streaming and long-polling transports send a tracking id
-even with `enableProtocol` off, by choosing one when the server assigns none
-and keeping it across reconnects.
+even with `enableProtocol` off, by choosing a new one for each subscription
+(connect or reconnect) when the server assigns none.
 
 | Init-param | Default | Meaning |
 |---|---|---|
@@ -617,7 +617,7 @@ shutdown.
 
 The tracking id routes a prompt; it does not authenticate the sender. It is a
 client-presented bearer token: the server adopts any well-formed id a client
-sends for its connection, and atmosphere.js picks one per transport when
+sends for its connection, and atmosphere.js picks one per subscription when
 `enableProtocol` is off. A prompt goes to whichever connection holds the id, so
 protect an endpoint whose conversations are private with authentication, as you
 would any other.
