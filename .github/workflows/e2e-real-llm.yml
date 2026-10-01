@@ -167,7 +167,8 @@ jobs:
       # fires the soft-preference PreferencePolicy and GovernanceFeedbackInterceptor
       # injects the org-specific advisory, so the answer names the Example Corp
       # release-bot process — a token the base model cannot know, so the assertion
-      # fails when the loop is off (validated locally on qwen2.5:1.5b, 3/3).
+      # fails when the loop is off. The PREFER is asserted on the decisions API for
+      # the spec's own conversation; the answer is read only after the `complete` frame.
       # Uses the e2e/ foundation Playwright project (not integration-tests) and
       # reuses the warm Ollama above.
       - name: Install e2e Playwright deps
@@ -202,15 +203,17 @@ jobs:
 
       - name: Wait for the console
         # The static console is served once the web context (and the Atmosphere
-        # framework servlet) finished init; the spec's own "Connected" wait +
-        # CI retries cover the WebSocket-ready race.
+        # framework servlet) finished init; the spec waits for the status pill to
+        # read "Connected" before it sends, which covers the transport-ready race.
         run: npx --yes wait-on --timeout 180000 http://localhost:8080/atmosphere/console/
 
       - name: Run governance-feedback spec
         working-directory: e2e
         env:
           ATMO_E2E_BASE_URL: http://localhost:8080
-        run: npx playwright test tests/governance-feedback-chat.spec.ts --reporter=list
+        # --retries=0 overrides the CI default of 2 in e2e/playwright.config.ts: a
+        # retry against a real model would hide a nondeterministic assertion.
+        run: npx playwright test tests/governance-feedback-chat.spec.ts --reporter=list --retries=0
 
       - name: Stop spring-boot-ai-chat
         if: always()
