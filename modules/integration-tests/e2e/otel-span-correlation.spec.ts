@@ -22,7 +22,9 @@ if (process.env.CI && !hasJar) {
     'refusing to skip silently (see OTEL_TARGET: ' + OTEL_TARGET + ')');
 }
 
-(hasJar ? test.describe : test.describe.skip)('OpenTelemetry Span Correlation', () => {
+// E2E_LIST_ONLY: the Playwright coverage gate lists (never runs) the suite
+// without the jar, and must see what CI runs, where a missing jar throws above.
+(hasJar || process.env.E2E_LIST_ONLY ? test.describe : test.describe.skip)('OpenTelemetry Span Correlation', () => {
   let server: SampleServer;
 
   test.beforeAll(async () => {

@@ -3914,3 +3914,19 @@ it). The info check is dropped here — `webtransport.spec.ts` covers it against
 sidecar. `transport-fallback.spec.ts` (WebSocket → long-polling) is unchanged: forcing that
 fallback and waiting for an answer needs every frame of a long-polling reply delivered, which
 carnet#60 tracks.
+
+---
+
+## 2026-09-30 — A statically skipped spec counted as covered
+
+**Session:** review of the Playwright spec-coverage gate.
+
+**Claim:** `validate-playwright-project-coverage.sh` — a spec that "runs nothing ... fails here".
+**Truth:** `playwright_spec_projects.mjs` counted every listed test, including statically skipped
+ones (`test.skip`, `describe.skip`, `quarantined()` outside its lane) — the slip the quarkus
+long-polling test had just shown.
+**Slip path:** the gate trusted the listing's test count.
+**Gate:** the mapper drops `expectedStatus: 'skipped'` tests; the three jar-gated specs (which
+throw in CI rather than skip) declare their suite under `E2E_LIST_ONLY`, set by the listing; the
+self-test adds `test.skip`, `describe.skip` and `quarantined()` cases (each fails with the check
+removed) and a control.

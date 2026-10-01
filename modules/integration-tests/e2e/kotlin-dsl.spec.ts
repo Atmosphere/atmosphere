@@ -73,7 +73,9 @@ if (process.env.CI && !jar) {
     'refusing to skip silently (see TARGET: ' + TARGET + ')');
 }
 
-(jar ? test.describe : test.describe.skip)('Kotlin DSL chat (shaded jar)', () => {
+// E2E_LIST_ONLY: the Playwright coverage gate lists (never runs) the suite
+// without the jar, and must see what CI runs, where a missing jar throws above.
+(jar || process.env.E2E_LIST_ONLY ? test.describe : test.describe.skip)('Kotlin DSL chat (shaded jar)', () => {
   let proc: ChildProcess;
   let output = '';
 

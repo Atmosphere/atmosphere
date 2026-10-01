@@ -43,6 +43,13 @@
 // their sample jar is missing, and this listing builds no jar. E2E_ALL_BROWSERS is
 // forced on so the opt-in firefox/webkit projects are declared: the caller decides
 // whether an opt-in project counts as running.
+//
+// A test the listing reports as statically skipped (expectedStatus 'skipped':
+// test.skip, test.describe.skip, test.fixme, or quarantined() outside the
+// quarantine lane) runs nothing and does not count. The specs that skip only
+// because their sample jar is missing outside CI (they throw in CI instead)
+// declare their suite as running under E2E_LIST_ONLY, which this listing sets:
+// --list runs no test, so the jar is not needed to know what CI would run.
 
 import { readdirSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -52,7 +59,7 @@ import { spawnSync } from 'node:child_process';
 const ME = 'playwright_spec_projects.mjs';
 
 // The per-push e2e leg's selection environment (e2e.yml "Run E2E Tests").
-const LEG_ENV = { LLM_MODE: 'fake', INCLUDE_FLAKY: 'false', E2E_ALL_BROWSERS: 'true' };
+const LEG_ENV = { LLM_MODE: 'fake', INCLUDE_FLAKY: 'false', E2E_ALL_BROWSERS: 'true', E2E_LIST_ONLY: 'true' };
 const UNSET = ['CI', 'SMOKE_ONLY', 'RUN_QUARANTINED', 'PLAYWRIGHT_JSON_OUTPUT_NAME',
   'LLM_API_KEY', 'LLM_BASE_URL', 'LLM_MODEL', 'SPRING_AI_OPENAI_BASE_URL', 'SPRING_AI_OPENAI_API_KEY'];
 
@@ -111,6 +118,8 @@ const runners = new Map();
 function collect(suite, file) {
   for (const spec of suite.specs ?? []) {
     for (const t of spec.tests ?? []) {
+      // A statically skipped test is listed, but runs nothing.
+      if (t.expectedStatus === 'skipped') continue;
       if (!runners.has(file)) runners.set(file, new Set());
       runners.get(file).add(t.projectName);
     }

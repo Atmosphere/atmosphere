@@ -35,25 +35,28 @@ passed=0; failed=0
 
 # Fresh copy of the real inputs for one case.
 setup() {
-    rm -rf "$TMP/case"; mkdir -p "$TMP/case/workflows"
-    cp "$ROOT/modules/integration-tests/playwright.config.ts" "$TMP/case/playwright.config.ts"
+    rm -rf "$TMP/x/case"; mkdir -p "$TMP/x/case/workflows"
+    # Specs that locate repo modules from their own directory (e2e/../../..) must
+    # find them from the copy too: the case sits two levels under $TMP.
+    [ -e "$TMP/modules" ] || ln -s "$ROOT/modules" "$TMP/modules"
+    cp "$ROOT/modules/integration-tests/playwright.config.ts" "$TMP/x/case/playwright.config.ts"
     # The config's testDir is ./e2e; the gate lists the spec files found there
     # with Playwright, which resolves from the config's own node_modules.
-    cp -R "$ROOT/modules/integration-tests/e2e" "$TMP/case/e2e"
-    cp "$ROOT/modules/integration-tests/package.json" "$ROOT/modules/integration-tests/tsconfig.json" "$TMP/case/"
-    ln -s "$ROOT/modules/integration-tests/node_modules" "$TMP/case/node_modules"
-    cp "$ROOT"/.github/workflows/*.yml "$TMP/case/workflows/"
-    cp "$ROOT/.harness/playwright-project-exclusions.txt" "$TMP/case/exclusions.txt"
+    cp -R "$ROOT/modules/integration-tests/e2e" "$TMP/x/case/e2e"
+    cp "$ROOT/modules/integration-tests/package.json" "$ROOT/modules/integration-tests/tsconfig.json" "$TMP/x/case/"
+    ln -s "$ROOT/modules/integration-tests/node_modules" "$TMP/x/case/node_modules"
+    cp "$ROOT"/.github/workflows/*.yml "$TMP/x/case/workflows/"
+    cp "$ROOT/.harness/playwright-project-exclusions.txt" "$TMP/x/case/exclusions.txt"
 }
 
 run_gate() {
-    PW_CONFIG="$TMP/case/playwright.config.ts" WORKFLOWS_DIR="$TMP/case/workflows" \
-        EXCLUSIONS="$TMP/case/exclusions.txt" "$@" "$GATE" > "$TMP/out" 2>&1
+    PW_CONFIG="$TMP/x/case/playwright.config.ts" WORKFLOWS_DIR="$TMP/x/case/workflows" \
+        EXCLUSIONS="$TMP/x/case/exclusions.txt" "$@" "$GATE" > "$TMP/out" 2>&1
 }
 
 # Insert a project entry right after `projects: [` in the scratch config.
 add_project() {
-    python3 - "$TMP/case/playwright.config.ts" "$1" <<'PY'
+    python3 - "$TMP/x/case/playwright.config.ts" "$1" <<'PY'
 import sys
 path, entry = sys.argv[1], sys.argv[2]
 s = open(path).read()
@@ -86,7 +89,7 @@ write_spec() {
 
 # Add project $1 to the dentist-agent matrix group of the scratch e2e.yml.
 run_in_workflow() {
-    replace_in "$TMP/case/workflows/e2e.yml" '"dentist-agent,a2a-discovery,' "\"dentist-agent,$1,a2a-discovery,"
+    replace_in "$TMP/x/case/workflows/e2e.yml" '"dentist-agent,a2a-discovery,' "\"dentist-agent,$1,a2a-discovery,"
 }
 
 # expect <case-name> <expected-exit> <expected-message-fragment> [env ...]
@@ -116,49 +119,49 @@ expect "a project no workflow runs fails" 1 "project 'zzz-unmapped' is declared"
 setup
 add_project "    { name: 'zzz-unmapped', testMatch: /zzz\.spec\.ts/ },"
 printf '        #  projects: "zzz-unmapped"\n# npx playwright test --project=zzz-unmapped\n' \
-    >> "$TMP/case/workflows/e2e.yml"
+    >> "$TMP/x/case/workflows/e2e.yml"
 expect "a project named only in a YAML comment still fails" 1 "project 'zzz-unmapped' is declared"
 
 setup
 add_project "    { name: 'zzz-unmapped', testMatch: /zzz\.spec\.ts/ },"
 printf 'zzz-unmapped | jfarcand | 2099-01-01 | carnet#53 | self-test exclusion\n' \
-    >> "$TMP/case/exclusions.txt"
+    >> "$TMP/x/case/exclusions.txt"
 expect "a valid exclusion accounts for a project" 0 "PASS —"
 
 setup
-sed -i.bak 's/"dentist-agent,a2a-discovery,/"dentist-agent,zzz-typo,a2a-discovery,/' "$TMP/case/workflows/e2e.yml"
+sed -i.bak 's/"dentist-agent,a2a-discovery,/"dentist-agent,zzz-typo,a2a-discovery,/' "$TMP/x/case/workflows/e2e.yml"
 expect "a workflow naming an undeclared project fails" 1 "references project 'zzz-typo'"
 
 setup
 add_project "    // { name: 'zzz-ghost', testMatch: /ghost\.spec\.ts/ },"
-printf '      - run: npx playwright test --project=zzz-ghost\n' >> "$TMP/case/workflows/e2e.yml"
+printf '      - run: npx playwright test --project=zzz-ghost\n' >> "$TMP/x/case/workflows/e2e.yml"
 expect "a //-commented config project is not declared" 1 "references project 'zzz-ghost'"
 
 setup
 expect "an expired exclusion fails" 1 "EXPIRED on" TODAY=2099-12-31
 
 setup
-printf 'zzz-bad | jfarcand | 2099-01-01 | carnet#53\n' >> "$TMP/case/exclusions.txt"
+printf 'zzz-bad | jfarcand | 2099-01-01 | carnet#53\n' >> "$TMP/x/case/exclusions.txt"
 expect "an exclusion missing a field fails" 1 "malformed exclusion"
 
 setup
-printf 'zzz-bad | jfarcand | next-year | carnet#53 | reason\n' >> "$TMP/case/exclusions.txt"
+printf 'zzz-bad | jfarcand | next-year | carnet#53 | reason\n' >> "$TMP/x/case/exclusions.txt"
 expect "an exclusion with a non-ISO expiry fails" 1 "must be YYYY-MM-DD"
 
 setup
-printf 'chat | jfarcand | 2099-01-01 | carnet#53 | stale\n' >> "$TMP/case/exclusions.txt"
+printf 'chat | jfarcand | 2099-01-01 | carnet#53 | stale\n' >> "$TMP/x/case/exclusions.txt"
 expect "excluding a project a workflow already runs fails" 1 "exclusion 'chat' is already run by"
 
 setup
-printf 'zzz-gone | jfarcand | 2099-01-01 | carnet#53 | stale\n' >> "$TMP/case/exclusions.txt"
+printf 'zzz-gone | jfarcand | 2099-01-01 | carnet#53 | stale\n' >> "$TMP/x/case/exclusions.txt"
 expect "excluding an undeclared project fails" 1 "exclusion 'zzz-gone' names no project"
 
 setup
-grep -v '^firefox ' "$TMP/case/exclusions.txt" > "$TMP/case/x" && mv "$TMP/case/x" "$TMP/case/exclusions.txt"
+grep -v '^firefox ' "$TMP/x/case/exclusions.txt" > "$TMP/x/case/x" && mv "$TMP/x/case/x" "$TMP/x/case/exclusions.txt"
 expect "dropping an exclusion uncovers its project" 1 "project 'firefox' is declared"
 
 setup
-printf "export default { testDir: './e2e' };\n" > "$TMP/case/playwright.config.ts"
+printf "export default { testDir: './e2e' };\n" > "$TMP/x/case/playwright.config.ts"
 expect "a config without named projects fails instead of passing vacuously" 1 "a project with no name"
 
 # --- the declared set is Playwright's, not a text scrape ---
@@ -174,99 +177,119 @@ expect "a project built by a helper that no workflow runs fails" 1 "project 'zzz
 # --- spec files: each must run a test in a project a workflow runs ---
 
 setup
-write_spec "$TMP/case/e2e/zzz-orphan.spec.ts"
+write_spec "$TMP/x/case/e2e/zzz-orphan.spec.ts"
 expect "a spec no project matches fails" 1 "spec 'zzz-orphan.spec.ts' runs no test in any project"
 
 setup
-write_spec "$TMP/case/e2e/nested/zzz-deep.spec.ts"
+write_spec "$TMP/x/case/e2e/nested/zzz-deep.spec.ts"
 expect "a spec in a subdirectory is walked too" 1 "spec 'nested/zzz-deep.spec.ts' runs no test in any project"
 
 setup
-write_spec "$TMP/case/e2e/zzz-orphan.spec.ts"
+write_spec "$TMP/x/case/e2e/zzz-orphan.spec.ts"
 add_project "    // { name: 'chat', testMatch: /zzz-orphan\.spec\.ts/ },"
 expect "a //-commented testMatch picks up nothing" 1 "spec 'zzz-orphan.spec.ts' runs no test in any project"
 
 setup
-write_spec "$TMP/case/e2e/zzz-orphan.spec.ts"
-replace_in "$TMP/case/playwright.config.ts" 'testMatch: /\/chat\.spec\.ts/,' 'testMatch: /\/(chat|zzz-orphan)\.spec\.ts/,'
+write_spec "$TMP/x/case/e2e/zzz-orphan.spec.ts"
+replace_in "$TMP/x/case/playwright.config.ts" 'testMatch: /\/chat\.spec\.ts/,' 'testMatch: /\/(chat|zzz-orphan)\.spec\.ts/,'
 expect "the testMatch regex is evaluated (an alternation covers the orphan)" 0 "PASS —"
 
 setup
-touch "$TMP/case/e2e/zzz-orphan.spec.ts"
-replace_in "$TMP/case/playwright.config.ts" 'testMatch: /\/chat\.spec\.ts/,' 'testMatch: /\/(chat|zzz-orphan)\.spec\.ts/,'
+touch "$TMP/x/case/e2e/zzz-orphan.spec.ts"
+replace_in "$TMP/x/case/playwright.config.ts" 'testMatch: /\/chat\.spec\.ts/,' 'testMatch: /\/(chat|zzz-orphan)\.spec\.ts/,'
 expect "a matched spec that declares no test fails" 1 "spec 'zzz-orphan.spec.ts' runs no test in any project"
 
 setup
-replace_in "$TMP/case/playwright.config.ts" 'testMatch: /\/webtransport-fallback\.spec\.ts/,' 'testMatch: /\/zzz-nothing\.spec\.ts/,'
+replace_in "$TMP/x/case/playwright.config.ts" 'testMatch: /\/webtransport-fallback\.spec\.ts/,' 'testMatch: /\/zzz-nothing\.spec\.ts/,'
 expect "a spec run only by excluded projects fails" 1 "spec 'webtransport-fallback.spec.ts' runs tests only in project(s) firefox,webkit, which no workflow runs"
 
 setup
-write_spec "$TMP/case/e2e/zzz-orphan.spec.ts"
+write_spec "$TMP/x/case/e2e/zzz-orphan.spec.ts"
 add_project "    { name: 'zzz-glob', testMatch: '**/zzz-orphan.spec.ts' },"
-printf 'zzz-glob | jfarcand | 2099-01-01 | carnet#54 | self-test\n' >> "$TMP/case/exclusions.txt"
+printf 'zzz-glob | jfarcand | 2099-01-01 | carnet#54 | self-test\n' >> "$TMP/x/case/exclusions.txt"
 expect "a string-glob testMatch is evaluated, not refused" 1 "spec 'zzz-orphan.spec.ts' runs tests only in project(s) zzz-glob"
 
 # --- title filters: a spec whose every test is filtered out runs nothing ---
 
 setup
-write_spec "$TMP/case/e2e/zzz-orphan.spec.ts"
+write_spec "$TMP/x/case/e2e/zzz-orphan.spec.ts"
 add_project "    { name: 'zzz-grep', testMatch: /\/zzz-orphan\.spec\.ts/, grep: /@never-matches/ },"
 run_in_workflow zzz-grep
 expect "a project whose grep matches none of the spec's tests fails" 1 "spec 'zzz-orphan.spec.ts' runs no test in any project"
 
 setup
-write_spec "$TMP/case/e2e/zzz-orphan.spec.ts"
+write_spec "$TMP/x/case/e2e/zzz-orphan.spec.ts"
 add_project "    { name: 'zzz-grep', testMatch: /\/zzz-orphan\.spec\.ts/ },"
 run_in_workflow zzz-grep
 expect "the same project without the grep covers the spec (control)" 0 "PASS —"
 
 setup
-write_spec "$TMP/case/e2e/zzz-orphan.spec.ts"
+write_spec "$TMP/x/case/e2e/zzz-orphan.spec.ts"
 add_project "    { name: 'zzz-grep', testMatch: /\/zzz-orphan\.spec\.ts/, grepInvert: /zzz orphan/ },"
 run_in_workflow zzz-grep
 expect "a project whose grepInvert drops every test of the spec fails" 1 "spec 'zzz-orphan.spec.ts' runs no test in any project"
 
 setup
-write_spec "$TMP/case/e2e/zzz-orphan.spec.ts" 'zzz orphan @flaky'
-replace_in "$TMP/case/playwright.config.ts" 'testMatch: /\/chat\.spec\.ts/,' 'testMatch: /\/(chat|zzz-orphan)\.spec\.ts/,'
+write_spec "$TMP/x/case/e2e/zzz-orphan.spec.ts" 'zzz orphan @flaky'
+replace_in "$TMP/x/case/playwright.config.ts" 'testMatch: /\/chat\.spec\.ts/,' 'testMatch: /\/(chat|zzz-orphan)\.spec\.ts/,'
 expect "a spec whose only test is titled @flaky fails (the leg sets INCLUDE_FLAKY=false)" 1 "spec 'zzz-orphan.spec.ts' runs no test in any project"
 
 setup
-write_spec "$TMP/case/e2e/zzz-orphan.spec.ts" 'zzz orphan' "{ tag: '@flaky' }"
-replace_in "$TMP/case/playwright.config.ts" 'testMatch: /\/chat\.spec\.ts/,' 'testMatch: /\/(chat|zzz-orphan)\.spec\.ts/,'
+write_spec "$TMP/x/case/e2e/zzz-orphan.spec.ts" 'zzz orphan' "{ tag: '@flaky' }"
+replace_in "$TMP/x/case/playwright.config.ts" 'testMatch: /\/chat\.spec\.ts/,' 'testMatch: /\/(chat|zzz-orphan)\.spec\.ts/,'
 expect "a spec whose only test carries a @flaky tag fails" 1 "spec 'zzz-orphan.spec.ts' runs no test in any project"
 
 setup
-write_spec "$TMP/case/e2e/zzz-orphan.spec.ts" 'zzz orphan @flaky'
-replace_in "$TMP/case/playwright.config.ts" 'testMatch: /\/chat\.spec\.ts/,' 'testMatch: /\/(chat|zzz-orphan)\.spec\.ts/,'
+write_spec "$TMP/x/case/e2e/zzz-orphan.spec.ts" 'zzz orphan @flaky'
+replace_in "$TMP/x/case/playwright.config.ts" 'testMatch: /\/chat\.spec\.ts/,' 'testMatch: /\/(chat|zzz-orphan)\.spec\.ts/,'
 expect "the caller's INCLUDE_FLAKY does not leak into the listing" 1 "spec 'zzz-orphan.spec.ts' runs no test in any project" INCLUDE_FLAKY=true
 
 setup
 expect "the caller's CI/SMOKE_ONLY do not leak into the listing" 0 "PASS —" CI=true SMOKE_ONLY=true
 
 setup
-printf "import { test } from '@playwright/test';\nthrow new Error('zzz load failure');\n" > "$TMP/case/e2e/zzz-broken.spec.ts"
-replace_in "$TMP/case/playwright.config.ts" 'testMatch: /\/chat\.spec\.ts/,' 'testMatch: /\/(chat|zzz-broken)\.spec\.ts/,'
+printf "import { test } from '@playwright/test';\ntest.skip('zzz orphan', () => {});\n" > "$TMP/x/case/e2e/zzz-orphan.spec.ts"
+replace_in "$TMP/x/case/playwright.config.ts" 'testMatch: /\/chat\.spec\.ts/,' 'testMatch: /\/(chat|zzz-orphan)\.spec\.ts/,'
+expect "a spec whose only test is test.skip fails" 1 "spec 'zzz-orphan.spec.ts' runs no test in any project"
+
+setup
+printf "import { test } from '@playwright/test';\ntest.describe.skip('never runs', () => { test('zzz orphan', () => {}); });\n" > "$TMP/x/case/e2e/zzz-orphan.spec.ts"
+replace_in "$TMP/x/case/playwright.config.ts" 'testMatch: /\/chat\.spec\.ts/,' 'testMatch: /\/(chat|zzz-orphan)\.spec\.ts/,'
+expect "a spec whose only suite is test.describe.skip fails" 1 "spec 'zzz-orphan.spec.ts' runs no test in any project"
+
+setup
+printf "import { quarantined } from './helpers/quarantine';\nquarantined({ owner: 'jfarcand', expires: '2099-01-01', issue: 'carnet#54', reason: 'self-test' })('zzz orphan @quarantined', () => {});\n" > "$TMP/x/case/e2e/zzz-orphan.spec.ts"
+replace_in "$TMP/x/case/playwright.config.ts" 'testMatch: /\/chat\.spec\.ts/,' 'testMatch: /\/(chat|zzz-orphan)\.spec\.ts/,'
+expect "a spec whose only test is quarantined() fails (the leg is not the quarantine lane)" 1 "spec 'zzz-orphan.spec.ts' runs no test in any project" RUN_QUARANTINED=true
+
+setup
+printf "import { test } from '@playwright/test';\ntest.skip('zzz skipped', () => {});\ntest('zzz orphan', () => {});\n" > "$TMP/x/case/e2e/zzz-orphan.spec.ts"
+replace_in "$TMP/x/case/playwright.config.ts" 'testMatch: /\/chat\.spec\.ts/,' 'testMatch: /\/(chat|zzz-orphan)\.spec\.ts/,'
+expect "a spec with one running test beside a skipped one is covered (control)" 0 "PASS —"
+
+setup
+printf "import { test } from '@playwright/test';\nthrow new Error('zzz load failure');\n" > "$TMP/x/case/e2e/zzz-broken.spec.ts"
+replace_in "$TMP/x/case/playwright.config.ts" 'testMatch: /\/chat\.spec\.ts/,' 'testMatch: /\/(chat|zzz-broken)\.spec\.ts/,'
 expect "a spec that fails to load fails the gate" 1 "zzz load failure"
 
 # --- spec exclusions ---
 
 setup
-write_spec "$TMP/case/e2e/zzz-orphan.spec.ts"
-printf 'zzz-orphan.spec.ts | jfarcand | 2099-01-01 | carnet#54 | self-test exclusion\n' >> "$TMP/case/exclusions.txt"
+write_spec "$TMP/x/case/e2e/zzz-orphan.spec.ts"
+printf 'zzz-orphan.spec.ts | jfarcand | 2099-01-01 | carnet#54 | self-test exclusion\n' >> "$TMP/x/case/exclusions.txt"
 expect "a valid spec exclusion accounts for an orphan spec" 0 "one of 1 excluded"
 
 setup
-write_spec "$TMP/case/e2e/zzz-orphan.spec.ts"
-printf 'zzz-orphan.spec.ts | jfarcand | 2020-01-01 | carnet#54 | self-test exclusion\n' >> "$TMP/case/exclusions.txt"
+write_spec "$TMP/x/case/e2e/zzz-orphan.spec.ts"
+printf 'zzz-orphan.spec.ts | jfarcand | 2020-01-01 | carnet#54 | self-test exclusion\n' >> "$TMP/x/case/exclusions.txt"
 expect "an expired spec exclusion fails" 1 "exclusion 'zzz-orphan.spec.ts' EXPIRED on 2020-01-01"
 
 setup
-printf 'chat.spec.ts | jfarcand | 2099-01-01 | carnet#54 | stale\n' >> "$TMP/case/exclusions.txt"
+printf 'chat.spec.ts | jfarcand | 2099-01-01 | carnet#54 | stale\n' >> "$TMP/x/case/exclusions.txt"
 expect "excluding a spec a workflow project already runs fails" 1 "exclusion 'chat.spec.ts' is already run by project(s) chat"
 
 setup
-printf 'zzz-gone.spec.ts | jfarcand | 2099-01-01 | carnet#54 | stale\n' >> "$TMP/case/exclusions.txt"
+printf 'zzz-gone.spec.ts | jfarcand | 2099-01-01 | carnet#54 | stale\n' >> "$TMP/x/case/exclusions.txt"
 expect "excluding a spec file that does not exist fails" 1 "exclusion 'zzz-gone.spec.ts' names no spec file"
 
 echo ""
