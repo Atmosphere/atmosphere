@@ -63,6 +63,9 @@ public class AiFeatureTestServer {
             // LLM_CLASSIFIER injection tier over a DecisionModel: RAG documents
             // screened through SafetyContextProvider on the AiStreamingSession path.
             framework.addAtmosphereHandler("/ai/decision", new DecisionModelTestHandler());
+            // Intent routing in front of the LLM: one Question.Choice over the
+            // routes, on both the AiStreamingSession and AiPipeline paths.
+            framework.addAtmosphereHandler("/ai/intent", new IntentRoutingTestHandler());
             framework.addAtmosphereHandler("/ai/passivation",
                     new PassivationTestHandler());
             framework.addAtmosphereHandler("/ai/cache-coalescing", new CacheCoalescingTestHandler());
@@ -139,7 +142,7 @@ public class AiFeatureTestServer {
                     + "/ai/cache-coalescing, /ai/cost-routing, /ai/combined-cost-cache, "
                     + "/ai/classroom/math, /ai/classroom/code, /ai/memory, /ai/error-recovery, "
                     + "/ai/events, /ai/identity, /ai/memory-token-window, /ai/memory-summarizing, "
-                    + "/ai/multimodal, /ai/cache-hint, /ai/embedding, /ai/decision");
+                    + "/ai/multimodal, /ai/cache-hint, /ai/embedding, /ai/decision, /ai/intent");
 
             Thread.currentThread().join();
         }

@@ -123,6 +123,10 @@ export default defineConfig({
       testMatch: /ai-decision-model\.spec\.ts/,
     },
     {
+      name: 'ai-intent-routing',
+      testMatch: /ai-intent-routing\.spec\.ts/,
+    },
+    {
       name: 'ai-passivation',
       testMatch: /ai-passivation\.spec\.ts/,
     },

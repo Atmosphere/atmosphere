@@ -165,6 +165,11 @@ public class AiStreamingSession implements StreamingSession {
      */
     private volatile RagRetrieval ragRetrieval = RagRetrieval.disabled();
     /**
+     * Endpoint-scoped intent routing from {@code @AiEndpoint(intentRouting = ...)};
+     * the {@code ai.intent.routing} request metadata wins per request.
+     */
+    private volatile org.atmosphere.ai.intent.IntentRouting intentRouting;
+    /**
      * Framework-scoped injectables stashed by the endpoint handler and
      * threaded into {@code @AiTool} dispatch so tool methods can declare
      * {@code AgentFleet}, {@code AgentIdentity}, etc. directly as parameters.
@@ -618,6 +623,19 @@ public class AiStreamingSession implements StreamingSession {
     }
 
     /**
+     * Install the endpoint-scoped {@link org.atmosphere.ai.intent.IntentRouting}:
+     * every admitted turn is routed to a deterministic handler, the LLM, or the
+     * human route before dispatch — the same step {@link AiPipeline} runs. An
+     * {@link AiInterceptor} may override it per request through the
+     * {@code ai.intent.routing} metadata key.
+     *
+     * @param routing the routing, or {@code null} for none
+     */
+    public void setIntentRouting(org.atmosphere.ai.intent.IntentRouting routing) {
+        this.intentRouting = routing;
+    }
+
+    /**
      * Set the endpoint-scoped over-fetch + rerank retrieval policy resolved
      * from {@code org.atmosphere.ai.rag.*} (see {@link RagRetrieval}). With an
      * active reranker each provider fetches {@code k * overfetch} candidates
@@ -759,6 +777,10 @@ public class AiStreamingSession implements StreamingSession {
                 return;
             }
         }
+        // The text intent routing classifies: the user message as the request
+        // guardrails (and the policies merged into them) admitted it — never
+        // the RAG-augmented text below. AiPipeline classifies the same thing.
+        var admittedMessage = request.message();
 
         // Context providers: RAG augmentation with query transform + filter/rerank/post-process
         if (!contextProviders.isEmpty()) {
@@ -903,6 +925,34 @@ public class AiStreamingSession implements StreamingSession {
             augmented.addAll(guardrails);
             augmented.add(new org.atmosphere.ai.governance.PolicyAsGuardrail(requestScopePolicy));
             effectiveGuardrails = List.copyOf(augmented);
+        }
+
+        // Intent routing — after every admission step (guardrails, policies,
+        // per-request scope), before the LLM chain is composed. The same step
+        // runs on AiPipeline (Mode Parity, Invariant #7). Request metadata set by
+        // an interceptor wins over the endpoint default, and the key is consumed
+        // so the routing never reaches the provider request metadata.
+        var routing = IntentDispatch.resolve(request.metadata(), this.intentRouting).orElse(null);
+        if (request.metadata() != null
+                && request.metadata().containsKey(org.atmosphere.ai.intent.IntentRouting.METADATA_KEY)) {
+            var stripped = new java.util.HashMap<String, Object>(request.metadata());
+            stripped.remove(org.atmosphere.ai.intent.IntentRouting.METADATA_KEY);
+            request = new AiRequest(request.message(), request.systemPrompt(),
+                    request.model(), request.userId(), request.sessionId(),
+                    request.agentId(), request.conversationId(),
+                    Map.copyOf(stripped), request.history());
+        }
+        if (routing != null) {
+            // Arm beforeCompletion for a handler-answered turn; the LLM path
+            // re-arms it with its composed target below.
+            beforeCompletionContext.set(new BeforeCompletionContext(request, this));
+            var outcome = IntentDispatch.route(new IntentDispatch.Step(routing,
+                    admittedMessage, message, request, this, memory, resource.uuid(),
+                    ApprovalStrategy.virtualThread(approvalRegistry), cancelPending::get));
+            if (outcome == IntentDispatch.Outcome.HANDLED) {
+                postProcess(request);
+                return;
+            }
         }
 
         // Snapshot the system prompt as the developer (and ScopePolicy) shaped
@@ -1196,17 +1246,18 @@ public class AiStreamingSession implements StreamingSession {
         } finally {
             turnEvent.commit();
         }
-        try {
-            // Post-process follows execution
-        } finally {
-            // Post-process: LIFO order (matching AtmosphereInterceptor convention)
-            for (int i = interceptors.size() - 1; i >= 0; i--) {
-                try {
-                    interceptors.get(i).postProcess(finalRequest, resource);
-                } catch (Exception e) {
-                    logger.error("AiInterceptor.postProcess failed: {}",
-                            interceptors.get(i).getClass().getName(), e);
-                }
+        // Post-process follows execution
+        postProcess(finalRequest);
+    }
+
+    /** Post-process: LIFO order (matching AtmosphereInterceptor convention). */
+    private void postProcess(AiRequest finalRequest) {
+        for (int i = interceptors.size() - 1; i >= 0; i--) {
+            try {
+                interceptors.get(i).postProcess(finalRequest, resource);
+            } catch (Exception e) {
+                logger.error("AiInterceptor.postProcess failed: {}",
+                        interceptors.get(i).getClass().getName(), e);
             }
         }
     }

@@ -292,6 +292,12 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     private volatile boolean broadcastReply;
 
     /**
+     * Endpoint-scoped intent routing from {@code @AiEndpoint.intentRouting()};
+     * applied to every session this handler creates. Null installs none.
+     */
+    private volatile org.atmosphere.ai.intent.IntentRouting intentRouting;
+
+    /**
      * Endpoint-scoped response cache resolved once by the processor from
      * {@code atmosphere.ai.cache.*}. Applied to every session this handler
      * creates so the websocket path gets the same cache the pipeline path has
@@ -338,6 +344,15 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
 
     public void setBroadcastReply(boolean broadcastReply) {
         this.broadcastReply = broadcastReply;
+    }
+
+    public void setIntentRouting(org.atmosphere.ai.intent.IntentRouting intentRouting) {
+        this.intentRouting = intentRouting;
+    }
+
+    /** The endpoint-level intent routing, or {@code null} when none is installed. */
+    org.atmosphere.ai.intent.IntentRouting intentRouting() {
+        return intentRouting;
     }
 
     @Override
@@ -783,6 +798,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         }
         if (ragRetrieval != null) {
             session.setRagRetrieval(ragRetrieval);
+        }
+        var routing = intentRouting;
+        if (routing != null) {
+            session.setIntentRouting(routing);
         }
 
         // Publish the handler's injectables map (AgentFleet, AgentIdentity,

@@ -1048,9 +1048,110 @@ tiers read free text and admitted an empty, unparseable or timed-out reply;
 an `@AgentScope(tier = LLM_CLASSIFIER)` endpoint with no reachable model now
 denies every request unless the opt-out is set.
 
-`Choice` and `Score` are API plus reference implementation, with no production
-consumer yet. Intent routing and an adapter for an external decision-model API
-are not part of this module.
+`Choice` has one production consumer, intent routing (next section). `Score`
+remains API plus reference implementation, with no production consumer. An
+adapter for an external decision-model API is not part of this module.
+
+## Intent routing (deterministic handler, LLM, or human)
+
+`IntentRouting` (`org.atmosphere.ai.intent`) decides, **before** a request
+reaches the LLM, which handler takes it: a deterministic Java callback, the
+normal LLM path, or a person. It asks one `Question.Choice` over the declared
+routes through a `DecisionModel` and gates the answer with the same
+`ConfidenceRouting` tiers a completed turn is routed on. It composes with
+`ModelRouter`: intent routing picks the handler, and on an LLM route the request
+continues down the normal dispatch path, where the runtime (a
+`RoutingAiSupport` over a `DefaultModelRouter`, for example) still picks the
+model.
+
+```java
+public class SupportIntents implements IntentRoutingProvider {
+    @Override
+    public IntentRouting intentRouting() {
+        return IntentRouting.of("Which team should handle this customer message?",
+                        IntentRoute.handler("track", "where an order or parcel is",
+                                decision -> orders.status(decision.message())),
+                        IntentRoute.llm("general", "anything else"),
+                        IntentRoute.human("agent", "the customer needs a person",
+                                decision -> "A person will follow up (ticket "
+                                        + tickets.open(decision.request()) + ")"))
+                .withThresholds(ConfidenceRouting.of(0.9, 0.5))
+                .withHandler(decision -> audit.record(decision));
+    }
+}
+
+@AiEndpoint(path = "/support", intentRouting = SupportIntents.class)
+public class SupportChat {
+    @Prompt
+    public void onPrompt(String message, StreamingSession session) {
+        session.stream(message);   // routed here, before the runtime is called
+    }
+}
+```
+
+On `AiPipeline`, `pipeline.setDefaultIntentRouting(routing)`. Per request, an
+`AiInterceptor` (endpoint) or the caller (pipeline) can put a routing under the
+`ai.intent.routing` metadata key; it wins over the default and is removed before
+the request reaches the runtime. `AiStreamingSession.setIntentRouting` installs
+one on a session directly.
+
+| Classification | What runs |
+|----------------|-----------|
+| choice at `>= actAt` (default 0.9) | the chosen route |
+| choice at `>= confirmAt` (default 0.5) | the requester is asked to confirm; approved runs the chosen route, denied or timed out (`confirmTimeout`, default 2 min) runs the human route |
+| choice below `confirmAt` | the human route |
+| the model chose the human route | the human route, at any confidence, without a confirmation |
+| no decision model, `Answer.Failed` (timeout, capacity, error, unparseable or out-of-set reply), a message over 262,144 characters, a model that throws | the human route |
+| a valid choice with no measured confidence | `ConfidenceRouting.unknownRoute()`, `ESCALATE` by default |
+
+- **Routes.** 2..16 routes with unique names (`[A-Za-z0-9_-]{1,64}`), exactly
+  one `IntentRoute.Human`. Sixteen is the largest choice `RuntimeDecisionModel`
+  answers with letter codes, so the choice can be scored from the model's
+  distribution over the routes (`DECISION_LOGPROBS`, Built-in runtime only)
+  rather than a self-reported number; `IntentRoutingBoundTest` pins the two
+  together.
+- **Where it runs.** After admission on both paths — request guardrails and the
+  governance policies (merged into the guardrail list on `@AiEndpoint`, a
+  separate loop on `AiPipeline`), then the per-request scope on the endpoint —
+  so a denied request is never classified. The classifier sees the user message
+  as the request guardrails left it (a redacting guardrail's output, never the
+  raw text), never the RAG-augmented text.
+- **Handlers.** An `IntentHandler` returns the reply text; the framework sends
+  it and completes the turn, or errors the turn when the handler throws (there
+  is no fallback to the LLM). The human route's handler hands the request to
+  your queue and returns the acknowledgement. Handler routes are recorded in
+  conversation memory like an LLM turn; the LLM-only layers (metrics, cost,
+  budget, response guardrails, structured output, confidence) do not apply
+  because no model is called.
+- **Confirmation.** A CONFIRM-tier choice uses the approval machinery tools use:
+  an `approval-required` frame with tool name `intent:<route>` and arguments
+  `route`, `tier`, `confidence`, answered by `/__approval/<id>/approve` or
+  `/deny` on the same session (`AiPipeline.tryResolveApproval` on the pipeline).
+  Edited arguments and `respond` payloads are ignored: approving takes the
+  proposed route. On the endpoint, a client disconnect while waiting errors the
+  turn instead of escalating. The confirmation is not journaled for durable
+  runs. The OpenAI-compatible and batch surfaces of an `@AiEndpoint` get the
+  same routing but have no channel to answer on, so — like a `@RequiresApproval`
+  tool there — a CONFIRM-tier request waits `confirmTimeout` and escalates.
+- **Why not human escalation through the approval registry?** On
+  `@AiEndpoint` an approval is answered on the requester's own connection, so a
+  "human reply" sent there could be forged by the requester. Escalation
+  therefore calls your human-route handler, which owns the hand-off.
+- **Wire signal.** Before any reply: `ai.intent.route` (the route taken),
+  `ai.intent.tier` (`ACT` / `CONFIRM` / `ESCALATE`), `ai.intent.choice` (absent
+  when the model gave no answer) and `ai.intent.confidence` (absent when
+  unknown). `withHandler(...)` receives every `IntentDecision` (route, choice,
+  tier, confidence, reason, classified message, request) before the route runs.
+- **Bounds.** One question per request, bounded by `timeout` (default 5 s) and
+  the decision model's own concurrency limit; a confirmation by
+  `confirmTimeout`. The handler runs on the turn's thread, like a `@Prompt` body.
+
+`IntentRoutingParityTest` drives every case through both `AiStreamingSession`
+and `AiPipeline`; `AiEndpointIntentRoutingTest` covers the annotation, the
+processor and the handler; `ai-intent-routing.spec.ts` drives both paths over
+WebSocket against `RuntimeDecisionModel` with a scripted runtime that reports a
+decision distribution. The tiers have not yet been exercised against a live
+provider's logprobs.
 
 ## Prompt Registry (versioned prompts, templating, rollout)
 

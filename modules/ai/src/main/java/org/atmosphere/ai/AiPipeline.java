@@ -109,6 +109,13 @@ public class AiPipeline {
      */
     private volatile ConfidenceRouting defaultConfidenceRouting;
     /**
+     * Pipeline-level default {@link org.atmosphere.ai.intent.IntentRouting}.
+     * When set, every admitted request is routed to a deterministic handler,
+     * the LLM, or a person before dispatch; per-request callers override via
+     * the {@code ai.intent.routing} metadata key.
+     */
+    private volatile org.atmosphere.ai.intent.IntentRouting defaultIntentRouting;
+    /**
      * Pipeline-level default {@link AiStructuredRetry}. When set and enabled,
      * every {@link #execute(String, String, StreamingSession)} call seeds it
      * into the request metadata so structured-output turns self-heal on schema
@@ -330,6 +337,29 @@ public class AiPipeline {
     }
 
     /**
+     * Install a pipeline-level default {@link org.atmosphere.ai.intent.IntentRouting}.
+     * When non-null, every admitted request (after guardrails and governance
+     * policies) is classified with one {@code Question.Choice} over the
+     * routing's routes and sent to a deterministic handler, the normal LLM
+     * path, or the human route — identically to the {@code @AiEndpoint} path.
+     * A CONFIRM-tier choice is confirmed through this pipeline's approval
+     * registry ({@link #tryResolveApproval(String)}).
+     *
+     * <p>Per-request callers can override via the {@code ai.intent.routing}
+     * metadata key — caller-supplied routings win.</p>
+     *
+     * @param routing routing to install, or {@code null} to disable
+     */
+    public void setDefaultIntentRouting(org.atmosphere.ai.intent.IntentRouting routing) {
+        this.defaultIntentRouting = routing;
+    }
+
+    /** The currently configured pipeline default intent routing; {@code null} when none. */
+    public org.atmosphere.ai.intent.IntentRouting defaultIntentRouting() {
+        return defaultIntentRouting;
+    }
+
+    /**
      * Install a pipeline-level default {@link AiStructuredRetry}. Applies only
      * to structured-output turns (those with a declared response type). Per-request
      * callers override via the {@code ai.structured.retry} metadata key in the
@@ -498,6 +528,13 @@ public class AiPipeline {
             baseMetadata.putIfAbsent(AiStructuredRetry.METADATA_KEY, pipelineRetry);
         }
 
+        // Intent routing: the caller's per-request routing wins over the
+        // pipeline default. The key is consumed here so the routing (and the
+        // handlers it carries) never reaches the provider request metadata.
+        var intentRouting = IntentDispatch.resolve(baseMetadata, this.defaultIntentRouting)
+                .orElse(null);
+        baseMetadata.remove(org.atmosphere.ai.intent.IntentRouting.METADATA_KEY);
+
         // Per-request ScopePolicy install — an interceptor (e.g., classroom's
         // RoomContextInterceptor) may set a ScopeConfig under
         // ScopePolicy.REQUEST_SCOPE_METADATA_KEY to narrow scope for this
@@ -606,6 +643,18 @@ public class AiPipeline {
                 tracer.end("error", e.getMessage(), e);
                 session.error(new SecurityException("Policy " + policy.name()
                         + " evaluation failed: " + e.getMessage(), e));
+                return;
+            }
+        }
+
+        // Intent routing runs on the admitted request only: a denied request is
+        // never classified, and a handler route never reaches the runtime. The
+        // same step runs on the @AiEndpoint path (Mode Parity, Invariant #7).
+        if (intentRouting != null) {
+            var outcome = IntentDispatch.route(new IntentDispatch.Step(intentRouting,
+                    request.message(), message, request, session, memory, clientId,
+                    ApprovalStrategy.virtualThread(approvalRegistry), () -> false));
+            if (outcome == IntentDispatch.Outcome.HANDLED) {
                 return;
             }
         }

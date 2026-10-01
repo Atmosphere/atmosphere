@@ -379,6 +379,15 @@ public class AiEndpointProcessor implements Processor<Object> {
             if (annotation.broadcastReply()) {
                 handler.setBroadcastReply(true);
             }
+            // Endpoint-scoped intent routing: resolved once here; a provider that
+            // cannot be built fails the registration rather than serving the
+            // endpoint without the routing it declared.
+            var intentRouting = instantiateIntentRouting(annotation.intentRouting(), framework);
+            if (intentRouting != null) {
+                handler.setIntentRouting(intentRouting);
+                logger.info("AI endpoint {} — intent routing over {} routes", annotation.path(),
+                        intentRouting.routes().size());
+            }
 
             // Per-endpoint stream cache: set the framework's cache class name
             // before the broadcaster is created so the new broadcaster picks up
@@ -412,7 +421,7 @@ public class AiEndpointProcessor implements Processor<Object> {
                     endpointModel != null ? endpointModel
                             : (settings != null ? settings.model() : null),
                     memory, toolRegistry, endpointGuardrails, policies, contextProviders,
-                    metrics, responseType, injectables, cachePolicy);
+                    metrics, responseType, injectables, cachePolicy, intentRouting);
 
             // Opt-in durable batch serving (atmosphere.ai.batch.enabled):
             // the same pieces behind the async submit/poll job surface, so
@@ -422,7 +431,7 @@ public class AiEndpointProcessor implements Processor<Object> {
                     endpointModel != null ? endpointModel
                             : (settings != null ? settings.model() : null),
                     memory, toolRegistry, endpointGuardrails, policies, contextProviders,
-                    metrics, responseType, injectables, cachePolicy);
+                    metrics, responseType, injectables, cachePolicy, intentRouting);
 
             logger.info("AI endpoint registered at {} (class: {}, runtime: {}, interceptors: {}, "
                             + "memory: {}, tools: {}, guardrails: {}, contextProviders: {}, "
@@ -458,20 +467,15 @@ public class AiEndpointProcessor implements Processor<Object> {
             List<AiGuardrail> guardrails, List<GovernancePolicy> policies,
             List<ContextProvider> contextProviders, AiMetrics metrics,
             Class<?> responseType, java.util.Map<Class<?>, Object> injectables,
-            org.atmosphere.ai.llm.CacheHint.CachePolicy cachePolicy) {
+            org.atmosphere.ai.llm.CacheHint.CachePolicy cachePolicy,
+            org.atmosphere.ai.intent.IntentRouting intentRouting) {
         if (!org.atmosphere.ai.openai.OpenAiServingRegistrar.enabled(framework)) {
             return;
         }
         var name = openAiServingName(path);
-        var pipeline = new org.atmosphere.ai.AiPipeline(runtime, systemPrompt, model, memory,
-                toolRegistry, guardrails, policies, contextProviders, metrics, responseType);
-        if (cachePolicy != null
-                && cachePolicy != org.atmosphere.ai.llm.CacheHint.CachePolicy.NONE) {
-            pipeline.setDefaultCachePolicy(cachePolicy);
-        }
-        if (injectables != null && !injectables.isEmpty()) {
-            pipeline.setToolInjectables(injectables);
-        }
+        var pipeline = servingPipeline(runtime, systemPrompt, model, memory, toolRegistry,
+                guardrails, policies, contextProviders, metrics, responseType, injectables,
+                cachePolicy, intentRouting);
         if (org.atmosphere.ai.openai.OpenAiServingRegistrar.registerAgent(
                 framework, name, pipeline, memory)) {
             logger.info("@AiEndpoint {} exposed as OpenAI-compatible model '{}'", path, name);
@@ -492,11 +496,35 @@ public class AiEndpointProcessor implements Processor<Object> {
             List<AiGuardrail> guardrails, List<GovernancePolicy> policies,
             List<ContextProvider> contextProviders, AiMetrics metrics,
             Class<?> responseType, java.util.Map<Class<?>, Object> injectables,
-            org.atmosphere.ai.llm.CacheHint.CachePolicy cachePolicy) {
+            org.atmosphere.ai.llm.CacheHint.CachePolicy cachePolicy,
+            org.atmosphere.ai.intent.IntentRouting intentRouting) {
         if (!org.atmosphere.ai.batch.BatchServingRegistrar.enabled(framework)) {
             return;
         }
         var name = openAiServingName(path);
+        var pipeline = servingPipeline(runtime, systemPrompt, model, memory, toolRegistry,
+                guardrails, policies, contextProviders, metrics, responseType, injectables,
+                cachePolicy, intentRouting);
+        if (org.atmosphere.ai.batch.BatchServingRegistrar.registerAgent(
+                framework, name, pipeline, memory)) {
+            logger.info("@AiEndpoint {} exposed as batch agent '{}'", path, name);
+        }
+    }
+
+    /**
+     * The pipeline behind an endpoint's OpenAI-compatible and batch surfaces,
+     * built from the same pieces as the websocket handler — including its
+     * intent routing — so a request is admitted, routed and dispatched the same
+     * way on every surface of the endpoint (Mode Parity #7). Package-private
+     * for {@code AiEndpointIntentRoutingTest}.
+     */
+    static org.atmosphere.ai.AiPipeline servingPipeline(AgentRuntime runtime, String systemPrompt,
+            String model, AiConversationMemory memory, ToolRegistry toolRegistry,
+            List<AiGuardrail> guardrails, List<GovernancePolicy> policies,
+            List<ContextProvider> contextProviders, AiMetrics metrics,
+            Class<?> responseType, java.util.Map<Class<?>, Object> injectables,
+            org.atmosphere.ai.llm.CacheHint.CachePolicy cachePolicy,
+            org.atmosphere.ai.intent.IntentRouting intentRouting) {
         var pipeline = new org.atmosphere.ai.AiPipeline(runtime, systemPrompt, model, memory,
                 toolRegistry, guardrails, policies, contextProviders, metrics, responseType);
         if (cachePolicy != null
@@ -506,10 +534,8 @@ public class AiEndpointProcessor implements Processor<Object> {
         if (injectables != null && !injectables.isEmpty()) {
             pipeline.setToolInjectables(injectables);
         }
-        if (org.atmosphere.ai.batch.BatchServingRegistrar.registerAgent(
-                framework, name, pipeline, memory)) {
-            logger.info("@AiEndpoint {} exposed as batch agent '{}'", path, name);
-        }
+        pipeline.setDefaultIntentRouting(intentRouting);
+        return pipeline;
     }
 
     /** Derive the serving name from an endpoint path: its last non-blank segment. */
@@ -733,6 +759,29 @@ public class AiEndpointProcessor implements Processor<Object> {
                     org.atmosphere.ai.websearch.WebSearchTool.TOOL_NAME);
         }
         return registry;
+    }
+
+    /**
+     * Build the endpoint's intent routing from {@code @AiEndpoint.intentRouting()}.
+     * The {@link org.atmosphere.ai.intent.IntentRoutingProvider} interface itself
+     * is the "none" default. Package-private for the processor test.
+     *
+     * @throws IllegalStateException when the provider cannot be built or throws
+     */
+    static org.atmosphere.ai.intent.IntentRouting instantiateIntentRouting(
+            Class<? extends org.atmosphere.ai.intent.IntentRoutingProvider> clazz,
+            AtmosphereFramework framework) {
+        if (clazz == null || clazz == org.atmosphere.ai.intent.IntentRoutingProvider.class) {
+            return null;
+        }
+        try {
+            var provider = framework.newClassInstance(
+                    org.atmosphere.ai.intent.IntentRoutingProvider.class, clazz);
+            return provider.intentRouting();
+        } catch (Exception e) {
+            throw new IllegalStateException("Cannot build the intent routing from "
+                    + clazz.getName(), e);
+        }
     }
 
     private List<AiGuardrail> instantiateGuardrails(Class<? extends AiGuardrail>[] classes,

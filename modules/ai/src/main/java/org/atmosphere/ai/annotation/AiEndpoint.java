@@ -384,6 +384,23 @@ public @interface AiEndpoint {
     int maxToolsPerRequest() default 0;
 
     /**
+     * Intent routing in front of the LLM: before dispatch, one
+     * {@link org.atmosphere.ai.decision.Question.Choice} over the routes the
+     * provider declares picks a deterministic handler, the normal LLM path, or
+     * a person, gated by the routing's confidence tiers — see
+     * {@link org.atmosphere.ai.intent.IntentRouting}. The class is instantiated
+     * once at registration through the framework's object factory.
+     *
+     * <p>Defaults to the {@link org.atmosphere.ai.intent.IntentRoutingProvider}
+     * interface itself: no routing. The same routing is installed on this
+     * endpoint's OpenAI-compatible and batch surfaces when those are enabled.</p>
+     *
+     * <p>Example: {@code @AiEndpoint(path = "/support", intentRouting = SupportIntents.class)}</p>
+     */
+    Class<? extends org.atmosphere.ai.intent.IntentRoutingProvider> intentRouting()
+            default org.atmosphere.ai.intent.IntentRoutingProvider.class;
+
+    /**
      * Inline retry-policy configuration for {@link AiEndpoint#retry()}.
      * Default values match {@link org.atmosphere.ai.RetryPolicy#DEFAULT}
      * except for the sentinel {@code maxRetries = -1} which signals "use

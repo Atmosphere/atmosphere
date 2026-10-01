@@ -104,7 +104,7 @@ jobs:
           - name: ai-advanced
             projects: "rag-chat,ai-filters,ai-fanout,ai-cache,ai-budget,ai-cache-hint,ai-embedding,ai-gap-coverage,ai-confidence-elicitation,ai-decision-model"
           - name: ai-routing
-            projects: "ai-cost-routing,ai-cache-coalescing,ai-combined-cost-cache,ai-routing,ai-classroom,spring-boot-ai-classroom,classroom-resilience"
+            projects: "ai-cost-routing,ai-cache-coalescing,ai-combined-cost-cache,ai-routing,ai-intent-routing,ai-classroom,spring-boot-ai-classroom,classroom-resilience"
           # checkpoint-agent lives under gap-coordinator with the other
           # durable-HITL specs. The previously-quarantined ai-cancel,
           # admin-coverage, and orchestration-primitives specs are now

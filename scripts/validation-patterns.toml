@@ -175,7 +175,10 @@ user_extensible = [
     "PostPromptHook",
     "AgentLifecycleListener",
     "EmbeddingRuntime",
-    "TokenPricing"
+    "TokenPricing",
+    # The application's answer for an intent route (a deterministic handler or the
+    # human hand-off); implemented as a lambda in app code, consumed by IntentDispatch.
+    "IntentHandler"
 ]
 
 # ============================================================================
