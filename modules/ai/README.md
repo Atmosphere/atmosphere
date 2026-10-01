@@ -604,6 +604,11 @@ message again, up to 3 attempts, and reports one it cannot deliver to the
 even with `enableProtocol` off, by choosing a new one for each subscription
 (connect or reconnect) when the server assigns none.
 
+Long-polling routes the prompt but does not yet carry the reply: the first reply
+frame completes the poll the prompt was dispatched to, and the frames after it
+(the streamed text, `complete`, `error`) are not delivered to the client's next
+poll. Use WebSocket, SSE or streaming for an `@AiEndpoint`.
+
 | Init-param | Default | Meaning |
 |---|---|---|
 | `org.atmosphere.ai.prompt.repollWaitMs` | `2000` | How long such a prompt waits for its client's next connection (capped at 30000; `0` refuses at once) |
