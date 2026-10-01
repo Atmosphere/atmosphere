@@ -232,6 +232,40 @@ describe('a prompt the server never took', () => {
     expect(wrapper.find('p.user').text()).not.toContain('not delivered')
   })
 
+  it('does not blame a prompt already answered for a later refused frame', async () => {
+    const { chat, wrapper } = await mountWithInput()
+    chat.send('hello')
+    await nextTick()
+    handlers.onEvent({ type: 'streaming-text', data: 'hi there' })
+    handlers.onEvent({ type: 'complete' })
+    await nextTick()
+    expect(chat.isStreaming.value).toBe(false)
+
+    handlers.onError(sendError())
+    await nextTick()
+
+    expect(wrapper.find('p.user').text()).toBe('hello')
+  })
+
+  it('keeps waiting when an approval is refused before any reply text streamed', async () => {
+    const { chat, wrapper } = await mountWithInput()
+    chat.send('delete the temp files')
+    await nextTick()
+    // The prompt arrived: the server asks to approve a tool call, no text yet.
+    handlers.onEvent({
+      type: 'approval-required',
+      data: { approvalId: 'approval-1', toolName: 'delete_files', message: 'Approve delete_files?' },
+    })
+    await nextTick()
+
+    // The approval answer's POST is the frame that was refused.
+    handlers.onError(sendError())
+    await nextTick()
+
+    expect(chat.isStreaming.value).toBe(true)
+    expect(wrapper.find('p.user').text()).not.toContain('not delivered')
+  })
+
   it('still reports a transport error as a connection error', async () => {
     const { chat } = await mountWithInput()
     handlers.onError(new Error('connection lost'))
