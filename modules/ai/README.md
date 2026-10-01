@@ -586,6 +586,26 @@ export LLM_MODE=local
 export LLM_MODEL=llama3.2
 ```
 
+### Prompt routing over HTTP transports
+
+An `@AiEndpoint` prompt runs only on the connection that sent it, never on every
+subscriber of the path. A WebSocket frame names its connection with the
+server-set suspended uuid; an SSE or long-polling POST names it with the
+`X-Atmosphere-tracking-id` header. A long-polling client that posts between two
+polls has no registered connection for a moment, so its prompt waits for that
+client's next poll and is answered `503` with `Retry-After: 1` if none arrives.
+A POST that names no connection is answered `400`. atmosphere.js sends a `503`'d
+message again, up to 3 attempts, and reports one it cannot deliver to the
+`error` handler.
+
+| Init-param | Default | Meaning |
+|---|---|---|
+| `org.atmosphere.ai.prompt.repollWaitMs` | `2000` | How long such a prompt waits for its client's next connection (capped at 30000; `0` refuses at once) |
+| `org.atmosphere.ai.prompt.maxRepollWaiters` | `64` | Prompts of one endpoint that may wait at once; one per tracking id |
+
+Only a tracking id the endpoint suspended a connection for recently is waited
+for; any other id is refused at once.
+
 ### OpenAI-compatible serving endpoint (inbound)
 
 Opt-in inbound surface (`org.atmosphere.ai.openai`) that exposes registered

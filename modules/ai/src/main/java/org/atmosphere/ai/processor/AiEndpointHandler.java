@@ -107,6 +107,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     private final String endpointModel;
     private final Map<Class<?>, Object> injectables;
     private final PromptMethodInvoker promptInvoker;
+    private final PromptRepollGate repollGate;
 
     /**
      * @param target       the user's @AiEndpoint instance
@@ -229,6 +230,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         this.target = target;
         this.promptMethod = promptMethod;
         this.suspendTimeout = timeout;
+        this.repollGate = new PromptRepollGate(timeout);
         this.systemPrompt = systemPrompt != null ? systemPrompt : "";
         this.pathTemplate = pathTemplate;
         this.runtime = runtime;
@@ -374,24 +376,40 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         //     attribute delegation to the wrapped original request.
         //   • SSE / long-polling: the client carries it on every POST as the
         //     X-Atmosphere-tracking-id header.
+        //
+        // A prompt is never fanned out to the per-path broadcaster: every
+        // subscriber's @Prompt would answer it. When the client's connection is
+        // not registered — a long-polling client posting between two polls — the
+        // prompt waits briefly for that client's next connection, and is
+        // otherwise refused with a retryable 503. No identifier at all is a 400.
         if ("POST".equalsIgnoreCase(method)) {
             var msg = readPrompt(resource);
             if (msg != null) {
+                var since = System.nanoTime();
                 var target = findOriginatingResource(resource);
-                if (target != null) {
-                    target.getBroadcaster().broadcast(msg, target);
-                } else {
-                    // Pre-fix behavior, retained as a safety net for non-conformant
-                    // clients that ship neither header. Logged so the regression
-                    // is visible rather than silent.
-                    logger.warn("Cannot identify originating resource for prompt on {}; "
-                                    + "falling back to per-path broadcast (will fan out across all "
-                                    + "subscribers — set {} or send {} header to enable targeted dispatch)",
-                            pathTemplate,
-                            ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID,
-                            HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
-                    resolvePerPathBroadcaster(resource).broadcast(msg);
+                if (target == null) {
+                    var trackingId = promptTrackingId(resource);
+                    if (trackingId == null) {
+                        logger.warn("Prompt on {} carries neither {} nor a {} header; answering 400",
+                                pathTemplate, ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID,
+                                HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
+                        resource.getResponse().setStatus(400);
+                        return;
+                    }
+                    var outcome = repollGate.await(trackingId, since,
+                            () -> resolveTrackingId(resource, trackingId),
+                            resource.getAtmosphereConfig());
+                    target = outcome.target();
+                    if (target == null) {
+                        logger.warn("No connection of {} on {} could take its prompt ({}); answering 503",
+                                trackingId, pathTemplate, outcome.refusal());
+                        var response = resource.getResponse();
+                        response.setHeader("Retry-After", "1");
+                        response.setStatus(503);
+                        return;
+                    }
                 }
+                target.getBroadcaster().broadcast(msg, target);
             }
             return;
         }
@@ -420,6 +438,11 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             // mid-stream. Silent no-op when the attr is absent (fresh
             // connection) or the run is unknown (expired or never existed).
             reattachPendingRun(resource);
+            // Last: the connection now carries its path params and system prompt,
+            // so a prompt that waited for it may be dispatched to it.
+            if (resource.isSuspended()) {
+                repollGate.connectionReady(resource.uuid());
+            }
         }
     }
 
@@ -1377,47 +1400,52 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * {@link HeaderConfig#X_ATMOSPHERE_TRACKING_ID} header. We try the
      * WebSocket-suspended attribute first (set by
      * {@code DefaultWebSocketProcessor}) and fall back to the tracking-id
-     * header. Returns {@code null} when neither is present so the caller can
-     * decide whether to fall back to broadcast-all or refuse.
+     * header. Returns {@code null} when neither resolves; the caller then waits
+     * for the client's next connection or refuses — never broadcasts to all.
      */
     private AtmosphereResource findOriginatingResource(AtmosphereResource resource) {
         var req = resource.getRequest();
-        var factory = resource.getAtmosphereConfig().resourcesFactory();
-        var suspendedUuid = req.getAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
-        if (suspendedUuid instanceof String s && !s.isEmpty()) {
-            var found = factory.findResource(s);
-            if (found.isPresent()) {
-                return found.get();
+        var suspendedUuid = suspendedUuid(req);
+        if (suspendedUuid != null) {
+            var found = resolveTrackingId(resource, suspendedUuid);
+            if (found != null) {
+                return found;
             }
         }
-        var headerUuid = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
-        if (headerUuid != null && !headerUuid.isEmpty() && !"0".equals(headerUuid)) {
-            var found = factory.findResource(headerUuid);
-            if (found.isPresent()) {
-                return found.get();
-            }
-        }
-        return null;
+        var headerUuid = headerTrackingId(req);
+        return headerUuid != null ? resolveTrackingId(resource, headerUuid) : null;
     }
 
     /**
-     * Resolves the correct broadcaster for a WebSocket frame dispatch. When the
-     * path template contains parameters, the suspended resource's per-path
-     * broadcaster is looked up by request URI. Falls back to the resource's
-     * current broadcaster when no path template is configured.
+     * The tracking id a prompt POST waits on when it resolves to no connection,
+     * or {@code null} when the client identified none. A WebSocket frame carries
+     * {@link ApplicationConfig#SUSPENDED_ATMOSPHERE_RESOURCE_UUID}, set by the
+     * server at the handshake. An SSE / long-polling POST carries the
+     * {@link HeaderConfig#X_ATMOSPHERE_TRACKING_ID} header; on such a request the
+     * framework fills that attribute with a freshly generated id when the header
+     * is missing or {@code "0"}, so the attribute alone identifies nobody there.
      */
-    private Broadcaster resolvePerPathBroadcaster(AtmosphereResource resource) {
-        if (pathTemplate != null && pathTemplate.contains("{")) {
-            var requestUri = resource.getRequest().getRequestURI();
-            if (requestUri != null) {
-                var factory = resource.getAtmosphereConfig().getBroadcasterFactory();
-                var broadcaster = factory.lookup(requestUri, false);
-                if (broadcaster != null) {
-                    return broadcaster;
-                }
-            }
+    private static String promptTrackingId(AtmosphereResource resource) {
+        var req = resource.getRequest();
+        if (req.getAttribute(FrameworkConfig.WEBSOCKET_MESSAGE) != null) {
+            var suspendedUuid = suspendedUuid(req);
+            return suspendedUuid != null ? suspendedUuid : headerTrackingId(req);
         }
-        return resource.getBroadcaster();
+        return headerTrackingId(req);
+    }
+
+    private static String suspendedUuid(AtmosphereRequest req) {
+        var value = req.getAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+        return value instanceof String s && !s.isEmpty() ? s : null;
+    }
+
+    private static String headerTrackingId(AtmosphereRequest req) {
+        var value = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
+        return value != null && !value.isEmpty() && !"0".equals(value) ? value : null;
+    }
+
+    private static AtmosphereResource resolveTrackingId(AtmosphereResource resource, String trackingId) {
+        return resource.getAtmosphereConfig().resourcesFactory().findResource(trackingId).orElse(null);
     }
 
     /**

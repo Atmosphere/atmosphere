@@ -27,7 +27,9 @@ import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,7 +53,7 @@ import static org.mockito.Mockito.when;
 /**
  * Pins the cross-tab isolation guarantee for {@link AiEndpointHandler}.
  *
- * <p>Two tabs subscribed to the same {@code @AiEndpoint} path must receive each
+ * <p>Two tabs subscribed to the same {@code @AiEndpoint} path must never receive each
  * other's prompts. Before the targeted-dispatch fix, the prompt POST handler
  * called {@code broadcaster.broadcast(msg)} which fanned the prompt out to every
  * suspended resource on the per-path broadcaster — driving N redundant LLM
@@ -67,8 +69,10 @@ import static org.mockito.Mockito.when;
  *   <li>The {@code broadcast(msg, target)} overload is used so the broadcaster's
  *       {@code onStateChange} fires for the target only — never the all-resources
  *       fanout.</li>
- *   <li>Only when neither hint is present do we fall back to broadcast-all
- *       (and emit a warning log so non-conformant clients are visible).</li>
+ *   <li>A prompt is never broadcast to all: with neither hint it is refused
+ *       with {@code 400}, and with a hint that resolves to no connection it is
+ *       refused with a retryable {@code 503} (see
+ *       {@link AiEndpointHandlerPromptRepollTest} for the bounded wait).</li>
  * </ul>
  */
 class AiEndpointHandlerCrossTabIsolationTest {
@@ -203,18 +207,18 @@ class AiEndpointHandlerCrossTabIsolationTest {
     }
 
     @Test
-    void noHintsTriggersFanoutFallback() throws Exception {
-        // Legacy / non-conformant client: no SUSPENDED_ATMOSPHERE_RESOURCE_UUID
-        // attribute, tracking-id header is "0" (fresh). We should fall back to
-        // the per-path broadcast-all path so message delivery isn't silently
-        // dropped — but the warning log makes it visible (not asserted here,
-        // but documented in AiEndpointHandler).
+    void noHintsIsRejectedWith400AndNeverFansOut() throws Exception {
+        // No SUSPENDED_ATMOSPHERE_RESOURCE_UUID attribute and a "0" (pre-handshake)
+        // tracking id: nothing identifies the sender. The prompt used to fan out
+        // to every subscriber of the path; it is now refused.
         var fallbackBroadcaster = mock(Broadcaster.class);
+        var response = mock(AtmosphereResponse.class);
 
         var tempResource = mock(AtmosphereResource.class);
         var request = mock(AtmosphereRequest.class);
 
         when(tempResource.getRequest()).thenReturn(request);
+        when(tempResource.getResponse()).thenReturn(response);
         when(tempResource.getAtmosphereConfig()).thenReturn(config);
         when(tempResource.getBroadcaster()).thenReturn(fallbackBroadcaster);
         when(request.getMethod()).thenReturn("POST");
@@ -225,16 +229,18 @@ class AiEndpointHandlerCrossTabIsolationTest {
 
         handler.onRequest(tempResource);
 
-        // Fallback fans out: the legacy path is preserved as a safety net.
-        verify(fallbackBroadcaster).broadcast(eq("legacy-prompt"));
+        verify(response).setStatus(400);
+        verify(fallbackBroadcaster, never()).broadcast(any());
+        verify(fallbackBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));
     }
 
     @Test
-    void unknownUuidFallsThroughToFanout() throws Exception {
-        // Suspended UUID was published but the resource has since gone away
-        // (disconnect race). We must not silently drop the prompt — fall back
-        // to broadcast-all rather than leave the user with no response.
+    void unknownUuidIsRejectedWith503AndNeverFansOut() throws Exception {
+        // A WebSocket frame whose suspended UUID was published but whose resource
+        // has since gone away, and this endpoint never suspended a connection for it: refuse with a
+        // retryable 503 rather than fan the prompt out to every subscriber.
         var fallbackBroadcaster = mock(Broadcaster.class);
+        var response = mock(AtmosphereResponse.class);
 
         when(resourcesFactory.findResource("ghost-uuid")).thenReturn(Optional.empty());
 
@@ -242,17 +248,22 @@ class AiEndpointHandlerCrossTabIsolationTest {
         var request = mock(AtmosphereRequest.class);
 
         when(tempResource.getRequest()).thenReturn(request);
+        when(tempResource.getResponse()).thenReturn(response);
         when(tempResource.getAtmosphereConfig()).thenReturn(config);
         when(tempResource.getBroadcaster()).thenReturn(fallbackBroadcaster);
         when(request.getMethod()).thenReturn("POST");
         when(request.body()).thenReturn(new AtmosphereRequestImpl.Body.StringBody("orphan-prompt"));
         when(request.getAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID))
                 .thenReturn("ghost-uuid");
+        when(request.getAttribute(FrameworkConfig.WEBSOCKET_MESSAGE)).thenReturn("true");
         when(request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID)).thenReturn(null);
 
         handler.onRequest(tempResource);
 
-        verify(fallbackBroadcaster).broadcast(eq("orphan-prompt"));
+        verify(response).setStatus(503);
+        verify(response).setHeader("Retry-After", "1");
+        verify(fallbackBroadcaster, never()).broadcast(any());
+        verify(fallbackBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));
     }
 
     private AtmosphereResource postResourceWith(String suspendedUuidAttr,

@@ -91,10 +91,13 @@ curl -d 'ping' http://localhost:8099/chat   # -> "pong"
 curl -d 'hello' http://localhost:8099/chat  # -> "echo: hello"
 ```
 
-The agent endpoint is registered too:
+The agent endpoint is registered too. A prompt POST must name the connection
+it belongs to (the `X-Atmosphere-tracking-id` atmosphere.js sends), so the agent
+answers a bare `curl` POST `400` instead of running it for every subscriber; an
+undeclared agent path is not routed at all:
 
 ```bash
-curl -i -d 'ping' http://localhost:8099/atmosphere/agent/kotlin-dsl-chat  # 200
+curl -i -d 'ping' http://localhost:8099/atmosphere/agent/kotlin-dsl-chat  # 400 (no connection named)
 curl -i -d 'ping' http://localhost:8099/atmosphere/agent/not-declared     # 404
 ```
 

@@ -120,10 +120,16 @@ if (process.env.CI && !jar && !process.env.E2E_LIST_ONLY) {
     // the agent must be routable at the same /atmosphere/agent/{name} mapping
     // an @Agent-annotated class produces. An unregistered agent path 404s —
     // that contrast is what proves registration, not merely that the app boots.
+    // A prompt POST that names no connection (no X-Atmosphere-tracking-id) is
+    // answered 400 by the agent's AiEndpointHandler rather than fanned out to
+    // every subscriber, so the 400 and its log line show the agent took it.
     const registered = await fetch(
       `http://127.0.0.1:${PORT}/atmosphere/agent/kotlin-dsl-chat`,
       { method: 'POST', body: 'ping' });
-    expect(registered.status, 'the DSL agent must be routable').toBe(200);
+    expect(registered.status, 'the DSL agent must take the POST and refuse an unidentified prompt')
+      .toBe(400);
+    await expect.poll(() => output, { message: 'the agent handler must be the one refusing it' })
+      .toMatch(/Prompt on \/atmosphere\/agent\/kotlin-dsl-chat carries neither .* answering 400/);
 
     const unknown = await fetch(
       `http://127.0.0.1:${PORT}/atmosphere/agent/not-declared`,
