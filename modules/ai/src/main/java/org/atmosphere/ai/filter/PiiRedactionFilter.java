@@ -15,14 +15,12 @@
  */
 package org.atmosphere.ai.filter;
 
-import org.atmosphere.ai.DefaultStreamingSession;
 import org.atmosphere.cpr.RawMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
@@ -50,7 +48,7 @@ public class PiiRedactionFilter extends AiStreamBroadcastFilter {
     private static final Pattern CREDIT_CARD_PATTERN = PiiPatterns.CREDIT_CARD;
 
     private final Map<String, Pattern> patterns = new LinkedHashMap<>();
-    private final ConcurrentHashMap<String, StringBuffer> buffers = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, PendingText> buffers = new ConcurrentHashMap<>();
     private final String replacement;
 
     /**
@@ -113,7 +111,7 @@ public class PiiRedactionFilter extends AiStreamBroadcastFilter {
     }
 
     private BroadcastAction handleStreamingText(AiStreamMessage msg) {
-        var buffer = buffers.computeIfAbsent(msg.sessionId(), k -> new StringBuffer());
+        var buffer = buffers.computeIfAbsent(msg.sessionId(), PendingText::forSession).text();
         buffer.append(msg.data());
 
         // Check for sentence boundary
@@ -135,42 +133,24 @@ public class PiiRedactionFilter extends AiStreamBroadcastFilter {
     }
 
     private BroadcastAction handleStreamEnd(String broadcasterId, AiStreamMessage msg, RawMessage rawMessage) {
-        var buffer = buffers.remove(msg.sessionId());
-        if (buffer != null && !buffer.isEmpty()) {
-            var redacted = redact(buffer.toString());
+        var pending = buffers.remove(msg.sessionId());
+        // The terminal frame's own data (a complete summary, often the whole
+        // reply, or an error message) is redacted like the streamed text.
+        var redactedData = msg.data() != null ? redact(msg.data()) : null;
+        var terminal = redactedData != null && !redactedData.equals(msg.data()) ? msg.withData(redactedData) : msg;
+        if (pending != null && !pending.text().isEmpty()) {
+            var redacted = redact(pending.text().toString());
             var streamingTextMsg = new AiStreamMessage("streaming-text", redacted, msg.sessionId(), msg.seq(), null, null);
 
             // Emit the flushed streaming text as a proper "streaming-text" message to maintain protocol
             // invariant: all text arrives as "streaming-text" type, "complete" is always bare.
             // Bump the terminal message's seq to seq+1 so it doesn't collide with the
             // synthetic flush streaming text and the monotonic sequence invariant is preserved.
-            var bumpedTerminal = msg.withSeq(msg.seq() + 1);
-            deferBroadcast(broadcasterId, msg.sessionId(), new RawMessage(bumpedTerminal.toJson()));
+            var bumpedTerminal = terminal.withSeq(msg.seq() + 1);
+            deferStreamEnd(broadcasterId, msg.sessionId(), pending.delivery(), new RawMessage(bumpedTerminal.toJson()));
             return new BroadcastAction(new RawMessage(streamingTextMsg.toJson()));
         }
-        return new BroadcastAction(rawMessage);
-    }
-
-    private void deferBroadcast(String broadcasterId, String sessionId, RawMessage message) {
-        var factory = broadcasterFactory();
-        Thread.ofVirtual().name("pii-flush").start(() -> {
-            try {
-                // Wait for the current filter chain to complete and deliver the flushed streaming text
-                Thread.sleep(50);
-                if (factory != null) {
-                    factory.findBroadcaster(broadcasterId).ifPresent(b -> {
-                        var target = DefaultStreamingSession.resourceForSession(sessionId);
-                        if (target.isPresent()) {
-                            b.broadcast(message, Set.of(target.get()));
-                        } else {
-                            b.broadcast(message);
-                        }
-                    });
-                }
-            } catch (Exception e) {
-                logger.warn("Failed to emit deferred stream-end message: {}", e.getMessage());
-            }
-        });
+        return terminal == msg ? new BroadcastAction(rawMessage) : new BroadcastAction(new RawMessage(terminal.toJson()));
     }
 
     /**

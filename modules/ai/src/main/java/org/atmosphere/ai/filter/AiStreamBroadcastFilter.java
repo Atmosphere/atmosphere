@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.filter;
 
+import org.atmosphere.ai.DefaultStreamingSession;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.BroadcastFilterLifecycle;
@@ -22,6 +23,8 @@ import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.RawMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Set;
 
 /**
  * Base class for {@link BroadcastFilter} implementations that operate on the AI streaming
@@ -57,6 +60,70 @@ public abstract class AiStreamBroadcastFilter implements BroadcastFilterLifecycl
      */
     protected BroadcasterFactory broadcasterFactory() {
         return broadcasterFactory;
+    }
+
+    /**
+     * Text a filter holds back for one session until a sentence boundary, with
+     * where that session's frames go, captured when its first text was held
+     * (the session is still live then; it is not by the time its terminal frame
+     * arrives).
+     *
+     * @param text     the held-back text
+     * @param delivery the session's delivery, or {@code null} for a session
+     *                 {@link DefaultStreamingSession} does not know
+     */
+    protected record PendingText(StringBuffer text, DefaultStreamingSession.Delivery delivery) {
+
+        /** Start holding text for {@code sessionId}, capturing its delivery now. */
+        public static PendingText forSession(String sessionId) {
+            return new PendingText(new StringBuffer(),
+                    DefaultStreamingSession.deliveryForSession(sessionId).orElse(null));
+        }
+    }
+
+    /**
+     * Emit {@code message}, a stream-end frame held back while the filter flushed
+     * buffered text in its place, once the current filter chain has delivered
+     * that text. It goes where the session's own frames go: to the originating
+     * resource only, or to the whole room for a room session. The session is
+     * deregistered by the time its terminal frame reaches a filter, so
+     * {@code delivery} must be captured while the session was live
+     * ({@link DefaultStreamingSession#deliveryForSession}). Without one the frame
+     * is dropped and logged: a per-path broadcast would hand one user's reply to
+     * every subscriber of the path.
+     *
+     * @param broadcasterId the broadcaster the terminal frame was broadcast on
+     * @param sessionId     the streaming session the frame belongs to
+     * @param delivery      the session's delivery, captured while it was live; may be {@code null}
+     * @param message       the deferred stream-end frame
+     */
+    protected void deferStreamEnd(String broadcasterId, String sessionId,
+                                  DefaultStreamingSession.Delivery delivery, RawMessage message) {
+        if (delivery == null) {
+            logger.warn("Dropping the deferred stream-end frame of session {}: its recipient is unknown", sessionId);
+            return;
+        }
+        var factory = broadcasterFactory();
+        Thread.ofVirtual().name("ai-stream-end-flush").start(() -> {
+            try {
+                // Wait for the current filter chain to complete and deliver the flushed streaming text
+                Thread.sleep(50);
+                if (factory != null) {
+                    factory.findBroadcaster(broadcasterId).ifPresent(b -> {
+                        if (delivery.toRoom()) {
+                            b.broadcast(message);
+                        } else {
+                            b.broadcast(message, Set.of(delivery.resource()));
+                        }
+                    });
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                logger.warn("Interrupted before emitting the deferred stream-end frame of session {}", sessionId, e);
+            } catch (Exception e) {
+                logger.warn("Failed to emit deferred stream-end message: {}", e.getMessage(), e);
+            }
+        });
     }
 
     @Override

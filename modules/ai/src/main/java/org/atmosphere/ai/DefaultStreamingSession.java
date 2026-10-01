@@ -109,6 +109,32 @@ public final class DefaultStreamingSession implements StreamingSession {
     }
 
     /**
+     * Where a session's frames go: its originating resource only, or every
+     * subscriber of that resource's broadcaster (a room session).
+     *
+     * @param resource the originating resource
+     * @param toRoom   whether the session fans its frames out to the room
+     */
+    public record Delivery(AtmosphereResource resource, boolean toRoom) {
+    }
+
+    /**
+     * How a live session delivers its frames. Empty once the session completed,
+     * failed or was cleaned up, so a broadcast filter that must emit a frame of
+     * its own after the terminal one (a deferred stream end) captures this while
+     * the session is still live.
+     *
+     * @param sessionId the streaming session identifier
+     * @return the delivery, or empty if no active session with that ID
+     */
+    public static Optional<Delivery> deliveryForSession(String sessionId) {
+        var session = SESSION_INSTANCES.get(sessionId);
+        return session != null
+                ? Optional.of(new Delivery(session.resource, session.broadcastToRoom))
+                : Optional.empty();
+    }
+
+    /**
      * Remove all sessions associated with a disconnecting resource.
      * Called from {@code AiEndpointHandler} when a client disconnects
      * before the streaming session completes.
