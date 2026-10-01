@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { LongPollingTransport } from '../../src/transports/long-polling';
 import { SSETransport } from '../../src/transports/sse';
 import { StreamingTransport } from '../../src/transports/streaming';
-import { BaseTransport } from '../../src/transports/base';
 import type { AtmosphereRequest, SubscriptionHandlers } from '../../src/types';
 
 /**
@@ -92,7 +91,8 @@ describe('HTTP transport POST send retry', () => {
     transport.send('prompt');
     await vi.advanceTimersByTimeAsync(30_000);
 
-    expect(posts).toHaveLength(BaseTransport.SEND_MAX_ATTEMPTS);
+    // The documented bound (README): 3 attempts in all.
+    expect(posts).toHaveLength(3);
     expect(handlers.error).toHaveBeenCalledTimes(1);
     const reported = (handlers.error as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(reported.message).toContain('status 503');
@@ -141,9 +141,11 @@ describe('HTTP transport POST send retry', () => {
 
     transport.send('prompt');
     await vi.waitFor(() => expect(posts).toHaveLength(1));
-    await vi.advanceTimersByTimeAsync(BaseTransport.SEND_RETRY_MAX_DELAY_MS);
-
-    expect(posts).toHaveLength(2);
+    // The documented cap (README): at most 5 s, whatever Retry-After asks.
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(posts).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await vi.waitFor(() => expect(posts).toHaveLength(2));
     await transport.disconnect();
   });
 
