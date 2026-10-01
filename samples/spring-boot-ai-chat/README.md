@@ -67,7 +67,9 @@ Two pieces cooperate (`GovernanceFeedbackConfig.java` + the `interceptors` on `A
    turn but records that Example Corp's release runbook (`release-bot` / `#prod-releases`, CHG
    ticket, second approver) is the preferred path. It is *soft* governance: no hard `Deny`.
 2. **Carry** — `GovernanceFeedbackInterceptor` re-injects that advisory into the request's system
-   prompt, so the assistant answers with the org process.
+   prompt, so the assistant sees the org process, and reports what it injected to the client:
+   `ai.governance.feedback.injected` (count) and `ai.governance.feedback.lines` metadata frames,
+   sent just before the turn's `complete` frame and only when something was injected.
 
 On the streaming `@AiEndpoint` path the policy plane runs *before* the interceptor, so a `Prefer`
 steers the **same** turn that triggered it (a hard `Deny` terminates its turn, so a denial is
@@ -80,10 +82,15 @@ LLM_MODE=local LLM_MODEL=qwen2.5:3b LLM_BASE_URL=http://localhost:11434/v1 \
   LLM_API_KEY=ollama ./mvnw spring-boot:run -pl samples/spring-boot-ai-chat
 ```
 
-Ask **"How do I deploy the billing service to production?"** The answer names the Example Corp
-`release-bot` / `#prod-releases` process — tokens the base model cannot know, so they appear
-*only* because the advisory was injected. The console's **Decisions** tab shows a `PREFER` from
-`production-release-advisor`. The end-to-end proof is `e2e/tests/governance-feedback-chat.spec.ts`.
+Ask **"How do I deploy the billing service to production?"** Under your question the console
+shows a **Governance guidance applied** panel with the injected line — the Example Corp
+`release-bot` / `#prod-releases` process — and the **Decisions** tab shows a `PREFER` from
+`production-release-advisor`. Whether the answer then names `release-bot` is up to the model: a
+capable model usually follows the guidance, but a small one may not (`qwen2.5:1.5b` at
+temperature 0 has answered with the change-ticket and second-approver steps without naming
+`release-bot`). The end-to-end proof is `e2e/tests/governance-feedback-chat.spec.ts`, which
+asserts the PREFER and the injected-guidance panel for its own conversation and only records the
+model's wording as an annotation.
 
 > Durable recall (opt-in): set `atmosphere.ai.governance.memory.enabled=true` with a
 > `LongTermMemory` bean to persist deny/prefer guidance (provenance-tagged, expiry-gated) so it

@@ -33,7 +33,7 @@ const props = defineProps<{
   room?: string
 }>()
 
-const { messages, toolCalls, isConnected, isStreaming, connectionState, connectionStatus, send, clearMessages, respondToApproval, stats, routing, agentSteps, presenceCount, offlineSize, canQueueOffline } = useAtmosphereChat(props.endpoint, props.mode, props.transport, props.webTransport, props.room)
+const { messages, toolCalls, isConnected, isStreaming, connectionState, connectionStatus, send, clearMessages, respondToApproval, stats, routing, governanceFeedback, agentSteps, presenceCount, offlineSize, canQueueOffline } = useAtmosphereChat(props.endpoint, props.mode, props.transport, props.webTransport, props.room)
 const messagesContainer = ref<HTMLElement | null>(null)
 
 /**
@@ -132,6 +132,19 @@ function handleSend(text: string) {
       </div>
       <template v-for="(msg, idx) in messages" :key="msg.id">
         <ChatMessage :message="msg" />
+        <!-- Governance guidance the server injected into this turn's system prompt
+             (ai.governance.feedback.* frames from GovernanceFeedbackInterceptor).
+             Per-turn state like toolCalls, so it renders under the latest turn only. -->
+        <div v-if="idx === lastUserIndex && governanceFeedback" class="governance-feedback"
+             data-testid="governance-feedback" :data-injected="governanceFeedback.injected">
+          <div class="governance-feedback-label">
+            Governance guidance applied ({{ governanceFeedback.injected || governanceFeedback.lines.length }})
+          </div>
+          <ul class="governance-feedback-lines">
+            <li v-for="(line, i) in governanceFeedback.lines" :key="i"
+                data-testid="governance-feedback-line">{{ line }}</li>
+          </ul>
+        </div>
         <!-- Show tool cards after user message, before assistant response -->
         <div v-if="idx === lastUserIndex && toolCalls.length > 0" class="tool-section" data-testid="tool-activity">
           <div class="tool-section-label">Agent Collaboration</div>
@@ -295,6 +308,32 @@ function handleSend(text: string) {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 0.5rem;
+}
+
+.governance-feedback {
+  margin: 0.5rem 0 1rem 2.75rem;
+  max-width: 42rem;
+  border-left: 3px solid #8b5cf6;
+  background: rgba(139, 92, 246, 0.08);
+  border-radius: 4px 8px 8px 4px;
+  padding: 0.5rem 0.75rem;
+}
+
+.governance-feedback-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.25rem;
+}
+
+.governance-feedback-lines {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
 }
 
 .streaming-indicator {

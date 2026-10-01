@@ -3,6 +3,7 @@ import { ConnectionStatus } from 'atmosphere.js'
 import { useOfflineQueue } from 'atmosphere.js/vue'
 import { recordPlanUpdate, resetLivePlan } from '../lib/workspaceStore'
 import { mergeRoutingMetadata, normalizeMetadataFrame, type RoutingMetadata } from '../lib/routingMetadata'
+import { mergeGovernanceFeedback, type GovernanceFeedback } from '../lib/governanceFeedback'
 import { createChatTransport } from '../transports'
 import type { ChatTransport, ConsoleTransportName } from '../transports'
 import type { ConnectionStatusSnapshot } from 'atmosphere.js'
@@ -50,6 +51,9 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
   // Cost/latency routing readout from the server's metadata events —
   // rendered as header chips + in the per-turn stats footer.
   const routing = ref<RoutingMetadata>({})
+  // Governance guidance the server injected into THIS turn's system prompt
+  // (ai.governance.feedback.* metadata frames). Per-turn: reset on send.
+  const governanceFeedback = ref<GovernanceFeedback | null>(null)
   // Live per-agent activity from agent-step events (agent → current step) —
   // drives the fleet activity strip during multi-agent coordinations.
   const agentSteps = ref<Record<string, string>>({})
@@ -257,16 +261,19 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
       case 'progress':
         // Ignored for chat display
         break
-      case 'metadata':
+      case 'metadata': {
         // Cost/latency routing readout (routing.model / routing.cost /
         // routing.latency keys, plus the runtime's bare model) — feeds the
         // header chips and the per-turn stats footer. The Atmosphere wire
         // frame is {type:'metadata', key, value} top-level (see
         // DefaultStreamingSession), normalized here into a keyed record;
         // frames without a top-level key fall back to a data payload map.
-        routing.value = mergeRoutingMetadata(
-          routing.value, normalizeMetadataFrame(msg))
+        // The same record feeds the per-turn governance guidance panel.
+        const frame = normalizeMetadataFrame(msg)
+        routing.value = mergeRoutingMetadata(routing.value, frame)
+        governanceFeedback.value = mergeGovernanceFeedback(governanceFeedback.value, frame)
         break
+      }
       case 'tool-start': {
         const name = ((msg.data as Record<string, unknown>)?.toolName ?? '') as string
         const args = ((msg.data as Record<string, unknown>)?.arguments ?? {}) as Record<string, unknown>
@@ -613,6 +620,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     messages.value = [...messages.value, userMessage]
     toolCalls.value = []
     agentSteps.value = {}
+    governanceFeedback.value = null
     stats.value = null
     streamStartedAt = Date.now()
     streamTokenCount = 0
@@ -651,6 +659,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     messages.value = []
     toolCalls.value = []
     agentSteps.value = {}
+    governanceFeedback.value = null
     stats.value = null
     currentAssistantMessage = null
     // The suffixed bubbles are gone; queued sends themselves stay queued.
@@ -683,6 +692,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     respondToApproval,
     stats,
     routing,
+    governanceFeedback,
     agentSteps,
     presenceCount,
     offlineSize,

@@ -138,3 +138,30 @@ describe('assistant streaming is fully rendered', () => {
     expect(rendered(wrapper)).toHaveLength(3)
   })
 })
+
+describe('governance feedback frames', () => {
+  it('collects the injected-guidance frames for the turn and resets on the next send', async () => {
+    const { chat } = await mountChat()
+    chat.send('how do I deploy to production?')
+    await nextTick()
+
+    handlers.onEvent?.({ type: 'metadata', key: 'ai.governance.feedback.injected', value: 1 })
+    handlers.onEvent?.({
+      type: 'metadata',
+      key: 'ai.governance.feedback.lines',
+      value: ['Prefer: run release-bot (change management)'],
+    })
+    handlers.onEvent?.({ type: 'complete' })
+    await nextTick()
+
+    expect(chat.governanceFeedback.value).toEqual({
+      injected: 1,
+      lines: ['Prefer: run release-bot (change management)'],
+    })
+
+    // Per-turn state: a new prompt must not inherit the previous turn's guidance.
+    chat.send('and the weather?')
+    await nextTick()
+    expect(chat.governanceFeedback.value).toBeNull()
+  })
+})

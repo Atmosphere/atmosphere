@@ -45,9 +45,11 @@ import org.slf4j.LoggerFactory;
         systemPromptResource = "skill:ai-assistant",
         requires = {AiCapability.TEXT_STREAMING, AiCapability.SYSTEM_PROMPT},
         conversationMemory = true,
-        // Governance as a learning signal: re-injects recent deny/prefer decisions for this
-        // conversation into the next turn's system prompt (see GovernanceFeedbackConfig's
-        // least-privilege PreferencePolicy). The loop closes with no model retraining.
+        // Governance as a learning signal: injects recent deny/prefer decisions for this
+        // conversation into the turn's system prompt (a Prefer from GovernanceFeedbackConfig's
+        // production-release-advisor steers the same turn; a Deny surfaces on the next one) and
+        // reports the injected lines as ai.governance.feedback.* metadata frames, which the
+        // console shows under the turn. The loop closes with no model retraining.
         interceptors = GovernanceFeedbackInterceptor.class,
         // Wave 4 prompt caching: emits OpenAI prompt_cache_key on providers that
         // support it (Spring AI / LC4j / Built-in OpenAI path), and short-circuits

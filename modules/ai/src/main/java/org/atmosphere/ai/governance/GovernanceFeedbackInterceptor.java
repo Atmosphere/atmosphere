@@ -17,6 +17,7 @@ package org.atmosphere.ai.governance;
 
 import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.AiRequest;
+import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.governance.memory.GovernanceMemoryConfig;
 import org.atmosphere.ai.governance.memory.GovernanceMemorySink;
 import org.atmosphere.ai.governance.memory.GovernanceProvenanceMemory;
@@ -24,7 +25,12 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -75,6 +81,31 @@ import java.util.Set;
  * prompt focused and the work O(scanWindow). A failure while building the block is logged and
  * the original request is returned unchanged — governance feedback is advisory and must never
  * break the turn.
+ *
+ * <h2>Client-visible signal</h2>
+ * Injection into the system prompt is otherwise invisible to the client, so a turn that
+ * carried guidance reports it on the wire: {@link #preProcess} records the injected lines on
+ * the request under {@link #LINES_METADATA_KEY}, and {@link #beforeCompletion} — immediately
+ * before the terminal {@code complete} frame — sends two metadata frames:
+ * <ul>
+ *   <li>{@value #INJECTED_METADATA_KEY} — the number of guidance lines injected into this
+ *       turn's system prompt (an {@code int}, at most {@link #maxItems});</li>
+ *   <li>{@value #LINES_METADATA_KEY} — those lines in injection order, each capped at
+ *       {@value #MAX_SIGNAL_LINE_CHARS} characters.</li>
+ * </ul>
+ * Both are sent only when something was injected, so a turn without guidance emits nothing
+ * (Runtime Truth: the frame reports the injection that happened, never configuration). The
+ * lines are this subject's own guidance — the same scoping that governs injection governs the
+ * signal. Like every {@code beforeCompletion} frame, the signal is not sent on the
+ * {@code error()} terminal path, and a failure while sending it is logged and swallowed so it
+ * can never suppress the terminal frame. The Atmosphere Console renders it under the turn as
+ * the "Governance guidance applied" panel.
+ *
+ * <h2>Dispatch paths</h2>
+ * {@link AiInterceptor}s run only on the {@code @AiEndpoint} dispatch path. The resource-free
+ * {@link org.atmosphere.ai.AiPipeline} ({@code @Agent}, {@code @Coordinator}, AG-UI, channel
+ * bridge) runs no interceptor, so on that path guidance is neither injected nor signalled —
+ * the two are never out of step.
  */
 public class GovernanceFeedbackInterceptor implements AiInterceptor {
 
@@ -85,6 +116,19 @@ public class GovernanceFeedbackInterceptor implements AiInterceptor {
 
     /** Default cap on how many recent decisions are scanned per turn. */
     public static final int DEFAULT_SCAN_WINDOW = 100;
+
+    /**
+     * Metadata key carrying the injected guidance lines: set on the {@link AiRequest} by
+     * {@link #preProcess} (an unmodifiable {@code List<String>}) and sent to the client as a
+     * metadata frame by {@link #beforeCompletion}.
+     */
+    public static final String LINES_METADATA_KEY = "ai.governance.feedback.lines";
+
+    /** Metadata frame key carrying the number of guidance lines injected into this turn. */
+    public static final String INJECTED_METADATA_KEY = "ai.governance.feedback.injected";
+
+    /** Per-line cap on the client-visible signal (the system prompt keeps the full line). */
+    public static final int MAX_SIGNAL_LINE_CHARS = 512;
 
     private final int maxItems;
     private final int scanWindow;
@@ -146,13 +190,82 @@ public class GovernanceFeedbackInterceptor implements AiInterceptor {
                 logger.debug("Injected {} governance-feedback line(s) scoped by {}={}",
                         guidance.size(), dimension.key(), dimension.value());
             }
-            return request.withSystemPrompt(augmented);
+            return recordInjected(request.withSystemPrompt(augmented), List.copyOf(guidance));
         } catch (RuntimeException e) {
             // Advisory only — a feedback failure must never break the turn.
             logger.warn("Governance feedback injection failed — proceeding without it: {}",
                     e.toString());
             return request;
         }
+    }
+
+    /**
+     * Record the injected lines on the request so {@link #beforeCompletion} can report them.
+     * The injection is the contract and the record only its signal: if recording fails, the
+     * augmented request is returned without it rather than dropping the guidance.
+     */
+    private static AiRequest recordInjected(AiRequest augmented, List<String> lines) {
+        try {
+            // HashMap + unmodifiable view, not Map.copyOf: tolerate null metadata and null
+            // values another component may have placed on the request.
+            var merged = new HashMap<String, Object>(
+                    augmented.metadata() != null ? augmented.metadata() : Map.of());
+            merged.put(LINES_METADATA_KEY, lines);
+            return new AiRequest(augmented.message(), augmented.systemPrompt(),
+                    augmented.model(), augmented.userId(), augmented.sessionId(),
+                    augmented.agentId(), augmented.conversationId(),
+                    Collections.unmodifiableMap(merged), augmented.history());
+        } catch (RuntimeException e) {
+            logger.warn("Governance feedback injected but its client signal could not be "
+                    + "recorded: {}", e.toString());
+            return augmented;
+        }
+    }
+
+    /**
+     * Report the guidance {@link #preProcess} injected into this turn, while the session still
+     * accepts frames: {@value #INJECTED_METADATA_KEY} (count) then {@value #LINES_METADATA_KEY}
+     * (the lines). Sends nothing when the turn carried no guidance.
+     */
+    @Override
+    public void beforeCompletion(AiRequest request, StreamingSession session,
+                                 AtmosphereResource resource) {
+        try {
+            var lines = injectedLines(request);
+            if (lines.isEmpty()) {
+                return;
+            }
+            session.sendMetadata(INJECTED_METADATA_KEY, lines.size());
+            session.sendMetadata(LINES_METADATA_KEY, lines);
+        } catch (RuntimeException e) {
+            // Advisory only — the signal must never break the turn or its terminal frame.
+            logger.warn("Governance feedback signal failed — turn completes without it: {}",
+                    e.toString());
+        }
+    }
+
+    /**
+     * The guidance lines {@link #preProcess} recorded on {@code request}, each capped at
+     * {@value #MAX_SIGNAL_LINE_CHARS} characters and at most {@link #maxItems} of them; empty
+     * when nothing was injected.
+     */
+    List<String> injectedLines(AiRequest request) {
+        if (request == null || request.metadata() == null
+                || !(request.metadata().get(LINES_METADATA_KEY) instanceof List<?> raw)) {
+            return List.of();
+        }
+        var lines = new ArrayList<String>(Math.min(raw.size(), maxItems));
+        for (var item : raw) {
+            if (lines.size() >= maxItems) {
+                break;
+            }
+            if (item instanceof String line && !line.isBlank()) {
+                lines.add(line.length() > MAX_SIGNAL_LINE_CHARS
+                        ? line.substring(0, MAX_SIGNAL_LINE_CHARS - 1) + "…"
+                        : line);
+            }
+        }
+        return List.copyOf(lines);
     }
 
     /**

@@ -486,6 +486,18 @@ buffer and injects a contrastive guidance block into the next turn's system prom
 - **Requires an installed decision log.** The loop reads `GovernanceDecisionLog`; the admin
   auto-config installs it out-of-box (or call `GovernanceDecisionLog.install(capacity)`
   yourself). Against the NOOP default it is inert.
+- **Observable on the wire.** Injection into the system prompt is otherwise invisible to the
+  client, so a turn that carried guidance reports it: `beforeCompletion` sends two `metadata`
+  frames just before the turn's `complete` frame — `ai.governance.feedback.injected` (how many
+  lines were injected, at most `maxItems`) and `ai.governance.feedback.lines` (those lines, each
+  capped at 512 characters). Neither frame is sent when nothing was injected, nor on the
+  `error()` terminal path. The Atmosphere Console renders them under the turn as the
+  **Governance guidance applied** panel (`data-testid="governance-feedback"`). This is what an
+  e2e can assert: whether the model then *follows* the guidance is model behaviour, not a
+  framework guarantee.
+- **`@AiEndpoint` only.** `AiInterceptor`s run on the `@AiEndpoint` dispatch path; the
+  resource-free `AiPipeline` (`@Agent`, `@Coordinator`, AG-UI, channel bridge) runs none, so
+  there the guidance is neither injected nor signalled (`GovernanceFeedbackSignalWireTest`).
 
 ### Durable recall — opt-in, provenance-gated
 

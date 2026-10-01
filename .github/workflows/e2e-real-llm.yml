@@ -10,13 +10,15 @@ name: "CI: E2E (Real LLM — Ollama)"
 # deterministic FakeLlmClient / DemoAgentRuntime — those are strictly more
 # predictable than any real model, and this tier deliberately does not gate.
 #
-# Reproducibility: qwen2.5:1.5b is the smallest model that reliably follows an
-# injected system-prompt instruction (0.5b ignores it — validated locally), and
-# LLM_TEMPERATURE=0 pins sampling. Assertions favour verbatim-echoed tokens.
+# Reproducibility: qwen2.5:1.5b is the smallest model that usually follows an
+# injected system-prompt instruction (0.5b ignores it — validated locally; 1.5b
+# has also answered a governance turn without the injected release-bot token), and
+# LLM_TEMPERATURE=0 pins sampling. Assertions favour verbatim-echoed tokens; the
+# governance spec asserts the injection signal, not the model's wording.
 #
 # Cost: $0 — Ollama is local to the runner.
 # Coverage: basic chat, structured output, embeddings across 3 runtimes, plus the
-# governance learning-signal loop (soft-preference steers the answer), and the
+# governance learning-signal loop (soft-preference injected into the turn), and the
 # decision-model LLM injection tier (real-llm-decision).
 #
 # NOT ON THE PER-PUSH GATING PATH — runs nightly and on demand. Ollama on
@@ -77,8 +79,8 @@ jobs:
             fi
             sleep 1
           done
-          # Pull the model — qwen2.5:1.5b is ~1GB, the smallest that reliably
-          # follows an injected system-prompt instruction (the governance spec).
+          # Pull the model — qwen2.5:1.5b is ~1GB, the smallest that usually
+          # follows an injected system-prompt instruction.
           # Cost: $0.
           curl -sSf http://localhost:11434/api/pull -d '{"name":"qwen2.5:1.5b"}' \
             | tail -1
@@ -165,10 +167,11 @@ jobs:
       # ── Governance learning-signal loop (spring-boot-ai-chat) ──────────
       # Proves the loop end-to-end on a real model: a production-deploy question
       # fires the soft-preference PreferencePolicy and GovernanceFeedbackInterceptor
-      # injects the org-specific advisory, so the answer names the Example Corp
-      # release-bot process — a token the base model cannot know, so the assertion
-      # fails when the loop is off. The PREFER is asserted on the decisions API for
-      # the spec's own conversation; the answer is read only after the `complete` frame.
+      # injects the org-specific advisory and reports it with ai.governance.feedback.*
+      # metadata frames, which the console renders under the turn. The PREFER is
+      # asserted on the decisions API for the spec's own conversation, and the console
+      # panel must carry that PREFER's release-bot text — absent when the loop is off.
+      # Whether the model's answer names release-bot is only annotated, never asserted.
       # Uses the e2e/ foundation Playwright project (not integration-tests) and
       # reuses the warm Ollama above.
       - name: Install e2e Playwright deps

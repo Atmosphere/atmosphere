@@ -3667,3 +3667,41 @@ a category the detector did flag now blocks even in fail-open mode
 the old guardrail ordering). The fabricated `0.9` moderation score is gone: a score is the
 measured or self-reported belief, or absent. The Javadoc, the Spring Boot 4 bean Javadoc and the
 README now describe what runs.
+
+## 2026-09-30 — Governance feedback loop claimed the model's answer names release-bot
+
+**Session:** carnet #59 follow-through, after the nightly real-LLM run 36806747723 failed the
+governance-feedback spec's CARRY step.
+
+**Claim:** `samples/spring-boot-ai-chat/README.md` — "The answer names the Example Corp
+`release-bot` / `#prod-releases` process — tokens the base model cannot know, so they appear
+*only* because the advisory was injected", and step 2 "so the assistant answers with the org
+process". `GovernanceFeedbackConfig` Javadoc — "the model's answer names the Example Corp
+`release-bot` / `#prod-releases` process" and "an e2e that asserts them fails when the loop is
+off". `e2e-real-llm.yml` — qwen2.5:1.5b "reliably follows an injected system-prompt instruction
+(the governance spec)" and "the answer names the Example Corp release-bot process".
+`AiChat` comment — the interceptor injects into "the next turn's system prompt" for
+"GovernanceFeedbackConfig's least-privilege PreferencePolicy". The 2026-07-07 entry above named
+the spec's `release-bot` text assertion as the gate for the same-turn behaviour.
+
+**Truth:** on the CI runner (`--retries=0`, qwen2.5:1.5b, temperature 0) the PREFER was recorded
+and the advisory injected, but the answer followed the change-ticket / second-approver guidance
+without writing `release-bot` and suggested `kubectl`. Whether a model follows injected
+guidance is model behaviour; what the framework guarantees is the injection. The sample's policy
+is `production-release-advisor`, not a least-privilege policy, and a `Prefer` steers the same
+turn (only a `Deny` surfaces on the next one).
+
+**Slip path:** a pass on one model at one temperature was written up as a property of the
+framework, and the e2e asserted the model's free text because the injection left no
+client-visible trace to assert instead.
+
+**Gate:** `GovernanceFeedbackInterceptor` now records the injected lines on the request and, in
+`beforeCompletion`, sends `ai.governance.feedback.injected` / `ai.governance.feedback.lines`
+metadata frames only when it injected something; the console renders them as the turn's
+"Governance guidance applied" panel. `GovernanceFeedbackInterceptorTest` and
+`GovernanceFeedbackSignalWireTest` pin the frames on a real `DefaultStreamingSession` (before
+`complete`, absent without injection, absent on `AiPipeline`); both bite-checked by deleting the
+send and by sending unconditionally. The spec asserts CARRY on that panel carrying this
+conversation's PREFER text and only annotates the model's wording; with the interceptor removed
+from the sample it fails at the panel assertion while PRODUCE still passes. The README, Javadoc,
+workflow comments and `AiChat` comment now describe what runs.

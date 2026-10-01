@@ -1871,7 +1871,13 @@ advisory that admits the turn but records a preferred alternative.
 policy type) + `GovernanceFeedbackInterceptor` re-inject recent
 deny/prefer decisions into the agent's context so it follows the
 guidance without retraining; opt into durable, provenance-gated recall
-with `atmosphere.ai.governance.memory.enabled=true`. See
+with `atmosphere.ai.governance.memory.enabled=true`. A turn that carried
+guidance reports it to the client as `ai.governance.feedback.injected`
+(count) and `ai.governance.feedback.lines` metadata frames before its
+`complete` frame — nothing is sent when nothing was injected — and the
+Console shows them as the turn's "Governance guidance applied" panel.
+Like every `AiInterceptor`, it runs on the `@AiEndpoint` path only, not
+on `AiPipeline`. See
 [`docs/governance-policy-plane.md`](../../docs/governance-policy-plane.md#governance-as-a-learning-signal)
 and the `spring-boot-ai-chat` sample.
 

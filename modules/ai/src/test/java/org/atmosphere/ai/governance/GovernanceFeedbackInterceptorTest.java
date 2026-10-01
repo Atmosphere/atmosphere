@@ -16,6 +16,7 @@
 package org.atmosphere.ai.governance;
 
 import org.atmosphere.ai.AiRequest;
+import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.governance.memory.GovernanceFact;
 import org.atmosphere.ai.governance.memory.GovernanceMemorySink;
 import org.atmosphere.ai.governance.memory.GovernanceProvenanceMemory;
@@ -27,11 +28,16 @@ import org.junit.jupiter.api.Test;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -254,6 +260,138 @@ class GovernanceFeedbackInterceptorTest {
         var last = prompt.lastIndexOf("Prefer: request a scoped credential (least-privilege)");
         assertTrue(first >= 0, "guidance present");
         assertEquals(first, last, "identical ephemeral + durable guidance appears once");
+    }
+
+    @Test
+    void preProcessRecordsExactlyTheInjectedLinesOnTheRequest() {
+        record("prefer", "least-privilege",
+                Map.of("conversation_id", "conv-1",
+                        GovernanceDecisionLog.PREFERRED_KEY, "request a scoped credential"));
+        record("deny", "dropping the table is never allowed", convScope("conv-1"));
+
+        var out = new GovernanceFeedbackInterceptor().preProcess(request("conv-1"), null);
+
+        var recorded = out.metadata().get(GovernanceFeedbackInterceptor.LINES_METADATA_KEY);
+        assertTrue(recorded instanceof List<?>, "injected lines recorded on the request: " + recorded);
+        var lines = (List<?>) recorded;
+        assertEquals(2, lines.size(), "one recorded line per injected line: " + lines);
+        for (var line : lines) {
+            assertTrue(out.systemPrompt().contains("\n- " + line),
+                    "every recorded line is a line of the injected block: " + line);
+        }
+    }
+
+    @Test
+    void beforeCompletionSignalsTheInjectedCountAndLines() {
+        record("prefer", "least-privilege",
+                Map.of("conversation_id", "conv-1",
+                        GovernanceDecisionLog.PREFERRED_KEY, "request a scoped credential"));
+        var interceptor = new GovernanceFeedbackInterceptor();
+        var out = interceptor.preProcess(request("conv-1"), null);
+        var session = new RecordingSession();
+
+        interceptor.beforeCompletion(out, session, null);
+
+        assertEquals(List.of(GovernanceFeedbackInterceptor.INJECTED_METADATA_KEY,
+                        GovernanceFeedbackInterceptor.LINES_METADATA_KEY),
+                List.copyOf(session.metadata.keySet()), "count frame, then lines frame");
+        assertEquals(1, session.metadata.get(GovernanceFeedbackInterceptor.INJECTED_METADATA_KEY));
+        assertEquals(List.of("Prefer: request a scoped credential (least-privilege)"),
+                session.metadata.get(GovernanceFeedbackInterceptor.LINES_METADATA_KEY));
+    }
+
+    @Test
+    void noInjectionMeansNoSignal() {
+        // A decision for ANOTHER conversation: nothing is injected into conv-1, so the
+        // client must not be told otherwise.
+        record("prefer", "scoped is preferred",
+                Map.of("conversation_id", "conv-OTHER",
+                        GovernanceDecisionLog.PREFERRED_KEY, "scoped credential"));
+        var interceptor = new GovernanceFeedbackInterceptor();
+        var out = interceptor.preProcess(request("conv-1"), null);
+        var session = new RecordingSession();
+
+        interceptor.beforeCompletion(out, session, null);
+
+        assertNull(out.metadata().get(GovernanceFeedbackInterceptor.LINES_METADATA_KEY));
+        assertTrue(session.metadata.isEmpty(), "no frame without injection: " + session.metadata);
+    }
+
+    @Test
+    void signalIsBoundedByMaxItemsAndPerLineCap() {
+        var oversized = new ArrayList<String>();
+        for (int i = 0; i < 10; i++) {
+            oversized.add(i + "x".repeat(2_000));
+        }
+        var forged = new AiRequest("m", BASE_PROMPT, null, null, null, null, "conv-1",
+                Map.of(GovernanceFeedbackInterceptor.LINES_METADATA_KEY, oversized), List.of());
+        var interceptor = new GovernanceFeedbackInterceptor(3, 100);
+        var session = new RecordingSession();
+
+        interceptor.beforeCompletion(forged, session, null);
+
+        assertEquals(3, session.metadata.get(GovernanceFeedbackInterceptor.INJECTED_METADATA_KEY));
+        var lines = (List<?>) session.metadata.get(GovernanceFeedbackInterceptor.LINES_METADATA_KEY);
+        assertEquals(3, lines.size(), "lines capped at maxItems");
+        for (var line : lines) {
+            assertEquals(GovernanceFeedbackInterceptor.MAX_SIGNAL_LINE_CHARS,
+                    ((String) line).length(), "each line capped: " + ((String) line).length());
+        }
+    }
+
+    @Test
+    void aFailingSessionNeverBreaksTheTurn() {
+        record("deny", "least-privilege violation", convScope("conv-1"));
+        var interceptor = new GovernanceFeedbackInterceptor();
+        var out = interceptor.preProcess(request("conv-1"), null);
+        var session = new RecordingSession() {
+            @Override
+            public void sendMetadata(String key, Object value) {
+                throw new IllegalStateException("wire down");
+            }
+        };
+
+        assertDoesNotThrow(() -> interceptor.beforeCompletion(out, session, null));
+    }
+
+    @Test
+    void injectionKeepsExistingMetadataAndToleratesNullMetadata() {
+        record("deny", "least-privilege violation", convScope("conv-1"));
+        var interceptor = new GovernanceFeedbackInterceptor();
+
+        var withMeta = new AiRequest("m", BASE_PROMPT, null, "user-1", null, null, "conv-1",
+                Map.of("ai.budget", 42), List.of());
+        var out = interceptor.preProcess(withMeta, null);
+        assertEquals(42, out.metadata().get("ai.budget"), "existing metadata preserved");
+        assertTrue(out.metadata().containsKey(GovernanceFeedbackInterceptor.LINES_METADATA_KEY));
+
+        var nullMeta = new AiRequest("m", BASE_PROMPT, null, "user-1", null, null, "conv-1",
+                null, List.of());
+        var out2 = interceptor.preProcess(nullMeta, null);
+        assertTrue(out2.systemPrompt().contains("least-privilege violation"),
+                "null metadata must not cost the turn its guidance: " + out2.systemPrompt());
+        assertTrue(out2.metadata().containsKey(GovernanceFeedbackInterceptor.LINES_METADATA_KEY));
+
+        var nullValue = new HashMap<String, Object>();
+        nullValue.put("nullable", null);
+        var out3 = interceptor.preProcess(new AiRequest("m", BASE_PROMPT, null, "user-1", null,
+                null, "conv-1", nullValue, List.of()), null);
+        assertTrue(out3.systemPrompt().contains("least-privilege violation"),
+                "a null metadata value must not cost the turn its guidance");
+    }
+
+    /** Records metadata frames in arrival order. */
+    private static class RecordingSession implements StreamingSession {
+        final Map<String, Object> metadata = new LinkedHashMap<>();
+
+        @Override public String sessionId() { return "rec"; }
+        @Override public void send(String text) { }
+        @Override public void sendMetadata(String key, Object value) { metadata.put(key, value); }
+        @Override public void progress(String message) { }
+        @Override public void complete() { }
+        @Override public void complete(String summary) { }
+        @Override public void error(Throwable t) { }
+        @Override public boolean isClosed() { return false; }
     }
 
     private record FakePolicy(String name) implements GovernancePolicy {

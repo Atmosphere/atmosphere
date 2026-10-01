@@ -3,9 +3,11 @@ import { describe, it, expect, vi } from 'vitest'
 import { ref, nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import type { ChatMessage, ToolCall } from '../composables/useAtmosphereChat'
+import type { GovernanceFeedback } from '../lib/governanceFeedback'
 
 const messages = ref<ChatMessage[]>([])
 const toolCalls = ref<ToolCall[]>([])
+const governanceFeedback = ref<GovernanceFeedback | null>(null)
 
 vi.mock('../composables/useAtmosphereChat', () => ({
   useAtmosphereChat: () => ({
@@ -20,6 +22,7 @@ vi.mock('../composables/useAtmosphereChat', () => ({
     respondToApproval: vi.fn(),
     stats: ref(null),
     routing: ref({}),
+    governanceFeedback,
     agentSteps: ref({}),
     presenceCount: ref(0),
     offlineSize: ref(0),
@@ -90,5 +93,41 @@ describe('tool cards belong to the turn that made them', () => {
     await nextTick()
 
     expect(wrapper.findAll('[data-testid="tool-activity"]')).toHaveLength(0)
+  })
+})
+
+describe('governance guidance panel', () => {
+  it('renders the injected lines under the latest turn only', async () => {
+    messages.value = [
+      turn('user', 'first question'),
+      turn('assistant', 'first answer'),
+      turn('user', 'deploy to production?'),
+      turn('assistant', 'use the release process'),
+    ]
+    toolCalls.value = []
+    governanceFeedback.value = {
+      injected: 1,
+      lines: ['Prefer: run release-bot in #prod-releases (change management)'],
+    }
+    const wrapper = mountContainer()
+    await nextTick()
+
+    const panels = wrapper.findAll('[data-testid="governance-feedback"]')
+    expect(panels).toHaveLength(1)
+    expect(panels[0].attributes('data-injected')).toBe('1')
+    expect(wrapper.findAll('[data-testid="governance-feedback-line"]').map(l => l.text()))
+      .toEqual(['Prefer: run release-bot in #prod-releases (change management)'])
+    // Rendered right after the latest user message, not an earlier one.
+    const blocks = wrapper.findAll('.m, [data-testid="governance-feedback"]').map(e => e.text())
+    expect(blocks.indexOf(panels[0].text())).toBe(blocks.indexOf('deploy to production?') + 1)
+  })
+
+  it('renders nothing when the turn carried no guidance', async () => {
+    messages.value = [turn('user', 'hello'), turn('assistant', 'hi')]
+    governanceFeedback.value = null
+    const wrapper = mountContainer()
+    await nextTick()
+
+    expect(wrapper.findAll('[data-testid="governance-feedback"]')).toHaveLength(0)
   })
 })

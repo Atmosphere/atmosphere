@@ -40,9 +40,19 @@ import { test, expect } from '@playwright/test';
  *     (deterministic; asserted on /api/admin/governance/decisions for this
  *     conversation, and that same conversation's row in the console Decisions tab).
  *  2. CARRY — the GovernanceFeedbackInterceptor injects that advisory into the
- *     same request, so the model's answer names the Example Corp `release-bot` /
- *     `#prod-releases` process. Those tokens are unknowable to the base model, so
- *     this assertion FAILS when the loop is off — it is not trivially true.
+ *     same request's system prompt. The interceptor reports what it injected with
+ *     `ai.governance.feedback.injected` / `ai.governance.feedback.lines` metadata
+ *     frames just before the turn's `complete` frame, and the console renders them
+ *     under the turn as the "Governance guidance applied" panel. The spec asserts
+ *     that panel carries THIS conversation's PREFER (its `preferred` text, which
+ *     names release-bot). Reading the console DOM keeps the assertion independent
+ *     of the wire: the console connects over WebTransport when the sidecar is up,
+ *     which Playwright cannot sniff. With the interceptor removed the panel never
+ *     renders, so the assertion fails — it is not trivially true.
+ *
+ * Whether the model's free text then names release-bot is model adherence, not a
+ * framework guarantee (qwen2.5:1.5b at temperature 0 has answered without it), so
+ * it is recorded as a test annotation and never fails the spec.
  */
 const PROMPT = 'How do I deploy the billing service to production?';
 const ADVISOR = 'production-release-advisor';
@@ -60,13 +70,13 @@ function preferConversations(entries: DecisionEntry[]): Set<string> {
     .map((e) => String(e.context_snapshot?.conversation_id ?? '')));
 }
 
-test.describe('governance-feedback: soft-preference steers the answer', () => {
+test.describe('governance-feedback: soft-preference is carried into the turn', () => {
   // Connect (15 s) + a full streamed answer from a CPU-only Ollama on a CI runner.
   // The default 30 s test budget is shorter than the reply wait below, so a slow
   // first turn was killed by the test timeout rather than by the assertion.
   test.setTimeout(120_000);
 
-  test('a production-deploy question yields a PREFER + org-specific guidance', async ({ page, baseURL }) => {
+  test('a production-deploy question yields a PREFER + injected org-specific guidance', async ({ page, baseURL }) => {
     const decisionsUrl = `${baseURL}/api/admin/governance/decisions?limit=200`;
     const readDecisions = async (): Promise<DecisionEntry[]> => {
       const res = await page.request.get(decisionsUrl);
@@ -93,13 +103,15 @@ test.describe('governance-feedback: soft-preference steers the answer', () => {
     // conversation (one this server had not seen before the send), carrying the
     // Example Corp process as the preferred path. Structured, model-independent.
     let conversationId = '';
+    let preferred = '';
     await expect.poll(async () => {
       const fresh = (await readDecisions()).find((e) =>
         e.policy_name === ADVISOR && e.decision === 'prefer'
         && e.context_snapshot?.message === PROMPT
         && !seenBefore.has(String(e.context_snapshot?.conversation_id ?? '')));
       conversationId = String(fresh?.context_snapshot?.conversation_id ?? '');
-      return fresh ? String(fresh.context_snapshot?.preferred ?? '') : null;
+      preferred = String(fresh?.context_snapshot?.preferred ?? '');
+      return fresh ? preferred : null;
     }, { timeout: 15_000, message: 'a new PREFER decision from ' + ADVISOR })
       .toMatch(/release-bot/);
     // The row below is located by this id, so an empty one would match any row.
@@ -108,12 +120,31 @@ test.describe('governance-feedback: soft-preference steers the answer', () => {
     // Terminal frame: the session-stats footer renders only once the `complete`
     // frame has finalized the assistant message (an `error` frame never shows it).
     await expect(page.getByTestId('session-stats')).toBeVisible({ timeout: 90_000 });
-
-    // CARRY: the injected advisory steered the finished answer to the org-specific
-    // process. `release-bot` is a token the base model cannot know — it only appears
-    // because the PreferencePolicy's advisory was injected into the request.
     await expect(bubbles).toHaveCount(2);
-    await expect(bubbles.nth(1)).toContainText(/release-bot/i);
+
+    // CARRY: the interceptor reported injecting guidance into THIS turn's system
+    // prompt. The frames arrive before `complete`, so once session-stats renders the
+    // panel is final. It is per-turn console state rendered under this page's only
+    // turn, and the injected line must carry the `preferred` text of the PREFER this
+    // conversation produced above — the release-bot process the base model cannot know.
+    const guidance = page.getByTestId('governance-feedback');
+    await expect(guidance, 'the console renders the injected-guidance panel').toHaveCount(1);
+    await expect(guidance).toBeVisible();
+    await expect(guidance).toHaveAttribute('data-injected', /^[1-9]\d*$/);
+    const carried = page.getByTestId('governance-feedback-line')
+      .filter({ hasText: preferred });
+    await expect(carried, 'an injected line carries this conversation\'s PREFER').toHaveCount(1);
+    await expect(carried).toContainText(/release-bot/);
+
+    // Model adherence — recorded, never asserted: following injected guidance is
+    // the model's job, not a framework guarantee.
+    const answer = await bubbles.nth(1).innerText();
+    test.info().annotations.push({
+      type: 'model-adherence',
+      description: /release-bot/i.test(answer)
+        ? 'the answer names release-bot'
+        : 'the answer does not name release-bot (model wording is not asserted)',
+    });
 
     // The console's Decisions tab renders THIS run's PREFER row. Each row carries its
     // context snapshot (collapsed <details> JSON, still in the DOM), so the row is

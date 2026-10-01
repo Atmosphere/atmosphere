@@ -39,11 +39,13 @@ import java.util.regex.Pattern;
  * </ol>
  *
  * <p>The advisory is deliberately an <em>org-specific</em> process the base model cannot know
- * (Example Corp's production-release runbook), so the loop's effect is causally observable:
- * the model's answer names the Example Corp {@code release-bot} / {@code #prod-releases}
- * process only because the advisory was injected. Because those tokens are unknowable without
- * the injected guidance, an e2e that asserts them fails when the loop is off (it is not a
- * trivially-true assertion).</p>
+ * (Example Corp's production-release runbook): when the answer names the Example Corp
+ * {@code release-bot} / {@code #prod-releases} process, it is because the advisory was
+ * injected. Whether the model follows it is the model's behaviour, though — a small model may
+ * answer without naming {@code release-bot} — so what the framework guarantees, and what the
+ * e2e asserts, is the injection itself: the interceptor reports the lines it injected as
+ * {@code ai.governance.feedback.*} metadata frames, which the console renders under the turn
+ * and which are absent when the loop is off.</p>
  *
  * <p>Timing on the {@code @AiEndpoint} streaming path: the policy plane (which records the
  * {@code Prefer}) runs <em>before</em> the interceptor (which injects), so a {@code Prefer}
@@ -51,9 +53,10 @@ import java.util.regex.Pattern;
  * {@code Deny} terminates its turn, so a denial is surfaced on the <em>next</em> turn from the
  * decision-log ring buffer instead.)</p>
  *
- * <p>Try it: ask "how do I deploy the billing service to production?" — the answer names the
- * Example Corp release-bot / #prod-releases change-managed process, and the console's Decisions
- * tab shows a {@code PREFER} from {@code production-release-advisor}.</p>
+ * <p>Try it: ask "how do I deploy the billing service to production?" — the console shows the
+ * injected Example Corp release-bot / #prod-releases guidance in a "Governance guidance applied"
+ * panel under the turn, and its Decisions tab shows a {@code PREFER} from
+ * {@code production-release-advisor}.</p>
  */
 @Configuration
 public class GovernanceFeedbackConfig {
