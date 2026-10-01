@@ -65,7 +65,9 @@ Rules enforced by hooks:
 - Do not add ANY trailer lines (Co-authored-by, Signed-off-by, etc.) to commit messages
 
 ### Branch Strategy
-- Main branch: `main` (development), `atmosphere-2.6.x` (legacy)
+- Main branch: `main` (development)
+- Legacy branch: `atmosphere-3.x`. Bug fixes only, nothing else
+- Never touch the `atmosphere-2.x` branches (2.7.x, 2.6.x and older): unsupported, no commits, no backports
 - Feature branches for new features
 - Bug fixes go directly to `main`
 
@@ -290,7 +292,7 @@ The pre-push hook blocks `git push` unless you run the validation script first. 
 ./scripts/pre-push-validate.sh --dry-run
 
 # Override the diff base (e.g. when working off the legacy branch)
-BASE_REF=origin/atmosphere-2.6.x ./scripts/pre-push-validate.sh
+BASE_REF=origin/atmosphere-3.x ./scripts/pre-push-validate.sh
 ```
 
 The script picks one of three modes from the diff:

@@ -2,16 +2,13 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+Security updates are provided for these versions:
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 4.0.x   | :white_check_mark: |
-| 3.1.x   | :white_check_mark: |
-| 2.7.x   | :white_check_mark: |
-| 2.6.x   | :white_check_mark: |
-| < 2.6   | :x:                |
+| Version | Supported                 |
+| ------- | ------------------------- |
+| 4.0.x   | :white_check_mark:        |
+| 3.x     | :white_check_mark: (bug fixes only) |
+| < 3.0   | :x:                       |
 
 
 ## Reporting a Vulnerability

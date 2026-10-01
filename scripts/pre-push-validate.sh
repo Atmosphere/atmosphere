@@ -19,7 +19,7 @@
 #   ./scripts/pre-push-validate.sh              # incremental against origin/main
 #   ./scripts/pre-push-validate.sh --full       # force full reactor
 #   ./scripts/pre-push-validate.sh --dry-run    # classify only, don't build
-#   BASE_REF=origin/atmosphere-2.6.x ./scripts/pre-push-validate.sh
+#   BASE_REF=origin/atmosphere-3.x ./scripts/pre-push-validate.sh
 
 set -euo pipefail
 
