@@ -4170,5 +4170,41 @@ copied without the description being updated.
 **Gate:** `TypesafeWireTest#anUnreportedTokenCountKeepsTheAnswersAndReportsNoUsage`,
 `#aReplyWithoutModelOrUsageFailsEveryQuestion` (malformed and overflowing counts),
 `#everyRequiredChoiceFieldIsCheckedOnItsOwn`, `#everyRequiredScoreFieldIsCheckedOnItsOwn`,
-`#theRequiredNoulFieldIsChecked`. The README, the Javadoc and the contract-test Javadoc now cite what
-`api.md` and the SDK schema actually require and say the request fixtures pin the model id.
+`#theRequiredNoulFieldIsChecked`, and `TypesafeLiveTest#answersEveryQuestionTypeWithTheRealKey` (the
+dispatch-only live lane), whose `usage` assertion, "usage is documented as required", was a copy of
+Claim 1 missed in the first pass: it now checks the counts only when the reply reports them. The
+README, the Javadoc and the contract-test Javadoc now cite what `api.md` and the SDK schema actually
+require and say the request fixtures pin the model id.
+
+---
+
+## 2026-10-01 — The TypeSafe deadline, probe and confidence-source claims overstated what the code did
+
+**Session:** carnet #56 fourth review — `atmosphere-ai-decision-typesafe` findings.
+
+**Claim 1:** the `TypesafeDecisionModel` class Javadoc and the README *Failures and retries* table:
+"the deadline passing is `TIMEOUT`".
+**Truth:** each attempt sets `HttpRequest.timeout` to the time left. When that timer fires before the
+TCP connection is up, the JDK reports `HttpConnectTimeoutException`, which the adapter treated as a
+retryable connection error; the backoff then found the deadline gone and returned `ERROR` ("the
+... ms wait before a retry would pass the deadline"). A probe against a full accept queue gave
+`ERROR` for 500 ms and 7 s deadlines and `TIMEOUT` for 1.5 s, depending on which timer fired first.
+**Claim 2:** the probe's INFO line "TypeSafe decision model {} is reachable" and the availability
+docs, read as a statement about the model.
+**Truth:** the probe checks the key and the endpoint only. `docs.typesafe.ai/models.md` says
+`GET /v1/models` lists the aliases and that versioned IDs are accepted whether or not they are
+listed, so the model cannot be looked up there; a well-formed but unknown model id is available,
+selected, and fails every question. The docs now say so and the log names what was checked.
+**Claim 3:** the `Answer` Javadoc, `modules/ai/README.md` (moderation tier) and the
+`LlmModerationDetector`, `LlmClassifierScopeGuardrail` and `LlmClassifierInjectionClassifier` Javadocs
+named two confidence sources: Built-in `DECISION_LOGPROBS`, else self-reported.
+**Truth:** the same branch added `AiConfidence.Source.PROVIDER_DISTRIBUTION`; with TypeSafe selected,
+every noul carries the provider's `P(true)`, which `NoulGate` and the injection classifier read as a
+measured probability.
+**Slip path:** Claim 1 assumed the JDK raises `HttpConnectTimeoutException` only for the connect
+bound; Claims 2 and 3 described the code as it stood before the provider existed, and the
+enumerations were not re-read when the new source was added.
+**Gate:** `TypesafeDecisionModelContractTest#aDeadlineThatPassesWhileConnectingIsTimeoutNotAConnectionError`
+(fails with the fix reverted: `ERROR` on attempt 1 of 3), `#theProbeDoesNotRequireTheModelInTheList`
+(pins the documented choice not to look the model up), and the existing
+`#aConnectTimeoutIsARetriedConnectionErrorNotADeadline` (the connect bound still retries).

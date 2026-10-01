@@ -47,8 +47,12 @@ import java.time.Duration;
  * {@link AgentRuntime}, or whatever {@link DecisionModelResolver} resolves. On
  * the Built-in runtime's chat-completions path, where the endpoint passes its
  * logprobs gate, the answer carries the model's measured distribution over
- * {@code true}/{@code false}; elsewhere it carries the model's self-reported
- * confidence. Either way the same thresholds apply (see {@link NoulGate}).</p>
+ * {@code true}/{@code false}. A registered decision model that returns a
+ * distribution ({@code atmosphere-ai-decision-typesafe}) gives the provider's
+ * {@code P(true)}, with source
+ * {@link org.atmosphere.ai.AiConfidence.Source#PROVIDER_DISTRIBUTION}. Elsewhere
+ * the answer carries the model's self-reported confidence. The same thresholds
+ * apply in every case (see {@link NoulGate}).</p>
  *
  * <h2>Mapping</h2>
  * <ul>

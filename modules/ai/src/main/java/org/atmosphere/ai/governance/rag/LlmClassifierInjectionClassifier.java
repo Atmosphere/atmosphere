@@ -40,7 +40,11 @@ import java.util.Locale;
  * (prompt-only where the runtime has no native structured output). On the Built-in
  * runtime's chat-completions path, where the endpoint passes its logprobs gate,
  * the answer carries the model's measured distribution over {@code true} /
- * {@code false}; elsewhere it carries the model's self-reported confidence.</p>
+ * {@code false}. A registered decision model that returns a distribution
+ * ({@code atmosphere-ai-decision-typesafe}) gives the provider's {@code P(true)},
+ * with source {@link org.atmosphere.ai.AiConfidence.Source#PROVIDER_DISTRIBUTION},
+ * read as the measured case below. Elsewhere the answer carries the model's
+ * self-reported confidence.</p>
  *
  * <h2>Mapping</h2>
  * <ul>

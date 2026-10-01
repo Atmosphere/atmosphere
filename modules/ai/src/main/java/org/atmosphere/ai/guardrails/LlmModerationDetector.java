@@ -50,8 +50,12 @@ import java.util.Set;
  * On the Built-in runtime's chat-completions path, where the endpoint passes its
  * logprobs gate, each answer carries the model's measured distribution over
  * {@code true}/{@code false} and the category score is that measured
- * probability; elsewhere the model's self-reported confidence is used, and a
- * flagged category with no confidence carries no score.</p>
+ * probability. A registered decision model that returns a distribution
+ * ({@code atmosphere-ai-decision-typesafe}) gives the provider's {@code P(true)},
+ * with source {@link org.atmosphere.ai.AiConfidence.Source#PROVIDER_DISTRIBUTION},
+ * and the score is that probability. Elsewhere the model's self-reported
+ * confidence is used, and a flagged category with no confidence carries no
+ * score.</p>
  *
  * <h2>Cost</h2>
  * One inspection is one isolated decision call per asked

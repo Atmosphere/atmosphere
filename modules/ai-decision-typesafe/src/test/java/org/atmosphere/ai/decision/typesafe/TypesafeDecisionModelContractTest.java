@@ -394,6 +394,28 @@ class TypesafeDecisionModelContractTest {
     }
 
     @Test
+    void aDeadlineThatPassesWhileConnectingIsTimeoutNotAConnectionError() throws Exception {
+        // Default connectTimeout (5 s), longer than the deadline: the request
+        // timer fires first and the JDK reports HttpConnectTimeoutException.
+        try (var blackhole = new Blackhole();
+             var slow = TypesafeDecisionModel.builder().apiKey("test-key").baseUrl(blackhole.baseUrl()).build()) {
+            for (var run = 0; run < 3; run++) {
+                var started = System.nanoTime();
+
+                var failed = onlyFailure(slow.decide(noulRequest().withTimeout(Duration.ofMillis(400))),
+                        "is_urgent");
+
+                var elapsed = Duration.ofNanos(System.nanoTime() - started);
+                // Before the fix: usually ERROR "connection failed on attempt 1 of 3:
+                // ...HttpConnectTimeoutException...; the ... ms wait before a retry would pass the deadline".
+                assertEquals(Answer.Failed.Reason.TIMEOUT, failed.reason(), failed.detail());
+                assertTrue(failed.detail().contains("400 ms deadline"), failed.detail());
+                assertTrue(elapsed.compareTo(Duration.ofMillis(2_000)) < 0, "returned after " + elapsed);
+            }
+        }
+    }
+
+    @Test
     void aReplyPastTheDeadlineIsTimeoutAndDecideReturnsOnTime() {
         stub.onDecide(TypesafeStub.Reply.json(200, TypesafeStub.fixture("response-noul.json")).delayed(3_000));
         var started = System.nanoTime();
@@ -608,6 +630,21 @@ class TypesafeDecisionModelContractTest {
         assertTrue(model.hasClient());
         model.close();
         assertFalse(model.hasClient());
+    }
+
+    @Test
+    void theProbeDoesNotRequireTheModelInTheList() {
+        // models.md: the list "currently lists the aliases"; versioned IDs are
+        // accepted "whether or not they appear in the list". The fixture lists
+        // only jev-latest and jev-preview, and the pinned default is jev-1.13.0.
+        var listed = new ArrayList<String>();
+        for (var entry : TypesafeWire.MAPPER.readTree(TypesafeStub.fixture("models.json")).get("models")) {
+            listed.add(entry.get("name").asString());
+        }
+        assertEquals(List.of("jev-latest", "jev-preview"), listed);
+        assertEquals("jev-1.13.0", model.model());
+
+        assertTrue(model.isAvailable(), "the probe checks the key and the endpoint, not the model");
     }
 
     @Test

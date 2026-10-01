@@ -2000,7 +2000,9 @@ Four zero-dep implementations ship in-tree:
   (six decision calls per inspection with every category blocked, fewer
   after `.blocking(...)`; in parallel under one 5 s deadline; see
   *Decision models*). A flagged category's score is the measured probability when
-  the Built-in runtime reports `DECISION_LOGPROBS`, the self-reported
+  the Built-in runtime reports `DECISION_LOGPROBS`, the provider's `P(true)`
+  (source `PROVIDER_DISTRIBUTION`) when a registered `DecisionModel` returns a
+  distribution (`atmosphere-ai-decision-typesafe`), the self-reported
   confidence otherwise, and absent when the model gave none.
   **Fail-closed by default** — a detector outage, and any blocked category
   the LLM detector could not clear (uncertain belief, timeout, no decision

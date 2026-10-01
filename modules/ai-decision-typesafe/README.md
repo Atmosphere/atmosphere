@@ -17,7 +17,7 @@ documentation. Here is the split:
 |-----------|------------------|------|
 | Request body for noul, choice and score (`state`, `model`, `questions.<id>.{type, instructions, criteria}`) | The request examples in `docs.typesafe.ai/api.md`, copied into `src/test/resources/fixtures/request-*.json` with one edit: `model` is the pinned `jev-1.13.0` (the adapter's default) where `api.md` sends the moving alias `jev-latest` | Docs fetched 2026-10-01 |
 | Answer shapes: noul (`noul`), choice (`choice`, `probabilities`, `confidence`), score (`score`, `legend`, `probabilities`, `confidence`), `usage` (the object is required; `api.md` does not mark `input_tokens` or `output_tokens` required, and the SDK response schema in `docs.typesafe.ai/llms-full.txt` types each as `integer` or `null`, default `null`) | The response examples in `api.md`, copied into `fixtures/response-*.json` | Docs fetched 2026-10-01 |
-| `GET /v1/models` shape (`{"models":[{"name","description","release_date"}]}`) | The field list in `docs.typesafe.ai/models.md`. `fixtures/models.json` is in that shape, but its values are made up | Docs fetched 2026-10-01 |
+| `GET /v1/models` shape (`{"models":[{"name","description","release_date"}]}`) | The field list in `docs.typesafe.ai/models.md`, which also says the list "currently lists the aliases" and that versioned IDs such as `jev-1.13.0` are accepted "whether or not they appear in the list". `fixtures/models.json` is in that shape and lists the two aliases; its descriptions and dates are made up | Docs fetched 2026-10-01 |
 | **401** for an invalid key (on both `/v1/models` and `/v1/systemone`), with the body `{"detail":{"error_type":"authentication_error","message":...}}` and an `x-typesafe-request-id` header | **Live**: `TypesafeLiveTest#theRealApiRejectsAnInvalidKey` against `api.typesafe.ai` (`-Dtypesafe.live=true`), plus `curl` | 2026-10-01 |
 | **403** when no key is sent, same envelope | **Live**, with `curl` | 2026-10-01 |
 | 422, 429, 529 handling | Status codes from `api.md`. The **bodies** in `fixtures/error-422.json`, `error-429.json` and `error-529.json` are **assumed**: none was observed. The adapter reads only the status, the retry headers and a best-effort message, so a different body changes the logged detail and nothing else | not observed live |
@@ -124,6 +124,18 @@ whose caller is interrupted, or whose instance is closed mid-probe, records no
 verdict: that caller gets `false`, and the next caller probes the endpoint
 (`TypesafeDecisionModelContractTest#anInterruptedCallerDoesNotMarkTheConfigurationDownForOthers`).
 
+The probe proves the key and the endpoint, **not the model**. `GET /v1/models`
+lists the aliases, and `models.md` says versioned IDs are accepted whether or
+not they are listed, so the adapter cannot require the configured model in that
+list without making the pinned default `jev-1.13.0` unavailable
+(`TypesafeDecisionModelContractTest#theProbeDoesNotRequireTheModelInTheList`).
+A model id that passes the format check but does not exist (a typo, a retired
+version) therefore reports `isAvailable()` `true` and is selected, and every
+question it is asked fails; which status the API returns for an unknown model
+has not been observed. The safety tiers read those failures as uncertain and
+fail closed by default. Check the model id when you set it: the resolver keeps
+the selected model until `DecisionModelResolver.reset()`.
+
 `DecisionModelResolver` caches the model it selects. A model that later becomes
 unreachable is still the one consumers call. Its questions then fail
 (`ERROR`/`TIMEOUT`/`CAPACITY`), and every safety tier treats a failed answer as
@@ -197,7 +209,7 @@ every question the same way, before `DecisionRequest.timeout()`:
 | 408, 429, 5xx (including 529), connection error (a dropped connection, a TCP connect timeout) | Yes, up to `maxRetries`. The wait is `retry-after-ms`, else `Retry-After` (seconds or an HTTP date), else 500 ms doubling to 5 s with up to 25% jitter. A wait that would reach the deadline is not taken | final 429/529: `CAPACITY`; others: `ERROR` (a connection error names its attempt, e.g. `attempt 3 of 3`) |
 | 401, 403 | No (also marks the model unavailable) | `ERROR` |
 | 422 and other 4xx | No | `ERROR` |
-| Deadline passed (in-flight request cancelled) | No | `TIMEOUT`, with the deadline and the time elapsed |
+| Deadline passed (in-flight request cancelled), including while TCP is still connecting: a connect counts as a connection error only when the connect timeout, shorter than the time left, cut it short | No | `TIMEOUT`, with the deadline and the time elapsed |
 | `close()` while the request is in flight | No | `ERROR` ("closed while the request was in flight") |
 | All `maxConcurrency` slots busy until the deadline | No | `CAPACITY` |
 
@@ -238,7 +250,7 @@ pins this against a stub that clears everything.
 
 | Test | Needs | What it pins |
 |------|-------|--------------|
-| `TypesafeDecisionModelContractTest` | nothing (JDK `HttpServer` stub on loopback, and a loopback listener whose accept queue is full for the connect timeout) | the documented request bodies, every answer type, 401/403/422/429/529/503, retries of a dropped connection and of a connect timeout, retry-after (including waits too large to add to the clock), the deadline, the body bound, the concurrency bound, availability caching and sharing (including very long TTLs and no carrier pinning), `close()` aborting a request in flight |
+| `TypesafeDecisionModelContractTest` | nothing (JDK `HttpServer` stub on loopback, and a loopback listener whose accept queue is full for the connect timeout) | the documented request bodies, every answer type, 401/403/422/429/529/503, retries of a dropped connection and of a connect timeout, a deadline that passes during the connect, retry-after (including waits too large to add to the clock), the deadline, the body bound, the concurrency bound, availability caching and sharing (including very long TTLs and no carrier pinning), `close()` aborting a request in flight |
 | `TypesafeWireTest` | nothing | strict decoding (each required reply and answer field, missing and wrongly typed, one at a time; malformed or overflowing token counts; unreported token counts keeping the answers), criteria encoding, retry header parsing |
 | `TypesafeDiscoveryTest` | nothing | ServiceLoader registration, system-property configuration, logging a bad configuration or a moving alias once across scans, resolver selection, the rule-based floor |
 | `TypesafeLiveTest` | `TYPESAFE_API_KEY`, or `-Dtypesafe.live=true` for the invalid-key test only | the real API |

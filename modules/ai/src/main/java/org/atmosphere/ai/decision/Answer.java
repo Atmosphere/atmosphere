@@ -28,13 +28,16 @@ import java.util.OptionalDouble;
  *
  * <p>{@link #confidence()} is the existing {@link AiConfidence}, so
  * {@link org.atmosphere.ai.ConfidenceRouting#route(AiConfidence)} gates an answer
- * unchanged. Its {@link AiConfidence#source()} says how the value was derived:
+ * unchanged. Its {@link AiConfidence#source()} says how the value was derived
+ * (the sources are described on {@link AiConfidence}):
  * {@link AiConfidence.Source#DECISION_LOGPROBS} when the model's distribution
- * over the allowed values was observed, {@link AiConfidence.Source#MODEL_REPORTED_FIELD}
- * when the model stated a number. Probability maps (and
- * {@link Noul#probabilityTrue()}) are filled only from an observed distribution
- * and are empty otherwise — never inferred from a self-reported number
- * (Correctness Invariant #5).</p>
+ * over the allowed values was observed, {@link AiConfidence.Source#PROVIDER_DISTRIBUTION}
+ * when an external decision-model provider returned that distribution (its
+ * values as the provider returned them, not calibrated by Atmosphere), and
+ * {@link AiConfidence.Source#MODEL_REPORTED_FIELD} when the model stated a
+ * number. Probability maps (and {@link Noul#probabilityTrue()}) are filled only
+ * from an observed or provider-returned distribution and are empty otherwise —
+ * never inferred from a self-reported number (Correctness Invariant #5).</p>
  */
 public sealed interface Answer permits Answer.Choice, Answer.Score, Answer.Noul, Answer.Failed {
 

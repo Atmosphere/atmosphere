@@ -96,6 +96,13 @@ import java.util.regex.Pattern;
  * {@code 403} from {@code decide} marks it unavailable until the next probe. No
  * key means no probe and {@code false}.
  *
+ * <p>The probe proves the key and the endpoint, not the model. The list holds
+ * the aliases, and {@code docs.typesafe.ai/models.md} says versioned IDs are
+ * accepted whether or not they are listed, so the configured model is not
+ * looked up in it. A well-formed model id that does not exist (a typo, a
+ * retired version) is therefore available, is selected, and fails every
+ * question.</p>
+ *
  * <h2>Failures</h2>
  * Every question resolves to exactly one {@link Answer} before
  * {@link DecisionRequest#timeout()}; a failure of the HTTP exchange fails every
@@ -116,7 +123,10 @@ import java.util.regex.Pattern;
  *       retried: {@link Answer.Failed.Reason#ERROR} naming the status, the
  *       provider's message and its {@code x-typesafe-request-id};</li>
  *   <li>the deadline passing is {@link Answer.Failed.Reason#TIMEOUT} (the
- *       in-flight exchange is cancelled); no free slot before the deadline is
+ *       in-flight exchange is cancelled), including while TCP is still
+ *       connecting: a connect is a retried connection error only when the
+ *       {@code connectTimeout} bound, shorter than the time left, cut it short;
+ *       no free slot before the deadline is
  *       {@link Answer.Failed.Reason#CAPACITY};</li>
  *   <li>a body over {@value #MAX_RESPONSE_BYTES} bytes, or a {@code 200} that is
  *       not the documented shape, is {@link Answer.Failed.Reason#UNPARSEABLE};
@@ -476,7 +486,8 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
             }
             if (current == null || current.up() != probed.up()) {
                 if (probed.up()) {
-                    logger.info("TypeSafe decision model {} is reachable at {}", model, baseUri);
+                    logger.info("TypeSafe API at {} accepted the key (GET /v1/models); model {} is not checked "
+                            + "by this probe", baseUri, model);
                 } else {
                     logger.warn("TypeSafe decision model {} is unavailable: {}", model, probed.detail());
                 }
@@ -622,10 +633,9 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
                     return failed(request, start, Answer.Failed.Reason.ERROR,
                             "TypeSafe decision model was closed while the request was in flight");
                 }
-                // HttpConnectTimeoutException extends HttpTimeoutException, but only
-                // the connect bound passed, not the deadline: it is a connection
-                // error, retried below.
-                if (cause instanceof HttpTimeoutException && !(cause instanceof HttpConnectTimeoutException)) {
+                if (cause instanceof HttpTimeoutException
+                        && (!(cause instanceof HttpConnectTimeoutException)
+                            || deadlineBoundTheConnect(remaining, deadline))) {
                     return failed(request, start, Answer.Failed.Reason.TIMEOUT, deadlinePassed(request, start));
                 }
                 if (cause instanceof BoundedBodySubscriber.TooLargeException) {
@@ -667,6 +677,19 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
             }
             logger.debug("TypeSafe {}; retry {} of {} after {} ms", detail, attempt + 1, maxRetries, wait);
         }
+    }
+
+    /**
+     * Whether an {@link HttpConnectTimeoutException} means the deadline passed.
+     * The JDK reports it both when {@code connectTimeout} fires and when the
+     * request timer (set to the time left, {@code remaining}) fires before the
+     * connection is up. Only the first is a connection error worth a retry: when
+     * the connect bound is not shorter than the time the attempt had, or the
+     * deadline has gone, the request timer fired and the answer is TIMEOUT, as
+     * for any other deadline.
+     */
+    private boolean deadlineBoundTheConnect(long remaining, long deadline) {
+        return connectTimeout.compareTo(Duration.ofNanos(remaining)) >= 0 || deadline - System.nanoTime() <= 0;
     }
 
     private static String deadlinePassed(DecisionRequest request, long start) {
