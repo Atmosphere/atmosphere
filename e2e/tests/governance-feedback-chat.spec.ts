@@ -38,7 +38,7 @@ import { test, expect } from '@playwright/test';
  *  1. PRODUCE — asking about a production deploy fires the org's
  *     `production-release-advisor` PreferencePolicy, recording a PREFER decision
  *     (deterministic; asserted on /api/admin/governance/decisions for this
- *     conversation and visible in the console Decisions tab).
+ *     conversation, and that same conversation's row in the console Decisions tab).
  *  2. CARRY — the GovernanceFeedbackInterceptor injects that advisory into the
  *     same request, so the model's answer names the Example Corp `release-bot` /
  *     `#prod-releases` process. Those tokens are unknowable to the base model, so
@@ -92,14 +92,18 @@ test.describe('governance-feedback: soft-preference steers the answer', () => {
     // PRODUCE: the policy plane recorded a PREFER from the advisor for THIS
     // conversation (one this server had not seen before the send), carrying the
     // Example Corp process as the preferred path. Structured, model-independent.
+    let conversationId = '';
     await expect.poll(async () => {
       const fresh = (await readDecisions()).find((e) =>
         e.policy_name === ADVISOR && e.decision === 'prefer'
         && e.context_snapshot?.message === PROMPT
         && !seenBefore.has(String(e.context_snapshot?.conversation_id ?? '')));
+      conversationId = String(fresh?.context_snapshot?.conversation_id ?? '');
       return fresh ? String(fresh.context_snapshot?.preferred ?? '') : null;
     }, { timeout: 15_000, message: 'a new PREFER decision from ' + ADVISOR })
       .toMatch(/release-bot/);
+    // The row below is located by this id, so an empty one would match any row.
+    expect(conversationId, 'the fresh PREFER carries a conversation_id').not.toBe('');
 
     // Terminal frame: the session-stats footer renders only once the `complete`
     // frame has finalized the assistant message (an `error` frame never shows it).
@@ -111,11 +115,16 @@ test.describe('governance-feedback: soft-preference steers the answer', () => {
     await expect(bubbles).toHaveCount(2);
     await expect(bubbles.nth(1)).toContainText(/release-bot/i);
 
-    // The console's Decisions tab renders that PREFER row.
+    // The console's Decisions tab renders THIS run's PREFER row. Each row carries its
+    // context snapshot (collapsed <details> JSON, still in the DOM), so the row is
+    // located by this conversation's id: a PREFER left by an earlier run on the same
+    // server (--repeat-each, a reused server) cannot satisfy it.
     await page.getByRole('button', { name: /Decisions/ }).click();
     const preferRow = page.getByTestId('governance-decisions').locator('li.decision')
       .filter({ hasText: ADVISOR })
-      .filter({ has: page.locator('.badge-prefer') });
-    await expect(preferRow.first()).toBeVisible({ timeout: 15_000 });
+      .filter({ has: page.locator('.badge-prefer') })
+      .filter({ hasText: conversationId });
+    await expect(preferRow).toHaveCount(1, { timeout: 15_000 });
+    await expect(preferRow).toBeVisible();
   });
 });
