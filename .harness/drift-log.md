@@ -4387,3 +4387,36 @@ scaffolded copies). The hook maps each staged Java file to its nearest `pom.xml`
 header-less `generator/ComposeGenerator.java` each block the hook with the Spotless diff. The
 `ATMOSPHERE_OFFLINE_COMMIT` sandbox bypass still runs no Maven, which the hook comment and
 `AGENTS.md` now say. There is no committed test of the hook itself.
+
+## 2026-10-01 — Build docs said Spotless rejects duplicate imports and pre-push builds any Java change
+
+**Session:** review fixes on the Checkstyle/PMD-to-Spotless branch.
+
+**Claim 1:** `AGENTS.md` *Build Enforcement* and *Before Committing*: Spotless fails on (or "rejects")
+duplicate imports.
+**Truth:** the duplicate step matched byte-identical `import ...;` lines at column 0. An indented
+copy, a copy with two blanks after `import`, and a copy with a trailing `//` comment each passed
+`spotless:check -pl modules/cpr` and `javac -Xlint:all`; Checkstyle's `RedundantImport`, which this
+step replaced, compared import names and caught all three.
+**Claim 2:** the pre-commit hook printed "Checking root-project Java sources with Spotless
+(generator/, scripts/)" for every staged Java file with no `pom.xml` above it, and passed.
+**Truth:** the root project's Spotless includes are `src/`, `generator/` and `scripts/` only. A
+header-less, tab-indented `e2e/Probe.java` passed `./mvnw -N spotless:check`, and the full-reactor CI
+build uses the same includes, so nothing checked it.
+**Claim 3:** `AGENTS.md` pre-push table: `incremental` mode runs for "any Java" change, through the
+Gitflow Incremental Builder in the main checkout and `-pl` only in a worktree.
+**Truth:** `scripts/pre-push-validate.sh` never invokes GIB (its header says it avoids opaque GIB
+runs); it always maps files to `-pl <modules> -am`. A change to `generator/**/*.java` maps to the root
+project and `scripts/**` is ignored, so both took `none` mode and ran no Maven, and their Spotless
+check only happened in the CI full build.
+**Slip path:** the docs described what each mechanism was meant to cover, not a probe file pushed
+through it.
+**Gate added:** the duplicate step matches the import name (static and non-static apart) inside the
+import section; the indented, re-spaced and commented duplicates now fail `spotless:check` and
+`spotless:apply` removes the earlier copy, while the Java quoted in text blocks of
+`AtmosphereAnnotationIndexProcessorTest` stays clean. `scripts/architectural-validation.sh` fails on a
+tracked Java file outside every Spotless include (bite proven with an intent-to-add `e2e/Probe.java`;
+case `spotless-coverage` in `scripts/lib/prove_gate.sh`). `pre-push-validate.sh` runs
+`./mvnw -N spotless:check` for pushed `generator/` and `scripts/` Java outside `full` mode. The
+`AGENTS.md` pre-push table now describes the script as it runs. Still not matched: blanks inside the
+dotted name, a trailing `/* */` comment on the earlier copy, two imports on one line.

@@ -37,8 +37,8 @@ git config core.hooksPath .githooks
 This enables pre-commit, commit-msg, and pre-push hooks. Sessions get archived/revived, so this must run EVERY time you start working.
 
 **NEVER use `--no-verify` when committing or pushing.** The hooks enforce:
-- Apache 2.0 license headers, through Spotless: the hook compiles the Maven module owning each staged Java file (nearest `pom.xml`, so `modules/quarkus-*/runtime` too) and its `validate` phase runs `spotless:check`; staged Java files owned by the root project (`generator/`, `scripts/`) get `./mvnw -N spotless:check`. Under the sandbox-only `ATMOSPHERE_OFFLINE_COMMIT` bypass no Maven runs, so headers are then checked only by the CI build
-- No unused or duplicate imports in staged Java files
+- Apache 2.0 license headers, through Spotless: the hook compiles the Maven module owning each staged Java file (nearest `pom.xml`, so `modules/quarkus-*/runtime` too) and its `validate` phase runs `spotless:check`; staged Java files owned by the root project (`generator/`, `scripts/`) get `./mvnw -N spotless:check`. A Java file anywhere else (e.g. `e2e/`, or a module directory outside `src/`) is outside every Spotless include, and the hook's architectural validation blocks it. Under the sandbox-only `ATMOSPHERE_OFFLINE_COMMIT` bypass no Maven runs, so headers are then checked by `scripts/pre-push-validate.sh` and the CI build
+- No unused or duplicate imports in staged Java files (duplicates compared on the import name, read from the import section only)
 - Commit message format (max 2 lines, conventional commits recommended)
 - No AI-generated commit signatures
 - Pre-push: Maven build must pass (via validation marker)
@@ -151,9 +151,9 @@ cannot fix: copy the header in by hand. Third-party notices go in a separate com
 
 ### Build Enforcement
 - **Compiler**: `javac -Xlint:all,-processing,-serial -Werror` is enabled — the compiler flags unchecked casts, deprecation usage, raw types, and other issues as warnings. It does not flag unused imports (javac has no such lint); Spotless does. **Zero compiler warnings are required.**
-- **Spotless**: `spotless:check` runs in `validate` phase and fails the build. Configured inline in the root `pom.xml`: fails on a missing or altered Apache 2.0 license header, on unused, duplicate, `java.lang` and same-package imports and on any tab character in `src/**/*.java` (plus the JBang sources under `generator/` and `scripts/`, checked only from the root project). `./mvnw spotless:apply` adds a missing header, removes the imports and expands leading tabs to spaces; a tab elsewhere in a line (e.g. inside a string literal) is reported for a hand fix. No code formatter is applied.
+- **Spotless**: `spotless:check` runs in `validate` phase and fails the build. Configured inline in the root `pom.xml`: fails on a missing or altered Apache 2.0 license header, on unused, duplicate, `java.lang` and same-package imports and on any tab character in `src/**/*.java` (plus the JBang sources under `generator/` and `scripts/`, checked only from the root project; `scripts/architectural-validation.sh` fails on a tracked Java file outside these includes). Duplicate imports are matched on the imported name (static and non-static apart) within the import section: indentation, extra blanks and a trailing `//` comment do not hide one; blanks inside the dotted name, a trailing `/* */` comment on the earlier copy or two imports on one line do. `./mvnw spotless:apply` adds a missing header, removes the imports and expands leading tabs to spaces; a tab elsewhere in a line (e.g. inside a string literal) is reported for a hand fix. No code formatter is applied.
 - **Not enforced (PMD was removed)**: the build no longer runs PMD, and nothing replaced the rules it enforced on main and test sources: unused local variables, unused private fields, unused private methods, unused parameters of private methods, assignments whose value is never read (`UnusedAssignment`), `size() == 0` instead of `isEmpty()` (`UseCollectionIsEmpty`), `ThreadGroup` use (`AvoidThreadGroup`) and calling `Thread.run()` directly (`DontCallThreadRun`). javac `-Xlint:all` has no lint for any of them; catch them in review or in the IDE.
-- **Pre-commit hook**: blocks commits containing unused or duplicate imports in staged Java files, and compiles the Maven module owning each staged Java file (javac `-Werror` plus the Spotless check, so the license header too); root-project Java files (`generator/`, `scripts/`) get `./mvnw -N spotless:check`
+- **Pre-commit hook**: blocks commits containing unused or duplicate imports in staged Java files, and compiles the Maven module owning each staged Java file (javac `-Werror` plus the Spotless check, so the license header too); root-project Java files (`generator/`, `scripts/`) get `./mvnw -N spotless:check`, and a Java file outside every Spotless include fails its architectural validation
 - All checks can be skipped with `-Pfastinstall` for local iteration, but **you MUST run a full `./mvnw compile` (without `-Pfastinstall`) before committing** to verify zero warnings.
 - **Do NOT introduce new `@SuppressWarnings` annotations** without justification. If a suppression is necessary (e.g., unavoidable raw type from a third-party API), add a comment explaining why.
 
@@ -274,7 +274,7 @@ Before committing, verify these for every changed file:
 ./mvnw spotless:check -pl modules/cpr
 ```
 
-**Do NOT commit or push if the build produces warnings.** Treat compiler warnings, deprecation warnings, and static analysis warnings as errors. Fix them before committing. The compiler runs with `-Xlint:all,-processing,-serial` and Spotless rejects unused, duplicate and redundant imports — both will catch common issues.
+**Do NOT commit or push if the build produces warnings.** Treat compiler warnings, deprecation warnings, and static analysis warnings as errors. Fix them before committing. The compiler runs with `-Xlint:all,-processing,-serial` and Spotless rejects unused, duplicate (within the limits listed under *Build Enforcement*) and redundant imports — both will catch common issues.
 
 ### Before Pushing
 The pre-push hook blocks `git push` unless you run the validation script first. The script is **diff-aware**: it classifies the changeset against `origin/main` and only builds the reactor modules that are actually affected.
@@ -297,13 +297,13 @@ The script picks one of three modes from the diff:
 
 | Mode | Trigger | Maven invocation |
 |------|---------|------------------|
-| `full` | `pom.xml` / `modules/pom.xml` / `bom/pom.xml` / `assembly/pom.xml` / `.mvn/*` changed, or `--full` flag | `./mvnw install -q` |
-| `none` | only `*.md`, `docs/`, `.github/`, `scripts/`, `atmosphere.js/`, `.claude/` changed | Maven skipped (architectural-validation only) |
-| `incremental` | any Java / leaf-module `pom.xml` change | main checkout: `./mvnw install -q -Dgib.disable=false -Dgib.baseBranch=refs/remotes/$BASE_REF` (routed through the Gitflow Incremental Builder extension declared in `.mvn/extensions.xml`)<br>worktree: `./mvnw install -q -pl <modules> -am` (GIB's JGit backend does not support separate worktrees, so the script falls back to manual `-pl` scoping) |
+| `full` | `pom.xml` / `modules/pom.xml` / `bom/pom.xml` / `assembly/pom.xml` / `.mvn/*` changed, or `--full` flag | `./mvnw install -B -ntp -Dgroups=!flaky` |
+| `none` | only files outside every Maven module changed (`*.md`, `docs/`, `.github/`, `scripts/`, `e2e/`, `atmosphere.js/`, `.claude/`, `generator/`, ...) | no reactor build |
+| `incremental` | a file under a leaf Maven module (`modules/*`, `samples/*`) changed: its Java sources or `pom.xml` | `./mvnw install -B -ntp -pl <modules> -am -Dgroups=!flaky`, the modules being the nearest `pom.xml` of each changed file (`modules/benchmarks` goes through `-Pperf`) |
 
-The script stamps a marker in `.git/validation-passed` valid for 30 minutes. The pre-push hook checks the marker is fresh and matches the current commit.
+Independent of the mode, a pushed change to a root-owned Java source (`generator/**/*.java`, `scripts/**/*.java`) runs `./mvnw -B -ntp -q -N spotless:check` when the mode is not `full` (the full build already checks them), and any pushed `.java` file selects the architectural validation, which fails on a Java file outside every Spotless include. `--dry-run` prints the selected checks and the Maven command without running them.
 
-**Gotcha for worktrees**: if `git rev-parse --git-dir` differs from `git rev-parse --git-common-dir` (i.e. you're in `.claude/worktrees/*`), GIB self-disables and the script takes the manual `-pl ... -am` path. Same end result; the diagnostic banner prints `Worktree: true` so you can tell which path ran.
+The script stamps a marker in `.git/validation-passed` valid for 30 minutes. The pre-push hook checks the marker is fresh and matches the current commit. The marker lives in that checkout's git dir, so in a worktree it is per-worktree.
 
 **Always cancel previous GitHub Actions runs on the branch before pushing** to avoid runner congestion:
 ```bash
