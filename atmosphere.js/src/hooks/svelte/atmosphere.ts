@@ -20,6 +20,7 @@ import type {
   Subscription,
 } from '../../types';
 import { Atmosphere } from '../../core/atmosphere';
+import { isSendError } from '../../utils/send-error';
 
 /** Minimal Svelte-compatible readable store contract. */
 export interface Readable<T> {
@@ -87,7 +88,8 @@ export function createAtmosphereStore<T = unknown>(
         message: (response) =>
           update({ state: 'connected', data: response.responseBody }),
         close: () => update({ state: 'closed' }),
-        error: (err) => update({ state: 'error', error: err }),
+        // An undelivered message leaves the connection up.
+        error: (err) => update(isSendError(err) ? { error: err } : { state: 'error', error: err }),
         reconnect: () => update({ state: 'reconnecting' }),
       });
       // Guard: disconnect() may have been called while we were awaiting.

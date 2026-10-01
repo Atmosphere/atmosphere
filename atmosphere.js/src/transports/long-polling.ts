@@ -104,27 +104,27 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
         return;
       }
 
+      // With the protocol, a first poll sent without a tracking id gets the
+      // server-assigned one in its body. Opening before that body is parsed
+      // would let `open` handlers and the offline-queue drain POST with
+      // tracking id 0, which names no connection: wait for the handshake, as
+      // SSE and streaming do. A reconnect keeps its id and gets no handshake.
+      const awaitHandshake = isFirst && this.request.enableProtocol === true
+        && this.protocol.uuid === '0';
       if (isFirst) {
         this.reconnectAttempts = 0;
-
-        const openResponse: AtmosphereResponse<T> = {
-          status: 200,
-          reasonPhrase: 'OK',
-          responseBody: '' as T,
-          messages: [],
-          headers: {},
-          state: 'open',
-          transport: 'long-polling',
-          error: null,
-          request: this.request,
-        };
-        this.notifyOpen(openResponse);
-        this.protocol.startHeartbeat();
+        if (!awaitHandshake) {
+          this.openPoll();
+        }
       }
 
       const responseText = await response.text();
       if (responseText.trim().length > 0) {
         this.handleResponse(responseText);
+      }
+      if (awaitHandshake && this._state !== 'connected' && !this.aborted) {
+        // The server answered without a handshake: open anyway, as before.
+        this.openPoll();
       }
 
       // Extract session token from response headers (for durable sessions)
@@ -145,11 +145,34 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
     }
   }
 
+  private openPoll(): void {
+    const openResponse: AtmosphereResponse<T> = {
+      status: 200,
+      reasonPhrase: 'OK',
+      responseBody: '' as T,
+      messages: [],
+      headers: {},
+      state: 'open',
+      transport: 'long-polling',
+      error: null,
+      request: this.request,
+    };
+    this.notifyOpen(openResponse);
+    this.protocol.startHeartbeat();
+  }
+
   private handleResponse(responseText: string): void {
     const result = this.protocol.processMessage(responseText, this.request);
 
     if (result === null) {
-      return; // Handshake or partial
+      // Handshake or partial; a parsed handshake opens a waiting first poll.
+      this.notifyHandshakeOpen();
+      return;
+    }
+
+    // The handshake may also arrive with trailing payload: open before it.
+    if (result.wasHandshake) {
+      this.notifyHandshakeOpen();
     }
 
     for (const msg of result.messages) {

@@ -129,8 +129,11 @@ export interface StreamingHandlers {
   onProgress?: (message: string, seq: number) => void;
   /** Called when the stream completes, with an optional summary. */
   onComplete?: (summary?: string) => void;
-  /** Called on error. */
-  onError?: (error: string) => void;
+  /**
+   * Called on error. `undelivered` is `true` when a sent message was not
+   * delivered while the connection stayed up (see `isSendError`).
+   */
+  onError?: (error: string, undelivered?: boolean) => void;
   /**
    * Called when the server denied the turn via governance (scope breach,
    * MS-schema rule hit, kill switch armed) or a guardrail (PII, cost ceiling).

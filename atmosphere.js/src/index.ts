@@ -32,6 +32,7 @@ export { BaseTransport } from './transports/base';
 
 // Export protocol utilities
 export { AtmosphereProtocol } from './utils/protocol';
+export { SEND_ERROR_NAME, isSendError } from './utils/send-error';
 
 // Export room support
 export { AtmosphereRooms } from './room/rooms';

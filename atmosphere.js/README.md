@@ -718,8 +718,12 @@ Over SSE, streaming and long-polling each `push` is its own HTTP POST. A POST th
 answers `503` (it could not take the message yet) is sent again after its `Retry-After`
 (1 s when absent, at most 5 s), up to 3 attempts in all. A message still refused, or
 answered with any other non-2xx status, is reported to the `error` handler with an `Error`
-whose `name` is `'AtmosphereSendError'`: the message was not delivered, but the connection
-is still up. Each POST names its subscription with `X-Atmosphere-tracking-id`; when
+whose `name` is `'AtmosphereSendError'` (test it with `isSendError(error)`): the message was
+not delivered, but the connection is still up, so the React, Vue and Svelte hooks record the
+error without moving their connection state to `'error'`; `subscribeStreaming` passes
+`undelivered = true` as the second argument of `onError`. With `enableProtocol`, long-polling
+fires `open` (and drains the offline queue) only once the handshake has named the
+subscription, so no POST goes out without its id. Each POST names its subscription with `X-Atmosphere-tracking-id`; when
 `enableProtocol` is off (the default) the server never assigns that id, so these transports
 pick a random one themselves and send it on the subscription and on every POST.
 

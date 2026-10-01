@@ -24,6 +24,7 @@ import type {
 import type { OfflineQueue } from '../queue/offline-queue';
 import { logger } from '../utils/logger';
 import { AtmosphereProtocol } from '../utils/protocol';
+import { SEND_ERROR_NAME } from '../utils/send-error';
 
 /**
  * Base class for all transport implementations.
@@ -193,7 +194,7 @@ export abstract class BaseTransport<T = unknown> {
   }
 
   /** `Error.name` of the error {@link postMessage} reports for a message the server did not take. */
-  static readonly SEND_ERROR_NAME = 'AtmosphereSendError';
+  static readonly SEND_ERROR_NAME = SEND_ERROR_NAME;
 
   /** Attempts {@link postMessage} makes in all while the server answers `503`. */
   static readonly SEND_MAX_ATTEMPTS = 3;

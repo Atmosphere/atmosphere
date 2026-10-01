@@ -143,10 +143,11 @@ export function useStreaming(
         onComplete: () => {
           isStreaming.value = false;
         },
-        onError: (err) => {
+        onError: (err, undelivered) => {
           error.value = err;
           isStreaming.value = false;
-          connectionState.value = 'error';
+          // An undelivered message leaves the connection up.
+          if (!undelivered) connectionState.value = 'error';
         },
         onMetadata: (key, value) => {
           metadata.value = { ...metadata.value, [key]: value };

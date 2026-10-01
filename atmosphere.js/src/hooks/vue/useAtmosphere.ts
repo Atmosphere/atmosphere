@@ -22,6 +22,7 @@ import type {
 } from '../../types';
 import { Atmosphere } from '../../core/atmosphere';
 import { ConnectionStatus } from '../../resilience';
+import { isSendError } from '../../utils/send-error';
 import type { ConnectionStatusSnapshot } from '../../resilience';
 
 /**
@@ -97,7 +98,8 @@ export function useAtmosphere<T = unknown>(
           lifecycle?.onClose?.();
         },
         error: (err) => {
-          state.value = 'error';
+          // An undelivered message leaves the connection up.
+          if (!isSendError(err)) state.value = 'error';
           error.value = err;
           lifecycle?.onError?.(err);
         },

@@ -271,12 +271,13 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
               setProgress(null);
             }
           },
-          onError: (err) => {
+          onError: (err, undelivered) => {
             if (!cancelled) {
               setError(err);
               setIsStreaming(false);
               setProgress(null);
-              setConnectionState('error');
+              // An undelivered message leaves the connection up.
+              if (!undelivered) setConnectionState('error');
             }
           },
           onMetadata: (key, value) => {

@@ -23,6 +23,7 @@ import type {
 } from '../../types';
 import type { Atmosphere } from '../../core/atmosphere';
 import { ConnectionStatus } from '../../resilience';
+import { isSendError } from '../../utils/send-error';
 import type { ConnectionStatusSnapshot } from '../../resilience';
 
 /**
@@ -161,7 +162,8 @@ export function useAtmosphereCore<T = unknown>(
           },
           error: (err) => {
             if (!cancelled) {
-              setState('error');
+              // An undelivered message leaves the connection up.
+              if (!isSendError(err)) setState('error');
               setError(err);
               handlersRef.current?.onError?.(err);
             }

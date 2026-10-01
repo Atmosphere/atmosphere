@@ -21,6 +21,7 @@ import { parsePolicyDenial } from './policy-denial';
 import { parseToolPart } from './tool-part';
 import { Atmosphere } from '../core/atmosphere';
 import { ConnectionStatus } from '../resilience';
+import { isSendError } from '../utils/send-error';
 
 /**
  * Creates a streaming subscription to an Atmosphere endpoint that speaks the
@@ -115,7 +116,12 @@ export async function subscribeStreaming(
       });
     },
     error: (err) => {
-      handlers.onError?.(err.message);
+      // Only an undelivered message adds the flag; other errors keep the one-argument call.
+      if (isSendError(err)) {
+        handlers.onError?.(err.message, true);
+      } else {
+        handlers.onError?.(err.message);
+      }
     },
   }));
 

@@ -4,6 +4,7 @@ import { SSETransport } from '../../src/transports/sse';
 import { StreamingTransport } from '../../src/transports/streaming';
 import { WebSocketTransport } from '../../src/transports/websocket';
 import { AtmosphereProtocol } from '../../src/utils/protocol';
+import { OfflineQueue } from '../../src/queue/offline-queue';
 import type { AtmosphereRequest, SubscriptionHandlers } from '../../src/types';
 
 /**
@@ -114,5 +115,125 @@ describe('HTTP transport tracking id without the protocol handshake', () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+/**
+ * With `enableProtocol` the server names a long-polling subscription in the
+ * body of its first poll. The transport used to fire `open` (and drain the
+ * offline queue) as soon as that poll's headers arrived, before the body was
+ * read, so every message sent from `open` or drained from the queue was POSTed
+ * with tracking id 0 — which an Atmosphere AI endpoint refuses with 400.
+ */
+describe('long-polling with the protocol handshake', () => {
+  let originalFetch: typeof global.fetch;
+  let handlers: SubscriptionHandlers;
+  let posts: string[];
+  let firstBody: string;
+
+  beforeEach(() => {
+    originalFetch = global.fetch;
+    handlers = { open: vi.fn(), message: vi.fn(), close: vi.fn(), error: vi.fn(), reconnect: vi.fn() };
+    posts = [];
+    firstBody = 'server-uuid-1|0|X|';
+    let polls = 0;
+    global.fetch = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        posts.push(url);
+        const status = trackingId(url) === '0' ? 400 : 200;
+        return Promise.resolve({ ok: status === 200, status, headers: new Headers(), text: () => Promise.resolve('') });
+      }
+      polls++;
+      if (polls === 1) {
+        return Promise.resolve({ ok: true, status: 200, headers: new Headers(), text: () => Promise.resolve(firstBody) });
+      }
+      return new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          const error = new Error('aborted');
+          error.name = 'AbortError';
+          reject(error);
+        });
+      });
+    });
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  function protocolRequest(): AtmosphereRequest {
+    return { url: 'http://localhost/ai', transport: 'long-polling', enableProtocol: true };
+  }
+
+  it('drains the offline queue and serves open handlers with the handshake id, never 0', async () => {
+    const queue = new OfflineQueue<string | object | ArrayBuffer>();
+    queue.enqueue('queued prompt');
+    let idAtOpen: string | null = null;
+    const transport = new LongPollingTransport<string>(protocolRequest(), {
+      ...handlers,
+      open: () => {
+        idAtOpen = transport.uuid;
+        transport.send('prompt from open');
+      },
+    });
+    transport.setOfflineQueue(queue);
+    await transport.connect();
+
+    await vi.waitFor(() => expect(posts).toHaveLength(2));
+    expect(idAtOpen).toBe('server-uuid-1');
+    expect(posts.map(trackingId)).toEqual(['server-uuid-1', 'server-uuid-1']);
+    expect(queue.size).toBe(0);
+    expect(handlers.error).not.toHaveBeenCalled();
+    await transport.disconnect();
+  });
+
+  it('opens before a message that trails the handshake', async () => {
+    firstBody = 'server-uuid-1|0|X|hello';
+    const order: string[] = [];
+    const transport = new LongPollingTransport<string>(protocolRequest(), {
+      ...handlers,
+      open: () => order.push(`open:${transport.uuid}`),
+      message: (response) => order.push(`message:${String(response.responseBody)}`),
+    });
+    await transport.connect();
+    expect(order).toEqual(['open:server-uuid-1', 'message:hello']);
+    await transport.disconnect();
+  });
+
+  it('reopens a reconnect at once: it keeps its id, so the server sends no new handshake', async () => {
+    let polls = 0;
+    const pollIds: (string | null)[] = [];
+    global.fetch = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      polls++;
+      pollIds.push(trackingId(url));
+      if (polls === 1) {
+        return Promise.resolve({ ok: true, status: 200, headers: new Headers(), text: () => Promise.resolve(firstBody) });
+      }
+      if (polls === 2) {
+        return Promise.resolve({ ok: false, status: 502, headers: new Headers(), text: () => Promise.resolve('') });
+      }
+      if (polls === 3) {
+        // The reconnect poll: answered without any handshake.
+        return Promise.resolve({ ok: true, status: 200, headers: new Headers(), text: () => Promise.resolve('') });
+      }
+      return new Promise(() => { /* held open by the server */ });
+    });
+    const reopen = vi.fn();
+    const transport = new LongPollingTransport<string>(
+      { ...protocolRequest(), reconnect: true, reconnectInterval: 1 }, { ...handlers, reopen });
+    await transport.connect();
+    await vi.waitFor(() => expect(reopen).toHaveBeenCalledTimes(1));
+    expect(pollIds.slice(0, 3)).toEqual(['0', 'server-uuid-1', 'server-uuid-1']);
+    expect(transport.state).toBe('connected');
+    await transport.disconnect();
+  });
+
+  it('still opens once when the server answers the first poll without a handshake', async () => {
+    firstBody = '';
+    const transport = new LongPollingTransport<string>(protocolRequest(), handlers);
+    await transport.connect();
+    expect(handlers.open).toHaveBeenCalledTimes(1);
+    expect(transport.state).toBe('connected');
+    await transport.disconnect();
   });
 });
