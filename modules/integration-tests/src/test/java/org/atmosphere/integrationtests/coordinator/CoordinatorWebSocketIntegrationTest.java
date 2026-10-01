@@ -89,6 +89,33 @@ public class CoordinatorWebSocketIntegrationTest {
         ws.sendClose(WebSocket.NORMAL_CLOSURE, "done").join();
     }
 
+    /**
+     * A {@code @Coordinator} serves prompts through an {@code AiEndpointHandler},
+     * so its mapping must also record the id a long-polling protocol handshake
+     * assigns: a prompt posted before the first poll then waits for that poll
+     * instead of being refused with 503.
+     */
+    @Timeout(value = 30_000, unit = TimeUnit.MILLISECONDS)
+    @Test
+    public void coordinatorRecordsTheLongPollingHandshakeLikeAnAiEndpoint() throws Exception {
+        var openLatch = new CountDownLatch(1);
+        var ws = connect("/atmosphere/agent/test-coordinator",
+                new CopyOnWriteArrayList<>(), openLatch, new MessageLatch(m -> false));
+        assertTrue(openLatch.await(5, TimeUnit.SECONDS), "WebSocket should connect");
+        // The coordinator's own mapping, not its protocol bridges (e.g. .../a2a).
+        var wrapper = server.getFramework().getAtmosphereHandlers().entrySet().stream()
+                .filter(e -> e.getKey().equals("/atmosphere/agent/test-coordinator"))
+                .map(java.util.Map.Entry::getValue)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("coordinator not registered: "
+                        + server.getFramework().getAtmosphereHandlers().keySet()));
+        assertEquals(1, wrapper.interceptors().stream()
+                        .filter(i -> "AiEndpoint protocol handshake recorder".equals(i.toString()))
+                        .count(),
+                "the coordinator mapping must carry the handshake recorder, got " + wrapper.interceptors());
+        ws.sendClose(WebSocket.NORMAL_CLOSURE, "done").join();
+    }
+
     @Timeout(value = 30_000, unit = TimeUnit.MILLISECONDS)
     @Test
     public void testHeadlessAgentRespondsToDirect_A2A() throws Exception {
