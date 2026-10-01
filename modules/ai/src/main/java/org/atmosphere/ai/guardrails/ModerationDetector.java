@@ -32,7 +32,8 @@ import java.util.Set;
  *       {@link org.atmosphere.ai.decision.DecisionModel} one boolean question per
  *       category (over the installed {@code AgentRuntime} by default), so every
  *       runtime adapter participates. The accurate tier; one parallel batch of
- *       model calls per inspection, failing closed on any undecided category.</li>
+ *       model calls per inspection, failing closed on any undecided category the
+ *       guardrail blocks.</li>
  * </ul>
  *
  * <p>Provider-native moderation endpoints (OpenAI {@code /moderations}, Azure
@@ -55,6 +56,23 @@ public interface ModerationDetector {
     ModerationResult detect(String text);
 
     /**
+     * Classify {@code text} against only {@code categories} — the ones the
+     * caller acts on. {@link ModerationGuardrail} calls this with its blocked
+     * categories, so a detector that pays per category (such as
+     * {@link LlmModerationDetector}, one model call each) asks nothing the
+     * guardrail would ignore. The default classifies against every category.
+     *
+     * @param text       content to inspect
+     * @param categories the categories the caller acts on; {@code null} or
+     *                   empty means every category
+     * @return the outcome; a detector may report categories outside
+     *         {@code categories}, which the caller ignores
+     */
+    default ModerationResult detect(String text, Set<ModerationCategory> categories) {
+        return detect(text);
+    }
+
+    /**
      * Outcome of a {@link #detect(String)} call.
      *
      * @param flagged the categories the text matched (never {@code null})
@@ -69,16 +87,33 @@ public interface ModerationDetector {
      *                whatever its fail policy
      * @param detail  human-readable explanation, used in audit logs and block
      *                reasons; never {@code null}
+     * @param undecided the categories the detector could not decide (never
+     *                {@code null}); non-empty implies {@code errored}. An
+     *                errored result with no undecided category is a failure of
+     *                the whole detector. {@link ModerationGuardrail} applies its
+     *                fail policy to a whole-detector failure and to an undecided
+     *                category it blocks, never to one it does not block
      */
     record ModerationResult(Set<ModerationCategory> flagged,
                             Map<ModerationCategory, Double> scores,
                             boolean errored,
-                            String detail) {
+                            String detail,
+                            Set<ModerationCategory> undecided) {
 
         public ModerationResult {
             flagged = flagged == null ? Set.of() : Set.copyOf(flagged);
             scores = scores == null ? Map.of() : Map.copyOf(scores);
             detail = detail == null ? "" : detail;
+            undecided = undecided == null ? Set.of() : Set.copyOf(undecided);
+            errored = errored || !undecided.isEmpty();
+        }
+
+        /** A result with no undecided category. */
+        public ModerationResult(Set<ModerationCategory> flagged,
+                                Map<ModerationCategory, Double> scores,
+                                boolean errored,
+                                String detail) {
+            this(flagged, scores, errored, detail, Set.of());
         }
 
         /** @return {@code true} when at least one category matched. */
@@ -101,6 +136,18 @@ public interface ModerationDetector {
         /** The detector could not complete; the guardrail's fail policy applies. */
         public static ModerationResult error(String detail) {
             return new ModerationResult(Set.of(), Map.of(), true, detail);
+        }
+
+        /**
+         * The detector decided some categories and not {@code undecided}; it
+         * may still have flagged some. Errored, with the undecided categories
+         * named so the guardrail can tell which of them it blocks.
+         */
+        public static ModerationResult undecided(Set<ModerationCategory> flagged,
+                                                 Map<ModerationCategory, Double> scores,
+                                                 Set<ModerationCategory> undecided,
+                                                 String detail) {
+            return new ModerationResult(flagged, scores, true, detail, undecided);
         }
     }
 }

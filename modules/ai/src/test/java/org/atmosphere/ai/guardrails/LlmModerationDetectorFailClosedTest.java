@@ -23,12 +23,15 @@ import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.decision.DecisionModelResolverTestAccess;
+import org.atmosphere.ai.decision.RuntimeDecisionModel;
 import org.atmosphere.ai.decision.ScriptedDecisionRuntime;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -83,6 +86,52 @@ class LlmModerationDetectorFailClosedTest {
             assertBlocked(new LlmModerationDetector(), "no reachable model");
         } finally {
             DecisionModelResolverTestAccess.restore();
+        }
+    }
+
+    /**
+     * Concurrent inspections share one decision model's concurrency bound,
+     * and one inspection asks six questions. While another turn holds six
+     * slots, a benign turn on a six-slot model gets no slot before its deadline
+     * and is blocked (CAPACITY fails closed); on a model sized for two
+     * inspections the same turn is admitted.
+     */
+    @Test
+    void aSaturatedDecisionModelBlocksABenignTurnAndASizedOneAdmitsIt() throws Exception {
+        var saturated = inspectWhileAnotherTurnHoldsSixSlots(ModerationCategory.values().length);
+        var blocked = assertInstanceOf(AiGuardrail.GuardrailResult.Block.class, saturated,
+                "a benign turn with no decision slot must fail closed");
+        assertTrue(blocked.reason().contains("capacity"), blocked.reason());
+
+        assertInstanceOf(AiGuardrail.GuardrailResult.Pass.class,
+                inspectWhileAnotherTurnHoldsSixSlots(2 * ModerationCategory.values().length),
+                "a model sized for the fan-out admits the benign turn");
+    }
+
+    private static AiGuardrail.GuardrailResult inspectWhileAnotherTurnHoldsSixSlots(int maxConcurrency)
+            throws Exception {
+        var categories = ModerationCategory.values().length;
+        var entered = new CountDownLatch(categories);
+        var release = new CountDownLatch(1);
+        var runtime = new ScriptedDecisionRuntime((ctx, s) -> {
+            if (ctx.message().contains("HOLD")) {
+                entered.countDown();
+                release.await();
+            }
+            ScriptedDecisionRuntime.reply(s, "{\"answer\":false,\"confidence\":0.97}");
+        });
+        var model = new RuntimeDecisionModel(runtime, maxConcurrency, RuntimeDecisionModel.DEFAULT_MIN_OBSERVED_MASS);
+        var holder = new ModerationGuardrail(new LlmModerationDetector(model, Duration.ofSeconds(30), null));
+        var held = new CompletableFuture<AiGuardrail.GuardrailResult>();
+        Thread.ofVirtual().start(() -> held.complete(holder.inspectRequest(new AiRequest("HOLD the line"))));
+        try {
+            assertTrue(entered.await(10, TimeUnit.SECONDS), "the first turn holds one slot per category");
+            return new ModerationGuardrail(new LlmModerationDetector(model, Duration.ofMillis(300), null))
+                    .inspectRequest(new AiRequest("what time does the store open?"));
+        } finally {
+            release.countDown();
+            assertInstanceOf(AiGuardrail.GuardrailResult.Pass.class, held.get(10, TimeUnit.SECONDS),
+                    "the held turn completes and is admitted once released");
         }
     }
 

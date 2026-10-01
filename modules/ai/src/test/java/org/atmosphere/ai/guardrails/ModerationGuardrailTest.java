@@ -153,6 +153,68 @@ class ModerationGuardrailTest {
                 "fail-closed blocks on the error");
     }
 
+    @Test
+    void anUndecidedCategoryTheGuardrailDoesNotBlockDoesNotGateTheTurn() {
+        // HATE is blocked; SEXUAL is not. A flag on SEXUAL passes, so SEXUAL
+        // left undecided must pass too, while HATE left undecided blocks.
+        ModerationDetector sexualFlagged = text -> ModerationDetector.ModerationResult.flagged(
+                Set.of(ModerationCategory.SEXUAL), java.util.Map.of(), "sexual");
+        ModerationDetector sexualUndecided = text -> ModerationDetector.ModerationResult.undecided(
+                Set.of(), java.util.Map.of(), Set.of(ModerationCategory.SEXUAL), "sexual undecided");
+        ModerationDetector hateUndecided = text -> ModerationDetector.ModerationResult.undecided(
+                Set.of(), java.util.Map.of(), Set.of(ModerationCategory.HATE), "hate undecided");
+        assertInstanceOf(AiGuardrail.GuardrailResult.Pass.class,
+                new ModerationGuardrail(sexualFlagged).blocking(ModerationCategory.HATE).inspectRequest(req("x")));
+        assertInstanceOf(AiGuardrail.GuardrailResult.Pass.class,
+                new ModerationGuardrail(sexualUndecided).blocking(ModerationCategory.HATE).inspectRequest(req("x")),
+                "an undecided category the guardrail does not block is treated no stricter than a flag on it");
+        var blocked = assertInstanceOf(AiGuardrail.GuardrailResult.Block.class,
+                new ModerationGuardrail(hateUndecided).blocking(ModerationCategory.HATE).inspectRequest(req("x")),
+                "an undecided blocked category fails closed");
+        assertTrue(blocked.reason().contains("moderation unavailable"), blocked.reason());
+        assertInstanceOf(AiGuardrail.GuardrailResult.Block.class,
+                new ModerationGuardrail(sexualUndecided).inspectRequest(req("x")),
+                "with every category blocked, an undecided SEXUAL fails closed");
+        assertInstanceOf(AiGuardrail.GuardrailResult.Pass.class,
+                new ModerationGuardrail(hateUndecided).failOpen().inspectRequest(req("x")),
+                "fail-open admits an undecided blocked category");
+    }
+
+    @Test
+    void aWholeDetectorFailureBlocksWhateverTheGuardrailIsNarrowedTo() {
+        ModerationDetector erroring = text -> ModerationDetector.ModerationResult.error("boom");
+        assertInstanceOf(AiGuardrail.GuardrailResult.Block.class,
+                new ModerationGuardrail(erroring).blocking(ModerationCategory.HATE).inspectRequest(req("x")),
+                "an error naming no undecided category is a failure of the whole detector");
+    }
+
+    @Test
+    void undecidedImpliesErrored() {
+        var result = new ModerationDetector.ModerationResult(Set.of(), java.util.Map.of(), false, "",
+                Set.of(ModerationCategory.HATE));
+        assertTrue(result.errored(), "a result with an undecided category is never clean");
+    }
+
+    @Test
+    void theGuardrailAsksTheDetectorAboutItsBlockedCategoriesOnly() {
+        var asked = new java.util.concurrent.atomic.AtomicReference<Set<ModerationCategory>>();
+        var detector = new ModerationDetector() {
+            @Override
+            public ModerationResult detect(String text) {
+                throw new AssertionError("the guardrail must pass its blocked categories");
+            }
+
+            @Override
+            public ModerationResult detect(String text, Set<ModerationCategory> categories) {
+                asked.set(Set.copyOf(categories));
+                return ModerationResult.clean();
+            }
+        };
+        new ModerationGuardrail(detector).blocking(ModerationCategory.HATE, ModerationCategory.VIOLENCE)
+                .inspectRequest(req("x"));
+        assertEquals(Set.of(ModerationCategory.HATE, ModerationCategory.VIOLENCE), asked.get());
+    }
+
     // --- ModerationCategory parsing --------------------------------------
 
     @Test

@@ -34,6 +34,7 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.SequencedMap;
+import java.util.Set;
 
 /**
  * LLM moderation detector. Asks a {@link DecisionModel} one boolean question
@@ -53,10 +54,18 @@ import java.util.SequencedMap;
  * flagged category with no confidence carries no score.</p>
  *
  * <h2>Cost</h2>
- * One inspection is one isolated decision call per {@link ModerationCategory},
- * run in parallel under one deadline, bounded by the decision
- * model's concurrency limit; a call that gets no slot before the deadline is a
- * {@code CAPACITY} failure, and fails closed. Because {@link ModerationGuardrail}
+ * One inspection is one isolated decision call per asked
+ * {@link ModerationCategory} — all six from {@link #detect(String)}, only the
+ * guardrail's blocked categories from {@link ModerationGuardrail} — run in
+ * parallel under one deadline, bounded by the decision model's concurrency
+ * limit; a call that gets no slot before the deadline is a {@code CAPACITY}
+ * failure, and fails closed. The resolved fallback model is one
+ * {@link RuntimeDecisionModel} shared with the LLM injection and scope tiers, with
+ * {@link RuntimeDecisionModel#DEFAULT_MAX_CONCURRENCY} questions in flight unless
+ * {@link DecisionModelResolver#MAX_CONCURRENCY_PROPERTY} raises it: once
+ * concurrent turns fill it past the deadline, benign turns are blocked. Size it
+ * with that property, register a {@link DecisionModel}, or give this detector its
+ * own {@link RuntimeDecisionModel}. Because {@link ModerationGuardrail}
  * can run a detector on every streamed response chunk, wire an LLM detector
  * with {@link ModerationGuardrail.Scope#REQUEST} (one inspection per turn on the
  * user input) unless response-side model moderation is specifically required.
@@ -66,13 +75,15 @@ import java.util.SequencedMap;
  * below the clear threshold. Every other outcome for a category — the band
  * between the thresholds, a {@code false} answer with no confidence, a timeout,
  * no capacity, a runtime error, an empty, unparseable or out-of-set reply —
- * leaves it uncertain, and so does text longer than
- * {@link DecisionRequest#MAX_STATE_CHARS} characters or the absence of any
- * decision model (only the demo runtime installed). A result with an uncertain
- * category is {@link ModerationResult#errored() errored} (it still lists the
- * categories that were flagged), which {@link ModerationGuardrail} blocks by
- * default; {@link ModerationGuardrail#failOpen()} is the explicit, non-default
- * opt-out, and even then a flagged blocked category still blocks.
+ * leaves it uncertain. A result with an uncertain category is
+ * {@link ModerationResult#errored() errored}, names the uncertain categories in
+ * {@link ModerationResult#undecided()} and still lists the flagged ones. Text
+ * longer than {@link DecisionRequest#MAX_STATE_CHARS} characters, the absence of
+ * any decision model (only the demo runtime installed) and a model that throws
+ * are errors of the whole detector. By default {@link ModerationGuardrail}
+ * blocks on an error of the whole detector and on an uncertain category it
+ * blocks; {@link ModerationGuardrail#failOpen()} is the explicit, non-default opt-out,
+ * and even then a flagged blocked category still blocks.
  */
 public final class LlmModerationDetector implements ModerationDetector {
 
@@ -134,6 +145,12 @@ public final class LlmModerationDetector implements ModerationDetector {
 
     @Override
     public ModerationResult detect(String text) {
+        return detect(text, null);
+    }
+
+    /** Asks only {@code categories} ({@code null} or empty asks every category). */
+    @Override
+    public ModerationResult detect(String text, Set<ModerationCategory> categories) {
         if (text == null || text.isBlank()) {
             return ModerationResult.clean();
         }
@@ -148,9 +165,10 @@ public final class LlmModerationDetector implements ModerationDetector {
             return ModerationResult.error("LLM moderation: text of " + text.length()
                     + " chars exceeds the " + DecisionRequest.MAX_STATE_CHARS + "-char decision state bound");
         }
+        var asked = questions(categories);
         Map<String, Answer> answers;
         try {
-            answers = effective.decide(new DecisionRequest(text, QUESTIONS, timeout)).answers();
+            answers = effective.decide(new DecisionRequest(text, asked, timeout)).answers();
         } catch (RuntimeException e) {
             logger.error("LLM moderation call failed ({}): {}", effective.name(), e.toString());
             return ModerationResult.error("LLM moderation error: " + e.getMessage());
@@ -159,7 +177,7 @@ public final class LlmModerationDetector implements ModerationDetector {
         var scores = new EnumMap<ModerationCategory, Double>(ModerationCategory.class);
         var uncertain = new EnumMap<ModerationCategory, String>(ModerationCategory.class);
         var reasons = new StringBuilder();
-        for (var id : QUESTIONS.keySet()) {
+        for (var id : asked.keySet()) {
             var category = CATEGORIES.get(id);
             var verdict = gate.judge(answers.get(id), category.label());
             switch (verdict.outcome()) {
@@ -183,13 +201,28 @@ public final class LlmModerationDetector implements ModerationDetector {
                 detail.append("; flagged ").append(flagged).append(": ").append(reasons);
             }
             logger.debug("{}", detail);
-            return new ModerationResult(flagged, scores, true, detail.toString());
+            return ModerationResult.undecided(flagged, scores, uncertain.keySet(), detail.toString());
         }
         if (flagged.isEmpty()) {
             return ModerationResult.clean();
         }
         return ModerationResult.flagged(flagged, scores,
                 "LLM classifier flagged " + flagged + ": " + reasons);
+    }
+
+    /** The questions for {@code categories}, in category order; every category when none is given. */
+    private static SequencedMap<String, Question> questions(Set<ModerationCategory> categories) {
+        if (categories == null || categories.isEmpty()
+                || categories.size() == ModerationCategory.values().length) {
+            return QUESTIONS;
+        }
+        var asked = new LinkedHashMap<String, Question>();
+        QUESTIONS.forEach((id, question) -> {
+            if (categories.contains(CATEGORIES.get(id))) {
+                asked.put(id, question);
+            }
+        });
+        return asked;
     }
 
     private static Question.Noul question(ModerationCategory category) {

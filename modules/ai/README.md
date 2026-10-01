@@ -971,8 +971,14 @@ AgentScope send it rather than deriving a schema from the generic reply record,
 whose `answer` is an untyped object. A reply that is
 not JSON is `UNPARSEABLE`. A value outside the set is `INVALID_ANSWER`. There is
 no lenient yes/no reading of free text. At most 8 questions per instance are in
-flight; the rest wait for a slot and are `CAPACITY` only if none frees before
-the deadline. At the deadline, an unfinished question is
+flight by default (`new RuntimeDecisionModel(runtime, maxConcurrency, minObservedMass)`
+sets another bound); the rest wait for a slot and are `CAPACITY` only if none
+frees before the deadline. The fallback that `DecisionModelResolver` builds is
+one instance shared by the injection, scope and moderation tiers, so its 8
+slots are shared too; the JVM system property
+`-Dorg.atmosphere.ai.decision.max-concurrency=<n>` sizes it, read when the
+fallback is first resolved (it is not an `application.properties` key). A
+registered `DecisionModel` sizes itself. At the deadline, an unfinished question is
 cancelled through its `ExecutionHandle` and its carrier thread is interrupted.
 `decide()` never waits on a carrier, so a runtime that ignores both still cannot
 hold it past the deadline. The runtime is borrowed, never closed.
@@ -1015,7 +1021,7 @@ given):
   frontmatter, or a per-request `ScopeConfig`): one question per request, "is this off-topic for
   the declared purpose, or does it touch a forbidden topic?";
 - `LlmModerationDetector` (see *Guardrails*): one question per
-  `ModerationCategory`, all in one request.
+  `ModerationCategory` the guardrail blocks, all in one request.
 
 All three read the answer the same way — the injection tier with its own
 mapping, the scope and moderation tiers through `NoulGate`, whose default
@@ -1785,17 +1791,27 @@ Four zero-dep implementations ship in-tree:
   The detector is pluggable: `RuleBasedModerationDetector` (zero-dep,
   default — conservative intent-phrase matching, cheap enough for every
   streamed chunk) or `LlmModerationDetector`, which asks a
-  `DecisionModel` one boolean question per category (six decision calls
-  per inspection, in parallel under one 5 s deadline; see *Decision
-  models*). A flagged category's score is the measured probability when
+  `DecisionModel` one boolean question per category the guardrail blocks
+  (six decision calls per inspection with every category blocked, fewer
+  after `.blocking(...)`; in parallel under one 5 s deadline; see
+  *Decision models*). A flagged category's score is the measured probability when
   the Built-in runtime reports `DECISION_LOGPROBS`, the self-reported
   confidence otherwise, and absent when the model gave none.
-  **Fail-closed by default** — a detector outage, and any category the
-  LLM detector could not clear (uncertain belief, timeout, empty or
-  unparseable reply, no reachable model), blocks the turn;
+  **Fail-closed by default** — a detector outage, and any blocked category
+  the LLM detector could not clear (uncertain belief, timeout, no decision
+  slot, empty or unparseable reply, no reachable model), blocks the turn;
   `.failOpen()` (Spring: `atmosphere.ai.guardrails.moderation.fail-open=true`)
   is the explicit, non-default opt-out, and even then a category the
-  detector did flag still blocks. Select the LLM tier with
+  detector did flag still blocks. A category excluded with `.blocking(...)`
+  is not asked, so it cannot block the turn by being undecided either.
+  **Capacity:** by default the detector shares the resolved fallback
+  decision model's 8 in-flight slots with the LLM injection and scope
+  tiers, and one inspection takes six of them. Concurrent turns past that
+  bound wait; a question with no slot by the deadline is `CAPACITY`, and
+  the benign turn is blocked. Size the pool with
+  `-Dorg.atmosphere.ai.decision.max-concurrency=<n>`, register a
+  `DecisionModel` with its own bound, or build the detector over its own
+  `RuntimeDecisionModel`. Select the LLM tier with
   `atmosphere.ai.guardrails.moderation.detector=llm`; the Spring bean
   then inspects the request only, once per turn.
 

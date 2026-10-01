@@ -87,6 +87,48 @@ class LlmModerationDetectorTest {
     }
 
     @Test
+    void theUncertainCategoriesAreNamedAsUndecided() {
+        var result = detect(model(r -> {
+            var answers = new LinkedHashMap<>(TestDecisionModels.measured(r, 0.0).answers());
+            answers.put("sexual", new Answer.Failed("sexual", Answer.Failed.Reason.TIMEOUT, "late"));
+            answers.put("hate", TestDecisionModels.measured(r, 0.3).answers().get("hate"));
+            return new DecisionResult("m", answers, Optional.empty(), Duration.ZERO);
+        }));
+        assertTrue(result.errored());
+        assertEquals(Set.of(ModerationCategory.SEXUAL, ModerationCategory.HATE), result.undecided());
+    }
+
+    /**
+     * A guardrail narrowed with {@code blocking(HATE)} asks only the HATE
+     * question, so an uncertain SEXUAL verdict cannot block the turn — it is
+     * never asked — while an uncertain HATE verdict still fails closed.
+     */
+    @Test
+    void aNarrowedGuardrailAsksOnlyItsCategoriesAndIgnoresUncertaintyElsewhere() {
+        var asked = new AtomicReference<DecisionRequest>();
+        Function<ModerationCategory, DecisionModel> uncertainOn = category -> model(r -> {
+            asked.set(r);
+            var answers = new LinkedHashMap<>(TestDecisionModels.measured(r, 0.0).answers());
+            var id = category.name().toLowerCase(Locale.ROOT);
+            if (answers.containsKey(id)) {
+                answers.put(id, new Answer.Failed(id, Answer.Failed.Reason.TIMEOUT, "late"));
+            }
+            return new DecisionResult("m", answers, Optional.empty(), Duration.ZERO);
+        });
+        var sexualUncertain = new ModerationGuardrail(new LlmModerationDetector(
+                uncertainOn.apply(ModerationCategory.SEXUAL), null, null)).blocking(ModerationCategory.HATE);
+        assertInstanceOf(AiGuardrail.GuardrailResult.Pass.class, sexualUncertain.inspectRequest(new AiRequest(TEXT)));
+        assertEquals(List.of("hate"), List.copyOf(asked.get().questions().keySet()),
+                "only the blocked category is asked");
+
+        var hateUncertain = new ModerationGuardrail(new LlmModerationDetector(
+                uncertainOn.apply(ModerationCategory.HATE), null, null)).blocking(ModerationCategory.HATE);
+        var blocked = assertInstanceOf(AiGuardrail.GuardrailResult.Block.class,
+                hateUncertain.inspectRequest(new AiRequest(TEXT)));
+        assertTrue(blocked.reason().contains("HATE"), blocked.reason());
+    }
+
+    @Test
     void reportedConfidenceReadsAsTheSameBeliefAndUnknownConfidenceHasNoScore() {
         var reported = detect(answeringFor(ModerationCategory.SEXUAL,
                 new Answer.Noul("sexual", true, OptionalDouble.empty(), AiConfidence.reported(0.8))));

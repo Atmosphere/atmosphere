@@ -20,6 +20,7 @@ import org.atmosphere.ai.AiRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
 
@@ -44,6 +45,14 @@ import java.util.Set;
  * unmoderated content through. Call {@link #failOpen()} to make the opposite
  * (non-default, explicit) choice; a category the detector did flag still blocks
  * in fail-open mode.
+ *
+ * <p>The fail policy covers a failure of the whole detector and a
+ * {@link ModerationDetector.ModerationResult#undecided() category left undecided}
+ * that this guardrail blocks. An undecided category it does not block (one
+ * excluded with {@link #blocking}) does not gate the turn, just as a flag on it
+ * would not. The guardrail asks the detector about its blocked categories only
+ * ({@link ModerationDetector#detect(String, Set)}), so a narrowed guardrail
+ * over {@link LlmModerationDetector} also makes fewer model calls.</p>
  *
  * <h2>Request vs response scope</h2>
  * The default {@link Scope#BOTH} inspects the request once and the response on
@@ -111,9 +120,11 @@ public final class ModerationGuardrail implements AiGuardrail {
             throw new IllegalArgumentException("detector must not be null");
         }
         this.detector = detector;
-        this.blockedCategories = blockedCategories == null || blockedCategories.isEmpty()
+        // Unmodifiable: the set is handed to the detector on every inspection.
+        var blocked = blockedCategories == null || blockedCategories.isEmpty()
                 ? EnumSet.allOf(ModerationCategory.class)
                 : EnumSet.copyOf(blockedCategories);
+        this.blockedCategories = Collections.unmodifiableSet(blocked);
         this.scope = scope == null ? Scope.BOTH : scope;
         this.blockOnError = blockOnError;
     }
@@ -160,7 +171,7 @@ public final class ModerationGuardrail implements AiGuardrail {
     private GuardrailResult evaluate(String text, String surface) {
         ModerationDetector.ModerationResult result;
         try {
-            result = detector.detect(text);
+            result = detector.detect(text, blockedCategories);
         } catch (RuntimeException e) {
             // A detector that throws is an availability failure, identical in
             // posture to ModerationResult.error — apply the fail policy.
@@ -179,6 +190,14 @@ public final class ModerationGuardrail implements AiGuardrail {
             }
         }
         if (matched.isEmpty()) {
+            if (result.errored() && !result.undecided().isEmpty()
+                    && Collections.disjoint(result.undecided(), blockedCategories)) {
+                // Only categories this guardrail does not block are undecided:
+                // a flag on them would pass, so their absence must not block.
+                logger.debug("Moderation on {} path left only unblocked categories {} undecided ({})",
+                        surface, result.undecided(), result.detail());
+                return GuardrailResult.pass();
+            }
             if (result.errored()) {
                 if (blockOnError) {
                     logger.warn("Moderation detector unavailable on {} path ({}) — "

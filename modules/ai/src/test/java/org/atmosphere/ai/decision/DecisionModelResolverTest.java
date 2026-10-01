@@ -72,6 +72,31 @@ class DecisionModelResolverTest {
     }
 
     @Test
+    void theFallbacksConcurrencyIsSizedByTheSystemProperty() {
+        AgentRuntimeResolver.markExplicitClientBinding();
+        try {
+            System.setProperty(DecisionModelResolver.MAX_CONCURRENCY_PROPERTY, "48");
+            DecisionModelResolver.reset();
+            var sized = assertInstanceOf(RuntimeDecisionModel.class, DecisionModelResolver.resolve().orElseThrow());
+            assertEquals(48, sized.maxConcurrency());
+
+            for (var invalid : new String[] {"0", "-3", "many", " "}) {
+                System.setProperty(DecisionModelResolver.MAX_CONCURRENCY_PROPERTY, invalid);
+                DecisionModelResolver.reset();
+                var fallback = assertInstanceOf(RuntimeDecisionModel.class,
+                        DecisionModelResolver.resolve().orElseThrow());
+                assertEquals(RuntimeDecisionModel.DEFAULT_MAX_CONCURRENCY, fallback.maxConcurrency(),
+                        "'" + invalid + "' falls back to the default");
+            }
+        } finally {
+            System.clearProperty(DecisionModelResolver.MAX_CONCURRENCY_PROPERTY);
+            DecisionModelResolver.reset();
+        }
+        assertEquals(RuntimeDecisionModel.DEFAULT_MAX_CONCURRENCY, assertInstanceOf(RuntimeDecisionModel.class,
+                DecisionModelResolver.resolve().orElseThrow()).maxConcurrency(), "unset means the default");
+    }
+
+    @Test
     void demoOnlyResolvesEmptyAndIsNotCached() {
         DecisionModelResolverTestAccess.forceDemoOnly();
         assertTrue(DecisionModelResolver.resolve().isEmpty(),

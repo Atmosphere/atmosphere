@@ -195,6 +195,11 @@ public final class RuntimeDecisionModel implements DecisionModel {
         this.parser = StructuredOutputParser.resolve();
     }
 
+    /** Questions in flight across all requests on this instance. */
+    public int maxConcurrency() {
+        return maxConcurrency;
+    }
+
     @Override
     public String name() {
         return "runtime:" + runtime.name();
