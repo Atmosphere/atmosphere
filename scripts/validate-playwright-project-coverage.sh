@@ -47,7 +47,10 @@
 #      (test.skip, test.describe.skip, test.fixme, quarantined() outside the
 #      quarantine lane), or that only a project with a non-matching grep picks
 #      up, runs nothing and fails here. A spec run only by an excluded project
-#      (the opt-in firefox/webkit ones) does not count as running.
+#      (the opt-in firefox/webkit ones) does not count as running;
+#   5. an e2e/**/*.spec.ts file runs under more than one workflow-run project —
+#      an unanchored testMatch picking it up a second time, under another
+#      project's name.
 #
 # The declared project set is the one Playwright evaluates, not a text scrape
 # of the config: a double-quoted name or a project built by a helper is
@@ -231,6 +234,20 @@ if [ "$spec_fail" -ne 0 ]; then
     echo "$ME: give each such spec a project in a workflow leg with a test that survives its filters, or record why it cannot run in CI (owner, expiry, issue, reason)." >&2
     fail=1
 fi
+
+# --- 8. No spec file runs under two workflow-run projects ------------------
+# An unanchored testMatch (/ai-classroom\.spec\.ts/) also matches every spec whose
+# name ends the same way (spring-boot-ai-classroom.spec.ts): that spec then runs
+# twice in one leg, the second time under another project's name.
+while read -r spec; do
+    runners="$(spec_runs_in "$spec")"
+    case "$runners" in
+        *,*)
+            echo "$ME: spec '$spec' runs in more than one workflow-run project ($runners) — a testMatch that is not anchored on '/' picks it up too; anchor it (/\/<name>\.spec\.ts/)" >&2
+            fail=1
+            ;;
+    esac
+done < "$TMP/specs.names"
 
 declared_n=$(wc -l < "$TMP/declared" | tr -d ' ')
 run_n=$(comm -12 "$TMP/declared" "$TMP/referenced.names" | wc -l | tr -d ' ')

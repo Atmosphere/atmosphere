@@ -201,7 +201,7 @@ ATMO_DOC_VERSION_REGEX='\.md$|^cli/samples\.json$|^scripts/validate-atmosphere-d
 # Every Playwright project must be run by a workflow or excluded with owner/expiry,
 # and every spec file picked up by such a project: re-check whenever the config,
 # a spec file, a workflow, the exclusion list or the gate changes.
-PW_PROJECT_COVERAGE_REGEX='^modules/integration-tests/playwright\.config\.ts$|^modules/integration-tests/e2e/.*\.spec\.ts$|^\.github/workflows/.*\.ya?ml$|^\.harness/playwright-project-exclusions\.txt$|^scripts/(validate|test)-playwright-project-coverage\.sh$|^scripts/lib/playwright_spec_projects\.mjs$|^modules/integration-tests/package(-lock)?\.json$'
+PW_PROJECT_COVERAGE_REGEX='^modules/integration-tests/playwright\.config\.ts$|^modules/integration-tests/e2e/.*\.ts$|^modules/integration-tests/tsconfig\.json$|^\.github/workflows/.*\.ya?ml$|^\.harness/playwright-project-exclusions\.txt$|^scripts/(validate|test)-playwright-project-coverage\.sh$|^scripts/lib/playwright_spec_projects\.mjs$|^modules/integration-tests/package(-lock)?\.json$'
 # Limitation register (llm-registre, vendored at .registre): bans deferral prose
 # that documents debt without registering it, and keeps feature-phases.yaml
 # parseable. Runs on any source the gates scan, plus its own config.
@@ -562,8 +562,7 @@ if [ "$DRY_RUN" = false ]; then
         fi
         if ! ./scripts/validate-playwright-project-coverage.sh; then
             echo ""
-            echo "A Playwright project runs in no workflow — add it to an e2e.yml matrix"
-            echo "group or record it in .harness/playwright-project-exclusions.txt."
+            echo "Playwright project/spec coverage failed — see the gate output above."
             exit 1
         fi
         if ! ./scripts/test-playwright-project-coverage.sh; then

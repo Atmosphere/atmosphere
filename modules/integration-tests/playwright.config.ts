@@ -140,7 +140,7 @@ export default defineConfig({
     },
     {
       name: 'ai-classroom',
-      testMatch: /ai-classroom\.spec\.ts/,
+      testMatch: /\/ai-classroom\.spec\.ts/,
     },
     {
       name: 'spring-boot-ai-classroom',

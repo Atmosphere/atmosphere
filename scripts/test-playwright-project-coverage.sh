@@ -272,6 +272,12 @@ printf "import { test } from '@playwright/test';\nthrow new Error('zzz load fail
 replace_in "$TMP/x/case/playwright.config.ts" 'testMatch: /\/chat\.spec\.ts/,' 'testMatch: /\/(chat|zzz-broken)\.spec\.ts/,'
 expect "a spec that fails to load fails the gate" 1 "zzz load failure"
 
+# --- a spec runs under one workflow-run project ---
+
+setup
+replace_in "$TMP/x/case/playwright.config.ts" 'testMatch: /\/ai-classroom\.spec\.ts/,' 'testMatch: /ai-classroom\.spec\.ts/,'
+expect "an unanchored testMatch that runs another project's spec twice fails" 1 "spec 'spring-boot-ai-classroom.spec.ts' runs in more than one workflow-run project (ai-classroom,spring-boot-ai-classroom)"
+
 # --- spec exclusions ---
 
 setup
