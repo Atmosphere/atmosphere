@@ -65,6 +65,7 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 
@@ -1441,14 +1442,22 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         return headerUuid != null ? resolveTrackingId(resource, headerUuid) : null;
     }
 
+    /** The {@code data} of the error frame a refused WebSocket prompt is answered with. */
+    static final String WEBSOCKET_REFUSAL_MESSAGE = "Prompt not delivered: this connection is no longer"
+            + " registered on the server; reconnect and send it again";
+
     /**
      * The terminal streaming-protocol error frame a refused WebSocket prompt is
-     * answered with; atmosphere.js ({@code subscribeStreaming}) and the Console
-     * handle it like any other turn error, so the client stops waiting.
+     * answered with. It opens and ends a session of its own ({@code sessionId},
+     * {@code seq} 1): atmosphere.js {@code subscribeStreaming} (and every hook
+     * built on it) reports only frames that name a session, taking the first
+     * one after a send as that send's reply, so a session-less frame was dropped
+     * and the client kept waiting. The Console reports it like any turn error.
      */
-    static final String WEBSOCKET_REFUSAL_FRAME = "{\"type\":\"error\",\"data\":"
-            + "\"Prompt not delivered: this connection is no longer registered on the server;"
-            + " reconnect and send it again\"}";
+    static String webSocketRefusalFrame(String sessionId) {
+        return "{\"type\":\"error\",\"data\":\"" + WEBSOCKET_REFUSAL_MESSAGE
+                + "\",\"sessionId\":\"" + sessionId + "\",\"seq\":1}";
+    }
 
     /**
      * Refuses a WebSocket prompt frame whose connection resolves to nothing, for
@@ -1457,12 +1466,12 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * poll can bring it back. Nor is it answered with an HTTP status: the
      * WebSocket processor only logs a status of 400 or more, and the client would
      * wait for a reply forever. The refusal goes back over the socket instead, as
-     * {@link #WEBSOCKET_REFUSAL_FRAME}.
+     * {@link #webSocketRefusalFrame}.
      */
     private void refuseWebSocketFrame(AtmosphereResource resource) {
         logger.warn("WebSocket prompt on {} names no registered connection; answering it with an error frame",
                 pathTemplate);
-        resource.write(WEBSOCKET_REFUSAL_FRAME);
+        resource.write(webSocketRefusalFrame(UUID.randomUUID().toString()));
     }
 
     private static String suspendedUuid(AtmosphereRequest req) {

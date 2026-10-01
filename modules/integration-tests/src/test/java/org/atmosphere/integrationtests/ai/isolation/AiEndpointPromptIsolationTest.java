@@ -281,6 +281,9 @@ public class AiEndpointPromptIsolationTest {
         }
         assertNotNull(errorFrame, "the client must be told its prompt was not delivered");
         assertTrue(errorFrame.contains("Prompt not delivered"), errorFrame);
+        // atmosphere.js subscribeStreaming reports only a frame that names a session.
+        assertTrue(errorFrame.matches(".*\"sessionId\":\"[^\"]+\".*") && errorFrame.contains("\"seq\":1"),
+                errorFrame);
         assertTrue(System.nanoTime() - started < TimeUnit.MILLISECONDS.toNanos(1_500),
                 "the refusal must not wait on the long-polling repoll gate");
         Thread.sleep(300);

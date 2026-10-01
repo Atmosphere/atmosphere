@@ -20,6 +20,7 @@ import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.filter.AiStreamMessage;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
@@ -51,6 +52,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.eq;
@@ -362,7 +364,7 @@ class AiEndpointHandlerPromptRepollTest {
 
         assertTrue(System.nanoTime() - started < TimeUnit.MILLISECONDS.toNanos(1_000),
                 "a WebSocket frame must not wait on the repoll gate");
-        verify(post.resource()).write(AiEndpointHandler.WEBSOCKET_REFUSAL_FRAME);
+        verify(post.resource()).write(argThat(AiEndpointHandlerPromptRepollTest::isRefusalFrame));
         verify(post.response(), never()).setStatus(anyInt());
         verify(pathBroadcaster, never()).broadcast(any());
         verify(pathBroadcaster, never()).broadcast(any(), eq(pollB));
@@ -637,5 +639,37 @@ class AiEndpointHandlerPromptRepollTest {
             // Never invoked: the broadcaster is a mock, so a dispatched prompt
             // is observed on it rather than run.
         }
+    }
+
+    /**
+     * Whether {@code frame} is the WebSocket refusal: a terminal streaming-protocol
+     * error that names a session of its own, as atmosphere.js
+     * {@code subscribeStreaming} requires before it reports a frame at all.
+     */
+    static boolean isRefusalFrame(String frame) {
+        try {
+            var msg = AiStreamMessage.parse(frame);
+            return msg != null && msg.isError()
+                    && AiEndpointHandler.WEBSOCKET_REFUSAL_MESSAGE.equals(msg.data())
+                    && msg.sessionId() != null && !msg.sessionId().isEmpty()
+                    && msg.seq() == 1;
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    @Test
+    void refusalFrameNamesASessionSoSubscribeStreamingReportsIt() {
+        // The exact frame atmosphere.js tests/unit/websocket-refusal-frame.test.ts feeds to
+        // subscribeStreaming: a frame without sessionId is dropped by its decoder.
+        assertEquals("{\"type\":\"error\",\"data\":\"" + AiEndpointHandler.WEBSOCKET_REFUSAL_MESSAGE
+                        + "\",\"sessionId\":\"s-1\",\"seq\":1}",
+                AiEndpointHandler.webSocketRefusalFrame("s-1"));
+        assertEquals("Prompt not delivered: this connection is no longer registered on the server;"
+                + " reconnect and send it again", AiEndpointHandler.WEBSOCKET_REFUSAL_MESSAGE);
+        assertTrue(isRefusalFrame(AiEndpointHandler.webSocketRefusalFrame("s-1")));
+        assertFalse(isRefusalFrame("{\"type\":\"error\",\"data\":\""
+                + AiEndpointHandler.WEBSOCKET_REFUSAL_MESSAGE + "\"}"),
+                "a session-less frame is not one subscribeStreaming reports");
     }
 }

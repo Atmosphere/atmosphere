@@ -44,6 +44,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -262,7 +263,7 @@ class AiEndpointHandlerCrossTabIsolationTest {
 
         handler.onRequest(tempResource);
 
-        verify(tempResource).write(AiEndpointHandler.WEBSOCKET_REFUSAL_FRAME);
+        verify(tempResource).write(argThat(AiEndpointHandlerPromptRepollTest::isRefusalFrame));
         verify(response, never()).setStatus(anyInt());
         verify(fallbackBroadcaster, never()).broadcast(any());
         verify(fallbackBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));

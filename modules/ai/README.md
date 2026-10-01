@@ -597,8 +597,10 @@ client's next poll and is answered `503` with `Retry-After: 1` if none arrives.
 A POST that names no connection is answered `400`. A WebSocket frame whose
 connection the server no longer holds is not waited for (no later poll can carry
 it): it is answered at once over its socket with a terminal
-`{"type":"error","data":"Prompt not delivered: ..."}` frame, which
-`subscribeStreaming` and the Console report like any turn error. atmosphere.js sends a `503`'d
+`{"type":"error","data":"Prompt not delivered: ...","sessionId":"<new id>","seq":1}`
+frame. It names a session of its own because `subscribeStreaming` (and the React,
+Vue, Svelte and React Native hooks built on it) reports only frames that name one;
+they and the Console report it like any turn error. atmosphere.js sends a `503`'d
 message again, up to 3 attempts, and reports one it cannot deliver to the
 `error` handler; its SSE, streaming and long-polling transports send a tracking id
 even with `enableProtocol` off, by choosing a new one for each subscription
