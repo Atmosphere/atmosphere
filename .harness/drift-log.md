@@ -3930,3 +3930,23 @@ long-polling test had just shown.
 throw in CI rather than skip) declare their suite under `E2E_LIST_ONLY`, set by the listing; the
 self-test adds `test.skip`, `describe.skip` and `quarantined()` cases (each fails with the check
 removed) and a control.
+
+---
+
+## 2026-10-01 — The coverage gate's CI environment and CI trigger claims
+
+**Session:** review of the Playwright spec-coverage gate.
+
+**Claim 1:** `scripts/lib/playwright_spec_projects.mjs` and the coverage gate: the suite is listed
+"under the per-push e2e leg's environment".
+**Truth:** the listing unset `CI`; the legs run on GitHub Actions with `CI=true`, so a spec that
+skips itself in CI read as covered.
+**Claim 2:** `.github/workflows/ci.yml`: the coverage gate "Runs on every push (not path-filtered)".
+**Truth:** the workflow's `push` trigger has `paths-ignore` (`**.md`, `docs/**`, `LICENSE`), so
+a docs-only push skips it.
+**Slip path:** each sentence described the case the change was written for; nothing listed the
+suite under `CI=true` or read the workflow's trigger.
+**Gate:** the listing sets `CI=true` (the jar-gated specs neither throw nor skip under
+`E2E_LIST_ONLY`); the self-test case "a spec that skips itself in CI fails" fails with `CI` unset
+again, and two cases pin that the gate fails closed without node or without `@playwright/test`.
+The CI comment now names the `paths-ignore`.

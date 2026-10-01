@@ -60,8 +60,9 @@ jobs:
     # matrix leg, and three of them were dead without anyone noticing. Every
     # e2e spec file must also run a test in a project a workflow runs, under
     # the per-push leg's grep/grepInvert (five matched no project at all).
-    # Runs on every push (not path-filtered) so an exclusion's expiry bites
-    # on time.
+    # Runs on every push except a docs-only one (this workflow's paths-ignore:
+    # **.md, docs/**, LICENSE), so an exclusion's expiry bites on the next
+    # code push after it.
     - name: Verify every Playwright project runs in a workflow
       run: ./scripts/validate-playwright-project-coverage.sh
 
