@@ -1223,10 +1223,13 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * Framework teardown: stop the shared streaming-session TTL sweeper
      * (symmetric with its lazy start on session registration — Invariant #1).
      * Idempotent, and the sweeper restarts on the next registration, so
-     * multiple endpoint handlers being destroyed in any order is safe.
+     * multiple endpoint handlers being destroyed in any order is safe. Prompts
+     * still waiting for their client's next poll are refused at once rather
+     * than holding their request threads until the wait runs out.
      */
     @Override
     public void destroy() {
+        repollGate.shutdown();
         StreamingSessionSweeper.shutdown();
         super.destroy();
     }

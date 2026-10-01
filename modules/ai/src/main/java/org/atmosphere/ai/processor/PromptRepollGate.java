@@ -34,17 +34,21 @@ import java.util.function.Supplier;
  * <p>Only a tracking id this endpoint itself suspended a connection for
  * recently is waited for: an id the client merely claims is refused without
  * holding anything. Waiters are bounded to one per tracking id and to
- * {@code org.atmosphere.ai.prompt.maxRepollWaiters} (64) for the endpoint; the
- * set of known tracking ids is bounded to {@link #MAX_KNOWN_IDS}. A refused or
- * timed-out prompt was not dispatched, so the caller answers {@code 503} and
- * the client may send it again.</p>
+ * {@code org.atmosphere.ai.prompt.maxRepollWaiters} (64) across every endpoint
+ * of the framework: each holds a request thread, so the bound is one semaphore
+ * shared through {@link AtmosphereConfig#properties()}. The set of known
+ * tracking ids is bounded to {@link #MAX_KNOWN_IDS}. A refused or timed-out
+ * prompt was not dispatched, so the caller answers {@code 503} and the client
+ * may send it again. {@link #shutdown()} wakes every waiter and refuses new
+ * ones, so a stopping server is not held up by prompts waiting for a poll that
+ * can no longer arrive.</p>
  */
 final class PromptRepollGate {
 
     /** How long a prompt POST waits for its client's next connection, in ms; 0 disables the wait. */
     static final String WAIT_MS_PARAM = "org.atmosphere.ai.prompt.repollWaitMs";
 
-    /** How many prompt POSTs of this endpoint may wait at once, across every client. */
+    /** How many prompt POSTs may wait at once, across every client and every endpoint. */
     static final String MAX_WAITERS_PARAM = "org.atmosphere.ai.prompt.maxRepollWaiters";
 
     static final long DEFAULT_WAIT_MS = 2_000;
@@ -58,6 +62,9 @@ final class PromptRepollGate {
     /** Used when the endpoint never times its connections out. */
     private static final long UNBOUNDED_SUSPEND_WINDOW_MS = 120_000;
 
+    /** The {@link AtmosphereConfig#properties()} key of the waiter semaphore every endpoint shares. */
+    static final String WAITER_SLOTS_PROPERTY = PromptRepollGate.class.getName() + ".waiterSlots";
+
     private static final long SWEEP_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(1);
 
     private static final Logger logger = LoggerFactory.getLogger(PromptRepollGate.class);
@@ -69,7 +76,9 @@ final class PromptRepollGate {
         /** A prompt of the same id already waits, or the endpoint's waiters are all taken. */
         BUSY,
         /** No connection of the id arrived in time, or the wait is disabled or was interrupted. */
-        TIMEOUT
+        TIMEOUT,
+        /** The endpoint is shutting down. */
+        SHUTDOWN
     }
 
     /** A connection to dispatch to, or the reason there is none. */
@@ -93,6 +102,7 @@ final class PromptRepollGate {
     private final long suspendWindowMs;
     private final int maxKnownIds;
     private volatile Limits limits;
+    private volatile boolean closed;
     /** When the known ids were last swept for expired ones; a full set is swept at most once a second. */
     private volatile long lastSweepNanos = System.nanoTime() - SWEEP_INTERVAL_NANOS;
 
@@ -110,7 +120,7 @@ final class PromptRepollGate {
      * take a prompt: remember the id and wake the prompt waiting for it, if any.
      */
     void connectionReady(String trackingId) {
-        if (trackingId == null || trackingId.isEmpty()) {
+        if (closed || trackingId == null || trackingId.isEmpty()) {
             return;
         }
         var now = System.nanoTime();
@@ -137,6 +147,9 @@ final class PromptRepollGate {
      */
     Outcome await(String trackingId, long since, Supplier<AtmosphereResource> resolve,
                   AtmosphereConfig config) {
+        if (closed) {
+            return Outcome.refused(Refusal.SHUTDOWN);
+        }
         var last = readyAt.get(trackingId);
         if (last == null || expired(last, System.nanoTime())) {
             return Outcome.refused(Refusal.UNKNOWN);
@@ -156,6 +169,11 @@ final class PromptRepollGate {
             try {
                 var deadline = System.nanoTime() + l.waitNanos();
                 while (true) {
+                    // Re-read after registering: a shutdown() that ran before the
+                    // putIfAbsent did not see this waiter to wake it.
+                    if (closed) {
+                        return Outcome.refused(Refusal.SHUTDOWN);
+                    }
                     var ready = readyAt.get(trackingId);
                     if (ready != null && ready - since >= 0) {
                         var target = resolve.get();
@@ -179,6 +197,19 @@ final class PromptRepollGate {
         } finally {
             l.slots().release();
         }
+    }
+
+    /**
+     * The endpoint is going away: wake every waiting prompt so it is refused at
+     * once, and refuse any later one without waiting. Idempotent.
+     */
+    void shutdown() {
+        if (closed) {
+            return;
+        }
+        closed = true;
+        waiters.values().forEach(Semaphore::release);
+        readyAt.clear();
     }
 
     /** Tracking ids currently remembered; for tests. */
@@ -209,12 +240,25 @@ final class PromptRepollGate {
                     var waitMs = Math.min(MAX_WAIT_MS,
                             Math.max(0, intParam(config, WAIT_MS_PARAM, (int) DEFAULT_WAIT_MS)));
                     var maxWaiters = Math.max(1, intParam(config, MAX_WAITERS_PARAM, DEFAULT_MAX_WAITERS));
-                    l = new Limits(TimeUnit.MILLISECONDS.toNanos(waitMs), new Semaphore(maxWaiters));
+                    l = new Limits(TimeUnit.MILLISECONDS.toNanos(waitMs), sharedSlots(config, maxWaiters));
                     limits = l;
                 }
             }
         }
         return l;
+    }
+
+    /**
+     * The one waiter semaphore of the framework, created by the first endpoint that
+     * needs it. Without a config (unit tests) the gate bounds only its own waiters.
+     */
+    private static Semaphore sharedSlots(AtmosphereConfig config, int maxWaiters) {
+        var properties = config != null ? config.properties() : null;
+        if (properties == null) {
+            return new Semaphore(maxWaiters);
+        }
+        return properties.computeIfAbsent(WAITER_SLOTS_PROPERTY,
+                k -> new Semaphore(maxWaiters)) instanceof Semaphore shared ? shared : new Semaphore(maxWaiters);
     }
 
     private static int intParam(AtmosphereConfig config, String name, int defaultValue) {

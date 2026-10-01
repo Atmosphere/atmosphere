@@ -96,12 +96,18 @@ class AiEndpointHandlerPromptRepollTest {
                 .thenAnswer(inv -> Optional.ofNullable(registered.get(inv.<String>getArgument(0))));
         when(config.getInitParameter(anyString()))
                 .thenAnswer(inv -> initParams.get(inv.<String>getArgument(0)));
+        // Like the real config: one map for the application, shared by every endpoint.
+        when(config.properties()).thenReturn(new ConcurrentHashMap<>());
 
         pathBroadcaster = mock(Broadcaster.class);
         var broadcasterConfig = mock(BroadcasterConfig.class);
         when(pathBroadcaster.getBroadcasterConfig()).thenReturn(broadcasterConfig);
         when(pathBroadcaster.getID()).thenReturn(PATH);
+        return endpointOnSameConfig();
+    }
 
+    /** Another @AiEndpoint handler of the same application (same config). */
+    private AiEndpointHandler endpointOnSameConfig() throws Exception {
         var promptMethod = StubEndpoint.class.getDeclaredMethod(
                 "onPrompt", String.class, StreamingSession.class);
         return new AiEndpointHandler(new StubEndpoint(), promptMethod, 30_000L, "",
@@ -170,8 +176,12 @@ class AiEndpointHandlerPromptRepollTest {
     }
 
     private Future<?> send(Post post) {
+        return send(handler, post);
+    }
+
+    private Future<?> send(AiEndpointHandler target, Post post) {
         return posts.submit(() -> {
-            handler.onRequest(post.resource());
+            target.onRequest(post.resource());
             return null;
         });
     }
@@ -277,6 +287,63 @@ class AiEndpointHandlerPromptRepollTest {
         var nextPoll = poll("client-A");
         pendingA.get(5, TimeUnit.SECONDS);
         verify(pathBroadcaster).broadcast(eq("A"), eq(nextPoll));
+    }
+
+    @Test
+    void waitersAreBoundedAcrossEndpointsOfTheApplication() throws Exception {
+        // Each waiting prompt holds a request thread, so the bound is the
+        // application's, not one per @AiEndpoint.
+        var first = newHandler(Map.of(PromptRepollGate.MAX_WAITERS_PARAM, "1"));
+        var second = endpointOnSameConfig();
+        handler = first;
+        poll("client-A");
+        handler = second;
+        poll("client-C");
+        pollCompleted("client-A");
+        pollCompleted("client-C");
+
+        var pendingA = send(first, post("client-A", "A"));
+        Thread.sleep(200);
+        assertFalse(pendingA.isDone());
+
+        var refused = post("client-C", "C");
+        var started = System.nanoTime();
+        send(second, refused).get(5, TimeUnit.SECONDS);
+        assertTrue(System.nanoTime() - started < TimeUnit.MILLISECONDS.toNanos(1_000),
+                "another endpoint's prompt is refused at once once the application's waiters are taken");
+        verify(refused.response()).setStatus(503);
+
+        handler = first;
+        var nextPoll = poll("client-A");
+        pendingA.get(5, TimeUnit.SECONDS);
+        verify(pathBroadcaster).broadcast(eq("A"), eq(nextPoll));
+    }
+
+    @Test
+    void destroyRefusesWaitingPromptsAtOnce() throws Exception {
+        handler = newHandler(Map.of(PromptRepollGate.WAIT_MS_PARAM, "20000"));
+        poll("client-A");
+        pollCompleted("client-A");
+
+        var waiting = post("client-A", "A");
+        var pending = send(waiting);
+        Thread.sleep(200);
+        assertFalse(pending.isDone());
+
+        var started = System.nanoTime();
+        handler.destroy();
+        pending.get(2, TimeUnit.SECONDS);
+        assertTrue(System.nanoTime() - started < TimeUnit.MILLISECONDS.toNanos(1_000),
+                "a stopping endpoint must not hold a waiting prompt until its wait runs out");
+        verify(waiting.response()).setStatus(503);
+        verify(pathBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));
+
+        // A prompt arriving after the endpoint stopped is refused without waiting.
+        var late = post("client-A", "late");
+        started = System.nanoTime();
+        send(late).get(2, TimeUnit.SECONDS);
+        assertTrue(System.nanoTime() - started < TimeUnit.MILLISECONDS.toNanos(1_000));
+        verify(late.response()).setStatus(503);
     }
 
     @Test
