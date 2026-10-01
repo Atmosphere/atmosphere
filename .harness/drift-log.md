@@ -3892,3 +3892,25 @@ the test would pass without the sinceId replay it claims to pin.
 **Gate:** a third member, Carol, stays connected and must receive hist-msg-3 before Alice's
 network comes back (and Alice must not have it yet); with Bob's send removed the test fails on
 Carol's feed. Passed 3x.
+
+---
+
+## 2026-09-30 — The WebTransport fallback spec's green proved a connection, not a fallback or an answer
+
+**Session:** carnet #55 review of `webtransport-fallback.spec.ts`.
+
+**Claim:** `webtransport-fallback.spec.ts` — "chat round-trip works on every browser", the
+transport selector "must fall back to WebSocket", and a "WebTransport info endpoint is
+browser-agnostic" check.
+**Truth:** the "chat works" check found the user's own bubble, which the Console renders before
+the transport sends; the transport check accepted either transport and either value of the
+fallback flag; and the info check always skipped (dentist-agent runs no HTTP/3 sidecar).
+**Slip path:** each assertion was satisfied by the client alone; nothing compared the spec's
+claims with where the Console renders a bubble.
+**Gate:** `helpers/transport-fallback.ts` advertises an unreachable WebTransport sidecar; both
+tests assert the badge's `websocket` transport and fallback flag, and an assistant answer
+(`/help`, `/pain`) with no `Error:` whose streaming state ended (only the `complete` frame ends
+it). The info check is dropped here — `webtransport.spec.ts` covers it against a sample with the
+sidecar. `transport-fallback.spec.ts` (WebSocket → long-polling) is unchanged: forcing that
+fallback and waiting for an answer needs every frame of a long-polling reply delivered, which
+carnet#60 tracks.
