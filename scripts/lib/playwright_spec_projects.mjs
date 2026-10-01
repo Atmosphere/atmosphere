@@ -36,20 +36,21 @@
 // The runner's own listing has none of those gaps.
 //
 // The listing is taken under the environment of the per-push e2e legs
-// (.github/workflows/e2e.yml "Run E2E Tests": LLM_MODE=fake, INCLUDE_FLAKY=false,
-// no SMOKE_ONLY), never the caller's: the config turns INCLUDE_FLAKY=false into a
-// top-level grepInvert of /@flaky/, and SMOKE_ONLY into a grep of /@smoke/ that
-// only PR runs set. CI is unset because a few specs throw at load time in CI when
-// their sample jar is missing, and this listing builds no jar. E2E_ALL_BROWSERS is
-// forced on so the opt-in firefox/webkit projects are declared: the caller decides
-// whether an opt-in project counts as running.
+// (.github/workflows/e2e.yml "Run E2E Tests" on GitHub Actions: CI=true,
+// LLM_MODE=fake, INCLUDE_FLAKY=false, no SMOKE_ONLY), never the caller's: the
+// config turns INCLUDE_FLAKY=false into a top-level grepInvert of /@flaky/, and
+// SMOKE_ONLY into a grep of /@smoke/ that only PR runs set. CI is set as the leg
+// sets it: a spec that skips itself in CI (test.skip(!!process.env.CI, ...)) runs
+// nothing there and must not read as covered. E2E_ALL_BROWSERS is forced on so the
+// opt-in firefox/webkit projects are declared: the caller decides whether an opt-in
+// project counts as running.
 //
 // A test the listing reports as statically skipped (expectedStatus 'skipped':
 // test.skip, test.describe.skip, test.fixme, or quarantined() outside the
-// quarantine lane) runs nothing and does not count. The specs that skip only
-// because their sample jar is missing outside CI (they throw in CI instead)
-// declare their suite as running under E2E_LIST_ONLY, which this listing sets:
-// --list runs no test, so the jar is not needed to know what CI would run.
+// quarantine lane) runs nothing and does not count. The specs that need a sample
+// jar (they throw at load time in CI when it is missing, and skip outside CI)
+// neither throw nor skip under E2E_LIST_ONLY, which this listing sets: --list runs
+// no test, so the jar is not needed to know what CI would run.
 
 import { readdirSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -59,8 +60,8 @@ import { spawnSync } from 'node:child_process';
 const ME = 'playwright_spec_projects.mjs';
 
 // The per-push e2e leg's selection environment (e2e.yml "Run E2E Tests").
-const LEG_ENV = { LLM_MODE: 'fake', INCLUDE_FLAKY: 'false', E2E_ALL_BROWSERS: 'true', E2E_LIST_ONLY: 'true' };
-const UNSET = ['CI', 'SMOKE_ONLY', 'RUN_QUARANTINED', 'PLAYWRIGHT_JSON_OUTPUT_NAME',
+const LEG_ENV = { CI: 'true', LLM_MODE: 'fake', INCLUDE_FLAKY: 'false', E2E_ALL_BROWSERS: 'true', E2E_LIST_ONLY: 'true' };
+const UNSET = ['SMOKE_ONLY', 'RUN_QUARANTINED', 'PLAYWRIGHT_JSON_OUTPUT_NAME',
   'LLM_API_KEY', 'LLM_BASE_URL', 'LLM_MODEL', 'SPRING_AI_OPENAI_BASE_URL', 'SPRING_AI_OPENAI_API_KEY'];
 
 function die(msg) {

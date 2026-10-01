@@ -67,14 +67,15 @@ const jar = shadedJar();
 // Self-guard: in CI the shaded jar MUST exist (the reactor build packages it),
 // so a missing jar is a build wiring bug. Fail loud rather than silently skip —
 // a silent skip is exactly the false-confidence trap this spec was rescued from.
-if (process.env.CI && !jar) {
+if (process.env.CI && !jar && !process.env.E2E_LIST_ONLY) {
   throw new Error(
     'kotlin-dsl-chat shaded jar not found in CI — the reactor build must package it; ' +
     'refusing to skip silently (see TARGET: ' + TARGET + ')');
 }
 
-// E2E_LIST_ONLY: the Playwright coverage gate lists (never runs) the suite
-// without the jar, and must see what CI runs, where a missing jar throws above.
+// E2E_LIST_ONLY: the Playwright coverage gate lists (never runs) the suite, under
+// CI=true, without the jar: it must see what CI runs, so neither the throw above
+// nor the skip below applies to it.
 (jar || process.env.E2E_LIST_ONLY ? test.describe : test.describe.skip)('Kotlin DSL chat (shaded jar)', () => {
   let proc: ChildProcess;
   let output = '';

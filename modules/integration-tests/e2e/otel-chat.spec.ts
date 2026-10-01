@@ -20,14 +20,15 @@ const hasJar = existsSync(OTEL_TARGET) &&
 // Self-guard: in CI the jar MUST be built, so a missing jar is a build wiring
 // bug, not a reason to skip. Fail loud instead of silently skipping — a silent
 // skip is exactly the false-confidence failure that let the OTLP regression ship.
-if (process.env.CI && !hasJar) {
+if (process.env.CI && !hasJar && !process.env.E2E_LIST_ONLY) {
   throw new Error(
     'spring-boot-otel-chat jar not found in CI — the e2e build must package it; ' +
     'refusing to skip silently (see OTEL_TARGET: ' + OTEL_TARGET + ')');
 }
 
-// E2E_LIST_ONLY: the Playwright coverage gate lists (never runs) the suite
-// without the jar, and must see what CI runs, where a missing jar throws above.
+// E2E_LIST_ONLY: the Playwright coverage gate lists (never runs) the suite, under
+// CI=true, without the jar: it must see what CI runs, so neither the throw above
+// nor the skip below applies to it.
 (hasJar || process.env.E2E_LIST_ONLY ? test.describe : test.describe.skip)('Spring Boot OTel Chat', () => {
   let server: SampleServer;
 

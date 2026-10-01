@@ -40,13 +40,13 @@
 #   4. an e2e/**/*.spec.ts file has no test that a workflow-run project runs,
 #      and is not excluded. The answer is Playwright's own: the gate reads
 #      `playwright test --list` through scripts/lib/playwright_spec_projects.mjs,
-#      under the per-push e2e leg's environment (LLM_MODE=fake,
+#      under the per-push e2e leg's environment (CI=true, LLM_MODE=fake,
 #      INCLUDE_FLAKY=false), so testMatch/testIgnore AND grep/grepInvert —
 #      per project and top-level — are applied exactly as the leg applies
 #      them. A spec whose tests are all tagged @flaky, all statically skipped
 #      (test.skip, test.describe.skip, test.fixme, quarantined() outside the
-#      quarantine lane), or that only a project with a non-matching grep picks
-#      up, runs nothing and fails here. A spec run only by an excluded project
+#      quarantine lane, test.skip(!!process.env.CI)), or that only a project
+#      with a non-matching grep picks up, runs nothing and fails here. A spec run only by an excluded project
 #      (the opt-in firefox/webkit ones) does not count as running;
 #   5. an e2e/**/*.spec.ts file runs under more than one workflow-run project —
 #      an unanchored testMatch picking it up a second time, under another
@@ -226,7 +226,7 @@ while read -r spec; do
     if [ -n "$matched" ]; then
         echo "$ME: spec '$spec' runs tests only in project(s) $matched, which no workflow runs" >&2
     else
-        echo "$ME: spec '$spec' runs no test in any project of ${PW_CONFIG#"$ROOT"/} — no testMatch picks it up, or grep/grepInvert (under INCLUDE_FLAKY=false) filter out every test it has, or every test it has is statically skipped (test.skip, describe.skip, fixme, quarantined())" >&2
+        echo "$ME: spec '$spec' runs no test in any project of ${PW_CONFIG#"$ROOT"/} — no testMatch picks it up, or grep/grepInvert (under INCLUDE_FLAKY=false) filter out every test it has, or every test it has is statically skipped under CI=true (test.skip, describe.skip, fixme, quarantined(), test.skip(!!process.env.CI))" >&2
     fi
     spec_fail=1
 done < "$TMP/specs.names"

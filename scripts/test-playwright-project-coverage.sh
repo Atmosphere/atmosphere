@@ -245,7 +245,14 @@ replace_in "$TMP/x/case/playwright.config.ts" 'testMatch: /\/chat\.spec\.ts/,' '
 expect "the caller's INCLUDE_FLAKY does not leak into the listing" 1 "spec 'zzz-orphan.spec.ts' runs no test in any project" INCLUDE_FLAKY=true
 
 setup
-expect "the caller's CI/SMOKE_ONLY do not leak into the listing" 0 "PASS —" CI=true SMOKE_ONLY=true
+expect "the caller's SMOKE_ONLY does not leak into the listing" 0 "PASS —" SMOKE_ONLY=true
+
+# The e2e legs run on GitHub Actions, where CI=true: a spec that skips itself in CI
+# runs nothing there, whatever the caller's CI is.
+setup
+printf "import { test } from '@playwright/test';\ntest.skip(!!process.env.CI, 'never in CI');\ntest('zzz ci-skipped', () => {});\n" > "$TMP/x/case/e2e/zzz-ci-skip.spec.ts"
+replace_in "$TMP/x/case/playwright.config.ts" 'testMatch: /\/chat\.spec\.ts/,' 'testMatch: /\/(chat|zzz-ci-skip)\.spec\.ts/,'
+expect "a spec that skips itself in CI fails (the legs run with CI=true)" 1 "spec 'zzz-ci-skip.spec.ts' runs no test in any project" -u CI
 
 setup
 printf "import { test } from '@playwright/test';\ntest.skip('zzz orphan', () => {});\n" > "$TMP/x/case/e2e/zzz-orphan.spec.ts"
@@ -297,6 +304,20 @@ expect "excluding a spec a workflow project already runs fails" 1 "exclusion 'ch
 setup
 printf 'zzz-gone.spec.ts | jfarcand | 2099-01-01 | carnet#54 | stale\n' >> "$TMP/x/case/exclusions.txt"
 expect "excluding a spec file that does not exist fails" 1 "exclusion 'zzz-gone.spec.ts' names no spec file"
+
+# --- the gate fails closed when it cannot list the suite ---
+
+# A PATH with what the gate runs before its node check, and no node.
+mkdir -p "$TMP/no-node-bin"
+for tool in bash dirname date; do
+    ln -sf "$(command -v "$tool")" "$TMP/no-node-bin/$tool"
+done
+setup
+expect "no node on the PATH fails instead of skipping" 1 "node not found" PATH="$TMP/no-node-bin"
+
+setup
+rm "$TMP/x/case/node_modules"
+expect "a config without @playwright/test installed fails instead of skipping" 1 "@playwright/test is not installed"
 
 echo ""
 echo "$passed passed, $failed failed"
