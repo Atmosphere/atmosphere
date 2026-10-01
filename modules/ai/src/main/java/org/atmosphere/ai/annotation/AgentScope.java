@@ -197,7 +197,10 @@ public @interface AgentScope {
          * request's similarity to the purpose and its similarity to the
          * {@link AgentScope#forbiddenTopics()}. A request is admitted only
          * when the purpose similarity exceeds the best forbidden-topic
-         * similarity by the configured margin. Matches the default tier
+         * similarity by {@code SemanticIntentScopeGuardrail.DEFAULT_MARGIN}
+         * (0.05); the margin is not configurable from this annotation (only
+         * a hand-built {@code SemanticIntentScopeGuardrail} takes another
+         * one). Matches the default tier
          * shape of Microsoft's Agent OS (embeddings + small classifier
          * head) — ~5–20 ms, deterministic, higher precision than plain
          * similarity when the corpus of forbidden topics is rich. Like

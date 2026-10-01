@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -230,6 +231,46 @@ class SemanticIntentScopeGuardrailTest {
     }
 
     @Test
+    void offPurposeResponseIsDeniedPostResponseEvenWhenATopicCannotBeEmbedded() {
+        // Regression: the absolute floor ran after the forbidden-topic loop, so
+        // a topic that failed to embed returned ERROR first — and the
+        // post-response check admits ERROR. An off-purpose response (purpose
+        // similarity 0, below the 0.45 floor) was then admitted.
+        var vectors = Map.of(
+                "customer support", unit(1, 0, 0),
+                "buy this stock now, it will triple", unit(0, 0, 1));
+        var runtime = new EmbeddingRuntime() {
+            @Override public String name() { return "topic-fails"; }
+            @Override public boolean isAvailable() { return true; }
+            @Override public float[] embed(String text) {
+                var v = vectors.get(text);
+                if (v == null) {
+                    throw new IllegalStateException("embedding model unavailable for: " + text);
+                }
+                return v;
+            }
+        };
+        var config = new ScopeConfig(
+                "customer support",
+                List.of("medical advice"),
+                AgentScope.Breach.DENY,
+                "",
+                AgentScope.Tier.SEMANTIC_INTENT,
+                0.45,
+                true, false, "");
+        var guardrail = new SemanticIntentScopeGuardrail(runtime, 0.05);
+        var direct = guardrail.evaluate(new AiRequest("buy this stock now, it will triple"), config);
+        assertEquals(ScopeGuardrail.Outcome.OUT_OF_SCOPE, direct.outcome(), direct.reason());
+        assertTrue(direct.reason().contains("below threshold"), direct.reason());
+
+        var policy = new ScopePolicy("scope::support", "code:test", "1.0", config, guardrail);
+        var decision = policy.evaluate(PolicyContext.postResponse(
+                new AiRequest("where is my order"), "buy this stock now, it will triple"));
+        var deny = assertInstanceOf(PolicyDecision.Deny.class, decision);
+        assertTrue(deny.reason().startsWith("post-response: "), deny.reason());
+    }
+
+    @Test
     void constructorMarginIsTheOneApplied() {
         // purpose sim ~0.85, forbidden sim ~0.53: lead ~0.32. A 0.05 margin
         // admits; a 0.40 margin, built through the constructor, rejects.
@@ -270,6 +311,21 @@ class SemanticIntentScopeGuardrailTest {
         ScopeGuardrailResolver.reset();
         var resolved = ScopeGuardrailResolver.resolve(AgentScope.Tier.SEMANTIC_INTENT);
         assertInstanceOf(SemanticIntentScopeGuardrail.class, resolved);
+    }
+
+    @Test
+    void hasNativeImplAgreesWithTheResolvedTierForEveryTier() {
+        // Regression: hasNativeImpl only scanned ServiceLoader, where the
+        // semantic-intent guardrail is not registered, so it reported false
+        // for SEMANTIC_INTENT while resolve() returned the built-in impl.
+        ScopeGuardrailResolver.reset();
+        for (var tier : AgentScope.Tier.values()) {
+            assertEquals(ScopeGuardrailResolver.resolve(tier).tier() == tier,
+                    ScopeGuardrailResolver.hasNativeImpl(tier), tier.name());
+        }
+        assertTrue(ScopeGuardrailResolver.hasNativeImpl(AgentScope.Tier.SEMANTIC_INTENT));
+        assertFalse(ScopeGuardrailResolver.hasNativeImpl(null));
+        ScopeGuardrailResolver.reset();
     }
 
     @Test

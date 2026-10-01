@@ -79,13 +79,16 @@ public final class ScopeGuardrailResolver {
         };
     }
 
-    /** True when a dedicated impl exists for this tier (not the rule-based fallback). */
+    /**
+     * True when {@link #resolve} returns an impl of this tier — a
+     * ServiceLoader-registered one or the built-in one — rather than an impl
+     * of another tier. It reports the resolved impl only, not whether that
+     * impl's backing ({@code EmbeddingRuntime}, {@code DecisionModel}) can
+     * answer: the embedding tiers still degrade to rule-based per request
+     * without a runtime.
+     */
     public static boolean hasNativeImpl(AgentScope.Tier tier) {
-        if (tier == AgentScope.Tier.RULE_BASED) return true;
-        for (var candidate : ServiceLoader.load(ScopeGuardrail.class)) {
-            if (candidate.tier() == tier) return true;
-        }
-        return false;
+        return tier != null && resolve(tier).tier() == tier;
     }
 
     /** Testing / reload hook — clears the cache so a new tier impl can be picked up. */

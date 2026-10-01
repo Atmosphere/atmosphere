@@ -79,7 +79,12 @@ import java.util.concurrent.ConcurrentHashMap;
  *       topic) — {@link ScopeGuardrail.Decision#error}, which
  *       {@link ScopePolicy} denies at pre-admission. A forbidden topic that
  *       cannot be embedded is never skipped: skipping it would let the margin
- *       gate admit a request that topic would have blocked.</li>
+ *       gate admit a request that topic would have blocked. The absolute
+ *       {@link ScopeConfig#similarityThreshold()} floor is checked before the
+ *       forbidden topics are embedded, so a message below it is
+ *       {@code OUT_OF_SCOPE} even when a topic fails to embed; on the
+ *       post-response check, where {@link ScopePolicy} admits an
+ *       {@code ERROR}, that keeps an off-purpose response denied.</li>
  * </ul>
  */
 public final class SemanticIntentScopeGuardrail implements ScopeGuardrail {
@@ -196,6 +201,18 @@ public final class SemanticIntentScopeGuardrail implements ScopeGuardrail {
 
         var purposeSim = cosineSimilarity(purposeVector, messageVector);
 
+        // Hard floor — below the absolute threshold, the purpose match is
+        // too weak regardless of margin. Matches the embedding-tier gate. It
+        // runs before the forbidden topics are embedded because it does not
+        // depend on them: a topic that fails to embed must not turn this
+        // rejection into ERROR, which the post-response check admits.
+        if (purposeSim < config.similarityThreshold()) {
+            return Decision.outOfScope(
+                    "message similarity " + round(purposeSim)
+                            + " below threshold " + round(config.similarityThreshold()),
+                    purposeSim);
+        }
+
         // Best forbidden-topic match (track the topic for the audit reason).
         double bestForbiddenSim = -1.0;
         String bestForbiddenTopic = null;
@@ -212,15 +229,6 @@ public final class SemanticIntentScopeGuardrail implements ScopeGuardrail {
                 bestForbiddenSim = topicSim;
                 bestForbiddenTopic = topic;
             }
-        }
-
-        // Hard floor — below the absolute threshold, the purpose match is
-        // too weak regardless of margin. Matches the embedding-tier gate.
-        if (purposeSim < config.similarityThreshold()) {
-            return Decision.outOfScope(
-                    "message similarity " + round(purposeSim)
-                            + " below threshold " + round(config.similarityThreshold()),
-                    purposeSim);
         }
 
         // Margin gate — purpose must beat forbidden by `margin`. When no

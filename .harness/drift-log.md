@@ -4234,10 +4234,20 @@ same.
 `AgentScope#similarityThreshold()` "Only used when tier is EMBEDDING_SIMILARITY".
 **Truth:** `AgentScope.Tier` has four values; `SEMANTIC_INTENT` also applies `similarityThreshold`
 as its absolute floor.
+**Claim 4:** the `AgentScope.Tier#SEMANTIC_INTENT` Javadoc: admitted only when the purpose
+similarity beats the best forbidden-topic similarity "by the configured margin".
+**Truth:** nothing on the annotation configures it; every annotation- or skill-driven instance
+uses `DEFAULT_MARGIN` (0.05). Same root as Claim 1, left behind on the enum constant.
+**Claim 5:** `ScopeGuardrailResolver#hasNativeImpl` Javadoc: "True when a dedicated impl exists for
+this tier (not the rule-based fallback)".
+**Truth:** it scanned only `ServiceLoader`, and `SemanticIntentScopeGuardrail` is not registered
+there, so it returned `false` for `SEMANTIC_INTENT` while `resolve(SEMANTIC_INTENT)` returned the
+built-in `SemanticIntentScopeGuardrail` (Invariant #5). It now asks `resolve` itself.
 **Slip path:** the margin Javadoc described a planned annotation member that was never added; the
 resolver comment and the test comment described the embedding tier's fallback and were not
 checked against the semantic-intent code; the tier counts were written before `SEMANTIC_INTENT`
-existed and nothing tied them to the enum.
+existed and nothing tied them to the enum; `hasNativeImpl` was written when every non-rule tier
+was registered through `ServiceLoader`, and the built-in switch grew past it.
 **Gate:** `SemanticIntentScopeGuardrailTest#noRuntimeDegradesToRuleBasedInsteadOfAdmittingEverything`,
 `#noRuntimeDeniesAtPreAdmissionThroughScopePolicy`, `#failOpenPropertyIsReadOnEachRequest`,
 `#explicitFailOpenArgumentWinsOverTheProperty`, `#forbiddenTopicThatCannotBeEmbeddedIsAnErrorNotSkipped`
@@ -4245,3 +4255,9 @@ and `EmbeddingScopeGuardrailTest#forbiddenTopicThatCannotBeEmbeddedDegradesInste
 (all fail with the fix reverted); `#constructorMarginIsTheOneApplied` pins the corrected margin
 Javadoc; `OwaspMatrixPinTest#goalHijackingEvidenceCountsEveryScopeTier` ties the A01 tier count to
 `AgentScope.Tier.values().length`.
+`SemanticIntentScopeGuardrailTest#hasNativeImplAgreesWithTheResolvedTierForEveryTier` pins Claim 5
+(fails with the fix reverted). The same review found the forbidden-topic `ERROR` above ran before
+the absolute `similarityThreshold` floor, so on the post-response check (which admits `ERROR`) an
+off-purpose response was admitted whenever a topic failed to embed; the floor now runs first,
+pinned by `#offPurposeResponseIsDeniedPostResponseEvenWhenATopicCannotBeEmbedded` (fails with the
+fix reverted).
