@@ -17,6 +17,7 @@ package org.atmosphere.integrationtests.ai;
 
 import org.atmosphere.ai.SummarizingStrategy;
 import org.atmosphere.ai.TokenWindowStrategy;
+import org.atmosphere.ai.processor.AiEndpointProcessor;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.integrationtests.EmbeddedAtmosphereServer;
 import org.slf4j.Logger;
@@ -64,8 +65,13 @@ public class AiFeatureTestServer {
             // screened through SafetyContextProvider on the AiStreamingSession path.
             framework.addAtmosphereHandler("/ai/decision", new DecisionModelTestHandler());
             // Intent routing in front of the LLM: one Question.Choice over the
-            // routes, on both the AiStreamingSession and AiPipeline paths.
+            // routes. /ai/intent serves the AiPipeline path; the @AiEndpoint path
+            // is a real annotated endpoint, registered by AiEndpointProcessor
+            // once the framework has initialised (annotation scanning is off on
+            // this server) and before Jetty accepts a connection.
             framework.addAtmosphereHandler("/ai/intent", new IntentRoutingTestHandler());
+            framework.getAtmosphereConfig().startupHook(started -> new AiEndpointProcessor()
+                    .handle(started, annotated(IntentRoutingTestEndpoint.class)));
             framework.addAtmosphereHandler("/ai/passivation",
                     new PassivationTestHandler());
             framework.addAtmosphereHandler("/ai/cache-coalescing", new CacheCoalescingTestHandler());
@@ -142,9 +148,20 @@ public class AiFeatureTestServer {
                     + "/ai/cache-coalescing, /ai/cost-routing, /ai/combined-cost-cache, "
                     + "/ai/classroom/math, /ai/classroom/code, /ai/memory, /ai/error-recovery, "
                     + "/ai/events, /ai/identity, /ai/memory-token-window, /ai/memory-summarizing, "
-                    + "/ai/multimodal, /ai/cache-hint, /ai/embedding, /ai/decision, /ai/intent");
+                    + "/ai/multimodal, /ai/cache-hint, /ai/embedding, /ai/decision, /ai/intent, "
+                    + IntentRoutingTestEndpoint.PATH);
 
             Thread.currentThread().join();
         }
+    }
+
+    /**
+     * {@code AnnotationHandler.handle} takes a {@code Class<Object>}, the type
+     * the annotation scanner hands it; an endpoint class literal needs the
+     * unchecked widening the scanner does.
+     */
+    @SuppressWarnings("unchecked")
+    private static Class<Object> annotated(Class<?> endpoint) {
+        return (Class<Object>) endpoint;
     }
 }

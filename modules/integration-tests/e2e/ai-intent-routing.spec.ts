@@ -14,23 +14,37 @@ test.afterAll(async () => {
 });
 
 /**
- * E2E coverage for intent routing (IntentRoutingTestHandler). Every scenario runs
- * on both dispatch paths — the AiStreamingSession the @AiEndpoint handler
- * dispatches through, and AiPipeline — with one IntentRouting whose classifier is
- * the real RuntimeDecisionModel over a scripted runtime that reports a
- * DECISION_LOGPROBS distribution over the route codes.
+ * E2E coverage for intent routing. Every scenario runs on both dispatch paths
+ * with the same IntentRouting, whose classifier is the real RuntimeDecisionModel
+ * over a scripted runtime that reports a DECISION_LOGPROBS distribution over the
+ * route codes (ScriptedIntentRuntime):
  *
- * Routes: track (deterministic handler), general (the LLM path, an echo runtime),
- * agent (the human route). Tiers: ACT >= 0.9, CONFIRM >= 0.5, else ESCALATE.
+ * - endpoint: IntentRoutingTestEndpoint, a real @AiEndpoint(intentRouting = ...)
+ *   registered by AiEndpointProcessor and served by AiEndpointHandler (its
+ *   /__approval fast path answers a confirmation). Its LLM route is the runtime
+ *   the endpoint resolves — the demo runtime in this keyless lane.
+ * - pipeline: IntentRoutingTestHandler, AiPipeline.setDefaultIntentRouting with an
+ *   echo runtime on the LLM route.
+ *
+ * Routes: track (deterministic handler), general (the LLM path), agent (the human
+ * route). Tiers: ACT >= 0.9, CONFIRM >= 0.5, else ESCALATE.
  */
 const MODES = ['endpoint', 'pipeline'] as const;
+type Mode = typeof MODES[number];
 
-async function turn(prompt: string): Promise<AiWsClient> {
-  const client = new AiWsClient(server.wsUrl, '/ai/intent');
+const PATHS: Record<Mode, string> = {
+  endpoint: '/ai/intent-endpoint',
+  pipeline: '/ai/intent',
+};
+
+async function turn(mode: Mode, message: string): Promise<AiWsClient> {
+  const client = new AiWsClient(server.wsUrl, PATHS[mode]);
   await client.connect();
-  client.sendResilient(prompt);
+  client.sendResilient(message);
   return client;
 }
+
+const HANDLER_OR_HUMAN = /^(Order 7 is out for delivery|A person will follow up)/;
 
 async function waitForApproval(client: AiWsClient, timeoutMs = 15_000): Promise<Record<string, unknown>> {
   const start = Date.now();
@@ -46,7 +60,7 @@ test.describe('AI Intent Routing E2E', () => {
   for (const mode of MODES) {
 
     test(`@smoke ${mode}: a confident deterministic choice answers without the LLM`, async () => {
-      const client = await turn(`${mode}:where is order 7?`);
+      const client = await turn(mode, `where is order 7?`);
       try {
         await client.waitForDone(15_000);
         expect(client.errors).toEqual([]);
@@ -63,11 +77,17 @@ test.describe('AI Intent Routing E2E', () => {
     });
 
     test(`${mode}: an LLM choice continues to the runtime`, async () => {
-      const client = await turn(`${mode}:tell me a joke`);
+      const client = await turn(mode, `tell me a joke`);
       try {
         await client.waitForDone(15_000);
         expect(client.errors).toEqual([]);
-        expect(client.fullResponse).toBe('llm: tell me a joke');
+        if (mode === 'pipeline') {
+          expect(client.fullResponse).toBe('llm: tell me a joke');
+        } else {
+          // The endpoint's own resolved runtime answered, not a route handler.
+          expect(client.fullResponse.length).toBeGreaterThan(0);
+          expect(client.fullResponse).not.toMatch(HANDLER_OR_HUMAN);
+        }
         expect(client.metadata.get('ai.intent.route')).toBe('general');
         expect(client.metadata.get('ai.intent.tier')).toBe('ACT');
       } finally {
@@ -76,7 +96,7 @@ test.describe('AI Intent Routing E2E', () => {
     });
 
     test(`${mode}: a low-confidence choice escalates to the human route`, async () => {
-      const client = await turn(`${mode}:something vague about my account`);
+      const client = await turn(mode, `something vague about my account`);
       try {
         await client.waitForDone(15_000);
         expect(client.fullResponse).toMatch(/^A person will follow up \(ticket T-\d+\)$/);
@@ -88,8 +108,22 @@ test.describe('AI Intent Routing E2E', () => {
       }
     });
 
+    test(`${mode}: the human route chosen at the CONFIRM tier escalates without a confirmation`, async () => {
+      const client = await turn(mode, `I need a person`);
+      try {
+        await client.waitForDone(15_000);
+        expect(client.aiEventData('approval-required')).toBeFalsy();
+        expect(client.fullResponse).toMatch(/^A person will follow up \(ticket T-\d+\)$/);
+        expect(client.metadata.get('ai.intent.route')).toBe('agent');
+        expect(client.metadata.get('ai.intent.choice')).toBe('agent');
+        expect(client.metadata.get('ai.intent.tier')).toBe('CONFIRM');
+      } finally {
+        client.close();
+      }
+    });
+
     test(`${mode}: an unparseable classification fails closed to the human route`, async () => {
-      const client = await turn(`${mode}:garbled order text`);
+      const client = await turn(mode, `garbled order text`);
       try {
         await client.waitForDone(15_000);
         expect(client.metadata.get('ai.intent.route')).toBe('agent');
@@ -103,7 +137,7 @@ test.describe('AI Intent Routing E2E', () => {
     });
 
     test(`${mode}: a CONFIRM-tier choice asks the requester and acts on approval`, async () => {
-      const client = await turn(`${mode}:my parcel?`);
+      const client = await turn(mode, `my parcel?`);
       try {
         const approval = await waitForApproval(client);
         expect(approval.toolName).toBe('intent:track');
@@ -120,7 +154,7 @@ test.describe('AI Intent Routing E2E', () => {
     });
 
     test(`${mode}: a denied confirmation escalates`, async () => {
-      const client = await turn(`${mode}:my parcel?`);
+      const client = await turn(mode, `my parcel?`);
       try {
         const approval = await waitForApproval(client);
         client.send(`/__approval/${approval.approvalId}/deny`);

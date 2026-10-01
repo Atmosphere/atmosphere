@@ -42,6 +42,8 @@ public class TracingCapturingSession extends DelegatingStreamingSession {
     private final Instant startTime;
     private volatile Instant firstStreamingTextTime;
     private int streamingTextCount;
+    /** Set when the turn ended without a model call (an intent-routed handler or human route). */
+    private volatile boolean withoutModel;
 
     public TracingCapturingSession(StreamingSession delegate, AiMetrics metrics, String model) {
         super(delegate);
@@ -74,7 +76,9 @@ public class TracingCapturingSession extends DelegatingStreamingSession {
 
     @Override
     public void error(Throwable t) {
-        metrics.recordError(model, classifyError(t));
+        if (!withoutModel) {
+            metrics.recordError(model, classifyError(t));
+        }
         metrics.sessionEnded(model);
         delegate.error(t);
     }
@@ -117,7 +121,22 @@ public class TracingCapturingSession extends DelegatingStreamingSession {
         return startTime;
     }
 
+    /**
+     * Mark this turn as answered without calling the model — intent routing
+     * sent it to a deterministic handler or the human route, or cancelled it.
+     * Its latency, text usage and error are then not recorded under the model
+     * tag, as {@link AiPipeline} records none for such a turn; the session is
+     * still counted as ended, so {@link AiMetrics#sessionStarted} stays balanced.
+     */
+    void noModelCall() {
+        this.withoutModel = true;
+    }
+
     private void reportMetrics() {
+        if (withoutModel) {
+            metrics.sessionEnded(model);
+            return;
+        }
         var now = Instant.now();
         var ttft = firstStreamingTextTime != null
                 ? Duration.between(startTime, firstStreamingTextTime)

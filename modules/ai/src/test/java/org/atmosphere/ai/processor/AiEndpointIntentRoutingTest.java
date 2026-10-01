@@ -21,6 +21,8 @@ import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.batch.BatchHandler;
+import org.atmosphere.ai.batch.BatchServing;
 import org.atmosphere.ai.decision.Answer;
 import org.atmosphere.ai.decision.DecisionModel;
 import org.atmosphere.ai.decision.DecisionRequest;
@@ -58,6 +60,7 @@ import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -77,7 +80,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -196,12 +202,74 @@ class AiEndpointIntentRoutingTest {
     }
 
     @Test
-    void openAiAndBatchSurfacesShareTheEndpointsRouting() {
-        // Both registrars build their pipeline through servingPipeline(...).
-        var pipeline = AiEndpointProcessor.servingPipeline(mock(AgentRuntime.class), "", null, null,
-                null, List.of(), List.of(), List.of(), org.atmosphere.ai.AiMetrics.NOOP, null,
-                Map.of(), null, ROUTING);
-        assertSame(ROUTING, pipeline.defaultIntentRouting());
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void openAiAndBatchSurfacesRouteWithTheEndpointsRouting() throws Exception {
+        // Drive the processor with both surfaces enabled and send a request
+        // through each registered handler: without the endpoint's routing the
+        // request would reach the resolved runtime instead of the handler.
+        var framework = mock(AtmosphereFramework.class);
+        when(framework.newClassInstance(eq(Object.class), any())).thenReturn(new RoutedEndpoint());
+        when(framework.newClassInstance(eq(IntentRoutingProvider.class), eq(TestRoutes.class)))
+                .thenReturn(new TestRoutes());
+        var servingConfig = spy(new AtmosphereFramework().getAtmosphereConfig());
+        doAnswer(invocation -> {
+            String name = invocation.getArgument(0);
+            return OpenAiServing.ENABLED_PARAM.equals(name) || BatchServing.ENABLED_PARAM.equals(name)
+                    ? "true" : null;
+        }).when(servingConfig).getInitParameter(anyString());
+        doReturn(Collections.emptyEnumeration()).when(servingConfig).getInitParameterNames();
+        when(framework.getAtmosphereConfig()).thenReturn(servingConfig);
+
+        new AiEndpointProcessor().handle(framework, (Class) RoutedEndpoint.class);
+
+        var openAi = (OpenAiChatHandler) servingConfig.properties().get("org.atmosphere.ai.openai.handler");
+        var batch = (BatchHandler) servingConfig.properties().get("org.atmosphere.ai.batch.handler");
+        try {
+            assertNotNull(openAi, "the OpenAI-compatible surface must be registered");
+            assertNotNull(batch, "the batch surface must be registered");
+
+            var chat = servingRig("POST", OpenAiServing.CHAT_COMPLETIONS_PATH,
+                    "{\"model\":\"intent\",\"messages\":[{\"role\":\"user\","
+                            + "\"content\":\"where is order 7?\"}]}");
+            openAi.onRequest(chat.resource());
+            verify(chat.response()).setStatus(200);
+            assertTrue(chat.output().toString().contains("tracked:where is order 7?"), chat.output().toString());
+            verify(chat.response()).setHeader(OpenAiChatHandler.INTENT_ROUTE_HEADER, "track");
+
+            var submit = servingRig("POST", BatchServing.BATCHES_PATH,
+                    "{\"agent\":\"intent\",\"items\":[{\"custom_id\":\"c0\","
+                            + "\"input\":\"where is order 7?\"}]}");
+            batch.onRequest(submit.resource());
+            verify(submit.response()).setStatus(202);
+            var id = Pattern.compile("\"id\"\\s*:\\s*\"([^\"]+)\"").matcher(submit.output().toString());
+            assertTrue(id.find(), submit.output().toString());
+            assertTrue(batch.executor().awaitTerminal(id.group(1), Duration.ofSeconds(10)).isPresent());
+            var item = batch.executor().store().items(id.group(1)).getFirst();
+            assertEquals("tracked:where is order 7?", item.output(), item.toString());
+        } finally {
+            if (batch != null) {
+                batch.destroy();
+            }
+        }
+    }
+
+    record ServingRig(AtmosphereResource resource, AtmosphereResponse response, StringWriter output) {
+    }
+
+    private static ServingRig servingRig(String method, String uri, String body) throws Exception {
+        var resource = mock(AtmosphereResource.class);
+        var request = mock(AtmosphereRequest.class);
+        var response = mock(AtmosphereResponse.class);
+        when(resource.getRequest()).thenReturn(request);
+        when(resource.getResponse()).thenReturn(response);
+        when(resource.uuid()).thenReturn("serving-uuid");
+        when(request.getMethod()).thenReturn(method);
+        when(request.getRequestURI()).thenReturn(uri);
+        when(request.getContentType()).thenReturn("application/json");
+        when(request.getReader()).thenReturn(new BufferedReader(new StringReader(body)));
+        var output = new StringWriter();
+        when(response.getWriter()).thenReturn(new PrintWriter(output));
+        return new ServingRig(resource, response, output);
     }
 
     @Test

@@ -4037,3 +4037,36 @@ the session a turn deadline and the wait ends before it. The OpenAI-compatible s
 signal as `X-Atmosphere-Intent-*` response headers (`OpenAiChatHandlerTest` checks they are set
 before the SSE stream commits); the README and Javadoc now say the batch surface applies the route
 without signalling it.
+
+---
+
+## 2026-10-01 — Intent routing's docs said routed turns record no metrics and every case ran on both paths
+
+**Session:** third carnet #57 review of the intent-routing branch.
+
+**Claim 1:** `modules/ai/README.md` "Handlers" bullet: the LLM-only layers, "metrics" included, "do
+not apply because no model is called".
+**Truth:** on `@AiEndpoint` the `TracingCapturingSession` that `AiEndpointHandler` wraps every turn
+in recorded a handler, human or failed-handler turn as `recordLatency` / `recordStreamingTextUsage`
+/ `recordError` under the endpoint's model tag, and a CONFIRM wait as that model's time to first
+token. `AiPipeline` recorded nothing for the same turns.
+**Claim 2:** the README: "`IntentRoutingParityTest` drives every case through both" paths, and
+`ai-intent-routing.spec.ts` "drives both paths over WebSocket".
+**Truth:** the "model chose the human route" row, the no-model, oversized-message, throwing-model
+and no-confidence rows ran only at the `IntentRouting.classify()` unit level; the spec's endpoint
+mode was a hand-built `AiStreamingSession`, not an `@AiEndpoint`; the test named for the
+OpenAI-compatible and batch surfaces only called the static `servingPipeline(...)` helper.
+**Claim 3:** `modules/rag/README.md`: `User message → Guardrails → ContextProvider.retrieve() →
+Interceptors → LLM`.
+**Truth:** the branch moved endpoint retrieval after the interceptors, the per-request scope and
+intent routing for every endpoint, with or without routing.
+**Slip path:** the parity fixture built the endpoint path without the metrics wrapper the handler
+adds, and the README sentence was written from what the routed turn skips on the pipeline; the
+coverage paragraph was written from the test class names.
+**Gate:** `IntentRoutingParityTest.routedTurnsRecordNoModelMetrics` builds the endpoint path with a
+`TracingCapturingSession` as the handler does and asserts no model measure on either path, with an
+LLM-route control; parity cases now cover every table row; `AiEndpointIntentRoutingTest` drives the
+processor with both serving surfaces enabled and sends a request through each registered handler;
+the spec's endpoint mode targets `IntentRoutingTestEndpoint`, a real `@AiEndpoint` registered by
+`AiEndpointProcessor`. The endpoint now marks a routed turn so its tracing session skips the model
+measures, and both READMEs state the endpoint's RAG order.

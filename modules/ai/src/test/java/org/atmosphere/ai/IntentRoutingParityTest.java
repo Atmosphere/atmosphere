@@ -19,6 +19,8 @@ import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.approval.ApprovalRegistry;
 import org.atmosphere.ai.decision.Answer;
 import org.atmosphere.ai.decision.DecisionModel;
+import org.atmosphere.ai.decision.DecisionModelResolver;
+import org.atmosphere.ai.decision.DecisionModelResolverTestAccess;
 import org.atmosphere.ai.decision.DecisionRequest;
 import org.atmosphere.ai.decision.DecisionResult;
 import org.atmosphere.ai.governance.scope.ScopeConfig;
@@ -79,9 +81,14 @@ class IntentRoutingParityTest {
                                 return request.withMetadata(metadata);
                             }
                         });
-                var wire = new Wire();
-                var session = new AiStreamingSession(wire, fixture.runtime, "system", "m", interceptors,
-                        resource, fixture.memory, null, fixture.guardrails, fixture.contextProviders);
+                var wire = fixture.takeWire();
+                // As AiEndpointHandler does: a TracingCapturingSession under the
+                // session whenever metrics are configured.
+                StreamingSession leaf = fixture.metrics == AiMetrics.NOOP ? wire
+                        : new TracingCapturingSession(wire, fixture.metrics, "m");
+                var session = new AiStreamingSession(leaf, fixture.runtime, "system", "m", interceptors,
+                        resource, fixture.memory, null, fixture.guardrails, fixture.contextProviders,
+                        fixture.metrics, null);
                 if (fixture.defaultRouting != null) {
                     session.setIntentRouting(fixture.defaultRouting);
                 }
@@ -93,9 +100,9 @@ class IntentRoutingParityTest {
             @Override
             Turn start(Fixture fixture, String message, Map<String, Object> metadata) {
                 var pipeline = new AiPipeline(fixture.runtime, "system", "m", fixture.memory, null,
-                        fixture.guardrails, List.of(), fixture.contextProviders, AiMetrics.NOOP, null);
+                        fixture.guardrails, List.of(), fixture.contextProviders, fixture.metrics, null);
                 pipeline.setDefaultIntentRouting(fixture.defaultRouting);
-                var wire = new Wire();
+                var wire = fixture.takeWire();
                 var thread = Thread.startVirtualThread(
                         () -> pipeline.execute(CONVERSATION, message, wire, metadata));
                 return new Turn(wire, thread, pipeline::tryResolveApproval,
@@ -420,6 +427,165 @@ class IntentRoutingParityTest {
         assertNull(wire.metadata(IntentRouting.ROUTE_METADATA_KEY));
     }
 
+    // --- README table rows, each through both paths ------------------------
+
+    @ParameterizedTest
+    @EnumSource(Path.class)
+    void humanChoiceAtTheConfirmTierEscalatesWithoutAConfirmation(Path path) throws Exception {
+        var fixture = new Fixture(choiceFor(Map.of("order", "agent")), 0.7);
+        var wire = path.start(fixture, "where is order 7?", Map.of()).finish();
+
+        assertTrue(wire.approvals.isEmpty(), "escalation needs no confirmation");
+        assertEquals("agent", wire.metadata(IntentRouting.ROUTE_METADATA_KEY));
+        assertEquals("agent", wire.metadata(IntentRouting.CHOICE_METADATA_KEY));
+        assertEquals("CONFIRM", wire.metadata(IntentRouting.TIER_METADATA_KEY));
+        assertEquals("a person will follow up", wire.text());
+        assertEquals(1, fixture.humanHandoffs.get());
+        assertEquals(0, fixture.runtimeCalls.get());
+    }
+
+    @ParameterizedTest
+    @EnumSource(Path.class)
+    void noDecisionModelFailsClosedToTheHumanRoute(Path path) throws Exception {
+        var fixture = new Fixture(choiceFor(Map.of("order", "track")), 0.95);
+        fixture.defaultRouting = fixture.defaultRouting.withDecisionModel(null);
+        DecisionModelResolverTestAccess.forceDemoOnly();
+        try {
+            assertTrue(DecisionModelResolver.resolve().isEmpty(), "precondition: no model resolves");
+            var wire = path.start(fixture, "where is order 7?", Map.of()).finish();
+
+            assertEquals("agent", wire.metadata(IntentRouting.ROUTE_METADATA_KEY));
+            assertEquals("ESCALATE", wire.metadata(IntentRouting.TIER_METADATA_KEY));
+            assertNull(wire.metadata(IntentRouting.CHOICE_METADATA_KEY));
+            assertEquals(1, fixture.humanHandoffs.get());
+            assertEquals(0, fixture.runtimeCalls.get());
+            assertTrue(fixture.decisions.getFirst().reason().contains("no decision model"),
+                    fixture.decisions.getFirst().reason());
+        } finally {
+            DecisionModelResolverTestAccess.restore();
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(Path.class)
+    void oversizedMessageFailsClosedWithoutAskingTheModel(Path path) throws Exception {
+        var fixture = new Fixture(choiceFor(Map.of("order", "track")), 0.95);
+        var message = "where is order 7? " + "x".repeat(DecisionRequest.MAX_STATE_CHARS);
+        var wire = path.start(fixture, message, Map.of()).finish();
+
+        assertEquals(0, fixture.classifications.get(), "the model is never asked");
+        assertEquals("agent", wire.metadata(IntentRouting.ROUTE_METADATA_KEY));
+        assertEquals("ESCALATE", wire.metadata(IntentRouting.TIER_METADATA_KEY));
+        assertEquals(1, fixture.humanHandoffs.get());
+        assertEquals(0, fixture.runtimeCalls.get());
+    }
+
+    @ParameterizedTest
+    @EnumSource(Path.class)
+    void throwingModelFailsClosedToTheHumanRoute(Path path) throws Exception {
+        var fixture = Fixture.answering(request -> {
+            throw new IllegalStateException("model down");
+        });
+        var wire = path.start(fixture, "where is order 7?", Map.of()).finish();
+
+        assertEquals("agent", wire.metadata(IntentRouting.ROUTE_METADATA_KEY));
+        assertEquals("ESCALATE", wire.metadata(IntentRouting.TIER_METADATA_KEY));
+        assertEquals(1, fixture.humanHandoffs.get());
+        assertEquals(0, fixture.runtimeCalls.get());
+        assertTrue(fixture.decisions.getFirst().reason().contains("model down"),
+                fixture.decisions.getFirst().reason());
+    }
+
+    @ParameterizedTest
+    @EnumSource(Path.class)
+    void choiceWithNoConfidenceTakesTheUnknownRoute(Path path) throws Exception {
+        var fixture = Fixture.answering(request -> new Answer.Choice(IntentRouting.QUESTION_ID, "track",
+                Map.of(), AiConfidence.unknown(AiConfidence.Source.MODEL_REPORTED_FIELD)));
+        var wire = path.start(fixture, "where is order 7?", Map.of()).finish();
+
+        assertEquals("agent", wire.metadata(IntentRouting.ROUTE_METADATA_KEY), "unknownRoute is ESCALATE");
+        assertEquals("track", wire.metadata(IntentRouting.CHOICE_METADATA_KEY));
+        assertEquals("ESCALATE", wire.metadata(IntentRouting.TIER_METADATA_KEY));
+        assertNull(wire.metadata(IntentRouting.CONFIDENCE_METADATA_KEY));
+        assertEquals(1, fixture.humanHandoffs.get());
+
+        // A routing that acts on an unmeasured choice runs the chosen route.
+        var acting = Fixture.answering(request -> new Answer.Choice(IntentRouting.QUESTION_ID, "track",
+                Map.of(), AiConfidence.unknown(AiConfidence.Source.MODEL_REPORTED_FIELD)));
+        acting.defaultRouting = acting.defaultRouting.withThresholds(
+                ConfidenceRouting.defaults().withUnknownRoute(ConfidenceRoute.ACT));
+        var acted = path.start(acting, "where is order 7?", Map.of()).finish();
+        assertEquals("track", acted.metadata(IntentRouting.ROUTE_METADATA_KEY));
+        assertEquals("parcel order 7 is out for delivery", acted.text());
+    }
+
+    @ParameterizedTest
+    @EnumSource(Path.class)
+    void aConfirmationThatCannotBeSentEscalatesAndEndsTheTurn(Path path) throws Exception {
+        var fixture = new Fixture(choiceFor(Map.of("order", "track")), 0.7);
+        fixture.defaultRouting = fixture.defaultRouting.withConfirmTimeout(IntentRouting.MAX_CONFIRM_TIMEOUT);
+        fixture.wire.failApprovalEmit = true;
+        var wire = path.start(fixture, "where is order 7?", Map.of()).finish();
+
+        assertTrue(wire.completed, "the turn ends on a route instead of parking or throwing");
+        assertEquals("agent", wire.metadata(IntentRouting.ROUTE_METADATA_KEY));
+        assertEquals("CONFIRM", wire.metadata(IntentRouting.TIER_METADATA_KEY));
+        assertEquals("a person will follow up", wire.text());
+        assertEquals(1, fixture.humanHandoffs.get());
+        assertTrue(fixture.decisions.getFirst().reason().contains("confirmation failed"),
+                fixture.decisions.getFirst().reason());
+    }
+
+    @ParameterizedTest
+    @EnumSource(Path.class)
+    void theLongestConfirmTimeoutParksAndStillEndsOnARoute(Path path) throws Exception {
+        var fixture = new Fixture(choiceFor(Map.of("order", "track")), 0.7);
+        fixture.defaultRouting = fixture.defaultRouting.withConfirmTimeout(IntentRouting.MAX_CONFIRM_TIMEOUT);
+        var turn = path.start(fixture, "where is order 7?", Map.of());
+        var approval = turn.wire.awaitApproval();
+        assertTrue(approval.expiresIn() > IntentRouting.MAX_CONFIRM_TIMEOUT.toSeconds() - 60, approval.toString());
+        assertTrue(turn.resolver.apply(ApprovalRegistry.APPROVAL_PREFIX + approval.approvalId() + "/deny"));
+        var wire = turn.finish();
+
+        assertEquals("agent", wire.metadata(IntentRouting.ROUTE_METADATA_KEY));
+        assertEquals(1, fixture.humanHandoffs.get());
+    }
+
+    // --- observability -----------------------------------------------------
+
+    @ParameterizedTest
+    @EnumSource(Path.class)
+    void routedTurnsRecordNoModelMetrics(Path path) throws Exception {
+        // AiEndpointHandler wraps every turn in a TracingCapturingSession; it
+        // recorded a handler or human turn (and a CONFIRM wait) as the model's
+        // latency and usage, which AiPipeline never did.
+        var fixture = Fixture.answering(request -> {
+            var state = request.state();
+            if (state.contains("joke")) {
+                return choice("general", 0.95);
+            }
+            return choice("track", state.contains("vague") ? 0.2 : 0.95);
+        });
+        var metrics = new RecordingMetrics();
+        fixture.metrics = metrics;
+
+        path.start(fixture, "where is order 7?", Map.of()).finish();
+        path.start(fixture, "something vague", Map.of()).finish();
+        fixture.failTracking = true;
+        assertInstanceOf(IllegalStateException.class,
+                path.start(fixture, "where is order 7?", Map.of()).finish().error);
+        fixture.failTracking = false;
+        assertEquals(List.of(), metrics.modelMeasures(),
+                "a handler, human or failed handler turn calls no model");
+        assertEquals(1, fixture.humanHandoffs.get());
+        assertEquals(metrics.started.get(), metrics.ended.get(), "session gauge stays balanced");
+
+        // Control: the same recorder sees the LLM route on both paths.
+        path.start(fixture, "tell me a joke", Map.of()).finish();
+        assertEquals(1, fixture.runtimeCalls.get());
+        assertTrue(metrics.modelMeasures().contains("latency(m)"), metrics.calls.toString());
+    }
+
     /** Endpoint: the client disconnects. Pipeline: the dispatching thread is interrupted. */
     private static void cancelTurn(Path path, Turn turn) {
         if (path == Path.ENDPOINT) {
@@ -475,6 +641,52 @@ class IntentRoutingParityTest {
 
     // --- fixture -----------------------------------------------------------
 
+    /** Records every measure; the session gauge is counted apart. */
+    static final class RecordingMetrics implements AiMetrics {
+        final List<String> calls = new CopyOnWriteArrayList<>();
+        final AtomicInteger started = new AtomicInteger();
+        final AtomicInteger ended = new AtomicInteger();
+
+        @Override
+        public void recordStreamingTextUsage(String model, int promptStreamingTexts, int completionStreamingTexts) {
+            calls.add("streamingText(" + model + ")");
+        }
+
+        @Override
+        public void recordLatency(String model, Duration timeToFirstStreamingText, Duration totalDuration) {
+            calls.add("latency(" + model + ")");
+        }
+
+        @Override
+        public void recordCost(String model, java.math.BigDecimal cost) {
+            calls.add("cost(" + model + ")");
+        }
+
+        @Override
+        public void recordToolCall(String model, String toolName, Duration duration, boolean success) {
+            calls.add("tool(" + model + ")");
+        }
+
+        @Override
+        public void recordError(String model, String errorType) {
+            calls.add("error(" + model + ")");
+        }
+
+        @Override
+        public void sessionStarted(String model) {
+            started.incrementAndGet();
+        }
+
+        @Override
+        public void sessionEnded(String model) {
+            ended.incrementAndGet();
+        }
+
+        List<String> modelMeasures() {
+            return List.copyOf(calls);
+        }
+    }
+
     /** Classifies "order" messages to the scripted route, everything else to "general". */
     private static Function<String, String> choiceFor(Map<String, String> keywords) {
         return state -> {
@@ -520,6 +732,9 @@ class IntentRoutingParityTest {
         /** Releases a blocking model. */
         final CountDownLatch release = new CountDownLatch(1);
         IntentRouting defaultRouting;
+        AiMetrics metrics = AiMetrics.NOOP;
+        /** The wire of the next turn; a test may swap in a failing one. */
+        Wire wire = new Wire();
         AgentRuntime runtime = new AgentRuntime() {
             @Override public String name() { return "intent-test"; }
             @Override public boolean isAvailable() { return true; }
@@ -544,6 +759,13 @@ class IntentRoutingParityTest {
          */
         Fixture(Function<String, String> classify, double confidence) {
             this(request -> choice(classify.apply(request.state()), confidence));
+        }
+
+        /** The wire for the turn being started; the next turn gets a fresh one. */
+        Wire takeWire() {
+            var taken = wire;
+            wire = new Wire();
+            return taken;
         }
 
         static Fixture answering(Function<DecisionRequest, Answer> script) {
@@ -606,7 +828,7 @@ class IntentRoutingParityTest {
     }
 
     /** The client side of the wire. */
-    static final class Wire implements StreamingSession {
+    static class Wire implements StreamingSession {
         final List<Map.Entry<String, Object>> frames = new CopyOnWriteArrayList<>();
         final List<AiEvent.ApprovalRequired> approvals = new CopyOnWriteArrayList<>();
         final CountDownLatch terminal = new CountDownLatch(1);
@@ -615,6 +837,8 @@ class IntentRoutingParityTest {
         volatile Throwable error;
         /** Whether the dispatching thread was interrupted when the turn ended. */
         volatile boolean interruptedAtTerminal;
+        /** Fails the approval-required frame, as a broken connection would. */
+        volatile boolean failApprovalEmit;
 
         @Override public String sessionId() { return "wire"; }
 
@@ -662,6 +886,9 @@ class IntentRoutingParityTest {
         @Override
         public void emit(AiEvent event) {
             if (event instanceof AiEvent.ApprovalRequired required) {
+                if (failApprovalEmit) {
+                    throw new IllegalStateException("connection broken");
+                }
                 approvals.add(required);
                 approvalSeen.countDown();
                 return;

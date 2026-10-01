@@ -78,6 +78,38 @@ class IntentDispatchDeadlineTest {
     }
 
     @Test
+    void anOverflowingWaitIsCappedNotThrown() {
+        var forever = java.time.temporal.ChronoUnit.FOREVER.getDuration();
+        // Capped by the deadline: the margin before it, never now + forever.
+        assertEquals(Optional.of(NOW.plusSeconds(115)),
+                IntentDispatch.confirmationExpiry(NOW, forever, NOW.plusSeconds(120)));
+        // No deadline: saturates at Instant.MAX.
+        assertEquals(Optional.of(Instant.MAX), IntentDispatch.confirmationExpiry(NOW, forever, null));
+    }
+
+    @Test
+    void aConfirmationThatCannotBeAskedEscalatesInsteadOfThrowing() {
+        // Anything that breaks while asking (here the session id the approval
+        // is filed under) must still end the turn on the human route.
+        var decisions = new CopyOnWriteArrayList<IntentDecision>();
+        var wire = new IntentRoutingParityTest.Wire() {
+            @Override
+            public String sessionId() {
+                throw new IllegalStateException("session gone");
+            }
+        };
+
+        var outcome = IntentDispatch.route(step(routing(decisions), wire, new ApprovalRegistry(), null));
+
+        assertEquals(IntentDispatch.Outcome.HANDLED, outcome);
+        assertTrue(wire.completed);
+        assertTrue(wire.approvals.isEmpty());
+        assertEquals("agent", wire.metadata(IntentRouting.ROUTE_METADATA_KEY));
+        assertEquals("CONFIRM", wire.metadata(IntentRouting.TIER_METADATA_KEY));
+        assertTrue(decisions.getFirst().reason().contains("confirmation failed"), decisions.getFirst().reason());
+    }
+
+    @Test
     void noTimeLeftEscalatesAtOnceWithoutAskingTheRequester() {
         var decisions = new CopyOnWriteArrayList<IntentDecision>();
         var wire = new IntentRoutingParityTest.Wire();

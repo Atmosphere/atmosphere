@@ -95,6 +95,14 @@ public class RagInterceptor implements AiInterceptor {
 }
 ```
 
+On `@AiEndpoint` the per-turn order is: request guardrails → interceptor
+`preProcess` → per-request scope → intent routing (when configured) →
+`ContextProvider` retrieval → LLM. Interceptors therefore see the user message
+**without** the `Relevant context:` block the endpoint's context providers
+append; that block is added after them, on every endpoint whether or not it
+uses intent routing. An interceptor that does its own retrieval, like the
+example above, still runs before routing and the LLM.
+
 ## RAG Injection Safety (OWASP Agentic A04)
 
 Every `@AiEndpoint` `ContextProvider` is wrapped with a `SafetyContextProvider`
@@ -1098,7 +1106,7 @@ one on a session directly.
 | Classification | What runs |
 |----------------|-----------|
 | choice at `>= actAt` (default 0.9) | the chosen route |
-| choice at `>= confirmAt` (default 0.5) | the requester is asked to confirm; approved runs the chosen route, denied or timed out (`confirmTimeout`, default 2 min, cut short on `@AiEndpoint` to end before the endpoint `timeout()`) runs the human route |
+| choice at `>= confirmAt` (default 0.5) | the requester is asked to confirm; approved runs the chosen route, denied or timed out (`confirmTimeout`, default 2 min, at most 1 h, cut short on `@AiEndpoint` to end before the endpoint `timeout()`) runs the human route, and so does a confirmation that cannot be sent |
 | choice below `confirmAt` | the human route |
 | the model chose the human route | the human route, at any confidence, without a confirmation |
 | no decision model, `Answer.Failed` (timeout, capacity, error, unparseable or out-of-set reply), a message over 262,144 characters, a model that throws | the human route |
@@ -1129,7 +1137,10 @@ one on a session directly.
   after routing on both paths (on `@AiEndpoint` the context providers now run
   after interceptors, the per-request scope and routing; on `AiPipeline` the
   runtime applies them), so a handler or human route pays no retrieval or
-  rerank call and never sees the RAG-augmented text. A request a scope policy
+  rerank call and never sees the RAG-augmented text. That endpoint order
+  holds for every `@AiEndpoint`, with or without routing: interceptors and the
+  per-request scope no longer see the `Relevant context:` block (see
+  *AiInterceptor*). A request a scope policy
   rewrote to its redirect text (`POLITE_REDIRECT` / `CUSTOM_MESSAGE`) is not
   classified: it continues to the LLM path, which renders the redirect, so no
   handler route answers an out-of-scope request.
@@ -1137,9 +1148,14 @@ one on a session directly.
   it and completes the turn, or errors the turn when the handler throws (there
   is no fallback to the LLM). The human route's handler hands the request to
   your queue and returns the acknowledgement. Handler routes are recorded in
-  conversation memory like an LLM turn; the LLM-only layers (metrics, cost,
-  budget, response guardrails, structured output, confidence) do not apply
-  because no model is called.
+  conversation memory like an LLM turn; the LLM-only layers (cost, budget,
+  response guardrails, structured output, confidence) do not apply because no
+  model is called. Nor do the model metrics: a handler, human or cancelled
+  turn records no latency, text usage or error under the model tag on either
+  path. On `@AiEndpoint`, whose `TracingCapturingSession` counts every turn as
+  an active session, the turn still opens and closes that session count;
+  `AiPipeline` keeps no such count for any turn. Use `withHandler(...)` to
+  count routes.
 - **Confirmation.** A CONFIRM-tier choice uses the approval machinery tools use:
   an `approval-required` frame with tool name `intent:<route>` and arguments
   `route`, `tier`, `confidence`, answered by `/__approval/<id>/approve` or
@@ -1187,9 +1203,12 @@ one on a session directly.
   and only `withHandler(...)` sees it. `withHandler(...)` receives every
   `IntentDecision` (route, choice, tier, confidence, reason, classified
   message, request) before the route runs.
-- **Bounds.** One question per request, bounded by `timeout` (default 5 s) and
-  the decision model's own concurrency limit; a confirmation by
-  `confirmTimeout`. The handler runs on the turn's thread, like a `@Prompt` body.
+- **Bounds.** One question per request, bounded by `timeout` (default 5 s, at
+  most `IntentRouting.MAX_TIMEOUT`, 10 min) and the decision model's own
+  concurrency limit; a confirmation by `confirmTimeout` (at most
+  `IntentRouting.MAX_CONFIRM_TIMEOUT`, 1 h — there is no "wait forever"; a
+  longer value is rejected when the routing is built). The handler runs on the
+  turn's thread, like a `@Prompt` body.
   Without `withDecisionModel(...)` the routing resolves the shared fallback
   `RuntimeDecisionModel` through `DecisionModelResolver`, whose permits
   (default 8) are shared with the `LLM_CLASSIFIER` injection, scope and
@@ -1197,11 +1216,17 @@ one on a session directly.
   failures. For a high-traffic endpoint, give the routing its own
   `RuntimeDecisionModel` with `withDecisionModel(...)`.
 
-`IntentRoutingParityTest` drives every case through both `AiStreamingSession`
-and `AiPipeline`; `AiEndpointIntentRoutingTest` covers the annotation, the
-processor and the handler; `ai-intent-routing.spec.ts` drives both paths over
+`IntentRoutingParityTest` drives every row of the table above through both
+`AiStreamingSession` and `AiPipeline`, plus the confirmation, cancellation,
+RAG, scope-redirect, memory and model-metrics behaviour; the `@AiEndpoint`
+side there is an `AiStreamingSession` built the way `AiEndpointHandler` builds
+it. `AiEndpointIntentRoutingTest` covers the annotation, the processor (including
+the routing it installs on the OpenAI-compatible and batch surfaces, driven with
+both enabled) and the handler. `ai-intent-routing.spec.ts` drives both paths over
 WebSocket against `RuntimeDecisionModel` with a scripted runtime that reports a
-decision distribution. The tiers have not yet been exercised against a live
+decision distribution: a real `@AiEndpoint(intentRouting = ...)` registered by
+`AiEndpointProcessor` (its LLM route answered by the demo runtime in that keyless
+lane), and an `AiPipeline`. The tiers have not yet been exercised against a live
 provider's logprobs.
 
 ## Prompt Registry (versioned prompts, templating, rollout)

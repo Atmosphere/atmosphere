@@ -139,7 +139,15 @@ final class IntentDispatch {
             } else if (tier == ConfidenceRoute.ACT) {
                 route = candidate;
             } else if (tier == ConfidenceRoute.CONFIRM) {
-                var confirmed = confirm(step, candidate, classification.confidence());
+                Confirmation confirmed;
+                try {
+                    confirmed = confirm(step, candidate, classification.confidence());
+                } catch (RuntimeException e) {
+                    // Whatever broke while asking, the choice was not
+                    // confirmed: escalate, so the turn still ends on a route.
+                    logger.warn("Intent confirmation for '{}' failed; escalating", candidate.name(), e);
+                    confirmed = Confirmation.FAILED;
+                }
                 if (confirmed == Confirmation.CANCELLED) {
                     return cancel(step, "before the requester answered the confirmation");
                 }
@@ -194,6 +202,7 @@ final class IntentDispatch {
     /** Terminal path for a cancelled turn: error the session, run no route. */
     private static Outcome cancel(Step step, String when) {
         logger.debug("Intent routing cancelled {}", when);
+        noModelCall(step.base());
         step.base().error(new CancellationException("intent routing cancelled " + when));
         return Outcome.HANDLED;
     }
@@ -209,7 +218,30 @@ final class IntentDispatch {
         }
     }
 
+    /**
+     * Tell the endpoint's {@link TracingCapturingSession}, when one sits under
+     * {@code session}, that this turn ends without a model call, so it records
+     * no latency, usage or error under the model tag — as {@link AiPipeline},
+     * whose metrics live only on the LLM path, records none (Invariant #7).
+     */
+    static void noModelCall(StreamingSession session) {
+        var current = session;
+        // Bounded walk: a decorator chain is a handful of layers deep.
+        for (var depth = 0; current != null && depth < 32; depth++) {
+            if (current instanceof TracingCapturingSession tracing) {
+                tracing.noModelCall();
+                return;
+            }
+            current = switch (current) {
+                case AiStreamingSession streaming -> streaming.delegate();
+                case DelegatingStreamingSession delegating -> delegating.delegate;
+                default -> null;
+            };
+        }
+    }
+
     private static Outcome answer(Step step, IntentHandler handler, IntentDecision decision) {
+        noModelCall(step.base());
         StreamingSession target = step.base();
         if (step.memory() != null) {
             // The exchange joins the conversation, so the next LLM turn sees it.
@@ -235,7 +267,7 @@ final class IntentDispatch {
         return Outcome.HANDLED;
     }
 
-    private enum Confirmation { APPROVED, DENIED, TIMED_OUT, UNAVAILABLE, NO_TIME, CANCELLED }
+    private enum Confirmation { APPROVED, DENIED, TIMED_OUT, UNAVAILABLE, NO_TIME, CANCELLED, FAILED }
 
     /**
      * When a confirmation asked now expires: {@link IntentRouting#confirmTimeout()}
@@ -246,9 +278,8 @@ final class IntentDispatch {
      * @return the expiry, or empty when no wait fits before the deadline
      */
     static Optional<Instant> confirmationExpiry(Instant now, Duration confirmTimeout, Instant deadline) {
-        var expiry = now.plus(confirmTimeout);
         if (deadline == null) {
-            return Optional.of(expiry);
+            return Optional.of(saturatingPlus(now, confirmTimeout));
         }
         var left = Duration.between(now, deadline);
         if (left.isNegative() || left.isZero()) {
@@ -259,7 +290,18 @@ final class IntentDispatch {
             margin = DEADLINE_MARGIN;
         }
         var latest = deadline.minus(margin);
-        return Optional.of(expiry.isBefore(latest) ? expiry : latest);
+        // Compare durations, not instants: now + confirmTimeout can overflow
+        // Instant when the deadline would have capped it anyway.
+        return Optional.of(confirmTimeout.compareTo(Duration.between(now, latest)) < 0
+                ? now.plus(confirmTimeout) : latest);
+    }
+
+    /** {@code instant + duration}, capped at {@link Instant#MAX} instead of overflowing. */
+    private static Instant saturatingPlus(Instant instant, Duration duration) {
+        if (duration.compareTo(Duration.between(instant, Instant.MAX)) >= 0) {
+            return Instant.MAX;
+        }
+        return instant.plus(duration);
     }
 
     private static Confirmation confirm(Step step, IntentRoute candidate, AiConfidence confidence) {
@@ -303,8 +345,16 @@ final class IntentDispatch {
             return Confirmation.CANCELLED;
         }
         var expiresIn = Duration.between(Instant.now(), approval.expiresAt()).toSeconds();
-        step.base().emit(new AiEvent.ApprovalRequired(approval.approvalId(), approval.toolName(),
-                approval.arguments(), approval.message(), expiresIn));
+        try {
+            step.base().emit(new AiEvent.ApprovalRequired(approval.approvalId(), approval.toolName(),
+                    approval.arguments(), approval.message(), expiresIn));
+        } catch (RuntimeException e) {
+            // The requester never saw the question: withdraw it rather than
+            // park for an answer that cannot come, and escalate.
+            registry.resolve(ApprovalRegistry.APPROVAL_PREFIX + approval.approvalId() + "/deny");
+            logger.warn("Intent confirmation for '{}' could not be sent; escalating", candidate.name(), e);
+            return Confirmation.FAILED;
+        }
         ApprovalStrategy.ApprovalOutcome outcome;
         try {
             outcome = registry.awaitResolution(approval, future).outcome();

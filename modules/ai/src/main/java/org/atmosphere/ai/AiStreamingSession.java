@@ -655,6 +655,11 @@ public class AiStreamingSession implements StreamingSession {
         this.turnDeadline = deadline;
     }
 
+    /** The session this one writes to; read by {@link IntentDispatch#noModelCall}. */
+    StreamingSession delegate() {
+        return delegate;
+    }
+
     /**
      * Set the endpoint-scoped over-fetch + rerank retrieval policy resolved
      * from {@code org.atmosphere.ai.rag.*} (see {@link RagRetrieval}). With an

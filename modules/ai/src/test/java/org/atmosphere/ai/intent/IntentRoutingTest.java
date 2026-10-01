@@ -119,6 +119,23 @@ class IntentRoutingTest {
     }
 
     @Test
+    void rejectsUnboundedTimeouts() {
+        // "Wait forever" is a natural thing to write, and it overflowed Instant
+        // when the confirmation expiry was computed: every CONFIRM turn threw.
+        var routing = routing(null);
+        var forever = java.time.temporal.ChronoUnit.FOREVER.getDuration();
+        assertThrows(IllegalArgumentException.class, () -> routing.withConfirmTimeout(forever));
+        assertThrows(IllegalArgumentException.class, () -> routing.withTimeout(forever));
+        assertThrows(IllegalArgumentException.class,
+                () -> routing.withConfirmTimeout(IntentRouting.MAX_CONFIRM_TIMEOUT.plusNanos(1)));
+        assertThrows(IllegalArgumentException.class,
+                () -> routing.withTimeout(IntentRouting.MAX_TIMEOUT.plusNanos(1)));
+        assertEquals(IntentRouting.MAX_CONFIRM_TIMEOUT,
+                routing.withConfirmTimeout(IntentRouting.MAX_CONFIRM_TIMEOUT).confirmTimeout());
+        assertEquals(IntentRouting.MAX_TIMEOUT, routing.withTimeout(IntentRouting.MAX_TIMEOUT).timeout());
+    }
+
+    @Test
     void asksOneChoiceOverTheRoutesInOrder() {
         var question = routing(null).question();
         assertEquals("Which team handles this?", question.instructions());

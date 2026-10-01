@@ -19,10 +19,10 @@ matrix that extends to every vector store Spring AI or LangChain4j supports.
 The `ContextProvider` SPI (defined in `atmosphere-ai`) retrieves relevant documents and injects them into the LLM prompt automatically during `AiStreamingSession.stream()`:
 
 ```
-User message → Guardrails → ContextProvider.retrieve() → Interceptors → LLM → Response
+User message → Guardrails → Interceptors → per-request scope → [intent routing] → ContextProvider.retrieve() → LLM → Response
 ```
 
-Each registered provider retrieves up to 5 documents. Results are appended to the user message as `Relevant context:` blocks with source attribution before the LLM call.
+Each registered provider retrieves up to 5 documents. Results are appended to the user message as `Relevant context:` blocks with source attribution before the LLM call. Retrieval runs after the `AiInterceptor` `preProcess` hooks and the per-request scope, so neither sees the `Relevant context:` block. With intent routing configured (see the `atmosphere-ai` README), a request a deterministic handler or the human route answers is never retrieved for. On `AiPipeline`, the context providers are handed to the runtime after admission and routing.
 
 This module provides six `ContextProvider` implementations:
 

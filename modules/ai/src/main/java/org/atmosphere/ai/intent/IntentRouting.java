@@ -54,7 +54,8 @@ import java.util.function.Consumer;
  *   <li>{@link ConfidenceRoute#CONFIRM} — the requester is asked to confirm
  *       through the approval machinery tools use ({@code /__approval/<id>/approve}
  *       on the same session); approved runs the chosen route, anything else
- *       (denied, timed out after {@link #confirmTimeout()}) escalates. On
+ *       (denied, timed out after {@link #confirmTimeout()}, or a confirmation
+ *       that could not be sent) escalates. On
  *       {@code @AiEndpoint} the wait is also cut short to end before the
  *       endpoint's {@code timeout()} watchdog does (a few seconds early, at
  *       most a tenth of the time left), so the human route still answers; the
@@ -104,8 +105,9 @@ import java.util.function.Consumer;
  * @param routes         {@value #MIN_ROUTES}..{@value #MAX_ROUTES} routes with unique
  *                       names, exactly one of them {@link IntentRoute.Human}
  * @param thresholds     the ACT / CONFIRM / ESCALATE tiers for the choice's confidence
- * @param timeout        bound on the classification call
- * @param confirmTimeout how long a CONFIRM-tier request waits for the requester
+ * @param timeout        bound on the classification call, at most {@link #MAX_TIMEOUT}
+ * @param confirmTimeout how long a CONFIRM-tier request waits for the requester, at
+ *                       most {@link #MAX_CONFIRM_TIMEOUT}
  * @param decisionModel  the model to ask; {@code null} resolves one through
  *                       {@link DecisionModelResolver} on every request
  * @param onDecision     receives every decision, or {@code null}; called on the
@@ -152,6 +154,19 @@ public record IntentRouting(String instructions, List<IntentRoute> routes, Confi
      */
     public static final Duration DEFAULT_CONFIRM_TIMEOUT = Duration.ofMinutes(2);
 
+    /**
+     * Longest {@link #timeout()} a routing accepts. Classification sits in
+     * front of every request, so a bound longer than this is a misconfiguration.
+     */
+    public static final Duration MAX_TIMEOUT = Duration.ofMinutes(10);
+
+    /**
+     * Longest {@link #confirmTimeout()} a routing accepts. A CONFIRM-tier
+     * request holds its turn (and an approval registry entry) while it waits,
+     * so the wait is bounded; there is no "wait forever".
+     */
+    public static final Duration MAX_CONFIRM_TIMEOUT = Duration.ofHours(1);
+
     public IntentRouting {
         if (instructions == null || instructions.isBlank()) {
             throw new IllegalArgumentException("instructions must not be blank");
@@ -179,12 +194,15 @@ public record IntentRouting(String instructions, List<IntentRoute> routes, Confi
         routes = List.copyOf(routes);
         Objects.requireNonNull(thresholds, "thresholds");
         timeout = timeout == null ? DecisionRequest.DEFAULT_TIMEOUT : timeout;
-        if (timeout.isNegative() || timeout.isZero()) {
-            throw new IllegalArgumentException("timeout must be positive, got " + timeout);
+        if (timeout.isNegative() || timeout.isZero() || timeout.compareTo(MAX_TIMEOUT) > 0) {
+            throw new IllegalArgumentException("timeout must be positive and at most " + MAX_TIMEOUT
+                    + ", got " + timeout);
         }
         confirmTimeout = confirmTimeout == null ? DEFAULT_CONFIRM_TIMEOUT : confirmTimeout;
-        if (confirmTimeout.isNegative() || confirmTimeout.isZero()) {
-            throw new IllegalArgumentException("confirmTimeout must be positive, got " + confirmTimeout);
+        if (confirmTimeout.isNegative() || confirmTimeout.isZero()
+                || confirmTimeout.compareTo(MAX_CONFIRM_TIMEOUT) > 0) {
+            throw new IllegalArgumentException("confirmTimeout must be positive and at most "
+                    + MAX_CONFIRM_TIMEOUT + ", got " + confirmTimeout);
         }
     }
 
