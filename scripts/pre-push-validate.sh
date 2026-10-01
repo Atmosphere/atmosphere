@@ -180,7 +180,7 @@ IGNORE_REGEX='(^|/)(\.gitignore|\.editorconfig|LICENSE|NOTICE|README(\.md)?|.*\.
 # Tier-1 checks are selected by committed paths. This keeps README/docs pushes
 # fast while preserving the heavier architectural scan for Java/config/workflow
 # changes that can affect runtime behavior.
-ARCHITECTURAL_REGEX='^pom\.xml$|^(modules|samples)/.*(pom\.xml|src/(main|test)/.*\.(java|kt|kts))$|^(bom|assembly)/pom\.xml$|^\.mvn/|^\.github/workflows/|^scripts/(architectural-validation|pre-push-validate)\.sh$'
+ARCHITECTURAL_REGEX='^pom\.xml$|^(modules|samples)/.*(pom\.xml|src/(main|test)/.*\.(java|kt|kts))$|\.java$|^(bom|assembly)/pom\.xml$|^\.mvn/|^\.github/workflows/|^scripts/(architectural-validation|pre-push-validate)\.sh$'
 # `\.md$` is included because validate-capability-claims.sh now also checks
 # "N of M runtimes" enumeration denominators across ALL Markdown (e.g.
 # docs/runtime-selection.md), not just README/capability files.
@@ -206,9 +206,16 @@ PW_PROJECT_COVERAGE_REGEX='^modules/integration-tests/playwright\.config\.ts$|^m
 # that documents debt without registering it, and keeps feature-phases.yaml
 # parseable. Runs on any source the gates scan, plus its own config.
 LIMITATION_REGISTRE_REGEX='^(modules|samples|cli|generator|e2e)/.*\.(java|kt|ts|tsx|js)$|^atmosphere\.js/.*\.(ts|js)$|^registre\.toml$|^feature-phases\.yaml$'
+# Java sources the root project owns (JBang scripts). Spotless includes them
+# only from the root project, and they map to no reactor module, so neither
+# the incremental nor the `none` mode would check them: run the root project's
+# Spotless check (license header, imports, tabs) on its own. The full reactor
+# build already includes the root project.
+ROOT_SPOTLESS_REGEX='^(generator|scripts)/.*\.java$'
 
 SIGNIFICANT_FILES=""
 IGNORED_FILES=""
+RUN_ROOT_SPOTLESS=false
 HAS_HIGH_BLAST=false
 RUN_ARCHITECTURAL=false
 RUN_CAPABILITY_CLAIMS=false
@@ -282,6 +289,9 @@ while IFS= read -r file; do
     fi
     if echo "$file" | grep -qE "$HIGH_BLAST_REGEX"; then
         HAS_HIGH_BLAST=true
+    fi
+    if echo "$file" | grep -qE "$ROOT_SPOTLESS_REGEX"; then
+        RUN_ROOT_SPOTLESS=true
     fi
     if echo "$file" | grep -qE "$IGNORE_REGEX"; then
         IGNORED_FILES="$IGNORED_FILES
@@ -604,6 +614,9 @@ if [ "$DRY_RUN" = true ]; then
     echo "  diff base               : $(git rev-parse --short "$DIFF_BASE" 2>/dev/null || echo "$DIFF_BASE")"
     echo "  high-blast path changed : $HAS_HIGH_BLAST"
     echo "  reactor mode            : $REACTOR_MODE"
+    if [ "$RUN_ROOT_SPOTLESS" = true ] && [ "$REACTOR_MODE" != "full" ]; then
+        echo "  root-project Spotless   : ./mvnw -B -ntp -q -N spotless:check"
+    fi
     if [ "$REACTOR_MODE" = "incremental" ]; then
         echo "  modules (-pl)           : $PL_LIST"
         case ",$PL_LIST," in
@@ -658,6 +671,17 @@ case "$REACTOR_MODE" in
         run_incremental_scoped
         ;;
 esac
+
+if [ "$RUN_ROOT_SPOTLESS" = true ] && [ "$REACTOR_MODE" != "full" ]; then
+    echo "Root-project Java sources changed (generator/, scripts/) — running their Spotless check."
+    echo "Running: ./mvnw -B -ntp -q -N spotless:check"
+    if ! ./mvnw -B -ntp -q -N spotless:check; then
+        echo ""
+        echo "Spotless check of the root project failed — './mvnw -N spotless:apply' fixes"
+        echo "license header and import findings."
+        exit 1
+    fi
+fi
 
 # ---------------------------------------------------------------------------
 # Stamp the marker.
