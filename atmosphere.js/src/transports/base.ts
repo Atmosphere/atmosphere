@@ -140,6 +140,57 @@ export abstract class BaseTransport<T = unknown> {
     }
   }
 
+  /**
+   * POST one outgoing message (the HTTP transports' send path).
+   *
+   * A `503` means the server did not take the message — for instance a
+   * long-polling client posting between two polls, before its next poll
+   * arrived — so it is sent again after the server's `Retry-After` (1 s when
+   * absent, at most {@link SEND_RETRY_MAX_DELAY_MS}), up to
+   * {@link SEND_MAX_ATTEMPTS} attempts in all, while the transport is not
+   * disconnected. A message the server still refuses, or answers with any other
+   * non-2xx status, is reported to the `error` handler instead of being dropped
+   * silently. Network failures reject, as before.
+   */
+  protected async postMessage(url: string, init: RequestInit): Promise<Response> {
+    for (let attempt = 1; ; attempt++) {
+      const response = await fetch(url, init);
+      if (response.status === 503 && attempt < BaseTransport.SEND_MAX_ATTEMPTS
+          && !this.isDisconnected()) {
+        const delay = BaseTransport.retryAfterMs(response.headers?.get('Retry-After') ?? null);
+        logger.debug(`${this.name} POST refused with 503; retrying in ${delay}ms (attempt ${attempt + 1})`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        if (this.isDisconnected()) {
+          return response;
+        }
+        continue;
+      }
+      if (!response.ok && !this.isDisconnected()) {
+        const error = new Error(`${this.name} POST send failed with status ${response.status}`
+          + (response.status === 503 ? ` after ${attempt} attempts` : ''));
+        logger.warn(error.message);
+        this.handlers.error?.(error);
+      }
+      return response;
+    }
+  }
+
+  /** Read through a call so the state is re-read after an `await`. */
+  private isDisconnected(): boolean {
+    return this._state === 'disconnected';
+  }
+
+  /** Attempts {@link postMessage} makes in all while the server answers `503`. */
+  static readonly SEND_MAX_ATTEMPTS = 3;
+
+  /** Upper bound on the wait between two {@link postMessage} attempts. */
+  static readonly SEND_RETRY_MAX_DELAY_MS = 5_000;
+
+  private static retryAfterMs(header: string | null): number {
+    const seconds = header !== null && /^\d+$/.test(header.trim()) ? Number(header.trim()) : 1;
+    return Math.min(seconds * 1000, BaseTransport.SEND_RETRY_MAX_DELAY_MS);
+  }
+
   /** Apply outgoing interceptors (in order). */
   protected applyOutgoing(data: string | ArrayBuffer): string | ArrayBuffer {
     let result = data;

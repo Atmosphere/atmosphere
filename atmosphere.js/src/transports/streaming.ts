@@ -123,7 +123,7 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
     const url = this.protocol.buildUrl(this.request);
     const outgoing = this.applyOutgoing(message);
 
-    fetch(url, {
+    this.postMessage(url, {
       method: 'POST',
       headers: { 'Content-Type': this.request.contentType ?? 'text/plain' },
       credentials: this.request.withCredentials ? 'include' : 'same-origin',

@@ -714,6 +714,11 @@ end-to-end. On `transportFailure`, the client tears down the failed transport, f
 hook, and connects via `fallbackTransport`. Subsequent reconnects use the fallback unless
 the server signals otherwise.
 
+Over SSE, streaming and long-polling each `push` is its own HTTP POST. A POST the server
+answers `503` (it could not take the message yet) is sent again after its `Retry-After`
+(1 s when absent, at most 5 s), up to 3 attempts in all. A message still refused, or
+answered with any other non-2xx status, is reported to the `error` handler.
+
 ### Offline queue — survive disconnect without losing user input
 
 Messages typed while the transport is disconnected can be queued locally and drained
