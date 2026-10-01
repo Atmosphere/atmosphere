@@ -41,7 +41,6 @@ export class SSETransport<T = unknown> extends BaseTransport<T> {
     if (!SSETransport.isAvailable()) {
       throw new Error('SSE (EventSource) is not supported in this environment');
     }
-    this.beginSubscription();
 
     return new Promise((resolve, reject) => {
       try {
@@ -96,9 +95,10 @@ export class SSETransport<T = unknown> extends BaseTransport<T> {
 
   send(message: string | ArrayBuffer): void {
     // SSE is server-to-client only; send via HTTP POST
+    const url = this.protocol.buildUrl(this.request);
     const outgoing = this.applyOutgoing(message);
 
-    this.postMessage(() => this.protocol.buildUrl(this.request), {
+    this.postMessage(url, {
       method: 'POST',
       headers: { 'Content-Type': this.request.contentType ?? 'text/plain' },
       credentials: this.request.withCredentials ? 'include' : 'same-origin',

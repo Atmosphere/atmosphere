@@ -725,7 +725,8 @@ error without moving their connection state to `'error'`; `subscribeStreaming` p
 fires `open` (and drains the offline queue) only once the handshake has named the
 subscription, so no POST goes out without its id. Each POST names its subscription with `X-Atmosphere-tracking-id`; when
 `enableProtocol` is off (the default) the server never assigns that id, so these transports
-pick a random one themselves and send it on the subscription and on every POST.
+pick a random one themselves, send it on the subscription and on every POST, and keep it
+across reconnects, as they keep a server-assigned one.
 
 ### Offline queue — survive disconnect without losing user input
 
