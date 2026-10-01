@@ -27,6 +27,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +38,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -54,6 +56,8 @@ class TypesafeDecisionModelContractTest {
 
     @BeforeEach
     void setUp() {
+        // Verdicts are shared per base URL; a new stub can reuse an old port.
+        TypesafeDecisionModel.forgetSharedVerdicts();
         stub = new TypesafeStub();
         model = TypesafeDecisionModel.builder()
                 .apiKey("test-key")
@@ -154,7 +158,8 @@ class TypesafeDecisionModelContractTest {
         stub.onDecide(TypesafeStub.Reply.json(200, """
                 {"model":"jev-1.13.0","answers":{
                   "is_urgent":{"type":"noul","noul":0.1},
-                  "frustration":{"type":"score","score":1.0,"probabilities":{"0":0.0,"1":1.0,"2":0.0},"confidence":1.0}},
+                  "frustration":{"type":"score","score":1.0,"legend":{"0":"Calm","1":"Frustrated","2":"Very angry"},
+                    "probabilities":{"0":0.0,"1":1.0,"2":0.0},"confidence":1.0}},
                  "usage":{"input_tokens":10,"output_tokens":2}}"""));
 
         var result = model.decide(new DecisionRequest(STATE, questions, Duration.ofSeconds(5)));
@@ -273,6 +278,26 @@ class TypesafeDecisionModelContractTest {
         assertTrue(System.nanoTime() - started < TimeUnit.SECONDS.toNanos(2), "did not wait for the retry");
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"retry-after-ms: 1e18", "Retry-After: Fri, 31 Dec 9999 23:59:59 GMT",
+        "Retry-After: 1e300"})
+    void aHugeRetryAfterStopsAtOnceInsteadOfSleeping(String header) {
+        var name = header.substring(0, header.indexOf(':'));
+        var value = header.substring(header.indexOf(':') + 1).strip();
+        stub.onDecide(TypesafeStub.Reply.json(529, TypesafeStub.fixture("error-529.json")).withHeader(name, value));
+        var started = System.nanoTime();
+
+        // Preemptive: before the fix the sum now + wait overflowed and decide slept for centuries.
+        var result = assertTimeoutPreemptively(Duration.ofSeconds(5),
+                () -> model.decide(noulRequest().withTimeout(Duration.ofSeconds(1))));
+
+        var failed = onlyFailure(result, "is_urgent");
+        assertEquals(Answer.Failed.Reason.CAPACITY, failed.reason());
+        assertTrue(failed.detail().contains("would pass the deadline"), failed.detail());
+        assertEquals(1, stub.hits("/v1/systemone"));
+        assertTrue(System.nanoTime() - started < TimeUnit.SECONDS.toNanos(1), "did not wait for the retry");
+    }
+
     @Test
     void serverErrorWithoutRetryAfterIsRetriedWithBackoff() {
         stub.onDecide(
@@ -384,6 +409,53 @@ class TypesafeDecisionModelContractTest {
             assertTrue(timed.isAvailable());
             assertEquals(3, stub.hits("/v1/models"));
         }
+    }
+
+    @Test
+    void instancesOfOneConfigurationShareOneVerdictAndOneProbe() {
+        stub.onModels(TypesafeStub.Reply.json(401, TypesafeStub.fixture("error-401.json")));
+        var instances = new ArrayList<TypesafeDecisionModel>();
+        try {
+            for (var i = 0; i < 10; i++) {
+                var fresh = TypesafeDecisionModel.builder().apiKey("test-key").baseUrl(stub.baseUrl()).build();
+                instances.add(fresh);
+                assertFalse(fresh.isAvailable());
+            }
+            assertEquals(1, stub.hits("/v1/models"), "a fresh instance reuses the cached down verdict");
+            assertTrue(instances.get(0).hasClient(), "the probing instance created its client");
+            assertTrue(instances.stream().skip(1).noneMatch(TypesafeDecisionModel::hasClient),
+                    "an instance that only read the verdict never created an HttpClient");
+
+            // Another key is another configuration: it probes on its own.
+            try (var other = TypesafeDecisionModel.builder().apiKey("other-key").baseUrl(stub.baseUrl()).build()) {
+                assertFalse(other.isAvailable());
+                assertEquals(2, stub.hits("/v1/models"));
+            }
+        } finally {
+            instances.forEach(TypesafeDecisionModel::close);
+        }
+    }
+
+    @Test
+    void theSharedVerdictsAreBounded() {
+        var instances = new ArrayList<TypesafeDecisionModel>();
+        try {
+            for (var i = 0; i < TypesafeDecisionModel.MAX_SHARED_VERDICTS + 10; i++) {
+                instances.add(TypesafeDecisionModel.builder().apiKey("key-" + i).baseUrl(stub.baseUrl()).build());
+            }
+            assertEquals(TypesafeDecisionModel.MAX_SHARED_VERDICTS, TypesafeDecisionModel.sharedVerdictCount());
+        } finally {
+            instances.forEach(TypesafeDecisionModel::close);
+        }
+    }
+
+    @Test
+    void theHttpClientIsCreatedOnFirstUseAndReleasedByClose() {
+        assertFalse(model.hasClient());
+        assertTrue(model.isAvailable());
+        assertTrue(model.hasClient());
+        model.close();
+        assertFalse(model.hasClient());
     }
 
     @Test

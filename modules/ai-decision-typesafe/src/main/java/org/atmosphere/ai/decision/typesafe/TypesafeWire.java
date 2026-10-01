@@ -41,11 +41,17 @@ import java.util.OptionalDouble;
  * {@code https://docs.typesafe.ai/models.md}.
  *
  * <p>Decoding is strict: a field the documentation marks required that is
- * missing or of the wrong JSON type is {@link Answer.Failed.Reason#UNPARSEABLE}; a value
+ * missing or of the wrong JSON type is {@link Answer.Failed.Reason#UNPARSEABLE}.
+ * That covers the reply's {@code model}, {@code answers} and {@code usage}
+ * ({@code input_tokens}, {@code output_tokens}), which fail every question, and
+ * each answer's {@code type} and type fields ({@code noul}; {@code choice},
+ * {@code probabilities}, {@code confidence}; {@code score}, {@code legend},
+ * {@code probabilities}, {@code confidence}), which fail that question. A value
  * outside what the question allows (a choice that is not an option, a
  * probability outside {@code [0, 1]}, a distribution that does not cover exactly
  * the options or levels, a choice that is not the most likely option, a score
- * that disagrees with its own distribution) is
+ * that disagrees with its own distribution, a {@code legend} that does not name
+ * exactly the levels, an answer {@code type} that is not the question's) is
  * {@link Answer.Failed.Reason#INVALID_ANSWER}. Nothing is guessed.</p>
  */
 final class TypesafeWire {
@@ -120,17 +126,18 @@ final class TypesafeWire {
     /**
      * A decoded {@code 200} reply.
      *
-     * @param model   the versioned model id that answered ({@code null} when the
-     *                reply did not say)
+     * @param model   the versioned model id that answered ({@code null} only when
+     *                the whole reply failed to decode)
      * @param answers one answer per requested id, in request order
-     * @param usage   token usage, when the reply carried a well-formed one
+     * @param usage   token usage (empty only when the whole reply failed to decode)
      */
     record Reply(String model, Map<String, Answer> answers, Optional<TokenUsage> usage) {
     }
 
     /**
-     * Decode a {@code 200} body. A body that is not a JSON object with an
-     * {@code answers} object fails every question as UNPARSEABLE.
+     * Decode a {@code 200} body. A body that is not a JSON object with a string
+     * {@code model}, an {@code answers} object and a well-formed {@code usage}
+     * fails every question as UNPARSEABLE.
      */
     static Reply decodeReply(DecisionRequest request, byte[] body) {
         JsonNode root;
@@ -148,13 +155,21 @@ final class TypesafeWire {
             return failAll(request, Answer.Failed.Reason.UNPARSEABLE, "response has no 'answers' object");
         }
         var model = root.get("model");
+        if (model == null || !model.isString() || model.stringValue().isBlank()) {
+            return failAll(request, Answer.Failed.Reason.UNPARSEABLE, "response has no string 'model'");
+        }
+        var modelId = model.stringValue();
+        var usage = usage(root.get("usage"), modelId);
+        if (usage.isEmpty()) {
+            return failAll(request, Answer.Failed.Reason.UNPARSEABLE,
+                    "response has no 'usage' with non-negative integer 'input_tokens' and 'output_tokens'");
+        }
         var decoded = new LinkedHashMap<String, Answer>();
         for (var entry : request.questions().entrySet()) {
             var id = entry.getKey();
             decoded.put(id, decodeAnswer(id, entry.getValue(), answers.get(id)));
         }
-        var modelId = model != null && model.isString() ? model.stringValue() : null;
-        return new Reply(modelId, decoded, usage(root.get("usage"), modelId));
+        return new Reply(modelId, decoded, usage);
     }
 
     private static Reply failAll(DecisionRequest request, Answer.Failed.Reason reason, String detail) {
@@ -194,7 +209,10 @@ final class TypesafeWire {
             case Question.Score ignored -> "score";
         };
         var type = node.get("type");
-        if (type != null && !(type.isString() && expected.equals(type.stringValue()))) {
+        if (type == null || !type.isString()) {
+            return new Answer.Failed(id, Answer.Failed.Reason.UNPARSEABLE, "answer has no string 'type'");
+        }
+        if (!expected.equals(type.stringValue())) {
             return new Answer.Failed(id, Answer.Failed.Reason.INVALID_ANSWER,
                     "answer type " + type + " for a " + expected + " question");
         }
@@ -275,15 +293,36 @@ final class TypesafeWire {
 
     private static Answer score(String id, Question.Score question, JsonNode node) {
         var scoreNode = node.get("score");
+        var legendNode = node.get("legend");
         var probabilitiesNode = node.get("probabilities");
         var confidenceNode = node.get("confidence");
         if (scoreNode == null || !scoreNode.isNumber()
+                || legendNode == null || !legendNode.isObject()
                 || probabilitiesNode == null || !probabilitiesNode.isObject()
                 || confidenceNode == null || !confidenceNode.isNumber()) {
             return new Answer.Failed(id, Answer.Failed.Reason.UNPARSEABLE,
-                    "score answer needs a numeric 'score', an object 'probabilities' and a numeric 'confidence'");
+                    "score answer needs a numeric 'score', an object 'legend', an object 'probabilities' "
+                            + "and a numeric 'confidence'");
         }
         var levels = question.levels().size();
+        // The legend maps each level number back to its description. Only its
+        // keys are checked: the descriptions are the request's own text echoed
+        // back, and the documentation does not say they come back byte for byte.
+        for (var level = 0; level < levels; level++) {
+            var description = legendNode.get(Integer.toString(level));
+            if (description == null) {
+                return new Answer.Failed(id, Answer.Failed.Reason.INVALID_ANSWER,
+                        "legend has no entry for level " + level);
+            }
+            if (!description.isString()) {
+                return new Answer.Failed(id, Answer.Failed.Reason.UNPARSEABLE,
+                        "legend entry for level " + level + " is not a string");
+            }
+        }
+        if (legendNode.size() != levels) {
+            return new Answer.Failed(id, Answer.Failed.Reason.INVALID_ANSWER,
+                    "legend names " + legendNode.size() + " levels, the rubric has " + levels);
+        }
         var probabilities = new LinkedHashMap<Integer, Double>();
         for (var level = 0; level < levels; level++) {
             var p = probabilitiesNode.get(Integer.toString(level));

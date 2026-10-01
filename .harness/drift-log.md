@@ -4070,3 +4070,36 @@ processor with both serving surfaces enabled and sends a request through each re
 the spec's endpoint mode targets `IntentRoutingTestEndpoint`, a real `@AiEndpoint` registered by
 `AiEndpointProcessor`. The endpoint now marks a routed turn so its tracing session skips the model
 measures, and both READMEs state the endpoint's RAG order.
+
+---
+
+## 2026-10-01 — The TypeSafe decision-model README described one instance, not the resolver's path
+
+**Session:** carnet #56 review — `atmosphere-ai-decision-typesafe` findings.
+
+**Claim 1:** `modules/ai-decision-typesafe/README.md`, *Availability*: the verdict "is cached
+for 300 s when reachable and 30 s when not, and only one probe runs at a time".
+**Truth:** the cache and the probe lock lived on the instance. `DecisionModelResolver` caches
+only a non-empty result, and each scan's `ServiceLoader` builds a new `TypesafeDecisionModel`
+(with a new `HttpClient`), so with a rejected key and only the demo runtime every scope or
+moderation check sent its own `GET /v1/models`: 10 checks, 10 probes.
+**Claim 2:** the same README, *Install*, and `modules/ai/README.md`: once `isAvailable()` is true
+the resolver selects it ahead of the `RuntimeDecisionModel` fallback.
+**Truth:** if the first resolution ran while the probe failed and a real runtime was configured,
+the resolver cached the fallback for the life of the JVM and never asked TypeSafe again.
+**Claim 3:** the README's *Strict decoding* and the `TypesafeWire` Javadoc: a missing or wrongly
+typed required field is `UNPARSEABLE`.
+**Truth:** a missing answer `type`, score `legend`, reply `model` or `usage` was accepted; a
+missing `model` was reported as the configured id, possibly a moving alias.
+**Slip path:** each claim was written from the class under test, with a long-lived instance in
+mind; no test went through `ServiceLoader` more than once, nor checked a fixture field by field
+against the required columns of `api.md`.
+**Gate:** verdicts are shared per base URL, model, key digest and clock
+(`TypesafeDiscoveryTest#aRejectedKeyIsProbedOncePerTtlNotOncePerResolution`,
+`TypesafeDecisionModelContractTest#instancesOfOneConfigurationShareOneVerdictAndOneProbe`); a
+fallback chosen while a registration was down is provisional and rechecked
+(`DecisionModelResolverTest#aFallbackChosenWhileARegistrationWasDownYieldsToItOnRecheck`); every
+field `api.md` marks required is enforced (`TypesafeWireTest#everyAnswerMustNameItsType`,
+`#aScoreMustCarryALegendNamingExactlyItsLevels`, `#aReplyWithoutModelOrUsageFailsEveryQuestion`).
+Each test was checked to fail with its fix reverted. Both READMEs now say which consumers keep
+the model they resolved.

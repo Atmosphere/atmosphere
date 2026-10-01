@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 
 import java.net.http.HttpHeaders;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
@@ -31,6 +32,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Strict decoding: what is UNPARSEABLE, what is INVALID_ANSWER, and the header parsing. */
@@ -47,6 +49,9 @@ class TypesafeWireTest {
         CHOICE = new Question.Choice("Which?", options);
     }
 
+    private static final String LEGEND = "{\"0\":\"low\",\"1\":\"mid\",\"2\":\"high\"}";
+    private static final String SCORE_HEAD = "{\"type\":\"score\",\"legend\":" + LEGEND + ",";
+
     private static Answer decode(Question question, String json) {
         return TypesafeWire.decodeAnswer("q", question, TypesafeWire.MAPPER.readTree(json));
     }
@@ -60,13 +65,13 @@ class TypesafeWireTest {
         var half = assertInstanceOf(Answer.Noul.class, decode(NOUL, "{\"type\":\"noul\",\"noul\":0.5}"));
         assertTrue(half.value());
         assertEquals(0.0, half.confidence().aggregate().getAsDouble(), 1e-12);
-        var low = assertInstanceOf(Answer.Noul.class, decode(NOUL, "{\"noul\":0}"));
+        var low = assertInstanceOf(Answer.Noul.class, decode(NOUL, "{\"type\":\"noul\",\"noul\":0}"));
         assertFalse(low.value());
         assertEquals(1.0, low.confidence().aggregate().getAsDouble(), 1e-12);
-        assertEquals(Answer.Failed.Reason.INVALID_ANSWER, reason(NOUL, "{\"noul\":1.2}"));
-        assertEquals(Answer.Failed.Reason.INVALID_ANSWER, reason(NOUL, "{\"noul\":-0.1}"));
-        assertEquals(Answer.Failed.Reason.UNPARSEABLE, reason(NOUL, "{\"noul\":\"0.9\"}"));
-        assertEquals(Answer.Failed.Reason.UNPARSEABLE, reason(NOUL, "{\"value\":0.9}"));
+        assertEquals(Answer.Failed.Reason.INVALID_ANSWER, reason(NOUL, "{\"type\":\"noul\",\"noul\":1.2}"));
+        assertEquals(Answer.Failed.Reason.INVALID_ANSWER, reason(NOUL, "{\"type\":\"noul\",\"noul\":-0.1}"));
+        assertEquals(Answer.Failed.Reason.UNPARSEABLE, reason(NOUL, "{\"type\":\"noul\",\"noul\":\"0.9\"}"));
+        assertEquals(Answer.Failed.Reason.UNPARSEABLE, reason(NOUL, "{\"type\":\"noul\",\"value\":0.9}"));
         assertEquals(Answer.Failed.Reason.UNPARSEABLE, reason(NOUL, "[0.9]"));
     }
 
@@ -79,40 +84,87 @@ class TypesafeWireTest {
     @Test
     void choiceMustBeAnOptionTheMostLikelyAndCarryAFullDistribution() {
         var ok = assertInstanceOf(Answer.Choice.class, decode(CHOICE,
-                "{\"choice\":\"b\",\"probabilities\":{\"a\":0.3,\"b\":0.7},\"confidence\":0.4}"));
+                "{\"type\":\"choice\",\"choice\":\"b\",\"probabilities\":{\"a\":0.3,\"b\":0.7},\"confidence\":0.4}"));
         assertEquals("b", ok.choice());
         assertEquals(Map.of("a", 0.3, "b", 0.7), ok.probabilities());
         assertEquals(Answer.Failed.Reason.INVALID_ANSWER, reason(CHOICE,
-                "{\"choice\":\"c\",\"probabilities\":{\"a\":0.3,\"b\":0.7},\"confidence\":0.4}"));
+                "{\"type\":\"choice\",\"choice\":\"c\",\"probabilities\":{\"a\":0.3,\"b\":0.7},\"confidence\":0.4}"));
         // The documented "choice" is the highest-probability option; one that is not
         // contradicts its own distribution and is never acted on.
         assertEquals(Answer.Failed.Reason.INVALID_ANSWER, reason(CHOICE,
-                "{\"choice\":\"a\",\"probabilities\":{\"a\":0.3,\"b\":0.7},\"confidence\":0.4}"));
+                "{\"type\":\"choice\",\"choice\":\"a\",\"probabilities\":{\"a\":0.3,\"b\":0.7},\"confidence\":0.4}"));
         assertEquals(Answer.Failed.Reason.INVALID_ANSWER, reason(CHOICE,
-                "{\"choice\":\"b\",\"probabilities\":{\"b\":1.0},\"confidence\":1.0}"));
+                "{\"type\":\"choice\",\"choice\":\"b\",\"probabilities\":{\"b\":1.0},\"confidence\":1.0}"));
         assertEquals(Answer.Failed.Reason.INVALID_ANSWER, reason(CHOICE,
-                "{\"choice\":\"b\",\"probabilities\":{\"a\":0.0,\"b\":1.0,\"z\":0.0},\"confidence\":1.0}"));
+                "{\"type\":\"choice\",\"choice\":\"b\",\"probabilities\":{\"a\":0.0,\"b\":1.0,\"z\":0.0},\"confidence\":1.0}"));
         assertEquals(Answer.Failed.Reason.INVALID_ANSWER, reason(CHOICE,
-                "{\"choice\":\"b\",\"probabilities\":{\"a\":0.3,\"b\":0.9},\"confidence\":0.4}"));
+                "{\"type\":\"choice\",\"choice\":\"b\",\"probabilities\":{\"a\":0.3,\"b\":0.9},\"confidence\":0.4}"));
         assertEquals(Answer.Failed.Reason.INVALID_ANSWER, reason(CHOICE,
-                "{\"choice\":\"b\",\"probabilities\":{\"a\":0.3,\"b\":0.7},\"confidence\":1.4}"));
+                "{\"type\":\"choice\",\"choice\":\"b\",\"probabilities\":{\"a\":0.3,\"b\":0.7},\"confidence\":1.4}"));
         assertEquals(Answer.Failed.Reason.UNPARSEABLE, reason(CHOICE,
-                "{\"choice\":\"b\",\"probabilities\":{\"a\":0.3,\"b\":0.7}}"));
+                "{\"type\":\"choice\",\"choice\":\"b\",\"probabilities\":{\"a\":0.3,\"b\":0.7}}"));
     }
 
     @Test
     void scoreMustAgreeWithItsDistribution() {
         var ok = assertInstanceOf(Answer.Score.class, decode(SCORE,
-                "{\"score\":1.2,\"probabilities\":{\"0\":0.1,\"1\":0.6,\"2\":0.3},\"confidence\":0.5}"));
+                SCORE_HEAD + "\"score\":1.2,\"probabilities\":{\"0\":0.1,\"1\":0.6,\"2\":0.3},\"confidence\":0.5}"));
         assertEquals(1.2, ok.score(), 1e-12);
         assertEquals(Answer.Failed.Reason.INVALID_ANSWER, reason(SCORE,
-                "{\"score\":2.0,\"probabilities\":{\"0\":0.1,\"1\":0.6,\"2\":0.3},\"confidence\":0.5}"));
+                SCORE_HEAD + "\"score\":2.0,\"probabilities\":{\"0\":0.1,\"1\":0.6,\"2\":0.3},\"confidence\":0.5}"));
         assertEquals(Answer.Failed.Reason.INVALID_ANSWER, reason(SCORE,
-                "{\"score\":3.5,\"probabilities\":{\"0\":0.0,\"1\":0.0,\"2\":1.0},\"confidence\":1.0}"));
+                SCORE_HEAD + "\"score\":3.5,\"probabilities\":{\"0\":0.0,\"1\":0.0,\"2\":1.0},\"confidence\":1.0}"));
         assertEquals(Answer.Failed.Reason.INVALID_ANSWER, reason(SCORE,
-                "{\"score\":0.5,\"probabilities\":{\"0\":0.5,\"1\":0.5},\"confidence\":0.0}"));
+                SCORE_HEAD + "\"score\":0.5,\"probabilities\":{\"0\":0.5,\"1\":0.5},\"confidence\":0.0}"));
         assertEquals(Answer.Failed.Reason.UNPARSEABLE, reason(SCORE,
-                "{\"score\":1,\"confidence\":0.5}"));
+                SCORE_HEAD + "\"score\":1,\"confidence\":0.5}"));
+    }
+
+    @Test
+    void everyAnswerMustNameItsType() {
+        assertEquals(Answer.Failed.Reason.UNPARSEABLE, reason(NOUL, "{\"noul\":0.9}"));
+        assertEquals(Answer.Failed.Reason.UNPARSEABLE, reason(NOUL, "{\"type\":1,\"noul\":0.9}"));
+        assertEquals(Answer.Failed.Reason.UNPARSEABLE, reason(CHOICE,
+                "{\"choice\":\"b\",\"probabilities\":{\"a\":0.3,\"b\":0.7},\"confidence\":0.4}"));
+    }
+
+    @Test
+    void aScoreMustCarryALegendNamingExactlyItsLevels() {
+        var body = "\"score\":1.2,\"probabilities\":{\"0\":0.1,\"1\":0.6,\"2\":0.3},\"confidence\":0.5}";
+        assertEquals(Answer.Failed.Reason.UNPARSEABLE, reason(SCORE, "{\"type\":\"score\"," + body));
+        assertEquals(Answer.Failed.Reason.UNPARSEABLE, reason(SCORE,
+                "{\"type\":\"score\",\"legend\":[\"low\",\"mid\",\"high\"]," + body));
+        assertEquals(Answer.Failed.Reason.UNPARSEABLE, reason(SCORE,
+                "{\"type\":\"score\",\"legend\":{\"0\":\"low\",\"1\":2,\"2\":\"high\"}," + body));
+        assertEquals(Answer.Failed.Reason.INVALID_ANSWER, reason(SCORE,
+                "{\"type\":\"score\",\"legend\":{\"0\":\"low\",\"1\":\"mid\"}," + body));
+        assertEquals(Answer.Failed.Reason.INVALID_ANSWER, reason(SCORE,
+                "{\"type\":\"score\",\"legend\":{\"0\":\"low\",\"1\":\"mid\",\"2\":\"high\",\"3\":\"x\"},"
+                        + body));
+        assertInstanceOf(Answer.Score.class, decode(SCORE, SCORE_HEAD + body));
+    }
+
+    @Test
+    void aReplyWithoutModelOrUsageFailsEveryQuestion() {
+        var request = DecisionRequest.of("s", "q", NOUL);
+        var answers = "\"answers\":{\"q\":{\"type\":\"noul\",\"noul\":0.9}}";
+        var usage = "\"usage\":{\"input_tokens\":3,\"output_tokens\":1}";
+        for (var body : List.of(
+                "{" + answers + "," + usage + "}",
+                "{\"model\":7," + answers + "," + usage + "}",
+                "{\"model\":\" \"," + answers + "," + usage + "}",
+                "{\"model\":\"jev-1.13.0\"," + answers + "}",
+                "{\"model\":\"jev-1.13.0\"," + answers + ",\"usage\":{\"input_tokens\":3}}",
+                "{\"model\":\"jev-1.13.0\"," + answers + ",\"usage\":{\"input_tokens\":-3,\"output_tokens\":1}}")) {
+            var reply = TypesafeWire.decodeReply(request, body.getBytes(StandardCharsets.UTF_8));
+            assertEquals(Answer.Failed.Reason.UNPARSEABLE,
+                    assertInstanceOf(Answer.Failed.class, reply.answers().get("q")).reason(), body);
+        }
+        var ok = TypesafeWire.decodeReply(request,
+                ("{\"model\":\"jev-1.13.0\"," + answers + "," + usage + "}").getBytes(StandardCharsets.UTF_8));
+        assertInstanceOf(Answer.Noul.class, ok.answers().get("q"));
+        assertEquals("jev-1.13.0", ok.model());
+        assertEquals(4, ok.usage().orElseThrow().total());
     }
 
     @Test
@@ -159,6 +211,25 @@ class TypesafeWireTest {
         assertTrue(fromDate > 25_000 && fromDate <= 30_000, "got " + fromDate);
         assertTrue(TypesafeDecisionModel.retryAfterMillis(headers(Map.of("Retry-After", "soon"))).isEmpty());
         assertTrue(TypesafeDecisionModel.retryAfterMillis(headers(Map.of())).isEmpty());
+    }
+
+    @Test
+    void hugeServerWaitsDoNotOverflowIntoASleep() {
+        // A retry-after-ms of 1e18, a seconds value past Long.MAX_VALUE ms, and a
+        // far-future date: each parses to a huge wait that must be refused, not slept.
+        var huge = List.of(
+                TypesafeDecisionModel.retryAfterMillis(headers(Map.of("retry-after-ms", "1e18"))).getAsLong(),
+                TypesafeDecisionModel.retryAfterMillis(headers(Map.of("Retry-After", "1e300"))).getAsLong(),
+                TypesafeDecisionModel.retryAfterMillis(
+                        headers(Map.of("Retry-After", "Fri, 31 Dec 9999 23:59:59 GMT"))).getAsLong(),
+                Long.MAX_VALUE);
+        for (var wait : huge) {
+            // Preemptive, so a regression fails here instead of sleeping for ever.
+            assertFalse(assertTimeoutPreemptively(Duration.ofSeconds(2),
+                    () -> TypesafeDecisionModel.sleepWithin(wait, System.nanoTime() + 1_000_000_000L)),
+                    "wait " + wait);
+        }
+        assertTrue(TypesafeDecisionModel.sleepWithin(1, System.nanoTime() + 1_000_000_000L));
     }
 
     @Test

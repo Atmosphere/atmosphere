@@ -41,11 +41,24 @@ path is fixture-verified only.
 ```
 
 The module is registered in
-`META-INF/services/org.atmosphere.ai.decision.DecisionModel`. Once its
+`META-INF/services/org.atmosphere.ai.decision.DecisionModel`. When its
 `isAvailable()` is true, `DecisionModelResolver.resolve()` selects it ahead of
 the `RuntimeDecisionModel` fallback over your `AgentRuntime`. That makes it the
 model behind the `LLM_CLASSIFIER` injection, scope and moderation tiers (see
 `modules/ai/README.md`, *Decision models*).
+
+If it is unavailable when a resolution runs (no key yet, the endpoint down at
+boot, a probe timeout) and a real `AgentRuntime` is configured, the resolver
+returns the `RuntimeDecisionModel` fallback **provisionally**: one caller
+rescans every 30 s (`DecisionModelResolver.FALLBACK_RECHECK_INTERVAL`) and
+switches to this model once it answers. Until then the safety tiers ask the
+general LLM. The `LLM_CLASSIFIER` injection tier is the exception: it builds
+its classifier once with the model it resolved, and keeps it until
+`InjectionClassifierResolver.reset()`. A scope or moderation tier built without
+an explicit model (as `ScopeGuardrailResolver` and the Spring Boot starters'
+`LlmModerationDetector` build them) resolves on every check, so it picks up the
+switch. `DecisionModelResolverTest` pins
+the recheck.
 
 ## Configuration
 
@@ -77,15 +90,23 @@ variable names are the ones the TypeSafe SDKs read.
 `isAvailable()` is `true` only after `GET /v1/models` returned `200` with the
 documented `{"models":[...]}` body. A key being set is not enough. With no key
 there is no probe and the answer is `false`. The verdict is cached for 300 s when
-reachable and 30 s when not, and only one probe runs at a time. A `401` or `403`
-from `decide` marks the model unavailable at once.
+reachable and 30 s when not. It is shared by every instance with the same base
+URL, model and key (held as a SHA-256 digest, at most 64 configurations), and
+only one probe per configuration runs at a time. That matters because each
+`DecisionModelResolver` scan's `ServiceLoader` builds a fresh instance: while
+nothing is selected, a scope or moderation tier built without an explicit
+model resolves on every check, and
+with a rejected key or a dead endpoint they would otherwise send one probe per
+check. With the shared verdict they send one per 30 s
+(`TypesafeDiscoveryTest#aRejectedKeyIsProbedOncePerTtlNotOncePerResolution`). A
+`401` or `403` from `decide` marks the configuration unavailable at once.
 
 `DecisionModelResolver` caches the model it selects. A model that later becomes
 unreachable is still the one consumers call. Its questions then fail
 (`ERROR`/`TIMEOUT`/`CAPACITY`), and every safety tier treats a failed answer as
 uncertain, which fails closed by default. When the resolver instantiates a
-registration and does not select it, it closes that registration, so the
-`HttpClient` of an unavailable instance is released.
+registration and does not select it, or a higher-priority one displaces it, it
+closes that registration.
 
 ## Mapping
 
@@ -107,7 +128,12 @@ why the source is named for where the number came from rather than for its
 quality.
 
 **Strict decoding.** These cases are `UNPARSEABLE`:
-- a required field is missing or has the wrong JSON type;
+- a field `api.md` marks required is missing or has the wrong JSON type. For the
+  whole reply that is `model` (a non-blank string), `answers` and `usage` (with
+  non-negative integer `input_tokens` and `output_tokens`), and every question
+  fails. For one answer it is `type` and that type's fields: `noul`; `choice`,
+  `probabilities`, `confidence`; `score`, `legend`, `probabilities`,
+  `confidence`. Only that question fails;
 - a `200` body is not JSON;
 - the body is over 4 MiB, which is never buffered past the limit.
 
@@ -118,7 +144,10 @@ These are `INVALID_ANSWER`:
   to 1 ± 0.02;
 - the `choice` is not the most likely option;
 - the `score` differs from `Σ i·p(i)` by more than 0.05;
-- the answer `type` does not match the question.
+- the answer `type` does not match the question;
+- the score `legend` does not name exactly the levels `"0".."n-1"`. Its
+  descriptions are not compared with the ones sent, because the docs do not say
+  they come back byte for byte.
 
 A question missing from `answers` fails alone, and the others keep their
 answers.
@@ -148,9 +177,16 @@ Each `detail` names the HTTP status, the provider's message and its
 
 ## Lifecycle
 
-`TypesafeDecisionModel` creates and owns its `java.net.http.HttpClient` and
-closes it in `close()`. `close()` is idempotent. A closed model is unavailable
-and fails every question with `ERROR`. The module adds no third-party runtime
+`TypesafeDecisionModel` creates its `java.net.http.HttpClient` on its first
+request, owns it and closes it in `close()`. An instance that only reads a cached
+verdict never creates one. `close()` is idempotent. A closed model is
+unavailable and fails every question with `ERROR`.
+
+The instance `DecisionModelResolver` selects is closed by
+`DecisionModelResolver.reset()` (which `InjectionClassifierResolver.reset()`
+calls). Nothing else closes it: no framework shutdown hook does, so it lives
+until a reset or the end of the JVM. An instance you build yourself is yours to
+close. The module adds no third-party runtime
 dependency: the DecisionModel SPI, Jackson 3 and SLF4J come from
 `atmosphere-ai`.
 
@@ -168,8 +204,8 @@ pins this against a stub that clears everything.
 
 | Test | Needs | What it pins |
 |------|-------|--------------|
-| `TypesafeDecisionModelContractTest` | nothing (JDK `HttpServer` stub on loopback) | the documented request bodies, every answer type, 401/403/422/429/529/503, retry-after, the deadline, the body bound, the concurrency bound, availability caching, `close()` |
-| `TypesafeWireTest` | nothing | strict decoding, criteria encoding, retry header parsing |
+| `TypesafeDecisionModelContractTest` | nothing (JDK `HttpServer` stub on loopback) | the documented request bodies, every answer type, 401/403/422/429/529/503, retry-after (including waits too large to add to the clock), the deadline, the body bound, the concurrency bound, availability caching and sharing, `close()` |
+| `TypesafeWireTest` | nothing | strict decoding (every documented required field), criteria encoding, retry header parsing |
 | `TypesafeDiscoveryTest` | nothing | ServiceLoader registration, system-property configuration, resolver selection, the rule-based floor |
 | `TypesafeLiveTest` | `TYPESAFE_API_KEY`, or `-Dtypesafe.live=true` for the invalid-key test only | the real API |
 

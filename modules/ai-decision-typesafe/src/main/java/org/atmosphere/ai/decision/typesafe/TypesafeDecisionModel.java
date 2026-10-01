@@ -29,12 +29,17 @@ import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpTimeoutException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
@@ -78,9 +83,12 @@ import java.util.regex.Pattern;
  * with the key returned {@code 200} and the documented
  * {@code {"models":[{"name":...}]}} body — never because a key is set. The
  * verdict is cached ({@value #DEFAULT_AVAILABLE_TTL_SECONDS} s when reachable,
- * {@value #DEFAULT_UNAVAILABLE_TTL_SECONDS} s when not), one probe runs at a
- * time, and a {@code 401} or {@code 403} from {@code decide} marks the model
- * unavailable until the next probe. No key means no probe and {@code false}.
+ * {@value #DEFAULT_UNAVAILABLE_TTL_SECONDS} s when not) and shared by every
+ * instance with the same base URL, model, key and clock, so the fresh instance
+ * each {@link java.util.ServiceLoader} scan creates reuses it instead of probing
+ * again. One probe runs at a time per such configuration, and a {@code 401} or
+ * {@code 403} from {@code decide} marks it unavailable until the next probe. No
+ * key means no probe and {@code false}.
  *
  * <h2>Failures</h2>
  * Every question resolves to exactly one {@link Answer} before
@@ -117,11 +125,14 @@ import java.util.regex.Pattern;
  * {@code |2p - 1|}: the provider returns no confidence for a noul.
  *
  * <h2>Lifecycle</h2>
- * The instance creates and owns its {@link HttpClient} and closes it in
+ * The instance creates its {@link HttpClient} on its first request (an instance
+ * that only reads a cached verdict never creates one), owns it and closes it in
  * {@link #close()}, which is idempotent; afterwards the model is unavailable
  * and fails every question with {@link Answer.Failed.Reason#ERROR}. At most
  * {@code maxConcurrency} requests ({@value #DEFAULT_MAX_CONCURRENCY} by default)
- * are in flight per instance.
+ * are in flight per instance. The instance
+ * {@link org.atmosphere.ai.decision.DecisionModelResolver} selects is closed by
+ * its {@code reset()}; nothing else closes it.
  *
  * <h2>As a safety backend</h2>
  * Registered through {@code META-INF/services}, this model is what
@@ -188,6 +199,20 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
 
     private static final Pattern MODEL_ID = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._:-]{0,127}");
 
+    /** The production clock: one instance, so instances on it share verdicts. */
+    private static final LongSupplier SYSTEM_CLOCK = System::nanoTime;
+
+    /** Bound on the shared availability verdicts kept; the least recently used goes first. */
+    static final int MAX_SHARED_VERDICTS = 64;
+
+    private static final Map<VerdictKey, SharedVerdict> SHARED_VERDICTS =
+            new LinkedHashMap<>(16, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<VerdictKey, SharedVerdict> eldest) {
+                    return size() > MAX_SHARED_VERDICTS;
+                }
+            };
+
     private final String apiKey;
     private final URI baseUri;
     private final String model;
@@ -197,15 +222,31 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
     private final Duration availableTtl;
     private final Duration unavailableTtl;
     private final LongSupplier nanoClock;
-    private final HttpClient client;
+    private final Duration connectTimeout;
     private final Semaphore slots;
     private final AtomicBoolean closed = new AtomicBoolean();
-    private final Object probeLock = new Object();
     private final AtomicBoolean configErrorLogged = new AtomicBoolean();
-    private volatile Availability availability;
+    /** The verdict shared with every instance of the same configuration; null without a usable key. */
+    private final SharedVerdict verdict;
+    private final Object clientLock = new Object();
+    /** Created on the first request, closed by {@link #close()}; guarded by {@link #clientLock}. */
+    private HttpClient client;
 
     /** One probe's verdict and when it was taken. */
     private record Availability(boolean up, long checkedAtNanos, String detail) {
+    }
+
+    /**
+     * What a verdict is shared by: the endpoint, the model, a SHA-256 digest of
+     * the key (the key itself is never kept here) and the clock its times are on.
+     */
+    private record VerdictKey(URI baseUri, String model, String keyDigest, LongSupplier clock) {
+    }
+
+    /** A configuration's latest verdict, and the lock that keeps its probes one at a time. */
+    private static final class SharedVerdict {
+        private final Object probeLock = new Object();
+        private volatile Availability availability;
     }
 
     /**
@@ -241,11 +282,10 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
         this.availableTtl = builder.availableTtl;
         this.unavailableTtl = builder.unavailableTtl;
         this.nanoClock = builder.nanoClock;
+        this.connectTimeout = builder.connectTimeout;
         this.slots = new Semaphore(builder.maxConcurrency, true);
-        this.client = HttpClient.newBuilder()
-                .connectTimeout(builder.connectTimeout)
-                .followRedirects(HttpClient.Redirect.NEVER)
-                .build();
+        this.verdict = error == null && apiKey != null
+                ? sharedVerdict(new VerdictKey(uri, model, digest(apiKey), nanoClock)) : null;
         if (error == null && isMovingAlias(model)) {
             logger.info("TypeSafe model '{}' is a moving alias; answers can change when it moves. "
                     + "Pin a version id such as {} to keep tuned thresholds stable.", model, DEFAULT_MODEL);
@@ -280,6 +320,59 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
         return value == null || value.isBlank() ? null : value;
     }
 
+    private static SharedVerdict sharedVerdict(VerdictKey key) {
+        synchronized (SHARED_VERDICTS) {
+            return SHARED_VERDICTS.computeIfAbsent(key, k -> new SharedVerdict());
+        }
+    }
+
+    /** Test hook: forget every shared verdict, so the next instance probes. */
+    static void forgetSharedVerdicts() {
+        synchronized (SHARED_VERDICTS) {
+            SHARED_VERDICTS.clear();
+        }
+    }
+
+    /** Number of shared verdicts held (bounded by {@value #MAX_SHARED_VERDICTS}). */
+    static int sharedVerdictCount() {
+        synchronized (SHARED_VERDICTS) {
+            return SHARED_VERDICTS.size();
+        }
+    }
+
+    private static String digest(String key) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                    .digest(key.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            // Every Java platform must provide SHA-256 (MessageDigest Javadoc).
+            throw new IllegalStateException("SHA-256 is not available", e);
+        }
+    }
+
+    /** The owned client, created on first use; {@code null} once closed. */
+    private HttpClient client() {
+        synchronized (clientLock) {
+            if (closed.get()) {
+                return null;
+            }
+            if (client == null) {
+                client = HttpClient.newBuilder()
+                        .connectTimeout(connectTimeout)
+                        .followRedirects(HttpClient.Redirect.NEVER)
+                        .build();
+            }
+            return client;
+        }
+    }
+
+    /** Whether this instance has created its {@link HttpClient} (and not closed it). */
+    boolean hasClient() {
+        synchronized (clientLock) {
+            return client != null;
+        }
+    }
+
     static boolean isMovingAlias(String model) {
         return "jev-latest".equals(model) || "jev-preview".equals(model);
     }
@@ -301,22 +394,26 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
 
     @Override
     public boolean isAvailable() {
-        if (closed.get() || apiKey == null || configError != null) {
+        if (closed.get() || verdict == null) {
             if (configError != null && configErrorLogged.compareAndSet(false, true)) {
                 logger.warn("TypeSafe decision model is misconfigured and unavailable: {}", configError);
             }
             return false;
         }
-        var current = availability;
+        var current = verdict.availability;
         if (fresh(current)) {
             return current.up();
         }
-        synchronized (probeLock) {
-            current = availability;
+        synchronized (verdict.probeLock) {
+            current = verdict.availability;
             if (fresh(current)) {
                 return current.up();
             }
             var probed = probe();
+            if (probed == null) {
+                // Closed while probing: this instance's state, not the configuration's.
+                return false;
+            }
             if (current == null || current.up() != probed.up()) {
                 if (probed.up()) {
                     logger.info("TypeSafe decision model {} is reachable at {}", model, baseUri);
@@ -324,7 +421,7 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
                     logger.warn("TypeSafe decision model {} is unavailable: {}", model, probed.detail());
                 }
             }
-            availability = probed;
+            verdict.availability = probed;
             return probed.up();
         }
     }
@@ -337,14 +434,19 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
         return nanoClock.getAsLong() - snapshot.checkedAtNanos() < ttl.toNanos();
     }
 
+    /** One {@code GET /v1/models}; {@code null} when this instance is closed. */
     private Availability probe() {
+        var http = client();
+        if (http == null) {
+            return null;
+        }
         var request = HttpRequest.newBuilder(baseUri.resolve("/v1/models"))
                 .timeout(Duration.ofSeconds(PROBE_TIMEOUT_SECONDS))
                 .header("Authorization", "Bearer " + apiKey)
                 .header("Accept", "application/json")
                 .GET()
                 .build();
-        var future = client.sendAsync(request, BoundedBodySubscriber.handler(MAX_RESPONSE_BYTES));
+        var future = http.sendAsync(request, BoundedBodySubscriber.handler(MAX_RESPONSE_BYTES));
         try {
             var response = future.get(PROBE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             if (response.statusCode() != 200) {
@@ -374,7 +476,7 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
     }
 
     private void markUnavailable(String detail) {
-        availability = down(detail);
+        verdict.availability = down(detail);
     }
 
     @Override
@@ -425,7 +527,11 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
                     .header("Accept", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofByteArray(body))
                     .build();
-            var future = client.sendAsync(httpRequest, BoundedBodySubscriber.handler(MAX_RESPONSE_BYTES));
+            var http = client();
+            if (http == null) {
+                return failed(request, start, Answer.Failed.Reason.ERROR, "TypeSafe decision model is closed");
+            }
+            var future = http.sendAsync(httpRequest, BoundedBodySubscriber.handler(MAX_RESPONSE_BYTES));
             HttpResponse<byte[]> response;
             try {
                 response = future.get(remaining, TimeUnit.NANOSECONDS);
@@ -492,9 +598,15 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
                 + " ms wait before a retry would pass the deadline");
     }
 
-    /** Sleep {@code millis} if that ends before {@code deadline}; false when it would not, or on interrupt. */
-    private static boolean sleepWithin(long millis, long deadline) {
-        if (System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(millis) >= deadline) {
+    /**
+     * Sleep {@code millis} if that ends before {@code deadline}; false when it
+     * would not, or on interrupt. The comparison is against the time left, never
+     * {@code now + wait}: a server-named wait near {@link Long#MAX_VALUE} would
+     * overflow that sum, read as already past, and sleep for ever.
+     */
+    static boolean sleepWithin(long millis, long deadline) {
+        var remainingMillis = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
+        if (millis >= remainingMillis) {
             return false;
         }
         try {
@@ -573,12 +685,22 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
         return Duration.ofNanos(System.nanoTime() - start);
     }
 
-    /** Closes the owned {@link HttpClient}. Idempotent. */
+    /**
+     * Closes the owned {@link HttpClient}, if one was created. Idempotent. The
+     * shared availability verdict is left to the other instances of the same
+     * configuration.
+     */
     @Override
     public void close() {
         if (closed.compareAndSet(false, true)) {
-            availability = null;
-            client.close();
+            HttpClient owned;
+            synchronized (clientLock) {
+                owned = client;
+                client = null;
+            }
+            if (owned != null) {
+                owned.close();
+            }
         }
     }
 
@@ -639,7 +761,7 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
         private Duration connectTimeout = Duration.ofSeconds(PROBE_TIMEOUT_SECONDS);
         private Duration availableTtl = Duration.ofSeconds(DEFAULT_AVAILABLE_TTL_SECONDS);
         private Duration unavailableTtl = Duration.ofSeconds(DEFAULT_UNAVAILABLE_TTL_SECONDS);
-        private LongSupplier nanoClock = System::nanoTime;
+        private LongSupplier nanoClock = SYSTEM_CLOCK;
 
         private Builder(boolean strict) {
             this.strict = strict;
@@ -711,7 +833,7 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
             return this;
         }
 
-        /** A new instance that owns a new {@link HttpClient}. */
+        /** A new instance; it creates and owns its {@link HttpClient} on its first request. */
         public TypesafeDecisionModel build() {
             return new TypesafeDecisionModel(this);
         }
