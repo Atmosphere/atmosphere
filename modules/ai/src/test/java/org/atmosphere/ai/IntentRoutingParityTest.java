@@ -15,11 +15,14 @@
  */
 package org.atmosphere.ai;
 
+import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.approval.ApprovalRegistry;
 import org.atmosphere.ai.decision.Answer;
 import org.atmosphere.ai.decision.DecisionModel;
 import org.atmosphere.ai.decision.DecisionRequest;
 import org.atmosphere.ai.decision.DecisionResult;
+import org.atmosphere.ai.governance.scope.ScopeConfig;
+import org.atmosphere.ai.governance.scope.ScopePolicy;
 import org.atmosphere.ai.intent.IntentDecision;
 import org.atmosphere.ai.intent.IntentRoute;
 import org.atmosphere.ai.intent.IntentRouting;
@@ -34,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -77,7 +81,7 @@ class IntentRoutingParityTest {
                         });
                 var wire = new Wire();
                 var session = new AiStreamingSession(wire, fixture.runtime, "system", "m", interceptors,
-                        resource, fixture.memory, null, fixture.guardrails, List.of());
+                        resource, fixture.memory, null, fixture.guardrails, fixture.contextProviders);
                 if (fixture.defaultRouting != null) {
                     session.setIntentRouting(fixture.defaultRouting);
                 }
@@ -89,7 +93,7 @@ class IntentRoutingParityTest {
             @Override
             Turn start(Fixture fixture, String message, Map<String, Object> metadata) {
                 var pipeline = new AiPipeline(fixture.runtime, "system", "m", fixture.memory, null,
-                        fixture.guardrails, List.of(), AiMetrics.NOOP);
+                        fixture.guardrails, List.of(), fixture.contextProviders, AiMetrics.NOOP, null);
                 pipeline.setDefaultIntentRouting(fixture.defaultRouting);
                 var wire = new Wire();
                 var thread = Thread.startVirtualThread(
@@ -310,6 +314,123 @@ class IntentRoutingParityTest {
 
     @ParameterizedTest
     @EnumSource(Path.class)
+    void handlerRoutePaysNoRetrievalAndSeesTheUnaugmentedMessage(Path path) throws Exception {
+        var fixture = new Fixture(choiceFor(Map.of("order", "track")), 0.95);
+        var retrievals = new AtomicInteger();
+        ContextProvider provider = (query, maxResults) -> {
+            retrievals.incrementAndGet();
+            return List.of(new ContextProvider.Document("parcels ship in 2 days", "faq.md", 0.9));
+        };
+        fixture.contextProviders = List.of(provider);
+
+        var handled = path.start(fixture, "where is order 7?", Map.of()).finish();
+        assertEquals("track", handled.metadata(IntentRouting.ROUTE_METADATA_KEY));
+        assertEquals(0, retrievals.get(), "a handler route must not pay for RAG retrieval");
+        assertEquals("where is order 7?", fixture.decisions.getFirst().message());
+        assertEquals("where is order 7?", fixture.decisions.getFirst().request().message(),
+                "the handler sees the request before any RAG augmentation");
+        assertEquals("where is order 7?", fixture.states.getFirst());
+
+        // The LLM route still reaches the context providers: the endpoint
+        // augments the message itself, the pipeline hands them to the runtime.
+        path.start(fixture, "tell me a joke", Map.of()).finish();
+        assertEquals("tell me a joke", fixture.states.get(1), "the classifier never sees RAG text");
+        var context = fixture.contexts.getFirst();
+        if (path == Path.ENDPOINT) {
+            assertEquals(1, retrievals.get());
+            assertTrue(context.message().contains("Relevant context:"), context.message());
+        } else {
+            assertEquals(List.of(provider), context.contextProviders());
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(Path.class)
+    void scopeRedirectedRequestIsNotClassifiedAndNoHandlerAnswersIt(Path path) throws Exception {
+        // "python" would classify to the deterministic handler at ACT.
+        var fixture = new Fixture(choiceFor(Map.of("python", "track")), 0.95);
+        var scope = new ScopeConfig(
+                "Mathematics tutoring — arithmetic, algebra, calculus, geometry",
+                List.of("writing source code", "programming tutorials"),
+                AgentScope.Breach.POLITE_REDIRECT, "I can only help with math.",
+                AgentScope.Tier.RULE_BASED, 0.45, false, false, "");
+        var wire = path.start(fixture, "write python code to sort an array",
+                Map.of(ScopePolicy.REQUEST_SCOPE_METADATA_KEY, scope)).finish();
+
+        assertEquals(0, fixture.classifications.get(), "a redirected request is not classified");
+        assertNull(wire.metadata(IntentRouting.ROUTE_METADATA_KEY));
+        assertEquals(1, fixture.runtimeCalls.get(), "the LLM path renders the redirect");
+        assertEquals("I can only help with math.", fixture.contexts.getFirst().message());
+        assertEquals(0, fixture.humanHandoffs.get());
+    }
+
+    @ParameterizedTest
+    @EnumSource(Path.class)
+    void cancelDuringClassificationRunsNoRoute(Path path) throws Exception {
+        // ESCALATE tier: without the cancel check the human route would run.
+        var fixture = Fixture.blocking(0.2);
+        var turn = path.start(fixture, "where is order 7?", Map.of());
+        assertTrue(fixture.classifying.await(10, TimeUnit.SECONDS));
+        cancelTurn(path, turn);
+        fixture.release.countDown();
+        var wire = turn.finish();
+
+        assertInstanceOf(CancellationException.class, wire.error);
+        assertEquals(0, fixture.humanHandoffs.get(), "nobody is escalated for a cancelled turn");
+        assertEquals(0, fixture.runtimeCalls.get());
+        assertNull(wire.metadata(IntentRouting.ROUTE_METADATA_KEY));
+        assertTrue(fixture.decisions.isEmpty());
+        if (path == Path.PIPELINE) {
+            assertTrue(wire.interruptedAtTerminal, "the interrupt status survives the routing step");
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(Path.class)
+    void cancelBeforeAConfirmationNeverParksOnIt(Path path) throws Exception {
+        // CONFIRM tier, long confirmTimeout: without the pre-registration check
+        // the turn would park on an approval nobody can answer any more.
+        var fixture = Fixture.blocking(0.7);
+        fixture.defaultRouting = fixture.defaultRouting.withConfirmTimeout(Duration.ofMinutes(5));
+        var turn = path.start(fixture, "where is order 7?", Map.of());
+        assertTrue(fixture.classifying.await(10, TimeUnit.SECONDS));
+        cancelTurn(path, turn);
+        fixture.release.countDown();
+        var wire = turn.finish();
+
+        assertInstanceOf(CancellationException.class, wire.error);
+        assertTrue(wire.approvals.isEmpty(), "no confirmation is asked of a requester who left");
+        assertEquals(0, fixture.humanHandoffs.get());
+    }
+
+    @ParameterizedTest
+    @EnumSource(Path.class)
+    void interruptedConfirmationCancelsInsteadOfEscalating(Path path) throws Exception {
+        // A batch item cancelled by its job (future.cancel(true)) interrupts
+        // the dispatching thread while it waits for the confirmation.
+        var fixture = new Fixture(choiceFor(Map.of("order", "track")), 0.7);
+        var turn = path.start(fixture, "where is order 7?", Map.of());
+        turn.wire.awaitApproval();
+        turn.thread.interrupt();
+        var wire = turn.finish();
+
+        assertInstanceOf(CancellationException.class, wire.error);
+        assertEquals(0, fixture.humanHandoffs.get(), "an abandoned item files no human hand-off");
+        assertTrue(wire.interruptedAtTerminal, "the interrupt status is restored");
+        assertNull(wire.metadata(IntentRouting.ROUTE_METADATA_KEY));
+    }
+
+    /** Endpoint: the client disconnects. Pipeline: the dispatching thread is interrupted. */
+    private static void cancelTurn(Path path, Turn turn) {
+        if (path == Path.ENDPOINT) {
+            turn.cancel.run();
+        } else {
+            turn.thread.interrupt();
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(Path.class)
     void intentRoutingComposesWithTheModelRouter(Path path) throws Exception {
         // Intent routing picks the handler; the ModelRouter still picks the
         // backend (here: failing over from a broken primary) on the LLM route.
@@ -393,6 +514,11 @@ class IntentRoutingParityTest {
         volatile boolean failTracking;
         AiConversationMemory memory;
         List<AiGuardrail> guardrails = List.of();
+        List<ContextProvider> contextProviders = List.of();
+        /** Counted down when a blocking model starts classifying. */
+        final CountDownLatch classifying = new CountDownLatch(1);
+        /** Releases a blocking model. */
+        final CountDownLatch release = new CountDownLatch(1);
         IntentRouting defaultRouting;
         AgentRuntime runtime = new AgentRuntime() {
             @Override public String name() { return "intent-test"; }
@@ -422,6 +548,34 @@ class IntentRoutingParityTest {
 
         static Fixture answering(Function<DecisionRequest, Answer> script) {
             return new Fixture(script);
+        }
+
+        /**
+         * A model that blocks until {@link #release} and then chooses "track"
+         * at {@code confidence}. An interrupt while blocked is remembered and
+         * re-asserted once the answer is given, as a model that does not
+         * abort on interrupt would leave the thread.
+         */
+        static Fixture blocking(double confidence) {
+            var holder = new Fixture[1];
+            holder[0] = new Fixture(request -> {
+                holder[0].classifying.countDown();
+                var interrupted = false;
+                while (true) {
+                    try {
+                        if (holder[0].release.await(10, TimeUnit.SECONDS)) {
+                            break;
+                        }
+                    } catch (InterruptedException e) {
+                        interrupted = true;
+                    }
+                }
+                if (interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+                return choice("track", confidence);
+            });
+            return holder[0];
         }
 
         private Fixture(Function<DecisionRequest, Answer> script) {
@@ -459,6 +613,8 @@ class IntentRoutingParityTest {
         final CountDownLatch approvalSeen = new CountDownLatch(1);
         volatile boolean completed;
         volatile Throwable error;
+        /** Whether the dispatching thread was interrupted when the turn ended. */
+        volatile boolean interruptedAtTerminal;
 
         @Override public String sessionId() { return "wire"; }
 
@@ -477,6 +633,7 @@ class IntentRoutingParityTest {
         @Override
         public void complete() {
             completed = true;
+            interruptedAtTerminal = Thread.currentThread().isInterrupted();
             terminal.countDown();
         }
 
@@ -488,6 +645,7 @@ class IntentRoutingParityTest {
         @Override
         public void error(Throwable t) {
             error = t;
+            interruptedAtTerminal = Thread.currentThread().isInterrupted();
             terminal.countDown();
         }
 

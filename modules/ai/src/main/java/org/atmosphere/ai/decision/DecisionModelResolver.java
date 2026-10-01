@@ -36,7 +36,9 @@ import java.util.ServiceLoader;
  *
  * <p>The fallback {@link RuntimeDecisionModel} is one instance shared by every
  * consumer that resolves through here (the LLM injection, scope and moderation
- * tiers), so its concurrency bound is shared too. It allows
+ * tiers, and an {@link org.atmosphere.ai.intent.IntentRouting} with no decision
+ * model of its own, which asks one question per admitted request), so its
+ * concurrency bound is shared too. It allows
  * {@link RuntimeDecisionModel#DEFAULT_MAX_CONCURRENCY} questions in flight unless
  * the {@value #MAX_CONCURRENCY_PROPERTY} JVM system property sets another
  * positive integer; the property is read when the fallback is built, the first

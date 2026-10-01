@@ -777,61 +777,6 @@ public class AiStreamingSession implements StreamingSession {
                 return;
             }
         }
-        // The text intent routing classifies: the user message as the request
-        // guardrails (and the policies merged into them) admitted it — never
-        // the RAG-augmented text below. AiPipeline classifies the same thing.
-        var admittedMessage = request.message();
-
-        // Context providers: RAG augmentation with query transform + filter/rerank/post-process
-        if (!contextProviders.isEmpty()) {
-            // Collect each retriever's ranked list, then fuse with Reciprocal
-            // Rank Fusion when more than one retriever is wired so documents the
-            // retrievers agree on rank first. A single retriever needs no fusion.
-            var perProvider = new java.util.ArrayList<java.util.List<ContextProvider.Document>>();
-            var retrieval = ragRetrieval;
-            for (var provider : contextProviders) {
-                try {
-                    var query = ContextProvider.normalizeQuery(provider.transformQuery(request.message()));
-                    if (!ContextProvider.shouldRetrieve(query)) {
-                        continue;
-                    }
-                    // With a configured reranker (org.atmosphere.ai.rag.reranker),
-                    // over-fetch k*overfetch candidates and rerank them back down
-                    // to top-k — per ranked list, before RRF fusion below, so the
-                    // fused order is built from already-reranked lists. Without
-                    // one, fetchSize(k) == k and retrieval.rerank is a pass-
-                    // through: legacy behavior, no extra model call. A
-                    // SafetyContextProvider wraps retrieve(), so injection
-                    // screening always runs before reranking.
-                    var docs = provider.retrieve(query,
-                            retrieval.fetchSize(RagRetrieval.DEFAULT_TOP_K));
-                    docs = provider.filter(query, docs);
-                    docs = provider.rerank(query, docs);
-                    docs = retrieval.rerank(query, docs, RagRetrieval.DEFAULT_TOP_K);
-                    docs = provider.postProcess(query, docs);
-                    perProvider.add(docs);
-                } catch (Exception e) {
-                    logger.error("ContextProvider.retrieve failed: {}",
-                            provider.getClass().getName(), e);
-                    delegate.sendMetadata("rag.error",
-                            provider.getClass().getSimpleName() + ": " + e.getMessage());
-                }
-            }
-            var fused = perProvider.size() > 1
-                    ? RrfFusion.fuse(perProvider, RrfFusion.DEFAULT_K, 8)
-                    : (perProvider.isEmpty() ? java.util.List.<ContextProvider.Document>of()
-                            : perProvider.get(0));
-            var contextBuilder = new StringBuilder();
-            for (var doc : fused) {
-                contextBuilder.append("\n---\nSource: ").append(ContextProvider.formatCitation(doc))
-                        .append("\n").append(doc.content());
-            }
-            if (!contextBuilder.isEmpty()) {
-                var augmented = request.message()
-                        + "\n\nRelevant context:" + contextBuilder;
-                request = request.withMessage(augmented);
-            }
-        }
 
         // Pre-process: FIFO order
         for (var interceptor : interceptors) {
@@ -946,12 +891,71 @@ public class AiStreamingSession implements StreamingSession {
             // Arm beforeCompletion for a handler-answered turn; the LLM path
             // re-arms it with its composed target below.
             beforeCompletionContext.set(new BeforeCompletionContext(request, this));
+            // The classified text is the message as every admission step left
+            // it (guardrails, interceptors, per-request scope) and before RAG
+            // augmentation — exactly what AiPipeline classifies, since its
+            // context providers run inside the runtime after routing.
             var outcome = IntentDispatch.route(new IntentDispatch.Step(routing,
-                    admittedMessage, message, request, this, memory, resource.uuid(),
-                    ApprovalStrategy.virtualThread(approvalRegistry), cancelPending::get));
+                    request.message(), message, request, this, memory, resource.uuid(),
+                    approvalRegistry, cancelPending::get));
             if (outcome == IntentDispatch.Outcome.HANDLED) {
                 postProcess(request);
                 return;
+            }
+        }
+
+        // RAG runs after admission and intent routing, on the LLM path only: a
+        // request a handler or a person answers pays no retrieval or rerank
+        // model call. AiPipeline hands its context providers to the runtime
+        // after the same steps (Mode Parity, Invariant #7). Context providers:
+        // RAG augmentation with query transform + filter/rerank/post-process
+        if (!contextProviders.isEmpty()) {
+            // Collect each retriever's ranked list, then fuse with Reciprocal
+            // Rank Fusion when more than one retriever is wired so documents the
+            // retrievers agree on rank first. A single retriever needs no fusion.
+            var perProvider = new java.util.ArrayList<java.util.List<ContextProvider.Document>>();
+            var retrieval = ragRetrieval;
+            for (var provider : contextProviders) {
+                try {
+                    var query = ContextProvider.normalizeQuery(provider.transformQuery(request.message()));
+                    if (!ContextProvider.shouldRetrieve(query)) {
+                        continue;
+                    }
+                    // With a configured reranker (org.atmosphere.ai.rag.reranker),
+                    // over-fetch k*overfetch candidates and rerank them back down
+                    // to top-k — per ranked list, before RRF fusion below, so the
+                    // fused order is built from already-reranked lists. Without
+                    // one, fetchSize(k) == k and retrieval.rerank is a pass-
+                    // through: legacy behavior, no extra model call. A
+                    // SafetyContextProvider wraps retrieve(), so injection
+                    // screening always runs before reranking.
+                    var docs = provider.retrieve(query,
+                            retrieval.fetchSize(RagRetrieval.DEFAULT_TOP_K));
+                    docs = provider.filter(query, docs);
+                    docs = provider.rerank(query, docs);
+                    docs = retrieval.rerank(query, docs, RagRetrieval.DEFAULT_TOP_K);
+                    docs = provider.postProcess(query, docs);
+                    perProvider.add(docs);
+                } catch (Exception e) {
+                    logger.error("ContextProvider.retrieve failed: {}",
+                            provider.getClass().getName(), e);
+                    delegate.sendMetadata("rag.error",
+                            provider.getClass().getSimpleName() + ": " + e.getMessage());
+                }
+            }
+            var fused = perProvider.size() > 1
+                    ? RrfFusion.fuse(perProvider, RrfFusion.DEFAULT_K, 8)
+                    : (perProvider.isEmpty() ? java.util.List.<ContextProvider.Document>of()
+                            : perProvider.get(0));
+            var contextBuilder = new StringBuilder();
+            for (var doc : fused) {
+                contextBuilder.append("\n---\nSource: ").append(ContextProvider.formatCitation(doc))
+                        .append("\n").append(doc.content());
+            }
+            if (!contextBuilder.isEmpty()) {
+                var augmented = request.message()
+                        + "\n\nRelevant context:" + contextBuilder;
+                request = request.withMessage(augmented);
             }
         }
 

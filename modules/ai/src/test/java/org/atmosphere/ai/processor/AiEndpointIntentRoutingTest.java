@@ -28,6 +28,10 @@ import org.atmosphere.ai.decision.DecisionResult;
 import org.atmosphere.ai.intent.IntentRoute;
 import org.atmosphere.ai.intent.IntentRouting;
 import org.atmosphere.ai.intent.IntentRoutingProvider;
+import org.atmosphere.ai.openai.OpenAiChatHandler;
+import org.atmosphere.ai.openai.OpenAiServing;
+import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.config.managed.AnnotatedLifecycle;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.cpr.AtmosphereConfig;
@@ -49,6 +53,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.io.BufferedReader;
+import java.io.PrintWriter;
+import java.io.StringReader;
+import java.io.StringWriter;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -56,10 +64,15 @@ import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -191,6 +204,67 @@ class AiEndpointIntentRoutingTest {
         assertSame(ROUTING, pipeline.defaultIntentRouting());
     }
 
+    @Test
+    void confirmTierOnTheOpenAiSurfaceEscalatesWithoutWaiting() throws Exception {
+        // Nothing on the OpenAI-compatible (or batch) wire can answer an
+        // approval, so a CONFIRM-tier choice must escalate at once instead of
+        // parking the request for confirmTimeout.
+        var humans = new AtomicInteger();
+        var routing = confirmTierRouting(humans).withConfirmTimeout(Duration.ofMinutes(5));
+        var runtime = mock(AgentRuntime.class);
+        var pipeline = AiEndpointProcessor.servingPipeline(runtime, "", null, null,
+                null, List.of(), List.of(), List.of(), org.atmosphere.ai.AiMetrics.NOOP, null,
+                Map.of(), null, routing);
+        assertFalse(pipeline.intentConfirmationAvailable());
+        var openAi = new OpenAiChatHandler(new OpenAiServing(true, Map.of(), null, null));
+        openAi.register("support", pipeline, null);
+
+        var resource = mock(AtmosphereResource.class);
+        var request = mock(AtmosphereRequest.class);
+        var response = mock(AtmosphereResponse.class);
+        when(resource.getRequest()).thenReturn(request);
+        when(resource.getResponse()).thenReturn(response);
+        when(resource.uuid()).thenReturn("openai-uuid");
+        when(request.getMethod()).thenReturn("POST");
+        when(request.getRequestURI()).thenReturn(OpenAiServing.CHAT_COMPLETIONS_PATH);
+        when(request.getContentType()).thenReturn("application/json");
+        when(request.getReader()).thenReturn(new BufferedReader(new StringReader(
+                "{\"model\":\"support\",\"messages\":[{\"role\":\"user\","
+                        + "\"content\":\"where is order 7?\"}]}")));
+        var output = new StringWriter();
+        when(response.getWriter()).thenReturn(new PrintWriter(output));
+
+        assertTimeoutPreemptively(Duration.ofSeconds(20), () -> openAi.onRequest(resource),
+                "a CONFIRM-tier request must not wait for a confirmation nobody can send");
+
+        verify(response).setStatus(200);
+        assertTrue(output.toString().contains("a person will follow up"), output.toString());
+        assertEquals(1, humans.get());
+        verify(runtime, never()).executeWithHandle(any(), any());
+        verify(runtime, never()).execute(any(), any());
+    }
+
+    /** "track" at 0.7: the CONFIRM tier under the default thresholds. */
+    private static IntentRouting confirmTierRouting(AtomicInteger humans) {
+        return IntentRouting.of("Which team handles this?",
+                        IntentRoute.handler("track", "where is my parcel", d -> "tracked:" + d.message()),
+                        IntentRoute.llm("general", "anything else"),
+                        IntentRoute.human("agent", "a person", d -> {
+                            humans.incrementAndGet();
+                            return "a person will follow up";
+                        }))
+                .withDecisionModel(new DecisionModel() {
+                    @Override public String name() { return "confirm-test"; }
+                    @Override public boolean isAvailable() { return true; }
+                    @Override public DecisionResult decide(DecisionRequest request) {
+                        var answer = new Answer.Choice(IntentRouting.QUESTION_ID, "track", Map.of(),
+                                AiConfidence.reported(0.7));
+                        return new DecisionResult(name(), Map.of(answer.id(), answer), Optional.empty(),
+                                Duration.ZERO);
+                    }
+                });
+    }
+
     // --- handler -> session ------------------------------------------------
 
     private AtmosphereConfig config;
@@ -211,6 +285,79 @@ class AiEndpointIntentRoutingTest {
         broadcaster.destroy();
         factory.destroy();
         ExecutorsFactory.reset(config);
+    }
+
+    private static final Pattern APPROVAL_ID = Pattern.compile("apr_[0-9a-f]{12}");
+
+    @Test
+    void confirmTierApprovedThroughTheHandlersApprovalFastPath() throws Exception {
+        var humans = new AtomicInteger();
+        var frames = confirmThroughTheHandler(confirmTierRouting(humans), "approve");
+
+        assertTrue(frames.stream().anyMatch(f -> f.contains("tracked:where is order 7?")), frames.toString());
+        assertTrue(frames.stream().anyMatch(f -> f.contains(IntentRouting.TIER_METADATA_KEY)
+                && f.contains("CONFIRM")), frames.toString());
+        assertEquals(0, humans.get());
+    }
+
+    @Test
+    void confirmTierDeniedThroughTheHandlersApprovalFastPath() throws Exception {
+        var humans = new AtomicInteger();
+        var frames = confirmThroughTheHandler(confirmTierRouting(humans), "deny");
+
+        assertTrue(frames.stream().anyMatch(f -> f.contains("a person will follow up")), frames.toString());
+        assertTrue(frames.stream().noneMatch(f -> f.contains("tracked:")), frames.toString());
+        assertEquals(1, humans.get());
+    }
+
+    /**
+     * Send a prompt through {@link AiEndpointHandler#onStateChange}, wait for the
+     * CONFIRM-tier approval frame, then answer it with a second message on the
+     * same resource — the {@code /__approval/...} fast path the handler runs
+     * before {@code @Prompt}.
+     */
+    private List<String> confirmThroughTheHandler(IntentRouting routing, String answer) throws Exception {
+        var frames = new CopyOnWriteArrayList<String>();
+        var done = new CountDownLatch(1);
+        var approvalAsked = new CountDownLatch(1);
+        var capture = new AtmosphereHandler() {
+            @Override public void onRequest(AtmosphereResource r) { }
+            @Override public void onStateChange(AtmosphereResourceEvent e) {
+                var json = e.getMessage() instanceof RawMessage raw
+                        ? String.valueOf(raw.message()) : String.valueOf(e.getMessage());
+                frames.add(json);
+                if (APPROVAL_ID.matcher(json).find()) {
+                    approvalAsked.countDown();
+                }
+                if (json.contains("\"complete\"")) {
+                    done.countDown();
+                }
+            }
+            @Override public void destroy() { }
+        };
+        var resource = new AtmosphereResourceImpl(config, broadcaster,
+                AtmosphereRequestImpl.newInstance(), AtmosphereResponseImpl.newInstance(),
+                mock(BlockingIOCometSupport.class), capture);
+        broadcaster.addAtmosphereResource(resource);
+
+        var runtime = mock(AgentRuntime.class);
+        var handler = new AiEndpointHandler(new RoutedEndpoint(),
+                RoutedEndpoint.class.getDeclaredMethod("onPrompt", String.class, StreamingSession.class),
+                30_000L, "", "/atmosphere/intent", runtime, List.<AiInterceptor>of(), null,
+                AnnotatedLifecycle.scan(RoutedEndpoint.class));
+        handler.setIntentRouting(routing);
+
+        handler.onStateChange(new AtmosphereResourceEventImpl(resource).setMessage("where is order 7?"));
+        assertTrue(approvalAsked.await(10, TimeUnit.SECONDS), "a confirmation must be requested: " + frames);
+        var matcher = APPROVAL_ID.matcher(String.join("\n", frames));
+        assertTrue(matcher.find());
+        handler.onStateChange(new AtmosphereResourceEventImpl(resource)
+                .setMessage("/__approval/" + matcher.group() + "/" + answer));
+
+        assertTrue(done.await(10, TimeUnit.SECONDS), "the confirmed turn must complete: " + frames);
+        verify(runtime, never()).executeWithHandle(any(), any());
+        verify(runtime, never()).execute(any(), any());
+        return frames;
     }
 
     @Test

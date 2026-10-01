@@ -535,6 +535,10 @@ public class AiEndpointProcessor implements Processor<Object> {
             pipeline.setToolInjectables(injectables);
         }
         pipeline.setDefaultIntentRouting(intentRouting);
+        // Neither the OpenAI-compatible nor the batch surface carries an answer
+        // to an approval back to the pipeline, so a CONFIRM-tier intent choice
+        // escalates at once instead of parking the request for confirmTimeout.
+        pipeline.setIntentConfirmationAvailable(false);
         return pipeline;
     }
 

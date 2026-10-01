@@ -116,6 +116,13 @@ public class AiPipeline {
      */
     private volatile org.atmosphere.ai.intent.IntentRouting defaultIntentRouting;
     /**
+     * Whether a CONFIRM-tier intent choice can be confirmed on the surface this
+     * pipeline serves, i.e. whether anything feeds the requester's answer to
+     * {@link #tryResolveApproval(String)}. When {@code false}, CONFIRM escalates
+     * at once instead of parking the request until the confirmation expires.
+     */
+    private volatile boolean intentConfirmationAvailable = true;
+    /**
      * Pipeline-level default {@link AiStructuredRetry}. When set and enabled,
      * every {@link #execute(String, String, StreamingSession)} call seeds it
      * into the request metadata so structured-output turns self-heal on schema
@@ -343,7 +350,9 @@ public class AiPipeline {
      * routing's routes and sent to a deterministic handler, the normal LLM
      * path, or the human route — identically to the {@code @AiEndpoint} path.
      * A CONFIRM-tier choice is confirmed through this pipeline's approval
-     * registry ({@link #tryResolveApproval(String)}).
+     * registry ({@link #tryResolveApproval(String)}), unless
+     * {@link #setIntentConfirmationAvailable(boolean)} says nothing can answer
+     * on this surface, in which case it escalates at once.
      *
      * <p>Per-request callers can override via the {@code ai.intent.routing}
      * metadata key — caller-supplied routings win.</p>
@@ -357,6 +366,26 @@ public class AiPipeline {
     /** The currently configured pipeline default intent routing; {@code null} when none. */
     public org.atmosphere.ai.intent.IntentRouting defaultIntentRouting() {
         return defaultIntentRouting;
+    }
+
+    /**
+     * Declare whether the surface this pipeline serves can deliver the
+     * requester's answer to a CONFIRM-tier intent confirmation through
+     * {@link #tryResolveApproval(String)}. Defaults to {@code true}. A surface
+     * with no such channel (the OpenAI-compatible and batch serving of an
+     * {@code @AiEndpoint}) sets {@code false}: a CONFIRM-tier choice then
+     * escalates to the human route immediately — an unconfirmed choice never
+     * acts, and no request is parked for a confirmation nobody can send.
+     *
+     * @param available whether confirmations can be answered on this surface
+     */
+    public void setIntentConfirmationAvailable(boolean available) {
+        this.intentConfirmationAvailable = available;
+    }
+
+    /** Whether a CONFIRM-tier intent choice can be confirmed on this pipeline's surface. */
+    public boolean intentConfirmationAvailable() {
+        return intentConfirmationAvailable;
     }
 
     /**
@@ -651,9 +680,12 @@ public class AiPipeline {
         // never classified, and a handler route never reaches the runtime. The
         // same step runs on the @AiEndpoint path (Mode Parity, Invariant #7).
         if (intentRouting != null) {
+            // No disconnect latch here: an interrupted dispatching thread (a
+            // cancelled batch item) is the pipeline's cancel signal, and
+            // IntentDispatch reads it directly.
             var outcome = IntentDispatch.route(new IntentDispatch.Step(intentRouting,
                     request.message(), message, request, session, memory, clientId,
-                    ApprovalStrategy.virtualThread(approvalRegistry), () -> false));
+                    intentConfirmationAvailable ? approvalRegistry : null, () -> false));
             if (outcome == IntentDispatch.Outcome.HANDLED) {
                 return;
             }

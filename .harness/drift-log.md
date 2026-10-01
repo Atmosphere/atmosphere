@@ -3975,3 +3975,35 @@ a poll on the wire, and the lane was inferred from "keyless" without reading `qu
 at carnet#60, the long-polling delivery design issue, and its reason names the first-frame-only
 bug. The fix is not on this branch: three review rounds of the cache-based approach kept
 introducing duplicated, lost or unbounded state, so it needs a design first.
+
+---
+
+## 2026-10-01 — Intent routing's docs said it ran before the LLM and identically on every surface
+
+**Session:** carnet #57 review of the intent-routing branch.
+
+**Claim 1:** `modules/ai/README.md` / `IntentRouting` Javadoc: intent routing decides "before a
+request reaches the LLM", and the classifier "never [sees] the RAG-augmented text".
+**Truth:** on `@AiEndpoint` the context providers (and an `LlmReranker` model call) ran before
+routing, and the handler's `IntentDecision.request().message()` carried the "Relevant context:"
+text; on `AiPipeline` the runtime applied them after routing.
+**Claim 2:** the README: the per-request scope runs before classification, so both modes classify
+the admitted message.
+**Truth:** that held for `Deny` only. With `POLITE_REDIRECT` / `CUSTOM_MESSAGE` the endpoint
+classified the original out-of-scope text (captured before the transform) while the pipeline
+classified the redirect text.
+**Claim 3:** the README table: "a valid choice with no measured confidence → `unknownRoute`".
+**Truth:** outside the Built-in runtime with logprobs, `RuntimeDecisionModel` answers with the
+model's self-reported confidence and the ACT / CONFIRM tiers gate on it; `unknownRoute` applies
+only to a choice with no confidence at all.
+**Claim 4:** the README: the OpenAI-compatible and batch surfaces "get the same routing".
+**Truth:** with no channel to answer, a CONFIRM-tier request parked for `confirmTimeout` (2 min)
+before escalating.
+**Slip path:** the parity tests built both paths with no context providers and no redirecting
+scope, so the order of RAG and scope against routing was never exercised; the confidence row was
+written from the tier names, not from `RuntimeDecisionModel`.
+**Gate:** `IntentRoutingParityTest` now counts `retrieve()` calls on a handler route and runs a
+`POLITE_REDIRECT` per-request scope through both modes; `AiEndpointIntentRoutingTest` drives a
+CONFIRM-tier choice through `OpenAiChatHandler` under a timeout. The endpoint now runs RAG after
+routing, a redirected request is not classified, serving pipelines escalate CONFIRM at once, and
+the README states the confidence source.

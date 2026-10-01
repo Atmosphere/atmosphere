@@ -1102,7 +1102,7 @@ one on a session directly.
 | choice below `confirmAt` | the human route |
 | the model chose the human route | the human route, at any confidence, without a confirmation |
 | no decision model, `Answer.Failed` (timeout, capacity, error, unparseable or out-of-set reply), a message over 262,144 characters, a model that throws | the human route |
-| a valid choice with no measured confidence | `ConfidenceRouting.unknownRoute()`, `ESCALATE` by default |
+| a valid choice with no confidence at all (neither a distribution nor a self-reported number) | `ConfidenceRouting.unknownRoute()`, `ESCALATE` by default |
 
 - **Routes.** 2..16 routes with unique names (`[A-Za-z0-9_-]{1,64}`), exactly
   one `IntentRoute.Human`. Sixteen is the largest choice `RuntimeDecisionModel`
@@ -1110,12 +1110,29 @@ one on a session directly.
   distribution over the routes (`DECISION_LOGPROBS`, Built-in runtime only)
   rather than a self-reported number; `IntentRoutingBoundTest` pins the two
   together.
+- **Where the confidence comes from.** Only the Built-in runtime against an
+  endpoint that returns logprobs scores the choice from the model's
+  distribution. On every other runtime, `RuntimeDecisionModel` uses the
+  `confidence` the model reports in its reply (`AiConfidence.reported`), and
+  the ACT and CONFIRM tiers gate on that number: a model that reports 0.95
+  acts, and its deterministic handler runs without a confirmation. The source
+  is in `IntentDecision.reason()` (`[MODEL_REPORTED_FIELD]` vs.
+  `[DECISION_LOGPROBS]`). For a stricter posture on those runtimes, raise the tiers with
+  `withThresholds(...)` or route through a `DecisionModel` whose confidence
+  you trust (`withDecisionModel(...)`).
 - **Where it runs.** After admission on both paths — request guardrails and the
   governance policies (merged into the guardrail list on `@AiEndpoint`, a
-  separate loop on `AiPipeline`), then the per-request scope on the endpoint —
-  so a denied request is never classified. The classifier sees the user message
-  as the request guardrails left it (a redacting guardrail's output, never the
-  raw text), never the RAG-augmented text.
+  separate loop on `AiPipeline`), then on the endpoint the `AiInterceptor`
+  pre-processing and the per-request scope — so a denied request is never
+  classified. The classifier and the handlers see the user message as those
+  steps left it (a redacting guardrail's output, never the raw text). RAG runs
+  after routing on both paths (on `@AiEndpoint` the context providers now run
+  after interceptors, the per-request scope and routing; on `AiPipeline` the
+  runtime applies them), so a handler or human route pays no retrieval or
+  rerank call and never sees the RAG-augmented text. A request a scope policy
+  rewrote to its redirect text (`POLITE_REDIRECT` / `CUSTOM_MESSAGE`) is not
+  classified: it continues to the LLM path, which renders the redirect, so no
+  handler route answers an out-of-scope request.
 - **Handlers.** An `IntentHandler` returns the reply text; the framework sends
   it and completes the turn, or errors the turn when the handler throws (there
   is no fallback to the LLM). The human route's handler hands the request to
@@ -1128,11 +1145,20 @@ one on a session directly.
   `route`, `tier`, `confidence`, answered by `/__approval/<id>/approve` or
   `/deny` on the same session (`AiPipeline.tryResolveApproval` on the pipeline).
   Edited arguments and `respond` payloads are ignored: approving takes the
-  proposed route. On the endpoint, a client disconnect while waiting errors the
-  turn instead of escalating. The confirmation is not journaled for durable
-  runs. The OpenAI-compatible and batch surfaces of an `@AiEndpoint` get the
-  same routing but have no channel to answer on, so — like a `@RequiresApproval`
-  tool there — a CONFIRM-tier request waits `confirmTimeout` and escalates.
+  proposed route. The confirmation is not journaled for durable runs. The
+  OpenAI-compatible and batch surfaces of an `@AiEndpoint` get the same routing
+  but have no channel to answer on, so a CONFIRM-tier choice there escalates
+  to the human route at once (reason `confirmation unavailable on this
+  surface`) rather than waiting `confirmTimeout`; a programmatic pipeline whose
+  surface cannot answer either declares it with
+  `AiPipeline.setIntentConfirmationAvailable(false)`.
+- **Cancellation.** A cancelled turn is never routed: a client disconnect on
+  the endpoint (before or during classification, or while a confirmation is
+  pending) or an interrupted dispatching thread on either path (a batch item
+  cancelled by its job's deadline) errors the turn with a
+  `CancellationException`, runs no handler or human route, and keeps the
+  thread's interrupt status. On the pipeline, `approvalRegistry().cancelAllPending()`
+  still reads as a denial, as it does for tools.
 - **Why not human escalation through the approval registry?** On
   `@AiEndpoint` an approval is answered on the requester's own connection, so a
   "human reply" sent there could be forged by the requester. Escalation
@@ -1145,6 +1171,12 @@ one on a session directly.
 - **Bounds.** One question per request, bounded by `timeout` (default 5 s) and
   the decision model's own concurrency limit; a confirmation by
   `confirmTimeout`. The handler runs on the turn's thread, like a `@Prompt` body.
+  Without `withDecisionModel(...)` the routing resolves the shared fallback
+  `RuntimeDecisionModel` through `DecisionModelResolver`, whose permits
+  (default 8) are shared with the `LLM_CLASSIFIER` injection, scope and
+  moderation tiers: routing traffic can push those tiers into `CAPACITY`
+  failures. For a high-traffic endpoint, give the routing its own
+  `RuntimeDecisionModel` with `withDecisionModel(...)`.
 
 `IntentRoutingParityTest` drives every case through both `AiStreamingSession`
 and `AiPipeline`; `AiEndpointIntentRoutingTest` covers the annotation, the

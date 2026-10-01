@@ -54,20 +54,30 @@ import java.util.function.Consumer;
  *   <li>{@link ConfidenceRoute#CONFIRM} — the requester is asked to confirm
  *       through the approval machinery tools use ({@code /__approval/<id>/approve}
  *       on the same session); approved runs the chosen route, anything else
- *       (denied, timed out after {@link #confirmTimeout()}) escalates.</li>
+ *       (denied, timed out after {@link #confirmTimeout()}) escalates. A
+ *       surface with no channel for the answer (an {@code AiPipeline} with
+ *       {@code setIntentConfirmationAvailable(false)}, as the OpenAI-compatible
+ *       and batch serving of an endpoint are) escalates at once.</li>
  *   <li>{@link ConfidenceRoute#ESCALATE} — the {@link IntentRoute.Human} route runs.</li>
  * </ul>
  * Fail closed: no decision model, an {@link Answer.Failed} (timeout, capacity,
  * error, unparseable or out-of-set reply), a message the request cannot carry,
  * or a model that throws all escalate, whatever {@link ConfidenceRouting#unknownRoute()}
  * says — there is no choice to act on. {@code unknownRoute} applies only to a
- * valid choice whose confidence nobody measured. Only the thresholds and the
+ * valid choice that carries no confidence at all. Outside the Built-in runtime
+ * with logprobs, the confidence a {@code RuntimeDecisionModel} answers with is
+ * the model's self-reported number, and the tiers gate on it. Only the thresholds and the
  * unknown route of {@link #thresholds()} are read; its decision handler is not
  * called (use {@link #onDecision()}).
  *
  * <h2>Where it runs</h2>
- * On both dispatch paths, after admission (request guardrails and governance
- * policies — a denied request is never classified) and before the LLM call:
+ * On both dispatch paths, after admission (request guardrails, governance
+ * policies, and on the endpoint {@code AiInterceptor} pre-processing and the
+ * per-request scope — a denied request is never classified) and before RAG
+ * retrieval and the LLM call. A request a scope policy rewrote to its redirect
+ * text is not classified and continues to the LLM path. A cancelled turn
+ * (client disconnect, interrupted dispatching thread) runs no route:
+ * the session errors with a {@code CancellationException}. It runs on
  * {@code @AiEndpoint} ({@code @AiEndpoint(intentRouting = ...)},
  * {@code AiStreamingSession#setIntentRouting}, or the {@value #METADATA_KEY}
  * request metadata set by an {@code AiInterceptor}) and
