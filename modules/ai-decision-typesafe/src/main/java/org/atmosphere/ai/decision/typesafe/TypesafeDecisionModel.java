@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpConnectTimeoutException;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -36,6 +37,7 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Collections;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -43,12 +45,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongSupplier;
 import java.util.regex.Pattern;
 
@@ -69,13 +73,15 @@ import java.util.regex.Pattern;
  *   <li>the model — {@value #MODEL_PROPERTY} / {@value #MODEL_ENV}, default the
  *       pinned {@value #DEFAULT_MODEL}. {@code jev-latest} and {@code jev-preview}
  *       are moving aliases: the answers behind them can change without a change
- *       here, so they are accepted but logged.</li>
+ *       here, so they are accepted but logged, once per alias.</li>
  * </ul>
  * The environment variable names are the ones the TypeSafe SDKs read. An
  * invalid configuration does not throw from the no-argument constructor (that
  * would only make {@link java.util.ServiceLoader} skip the provider silently):
- * the instance reports {@link #isAvailable()} {@code false}, logs why once, and
- * fails every question with {@link Answer.Failed.Reason#ERROR}. {@link #builder()}
+ * the instance reports {@link #isAvailable()} {@code false}, logs why once per
+ * distinct error (not once per instance: each {@link java.util.ServiceLoader}
+ * scan builds a new one), and fails every question with
+ * {@link Answer.Failed.Reason#ERROR}. {@link #builder()}
  * configures an instance explicitly and throws on invalid input.
  *
  * <h2>Availability</h2>
@@ -96,13 +102,15 @@ import java.util.regex.Pattern;
  * question of the request the same way:
  * <ul>
  *   <li>{@code 408}, {@code 429}, {@code 5xx} (including {@code 529 Overloaded})
- *       and connection errors are retried up to {@code maxRetries} times. The
+ *       and connection errors (a TCP connect timeout included) are retried up
+ *       to {@code maxRetries} times. The
  *       wait is the {@code retry-after-ms} header, else {@code Retry-After}
  *       (seconds or an HTTP date), else exponential backoff from
  *       {@value #INITIAL_BACKOFF_MILLIS} ms up to {@value #MAX_BACKOFF_MILLIS} ms.
  *       A wait that would reach the deadline is not taken: the request stops
  *       there. A final {@code 429} or {@code 529} is
- *       {@link Answer.Failed.Reason#CAPACITY}, anything else
+ *       {@link Answer.Failed.Reason#CAPACITY}, a final connection error
+ *       {@link Answer.Failed.Reason#ERROR} naming the attempt, anything else
  *       {@link Answer.Failed.Reason#ERROR};</li>
  *   <li>{@code 401}, {@code 403}, {@code 422} and any other status are not
  *       retried: {@link Answer.Failed.Reason#ERROR} naming the status, the
@@ -127,8 +135,10 @@ import java.util.regex.Pattern;
  * <h2>Lifecycle</h2>
  * The instance creates its {@link HttpClient} on its first request (an instance
  * that only reads a cached verdict never creates one), owns it and closes it in
- * {@link #close()}, which is idempotent; afterwards the model is unavailable
- * and fails every question with {@link Answer.Failed.Reason#ERROR}. At most
+ * {@link #close()}, which is idempotent and aborts the exchanges in flight
+ * ({@link HttpClient#shutdownNow()}) instead of waiting for them: a question in
+ * flight then fails with {@link Answer.Failed.Reason#ERROR} ("closed"), and so
+ * does every later one, and the model is unavailable. At most
  * {@code maxConcurrency} requests ({@value #DEFAULT_MAX_CONCURRENCY} by default)
  * are in flight per instance. The instance
  * {@link org.atmosphere.ai.decision.DecisionModelResolver} selects is closed by
@@ -140,7 +150,11 @@ import java.util.regex.Pattern;
  * available, so the {@code LLM_CLASSIFIER} injection, scope and moderation
  * tiers ask it their questions. The injection tier still runs it on the
  * rule-based floor ({@code InjectionClassifierResolver}): a model, this one
- * included, can only add recall there, never clear what the rules flag.
+ * included, can only add recall there, never clear what the rules flag. An
+ * injection tier first resolved while no model could answer (this one
+ * unavailable, only the demo runtime installed) stays rule-based until
+ * {@code InjectionClassifierResolver.reset()}, even once this model is
+ * available.
  */
 public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable {
 
@@ -205,6 +219,25 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
     /** Bound on the shared availability verdicts kept; the least recently used goes first. */
     static final int MAX_SHARED_VERDICTS = 64;
 
+    /** Bound on the distinct configuration messages remembered as logged. */
+    static final int MAX_LOGGED_ONCE = 64;
+
+    /** How long {@link #close()} waits for the aborted exchanges to finish, in seconds. */
+    static final long CLOSE_WAIT_SECONDS = 5;
+
+    /**
+     * Configuration messages already logged. Keyed by the message, not held per
+     * instance: every {@link java.util.ServiceLoader} scan builds a new instance,
+     * and a per-instance flag would log once per safety check.
+     */
+    private static final Set<String> LOGGED_ONCE = Collections.newSetFromMap(
+            new LinkedHashMap<>(16, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, Boolean> eldest) {
+                    return size() > MAX_LOGGED_ONCE;
+                }
+            });
+
     private static final Map<VerdictKey, SharedVerdict> SHARED_VERDICTS =
             new LinkedHashMap<>(16, 0.75f, true) {
                 @Override
@@ -225,7 +258,6 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
     private final Duration connectTimeout;
     private final Semaphore slots;
     private final AtomicBoolean closed = new AtomicBoolean();
-    private final AtomicBoolean configErrorLogged = new AtomicBoolean();
     /** The verdict shared with every instance of the same configuration; null without a usable key. */
     private final SharedVerdict verdict;
     private final Object clientLock = new Object();
@@ -243,9 +275,14 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
     private record VerdictKey(URI baseUri, String model, String keyDigest, LongSupplier clock) {
     }
 
-    /** A configuration's latest verdict, and the lock that keeps its probes one at a time. */
+    /**
+     * A configuration's latest verdict, and the lock that keeps its probes one at
+     * a time. A {@link ReentrantLock}, not a monitor: the probe waits on the
+     * network, and a virtual thread blocked inside {@code synchronized} pins its
+     * carrier on JDK 21.
+     */
     private static final class SharedVerdict {
-        private final Object probeLock = new Object();
+        private final ReentrantLock probeLock = new ReentrantLock();
         private volatile Availability availability;
     }
 
@@ -286,7 +323,7 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
         this.slots = new Semaphore(builder.maxConcurrency, true);
         this.verdict = error == null && apiKey != null
                 ? sharedVerdict(new VerdictKey(uri, model, digest(apiKey), nanoClock)) : null;
-        if (error == null && isMovingAlias(model)) {
+        if (error == null && isMovingAlias(model) && firstTime("alias:" + model)) {
             logger.info("TypeSafe model '{}' is a moving alias; answers can change when it moves. "
                     + "Pin a version id such as {} to keep tuned thresholds stable.", model, DEFAULT_MODEL);
         }
@@ -323,6 +360,27 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
     private static SharedVerdict sharedVerdict(VerdictKey key) {
         synchronized (SHARED_VERDICTS) {
             return SHARED_VERDICTS.computeIfAbsent(key, k -> new SharedVerdict());
+        }
+    }
+
+    /** True the first time {@code key} is seen (within the {@value #MAX_LOGGED_ONCE} remembered). */
+    static boolean firstTime(String key) {
+        synchronized (LOGGED_ONCE) {
+            return LOGGED_ONCE.add(key);
+        }
+    }
+
+    /** Number of configuration messages remembered as logged (bounded by {@value #MAX_LOGGED_ONCE}). */
+    static int loggedOnceCount() {
+        synchronized (LOGGED_ONCE) {
+            return LOGGED_ONCE.size();
+        }
+    }
+
+    /** Test hook: forget which configuration messages were logged. */
+    static void forgetLoggedOnce() {
+        synchronized (LOGGED_ONCE) {
+            LOGGED_ONCE.clear();
         }
     }
 
@@ -395,7 +453,7 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
     @Override
     public boolean isAvailable() {
         if (closed.get() || verdict == null) {
-            if (configError != null && configErrorLogged.compareAndSet(false, true)) {
+            if (configError != null && firstTime("config:" + configError)) {
                 logger.warn("TypeSafe decision model is misconfigured and unavailable: {}", configError);
             }
             return false;
@@ -404,7 +462,8 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
         if (fresh(current)) {
             return current.up();
         }
-        synchronized (verdict.probeLock) {
+        verdict.probeLock.lock();
+        try {
             current = verdict.availability;
             if (fresh(current)) {
                 return current.up();
@@ -423,6 +482,8 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
             }
             verdict.availability = probed;
             return probed.up();
+        } finally {
+            verdict.probeLock.unlock();
         }
     }
 
@@ -431,7 +492,8 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
             return false;
         }
         var ttl = snapshot.up() ? availableTtl : unavailableTtl;
-        return nanoClock.getAsLong() - snapshot.checkedAtNanos() < ttl.toNanos();
+        // Compared as Durations: ttl.toNanos() overflows past about 292 years.
+        return Duration.ofNanos(nanoClock.getAsLong() - snapshot.checkedAtNanos()).compareTo(ttl) < 0;
     }
 
     /** One {@code GET /v1/models}; {@code null} when this instance is closed. */
@@ -461,6 +523,10 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
             future.cancel(true);
             return down("GET /v1/models did not answer within " + PROBE_TIMEOUT_SECONDS + " s");
         } catch (ExecutionException e) {
+            if (closed.get()) {
+                // close() aborted the probe: no verdict on the configuration.
+                return null;
+            }
             return down("GET /v1/models failed: " + e.getCause());
         } catch (InterruptedException e) {
             future.cancel(true);
@@ -537,22 +603,29 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
                 response = future.get(remaining, TimeUnit.NANOSECONDS);
             } catch (TimeoutException e) {
                 future.cancel(true);
-                return failed(request, start, Answer.Failed.Reason.TIMEOUT,
-                        "no reply within " + request.timeout().toMillis() + " ms");
+                return failed(request, start, Answer.Failed.Reason.TIMEOUT, deadlinePassed(request, start));
             } catch (InterruptedException e) {
                 future.cancel(true);
                 Thread.currentThread().interrupt();
                 return failed(request, start, Answer.Failed.Reason.ERROR, "interrupted");
             } catch (ExecutionException e) {
                 var cause = e.getCause();
-                if (cause instanceof HttpTimeoutException) {
-                    return failed(request, start, Answer.Failed.Reason.TIMEOUT,
-                            "no reply within " + request.timeout().toMillis() + " ms");
+                if (closed.get()) {
+                    // close() aborted the exchange (HttpClient.shutdownNow()).
+                    return failed(request, start, Answer.Failed.Reason.ERROR,
+                            "TypeSafe decision model was closed while the request was in flight");
+                }
+                // HttpConnectTimeoutException extends HttpTimeoutException, but only
+                // the connect bound passed, not the deadline: it is a connection
+                // error, retried below.
+                if (cause instanceof HttpTimeoutException && !(cause instanceof HttpConnectTimeoutException)) {
+                    return failed(request, start, Answer.Failed.Reason.TIMEOUT, deadlinePassed(request, start));
                 }
                 if (cause instanceof BoundedBodySubscriber.TooLargeException) {
                     return failed(request, start, Answer.Failed.Reason.UNPARSEABLE, cause.getMessage());
                 }
-                var detail = "connection failed: " + cause;
+                var detail = "connection failed on attempt " + (attempt + 1) + " of " + (maxRetries + 1)
+                        + ": " + cause;
                 if (cause instanceof IOException && attempt < maxRetries) {
                     var wait = backoffMillis(attempt);
                     if (!sleepWithin(wait, deadline)) {
@@ -587,6 +660,11 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
             }
             logger.debug("TypeSafe {}; retry {} of {} after {} ms", detail, attempt + 1, maxRetries, wait);
         }
+    }
+
+    private static String deadlinePassed(DecisionRequest request, long start) {
+        return "no reply before the " + request.timeout().toMillis() + " ms deadline ("
+                + elapsed(start).toMillis() + " ms elapsed)";
     }
 
     private DecisionResult stopRetrying(DecisionRequest request, long start, Answer.Failed.Reason reason,
@@ -687,7 +765,13 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
 
     /**
      * Closes the owned {@link HttpClient}, if one was created. Idempotent. The
-     * shared availability verdict is left to the other instances of the same
+     * exchanges in flight are aborted ({@link HttpClient#shutdownNow()}), not
+     * waited for: {@link HttpClient#close()} alone is an orderly shutdown that
+     * would block the caller (e.g. {@code DecisionModelResolver.reset()}) until
+     * the slowest request reached its own deadline. The aborted questions fail
+     * with {@link Answer.Failed.Reason#ERROR}. The wait for the client to
+     * terminate is bounded by {@value #CLOSE_WAIT_SECONDS} s. The shared
+     * availability verdict is left to the other instances of the same
      * configuration.
      */
     @Override
@@ -699,7 +783,16 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
                 client = null;
             }
             if (owned != null) {
-                owned.close();
+                owned.shutdownNow();
+                try {
+                    if (!owned.awaitTermination(Duration.ofSeconds(CLOSE_WAIT_SECONDS))) {
+                        logger.debug("TypeSafe HttpClient did not terminate within {} s of shutdownNow()",
+                                CLOSE_WAIT_SECONDS);
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    logger.debug("Interrupted waiting for the TypeSafe HttpClient to terminate", e);
+                }
             }
         }
     }

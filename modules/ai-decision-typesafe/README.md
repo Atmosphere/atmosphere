@@ -60,6 +60,17 @@ an explicit model (as `ScopeGuardrailResolver` and the Spring Boot starters'
 switch. `DecisionModelResolverTest` pins
 the recheck.
 
+With no real `AgentRuntime` (only the demo runtime) there is no fallback, and a
+TypeSafe-only deployment behaves differently for the injection tier. If the
+`LLM_CLASSIFIER` injection tier is first resolved while this model is
+unavailable, it downgrades to `RULE_BASED` and **stays `RULE_BASED` until
+`InjectionClassifierResolver.reset()`**, even after `DecisionModelResolver`
+starts returning this model. The screens already built hold that classifier,
+and the console reports the tier they actually run. Its warning says so. The
+scope and moderation tiers resolve on every check and pick the model up.
+`InjectionClassifierResolverTest#aDowngradedLlmTierStaysRuleBasedUntilResetEvenOnceARegistrationIsAvailable`
+pins this.
+
 ## Configuration
 
 A JVM system property wins over the environment variable. The environment
@@ -79,8 +90,13 @@ variable names are the ones the TypeSafe SDKs read.
   Plain `http` is accepted only for a loopback host, so the key never crosses a
   network unencrypted.
 - **Bad configuration** (a malformed URL or model id, a key with spaces) does
-  not throw from the ServiceLoader constructor. The instance is unavailable, logs
-  why once, and fails every question with `ERROR`. `TypesafeDecisionModel.builder()`
+  not throw from the ServiceLoader constructor. The instance is unavailable and
+  fails every question with `ERROR`. The reason is logged once per distinct
+  message for the JVM (at most 64 remembered), not once per instance: each
+  `ServiceLoader` scan builds a new instance. The moving-alias INFO is logged
+  once per alias the same way
+  (`TypesafeDiscoveryTest#aBadConfigurationIsLoggedOnceAcrossServiceLoaderScans`,
+  `#aMovingAliasIsLoggedOnceAcrossServiceLoaderScans`). `TypesafeDecisionModel.builder()`
   configures an instance in code and throws instead. It also sets `priority`
   (default 100), `maxRetries` (default 2, 0..10), `maxConcurrency` (default 8),
   the connect timeout and the availability TTLs.
@@ -90,9 +106,13 @@ variable names are the ones the TypeSafe SDKs read.
 `isAvailable()` is `true` only after `GET /v1/models` returned `200` with the
 documented `{"models":[...]}` body. A key being set is not enough. With no key
 there is no probe and the answer is `false`. The verdict is cached for 300 s when
-reachable and 30 s when not. It is shared by every instance with the same base
+reachable and 30 s when not (any positive TTL can be set, however long). It is
+shared by every instance with the same base
 URL, model and key (held as a SHA-256 digest, at most 64 configurations), and
-only one probe per configuration runs at a time. That matters because each
+only one probe per configuration runs at a time. The probe holds a
+`ReentrantLock`, not a monitor, so a virtual thread waiting on it does not pin
+its carrier
+(`TypesafeDecisionModelContractTest#theAvailabilityProbeDoesNotPinAVirtualThreadCarrier`). That matters because each
 `DecisionModelResolver` scan's `ServiceLoader` builds a fresh instance: while
 nothing is selected, a scope or moderation tier built without an explicit
 model resolves on every check, and
@@ -166,10 +186,11 @@ every question the same way, before `DecisionRequest.timeout()`:
 
 | Outcome | Retried? | `Answer.Failed.Reason` |
 |---------|----------|------------------------|
-| 408, 429, 5xx (including 529), connection error | Yes, up to `maxRetries`. The wait is `retry-after-ms`, else `Retry-After` (seconds or an HTTP date), else 500 ms doubling to 5 s with up to 25% jitter. A wait that would reach the deadline is not taken | final 429/529: `CAPACITY`; others: `ERROR` |
+| 408, 429, 5xx (including 529), connection error (a dropped connection, a TCP connect timeout) | Yes, up to `maxRetries`. The wait is `retry-after-ms`, else `Retry-After` (seconds or an HTTP date), else 500 ms doubling to 5 s with up to 25% jitter. A wait that would reach the deadline is not taken | final 429/529: `CAPACITY`; others: `ERROR` (a connection error names its attempt, e.g. `attempt 3 of 3`) |
 | 401, 403 | No (also marks the model unavailable) | `ERROR` |
 | 422 and other 4xx | No | `ERROR` |
-| Deadline passed (in-flight request cancelled) | No | `TIMEOUT` |
+| Deadline passed (in-flight request cancelled) | No | `TIMEOUT`, with the deadline and the time elapsed |
+| `close()` while the request is in flight | No | `ERROR` ("closed while the request was in flight") |
 | All `maxConcurrency` slots busy until the deadline | No | `CAPACITY` |
 
 Each `detail` names the HTTP status, the provider's message and its
@@ -179,8 +200,13 @@ Each `detail` names the HTTP status, the provider's message and its
 
 `TypesafeDecisionModel` creates its `java.net.http.HttpClient` on its first
 request, owns it and closes it in `close()`. An instance that only reads a cached
-verdict never creates one. `close()` is idempotent. A closed model is
-unavailable and fails every question with `ERROR`.
+verdict never creates one. `close()` is idempotent. It aborts the exchanges in
+flight (`HttpClient.shutdownNow()`) instead of waiting for them, then waits at
+most 5 s for the client to terminate, so a `reset()` does not block until the
+slowest request reaches its deadline. A question in flight at that moment fails
+with `ERROR`, and a closed model is unavailable and fails every later question
+with `ERROR`
+(`TypesafeDecisionModelContractTest#closeAbortsAnInFlightRequestInsteadOfWaitingForIt`).
 
 The instance `DecisionModelResolver` selects is closed by
 `DecisionModelResolver.reset()` (which `InjectionClassifierResolver.reset()`
@@ -204,9 +230,9 @@ pins this against a stub that clears everything.
 
 | Test | Needs | What it pins |
 |------|-------|--------------|
-| `TypesafeDecisionModelContractTest` | nothing (JDK `HttpServer` stub on loopback) | the documented request bodies, every answer type, 401/403/422/429/529/503, retry-after (including waits too large to add to the clock), the deadline, the body bound, the concurrency bound, availability caching and sharing, `close()` |
+| `TypesafeDecisionModelContractTest` | nothing (JDK `HttpServer` stub on loopback, and a loopback listener whose accept queue is full for the connect timeout) | the documented request bodies, every answer type, 401/403/422/429/529/503, retries of a dropped connection and of a connect timeout, retry-after (including waits too large to add to the clock), the deadline, the body bound, the concurrency bound, availability caching and sharing (including very long TTLs and no carrier pinning), `close()` aborting a request in flight |
 | `TypesafeWireTest` | nothing | strict decoding (every documented required field), criteria encoding, retry header parsing |
-| `TypesafeDiscoveryTest` | nothing | ServiceLoader registration, system-property configuration, resolver selection, the rule-based floor |
+| `TypesafeDiscoveryTest` | nothing | ServiceLoader registration, system-property configuration, logging a bad configuration or a moving alias once across scans, resolver selection, the rule-based floor |
 | `TypesafeLiveTest` | `TYPESAFE_API_KEY`, or `-Dtypesafe.live=true` for the invalid-key test only | the real API |
 
 ```bash

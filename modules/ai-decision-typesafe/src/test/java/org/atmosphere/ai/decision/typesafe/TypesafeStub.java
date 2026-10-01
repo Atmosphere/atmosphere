@@ -40,11 +40,22 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 final class TypesafeStub implements AutoCloseable {
 
-    /** One canned response; {@code delayMillis} is slept before answering. */
+    /**
+     * One canned response; {@code delayMillis} is slept before answering. A
+     * {@code status} of {@value #DROP} sends nothing and closes the connection.
+     */
     record Reply(int status, Map<String, String> headers, byte[] body, long delayMillis) {
+
+        /** The status that means: close the connection without a response. */
+        static final int DROP = 0;
 
         static Reply json(int status, String body) {
             return new Reply(status, Map.of(), body.getBytes(StandardCharsets.UTF_8), 0);
+        }
+
+        /** Close the connection without sending a status line: a transport-level failure. */
+        static Reply dropConnection() {
+            return new Reply(DROP, Map.of(), new byte[0], 0);
         }
 
         Reply withHeader(String name, String value) {
@@ -133,6 +144,10 @@ final class TypesafeStub implements AutoCloseable {
                     Thread.currentThread().interrupt();
                     return;
                 }
+            }
+            if (reply.status() == Reply.DROP) {
+                // Closing an exchange that sent no headers closes the connection.
+                return;
             }
             reply.headers().forEach((k, v) -> exchange.getResponseHeaders().add(k, v));
             exchange.getResponseHeaders().add("Content-Type", "application/json");

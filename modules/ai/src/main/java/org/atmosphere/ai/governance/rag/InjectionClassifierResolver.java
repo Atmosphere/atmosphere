@@ -42,9 +42,21 @@ import java.util.concurrent.ConcurrentHashMap;
  *       {@link LlmClassifierInjectionClassifier} on the same rule-based floor,
  *       bound to the {@link org.atmosphere.ai.decision.DecisionModel} that
  *       {@link DecisionModelResolver} returns. When none can answer (only the
- *       demo runtime is installed) the resolver downgrades to rule-based and
- *       logs a warning.</li>
+ *       demo runtime is installed, and no registered DecisionModel is available
+ *       at that moment) the resolver downgrades to rule-based and logs a
+ *       warning.</li>
  * </ul>
+ *
+ * <p>Each tier's result, a downgrade included, is cached until {@link #reset()}.
+ * A downgraded {@code LLM_CLASSIFIER} therefore stays {@code RULE_BASED} even if
+ * a registered DecisionModel (an external endpoint that was down at boot, say)
+ * becomes available later and {@link DecisionModelResolver} starts returning it.
+ * That is deliberate: the consumers ({@code SafetyContextProvider},
+ * {@code MemorySafetyConfig}) keep the classifier they were built with, and
+ * {@code MemorySafetyConfig.publishActive} resolves again to report the tier in
+ * force, so a resolver that upgraded behind them would report a tier nothing
+ * runs (Correctness Invariant #5). Call {@link #reset()} and rebuild the
+ * consumers to pick the model up.</p>
  *
  * <p>The rule-based floor under the higher tiers is what keeps the screen from
  * silently failing open: the cheap probes always catch the canonical injection
@@ -131,10 +143,13 @@ public final class InjectionClassifierResolver {
                                     LlmClassifierInjectionClassifier.DEFAULT_SAFE_BELOW)));
                 }
                 logger.warn("RAG injection-safety tier LLM_CLASSIFIER requested but no DecisionModel "
-                        + "can answer (only the demo runtime is available) — downgrading to RULE_BASED "
-                        + "so retrieval stays fail-closed. Configure a reachable model (LLM_MODE=local "
-                        + "or an API key), register a DecisionModel, or set the tier to RULE_BASED to "
-                        + "silence this warning.");
+                        + "can answer now (only the demo runtime is available, and no registered "
+                        + "DecisionModel reports itself available) — downgrading to RULE_BASED so "
+                        + "retrieval stays fail-closed. The downgrade is kept until "
+                        + "InjectionClassifierResolver.reset(), even if a registered DecisionModel "
+                        + "becomes available later. Configure a reachable model (LLM_MODE=local or an "
+                        + "API key), make a registered DecisionModel available (its key, its endpoint), "
+                        + "or set the tier to RULE_BASED to silence this warning.");
                 yield new RuleBasedInjectionClassifier();
             }
         };

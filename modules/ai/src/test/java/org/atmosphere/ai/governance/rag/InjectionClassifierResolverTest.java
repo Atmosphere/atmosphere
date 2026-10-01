@@ -17,6 +17,7 @@ package org.atmosphere.ai.governance.rag;
 
 import org.atmosphere.ai.ContextProvider;
 import org.atmosphere.ai.EmbeddingRuntimeResolver;
+import org.atmosphere.ai.decision.DecisionModelResolver;
 import org.atmosphere.ai.decision.DecisionModelResolverTestAccess;
 import org.atmosphere.ai.decision.TestDecisionModels;
 import org.junit.jupiter.api.AfterEach;
@@ -117,6 +118,32 @@ class InjectionClassifierResolverTest {
             assertTrue(classifier instanceof RuleBasedInjectionClassifier, classifier.getClass().getName());
             assertEquals(InjectionClassifier.Tier.RULE_BASED, classifier.tier(),
                     "a demo-only setup must report the tier actually in force");
+        } finally {
+            DecisionModelResolverTestAccess.restore();
+        }
+    }
+
+    @Test
+    void aDowngradedLlmTierStaysRuleBasedUntilResetEvenOnceARegistrationIsAvailable() {
+        // A registered model that is unavailable at the first resolution (an
+        // external endpoint down at boot) with only the demo runtime: downgrade.
+        DecisionModelResolverTestAccess.forceDemoOnly();
+        try {
+            var downgraded = InjectionClassifierResolver.resolve(InjectionClassifier.Tier.LLM_CLASSIFIER);
+            assertEquals(InjectionClassifier.Tier.RULE_BASED, downgraded.tier());
+
+            // The registration comes up and the decision-model resolver now returns it ...
+            TestDecisionModels.Preferred.available = true;
+            assertEquals("test-preferred",
+                    DecisionModelResolver.resolve().orElseThrow().name());
+            // ... but the injection tier keeps the downgrade, so a consumer that
+            // re-resolves to report its tier reports what it actually runs.
+            assertSame(downgraded, InjectionClassifierResolver.resolve(InjectionClassifier.Tier.LLM_CLASSIFIER));
+
+            // reset() is the documented way to pick the model up.
+            InjectionClassifierResolver.reset();
+            assertEquals(InjectionClassifier.Tier.LLM_CLASSIFIER,
+                    InjectionClassifierResolver.resolve(InjectionClassifier.Tier.LLM_CLASSIFIER).tier());
         } finally {
             DecisionModelResolverTestAccess.restore();
         }

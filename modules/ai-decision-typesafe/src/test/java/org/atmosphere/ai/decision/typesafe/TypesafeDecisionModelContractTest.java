@@ -26,6 +26,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import jdk.jfr.Recording;
+import jdk.jfr.consumer.RecordingFile;
+
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketTimeoutException;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -34,6 +44,7 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -324,6 +335,63 @@ class TypesafeDecisionModelContractTest {
     }
 
     @Test
+    void aDroppedConnectionIsRetried() {
+        stub.onDecide(TypesafeStub.Reply.dropConnection(),
+                TypesafeStub.Reply.json(200, TypesafeStub.fixture("response-noul.json")));
+
+        var result = model.decide(noulRequest());
+
+        assertInstanceOf(Answer.Noul.class, result.answers().get("is_urgent"));
+        assertEquals(2, stub.hits("/v1/systemone"), "one dropped attempt, one retry");
+    }
+
+    @Test
+    void aDroppedConnectionWithZeroRetriesIsOneAttemptAndAnError() {
+        stub.onDecide(TypesafeStub.Reply.dropConnection(),
+                TypesafeStub.Reply.json(200, TypesafeStub.fixture("response-noul.json")));
+        try (var once = TypesafeDecisionModel.builder().apiKey("test-key").baseUrl(stub.baseUrl())
+                .maxRetries(0).build()) {
+
+            var failed = onlyFailure(once.decide(noulRequest()), "is_urgent");
+
+            assertEquals(Answer.Failed.Reason.ERROR, failed.reason());
+            assertTrue(failed.detail().contains("connection failed on attempt 1 of 1"), failed.detail());
+            assertEquals(1, stub.hits("/v1/systemone"));
+        }
+    }
+
+    @Test
+    void aConnectTimeoutIsARetriedConnectionErrorNotADeadline() throws Exception {
+        try (var blackhole = new Blackhole();
+             var slow = TypesafeDecisionModel.builder().apiKey("test-key").baseUrl(blackhole.baseUrl())
+                     .connectTimeout(Duration.ofMillis(200)).build()) {
+            var started = System.nanoTime();
+
+            var failed = onlyFailure(slow.decide(noulRequest().withTimeout(Duration.ofSeconds(20))), "is_urgent");
+
+            var elapsed = Duration.ofNanos(System.nanoTime() - started);
+            // Before the fix: TIMEOUT "no reply within 20000 ms" after one 200 ms attempt.
+            assertEquals(Answer.Failed.Reason.ERROR, failed.reason(), failed.detail());
+            assertTrue(failed.detail().contains("HttpConnectTimeoutException"), failed.detail());
+            assertTrue(failed.detail().contains("on attempt 3 of 3"), failed.detail());
+            assertTrue(elapsed.compareTo(Duration.ofSeconds(15)) < 0, "returned after " + elapsed);
+        }
+    }
+
+    @Test
+    void aConnectTimeoutWithZeroRetriesIsOneAttempt() throws Exception {
+        try (var blackhole = new Blackhole();
+             var once = TypesafeDecisionModel.builder().apiKey("test-key").baseUrl(blackhole.baseUrl())
+                     .connectTimeout(Duration.ofMillis(200)).maxRetries(0).build()) {
+
+            var failed = onlyFailure(once.decide(noulRequest().withTimeout(Duration.ofSeconds(20))), "is_urgent");
+
+            assertEquals(Answer.Failed.Reason.ERROR, failed.reason(), failed.detail());
+            assertTrue(failed.detail().contains("on attempt 1 of 1"), failed.detail());
+        }
+    }
+
+    @Test
     void aReplyPastTheDeadlineIsTimeoutAndDecideReturnsOnTime() {
         stub.onDecide(TypesafeStub.Reply.json(200, TypesafeStub.fixture("response-noul.json")).delayed(3_000));
         var started = System.nanoTime();
@@ -331,7 +399,9 @@ class TypesafeDecisionModelContractTest {
         var result = model.decide(noulRequest().withTimeout(Duration.ofMillis(300)));
 
         var elapsed = Duration.ofNanos(System.nanoTime() - started);
-        assertEquals(Answer.Failed.Reason.TIMEOUT, onlyFailure(result, "is_urgent").reason());
+        var failed = onlyFailure(result, "is_urgent");
+        assertEquals(Answer.Failed.Reason.TIMEOUT, failed.reason());
+        assertTrue(failed.detail().contains("300 ms deadline"), failed.detail());
         assertTrue(elapsed.compareTo(Duration.ofMillis(1_500)) < 0, "returned after " + elapsed);
     }
 
@@ -437,6 +507,49 @@ class TypesafeDecisionModelContractTest {
     }
 
     @Test
+    void aVeryLongTtlIsTrustedWithoutOverflowing() {
+        // Duration.ofDays(200_000).toNanos() overflows a long.
+        try (var forever = TypesafeDecisionModel.builder().apiKey("test-key").baseUrl(stub.baseUrl())
+                .availableTtl(Duration.ofDays(200_000)).unavailableTtl(Duration.ofDays(200_000)).build()) {
+            assertTrue(forever.isAvailable());
+            assertTrue(forever.isAvailable(), "a cached verdict is read, not an ArithmeticException");
+            assertEquals(1, stub.hits("/v1/models"));
+        }
+        TypesafeDecisionModel.forgetSharedVerdicts();
+        stub.onModels(TypesafeStub.Reply.json(401, TypesafeStub.fixture("error-401.json")));
+        try (var down = TypesafeDecisionModel.builder().apiKey("test-key").baseUrl(stub.baseUrl())
+                .unavailableTtl(Duration.ofDays(200_000)).build()) {
+            assertFalse(down.isAvailable());
+            assertFalse(down.isAvailable());
+            assertEquals(2, stub.hits("/v1/models"));
+        }
+    }
+
+    @Test
+    void theAvailabilityProbeDoesNotPinAVirtualThreadCarrier() throws Exception {
+        stub.onModels(TypesafeStub.Reply.json(200, TypesafeStub.fixture("models.json")).delayed(300));
+        var dump = Files.createTempFile("typesafe-pinning", ".jfr");
+        try (var recording = new Recording()) {
+            recording.enable("jdk.VirtualThreadPinned").withThreshold(Duration.ZERO).withStackTrace();
+            recording.start();
+            var probing = Thread.ofVirtual().start(() -> assertTrue(model.isAvailable()));
+            probing.join(10_000);
+            assertFalse(probing.isAlive());
+            recording.stop();
+            recording.dump(dump);
+            var pinnedHere = RecordingFile.readAllEvents(dump).stream()
+                    .filter(e -> e.getStackTrace() != null && e.getStackTrace().getFrames().stream()
+                            .anyMatch(f -> f.getMethod().getType().getName()
+                                    .equals(TypesafeDecisionModel.class.getName())))
+                    .toList();
+            assertEquals(List.of(), pinnedHere, "the probe parked a virtual thread inside a monitor");
+            assertEquals(1, stub.hits("/v1/models"));
+        } finally {
+            Files.deleteIfExists(dump);
+        }
+    }
+
+    @Test
     void theSharedVerdictsAreBounded() {
         var instances = new ArrayList<TypesafeDecisionModel>();
         try {
@@ -447,6 +560,18 @@ class TypesafeDecisionModelContractTest {
         } finally {
             instances.forEach(TypesafeDecisionModel::close);
         }
+    }
+
+    @Test
+    void theLoggedOnceMessagesAreBounded() {
+        TypesafeDecisionModel.forgetLoggedOnce();
+        for (var i = 0; i < TypesafeDecisionModel.MAX_LOGGED_ONCE + 10; i++) {
+            assertTrue(TypesafeDecisionModel.firstTime("config:error " + i));
+        }
+        assertEquals(TypesafeDecisionModel.MAX_LOGGED_ONCE, TypesafeDecisionModel.loggedOnceCount());
+        assertFalse(TypesafeDecisionModel.firstTime("config:error " + (TypesafeDecisionModel.MAX_LOGGED_ONCE + 9)),
+                "a remembered message is not logged again");
+        TypesafeDecisionModel.forgetLoggedOnce();
     }
 
     @Test
@@ -491,6 +616,82 @@ class TypesafeDecisionModelContractTest {
         assertTrue(failed.detail().contains("closed"), failed.detail());
         assertEquals(0, stub.hits("/v1/systemone"));
         assertEquals(1, stub.hits("/v1/models"));
+    }
+
+    @Test
+    void closeAbortsAnInFlightRequestInsteadOfWaitingForIt() throws Exception {
+        var entered = new CountDownLatch(1);
+        stub.onDecide(TypesafeStub.Reply.json(200, TypesafeStub.fixture("response-noul.json")).delayed(20_000))
+                .beforeDecideReply(entered::countDown);
+        var result = new AtomicReference<DecisionResult>();
+        var deciding = Thread.ofVirtual().start(() ->
+                result.set(model.decide(noulRequest().withTimeout(Duration.ofSeconds(15)))));
+        assertTrue(entered.await(5, TimeUnit.SECONDS));
+        var started = System.nanoTime();
+
+        model.close();
+
+        var closeTook = Duration.ofNanos(System.nanoTime() - started);
+        // Before the fix close() waited for the exchange: about 15 s here.
+        assertTrue(closeTook.compareTo(Duration.ofSeconds(3)) < 0, "close() took " + closeTook);
+        deciding.join(5_000);
+        assertFalse(deciding.isAlive(), "the in-flight decide returned once its exchange was aborted");
+        var failed = onlyFailure(result.get(), "is_urgent");
+        assertEquals(Answer.Failed.Reason.ERROR, failed.reason(), failed.detail());
+        assertTrue(failed.detail().contains("closed while the request was in flight"), failed.detail());
+        assertEquals(1, stub.hits("/v1/systemone"), "an aborted exchange is not retried");
+    }
+
+    /**
+     * A loopback listener whose accept queue is full and never drained, so a
+     * new TCP connection to it is never established: the client's connect
+     * timeout fires. The queue is filled with plain sockets until one of them
+     * cannot connect.
+     */
+    private static final class Blackhole implements AutoCloseable {
+        private static final InetAddress LOOPBACK = loopback();
+
+        private final ServerSocket server;
+        private final List<Socket> fillers = new ArrayList<>();
+
+        Blackhole() throws IOException {
+            server = new ServerSocket(0, 1, LOOPBACK);
+            var full = false;
+            for (var i = 0; i < 256 && !full; i++) {
+                var socket = new Socket();
+                try {
+                    socket.connect(new InetSocketAddress(LOOPBACK, server.getLocalPort()), 200);
+                    fillers.add(socket);
+                } catch (SocketTimeoutException e) {
+                    socket.close();
+                    full = true;
+                }
+            }
+            if (!full) {
+                close();
+                throw new IllegalStateException("could not fill the accept queue of a loopback listener");
+            }
+        }
+
+        String baseUrl() {
+            return "http://127.0.0.1:" + server.getLocalPort();
+        }
+
+        private static InetAddress loopback() {
+            try {
+                return InetAddress.getByName("127.0.0.1");
+            } catch (IOException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+
+        @Override
+        public void close() throws IOException {
+            for (var socket : fillers) {
+                socket.close();
+            }
+            server.close();
+        }
     }
 
     private static Answer.Failed onlyFailure(DecisionResult result, String id) {

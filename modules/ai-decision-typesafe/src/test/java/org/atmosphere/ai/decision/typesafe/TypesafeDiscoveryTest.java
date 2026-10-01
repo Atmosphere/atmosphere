@@ -15,6 +15,10 @@
  */
 package org.atmosphere.ai.decision.typesafe;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.atmosphere.ai.ContextProvider;
 import org.atmosphere.ai.decision.Answer;
 import org.atmosphere.ai.decision.DecisionModel;
@@ -26,6 +30,7 @@ import org.atmosphere.ai.governance.rag.InjectionClassifierResolver;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.ServiceLoader;
@@ -101,6 +106,81 @@ class TypesafeDiscoveryTest {
             assertTrue(failed.detail().contains("misconfigured"), failed.detail());
         }
         assertEquals(0, stub.recorded().size());
+    }
+
+    /**
+     * Each ServiceLoader scan builds a fresh instance (as every
+     * {@code DecisionModelResolver} scan does), so a per-instance "logged" flag
+     * would log once per safety check. The message is logged once per
+     * configuration.
+     */
+    @Test
+    void aBadConfigurationIsLoggedOnceAcrossServiceLoaderScans() {
+        System.setProperty(TypesafeDecisionModel.API_KEY_PROPERTY, "test-key");
+        System.setProperty(TypesafeDecisionModel.BASE_URL_PROPERTY, "http://proxy.internal:8080");
+        TypesafeDecisionModel.forgetLoggedOnce();
+        try (var logs = new CapturedLogs()) {
+            for (var i = 0; i < 5; i++) {
+                try (var model = loadTypesafe()) {
+                    assertFalse(model.isAvailable());
+                }
+            }
+            assertEquals(1, logs.count(Level.WARN, "misconfigured"), logs.toString());
+        }
+    }
+
+    @Test
+    void aMovingAliasIsLoggedOnceAcrossServiceLoaderScans() {
+        configure();
+        System.setProperty(TypesafeDecisionModel.MODEL_PROPERTY, "jev-latest");
+        TypesafeDecisionModel.forgetLoggedOnce();
+        try (var logs = new CapturedLogs()) {
+            for (var i = 0; i < 5; i++) {
+                try (var model = loadTypesafe()) {
+                    assertEquals("jev-latest", model.model());
+                }
+            }
+            assertEquals(1, logs.count(Level.INFO, "moving alias"), logs.toString());
+        }
+    }
+
+    private static TypesafeDecisionModel loadTypesafe() {
+        return ServiceLoader.load(DecisionModel.class).stream()
+                .filter(p -> p.type() == TypesafeDecisionModel.class)
+                .map(p -> (TypesafeDecisionModel) p.get())
+                .findFirst()
+                .orElseThrow();
+    }
+
+    /** Captures what {@link TypesafeDecisionModel} logs while open. */
+    private static final class CapturedLogs implements AutoCloseable {
+        private final Logger logger = (Logger) LoggerFactory.getLogger(TypesafeDecisionModel.class);
+        private final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        private final Level saved = logger.getLevel();
+
+        CapturedLogs() {
+            appender.start();
+            logger.setLevel(Level.INFO);
+            logger.addAppender(appender);
+        }
+
+        long count(Level level, String fragment) {
+            return appender.list.stream()
+                    .filter(e -> e.getLevel() == level && e.getFormattedMessage().contains(fragment))
+                    .count();
+        }
+
+        @Override
+        public String toString() {
+            return appender.list.stream().map(ILoggingEvent::getFormattedMessage).toList().toString();
+        }
+
+        @Override
+        public void close() {
+            logger.detachAppender(appender);
+            logger.setLevel(saved);
+            appender.stop();
+        }
     }
 
     @Test

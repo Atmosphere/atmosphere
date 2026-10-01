@@ -4103,3 +4103,42 @@ field `api.md` marks required is enforced (`TypesafeWireTest#everyAnswerMustName
 `#aScoreMustCarryALegendNamingExactlyItsLevels`, `#aReplyWithoutModelOrUsageFailsEveryQuestion`).
 Each test was checked to fail with its fix reverted. Both READMEs now say which consumers keep
 the model they resolved.
+
+---
+
+## 2026-10-01 — The TypeSafe README promised a close, a retry and a log it did not deliver
+
+**Session:** carnet #56 second review — `atmosphere-ai-decision-typesafe` findings.
+
+**Claim 1:** `modules/ai-decision-typesafe/README.md`, *Lifecycle*, and the `DecisionModelResolver.reset()`
+Javadoc: a closed model "fails every question with `ERROR`".
+**Truth:** `close()` called `HttpClient.close()`, an orderly shutdown that waits for every exchange
+in flight. `reset()` blocked until the slowest request reached its own deadline (about 15 s in a
+probe), and that request then resolved as `TIMEOUT` or as the server's answer.
+**Claim 2:** the README's *Failures and retries* table and the class Javadoc: a connection error is
+retried up to `maxRetries`, and `TIMEOUT` means the deadline passed.
+**Truth:** `HttpConnectTimeoutException` extends `HttpTimeoutException`, so a TCP connect timeout
+hit the `TIMEOUT` branch first: one attempt, no retry, and a detail claiming the whole request
+timeout had elapsed when only the connect timeout had. No test reached the connection-error
+retry at all; deleting it left the suite green.
+**Claim 3:** the README's *Configuration*: a bad configuration "logs why once".
+**Truth:** the flag was per instance, and each `ServiceLoader` scan builds a new instance, so the
+WARN repeated on every resolution (5 resolutions, 5 WARNs); the moving-alias INFO the same way.
+**Claim 4:** the README's *Install*: the module "makes it the model behind the `LLM_CLASSIFIER`
+injection" tier.
+**Truth:** with only the demo runtime, an injection tier first resolved while the probe failed
+caches `RULE_BASED` until `InjectionClassifierResolver.reset()`, even after `DecisionModelResolver`
+selects TypeSafe. That pinning is kept on purpose (consumers hold their classifier, and
+`MemorySafetyConfig.publishActive` re-resolves to report the tier in force), so the docs and the
+warning now say it.
+**Slip path:** the same as the previous entry: the behaviour was described from the class's own
+happy path. The JDK exception hierarchy and `HttpClient.close()` semantics were assumed, not read,
+and no test drove a transport failure or a close during a request.
+**Gate:** `TypesafeDecisionModelContractTest#closeAbortsAnInFlightRequestInsteadOfWaitingForIt`,
+`#aConnectTimeoutIsARetriedConnectionErrorNotADeadline`, `#aConnectTimeoutWithZeroRetriesIsOneAttempt`,
+`#aDroppedConnectionIsRetried`, `#aDroppedConnectionWithZeroRetriesIsOneAttemptAndAnError`,
+`#aVeryLongTtlIsTrustedWithoutOverflowing`, `#theAvailabilityProbeDoesNotPinAVirtualThreadCarrier`
+(a JFR `jdk.VirtualThreadPinned` recording), `TypesafeDiscoveryTest#aBadConfigurationIsLoggedOnceAcrossServiceLoaderScans`,
+`#aMovingAliasIsLoggedOnceAcrossServiceLoaderScans`, and
+`InjectionClassifierResolverTest#aDowngradedLlmTierStaysRuleBasedUntilResetEvenOnceARegistrationIsAvailable`.
+Each `TypesafeDecisionModel` test was checked to fail with its fix reverted.

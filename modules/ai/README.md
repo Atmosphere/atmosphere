@@ -152,9 +152,14 @@ answer outside `true`/`false` is also an error. A document longer than 262,144
 characters (the decision state bound) is not sent to the model and is an error
 naming its length. Every error is dropped by default; with `fail-open=true` the
 operator has chosen to admit it, including an oversize document. When
-only the demo runtime is installed (no reachable model, no registered
-`DecisionModel`) the tier downgrades to `RULE_BASED` with a warning, and the
-console reports `RULE_BASED`.
+only the demo runtime is installed (no reachable model, and no registered
+`DecisionModel` available at that moment) the tier downgrades to `RULE_BASED`
+with a warning, and the console reports `RULE_BASED`. The downgrade is kept
+until `InjectionClassifierResolver.reset()`: a registered `DecisionModel` that
+becomes available later (an external endpoint that was down at boot) is not
+picked up by this tier, because the screens already built keep their
+classifier and the console reports the tier they run
+(`InjectionClassifierResolverTest#aDowngradedLlmTierStaysRuleBasedUntilResetEvenOnceARegistrationIsAvailable`).
 
 Only `ContextProvider` retrieval is screened **by default**. `@Agent` does not
 auto-wire a `ContextProvider`; tool outputs (`@AiTool`) are a separate trust
@@ -1073,7 +1078,11 @@ configured and `GET /v1/models` answering when a resolution runs,
 `DecisionModelResolver` selects it ahead of the `RuntimeDecisionModel` fallback,
 so the three safety tiers above ask it their questions; the injection tier still
 runs it on the rule-based floor. If it is not answering then, the fallback is
-provisional and rescanned as described under *Discovery*.
+provisional and rescanned as described under *Discovery*. With no real
+`AgentRuntime` there is no fallback: an injection tier resolved while it is not
+answering stays `RULE_BASED` until `InjectionClassifierResolver.reset()` (see
+*RAG Injection Safety*), while the scope and moderation tiers pick it up on
+their next resolution.
 Its answers carry the provider's distribution and the confidence source
 `PROVIDER_DISTRIBUTION`. A registration the resolver instantiates but does not
 select, or that a higher-priority one displaces, is closed when it is
