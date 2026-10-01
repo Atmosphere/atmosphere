@@ -305,9 +305,10 @@
                         <removeUnusedImports/>
                         <replaceRegex>
                             <!-- removeUnusedImports keeps a repeated import line; drop the
-                                 earlier copy of any import that appears again later. -->
+                                 earlier copy of any import that appears again later. Trailing
+                                 blanks are ignored, so "import a.B; " still matches "import a.B;". -->
                             <name>Remove duplicate imports</name>
-                            <searchRegex>(?m)^(import [^;\r\n]+;)\R(?=[\s\S]*^\1$)</searchRegex>
+                            <searchRegex>(?m)^(import [^;\r\n]+;)[ \t]*\R(?=[\s\S]*^\1[ \t]*$)</searchRegex>
                             <replacement></replacement>
                         </replaceRegex>
                         <indent>
