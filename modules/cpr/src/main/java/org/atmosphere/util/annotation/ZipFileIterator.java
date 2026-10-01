@@ -90,7 +90,7 @@ final class ZipFileIterator {
         try {
             // zipFile is never null here
             zipFile.close();
-        } catch (IOException ex) { // SUPPRESS CHECKSTYLE EmptyBlockCheck
+        } catch (IOException ex) {
             java.util.logging.Logger.getLogger(ZipFileIterator.class.getName())
                     .log(java.util.logging.Level.FINEST, "IOException closing ZipFile", ex);
         }

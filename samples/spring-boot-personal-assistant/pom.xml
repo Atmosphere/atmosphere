@@ -21,7 +21,7 @@
         <netty.version>4.2.17.Final</netty.version>
         <maven.deploy.skip>true</maven.deploy.skip>
         <atmosphere.starter>atmosphere-spring-boot-starter</atmosphere.starter>
-        <checkstyle.skip>true</checkstyle.skip>
+        <spotless.check.skip>true</spotless.check.skip>
         <pmd.skip>true</pmd.skip>
     </properties>
 

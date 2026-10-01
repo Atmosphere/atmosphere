@@ -7,7 +7,6 @@
 .*.swo
 .loadpath
 .buildpath
-.checkstyle
 .pmd
 .pmdruleset
 .pmdruleset.xml

@@ -4287,3 +4287,30 @@ that passes the floor and the margin degrades to `RULE_BASED`, pinned by
 and `#forbiddenTopicThatCannotBeEmbeddedDegradesInsteadOfBeingSkipped` (both fail with the fix
 reverted). The class Javadoc's *Algorithm* section still said every forbidden topic is embedded
 before any check runs, contradicting the floor-first order; it now lists the steps in code order.
+
+## 2026-10-01 — Build-gate prose credited Checkstyle and javac with checks they never ran
+
+**Session:** replacing Checkstyle with Spotless as the build's import and tab gate.
+
+**Claim 1:** `scripts/validate-blog-claims.sh` coverage bounds: a block-comment line without a
+leading `*` is rare because of "checkstyle-enforced Javadoc style".
+**Truth:** `config/atmosphere-checkstyle.xml` held exactly `FileTabCharacter`, `UnusedImports` and
+`RedundantImport` from `946b8c8952` until its removal, including at `6cbe3f3cbb` where the sentence
+landed; no Javadoc check ever ran, and the PMD ruleset has none either.
+**Claim 2:** `AGENTS.md` (read as `.claude/CLAUDE.md`) *Build Enforcement*: "`javac
+-Xlint:all,-processing,-serial` is enabled — the compiler flags unused imports". Present since
+`9c6aed6106`.
+**Truth:** javac has no unused-import lint. A class with an unused import, a duplicated import and
+`import java.lang.String;` compiles with `-Xlint:all,-processing,-serial -Werror` and exits 0.
+Only Checkstyle (now Spotless) and the pre-commit hook's heuristic caught them.
+**Claim 3 (caught before commit):** the draft Spotless comment in the root `pom.xml` said
+`removeUnusedImports` "drops unused, duplicate, java.lang and same-package imports".
+**Truth:** a probe copy of `Version.java` with a repeated `import java.util.Properties;` passed
+`spotless:check` and was left unchanged by `spotless:apply`; the `indent` step also left a tab
+between two tokens. A `replaceRegex` duplicate-import step and a `forbidRegex` tab lint were added
+and the same probes re-run until each failed `validate`.
+**Slip path:** Claims 1 and 2 describe what such tools usually do, written without reading the
+checkstyle config or trying javac; Claim 3 took the task's expectation as fact before probing.
+**Gate added:** none for the prose (Claims 1 and 2 are rewritten). The Spotless steps of Claim 3
+were each proven to fail `validate` on an injected violation; there is no committed test of the
+build configuration itself.

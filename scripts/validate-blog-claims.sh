@@ -45,9 +45,8 @@
 #   - Symbol presence proves the code shipped, not that it behaves; the
 #     behavior half lives in the module test suites.
 #   - Comment stripping is line-based: a block-comment interior line that
-#     does not start with `*` (non-idiomatic in this codebase, and
-#     checkstyle-enforced Javadoc style makes it rare) would evade the
-#     filter.
+#     does not start with `*` (non-idiomatic in this codebase, though no
+#     build gate enforces the leading `*`) would evade the filter.
 #   - Central checks cover the pom's existence, not jar contents.
 set -euo pipefail
 

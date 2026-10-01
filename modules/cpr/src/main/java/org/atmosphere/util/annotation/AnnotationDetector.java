@@ -395,7 +395,7 @@ public final class AnnotationDetector {
                 if (hasCafebabe(cpBuffer)) {
                     detect(cpBuffer);
                 } // else ignore
-            } catch (Throwable t) { // SUPPRESS CHECKSTYLE IllegalCatchCheck
+            } catch (Throwable t) {
                 // catch all errors
                 if (!iterator.isFile()) {
                     // in case of an error we close the ZIP File here
@@ -686,7 +686,7 @@ public final class AnnotationDetector {
                 }
                 logMessage = String.format(message, args);
             }
-            logger.trace(logMessage); // SUPPRESS CHECKSTYLE RegexpSinglelineJavaCheck
+            logger.trace(logMessage);
         }
     }
 

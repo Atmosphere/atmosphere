@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Architectural validation for Atmosphere Framework
-# Catches code quality anti-patterns that javac/checkstyle/PMD cannot detect:
+# Catches code quality anti-patterns that javac/Spotless/PMD cannot detect:
 # 1. NOOP / dead code (interfaces, constants, fields defined but never wired)
 # 2. Placeholder / stub implementations in production code
 # 3. @SuppressWarnings abuse

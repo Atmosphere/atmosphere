@@ -11,7 +11,8 @@
 | Run tests | `./mvnw test` |
 | Run single test | `./mvnw test -pl modules/cpr -Dtest=BroadcasterTest` |
 | Skip tests | `./mvnw install -DskipTests` |
-| Checkstyle only | `./mvnw checkstyle:checkstyle` |
+| Spotless check only | `./mvnw spotless:check` |
+| Spotless fix | `./mvnw spotless:apply` |
 | PMD only | `./mvnw pmd:check` |
 
 ### Module Build
@@ -73,7 +74,7 @@ Rules enforced by hooks:
 
 ```
 atmosphere/
-├── config/                        (checkstyle, PMD rulesets)
+├── config/                        (PMD ruleset)
 ├── modules/
 │   ├── cpr/                       (atmosphere-runtime - core framework)
 │   ├── spring-boot-starter/       (Spring Boot 4.0 integration)
@@ -147,8 +148,8 @@ All Java source files must start with:
 - All tests use JUnit 5 (`org.junit.jupiter`)
 
 ### Build Enforcement
-- **Compiler**: `javac -Xlint:all,-processing,-serial` is enabled — the compiler flags unused imports, unchecked casts, deprecation usage, raw types, and other issues as warnings. **Zero compiler warnings are required.**
-- **Checkstyle**: runs in `validate` phase (failsOnError=true). Enforces `UnusedImports` and `RedundantImport` rules — the build fails if unused or duplicate imports are present. Config in `config/atmosphere-checkstyle.xml`.
+- **Compiler**: `javac -Xlint:all,-processing,-serial -Werror` is enabled — the compiler flags unchecked casts, deprecation usage, raw types, and other issues as warnings. It does not flag unused imports (javac has no such lint); Spotless does. **Zero compiler warnings are required.**
+- **Spotless**: `spotless:check` runs in `validate` phase and fails the build. Configured inline in the root `pom.xml`: fails on unused, duplicate, `java.lang` and same-package imports and on any tab character in `src/**/*.java`. `./mvnw spotless:apply` removes the imports and expands leading tabs to spaces; a tab elsewhere in a line (e.g. inside a string literal) is reported for a hand fix. No code formatter is applied.
 - **PMD**: runs in `validate` phase (failsOnError=true). Config in `config/atmosphere-pmd-ruleset.xml`.
 - **Pre-commit hook**: blocks commits containing unused or duplicate imports in staged Java files
 - All checks can be skipped with `-Pfastinstall` for local iteration, but **you MUST run a full `./mvnw compile` (without `-Pfastinstall`) before committing** to verify zero warnings.
@@ -267,11 +268,11 @@ Before committing, verify these for every changed file:
 # 2. Full build of changed module with tests
 ./mvnw install -pl modules/cpr
 
-# 3. Verify checkstyle and PMD pass
-./mvnw checkstyle:checkstyle pmd:check -pl modules/cpr
+# 3. Verify Spotless and PMD pass (./mvnw spotless:apply fixes import and indentation findings)
+./mvnw spotless:check pmd:check -pl modules/cpr
 ```
 
-**Do NOT commit or push if the build produces warnings.** Treat compiler warnings, deprecation warnings, and static analysis warnings as errors. Fix them before committing. The compiler runs with `-Xlint:all,-processing,-serial` and Checkstyle enforces `UnusedImports`/`RedundantImport` — both will catch common issues.
+**Do NOT commit or push if the build produces warnings.** Treat compiler warnings, deprecation warnings, and static analysis warnings as errors. Fix them before committing. The compiler runs with `-Xlint:all,-processing,-serial` and Spotless rejects unused, duplicate and redundant imports — both will catch common issues.
 
 ### Before Pushing
 The pre-push hook blocks `git push` unless you run the validation script first. The script is **diff-aware**: it classifies the changeset against `origin/main` and only builds the reactor modules that are actually affected.

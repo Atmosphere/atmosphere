@@ -87,7 +87,7 @@ jobs:
         cache: 'maven'
 
     - name: Build Atmosphere modules
-      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -Dcheckstyle.skip=true -Dpmd.skip=true -q
+      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -Dspotless.check.skip=true -Dpmd.skip=true -q
 
     - name: Run CLI runtime E2E suite
       run: sh cli/e2e-test-cli-runtime.sh
@@ -137,7 +137,7 @@ jobs:
         echo "$HOME/.jbang/bin" >> "$GITHUB_PATH"
 
     - name: Build Atmosphere modules
-      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -Dcheckstyle.skip=true -Dpmd.skip=true -q
+      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -Dspotless.check.skip=true -Dpmd.skip=true -q
 
     - name: Resolve SNAPSHOT version
       id: version

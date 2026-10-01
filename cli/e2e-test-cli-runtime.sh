@@ -327,7 +327,8 @@ if [ -d "$new_tmp/chat-test" ]; then
     if [ -z "${ATMOSPHERE_VERSION_OVERRIDE:-}" ] || ! printf '%s' "${ATMOSPHERE_VERSION_OVERRIDE}" | grep -q 'SNAPSHOT'; then
         ! grep -q 'SNAPSHOT' "$new_tmp/chat-test/pom.xml" && pass "chat-test pom.xml version pinned (no SNAPSHOT)" || fail "chat-test pom.xml version pinned"
     fi
-    grep -q '<checkstyle.skip>true</checkstyle.skip>' "$new_tmp/chat-test/pom.xml" && pass "chat-test pom.xml disables repo-local checkstyle" || fail "chat-test pom.xml disables repo-local checkstyle"
+    grep -q '<spotless.check.skip>true</spotless.check.skip>' "$new_tmp/chat-test/pom.xml" && pass "chat-test pom.xml disables the repo's Spotless gate" || fail "chat-test pom.xml disables the repo's Spotless gate"
+    grep -q '<pmd.skip>true</pmd.skip>' "$new_tmp/chat-test/pom.xml" && pass "chat-test pom.xml disables repo-local PMD" || fail "chat-test pom.xml disables repo-local PMD"
 
     compile_out=$(cd "$new_tmp/chat-test" && mvn -q compile -B 2>&1) && compile_ec=0 || compile_ec=$?
     assert_exit_code "$compile_ec" 0 "chat-test compiles standalone against Maven Central parent"
