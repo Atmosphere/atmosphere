@@ -34,7 +34,10 @@ import org.atmosphere.ai.approval.ApprovalRegistry;
 import org.atmosphere.ai.tool.DefaultToolRegistry;
 import org.atmosphere.ai.tool.ToolRegistry;
 import org.atmosphere.config.managed.AnnotatedLifecycle;
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereHandler;
 import java.security.Principal;
 
@@ -52,6 +55,7 @@ import org.atmosphere.cpr.RawMessage;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.Utils;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
+import org.atmosphere.interceptor.InvokationOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -393,6 +397,14 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                         logger.warn("Prompt on {} carries neither {} nor a {} header; answering 400",
                                 pathTemplate, ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID,
                                 HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
+                        resource.getResponse().setStatus(400);
+                        return;
+                    }
+                    if (!isWellFormedTrackingId(trackingId)) {
+                        // Never a connection's uuid: the framework replaces such an id
+                        // with a generated one. Not logged: it is untrusted input.
+                        logger.warn("Prompt on {} names a malformed {}; answering 400",
+                                pathTemplate, HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
                         resource.getResponse().setStatus(400);
                         return;
                     }
@@ -1449,6 +1461,86 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
 
     private static AtmosphereResource resolveTrackingId(AtmosphereResource resource, String trackingId) {
         return resource.getAtmosphereConfig().resourcesFactory().findResource(trackingId).orElse(null);
+    }
+
+    /**
+     * The rule the framework applies before adopting a client's tracking id as a
+     * connection uuid (letters, digits, {@code -} and {@code _}, at most 128
+     * characters): an id that breaks it can never name a connection.
+     */
+    static boolean isWellFormedTrackingId(String trackingId) {
+        if (trackingId.isEmpty() || trackingId.length() > 128) {
+            return false;
+        }
+        for (int i = 0; i < trackingId.length(); i++) {
+            char c = trackingId.charAt(i);
+            if (!Character.isLetterOrDigit(c) && c != '-' && c != '_') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * An interceptor for this endpoint's mapping that records the tracking id the
+     * server assigns in an atmosphere.js protocol handshake. The long-polling
+     * handshake is answered and ended by {@code JavaScriptProtocol}, so it never
+     * reaches {@link #onRequest}: without this, a prompt the client posts right
+     * after the handshake, before its first real poll, would name an id the gate
+     * never saw and be refused instead of waiting for that poll. It runs before
+     * the default interceptors and only records: the id is server-generated (the
+     * client sent {@code "0"}), so only the client the handshake answers knows it.
+     */
+    public AtmosphereInterceptor protocolHandshakeRecorder() {
+        return new HandshakeRecorder(repollGate);
+    }
+
+    private static final class HandshakeRecorder implements AtmosphereInterceptor, InvokationOrder {
+
+        private final PromptRepollGate gate;
+
+        private HandshakeRecorder(PromptRepollGate gate) {
+            this.gate = gate;
+        }
+
+        @Override
+        public void configure(AtmosphereConfig config) {
+        }
+
+        @Override
+        public Action inspect(AtmosphereResource r) {
+            // WebSocket, SSE and streaming handshakes continue to onRequest, which
+            // records the id once the connection is suspended.
+            var transport = r.transport();
+            if (transport != AtmosphereResource.TRANSPORT.WEBSOCKET
+                    && transport != AtmosphereResource.TRANSPORT.SSE
+                    && transport != AtmosphereResource.TRANSPORT.STREAMING) {
+                var req = r.getRequest();
+                if ("0".equals(req.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID))
+                        && req.getHeader(HeaderConfig.X_ATMO_PROTOCOL) != null) {
+                    gate.idAssigned(r.uuid());
+                }
+            }
+            return Action.CONTINUE;
+        }
+
+        @Override
+        public void postInspect(AtmosphereResource r) {
+        }
+
+        @Override
+        public void destroy() {
+        }
+
+        @Override
+        public PRIORITY priority() {
+            return InvokationOrder.BEFORE_DEFAULT;
+        }
+
+        @Override
+        public String toString() {
+            return "AiEndpoint protocol handshake recorder";
+        }
     }
 
     /**

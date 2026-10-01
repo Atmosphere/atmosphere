@@ -20,6 +20,7 @@ import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -384,6 +385,84 @@ class AiEndpointHandlerPromptRepollTest {
 
         verify(post.response()).setStatus(400);
         verify(pathBroadcaster, never()).broadcast(any());
+        verify(pathBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));
+    }
+
+    @Test
+    void malformedTrackingIdIsRejectedWith400WithoutWaiting() throws Exception {
+        poll("client-B");
+        for (var malformed : List.of("../x", "a b", "id;drop", "x".repeat(129))) {
+            var post = post(malformed, "prompt");
+            send(post).get(5, TimeUnit.SECONDS);
+
+            verify(post.response()).setStatus(400);
+            verify(post.response(), never()).setStatus(503);
+            verify(post.response(), never()).setHeader(eq("Retry-After"), anyString());
+        }
+        verify(pathBroadcaster, never()).broadcast(any());
+        verify(pathBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));
+    }
+
+    @Test
+    void wellFormedTrackingIdsFollowTheFrameworkRule() {
+        assertTrue(AiEndpointHandler.isWellFormedTrackingId("Abc-123_x"));
+        assertTrue(AiEndpointHandler.isWellFormedTrackingId("x".repeat(128)));
+        assertFalse(AiEndpointHandler.isWellFormedTrackingId("x".repeat(129)));
+        assertFalse(AiEndpointHandler.isWellFormedTrackingId(""));
+        assertFalse(AiEndpointHandler.isWellFormedTrackingId("a/b"));
+        assertFalse(AiEndpointHandler.isWellFormedTrackingId("a.b"));
+    }
+
+    /** A long-polling GET as the default interceptors see it before JavaScriptProtocol ends it. */
+    private AtmosphereResource longPollingGet(String headerTrackingId, String serverUuid, boolean protocol) {
+        var resource = mock(AtmosphereResource.class);
+        var request = mock(AtmosphereRequest.class);
+        when(resource.uuid()).thenReturn(serverUuid);
+        when(resource.getRequest()).thenReturn(request);
+        when(resource.transport()).thenReturn(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID)).thenReturn(headerTrackingId);
+        when(request.getHeader(HeaderConfig.X_ATMO_PROTOCOL)).thenReturn(protocol ? "true" : null);
+        return resource;
+    }
+
+    @Test
+    void promptPostedRightAfterALongPollingHandshakeWaitsForTheFirstPoll() throws Exception {
+        var pollB = poll("client-B");
+        // The handshake never reaches onRequest: JavaScriptProtocol answers it with
+        // the server-assigned id and ends it. Only the recorder sees it.
+        var action = handler.protocolHandshakeRecorder().inspect(longPollingGet("0", "server-id", true));
+        assertEquals(Action.TYPE.CONTINUE, action.type());
+
+        var post = post("server-id", "first prompt");
+        var pending = send(post);
+        Thread.sleep(200);
+        assertFalse(pending.isDone(), "the prompt must wait for the first poll after the handshake");
+
+        var firstPoll = poll("server-id");
+        pending.get(5, TimeUnit.SECONDS);
+
+        verify(pathBroadcaster).broadcast(eq("first prompt"), eq(firstPoll));
+        verify(pathBroadcaster, never()).broadcast(any(), eq(pollB));
+        verify(pathBroadcaster, never()).broadcast(any());
+        verify(post.response(), never()).setStatus(anyInt());
+    }
+
+    @Test
+    void handshakeRecorderIgnoresRequestsThatAreNotAHandshake() throws Exception {
+        var recorder = handler.protocolHandshakeRecorder();
+        // A client-chosen id, and a "0" without the protocol, are not ids the server assigned.
+        recorder.inspect(longPollingGet("client-chosen", "client-chosen", true));
+        recorder.inspect(longPollingGet("0", "generated-without-protocol", false));
+
+        for (var id : List.of("client-chosen", "generated-without-protocol")) {
+            var post = post(id, "prompt");
+            var started = System.nanoTime();
+            send(post).get(5, TimeUnit.SECONDS);
+            assertTrue(System.nanoTime() - started < TimeUnit.MILLISECONDS.toNanos(1_000),
+                    id + " was never assigned by the server: no waiter");
+            verify(post.response()).setStatus(503);
+        }
         verify(pathBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));
     }
 

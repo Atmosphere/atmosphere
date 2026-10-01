@@ -141,6 +141,7 @@ class AtmosphereAiEndpointRegistrar {
 
         List<AtmosphereInterceptor> interceptors = new LinkedList<>();
         AnnotationUtil.defaultManagedServiceInterceptors(framework, interceptors);
+        interceptors.add(handler.protocolHandshakeRecorder());
         framework.addAtmosphereHandler(path, handler, interceptors);
 
         if (!guardrails.isEmpty()) {

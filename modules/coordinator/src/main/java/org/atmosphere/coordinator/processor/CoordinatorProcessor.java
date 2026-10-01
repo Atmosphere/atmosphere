@@ -402,6 +402,7 @@ public class CoordinatorProcessor implements Processor<Object> {
 
             List<AtmosphereInterceptor> interceptors = new LinkedList<>();
             AnnotationUtil.defaultManagedServiceInterceptors(framework, interceptors);
+            interceptors.add(aiHandler.protocolHandshakeRecorder());
             framework.addAtmosphereHandler(path, handler, interceptors);
 
             // Step 10: Register protocol bridges

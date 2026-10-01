@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Timeout;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -112,6 +113,27 @@ public class AgentStructuredOutputTest {
 
         ws1.sendClose(WebSocket.NORMAL_CLOSURE, "done").join();
         ws2.sendClose(WebSocket.NORMAL_CLOSURE, "done").join();
+    }
+
+    /**
+     * An {@code @Agent} serves prompts through the same handler as an
+     * {@code @AiEndpoint}, so it must also record the id a long-polling protocol
+     * handshake assigns: a prompt posted before the first poll then waits for it.
+     */
+    @Timeout(value = 15_000, unit = TimeUnit.MILLISECONDS)
+    @Test
+    public void agentRecordsTheLongPollingHandshakeLikeAnAiEndpoint() throws Exception {
+        var ws = connect(new CopyOnWriteArrayList<>(), new CountDownLatch(1), new MessageLatch(m -> false));
+        var wrapper = server.getFramework().getAtmosphereHandlers().entrySet().stream()
+                .filter(e -> e.getKey().contains("/atmosphere/agent/city-info"))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("agent not registered: "
+                        + server.getFramework().getAtmosphereHandlers().keySet()));
+        assertTrue(wrapper.interceptors().stream()
+                        .anyMatch(i -> "AiEndpoint protocol handshake recorder".equals(i.toString())),
+                "the agent mapping must carry the handshake recorder, got " + wrapper.interceptors());
+        ws.sendClose(WebSocket.NORMAL_CLOSURE, "done").join();
     }
 
     private WebSocket connect(CopyOnWriteArrayList<String> received,

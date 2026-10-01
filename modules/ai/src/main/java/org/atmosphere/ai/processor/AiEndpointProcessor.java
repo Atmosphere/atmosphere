@@ -405,6 +405,9 @@ public class AiEndpointProcessor implements Processor<Object> {
             // out a @RequiresApproval that takes minutes to resolve.
             applyHeartbeatOverride(annotation.heartbeatSeconds(), annotation.path(),
                     framework, frameworkInterceptors);
+            // Scoped to this endpoint's mapping: a prompt posted right after a
+            // long-polling protocol handshake waits for the first poll.
+            frameworkInterceptors.add(handler.protocolHandshakeRecorder());
             // Apply handler decorators (e.g. slash-command routing from
             // atmosphere-agent) AFTER all endpoint-scoped config is set on the
             // AiEndpointHandler, so a decorator wraps a fully-configured handler.

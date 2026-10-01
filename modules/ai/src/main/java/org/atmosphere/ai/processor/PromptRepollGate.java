@@ -31,12 +31,16 @@ import java.util.function.Supplier;
  * next arrived) wait, briefly, for that client's next connection instead of
  * being fanned out to every subscriber of the path.
  *
- * <p>Only a tracking id this endpoint itself suspended a connection for
- * recently is waited for: an id the client merely claims is refused without
- * holding anything. Waiters are bounded to one per tracking id and to
- * {@code org.atmosphere.ai.prompt.maxRepollWaiters} (64) across every endpoint
- * of the framework: each holds a request thread, so the bound is one semaphore
- * shared through {@link AtmosphereConfig#properties()}. The set of known
+ * <p>Only a tracking id this endpoint recently suspended a connection for, or
+ * assigned in a protocol handshake, is waited for; an id it never saw is
+ * refused without holding anything. That is not proof of who posts: the
+ * tracking id is a client-presented bearer token. A client may choose its own
+ * id, the framework adopts any well-formed one for a new connection, and the
+ * prompt goes to whichever connection holds the id when it is resolved, as a
+ * prompt resolved without waiting always has. Waiters are bounded to one per
+ * tracking id and to {@code org.atmosphere.ai.prompt.maxRepollWaiters} (64)
+ * across every endpoint of the framework: each holds a request thread, so the
+ * bound is one semaphore shared through {@link AtmosphereConfig#properties()}. The set of known
  * tracking ids is bounded to {@link #MAX_KNOWN_IDS}. A refused or timed-out
  * prompt was not dispatched, so the caller answers {@code 503} and the client
  * may send it again. {@link #shutdown()} wakes every waiter and refuses new
@@ -71,7 +75,7 @@ final class PromptRepollGate {
 
     /** Why a prompt could not be dispatched. */
     enum Refusal {
-        /** This endpoint never suspended a connection for the id, or not recently. */
+        /** This endpoint never suspended a connection for the id nor assigned it, or not recently. */
         UNKNOWN,
         /** A prompt of the same id already waits, or the endpoint's waiters are all taken. */
         BUSY,
@@ -120,8 +124,26 @@ final class PromptRepollGate {
      * take a prompt: remember the id and wake the prompt waiting for it, if any.
      */
     void connectionReady(String trackingId) {
+        if (remember(trackingId)) {
+            var waiter = waiters.get(trackingId);
+            if (waiter != null) {
+                waiter.release();
+            }
+        }
+    }
+
+    /**
+     * The server assigned {@code trackingId} in a protocol handshake that suspends
+     * no connection (long-polling): remember the id, so a prompt posted before the
+     * client's first poll waits for that poll instead of being refused.
+     */
+    void idAssigned(String trackingId) {
+        remember(trackingId);
+    }
+
+    private boolean remember(String trackingId) {
         if (closed || trackingId == null || trackingId.isEmpty()) {
-            return;
+            return false;
         }
         var now = System.nanoTime();
         if (readyAt.size() >= maxKnownIds && !readyAt.containsKey(trackingId)
@@ -134,10 +156,7 @@ final class PromptRepollGate {
         } else {
             logger.debug("{} tracking ids already known; not recording {}", maxKnownIds, trackingId);
         }
-        var waiter = waiters.get(trackingId);
-        if (waiter != null) {
-            waiter.release();
-        }
+        return true;
     }
 
     /**

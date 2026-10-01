@@ -35,6 +35,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -151,6 +152,39 @@ public class AiEndpointPromptIsolationTest {
         assertTrue(PromptIsolationTestEndpoint.INVOCATIONS.isEmpty(),
                 "a stray prompt must not run anywhere, got " + PromptIsolationTestEndpoint.INVOCATIONS);
         assertFalse(pollB.isDone(), "B must not be sent anything");
+    }
+
+    @Timeout(value = 30, unit = TimeUnit.SECONDS)
+    @Test
+    public void promptPostedRightAfterTheLongPollingHandshakeWaitsForTheFirstPoll() throws Exception {
+        var b = "client-B-" + UUID.randomUUID();
+        var pollB = poll(b);
+        awaitRegistered(b);
+
+        // atmosphere.js with enableProtocol: the first poll carries id 0, and the
+        // server answers it at once with the id it assigned, suspending nothing.
+        var handshake = httpClient.send(HttpRequest.newBuilder(URI.create(uri("0") + "&X-atmo-protocol=true"))
+                .GET().build(), HttpResponse.BodyHandlers.ofString());
+        assertEquals(200, handshake.statusCode());
+        var assigned = Pattern.compile("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+                .matcher(handshake.body());
+        assertTrue(assigned.find(), "the handshake must carry the assigned id, got " + handshake.body());
+        var id = assigned.group();
+
+        // The client opens and posts before its first real poll goes out.
+        var post = post(id, "right-after-handshake");
+        Thread.sleep(300);
+        assertFalse(post.isDone(), "the prompt must wait for the first poll, not be refused");
+        assertTrue(PromptIsolationTestEndpoint.INVOCATIONS.isEmpty(),
+                "no @Prompt may answer before the first poll, got " + PromptIsolationTestEndpoint.INVOCATIONS);
+        var firstPoll = poll(id);
+
+        assertEquals(200, post.get(10, TimeUnit.SECONDS).statusCode());
+        firstPoll.get(10, TimeUnit.SECONDS);
+        awaitTrue(() -> !PromptIsolationTestEndpoint.INVOCATIONS.isEmpty(), "the prompt must run");
+        Thread.sleep(300);
+        assertEquals(List.of(id + "|right-after-handshake"), PromptIsolationTestEndpoint.INVOCATIONS);
+        assertFalse(pollB.isDone(), "B must not be sent the prompt");
     }
 
     @Timeout(value = 30, unit = TimeUnit.SECONDS)

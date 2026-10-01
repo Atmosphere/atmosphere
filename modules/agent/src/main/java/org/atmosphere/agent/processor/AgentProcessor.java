@@ -274,6 +274,7 @@ public class AgentProcessor implements Processor<Object> {
             // Step 7: Register handler at /atmosphere/agent/{name}
             List<AtmosphereInterceptor> interceptors = new LinkedList<>();
             AnnotationUtil.defaultManagedServiceInterceptors(framework, interceptors);
+            interceptors.add(aiHandler.protocolHandshakeRecorder());
             framework.addAtmosphereHandler(path, handler, interceptors);
 
             // Step 8-11: Optional cross-protocol registration
