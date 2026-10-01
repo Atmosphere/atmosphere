@@ -420,13 +420,15 @@ test.describe('Quarkus AI Chat', () => {
   // (Set.of(resource)), which for long-polling is the poll that already
   // resumed. The atmosphere.js tracking-id propagation once blamed here works:
   // every poll and POST carries the server-assigned id. The quarantine lane
-  // runs this keyless and fails until (2) is fixed.
+  // runs this keyless and fails until (2) is fixed — the long-polling delivery
+  // design tracked by carnet#60.
   quarantined({
     owner: 'jfarcand',
     expires: '2026-10-31',
-    issue: 'carnet#55',
-    reason: 'AI endpoint over long-polling delivers only the first reply frame; later frames '
-      + 'never reach the next poll',
+    issue: 'carnet#60',
+    reason: 'first-frame-only long-polling delivery: an AI reply over long-polling reaches the '
+      + 'client with its first frame only; the frames streamed after the poll resumed never '
+      + 'reach the next poll',
   })('long-polling transport: prompt round-trips with same wire envelope @quarantined', async ({ page }) => {
     const endpoint = '/atmosphere/agent/multimodal';
     const prompt = 'long-polling parity check';

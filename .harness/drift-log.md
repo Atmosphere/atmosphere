@@ -3831,6 +3831,7 @@ quarkus-ai-chat test now drives the Console with WebSocket removed, asserts ever
 request is long-polling, and compares the reply's frame kinds to a WebSocket reference;
 it is keyless, so the scheduled quarantine lane runs it — and fails there until the
 multi-frame loss is fixed (quarantine reason and issue updated to carnet#55).
+[Re-pointed to carnet#60, the long-polling delivery design issue.]
 
 ---
 
