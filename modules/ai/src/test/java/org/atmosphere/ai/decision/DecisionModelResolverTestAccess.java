@@ -41,6 +41,11 @@ public final class DecisionModelResolverTestAccess {
         DecisionModelResolver.reset();
     }
 
+    /** Make a provisional fallback due for its recheck now. */
+    public static void expireFallbackRecheck() {
+        DecisionModelResolver.expireFallbackRecheck();
+    }
+
     public static void restore() {
         if (saved != null) {
             AiConfig.configure(saved.mode(), saved.model(), saved.apiKey(), saved.baseUrl());

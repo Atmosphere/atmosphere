@@ -40,13 +40,16 @@ public final class TestDecisionModels {
 
     /** Switch every registration off and restore the default answers. */
     public static void reset() {
+        // First, so a cached Closeable it closes is not counted against the next test.
+        DecisionModelResolver.reset();
         Preferred.available = false;
         Preferred.behaviour = TestDecisionModels::answerFalse;
         Lower.available = false;
         Throwing.throwing = false;
         Closeable.available = false;
         Closeable.CLOSED.set(0);
-        DecisionModelResolver.reset();
+        Displaced.available = false;
+        Displaced.CLOSED.set(0);
     }
 
     /**
@@ -138,6 +141,42 @@ public final class TestDecisionModels {
         @Override
         public int priority() {
             return 5;
+        }
+
+        @Override
+        public DecisionResult decide(DecisionRequest request) {
+            return answerFalse(request);
+        }
+
+        @Override
+        public void close() {
+            CLOSED.incrementAndGet();
+        }
+    }
+
+    /**
+     * Holds a resource and ranks just above {@link Lower}. It is listed before
+     * {@link Preferred} in the services file, so when both are available it is
+     * selected first and then displaced: the path that closes a displaced
+     * selection.
+     */
+    public static final class Displaced implements DecisionModel, AutoCloseable {
+        public static volatile boolean available;
+        public static final AtomicInteger CLOSED = new AtomicInteger();
+
+        @Override
+        public String name() {
+            return "test-displaced";
+        }
+
+        @Override
+        public boolean isAvailable() {
+            return available;
+        }
+
+        @Override
+        public int priority() {
+            return 2;
         }
 
         @Override

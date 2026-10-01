@@ -129,6 +129,61 @@ class DecisionModelResolverTest {
     }
 
     @Test
+    void aSelectionDisplacedByAHigherPriorityRegistrationIsClosed() {
+        // Displaced is scanned before Preferred: it is selected, then displaced.
+        TestDecisionModels.Displaced.available = true;
+        TestDecisionModels.Preferred.available = true;
+        assertInstanceOf(TestDecisionModels.Preferred.class, DecisionModelResolver.resolve().orElseThrow());
+        assertEquals(1, TestDecisionModels.Displaced.CLOSED.get(), "the displaced selection is closed");
+
+        // Alone, it is selected and handed out open.
+        TestDecisionModels.Preferred.available = false;
+        DecisionModelResolver.reset();
+        assertInstanceOf(TestDecisionModels.Displaced.class, DecisionModelResolver.resolve().orElseThrow());
+        assertEquals(1, TestDecisionModels.Displaced.CLOSED.get());
+    }
+
+    @Test
+    void resetClosesTheCachedRegistrationOnce() {
+        TestDecisionModels.Closeable.available = true;
+        assertInstanceOf(TestDecisionModels.Closeable.class, DecisionModelResolver.resolve().orElseThrow());
+        assertEquals(0, TestDecisionModels.Closeable.CLOSED.get());
+
+        DecisionModelResolver.reset();
+        assertEquals(1, TestDecisionModels.Closeable.CLOSED.get(), "reset() closes what the resolver created");
+        DecisionModelResolver.reset();
+        assertEquals(1, TestDecisionModels.Closeable.CLOSED.get(), "nothing cached, nothing closed");
+    }
+
+    @Test
+    void aFallbackChosenWhileARegistrationWasDownYieldsToItOnRecheck() {
+        AgentRuntimeResolver.markExplicitClientBinding();
+        var fallback = assertInstanceOf(RuntimeDecisionModel.class, DecisionModelResolver.resolve().orElseThrow());
+
+        // The registration comes up; within the recheck interval the fallback stays.
+        TestDecisionModels.Preferred.available = true;
+        assertSame(fallback, DecisionModelResolver.resolve().orElseThrow());
+
+        DecisionModelResolverTestAccess.expireFallbackRecheck();
+        assertInstanceOf(TestDecisionModels.Preferred.class, DecisionModelResolver.resolve().orElseThrow(),
+                "the recheck selects the registration that came up");
+
+        // A selected registration is not rechecked: it stays until reset().
+        TestDecisionModels.Lower.available = true;
+        DecisionModelResolverTestAccess.expireFallbackRecheck();
+        assertInstanceOf(TestDecisionModels.Preferred.class, DecisionModelResolver.resolve().orElseThrow());
+    }
+
+    @Test
+    void aRecheckThatStillEndsAtTheFallbackKeepsTheSameInstance() {
+        AgentRuntimeResolver.markExplicitClientBinding();
+        var fallback = DecisionModelResolver.resolve().orElseThrow();
+        DecisionModelResolverTestAccess.expireFallbackRecheck();
+        assertSame(fallback, DecisionModelResolver.resolve().orElseThrow(),
+                "one shared fallback, so its concurrency bound stays shared");
+    }
+
+    @Test
     void nonEmptyResultIsCachedUntilReset() {
         TestDecisionModels.Lower.available = true;
         var first = DecisionModelResolver.resolve().orElseThrow();

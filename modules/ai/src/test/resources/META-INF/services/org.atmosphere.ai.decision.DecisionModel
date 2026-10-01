@@ -1,4 +1,5 @@
 org.atmosphere.ai.decision.TestDecisionModels$Throwing
 org.atmosphere.ai.decision.TestDecisionModels$Lower
+org.atmosphere.ai.decision.TestDecisionModels$Displaced
 org.atmosphere.ai.decision.TestDecisionModels$Preferred
 org.atmosphere.ai.decision.TestDecisionModels$Closeable

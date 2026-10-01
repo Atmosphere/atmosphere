@@ -19,9 +19,11 @@ import org.atmosphere.ai.AgentRuntimeResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.Optional;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Resolves the {@link DecisionModel} to use, in order:
@@ -54,7 +56,21 @@ import java.util.ServiceLoader;
  * application's {@link org.atmosphere.ai.AiConfig} is installed, when only the
  * demo fallback is available; caching that empty answer would pin it for the
  * life of the JVM (the same rule {@link org.atmosphere.ai.EmbeddingRuntimeResolver}
- * follows).</p>
+ * follows). A selected registration is cached until {@link #reset()}. The
+ * fallback is cached the same way, except when the scan that chose it found a
+ * registration that was unavailable or whose availability check threw (an
+ * external endpoint down at boot, say): then the fallback is provisional and
+ * one caller rescans every {@link #FALLBACK_RECHECK_INTERVAL}, while the others
+ * keep the cached fallback. A registration that has become available replaces
+ * it; otherwise the same fallback instance stays, so its concurrency bound stays
+ * shared. A consumer that kept the model it resolved (the {@code LLM_CLASSIFIER}
+ * injection tier builds its classifier once, until
+ * {@code InjectionClassifierResolver.reset()}) keeps that model.</p>
+ *
+ * <p>{@link #reset()} closes the cached model when it is {@link AutoCloseable}:
+ * the resolver instantiated it through {@link ServiceLoader}, so it owns it.
+ * Nothing else closes it; a selected registration lives until {@code reset()}
+ * or the end of the JVM.</p>
  */
 public final class DecisionModelResolver {
 
@@ -70,37 +86,114 @@ public final class DecisionModelResolver {
     /** Bound on broken provider entries skipped in one scan. */
     private static final int MAX_LOAD_ERRORS = 64;
 
-    private static volatile DecisionModel cached;
+    /**
+     * How long a provisional fallback is kept before one caller rescans for a
+     * registration that was unavailable when the fallback was chosen.
+     */
+    public static final Duration FALLBACK_RECHECK_INTERVAL = Duration.ofSeconds(30);
+
+    private static final ReentrantLock LOCK = new ReentrantLock();
+
+    private static volatile Resolution cached;
+
+    /**
+     * A cached model; {@code provisional} when it is the fallback chosen while a
+     * registration was unavailable, rescanned once {@code recheckAtNanos} passes.
+     */
+    private record Resolution(DecisionModel model, boolean provisional, long recheckAtNanos) {
+
+        boolean current() {
+            return !provisional || System.nanoTime() - recheckAtNanos < 0;
+        }
+    }
+
+    /** One scan's result, and whether a loaded registration was not available. */
+    private record Scan(Optional<DecisionModel> model, boolean fallback, boolean registrationUnavailable) {
+    }
 
     private DecisionModelResolver() {
     }
 
     /** The decision model to use, or empty when none can answer. */
     public static Optional<DecisionModel> resolve() {
-        var model = cached;
-        if (model != null) {
-            return Optional.of(model);
+        var resolution = cached;
+        if (resolution != null && resolution.current()) {
+            return Optional.of(resolution.model());
         }
-        synchronized (DecisionModelResolver.class) {
-            model = cached;
-            if (model != null) {
-                return Optional.of(model);
+        if (resolution != null) {
+            // A provisional fallback is due for a recheck. One caller rescans;
+            // the others keep the fallback instead of queueing behind the scan.
+            if (!LOCK.tryLock()) {
+                return Optional.of(resolution.model());
             }
-            var found = scan();
-            found.ifPresent(m -> {
-                cached = m;
-                logger.info("DecisionModel resolved: {}", m.name());
-            });
-            return found;
+        } else {
+            LOCK.lock();
+        }
+        try {
+            resolution = cached;
+            if (resolution != null && resolution.current()) {
+                return Optional.of(resolution.model());
+            }
+            var previous = resolution == null ? null : resolution.model();
+            var scan = scan(previous instanceof RuntimeDecisionModel fallback ? fallback : null);
+            if (scan.model().isEmpty()) {
+                cached = null;
+                return Optional.empty();
+            }
+            var model = scan.model().get();
+            var provisional = scan.fallback() && scan.registrationUnavailable();
+            cached = new Resolution(model, provisional,
+                    System.nanoTime() + FALLBACK_RECHECK_INTERVAL.toNanos());
+            if (model != previous) {
+                logger.info("DecisionModel resolved: {}", model.name());
+                release(previous);
+            }
+            return Optional.of(model);
+        } finally {
+            LOCK.unlock();
         }
     }
 
-    /** Test hook: forget the cached model so the next {@link #resolve()} rescans. */
+    /**
+     * Forget the cached model so the next {@link #resolve()} rescans, and close
+     * it when it is {@link AutoCloseable}: the resolver created it, and nothing
+     * else closes it. A consumer still holding it then gets that model's
+     * closed behaviour (a closed registration should fail its questions).
+     */
     public static void reset() {
-        cached = null;
+        Resolution dropped;
+        LOCK.lock();
+        try {
+            dropped = cached;
+            cached = null;
+        } finally {
+            LOCK.unlock();
+        }
+        if (dropped != null) {
+            release(dropped.model());
+        }
     }
 
-    private static Optional<DecisionModel> scan() {
+    /** Test hook: make a provisional fallback due for its recheck now. */
+    static void expireFallbackRecheck() {
+        LOCK.lock();
+        try {
+            var resolution = cached;
+            if (resolution != null && resolution.provisional()) {
+                cached = new Resolution(resolution.model(), true, System.nanoTime());
+            }
+        } finally {
+            LOCK.unlock();
+        }
+    }
+
+    /**
+     * Scan the registrations, else build the fallback. {@code previousFallback},
+     * when set, is reused instead of a new fallback so a recheck that still ends
+     * at the fallback keeps one shared instance.
+     */
+    private static Scan scan(RuntimeDecisionModel previousFallback) {
+        var registrationUnavailable = false;
         DecisionModel best = null;
         var iterator = ServiceLoader.load(DecisionModel.class).iterator();
         var loadErrors = 0;
@@ -119,12 +212,15 @@ public final class DecisionModelResolver {
             }
             var selected = false;
             try {
-                if (candidate.isAvailable() && (best == null || candidate.priority() > best.priority())) {
+                if (!candidate.isAvailable()) {
+                    registrationUnavailable = true;
+                } else if (best == null || candidate.priority() > best.priority()) {
                     release(best);
                     best = candidate;
                     selected = true;
                 }
             } catch (RuntimeException e) {
+                registrationUnavailable = true;
                 logger.debug("Skipping DecisionModel {}: availability check threw",
                         candidate.getClass().getName(), e);
             }
@@ -133,25 +229,27 @@ public final class DecisionModelResolver {
             }
         }
         if (best != null) {
-            return Optional.of(best);
+            return new Scan(Optional.of(best), false, registrationUnavailable);
         }
-        var fallback = new RuntimeDecisionModel(AgentRuntimeResolver.resolve(), fallbackMaxConcurrency(),
-                RuntimeDecisionModel.DEFAULT_MIN_OBSERVED_MASS);
+        var fallback = previousFallback != null ? previousFallback
+                : new RuntimeDecisionModel(AgentRuntimeResolver.resolve(), fallbackMaxConcurrency(),
+                        RuntimeDecisionModel.DEFAULT_MIN_OBSERVED_MASS);
         try {
             if (fallback.isAvailable()) {
-                return Optional.of(fallback);
+                return new Scan(Optional.of(fallback), true, registrationUnavailable);
             }
         } catch (RuntimeException e) {
             logger.debug("Skipping {}: availability check threw", fallback.name(), e);
         }
-        return Optional.empty();
+        return new Scan(Optional.empty(), true, registrationUnavailable);
     }
 
     /**
-     * Close a candidate this scan instantiated and did not select, when it holds
-     * resources ({@link AutoCloseable}, e.g. an HTTP client). Each scan's
-     * {@link ServiceLoader} creates fresh instances, so the resolver owns them;
-     * the selected one is handed out and never closed here.
+     * Close a model the resolver instantiated and no longer hands out, when it
+     * holds resources ({@link AutoCloseable}, e.g. an HTTP client): a candidate
+     * a scan did not select, one a later candidate displaced, or the cached one
+     * {@link #reset()} drops. Each scan's {@link ServiceLoader} creates fresh
+     * instances, so the resolver owns them.
      */
     private static void release(DecisionModel candidate) {
         if (candidate instanceof AutoCloseable closeable) {
@@ -159,9 +257,9 @@ public final class DecisionModelResolver {
                 closeable.close();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                logger.debug("Interrupted closing unselected DecisionModel {}", candidate.getClass().getName(), e);
+                logger.debug("Interrupted closing DecisionModel {}", candidate.getClass().getName(), e);
             } catch (Exception e) {
-                logger.debug("Closing unselected DecisionModel {} failed", candidate.getClass().getName(), e);
+                logger.debug("Closing DecisionModel {} failed", candidate.getClass().getName(), e);
             }
         }
     }

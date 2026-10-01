@@ -963,7 +963,13 @@ the highest `priority()`. Without one, it falls back to a `RuntimeDecisionModel`
 over the resolved `AgentRuntime`, but only if that runtime is not the demo
 fallback. A keyless local model (Ollama, `LLM_MODE=local`) counts as reachable.
 Only a found model is cached, so a model configured after the first lookup is
-still picked up.
+still picked up. A selected registration is cached until
+`DecisionModelResolver.reset()`, which closes it when it is `AutoCloseable`.
+The fallback is cached the same way, unless a registration was unavailable
+when it was chosen: then it is provisional, and one caller rescans every 30 s
+(`FALLBACK_RECHECK_INTERVAL`) until that registration answers. A consumer that
+kept the model it resolved keeps it; the `LLM_CLASSIFIER` injection tier builds
+its classifier once, until `InjectionClassifierResolver.reset()`.
 
 **Reference implementation: `RuntimeDecisionModel`.** Each question is one
 structured-output call over any `AgentRuntime`. The call has no history, tools,
@@ -1063,12 +1069,15 @@ adapter for an external decision-model API ships as a separate module:
 **External decision-model API.** `atmosphere-ai-decision-typesafe`
 ([README](../ai-decision-typesafe/README.md)) is a `DecisionModel` over the
 TypeSafe System One API, registered through `META-INF/services`. With a key
-configured and `GET /v1/models` answering, `DecisionModelResolver` selects it
-ahead of the `RuntimeDecisionModel` fallback, so the three safety tiers above ask
-it their questions; the injection tier still runs it on the rule-based floor.
+configured and `GET /v1/models` answering when a resolution runs,
+`DecisionModelResolver` selects it ahead of the `RuntimeDecisionModel` fallback,
+so the three safety tiers above ask it their questions; the injection tier still
+runs it on the rule-based floor. If it is not answering then, the fallback is
+provisional and rescanned as described under *Discovery*.
 Its answers carry the provider's distribution and the confidence source
 `PROVIDER_DISTRIBUTION`. A registration the resolver instantiates but does not
-select is closed when it is `AutoCloseable`.
+select, or that a higher-priority one displaces, is closed when it is
+`AutoCloseable`.
 
 ## Intent routing (deterministic handler, LLM, or human)
 
