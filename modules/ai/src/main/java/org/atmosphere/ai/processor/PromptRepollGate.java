@@ -241,6 +241,11 @@ final class PromptRepollGate {
         return waiters.size();
     }
 
+    /** The wait a prompt is given, in ms, once the configured value is clamped; for tests. */
+    long waitMs(AtmosphereConfig config) {
+        return TimeUnit.NANOSECONDS.toMillis(limits(config).waitNanos());
+    }
+
     private boolean expired(long readyNanos, long now) {
         return now - readyNanos > TimeUnit.MILLISECONDS.toNanos(suspendWindowMs) + waitNanos();
     }

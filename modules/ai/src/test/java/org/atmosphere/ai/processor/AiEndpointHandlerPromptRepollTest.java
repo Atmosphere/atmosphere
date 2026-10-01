@@ -485,6 +485,50 @@ class AiEndpointHandlerPromptRepollTest {
     }
 
     @Test
+    void onlyARecentlySeenTrackingIdIsWaitedFor() throws Exception {
+        // A 1 ms suspend window and a 1 ms wait: an id is remembered for about 2 ms.
+        when(config.getInitParameter(PromptRepollGate.WAIT_MS_PARAM)).thenReturn("1");
+        var gate = new PromptRepollGate(1L);
+        gate.connectionReady("fresh");
+        gate.connectionReady("stale");
+        Thread.sleep(50);
+        gate.connectionReady("fresh");
+
+        assertEquals(PromptRepollGate.Refusal.TIMEOUT,
+                gate.await("fresh", System.nanoTime(), () -> null, config).refusal(),
+                "a recently seen id is waited for");
+        assertEquals(PromptRepollGate.Refusal.UNKNOWN,
+                gate.await("stale", System.nanoTime(), () -> null, config).refusal(),
+                "an id last seen longer ago than the suspend window plus the wait is refused at once");
+    }
+
+    @Test
+    void expiredTrackingIdsMakeRoomInAFullKnownIdSet() throws Exception {
+        when(config.getInitParameter(PromptRepollGate.WAIT_MS_PARAM)).thenReturn("1");
+        var gate = new PromptRepollGate(1L, 2);
+        // Fix the wait (1 ms) so expiry is suspend window + 1 ms.
+        assertEquals(1L, gate.waitMs(config));
+        gate.connectionReady("a");
+        gate.connectionReady("b");
+        assertEquals(2, gate.knownIds());
+        Thread.sleep(50);
+
+        // Full, but every known id expired: the sweep makes room for the new one.
+        gate.connectionReady("c");
+        assertEquals(1, gate.knownIds(), "expired ids must be swept out of a full set");
+        assertEquals(PromptRepollGate.Refusal.TIMEOUT,
+                gate.await("c", System.nanoTime(), () -> null, config).refusal(),
+                "the new id must be recorded, not refused as unknown");
+    }
+
+    @Test
+    void repollWaitIsCappedAtThirtySeconds() {
+        when(config.getInitParameter(PromptRepollGate.WAIT_MS_PARAM)).thenReturn("600000");
+        assertEquals(30_000L, new PromptRepollGate(30_000L).waitMs(config),
+                "the documented cap (README): a waiting prompt holds a request thread at most 30 s");
+    }
+
+    @Test
     void waiterIsReleasedOnEveryOutcome() throws Exception {
         when(config.getInitParameter(PromptRepollGate.WAIT_MS_PARAM)).thenReturn("50");
         var gate = new PromptRepollGate(30_000L);
