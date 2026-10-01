@@ -54,7 +54,12 @@ import java.util.function.Consumer;
  *   <li>{@link ConfidenceRoute#CONFIRM} — the requester is asked to confirm
  *       through the approval machinery tools use ({@code /__approval/<id>/approve}
  *       on the same session); approved runs the chosen route, anything else
- *       (denied, timed out after {@link #confirmTimeout()}) escalates. A
+ *       (denied, timed out after {@link #confirmTimeout()}) escalates. On
+ *       {@code @AiEndpoint} the wait is also cut short to end before the
+ *       endpoint's {@code timeout()} watchdog does (a few seconds early, at
+ *       most a tenth of the time left), so the human route still answers; the
+ *       approval frame's {@code expiresIn} is the wait actually kept, and a
+ *       turn with no time left to wait escalates at once. A
  *       surface with no channel for the answer (an {@code AiPipeline} with
  *       {@code setIntentConfirmationAvailable(false)}, as the OpenAI-compatible
  *       and batch serving of an endpoint are) escalates at once.</li>
@@ -88,7 +93,11 @@ import java.util.function.Consumer;
  * Before any reply, the turn carries {@value #ROUTE_METADATA_KEY} (the route
  * taken), {@value #TIER_METADATA_KEY}, {@value #CHOICE_METADATA_KEY} (absent
  * when the model gave no answer) and {@value #CONFIDENCE_METADATA_KEY} (absent
- * when unknown).
+ * when unknown) as session metadata. The OpenAI-compatible surface of an
+ * endpoint carries them as {@code X-Atmosphere-Intent-Route} / {@code -Tier} /
+ * {@code -Choice} / {@code -Confidence} response headers. A batch item result
+ * has no place for them: on the batch surface the route is applied but not
+ * signalled, and only {@link #onDecision()} sees it.
  *
  * @param instructions   what the decision model is asked, e.g. "Which team should
  *                       handle this customer message?"
@@ -136,7 +145,11 @@ public record IntentRouting(String instructions, List<IntentRoute> routes, Confi
      */
     public static final int MAX_ROUTES = 16;
 
-    /** Default wait for a CONFIRM-tier confirmation. */
+    /**
+     * Default wait for a CONFIRM-tier confirmation. It equals the
+     * {@code @AiEndpoint.timeout()} default; on an endpoint the wait is cut
+     * short to end before that watchdog (see the class Javadoc).
+     */
     public static final Duration DEFAULT_CONFIRM_TIMEOUT = Duration.ofMinutes(2);
 
     public IntentRouting {

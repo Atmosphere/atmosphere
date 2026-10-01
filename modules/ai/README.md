@@ -1098,7 +1098,7 @@ one on a session directly.
 | Classification | What runs |
 |----------------|-----------|
 | choice at `>= actAt` (default 0.9) | the chosen route |
-| choice at `>= confirmAt` (default 0.5) | the requester is asked to confirm; approved runs the chosen route, denied or timed out (`confirmTimeout`, default 2 min) runs the human route |
+| choice at `>= confirmAt` (default 0.5) | the requester is asked to confirm; approved runs the chosen route, denied or timed out (`confirmTimeout`, default 2 min, cut short on `@AiEndpoint` to end before the endpoint `timeout()`) runs the human route |
 | choice below `confirmAt` | the human route |
 | the model chose the human route | the human route, at any confidence, without a confirmation |
 | no decision model, `Answer.Failed` (timeout, capacity, error, unparseable or out-of-set reply), a message over 262,144 characters, a model that throws | the human route |
@@ -1152,6 +1152,18 @@ one on a session directly.
   surface`) rather than waiting `confirmTimeout`; a programmatic pipeline whose
   surface cannot answer either declares it with
   `AiPipeline.setIntentConfirmationAvailable(false)`.
+- **Confirmation and the endpoint timeout.** `@AiEndpoint` ends a `@Prompt`
+  turn after `timeout()` (default 120 s, measured from dispatch), and
+  `confirmTimeout` defaults to the same 2 minutes. So on an endpoint the wait
+  is cut short to end before that deadline, keeping back
+  `min(5 s, a tenth of the time left)` for the human route to answer; the
+  `approval-required` frame's `expiresIn` is the wait actually kept, and a turn
+  with no time left to wait escalates at once (reason `no time left to confirm
+  before the turn deadline`). An unanswered confirmation therefore runs the
+  human route on the endpoint as on `AiPipeline`, which has no such deadline and
+  waits the full `confirmTimeout`. The cut is against the `@Prompt` watchdog
+  only; a transport's own suspend timeout (a long-polling or SSE connection
+  suspended for `timeout()` from when it connected) is not taken into account.
 - **Cancellation.** A cancelled turn is never routed: a client disconnect on
   the endpoint (before or during classification, or while a confirmation is
   pending) or an interrupted dispatching thread on either path (a batch item
@@ -1166,8 +1178,15 @@ one on a session directly.
 - **Wire signal.** Before any reply: `ai.intent.route` (the route taken),
   `ai.intent.tier` (`ACT` / `CONFIRM` / `ESCALATE`), `ai.intent.choice` (absent
   when the model gave no answer) and `ai.intent.confidence` (absent when
-  unknown). `withHandler(...)` receives every `IntentDecision` (route, choice,
-  tier, confidence, reason, classified message, request) before the route runs.
+  unknown), as session metadata frames on `@AiEndpoint` and `AiPipeline`. The
+  OpenAI-compatible surface has no field for them, so it sends them as response
+  headers: `X-Atmosphere-Intent-Route`, `X-Atmosphere-Intent-Tier`,
+  `X-Atmosphere-Intent-Choice`, `X-Atmosphere-Intent-Confidence` (streaming
+  and non-streaming, and on an error envelope too). A batch item result does
+  not carry them: on the batch surface the route is applied but not signalled,
+  and only `withHandler(...)` sees it. `withHandler(...)` receives every
+  `IntentDecision` (route, choice, tier, confidence, reason, classified
+  message, request) before the route runs.
 - **Bounds.** One question per request, bounded by `timeout` (default 5 s) and
   the decision model's own concurrency limit; a confirmation by
   `confirmTimeout`. The handler runs on the turn's thread, like a `@Prompt` body.

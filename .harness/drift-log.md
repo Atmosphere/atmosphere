@@ -4007,3 +4007,33 @@ written from the tier names, not from `RuntimeDecisionModel`.
 CONFIRM-tier choice through `OpenAiChatHandler` under a timeout. The endpoint now runs RAG after
 routing, a redirected request is not classified, serving pipelines escalate CONFIRM at once, and
 the README states the confidence source.
+
+---
+
+## 2026-10-01 — Intent routing's docs promised an escalation and a wire signal the endpoint did not deliver
+
+**Session:** second carnet #57 review of the intent-routing branch.
+
+**Claim 1:** `modules/ai/README.md` table and `IntentRouting` Javadoc: a CONFIRM-tier choice that is
+"denied or timed out (`confirmTimeout`, default 2 min) runs the human route".
+**Truth:** on `@AiEndpoint` the default `confirmTimeout` (120 s) equals the default `timeout()`
+(120 s), and the `@Prompt` watchdog starts at dispatch, before classification. An unanswered
+confirmation was always cut off by the watchdog first: the turn errored with "Prompt processing
+timed out", no route ran, and the `approval-required` frame advertised `expiresIn` 120 s the server
+did not keep. `AiPipeline`, which has no watchdog, did run the human route (Mode Parity broken).
+**Claim 2:** the README "Wire signal" bullet: `ai.intent.route` / `tier` / `choice` / `confidence`
+arrive "before any reply", next to "the OpenAI-compatible and batch surfaces ... get the same
+routing".
+**Truth:** `OpenAiChatHandler` and `BatchExecutor` sessions dropped those metadata keys, so on
+those surfaces nothing told the caller which route answered.
+**Slip path:** the endpoint confirmation tests answered the approval within a 30 s endpoint
+timeout, so the unanswered case was only tested on `AiPipeline`; the serving-surface test asserted
+the reply text and the human-route count, never a signal.
+**Gate:** `AiEndpointIntentRoutingTest` drives an unanswered CONFIRM through
+`AiEndpointHandler.onStateChange` with equal endpoint and confirm timeouts and asserts the human
+route runs with no watchdog error, and that a 30 s `confirmTimeout` on a 3 s endpoint advertises
+`expiresIn <= 3`; `IntentDispatchDeadlineTest` pins the expiry arithmetic. The endpoint now hands
+the session a turn deadline and the wait ends before it. The OpenAI-compatible surface sends the
+signal as `X-Atmosphere-Intent-*` response headers (`OpenAiChatHandlerTest` checks they are set
+before the SSE stream commits); the README and Javadoc now say the batch surface applies the route
+without signalling it.

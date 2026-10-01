@@ -393,7 +393,11 @@ public @interface AiEndpoint {
      *
      * <p>Defaults to the {@link org.atmosphere.ai.intent.IntentRoutingProvider}
      * interface itself: no routing. The same routing is installed on this
-     * endpoint's OpenAI-compatible and batch surfaces when those are enabled.</p>
+     * endpoint's OpenAI-compatible and batch surfaces when those are enabled.
+     * The OpenAI-compatible surface signals the route as
+     * {@code X-Atmosphere-Intent-*} response headers; a batch item result does
+     * not carry it, so there the route is visible only to the routing's
+     * {@code withHandler(...)} observer.</p>
      *
      * <p>Example: {@code @AiEndpoint(path = "/support", intentRouting = SupportIntents.class)}</p>
      */

@@ -170,6 +170,12 @@ public class AiStreamingSession implements StreamingSession {
      */
     private volatile org.atmosphere.ai.intent.IntentRouting intentRouting;
     /**
+     * When the surface ends this turn on its own (the {@code @AiEndpoint}
+     * prompt watchdog), or {@code null}; a CONFIRM-tier intent confirmation
+     * wait is cut short to end before it.
+     */
+    private volatile java.time.Instant turnDeadline;
+    /**
      * Framework-scoped injectables stashed by the endpoint handler and
      * threaded into {@code @AiTool} dispatch so tool methods can declare
      * {@code AgentFleet}, {@code AgentIdentity}, etc. directly as parameters.
@@ -636,6 +642,20 @@ public class AiStreamingSession implements StreamingSession {
     }
 
     /**
+     * Declare when the surface ends this turn on its own — the
+     * {@code @AiEndpoint} prompt watchdog. A CONFIRM-tier intent confirmation
+     * then waits at most until shortly before it, so an unanswered
+     * confirmation escalates to the human route instead of being cut off by
+     * the watchdog with no route run; the approval frame advertises the wait
+     * actually kept.
+     *
+     * @param deadline the deadline, or {@code null} for none
+     */
+    public void setTurnDeadline(java.time.Instant deadline) {
+        this.turnDeadline = deadline;
+    }
+
+    /**
      * Set the endpoint-scoped over-fetch + rerank retrieval policy resolved
      * from {@code org.atmosphere.ai.rag.*} (see {@link RagRetrieval}). With an
      * active reranker each provider fetches {@code k * overfetch} candidates
@@ -897,7 +917,7 @@ public class AiStreamingSession implements StreamingSession {
             // context providers run inside the runtime after routing.
             var outcome = IntentDispatch.route(new IntentDispatch.Step(routing,
                     request.message(), message, request, this, memory, resource.uuid(),
-                    approvalRegistry, cancelPending::get));
+                    approvalRegistry, cancelPending::get, turnDeadline));
             if (outcome == IntentDispatch.Outcome.HANDLED) {
                 postProcess(request);
                 return;

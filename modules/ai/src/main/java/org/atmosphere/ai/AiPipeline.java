@@ -682,10 +682,11 @@ public class AiPipeline {
         if (intentRouting != null) {
             // No disconnect latch here: an interrupted dispatching thread (a
             // cancelled batch item) is the pipeline's cancel signal, and
-            // IntentDispatch reads it directly.
+            // IntentDispatch reads it directly. No turn deadline either: the
+            // pipeline runs no watchdog, so a confirmation waits confirmTimeout.
             var outcome = IntentDispatch.route(new IntentDispatch.Step(intentRouting,
                     request.message(), message, request, session, memory, clientId,
-                    intentConfirmationAvailable ? approvalRegistry : null, () -> false));
+                    intentConfirmationAvailable ? approvalRegistry : null, () -> false, null));
             if (outcome == IntentDispatch.Outcome.HANDLED) {
                 return;
             }

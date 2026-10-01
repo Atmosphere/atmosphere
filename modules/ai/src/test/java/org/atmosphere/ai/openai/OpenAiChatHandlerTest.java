@@ -40,6 +40,7 @@ import java.util.function.BiConsumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -419,5 +420,90 @@ class OpenAiChatHandlerTest {
 
         verify(rig.response()).setStatus(413);
         assertFalse(rig.atmosphereOutput().toString().isEmpty());
+    }
+
+    // --- intent routing signal -------------------------------------------
+
+    /** Routes every request to {@code choice} at {@code confidence} (ACT at 0.95). */
+    private static org.atmosphere.ai.intent.IntentRouting routingTo(String choice, double confidence) {
+        return org.atmosphere.ai.intent.IntentRouting.of("Which team handles this?",
+                        org.atmosphere.ai.intent.IntentRoute.handler("track", "where is my parcel",
+                                d -> "tracked"),
+                        org.atmosphere.ai.intent.IntentRoute.llm("general", "anything else"),
+                        org.atmosphere.ai.intent.IntentRoute.human("agent", "a person", d -> "a person"))
+                .withDecisionModel(new org.atmosphere.ai.decision.DecisionModel() {
+                    @Override public String name() { return "openai-signal-test"; }
+                    @Override public boolean isAvailable() { return true; }
+                    @Override public org.atmosphere.ai.decision.DecisionResult decide(
+                            org.atmosphere.ai.decision.DecisionRequest request) {
+                        var answer = new org.atmosphere.ai.decision.Answer.Choice(
+                                org.atmosphere.ai.intent.IntentRouting.QUESTION_ID, choice, Map.of(),
+                                org.atmosphere.ai.AiConfidence.reported(confidence));
+                        return new org.atmosphere.ai.decision.DecisionResult(name(),
+                                Map.of(answer.id(), answer), java.util.Optional.empty(),
+                                java.time.Duration.ZERO);
+                    }
+                });
+    }
+
+    private static OpenAiChatHandler routedHandler(AgentRuntime runtime,
+                                                   org.atmosphere.ai.intent.IntentRouting routing) {
+        var pipeline = pipeline(runtime, null);
+        pipeline.setDefaultIntentRouting(routing);
+        var handler = new OpenAiChatHandler(ENABLED);
+        handler.register("demo", pipeline, null);
+        return handler;
+    }
+
+    @Test
+    void blockingCompletionCarriesTheIntentRouteAsHeaders() throws Exception {
+        var runtime = new StubRuntime((context, session) -> session.complete("llm"));
+        var rig = completionsRig("{\"model\":\"demo\","
+                + "\"messages\":[{\"role\":\"user\",\"content\":\"where is order 7?\"}]}");
+
+        routedHandler(runtime, routingTo("track", 0.95)).onRequest(rig.resource());
+
+        verify(rig.response()).setStatus(200);
+        assertTrue(rig.atmosphereOutput().toString().contains("tracked"), rig.atmosphereOutput().toString());
+        verify(rig.response()).setHeader(OpenAiChatHandler.INTENT_ROUTE_HEADER, "track");
+        verify(rig.response()).setHeader(OpenAiChatHandler.INTENT_TIER_HEADER, "ACT");
+        verify(rig.response()).setHeader(OpenAiChatHandler.INTENT_CHOICE_HEADER, "track");
+        verify(rig.response()).setHeader(OpenAiChatHandler.INTENT_CONFIDENCE_HEADER, "0.95");
+        assertNull(runtime.lastContext.get(), "a handler route never reaches the runtime");
+    }
+
+    @Test
+    void streamingCompletionSendsTheIntentHeadersBeforeTheStreamCommits() throws Exception {
+        // The LLM route streams: the headers must be set before the SSE
+        // response commits, or the client never sees them.
+        var runtime = new StubRuntime((context, session) -> {
+            session.send("from the model");
+            session.complete();
+        });
+        var rig = completionsRig("{\"model\":\"demo\",\"stream\":true,"
+                + "\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}");
+
+        routedHandler(runtime, routingTo("general", 0.95)).onRequest(rig.resource());
+
+        var servletResponse = (jakarta.servlet.http.HttpServletResponse) rig.response().getResponse();
+        var order = org.mockito.Mockito.inOrder(servletResponse);
+        order.verify(servletResponse).setHeader(OpenAiChatHandler.INTENT_ROUTE_HEADER, "general");
+        order.verify(servletResponse).setContentType("text/event-stream");
+        verify(servletResponse).setHeader(OpenAiChatHandler.INTENT_TIER_HEADER, "ACT");
+        verify(servletResponse).setHeader(OpenAiChatHandler.INTENT_CONFIDENCE_HEADER, "0.95");
+        assertTrue(rig.servletOutput().toString().contains("from the model"), rig.servletOutput().toString());
+    }
+
+    @Test
+    void anUnroutedCompletionSetsNoIntentHeader() throws Exception {
+        var runtime = new StubRuntime((context, session) -> session.complete("plain"));
+        var rig = completionsRig("{\"model\":\"demo\","
+                + "\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}");
+
+        handler(runtime, null).onRequest(rig.resource());
+
+        org.mockito.Mockito.verify(rig.response(), org.mockito.Mockito.never())
+                .setHeader(org.mockito.ArgumentMatchers.startsWith("X-Atmosphere-Intent-"),
+                        org.mockito.ArgumentMatchers.anyString());
     }
 }

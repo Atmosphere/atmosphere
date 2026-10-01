@@ -240,6 +240,12 @@ class AiEndpointIntentRoutingTest {
         verify(response).setStatus(200);
         assertTrue(output.toString().contains("a person will follow up"), output.toString());
         assertEquals(1, humans.get());
+        // The chat completion has no field for the route: it rides as headers,
+        // so the client can tell the human acknowledgement from an LLM answer.
+        verify(response).setHeader(OpenAiChatHandler.INTENT_ROUTE_HEADER, "agent");
+        verify(response).setHeader(OpenAiChatHandler.INTENT_TIER_HEADER, "CONFIRM");
+        verify(response).setHeader(OpenAiChatHandler.INTENT_CHOICE_HEADER, "track");
+        verify(response).setHeader(OpenAiChatHandler.INTENT_CONFIDENCE_HEADER, "0.7");
         verify(runtime, never()).executeWithHandle(any(), any());
         verify(runtime, never()).execute(any(), any());
     }
@@ -397,5 +403,104 @@ class AiEndpointIntentRoutingTest {
         verify(runtime, never()).executeWithHandle(any(), any());
         verify(runtime, never()).execute(any(), any());
         assertNotNull(handler.intentRouting());
+    }
+
+    // --- an unanswered confirmation and the @Prompt watchdog ---------------
+
+    @Test
+    void unansweredConfirmationAtTheDefaultRatioEscalatesBeforeThePromptWatchdog() throws Exception {
+        // IntentRouting.DEFAULT_CONFIRM_TIMEOUT equals the @AiEndpoint.timeout()
+        // default, scaled down here. The watchdog starts at dispatch, before
+        // classification, so an uncapped confirmation wait always outlives it:
+        // the turn errored and no route ran. The wait must end first.
+        assertEquals(Duration.ofMillis((Long) AiEndpoint.class.getMethod("timeout").getDefaultValue()),
+                IntentRouting.DEFAULT_CONFIRM_TIMEOUT, "the scaled ratio below assumes the defaults are equal");
+        var humans = new AtomicInteger();
+        var frames = unansweredConfirmation(humans, 1_500L, Duration.ofMillis(1_500));
+
+        assertEquals(1, humans.get(), frames.toString());
+        assertTrue(frames.stream().anyMatch(f -> f.contains("a person will follow up")), frames.toString());
+        assertTrue(frames.stream().anyMatch(f -> f.contains(IntentRouting.ROUTE_METADATA_KEY)
+                && f.contains("agent")), frames.toString());
+        assertTrue(frames.stream().noneMatch(f -> f.contains("timed out after")), frames.toString());
+    }
+
+    @Test
+    void theApprovalFrameAdvertisesTheWaitTheEndpointKeeps() throws Exception {
+        var humans = new AtomicInteger();
+        var frames = unansweredConfirmation(humans, 3_000L, Duration.ofSeconds(30));
+
+        var approval = frames.stream().filter(f -> APPROVAL_ID.matcher(f).find()).findFirst().orElseThrow();
+        var expiresIn = Pattern.compile("\"expiresIn\"\\s*:\\s*(\\d+)").matcher(approval);
+        assertTrue(expiresIn.find(), approval);
+        assertTrue(Long.parseLong(expiresIn.group(1)) <= 3,
+                "a 30 s confirmTimeout on a 3 s endpoint must not advertise more than the endpoint keeps: "
+                        + approval);
+        assertEquals(1, humans.get(), frames.toString());
+        assertTrue(frames.stream().noneMatch(f -> f.contains("timed out after")), frames.toString());
+    }
+
+    /**
+     * A CONFIRM-tier turn through {@link AiEndpointHandler#onStateChange} that
+     * nobody answers, with a 200 ms classification.
+     */
+    private List<String> unansweredConfirmation(AtomicInteger humans, long endpointTimeout,
+                                                Duration confirmTimeout) throws Exception {
+        var routing = IntentRouting.of("Which team handles this?",
+                        IntentRoute.handler("track", "where is my parcel", d -> "tracked:" + d.message()),
+                        IntentRoute.llm("general", "anything else"),
+                        IntentRoute.human("agent", "a person", d -> {
+                            humans.incrementAndGet();
+                            return "a person will follow up";
+                        }))
+                .withConfirmTimeout(confirmTimeout)
+                .withDecisionModel(new DecisionModel() {
+                    @Override public String name() { return "slow-confirm-test"; }
+                    @Override public boolean isAvailable() { return true; }
+                    @Override public DecisionResult decide(DecisionRequest request) {
+                        try {
+                            Thread.sleep(200);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                        var answer = new Answer.Choice(IntentRouting.QUESTION_ID, "track", Map.of(),
+                                AiConfidence.reported(0.7));
+                        return new DecisionResult(name(), Map.of(answer.id(), answer), Optional.empty(),
+                                Duration.ZERO);
+                    }
+                });
+        var frames = new CopyOnWriteArrayList<String>();
+        var done = new CountDownLatch(1);
+        var capture = new AtmosphereHandler() {
+            @Override public void onRequest(AtmosphereResource r) { }
+            @Override public void onStateChange(AtmosphereResourceEvent e) {
+                var json = e.getMessage() instanceof RawMessage raw
+                        ? String.valueOf(raw.message()) : String.valueOf(e.getMessage());
+                frames.add(json);
+                if (json.contains("\"complete\"") || json.contains("\"error\"")) {
+                    done.countDown();
+                }
+            }
+            @Override public void destroy() { }
+        };
+        var resource = new AtmosphereResourceImpl(config, broadcaster,
+                AtmosphereRequestImpl.newInstance(), AtmosphereResponseImpl.newInstance(),
+                mock(BlockingIOCometSupport.class), capture);
+        broadcaster.addAtmosphereResource(resource);
+
+        var runtime = mock(AgentRuntime.class);
+        var handler = new AiEndpointHandler(new RoutedEndpoint(),
+                RoutedEndpoint.class.getDeclaredMethod("onPrompt", String.class, StreamingSession.class),
+                endpointTimeout, "", "/atmosphere/intent", runtime, List.<AiInterceptor>of(), null,
+                AnnotatedLifecycle.scan(RoutedEndpoint.class));
+        handler.setIntentRouting(routing);
+
+        handler.onStateChange(new AtmosphereResourceEventImpl(resource).setMessage("where is order 7?"));
+
+        assertTrue(done.await(endpointTimeout + 10_000, TimeUnit.MILLISECONDS),
+                "the turn must end: " + frames);
+        verify(runtime, never()).executeWithHandle(any(), any());
+        verify(runtime, never()).execute(any(), any());
+        return frames;
     }
 }

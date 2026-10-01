@@ -900,6 +900,12 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // exactly once on every exit path (success, error, Error, timeout-via-
         // interrupt) — releasing the lease and marking the run terminal.
         final boolean[] durableSuccess = {false};
+        if (suspendTimeout > 0) {
+            // Read before the prompt thread starts, so the session's deadline
+            // is never later than the watchdog's below: an intent confirmation
+            // wait ends (and escalates) before the watchdog interrupts the turn.
+            session.setTurnDeadline(java.time.Instant.now().plusMillis(suspendTimeout));
+        }
         var promptThread = Thread.startVirtualThread(() -> {
             // Apply business.* MDC on the VT so every log record emitted
             // during the turn (pipeline / runtime / tool calls) carries the

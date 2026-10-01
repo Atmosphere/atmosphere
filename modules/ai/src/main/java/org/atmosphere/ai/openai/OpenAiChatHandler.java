@@ -89,6 +89,30 @@ public final class OpenAiChatHandler implements AtmosphereHandler {
     /** How long a dispatched completion may take before the request errors out. */
     private static final long COMPLETION_TIMEOUT_MS = 120_000L;
 
+    /** Response header: the intent route the request took ({@code ai.intent.route}). */
+    public static final String INTENT_ROUTE_HEADER = "X-Atmosphere-Intent-Route";
+
+    /** Response header: the confidence tier of the intent choice ({@code ai.intent.tier}). */
+    public static final String INTENT_TIER_HEADER = "X-Atmosphere-Intent-Tier";
+
+    /** Response header: the route the decision model chose ({@code ai.intent.choice}). */
+    public static final String INTENT_CHOICE_HEADER = "X-Atmosphere-Intent-Choice";
+
+    /** Response header: the intent choice's confidence ({@code ai.intent.confidence}). */
+    public static final String INTENT_CONFIDENCE_HEADER = "X-Atmosphere-Intent-Confidence";
+
+    /**
+     * The intent-routing wire signal, which the OpenAI chat completion shape has
+     * no field for, carried as response headers instead. The values are route
+     * names ({@code [A-Za-z0-9_-]}), a tier name and a number, so they need no
+     * header encoding.
+     */
+    private static final Map<String, String> INTENT_HEADERS = Map.of(
+            org.atmosphere.ai.intent.IntentRouting.ROUTE_METADATA_KEY, INTENT_ROUTE_HEADER,
+            org.atmosphere.ai.intent.IntentRouting.TIER_METADATA_KEY, INTENT_TIER_HEADER,
+            org.atmosphere.ai.intent.IntentRouting.CHOICE_METADATA_KEY, INTENT_CHOICE_HEADER,
+            org.atmosphere.ai.intent.IntentRouting.CONFIDENCE_METADATA_KEY, INTENT_CONFIDENCE_HEADER);
+
     private final OpenAiServing serving;
     private final Map<String, AgentBinding> agents = new ConcurrentHashMap<>();
     private final Semaphore inFlight = new Semaphore(MAX_CONCURRENT_COMPLETIONS);
@@ -252,7 +276,10 @@ public final class OpenAiChatHandler implements AtmosphereHandler {
                     conversationKey, e);
             throw failureToError(e);
         }
-        if (!session.await(COMPLETION_TIMEOUT_MS)) {
+        var finished = session.await(COMPLETION_TIMEOUT_MS);
+        // The route was taken whatever the outcome: an error envelope carries it too.
+        session.intentHeaders().forEach(resource.getResponse()::setHeader);
+        if (!finished) {
             session.abandon();
             throw OpenAiError.serverError("The completion did not finish in time.");
         }
@@ -439,10 +466,21 @@ public final class OpenAiChatHandler implements AtmosphereHandler {
         private final AtomicLong metadataInput = new AtomicLong();
         private final AtomicLong metadataOutput = new AtomicLong();
         private final AtomicLong metadataTotal = new AtomicLong();
+        /** The intent signal as response headers; at most the four {@link #INTENT_HEADERS}. */
+        private final Map<String, String> intentHeaders = new ConcurrentHashMap<>();
 
         @Override
         public String sessionId() {
             return id;
+        }
+
+        /** Hook for a session that writes a header as soon as the signal arrives. */
+        void onIntentHeader(String name, String value) {
+        }
+
+        /** The intent signal received so far, as response headers. */
+        Map<String, String> intentHeaders() {
+            return Map.copyOf(intentHeaders);
         }
 
         @Override
@@ -454,6 +492,12 @@ public final class OpenAiChatHandler implements AtmosphereHandler {
 
         @Override
         public void sendMetadata(String key, Object value) {
+            var header = INTENT_HEADERS.get(key);
+            if (header != null && value != null && !isClosed()) {
+                intentHeaders.put(header, String.valueOf(value));
+                onIntentHeader(header, String.valueOf(value));
+                return;
+            }
             if (value instanceof Number number) {
                 switch (key) {
                     case "ai.tokens.input" -> metadataInput.set(number.longValue());
@@ -597,6 +641,13 @@ public final class OpenAiChatHandler implements AtmosphereHandler {
         }
 
         @Override
+        void onIntentHeader(String name, String value) {
+            // The signal precedes any reply on the dispatching thread, so the
+            // SSE headers are not committed yet.
+            writer.setHeader(name, value);
+        }
+
+        @Override
         public void send(String chunk) {
             if (chunk == null || chunk.isEmpty() || isClosed()) {
                 return;
@@ -640,6 +691,20 @@ public final class OpenAiChatHandler implements AtmosphereHandler {
 
         boolean started() {
             return started;
+        }
+
+        /** Set a response header while the stream is uncommitted; a no-op after. */
+        void setHeader(String name, String value) {
+            lock.lock();
+            try {
+                if (started) {
+                    logger.debug("Response header {} arrived after the stream started; not sent", name);
+                    return;
+                }
+                response.setHeader(name, value);
+            } finally {
+                lock.unlock();
+            }
         }
 
         /** Commit SSE headers and emit the leading role delta exactly once. */

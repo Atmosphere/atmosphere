@@ -90,11 +90,21 @@ final class IntentDispatch {
      *                  CONFIRM then escalates at once instead of waiting
      * @param cancelled whether the turn was cancelled (client disconnect); an
      *                  interrupted dispatching thread counts as cancelled too
+     * @param deadline  when the surface ends the turn on its own (the
+     *                  {@code @AiEndpoint} prompt watchdog), or {@code null} when it
+     *                  never does: a CONFIRM-tier wait is cut short so it ends,
+     *                  and the human route answers, before this deadline
      */
     record Step(IntentRouting routing, String message, String rawMessage, AiRequest request,
                 StreamingSession base, AiConversationMemory memory, String memoryKey,
-                ApprovalRegistry approvals, BooleanSupplier cancelled) {
+                ApprovalRegistry approvals, BooleanSupplier cancelled, Instant deadline) {
     }
+
+    /**
+     * Most of the time kept back before a turn {@link Step#deadline() deadline}
+     * for the human route to answer once a confirmation wait has run out.
+     */
+    static final Duration DEADLINE_MARGIN = Duration.ofSeconds(5);
 
     static Outcome route(Step step) {
         var routing = step.routing();
@@ -138,6 +148,8 @@ final class IntentDispatch {
                     reason = reason + "; confirmed by the requester";
                 } else if (confirmed == Confirmation.UNAVAILABLE) {
                     reason = reason + "; confirmation unavailable on this surface";
+                } else if (confirmed == Confirmation.NO_TIME) {
+                    reason = reason + "; no time left to confirm before the turn deadline";
                 } else {
                     reason = reason + "; confirmation " + confirmed.name().toLowerCase(Locale.ROOT);
                 }
@@ -223,7 +235,32 @@ final class IntentDispatch {
         return Outcome.HANDLED;
     }
 
-    private enum Confirmation { APPROVED, DENIED, TIMED_OUT, UNAVAILABLE, CANCELLED }
+    private enum Confirmation { APPROVED, DENIED, TIMED_OUT, UNAVAILABLE, NO_TIME, CANCELLED }
+
+    /**
+     * When a confirmation asked now expires: {@link IntentRouting#confirmTimeout()}
+     * from now, cut short to end before the turn deadline with
+     * {@code min(}{@link #DEADLINE_MARGIN}{@code , a tenth of the time left)} to
+     * spare, so the human route answers before the surface ends the turn.
+     *
+     * @return the expiry, or empty when no wait fits before the deadline
+     */
+    static Optional<Instant> confirmationExpiry(Instant now, Duration confirmTimeout, Instant deadline) {
+        var expiry = now.plus(confirmTimeout);
+        if (deadline == null) {
+            return Optional.of(expiry);
+        }
+        var left = Duration.between(now, deadline);
+        if (left.isNegative() || left.isZero()) {
+            return Optional.empty();
+        }
+        var margin = left.dividedBy(10);
+        if (margin.compareTo(DEADLINE_MARGIN) > 0) {
+            margin = DEADLINE_MARGIN;
+        }
+        var latest = deadline.minus(margin);
+        return Optional.of(expiry.isBefore(latest) ? expiry : latest);
+    }
 
     private static Confirmation confirm(Step step, IntentRoute candidate, AiConfidence confidence) {
         var registry = step.approvals();
@@ -237,6 +274,13 @@ final class IntentDispatch {
         if (cancelled(step)) {
             return Confirmation.CANCELLED;
         }
+        var now = Instant.now();
+        var expiry = confirmationExpiry(now, step.routing().confirmTimeout(), step.deadline());
+        if (expiry.isEmpty()) {
+            // The turn ends before any answer could be waited for: escalate
+            // now, while the human route can still answer.
+            return Confirmation.NO_TIME;
+        }
         var arguments = new LinkedHashMap<String, Object>();
         arguments.put("route", candidate.name());
         arguments.put("tier", ConfidenceRoute.CONFIRM.name());
@@ -248,7 +292,7 @@ final class IntentDispatch {
                 arguments,
                 "Route this request to '" + candidate.name() + "'" + description + "?",
                 step.base().sessionId(),
-                Instant.now().plus(step.routing().confirmTimeout()));
+                expiry.get());
         // Register before emitting, so an answer that races the event resolves.
         var future = registry.registerForResolution(approval);
         if (cancelled(step)) {
