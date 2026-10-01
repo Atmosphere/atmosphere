@@ -44,6 +44,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -552,6 +553,81 @@ class AiEndpointHandlerPromptRepollTest {
         // The same id can wait again: no slot leaked by the interrupted waiter.
         var again = gate.await("a", System.nanoTime(), () -> null, config);
         assertEquals(PromptRepollGate.Refusal.TIMEOUT, again.refusal());
+    }
+
+    /** The waiter semaphore every endpoint of the application shares, once a gate created it. */
+    private Semaphore sharedWaiterSlots() {
+        return (Semaphore) config.properties().get(PromptRepollGate.WAITER_SLOTS_PROPERTY);
+    }
+
+    @Test
+    void everyOutcomeGivesTheSharedWaiterSlotBack() throws Exception {
+        // A slot that is not given back is gone until restart: after
+        // maxRepollWaiters waits in the application's life every later prompt
+        // would be refused BUSY.
+        when(config.getInitParameter(PromptRepollGate.MAX_WAITERS_PARAM)).thenReturn("2");
+        when(config.getInitParameter(PromptRepollGate.WAIT_MS_PARAM)).thenReturn("300");
+        var gate = new PromptRepollGate(30_000L);
+        gate.connectionReady("a");
+
+        // Timed out.
+        assertEquals(PromptRepollGate.Refusal.TIMEOUT,
+                gate.await("a", System.nanoTime(), () -> null, config).refusal());
+        assertEquals(2, sharedWaiterSlots().availablePermits(), "a timed-out prompt must give its slot back");
+
+        // Dispatched: a connection of the id was made ready after the prompt failed to resolve.
+        var since = System.nanoTime();
+        gate.connectionReady("a");
+        var target = mock(AtmosphereResource.class);
+        assertEquals(target, gate.await("a", since, () -> target, config).target());
+        assertEquals(2, sharedWaiterSlots().availablePermits(), "a dispatched prompt must give its slot back");
+
+        // Interrupted while waiting.
+        var entered = new CountDownLatch(1);
+        var interrupted = new Thread(() -> {
+            entered.countDown();
+            gate.await("a", System.nanoTime(), () -> null, config);
+        });
+        interrupted.start();
+        entered.await();
+        Thread.sleep(50);
+        interrupted.interrupt();
+        interrupted.join(5_000);
+        assertFalse(interrupted.isAlive());
+        assertEquals(2, sharedWaiterSlots().availablePermits(), "an interrupted prompt must give its slot back");
+
+        // Refused BUSY because a prompt of the same id already waits: it took a
+        // slot before it found the id taken.
+        var waiting = posts.submit(() -> gate.await("a", System.nanoTime(), () -> null, config));
+        Thread.sleep(50);
+        assertEquals(PromptRepollGate.Refusal.BUSY,
+                gate.await("a", System.nanoTime(), () -> null, config).refusal());
+        assertEquals(1, sharedWaiterSlots().availablePermits(),
+                "a prompt refused for a duplicate id must give its slot back; only the waiting one holds one");
+
+        // Refused at shutdown while waiting.
+        gate.shutdown();
+        assertEquals(PromptRepollGate.Refusal.SHUTDOWN, waiting.get(5, TimeUnit.SECONDS).refusal());
+        assertEquals(2, sharedWaiterSlots().availablePermits(), "a prompt refused at shutdown must give its slot back");
+    }
+
+    @Test
+    void documentedDefaultsApplyWhenNothingIsConfigured() {
+        // modules/ai/README.md: repollWaitMs 2000, maxRepollWaiters 64.
+        var gate = new PromptRepollGate(30_000L);
+        assertEquals(2_000L, gate.waitMs(config));
+        assertEquals(64, sharedWaiterSlots().availablePermits());
+    }
+
+    @Test
+    void documentedInitParamNamesAreTheOnesRead() {
+        // The literal keys of the README table, not the constants: renaming a key
+        // must fail here until the README is updated.
+        when(config.getInitParameter("org.atmosphere.ai.prompt.repollWaitMs")).thenReturn("75");
+        when(config.getInitParameter("org.atmosphere.ai.prompt.maxRepollWaiters")).thenReturn("3");
+        var gate = new PromptRepollGate(30_000L);
+        assertEquals(75L, gate.waitMs(config));
+        assertEquals(3, sharedWaiterSlots().availablePermits());
     }
 
     @AiEndpoint(path = PATH)
