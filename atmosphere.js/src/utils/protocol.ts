@@ -70,6 +70,9 @@ export class AtmosphereProtocol {
   /** Callback to send a push message (heartbeat). */
   private pushFn: ((msg: string) => void) | null = null;
 
+  /** Whether the weak (`Math.random`) tracking-id fallback was already reported. */
+  private static weakIdWarned = false;
+
   /**
    * A random tracking id for a connection the server will not name.
    *
@@ -81,7 +84,7 @@ export class AtmosphereProtocol {
    * subscription, and the POSTs then name it. The id is unguessable where the
    * platform offers a CSPRNG (`crypto.randomUUID` / `crypto.getRandomValues`);
    * a runtime without one (React Native's Hermes without a polyfill) falls back
-   * to `Math.random`.
+   * to `Math.random`, which can be guessed, and logs a warning once.
    */
   static clientTrackingId(): string {
     const c = (globalThis as { crypto?: Partial<Crypto> }).crypto;
@@ -92,6 +95,11 @@ export class AtmosphereProtocol {
     if (typeof c?.getRandomValues === 'function') {
       c.getRandomValues(bytes);
     } else {
+      if (!AtmosphereProtocol.weakIdWarned) {
+        AtmosphereProtocol.weakIdWarned = true;
+        logger.warn('No crypto.getRandomValues: tracking ids fall back to Math.random and can be guessed;'
+          + ' install a crypto polyfill (e.g. react-native-get-random-values) or enable the protocol');
+      }
       for (let i = 0; i < bytes.length; i++) {
         bytes[i] = Math.floor(Math.random() * 256);
       }

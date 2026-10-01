@@ -42,6 +42,7 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
     this._polling = true;
 
     this.protocol.setPushFunction((msg) => this.send(msg));
+    this.beginSubscription();
 
     return this.poll(true);
   }
@@ -65,10 +66,9 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
   }
 
   send(message: string | ArrayBuffer): void {
-    const url = this.protocol.buildUrl(this.request);
     const outgoing = this.applyOutgoing(message);
 
-    this.postMessage(url, {
+    this.postMessage(() => this.protocol.buildUrl(this.request), {
       method: 'POST',
       headers: { 'Content-Type': this.request.contentType ?? 'text/plain' },
       credentials: this.request.withCredentials ? 'include' : 'same-origin',
@@ -248,6 +248,7 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
 
     this.reconnectTimer = setTimeout(() => {
       this.protocol.reset();
+      this.beginSubscription();
       this.poll(true).catch((error) => {
         logger.error('Long-polling reconnection failed:', error);
       });

@@ -588,7 +588,7 @@ export LLM_MODEL=llama3.2
 
 ### Prompt routing over HTTP transports
 
-An `@AiEndpoint` prompt runs only on the connection that sent it, never on every
+An `@AiEndpoint` prompt runs only on the one connection it names, never on every
 subscriber of the path. A WebSocket frame names its connection with the
 server-set suspended uuid; an SSE or long-polling POST names it with the
 `X-Atmosphere-tracking-id` header. A long-polling client that posts between two
@@ -597,16 +597,26 @@ client's next poll and is answered `503` with `Retry-After: 1` if none arrives.
 A POST that names no connection is answered `400`. atmosphere.js sends a `503`'d
 message again, up to 3 attempts, and reports one it cannot deliver to the
 `error` handler; its SSE, streaming and long-polling transports send a tracking id
-even with `enableProtocol` off, by choosing one when the server assigns none.
+even with `enableProtocol` off, by choosing a new one for each subscription
+(connect or reconnect) when the server assigns none.
 
 | Init-param | Default | Meaning |
 |---|---|---|
 | `org.atmosphere.ai.prompt.repollWaitMs` | `2000` | How long such a prompt waits for its client's next connection (capped at 30000; `0` refuses at once) |
 | `org.atmosphere.ai.prompt.maxRepollWaiters` | `64` | Prompts that may wait at once across every `@AiEndpoint` of the application (each holds a request thread); one per tracking id |
 
-Only a tracking id the endpoint suspended a connection for recently is waited
-for; any other id is refused at once. Prompts still waiting when the
-application stops are refused at once instead of holding shutdown.
+Only a tracking id the endpoint recently suspended a connection for, or assigned
+in a protocol handshake, is waited for; any other id is refused at once, and an
+id that is not 1-128 letters, digits, `-` or `_` is answered `400`. Prompts still
+waiting when the application stops are refused at once instead of holding
+shutdown.
+
+The tracking id routes a prompt; it does not authenticate the sender. It is a
+client-presented bearer token: the server adopts any well-formed id a client
+sends for its connection, and atmosphere.js picks one per subscription when
+`enableProtocol` is off. A prompt goes to whichever connection holds the id, so
+protect an endpoint whose conversations are private with authentication, as you
+would any other.
 
 ### OpenAI-compatible serving endpoint (inbound)
 

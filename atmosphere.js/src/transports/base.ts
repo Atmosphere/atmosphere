@@ -57,8 +57,34 @@ export abstract class BaseTransport<T = unknown> {
     // the subscription it belongs to. Without the handshake nothing assigns
     // that id, so the client picks one and sends it on the subscription too.
     if (!request.enableProtocol && BaseTransport.HTTP_TRANSPORTS.has(request.transport ?? '')) {
+      this.clientChosenId = true;
       this.protocol.uuid = AtmosphereProtocol.clientTrackingId();
     }
+  }
+
+  /** Whether this transport picks its own tracking id (an HTTP transport without the protocol). */
+  private clientChosenId = false;
+
+  /** Whether a subscription already went out under the current client-chosen id. */
+  private clientIdSubscribed = false;
+
+  /**
+   * Called as each subscription starts: on connect and on every reconnect. A
+   * client-chosen tracking id names one subscription only. The server
+   * unregisters a closing connection by its id alone, so a stale connection it
+   * still holds (a dropped SSE stream it has not noticed yet, an abandoned poll),
+   * closed after the client came back under the same id, would unregister the
+   * live one, which would then receive nothing. A long-polling re-poll continues
+   * its subscription and keeps the id.
+   */
+  protected beginSubscription(): void {
+    if (!this.clientChosenId) {
+      return;
+    }
+    if (this.clientIdSubscribed) {
+      this.protocol.uuid = AtmosphereProtocol.clientTrackingId();
+    }
+    this.clientIdSubscribed = true;
   }
 
   /** Transports whose sends are separate POSTs naming the subscription by tracking id. */
@@ -160,11 +186,12 @@ export abstract class BaseTransport<T = unknown> {
    * {@link SEND_MAX_ATTEMPTS} attempts in all, while the transport is not
    * disconnected. A message the server still refuses, or answers with any other
    * non-2xx status, is reported to the `error` handler instead of being dropped
-   * silently. Network failures reject, as before.
+   * silently. Network failures reject, as before. The URL is built for each
+   * attempt, so a resend after a reconnect names the current subscription.
    */
-  protected async postMessage(url: string, init: RequestInit): Promise<Response> {
+  protected async postMessage(url: () => string, init: RequestInit): Promise<Response> {
     for (let attempt = 1; ; attempt++) {
-      const response = await fetch(url, init);
+      const response = await fetch(url(), init);
       if (response.status === 503 && attempt < BaseTransport.SEND_MAX_ATTEMPTS
           && !this.isDisconnected()) {
         const delay = BaseTransport.retryAfterMs(response.headers?.get('Retry-After') ?? null);
