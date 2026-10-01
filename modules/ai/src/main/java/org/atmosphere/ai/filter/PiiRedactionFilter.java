@@ -48,7 +48,7 @@ public class PiiRedactionFilter extends AiStreamBroadcastFilter {
     private static final Pattern CREDIT_CARD_PATTERN = PiiPatterns.CREDIT_CARD;
 
     private final Map<String, Pattern> patterns = new LinkedHashMap<>();
-    private final ConcurrentHashMap<String, PendingText> buffers = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, StringBuffer> buffers = new ConcurrentHashMap<>();
     private final String replacement;
 
     /**
@@ -111,7 +111,7 @@ public class PiiRedactionFilter extends AiStreamBroadcastFilter {
     }
 
     private BroadcastAction handleStreamingText(AiStreamMessage msg) {
-        var buffer = buffers.computeIfAbsent(msg.sessionId(), PendingText::forSession).text();
+        var buffer = buffers.computeIfAbsent(msg.sessionId(), k -> new StringBuffer());
         buffer.append(msg.data());
 
         // Check for sentence boundary
@@ -133,13 +133,13 @@ public class PiiRedactionFilter extends AiStreamBroadcastFilter {
     }
 
     private BroadcastAction handleStreamEnd(String broadcasterId, AiStreamMessage msg, RawMessage rawMessage) {
-        var pending = buffers.remove(msg.sessionId());
+        var buffer = buffers.remove(msg.sessionId());
         // The terminal frame's own data (a complete summary, often the whole
         // reply, or an error message) is redacted like the streamed text.
         var redactedData = msg.data() != null ? redact(msg.data()) : null;
         var terminal = redactedData != null && !redactedData.equals(msg.data()) ? msg.withData(redactedData) : msg;
-        if (pending != null && !pending.text().isEmpty()) {
-            var redacted = redact(pending.text().toString());
+        if (buffer != null && !buffer.isEmpty()) {
+            var redacted = redact(buffer.toString());
             var streamingTextMsg = new AiStreamMessage("streaming-text", redacted, msg.sessionId(), msg.seq(), null, null);
 
             // Emit the flushed streaming text as a proper "streaming-text" message to maintain protocol
@@ -147,7 +147,7 @@ public class PiiRedactionFilter extends AiStreamBroadcastFilter {
             // Bump the terminal message's seq to seq+1 so it doesn't collide with the
             // synthetic flush streaming text and the monotonic sequence invariant is preserved.
             var bumpedTerminal = terminal.withSeq(msg.seq() + 1);
-            deferStreamEnd(broadcasterId, msg.sessionId(), pending.delivery(), new RawMessage(bumpedTerminal.toJson()));
+            deferStreamEnd(broadcasterId, msg.sessionId(), new RawMessage(bumpedTerminal.toJson()));
             return new BroadcastAction(new RawMessage(streamingTextMsg.toJson()));
         }
         return terminal == msg ? new BroadcastAction(rawMessage) : new BroadcastAction(new RawMessage(terminal.toJson()));

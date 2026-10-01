@@ -119,10 +119,10 @@ public final class DefaultStreamingSession implements StreamingSession {
     }
 
     /**
-     * How a live session delivers its frames. Empty once the session completed,
-     * failed or was cleaned up, so a broadcast filter that must emit a frame of
-     * its own after the terminal one (a deferred stream end) captures this while
-     * the session is still live.
+     * How a live session delivers its frames. The session stays registered while
+     * its terminal frame runs through the broadcaster's filters, so a filter
+     * that defers a frame past the terminal one reads it there; it is empty once
+     * the session completed, failed or was cleaned up.
      *
      * @param sessionId the streaming session identifier
      * @return the delivery, or empty if no active session with that ID
@@ -184,10 +184,12 @@ public final class DefaultStreamingSession implements StreamingSession {
         var removed = 0;
         for (var entry : SESSION_INSTANCES.entrySet()) {
             var session = entry.getValue();
+            // Reap only by winning the close: a session closing on its own is
+            // broadcasting its terminal frame and deregisters itself after it.
             if (session.lastActivityMillis < cutoff
-                    && SESSION_INSTANCES.remove(entry.getKey(), session)) {
+                    && session.closed.compareAndSet(false, true)) {
+                SESSION_INSTANCES.remove(entry.getKey(), session);
                 SESSION_RESOURCES.remove(entry.getKey());
-                session.closed.set(true);
                 removed++;
                 logger.debug("Swept idle streaming session {}", entry.getKey());
             }
@@ -237,18 +239,14 @@ public final class DefaultStreamingSession implements StreamingSession {
     @Override
     public void complete() {
         if (closed.compareAndSet(false, true)) {
-            SESSION_RESOURCES.remove(sessionId);
-            SESSION_INSTANCES.remove(sessionId);
-            broadcast(buildMessage("complete", null));
+            broadcastTerminal(buildMessage("complete", null));
         }
     }
 
     @Override
     public void complete(String summary) {
         if (closed.compareAndSet(false, true)) {
-            SESSION_RESOURCES.remove(sessionId);
-            SESSION_INSTANCES.remove(sessionId);
-            broadcast(buildMessage("complete", summary));
+            broadcastTerminal(buildMessage("complete", summary));
         }
     }
 
@@ -256,11 +254,9 @@ public final class DefaultStreamingSession implements StreamingSession {
     public void error(Throwable t) {
         errored.set(true);
         if (closed.compareAndSet(false, true)) {
-            SESSION_RESOURCES.remove(sessionId);
-            SESSION_INSTANCES.remove(sessionId);
             logger.error("Streaming session {} error", sessionId, t);
             var message = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
-            broadcast(buildMessage("error", message));
+            broadcastTerminal(buildMessage("error", message));
         }
     }
 
@@ -285,18 +281,14 @@ public final class DefaultStreamingSession implements StreamingSession {
         switch (event) {
             case AiEvent.Complete c -> {
                 if (closed.compareAndSet(false, true)) {
-                    SESSION_RESOURCES.remove(sessionId);
-                    SESSION_INSTANCES.remove(sessionId);
-                    broadcast(buildEventMessage(event));
+                    broadcastTerminal(buildEventMessage(event));
                 }
                 return;
             }
             case AiEvent.Error err -> {
                 if (closed.compareAndSet(false, true)) {
-                    SESSION_RESOURCES.remove(sessionId);
-                    SESSION_INSTANCES.remove(sessionId);
                     logger.error("Streaming session {} error: {}", sessionId, err.message());
-                    broadcast(buildMessage("error", err.message()));
+                    broadcastTerminal(buildMessage("error", err.message()));
                 }
                 return;
             }
@@ -374,6 +366,21 @@ public final class DefaultStreamingSession implements StreamingSession {
         msg.put("sessionId", sessionId);
         msg.put("seq", sequence.incrementAndGet());
         return toJson(msg);
+    }
+
+    /**
+     * Broadcast the session's terminal frame, then deregister the session. The
+     * broadcaster runs its filters inside {@code broadcast}, so a filter that
+     * defers a frame of its own past this one ({@link #deliveryForSession})
+     * still finds where the session's frames go.
+     */
+    private void broadcastTerminal(String json) {
+        try {
+            broadcast(json);
+        } finally {
+            SESSION_RESOURCES.remove(sessionId);
+            SESSION_INSTANCES.remove(sessionId);
+        }
     }
 
     private void broadcast(String json) {

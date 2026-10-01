@@ -168,20 +168,19 @@ public class DeferredStreamEndDeliveryTest {
     }
 
     @Test
-    public void deferredCompleteOfAnUnknownSessionIsDroppedNotBroadcast() throws Exception {
-        var filter = new PiiRedactionFilter();
-        wire(filter);
-        var sessionId = "unknown-" + UUID.randomUUID();
+    public void topicSessionDeferredCompleteStillReachesEverySubscriber() throws Exception {
+        // StreamingSessions.start(Broadcaster): every frame goes to the whole
+        // broadcaster, so its deferred end frame does too.
+        wire(new PiiRedactionFilter());
+        var session = StreamingSessions.start(broadcaster);
 
-        var text = new RawMessage(new AiStreamMessage("streaming-text", "no boundary here", sessionId, 1, null, null)
-                .toJson());
-        assertEquals(BroadcastAction.ACTION.ABORT, filter.filter("b1", text, text).action());
-        var complete = new RawMessage(new AiStreamMessage("complete", null, sessionId, 2, null, null).toJson());
-        var flushed = filter.filter("b1", complete, complete);
-        assertTrue(AiStreamMessage.parse((String) ((RawMessage) flushed.message()).message()).isStreamingText());
+        session.send("Call me at 555-123-4567");
+        session.complete();
 
-        Thread.sleep(300);
-        assertTrue(deliveries.isEmpty(),
-                "with no known recipient the deferred frame must not be broadcast at all, got " + deliveries);
+        var terminal = awaitTerminal();
+        assertNotNull(terminal, "the deferred complete frame must be delivered");
+        for (var d : deliveries) {
+            assertNull(d.targets(), "a topic session's frames, the deferred complete included, go to all: " + d);
+        }
     }
 }

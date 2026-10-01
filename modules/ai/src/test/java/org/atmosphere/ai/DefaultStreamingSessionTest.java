@@ -19,6 +19,12 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Consumer;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -68,6 +74,38 @@ public class DefaultStreamingSessionTest {
 
         session.error(new RuntimeException("test error"));
         assertTrue(DefaultStreamingSession.resourceForSession("dereg-error").isEmpty());
+    }
+
+    @Test
+    public void testDeliveryIsKnownWhileTheTerminalFrameIsBroadcast() {
+        // A broadcast filter that defers a frame past the terminal one reads the
+        // session's delivery while the terminal frame runs through it (filters
+        // run inside broadcast); the session deregisters only afterwards.
+        for (var terminal : List.<Consumer<DefaultStreamingSession>>of(
+                StreamingSession::complete,
+                s -> s.complete("summary"),
+                s -> s.error(new RuntimeException("boom")),
+                s -> s.emit(new AiEvent.Complete(null, Map.of())))) {
+            var resource = mock(AtmosphereResource.class);
+            var broadcaster = mock(Broadcaster.class);
+            when(resource.getBroadcaster()).thenReturn(broadcaster);
+            var sessionId = "terminal-delivery-" + System.nanoTime();
+            var seen = new ArrayList<Optional<DefaultStreamingSession.Delivery>>();
+            when(broadcaster.broadcast(any(), anySet())).thenAnswer(inv -> {
+                seen.add(DefaultStreamingSession.deliveryForSession(sessionId));
+                return null;
+            });
+            var session = new DefaultStreamingSession(sessionId, resource);
+
+            terminal.accept(session);
+
+            assertEquals(1, seen.size());
+            assertTrue(seen.get(0).isPresent(), "the delivery must be known during the terminal broadcast");
+            assertSame(resource, seen.get(0).get().resource());
+            assertFalse(seen.get(0).get().toRoom());
+            assertTrue(DefaultStreamingSession.deliveryForSession(sessionId).isEmpty(),
+                    "the session must deregister once its terminal frame went out");
+        }
     }
 
     @Test

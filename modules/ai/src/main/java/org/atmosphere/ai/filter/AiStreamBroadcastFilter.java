@@ -63,46 +63,23 @@ public abstract class AiStreamBroadcastFilter implements BroadcastFilterLifecycl
     }
 
     /**
-     * Text a filter holds back for one session until a sentence boundary, with
-     * where that session's frames go, captured when its first text was held
-     * (the session is still live then; it is not by the time its terminal frame
-     * arrives).
-     *
-     * @param text     the held-back text
-     * @param delivery the session's delivery, or {@code null} for a session
-     *                 {@link DefaultStreamingSession} does not know
-     */
-    protected record PendingText(StringBuffer text, DefaultStreamingSession.Delivery delivery) {
-
-        /** Start holding text for {@code sessionId}, capturing its delivery now. */
-        public static PendingText forSession(String sessionId) {
-            return new PendingText(new StringBuffer(),
-                    DefaultStreamingSession.deliveryForSession(sessionId).orElse(null));
-        }
-    }
-
-    /**
      * Emit {@code message}, a stream-end frame held back while the filter flushed
      * buffered text in its place, once the current filter chain has delivered
-     * that text. It goes where the session's own frames go: to the originating
-     * resource only, or to the whole room for a room session. The session is
-     * deregistered by the time its terminal frame reaches a filter, so
-     * {@code delivery} must be captured while the session was live
-     * ({@link DefaultStreamingSession#deliveryForSession}). Without one the frame
-     * is dropped and logged: a per-path broadcast would hand one user's reply to
-     * every subscriber of the path.
+     * that text. It goes where the session's own frames go, as read while the
+     * terminal frame runs through this filter
+     * ({@link DefaultStreamingSession#deliveryForSession}, which a
+     * {@link DefaultStreamingSession} answers until its terminal frame has been
+     * filtered): its originating resource only, or the whole room for a room
+     * session. A session {@link DefaultStreamingSession} does not know (a topic
+     * session from {@code StreamingSessions.start(Broadcaster)}) broadcasts every
+     * frame to the whole broadcaster, so its end frame goes there too.
      *
      * @param broadcasterId the broadcaster the terminal frame was broadcast on
      * @param sessionId     the streaming session the frame belongs to
-     * @param delivery      the session's delivery, captured while it was live; may be {@code null}
      * @param message       the deferred stream-end frame
      */
-    protected void deferStreamEnd(String broadcasterId, String sessionId,
-                                  DefaultStreamingSession.Delivery delivery, RawMessage message) {
-        if (delivery == null) {
-            logger.warn("Dropping the deferred stream-end frame of session {}: its recipient is unknown", sessionId);
-            return;
-        }
+    protected void deferStreamEnd(String broadcasterId, String sessionId, RawMessage message) {
+        var delivery = DefaultStreamingSession.deliveryForSession(sessionId).orElse(null);
         var factory = broadcasterFactory();
         Thread.ofVirtual().name("ai-stream-end-flush").start(() -> {
             try {
@@ -110,7 +87,7 @@ public abstract class AiStreamBroadcastFilter implements BroadcastFilterLifecycl
                 Thread.sleep(50);
                 if (factory != null) {
                     factory.findBroadcaster(broadcasterId).ifPresent(b -> {
-                        if (delivery.toRoom()) {
+                        if (delivery == null || delivery.toRoom()) {
                             b.broadcast(message);
                         } else {
                             b.broadcast(message, Set.of(delivery.resource()));

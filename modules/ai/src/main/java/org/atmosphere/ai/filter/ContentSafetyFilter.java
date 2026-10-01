@@ -34,7 +34,7 @@ public class ContentSafetyFilter extends AiStreamBroadcastFilter {
     private static final Pattern SENTENCE_BOUNDARY = Pattern.compile("[.!?\\n]");
 
     private final SafetyChecker checker;
-    private final ConcurrentHashMap<String, PendingText> buffers = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, StringBuffer> buffers = new ConcurrentHashMap<>();
 
     /**
      * Create a content safety filter with the given checker.
@@ -134,7 +134,7 @@ public class ContentSafetyFilter extends AiStreamBroadcastFilter {
     }
 
     private BroadcastAction handleStreamingText(AiStreamMessage msg) {
-        var buffer = buffers.computeIfAbsent(msg.sessionId(), PendingText::forSession).text();
+        var buffer = buffers.computeIfAbsent(msg.sessionId(), k -> new StringBuffer());
         buffer.append(msg.data());
 
         if (SENTENCE_BOUNDARY.matcher(msg.data()).find()) {
@@ -172,9 +172,9 @@ public class ContentSafetyFilter extends AiStreamBroadcastFilter {
     }
 
     private BroadcastAction handleStreamEnd(String broadcasterId, AiStreamMessage msg, RawMessage rawMessage) {
-        var pending = buffers.remove(msg.sessionId());
-        if (pending != null && !pending.text().isEmpty()) {
-            var text = pending.text().toString();
+        var buffer = buffers.remove(msg.sessionId());
+        if (buffer != null && !buffer.isEmpty()) {
+            var text = buffer.toString();
             var result = checker.check(text);
 
             return switch (result) {
@@ -183,7 +183,7 @@ public class ContentSafetyFilter extends AiStreamBroadcastFilter {
                     var streamingTextMsg = new AiStreamMessage("streaming-text", text, msg.sessionId(), msg.seq(), null, null);
                     // Bump terminal seq to seq+1 to preserve monotonic sequence invariant
                     var bumpedTerminal = msg.withSeq(msg.seq() + 1);
-                    deferStreamEnd(broadcasterId, msg.sessionId(), pending.delivery(), new RawMessage(bumpedTerminal.toJson()));
+                    deferStreamEnd(broadcasterId, msg.sessionId(), new RawMessage(bumpedTerminal.toJson()));
                     yield new BroadcastAction(new RawMessage(streamingTextMsg.toJson()));
                 }
                 case SafetyResult.Unsafe(var reason) -> {
@@ -198,7 +198,7 @@ public class ContentSafetyFilter extends AiStreamBroadcastFilter {
                     var streamingTextMsg = new AiStreamMessage("streaming-text", cleanText, msg.sessionId(), msg.seq(), null, null);
                     // Bump terminal seq to seq+1 to preserve monotonic sequence invariant
                     var bumpedTerminal = msg.withSeq(msg.seq() + 1);
-                    deferStreamEnd(broadcasterId, msg.sessionId(), pending.delivery(), new RawMessage(bumpedTerminal.toJson()));
+                    deferStreamEnd(broadcasterId, msg.sessionId(), new RawMessage(bumpedTerminal.toJson()));
                     yield new BroadcastAction(new RawMessage(streamingTextMsg.toJson()));
                 }
             };
