@@ -142,9 +142,9 @@ public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
                 ? new RoomMember(join.memberId(), join.metadata())
                 : null;
 
-        // Registered before room.join(): DefaultRoom's own auto-leave listener
-        // is added by join(), and listeners run in registration order, so the
-        // announcer still sees the membership it is announcing the end of.
+        // Either side of room.join() would do: the announcer carries the member
+        // it announces, and whichever of its disconnect listener and the room's
+        // LEAVE watcher (DefaultRoom's own auto-leave) fires first announces once.
         announceDropOf(r, join.room(), room, member);
 
         if (member != null) {

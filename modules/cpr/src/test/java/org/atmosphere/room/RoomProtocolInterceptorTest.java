@@ -240,6 +240,26 @@ public class RoomProtocolInterceptorTest {
         assertEquals(1, recorder.leavesOf("alice"), "announced once: " + recorder.frames);
     }
 
+    @Test
+    public void testReJoinOnTheSameConnectionAnnouncesTheNewIdentityOnDrop() throws Exception {
+        var recorder = recordLobby();
+        var alice = createResourceWithBody(
+                """
+                {"type":"join","room":"lobby","memberId":"alice"}"""
+        );
+        interceptor.inspect(alice);
+        // The same connection joins again under another identity (a renamed user).
+        alice.getRequest().body("""
+                {"type":"join","room":"lobby","memberId":"alice-renamed"}""");
+        interceptor.inspect(alice);
+
+        dropConnection(alice);
+
+        assertEquals(1, recorder.leavesOf("alice-renamed"),
+                "the drop announces the identity the connection last joined with: " + recorder.frames);
+        assertEquals(0, recorder.leavesOf("alice"), "not the one it replaced: " + recorder.frames);
+    }
+
     // --- Broadcast flow ---
 
     @Test
