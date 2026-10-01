@@ -1,4 +1,4 @@
-package org.atmosphere.util.annotation;/*
+/*
  * Copyright 2008-2026 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -13,6 +13,7 @@ package org.atmosphere.util.annotation;/*
  * License for the specific language governing permissions and limitations under
  * the License.
  */
+package org.atmosphere.util.annotation;
 
 import java.io.IOException;
 import java.io.InputStream;
