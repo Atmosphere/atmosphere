@@ -67,10 +67,15 @@ import java.time.Duration;
  * <h2>Failure handling — fail-closed by default</h2>
  * An uncertain verdict is {@link ScopeGuardrail.Decision#error}, which
  * {@link ScopePolicy} denies at pre-admission (Correctness Invariant #6). The
- * explicit, non-default opt-out is {@code failOpen}: the constructors that do
- * not take it read the {@value #FAIL_OPEN_PROPERTY} system property (the
- * ServiceLoader-registered instance is built that way), and an uncertain
- * verdict then admits the request with a WARN log.
+ * explicit, non-default opt-out is {@code failOpen}: an instance built by a
+ * constructor that does not take it (the ServiceLoader-registered instance is
+ * built that way) reads the {@value #FAIL_OPEN_PROPERTY} JVM system property on
+ * each uncertain verdict, so setting or clearing the property takes effect on
+ * the next request even though {@link ScopeGuardrailResolver} caches the
+ * instance. It is a system property only ({@code -D} or
+ * {@link System#setProperty}); no Spring Boot or Quarkus configuration key binds
+ * to it. In fail-open mode an uncertain verdict admits the request with a WARN
+ * log.
  */
 public final class LlmClassifierScopeGuardrail implements ScopeGuardrail {
 
@@ -80,9 +85,10 @@ public final class LlmClassifierScopeGuardrail implements ScopeGuardrail {
     public static final Duration DEFAULT_TIMEOUT = DecisionRequest.DEFAULT_TIMEOUT;
 
     /**
-     * System property that, when {@code true}, makes an uncertain verdict admit
-     * the request instead of failing closed. Read by the constructors that do
-     * not take a {@code failOpen} argument. Default {@code false}.
+     * JVM system property that, when {@code true}, makes an uncertain verdict
+     * admit the request instead of failing closed. Read on each uncertain
+     * verdict by an instance built without a {@code failOpen} argument. Default
+     * {@code false}.
      */
     public static final String FAIL_OPEN_PROPERTY = "org.atmosphere.ai.scope.llm-classifier.fail-open";
 
@@ -92,7 +98,8 @@ public final class LlmClassifierScopeGuardrail implements ScopeGuardrail {
     private final DecisionModel model;
     private final Duration timeout;
     private final NoulGate gate;
-    private final boolean failOpen;
+    /** The explicit fail policy, or {@code null} to read {@link #FAIL_OPEN_PROPERTY} per verdict. */
+    private final Boolean failOpen;
 
     /** Resolves the decision model through {@link DecisionModelResolver} on each call. */
     public LlmClassifierScopeGuardrail() {
@@ -107,7 +114,7 @@ public final class LlmClassifierScopeGuardrail implements ScopeGuardrail {
     /** Over {@code runtime} ({@code null} resolves through {@link DecisionModelResolver}). */
     public LlmClassifierScopeGuardrail(AgentRuntime runtime, Duration timeout) {
         this(runtime != null ? new RuntimeDecisionModel(runtime) : null, timeout, NoulGate.DEFAULTS,
-                Boolean.getBoolean(FAIL_OPEN_PROPERTY));
+                (Boolean) null);
     }
 
     /**
@@ -120,14 +127,18 @@ public final class LlmClassifierScopeGuardrail implements ScopeGuardrail {
      *                 {@code false} (the default everywhere else) fails closed
      */
     public LlmClassifierScopeGuardrail(DecisionModel model, Duration timeout, NoulGate gate, boolean failOpen) {
-        this.model = model;
-        this.timeout = timeout == null ? DEFAULT_TIMEOUT : timeout;
-        this.gate = gate == null ? NoulGate.DEFAULTS : gate;
-        this.failOpen = failOpen;
+        this(model, timeout, gate, Boolean.valueOf(failOpen));
         if (failOpen) {
             logger.warn("LlmClassifierScopeGuardrail is fail-open: an uncertain, failed or timed-out "
                     + "scope verdict admits the request");
         }
+    }
+
+    private LlmClassifierScopeGuardrail(DecisionModel model, Duration timeout, NoulGate gate, Boolean failOpen) {
+        this.model = model;
+        this.timeout = timeout == null ? DEFAULT_TIMEOUT : timeout;
+        this.gate = gate == null ? NoulGate.DEFAULTS : gate;
+        this.failOpen = failOpen;
     }
 
     @Override
@@ -173,7 +184,7 @@ public final class LlmClassifierScopeGuardrail implements ScopeGuardrail {
     }
 
     private Decision uncertain(String reason) {
-        if (failOpen) {
+        if (failOpen != null ? failOpen : Boolean.getBoolean(FAIL_OPEN_PROPERTY)) {
             logger.warn("LLM scope classifier uncertain ({}) — admitting (fail-open mode)", reason);
             return new Decision(Outcome.IN_SCOPE, "fail-open: LLM scope classifier " + reason, Double.NaN);
         }

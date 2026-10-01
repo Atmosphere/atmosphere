@@ -1038,7 +1038,7 @@ in each tier:
 | Tier | Uncertain verdict | Explicit opt-out |
 |------|-------------------|------------------|
 | Injection | document dropped | `atmosphere.ai.rag.safety.fail-open=true` / `atmosphere.ai.memory.safety.fail-open=true` |
-| Scope | `ScopePolicy` denies the request at pre-admission | system property `org.atmosphere.ai.scope.llm-classifier.fail-open=true`, or the `failOpen` constructor argument |
+| Scope | `ScopePolicy` denies the request at pre-admission | JVM system property `org.atmosphere.ai.scope.llm-classifier.fail-open=true` (`-D` or `System.setProperty`, read on each uncertain verdict; not an `application.properties` key), or the `failOpen` constructor argument |
 | Moderation | `ModerationGuardrail` blocks the turn | `ModerationGuardrail.failOpen()` / `atmosphere.ai.guardrails.moderation.fail-open=true` |
 
 The scope tier's post-response check (`postResponseCheck = true`) keeps its

@@ -22,6 +22,7 @@ import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AgentScope;
+import org.atmosphere.ai.decision.DecisionModel;
 import org.atmosphere.ai.decision.DecisionModelResolver;
 import org.atmosphere.ai.decision.DecisionModelResolverTestAccess;
 import org.atmosphere.ai.decision.ScriptedDecisionRuntime;
@@ -39,6 +40,7 @@ import java.util.concurrent.CountDownLatch;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -133,15 +135,36 @@ class LlmClassifierScopeGuardrailFailClosedTest {
         }
     }
 
-    /** The explicit, non-default opt-out: only the system property makes the wired guardrail admit. */
+    /**
+     * The explicit, non-default opt-out: only the system property makes the
+     * wired guardrail admit. {@link ScopeGuardrailResolver} caches the instance
+     * for the life of the JVM, so the property is read per verdict — setting it
+     * after the first resolution takes effect, and clearing it restores the
+     * fail-closed default.
+     */
     @Test
     void productionWiringAdmitsAnUncertainVerdictOnlyWithTheFailOpenProperty() {
         DecisionModelResolverTestAccess.forceDemoOnly();
-        System.setProperty(LlmClassifierScopeGuardrail.FAIL_OPEN_PROPERTY, "true");
+        System.clearProperty(LlmClassifierScopeGuardrail.FAIL_OPEN_PROPERTY);
         ScopeGuardrailResolver.reset();
         try {
             var policy = ScopePolicyBuilder.build(CONFIG, "scope::test", "test");
-            assertInstanceOf(PolicyDecision.Admit.class, policy.evaluate(PolicyContext.preAdmission(REQUEST)));
+            var cached = ScopeGuardrailResolver.resolve(AgentScope.Tier.LLM_CLASSIFIER);
+            assertInstanceOf(PolicyDecision.Deny.class, policy.evaluate(PolicyContext.preAdmission(REQUEST)),
+                    "fail-closed without the property");
+
+            System.setProperty(LlmClassifierScopeGuardrail.FAIL_OPEN_PROPERTY, "true");
+            assertSame(cached, ScopeGuardrailResolver.resolve(AgentScope.Tier.LLM_CLASSIFIER),
+                    "the resolver still hands out the instance built before the property was set");
+            assertInstanceOf(PolicyDecision.Admit.class, policy.evaluate(PolicyContext.preAdmission(REQUEST)),
+                    "the property set after the first resolution takes effect");
+            assertEquals(ScopeGuardrail.Outcome.ERROR, new LlmClassifierScopeGuardrail(
+                            (DecisionModel) null, null, null, false).evaluate(REQUEST, CONFIG).outcome(),
+                    "an explicit failOpen=false argument is not overridden by the property");
+
+            System.clearProperty(LlmClassifierScopeGuardrail.FAIL_OPEN_PROPERTY);
+            assertInstanceOf(PolicyDecision.Deny.class, policy.evaluate(PolicyContext.preAdmission(REQUEST)),
+                    "clearing the property restores fail-closed");
         } finally {
             System.clearProperty(LlmClassifierScopeGuardrail.FAIL_OPEN_PROPERTY);
             DecisionModelResolverTestAccess.restore();
