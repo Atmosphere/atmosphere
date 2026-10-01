@@ -45,6 +45,11 @@ import java.util.ServiceLoader;
  * time a resolution finds it (and again after {@link #reset()}). A registered
  * {@link DecisionModel} sizes itself.</p>
  *
+ * <p>A registration this scan instantiated but did not select (unavailable,
+ * outranked, or whose availability check threw) is closed when it is
+ * {@link AutoCloseable}: each scan's {@link ServiceLoader} creates its own
+ * instances, so nothing else holds them.</p>
+ *
  * <p>Only a non-empty result is cached. Resolution can run before the
  * application's {@link org.atmosphere.ai.AiConfig} is installed, when only the
  * demo fallback is available; caching that empty answer would pin it for the
@@ -112,13 +117,19 @@ public final class DecisionModelResolver {
                 loadErrors++;
                 continue;
             }
+            var selected = false;
             try {
                 if (candidate.isAvailable() && (best == null || candidate.priority() > best.priority())) {
+                    release(best);
                     best = candidate;
+                    selected = true;
                 }
             } catch (RuntimeException e) {
                 logger.debug("Skipping DecisionModel {}: availability check threw",
                         candidate.getClass().getName(), e);
+            }
+            if (!selected) {
+                release(candidate);
             }
         }
         if (best != null) {
@@ -134,6 +145,25 @@ public final class DecisionModelResolver {
             logger.debug("Skipping {}: availability check threw", fallback.name(), e);
         }
         return Optional.empty();
+    }
+
+    /**
+     * Close a candidate this scan instantiated and did not select, when it holds
+     * resources ({@link AutoCloseable}, e.g. an HTTP client). Each scan's
+     * {@link ServiceLoader} creates fresh instances, so the resolver owns them;
+     * the selected one is handed out and never closed here.
+     */
+    private static void release(DecisionModel candidate) {
+        if (candidate instanceof AutoCloseable closeable) {
+            try {
+                closeable.close();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                logger.debug("Interrupted closing unselected DecisionModel {}", candidate.getClass().getName(), e);
+            } catch (Exception e) {
+                logger.debug("Closing unselected DecisionModel {} failed", candidate.getClass().getName(), e);
+            }
+        }
     }
 
     /** The fallback's concurrency: {@value #MAX_CONCURRENCY_PROPERTY}, or the default. */

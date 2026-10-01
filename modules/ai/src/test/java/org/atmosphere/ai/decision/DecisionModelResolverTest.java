@@ -108,6 +108,27 @@ class DecisionModelResolverTest {
     }
 
     @Test
+    void unselectedCloseableRegistrationsAreClosedAndTheSelectedOneIsNot() {
+        // Unavailable: instantiated by the scan, not selected, closed.
+        TestDecisionModels.Lower.available = true;
+        DecisionModelResolver.resolve().orElseThrow();
+        assertEquals(1, TestDecisionModels.Closeable.CLOSED.get());
+
+        // Available but outranked by Preferred: closed too.
+        TestDecisionModels.Closeable.available = true;
+        TestDecisionModels.Preferred.available = true;
+        DecisionModelResolver.reset();
+        assertInstanceOf(TestDecisionModels.Preferred.class, DecisionModelResolver.resolve().orElseThrow());
+        assertEquals(2, TestDecisionModels.Closeable.CLOSED.get());
+
+        // Selected: handed out open.
+        TestDecisionModels.Preferred.available = false;
+        DecisionModelResolver.reset();
+        assertInstanceOf(TestDecisionModels.Closeable.class, DecisionModelResolver.resolve().orElseThrow());
+        assertEquals(2, TestDecisionModels.Closeable.CLOSED.get());
+    }
+
+    @Test
     void nonEmptyResultIsCachedUntilReset() {
         TestDecisionModels.Lower.available = true;
         var first = DecisionModelResolver.resolve().orElseThrow();

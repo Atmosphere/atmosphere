@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 /**
@@ -43,6 +44,8 @@ public final class TestDecisionModels {
         Preferred.behaviour = TestDecisionModels::answerFalse;
         Lower.available = false;
         Throwing.throwing = false;
+        Closeable.available = false;
+        Closeable.CLOSED.set(0);
         DecisionModelResolver.reset();
     }
 
@@ -114,6 +117,37 @@ public final class TestDecisionModels {
         @Override
         public DecisionResult decide(DecisionRequest request) {
             return answerFalse(request);
+        }
+    }
+
+    /** Holds a resource: counts how many instances were closed. Ranks between Lower and Preferred. */
+    public static final class Closeable implements DecisionModel, AutoCloseable {
+        public static volatile boolean available;
+        public static final AtomicInteger CLOSED = new AtomicInteger();
+
+        @Override
+        public String name() {
+            return "test-closeable";
+        }
+
+        @Override
+        public boolean isAvailable() {
+            return available;
+        }
+
+        @Override
+        public int priority() {
+            return 5;
+        }
+
+        @Override
+        public DecisionResult decide(DecisionRequest request) {
+            return answerFalse(request);
+        }
+
+        @Override
+        public void close() {
+            CLOSED.incrementAndGet();
         }
     }
 
