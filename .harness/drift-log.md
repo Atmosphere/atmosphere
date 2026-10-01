@@ -3951,3 +3951,27 @@ suite under `CI=true` or read the workflow's trigger.
 `E2E_LIST_ONLY`); the self-test case "a spec that skips itself in CI fails" fails with `CI` unset
 again, and two cases pin that the gate fails closed without node or without `@playwright/test`.
 The CI comment now names the `paths-ignore`.
+
+---
+
+## 2026-10-01 — The quarkus long-polling test's comment said it ran in the default lane and guessed the cause
+
+**Session:** carnet #55 review — the quarkus-ai-chat long-polling test, quarantined with the
+frame loss unfixed.
+
+**Claim:** the comment in `quarkus-ai-chat.spec.ts` — the test "is keyless, so it runs in the
+default fake-mode lane", and later frames are lost "with or without a UUIDBroadcasterCache",
+"not yet proven" to be the `Set.of(resource)` unicast.
+**Truth:** `quarantined()` returns `test.skip` everywhere but the weekly quarantine lane, so no
+blocking lane runs it. Traced on the wire against the Quarkus and dentist samples, the loss had
+several causes, none of them the cache class alone: `BoundedMemoryCache.addToCache` keeps a frame
+for every client except the uuid it receives (the recipient); `DefaultBroadcaster` hands a frame
+for a resumed poll to the waiting poll only when their uuid-based `hashCode()`s differ; a poll
+answered from the cache is suspended again; a late resume unregisters the next poll by uuid; and
+`AiEndpointHandler` reads cached frames handed back as a `List` as one prompt.
+**Slip path:** the cause was described from reading `DefaultStreamingSession` instead of tracing
+a poll on the wire, and the lane was inferred from "keyless" without reading `quarantined()`.
+**Gate:** the comment now names the quarantine lane and the traced causes; the quarantine points
+at carnet#60, the long-polling delivery design issue, and its reason names the first-frame-only
+bug. The fix is not on this branch: three review rounds of the cache-based approach kept
+introducing duplicated, lost or unbounded state, so it needs a design first.

@@ -405,8 +405,9 @@ test.describe('Quarkus AI Chat', () => {
   // asserted to be a long-polling one. The Console is pointed at the
   // multimodal @Agent by serving /api/console/info with that endpoint — what
   // `atmosphere.console-endpoint` would do — because a plain-text prompt gets
-  // a fixed reply there without touching the model: keyless, so it runs in
-  // the default fake-mode lane. The same prompt over a raw WebSocket supplies
+  // a fixed reply there without touching the model: keyless, so the weekly
+  // quarantine lane (fake mode) runs it — quarantined() skips it in every
+  // other lane until its expiry. The same prompt over a raw WebSocket supplies
   // the envelope to compare against.
   //
   // STILL FAILS, on the product side. Driven for real on 2026-09-30 (Quarkus
@@ -414,14 +415,18 @@ test.describe('Quarkus AI Chat', () => {
   // (1) dropped the prompt POST outright — AiEndpointHandler never read an
   // HTTP request entity; fixed alongside this rewrite — and (2) still delivers
   // only the first frame of the reply: the long-poll resumes on it and no later
-  // frame ever reaches the poll that replaces it, with or without a
-  // UUIDBroadcasterCache. Not yet proven: DefaultStreamingSession unicasts
-  // every frame to the resource object captured at prompt time
-  // (Set.of(resource)), which for long-polling is the poll that already
-  // resumed. The atmosphere.js tracking-id propagation once blamed here works:
-  // every poll and POST carries the server-assigned id. The quarantine lane
-  // runs this keyless and fails until (2) is fixed — the long-polling delivery
-  // design tracked by carnet#60.
+  // frame reaches the poll that replaces it. Tracing a poll on the wire found
+  // several causes, none of them the cache class alone: BoundedMemoryCache
+  // reads the uuid addToCache receives as a sender to skip, so a frame
+  // addressed to one client is kept for every other one; DefaultBroadcaster
+  // hands a frame for a resumed poll to the waiting poll only when their
+  // uuid-based hashCodes differ, so never; a poll answered from the cache is
+  // suspended again; a late resume unregisters the next poll by uuid; and
+  // AiEndpointHandler reads cached frames handed back as a List as one
+  // prompt. The atmosphere.js tracking-id propagation once blamed here works:
+  // every poll and POST carries the server-assigned id. Fixing (2) needs a
+  // long-polling delivery design, tracked by carnet#60; this test fails until
+  // it lands.
   quarantined({
     owner: 'jfarcand',
     expires: '2026-10-31',
