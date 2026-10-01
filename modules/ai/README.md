@@ -1058,7 +1058,17 @@ denies every request unless the opt-out is set.
 
 `Choice` has one production consumer, intent routing (next section). `Score`
 remains API plus reference implementation, with no production consumer. An
-adapter for an external decision-model API is not part of this module.
+adapter for an external decision-model API ships as a separate module:
+
+**External decision-model API.** `atmosphere-ai-decision-typesafe`
+([README](../ai-decision-typesafe/README.md)) is a `DecisionModel` over the
+TypeSafe System One API, registered through `META-INF/services`. With a key
+configured and `GET /v1/models` answering, `DecisionModelResolver` selects it
+ahead of the `RuntimeDecisionModel` fallback, so the three safety tiers above ask
+it their questions; the injection tier still runs it on the rule-based floor.
+Its answers carry the provider's distribution and the confidence source
+`PROVIDER_DISTRIBUTION`. A registration the resolver instantiates but does not
+select is closed when it is `AutoCloseable`.
 
 ## Intent routing (deterministic handler, LLM, or human)
 
@@ -2415,7 +2425,7 @@ prevention, dynamic routing, and long-pause human-in-the-loop:
   `AiConfidenceElicitation` cue when one is configured, then installs a
   `ConfidenceCapturingSession` decorator that parses the model-emitted
   `{"confidence": 0.x}` field on stream completion and fires
-  `session.confidence(AiConfidence)` ahead of the terminal frame. Four sources
+  `session.confidence(AiConfidence)` ahead of the terminal frame. Five sources
   documented in `AiConfidence.Source`: `LOGPROBS_NATIVE` (mean native token
   probability over the whole response, from runtimes that call
   `session.confidence()` directly — the Built-in runtime does, see *Native
@@ -2423,7 +2433,9 @@ prevention, dynamic routing, and long-pause human-in-the-loop:
   distribution over a designated enum/boolean field's values — Built-in
   chat-completions path, structured output only, see *Decision confidence*),
   `MODEL_REPORTED_FIELD` (the framework's universal-fallback path), `HEURISTIC`
-  (caller-computed). The cue
+  (caller-computed), `PROVIDER_DISTRIBUTION` (the distribution an external
+  decision-model API returned with its answer; only the `atmosphere-ai-decision-typesafe`
+  `DecisionModel` emits it, on decision answers, never on a streamed turn). The cue
   is not appended when structured-output mode is in play because the schema
   parser owns the response shape — callers add a `confidence` field to their
   record schema in that mode, which is parsed when a `ConfidenceRouting` is in

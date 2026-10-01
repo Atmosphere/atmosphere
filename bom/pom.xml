@@ -28,6 +28,11 @@
                 <artifactId>atmosphere-ai</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-ai-decision-typesafe</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
             <!-- Agent -->
             <dependency>

@@ -301,6 +301,7 @@ Add only what you need:
 - **Checkpoints**: [`atmosphere-checkpoint`](https://atmosphere.github.io/docs/reference/checkpoint/)
 - **Audit sinks**: `atmosphere-ai-audit-kafka`, `atmosphere-ai-audit-postgres`
 - **[Policy engines](https://atmosphere.github.io/docs/reference/governance/)**: `atmosphere-ai-policy-rego` (OPA), `atmosphere-ai-policy-cedar` (AWS Cedar)
+- **External decision model**: [`atmosphere-ai-decision-typesafe`](modules/ai-decision-typesafe/README.md) (TypeSafe System One API; contract-tested against documented fixtures, see its README for what was verified live)
 
 For Spring Boot 3.5 deployments, including Spring AI Alibaba, use `atmosphere-spring-boot3-starter` and build with `-Pspring-boot3`.
 

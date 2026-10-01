@@ -1,0 +1,14 @@
+{
+  "models": [
+    {
+      "name": "jev-latest",
+      "description": "Fixture entry in the documented shape, not a recorded reply.",
+      "release_date": "2026-01-01"
+    },
+    {
+      "name": "jev-preview",
+      "description": "Fixture entry in the documented shape, not a recorded reply.",
+      "release_date": "2026-01-01"
+    }
+  ]
+}

@@ -28,7 +28,7 @@ import java.util.OptionalDouble;
  * {@link ConfidenceRoute#ACT}, {@link ConfidenceRoute#CONFIRM} or
  * {@link ConfidenceRoute#ESCALATE}. Emitting the signal alone routes nothing.
  *
- * <p>Four sources, each documenting how the value was derived so callers
+ * <p>Five sources, each documenting how the value was derived so callers
  * can weight it appropriately:</p>
  * <ul>
  *   <li>{@link Source#DECISION_LOGPROBS} — the provider returned token
@@ -62,6 +62,21 @@ import java.util.OptionalDouble;
  *   <li>{@link Source#HEURISTIC} — runtime computed a confidence value
  *       from in-band signals (response length, refusal pattern, etc.).
  *       Lower-quality fallback. {@link #tokens()} is empty.</li>
+ *   <li>{@link Source#PROVIDER_DISTRIBUTION} — an external decision-model
+ *       provider (an API that answers typed questions rather than writing
+ *       text) returned the answer's probability distribution over the
+ *       allowed values. For a choice or a score the {@code aggregate} is the
+ *       provider's own confidence statistic over that distribution; for a
+ *       boolean the provider returns as {@code p = P(true)} with no
+ *       confidence, it is {@code |2p - 1|}, the normalised margin of a
+ *       two-value distribution (what {@link DecisionDistribution#marginOf(String)}
+ *       gives the value {@code p >= 0.5} selects). The distribution itself
+ *       rides on the {@code org.atmosphere.ai.decision.Answer}, not in
+ *       {@link #decision()}. A provider may describe its probabilities as
+ *       calibrated; nothing in Atmosphere checks that against observed
+ *       outcomes, which is why the name says where the number came from and
+ *       not how good it is. {@link #tokens()} is empty. Emitted by the
+ *       {@code atmosphere-ai-decision-typesafe} adapter.</li>
  * </ul>
  *
  * <p>{@link #aggregate()} returns {@link OptionalDouble#empty()} when the
@@ -105,7 +120,9 @@ public record AiConfidence(
         /** Model-emitted confidence field elicited via system prompt. */
         MODEL_REPORTED_FIELD,
         /** Runtime-computed heuristic. */
-        HEURISTIC
+        HEURISTIC,
+        /** Distribution returned by an external decision-model provider; see the class Javadoc. */
+        PROVIDER_DISTRIBUTION
     }
 
     public AiConfidence {

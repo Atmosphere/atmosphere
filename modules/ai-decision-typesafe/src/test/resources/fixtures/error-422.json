@@ -1,0 +1,14 @@
+{
+  "detail": [
+    {
+      "loc": [
+        "body",
+        "questions",
+        "q",
+        "criteria"
+      ],
+      "msg": "Field required",
+      "type": "missing"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "detail": {
+    "error_type": "authentication_error",
+    "message": "Must supply an API key! Check your request and try again."
+  }
+}

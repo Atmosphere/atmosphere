@@ -1,0 +1,15 @@
+{
+  "state": "Help! My payouts have been failing for 3 days.",
+  "model": "jev-1.13.0",
+  "questions": {
+    "frustration": {
+      "type": "score",
+      "instructions": "How frustrated is the customer?",
+      "criteria": [
+        "Calm",
+        "Frustrated",
+        "Very angry"
+      ]
+    }
+  }
+}

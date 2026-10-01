@@ -1,0 +1,94 @@
+name: "Live: TypeSafe decision model"
+
+# Runs modules/ai-decision-typesafe's TypesafeLiveTest against the real
+# https://api.typesafe.ai with the TYPESAFE_API_KEY repository secret.
+#
+# The contract tests (TypesafeDecisionModelContractTest, TypesafeWireTest,
+# TypesafeDiscoveryTest) need no key and run in ci.yml's full-reactor test job
+# on every push. This lane is the only place a real key is used, so it is
+# manual-dispatch only: nothing else in the repository holds a key-gated
+# secret, and a paid API should not be called on every push.
+#
+# Without the secret the lane runs nothing and FAILS, saying why in the job
+# summary: a dispatched live check that made no call is not a pass. With the
+# secret it asserts the suite RAN (Skipped: 0), so the TYPESAFE_API_KEY gate in
+# the test cannot silently turn the lane green.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  typesafe-live:
+    name: TypesafeLiveTest against api.typesafe.ai
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check for the TYPESAFE_API_KEY secret
+        id: gate
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${TYPESAFE_API_KEY}" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### TypeSafe live test: NOT RUN"
+              echo ""
+              echo "The \`TYPESAFE_API_KEY\` repository secret is not set, so no call was made to api.typesafe.ai."
+              echo "Add the secret and dispatch the workflow again."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::TYPESAFE_API_KEY secret is not set; the live TypeSafe test did NOT run."
+            exit 1
+          fi
+          echo "run=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+        if: steps.gate.outputs.run == 'true'
+
+      - name: Set up JDK 21
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/setup-java@v6
+        with:
+          java-version: 21
+          distribution: temurin
+          cache: 'maven'
+
+      - name: Build dependency closure (skip tests)
+        if: steps.gate.outputs.run == 'true'
+        run: ./mvnw -B install -pl modules/ai-decision-typesafe -am -DskipTests -Dgpg.skip=true
+
+      - name: Run the live test against the real API
+        if: steps.gate.outputs.run == 'true'
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+        run: |
+          set -euo pipefail
+          ./mvnw -B test -pl modules/ai-decision-typesafe -Dtest=TypesafeLiveTest -Dgpg.skip=true
+
+      - name: Assert the live test actually RAN (skipped=0)
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          report=modules/ai-decision-typesafe/target/surefire-reports/org.atmosphere.ai.decision.typesafe.TypesafeLiveTest.txt
+          test -f "$report" || { echo "::error::no surefire report; the live test did not run"; exit 1; }
+          grep -q "Tests run: 2, Failures: 0, Errors: 0, Skipped: 0" "$report" \
+            || { echo "::error::the live TypeSafe test was skipped or did not pass"; cat "$report"; exit 1; }
+          echo "TypeSafe live test ran green against api.typesafe.ai:"
+          cat "$report"
+          {
+            echo "### TypeSafe live test: PASSED"
+            echo ""
+            echo '```'
+            cat "$report"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload test results
+        if: failure() && steps.gate.outputs.run == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: typesafe-live-surefire-reports
+          path: modules/ai-decision-typesafe/target/surefire-reports/

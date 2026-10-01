@@ -1,0 +1,14 @@
+{
+  "state": "Help! My payouts have been failing for 3 days.",
+  "model": "jev-1.13.0",
+  "questions": {
+    "is_urgent": {
+      "type": "noul",
+      "instructions": "Does this convey urgency?",
+      "criteria": {
+        "true": "Explicitly time-sensitive",
+        "false": "No urgency expressed"
+      }
+    }
+  }
+}
