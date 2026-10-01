@@ -717,7 +717,11 @@ the server signals otherwise.
 Over SSE, streaming and long-polling each `push` is its own HTTP POST. A POST the server
 answers `503` (it could not take the message yet) is sent again after its `Retry-After`
 (1 s when absent, at most 5 s), up to 3 attempts in all. A message still refused, or
-answered with any other non-2xx status, is reported to the `error` handler.
+answered with any other non-2xx status, is reported to the `error` handler with an `Error`
+whose `name` is `'AtmosphereSendError'`: the message was not delivered, but the connection
+is still up. Each POST names its subscription with `X-Atmosphere-tracking-id`; when
+`enableProtocol` is off (the default) the server never assigns that id, so these transports
+pick a random one themselves and send it on the subscription and on every POST.
 
 ### Offline queue — survive disconnect without losing user input
 

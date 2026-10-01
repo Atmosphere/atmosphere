@@ -52,7 +52,16 @@ export abstract class BaseTransport<T = unknown> {
     this.handlers = handlers;
     this.protocol = new AtmosphereProtocol();
     this.interceptors = interceptors;
+    // An HTTP transport sends each message as its own POST, which must name
+    // the subscription it belongs to. Without the handshake nothing assigns
+    // that id, so the client picks one and sends it on the subscription too.
+    if (!request.enableProtocol && BaseTransport.HTTP_TRANSPORTS.has(request.transport ?? '')) {
+      this.protocol.uuid = AtmosphereProtocol.clientTrackingId();
+    }
   }
+
+  /** Transports whose sends are separate POSTs naming the subscription by tracking id. */
+  private static readonly HTTP_TRANSPORTS: ReadonlySet<string> = new Set(['sse', 'streaming', 'long-polling']);
 
   abstract connect(): Promise<void>;
   abstract disconnect(): Promise<void>;
@@ -68,7 +77,7 @@ export abstract class BaseTransport<T = unknown> {
     return this._state;
   }
 
-  /** The server-assigned UUID for this connection. */
+  /** This connection's tracking id (server-assigned, or client-chosen without the protocol). */
   get uuid(): string {
     return this.protocol.uuid;
   }
@@ -168,6 +177,9 @@ export abstract class BaseTransport<T = unknown> {
       if (!response.ok && !this.isDisconnected()) {
         const error = new Error(`${this.name} POST send failed with status ${response.status}`
           + (response.status === 503 ? ` after ${attempt} attempts` : ''));
+        // The connection itself is fine: the name lets a handler tell an
+        // undelivered message from a broken transport.
+        error.name = BaseTransport.SEND_ERROR_NAME;
         logger.warn(error.message);
         this.handlers.error?.(error);
       }
@@ -179,6 +191,9 @@ export abstract class BaseTransport<T = unknown> {
   private isDisconnected(): boolean {
     return this._state === 'disconnected';
   }
+
+  /** `Error.name` of the error {@link postMessage} reports for a message the server did not take. */
+  static readonly SEND_ERROR_NAME = 'AtmosphereSendError';
 
   /** Attempts {@link postMessage} makes in all while the server answers `503`. */
   static readonly SEND_MAX_ATTEMPTS = 3;

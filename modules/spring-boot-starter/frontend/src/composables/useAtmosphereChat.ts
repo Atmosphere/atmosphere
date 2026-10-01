@@ -79,6 +79,11 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
   // User bubbles sent while disconnected carry a "(queued)" suffix until the
   // queue drains (size back to 0), then the suffix is stripped.
   const QUEUED_SUFFIX = ' *(queued)*'
+  // A prompt the server never took (atmosphere.js gave up resending it): the
+  // bubble says so, and the input is free again to send it once more.
+  const UNDELIVERED_SUFFIX = ' *(not delivered — send it again)*'
+  const SEND_ERROR_NAME = 'AtmosphereSendError'
+  let lastSentUserMessageId: string | null = null
   const queuedBubbleIds = new Set<string>()
   watch(offlineSize, (size) => {
     if (size === 0 && queuedBubbleIds.size > 0) {
@@ -533,6 +538,9 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     }
     currentAssistantMessage = null
     isStreaming.value = false
+    // The prompt was answered (or its connection closed): a later refused send
+    // is not this prompt.
+    lastSentUserMessageId = null
   }
 
   async function connect() {
@@ -563,7 +571,12 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
           connectionState.value = 'disconnected'
           finalizeAssistant()
         },
-        onError: () => {
+        onError: (error?: Error) => {
+          if (error?.name === SEND_ERROR_NAME) {
+            // One prompt was refused; the connection itself is still up.
+            markLastPromptUndelivered()
+            return
+          }
           connectionState.value = 'error'
         },
         onReconnect: () => {
@@ -617,6 +630,7 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
       timestamp: Date.now(),
     }
     if (offlineSend) queuedBubbleIds.add(userMessage.id)
+    lastSentUserMessageId = userMessage.id
     messages.value = [...messages.value, userMessage]
     toolCalls.value = []
     agentSteps.value = {}
@@ -634,6 +648,22 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     // Offline sends stream nothing until the queue drains on reopen.
     isStreaming.value = !broadcastMode.value && !room && !offlineSend
     transport.send(text.trim())
+  }
+
+  function markLastPromptUndelivered() {
+    const id = lastSentUserMessageId
+    // A reply already under way means the prompt arrived: the refused send was
+    // another frame (an approval), and the stream is left alone.
+    if (!id || currentAssistantMessage !== null || toolCalls.value.length > 0) {
+      console.warn('[console] a message sent during a reply was not delivered')
+      return
+    }
+    lastSentUserMessageId = null
+    messages.value = messages.value.map(m => m.id === id && !m.content.endsWith(UNDELIVERED_SUFFIX)
+      ? { ...m, content: m.content + UNDELIVERED_SUFFIX }
+      : m)
+    // No reply will stream for it: stop waiting so the input is enabled again.
+    finalizeAssistant()
   }
 
   function respondToApproval(approvalId: string, approved: boolean) {

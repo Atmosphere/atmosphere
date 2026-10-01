@@ -168,7 +168,7 @@ export class AtmosphereChatTransport implements ChatTransport {
             }
           }
         },
-        error: () => handlers.onError(),
+        error: (error: Error) => handlers.onError(error),
         reconnect: () => handlers.onReconnect(),
         reopen: () => {
           // Re-join with the sinceId cursor so the server replays only the

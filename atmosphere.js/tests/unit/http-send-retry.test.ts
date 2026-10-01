@@ -94,8 +94,9 @@ describe('HTTP transport POST send retry', () => {
 
     expect(posts).toHaveLength(BaseTransport.SEND_MAX_ATTEMPTS);
     expect(handlers.error).toHaveBeenCalledTimes(1);
-    expect((handlers.error as ReturnType<typeof vi.fn>).mock.calls[0][0].message)
-      .toContain('status 503');
+    const reported = (handlers.error as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(reported.message).toContain('status 503');
+    expect(reported.name).toBe('AtmosphereSendError');
     await transport.disconnect();
   });
 

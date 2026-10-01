@@ -26,6 +26,7 @@ vi.mock('../transports', () => ({
 }))
 
 import { useAtmosphereChat } from './useAtmosphereChat'
+import ChatInput from '../components/ChatInput.vue'
 
 /**
  * Mount the composable inside a component that actually renders the messages.
@@ -163,5 +164,78 @@ describe('governance feedback frames', () => {
     chat.send('and the weather?')
     await nextTick()
     expect(chat.governanceFeedback.value).toBeNull()
+  })
+})
+
+describe('a prompt the server never took', () => {
+  /** User bubbles plus the real ChatInput, wired the way ChatContainer wires it. */
+  async function mountWithInput() {
+    const state: { chat?: ReturnType<typeof useAtmosphereChat> } = {}
+    const wrapper = mount(defineComponent({
+      setup() {
+        const chat = useAtmosphereChat('/atmosphere/test')
+        state.chat = chat
+        return () => h('div', [
+          ...chat.messages.value
+            .filter(m => m.role === 'user')
+            .map(m => h('p', { class: 'user', key: m.id }, m.content)),
+          h(ChatInput, {
+            disabled: !chat.isConnected.value,
+            isStreaming: chat.isStreaming.value,
+            onSend: (text: string) => chat.send(text),
+          }),
+        ])
+      },
+    }))
+    await nextTick()
+    await new Promise(resolve => queueMicrotask(() => resolve(null)))
+    return { chat: state.chat!, wrapper }
+  }
+
+  const sendError = () => Object.assign(new Error('long-polling POST send failed with status 503 after 3 attempts'),
+    { name: 'AtmosphereSendError' })
+
+  it('frees the input and marks the prompt undelivered so it can be sent again', async () => {
+    sent.length = 0
+    const { chat, wrapper } = await mountWithInput()
+    await wrapper.find('[data-testid="chat-input"]').setValue('what is 2+2?')
+    await wrapper.find('[data-testid="chat-send"]').trigger('click')
+    await nextTick()
+    expect(sent).toEqual(['what is 2+2?'])
+    expect(chat.isStreaming.value).toBe(true)
+
+    // atmosphere.js gave up resending the POST.
+    handlers.onError(sendError())
+    await nextTick()
+
+    expect(chat.isStreaming.value).toBe(false)
+    expect(chat.connectionState.value).toBe('connected')
+    expect(wrapper.find('p.user').text()).toContain('not delivered')
+
+    await wrapper.find('[data-testid="chat-input"]').setValue('what is 2+2?')
+    expect(wrapper.find('[data-testid="chat-send"]').attributes('disabled')).toBeUndefined()
+    await wrapper.find('[data-testid="chat-send"]').trigger('click')
+    expect(sent).toEqual(['what is 2+2?', 'what is 2+2?'])
+  })
+
+  it('leaves a reply already under way alone when another frame is refused', async () => {
+    const { chat, wrapper } = await mountWithInput()
+    chat.send('hello')
+    await nextTick()
+    handlers.onEvent({ type: 'streaming-text', data: 'partial' })
+    await nextTick()
+
+    handlers.onError(sendError())
+    await nextTick()
+
+    expect(chat.isStreaming.value).toBe(true)
+    expect(wrapper.find('p.user').text()).not.toContain('not delivered')
+  })
+
+  it('still reports a transport error as a connection error', async () => {
+    const { chat } = await mountWithInput()
+    handlers.onError(new Error('connection lost'))
+    await nextTick()
+    expect(chat.connectionState.value).toBe('error')
   })
 })

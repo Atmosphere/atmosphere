@@ -20,7 +20,11 @@ export type ConsoleTransportName = 'atmosphere' | 'grpc' | 'a2a' | 'ag-ui'
 export interface ChatTransportHandlers {
   onOpen(): void
   onClose(): void
-  onError(): void
+  /**
+   * A transport error. An `Error` named `'AtmosphereSendError'` means one sent
+   * message was not delivered while the connection stayed up.
+   */
+  onError(error?: Error): void
   onReconnect(): void
   onReopen(): void
   onClientTimeout(): void
