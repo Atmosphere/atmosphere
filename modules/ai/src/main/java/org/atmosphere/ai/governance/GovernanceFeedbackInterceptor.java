@@ -18,6 +18,7 @@ package org.atmosphere.ai.governance;
 import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.ai.governance.memory.GovernanceMemoryConfig;
 import org.atmosphere.ai.governance.memory.GovernanceMemorySink;
 import org.atmosphere.ai.governance.memory.GovernanceProvenanceMemory;
@@ -93,13 +94,25 @@ import java.util.Set;
  *   <li>{@value #LINES_METADATA_KEY} — those lines in injection order, each capped at
  *       {@value #MAX_SIGNAL_LINE_CHARS} characters.</li>
  * </ul>
- * Both are sent only when something was injected, so a turn without guidance emits nothing
- * (Runtime Truth: the frame reports the injection that happened, never configuration). The
- * lines are this subject's own guidance — the same scoping that governs injection governs the
- * signal. Like every {@code beforeCompletion} frame, the signal is not sent on the
- * {@code error()} terminal path, and a failure while sending it is logged and swallowed so it
- * can never suppress the terminal frame. The Atmosphere Console renders it under the turn as
- * the "Governance guidance applied" panel.
+ * Both are sent only when something was injected, so a turn without guidance emits nothing.
+ * They report the injection that reached the model, never configuration:
+ * {@link #beforeCompletion} sees the request after every interceptor has run, and reports
+ * only the recorded lines that request's system prompt still carries — an interceptor later
+ * in the chain that <em>replaces</em> the system prompt drops the guidance, and with it the
+ * signal.
+ *
+ * <p>The lines are the prompting subject's own guidance, so the signal is sent only when the
+ * reply is confirmed to reach the prompter alone: the {@code @AiEndpoint} handler stamps
+ * {@link StreamingSessions#ROOM_BROADCAST_ATTRIBUTE} on the request, and the frames go out
+ * only when it reads {@code false}. On an {@code @AiEndpoint(broadcastReply = true)} room the
+ * reply fans out to every subscriber, so neither frame is sent there (not even the count) —
+ * the guidance is still injected into the prompt, it is just not echoed to the room. A session
+ * built outside that handler carries no stamp and is treated the same way (fail closed).</p>
+ *
+ * <p>Like every {@code beforeCompletion} frame, the signal is not sent on the {@code error()}
+ * terminal path, and a failure while sending it is logged and swallowed so it can never
+ * suppress the terminal frame. The Atmosphere Console renders it under the turn as the
+ * "Governance guidance applied" panel.</p>
  *
  * <h2>Dispatch paths</h2>
  * {@link AiInterceptor}s run only on the {@code @AiEndpoint} dispatch path. The resource-free
@@ -225,7 +238,8 @@ public class GovernanceFeedbackInterceptor implements AiInterceptor {
     /**
      * Report the guidance {@link #preProcess} injected into this turn, while the session still
      * accepts frames: {@value #INJECTED_METADATA_KEY} (count) then {@value #LINES_METADATA_KEY}
-     * (the lines). Sends nothing when the turn carried no guidance.
+     * (the lines). Sends nothing when the turn carried no guidance, when the final system prompt
+     * no longer carries it, or when the reply is not confirmed to reach only the prompter.
      */
     @Override
     public void beforeCompletion(AiRequest request, StreamingSession session,
@@ -233,6 +247,13 @@ public class GovernanceFeedbackInterceptor implements AiInterceptor {
         try {
             var lines = injectedLines(request);
             if (lines.isEmpty()) {
+                return;
+            }
+            if (!repliesToPrompterOnly(resource)) {
+                // Room fan-out (or an unstamped session): the lines are the prompter's own
+                // governance history and must not reach other subscribers.
+                logger.debug("Governance feedback injected {} line(s); signal withheld because "
+                        + "the reply is not confirmed per-client", lines.size());
                 return;
             }
             session.sendMetadata(INJECTED_METADATA_KEY, lines.size());
@@ -245,21 +266,39 @@ public class GovernanceFeedbackInterceptor implements AiInterceptor {
     }
 
     /**
-     * The guidance lines {@link #preProcess} recorded on {@code request}, each capped at
-     * {@value #MAX_SIGNAL_LINE_CHARS} characters and at most {@link #maxItems} of them; empty
-     * when nothing was injected.
+     * Whether the {@code @AiEndpoint} handler confirmed this turn's reply reaches only the
+     * prompting resource. Anything but an explicit {@code false} stamp — room fan-out, no
+     * stamp, no resource — is "not confirmed".
+     */
+    private static boolean repliesToPrompterOnly(AtmosphereResource resource) {
+        if (resource == null || resource.getRequest() == null) {
+            return false;
+        }
+        return Boolean.FALSE.equals(
+                resource.getRequest().getAttribute(StreamingSessions.ROOM_BROADCAST_ATTRIBUTE));
+    }
+
+    /**
+     * The guidance lines {@link #preProcess} recorded on {@code request} that the request's
+     * system prompt still carries, each capped at {@value #MAX_SIGNAL_LINE_CHARS} characters and
+     * at most {@link #maxItems} of them; empty when nothing was injected or a later interceptor
+     * replaced the system prompt and dropped the guidance.
      */
     List<String> injectedLines(AiRequest request) {
         if (request == null || request.metadata() == null
                 || !(request.metadata().get(LINES_METADATA_KEY) instanceof List<?> raw)) {
             return List.of();
         }
+        var systemPrompt = request.systemPrompt() != null ? request.systemPrompt() : "";
         var lines = new ArrayList<String>(Math.min(raw.size(), maxItems));
         for (var item : raw) {
             if (lines.size() >= maxItems) {
                 break;
             }
-            if (item instanceof String line && !line.isBlank()) {
+            // Each injected line is rendered as "\n- <line>" in the guidance block; only a
+            // line the final prompt still carries reached the model.
+            if (item instanceof String line && !line.isBlank()
+                    && systemPrompt.contains("\n- " + line)) {
                 lines.add(line.length() > MAX_SIGNAL_LINE_CHARS
                         ? line.substring(0, MAX_SIGNAL_LINE_CHARS - 1) + "…"
                         : line);

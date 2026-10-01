@@ -3705,3 +3705,43 @@ send and by sending unconditionally. The spec asserts CARRY on that panel carryi
 conversation's PREFER text and only annotates the model's wording; with the interceptor removed
 from the sample it fails at the panel assertion while PRODUCE still passes. The README, Javadoc,
 workflow comments and `AiChat` comment now describe what runs.
+
+## 2026-09-30 — Governance feedback signal claimed subject scoping and runtime truth it lacked
+
+**Session:** review of the governance-feedback client signal on `fix/governance-carry-signal`,
+before it reached `main`.
+
+**Claim:** `GovernanceFeedbackInterceptor` Javadoc — "The lines are this subject's own guidance —
+the same scoping that governs injection governs the signal" and "the frame reports the injection
+that happened, never configuration". `governance-feedback-chat.spec.ts` — the console panel
+"carries THIS conversation's PREFER", and the entry above — the spec "asserts CARRY on that panel
+carrying this conversation's PREFER text".
+
+**Truth:** on an `@AiEndpoint(broadcastReply = true)` room, `beforeCompletion` sent the frames
+through the room-broadcast session, so the prompter's guidance lines (their conversation's
+decisions, and with durable memory on, lessons stored under their `user_id`) reached every
+subscriber in the room. The interceptor reported the lines it had recorded in request metadata,
+which `AiRequest.withSystemPrompt` keeps, so a later interceptor that replaced the system prompt
+dropped the guidance while the frames still reported it. The spec filtered the panel on
+`GovernanceFeedbackConfig.PREFERRED`, a constant every conversation's PREFER carries, so a
+cross-conversation leak still rendered one matching line and passed.
+
+**Slip path:** the scoping claim was carried over from injection (prompt-only, never on the wire)
+to the signal without checking how the session delivers it; the wire test used only the unicast
+`StreamingSessions.start`. The spec's text match was read as identity because the text names the
+org process, not because it identifies the conversation.
+
+**Gate:** the `@AiEndpoint` handler stamps `StreamingSessions.ROOM_BROADCAST_ATTRIBUTE` with the
+delivery scope it picked, and the interceptor sends the frames only on an explicit per-client
+stamp (room, no stamp or no resource: nothing). It reports only recorded lines the final system
+prompt still carries. `AiEndpointHandlerBroadcastReplyTest` (real `DefaultBroadcaster`: no
+governance frame reaches either room subscriber; the per-client prompter gets it and the bystander
+nothing), `GovernanceFeedbackSignalWireTest.roomBroadcastReplyCarriesNoGovernanceFrame` and
+`GovernanceFeedbackInterceptorTest` (room, unstamped, replaced prompt, appended prompt) pin it.
+Each was bite-checked: without the room check, four tests fail and show the bystander receiving
+the lines; without the handler stamp, the per-client handler test fails; without the prompt check,
+the replaced-prompt test fails. The spec now adds a NO LEAK step: a fresh browser context sends an
+unrelated prompt while this run's PREFER is in the ring buffer and must render no panel. With
+conversation scoping disabled in the interceptor, the spec fails at that step while CARRY still
+passes. Javadoc, README, `docs/governance-policy-plane.md` and the workflow comment describe the
+room and replaced-prompt behaviour.

@@ -707,7 +707,15 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // broadcaster (the room). Either way the prompt was already dispatched
         // to this one originating resource (see onRequest), so the @Prompt
         // method — and the LLM call inside it — runs exactly once.
-        var delegate = broadcastReply
+        // Read the volatile once so the delivery scope stamped on the request
+        // below is the one the delegate actually uses. Interceptors read the
+        // stamp to keep prompter-scoped frames off a room-wide reply.
+        var roomBroadcast = broadcastReply;
+        if (resource.getRequest() != null) {
+            resource.getRequest().setAttribute(
+                    StreamingSessions.ROOM_BROADCAST_ATTRIBUTE, roomBroadcast);
+        }
+        var delegate = roomBroadcast
                 ? StreamingSessions.startRoomBroadcast(resource)
                 : StreamingSessions.start(resource);
         var settings = AiConfig.get();

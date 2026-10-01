@@ -15,11 +15,18 @@
  */
 package org.atmosphere.ai.processor;
 
+import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AgentRuntime;
+import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.governance.GovernanceDecisionLog;
+import org.atmosphere.ai.governance.GovernanceFeedbackInterceptor;
+import org.atmosphere.ai.governance.GovernancePolicy;
+import org.atmosphere.ai.governance.PolicyContext;
+import org.atmosphere.ai.governance.PolicyDecision;
 import org.atmosphere.config.managed.AnnotatedLifecycle;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.cpr.AtmosphereConfig;
@@ -110,6 +117,7 @@ class AiEndpointHandlerBroadcastReplyTest {
 
     @AfterEach
     void tearDown() {
+        GovernanceDecisionLog.reset();
         room.destroy();
         factory.destroy();
         ExecutorsFactory.reset(config);
@@ -172,6 +180,116 @@ class AiEndpointHandlerBroadcastReplyTest {
                 "with broadcastReply off, the bystander must NOT receive the reply");
         assertTrue(capture.framesFor(bystander.uuid()).isEmpty(),
                 "with broadcastReply off, the bystander must receive no frames at all");
+    }
+
+    @Test
+    void broadcastReplyTrue_promptersGovernanceGuidanceNeverReachesTheRoom() throws Exception {
+        var originating = subscriber();
+        var bystander = subscriber();
+        GovernanceDecisionLog.install(100);
+        recordPrefer(originating.uuid());
+
+        var handler = newGovernanceHandler();
+        handler.setBroadcastReply(true);
+        handler.onStateChange(new AtmosphereResourceEventImpl(
+                (AtmosphereResourceImpl) originating).setMessage("deploy to prod?"));
+
+        awaitComplete(originating);
+        awaitComplete(bystander);
+        // The room's reply is real (both subscribers got it), and the guidance was injected
+        // into the prompter's turn — but the prompter's governance history stays off the room.
+        assertTrue(capture.received(bystander.uuid(), REPLY), "bystander got the room reply");
+        assertTrue(GovernanceEndpoint.lastSystemPrompt.contains(PREFERRED),
+                "the prompter's turn carried the guidance: " + GovernanceEndpoint.lastSystemPrompt);
+        assertFalse(capture.received(bystander.uuid(), "ai.governance.feedback"),
+                "no governance frame reaches the bystander: " + capture.framesFor(bystander.uuid()));
+        assertFalse(capture.received(originating.uuid(), "ai.governance.feedback"),
+                "nor rides the room reply at all: " + capture.framesFor(originating.uuid()));
+    }
+
+    @Test
+    void broadcastReplyFalse_promptersGovernanceGuidanceIsSignalledToThePrompterOnly() throws Exception {
+        var originating = subscriber();
+        var bystander = subscriber();
+        GovernanceDecisionLog.install(100);
+        recordPrefer(originating.uuid());
+
+        var handler = newGovernanceHandler();
+        handler.onStateChange(new AtmosphereResourceEventImpl(
+                (AtmosphereResourceImpl) originating).setMessage("deploy to prod?"));
+
+        awaitComplete(originating);
+        // The handler stamped this turn per-client, so the signal goes out — to the prompter.
+        assertTrue(capture.received(originating.uuid(), GovernanceFeedbackInterceptor.LINES_METADATA_KEY),
+                "the prompter sees the guidance it was given: " + capture.framesFor(originating.uuid()));
+        Thread.sleep(300);
+        assertTrue(capture.framesFor(bystander.uuid()).isEmpty(),
+                "the bystander receives nothing: " + capture.framesFor(bystander.uuid()));
+    }
+
+    private static final String PREFERRED = "open a CHG ticket and run release-bot";
+
+    private static void recordPrefer(String conversationId) {
+        GovernanceDecisionLog.installed().record(GovernanceDecisionLog.entryWithSnapshot(
+                new AdmitPolicy(), Map.of("conversation_id", conversationId,
+                        GovernanceDecisionLog.PREFERRED_KEY, PREFERRED),
+                "prefer", "change management", 0.1));
+    }
+
+    private void awaitComplete(AtmosphereResource resource) throws InterruptedException {
+        var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (System.nanoTime() < deadline) {
+            if (capture.received(resource.uuid(), "\"type\":\"complete\"")) {
+                return;
+            }
+            Thread.sleep(20);
+        }
+        throw new AssertionError("no complete frame for " + resource.uuid() + ": "
+                + capture.framesFor(resource.uuid()));
+    }
+
+    private AiEndpointHandler newGovernanceHandler() throws NoSuchMethodException {
+        var method = GovernanceEndpoint.class.getDeclaredMethod(
+                "onPrompt", String.class, StreamingSession.class);
+        return new AiEndpointHandler(new GovernanceEndpoint(), method, 30_000L, "base",
+                "/atmosphere/room/{room}", new ReplyingRuntime(),
+                List.<AiInterceptor>of(new GovernanceFeedbackInterceptor()),
+                null, AnnotatedLifecycle.scan(GovernanceEndpoint.class));
+    }
+
+    /** Streams the one reply and completes, recording the system prompt it was given. */
+    private static final class ReplyingRuntime implements AgentRuntime {
+        @Override public String name() { return "replying"; }
+        @Override public boolean isAvailable() { return true; }
+        @Override public int priority() { return 0; }
+        @Override public void configure(AiConfig.LlmSettings settings) { }
+        @Override
+        public void execute(AgentExecutionContext context, StreamingSession session) {
+            GovernanceEndpoint.lastSystemPrompt = String.valueOf(context.systemPrompt());
+            session.send(REPLY);
+            session.complete();
+        }
+    }
+
+    private static final class AdmitPolicy implements GovernancePolicy {
+        @Override public String name() { return "production-release-advisor"; }
+        @Override public String source() { return "code:test"; }
+        @Override public String version() { return "1"; }
+        @Override public PolicyDecision evaluate(PolicyContext context) {
+            return PolicyDecision.admit();
+        }
+    }
+
+    @AiEndpoint(path = "/atmosphere/room/{room}", broadcastReply = true)
+    static final class GovernanceEndpoint {
+
+        static volatile String lastSystemPrompt = "";
+
+        @Prompt
+        public void onPrompt(String message, StreamingSession session) {
+            // The real streaming path: interceptors, then the runtime.
+            session.stream(message);
+        }
     }
 
     // Uses the path-aware constructor so the handler carries a non-null path

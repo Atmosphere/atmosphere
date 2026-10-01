@@ -491,7 +491,13 @@ buffer and injects a contrastive guidance block into the next turn's system prom
   frames just before the turn's `complete` frame — `ai.governance.feedback.injected` (how many
   lines were injected, at most `maxItems`) and `ai.governance.feedback.lines` (those lines, each
   capped at 512 characters). Neither frame is sent when nothing was injected, nor on the
-  `error()` terminal path. The Atmosphere Console renders them under the turn as the
+  `error()` terminal path. The frames report what reached the model: only lines the final
+  system prompt still carries are reported, so an interceptor later in the chain that
+  replaces the system prompt suppresses the signal along with the guidance. The lines are the
+  prompter's own governance history, so they are sent only when the `@AiEndpoint` handler
+  confirmed the reply goes to the prompter alone: on an `@AiEndpoint(broadcastReply = true)`
+  room the guidance is still injected, but neither frame is sent, so it never reaches the
+  other subscribers. The Atmosphere Console renders them under the turn as the
   **Governance guidance applied** panel (`data-testid="governance-feedback"`). This is what an
   e2e can assert: whether the model then *follows* the guidance is model behaviour, not a
   framework guarantee.

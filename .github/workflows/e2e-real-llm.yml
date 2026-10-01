@@ -170,7 +170,9 @@ jobs:
       # injects the org-specific advisory and reports it with ai.governance.feedback.*
       # metadata frames, which the console renders under the turn. The PREFER is
       # asserted on the decisions API for the spec's own conversation, and the console
-      # panel must carry that PREFER's release-bot text — absent when the loop is off.
+      # panel must carry the advisor's release-bot text — absent when the loop is off.
+      # A second, fresh conversation with an unrelated prompt must render no panel,
+      # pinning that one conversation's guidance never reaches another.
       # Whether the model's answer names release-bot is only annotated, never asserted.
       # Uses the e2e/ foundation Playwright project (not integration-tests) and
       # reuses the warm Ollama above.

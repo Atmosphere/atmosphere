@@ -68,18 +68,37 @@ class GovernanceFeedbackSignalWireTest {
     private record Wire(AtmosphereResource resource, List<String> frames, StreamingSession delegate) {
     }
 
+    /** A per-client turn, stamped as the {@code @AiEndpoint} handler stamps it. */
     private static Wire wire(String uuid) {
+        return wire(uuid, false);
+    }
+
+    /**
+     * A turn whose reply is per-client ({@code room = false}, {@link StreamingSessions#start})
+     * or room-wide ({@code room = true}, {@link StreamingSessions#startRoomBroadcast}). Frames
+     * are captured from both broadcaster overloads: the targeted one (per-client) and the
+     * untargeted one (every subscriber in the room).
+     */
+    private static Wire wire(String uuid, boolean room) {
         var frames = new CopyOnWriteArrayList<String>();
         var resource = mock(AtmosphereResource.class);
         var broadcaster = mock(Broadcaster.class);
-        when(resource.getRequest()).thenReturn(mock(AtmosphereRequest.class));
+        var request = mock(AtmosphereRequest.class);
+        when(request.getAttribute(StreamingSessions.ROOM_BROADCAST_ATTRIBUTE)).thenReturn(room);
+        when(resource.getRequest()).thenReturn(request);
         when(resource.uuid()).thenReturn(uuid);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
         when(broadcaster.broadcast(any(), anySet())).thenAnswer(inv -> {
             frames.add(String.valueOf(((RawMessage) inv.getArgument(0)).message()));
             return null;
         });
-        return new Wire(resource, frames, StreamingSessions.start("sess-" + uuid, resource));
+        when(broadcaster.broadcast(any())).thenAnswer(inv -> {
+            frames.add(String.valueOf(((RawMessage) inv.getArgument(0)).message()));
+            return null;
+        });
+        return new Wire(resource, frames, room
+                ? StreamingSessions.startRoomBroadcast(resource)
+                : StreamingSessions.start("sess-" + uuid, resource));
     }
 
     /** A PREFER for {@code conversationId}, as the policy plane records it. */
@@ -152,6 +171,27 @@ class GovernanceFeedbackSignalWireTest {
         assertTrue(indexOf(w.frames(), "ai.governance.feedback") < 0,
                 "no signal without injection: " + w.frames());
         assertTrue(indexOf(w.frames(), "\"type\":\"complete\"") >= 0, "turn still completes");
+    }
+
+    @Test
+    void roomBroadcastReplyCarriesNoGovernanceFrame() {
+        // @AiEndpoint(broadcastReply = true): the reply fans out to every subscriber in the
+        // room, so the prompter's own governance lines must not ride it.
+        var w = wire("conv-room", true);
+        recordPrefer("conv-room");
+        var prompt = new AtomicReference<String>();
+        var session = new AiStreamingSession(w.delegate(), capturingRuntime(prompt), "base", null,
+                List.of(new GovernanceFeedbackInterceptor()), w.resource());
+
+        session.stream("how do I deploy to production?");
+
+        assertTrue(prompt.get().contains(PREFERRED),
+                "the prompter's turn still carries the guidance: " + prompt.get());
+        assertTrue(indexOf(w.frames(), "answer") >= 0
+                        && indexOf(w.frames(), "\"type\":\"complete\"") >= 0,
+                "the reply and its complete frame went to the whole room: " + w.frames());
+        assertTrue(indexOf(w.frames(), "ai.governance.feedback") < 0,
+                "no governance frame reaches the room: " + w.frames());
     }
 
     @Test

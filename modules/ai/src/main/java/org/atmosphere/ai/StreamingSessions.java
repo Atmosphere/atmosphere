@@ -32,6 +32,19 @@ import java.util.UUID;
  */
 public final class StreamingSessions {
 
+    /**
+     * Request attribute recording where an {@code @AiEndpoint} turn's reply is delivered:
+     * {@link Boolean#TRUE} when it fans out to every subscriber in the room
+     * ({@link #startRoomBroadcast}, {@code @AiEndpoint(broadcastReply = true)}),
+     * {@link Boolean#FALSE} when it reaches only the prompting resource ({@link #start}).
+     * The {@code @AiEndpoint} handler stamps it on the prompting resource's request each
+     * time it picks the turn's session, so an {@link AiInterceptor} can tell whether a
+     * frame it sends is seen by anyone other than the prompter. Absent when the session
+     * was built outside that handler; a consumer that must not reach other subscribers
+     * treats absence as "not confirmed per-client".
+     */
+    public static final String ROOM_BROADCAST_ATTRIBUTE = "org.atmosphere.ai.roomBroadcast";
+
     private StreamingSessions() {
     }
 

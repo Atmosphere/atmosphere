@@ -17,12 +17,15 @@ package org.atmosphere.ai.governance;
 
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.ai.governance.memory.GovernanceFact;
 import org.atmosphere.ai.governance.memory.GovernanceMemorySink;
 import org.atmosphere.ai.governance.memory.GovernanceProvenanceMemory;
 import org.atmosphere.ai.memory.InMemoryLongTermMemory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -40,6 +43,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class GovernanceFeedbackInterceptorTest {
 
@@ -69,6 +74,23 @@ class GovernanceFeedbackInterceptorTest {
 
     private static Map<String, Object> convScope(String conversationId) {
         return Map.of("conversation_id", conversationId);
+    }
+
+    /**
+     * The prompting resource as the {@code @AiEndpoint} handler leaves it: its request
+     * stamped with the turn's delivery scope ({@code null} = never stamped).
+     */
+    private static AtmosphereResource prompter(Boolean roomBroadcast) {
+        var resource = mock(AtmosphereResource.class);
+        var req = mock(AtmosphereRequest.class);
+        when(resource.getRequest()).thenReturn(req);
+        when(req.getAttribute(StreamingSessions.ROOM_BROADCAST_ATTRIBUTE)).thenReturn(roomBroadcast);
+        return resource;
+    }
+
+    /** A per-client turn: the reply reaches only the prompter. */
+    private static AtmosphereResource unicast() {
+        return prompter(Boolean.FALSE);
     }
 
     @Test
@@ -290,7 +312,7 @@ class GovernanceFeedbackInterceptorTest {
         var out = interceptor.preProcess(request("conv-1"), null);
         var session = new RecordingSession();
 
-        interceptor.beforeCompletion(out, session, null);
+        interceptor.beforeCompletion(out, session, unicast());
 
         assertEquals(List.of(GovernanceFeedbackInterceptor.INJECTED_METADATA_KEY,
                         GovernanceFeedbackInterceptor.LINES_METADATA_KEY),
@@ -311,7 +333,7 @@ class GovernanceFeedbackInterceptorTest {
         var out = interceptor.preProcess(request("conv-1"), null);
         var session = new RecordingSession();
 
-        interceptor.beforeCompletion(out, session, null);
+        interceptor.beforeCompletion(out, session, unicast());
 
         assertNull(out.metadata().get(GovernanceFeedbackInterceptor.LINES_METADATA_KEY));
         assertTrue(session.metadata.isEmpty(), "no frame without injection: " + session.metadata);
@@ -323,12 +345,15 @@ class GovernanceFeedbackInterceptorTest {
         for (int i = 0; i < 10; i++) {
             oversized.add(i + "x".repeat(2_000));
         }
-        var forged = new AiRequest("m", BASE_PROMPT, null, null, null, null, "conv-1",
+        // The prompt carries every recorded line, as an injection would have left it.
+        var prompt = new StringBuilder(BASE_PROMPT);
+        oversized.forEach(line -> prompt.append("\n- ").append(line));
+        var forged = new AiRequest("m", prompt.toString(), null, null, null, null, "conv-1",
                 Map.of(GovernanceFeedbackInterceptor.LINES_METADATA_KEY, oversized), List.of());
         var interceptor = new GovernanceFeedbackInterceptor(3, 100);
         var session = new RecordingSession();
 
-        interceptor.beforeCompletion(forged, session, null);
+        interceptor.beforeCompletion(forged, session, unicast());
 
         assertEquals(3, session.metadata.get(GovernanceFeedbackInterceptor.INJECTED_METADATA_KEY));
         var lines = (List<?>) session.metadata.get(GovernanceFeedbackInterceptor.LINES_METADATA_KEY);
@@ -351,7 +376,73 @@ class GovernanceFeedbackInterceptorTest {
             }
         };
 
-        assertDoesNotThrow(() -> interceptor.beforeCompletion(out, session, null));
+        assertDoesNotThrow(() -> interceptor.beforeCompletion(out, session, unicast()));
+    }
+
+    @Test
+    void roomBroadcastTurnInjectsButNeverSignals() {
+        // On @AiEndpoint(broadcastReply = true) the reply fans out to every subscriber, so the
+        // prompter's governance lines must not ride it — not even their count.
+        record("deny", "least-privilege violation", convScope("conv-1"));
+        var interceptor = new GovernanceFeedbackInterceptor();
+        var out = interceptor.preProcess(request("conv-1"), null);
+        var session = new RecordingSession();
+
+        interceptor.beforeCompletion(out, session, prompter(Boolean.TRUE));
+
+        assertTrue(out.systemPrompt().contains("least-privilege violation"),
+                "the guidance is still injected into the prompter's turn");
+        assertTrue(session.metadata.isEmpty(), "no frame on a room-wide reply: " + session.metadata);
+    }
+
+    @Test
+    void unconfirmedDeliveryScopeFailsClosed() {
+        record("deny", "least-privilege violation", convScope("conv-1"));
+        var interceptor = new GovernanceFeedbackInterceptor();
+        var out = interceptor.preProcess(request("conv-1"), null);
+
+        var unstamped = new RecordingSession();
+        interceptor.beforeCompletion(out, unstamped, prompter(null));
+        var noResource = new RecordingSession();
+        interceptor.beforeCompletion(out, noResource, null);
+
+        assertTrue(unstamped.metadata.isEmpty(), "no stamp is not per-client: " + unstamped.metadata);
+        assertTrue(noResource.metadata.isEmpty(), "no resource is not per-client: " + noResource.metadata);
+    }
+
+    @Test
+    void aLaterInterceptorThatReplacesTheSystemPromptSuppressesTheSignal() {
+        record("prefer", "least-privilege",
+                Map.of("conversation_id", "conv-1",
+                        GovernanceDecisionLog.PREFERRED_KEY, "request a scoped credential"));
+        var interceptor = new GovernanceFeedbackInterceptor();
+        // FIFO chain: feedback first, then a persona switch that replaces the prompt
+        // (withSystemPrompt keeps the metadata, so the recorded lines survive it).
+        var injected = interceptor.preProcess(request("conv-1"), null);
+        var replaced = injected.withSystemPrompt("You are the billing persona.");
+        var session = new RecordingSession();
+
+        interceptor.beforeCompletion(replaced, session, unicast());
+
+        assertTrue(replaced.metadata().containsKey(GovernanceFeedbackInterceptor.LINES_METADATA_KEY),
+                "the recorded lines outlive the replacement: " + replaced.metadata());
+        assertTrue(session.metadata.isEmpty(),
+                "the guidance never reached the model, so nothing is reported: " + session.metadata);
+    }
+
+    @Test
+    void aLaterInterceptorThatAppendsKeepsTheSignal() {
+        record("prefer", "least-privilege",
+                Map.of("conversation_id", "conv-1",
+                        GovernanceDecisionLog.PREFERRED_KEY, "request a scoped credential"));
+        var interceptor = new GovernanceFeedbackInterceptor();
+        var injected = interceptor.preProcess(request("conv-1"), null);
+        var appended = injected.withSystemPrompt(injected.systemPrompt() + "\n\nAnswer in French.");
+        var session = new RecordingSession();
+
+        interceptor.beforeCompletion(appended, session, unicast());
+
+        assertEquals(1, session.metadata.get(GovernanceFeedbackInterceptor.INJECTED_METADATA_KEY));
     }
 
     @Test

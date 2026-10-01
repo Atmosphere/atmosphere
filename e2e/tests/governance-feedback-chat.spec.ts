@@ -44,17 +44,26 @@ import { test, expect } from '@playwright/test';
  *     `ai.governance.feedback.injected` / `ai.governance.feedback.lines` metadata
  *     frames just before the turn's `complete` frame, and the console renders them
  *     under the turn as the "Governance guidance applied" panel. The spec asserts
- *     that panel carries THIS conversation's PREFER (its `preferred` text, which
- *     names release-bot). Reading the console DOM keeps the assertion independent
- *     of the wire: the console connects over WebTransport when the sidecar is up,
- *     which Playwright cannot sniff. With the interceptor removed the panel never
- *     renders, so the assertion fails — it is not trivially true.
+ *     that panel carries the advisor's `preferred` text (which names release-bot).
+ *     That text is the same for every conversation, so on its own it cannot tell
+ *     this conversation's PREFER from another's: scoping is pinned by
+ *  3. NO LEAK — a second, fresh conversation (its own browser context, so its own
+ *     resource and conversation_id) sends a prompt the advisor does not match while
+ *     the first conversation's PREFER is still in the decision-log ring buffer, and
+ *     must render no panel. A regression that injected another conversation's
+ *     guidance would render it there.
+ * Reading the console DOM keeps the assertions independent of the wire: the console
+ * connects over WebTransport when the sidecar is up, which Playwright cannot sniff.
+ * With the interceptor removed the panel never renders, so the CARRY assertion fails
+ * — it is not trivially true.
  *
  * Whether the model's free text then names release-bot is model adherence, not a
  * framework guarantee (qwen2.5:1.5b at temperature 0 has answered without it), so
  * it is recorded as a test annotation and never fails the spec.
  */
 const PROMPT = 'How do I deploy the billing service to production?';
+/** Matches none of the advisor's deploy/release + prod patterns, so it records no PREFER. */
+const UNRELATED_PROMPT = 'Hello! What is two plus two?';
 const ADVISOR = 'production-release-advisor';
 
 interface DecisionEntry {
@@ -76,7 +85,7 @@ test.describe('governance-feedback: soft-preference is carried into the turn', (
   // first turn was killed by the test timeout rather than by the assertion.
   test.setTimeout(120_000);
 
-  test('a production-deploy question yields a PREFER + injected org-specific guidance', async ({ page, baseURL }) => {
+  test('a production-deploy question yields a PREFER + injected org-specific guidance', async ({ page, browser, baseURL }) => {
     const decisionsUrl = `${baseURL}/api/admin/governance/decisions?limit=200`;
     const readDecisions = async (): Promise<DecisionEntry[]> => {
       const res = await page.request.get(decisionsUrl);
@@ -125,8 +134,9 @@ test.describe('governance-feedback: soft-preference is carried into the turn', (
     // CARRY: the interceptor reported injecting guidance into THIS turn's system
     // prompt. The frames arrive before `complete`, so once session-stats renders the
     // panel is final. It is per-turn console state rendered under this page's only
-    // turn, and the injected line must carry the `preferred` text of the PREFER this
-    // conversation produced above — the release-bot process the base model cannot know.
+    // turn, and the injected line must carry the advisor's `preferred` text — the
+    // release-bot process the base model cannot know. That text is identical across
+    // conversations; the NO LEAK step below is what pins the scoping.
     const guidance = page.getByTestId('governance-feedback');
     await expect(guidance, 'the console renders the injected-guidance panel').toHaveCount(1);
     await expect(guidance).toBeVisible();
@@ -157,5 +167,32 @@ test.describe('governance-feedback: soft-preference is carried into the turn', (
       .filter({ hasText: conversationId });
     await expect(preferRow).toHaveCount(1, { timeout: 15_000 });
     await expect(preferRow).toBeVisible();
+
+    // NO LEAK: a fresh conversation must not inherit the guidance above. A new browser
+    // context gets its own connection, so its own resource uuid and conversation_id,
+    // while this run's PREFER is still in the decision-log ring buffer. Its prompt
+    // matches no advisor pattern, so nothing of its own can be injected: a panel here
+    // could only come from another conversation's guidance.
+    const otherContext = await browser.newContext({ baseURL });
+    try {
+      const other = await otherContext.newPage();
+      await other.goto(`${baseURL}/atmosphere/console/`);
+      await expect(other.getByTestId('status-label')).toHaveText(/^Connected/, { timeout: 15_000 });
+      await other.getByTestId('chat-input').fill(UNRELATED_PROMPT);
+      await other.getByTestId('chat-send').click();
+      const otherBubbles = other.getByTestId('message-bubble');
+      await expect(otherBubbles.first()).toContainText(UNRELATED_PROMPT);
+      // The governance frames precede `complete`, so once session-stats renders the
+      // turn is final and an absent panel is a real absence.
+      await expect(other.getByTestId('session-stats')).toBeVisible({ timeout: 90_000 });
+      await expect(otherBubbles).toHaveCount(2);
+      await expect(other.getByTestId('governance-feedback'),
+        'a fresh conversation renders no guidance from another conversation').toHaveCount(0);
+      // The first conversation's PREFER was still there to leak.
+      expect(preferConversations(await readDecisions()).has(conversationId),
+        'the earlier PREFER is still in the decision log').toBeTruthy();
+    } finally {
+      await otherContext.close();
+    }
   });
 });
