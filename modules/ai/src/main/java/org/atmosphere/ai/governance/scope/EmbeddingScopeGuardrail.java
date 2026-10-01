@@ -123,17 +123,20 @@ public final class EmbeddingScopeGuardrail implements ScopeGuardrail {
 
         // Optional: also check against forbidden topics. A high similarity
         // to ANY forbidden topic wins over the purpose match.
+        String unembeddedTopic = null;
         for (var topic : config.forbiddenTopics()) {
             if (topic == null || topic.isBlank()) continue;
             var topicVector = purposeVectorCache.computeIfAbsent(
                     topic.toLowerCase(Locale.ROOT),
                     t -> safeEmbed(t, "forbidden topic '" + t + "'"));
             if (topicVector == null) {
-                // Skipping the topic would let a request that topic blocks
-                // through; degrade like the other embed failures above.
-                logger.warn("Could not embed forbidden topic '{}' — degrading to RULE_BASED scope "
-                        + "enforcement for this request.", topic);
-                return ruleBasedFallback.evaluate(request, config);
+                // Neither skip the topic (a request it blocks would get
+                // through) nor degrade yet: the threshold check below must
+                // still reject an off-purpose message first.
+                if (unembeddedTopic == null) {
+                    unembeddedTopic = topic;
+                }
+                continue;
             }
             var topicSim = cosineSimilarity(topicVector, messageVector);
             if (topicSim > similarity) {
@@ -150,6 +153,14 @@ public final class EmbeddingScopeGuardrail implements ScopeGuardrail {
                     "message similarity " + round(similarity)
                             + " below threshold " + round(config.similarityThreshold()),
                     similarity);
+        }
+        if (unembeddedTopic != null) {
+            // The message clears the threshold but could not be compared with
+            // every forbidden topic; degrade like the other embed failures
+            // above so the keyword tier still enforces that topic.
+            logger.warn("Could not embed forbidden topic '{}' — degrading to RULE_BASED scope "
+                    + "enforcement for this request.", unembeddedTopic);
+            return ruleBasedFallback.evaluate(request, config);
         }
         return Decision.inScope(similarity);
     }

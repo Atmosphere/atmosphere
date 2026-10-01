@@ -302,7 +302,7 @@ four tiers, each resolved by `ScopeGuardrailResolver`:
 | Tier | Guardrail | Backing | When the backing is missing or fails |
 |------|-----------|---------|--------------------------------------|
 | `RULE_BASED` | `RuleBasedScopeGuardrail` | none — forbidden topics as keywords plus built-in hijacking probes | n/a |
-| `EMBEDDING_SIMILARITY` (default) | `EmbeddingScopeGuardrail` | `EmbeddingRuntime`; rejects below `similarityThreshold` or closer to a forbidden topic than to the purpose | degrades to `RULE_BASED` for the request, with a WARN |
+| `EMBEDDING_SIMILARITY` (default) | `EmbeddingScopeGuardrail` | `EmbeddingRuntime`; rejects below `similarityThreshold` or closer to a forbidden topic than to the purpose | degrades to `RULE_BASED` for the request, with a WARN. A forbidden topic that fails to embed degrades only a message that clears `similarityThreshold`; one below it is rejected |
 | `SEMANTIC_INTENT` | `SemanticIntentScopeGuardrail` | `EmbeddingRuntime`; also requires the purpose similarity to beat the best forbidden-topic similarity by a margin (0.05) | no runtime: degrades to `RULE_BASED`, with a WARN. An embedding call that fails (purpose, request or a forbidden topic): `ScopePolicy` denies. A message below `similarityThreshold` is rejected before the forbidden topics are embedded, so a topic that fails to embed never turns that rejection into an error |
 | `LLM_CLASSIFIER` | `LlmClassifierScopeGuardrail` | `DecisionModel` (see *Decision models*) | `ScopePolicy` denies (fail-closed) |
 

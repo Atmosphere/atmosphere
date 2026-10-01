@@ -96,9 +96,9 @@ class OwaspMatrixPinTest {
 
     @Test
     void goalHijackingEvidenceCountsEveryScopeTier() {
-        // The A01 evidence said "3 tiers" for months after SEMANTIC_INTENT
-        // became the fourth; tie the count to the enum so adding or removing
-        // a tier breaks the build until the description is updated.
+        // The A01 evidence said "3 tiers" while AgentScope.Tier had four; tie
+        // the count to the enum so adding or removing a tier breaks the build
+        // until the description is updated.
         var description = OwaspAgenticMatrix.MATRIX.stream()
                 .filter(row -> row.id().equals("A01"))
                 .flatMap(row -> row.evidence().stream())

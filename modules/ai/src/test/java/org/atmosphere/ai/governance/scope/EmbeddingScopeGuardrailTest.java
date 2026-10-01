@@ -18,13 +18,17 @@ package org.atmosphere.ai.governance.scope;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.EmbeddingRuntime;
 import org.atmosphere.ai.annotation.AgentScope;
+import org.atmosphere.ai.governance.PolicyContext;
+import org.atmosphere.ai.governance.PolicyDecision;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EmbeddingScopeGuardrailTest {
@@ -180,6 +184,69 @@ class EmbeddingScopeGuardrailTest {
                         0.45, false, false, ""));
         assertEquals(ScopeGuardrail.Outcome.OUT_OF_SCOPE, decision.outcome(),
                 "an unscorable forbidden topic must not be skipped: " + decision.reason());
+    }
+
+    @Test
+    void offPurposeMessageIsRejectedEvenWhenAForbiddenTopicCannotBeEmbedded() {
+        // Regression: the unembeddable-topic fallback ran before the threshold
+        // check, so an off-purpose message the threshold rejects (cosine 0
+        // here) was admitted by the keyword tier whenever a topic failed.
+        var vectors = Map.of(
+                "customer support", new float[] { 1.0f, 0.0f, 0.0f },
+                "tell me a bedtime story about dragons", new float[] { 0.0f, 0.0f, 1.0f });
+        var runtime = new StubEmbeddingRuntime(vectors) {
+            @Override
+            public float[] embed(String text) {
+                if (!vectors.containsKey(text)) {
+                    throw new IllegalStateException("embedding model unavailable for: " + text);
+                }
+                return super.embed(text);
+            }
+        };
+        var config = new ScopeConfig("customer support", List.of("medical advice"),
+                AgentScope.Breach.DENY, "", AgentScope.Tier.EMBEDDING_SIMILARITY,
+                0.45, false, false, "");
+        var request = new AiRequest("tell me a bedtime story about dragons");
+        var guardrail = new EmbeddingScopeGuardrail(runtime);
+
+        var decision = guardrail.evaluate(request, config);
+        assertEquals(ScopeGuardrail.Outcome.OUT_OF_SCOPE, decision.outcome(), decision.reason());
+        assertTrue(decision.reason().contains("below threshold"),
+                "the threshold, not the keyword fallback, must decide: " + decision.reason());
+
+        var policy = new ScopePolicy("scope::support", "code:test", "1.0", config, guardrail);
+        assertInstanceOf(PolicyDecision.Deny.class,
+                policy.evaluate(PolicyContext.preAdmission(request)));
+    }
+
+    @Test
+    void onPurposeMessageStillDegradesWhenAForbiddenTopicCannotBeEmbedded() {
+        // The threshold-first order must not drop the degrade: an on-purpose
+        // message that cannot be compared with a topic goes to the keyword
+        // tier, which admits it (no topic keyword, no hijacking probe).
+        var vectors = Map.of(
+                "customer support", new float[] { 1.0f, 0.0f, 0.0f },
+                "where is my order", new float[] { 0.95f, 0.3f, 0.0f });
+        var embedded = new ArrayList<String>();
+        var runtime = new StubEmbeddingRuntime(vectors) {
+            @Override
+            public float[] embed(String text) {
+                embedded.add(text);
+                if (!vectors.containsKey(text)) {
+                    throw new IllegalStateException("embedding model unavailable for: " + text);
+                }
+                return super.embed(text);
+            }
+        };
+        var decision = new EmbeddingScopeGuardrail(runtime).evaluate(
+                new AiRequest("where is my order"),
+                new ScopeConfig("customer support", List.of("medical advice"),
+                        AgentScope.Breach.DENY, "", AgentScope.Tier.EMBEDDING_SIMILARITY,
+                        0.45, false, false, ""));
+        assertEquals(ScopeGuardrail.Outcome.IN_SCOPE, decision.outcome(), decision.reason());
+        assertTrue(Double.isNaN(decision.similarity()),
+                "the keyword tier (no similarity) must decide, not the embedding tier: " + decision);
+        assertTrue(embedded.contains("medical advice"), "the topic embed must be attempted");
     }
 
     @Test

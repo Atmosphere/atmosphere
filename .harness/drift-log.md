@@ -4245,19 +4245,34 @@ there, so it returned `false` for `SEMANTIC_INTENT` while `resolve(SEMANTIC_INTE
 built-in `SemanticIntentScopeGuardrail` (Invariant #5). It now asks `resolve` itself.
 **Slip path:** the margin Javadoc described a planned annotation member that was never added; the
 resolver comment and the test comment described the embedding tier's fallback and were not
-checked against the semantic-intent code; the tier counts were written before `SEMANTIC_INTENT`
-existed and nothing tied them to the enum; `hasNativeImpl` was written when every non-rule tier
-was registered through `ServiceLoader`, and the built-in switch grew past it.
+checked against the semantic-intent code. The "3 tiers" text, the `SEMANTIC_INTENT` enum
+constant, the resolver's `case SEMANTIC_INTENT` switch arm, the `ServiceLoader`-only
+`hasNativeImpl` and a services file listing only the embedding and LLM-classifier guardrails all
+landed together in `b6cdced49e`: the tier count and `hasNativeImpl` were wrong from the first
+commit, not left stale by a later change, and nothing tied either to the enum or the switch.
 **Gate:** `SemanticIntentScopeGuardrailTest#noRuntimeDegradesToRuleBasedInsteadOfAdmittingEverything`,
 `#noRuntimeDeniesAtPreAdmissionThroughScopePolicy`, `#failOpenPropertyIsReadOnEachRequest`,
 `#explicitFailOpenArgumentWinsOverTheProperty`, `#forbiddenTopicThatCannotBeEmbeddedIsAnErrorNotSkipped`
 and `EmbeddingScopeGuardrailTest#forbiddenTopicThatCannotBeEmbeddedDegradesInsteadOfBeingSkipped`
-(all fail with the fix reverted); `#constructorMarginIsTheOneApplied` pins the corrected margin
-Javadoc; `OwaspMatrixPinTest#goalHijackingEvidenceCountsEveryScopeTier` ties the A01 tier count to
-`AgentScope.Tier.values().length`.
+(all fail with the fix reverted); `AgentScopeReferencesTest#everyAgentScopeMemberReferenceNamesADeclaredMember`
+gates Claims 1 and 4: it scans `modules/ai/src/main/java` for `AgentScope#member` references and
+fails on any member `AgentScope` does not declare (fails against origin/main's
+`SemanticIntentScopeGuardrail.java`, which links `AgentScope#semanticIntentMargin()`; Claim 4's
+"configured margin" prose names no member, so it is fixed in prose only).
+`#constructorMarginIsTheOneApplied` is a behaviour test of the constructor margin, not a Javadoc
+pin; it passes on origin/main too. `OwaspMatrixPinTest#goalHijackingEvidenceCountsEveryScopeTier`
+ties the A01 tier count to `AgentScope.Tier.values().length`.
 `SemanticIntentScopeGuardrailTest#hasNativeImplAgreesWithTheResolvedTierForEveryTier` pins Claim 5
 (fails with the fix reverted). The same review found the forbidden-topic `ERROR` above ran before
 the absolute `similarityThreshold` floor, so on the post-response check (which admits `ERROR`) an
 off-purpose response was admitted whenever a topic failed to embed; the floor now runs first,
 pinned by `#offPurposeResponseIsDeniedPostResponseEvenWhenATopicCannotBeEmbedded` (fails with the
 fix reverted).
+The embedding tier had the same ordering fault after the unembeddable-topic fix: its fallback to
+`RULE_BASED` ran inside the forbidden-topic loop, ahead of the `similarityThreshold` check, so an
+off-purpose message below the threshold was admitted by the keyword tier whenever a topic failed
+to embed — contradicting the README's "By default no tier admits, at pre-admission, a request it
+could not screen". The topic failure is now recorded and the fallback runs only after the
+threshold check passes, pinned by
+`EmbeddingScopeGuardrailTest#offPurposeMessageIsRejectedEvenWhenAForbiddenTopicCannotBeEmbedded`
+(fails with the fix reverted) and `#onPurposeMessageStillDegradesWhenAForbiddenTopicCannotBeEmbedded`.
