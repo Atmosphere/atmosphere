@@ -4142,3 +4142,33 @@ and no test drove a transport failure or a close during a request.
 `#aMovingAliasIsLoggedOnceAcrossServiceLoaderScans`, and
 `InjectionClassifierResolverTest#aDowngradedLlmTierStaysRuleBasedUntilResetEvenOnceARegistrationIsAvailable`.
 Each `TypesafeDecisionModel` test was checked to fail with its fix reverted.
+
+---
+
+## 2026-10-01 — The TypeSafe README called optional token counts required and edited fixtures verbatim
+
+**Session:** carnet #56 third review — `atmosphere-ai-decision-typesafe` findings.
+
+**Claim 1:** the first 2026-10-01 TypeSafe entry above (its *Gate*), the module README's *Strict
+decoding* and the `TypesafeWire` Javadoc: `usage.input_tokens` and `usage.output_tokens` are fields
+`api.md` marks required, so a reply without them fails every question as `UNPARSEABLE`.
+**Truth:** `api.md` marks only the `usage` object `required`; its two children carry no `required`.
+The SDK response schema in `docs.typesafe.ai/llms-full.txt` describes `Usage` as "Token counts for a
+request, when reported by the API." and types each count `integer | null`, default `null`. A reply
+the provider documents as valid failed every question, and every safety tier then failed closed.
+**Claim 2:** the README's *Tests* table: `TypesafeWireTest` pins "strict decoding (every documented
+required field)".
+**Truth:** no test sent a choice answer without `choice` or `probabilities`, a score answer without
+`score`, or a wrongly typed one of those; deleting those guards left the suite green.
+**Claim 3:** the README's verification table and the `TypesafeDecisionModelContractTest` Javadoc:
+the request fixtures are the `api.md` examples "copied verbatim".
+**Truth:** every `api.md` request example sends `"model": "jev-latest"`; every fixture sends
+`"model": "jev-1.13.0"`. The rest of each fixture matches its example exactly.
+**Slip path:** the required columns were read off the parent field (`usage ... required`) and
+carried to its children, the SDK schema was not opened, and the fixtures were edited after being
+copied without the description being updated.
+**Gate:** `TypesafeWireTest#anUnreportedTokenCountKeepsTheAnswersAndReportsNoUsage`,
+`#aReplyWithoutModelOrUsageFailsEveryQuestion` (malformed and overflowing counts),
+`#everyRequiredChoiceFieldIsCheckedOnItsOwn`, `#everyRequiredScoreFieldIsCheckedOnItsOwn`,
+`#theRequiredNoulFieldIsChecked`. The README, the Javadoc and the contract-test Javadoc now cite what
+`api.md` and the SDK schema actually require and say the request fixtures pin the model id.

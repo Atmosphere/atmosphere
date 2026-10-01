@@ -55,7 +55,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Contract tests against a JDK {@code HttpServer} stub that replays the request
  * and response shapes documented at {@code docs.typesafe.ai/api.md} (the
- * examples are copied verbatim into {@code src/test/resources/fixtures}) and the
+ * examples are copied into {@code src/test/resources/fixtures}; the request
+ * fixtures change {@code model} from the moving alias {@code jev-latest} to the
+ * pinned {@code jev-1.13.0}, the adapter's default) and the
  * error envelope observed live for 401/403.
  */
 class TypesafeDecisionModelContractTest {
@@ -503,6 +505,31 @@ class TypesafeDecisionModelContractTest {
             }
         } finally {
             instances.forEach(TypesafeDecisionModel::close);
+        }
+    }
+
+    @Test
+    void anInterruptedCallerDoesNotMarkTheConfigurationDownForOthers() throws Exception {
+        var interruptedSaw = new AtomicReference<Boolean>();
+        var flagKept = new AtomicReference<Boolean>();
+        try (var a = TypesafeDecisionModel.builder().apiKey("test-key").baseUrl(stub.baseUrl()).build();
+             var b = TypesafeDecisionModel.builder().apiKey("test-key").baseUrl(stub.baseUrl()).build()) {
+            var caller = new Thread(() -> {
+                Thread.currentThread().interrupt();
+                interruptedSaw.set(a.isAvailable());
+                flagKept.set(Thread.currentThread().isInterrupted());
+            });
+            caller.start();
+            caller.join(TimeUnit.SECONDS.toMillis(10));
+            assertFalse(caller.isAlive());
+            assertFalse(interruptedSaw.get(), "the interrupted caller gets no positive verdict");
+            assertTrue(flagKept.get(), "the interrupt flag is restored");
+
+            var before = stub.hits("/v1/models");
+            assertTrue(b.isAvailable(), "a clean caller of the same configuration is not handed a down verdict");
+            // ">" not "==": the aborted request may still land on the stub afterwards.
+            assertTrue(stub.hits("/v1/models") > before, "the clean caller's probe reached /v1/models");
+            assertTrue(a.isAvailable(), "the shared verdict is the endpoint's, so the first instance sees it too");
         }
     }
 

@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.OptionalLong;
 
 /**
  * The JSON shapes of {@code POST /v1/systemone} and {@code GET /v1/models}, as
@@ -43,10 +44,15 @@ import java.util.OptionalDouble;
  * <p>Decoding is strict: a field the documentation marks required that is
  * missing or of the wrong JSON type is {@link Answer.Failed.Reason#UNPARSEABLE}.
  * That covers the reply's {@code model}, {@code answers} and {@code usage}
- * ({@code input_tokens}, {@code output_tokens}), which fail every question, and
- * each answer's {@code type} and type fields ({@code noul}; {@code choice},
- * {@code probabilities}, {@code confidence}; {@code score}, {@code legend},
- * {@code probabilities}, {@code confidence}), which fail that question. A value
+ * object, which fail every question, and each answer's {@code type} and type
+ * fields ({@code noul}; {@code choice}, {@code probabilities},
+ * {@code confidence}; {@code score}, {@code legend}, {@code probabilities},
+ * {@code confidence}), which fail that question. {@code usage.input_tokens} and
+ * {@code usage.output_tokens} are not marked required in {@code api.md}, and the
+ * SDK schema types each as {@code integer | null} with a {@code null} default:
+ * a missing or {@code null} count is unknown and the answers are kept, with no
+ * usage reported. A count that is present but not a non-negative integer, or a
+ * pair whose sum overflows a {@code long}, fails every question. A value
  * outside what the question allows (a choice that is not an option, a
  * probability outside {@code [0, 1]}, a distribution that does not cover exactly
  * the options or levels, a choice that is not the most likely option, a score
@@ -129,15 +135,16 @@ final class TypesafeWire {
      * @param model   the versioned model id that answered ({@code null} only when
      *                the whole reply failed to decode)
      * @param answers one answer per requested id, in request order
-     * @param usage   token usage (empty only when the whole reply failed to decode)
+     * @param usage   token usage; empty when the whole reply failed to decode or the
+     *                provider did not report both token counts
      */
     record Reply(String model, Map<String, Answer> answers, Optional<TokenUsage> usage) {
     }
 
     /**
      * Decode a {@code 200} body. A body that is not a JSON object with a string
-     * {@code model}, an {@code answers} object and a well-formed {@code usage}
-     * fails every question as UNPARSEABLE.
+     * {@code model}, an {@code answers} object and a {@code usage} object whose
+     * reported counts are well formed fails every question as UNPARSEABLE.
      */
     static Reply decodeReply(DecisionRequest request, byte[] body) {
         JsonNode root;
@@ -159,10 +166,30 @@ final class TypesafeWire {
             return failAll(request, Answer.Failed.Reason.UNPARSEABLE, "response has no string 'model'");
         }
         var modelId = model.stringValue();
-        var usage = usage(root.get("usage"), modelId);
-        if (usage.isEmpty()) {
+        var usageNode = root.get("usage");
+        if (usageNode == null || !usageNode.isObject()) {
+            return failAll(request, Answer.Failed.Reason.UNPARSEABLE, "response has no 'usage' object");
+        }
+        var input = tokenCount(usageNode, "input_tokens");
+        var output = tokenCount(usageNode, "output_tokens");
+        if (input == null || output == null) {
             return failAll(request, Answer.Failed.Reason.UNPARSEABLE,
-                    "response has no 'usage' with non-negative integer 'input_tokens' and 'output_tokens'");
+                    "response 'usage' has a token count that is not a non-negative integer");
+        }
+        Optional<TokenUsage> usage;
+        if (input.isPresent() && output.isPresent()) {
+            long total;
+            try {
+                total = Math.addExact(input.getAsLong(), output.getAsLong());
+            } catch (ArithmeticException e) {
+                return failAll(request, Answer.Failed.Reason.UNPARSEABLE,
+                        "response 'usage' token counts overflow when added");
+            }
+            usage = Optional.of(TokenUsage.of(input.getAsLong(), output.getAsLong(), total, modelId));
+        } else {
+            // A count the provider did not report is unknown, not zero: report no usage
+            // rather than a TokenUsage that claims zero tokens for the missing side.
+            usage = Optional.empty();
         }
         var decoded = new LinkedHashMap<String, Answer>();
         for (var entry : request.questions().entrySet()) {
@@ -180,20 +207,19 @@ final class TypesafeWire {
         return new Reply(null, failed, Optional.empty());
     }
 
-    private static Optional<TokenUsage> usage(JsonNode usage, String model) {
-        if (usage == null || !usage.isObject()) {
-            return Optional.empty();
+    /**
+     * One {@code usage} count: empty when missing or {@code null} (unreported),
+     * {@code null} when present but not a non-negative integer that fits a long.
+     */
+    private static OptionalLong tokenCount(JsonNode usage, String field) {
+        var node = usage.get(field);
+        if (node == null || node.isNull()) {
+            return OptionalLong.empty();
         }
-        var input = usage.get("input_tokens");
-        var output = usage.get("output_tokens");
-        if (input == null || output == null || !input.canConvertToLong() || !output.canConvertToLong()
-                || !input.isIntegralNumber() || !output.isIntegralNumber()
-                || input.longValue() < 0 || output.longValue() < 0) {
-            return Optional.empty();
+        if (!node.isIntegralNumber() || !node.canConvertToLong() || node.longValue() < 0) {
+            return null;
         }
-        var in = input.longValue();
-        var out = output.longValue();
-        return Optional.of(TokenUsage.of(in, out, in + out, model));
+        return OptionalLong.of(node.longValue());
     }
 
     static Answer decodeAnswer(String id, Question question, JsonNode node) {

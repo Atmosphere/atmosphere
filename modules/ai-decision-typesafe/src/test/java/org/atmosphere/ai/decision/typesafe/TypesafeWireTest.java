@@ -154,8 +154,15 @@ class TypesafeWireTest {
                 "{\"model\":7," + answers + "," + usage + "}",
                 "{\"model\":\" \"," + answers + "," + usage + "}",
                 "{\"model\":\"jev-1.13.0\"," + answers + "}",
-                "{\"model\":\"jev-1.13.0\"," + answers + ",\"usage\":{\"input_tokens\":3}}",
-                "{\"model\":\"jev-1.13.0\"," + answers + ",\"usage\":{\"input_tokens\":-3,\"output_tokens\":1}}")) {
+                "{\"model\":\"jev-1.13.0\"," + answers + ",\"usage\":null}",
+                "{\"model\":\"jev-1.13.0\"," + answers + ",\"usage\":[3,1]}",
+                "{\"model\":\"jev-1.13.0\"," + answers + ",\"usage\":{\"input_tokens\":-3,\"output_tokens\":1}}",
+                "{\"model\":\"jev-1.13.0\"," + answers + ",\"usage\":{\"input_tokens\":3,\"output_tokens\":1.5}}",
+                "{\"model\":\"jev-1.13.0\"," + answers + ",\"usage\":{\"input_tokens\":\"3\",\"output_tokens\":1}}",
+                "{\"model\":\"jev-1.13.0\"," + answers + ",\"usage\":{\"input_tokens\":3,\"output_tokens\":1e30}}",
+                // Each count fits a long; their sum does not.
+                "{\"model\":\"jev-1.13.0\"," + answers
+                        + ",\"usage\":{\"input_tokens\":9223372036854775807,\"output_tokens\":1}}")) {
             var reply = TypesafeWire.decodeReply(request, body.getBytes(StandardCharsets.UTF_8));
             assertEquals(Answer.Failed.Reason.UNPARSEABLE,
                     assertInstanceOf(Answer.Failed.class, reply.answers().get("q")).reason(), body);
@@ -165,6 +172,78 @@ class TypesafeWireTest {
         assertInstanceOf(Answer.Noul.class, ok.answers().get("q"));
         assertEquals("jev-1.13.0", ok.model());
         assertEquals(4, ok.usage().orElseThrow().total());
+    }
+
+    @Test
+    void anUnreportedTokenCountKeepsTheAnswersAndReportsNoUsage() {
+        // api.md marks only the usage object required; the SDK schema types each
+        // count as integer | null with a null default ("when reported by the API").
+        var request = DecisionRequest.of("s", "q", NOUL);
+        var answers = "\"answers\":{\"q\":{\"type\":\"noul\",\"noul\":0.02}}";
+        for (var usage : List.of(
+                "{\"input_tokens\":40,\"output_tokens\":null}",
+                "{\"input_tokens\":null,\"output_tokens\":7}",
+                "{\"input_tokens\":40}",
+                "{}")) {
+            var body = "{\"model\":\"jev-1.13.0\"," + answers + ",\"usage\":" + usage + "}";
+            var reply = TypesafeWire.decodeReply(request, body.getBytes(StandardCharsets.UTF_8));
+            var noul = assertInstanceOf(Answer.Noul.class, reply.answers().get("q"), body);
+            assertFalse(noul.value());
+            assertEquals("jev-1.13.0", reply.model());
+            assertTrue(reply.usage().isEmpty(), "an unknown count is not reported as zero: " + body);
+        }
+    }
+
+    @Test
+    void everyRequiredChoiceFieldIsCheckedOnItsOwn() {
+        var choice = "\"choice\":\"b\"";
+        var probabilities = "\"probabilities\":{\"a\":0.3,\"b\":0.7}";
+        var confidence = "\"confidence\":0.4";
+        assertInstanceOf(Answer.Choice.class, decode(CHOICE,
+                "{\"type\":\"choice\"," + choice + "," + probabilities + "," + confidence + "}"));
+        for (var body : List.of(
+                "{\"type\":\"choice\"," + probabilities + "," + confidence + "}",
+                "{\"type\":\"choice\",\"choice\":1," + probabilities + "," + confidence + "}",
+                "{\"type\":\"choice\",\"choice\":null," + probabilities + "," + confidence + "}",
+                "{\"type\":\"choice\"," + choice + "," + confidence + "}",
+                "{\"type\":\"choice\"," + choice + ",\"probabilities\":[0.3,0.7]," + confidence + "}",
+                "{\"type\":\"choice\"," + choice + "," + probabilities + "}",
+                "{\"type\":\"choice\"," + choice + "," + probabilities + ",\"confidence\":\"0.4\"}")) {
+            assertEquals(Answer.Failed.Reason.UNPARSEABLE, reason(CHOICE, body), body);
+        }
+    }
+
+    @Test
+    void everyRequiredScoreFieldIsCheckedOnItsOwn() {
+        var score = "\"score\":1.2";
+        var legend = "\"legend\":" + LEGEND;
+        var probabilities = "\"probabilities\":{\"0\":0.1,\"1\":0.6,\"2\":0.3}";
+        var confidence = "\"confidence\":0.5";
+        assertInstanceOf(Answer.Score.class, decode(SCORE,
+                "{\"type\":\"score\"," + score + "," + legend + "," + probabilities + "," + confidence + "}"));
+        for (var body : List.of(
+                "{\"type\":\"score\"," + legend + "," + probabilities + "," + confidence + "}",
+                "{\"type\":\"score\",\"score\":\"1.2\"," + legend + "," + probabilities + "," + confidence + "}",
+                "{\"type\":\"score\"," + score + "," + probabilities + "," + confidence + "}",
+                "{\"type\":\"score\"," + score + ",\"legend\":\"low\"," + probabilities + "," + confidence + "}",
+                "{\"type\":\"score\"," + score + "," + legend + "," + confidence + "}",
+                "{\"type\":\"score\"," + score + "," + legend + ",\"probabilities\":[0.1,0.6,0.3],"
+                        + confidence + "}",
+                "{\"type\":\"score\"," + score + "," + legend + "," + probabilities + "}",
+                "{\"type\":\"score\"," + score + "," + legend + "," + probabilities + ",\"confidence\":true}")) {
+            assertEquals(Answer.Failed.Reason.UNPARSEABLE, reason(SCORE, body), body);
+        }
+    }
+
+    @Test
+    void theRequiredNoulFieldIsChecked() {
+        for (var body : List.of(
+                "{\"type\":\"noul\"}",
+                "{\"type\":\"noul\",\"noul\":null}",
+                "{\"type\":\"noul\",\"noul\":\"0.9\"}",
+                "{\"type\":\"noul\",\"noul\":[0.9]}")) {
+            assertEquals(Answer.Failed.Reason.UNPARSEABLE, reason(NOUL, body), body);
+        }
     }
 
     @Test

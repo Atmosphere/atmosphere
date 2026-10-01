@@ -470,7 +470,8 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
             }
             var probed = probe();
             if (probed == null) {
-                // Closed while probing: this instance's state, not the configuration's.
+                // Closed or interrupted while probing: this instance's or this
+                // caller's state, not the configuration's.
                 return false;
             }
             if (current == null || current.up() != probed.up()) {
@@ -496,7 +497,10 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
         return Duration.ofNanos(nanoClock.getAsLong() - snapshot.checkedAtNanos()).compareTo(ttl) < 0;
     }
 
-    /** One {@code GET /v1/models}; {@code null} when this instance is closed. */
+    /**
+     * One {@code GET /v1/models}; {@code null} when this instance is closed or the
+     * calling thread is interrupted, since neither says anything about the endpoint.
+     */
     private Availability probe() {
         var http = client();
         if (http == null) {
@@ -529,9 +533,12 @@ public final class TypesafeDecisionModel implements DecisionModel, AutoCloseable
             }
             return down("GET /v1/models failed: " + e.getCause());
         } catch (InterruptedException e) {
+            // The caller's thread state, not the endpoint's: no verdict, so an
+            // interrupted caller never marks the configuration down for others.
             future.cancel(true);
             Thread.currentThread().interrupt();
-            return down("availability probe interrupted");
+            logger.debug("TypeSafe availability probe interrupted; no verdict recorded", e);
+            return null;
         } catch (RuntimeException e) {
             return down("GET /v1/models failed: " + e);
         }

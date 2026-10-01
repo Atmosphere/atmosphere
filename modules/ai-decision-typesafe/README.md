@@ -15,8 +15,8 @@ documentation. Here is the split:
 
 | Behaviour | Verified against | When |
 |-----------|------------------|------|
-| Request body for noul, choice and score (`state`, `model`, `questions.<id>.{type, instructions, criteria}`) | The request examples in `docs.typesafe.ai/api.md`, copied verbatim into `src/test/resources/fixtures/request-*.json` | Docs fetched 2026-10-01 |
-| Answer shapes: noul (`noul`), choice (`choice`, `probabilities`, `confidence`), score (`score`, `legend`, `probabilities`, `confidence`), `usage` | The response examples in `api.md`, copied into `fixtures/response-*.json` | Docs fetched 2026-10-01 |
+| Request body for noul, choice and score (`state`, `model`, `questions.<id>.{type, instructions, criteria}`) | The request examples in `docs.typesafe.ai/api.md`, copied into `src/test/resources/fixtures/request-*.json` with one edit: `model` is the pinned `jev-1.13.0` (the adapter's default) where `api.md` sends the moving alias `jev-latest` | Docs fetched 2026-10-01 |
+| Answer shapes: noul (`noul`), choice (`choice`, `probabilities`, `confidence`), score (`score`, `legend`, `probabilities`, `confidence`), `usage` (the object is required; `api.md` does not mark `input_tokens` or `output_tokens` required, and the SDK response schema in `docs.typesafe.ai/llms-full.txt` types each as `integer` or `null`, default `null`) | The response examples in `api.md`, copied into `fixtures/response-*.json` | Docs fetched 2026-10-01 |
 | `GET /v1/models` shape (`{"models":[{"name","description","release_date"}]}`) | The field list in `docs.typesafe.ai/models.md`. `fixtures/models.json` is in that shape, but its values are made up | Docs fetched 2026-10-01 |
 | **401** for an invalid key (on both `/v1/models` and `/v1/systemone`), with the body `{"detail":{"error_type":"authentication_error","message":...}}` and an `x-typesafe-request-id` header | **Live**: `TypesafeLiveTest#theRealApiRejectsAnInvalidKey` against `api.typesafe.ai` (`-Dtypesafe.live=true`), plus `curl` | 2026-10-01 |
 | **403** when no key is sent, same envelope | **Live**, with `curl` | 2026-10-01 |
@@ -119,7 +119,10 @@ model resolves on every check, and
 with a rejected key or a dead endpoint they would otherwise send one probe per
 check. With the shared verdict they send one per 30 s
 (`TypesafeDiscoveryTest#aRejectedKeyIsProbedOncePerTtlNotOncePerResolution`). A
-`401` or `403` from `decide` marks the configuration unavailable at once.
+`401` or `403` from `decide` marks the configuration unavailable at once. A probe
+whose caller is interrupted, or whose instance is closed mid-probe, records no
+verdict: that caller gets `false`, and the next caller probes the endpoint
+(`TypesafeDecisionModelContractTest#anInterruptedCallerDoesNotMarkTheConfigurationDownForOthers`).
 
 `DecisionModelResolver` caches the model it selects. A model that later becomes
 unreachable is still the one consumers call. Its questions then fail
@@ -149,11 +152,16 @@ quality.
 
 **Strict decoding.** These cases are `UNPARSEABLE`:
 - a field `api.md` marks required is missing or has the wrong JSON type. For the
-  whole reply that is `model` (a non-blank string), `answers` and `usage` (with
-  non-negative integer `input_tokens` and `output_tokens`), and every question
-  fails. For one answer it is `type` and that type's fields: `noul`; `choice`,
-  `probabilities`, `confidence`; `score`, `legend`, `probabilities`,
-  `confidence`. Only that question fails;
+  whole reply that is `model` (a non-blank string), `answers` and the `usage`
+  object, and every question fails. For one answer it is `type` and that type's
+  fields: `noul`; `choice`, `probabilities`, `confidence`; `score`, `legend`,
+  `probabilities`, `confidence`. Only that question fails;
+- a `usage.input_tokens` or `usage.output_tokens` that is present but not a
+  non-negative integer, or a pair whose sum overflows a `long`. Every question
+  fails. A count that is missing or `null` is not an error: `api.md` does not
+  mark either required and the SDK schema allows `null`, so the answers are
+  kept and the result reports no usage (an unknown count is never reported as
+  zero);
 - a `200` body is not JSON;
 - the body is over 4 MiB, which is never buffered past the limit.
 
@@ -231,7 +239,7 @@ pins this against a stub that clears everything.
 | Test | Needs | What it pins |
 |------|-------|--------------|
 | `TypesafeDecisionModelContractTest` | nothing (JDK `HttpServer` stub on loopback, and a loopback listener whose accept queue is full for the connect timeout) | the documented request bodies, every answer type, 401/403/422/429/529/503, retries of a dropped connection and of a connect timeout, retry-after (including waits too large to add to the clock), the deadline, the body bound, the concurrency bound, availability caching and sharing (including very long TTLs and no carrier pinning), `close()` aborting a request in flight |
-| `TypesafeWireTest` | nothing | strict decoding (every documented required field), criteria encoding, retry header parsing |
+| `TypesafeWireTest` | nothing | strict decoding (each required reply and answer field, missing and wrongly typed, one at a time; malformed or overflowing token counts; unreported token counts keeping the answers), criteria encoding, retry header parsing |
 | `TypesafeDiscoveryTest` | nothing | ServiceLoader registration, system-property configuration, logging a bad configuration or a moving alias once across scans, resolver selection, the rule-based floor |
 | `TypesafeLiveTest` | `TYPESAFE_API_KEY`, or `-Dtypesafe.live=true` for the invalid-key test only | the real API |
 
