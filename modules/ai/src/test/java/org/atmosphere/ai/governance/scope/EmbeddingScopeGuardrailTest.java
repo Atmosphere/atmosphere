@@ -157,6 +157,32 @@ class EmbeddingScopeGuardrailTest {
     }
 
     @Test
+    void forbiddenTopicThatCannotBeEmbeddedDegradesInsteadOfBeingSkipped() {
+        // Regression: a forbidden topic whose embedding failed was skipped, so
+        // a request close to the purpose was admitted even though it names the
+        // topic. The rule-based fallback blocks it on the keyword.
+        var vectors = Map.of(
+                "customer support", new float[] { 1.0f, 0.0f, 0.0f },
+                "I need medical advice about my order", new float[] { 0.95f, 0.3f, 0.0f });
+        var runtime = new StubEmbeddingRuntime(vectors) {
+            @Override
+            public float[] embed(String text) {
+                if (!vectors.containsKey(text)) {
+                    throw new IllegalStateException("embedding model unavailable for: " + text);
+                }
+                return super.embed(text);
+            }
+        };
+        var decision = new EmbeddingScopeGuardrail(runtime).evaluate(
+                new AiRequest("I need medical advice about my order"),
+                new ScopeConfig("customer support", List.of("medical advice"),
+                        AgentScope.Breach.DENY, "", AgentScope.Tier.EMBEDDING_SIMILARITY,
+                        0.45, false, false, ""));
+        assertEquals(ScopeGuardrail.Outcome.OUT_OF_SCOPE, decision.outcome(),
+                "an unscorable forbidden topic must not be skipped: " + decision.reason());
+    }
+
+    @Test
     void cosineSimilaritySanity() {
         var a = new float[] { 1.0f, 0.0f, 0.0f };
         var b = new float[] { 0.0f, 1.0f, 0.0f };

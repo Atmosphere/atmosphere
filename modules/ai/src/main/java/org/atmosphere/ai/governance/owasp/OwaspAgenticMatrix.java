@@ -134,7 +134,7 @@ public final class OwaspAgenticMatrix {
                             new Evidence("org.atmosphere.ai.annotation.AgentScope",
                                     "org.atmosphere.ai.governance.scope.RuleBasedScopeGuardrailTest",
                                     "@AgentScope",
-                                    "@AgentScope + ScopeGuardrail (3 tiers: rule / embedding / LLM classifier)"),
+                                    "@AgentScope + ScopeGuardrail (4 tiers: rule / embedding / semantic intent / LLM classifier)"),
                             new Evidence("org.atmosphere.ai.governance.scope.ScopePolicy",
                                     "org.atmosphere.ai.AiPipelineScopeHardeningTest",
                                     "ScopePolicy",

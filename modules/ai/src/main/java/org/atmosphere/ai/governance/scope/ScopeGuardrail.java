@@ -21,9 +21,9 @@ import org.atmosphere.ai.annotation.AgentScope;
 /**
  * Strategy for deciding whether an {@link AiRequest} falls within an
  * endpoint's declared scope. One implementation per {@link AgentScope.Tier}:
- * {@link RuleBasedScopeGuardrail} (rule tier), embedding-similarity and
- * LLM-classifier tiers land in follow-up commits and plug in via
- * {@link java.util.ServiceLoader}.
+ * {@link RuleBasedScopeGuardrail}, {@link EmbeddingScopeGuardrail},
+ * {@link SemanticIntentScopeGuardrail} and {@link LlmClassifierScopeGuardrail};
+ * a replacement for a tier plugs in via {@link java.util.ServiceLoader}.
  *
  * <p>Implementations MUST be thread-safe and MUST NOT throw — exceptions
  * are caught and treated as {@link Decision#ERROR} at the caller; the

@@ -290,6 +290,43 @@ filesystem) do not update seals, so their edits to sealed files read as
 tampering until resealed. Because the control is opt-in, it belongs in the
 OWASP A03 row's notes, not its evidence list.
 
+## Scope Enforcement (OWASP Agentic A01)
+
+`@AgentScope(purpose = ..., forbiddenTopics = ...)` on an endpoint, or a skill
+file's `## Guardrails` section, installs a `ScopePolicy` that checks every
+request against the declared purpose before it reaches the LLM. The tier comes
+from `@AgentScope(tier = ...)` or the skill's `scopeTier` frontmatter
+(`rule_based`, `embedding`, `semantic`, `llm`; `none` opts out). There are
+four tiers, each resolved by `ScopeGuardrailResolver`:
+
+| Tier | Guardrail | Backing | When the backing is missing or fails |
+|------|-----------|---------|--------------------------------------|
+| `RULE_BASED` | `RuleBasedScopeGuardrail` | none — forbidden topics as keywords plus built-in hijacking probes | n/a |
+| `EMBEDDING_SIMILARITY` (default) | `EmbeddingScopeGuardrail` | `EmbeddingRuntime`; rejects below `similarityThreshold` or closer to a forbidden topic than to the purpose | degrades to `RULE_BASED` for the request, with a WARN |
+| `SEMANTIC_INTENT` | `SemanticIntentScopeGuardrail` | `EmbeddingRuntime`; also requires the purpose similarity to beat the best forbidden-topic similarity by a margin (0.05) | no runtime: degrades to `RULE_BASED`, with a WARN. An embedding call that fails (purpose, request or a forbidden topic): `ScopePolicy` denies |
+| `LLM_CLASSIFIER` | `LlmClassifierScopeGuardrail` | `DecisionModel` (see *Decision models*) | `ScopePolicy` denies (fail-closed) |
+
+By default no tier admits, at pre-admission, a request it could not screen
+(the post-response check keeps its own posture, see *Decision models*). The
+explicit, non-default opt-outs are JVM system properties (`-D` or
+`System.setProperty`, read on each request they apply to; no Spring Boot or
+Quarkus configuration key binds to them), and each admission they cause logs a
+WARN:
+
+- `org.atmosphere.ai.scope.semantic-intent.fail-open=true` — with no
+  `EmbeddingRuntime`, `SEMANTIC_INTENT` admits every request instead of
+  degrading to `RULE_BASED`. It does not relax the margin gate or an embedding
+  failure when a runtime is present. The `failOpen` argument of
+  `new SemanticIntentScopeGuardrail(runtime, margin, failOpen)` overrides it.
+- `org.atmosphere.ai.scope.llm-classifier.fail-open=true` — see
+  *Decision models*.
+
+The semantic-intent margin is a constructor argument of
+`SemanticIntentScopeGuardrail`; neither `@AgentScope` nor `ScopeConfig`
+carries one, so the instance the resolver builds always uses
+`SemanticIntentScopeGuardrail.DEFAULT_MARGIN` (0.05). A different margin needs
+an instance built with it and passed to `ScopePolicy`'s constructor.
+
 ## Conversation Memory
 
 Enable multi-turn conversations with one annotation attribute:

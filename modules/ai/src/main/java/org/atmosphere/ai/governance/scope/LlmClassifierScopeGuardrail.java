@@ -38,7 +38,7 @@ import java.time.Duration;
  * and maps the typed answer through a {@link NoulGate}.
  *
  * <p>~100–500 ms latency typical (one LLM round-trip per request). Most
- * accurate of the three tiers; the correct default only when latency is
+ * accurate of the four tiers; the correct default only when latency is
  * explicitly acceptable — per v4 §4, the annotation default stays on
  * {@link AgentScope.Tier#EMBEDDING_SIMILARITY} and operators opt in here
  * via {@code @AgentScope(tier = LLM_CLASSIFIER)}.</p>

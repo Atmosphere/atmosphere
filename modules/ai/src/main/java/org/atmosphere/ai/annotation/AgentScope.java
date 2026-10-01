@@ -91,8 +91,10 @@ public @interface AgentScope {
 
     /**
      * Topics explicitly disallowed within this scope. Rule-based tier uses
-     * these as keyword triggers; embedding tier biases the reference vector
-     * against them.
+     * these as keyword triggers; the embedding tiers reject a request that
+     * sits closer to one of them than to the purpose (semantic intent also
+     * requires the purpose to lead by a margin); the LLM classifier lists
+     * them in its question.
      */
     String[] forbiddenTopics() default {};
 
@@ -118,7 +120,8 @@ public @interface AgentScope {
      * Embedding-similarity threshold in {@code [0, 1]}. Requests whose
      * embedding similarity to the {@link #purpose()} vector falls below
      * this value are treated as out-of-scope. Only used when
-     * {@link #tier()} is {@link Tier#EMBEDDING_SIMILARITY}. Defaults to
+     * {@link #tier()} is {@link Tier#EMBEDDING_SIMILARITY} or
+     * {@link Tier#SEMANTIC_INTENT} (its absolute floor). Defaults to
      * {@code 0.45} — empirically tuned for the canonical test set;
      * tighten for stricter scopes, loosen for broader ones.
      */
@@ -167,10 +170,9 @@ public @interface AgentScope {
     }
 
     /**
-     * Scope enforcement strategy. All three tiers run the pre-admission
-     * input check; {@link #POST_RESPONSE_CHECK} (enabled via
-     * {@link AgentScope#postResponseCheck()}) adds a second pass after
-     * the LLM replies.
+     * Scope enforcement strategy. All four tiers run the pre-admission
+     * input check; {@link AgentScope#postResponseCheck()} adds a second
+     * pass after the LLM replies.
      */
     enum Tier {
         /**
@@ -198,7 +200,9 @@ public @interface AgentScope {
          * similarity by the configured margin. Matches the default tier
          * shape of Microsoft's Agent OS (embeddings + small classifier
          * head) — ~5–20 ms, deterministic, higher precision than plain
-         * similarity when the corpus of forbidden topics is rich.
+         * similarity when the corpus of forbidden topics is rich. Like
+         * {@link #EMBEDDING_SIMILARITY}, it degrades to {@link #RULE_BASED}
+         * when no {@code EmbeddingRuntime} is installed.
          */
         SEMANTIC_INTENT,
 

@@ -23,10 +23,12 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Resolves a {@link ScopeGuardrail} for a given {@link AgentScope.Tier}.
  * {@link AgentScope.Tier#RULE_BASED} always resolves to
- * {@link RuleBasedScopeGuardrail} (no dependencies). Embedding-similarity and
- * LLM-classifier tiers resolve through {@link ServiceLoader} — their impls
- * ship in follow-up commits and register via
- * {@code META-INF/services/org.atmosphere.ai.governance.scope.ScopeGuardrail}.
+ * {@link RuleBasedScopeGuardrail} (no dependencies). The other tiers resolve
+ * an impl registered via
+ * {@code META-INF/services/org.atmosphere.ai.governance.scope.ScopeGuardrail}
+ * when one declares that tier, else the built-in impl:
+ * {@link EmbeddingScopeGuardrail}, {@link SemanticIntentScopeGuardrail} or
+ * {@link LlmClassifierScopeGuardrail}.
  */
 public final class ScopeGuardrailResolver {
 
@@ -35,11 +37,12 @@ public final class ScopeGuardrailResolver {
     private ScopeGuardrailResolver() { }
 
     /**
-     * Returns the configured guardrail for the given tier. Rule-based tier
-     * always resolves; higher tiers fall back to the rule-based guardrail
-     * (with a warning logged by the caller's wiring layer) when no
-     * ServiceLoader entry is present — this is the "degrade gracefully"
-     * choice that v4 §9 flagged as the tuning risk.
+     * Returns the configured guardrail for the given tier, cached per tier.
+     * Every tier resolves to an impl of that tier. The embedding tiers
+     * degrade to rule-based enforcement per request when no
+     * {@code EmbeddingRuntime} is installed (the impl logs a warning) — the
+     * "degrade gracefully" choice that v4 §9 flagged as the tuning risk; the
+     * LLM tier fails closed when no decision model can answer.
      *
      * <p>Throws {@link IllegalStateException} if the rule-based tier itself
      * fails to instantiate — that's a classpath pathology, not a user-fixable

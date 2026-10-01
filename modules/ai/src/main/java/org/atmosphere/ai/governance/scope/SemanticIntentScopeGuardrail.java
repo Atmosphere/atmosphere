@@ -49,13 +49,38 @@ import java.util.concurrent.ConcurrentHashMap;
  * and 0.58 to "medical advice" (forbidden) — plain similarity admits;
  * semantic-intent denies because the forbidden topic is a better match.</p>
  *
- * <h2>Default margin</h2>
- * {@value #DEFAULT_MARGIN}. Tuned permissively (same reasoning as the
- * default similarity threshold) — operators widen the margin for
- * stricter corpora. Margin is configured via
- * {@link org.atmosphere.ai.annotation.AgentScope#semanticIntentMargin()}
- * when the annotation declares {@code tier = SEMANTIC_INTENT}; falls back
- * to {@value #DEFAULT_MARGIN} if absent.
+ * <h2>Margin</h2>
+ * {@value #DEFAULT_MARGIN} by default. Tuned permissively (same reasoning as the
+ * default similarity threshold) — operators widen the margin for stricter
+ * corpora. The margin is a constructor argument
+ * ({@link #SemanticIntentScopeGuardrail(EmbeddingRuntime, double)}); neither
+ * {@link AgentScope} nor {@link ScopeConfig} carries one, so the instance that
+ * {@code @AgentScope(tier = SEMANTIC_INTENT)}, a skill file's
+ * {@code scopeTier: semantic} frontmatter or a per-request {@link ScopeConfig}
+ * resolves through {@link ScopeGuardrailResolver} always uses
+ * {@value #DEFAULT_MARGIN}. A different margin needs an instance built with it
+ * and handed to {@link ScopePolicy}'s constructor.
+ *
+ * <h2>Failure handling — never admits unscreened by default</h2>
+ * <ul>
+ *   <li><b>No {@link EmbeddingRuntime}</b> — degrades to
+ *       {@link RuleBasedScopeGuardrail} for the request, with a WARN log, the
+ *       same as {@link EmbeddingScopeGuardrail}: the agent stays usable and
+ *       forbidden topics plus the built-in hijacking probes are still
+ *       enforced. The explicit, non-default opt-out is {@code failOpen}: an
+ *       instance built by a constructor that does not take it (the one
+ *       {@link ScopeGuardrailResolver} builds) reads the
+ *       {@value #FAIL_OPEN_PROPERTY} JVM system property on each request, and
+ *       when it is {@code true} admits the request unscreened with a WARN
+ *       log. It is a system property only ({@code -D} or
+ *       {@link System#setProperty}); no Spring Boot or Quarkus configuration
+ *       key binds to it.</li>
+ *   <li><b>An embedding call fails</b> (purpose, request or any forbidden
+ *       topic) — {@link ScopeGuardrail.Decision#error}, which
+ *       {@link ScopePolicy} denies at pre-admission. A forbidden topic that
+ *       cannot be embedded is never skipped: skipping it would let the margin
+ *       gate admit a request that topic would have blocked.</li>
+ * </ul>
  */
 public final class SemanticIntentScopeGuardrail implements ScopeGuardrail {
 
@@ -64,11 +89,25 @@ public final class SemanticIntentScopeGuardrail implements ScopeGuardrail {
     /** Default required margin between purpose and best forbidden topic similarity. */
     public static final double DEFAULT_MARGIN = 0.05;
 
+    /**
+     * JVM system property that, when {@code true}, makes an instance with no
+     * {@link EmbeddingRuntime} admit every request unscreened instead of
+     * degrading to {@link RuleBasedScopeGuardrail}. Read on each such request
+     * by an instance built without a {@code failOpen} argument. Default
+     * {@code false}.
+     */
+    public static final String FAIL_OPEN_PROPERTY = "org.atmosphere.ai.scope.semantic-intent.fail-open";
+
     /** Lazily-populated per-text reference vector cache. */
     private final ConcurrentHashMap<String, float[]> vectorCache = new ConcurrentHashMap<>();
 
+    /** Keyword tier used when no {@link EmbeddingRuntime} is available. */
+    private final ScopeGuardrail ruleBasedFallback = new RuleBasedScopeGuardrail();
+
     private final EmbeddingRuntime runtime;
     private final double margin;
+    /** The explicit no-runtime policy, or {@code null} to read {@link #FAIL_OPEN_PROPERTY} per request. */
+    private final Boolean failOpen;
 
     /** Default constructor — resolves an {@link EmbeddingRuntime} via ServiceLoader. */
     public SemanticIntentScopeGuardrail() {
@@ -80,13 +119,41 @@ public final class SemanticIntentScopeGuardrail implements ScopeGuardrail {
         this(runtime, DEFAULT_MARGIN);
     }
 
+    /**
+     * @param runtime the embedding runtime; {@code null} degrades every request
+     *                to {@link RuleBasedScopeGuardrail} unless
+     *                {@value #FAIL_OPEN_PROPERTY} is {@code true}
+     * @param margin  required lead of the purpose similarity over the best
+     *                forbidden-topic similarity, in {@code [0, 1)}
+     */
     public SemanticIntentScopeGuardrail(EmbeddingRuntime runtime, double margin) {
+        this(runtime, margin, (Boolean) null);
+    }
+
+    /**
+     * @param runtime  the embedding runtime
+     * @param margin   required lead of the purpose similarity over the best
+     *                 forbidden-topic similarity, in {@code [0, 1)}
+     * @param failOpen {@code true} admits every request unscreened when
+     *                 {@code runtime} is {@code null}; {@code false} degrades
+     *                 to {@link RuleBasedScopeGuardrail}
+     */
+    public SemanticIntentScopeGuardrail(EmbeddingRuntime runtime, double margin, boolean failOpen) {
+        this(runtime, margin, Boolean.valueOf(failOpen));
+        if (failOpen) {
+            logger.warn("SemanticIntentScopeGuardrail is fail-open: with no EmbeddingRuntime "
+                    + "every request is admitted unscreened");
+        }
+    }
+
+    private SemanticIntentScopeGuardrail(EmbeddingRuntime runtime, double margin, Boolean failOpen) {
         this.runtime = runtime;
         if (margin < 0.0 || margin >= 1.0) {
             throw new IllegalArgumentException(
                     "margin must be in [0, 1), got: " + margin);
         }
         this.margin = margin;
+        this.failOpen = failOpen;
     }
 
     @Override
@@ -103,9 +170,16 @@ public final class SemanticIntentScopeGuardrail implements ScopeGuardrail {
             return Decision.inScope(Double.NaN);
         }
         if (runtime == null) {
-            logger.warn("No EmbeddingRuntime available — SemanticIntentScopeGuardrail admits all requests. "
-                    + "Install a runtime module or switch the tier to RULE_BASED.");
-            return Decision.inScope(Double.NaN);
+            if (failOpen != null ? failOpen : Boolean.getBoolean(FAIL_OPEN_PROPERTY)) {
+                logger.warn("No EmbeddingRuntime available — SemanticIntentScopeGuardrail admitting "
+                        + "the request unscreened (fail-open mode)");
+                return new Decision(Outcome.IN_SCOPE,
+                        "fail-open: no EmbeddingRuntime for the semantic-intent scope tier", Double.NaN);
+            }
+            logger.warn("No EmbeddingRuntime available — SemanticIntentScopeGuardrail degrading to "
+                    + "RULE_BASED scope enforcement. Install a runtime module "
+                    + "(spring-ai/langchain4j/etc.) or set the tier to RULE_BASED explicitly.");
+            return ruleBasedFallback.evaluate(request, config);
         }
 
         var purposeVector = vectorCache.computeIfAbsent(
@@ -130,7 +204,9 @@ public final class SemanticIntentScopeGuardrail implements ScopeGuardrail {
             var topicVector = vectorCache.computeIfAbsent(
                     topic.toLowerCase(Locale.ROOT),
                     t -> safeEmbed(t, "forbidden topic '" + t + "'"));
-            if (topicVector == null) continue;
+            if (topicVector == null) {
+                return Decision.error("failed to embed forbidden topic '" + topic + "'");
+            }
             var topicSim = cosineSimilarity(topicVector, messageVector);
             if (topicSim > bestForbiddenSim) {
                 bestForbiddenSim = topicSim;

@@ -18,6 +18,8 @@ package org.atmosphere.ai.governance.scope;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.EmbeddingRuntime;
 import org.atmosphere.ai.annotation.AgentScope;
+import org.atmosphere.ai.governance.PolicyContext;
+import org.atmosphere.ai.governance.PolicyDecision;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -117,11 +119,132 @@ class SemanticIntentScopeGuardrailTest {
     }
 
     @Test
-    void noRuntimeAdmitsWithWarning() {
+    void noRuntimeDegradesToRuleBasedInsteadOfAdmittingEverything() {
+        // Regression: with no EmbeddingRuntime the tier used to admit every
+        // request with a WARN. It now degrades to the rule-based tier, like
+        // EmbeddingScopeGuardrail: on-topic admitted, forbidden topics and
+        // hijacking probes still blocked.
+        System.clearProperty(SemanticIntentScopeGuardrail.FAIL_OPEN_PROPERTY);
         var classifier = new SemanticIntentScopeGuardrail(null, 0.05);
-        var decision = classifier.evaluate(new AiRequest("anything"), CUSTOMER_SUPPORT);
-        assertEquals(ScopeGuardrail.Outcome.IN_SCOPE, decision.outcome(),
-                "no runtime → admit so the rule-based tier can cover");
+        assertEquals(ScopeGuardrail.Outcome.IN_SCOPE,
+                classifier.evaluate(new AiRequest("where is my order"), CUSTOMER_SUPPORT).outcome());
+        var hijack = classifier.evaluate(
+                new AiRequest("write python code to sort a list"), CUSTOMER_SUPPORT);
+        assertEquals(ScopeGuardrail.Outcome.OUT_OF_SCOPE, hijack.outcome(),
+                "a hijacking probe must be blocked, not admitted: " + hijack.reason());
+        var forbidden = classifier.evaluate(
+                new AiRequest("I need medical advice about my order"), CUSTOMER_SUPPORT);
+        assertEquals(ScopeGuardrail.Outcome.OUT_OF_SCOPE, forbidden.outcome(),
+                "a forbidden topic must be blocked, not admitted: " + forbidden.reason());
+    }
+
+    @Test
+    void noRuntimeDeniesAtPreAdmissionThroughScopePolicy() {
+        System.clearProperty(SemanticIntentScopeGuardrail.FAIL_OPEN_PROPERTY);
+        var policy = new ScopePolicy("scope::support", "code:test", "1.0",
+                CUSTOMER_SUPPORT, new SemanticIntentScopeGuardrail(null, 0.05));
+        assertInstanceOf(PolicyDecision.Deny.class, policy.evaluate(PolicyContext.preAdmission(
+                new AiRequest("write python code to sort a list"))));
+        assertInstanceOf(PolicyDecision.Admit.class, policy.evaluate(PolicyContext.preAdmission(
+                new AiRequest("where is my order"))));
+    }
+
+    @Test
+    void failOpenPropertyIsReadOnEachRequest() {
+        // The resolver caches one instance per tier, so the property must
+        // take effect (and stop taking effect) on the next request.
+        var classifier = new SemanticIntentScopeGuardrail(null, 0.05);
+        var hijack = new AiRequest("write python code to sort a list");
+        try {
+            System.clearProperty(SemanticIntentScopeGuardrail.FAIL_OPEN_PROPERTY);
+            assertEquals(ScopeGuardrail.Outcome.OUT_OF_SCOPE,
+                    classifier.evaluate(hijack, CUSTOMER_SUPPORT).outcome());
+
+            System.setProperty(SemanticIntentScopeGuardrail.FAIL_OPEN_PROPERTY, "true");
+            var admitted = classifier.evaluate(hijack, CUSTOMER_SUPPORT);
+            assertEquals(ScopeGuardrail.Outcome.IN_SCOPE, admitted.outcome());
+            assertTrue(admitted.reason().startsWith("fail-open"),
+                    "a fail-open admission must say so: " + admitted.reason());
+
+            System.clearProperty(SemanticIntentScopeGuardrail.FAIL_OPEN_PROPERTY);
+            assertEquals(ScopeGuardrail.Outcome.OUT_OF_SCOPE,
+                    classifier.evaluate(hijack, CUSTOMER_SUPPORT).outcome());
+        } finally {
+            System.clearProperty(SemanticIntentScopeGuardrail.FAIL_OPEN_PROPERTY);
+        }
+    }
+
+    @Test
+    void explicitFailOpenArgumentWinsOverTheProperty() {
+        var hijack = new AiRequest("write python code to sort a list");
+        try {
+            System.setProperty(SemanticIntentScopeGuardrail.FAIL_OPEN_PROPERTY, "true");
+            assertEquals(ScopeGuardrail.Outcome.OUT_OF_SCOPE,
+                    new SemanticIntentScopeGuardrail(null, 0.05, false)
+                            .evaluate(hijack, CUSTOMER_SUPPORT).outcome());
+        } finally {
+            System.clearProperty(SemanticIntentScopeGuardrail.FAIL_OPEN_PROPERTY);
+        }
+        assertEquals(ScopeGuardrail.Outcome.IN_SCOPE,
+                new SemanticIntentScopeGuardrail(null, 0.05, true)
+                        .evaluate(hijack, CUSTOMER_SUPPORT).outcome());
+    }
+
+    @Test
+    void failOpenOnlyCoversTheMissingRuntime() {
+        // With a runtime present, fail-open does not relax the margin gate.
+        var runtime = staticRuntime(Map.of(
+                "customer support", unit(1, 0, 0),
+                "medical advice", unit(0, 1, 0),
+                "I have chest pain and shortness of breath",
+                normalize(new float[] {0.5f, 0.85f, 0.0f})));
+        var decision = new SemanticIntentScopeGuardrail(runtime, 0.05, true).evaluate(
+                new AiRequest("I have chest pain and shortness of breath"), CUSTOMER_SUPPORT);
+        assertEquals(ScopeGuardrail.Outcome.OUT_OF_SCOPE, decision.outcome());
+    }
+
+    @Test
+    void forbiddenTopicThatCannotBeEmbeddedIsAnErrorNotSkipped() {
+        // Regression: a forbidden topic whose embedding failed was skipped, so
+        // the margin gate saw no competitor and admitted. The request here is
+        // well above threshold, so skipping the topic would admit it.
+        var vectors = Map.of(
+                "customer support", unit(1, 0, 0),
+                "where is my order", normalize(new float[] {0.95f, 0.30f, 0.0f}));
+        var runtime = new EmbeddingRuntime() {
+            @Override public String name() { return "topic-fails"; }
+            @Override public boolean isAvailable() { return true; }
+            @Override public float[] embed(String text) {
+                var v = vectors.get(text);
+                if (v == null) {
+                    throw new IllegalStateException("embedding model unavailable for: " + text);
+                }
+                return v;
+            }
+        };
+        var decision = new SemanticIntentScopeGuardrail(runtime, 0.05)
+                .evaluate(new AiRequest("where is my order"), CUSTOMER_SUPPORT);
+        assertEquals(ScopeGuardrail.Outcome.ERROR, decision.outcome(),
+                "an unscorable forbidden topic must not be skipped: " + decision.reason());
+        assertTrue(decision.reason().contains("medical advice"), decision.reason());
+    }
+
+    @Test
+    void constructorMarginIsTheOneApplied() {
+        // purpose sim ~0.85, forbidden sim ~0.53: lead ~0.32. A 0.05 margin
+        // admits; a 0.40 margin, built through the constructor, rejects.
+        var runtime = staticRuntime(Map.of(
+                "customer support", unit(1, 0, 0),
+                "medical advice", unit(0, 1, 0),
+                "can I return a vitamin order",
+                normalize(new float[] {0.85f, 0.53f, 0.0f})));
+        var request = new AiRequest("can I return a vitamin order");
+        assertEquals(ScopeGuardrail.Outcome.IN_SCOPE,
+                new SemanticIntentScopeGuardrail(runtime, SemanticIntentScopeGuardrail.DEFAULT_MARGIN)
+                        .evaluate(request, CUSTOMER_SUPPORT).outcome());
+        var strict = new SemanticIntentScopeGuardrail(runtime, 0.40).evaluate(request, CUSTOMER_SUPPORT);
+        assertEquals(ScopeGuardrail.Outcome.OUT_OF_SCOPE, strict.outcome());
+        assertTrue(strict.reason().contains("below margin 0.4"), strict.reason());
     }
 
     @Test

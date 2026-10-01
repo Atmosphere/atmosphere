@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.governance.owasp;
 
+import org.atmosphere.ai.annotation.AgentScope;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -91,6 +92,23 @@ class OwaspMatrixPinTest {
         var actual = OwaspAgenticMatrix.MATRIX.stream().map(OwaspAgenticMatrix.Row::id).toList();
         assertEquals(expected, actual,
                 "OWASP Top-10 ids must stay A01..A10 in order; reordering breaks doc links");
+    }
+
+    @Test
+    void goalHijackingEvidenceCountsEveryScopeTier() {
+        // The A01 evidence said "3 tiers" for months after SEMANTIC_INTENT
+        // became the fourth; tie the count to the enum so adding or removing
+        // a tier breaks the build until the description is updated.
+        var description = OwaspAgenticMatrix.MATRIX.stream()
+                .filter(row -> row.id().equals("A01"))
+                .flatMap(row -> row.evidence().stream())
+                .filter(e -> e.evidenceClass().equals(AgentScope.class.getName()))
+                .findFirst()
+                .orElseThrow()
+                .description();
+        assertTrue(description.contains(AgentScope.Tier.values().length + " tiers"),
+                "A01 @AgentScope evidence must count all " + AgentScope.Tier.values().length
+                        + " scope tiers: " + description);
     }
 
     private static boolean sourceExists(Path repoRoot, String fullyQualifiedName) throws IOException {

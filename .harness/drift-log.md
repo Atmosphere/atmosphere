@@ -4208,3 +4208,40 @@ enumerations were not re-read when the new source was added.
 (fails with the fix reverted: `ERROR` on attempt 1 of 3), `#theProbeDoesNotRequireTheModelInTheList`
 (pins the documented choice not to look the model up), and the existing
 `#aConnectTimeoutIsARetriedConnectionErrorNotADeadline` (the connect bound still retries).
+
+---
+
+## 2026-10-01 — The semantic-intent scope tier's docs named a margin knob and a fallback it did not have
+
+**Session:** carnet #70 — `SemanticIntentScopeGuardrail` fail-open with no `EmbeddingRuntime`.
+
+**Claim 1:** the `SemanticIntentScopeGuardrail` class Javadoc: the margin "is configured via
+`AgentScope#semanticIntentMargin()` when the annotation declares `tier = SEMANTIC_INTENT`".
+**Truth:** `AgentScope` has no such member and `ScopeConfig` carries no margin; the instance every
+production path resolves (`ScopeGuardrailResolver`, used by `ScopePolicyBuilder`,
+`ScopePolicyInstaller` and the skill-frontmatter path) is built with `DEFAULT_MARGIN` (0.05). Only
+the `(EmbeddingRuntime, double)` constructor sets a different one.
+**Claim 2:** the `ScopeGuardrailResolver` comment: `SEMANTIC_INTENT` and `EMBEDDING_SIMILARITY`
+"degrade to rule-based when it [the EmbeddingRuntime] is absent". The test
+`noRuntimeAdmitsWithWarning` said the same: "no runtime → admit so the rule-based tier can cover".
+**Truth:** only the embedding tier degraded. The semantic-intent tier returned `IN_SCOPE` for every
+request with a WARN, and no other tier ran after it — a hijacking probe or a named forbidden topic
+was admitted (Correctness Invariant #6). It also skipped a forbidden topic whose embedding failed,
+so the margin gate admitted requests that topic would have blocked; the embedding tier did the
+same.
+**Claim 3:** `OwaspAgenticMatrix` A01 evidence: "3 tiers: rule / embedding / LLM classifier";
+`AgentScope.Tier` Javadoc "All three tiers"; `LlmClassifierScopeGuardrail` "the three tiers";
+`AgentScope#similarityThreshold()` "Only used when tier is EMBEDDING_SIMILARITY".
+**Truth:** `AgentScope.Tier` has four values; `SEMANTIC_INTENT` also applies `similarityThreshold`
+as its absolute floor.
+**Slip path:** the margin Javadoc described a planned annotation member that was never added; the
+resolver comment and the test comment described the embedding tier's fallback and were not
+checked against the semantic-intent code; the tier counts were written before `SEMANTIC_INTENT`
+existed and nothing tied them to the enum.
+**Gate:** `SemanticIntentScopeGuardrailTest#noRuntimeDegradesToRuleBasedInsteadOfAdmittingEverything`,
+`#noRuntimeDeniesAtPreAdmissionThroughScopePolicy`, `#failOpenPropertyIsReadOnEachRequest`,
+`#explicitFailOpenArgumentWinsOverTheProperty`, `#forbiddenTopicThatCannotBeEmbeddedIsAnErrorNotSkipped`
+and `EmbeddingScopeGuardrailTest#forbiddenTopicThatCannotBeEmbeddedDegradesInsteadOfBeingSkipped`
+(all fail with the fix reverted); `#constructorMarginIsTheOneApplied` pins the corrected margin
+Javadoc; `OwaspMatrixPinTest#goalHijackingEvidenceCountsEveryScopeTier` ties the A01 tier count to
+`AgentScope.Tier.values().length`.

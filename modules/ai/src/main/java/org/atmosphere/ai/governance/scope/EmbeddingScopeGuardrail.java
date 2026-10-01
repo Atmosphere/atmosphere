@@ -128,7 +128,13 @@ public final class EmbeddingScopeGuardrail implements ScopeGuardrail {
             var topicVector = purposeVectorCache.computeIfAbsent(
                     topic.toLowerCase(Locale.ROOT),
                     t -> safeEmbed(t, "forbidden topic '" + t + "'"));
-            if (topicVector == null) continue;
+            if (topicVector == null) {
+                // Skipping the topic would let a request that topic blocks
+                // through; degrade like the other embed failures above.
+                logger.warn("Could not embed forbidden topic '{}' — degrading to RULE_BASED scope "
+                        + "enforcement for this request.", topic);
+                return ruleBasedFallback.evaluate(request, config);
+            }
             var topicSim = cosineSimilarity(topicVector, messageVector);
             if (topicSim > similarity) {
                 return Decision.outOfScope(
