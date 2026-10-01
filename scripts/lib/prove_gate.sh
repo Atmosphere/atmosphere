@@ -61,9 +61,13 @@ INJECT_CREATED=(
     modules/ai/src/main/resources/META-INF/services/org.atmosphere.ai.ZzzSpi
     modules/cpr/zzz-scratch.bak
     .github/workflows/zzz-notests.yml
+    e2e/ZzzUncovered.java
 )
+# Files a case stages with `git add -N` (the coverage check reads the index).
+INJECT_INDEXED=(e2e/ZzzUncovered.java)
 restore() {
     git checkout -- "${INJECT_TRACKED[@]}" 2>/dev/null
+    git rm -q --cached --ignore-unmatch -- "${INJECT_INDEXED[@]}" >/dev/null 2>&1
     rm -f "${INJECT_CREATED[@]}" 2>/dev/null
     # Compare scripts/ against the snapshot taken at startup — not against HEAD,
     # because the gate legitimately carries uncommitted work-in-progress while
@@ -152,6 +156,9 @@ s = re.sub(r'^.*setProtectedTargets.*$', '', s, count=1, flags=re.MULTILINE)
 open(p, 'w').write(s)
 PY
 }
+# A Java file outside every Spotless include, staged as intent-to-add.
+s_uncovered()   { printf 'public class ZzzUncovered {\n}\n' > e2e/ZzzUncovered.java
+                  git add -N e2e/ZzzUncovered.java; }
 
 # ---- cases ------------------------------------------------------------------
 run_case "noop-constants"      "NOOP constants declared but never referenced"        s_noop
@@ -179,6 +186,7 @@ run_case "skiptests-no-tests"  "skip tests without running any"                 
 run_case "experimental"        "@Experimental marker not allowed"                    s_experimental
 run_case "hardcoded-secret"    "hardcoded API keys"                                  s_secret
 run_case "jetty-protected"     "without setProtectedTargets"                         s_jetty
+run_case "spotless-coverage"   "outside every Spotless include"                      s_uncovered
 
 echo ""
 echo "==== Gate bite-proof ===="

@@ -6,9 +6,12 @@
 # that compile, which builds the Maven module owning each staged Java file
 # (nearest pom.xml, so modules/quarkus-*/runtime too). Staged Java files owned
 # by the root project (generator/, scripts/) get `./mvnw -N spotless:check`.
+# A Java file anywhere else is outside every Spotless include; the
+# architectural validation run below blocks it (it reads the index).
 # `./mvnw spotless:apply` adds a missing header. With the sandbox-only
 # ATMOSPHERE_OFFLINE_COMMIT bypass no Maven runs, so neither the compile nor
-# the header check happens at commit time; the CI build still checks both.
+# the header check happens at commit time; scripts/pre-push-validate.sh and
+# the CI build still check both.
 
 set -e
 

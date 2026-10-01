@@ -1062,6 +1062,48 @@ else
 fi
 
 # ============================================================================
+# 13. EVERY JAVA FILE IS INSIDE THE SPOTLESS GATE
+# ============================================================================
+
+echo ""
+echo -e "${BLUE}--- Java Sources Covered by Spotless ---${NC}"
+
+# Spotless (root pom.xml) checks the license header, imports and tabs of
+# src/**/*.java in each Maven module, plus generator/**/*.java and
+# scripts/**/*.java from the root project only. A Java file anywhere else
+# (e2e/, cli/, a module's top-level dir outside src/) is checked by nothing —
+# not the build, not the pre-commit hook, not CI. So every Java file in the
+# index must sit under src/ of the Maven module owning it (nearest pom.xml),
+# or, when the root project owns it, under generator/ or scripts/. Index
+# entries, not the work tree: a staged file is checked at commit time, and an
+# untracked scratch file does not block unrelated commits.
+if UNCOVERED_JAVA=$(python3 -c '
+import os, subprocess, sys
+out = subprocess.run(["git", "ls-files", "-z", "--cached", "--", "*.java"],
+                     check=True, capture_output=True).stdout.decode()
+bad = []
+for path in filter(None, out.split("\0")):
+    d = os.path.dirname(path)
+    while d and not os.path.isfile(os.path.join(d, "pom.xml")):
+        d = os.path.dirname(d)
+    rel = path[len(d) + 1:] if d else path
+    ok = rel.startswith("src/") if d else rel.startswith(("generator/", "scripts/"))
+    if not ok:
+        bad.append(path + "  (owner: " + (d or "root project") + ")")
+print("\n".join(bad))
+sys.exit(1 if bad else 0)
+'); then
+    pass_validation "Every Java file sits where the Spotless gate checks it"
+else
+    fail_validation "Java file(s) outside every Spotless include (no header/import/tab check anywhere):"
+    echo "$UNCOVERED_JAVA" | sed 's/^/  /'
+    echo "  Move the file under src/ of its Maven module, or add an include to the"
+    echo "  Spotless <java> section of the root pom.xml (root-project includes only"
+    echo "  match from the root project, so the pre-commit hook and"
+    echo "  scripts/pre-push-validate.sh must learn the new path too)."
+fi
+
+# ============================================================================
 # RESULTS SUMMARY
 # ============================================================================
 
