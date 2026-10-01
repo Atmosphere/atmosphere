@@ -116,6 +116,30 @@ describe('HTTP transport tracking id without the protocol handshake', () => {
       vi.unstubAllGlobals();
     }
   });
+
+  it('draws the id from crypto.getRandomValues where randomUUID is missing (a polyfilled React Native)', async () => {
+    const { logger } = await import('../../src/utils/logger');
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    (AtmosphereProtocol as unknown as { weakIdWarned: boolean }).weakIdWarned = false;
+    const random = vi.spyOn(Math, 'random');
+    const getRandomValues = vi.fn((bytes: Uint8Array) => {
+      bytes.forEach((_b, i) => { bytes[i] = (i * 17 + 5) & 0xff; });
+      return bytes;
+    });
+    vi.stubGlobal('crypto', { getRandomValues });
+    try {
+      const id = AtmosphereProtocol.clientTrackingId();
+      expect(getRandomValues).toHaveBeenCalledTimes(1);
+      expect(id).toMatch(/^[0-9a-f]{32}$/);
+      expect(id.slice(0, 6)).toBe('051627');
+      expect(random).not.toHaveBeenCalled();
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+      random.mockRestore();
+      warn.mockRestore();
+    }
+  });
 });
 
 /**
