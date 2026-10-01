@@ -4361,3 +4361,29 @@ instead of what the code does.
 **Gate added:** none. The comment is removed with the other `NOPMD` trailers; with PMD gone,
 nothing reports the unread field or the no-op setter. Recorded under *Build Enforcement* in
 `AGENTS.md` as a rule no longer enforced.
+
+## 2026-10-01 — Build docs said every Java file got the Spotless header check, at build and commit
+
+**Session:** moving the license-header check from the pre-commit hook into Spotless.
+
+**Claim 1:** `AGENTS.md` *Build Enforcement*: Spotless fails on a missing or altered license header
+"in `src/**/*.java`".
+**Truth:** `samples/spring-boot-coding-agent`, `samples/spring-boot-multi-agent-startup-team` and
+`samples/spring-boot-personal-assistant` set `<spotless.check.skip>true</spotless.check.skip>` (a
+mechanical rename of their `checkstyle.skip`). A sample file with its header deleted passed
+`validate` ("Spotless check skipped"), so 32 Java files had no header check anywhere.
+**Claim 2:** `AGENTS.md` *Hooks Setup* and the hook's own comment: headers are enforced "through the
+Spotless check that runs when the hook compiles the changed `modules/*` and `samples/*` modules".
+**Truth:** the hook compiled the first two path segments of each staged file. For the nested
+`modules/quarkus-*/{runtime,deployment}` sources that is the packaging aggregator, whose
+`src/**/*.java` matches nothing: a header-less `AtmosphereBootstrap.java` compiled with exit 0.
+Root-owned Java files (`generator/`, `scripts/`) got no Maven run at all.
+**Slip path:** both sentences described the configuration as written, not a header-less file pushed
+through each path.
+**Gate added:** the three skips are removed (the samples pass clean; the CLI injects the skip into
+scaffolded copies). The hook maps each staged Java file to its nearest `pom.xml` and runs
+`./mvnw -N spotless:check` for root-owned files. Probed before commit: a header-less file in
+`spring-boot-personal-assistant` fails `validate`, a header-less `AtmosphereBootstrap.java` and a
+header-less `generator/ComposeGenerator.java` each block the hook with the Spotless diff. The
+`ATMOSPHERE_OFFLINE_COMMIT` sandbox bypass still runs no Maven, which the hook comment and
+`AGENTS.md` now say. There is no committed test of the hook itself.
