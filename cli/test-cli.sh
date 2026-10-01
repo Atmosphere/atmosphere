@@ -525,7 +525,7 @@ SKILLEOF
         out=$(cd "$tmp_dir" && "$CLI" new net-ai-chat --template ai-chat 2>&1) && ec=0 || ec=$?
         assert_exit_code "$ec" 0 "new ai-chat exits successfully"
         if [ -d "$tmp_dir/net-ai-chat" ]; then
-            compile_log=$(cd "$tmp_dir/net-ai-chat" && mvn -q -B -DskipTests -Dspotless.check.skip=true -Dpmd.skip=true compile 2>&1) && cec=0 || cec=$?
+            compile_log=$(cd "$tmp_dir/net-ai-chat" && mvn -q -B -DskipTests -Dspotless.check.skip=true compile 2>&1) && cec=0 || cec=$?
             if [ "$cec" -eq 0 ]; then
                 pass "cloned ai-chat pom.xml compiles standalone"
             else
@@ -544,7 +544,7 @@ SKILLEOF
         out=$(cd "$tmp_dir" && "$CLI" new net-ai-tools --template ai-tools 2>&1) && ec=0 || ec=$?
         assert_exit_code "$ec" 0 "new ai-tools exits successfully"
         if [ -d "$tmp_dir/net-ai-tools" ]; then
-            compile_log=$(cd "$tmp_dir/net-ai-tools" && mvn -q -B -DskipTests -Dspotless.check.skip=true -Dpmd.skip=true compile 2>&1) && cec=0 || cec=$?
+            compile_log=$(cd "$tmp_dir/net-ai-tools" && mvn -q -B -DskipTests -Dspotless.check.skip=true compile 2>&1) && cec=0 || cec=$?
             if [ "$cec" -eq 0 ]; then
                 pass "cloned ai-tools sources match the pinned release (compiles standalone)"
             else
@@ -576,7 +576,7 @@ SKILLEOF
 
             # shellcheck disable=SC2086
             compile_log=$(cd "$tmp_dir/$proj" && mvn -q -B -DskipTests \
-                -Dspotless.check.skip=true -Dpmd.skip=true \
+                -Dspotless.check.skip=true \
                 $rt_extra_args compile 2>&1) && cec=0 || cec=$?
             if [ "$cec" -eq 0 ]; then
                 pass "scaffold --runtime $rt_name compiles standalone"

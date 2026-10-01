@@ -72,16 +72,6 @@
 
     <build>
         <plugins>
-            <!-- JMH's annotation processor generates code that triggers PMD
-                 UnusedAssignment in the jmh_generated harness classes. Skip
-                 PMD for this non-production module. -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-pmd-plugin</artifactId>
-                <configuration>
-                    <skip>true</skip>
-                </configuration>
-            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>

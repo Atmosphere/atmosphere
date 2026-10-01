@@ -333,29 +333,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-pmd-plugin</artifactId>
-                <version>3.28.0</version>
-                <configuration>
-                    <rulesets>
-                        <ruleset>${maven.multiModuleProjectDirectory}/config/atmosphere-pmd-ruleset.xml</ruleset>
-                    </rulesets>
-                    <targetJdk>21</targetJdk>
-                    <linkXRef>false</linkXRef>
-                    <includeTests>true</includeTests>
-                    <verbose>true</verbose>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>validate</id>
-                        <phase>validate</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
         <pluginManagement>
             <plugins>
@@ -373,20 +350,6 @@
                     <configuration>
                         <lifecycleMappingMetadata>
                             <pluginExecutions>
-                                <pluginExecution>
-                                    <pluginExecutionFilter>
-                                        <groupId>org.apache.maven.plugins</groupId>
-                                        <artifactId>maven-pmd-plugin</artifactId>
-                                        <versionRange>[3.0,)</versionRange>
-                                        <goals>
-                                            <goal>check</goal>
-                                            <goal>pmd</goal>
-                                        </goals>
-                                    </pluginExecutionFilter>
-                                    <action>
-                                        <ignore />
-                                    </action>
-                                </pluginExecution>
                                 <pluginExecution>
                                     <pluginExecutionFilter>
                                         <groupId>org.apache.maven.plugins</groupId>
@@ -450,7 +413,6 @@
             <id>fastinstall</id>
             <properties>
                 <maven.test.skip>true</maven.test.skip>
-                <pmd.skip>true</pmd.skip>
                 <spotless.check.skip>true</spotless.check.skip>
             </properties>
         </profile>

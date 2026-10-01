@@ -13,7 +13,6 @@
 | Skip tests | `./mvnw install -DskipTests` |
 | Spotless check only | `./mvnw spotless:check` |
 | Spotless fix | `./mvnw spotless:apply` |
-| PMD only | `./mvnw pmd:check` |
 
 ### Module Build
 Build a specific module (faster iteration):
@@ -74,7 +73,6 @@ Rules enforced by hooks:
 
 ```
 atmosphere/
-├── config/                        (PMD ruleset)
 ├── modules/
 │   ├── cpr/                       (atmosphere-runtime - core framework)
 │   ├── spring-boot-starter/       (Spring Boot 4.0 integration)
@@ -154,7 +152,7 @@ cannot fix: copy the header in by hand. Third-party notices go in a separate com
 ### Build Enforcement
 - **Compiler**: `javac -Xlint:all,-processing,-serial -Werror` is enabled — the compiler flags unchecked casts, deprecation usage, raw types, and other issues as warnings. It does not flag unused imports (javac has no such lint); Spotless does. **Zero compiler warnings are required.**
 - **Spotless**: `spotless:check` runs in `validate` phase and fails the build. Configured inline in the root `pom.xml`: fails on a missing or altered Apache 2.0 license header, on unused, duplicate, `java.lang` and same-package imports and on any tab character in `src/**/*.java` (plus the JBang sources under `generator/` and `scripts/`, checked only from the root project). `./mvnw spotless:apply` adds a missing header, removes the imports and expands leading tabs to spaces; a tab elsewhere in a line (e.g. inside a string literal) is reported for a hand fix. No code formatter is applied.
-- **PMD**: runs in `validate` phase (failsOnError=true). Config in `config/atmosphere-pmd-ruleset.xml`.
+- **Not enforced (PMD was removed)**: the build no longer runs PMD, and nothing replaced the rules it enforced on main and test sources: unused local variables, unused private fields, unused private methods, unused parameters of private methods, assignments whose value is never read (`UnusedAssignment`), `size() == 0` instead of `isEmpty()` (`UseCollectionIsEmpty`), `ThreadGroup` use (`AvoidThreadGroup`) and calling `Thread.run()` directly (`DontCallThreadRun`). javac `-Xlint:all` has no lint for any of them; catch them in review or in the IDE.
 - **Pre-commit hook**: blocks commits containing unused or duplicate imports in staged Java files, and compiles the changed `modules/*` and `samples/*` modules (javac `-Werror` plus the Spotless check, so the license header too)
 - All checks can be skipped with `-Pfastinstall` for local iteration, but **you MUST run a full `./mvnw compile` (without `-Pfastinstall`) before committing** to verify zero warnings.
 - **Do NOT introduce new `@SuppressWarnings` annotations** without justification. If a suppression is necessary (e.g., unavoidable raw type from a third-party API), add a comment explaining why.
@@ -272,8 +270,8 @@ Before committing, verify these for every changed file:
 # 2. Full build of changed module with tests
 ./mvnw install -pl modules/cpr
 
-# 3. Verify Spotless and PMD pass (./mvnw spotless:apply fixes import and indentation findings)
-./mvnw spotless:check pmd:check -pl modules/cpr
+# 3. Verify Spotless passes (./mvnw spotless:apply fixes license header, import and indentation findings)
+./mvnw spotless:check -pl modules/cpr
 ```
 
 **Do NOT commit or push if the build produces warnings.** Treat compiler warnings, deprecation warnings, and static analysis warnings as errors. Fix them before committing. The compiler runs with `-Xlint:all,-processing,-serial` and Spotless rejects unused, duplicate and redundant imports — both will catch common issues.

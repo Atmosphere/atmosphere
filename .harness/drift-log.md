@@ -4345,3 +4345,19 @@ probed with `validate` before commit: missing and altered headers fail and `appl
 file byte for byte, an unused import still fails, package-info missing or altered fails, a
 `2008-2019` header passes unchanged, and `-Pfastinstall` skips. There is no committed test of the
 build configuration itself.
+
+## 2026-10-01 — A PMD suppression comment said a write-only field was consumed
+
+**Session:** removing PMD and its `// NOPMD` suppressions.
+
+**Claim:** `modules/wasync/.../AtmosphereRequestBuilder.java`, on `private int paddingSize = 4098;`:
+"// NOPMD — public API setter exists; value consumed in future protocol negotiation" (added in
+`a23d4b8e5c` to silence `UnusedPrivateField`).
+**Truth:** nothing reads `paddingSize`: the only references are the declaration and the public
+`paddingSize(int)` setter, so the setter has no effect on a built request. "Consumed in future"
+described a consumer that does not exist.
+**Slip path:** the suppression was written to clear a PMD finding, explaining the field's intent
+instead of what the code does.
+**Gate added:** none. The comment is removed with the other `NOPMD` trailers; with PMD gone,
+nothing reports the unread field or the no-op setter. Recorded under *Build Enforcement* in
+`AGENTS.md` as a rule no longer enforced.

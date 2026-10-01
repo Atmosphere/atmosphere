@@ -596,11 +596,11 @@ install_source() {
     #   1. dropping <relativePath> so Maven resolves the parent from Central
     #   2. pinning SNAPSHOT → pinned release from cli/samples.json
     #   3. disabling the repo's source gates inside <properties> — the atmosphere
-    #      parent binds Spotless and PMD to `validate`, and PMD looks for a config
-    #      file under config/ that only exists inside the atmosphere repo. Parents
-    #      released before Spotless replaced Checkstyle (4.0.71 and earlier) bind
-    #      Checkstyle to repo-local config instead, so checkstyle.skip stays until
-    #      VERSION pins a later parent; it is inert on newer parents.
+    #      parent binds Spotless to `validate`. Parents up to 4.0.71, released
+    #      while the repo still ran Checkstyle and PMD, bind both to config files
+    #      under config/ that only exist inside the atmosphere repo, so
+    #      checkstyle.skip and pmd.skip stay until VERSION pins a later parent;
+    #      both are inert on newer parents.
     pom="$target_dir/pom.xml"
     if [ -f "$pom" ] && grep -q "atmosphere-project" "$pom" 2>/dev/null; then
         # ATMOSPHERE_VERSION_OVERRIDE lets test fixtures point a scaffolded
@@ -617,11 +617,11 @@ install_source() {
           }
           /<\/parent>/ { in_parent = 0 }
           !injected_skips && /<\/properties>/ {
-              print "        <!-- atmosphere parent binds its source gates to validate; PMD reads repo-local config. -->"
+              print "        <!-- atmosphere parent binds its source gates to validate -->"
               print "        <spotless.check.skip>true</spotless.check.skip>"
-              print "        <pmd.skip>true</pmd.skip>"
-              print "        <!-- parents up to 4.0.71 bind Checkstyle with repo-local config -->"
+              print "        <!-- parents up to 4.0.71 bind Checkstyle and PMD with repo-local config -->"
               print "        <checkstyle.skip>true</checkstyle.skip>"
+              print "        <pmd.skip>true</pmd.skip>"
               injected_skips = 1
           }
           { print }
@@ -726,8 +726,9 @@ build_sample() {
     info "Building $sample (first run downloads dependencies)..."
     printf "${DIM}This may take a minute — subsequent runs use the cached JAR.${RESET}\n\n"
 
-    # Build with the extracted mvnw. checkstyle.skip covers parents up to
-    # 4.0.71, which bind Checkstyle with repo-local config (see install_source).
+    # Build with the extracted mvnw. checkstyle.skip and pmd.skip cover parents
+    # up to 4.0.71, which bind Checkstyle and PMD with repo-local config (see
+    # install_source).
     save_dir="$PWD"
     cd "$build_dir/samples/$sample"
     "$build_dir/mvnw" package -DskipTests -Dspotless.check.skip=true -Dcheckstyle.skip=true -Dpmd.skip=true -B 2>&1 || {

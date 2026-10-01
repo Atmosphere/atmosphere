@@ -7,9 +7,6 @@
 .*.swo
 .loadpath
 .buildpath
-.pmd
-.pmdruleset
-.pmdruleset.xml
 .project
 .settings
 .classpath

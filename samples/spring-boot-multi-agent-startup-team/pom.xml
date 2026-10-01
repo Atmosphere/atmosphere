@@ -22,7 +22,6 @@
         <maven.deploy.skip>true</maven.deploy.skip>
         <atmosphere.starter>atmosphere-spring-boot-starter</atmosphere.starter>
         <spotless.check.skip>true</spotless.check.skip>
-        <pmd.skip>true</pmd.skip>
     </properties>
 
     <repositories>

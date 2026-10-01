@@ -108,8 +108,6 @@ jobs:
             distribution: temurin
           - java-version: 26
             distribution: oracle
-            # PMD's ASM does not yet support class file major version 70 (JDK 26)
-            mvn-extra-args: -Dpmd.skip=true
       fail-fast: false
 
     steps:
@@ -127,7 +125,7 @@ jobs:
         cache: 'maven'
 
     - name: Build Core Modules
-      run: ./mvnw -B clean install -DskipTests -Dgpg.skip=true ${{ matrix.mvn-extra-args }}
+      run: ./mvnw -B clean install -DskipTests -Dgpg.skip=true
 
     # Full-reactor test — no hand-picked module allow-list. A hand-picked list
     # silently drops every new module from CI (60% of modules were untested for
@@ -141,7 +139,7 @@ jobs:
     # Everything else still runs full-reactor here; the release gate
     # (release-4x.yml test step) keeps the module in its full-reactor run.
     - name: Run All Tests
-      run: ./mvnw -B test -pl '!modules/integration-tests' -Dgpg.skip=true -Dgroups='!flaky' ${{ matrix.mvn-extra-args }}
+      run: ./mvnw -B test -pl '!modules/integration-tests' -Dgpg.skip=true -Dgroups='!flaky'
 
     - name: Upload Test Results
       if: failure()

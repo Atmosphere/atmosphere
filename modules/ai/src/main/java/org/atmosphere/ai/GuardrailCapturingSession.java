@@ -181,7 +181,7 @@ class GuardrailCapturingSession extends DelegatingStreamingSession {
                 if (result instanceof AiGuardrail.GuardrailResult.Block block) {
                     logger.warn("Response blocked by guardrail {}: {}",
                             guardrail.getClass().getSimpleName(), block.reason());
-                    blocked = true; // NOPMD — field read by isClosed() and other session methods
+                    blocked = true;
                     delegate.error(new SecurityException("Response blocked: " + block.reason()));
                     return true;
                 }

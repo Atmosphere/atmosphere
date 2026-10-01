@@ -187,7 +187,7 @@ final class ResponseWriter {
 
             // Prevent StackOverflow — temporarily clear field; restored after write
             boolean b = forceAsyncIOWriter;
-            forceAsyncIOWriter = false; // NOPMD — read by asyncIOWriter.writeError()
+            forceAsyncIOWriter = false;
             asyncIOWriter.writeError(response, sc, msg);
             forceAsyncIOWriter = b;
         } else {
@@ -204,7 +204,7 @@ final class ResponseWriter {
             response.setStatus(sc);
             // Prevent StackOverflow — temporarily clear field; restored after write
             boolean b = forceAsyncIOWriter;
-            forceAsyncIOWriter = false; // NOPMD — read by asyncIOWriter.writeError()
+            forceAsyncIOWriter = false;
             asyncIOWriter.writeError(response, sc, "");
             forceAsyncIOWriter = b;
         } else {
@@ -220,7 +220,7 @@ final class ResponseWriter {
         if (forceAsyncIOWriter || !delegateToNativeResponse) {
             // Prevent StackOverflow — temporarily clear field; restored after write
             boolean b = forceAsyncIOWriter;
-            forceAsyncIOWriter = false; // NOPMD — read by asyncIOWriter.redirect()
+            forceAsyncIOWriter = false;
             asyncIOWriter.redirect(response, location);
             forceAsyncIOWriter = b;
         } else {
