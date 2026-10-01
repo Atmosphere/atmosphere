@@ -594,7 +594,11 @@ server-set suspended uuid; an SSE or long-polling POST names it with the
 `X-Atmosphere-tracking-id` header. A long-polling client that posts between two
 polls has no registered connection for a moment, so its prompt waits for that
 client's next poll and is answered `503` with `Retry-After: 1` if none arrives.
-A POST that names no connection is answered `400`. atmosphere.js sends a `503`'d
+A POST that names no connection is answered `400`. A WebSocket frame whose
+connection the server no longer holds is not waited for (no later poll can carry
+it): it is answered at once over its socket with a terminal
+`{"type":"error","data":"Prompt not delivered: ..."}` frame, which
+`subscribeStreaming` and the Console report like any turn error. atmosphere.js sends a `503`'d
 message again, up to 3 attempts, and reports one it cannot deliver to the
 `error` handler; its SSE, streaming and long-polling transports send a tracking id
 even with `enableProtocol` off, by choosing one when the server assigns none

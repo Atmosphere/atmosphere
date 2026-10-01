@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -235,10 +236,11 @@ class AiEndpointHandlerCrossTabIsolationTest {
     }
 
     @Test
-    void unknownUuidIsRejectedWith503AndNeverFansOut() throws Exception {
+    void unknownUuidIsAnsweredWithAnErrorFrameAndNeverFansOut() throws Exception {
         // A WebSocket frame whose suspended UUID was published but whose resource
-        // has since gone away, and this endpoint never suspended a connection for it: refuse with a
-        // retryable 503 rather than fan the prompt out to every subscriber.
+        // has since gone away: answer it with an error frame over its own socket
+        // (a status would never reach a WebSocket client) rather than fan the
+        // prompt out to every subscriber.
         var fallbackBroadcaster = mock(Broadcaster.class);
         var response = mock(AtmosphereResponse.class);
 
@@ -260,8 +262,8 @@ class AiEndpointHandlerCrossTabIsolationTest {
 
         handler.onRequest(tempResource);
 
-        verify(response).setStatus(503);
-        verify(response).setHeader("Retry-After", "1");
+        verify(tempResource).write(AiEndpointHandler.WEBSOCKET_REFUSAL_FRAME);
+        verify(response, never()).setStatus(anyInt());
         verify(fallbackBroadcaster, never()).broadcast(any());
         verify(fallbackBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));
     }

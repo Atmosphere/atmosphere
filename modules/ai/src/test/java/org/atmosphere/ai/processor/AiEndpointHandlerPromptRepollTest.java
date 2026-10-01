@@ -55,7 +55,6 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -348,18 +347,25 @@ class AiEndpointHandlerPromptRepollTest {
     }
 
     @Test
-    void webSocketSuspendedUuidWaitsForTheSameConnectionId() throws Exception {
+    void webSocketFrameWithoutItsConnectionIsAnsweredWithAnErrorFrameAtOnce() throws Exception {
+        // The frame's own socket is the connection: no later poll can take the
+        // prompt, and a status is never seen by a WebSocket client. The refusal
+        // goes back over the socket at once, never to another subscriber.
+        var pollB = poll("client-B");
         poll("ws-A");
         pollCompleted("ws-A");
 
         var post = webSocketFrame("ws-A", "ws prompt");
-        var pending = send(post);
-        Thread.sleep(100);
-        var reconnected = poll("ws-A");
-        pending.get(5, TimeUnit.SECONDS);
+        var started = System.nanoTime();
+        send(post).get(5, TimeUnit.SECONDS);
 
-        verify(pathBroadcaster, timeout(1_000)).broadcast(eq("ws prompt"), eq(reconnected));
+        assertTrue(System.nanoTime() - started < TimeUnit.MILLISECONDS.toNanos(1_000),
+                "a WebSocket frame must not wait on the repoll gate");
+        verify(post.resource()).write(AiEndpointHandler.WEBSOCKET_REFUSAL_FRAME);
+        verify(post.response(), never()).setStatus(anyInt());
         verify(pathBroadcaster, never()).broadcast(any());
+        verify(pathBroadcaster, never()).broadcast(any(), eq(pollB));
+        verify(pathBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));
     }
 
     @Test

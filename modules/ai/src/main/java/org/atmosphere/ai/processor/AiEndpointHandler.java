@@ -386,13 +386,23 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // not registered — a long-polling client posting between two polls — the
         // prompt waits briefly for that client's next connection, and is
         // otherwise refused with a retryable 503. No identifier at all is a 400.
+        // A WebSocket frame whose connection is gone is answered at once with an
+        // error frame over its socket (see refuseWebSocketFrame).
         if ("POST".equalsIgnoreCase(method)) {
             var msg = readPrompt(resource);
             if (msg != null) {
                 var since = System.nanoTime();
                 var target = findOriginatingResource(resource);
                 if (target == null) {
-                    var trackingId = promptTrackingId(resource);
+                    if (resource.getRequest().getAttribute(FrameworkConfig.WEBSOCKET_MESSAGE) != null) {
+                        refuseWebSocketFrame(resource);
+                        return;
+                    }
+                    // An SSE / long-polling POST names its connection with the header
+                    // only: the framework fills SUSPENDED_ATMOSPHERE_RESOURCE_UUID with a
+                    // freshly generated id when the header is missing or "0", so that
+                    // attribute alone identifies nobody here.
+                    var trackingId = headerTrackingId(resource.getRequest());
                     if (trackingId == null) {
                         logger.warn("Prompt on {} carries neither {} nor a {} header; answering 400",
                                 pathTemplate, ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID,
@@ -1432,21 +1442,27 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     }
 
     /**
-     * The tracking id a prompt POST waits on when it resolves to no connection,
-     * or {@code null} when the client identified none. A WebSocket frame carries
-     * {@link ApplicationConfig#SUSPENDED_ATMOSPHERE_RESOURCE_UUID}, set by the
-     * server at the handshake. An SSE / long-polling POST carries the
-     * {@link HeaderConfig#X_ATMOSPHERE_TRACKING_ID} header; on such a request the
-     * framework fills that attribute with a freshly generated id when the header
-     * is missing or {@code "0"}, so the attribute alone identifies nobody there.
+     * The terminal streaming-protocol error frame a refused WebSocket prompt is
+     * answered with; atmosphere.js ({@code subscribeStreaming}) and the Console
+     * handle it like any other turn error, so the client stops waiting.
      */
-    private static String promptTrackingId(AtmosphereResource resource) {
-        var req = resource.getRequest();
-        if (req.getAttribute(FrameworkConfig.WEBSOCKET_MESSAGE) != null) {
-            var suspendedUuid = suspendedUuid(req);
-            return suspendedUuid != null ? suspendedUuid : headerTrackingId(req);
-        }
-        return headerTrackingId(req);
+    static final String WEBSOCKET_REFUSAL_FRAME = "{\"type\":\"error\",\"data\":"
+            + "\"Prompt not delivered: this connection is no longer registered on the server;"
+            + " reconnect and send it again\"}";
+
+    /**
+     * Refuses a WebSocket prompt frame whose connection resolves to nothing, for
+     * instance one the server already unregistered. Unlike a long-polling POST it
+     * is not waited for: the frame's own socket is the connection, so no later
+     * poll can bring it back. Nor is it answered with an HTTP status: the
+     * WebSocket processor only logs a status of 400 or more, and the client would
+     * wait for a reply forever. The refusal goes back over the socket instead, as
+     * {@link #WEBSOCKET_REFUSAL_FRAME}.
+     */
+    private void refuseWebSocketFrame(AtmosphereResource resource) {
+        logger.warn("WebSocket prompt on {} names no registered connection; answering it with an error frame",
+                pathTemplate);
+        resource.write(WEBSOCKET_REFUSAL_FRAME);
     }
 
     private static String suspendedUuid(AtmosphereRequest req) {

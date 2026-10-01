@@ -33,12 +33,15 @@ import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -230,6 +233,59 @@ public class AiEndpointPromptIsolationTest {
         awaitTrue(() -> !PromptIsolationTestEndpoint.INVOCATIONS.isEmpty(), "the WebSocket prompt must run");
         Thread.sleep(300);
         assertEquals(List.of(ws + "|ws-prompt"), PromptIsolationTestEndpoint.INVOCATIONS);
+        assertFalse(pollB.isDone(), "B must not be sent the WebSocket client's prompt");
+        socket.sendClose(WebSocket.NORMAL_CLOSURE, "done").get(5, TimeUnit.SECONDS);
+    }
+
+    @Timeout(value = 30, unit = TimeUnit.SECONDS)
+    @Test
+    public void webSocketPromptWhoseConnectionIsGoneGetsAnErrorFrameOverItsSocket() throws Exception {
+        var ws = "ws-" + UUID.randomUUID();
+        var b = "client-B-" + UUID.randomUUID();
+        var pollB = poll(b);
+        awaitRegistered(b);
+        var frames = new LinkedBlockingQueue<String>();
+        var socket = httpClient.newWebSocketBuilder()
+                .buildAsync(URI.create(server.getWebSocketUrl() + PromptIsolationTestEndpoint.PATH
+                        + "?X-Atmosphere-tracking-id=" + ws
+                        + "&X-Atmosphere-Transport=websocket&X-Atmosphere-Framework=5.0.0"),
+                        new WebSocket.Listener() {
+                            private final StringBuilder text = new StringBuilder();
+
+                            @Override
+                            public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
+                                text.append(data);
+                                if (last) {
+                                    frames.add(text.toString());
+                                    text.setLength(0);
+                                }
+                                webSocket.request(1);
+                                return null;
+                            }
+                        })
+                .get(5, TimeUnit.SECONDS);
+        awaitRegistered(ws);
+
+        // The server unregisters the socket's connection while the socket stays
+        // open (as closing a stale connection under the same id does).
+        server.getFramework().atmosphereFactory().remove(ws);
+        var started = System.nanoTime();
+        socket.sendText("ws-orphan", true).get(5, TimeUnit.SECONDS);
+
+        String errorFrame = null;
+        for (var frame = frames.poll(5, TimeUnit.SECONDS); frame != null; frame = frames.poll(5, TimeUnit.SECONDS)) {
+            if (frame.contains("\"type\":\"error\"")) {
+                errorFrame = frame;
+                break;
+            }
+        }
+        assertNotNull(errorFrame, "the client must be told its prompt was not delivered");
+        assertTrue(errorFrame.contains("Prompt not delivered"), errorFrame);
+        assertTrue(System.nanoTime() - started < TimeUnit.MILLISECONDS.toNanos(1_500),
+                "the refusal must not wait on the long-polling repoll gate");
+        Thread.sleep(300);
+        assertTrue(PromptIsolationTestEndpoint.INVOCATIONS.isEmpty(),
+                "the prompt must not run anywhere, got " + PromptIsolationTestEndpoint.INVOCATIONS);
         assertFalse(pollB.isDone(), "B must not be sent the WebSocket client's prompt");
         socket.sendClose(WebSocket.NORMAL_CLOSURE, "done").get(5, TimeUnit.SECONDS);
     }
