@@ -604,7 +604,10 @@ they and the Console report it like any turn error. atmosphere.js sends a `503`'
 message again, up to 3 attempts, and reports one it cannot deliver to the
 `error` handler; its SSE, streaming and long-polling transports send a tracking id
 even with `enableProtocol` off, by choosing a new one for each subscription
-(connect or reconnect) when the server assigns none.
+(connect or reconnect) when the server assigns none. The server adopts such an id
+as is, so it does not pass through an application `UUIDProvider` and the response
+is not marked `X-Atmosphere-first-request`; `enableProtocol: true` keeps a
+server-minted id.
 
 Long-polling routes the prompt but does not yet carry the reply: the first reply
 frame completes the poll the prompt was dispatched to, and the frames after it

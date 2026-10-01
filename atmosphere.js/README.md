@@ -727,7 +727,12 @@ subscription, so no POST goes out without its id. Each POST names its subscripti
 `enableProtocol` is off (the default) the server never assigns that id, so these transports
 pick a random one themselves and send it on the subscription and on every POST. A reconnect
 picks a new one, so the server sees each reconnect as a new connection (`@Ready` fires again),
-as it did when these transports sent id `0`, and as it does over WebSocket.
+as it does over WebSocket. The server adopts that id as the connection's uuid as is: it mints
+an id itself only for a request carrying `0` (or none), so with `enableProtocol` off these
+transports no longer reach an application `UUIDProvider` (`AtmosphereFramework.uuidProvider`),
+the first response no longer carries `X-Atmosphere-first-request: true`, and the
+`org.atmosphere.cpr.contentTypeFirstResponse` Content-Type is not applied to it. An application
+that depends on a server-minted id sets `enableProtocol: true`, whose handshake carries it.
 
 ### Offline queue — survive disconnect without losing user input
 
