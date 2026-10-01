@@ -53,8 +53,9 @@ returns the `RuntimeDecisionModel` fallback **provisionally**: one caller
 rescans every 30 s (`DecisionModelResolver.FALLBACK_RECHECK_INTERVAL`) and
 switches to this model once it answers. Until then the safety tiers ask the
 general LLM. The `LLM_CLASSIFIER` injection tier is the exception: it builds
-its classifier once with the model it resolved, and keeps it until
-`InjectionClassifierResolver.reset()`. A scope or moderation tier built without
+its classifier once with the model it resolved, and its RAG and memory screens
+keep it until they are rebuilt (in practice, a restart);
+`InjectionClassifierResolver.reset()` clears only the resolver caches. A scope or moderation tier built without
 an explicit model (as `ScopeGuardrailResolver` and the Spring Boot starters'
 `LlmModerationDetector` build them) resolves on every check, so it picks up the
 switch. `DecisionModelResolverTest` pins
@@ -64,7 +65,8 @@ With no real `AgentRuntime` (only the demo runtime) there is no fallback, and a
 TypeSafe-only deployment behaves differently for the injection tier. If the
 `LLM_CLASSIFIER` injection tier is first resolved while this model is
 unavailable, it downgrades to `RULE_BASED` and **stays `RULE_BASED` until
-`InjectionClassifierResolver.reset()`**, even after `DecisionModelResolver`
+`InjectionClassifierResolver.reset()` and the screens are rebuilt** (in
+practice, a restart), even after `DecisionModelResolver`
 starts returning this model. The screens already built hold that classifier,
 and the console reports the tier they actually run. Its warning says so. The
 scope and moderation tiers resolve on every check and pick the model up.
@@ -84,9 +86,12 @@ variable names are the ones the TypeSafe SDKs read.
 
 - **Pinned model by default.** `jev-latest` and `jev-preview` are moving
   aliases: TypeSafe documents that the answers behind them can change without a
-  change on your side. They are accepted, with an INFO log. Each
-  `DecisionResult.model()` reports the versioned id the API says answered.
-- **Base URL.** Scheme and host only, because the adapter appends `/v1/...`.
+  change on your side. They are accepted, with an INFO log. A successful
+  `DecisionResult.model()` reports the versioned id the API says answered; a
+  failed exchange (`TIMEOUT`, `CAPACITY`, `ERROR`, or a `200` whose body is
+  `UNPARSEABLE`) reports the configured id, which may be the alias.
+- **Base URL.** Scheme, host and optional port only (no path, query, fragment
+  or user info), because the adapter appends `/v1/...`.
   Plain `http` is accepted only for a loopback host, so the key never crosses a
   network unencrypted.
 - **Bad configuration** (a malformed URL or model id, a key with spaces) does
@@ -231,8 +236,13 @@ with `ERROR`
 The instance `DecisionModelResolver` selects is closed by
 `DecisionModelResolver.reset()` (which `InjectionClassifierResolver.reset()`
 calls). Nothing else closes it: no framework shutdown hook does, so it lives
-until a reset or the end of the JVM. An instance you build yourself is yours to
-close. The module adds no third-party runtime
+until a reset or the end of the JVM. A reset closes the instance an
+`LLM_CLASSIFIER` RAG or memory screen built over it still holds: every question
+then fails with `ERROR` (`TypeSafe decision model is closed`), which the
+injection tier reads as uncertain, so until the screen is rebuilt (in practice,
+a restart) it drops every document the rule-based check passes, unless
+`atmosphere.ai.rag.safety.fail-open` / `atmosphere.ai.memory.safety.fail-open`
+is set. An instance you build yourself is yours to close. The module adds no third-party runtime
 dependency: the DecisionModel SPI, Jackson 3 and SLF4J come from
 `atmosphere-ai`.
 

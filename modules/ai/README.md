@@ -146,8 +146,9 @@ for a `true` answer and `1 - c` for a `false` one, with no other gate, so
 custom thresholds give the same verdict in both modes. A document is safe only
 when the model answered `false` **and** the belief is below the safe
 threshold: a `true` answer is never cleared by a measured distribution or a
-self-report that disagrees with it (that is an error), and a `false` answer
-with no confidence is an error. A timeout, an empty or unparseable reply, or an
+self-report that disagrees with it (that is an error), a `true` answer with no
+confidence at all is an injection, and a `false` answer with no confidence is
+an error. A timeout, an empty or unparseable reply, or an
 answer outside `true`/`false` is also an error. A document longer than 262,144
 characters (the decision state bound) is not sent to the model and is an error
 naming its length. Every error is dropped by default; with `fail-open=true` the
@@ -155,10 +156,11 @@ operator has chosen to admit it, including an oversize document. When
 only the demo runtime is installed (no reachable model, and no registered
 `DecisionModel` available at that moment) the tier downgrades to `RULE_BASED`
 with a warning, and the console reports `RULE_BASED`. The downgrade is kept
-until `InjectionClassifierResolver.reset()`: a registered `DecisionModel` that
-becomes available later (an external endpoint that was down at boot) is not
-picked up by this tier, because the screens already built keep their
-classifier and the console reports the tier they run
+until `InjectionClassifierResolver.reset()` **and** the screens are rebuilt (in
+practice, a restart): `reset()` clears only the resolver caches. A registered
+`DecisionModel` that becomes available later (an external endpoint that was
+down at boot) is not picked up by this tier, because the screens already built
+keep their classifier and the console reports the tier they run
 (`InjectionClassifierResolverTest#aDowngradedLlmTierStaysRuleBasedUntilResetEvenOnceARegistrationIsAvailable`).
 
 Only `ContextProvider` retrieval is screened **by default**. `@Agent` does not
@@ -973,8 +975,9 @@ still picked up. A selected registration is cached until
 The fallback is cached the same way, unless a registration was unavailable
 when it was chosen: then it is provisional, and one caller rescans every 30 s
 (`FALLBACK_RECHECK_INTERVAL`) until that registration answers. A consumer that
-kept the model it resolved keeps it; the `LLM_CLASSIFIER` injection tier builds
-its classifier once, until `InjectionClassifierResolver.reset()`.
+kept the model it resolved keeps it, even after `reset()` has closed it; the
+`LLM_CLASSIFIER` injection tier builds its classifier once, and its RAG and
+memory screens keep it until they are rebuilt (in practice, a restart).
 
 **Reference implementation: `RuntimeDecisionModel`.** Each question is one
 structured-output call over any `AgentRuntime`. The call has no history, tools,
@@ -1045,8 +1048,8 @@ given):
 All three read the answer the same way — the injection tier with its own
 mapping, the scope and moderation tiers through `NoulGate`, whose default
 thresholds are pinned to the injection tier's: a belief in `true` of at least
-0.5 flags, a `false` answer with a belief below 0.2 clears, and everything else
-is uncertain — the band between, a `false` answer with no confidence, a `true`
+0.5 flags, and so does a `true` answer with no confidence at all; a `false`
+answer with a belief below 0.2 clears, and everything else is uncertain — the band between, a `false` answer with no confidence, a `true`
 answer the belief disagrees with, any `Answer.Failed` (timeout, capacity,
 runtime error, empty, unparseable or out-of-set reply) and state over 262,144
 characters. For the scope and moderation tiers, no decision model at all (only
@@ -1080,7 +1083,8 @@ so the three safety tiers above ask it their questions; the injection tier still
 runs it on the rule-based floor. If it is not answering then, the fallback is
 provisional and rescanned as described under *Discovery*. With no real
 `AgentRuntime` there is no fallback: an injection tier resolved while it is not
-answering stays `RULE_BASED` until `InjectionClassifierResolver.reset()` (see
+answering stays `RULE_BASED` until `InjectionClassifierResolver.reset()` and a
+rebuild of the screens (see
 *RAG Injection Safety*), while the scope and moderation tiers pick it up on
 their next resolution.
 Its answers carry the provider's distribution and the confidence source
