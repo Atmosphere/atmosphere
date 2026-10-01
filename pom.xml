@@ -304,11 +304,25 @@
                         </forbidRegex>
                         <removeUnusedImports/>
                         <replaceRegex>
-                            <!-- removeUnusedImports keeps a repeated import line; drop the
-                                 earlier copy of any import that appears again later. Trailing
-                                 blanks are ignored, so "import a.B; " still matches "import a.B;". -->
+                            <!-- removeUnusedImports keeps a repeated import; drop the earlier
+                                 line of any import whose name is imported again later. The match
+                                 is on the imported name, not the raw line: leading indentation,
+                                 runs of blanks after "import"/"static", blanks before ";" and a
+                                 trailing // comment do not hide a duplicate. Static and
+                                 non-static imports are compared separately (two steps). Only
+                                 import, blank and comment lines (starting with //, /* or *) may
+                                 sit between the two copies: that keeps the step inside the
+                                 import section, so Java source quoted in a text block after the
+                                 class declaration is left alone. Not matched: blanks inside the
+                                 dotted name, a trailing /* */ comment on the earlier line, two
+                                 imports on one line. -->
                             <name>Remove duplicate imports</name>
-                            <searchRegex>(?m)^(import [^;\r\n]+;)[ \t]*\R(?=[\s\S]*^\1[ \t]*$)</searchRegex>
+                            <searchRegex>(?m)^[ \t]*import[ \t]+(?!static[ \t])([\w$.]+(?:\.\*)?)[ \t]*;[ \t]*(?://[^\r\n]*)?\R(?=(?:[ \t]*(?:(?:import\b|//|/\*|\*)[^\r\n]*)?\R)*?[ \t]*import[ \t]+\1[ \t]*;)</searchRegex>
+                            <replacement></replacement>
+                        </replaceRegex>
+                        <replaceRegex>
+                            <name>Remove duplicate static imports</name>
+                            <searchRegex>(?m)^[ \t]*import[ \t]+static[ \t]+([\w$.]+(?:\.\*)?)[ \t]*;[ \t]*(?://[^\r\n]*)?\R(?=(?:[ \t]*(?:(?:import\b|//|/\*|\*)[^\r\n]*)?\R)*?[ \t]*import[ \t]+static[ \t]+\1[ \t]*;)</searchRegex>
                             <replacement></replacement>
                         </replaceRegex>
                         <indent>

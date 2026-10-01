@@ -37,8 +37,14 @@ check_unused_imports() {
             continue
         fi
 
-        # Check for duplicate imports
-        local dup_imports=$(grep '^import ' "$file" | sort | uniq -d)
+        # Check for duplicate imports, compared on the normalized import
+        # (indentation, runs of blanks and a trailing // comment ignored),
+        # like the Spotless duplicate-import step in the root pom.xml. Only the
+        # import section is read (it ends at the first line that is not blank,
+        # package, import or comment), so Java quoted in a text block is skipped.
+        local dup_imports=$(awk '/^[[:space:]]*$/ || /^[[:space:]]*(package|import)[[:space:]]/ || /^[[:space:]]*(\/\/|\/\*|\*)/ { print; next } { exit }' "$file" \
+            | grep -E '^[[:space:]]*import[[:space:]]' \
+            | sed -E 's#//.*$##; s/[[:space:]]+/ /g; s/^ //; s/ ;/;/; s/ $//' | sort | uniq -d || true)
         if [ -n "$dup_imports" ]; then
             echo "WARNING: Duplicate imports in $file:"
             echo "$dup_imports" | sed 's/^/  /'
