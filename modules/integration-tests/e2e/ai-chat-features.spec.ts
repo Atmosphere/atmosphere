@@ -41,7 +41,7 @@ test.describe('AI Chat — New Features E2E', () => {
 
   test('conversation survives three turns in the same session', async ({ page }) => {
     await page.goto(consoleUrl());
-    await expect(page.getByText('Connected')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/^Connected/)).toBeVisible({ timeout: 30_000 });
 
     await sendTurn(page, 'Hello', 1);
     await sendTurn(page, 'What is Atmosphere?', 2);
@@ -64,8 +64,8 @@ test.describe('AI Chat — New Features E2E', () => {
 
       await page1.goto(consoleUrl());
       await page2.goto(consoleUrl());
-      await expect(page1.getByText('Connected')).toBeVisible({ timeout: 30_000 });
-      await expect(page2.getByText('Connected')).toBeVisible({ timeout: 30_000 });
+      await expect(page1.getByText(/^Connected/)).toBeVisible({ timeout: 30_000 });
+      await expect(page2.getByText(/^Connected/)).toBeVisible({ timeout: 30_000 });
 
       await sendTurn(page1, 'Hello from client 1', 1);
       await sendTurn(page2, 'Hello from client 2', 1);

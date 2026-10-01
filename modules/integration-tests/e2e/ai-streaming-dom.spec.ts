@@ -27,7 +27,7 @@ function consoleUrl(): string {
 test.describe('AI Streaming in DOM', () => {
   test('streaming response appears after sending a prompt', async ({ page }) => {
     await page.goto(consoleUrl());
-    await expect(page.getByText('Connected')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/^Connected/)).toBeVisible({ timeout: 30_000 });
 
     await page.getByTestId('chat-input').fill('Tell me about Atmosphere');
     await page.getByTestId('chat-send').click();
@@ -45,7 +45,7 @@ test.describe('AI Streaming in DOM', () => {
 
   test('user prompt is visible in the chat after sending', async ({ page }) => {
     await page.goto(consoleUrl());
-    await expect(page.getByText('Connected')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/^Connected/)).toBeVisible({ timeout: 30_000 });
 
     await page.getByTestId('chat-input').fill('Hello AI');
     await page.getByTestId('chat-send').click();
@@ -65,7 +65,7 @@ test.describe('AI Streaming in DOM', () => {
   // (30 ms per word), so the round lasts long enough to observe.
   test('send button is disabled during streaming', async ({ page }) => {
     await page.goto(consoleUrl());
-    await expect(page.getByText('Connected')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/^Connected/)).toBeVisible({ timeout: 30_000 });
 
     const input = page.getByTestId('chat-input');
     const send = page.getByTestId('chat-send');

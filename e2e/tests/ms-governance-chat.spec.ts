@@ -50,7 +50,7 @@ async function send(page: Page, message: string): Promise<void> {
 test.describe('ms-governance-chat: MS-schema rules over the console', () => {
   test.beforeEach(async ({ page, baseURL }) => {
     await page.goto(`${baseURL}/atmosphere/console/`);
-    await expect(page.getByText('Connected', { exact: false }).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/^Connected/).first()).toBeVisible({ timeout: 15_000 });
   });
 
   test('destructive SQL is denied with the verbatim MS message', async ({ page }) => {

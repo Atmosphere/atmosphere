@@ -48,7 +48,7 @@ test.describe('AI Session Stats & UI', () => {
   // working connection.
   test('stats bar reports token count and rate after a round', async ({ page }) => {
     await page.goto(consoleUrl());
-    await expect(page.getByText('Connected')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/^Connected/)).toBeVisible({ timeout: 30_000 });
 
     await sendAndSettle(page, 'What is Atmosphere?');
 
@@ -60,7 +60,7 @@ test.describe('AI Session Stats & UI', () => {
 
   test('stats bar shows a non-zero token count and elapsed time', async ({ page }) => {
     await page.goto(consoleUrl());
-    await expect(page.getByText('Connected')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/^Connected/)).toBeVisible({ timeout: 30_000 });
 
     await sendAndSettle(page, 'Hello');
 
@@ -74,7 +74,7 @@ test.describe('AI Session Stats & UI', () => {
 
   test('streaming response renders as text, not raw wire frames', async ({ page }) => {
     await page.goto(consoleUrl());
-    await expect(page.getByText('Connected')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/^Connected/)).toBeVisible({ timeout: 30_000 });
 
     await sendAndSettle(page, 'What is Atmosphere?');
 

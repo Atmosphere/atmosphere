@@ -47,7 +47,7 @@ test.describe('spring-ai-advisors: bound ChatClient contract', () => {
     expect(info.runtime, 'bound ChatClient must beat the demo fallback keyless').toBe('spring-ai');
 
     await page.goto(`${baseURL}/atmosphere/console/`);
-    await expect(page.getByText('Connected', { exact: false }).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/^Connected/).first()).toBeVisible({ timeout: 15_000 });
 
     const input = page.getByRole('textbox');
     // Turn 1 — only the bound client's default advisor should run.

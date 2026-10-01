@@ -19,7 +19,7 @@ test.afterAll(async () => {
 async function openConsole(page: Page): Promise<void> {
   await page.goto(server.baseUrl + '/atmosphere/console/');
   await page.getByTestId('chat-layout').waitFor({ state: 'visible' });
-  await expect(page.getByText('Connected')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/^Connected/)).toBeVisible({ timeout: 15_000 });
 }
 
 /**

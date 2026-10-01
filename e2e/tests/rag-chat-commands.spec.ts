@@ -33,7 +33,7 @@ import { test, expect } from '@playwright/test';
 test.describe('rag-chat: slash commands on the @AiEndpoint console', () => {
   test('/sources is an instant command; plain questions still hit RAG', async ({ page, baseURL }) => {
     await page.goto(`${baseURL}/atmosphere/console/`);
-    await expect(page.getByText('Connected', { exact: false }).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/^Connected/).first()).toBeVisible({ timeout: 15_000 });
 
     const input = page.getByRole('textbox');
 

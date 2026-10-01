@@ -20,7 +20,7 @@ async function joinRoom(page: import('@playwright/test').Page, room: string) {
   await page.goto(server.baseUrl + '/atmosphere/console/');
   await page.getByTestId(`pick-${room}`).click();
   await expect(page.getByTestId('chat-input')).toBeVisible();
-  await expect(page.getByText('Connected')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/^Connected/)).toBeVisible({ timeout: 30_000 });
 }
 
 /** Send a prompt into the joined room and wait for the assistant bubble. */

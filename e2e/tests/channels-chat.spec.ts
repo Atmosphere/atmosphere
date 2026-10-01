@@ -33,7 +33,7 @@ import { test, expect } from '@playwright/test';
 test.describe('channels-chat: web channel answers keyless', () => {
   test('the omnichannel agent replies to consecutive web turns in demo mode', async ({ page, baseURL }) => {
     await page.goto(`${baseURL}/atmosphere/console/`);
-    await expect(page.getByText('Connected', { exact: false }).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/^Connected/).first()).toBeVisible({ timeout: 15_000 });
 
     const input = page.getByRole('textbox');
 

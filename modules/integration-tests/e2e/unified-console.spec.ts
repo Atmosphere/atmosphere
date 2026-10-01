@@ -28,7 +28,7 @@ function consoleUrl(server: SampleServer): string {
  * must not read as a flake.
  */
 async function waitForConnected(page: Page): Promise<void> {
-  await expect(page.getByText('Connected')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/^Connected/)).toBeVisible({ timeout: 30_000 });
 }
 
 const UNIFIED_SAMPLES = [

@@ -31,7 +31,7 @@ test.describe('Console: spring-boot-chat', () => {
 
   test('console page loads and WebSocket connects', async ({ page }) => {
     await page.goto(`${server.baseUrl}/atmosphere/console/`);
-    await expect(page.getByText('Connected')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/^Connected/)).toBeVisible({ timeout: 15_000 });
   });
 });
 
@@ -49,12 +49,12 @@ test.describe('Console: spring-boot-dentist-agent', () => {
 
   test('console connects to agent endpoint', async ({ page }) => {
     await page.goto(`${server.baseUrl}/atmosphere/console/`);
-    await expect(page.getByText('Connected')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/^Connected/)).toBeVisible({ timeout: 15_000 });
   });
 
   test('slash command /help works', async ({ page }) => {
     await page.goto(`${server.baseUrl}/atmosphere/console/`);
-    await expect(page.getByText('Connected')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/^Connected/)).toBeVisible({ timeout: 15_000 });
 
     const input = page.locator('textarea');
     await input.fill('/help');
@@ -78,6 +78,6 @@ test.describe('Console: spring-boot-ai-tools', () => {
 
   test('console connects and shows tool-calling subtitle', async ({ page }) => {
     await page.goto(`${server.baseUrl}/atmosphere/console/`);
-    await expect(page.getByText('Connected')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/^Connected/)).toBeVisible({ timeout: 15_000 });
   });
 });
