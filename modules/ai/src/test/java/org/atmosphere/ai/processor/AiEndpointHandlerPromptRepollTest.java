@@ -476,6 +476,54 @@ class AiEndpointHandlerPromptRepollTest {
     }
 
     @Test
+    void handshakeAssignedIdIsWaitedForOnlyWithinTheWait() throws Exception {
+        // A handshake suspends nothing: its id buys one short wait for the first
+        // poll, not the whole suspend window a real connection's id is kept for.
+        when(config.getInitParameter(PromptRepollGate.WAIT_MS_PARAM)).thenReturn("50");
+        var gate = new PromptRepollGate(120_000L);
+        assertEquals(50L, gate.waitMs(config));
+        gate.idAssigned("handshake-only");
+
+        assertEquals(PromptRepollGate.Refusal.TIMEOUT,
+                gate.await("handshake-only", System.nanoTime(), () -> null, config).refusal(),
+                "a prompt posted right after the handshake waits for the first poll");
+        Thread.sleep(150);
+        assertEquals(PromptRepollGate.Refusal.UNKNOWN,
+                gate.await("handshake-only", System.nanoTime(), () -> null, config).refusal(),
+                "a handshake id no connection followed is forgotten after the wait");
+    }
+
+    @Test
+    void handshakeIdsDoNotCrowdConnectionIdsOut() {
+        // Handshakes are cheap and unauthenticated: a flood of them must not fill
+        // the set real connections are recorded in.
+        var gate = new PromptRepollGate(120_000L, 2, 2);
+        for (var i = 0; i < 10; i++) {
+            gate.idAssigned("handshake-" + i);
+        }
+        assertEquals(2, gate.assignedIds(), "the handshake-id set must not grow past its bound");
+        assertEquals(0, gate.knownIds(), "handshake ids are not connection ids");
+
+        gate.connectionReady("real-a");
+        gate.connectionReady("real-b");
+        assertEquals(2, gate.knownIds(), "a real connection's id must still be recorded");
+        assertEquals(PromptRepollGate.Refusal.TIMEOUT,
+                gate.await("real-a", System.nanoTime(), () -> null, null).refusal(),
+                "a real connection's id is waited for");
+    }
+
+    @Test
+    void connectionOfAHandshakeIdMovesItToTheKnownSet() {
+        var gate = new PromptRepollGate(120_000L);
+        gate.idAssigned("promoted");
+        assertEquals(1, gate.assignedIds());
+
+        gate.connectionReady("promoted");
+        assertEquals(0, gate.assignedIds());
+        assertEquals(1, gate.knownIds());
+    }
+
+    @Test
     void knownTrackingIdsAreBounded() {
         var gate = new PromptRepollGate(30_000L, 2);
         gate.connectionReady("a");

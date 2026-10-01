@@ -41,7 +41,12 @@ import java.util.function.Supplier;
  * tracking id and to {@code org.atmosphere.ai.prompt.maxRepollWaiters} (64)
  * across every endpoint of the framework: each holds a request thread, so the
  * bound is one semaphore shared through {@link AtmosphereConfig#properties()}. The set of known
- * tracking ids is bounded to {@link #MAX_KNOWN_IDS}. A refused or timed-out
+ * tracking ids is bounded to {@link #MAX_KNOWN_IDS}. An id assigned in a handshake
+ * that no connection of it has followed yet is kept apart, in a set bounded to
+ * {@link #MAX_ASSIGNED_IDS}, and only for the wait: the handshake is one
+ * unauthenticated request that suspends nothing, so it must neither keep an id
+ * known for the whole suspend window nor fill the set connections are recorded
+ * in. A connection of the id moves it to the known set. A refused or timed-out
  * prompt was not dispatched, so the caller answers {@code 503} and the client
  * may send it again. {@link #shutdown()} wakes every waiter and refuses new
  * ones, so a stopping server is not held up by prompts waiting for a poll that
@@ -62,6 +67,9 @@ final class PromptRepollGate {
 
     /** Tracking ids remembered at once; past it an id is not recorded and its prompt is not waited for. */
     static final int MAX_KNOWN_IDS = 10_000;
+
+    /** Handshake-assigned ids no connection followed yet, remembered at once; see {@link #idAssigned}. */
+    static final int MAX_ASSIGNED_IDS = 1_024;
 
     /** Used when the endpoint never times its connections out. */
     private static final long UNBOUNDED_SUSPEND_WINDOW_MS = 120_000;
@@ -101,22 +109,35 @@ final class PromptRepollGate {
 
     /** Tracking id -> {@link System#nanoTime()} at which a connection of it was last made ready. */
     private final ConcurrentHashMap<String, Long> readyAt = new ConcurrentHashMap<>();
+    /**
+     * Tracking id -> {@link System#nanoTime()} at which a handshake assigned it,
+     * until a connection of it is made ready; each is waited for only within the wait.
+     */
+    private final ConcurrentHashMap<String, Long> assignedAt = new ConcurrentHashMap<>();
     /** Tracking id -> the signal its one waiting prompt sleeps on. */
     private final ConcurrentHashMap<String, Semaphore> waiters = new ConcurrentHashMap<>();
     private final long suspendWindowMs;
     private final int maxKnownIds;
+    private final int maxAssignedIds;
     private volatile Limits limits;
     private volatile boolean closed;
     /** When the known ids were last swept for expired ones; a full set is swept at most once a second. */
     private volatile long lastSweepNanos = System.nanoTime() - SWEEP_INTERVAL_NANOS;
+    /** When the handshake-assigned ids were last swept; a full set is swept at most once a second. */
+    private volatile long lastAssignedSweepNanos = System.nanoTime() - SWEEP_INTERVAL_NANOS;
 
     PromptRepollGate(long suspendTimeoutMs) {
         this(suspendTimeoutMs, MAX_KNOWN_IDS);
     }
 
     PromptRepollGate(long suspendTimeoutMs, int maxKnownIds) {
+        this(suspendTimeoutMs, maxKnownIds, MAX_ASSIGNED_IDS);
+    }
+
+    PromptRepollGate(long suspendTimeoutMs, int maxKnownIds, int maxAssignedIds) {
         this.suspendWindowMs = suspendTimeoutMs > 0 ? suspendTimeoutMs : UNBOUNDED_SUSPEND_WINDOW_MS;
         this.maxKnownIds = maxKnownIds;
+        this.maxAssignedIds = maxAssignedIds;
     }
 
     /**
@@ -125,6 +146,7 @@ final class PromptRepollGate {
      */
     void connectionReady(String trackingId) {
         if (remember(trackingId)) {
+            assignedAt.remove(trackingId);
             var waiter = waiters.get(trackingId);
             if (waiter != null) {
                 waiter.release();
@@ -134,11 +156,26 @@ final class PromptRepollGate {
 
     /**
      * The server assigned {@code trackingId} in a protocol handshake that suspends
-     * no connection (long-polling): remember the id, so a prompt posted before the
-     * client's first poll waits for that poll instead of being refused.
+     * no connection (long-polling): remember the id for the wait only, so a prompt
+     * posted right after the handshake, before the client's first poll, waits for
+     * that poll instead of being refused. The id goes to its own bounded set, so
+     * handshakes alone never crowd connection ids out of the known set.
      */
     void idAssigned(String trackingId) {
-        remember(trackingId);
+        if (closed || trackingId == null || trackingId.isEmpty()) {
+            return;
+        }
+        var now = System.nanoTime();
+        if (assignedAt.size() >= maxAssignedIds && !assignedAt.containsKey(trackingId)
+                && now - lastAssignedSweepNanos >= SWEEP_INTERVAL_NANOS) {
+            lastAssignedSweepNanos = now;
+            assignedAt.entrySet().removeIf(e -> assignedExpired(e.getValue(), now));
+        }
+        if (assignedAt.size() < maxAssignedIds || assignedAt.containsKey(trackingId)) {
+            assignedAt.put(trackingId, now);
+        } else {
+            logger.debug("{} handshake ids already pending; not recording {}", maxAssignedIds, trackingId);
+        }
     }
 
     private boolean remember(String trackingId) {
@@ -169,11 +206,10 @@ final class PromptRepollGate {
         if (closed) {
             return Outcome.refused(Refusal.SHUTDOWN);
         }
-        var last = readyAt.get(trackingId);
-        if (last == null || expired(last, System.nanoTime())) {
+        var l = limits(config);
+        if (!known(trackingId, System.nanoTime())) {
             return Outcome.refused(Refusal.UNKNOWN);
         }
-        var l = limits(config);
         if (l.waitNanos() <= 0) {
             return Outcome.refused(Refusal.TIMEOUT);
         }
@@ -229,11 +265,17 @@ final class PromptRepollGate {
         closed = true;
         waiters.values().forEach(Semaphore::release);
         readyAt.clear();
+        assignedAt.clear();
     }
 
     /** Tracking ids currently remembered; for tests. */
     int knownIds() {
         return readyAt.size();
+    }
+
+    /** Handshake-assigned ids no connection followed yet; for tests. */
+    int assignedIds() {
+        return assignedAt.size();
     }
 
     /** Prompts currently waiting; for tests. */
@@ -244,6 +286,20 @@ final class PromptRepollGate {
     /** The wait a prompt is given, in ms, once the configured value is clamped; for tests. */
     long waitMs(AtmosphereConfig config) {
         return TimeUnit.NANOSECONDS.toMillis(limits(config).waitNanos());
+    }
+
+    /** A connection of the id was made ready within the window, or a handshake assigned it within the wait. */
+    private boolean known(String trackingId, long now) {
+        var ready = readyAt.get(trackingId);
+        if (ready != null && !expired(ready, now)) {
+            return true;
+        }
+        var assigned = assignedAt.get(trackingId);
+        return assigned != null && !assignedExpired(assigned, now);
+    }
+
+    private boolean assignedExpired(long assignedNanos, long now) {
+        return now - assignedNanos > waitNanos();
     }
 
     private boolean expired(long readyNanos, long now) {

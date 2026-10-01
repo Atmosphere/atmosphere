@@ -617,7 +617,9 @@ poll. Use WebSocket, SSE or streaming for an `@AiEndpoint`.
 | `org.atmosphere.ai.prompt.maxRepollWaiters` | `64` | Prompts that may wait at once across every `@AiEndpoint` of the application (each holds a request thread); one per tracking id |
 
 Only a tracking id the endpoint recently suspended a connection for, or assigned
-in a protocol handshake, is waited for; any other id is refused at once, and an
+in a protocol handshake no longer ago than `repollWaitMs` (at most 1024 such ids
+pending at once, kept apart from connection ids), is waited for; any other id is
+refused at once, and an
 id that is not 1-128 letters, digits, `-` or `_` is answered `400`. Prompts still
 waiting when the application stops are refused at once instead of holding
 shutdown.
