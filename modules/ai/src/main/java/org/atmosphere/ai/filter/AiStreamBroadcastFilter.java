@@ -69,10 +69,11 @@ public abstract class AiStreamBroadcastFilter implements BroadcastFilterLifecycl
      * terminal frame runs through this filter
      * ({@link DefaultStreamingSession#deliveryForSession}, which a
      * {@link DefaultStreamingSession} answers until its terminal frame has been
-     * filtered): its originating resource only, or the whole room for a room
-     * session. A session {@link DefaultStreamingSession} does not know (a topic
-     * session from {@code StreamingSessions.start(Broadcaster)}) broadcasts every
-     * frame to the whole broadcaster, so its end frame goes there too.
+     * filtered): its originating resource only, or every subscriber for a room
+     * session or a topic session from {@code StreamingSessions.start(Broadcaster)}.
+     * A frame of a session nobody can place (one cleaned up before its terminal
+     * frame was filtered, or a frame no streaming session sent) is dropped, never
+     * sent to every subscriber: that would hand one user's reply to all of them.
      *
      * @param broadcasterId the broadcaster the terminal frame was broadcast on
      * @param sessionId     the streaming session the frame belongs to
@@ -80,6 +81,11 @@ public abstract class AiStreamBroadcastFilter implements BroadcastFilterLifecycl
      */
     protected void deferStreamEnd(String broadcasterId, String sessionId, RawMessage message) {
         var delivery = DefaultStreamingSession.deliveryForSession(sessionId).orElse(null);
+        if (delivery == null) {
+            logger.warn("Dropping the deferred stream-end frame of session {} on {}: no live session"
+                    + " says who receives it", sessionId, broadcasterId);
+            return;
+        }
         var factory = broadcasterFactory();
         Thread.ofVirtual().name("ai-stream-end-flush").start(() -> {
             try {
@@ -87,7 +93,7 @@ public abstract class AiStreamBroadcastFilter implements BroadcastFilterLifecycl
                 Thread.sleep(50);
                 if (factory != null) {
                     factory.findBroadcaster(broadcasterId).ifPresent(b -> {
-                        if (delivery == null || delivery.toRoom()) {
+                        if (delivery.toRoom()) {
                             b.broadcast(message);
                         } else {
                             b.broadcast(message, Set.of(delivery.resource()));

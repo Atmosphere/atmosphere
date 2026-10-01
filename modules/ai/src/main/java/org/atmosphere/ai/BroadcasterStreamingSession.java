@@ -94,14 +94,14 @@ final class BroadcasterStreamingSession implements StreamingSession {
     @Override
     public void complete() {
         if (closed.compareAndSet(false, true)) {
-            broadcast(buildMessage("complete", null));
+            broadcastTerminal(buildMessage("complete", null));
         }
     }
 
     @Override
     public void complete(String summary) {
         if (closed.compareAndSet(false, true)) {
-            broadcast(buildMessage("complete", summary));
+            broadcastTerminal(buildMessage("complete", summary));
         }
     }
 
@@ -109,7 +109,7 @@ final class BroadcasterStreamingSession implements StreamingSession {
     public void error(Throwable t) {
         if (closed.compareAndSet(false, true)) {
             var message = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
-            broadcast(buildMessage("error", message));
+            broadcastTerminal(buildMessage("error", message));
         }
     }
 
@@ -127,12 +127,12 @@ final class BroadcasterStreamingSession implements StreamingSession {
         switch (event) {
             case AiEvent.Complete c -> {
                 if (closed.compareAndSet(false, true)) {
-                    broadcast(buildEventMessage(event));
+                    broadcastTerminal(buildEventMessage(event));
                 }
             }
             case AiEvent.Error err -> {
                 if (closed.compareAndSet(false, true)) {
-                    broadcast(buildEventMessage(event));
+                    broadcastTerminal(buildEventMessage(event));
                 }
             }
             default -> broadcast(buildEventMessage(event));
@@ -199,6 +199,15 @@ final class BroadcasterStreamingSession implements StreamingSession {
         msg.put("sessionId", sessionId);
         msg.put("seq", sequence.incrementAndGet());
         return toJson(msg);
+    }
+
+    /**
+     * Broadcast the terminal frame with this session known as a topic session,
+     * so a filter deferring a frame past it sends that frame to every
+     * subscriber too ({@link DefaultStreamingSession#deliveryForSession}).
+     */
+    private void broadcastTerminal(String json) {
+        DefaultStreamingSession.broadcastTopicTerminal(sessionId, () -> broadcast(json));
     }
 
     private void broadcast(String json) {

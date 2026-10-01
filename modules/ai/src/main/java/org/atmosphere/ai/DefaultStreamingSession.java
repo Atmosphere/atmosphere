@@ -64,6 +64,8 @@ public final class DefaultStreamingSession implements StreamingSession {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final ConcurrentHashMap<String, AtmosphereResource> SESSION_RESOURCES = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, DefaultStreamingSession> SESSION_INSTANCES = new ConcurrentHashMap<>();
+    /** Topic sessions whose terminal frame is being broadcast right now; see {@link #broadcastTopicTerminal}. */
+    private static final Set<String> TOPIC_TERMINALS = ConcurrentHashMap.newKeySet();
 
     private final String sessionId;
     private final AtmosphereResource resource;
@@ -110,10 +112,12 @@ public final class DefaultStreamingSession implements StreamingSession {
 
     /**
      * Where a session's frames go: its originating resource only, or every
-     * subscriber of that resource's broadcaster (a room session).
+     * subscriber of the broadcaster (a room session, or a topic session started
+     * with {@code StreamingSessions.start(Broadcaster)}).
      *
-     * @param resource the originating resource
-     * @param toRoom   whether the session fans its frames out to the room
+     * @param resource the originating resource, or {@code null} for a topic
+     *                 session, which has none
+     * @param toRoom   whether the session fans its frames out to every subscriber
      */
     public record Delivery(AtmosphereResource resource, boolean toRoom) {
     }
@@ -122,16 +126,33 @@ public final class DefaultStreamingSession implements StreamingSession {
      * How a live session delivers its frames. The session stays registered while
      * its terminal frame runs through the broadcaster's filters, so a filter
      * that defers a frame past the terminal one reads it there; it is empty once
-     * the session completed, failed or was cleaned up.
+     * the session completed, failed or was cleaned up. A topic session is
+     * answered only while its terminal frame runs through the filters.
      *
      * @param sessionId the streaming session identifier
      * @return the delivery, or empty if no active session with that ID
      */
     public static Optional<Delivery> deliveryForSession(String sessionId) {
         var session = SESSION_INSTANCES.get(sessionId);
-        return session != null
-                ? Optional.of(new Delivery(session.resource, session.broadcastToRoom))
-                : Optional.empty();
+        if (session != null) {
+            return Optional.of(new Delivery(session.resource, session.broadcastToRoom));
+        }
+        return TOPIC_TERMINALS.contains(sessionId) ? Optional.of(new Delivery(null, true)) : Optional.empty();
+    }
+
+    /**
+     * Run {@code broadcast}, a topic session's terminal broadcast, with the
+     * session known to {@link #deliveryForSession} as one whose frames go to every
+     * subscriber. Only the terminal frame is registered, and only for the time
+     * the broadcaster filters it, so nothing outlives the call.
+     */
+    static void broadcastTopicTerminal(String sessionId, Runnable broadcast) {
+        TOPIC_TERMINALS.add(sessionId);
+        try {
+            broadcast.run();
+        } finally {
+            TOPIC_TERMINALS.remove(sessionId);
+        }
     }
 
     /**
@@ -155,16 +176,18 @@ public final class DefaultStreamingSession implements StreamingSession {
         if (resourceUuid == null) {
             return;
         }
-        SESSION_RESOURCES.entrySet().removeIf(e -> {
-            if (e.getValue().uuid().equals(resourceUuid)) {
-                var session = SESSION_INSTANCES.remove(e.getKey());
-                if (session != null) {
-                    session.closed.set(true);
-                }
-                return true;
+        for (var entry : SESSION_INSTANCES.entrySet()) {
+            var session = entry.getValue();
+            // Deregister only by winning the close, as sweepExpired does: a
+            // session that already closed is broadcasting its terminal frame and
+            // deregisters itself after it, so a filter deferring a frame past
+            // that one still reads where the session's frames go.
+            if (resourceUuid.equals(session.resource.uuid())
+                    && session.closed.compareAndSet(false, true)) {
+                SESSION_INSTANCES.remove(entry.getKey(), session);
+                SESSION_RESOURCES.remove(entry.getKey(), session.resource);
             }
-            return false;
-        });
+        }
     }
 
     /**

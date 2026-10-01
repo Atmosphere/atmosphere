@@ -20,12 +20,20 @@ import org.atmosphere.cpr.Broadcaster;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -99,6 +107,90 @@ class StreamingSessionSweeperTest {
 
         assertEquals(0, DefaultStreamingSession.sweepExpired(TTL_MS),
                 "terminal events already reclaim the entry — sweep is the backstop, not the primary path");
+    }
+
+    @Test
+    void sweepDuringTheTerminalBroadcastLeavesTheSessionToDeregisterItself() {
+        // complete() won the close and its terminal frame is running through the
+        // broadcaster's filters when the sweeper finds the session aged out. A
+        // filter deferring a frame past the terminal one must still read where
+        // the session's frames go, or that frame falls back to no recipient.
+        var resource = resource("uuid-sweep-in-flight");
+        var broadcaster = resource.getBroadcaster();
+        var sessionId = "sweep-in-flight-" + System.nanoTime();
+        var swept = new ArrayList<Integer>();
+        var seen = new ArrayList<Optional<DefaultStreamingSession.Delivery>>();
+        var holder = new DefaultStreamingSession[1];
+        doAnswer(inv -> {
+            // complete() refreshed the clock as it broadcast: age the session
+            // again, as a session whose last frame went out a TTL ago would be.
+            holder[0].lastActivityMillis = System.currentTimeMillis() - (TTL_MS + 5_000L);
+            swept.add(DefaultStreamingSession.sweepExpired(TTL_MS));
+            seen.add(DefaultStreamingSession.deliveryForSession(sessionId));
+            return null;
+        }).when(broadcaster).broadcast(any(), anySet());
+        var session = new DefaultStreamingSession(sessionId, resource);
+        holder[0] = session;
+
+        session.complete("the reply");
+
+        assertEquals(List.of(0), swept, "the sweeper must not reap a session that is closing on its own");
+        assertEquals(1, seen.size());
+        assertTrue(seen.get(0).isPresent(), "the delivery must survive the sweep while the terminal frame is filtered");
+        assertSame(resource, seen.get(0).get().resource());
+        assertTrue(DefaultStreamingSession.deliveryForSession(sessionId).isEmpty(),
+                "the session must deregister itself once its terminal frame went out");
+    }
+
+    @Test
+    void sessionTheSweeperReapedFirstSendsNoTerminalFrame() {
+        var resource = resource("uuid-swept-first");
+        var session = new DefaultStreamingSession("swept-first-" + System.nanoTime(), resource);
+        session.lastActivityMillis = System.currentTimeMillis() - (TTL_MS + 5_000L);
+
+        assertEquals(1, DefaultStreamingSession.sweepExpired(TTL_MS));
+        session.complete("too late");
+
+        verify(resource.getBroadcaster(), never()).broadcast(any(), anySet());
+        verify(resource.getBroadcaster(), never()).broadcast(any());
+    }
+
+    @Test
+    void disconnectDuringTheTerminalBroadcastLeavesTheSessionToDeregisterItself() {
+        // The client disconnects while complete()'s terminal frame is filtered:
+        // cleanupResource must not deregister a session that already closed.
+        var resource = resource("uuid-cleanup-in-flight");
+        var broadcaster = resource.getBroadcaster();
+        var sessionId = "cleanup-in-flight-" + System.nanoTime();
+        var seen = new ArrayList<Optional<DefaultStreamingSession.Delivery>>();
+        doAnswer(inv -> {
+            DefaultStreamingSession.cleanupResource("uuid-cleanup-in-flight");
+            seen.add(DefaultStreamingSession.deliveryForSession(sessionId));
+            return null;
+        }).when(broadcaster).broadcast(any(), anySet());
+        var session = new DefaultStreamingSession(sessionId, resource);
+
+        session.complete("the reply");
+
+        assertEquals(1, seen.size());
+        assertTrue(seen.get(0).isPresent(), "the delivery must survive the disconnect while the terminal frame is filtered");
+        assertSame(resource, seen.get(0).get().resource());
+        assertTrue(DefaultStreamingSession.deliveryForSession(sessionId).isEmpty(),
+                "the session must deregister itself once its terminal frame went out");
+    }
+
+    @Test
+    void disconnectBeforeTheTerminalFrameClosesAndDeregistersTheSession() {
+        var resource = resource("uuid-cleanup-first");
+        var sessionId = "cleanup-first-" + System.nanoTime();
+        var session = new DefaultStreamingSession(sessionId, resource);
+
+        DefaultStreamingSession.cleanupResource("uuid-cleanup-first");
+
+        assertTrue(session.isClosed());
+        assertTrue(DefaultStreamingSession.deliveryForSession(sessionId).isEmpty());
+        session.complete("too late");
+        verify(resource.getBroadcaster(), never()).broadcast(any(), anySet());
     }
 
     // ── AiStreamingSession registry ─────────────────────────────────────

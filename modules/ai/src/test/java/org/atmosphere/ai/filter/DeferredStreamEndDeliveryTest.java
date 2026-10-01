@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.filter;
 
+import org.atmosphere.ai.DefaultStreamingSession;
 import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -31,6 +32,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -80,8 +82,14 @@ public class DeferredStreamEndDeliveryTest {
         }).when(broadcaster).broadcast(any());
     }
 
+    /** Runs just before a frame enters the filter chain; a test sets it to interleave a disconnect. */
+    private volatile Consumer<AiStreamMessage> beforeFilter = m -> { };
+
     private void deliver(AiStreamBroadcastFilter filter, Object message, Set<AtmosphereResource> targets)
             throws Exception {
+        if (message instanceof RawMessage raw && raw.message() instanceof String json) {
+            beforeFilter.accept(AiStreamMessage.parse(json));
+        }
         var action = filter.filter("b1", message, message);
         if (action.action() == BroadcastAction.ACTION.ABORT) {
             return;
@@ -181,6 +189,50 @@ public class DeferredStreamEndDeliveryTest {
         assertNotNull(terminal, "the deferred complete frame must be delivered");
         for (var d : deliveries) {
             assertNull(d.targets(), "a topic session's frames, the deferred complete included, go to all: " + d);
+        }
+    }
+
+    @Test
+    public void disconnectWhileTheTerminalFrameIsFilteredDoesNotLeakTheReply() throws Exception {
+        // The sender closes its tab while complete()'s frame runs through the
+        // broadcaster's filters: cleanupResource runs between complete() winning
+        // the close and the PII filter reading the session's delivery. The
+        // deferred complete, which carries the whole reply, must not reach
+        // every subscriber of the path.
+        wire(new PiiRedactionFilter());
+        var session = StreamingSessions.start("pii-disconnect-" + UUID.randomUUID(), sender);
+        beforeFilter = m -> {
+            if (m.isComplete()) {
+                DefaultStreamingSession.cleanupResource("sender");
+            }
+        };
+
+        session.send("my private reply without full stop");
+        session.complete("my private reply without full stop");
+
+        var terminal = awaitTerminal();
+        assertNotNull(terminal, "the deferred complete frame must still go to the sender");
+        for (var d : deliveries) {
+            assertEquals(Set.of(sender), d.targets(), "no frame may reach every subscriber: " + d);
+        }
+    }
+
+    @Test
+    public void deferredEndOfASessionNobodyCanPlaceIsDropped() throws Exception {
+        // A frame no live session sent (or one of a session already gone) has no
+        // known recipient: its deferred end is dropped, never sent to everyone.
+        var filter = new PiiRedactionFilter();
+        wire(filter);
+        var sessionId = "unknown-" + UUID.randomUUID();
+        deliver(filter, new RawMessage(new AiStreamMessage("streaming-text", "a reply without full stop",
+                sessionId, 1, null, null).toJson()), Set.of(sender));
+        deliver(filter, new RawMessage(new AiStreamMessage("complete", "a reply without full stop",
+                sessionId, 2, null, null).toJson()), Set.of(sender));
+
+        Thread.sleep(500);
+        for (var d : deliveries) {
+            assertFalse(d.message().isComplete(), "the deferred end frame must be dropped: " + d);
+            assertEquals(Set.of(sender), d.targets(), "no frame may reach every subscriber: " + d);
         }
     }
 }
