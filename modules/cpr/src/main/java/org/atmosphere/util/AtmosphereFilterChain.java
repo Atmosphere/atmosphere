@@ -77,10 +77,7 @@ public final class AtmosphereFilterChain implements FilterChain {
     /**
      * Initialize the {@link Filter}
      *
-<<<<<<< HEAD
      * @throws jakarta.servlet.ServletException
-=======
->>>>>>> 412463d0c... Update code to jdk 8
      */
     public void init() throws ServletException {
         for (FilterConfigImpl f : filters) {
