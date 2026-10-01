@@ -4252,7 +4252,7 @@ landed together in `b6cdced49e`: the tier count and `hasNativeImpl` were wrong f
 commit, not left stale by a later change, and nothing tied either to the enum or the switch.
 **Gate:** `SemanticIntentScopeGuardrailTest#noRuntimeDegradesToRuleBasedInsteadOfAdmittingEverything`,
 `#noRuntimeDeniesAtPreAdmissionThroughScopePolicy`, `#failOpenPropertyIsReadOnEachRequest`,
-`#explicitFailOpenArgumentWinsOverTheProperty`, `#forbiddenTopicThatCannotBeEmbeddedIsAnErrorNotSkipped`
+`#explicitFailOpenArgumentWinsOverTheProperty`, `#forbiddenTopicThatCannotBeEmbeddedDegradesInsteadOfBeingSkipped`
 and `EmbeddingScopeGuardrailTest#forbiddenTopicThatCannotBeEmbeddedDegradesInsteadOfBeingSkipped`
 (all fail with the fix reverted); `AgentScopeReferencesTest#everyAgentScopeMemberReferenceNamesADeclaredMember`
 gates Claims 1 and 4: it scans `modules/ai/src/main/java` for `AgentScope#member` references and
@@ -4276,3 +4276,14 @@ could not screen". The topic failure is now recorded and the fallback runs only 
 threshold check passes, pinned by
 `EmbeddingScopeGuardrailTest#offPurposeMessageIsRejectedEvenWhenAForbiddenTopicCannotBeEmbedded`
 (fails with the fix reverted) and `#onPurposeMessageStillDegradesWhenAForbiddenTopicCannotBeEmbedded`.
+A later review of this branch found two more faults in the semantic-intent fix. The first topic
+that failed to embed returned `ERROR` from inside the loop, discarding the topics that had
+embedded: a request that violated the margin against an embedded topic got "scope check errored"
+instead of the configured `POLITE_REDIRECT` at pre-admission and was admitted post-response, and
+every on-purpose request was denied while the topic kept failing — where the embedding tier
+degrades to `RULE_BASED` (Invariant #7). Every embeddable topic is now scored and only a request
+that passes the floor and the margin degrades to `RULE_BASED`, pinned by
+`SemanticIntentScopeGuardrailTest#embeddedTopicKeepsTheBreachModeWhenAnotherTopicCannotBeEmbedded`
+and `#forbiddenTopicThatCannotBeEmbeddedDegradesInsteadOfBeingSkipped` (both fail with the fix
+reverted). The class Javadoc's *Algorithm* section still said every forbidden topic is embedded
+before any check runs, contradicting the floor-first order; it now lists the steps in code order.

@@ -34,13 +34,16 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <h2>Algorithm</h2>
  * <ol>
- *   <li>Embed the purpose and every forbidden topic (cached per unique
- *       text). Embed the incoming request.</li>
- *   <li>Compute cosine similarity between the request and the purpose
- *       (<code>sim_p</code>) and between the request and each forbidden
- *       topic (<code>sim_f_max</code> = max over all topics).</li>
- *   <li>Admit iff <code>sim_p &gt;= similarityThreshold</code> AND
- *       <code>sim_p - sim_f_max &gt;= margin</code>.</li>
+ *   <li>Embed the purpose (cached per unique text) and the incoming request,
+ *       and compute their cosine similarity <code>sim_p</code>. Reject
+ *       ({@code OUT_OF_SCOPE}) when <code>sim_p &lt; similarityThreshold</code>;
+ *       no forbidden topic is embedded for such a request.</li>
+ *   <li>Only then embed each forbidden topic (cached per unique text) and
+ *       compute <code>sim_f_max</code>, the highest cosine similarity between
+ *       the request and a topic that embedded.</li>
+ *   <li>Reject ({@code OUT_OF_SCOPE}) when
+ *       <code>sim_p - sim_f_max &lt; margin</code>. Otherwise admit, unless a
+ *       forbidden topic failed to embed (see <i>Failure handling</i>).</li>
  * </ol>
  *
  * <p>The margin constraint is what distinguishes this tier from plain
@@ -75,16 +78,23 @@ import java.util.concurrent.ConcurrentHashMap;
  *       log. It is a system property only ({@code -D} or
  *       {@link System#setProperty}); no Spring Boot or Quarkus configuration
  *       key binds to it.</li>
- *   <li><b>An embedding call fails</b> (purpose, request or any forbidden
- *       topic) — {@link ScopeGuardrail.Decision#error}, which
- *       {@link ScopePolicy} denies at pre-admission. A forbidden topic that
- *       cannot be embedded is never skipped: skipping it would let the margin
- *       gate admit a request that topic would have blocked. The absolute
- *       {@link ScopeConfig#similarityThreshold()} floor is checked before the
- *       forbidden topics are embedded, so a message below it is
- *       {@code OUT_OF_SCOPE} even when a topic fails to embed; on the
- *       post-response check, where {@link ScopePolicy} admits an
- *       {@code ERROR}, that keeps an off-purpose response denied.</li>
+ *   <li><b>The purpose or request embedding fails</b> —
+ *       {@link ScopeGuardrail.Decision#error}, which {@link ScopePolicy}
+ *       denies at pre-admission: with no purpose similarity there is nothing
+ *       semantic left to screen with.</li>
+ *   <li><b>A forbidden topic fails to embed</b> — it is never skipped, since
+ *       skipping it would let the margin gate admit a request that topic would
+ *       have blocked; and it does not discard the topics that did embed. The
+ *       absolute {@link ScopeConfig#similarityThreshold()} floor is checked
+ *       before any topic is embedded, and every topic that embeds is scored,
+ *       so a message below the floor, or one that violates the margin against
+ *       an embedded topic, is {@code OUT_OF_SCOPE} and keeps the configured
+ *       {@link AgentScope.Breach} (a redirect stays a redirect, and the
+ *       post-response check denies). Only a message that passes both checks
+ *       is degraded to {@link RuleBasedScopeGuardrail} for the request, with a
+ *       WARN, so the keyword tier still enforces the topic that could not be
+ *       embedded. That is the same handling as {@link EmbeddingScopeGuardrail}
+ *       for a failed topic.</li>
  * </ul>
  */
 public final class SemanticIntentScopeGuardrail implements ScopeGuardrail {
@@ -106,7 +116,7 @@ public final class SemanticIntentScopeGuardrail implements ScopeGuardrail {
     /** Lazily-populated per-text reference vector cache. */
     private final ConcurrentHashMap<String, float[]> vectorCache = new ConcurrentHashMap<>();
 
-    /** Keyword tier used when no {@link EmbeddingRuntime} is available. */
+    /** Keyword tier used when no {@link EmbeddingRuntime} is available or a forbidden topic cannot be embedded. */
     private final ScopeGuardrail ruleBasedFallback = new RuleBasedScopeGuardrail();
 
     private final EmbeddingRuntime runtime;
@@ -205,7 +215,7 @@ public final class SemanticIntentScopeGuardrail implements ScopeGuardrail {
         // too weak regardless of margin. Matches the embedding-tier gate. It
         // runs before the forbidden topics are embedded because it does not
         // depend on them: a topic that fails to embed must not turn this
-        // rejection into ERROR, which the post-response check admits.
+        // rejection into a rule-based degrade that admits the message.
         if (purposeSim < config.similarityThreshold()) {
             return Decision.outOfScope(
                     "message similarity " + round(purposeSim)
@@ -216,13 +226,21 @@ public final class SemanticIntentScopeGuardrail implements ScopeGuardrail {
         // Best forbidden-topic match (track the topic for the audit reason).
         double bestForbiddenSim = -1.0;
         String bestForbiddenTopic = null;
+        String unembeddedTopic = null;
         for (var topic : config.forbiddenTopics()) {
             if (topic == null || topic.isBlank()) continue;
             var topicVector = vectorCache.computeIfAbsent(
                     topic.toLowerCase(Locale.ROOT),
                     t -> safeEmbed(t, "forbidden topic '" + t + "'"));
             if (topicVector == null) {
-                return Decision.error("failed to embed forbidden topic '" + topic + "'");
+                // Neither skip the topic (the margin gate would admit a
+                // request it blocks) nor return yet: the topics that did
+                // embed must still be able to reject with the configured
+                // breach mode.
+                if (unembeddedTopic == null) {
+                    unembeddedTopic = topic;
+                }
+                continue;
             }
             var topicSim = cosineSimilarity(topicVector, messageVector);
             if (topicSim > bestForbiddenSim) {
@@ -244,6 +262,14 @@ public final class SemanticIntentScopeGuardrail implements ScopeGuardrail {
                     purposeSim);
         }
 
+        if (unembeddedTopic != null) {
+            // The message passes every check that could be run but was not
+            // compared with every forbidden topic; the keyword tier still
+            // enforces the one that could not be embedded.
+            logger.warn("Could not embed forbidden topic '{}' — SemanticIntentScopeGuardrail degrading "
+                    + "to RULE_BASED scope enforcement for this request.", unembeddedTopic);
+            return ruleBasedFallback.evaluate(request, config);
+        }
         return Decision.inScope(purposeSim);
     }
 

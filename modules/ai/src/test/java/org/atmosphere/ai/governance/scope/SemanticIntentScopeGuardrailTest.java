@@ -205,29 +205,66 @@ class SemanticIntentScopeGuardrailTest {
     }
 
     @Test
-    void forbiddenTopicThatCannotBeEmbeddedIsAnErrorNotSkipped() {
-        // Regression: a forbidden topic whose embedding failed was skipped, so
-        // the margin gate saw no competitor and admitted. The request here is
-        // well above threshold, so skipping the topic would admit it.
+    void forbiddenTopicThatCannotBeEmbeddedDegradesInsteadOfBeingSkipped() {
+        // Regression: a forbidden topic whose embedding failed was first
+        // skipped (the margin gate saw no competitor and admitted), then
+        // turned every request into ERROR, on-purpose ones included. It now
+        // degrades the request to the rule-based tier, like
+        // EmbeddingScopeGuardrail: the topic is still enforced as a keyword,
+        // and an on-purpose request is admitted.
         var vectors = Map.of(
                 "customer support", unit(1, 0, 0),
-                "where is my order", normalize(new float[] {0.95f, 0.30f, 0.0f}));
-        var runtime = new EmbeddingRuntime() {
-            @Override public String name() { return "topic-fails"; }
-            @Override public boolean isAvailable() { return true; }
-            @Override public float[] embed(String text) {
-                var v = vectors.get(text);
-                if (v == null) {
-                    throw new IllegalStateException("embedding model unavailable for: " + text);
-                }
-                return v;
-            }
-        };
-        var decision = new SemanticIntentScopeGuardrail(runtime, 0.05)
-                .evaluate(new AiRequest("where is my order"), CUSTOMER_SUPPORT);
-        assertEquals(ScopeGuardrail.Outcome.ERROR, decision.outcome(),
-                "an unscorable forbidden topic must not be skipped: " + decision.reason());
-        assertTrue(decision.reason().contains("medical advice"), decision.reason());
+                "where is my order", normalize(new float[] {0.95f, 0.30f, 0.0f}),
+                "I need medical advice about my order", normalize(new float[] {0.95f, 0.30f, 0.0f}));
+        var runtime = failingFor(vectors);
+        var guardrail = new SemanticIntentScopeGuardrail(runtime, 0.05);
+
+        var forbidden = guardrail.evaluate(
+                new AiRequest("I need medical advice about my order"), CUSTOMER_SUPPORT);
+        assertEquals(ScopeGuardrail.Outcome.OUT_OF_SCOPE, forbidden.outcome(),
+                "an unscorable forbidden topic must not be skipped: " + forbidden.reason());
+        assertTrue(forbidden.reason().contains("medical advice"), forbidden.reason());
+
+        var onPurpose = guardrail.evaluate(new AiRequest("where is my order"), CUSTOMER_SUPPORT);
+        assertEquals(ScopeGuardrail.Outcome.IN_SCOPE, onPurpose.outcome(),
+                "an on-purpose request must not be denied because a topic failed: "
+                        + onPurpose.reason());
+    }
+
+    @Test
+    void embeddedTopicKeepsTheBreachModeWhenAnotherTopicCannotBeEmbedded() {
+        // Regression: the first topic that failed to embed returned ERROR
+        // from inside the loop, discarding topics that had embedded. A
+        // request that violates the margin against an embedded topic then
+        // got "scope check errored" instead of the configured redirect at
+        // pre-admission, and was admitted by the post-response check.
+        var vectors = Map.of(
+                "customer support", unit(1, 0, 0),
+                "medical advice", unit(0, 1, 0),
+                "my chest hurts what pill", normalize(new float[] {0.5f, 0.85f, 0.0f}));
+        var config = new ScopeConfig(
+                "customer support",
+                List.of("legal advice", "medical advice"),
+                AgentScope.Breach.POLITE_REDIRECT,
+                "Only orders please",
+                AgentScope.Tier.SEMANTIC_INTENT,
+                0.2,
+                true, false, "");
+        var guardrail = new SemanticIntentScopeGuardrail(failingFor(vectors), 0.05);
+
+        var direct = guardrail.evaluate(new AiRequest("my chest hurts what pill"), config);
+        assertEquals(ScopeGuardrail.Outcome.OUT_OF_SCOPE, direct.outcome(), direct.reason());
+        assertTrue(direct.reason().contains("medical advice"), direct.reason());
+
+        var policy = new ScopePolicy("scope::support", "code:test", "1.0", config, guardrail);
+        var pre = policy.evaluate(PolicyContext.preAdmission(new AiRequest("my chest hurts what pill")));
+        assertInstanceOf(PolicyDecision.Transform.class, pre,
+                "the configured redirect must apply, not an error deny: " + pre);
+
+        var post = policy.evaluate(PolicyContext.postResponse(
+                new AiRequest("where is my order"), "my chest hurts what pill"));
+        var deny = assertInstanceOf(PolicyDecision.Deny.class, post);
+        assertTrue(deny.reason().startsWith("post-response: "), deny.reason());
     }
 
     @Test
@@ -334,6 +371,21 @@ class SemanticIntentScopeGuardrailTest {
                 () -> new SemanticIntentScopeGuardrail(null, -0.1));
         assertThrows(IllegalArgumentException.class,
                 () -> new SemanticIntentScopeGuardrail(null, 1.0));
+    }
+
+    /** A runtime that embeds only the given texts and throws for every other one. */
+    private static EmbeddingRuntime failingFor(Map<String, float[]> vectors) {
+        return new EmbeddingRuntime() {
+            @Override public String name() { return "topic-fails"; }
+            @Override public boolean isAvailable() { return true; }
+            @Override public float[] embed(String text) {
+                var v = vectors.get(text);
+                if (v == null) {
+                    throw new IllegalStateException("embedding model unavailable for: " + text);
+                }
+                return v;
+            }
+        };
     }
 
     private static EmbeddingRuntime staticRuntime(Map<String, float[]> vectors) {
