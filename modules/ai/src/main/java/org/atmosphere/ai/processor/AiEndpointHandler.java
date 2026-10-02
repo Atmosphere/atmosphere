@@ -93,6 +93,23 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      */
     static final String ENDPOINT_HANDLER_ATTRIBUTE = "org.atmosphere.ai.endpointHandler";
 
+    /**
+     * Request attribute holding the identity a connection was suspended under:
+     * the {@link FrameworkConfig#AUTH_PRINCIPAL} name, else the servlet
+     * principal's name, else an {@code ai.userId} set before this handler ran.
+     * Absent for an anonymous connection. Recorded at suspend time, before
+     * {@code @Ready} code or {@link #resolveRunOwner} write {@code ai.userId}
+     * onto the request, so it holds what the auth layer established. A prompt
+     * runs only on a connection whose identity is its sender's.
+     */
+    static final String CONNECTION_OWNER_ATTRIBUTE = "org.atmosphere.ai.connectionOwner";
+
+    /**
+     * Identity of a request whose servlet principal could not be read: equal to
+     * no identity, so a connection or a prompt carrying it is never matched.
+     */
+    private static final Object UNRESOLVED_IDENTITY = new Object();
+
     private static final Logger logger = LoggerFactory.getLogger(AiEndpointHandler.class);
 
     /**
@@ -458,6 +475,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 || resource.transport() == AtmosphereResource.TRANSPORT.SSE
                 || resource.transport() == AtmosphereResource.TRANSPORT.LONG_POLLING) {
             resource.getRequest().setAttribute(ENDPOINT_HANDLER_ATTRIBUTE, this);
+            var owner = requestIdentity(resource.getRequest());
+            if (owner != null) {
+                resource.getRequest().setAttribute(CONNECTION_OWNER_ATTRIBUTE, owner);
+            }
             assignPerPathBroadcaster(resource);
             registerBroadcastFilters(resource.getBroadcaster());
             registerCacheInspector(resource.getBroadcaster());
@@ -1557,17 +1578,88 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * recycled its request already, and reading that throws. Its state is checked
      * before its request is touched; a request that throws anyway is treated the
      * same way. The caller then waits for the client's next connection.
+     *
+     * <p>Nor is a connection of another identity: a tracking id is no proof of
+     * who holds the connection, since a client may name any id, and a later
+     * connection under that id replaces the earlier one in the factory. The
+     * connection's identity, recorded when it was suspended, must be the
+     * prompt's sender's (see {@link #sameIdentity}). Otherwise the prompt would
+     * run as that connection's user and stream its reply to them.</p>
      */
     private AtmosphereResource resolveTrackingId(AtmosphereResource resource, String trackingId) {
         var found = resource.getAtmosphereConfig().resourcesFactory().findResource(trackingId).orElse(null);
         if (found == null || !found.isSuspended()) {
             return null;
         }
+        Object owner;
         try {
-            return found.getRequest().getAttribute(ENDPOINT_HANDLER_ATTRIBUTE) == this ? found : null;
+            if (found.getRequest().getAttribute(ENDPOINT_HANDLER_ATTRIBUTE) != this) {
+                return null;
+            }
+            owner = found.getRequest().getAttribute(CONNECTION_OWNER_ATTRIBUTE);
         } catch (IllegalStateException e) {
             logger.debug("Request of connection {} is no longer usable; not a prompt target", trackingId, e);
             return null;
+        }
+        if (!sameIdentity(owner, resource.getRequest())) {
+            // Not logged with the identities: one of them is another user's.
+            logger.warn("Prompt on {} names a connection of another identity; not a prompt target",
+                    pathTemplate);
+            return null;
+        }
+        return found;
+    }
+
+    /**
+     * Whether a prompt {@code sender} may run on a connection suspended under
+     * {@code owner} (the {@link #CONNECTION_OWNER_ATTRIBUTE}). An identified
+     * connection takes only a sender of the same identity. An anonymous one
+     * takes only a sender that carries no authenticated principal: an
+     * authenticated user's prompt never runs as nobody on a connection nobody
+     * authenticated. The sender's {@code ai.userId} is not consulted there: a
+     * WebSocket frame reads its connection's attributes through its wrapped
+     * request, and {@code @Ready} code may have set {@code ai.userId} on that
+     * connection after it was suspended.
+     */
+    static boolean sameIdentity(Object owner, AtmosphereRequest sender) {
+        if (owner == null) {
+            return authenticatedIdentity(sender) == null;
+        }
+        return owner.equals(requestIdentity(sender));
+    }
+
+    /**
+     * The identity a request carries: its authenticated principal's name, else
+     * its {@code ai.userId}, else {@code null} for none.
+     */
+    static Object requestIdentity(AtmosphereRequest request) {
+        var authenticated = authenticatedIdentity(request);
+        if (authenticated != null) {
+            return authenticated;
+        }
+        var userId = request.getAttribute("ai.userId");
+        return userId != null && !userId.toString().isBlank() ? userId.toString() : null;
+    }
+
+    /**
+     * The {@link FrameworkConfig#AUTH_PRINCIPAL} name, else the servlet
+     * principal's name, else {@code null}. A principal that cannot be read
+     * yields {@link #UNRESOLVED_IDENTITY}, which matches nothing.
+     */
+    private static Object authenticatedIdentity(AtmosphereRequest request) {
+        if (request.getAttribute(FrameworkConfig.AUTH_PRINCIPAL) instanceof Principal p
+                && p.getName() != null && !p.getName().isBlank()) {
+            return p.getName();
+        }
+        try {
+            var principal = request.getUserPrincipal();
+            if (principal != null && principal.getName() != null && !principal.getName().isBlank()) {
+                return principal.getName();
+            }
+            return null;
+        } catch (RuntimeException e) {
+            logger.debug("Unable to read the principal of a request; its identity is unresolved", e);
+            return UNRESOLVED_IDENTITY;
         }
     }
 

@@ -39,10 +39,13 @@ import jakarta.servlet.ServletInputStream;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.Principal;
 import java.util.List;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.any;
@@ -281,6 +284,97 @@ class AiEndpointHandlerCrossTabIsolationTest {
         verify(handler, never()).dispatchPrompt(any(), any());
         verify(fallbackBroadcaster, never()).broadcast(any());
         verify(fallbackBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));
+    }
+
+    /**
+     * A tracking id proves nothing about who holds the connection. Bob, signed
+     * in, posts naming Alice's connection (in the WebSocket attribute and the
+     * header alike): the prompt must not run on it, as Alice, with its reply
+     * streamed to her.
+     */
+    @Test
+    void promptOfAnotherUserNeverRunsOnTheNamedConnection() throws Exception {
+        var aliceConnection = connectionOfThisEndpoint("alice-id");
+        when(aliceConnection.getRequest().getAttribute(AiEndpointHandler.CONNECTION_OWNER_ATTRIBUTE))
+                .thenReturn("alice");
+        when(resourcesFactory.findResource("alice-id")).thenReturn(Optional.of(aliceConnection));
+        var response = mock(AtmosphereResponse.class);
+        var bobPost = postResourceWith(
+                ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID, "alice-id", "alice-id", "bob's prompt");
+        when(bobPost.getResponse()).thenReturn(response);
+        when(bobPost.getRequest().getAttribute(FrameworkConfig.AUTH_PRINCIPAL)).thenReturn(principal("bob"));
+        when(bobPost.getRequest().getUserPrincipal()).thenReturn(principal("bob"));
+
+        handler.onRequest(bobPost);
+
+        verify(handler, never()).dispatchPrompt(any(), any());
+        verify(response).setStatus(503);
+        verifyNoInteractions(originatingBroadcaster);
+    }
+
+    @Test
+    void promptOfTheConnectionsOwnUserRunsOnIt() throws Exception {
+        var aliceConnection = connectionOfThisEndpoint("alice-id");
+        when(aliceConnection.getRequest().getAttribute(AiEndpointHandler.CONNECTION_OWNER_ATTRIBUTE))
+                .thenReturn("alice");
+        when(resourcesFactory.findResource("alice-id")).thenReturn(Optional.of(aliceConnection));
+        var alicePost = postResourceWith(null, null, "alice-id", "alice's prompt");
+        when(alicePost.getRequest().getUserPrincipal()).thenReturn(principal("alice"));
+
+        handler.onRequest(alicePost);
+
+        verify(handler).dispatchPrompt(aliceConnection, "alice's prompt");
+    }
+
+    @Test
+    void signedInUsersPromptNeverRunsOnAnAnonymousConnection() throws Exception {
+        var anonymousConnection = connectionOfThisEndpoint("anon-id");
+        when(resourcesFactory.findResource("anon-id")).thenReturn(Optional.of(anonymousConnection));
+        var response = mock(AtmosphereResponse.class);
+        var alicePost = postResourceWith(null, null, "anon-id", "alice's prompt");
+        when(alicePost.getResponse()).thenReturn(response);
+        when(alicePost.getRequest().getAttribute(FrameworkConfig.AUTH_PRINCIPAL)).thenReturn(principal("alice"));
+
+        handler.onRequest(alicePost);
+
+        verify(handler, never()).dispatchPrompt(any(), any());
+        verify(response).setStatus(503);
+    }
+
+    @Test
+    void sameIdentityBindsAConnectionToItsAuthenticatedUser() {
+        assertTrue(AiEndpointHandler.sameIdentity("alice", sender(principal("alice"), null, null)));
+        assertTrue(AiEndpointHandler.sameIdentity("alice", sender(null, principal("alice"), null)));
+        assertTrue(AiEndpointHandler.sameIdentity("alice", sender(null, null, "alice")));
+        // The authenticated principal wins over an ai.userId the app mapped it to.
+        assertTrue(AiEndpointHandler.sameIdentity("alice", sender(principal("alice"), null, "u-1")));
+        assertFalse(AiEndpointHandler.sameIdentity("alice", sender(principal("bob"), null, null)));
+        assertFalse(AiEndpointHandler.sameIdentity("alice", sender(null, principal("bob"), "alice")));
+        assertFalse(AiEndpointHandler.sameIdentity("alice", sender(null, null, null)));
+        assertTrue(AiEndpointHandler.sameIdentity(null, sender(null, null, null)));
+        // A WebSocket frame reads its anonymous connection's attributes, where
+        // @Ready code may have set ai.userId after the connection was suspended.
+        assertTrue(AiEndpointHandler.sameIdentity(null, sender(null, null, "demo-user")));
+        assertFalse(AiEndpointHandler.sameIdentity(null, sender(principal("bob"), null, null)));
+        assertFalse(AiEndpointHandler.sameIdentity(null, sender(null, principal("bob"), null)));
+
+        // A principal that cannot be read matches no identity, anonymous included.
+        var unreadable = sender(null, null, null);
+        when(unreadable.getUserPrincipal()).thenThrow(new IllegalStateException("not bound"));
+        assertFalse(AiEndpointHandler.sameIdentity("alice", unreadable));
+        assertFalse(AiEndpointHandler.sameIdentity(null, unreadable));
+    }
+
+    private static Principal principal(String name) {
+        return () -> name;
+    }
+
+    private static AtmosphereRequest sender(Principal authPrincipal, Principal servletPrincipal, String userId) {
+        var request = mock(AtmosphereRequest.class);
+        when(request.getAttribute(FrameworkConfig.AUTH_PRINCIPAL)).thenReturn(authPrincipal);
+        when(request.getUserPrincipal()).thenReturn(servletPrincipal);
+        when(request.getAttribute("ai.userId")).thenReturn(userId);
+        return request;
     }
 
     private AtmosphereResource postResourceWith(String suspendedUuidAttr,

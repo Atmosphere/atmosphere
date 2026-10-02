@@ -38,6 +38,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -139,6 +140,11 @@ class AiEndpointHandlerPromptRepollTest {
 
     /** A long-polling GET that the handler suspends; registered like a real poll on suspend. */
     private AtmosphereResource poll(String trackingId) throws Exception {
+        return poll(trackingId, null);
+    }
+
+    /** A poll of {@code user}, signed in through the framework's auth interceptor; anonymous when null. */
+    private AtmosphereResource poll(String trackingId, String user) throws Exception {
         var resource = mock(AtmosphereResource.class);
         var request = mock(AtmosphereRequest.class);
         when(resource.uuid()).thenReturn(trackingId);
@@ -155,6 +161,16 @@ class AiEndpointHandlerPromptRepollTest {
             return null;
         }).when(request).setAttribute(eq(AiEndpointHandler.ENDPOINT_HANDLER_ATTRIBUTE), any());
         when(request.getAttribute(AiEndpointHandler.ENDPOINT_HANDLER_ATTRIBUTE)).thenAnswer(inv -> stamp.get());
+        // And records the identity it suspended the connection under.
+        var owner = new AtomicReference<Object>();
+        doAnswer(inv -> {
+            owner.set(inv.getArgument(1));
+            return null;
+        }).when(request).setAttribute(eq(AiEndpointHandler.CONNECTION_OWNER_ATTRIBUTE), any());
+        when(request.getAttribute(AiEndpointHandler.CONNECTION_OWNER_ATTRIBUTE)).thenAnswer(inv -> owner.get());
+        if (user != null) {
+            when(request.getAttribute(FrameworkConfig.AUTH_PRINCIPAL)).thenReturn((Principal) () -> user);
+        }
         when(resource.suspend(30_000L)).thenAnswer(inv -> {
             registered.put(trackingId, resource);
             return resource;
@@ -170,14 +186,15 @@ class AiEndpointHandlerPromptRepollTest {
 
     /**
      * The container recycled the poll's request: like Tomcat's request facade,
-     * every read that reaches it throws. The endpoint's own stamp is a local
-     * attribute of the Atmosphere request and still reads.
+     * every read that reaches it throws. The endpoint's own stamps are local
+     * attributes of the Atmosphere request and still read.
      */
     private void recycleRequest(AtmosphereResource poll) {
         var request = poll.getRequest();
         doThrow(new IllegalStateException("The request object has been recycled and is no longer"
                 + " associated with this facade"))
-                .when(request).getAttribute(argThat(key -> !AiEndpointHandler.ENDPOINT_HANDLER_ATTRIBUTE.equals(key)));
+                .when(request).getAttribute(argThat(key -> !AiEndpointHandler.ENDPOINT_HANDLER_ATTRIBUTE.equals(key)
+                        && !AiEndpointHandler.CONNECTION_OWNER_ATTRIBUTE.equals(key)));
         realDispatch.add(poll);
     }
 
@@ -284,6 +301,45 @@ class AiEndpointHandlerPromptRepollTest {
         assertNothingDispatchedTo(pollB);
         verify(pathBroadcaster, never()).broadcast(any());
         verify(post.response(), never()).setStatus(503);
+    }
+
+    /**
+     * A client may open a poll under any tracking id, and the factory then lists
+     * that poll under it in place of the earlier one. Bob does so with Alice's
+     * id: Alice's prompt must not run on Bob's poll, as Bob, with its reply sent
+     * to him. It waits instead, and runs on Alice's next poll. Bob's prompt
+     * naming the id then never runs on Alice's poll, as Alice.
+     */
+    @Test
+    void promptRunsOnlyOnAPollOfItsSendersIdentity() throws Exception {
+        var alicePoll = poll("alice-id", "alice");
+        var bobPoll = poll("alice-id", "bob");
+
+        var alicePost = post("alice-id", "alice's prompt");
+        signedIn(alicePost, "alice");
+        var pending = send(alicePost);
+        Thread.sleep(200);
+        assertFalse(pending.isDone(), "the prompt must wait for a poll of its sender");
+        assertNothingDispatchedTo(bobPoll);
+
+        var nextAlicePoll = poll("alice-id", "alice");
+        pending.get(5, TimeUnit.SECONDS);
+        assertDispatchedOnce(nextAlicePoll, "alice's prompt");
+        assertNothingDispatchedTo(bobPoll);
+        assertNothingDispatchedTo(alicePoll);
+
+        var bobPost = post("alice-id", "bob's prompt");
+        signedIn(bobPost, "bob");
+        // Alice's poll holds the id again: Bob's prompt waits for one of his, then is refused.
+        send(bobPost).get(5, TimeUnit.SECONDS);
+        verify(bobPost.response()).setStatus(503);
+        assertNeverDispatched("bob's prompt");
+        verify(pathBroadcaster, never()).broadcast(any());
+    }
+
+    private void signedIn(Post post, String user) {
+        when(post.resource().getRequest().getAttribute(FrameworkConfig.AUTH_PRINCIPAL))
+                .thenReturn((Principal) () -> user);
     }
 
     @Test
