@@ -621,13 +621,14 @@ poll. Use WebSocket, SSE or streaming for an `@AiEndpoint`.
 | Init-param | Default | Meaning |
 |---|---|---|
 | `org.atmosphere.ai.prompt.repollWaitMs` | `2000` | How long such a prompt waits for its client's next connection (capped at 30000; `0` refuses at once) |
-| `org.atmosphere.ai.prompt.maxRepollWaiters` | `64` | Prompts that may wait at once across every `@AiEndpoint` of the application (each holds a request thread); one per tracking id |
+| `org.atmosphere.ai.prompt.maxRepollWaiters` | `64` | Prompts that may wait at once across every `@AiEndpoint` of the application (each holds a request thread); one per tracking id. Prompts whose id only a handshake vouches for (no poll of it arrived yet) may hold half of them (at least one) |
 
 Only a tracking id the endpoint recently suspended a connection for, or assigned
 in a protocol handshake no longer ago than `repollWaitMs` (at most 1024 such ids
 pending at once, kept apart from connection ids), is waited for; any other id is
-refused at once, and an id that is not 1-128 letters, digits, `-` or `_` is
-answered `400`. Prompts still waiting when the application stops are refused at
+refused at once, as is the id of a connection its client closed or that was
+cancelled (until a connection of it is suspended again), and an id that is not
+1-128 letters, digits, `-` or `_` is answered `400`. Prompts still waiting when the application stops are refused at
 once instead of holding shutdown.
 
 The tracking id routes a prompt; it does not authenticate the sender. It is a

@@ -1213,6 +1213,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * BEFORE memory is cleared so they can extract facts from history.
      */
     private void cleanupDisconnected(String userIdStr, String uuid) {
+        // A closed or cancelled connection does not poll again: until a connection
+        // of its id is suspended again, a prompt naming the id is refused at once
+        // instead of waiting for it.
+        repollGate.connectionGone(uuid);
         notifyInterceptorsOnDisconnect(userIdStr, uuid);
         forgetRunOwner(uuid);
         if (memory != null) {

@@ -27,6 +27,7 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.Broadcaster;
@@ -37,6 +38,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -683,6 +685,98 @@ class AiEndpointHandlerPromptRepollTest {
         var gate = new PromptRepollGate(30_000L);
         assertEquals(75L, gate.waitMs(config));
         assertEquals(3, sharedWaiterSlots().availablePermits());
+    }
+
+    @Test
+    void handshakeOnlyIdsCannotTakeEveryWaiterSlot() throws Exception {
+        // A handshake costs one unauthenticated request and names an id no poll
+        // follows: handshake-and-post pairs must not leave a long-polling client
+        // that is between two polls without a slot.
+        handler = newHandler(Map.of(PromptRepollGate.MAX_WAITERS_PARAM, "4",
+                PromptRepollGate.WAIT_MS_PARAM, "20000"));
+        var recorder = handler.protocolHandshakeRecorder();
+        var flood = new ArrayList<Post>();
+        var pendingFlood = new ArrayList<Future<?>>();
+        for (var i = 0; i < 4; i++) {
+            recorder.inspect(longPollingGet("0", "handshake-" + i, true));
+            var post = post("handshake-" + i, "flood " + i);
+            flood.add(post);
+            pendingFlood.add(send(post));
+        }
+        Thread.sleep(300);
+        assertEquals(PromptRepollGate.handshakeShare(4),
+                pendingFlood.stream().filter(f -> !f.isDone()).count(),
+                "handshake-only ids may hold half of the slots, no more");
+        for (var i = 0; i < 4; i++) {
+            if (pendingFlood.get(i).isDone()) {
+                verify(flood.get(i).response()).setStatus(503);
+            }
+        }
+
+        // A real client between two polls still gets a slot and its prompt.
+        poll("client-A");
+        pollCompleted("client-A");
+        var legit = post("client-A", "A's prompt");
+        var pendingLegit = send(legit);
+        Thread.sleep(200);
+        assertFalse(pendingLegit.isDone(), "the between-poll prompt must wait, not be refused BUSY");
+        var nextPoll = poll("client-A");
+        pendingLegit.get(5, TimeUnit.SECONDS);
+        verify(pathBroadcaster).broadcast(eq(dispatched("A's prompt", "client-A")), eq(nextPoll));
+        verify(legit.response(), never()).setStatus(anyInt());
+
+        handler.destroy();
+        for (var f : pendingFlood) {
+            f.get(5, TimeUnit.SECONDS);
+        }
+        assertEquals(4, sharedWaiterSlots().availablePermits(), "every slot is given back");
+        assertEquals(PromptRepollGate.handshakeShare(4),
+                ((Semaphore) config.properties().get(PromptRepollGate.HANDSHAKE_SLOTS_PROPERTY)).availablePermits(),
+                "every handshake share slot is given back");
+    }
+
+    @Test
+    void handshakeShareIsHalfTheSlotsAndAtLeastOne() {
+        assertEquals(32, PromptRepollGate.handshakeShare(64));
+        assertEquals(2, PromptRepollGate.handshakeShare(5));
+        assertEquals(1, PromptRepollGate.handshakeShare(2));
+        assertEquals(1, PromptRepollGate.handshakeShare(1));
+    }
+
+    @Test
+    void closedConnectionsIdIsNotWaitedFor() throws Exception {
+        // The id of a connection its client closed (or that was cancelled) is never
+        // polled again: a prompt naming it is refused at once instead of holding a
+        // slot for the whole wait.
+        handler = newHandler(Map.of(PromptRepollGate.WAIT_MS_PARAM, "20000"));
+        var pollA = poll("client-A");
+        pollCompleted("client-A");
+        handler.onStateChange(closedByClient(pollA));
+
+        var post = post("client-A", "after close");
+        var started = System.nanoTime();
+        send(post).get(5, TimeUnit.SECONDS);
+        assertTrue(System.nanoTime() - started < TimeUnit.MILLISECONDS.toNanos(1_000),
+                "a closed connection's id must not hold a waiter");
+        verify(post.response()).setStatus(503);
+        verify(pathBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));
+
+        // Coming back under the same id makes it known again.
+        poll("client-A");
+        pollCompleted("client-A");
+        var again = send(post("client-A", "after reconnect"));
+        Thread.sleep(200);
+        assertFalse(again.isDone(), "a reconnected id is waited for again");
+        var nextPoll = poll("client-A");
+        again.get(5, TimeUnit.SECONDS);
+        verify(pathBroadcaster).broadcast(eq(dispatched("after reconnect", "client-A")), eq(nextPoll));
+    }
+
+    private static AtmosphereResourceEvent closedByClient(AtmosphereResource resource) {
+        var event = mock(AtmosphereResourceEvent.class);
+        when(event.getResource()).thenReturn(resource);
+        when(event.isClosedByClient()).thenReturn(true);
+        return event;
     }
 
     @AiEndpoint(path = PATH)

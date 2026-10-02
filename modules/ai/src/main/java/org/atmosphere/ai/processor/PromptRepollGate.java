@@ -40,13 +40,19 @@ import java.util.function.Supplier;
  * prompt resolved without waiting always has. Waiters are bounded to one per
  * tracking id and to {@code org.atmosphere.ai.prompt.maxRepollWaiters} (64)
  * across every endpoint of the framework: each holds a request thread, so the
- * bound is one semaphore shared through {@link AtmosphereConfig#properties()}. The set of known
+ * bound is one semaphore shared through {@link AtmosphereConfig#properties()}. A prompt whose id
+ * only a handshake vouches for (no connection of it was made ready yet) may take at most half of
+ * those slots ({@link #handshakeShare}): a handshake costs one unauthenticated request, so
+ * handshake-and-post pairs alone must not leave a long-polling client between two polls without
+ * a slot. The set of known
  * tracking ids is bounded to {@link #MAX_KNOWN_IDS}. An id assigned in a handshake
  * that no connection of it has followed yet is kept apart, in a set bounded to
  * {@link #MAX_ASSIGNED_IDS}, and only for the wait: the handshake is one
  * unauthenticated request that suspends nothing, so it must neither keep an id
  * known for the whole suspend window nor fill the set connections are recorded
- * in. A connection of the id moves it to the known set. A refused or timed-out
+ * in. A connection of the id moves it to the known set. An id whose connection was closed or
+ * cancelled ({@link #connectionGone}) is forgotten, so a prompt naming it is refused at once
+ * rather than waited for. A refused or timed-out
  * prompt was not dispatched, so the caller answers {@code 503} and the client
  * may send it again. {@link #shutdown()} wakes every waiter and refuses new
  * ones, so a stopping server is not held up by prompts waiting for a poll that
@@ -77,6 +83,9 @@ final class PromptRepollGate {
     /** The {@link AtmosphereConfig#properties()} key of the waiter semaphore every endpoint shares. */
     static final String WAITER_SLOTS_PROPERTY = PromptRepollGate.class.getName() + ".waiterSlots";
 
+    /** The {@link AtmosphereConfig#properties()} key of the share of those slots a handshake-only id may take. */
+    static final String HANDSHAKE_SLOTS_PROPERTY = PromptRepollGate.class.getName() + ".handshakeWaiterSlots";
+
     private static final long SWEEP_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(1);
 
     private static final Logger logger = LoggerFactory.getLogger(PromptRepollGate.class);
@@ -104,7 +113,7 @@ final class PromptRepollGate {
         }
     }
 
-    private record Limits(long waitNanos, Semaphore slots) {
+    private record Limits(long waitNanos, Semaphore slots, Semaphore handshakeSlots) {
     }
 
     /** Tracking id -> {@link System#nanoTime()} at which a connection of it was last made ready. */
@@ -152,6 +161,21 @@ final class PromptRepollGate {
                 waiter.release();
             }
         }
+    }
+
+    /**
+     * A connection of {@code trackingId} was closed by its client or cancelled:
+     * forget the id, so a prompt naming it later is refused at once instead of
+     * holding a waiter slot for a poll that will not come. A client that comes
+     * back under the same id is known again once that connection is ready. A
+     * prompt already waiting keeps waiting, within its wait.
+     */
+    void connectionGone(String trackingId) {
+        if (trackingId == null) {
+            return;
+        }
+        readyAt.remove(trackingId);
+        assignedAt.remove(trackingId);
     }
 
     /**
@@ -207,13 +231,22 @@ final class PromptRepollGate {
             return Outcome.refused(Refusal.SHUTDOWN);
         }
         var l = limits(config);
-        if (!known(trackingId, System.nanoTime())) {
+        var now = System.nanoTime();
+        var connectionKnown = connectionKnown(trackingId, now);
+        if (!connectionKnown && !handshakeKnown(trackingId, now)) {
             return Outcome.refused(Refusal.UNKNOWN);
         }
         if (l.waitNanos() <= 0) {
             return Outcome.refused(Refusal.TIMEOUT);
         }
+        var handshakeSlot = connectionKnown ? null : l.handshakeSlots();
+        if (handshakeSlot != null && !handshakeSlot.tryAcquire()) {
+            return Outcome.refused(Refusal.BUSY);
+        }
         if (!l.slots().tryAcquire()) {
+            if (handshakeSlot != null) {
+                handshakeSlot.release();
+            }
             return Outcome.refused(Refusal.BUSY);
         }
         try {
@@ -251,6 +284,9 @@ final class PromptRepollGate {
             }
         } finally {
             l.slots().release();
+            if (handshakeSlot != null) {
+                handshakeSlot.release();
+            }
         }
     }
 
@@ -288,12 +324,14 @@ final class PromptRepollGate {
         return TimeUnit.NANOSECONDS.toMillis(limits(config).waitNanos());
     }
 
-    /** A connection of the id was made ready within the window, or a handshake assigned it within the wait. */
-    private boolean known(String trackingId, long now) {
+    /** A connection of the id was made ready within the window. */
+    private boolean connectionKnown(String trackingId, long now) {
         var ready = readyAt.get(trackingId);
-        if (ready != null && !expired(ready, now)) {
-            return true;
-        }
+        return ready != null && !expired(ready, now);
+    }
+
+    /** A handshake assigned the id within the wait. */
+    private boolean handshakeKnown(String trackingId, long now) {
         var assigned = assignedAt.get(trackingId);
         return assigned != null && !assignedExpired(assigned, now);
     }
@@ -320,7 +358,9 @@ final class PromptRepollGate {
                     var waitMs = Math.min(MAX_WAIT_MS,
                             Math.max(0, intParam(config, WAIT_MS_PARAM, (int) DEFAULT_WAIT_MS)));
                     var maxWaiters = Math.max(1, intParam(config, MAX_WAITERS_PARAM, DEFAULT_MAX_WAITERS));
-                    l = new Limits(TimeUnit.MILLISECONDS.toNanos(waitMs), sharedSlots(config, maxWaiters));
+                    l = new Limits(TimeUnit.MILLISECONDS.toNanos(waitMs),
+                            sharedSlots(config, WAITER_SLOTS_PROPERTY, maxWaiters),
+                            sharedSlots(config, HANDSHAKE_SLOTS_PROPERTY, handshakeShare(maxWaiters)));
                     limits = l;
                 }
             }
@@ -329,16 +369,24 @@ final class PromptRepollGate {
     }
 
     /**
-     * The one waiter semaphore of the framework, created by the first endpoint that
-     * needs it. Without a config (unit tests) the gate bounds only its own waiters.
+     * How many of {@code maxWaiters} slots prompts of handshake-only ids may hold at
+     * once: half, rounded down, and at least one.
      */
-    private static Semaphore sharedSlots(AtmosphereConfig config, int maxWaiters) {
+    static int handshakeShare(int maxWaiters) {
+        return Math.max(1, maxWaiters / 2);
+    }
+
+    /**
+     * A waiter semaphore of the framework, created by the first endpoint that needs
+     * it. Without a config (unit tests) the gate bounds only its own waiters.
+     */
+    private static Semaphore sharedSlots(AtmosphereConfig config, String key, int permits) {
         var properties = config != null ? config.properties() : null;
         if (properties == null) {
-            return new Semaphore(maxWaiters);
+            return new Semaphore(permits);
         }
-        return properties.computeIfAbsent(WAITER_SLOTS_PROPERTY,
-                k -> new Semaphore(maxWaiters)) instanceof Semaphore shared ? shared : new Semaphore(maxWaiters);
+        return properties.computeIfAbsent(key,
+                k -> new Semaphore(permits)) instanceof Semaphore shared ? shared : new Semaphore(permits);
     }
 
     private static int intParam(AtmosphereConfig config, String name, int defaultValue) {
