@@ -19,6 +19,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterListenerAdapter;
+import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.RawMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -159,6 +160,10 @@ public class DefaultRoom implements Room {
     public Future<Object> broadcast(Object message, AtmosphereResource sender) {
         // Broadcast to everyone except sender
         dispatchToVirtualMembers(message, sender.uuid());
+        if (broadcaster instanceof DefaultBroadcaster db) {
+            // Everyone but the sender, so the cluster filters publish it to the members on other nodes.
+            return db.broadcastToAllExcept(new RawMessage(message), sender);
+        }
         var subset = new java.util.HashSet<>(broadcaster.getAtmosphereResources());
         subset.remove(sender);
         if (subset.isEmpty()) {

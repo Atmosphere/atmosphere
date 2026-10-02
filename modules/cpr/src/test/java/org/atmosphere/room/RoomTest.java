@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -36,6 +37,7 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.ClusterBroadcastFilter;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.DefaultBroadcasterFactory;
 import org.atmosphere.util.ExecutorsFactory;
@@ -167,6 +169,33 @@ public class RoomTest {
         latch.await(5, TimeUnit.SECONDS);
 
         assertEquals(1, received.size(), "Only target should receive direct message");
+    }
+
+    @Test
+    public void testBroadcastExcludeSenderReachesOtherNodesAndSendToDoesNot() throws Exception {
+        // "Everyone but the sender" includes the members on other nodes, so the
+        // cluster filters publish it; a message for one member never leaves this node.
+        Room room = roomManager.room("cluster");
+        var cluster = new RecordingClusterFilter();
+        ((DefaultRoom) room).broadcaster().getBroadcasterConfig().addFilter(cluster);
+        var latch = new CountDownLatch(1);
+        var received = ConcurrentHashMap.newKeySet();
+        var sender = createResource(new CountDownLatch(1), ConcurrentHashMap.newKeySet());
+
+        room.join(sender);
+        room.broadcast("sender-alone-here", sender).get();
+        assertEquals(List.of("sender-alone-here"), cluster.published);
+
+        var receiver = createResource(latch, received);
+        room.join(receiver);
+        room.broadcast("hello-everyone", sender).get();
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertEquals(Set.of(receiver.uuid()), received);
+        assertEquals(List.of("sender-alone-here", "hello-everyone"), cluster.published);
+
+        room.sendTo("direct", receiver.uuid()).get();
+        assertEquals(List.of("sender-alone-here", "hello-everyone"), cluster.published,
+                "a direct message was published to the cluster");
     }
 
     // --- Presence events ---
@@ -431,6 +460,40 @@ public class RoomTest {
     }
 
     // --- Helpers ---
+
+    private static final class RecordingClusterFilter implements ClusterBroadcastFilter {
+
+        private final List<String> published = new CopyOnWriteArrayList<>();
+        private Broadcaster bc;
+
+        @Override
+        public BroadcastAction filter(String broadcasterId, Object originalMessage, Object message) {
+            published.add(String.valueOf(message));
+            return new BroadcastAction(message);
+        }
+
+        @Override
+        public void setUri(String name) {
+        }
+
+        @Override
+        public void setBroadcaster(Broadcaster bc) {
+            this.bc = bc;
+        }
+
+        @Override
+        public Broadcaster getBroadcaster() {
+            return bc;
+        }
+
+        @Override
+        public void init(AtmosphereConfig config) {
+        }
+
+        @Override
+        public void destroy() {
+        }
+    }
 
     private static class TestVirtualMember implements VirtualRoomMember {
         final String id;

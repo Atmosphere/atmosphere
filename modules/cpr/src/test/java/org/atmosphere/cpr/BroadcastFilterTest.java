@@ -15,8 +15,10 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.client.TrackMessageSizeFilter;
 import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.util.ExcludeSessionBroadcaster;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
@@ -308,6 +310,82 @@ public class BroadcastFilterTest {
         broadcaster.broadcast("c").get();
         assertEquals(List.of("c1"), cluster.published);
         assertEquals("a1b1c1", atmosphereHandler.value.get().toString());
+    }
+
+    @Test
+    public void cachedBroadcastToChosenResourceReplaysWithoutClusterFilters() throws Exception {
+        // A message for one resource, cached while it was away, is replayed to that
+        // resource alone on reconnect: running the cluster filters again would have
+        // every other node deliver it to all its subscribers.
+        var cluster = new RecordingClusterFilter();
+        var cache = new UUIDBroadcasterCache();
+        cache.configure(broadcaster.getBroadcasterConfig().getAtmosphereConfig());
+        broadcaster.getBroadcasterConfig().setBroadcasterCache(cache);
+        broadcaster.getBroadcasterConfig().addFilter(new Filter("1"));
+        broadcaster.getBroadcasterConfig().addFilter(cluster);
+
+        broadcaster.removeAtmosphereResource(ar);
+        broadcaster.broadcast("private-to-ar", ar).get();
+        assertEquals("", atmosphereHandler.value.get().toString());
+
+        broadcaster.addAtmosphereResource(ar);
+        assertTrue(atmosphereHandler.value.get().toString().contains("private-to-ar"),
+                "cached message not replayed: " + atmosphereHandler.value.get());
+        assertTrue(cluster.published.isEmpty(), "published to the cluster: " + cluster.published);
+    }
+
+    @Test
+    public void applyFiltersOnCachedMessagesSkipsClusterFilters() {
+        var cluster = new RecordingClusterFilter();
+        broadcaster.getBroadcasterConfig().addFilter(new Filter("1"));
+        broadcaster.getBroadcasterConfig().addFilter(cluster);
+
+        var replayed = broadcaster.getBroadcasterConfig().applyFilters(ar, List.of("private-to-ar"));
+
+        assertEquals(List.of("private-to-ar1"), replayed);
+        assertTrue(cluster.published.isEmpty(), "published to the cluster: " + cluster.published);
+    }
+
+    @Test
+    public void excludeSessionBroadcasterKeepsChosenResourcesOffClusterFilters() throws Exception {
+        AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();
+        var factory = new DefaultBroadcasterFactory();
+        factory.configure(ExcludeSessionBroadcaster.class, "NEVER", config);
+        config.framework().setBroadcasterFactory(factory);
+        Broadcaster b = factory.get(ExcludeSessionBroadcaster.class, "exclude");
+        var handler = new AR();
+        var target = new AtmosphereResourceImpl();
+        target.initialize(config, b, new AtmosphereRequestImpl.Builder().build(),
+                AtmosphereResponseImpl.newInstance(), mock(BlockingIOCometSupport.class), handler);
+        b.addAtmosphereResource(target);
+        var cluster = new RecordingClusterFilter();
+        b.getBroadcasterConfig().addFilter(cluster);
+
+        b.broadcast("private-to-target", new HashSet<>(Set.of(target))).get();
+        assertEquals("private-to-target", handler.value.get().toString());
+        assertTrue(cluster.published.isEmpty(), "published to the cluster: " + cluster.published);
+
+        // Everyone but one resource is the whole audience less that one: the
+        // other nodes must still receive it.
+        b.broadcast("all-but-other", mock(AtmosphereResource.class)).get();
+        assertEquals(List.of("all-but-other"), cluster.published);
+        factory.destroy();
+    }
+
+    @Test
+    public void broadcastToAllExceptRunsClusterFiltersAndSkipsTheExcluded() throws Exception {
+        var cluster = new RecordingClusterFilter();
+        broadcaster.getBroadcasterConfig().addFilter(cluster);
+        var db = (DefaultBroadcaster) broadcaster;
+
+        db.broadcastToAllExcept("everyone-else", ar).get();
+        assertEquals("", atmosphereHandler.value.get().toString());
+        assertEquals(List.of("everyone-else"), cluster.published,
+                "the excluded resource is the only one here, yet other nodes must receive it");
+
+        db.broadcastToAllExcept("to-ar", mock(AtmosphereResource.class)).get();
+        assertEquals("to-ar", atmosphereHandler.value.get().toString());
+        assertEquals(List.of("everyone-else", "to-ar"), cluster.published);
     }
 
     private final static class RecordingClusterFilter implements ClusterBroadcastFilter {

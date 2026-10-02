@@ -31,6 +31,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -1119,7 +1120,9 @@ public class DefaultBroadcaster implements Broadcaster {
             Deliver deliver;
             Object newMessage;
             for (Object o : cacheMessages) {
-                newMessage = filter(o);
+                // A replay goes to this one resource: the cluster filters already ran,
+                // or were skipped, when the message was first broadcast.
+                newMessage = filterForResources(o);
                 if (newMessage == null) {
                     continue;
                 }
@@ -1518,6 +1521,40 @@ public class DefaultBroadcaster implements Broadcaster {
         start();
         Object newMsg = filterForResources(msg);
         if (newMsg == null) return futureDone(msg);
+
+        var f = new BroadcasterFuture<>(null, newMsg, subset.size());
+        dispatchMessages(new Deliver(newMsg, subset, f, msg));
+        return f;
+    }
+
+    /**
+     * Broadcast to every resource of this Broadcaster but {@code excluded}, such as
+     * a room message that skips its sender. The audience is everyone, so every
+     * {@link BroadcastFilter} runs, {@link ClusterBroadcastFilter}s included, and
+     * the other nodes deliver the message to their subscribers, none of which is
+     * {@code excluded}. The cluster filters run even when {@code excluded} is the
+     * only resource on this node. A message meant only for chosen resources goes
+     * through {@link #broadcast(Object, Set)}, which keeps it off the cluster.
+     *
+     * @param msg      the message
+     * @param excluded the resource that must not receive it
+     * @return a {@link Future} that can be used to synchronize with the delivery
+     */
+    public Future<Object> broadcastToAllExcept(Object msg, AtmosphereResource excluded) {
+        Objects.requireNonNull(excluded, "AtmosphereResource must not be null");
+
+        if (destroyed.get()) {
+            logger.debug(DESTROYED, getID(), "broadcastToAllExcept(T msg, AtmosphereResource excluded)");
+            return futureDone(msg);
+        }
+
+        start();
+        Object newMsg = filter(msg);
+        if (newMsg == null) return futureDone(msg);
+
+        var subset = new HashSet<>(resources);
+        subset.remove(excluded);
+        if (subset.isEmpty()) return futureDone(msg);
 
         var f = new BroadcasterFuture<>(null, newMsg, subset.size());
         dispatchMessages(new Deliver(newMsg, subset, f, msg));

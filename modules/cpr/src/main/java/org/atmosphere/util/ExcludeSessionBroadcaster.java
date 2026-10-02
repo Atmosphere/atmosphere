@@ -100,7 +100,8 @@ public class ExcludeSessionBroadcaster extends DefaultBroadcaster {
 
         subset.retainAll(resources);
         start();
-        Object newMsg = filter(msg);
+        // Only the chosen resources receive it, so no cluster filter publishes it.
+        Object newMsg = filterForResources(msg);
         if (newMsg == null) {
             return futureDone(msg);
         }

@@ -524,7 +524,9 @@ public class BroadcasterConfig {
         var filteredMessage = new LinkedList<Object>();
         BroadcastFilter.BroadcastAction a;
         for (Object o : cacheMessages) {
-            a = filter(o);
+            // A replay goes to this one resource: the cluster filters already ran,
+            // or were skipped, when the message was first broadcast.
+            a = filter(o, false);
             if (a.action() == BroadcastFilter.BroadcastAction.ACTION.ABORT) return List.of();
 
             if (a.action() == BroadcastAction.ACTION.SKIP) {
