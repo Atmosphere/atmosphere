@@ -50,6 +50,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -139,6 +140,13 @@ class AiEndpointHandlerPromptRepollTest {
         when(resource.transport()).thenReturn(AtmosphereResource.TRANSPORT.LONG_POLLING);
         when(resource.isSuspended()).thenReturn(true);
         when(request.getMethod()).thenReturn("GET");
+        // The handler stamps the connection it suspends; a prompt resolves only to its own.
+        var stamp = new AtomicReference<Object>();
+        doAnswer(inv -> {
+            stamp.set(inv.getArgument(1));
+            return null;
+        }).when(request).setAttribute(eq(AiEndpointHandler.ENDPOINT_HANDLER_ATTRIBUTE), any());
+        when(request.getAttribute(AiEndpointHandler.ENDPOINT_HANDLER_ATTRIBUTE)).thenAnswer(inv -> stamp.get());
         when(resource.suspend(30_000L)).thenAnswer(inv -> {
             registered.put(trackingId, resource);
             return resource;

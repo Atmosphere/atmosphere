@@ -36,8 +36,8 @@ import java.util.function.Supplier;
  * refused without holding anything. That is not proof of who posts: the
  * tracking id is a client-presented bearer token. A client may choose its own
  * id, the framework adopts any well-formed one for a new connection, and the
- * prompt goes to whichever connection holds the id when it is resolved, as a
- * prompt resolved without waiting always has. Waiters are bounded to one per
+ * prompt goes to whichever of the endpoint's connections holds the id when it
+ * is resolved, as a prompt resolved without waiting always has. Waiters are bounded to one per
  * tracking id and to {@code org.atmosphere.ai.prompt.maxRepollWaiters} (64)
  * across every endpoint of the framework: each holds a request thread, so the
  * bound is one semaphore shared through {@link AtmosphereConfig#properties()}. A prompt whose id

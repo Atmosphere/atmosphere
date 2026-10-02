@@ -108,11 +108,20 @@ class AiEndpointHandlerCrossTabIsolationTest {
         when(config.resourcesFactory()).thenReturn(resourcesFactory);
     }
 
+    /** A connection this endpoint suspended: its request carries the endpoint's stamp. */
+    private AtmosphereResource connectionOfThisEndpoint(String uuid) {
+        var resource = mock(AtmosphereResource.class);
+        var request = mock(AtmosphereRequest.class);
+        when(resource.uuid()).thenReturn(uuid);
+        when(resource.getBroadcaster()).thenReturn(originatingBroadcaster);
+        when(resource.getRequest()).thenReturn(request);
+        when(request.getAttribute(AiEndpointHandler.ENDPOINT_HANDLER_ATTRIBUTE)).thenReturn(handler);
+        return resource;
+    }
+
     @Test
     void webSocketFrameRoutesToSuspendedResourceUuidOnly() throws Exception {
-        var originatingResource = mock(AtmosphereResource.class);
-        when(originatingResource.uuid()).thenReturn("ws-suspended-uuid-A");
-        when(originatingResource.getBroadcaster()).thenReturn(originatingBroadcaster);
+        var originatingResource = connectionOfThisEndpoint("ws-suspended-uuid-A");
 
         when(resourcesFactory.findResource("ws-suspended-uuid-A"))
                 .thenReturn(Optional.of(originatingResource));
@@ -138,9 +147,7 @@ class AiEndpointHandlerCrossTabIsolationTest {
 
     @Test
     void sseLongPollingPostRoutesViaTrackingIdHeader() throws Exception {
-        var originatingResource = mock(AtmosphereResource.class);
-        when(originatingResource.uuid()).thenReturn("sse-tracking-uuid-B");
-        when(originatingResource.getBroadcaster()).thenReturn(originatingBroadcaster);
+        var originatingResource = connectionOfThisEndpoint("sse-tracking-uuid-B");
 
         when(resourcesFactory.findResource("sse-tracking-uuid-B"))
                 .thenReturn(Optional.of(originatingResource));
@@ -165,9 +172,7 @@ class AiEndpointHandlerCrossTabIsolationTest {
      */
     @Test
     void httpTransportPostReadsThePromptFromTheRequestEntity() throws Exception {
-        var originatingResource = mock(AtmosphereResource.class);
-        when(originatingResource.uuid()).thenReturn("lp-tracking-uuid-C");
-        when(originatingResource.getBroadcaster()).thenReturn(originatingBroadcaster);
+        var originatingResource = connectionOfThisEndpoint("lp-tracking-uuid-C");
         when(resourcesFactory.findResource("lp-tracking-uuid-C"))
                 .thenReturn(Optional.of(originatingResource));
 

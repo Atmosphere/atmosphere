@@ -85,6 +85,14 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      */
     public static final String SYSTEM_PROMPT_ATTRIBUTE = "org.atmosphere.ai.systemPrompt";
 
+    /**
+     * Request attribute naming the handler that suspended a connection. A prompt
+     * is dispatched only to a connection of the endpoint it was posted to: the
+     * tracking id resolves framework-wide, and another endpoint's connection
+     * would get this endpoint's {@code @Prompt} and reply settings.
+     */
+    static final String ENDPOINT_HANDLER_ATTRIBUTE = "org.atmosphere.ai.endpointHandler";
+
     private static final Logger logger = LoggerFactory.getLogger(AiEndpointHandler.class);
 
     /**
@@ -445,6 +453,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         if (resource.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
                 || resource.transport() == AtmosphereResource.TRANSPORT.SSE
                 || resource.transport() == AtmosphereResource.TRANSPORT.LONG_POLLING) {
+            resource.getRequest().setAttribute(ENDPOINT_HANDLER_ATTRIBUTE, this);
             assignPerPathBroadcaster(resource);
             registerBroadcastFilters(resource.getBroadcaster());
             registerCacheInspector(resource.getBroadcaster());
@@ -1512,8 +1521,14 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         return value != null && !value.isEmpty() && !"0".equals(value) ? value : null;
     }
 
-    private static AtmosphereResource resolveTrackingId(AtmosphereResource resource, String trackingId) {
-        return resource.getAtmosphereConfig().resourcesFactory().findResource(trackingId).orElse(null);
+    /**
+     * The connection {@code trackingId} names, if this endpoint suspended it. A
+     * connection of another endpoint is never a prompt's target here: its own
+     * handler, with its own {@code @Prompt} and {@code broadcastReply}, serves it.
+     */
+    private AtmosphereResource resolveTrackingId(AtmosphereResource resource, String trackingId) {
+        var found = resource.getAtmosphereConfig().resourcesFactory().findResource(trackingId).orElse(null);
+        return found != null && found.getRequest().getAttribute(ENDPOINT_HANDLER_ATTRIBUTE) == this ? found : null;
     }
 
     /**

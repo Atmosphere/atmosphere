@@ -20,6 +20,7 @@ import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.filter.PiiRedactionFilter;
 import org.atmosphere.config.managed.AnnotatedLifecycle;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.cpr.AtmosphereConfig;
@@ -28,6 +29,7 @@ import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
+import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
 import org.atmosphere.cpr.DefaultBroadcaster;
@@ -67,6 +69,8 @@ import static org.mockito.Mockito.mock;
 class AiEndpointHandlerUntargetedBroadcastTest {
 
     private static final String PATH = "/atmosphere/ai-chat";
+    private static final String ROOM_PATH = "/atmosphere/room";
+    private static final String ANSWER = "alice's private answer, still mid-sentence";
 
     private AtmosphereConfig config;
     private DefaultBroadcasterFactory factory;
@@ -103,7 +107,23 @@ class AiEndpointHandlerUntargetedBroadcastTest {
                 mock(BlockingIOCometSupport.class),
                 handler);
         path.addAtmosphereResource(r);
+        // What the handler's connection branch does when it suspends a connection.
+        r.getRequest().setAttribute(AiEndpointHandler.ENDPOINT_HANDLER_ATTRIBUTE, handler);
+        config.resourcesFactory().registerUuidForFindCandidate(r);
         return r;
+    }
+
+    private AtmosphereResource promptPost(String trackingId, String prompt) {
+        return new AtmosphereResourceImpl(config, path,
+                new AtmosphereRequestImpl.Builder()
+                        .method("POST")
+                        .requestURI(PATH)
+                        .headers(Map.of(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, trackingId))
+                        .body(prompt)
+                        .build(),
+                AtmosphereResponseImpl.newInstance(),
+                mock(BlockingIOCometSupport.class),
+                handler);
     }
 
     /**
@@ -157,25 +177,27 @@ class AiEndpointHandlerUntargetedBroadcastTest {
         // A prompt is dispatched to its sender's connection without a broadcast,
         // so neither its text nor the sender's tracking id (which would let anyone
         // post prompts as the sender) reaches the filter.
+        //
+        // The reply is per-client too: its frames, and the stream end a buffering
+        // filter defers past the last flushed text, go to the sender only, so none
+        // of them is published to nodes where the path's every subscriber gets it.
+        path.getBroadcasterConfig().addFilter(new PiiRedactionFilter());
         var cluster = new RecordingClusterFilter();
         path.getBroadcasterConfig().addFilter(cluster);
+        var local = new RecordingFilter();
+        path.getBroadcasterConfig().addFilter(local);
         var alice = subscriber();
-        var bob = subscriber();
-        config.resourcesFactory().registerUuidForFindCandidate(alice);
-        config.resourcesFactory().registerUuidForFindCandidate(bob);
+        subscriber();
 
-        var post = new AtmosphereResourceImpl(config, path,
-                new AtmosphereRequestImpl.Builder()
-                        .method("POST")
-                        .requestURI(PATH)
-                        .headers(Map.of(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, alice.uuid()))
-                        .body("alice's private question")
-                        .build(),
-                AtmosphereResponseImpl.newInstance(),
-                mock(BlockingIOCometSupport.class),
-                handler);
-        handler.onRequest(post);
+        handler.onRequest(promptPost(alice.uuid(), "alice's private question"));
         awaitPrompt(alice, "alice's private question");
+        var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (local.seen.stream().noneMatch(f -> f.contains("\"complete\""))) {
+            assertTrue(System.nanoTime() < deadline, "the deferred stream end never came: " + local.seen);
+            Thread.sleep(10);
+        }
+        assertTrue(local.seen.stream().anyMatch(f -> f.contains(ANSWER)),
+                "the reply ran through the path's local filters: " + local.seen);
 
         assertEquals(List.of(alice.uuid() + ":alice's private question"), endpoint.prompts,
                 "the prompt runs once, on its sender's connection");
@@ -184,6 +206,49 @@ class AiEndpointHandlerUntargetedBroadcastTest {
                     "the sender's tracking id must not be published cluster-wide: " + published);
             assertFalse(published.contains("alice's private question"),
                     "the prompt must not be published cluster-wide: " + published);
+            assertFalse(published.contains("sessionId"),
+                    "no frame of a per-client reply may be published cluster-wide: " + published);
+        }
+    }
+
+    @Test
+    void promptPostedToAnotherEndpointNeverRunsOnThisEndpointsConnection() throws Exception {
+        // The tracking id resolves framework-wide. A room endpoint must not run its
+        // @Prompt on a connection of this private endpoint: its broadcastReply
+        // would fan the reply out to every subscriber of the private path.
+        var local = new RecordingFilter();
+        path.getBroadcasterConfig().addFilter(local);
+        var alice = subscriber();
+        subscriber();
+        var roomEndpoint = new StubEndpoint();
+        var room = new AiEndpointHandler(roomEndpoint,
+                StubEndpoint.class.getDeclaredMethod("onPrompt", String.class, StreamingSession.class,
+                        AtmosphereResource.class),
+                30_000L, "", ROOM_PATH, mock(AgentRuntime.class), List.<AiInterceptor>of(),
+                null, AnnotatedLifecycle.scan(StubEndpoint.class));
+        room.setBroadcastReply(true);
+
+        var post = promptPost(alice.uuid(), "posted to the room");
+        room.onRequest(post);
+        Thread.sleep(300);
+
+        assertTrue(local.seen.isEmpty(), "a frame reached the private path's subscribers: " + local.seen);
+        assertTrue(roomEndpoint.prompts.isEmpty(), "the room's @Prompt ran: " + roomEndpoint.prompts);
+        assertTrue(endpoint.prompts.isEmpty(), "the private endpoint's @Prompt ran: " + endpoint.prompts);
+        assertEquals(503, post.getResponse().getStatus(),
+                "a connection of another endpoint is no target: the prompt is refused");
+        room.destroy();
+    }
+
+    /** Every message the path's filter chain passes on, as a local (non-cluster) filter sees it. */
+    private static final class RecordingFilter implements BroadcastFilter {
+
+        private final List<String> seen = new CopyOnWriteArrayList<>();
+
+        @Override
+        public BroadcastAction filter(String broadcasterId, Object originalMessage, Object message) {
+            seen.add(String.valueOf(message));
+            return new BroadcastAction(message);
         }
     }
 
@@ -231,6 +296,7 @@ class AiEndpointHandlerUntargetedBroadcastTest {
         @Prompt
         public void onPrompt(String message, StreamingSession session, AtmosphereResource resource) {
             prompts.add(resource.uuid() + ":" + message);
+            session.send(ANSWER);
             session.complete();
         }
     }
