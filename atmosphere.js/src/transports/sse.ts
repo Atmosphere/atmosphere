@@ -41,7 +41,6 @@ export class SSETransport<T = unknown> extends BaseTransport<T> {
     if (!SSETransport.isAvailable()) {
       throw new Error('SSE (EventSource) is not supported in this environment');
     }
-    this.beginSubscription();
 
     return new Promise((resolve, reject) => {
       try {

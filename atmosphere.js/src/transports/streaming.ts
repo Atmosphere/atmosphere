@@ -40,7 +40,6 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
     this._state = 'connecting';
     this.aborted = false;
     this.opened = false;
-    this.beginSubscription();
 
     this.protocol.setPushFunction((msg) => this.send(msg));
 

@@ -36,11 +36,7 @@ export interface ProtocolResult {
  * `_startHeartbeat`, and `_trackMessageSize` functions.
  */
 export class AtmosphereProtocol {
-  /**
-   * This connection's tracking id: assigned by the server in the protocol
-   * handshake, or chosen by the client ({@link clientTrackingId}) for an HTTP
-   * transport that runs without the handshake. `'0'` names no connection.
-   */
+  /** Server-assigned UUID for this connection. */
   uuid = '0';
 
   /** Durable session token for reconnection across server restarts. */
@@ -69,43 +65,6 @@ export class AtmosphereProtocol {
 
   /** Callback to send a push message (heartbeat). */
   private pushFn: ((msg: string) => void) | null = null;
-
-  /** Whether the weak (`Math.random`) tracking-id fallback was already reported. */
-  private static weakIdWarned = false;
-
-  /**
-   * A random tracking id for a connection the server will not name.
-   *
-   * Without the protocol handshake (`enableProtocol` unset) the server never
-   * tells an SSE, streaming or long-polling client its id, so every POST would
-   * carry `X-Atmosphere-tracking-id=0` and name no connection — an Atmosphere
-   * AI endpoint answers such a prompt `400`. The server adopts a client-chosen
-   * id (letters, digits, `-` and `_`, at most 128 characters) for the
-   * subscription, and the POSTs then name it. The id is unguessable where the
-   * platform offers a CSPRNG (`crypto.randomUUID` / `crypto.getRandomValues`);
-   * a runtime without one (React Native's Hermes without a polyfill) falls back
-   * to `Math.random`, which can be guessed, and logs a warning once.
-   */
-  static clientTrackingId(): string {
-    const c = (globalThis as { crypto?: Partial<Crypto> }).crypto;
-    if (typeof c?.randomUUID === 'function') {
-      return c.randomUUID();
-    }
-    const bytes = new Uint8Array(16);
-    if (typeof c?.getRandomValues === 'function') {
-      c.getRandomValues(bytes);
-    } else {
-      if (!AtmosphereProtocol.weakIdWarned) {
-        AtmosphereProtocol.weakIdWarned = true;
-        logger.warn('No crypto.getRandomValues: tracking ids fall back to Math.random and can be guessed;'
-          + ' install a crypto polyfill (e.g. react-native-get-random-values) or enable the protocol');
-      }
-      for (let i = 0; i < bytes.length; i++) {
-        bytes[i] = Math.floor(Math.random() * 256);
-      }
-    }
-    return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-  }
 
   /**
    * Register the push function used for heartbeat pings.

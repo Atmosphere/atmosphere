@@ -721,18 +721,7 @@ answered with any other non-2xx status, is reported to the `error` handler with 
 whose `name` is `'AtmosphereSendError'` (test it with `isSendError(error)`): the message was
 not delivered, but the connection is still up, so the React, Vue and Svelte hooks record the
 error without moving their connection state to `'error'`; `subscribeStreaming` passes
-`undelivered = true` as the second argument of `onError`. With `enableProtocol`, long-polling
-fires `open` (and drains the offline queue) only once the handshake has named the
-subscription, so no POST goes out without its id. Each POST names its subscription with `X-Atmosphere-tracking-id`; when
-`enableProtocol` is off (the default) the server never assigns that id, so these transports
-pick a random one themselves and send it on the subscription and on every POST. A reconnect
-picks a new one, so the server sees each reconnect as a new connection (`@Ready` fires again),
-as it does over WebSocket. The server adopts that id as the connection's uuid as is: it mints
-an id itself only for a request carrying `0` (or none), so with `enableProtocol` off these
-transports no longer reach an application `UUIDProvider` (`AtmosphereFramework.uuidProvider`),
-the first response no longer carries `X-Atmosphere-first-request: true`, and the
-`org.atmosphere.cpr.contentTypeFirstResponse` Content-Type is not applied to it. An application
-that depends on a server-minted id sets `enableProtocol: true`, whose handshake carries it.
+`undelivered = true` as the second argument of `onError`.
 
 ### Offline queue — survive disconnect without losing user input
 

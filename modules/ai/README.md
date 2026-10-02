@@ -605,13 +605,12 @@ it): it is answered at once over its socket with a terminal
 frame. It names a session of its own because `subscribeStreaming` (and the React,
 Vue, Svelte and React Native hooks built on it) reports only frames that name one;
 they and the Console report it like any turn error. atmosphere.js sends a `503`'d
-message again, up to 3 attempts, and reports one it cannot deliver to the
-`error` handler; its SSE, streaming and long-polling transports send a tracking id
-even with `enableProtocol` off, by choosing a new one for each subscription
-(connect or reconnect) when the server assigns none. The server adopts such an id
-as is, so it does not pass through an application `UUIDProvider` and the response
-is not marked `X-Atmosphere-first-request`; `enableProtocol: true` keeps a
-server-minted id.
+message again, up to 3 attempts, and reports one it cannot deliver (or any other
+refused POST) to the `error` handler. Its SSE, streaming and long-polling
+transports learn their tracking id from the protocol handshake: with
+`enableProtocol` off they send `0`, which names no connection, so their prompts
+are answered `400`. Use `enableProtocol: true` (the Console does for an AI endpoint) or WebSocket
+for an `@AiEndpoint`.
 
 Long-polling routes the prompt but does not yet carry the reply: the first reply
 frame completes the poll the prompt was dispatched to, and the frames after it
@@ -633,8 +632,7 @@ once instead of holding shutdown.
 
 The tracking id routes a prompt; it does not authenticate the sender. It is a
 client-presented bearer token: the server adopts any well-formed id a client
-sends for its connection, and atmosphere.js picks one per subscription when
-`enableProtocol` is off. A prompt goes to whichever connection holds the id, so
+sends for its connection. A prompt goes to whichever connection holds the id, so
 protect an endpoint whose conversations are private with authentication, as you
 would any other.
 
