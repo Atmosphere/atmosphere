@@ -593,13 +593,15 @@ class AiEndpointHandlerPromptRepollTest {
     @Test
     void expiredTrackingIdsMakeRoomInAFullKnownIdSet() throws Exception {
         when(config.getInitParameter(PromptRepollGate.WAIT_MS_PARAM)).thenReturn("1");
-        var gate = new PromptRepollGate(1L, 2);
+        // A 200 ms suspend window: "a" and "b" expire during the sleep below, while
+        // "c" stays known long enough to be checked even on a loaded machine.
+        var gate = new PromptRepollGate(200L, 2);
         // Fix the wait (1 ms) so expiry is suspend window + 1 ms.
         assertEquals(1L, gate.waitMs(config));
         gate.connectionReady("a");
         gate.connectionReady("b");
         assertEquals(2, gate.knownIds());
-        Thread.sleep(50);
+        Thread.sleep(400);
 
         // Full, but every known id expired: the sweep makes room for the new one.
         gate.connectionReady("c");
