@@ -1438,6 +1438,24 @@ public class DefaultBroadcaster implements Broadcaster {
             return a.message();
     }
 
+    /**
+     * Invoke the {@link BroadcastFilter}s for a broadcast to chosen resources:
+     * every filter but the {@link ClusterBroadcastFilter}s. The resources are this
+     * node's, and a cluster filter would have the other nodes deliver the message
+     * to all their subscribers, as {@code RedisBroadcaster} and
+     * {@code KafkaBroadcaster} never do, publishing only {@link #broadcast(Object)}.
+     *
+     * @param msg the message
+     * @return the filtered message, or {@code null} when a filter aborted it
+     */
+    protected Object filterForResources(Object msg) {
+        BroadcastAction a = bc.filter(msg, false);
+        if (a.action() == BroadcastAction.ACTION.ABORT || msg == null)
+            return null;
+        else
+            return a.message();
+    }
+
     @Override
     public Future<Object> broadcast(Object msg, AtmosphereResource r) {
         Objects.requireNonNull(r, "AtmosphereResource must not be null");
@@ -1448,7 +1466,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
 
         start();
-        Object newMsg = filter(msg);
+        Object newMsg = filterForResources(msg);
         if (newMsg == null) return futureDone(msg);
 
         var f = new BroadcasterFuture<>(newMsg, 1);
@@ -1498,7 +1516,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
 
         start();
-        Object newMsg = filter(msg);
+        Object newMsg = filterForResources(msg);
         if (newMsg == null) return futureDone(msg);
 
         var f = new BroadcasterFuture<>(null, newMsg, subset.size());

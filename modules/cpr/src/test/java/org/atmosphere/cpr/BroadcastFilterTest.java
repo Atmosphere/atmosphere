@@ -25,7 +25,9 @@ import java.io.IOException;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -287,6 +289,59 @@ public class BroadcastFilterTest {
 
         broadcaster.broadcast("0").get();
         assertEquals("", atmosphereHandler.value.get().toString());
+    }
+
+    @Test
+    public void clusterFilterPublishesOnlyBroadcastsToEverySubscriber() throws Exception {
+        // A broadcast to chosen resources targets this node's connections: a
+        // cluster filter would have every other node deliver it to all its
+        // subscribers. Local filters still run on it.
+        var cluster = new RecordingClusterFilter();
+        broadcaster.getBroadcasterConfig().addFilter(new Filter("1"));
+        broadcaster.getBroadcasterConfig().addFilter(cluster);
+
+        broadcaster.broadcast("a", ar).get();
+        broadcaster.broadcast("b", Set.of(ar)).get();
+        assertEquals("a1b1", atmosphereHandler.value.get().toString());
+        assertTrue(cluster.published.isEmpty(), "published to the cluster: " + cluster.published);
+
+        broadcaster.broadcast("c").get();
+        assertEquals(List.of("c1"), cluster.published);
+        assertEquals("a1b1c1", atmosphereHandler.value.get().toString());
+    }
+
+    private final static class RecordingClusterFilter implements ClusterBroadcastFilter {
+
+        private final List<Object> published = new CopyOnWriteArrayList<>();
+        private Broadcaster bc;
+
+        @Override
+        public BroadcastAction filter(String broadcasterId, Object originalMessage, Object message) {
+            published.add(message);
+            return new BroadcastAction(message);
+        }
+
+        @Override
+        public void setUri(String name) {
+        }
+
+        @Override
+        public void setBroadcaster(Broadcaster bc) {
+            this.bc = bc;
+        }
+
+        @Override
+        public Broadcaster getBroadcaster() {
+            return bc;
+        }
+
+        @Override
+        public void init(AtmosphereConfig config) {
+        }
+
+        @Override
+        public void destroy() {
+        }
     }
 
     private final static class PerRequestFilter implements PerRequestBroadcastFilter {

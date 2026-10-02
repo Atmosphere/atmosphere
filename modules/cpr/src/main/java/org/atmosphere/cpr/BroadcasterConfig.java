@@ -436,6 +436,21 @@ public class BroadcasterConfig {
      * @return BroadcastAction that tell Atmosphere to invoke the next filter or not.
      */
     protected BroadcastAction filter(Object object) {
+        return filter(object, true);
+    }
+
+    /**
+     * Invoke {@link BroadcastFilter}s in the order they were added, skipping every
+     * {@link ClusterBroadcastFilter} unless {@code includeCluster} is set. A
+     * broadcast to chosen {@link AtmosphereResource}s leaves them out: those
+     * resources live on this node, and a cluster filter would hand the message to
+     * the other nodes, which broadcast it to every subscriber there.
+     *
+     * @param object         the broadcasted object.
+     * @param includeCluster whether {@link ClusterBroadcastFilter}s run.
+     * @return BroadcastAction that tell Atmosphere to invoke the next filter or not.
+     */
+    protected BroadcastAction filter(Object object, boolean includeCluster) {
 
         Object newO = unwrap(object);
         boolean isManipulated = false;
@@ -446,6 +461,9 @@ public class BroadcasterConfig {
 
         var transformed = new BroadcastAction(object);
         for (BroadcastFilter mf : filters) {
+            if (!includeCluster && mf instanceof ClusterBroadcastFilter) {
+                continue;
+            }
             filterLock.lock();
             try {
                 transformed = mf.filter(broadcasterId, object, transformed.message());

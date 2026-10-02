@@ -98,7 +98,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
 
         start();
 
-        Object newMsg = filter(msg);
+        Object newMsg = filterForResources(msg);
         if (newMsg == null) return null;
         BroadcasterFuture<Object> f = new BroadcasterFuture<>(newMsg);
         push(new Deliver(newMsg, r, f, msg));
@@ -115,7 +115,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
 
         start();
 
-        Object newMsg = filter(msg);
+        Object newMsg = filterForResources(msg);
         if (newMsg == null) return null;
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<>(newMsg);
