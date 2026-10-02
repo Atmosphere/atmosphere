@@ -779,6 +779,27 @@ class AiEndpointHandlerPromptRepollTest {
         return event;
     }
 
+    @Test
+    void zeroRepollWaitRefusesAtOnceWithoutTakingASlot() throws Exception {
+        // README: "`0` refuses at once"; the gate's Javadoc: "0 disables the wait".
+        handler = newHandler(Map.of(PromptRepollGate.WAIT_MS_PARAM, "0"));
+        poll("client-A");
+        pollCompleted("client-A");
+
+        var post = post("client-A", "A's prompt");
+        var started = System.nanoTime();
+        send(post).get(5, TimeUnit.SECONDS);
+
+        assertTrue(System.nanoTime() - started < TimeUnit.MILLISECONDS.toNanos(100),
+                "with repollWaitMs=0 a prompt between two polls is refused at once");
+        verify(post.response()).setStatus(503);
+        verify(post.response()).setHeader("Retry-After", "1");
+        verify(pathBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));
+        assertEquals(0L, new PromptRepollGate(30_000L).waitMs(config), "0 is not replaced by the default");
+        assertEquals(PromptRepollGate.DEFAULT_MAX_WAITERS, sharedWaiterSlots().availablePermits(),
+                "no shared waiter slot is held");
+    }
+
     @AiEndpoint(path = PATH)
     static class StubEndpoint {
         @Prompt
