@@ -102,6 +102,9 @@ fun AtmosphereFramework.registerAgent(spec: AgentSpec): KotlinAgent {
 
     val interceptors: MutableList<AtmosphereInterceptor> = LinkedList()
     AnnotationUtil.defaultManagedServiceInterceptors(this, interceptors)
+    // As AgentProcessor does: a prompt posted right after a long-polling protocol
+    // handshake waits for the client's first poll instead of being refused.
+    interceptors.add(handler.protocolHandshakeRecorder())
     addAtmosphereHandler(spec.path, handler, interceptors)
 
     val pipeline = AiPipeline(

@@ -131,6 +131,21 @@ class AgentDslTest {
     }
 
     @Test
+    fun `registration carries the protocol handshake recorder like the Agent processor`() {
+        framework.registerAgent("kdsl-handshake") { runtime = ScriptedRuntime("ok") }
+
+        // Without it, a long-polling client's first prompt, posted right after its
+        // protocol handshake, names an id the endpoint never saw and gets 503.
+        val wrapper = framework.atmosphereHandlers["/atmosphere/agent/kdsl-handshake"]
+        assertNotNull(wrapper)
+        assertEquals(
+            1,
+            wrapper.interceptors().count { it.toString() == "AiEndpoint protocol handshake recorder" },
+            "the DSL agent must carry its handshake recorder, got ${wrapper.interceptors()}"
+        )
+    }
+
+    @Test
     fun `declared tools land in the agent tool registry`() {
         val live = framework.registerAgent("kdsl-tools") {
             runtime = ScriptedRuntime("ok")
