@@ -16,8 +16,11 @@ describe('HTTP transport POST send retry', () => {
   let handlers: SubscriptionHandlers;
   let postStatuses: number[];
   let posts: RequestInit[];
+  /** The Retry-After a 503 carries; null sends none. */
+  let retryAfter: string | null;
 
   beforeEach(() => {
+    retryAfter = '1';
     originalFetch = global.fetch;
     handlers = { open: vi.fn(), message: vi.fn(), close: vi.fn(), error: vi.fn(), reconnect: vi.fn() };
     posts = [];
@@ -30,7 +33,7 @@ describe('HTTP transport POST send retry', () => {
         return Promise.resolve({
           ok: status >= 200 && status < 300,
           status,
-          headers: new Headers(status === 503 ? { 'Retry-After': '1' } : {}),
+          headers: new Headers(status === 503 && retryAfter !== null ? { 'Retry-After': retryAfter } : {}),
           text: () => Promise.resolve(''),
         });
       }
@@ -61,6 +64,27 @@ describe('HTTP transport POST send retry', () => {
     await transport.connect();
     return transport;
   }
+
+  it('waits 1 s before resending a 503 that carries no Retry-After', async () => {
+    const transport = await connectedLongPolling();
+    vi.useFakeTimers();
+    retryAfter = null;
+    postStatuses = [503];
+
+    transport.send('prompt');
+    await vi.waitFor(() => expect(posts).toHaveLength(1));
+
+    await vi.advanceTimersByTimeAsync(999);
+    expect(posts).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await vi.waitFor(() => expect(posts).toHaveLength(2));
+
+    expect(posts[1].body).toBe('prompt');
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(posts).toHaveLength(2);
+    expect(handlers.error).not.toHaveBeenCalled();
+    await transport.disconnect();
+  });
 
   it('sends a prompt the server refused with 503 again after Retry-After, once accepted', async () => {
     const transport = await connectedLongPolling();

@@ -357,6 +357,45 @@ describe('client-chosen tracking id per subscription', () => {
     await transport.disconnect();
   });
 
+  it('streaming takes a new id for each connection, reconnects included', async () => {
+    const gets: string[] = [];
+    const posts: string[] = [];
+    global.fetch = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        posts.push(url);
+        return Promise.resolve({ ok: true, status: 200, headers: new Headers(), text: () => Promise.resolve('') });
+      }
+      gets.push(url);
+      // The first stream ends at once, so the transport reconnects; the next is held open.
+      const ended = gets.length === 1;
+      const reader = {
+        read: () => (ended
+          ? Promise.resolve({ done: true, value: undefined })
+          : new Promise<never>(() => { /* held open by the server */ })),
+        cancel: () => Promise.resolve(),
+        releaseLock: () => {},
+      };
+      return Promise.resolve({
+        ok: true, status: 200, headers: new Headers(), body: { getReader: () => reader },
+      });
+    });
+    const transport = new StreamingTransport(
+      { url: 'http://localhost/ai', transport: 'streaming', reconnect: true, reconnectInterval: 1 }, handlers);
+    await transport.connect();
+    await vi.waitFor(() => expect(gets).toHaveLength(2));
+
+    const [first, reconnect] = gets.map(trackingId);
+    expect(first).toMatch(SERVER_VALID_ID);
+    expect(reconnect).toMatch(SERVER_VALID_ID);
+    expect(reconnect).not.toBe(first);
+    expect(transport.uuid).toBe(reconnect);
+
+    transport.send('after reconnect');
+    await vi.waitFor(() => expect(posts).toHaveLength(1));
+    expect(trackingId(posts[0])).toBe(reconnect);
+    await transport.disconnect();
+  });
+
   it('resends a refused message under the id of the current subscription', async () => {
     const posts: string[] = [];
     let transport: SSETransport | null = null;
