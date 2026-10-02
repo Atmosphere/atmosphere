@@ -42,15 +42,17 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -69,9 +71,10 @@ import static org.mockito.Mockito.when;
  *       the prompt to the originating suspended resource only.</li>
  *   <li>{@link HeaderConfig#X_ATMOSPHERE_TRACKING_ID} (carried by SSE and
  *       long-polling clients on every prompt POST) is the SSE/LP fallback.</li>
- *   <li>The {@code broadcast(msg, target)} overload is used so the broadcaster's
- *       {@code onStateChange} fires for the target only — never the all-resources
- *       fanout.</li>
+ *   <li>The prompt is dispatched to the target connection directly — never
+ *       broadcast on the path, neither to every subscriber nor through the
+ *       broadcaster's filters (a cluster filter would publish it to other
+ *       nodes).</li>
  *   <li>A prompt is never broadcast to all: with neither hint it is refused
  *       with {@code 400}, and with a hint that resolves to no connection it is
  *       refused with a retryable {@code 503} (see
@@ -89,13 +92,15 @@ class AiEndpointHandlerCrossTabIsolationTest {
     void setUp() throws Exception {
         var promptMethod = StubEndpoint.class.getDeclaredMethod(
                 "onPrompt", String.class, StreamingSession.class);
-        handler = new AiEndpointHandler(
+        handler = spy(new AiEndpointHandler(
                 new StubEndpoint(),
                 promptMethod,
                 30_000L,
                 "",
                 mock(AgentRuntime.class),
-                List.<AiInterceptor>of());
+                List.<AiInterceptor>of()));
+        // The dispatch itself (session, @Prompt thread) is not what these tests pin.
+        doNothing().when(handler).dispatchPrompt(any(), any());
 
         config = mock(AtmosphereConfig.class);
         resourcesFactory = mock(AtmosphereResourceFactory.class);
@@ -119,18 +124,16 @@ class AiEndpointHandlerCrossTabIsolationTest {
 
         handler.onRequest(tempResource);
 
-        var msgCaptor = ArgumentCaptor.forClass(Object.class);
         var targetCaptor = ArgumentCaptor.forClass(AtmosphereResource.class);
-        verify(originatingBroadcaster).broadcast(msgCaptor.capture(), targetCaptor.capture());
+        verify(handler).dispatchPrompt(targetCaptor.capture(), eq("tab-A-prompt"));
         assertSame(originatingResource, targetCaptor.getValue(),
                 "WebSocket prompt must dispatch to the suspended resource recorded in "
                         + "SUSPENDED_ATMOSPHERE_RESOURCE_UUID, not be broadcast to all subscribers.");
-        assertEquals(new AiEndpointHandler.PromptDispatch("tab-A-prompt", "ws-suspended-uuid-A"),
-                msgCaptor.getValue(), "the prompt is dispatched addressed to its sender");
 
-        // The fanout overload (the bug path) must NEVER be called when the suspended
-        // UUID resolves cleanly — that is the whole point of this regression pin.
-        verify(originatingBroadcaster, never()).broadcast(any());
+        // The fanout (the bug path) must NEVER happen when the suspended UUID
+        // resolves cleanly — that is the whole point of this regression pin —
+        // nor a broadcast through the path's filters.
+        verifyNoInteractions(originatingBroadcaster);
     }
 
     @Test
@@ -149,9 +152,8 @@ class AiEndpointHandlerCrossTabIsolationTest {
 
         handler.onRequest(tempResource);
 
-        verify(originatingBroadcaster).broadcast(eq(new AiEndpointHandler.PromptDispatch("tab-B-prompt", "sse-tracking-uuid-B")),
-                eq(originatingResource));
-        verify(originatingBroadcaster, never()).broadcast(any());
+        verify(handler).dispatchPrompt(originatingResource, "tab-B-prompt");
+        verifyNoInteractions(originatingBroadcaster);
     }
 
     /**
@@ -181,9 +183,8 @@ class AiEndpointHandlerCrossTabIsolationTest {
 
         handler.onRequest(postResource);
 
-        verify(originatingBroadcaster).broadcast(eq(new AiEndpointHandler.PromptDispatch("tab-C-prompt", "lp-tracking-uuid-C")),
-                eq(originatingResource));
-        verify(originatingBroadcaster, never()).broadcast(any());
+        verify(handler).dispatchPrompt(originatingResource, "tab-C-prompt");
+        verifyNoInteractions(originatingBroadcaster);
         // Cached back for any later reader of the same request.
         verify(request).body("tab-C-prompt");
     }
@@ -237,6 +238,7 @@ class AiEndpointHandlerCrossTabIsolationTest {
         handler.onRequest(tempResource);
 
         verify(response).setStatus(400);
+        verify(handler, never()).dispatchPrompt(any(), any());
         verify(fallbackBroadcaster, never()).broadcast(any());
         verify(fallbackBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));
     }
@@ -270,6 +272,7 @@ class AiEndpointHandlerCrossTabIsolationTest {
 
         verify(tempResource).write(argThat(AiEndpointHandlerPromptRepollTest::isRefusalFrame));
         verify(response, never()).setStatus(anyInt());
+        verify(handler, never()).dispatchPrompt(any(), any());
         verify(fallbackBroadcaster, never()).broadcast(any());
         verify(fallbackBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));
     }

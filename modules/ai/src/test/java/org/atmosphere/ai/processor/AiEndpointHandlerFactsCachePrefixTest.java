@@ -31,7 +31,6 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.Broadcaster;
@@ -106,8 +105,7 @@ class AiEndpointHandlerFactsCachePrefixTest {
                 null, AnnotatedLifecycle.scan(StubEndpoint.class));
         var resource = subscriber();
 
-        handler.onStateChange(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) resource).setMessage(
-                new AiEndpointHandler.PromptDispatch("plan a trip", resource.uuid())));
+        handler.dispatchPrompt(resource, "plan a trip");
 
         assertTrue(runtime.dispatched.await(10, TimeUnit.SECONDS),
                 "runtime must be dispatched by the @Prompt turn");

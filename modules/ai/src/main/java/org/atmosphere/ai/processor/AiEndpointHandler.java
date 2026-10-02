@@ -432,9 +432,11 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                         return;
                     }
                 }
-                // The carrier names its recipient: onStateChange runs @Prompt only
-                // for a PromptDispatch addressed to the receiving connection.
-                target.getBroadcaster().broadcast(new PromptDispatch(msg, target.uuid()), target);
+                // Dispatched to the one connection directly, never broadcast: a
+                // broadcast runs the path broadcaster's filters, and a
+                // ClusterBroadcastFilter would publish the prompt and its sender's
+                // tracking id to every subscriber on the other nodes.
+                dispatchPrompt(target, msg);
             }
             return;
         }
@@ -694,25 +696,21 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             return;
         }
 
-        // Only a PromptDispatch is a prompt: onRequest addresses one to the
-        // connection that sent it. Anything else broadcast on the path (a gRPC
+        // A prompt never arrives here: onRequest dispatches it to the connection
+        // that sent it (dispatchPrompt). Anything broadcast on the path (a gRPC
         // Send, an application or admin broadcast, a message a cluster filter
         // relayed from another node) is written to the subscribers like any
         // broadcast, and never run as a prompt in every subscriber's session.
-        if (!(message instanceof PromptDispatch dispatch)) {
-            writeThrough(event, resource);
-            return;
-        }
-        if (!dispatch.targetUuid().equals(resource.uuid())) {
-            // Never expected from onRequest's targeted broadcast; refuse rather
-            // than answer one user's prompt in another user's session.
-            logger.warn("Dropping a prompt addressed to {} that reached {} on {}",
-                    dispatch.targetUuid(), resource.uuid(), pathTemplate);
-            return;
-        }
+        writeThrough(event, resource);
+    }
 
-        // Dispatch to the @Prompt method on a virtual thread.
-        var userMessage = dispatch.text();
+    /**
+     * Runs {@code userMessage} as a prompt of {@code resource}, the one
+     * connection that sent it: an approval answer is routed to its pending
+     * approval, anything else starts a streaming session and dispatches the
+     * {@code @Prompt} method on a virtual thread.
+     */
+    void dispatchPrompt(AtmosphereResource resource, String userMessage) {
 
         // Fast-path: route approval responses to the existing session's registry
         // instead of creating a new session and dispatching to @Prompt. Walks
@@ -1450,22 +1448,6 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         }
         var headerUuid = headerTrackingId(req);
         return headerUuid != null ? resolveTrackingId(resource, headerUuid) : null;
-    }
-
-    /**
-     * A user prompt as {@link #onRequest} dispatches it: the text, and the uuid of
-     * the one connection it is addressed to. {@link #onStateChange} runs
-     * {@code @Prompt} only for this carrier, and only on that connection, so a
-     * message broadcast on the path any other way never starts a prompt in every
-     * subscriber's session. {@link #toString()} leaves the text out: a
-     * {@code ClusterBroadcastFilter} serializes a message with it, and a broadcaster
-     * logs it.
-     */
-    record PromptDispatch(String text, String targetUuid) {
-        @Override
-        public String toString() {
-            return "PromptDispatch[targetUuid=" + targetUuid + ", length=" + text.length() + "]";
-        }
     }
 
     /**

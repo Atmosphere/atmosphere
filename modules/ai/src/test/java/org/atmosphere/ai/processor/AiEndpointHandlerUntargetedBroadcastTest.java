@@ -29,14 +29,17 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.ClusterBroadcastFilter;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.DefaultBroadcasterFactory;
+import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.ExecutorsFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
@@ -54,7 +57,8 @@ import static org.mockito.Mockito.mock;
  * every user's conversation. These tests pin, against a real
  * {@link DefaultBroadcaster} whose subscribers are served by the endpoint
  * handler itself, that only a prompt dispatched to a connection runs, and only
- * on that connection.
+ * on that connection, and that the dispatch never goes through the path's
+ * filters, where a cluster filter would publish it to the other nodes.
  */
 // Real AtmosphereResourceImpl subscribers through the deprecated 6-arg
 // constructor, as AiEndpointHandlerBroadcastReplyTest and BroadcasterTest do:
@@ -107,7 +111,11 @@ class AiEndpointHandlerUntargetedBroadcastTest {
      * for it to run: every delivery broadcast before it has been handled by then.
      */
     private void barrier(AtmosphereResource sender, String text) throws Exception {
-        path.broadcast(new AiEndpointHandler.PromptDispatch(text, sender.uuid()), sender).get(5, TimeUnit.SECONDS);
+        handler.dispatchPrompt(sender, text);
+        awaitPrompt(sender, text);
+    }
+
+    private void awaitPrompt(AtmosphereResource sender, String text) throws Exception {
         var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
         while (!endpoint.prompts.contains(sender.uuid() + ":" + text)) {
             assertTrue(System.nanoTime() < deadline, "the dispatched prompt never ran: " + endpoint.prompts);
@@ -142,36 +150,76 @@ class AiEndpointHandlerUntargetedBroadcastTest {
     }
 
     @Test
-    void promptRelayedByAClusterFilterRunsOnNoSubscriberOfTheOtherNode() throws Exception {
-        // A ClusterBroadcastFilter sees the targeted dispatch without its target and
-        // publishes it as text (RedisClusterBroadcastFilter: toString for anything
-        // but a String or byte[]); the receiving node broadcasts that text to all of
-        // its subscribers. None of them sent the prompt.
-        var remoteAlice = subscriber();
-        subscriber();
-        var relayed = String.valueOf(new AiEndpointHandler.PromptDispatch("bob's secret question", "bob-on-node-1"));
-        assertFalse(relayed.contains("bob's secret question"),
-                "the text a cluster filter publishes must not carry the prompt: " + relayed);
-
-        path.broadcast(relayed).get(5, TimeUnit.SECONDS);
-        barrier(remoteAlice, "next");
-
-        assertEquals(List.of(remoteAlice.uuid() + ":next"), endpoint.prompts,
-                "a relayed prompt must not run on a node where its sender is not connected");
-    }
-
-    @Test
-    void dispatchedPromptRunsOnlyOnTheConnectionItIsAddressedTo() throws Exception {
+    void promptPostedOnAClusteredPathIsNeverPublishedToTheOtherNodes() throws Exception {
+        // A ClusterBroadcastFilter on the path publishes whatever the broadcaster
+        // filters to every other node (RedisClusterBroadcastFilter: the String, or
+        // toString of anything else), where it is broadcast to every subscriber.
+        // A prompt is dispatched to its sender's connection without a broadcast,
+        // so neither its text nor the sender's tracking id (which would let anyone
+        // post prompts as the sender) reaches the filter.
+        var cluster = new RecordingClusterFilter();
+        path.getBroadcasterConfig().addFilter(cluster);
         var alice = subscriber();
         var bob = subscriber();
+        config.resourcesFactory().registerUuidForFindCandidate(alice);
+        config.resourcesFactory().registerUuidForFindCandidate(bob);
 
-        // Even delivered to every subscriber, the carrier runs only on its addressee.
-        path.broadcast(new AiEndpointHandler.PromptDispatch("alice asks", alice.uuid())).get(5, TimeUnit.SECONDS);
-        barrier(bob, "bob asks");
+        var post = new AtmosphereResourceImpl(config, path,
+                new AtmosphereRequestImpl.Builder()
+                        .method("POST")
+                        .requestURI(PATH)
+                        .headers(Map.of(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, alice.uuid()))
+                        .body("alice's private question")
+                        .build(),
+                AtmosphereResponseImpl.newInstance(),
+                mock(BlockingIOCometSupport.class),
+                handler);
+        handler.onRequest(post);
+        awaitPrompt(alice, "alice's private question");
 
-        assertEquals(2, endpoint.prompts.size(), "one run per prompt: " + endpoint.prompts);
-        assertTrue(endpoint.prompts.contains(alice.uuid() + ":alice asks"), endpoint.prompts.toString());
-        assertTrue(endpoint.prompts.contains(bob.uuid() + ":bob asks"), endpoint.prompts.toString());
+        assertEquals(List.of(alice.uuid() + ":alice's private question"), endpoint.prompts,
+                "the prompt runs once, on its sender's connection");
+        for (var published : cluster.published) {
+            assertFalse(published.contains(alice.uuid()),
+                    "the sender's tracking id must not be published cluster-wide: " + published);
+            assertFalse(published.contains("alice's private question"),
+                    "the prompt must not be published cluster-wide: " + published);
+        }
+    }
+
+    /** What a ClusterBroadcastFilter would publish to the other nodes, recorded instead. */
+    private static final class RecordingClusterFilter implements ClusterBroadcastFilter {
+
+        private final List<String> published = new CopyOnWriteArrayList<>();
+        private Broadcaster broadcaster;
+
+        @Override
+        public BroadcastAction filter(String broadcasterId, Object originalMessage, Object message) {
+            published.add(String.valueOf(message));
+            return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);
+        }
+
+        @Override
+        public void init(AtmosphereConfig config) {
+        }
+
+        @Override
+        public void destroy() {
+        }
+
+        @Override
+        public void setUri(String name) {
+        }
+
+        @Override
+        public void setBroadcaster(Broadcaster bc) {
+            this.broadcaster = bc;
+        }
+
+        @Override
+        public Broadcaster getBroadcaster() {
+            return broadcaster;
+        }
     }
 
     @AiEndpoint(path = PATH)

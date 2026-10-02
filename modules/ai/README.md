@@ -589,9 +589,12 @@ export LLM_MODEL=llama3.2
 ### Prompt routing over HTTP transports
 
 An `@AiEndpoint` prompt runs only on the one connection it names, never on every
-subscriber of the path. Only a prompt the endpoint received itself (a POST or a
-WebSocket frame on its mapping) is run: anything else broadcast on the path's
-broadcaster (an application or admin broadcast, a gRPC `Send` on the topic, a
+subscriber of the path. It is dispatched to that connection directly, not
+broadcast, so it never passes through the path broadcaster's filters: a
+`ClusterBroadcastFilter` there never publishes a prompt, or the tracking id of
+its sender, to the other nodes. Only a prompt the endpoint received itself (a
+POST or a WebSocket frame on its mapping) is run: anything else broadcast on the
+path's broadcaster (an application or admin broadcast, a gRPC `Send` on the topic, a
 message a cluster filter relayed from another node) is written to the
 subscribers like any broadcast and never run as a prompt. A WebSocket frame
 names its connection with the server-set suspended uuid; an SSE or long-polling

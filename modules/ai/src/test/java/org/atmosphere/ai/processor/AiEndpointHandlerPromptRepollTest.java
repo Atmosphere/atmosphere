@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -57,9 +58,11 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -80,6 +83,8 @@ class AiEndpointHandlerPromptRepollTest {
     private final ExecutorService posts = Executors.newCachedThreadPool();
     private AtmosphereConfig config;
     private AiEndpointHandler handler;
+    /** Every prompt dispatched by any handler of the test, in order. */
+    private final List<Dispatch> dispatches = new CopyOnWriteArrayList<>();
     /** The broadcaster every connection on the path shares: a fan-out would land here. */
     private Broadcaster pathBroadcaster;
 
@@ -115,8 +120,12 @@ class AiEndpointHandlerPromptRepollTest {
     private AiEndpointHandler endpointOnSameConfig() throws Exception {
         var promptMethod = StubEndpoint.class.getDeclaredMethod(
                 "onPrompt", String.class, StreamingSession.class);
-        return new AiEndpointHandler(new StubEndpoint(), promptMethod, 30_000L, "",
-                mock(AgentRuntime.class), List.<AiInterceptor>of());
+        var endpoint = spy(new AiEndpointHandler(new StubEndpoint(), promptMethod, 30_000L, "",
+                mock(AgentRuntime.class), List.<AiInterceptor>of()));
+        // Record where each prompt is dispatched instead of running it.
+        doAnswer(inv -> dispatches.add(new Dispatch(inv.getArgument(0), inv.getArgument(1))))
+                .when(endpoint).dispatchPrompt(any(), any());
+        return endpoint;
     }
 
     /** A long-polling GET that the handler suspends; registered like a real poll on suspend. */
@@ -180,9 +189,30 @@ class AiEndpointHandlerPromptRepollTest {
         return new Post(resource, response);
     }
 
-    /** The carrier onRequest dispatches {@code text} in, addressed to {@code trackingId}. */
-    private static AiEndpointHandler.PromptDispatch dispatched(String text, String trackingId) {
-        return new AiEndpointHandler.PromptDispatch(text, trackingId);
+    /** A prompt a handler dispatched: the connection it ran for, and its text. */
+    private record Dispatch(AtmosphereResource target, String text) {
+    }
+
+    private long dispatchCount(AtmosphereResource target, String text) {
+        return dispatches.stream()
+                .filter(d -> (target == null || d.target() == target) && (text == null || d.text().equals(text)))
+                .count();
+    }
+
+    private void assertDispatchedOnce(AtmosphereResource target, String text) {
+        assertEquals(1, dispatchCount(target, text), "dispatches: " + dispatches);
+    }
+
+    private void assertNothingDispatchedTo(AtmosphereResource target) {
+        assertEquals(0, dispatchCount(target, null), "dispatches: " + dispatches);
+    }
+
+    private void assertNeverDispatched(String text) {
+        assertEquals(0, dispatchCount(null, text), "dispatches: " + dispatches);
+    }
+
+    private void assertNoDispatch() {
+        assertTrue(dispatches.isEmpty(), "dispatches: " + dispatches);
     }
 
     private Future<?> send(Post post) {
@@ -209,13 +239,13 @@ class AiEndpointHandlerPromptRepollTest {
         Thread.sleep(200);
         assertFalse(pending.isDone(), "the prompt must wait for its sender's next poll");
         verify(pathBroadcaster, never()).broadcast(any());
-        verify(pathBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));
+        assertNoDispatch();
 
         var nextPollA = poll("client-A");
         pending.get(5, TimeUnit.SECONDS);
 
-        verify(pathBroadcaster).broadcast(eq(dispatched("A's prompt", "client-A")), eq(nextPollA));
-        verify(pathBroadcaster, never()).broadcast(any(), eq(pollB));
+        assertDispatchedOnce(nextPollA, "A's prompt");
+        assertNothingDispatchedTo(pollB);
         verify(pathBroadcaster, never()).broadcast(any());
         verify(post.response(), never()).setStatus(503);
     }
@@ -236,7 +266,7 @@ class AiEndpointHandlerPromptRepollTest {
         verify(post.response()).setStatus(503);
         verify(post.response()).setHeader("Retry-After", "1");
         verify(pathBroadcaster, never()).broadcast(any());
-        verify(pathBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));
+        assertNoDispatch();
     }
 
     @Test
@@ -251,7 +281,7 @@ class AiEndpointHandlerPromptRepollTest {
                 "an id this endpoint never suspended must not hold a waiter");
         verify(post.response()).setStatus(503);
         verify(pathBroadcaster, never()).broadcast(any());
-        verify(pathBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));
+        assertNoDispatch();
     }
 
     @Test
@@ -270,8 +300,8 @@ class AiEndpointHandlerPromptRepollTest {
 
         var nextPoll = poll("client-A");
         pendingFirst.get(5, TimeUnit.SECONDS);
-        verify(pathBroadcaster).broadcast(eq(dispatched("first", "client-A")), eq(nextPoll));
-        verify(pathBroadcaster, never()).broadcast(eq(dispatched("second", "client-A")), any(AtmosphereResource.class));
+        assertDispatchedOnce(nextPoll, "first");
+        assertNeverDispatched("second");
     }
 
     @Test
@@ -296,7 +326,7 @@ class AiEndpointHandlerPromptRepollTest {
 
         var nextPoll = poll("client-A");
         pendingA.get(5, TimeUnit.SECONDS);
-        verify(pathBroadcaster).broadcast(eq(dispatched("A", "client-A")), eq(nextPoll));
+        assertDispatchedOnce(nextPoll, "A");
     }
 
     @Test
@@ -326,7 +356,7 @@ class AiEndpointHandlerPromptRepollTest {
         handler = first;
         var nextPoll = poll("client-A");
         pendingA.get(5, TimeUnit.SECONDS);
-        verify(pathBroadcaster).broadcast(eq(dispatched("A", "client-A")), eq(nextPoll));
+        assertDispatchedOnce(nextPoll, "A");
     }
 
     @Test
@@ -346,7 +376,7 @@ class AiEndpointHandlerPromptRepollTest {
         assertTrue(System.nanoTime() - started < TimeUnit.MILLISECONDS.toNanos(1_000),
                 "a stopping endpoint must not hold a waiting prompt until its wait runs out");
         verify(waiting.response()).setStatus(503);
-        verify(pathBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));
+        assertNoDispatch();
 
         // A prompt arriving after the endpoint stopped is refused without waiting.
         var late = post("client-A", "late");
@@ -374,8 +404,8 @@ class AiEndpointHandlerPromptRepollTest {
         verify(post.resource()).write(argThat(AiEndpointHandlerPromptRepollTest::isRefusalFrame));
         verify(post.response(), never()).setStatus(anyInt());
         verify(pathBroadcaster, never()).broadcast(any());
-        verify(pathBroadcaster, never()).broadcast(any(), eq(pollB));
-        verify(pathBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));
+        assertNothingDispatchedTo(pollB);
+        assertNoDispatch();
     }
 
     @Test
@@ -386,7 +416,7 @@ class AiEndpointHandlerPromptRepollTest {
         var post = post("client-A", "live");
         send(post).get(5, TimeUnit.SECONDS);
 
-        verify(pathBroadcaster).broadcast(eq(dispatched("live", "client-A")), eq(pollA));
+        assertDispatchedOnce(pollA, "live");
         verify(pathBroadcaster, never()).broadcast(any());
         verify(post.response(), never()).setStatus(anyInt());
     }
@@ -401,7 +431,7 @@ class AiEndpointHandlerPromptRepollTest {
 
         verify(post.response()).setStatus(400);
         verify(pathBroadcaster, never()).broadcast(any());
-        verify(pathBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));
+        assertNoDispatch();
     }
 
     @Test
@@ -416,7 +446,7 @@ class AiEndpointHandlerPromptRepollTest {
             verify(post.response(), never()).setHeader(eq("Retry-After"), anyString());
         }
         verify(pathBroadcaster, never()).broadcast(any());
-        verify(pathBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));
+        assertNoDispatch();
     }
 
     @Test
@@ -458,8 +488,8 @@ class AiEndpointHandlerPromptRepollTest {
         var firstPoll = poll("server-id");
         pending.get(5, TimeUnit.SECONDS);
 
-        verify(pathBroadcaster).broadcast(eq(dispatched("first prompt", "server-id")), eq(firstPoll));
-        verify(pathBroadcaster, never()).broadcast(any(), eq(pollB));
+        assertDispatchedOnce(firstPoll, "first prompt");
+        assertNothingDispatchedTo(pollB);
         verify(pathBroadcaster, never()).broadcast(any());
         verify(post.response(), never()).setStatus(anyInt());
     }
@@ -479,7 +509,7 @@ class AiEndpointHandlerPromptRepollTest {
                     id + " was never assigned by the server: no waiter");
             verify(post.response()).setStatus(503);
         }
-        verify(pathBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));
+        assertNoDispatch();
     }
 
     @Test
@@ -722,7 +752,7 @@ class AiEndpointHandlerPromptRepollTest {
         assertFalse(pendingLegit.isDone(), "the between-poll prompt must wait, not be refused BUSY");
         var nextPoll = poll("client-A");
         pendingLegit.get(5, TimeUnit.SECONDS);
-        verify(pathBroadcaster).broadcast(eq(dispatched("A's prompt", "client-A")), eq(nextPoll));
+        assertDispatchedOnce(nextPoll, "A's prompt");
         verify(legit.response(), never()).setStatus(anyInt());
 
         handler.destroy();
@@ -759,7 +789,7 @@ class AiEndpointHandlerPromptRepollTest {
         assertTrue(System.nanoTime() - started < TimeUnit.MILLISECONDS.toNanos(1_000),
                 "a closed connection's id must not hold a waiter");
         verify(post.response()).setStatus(503);
-        verify(pathBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));
+        assertNoDispatch();
 
         // Coming back under the same id makes it known again.
         poll("client-A");
@@ -769,7 +799,7 @@ class AiEndpointHandlerPromptRepollTest {
         assertFalse(again.isDone(), "a reconnected id is waited for again");
         var nextPoll = poll("client-A");
         again.get(5, TimeUnit.SECONDS);
-        verify(pathBroadcaster).broadcast(eq(dispatched("after reconnect", "client-A")), eq(nextPoll));
+        assertDispatchedOnce(nextPoll, "after reconnect");
     }
 
     private static AtmosphereResourceEvent closedByClient(AtmosphereResource resource) {
@@ -794,7 +824,7 @@ class AiEndpointHandlerPromptRepollTest {
                 "with repollWaitMs=0 a prompt between two polls is refused at once");
         verify(post.response()).setStatus(503);
         verify(post.response()).setHeader("Retry-After", "1");
-        verify(pathBroadcaster, never()).broadcast(any(), any(AtmosphereResource.class));
+        assertNoDispatch();
         assertEquals(0L, new PromptRepollGate(30_000L).waitMs(config), "0 is not replaced by the default");
         assertEquals(PromptRepollGate.DEFAULT_MAX_WAITERS, sharedWaiterSlots().availablePermits(),
                 "no shared waiter slot is held");
