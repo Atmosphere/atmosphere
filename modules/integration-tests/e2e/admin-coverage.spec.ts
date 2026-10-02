@@ -198,14 +198,13 @@ test.describe('Admin REST — Unicast', () => {
     const body = await unicastRes.json();
     expect(body.status).toBe('unicast sent');
 
-    // AiEndpointHandler interprets a plain-String broadcaster message as a
-    // user prompt (see the "Plain String = user prompt" branch in
-    // AiEndpointHandler.onStateChange). Admin unicast therefore manifests
-    // on the wire as a prompt-driven response stream, not as a literal
-    // echo of the bytes. Proof of delivery: at least one new frame arrives
-    // on the target resource after the unicast POST returned 200.
-    await waitFor(() => conn.messages.length > before, 10_000);
-    expect(conn.messages.length).toBeGreaterThan(before);
+    // AiEndpointHandler writes a plain-String broadcaster message to the
+    // subscriber as is, and never runs it as a prompt (prompts are dispatched
+    // to their sender's connection, never broadcast). Proof of delivery: the
+    // literal unicast text arrives on the target resource.
+    const delivered = () => conn.messages.slice(before).some(m => m.includes('unicast-e2e-test'));
+    await waitFor(delivered, 10_000);
+    expect(delivered()).toBe(true);
 
     // Verify audit log recorded the unicast
     const auditRes = await request.get(`${server.baseUrl}/api/admin/audit`, { headers: AUTH });

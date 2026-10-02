@@ -92,6 +92,17 @@ Two `@Agent` shapes:
 - **Web-facing**: `@Prompt` method present; reachable via WebSocket/SSE
   at `/atmosphere/agent/{name}`. Log format: `Agent '...' registered at /atmosphere/agent/{name} (...)`.
 
+## `@Message` results are room-wide
+
+A web-facing agent may also declare a `@Message` method. It runs on a message
+that no `@Command` handles, before the `@Prompt` pipeline, and a non-null return
+value is broadcast to **every** subscriber of the agent's path, as a
+`@ManagedService` `@Message` result is by default. It is not a per-client reply
+and needs no tracking id. Only a `null` return passes the message on to the
+`@Prompt` pipeline, which replies to the sender's connection alone. Return `null`
+from `@Message` for anything one user's conversation should keep to itself;
+`@Command` responses always go to the requesting client only.
+
 ## @RequiresApproval
 
 Mark the sensitive subset of `@AiTool` methods with `@RequiresApproval`:

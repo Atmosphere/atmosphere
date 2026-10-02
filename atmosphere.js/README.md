@@ -723,6 +723,13 @@ not delivered, but the connection is still up, so the React, Vue and Svelte hook
 error without moving their connection state to `'error'`; `subscribeStreaming` passes
 `undelivered = true` as the second argument of `onError`.
 
+To reach an Atmosphere `@AiEndpoint` over SSE, streaming or long-polling (including when
+one of them takes over as the `fallbackTransport`), set `enableProtocol: true`. These
+transports learn their tracking id from the protocol handshake; without it they send `0`,
+which names no connection, so the server answers every prompt `400` and each one is
+reported as an `AtmosphereSendError`. WebSocket does not need it. See
+[Prompt routing over HTTP transports](../modules/ai/README.md#prompt-routing-over-http-transports).
+
 ### Offline queue — survive disconnect without losing user input
 
 Messages typed while the transport is disconnected can be queued locally and drained

@@ -120,11 +120,11 @@ public class AiClassroom {
         String json = String.format(
                 "{\"type\":\"presence\",\"action\":\"%s\",\"memberId\":\"%s\",\"count\":%d}",
                 action, resource.uuid(), count);
-        // Wrap in RawMessage so AiEndpointHandler.onStateChange writes it
-        // out to the client transports instead of feeding it back into the
-        // @Prompt handler as a new user prompt (plain-String broadcasts get
-        // routed to the prompt-dispatch path; RawMessage signals
-        // "server-to-client", not "client-to-server").
+        // Wrap in RawMessage, as the AI streaming frames are: AiEndpointHandler
+        // .onStateChange unwraps it and writes the JSON out to the client
+        // transports as is. A plain-String broadcast is written out too, and is
+        // never run as a prompt: prompts are dispatched to their sender's
+        // connection, never broadcast.
         broadcaster.broadcast(new RawMessage(json));
     }
 

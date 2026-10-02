@@ -592,7 +592,12 @@ An `@AiEndpoint` prompt runs only on the one connection it names, never on every
 subscriber of the path. It is dispatched to that connection directly, not
 broadcast, so it never passes through the path broadcaster's filters: a
 `ClusterBroadcastFilter` there never publishes a prompt, or the tracking id of
-its sender, to the other nodes. Only a prompt the endpoint received itself (a
+its sender, to the other nodes. Nor does it publish a per-client reply: a
+broadcast to chosen resources skips every `ClusterBroadcastFilter`, so only a
+`broadcastReply` room reply, meant for every subscriber, reaches the other nodes.
+A prompt runs only on a connection of the endpoint it was posted to: a tracking
+id that names another endpoint's connection is refused like one that names
+none. Only a prompt the endpoint received itself (a
 POST or a WebSocket frame on its mapping) is run: anything else broadcast on the
 path's broadcaster (an application or admin broadcast, a gRPC `Send` on the topic, a
 message a cluster filter relayed from another node) is written to the
@@ -601,6 +606,11 @@ names its connection with the server-set suspended uuid; an SSE or long-polling
 POST names it with the `X-Atmosphere-tracking-id` header. A long-polling client
 that posts between two polls has no registered connection for a moment, so its
 prompt waits for that client's next poll and is answered `503` with `Retry-After: 1` if none arrives.
+In a multi-node deployment, SSE, streaming and long-polling clients of an
+`@AiEndpoint` need session affinity (on the tracking id or a cookie): a prompt POST
+that reaches a node without its sender's connection is answered `503` there, and is
+not relayed to the node that holds it. WebSocket is unaffected, since its frames
+arrive on the connection itself.
 A POST that names no connection is answered `400`. A WebSocket frame whose
 connection the server no longer holds is not waited for (no later poll can carry
 it): it is answered at once over its socket with a terminal
@@ -637,7 +647,7 @@ once instead of holding shutdown.
 
 The tracking id routes a prompt; it does not authenticate the sender. It is a
 client-presented bearer token: the server adopts any well-formed id a client
-sends for its connection. A prompt goes to whichever connection holds the id, so
+sends for its connection. A prompt goes to whichever of the endpoint's connections holds the id, so
 protect an endpoint whose conversations are private with authentication, as you
 would any other.
 

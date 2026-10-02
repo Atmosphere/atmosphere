@@ -1373,10 +1373,12 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
 
     /**
      * Registers a {@link org.atmosphere.cache.BroadcasterCacheInspector} that
-     * only allows {@link RawMessage}-based broadcasts (AI streaming responses)
-     * to be cached. Plain String broadcasts (user prompts routed internally
-     * from WebSocket frames) are excluded to prevent stale prompt replay on
-     * new connections.
+     * caches the AI streaming frames of a {@link RawMessage} broadcast, except
+     * progress updates, and no other {@code RawMessage}. A plain broadcast (an
+     * application, admin or gRPC broadcast on the path, written to the
+     * subscribers and never run as a prompt) is cached as is. Prompts are never
+     * broadcast, so never cached: they are dispatched to their sender's
+     * connection.
      */
     private void registerCacheInspector(Broadcaster broadcaster) {
         var cache = broadcaster.getBroadcasterConfig().getBroadcasterCache();
