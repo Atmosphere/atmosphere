@@ -258,6 +258,48 @@ class RunReattachSupportTest {
                 "original PII must not leak on the replay path: " + writes.get(0));
     }
 
+    /**
+     * A replay belongs to the reattaching resource alone. A
+     * ClusterBroadcastFilter on its broadcaster would publish each private
+     * frame, and every other node would deliver it to all its subscribers;
+     * the local filters still run.
+     */
+    @Test
+    void replaySkipsClusterBroadcastFilters() {
+        handle.replayBuffer().capture("streaming-text", "alice private answer");
+        var writes = new ArrayList<String>();
+        var resource = mockResourceWithRunIdAndCaller(
+                handle.runId(), null, "alice", writes);
+        var broadcaster = Mockito.mock(org.atmosphere.cpr.Broadcaster.class);
+        var config = Mockito.mock(org.atmosphere.cpr.BroadcasterConfig.class);
+        Mockito.when(resource.getBroadcaster()).thenReturn(broadcaster);
+        Mockito.when(broadcaster.getBroadcasterConfig()).thenReturn(config);
+        Mockito.when(broadcaster.getID()).thenReturn("/atmosphere/agent/test");
+        var published = new ArrayList<Object>();
+        var cluster = Mockito.mock(org.atmosphere.cpr.ClusterBroadcastFilter.class);
+        Mockito.when(cluster.filter(Mockito.anyString(), Mockito.any(), Mockito.any()))
+                .thenAnswer(inv -> {
+                    published.add(inv.getArgument(2));
+                    return new org.atmosphere.cpr.BroadcastFilter.BroadcastAction(inv.getArgument(2));
+                });
+        var local = new ArrayList<Object>();
+        org.atmosphere.cpr.BroadcastFilter localFilter = (id, original, message) -> {
+            local.add(message);
+            return new org.atmosphere.cpr.BroadcastFilter.BroadcastAction(message);
+        };
+        java.util.List<org.atmosphere.cpr.BroadcastFilter> filterList = new ArrayList<>();
+        filterList.add(cluster);
+        filterList.add(localFilter);
+        Mockito.when(config.filters()).thenReturn(filterList);
+
+        var replayed = RunReattachSupport.replayPendingRun(resource, registry);
+
+        assertEquals(1, replayed);
+        assertTrue(writes.get(0).contains("alice private answer"), writes.get(0));
+        assertEquals(1, local.size(), "local filters must still run on replay frames");
+        assertTrue(published.isEmpty(), "replay published to the cluster: " + published);
+    }
+
     @Test
     void replayReportsZeroWhenWriteFails() throws java.io.IOException {
         handle.replayBuffer().capture("streaming-text", "first");

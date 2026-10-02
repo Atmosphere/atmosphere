@@ -118,6 +118,10 @@ public final class RunReattachSupport {
      * the resource has no broadcaster bound (tests, embedded setups),
      * return an empty list and fall back to unfiltered replay — the
      * ownership check above still protects cross-user exposure.
+     * {@link org.atmosphere.cpr.ClusterBroadcastFilter}s are left out:
+     * the replay belongs to this one resource, and a cluster filter would
+     * have every other node deliver the run's private frames to all its
+     * subscribers.
      */
     private static java.util.List<org.atmosphere.cpr.BroadcastFilter> filtersFor(
             org.atmosphere.cpr.AtmosphereResource resource) {
@@ -126,8 +130,13 @@ public final class RunReattachSupport {
             if (broadcaster == null) {
                 return java.util.List.of();
             }
-            return new java.util.ArrayList<>(
-                    broadcaster.getBroadcasterConfig().filters());
+            var filters = new java.util.ArrayList<org.atmosphere.cpr.BroadcastFilter>();
+            for (var filter : broadcaster.getBroadcasterConfig().filters()) {
+                if (!(filter instanceof org.atmosphere.cpr.ClusterBroadcastFilter)) {
+                    filters.add(filter);
+                }
+            }
+            return filters;
         } catch (RuntimeException e) {
             return java.util.List.of();
         }
