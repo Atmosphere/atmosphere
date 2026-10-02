@@ -151,7 +151,11 @@ function Classroom({
       maxReconnectOnClose: 10,
       reconnectInterval: 5000,
       trackMessageLength: true,
-      enableProtocol: false,
+      // Required for the long-polling fallback: the protocol handshake is
+      // where it learns the tracking id that routes each question to this
+      // connection. Without it every question goes out with id 0 and the
+      // @AiEndpoint answers 400.
+      enableProtocol: true,
       contentType: 'application/json',
       offlineQueue: offline.queue,
     }),

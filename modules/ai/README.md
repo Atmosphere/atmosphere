@@ -613,7 +613,9 @@ refused POST) to the `error` handler. Its SSE, streaming and long-polling
 transports learn their tracking id from the protocol handshake: with
 `enableProtocol` off they send `0`, which names no connection, so their prompts
 are answered `400`. Use `enableProtocol: true` (the Console does for an AI endpoint) or WebSocket
-for an `@AiEndpoint`.
+for an `@AiEndpoint`. A WebSocket subscription whose `fallbackTransport` is one of them needs it
+too, since the fallback carries the prompts once it takes over: the classroom sample's Expo client
+(`samples/spring-boot-ai-classroom/expo-client`) sets it for its long-polling fallback.
 
 Long-polling routes the prompt but does not yet carry the reply: the first reply
 frame completes the poll the prompt was dispatched to, and the frames after it
