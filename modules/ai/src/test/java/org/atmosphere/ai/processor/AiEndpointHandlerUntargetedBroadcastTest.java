@@ -107,8 +107,10 @@ class AiEndpointHandlerUntargetedBroadcastTest {
                 mock(BlockingIOCometSupport.class),
                 handler);
         path.addAtmosphereResource(r);
-        // What the handler's connection branch does when it suspends a connection.
+        // What the handler's connection branch does when it suspends a connection:
+        // a prompt only ever runs on a connection that is still suspended.
         r.getRequest().setAttribute(AiEndpointHandler.ENDPOINT_HANDLER_ATTRIBUTE, handler);
+        r.suspend();
         config.resourcesFactory().registerUuidForFindCandidate(r);
         return r;
     }

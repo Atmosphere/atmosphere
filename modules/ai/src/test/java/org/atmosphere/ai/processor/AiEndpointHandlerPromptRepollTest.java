@@ -42,6 +42,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -60,6 +61,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -88,6 +90,8 @@ class AiEndpointHandlerPromptRepollTest {
     private final List<Dispatch> dispatches = new CopyOnWriteArrayList<>();
     /** The broadcaster every connection on the path shares: a fan-out would land here. */
     private Broadcaster pathBroadcaster;
+    /** Connections whose prompt dispatch runs for real (see {@link #recycleRequest}). */
+    private final Set<AtmosphereResource> realDispatch = ConcurrentHashMap.newKeySet();
 
     @BeforeEach
     void setUp() throws Exception {
@@ -123,8 +127,12 @@ class AiEndpointHandlerPromptRepollTest {
                 "onPrompt", String.class, StreamingSession.class);
         var endpoint = spy(new AiEndpointHandler(new StubEndpoint(), promptMethod, 30_000L, "",
                 mock(AgentRuntime.class), List.<AiInterceptor>of()));
-        // Record where each prompt is dispatched instead of running it.
-        doAnswer(inv -> dispatches.add(new Dispatch(inv.getArgument(0), inv.getArgument(1))))
+        // Record where each prompt is dispatched instead of running it, except on
+        // a connection whose request was recycled: the real dispatch must hand
+        // the prompt back without starting anything.
+        doAnswer(inv -> realDispatch.contains(inv.<AtmosphereResource>getArgument(0))
+                ? inv.callRealMethod()
+                : dispatches.add(new Dispatch(inv.getArgument(0), inv.getArgument(1))))
                 .when(endpoint).dispatchPrompt(any(), any());
         return endpoint;
     }
@@ -158,6 +166,26 @@ class AiEndpointHandlerPromptRepollTest {
     /** The poll completed: like a real one, it is unregistered from the factory. */
     private void pollCompleted(String trackingId) {
         registered.remove(trackingId);
+    }
+
+    /**
+     * The container recycled the poll's request: like Tomcat's request facade,
+     * every read that reaches it throws. The endpoint's own stamp is a local
+     * attribute of the Atmosphere request and still reads.
+     */
+    private void recycleRequest(AtmosphereResource poll) {
+        var request = poll.getRequest();
+        doThrow(new IllegalStateException("The request object has been recycled and is no longer"
+                + " associated with this facade"))
+                .when(request).getAttribute(argThat(key -> !AiEndpointHandler.ENDPOINT_HANDLER_ATTRIBUTE.equals(key)));
+        realDispatch.add(poll);
+    }
+
+    /** The poll just returned: resumed, and still listed by the factory until it is unregistered. */
+    private void pollResumed(AtmosphereResource poll) {
+        when(poll.isSuspended()).thenReturn(false);
+        when(poll.isResumed()).thenReturn(true);
+        recycleRequest(poll);
     }
 
     private record Post(AtmosphereResource resource, AtmosphereResponse response) {
@@ -409,6 +437,92 @@ class AiEndpointHandlerPromptRepollTest {
 
         assertTrue(System.nanoTime() - started < TimeUnit.MILLISECONDS.toNanos(1_000),
                 "a WebSocket frame must not wait on the repoll gate");
+        verify(post.resource()).write(argThat(AiEndpointHandlerPromptRepollTest::isRefusalFrame));
+        verify(post.response(), never()).setStatus(anyInt());
+        verify(pathBroadcaster, never()).broadcast(any());
+        assertNothingDispatchedTo(pollB);
+        assertNoDispatch();
+    }
+
+    @Test
+    void promptResolvingToAPollThatJustReturnedWaitsForTheNextPollInsteadOfFailing() throws Exception {
+        // The poll returned (resumed) but the factory still lists it, and the
+        // container already recycled its request. Dispatching to it threw
+        // IllegalStateException: the POST was answered 500 and the prompt lost.
+        var pollA = poll("client-A");
+        var pollB = poll("client-B");
+        pollResumed(pollA);
+
+        var post = post("client-A", "A's prompt");
+        var pending = send(post);
+
+        Thread.sleep(200);
+        assertFalse(pending.isDone(), "the prompt must wait for its sender's next poll");
+        assertNoDispatch();
+
+        var nextPollA = poll("client-A");
+        pending.get(5, TimeUnit.SECONDS);
+
+        assertDispatchedOnce(nextPollA, "A's prompt");
+        assertNothingDispatchedTo(pollA);
+        assertNothingDispatchedTo(pollB);
+        verify(pathBroadcaster, never()).broadcast(any());
+        verify(post.response(), never()).setStatus(anyInt());
+    }
+
+    @Test
+    void promptWhoseConnectionIsRecycledDuringDispatchWaitsForTheNextPoll() throws Exception {
+        // The poll was still suspended when the prompt resolved to it, and its
+        // request was recycled before the dispatch read it: the dispatch hands
+        // the prompt back without starting anything, and it waits like an
+        // unresolved one.
+        var pollA = poll("client-A");
+        var pollB = poll("client-B");
+        recycleRequest(pollA);
+
+        var post = post("client-A", "A's prompt");
+        var pending = send(post);
+
+        Thread.sleep(200);
+        assertFalse(pending.isDone(), "the prompt must wait for its sender's next poll");
+        assertNoDispatch();
+
+        var nextPollA = poll("client-A");
+        pending.get(5, TimeUnit.SECONDS);
+
+        assertDispatchedOnce(nextPollA, "A's prompt");
+        assertNothingDispatchedTo(pollB);
+        verify(pathBroadcaster, never()).broadcast(any());
+        verify(post.response(), never()).setStatus(anyInt());
+    }
+
+    @Test
+    void promptWhosePollJustReturnedIsRefusedWith503WhenNoPollFollows() throws Exception {
+        handler = newHandler(Map.of(PromptRepollGate.WAIT_MS_PARAM, "150"));
+        var pollA = poll("client-A");
+        var pollB = poll("client-B");
+        pollResumed(pollA);
+
+        var post = post("client-A", "A's prompt");
+        send(post).get(5, TimeUnit.SECONDS);
+
+        verify(post.response()).setStatus(503);
+        verify(post.response()).setHeader("Retry-After", "1");
+        verify(post.response(), never()).setStatus(500);
+        verify(pathBroadcaster, never()).broadcast(any());
+        assertNothingDispatchedTo(pollB);
+        assertNoDispatch();
+    }
+
+    @Test
+    void webSocketFrameWhoseConnectionIsRecycledIsAnsweredWithAnErrorFrame() throws Exception {
+        var pollB = poll("client-B");
+        var wsA = poll("ws-A");
+        recycleRequest(wsA);
+
+        var post = webSocketFrame("ws-A", "ws prompt");
+        send(post).get(5, TimeUnit.SECONDS);
+
         verify(post.resource()).write(argThat(AiEndpointHandlerPromptRepollTest::isRefusalFrame));
         verify(post.response(), never()).setStatus(anyInt());
         verify(pathBroadcaster, never()).broadcast(any());

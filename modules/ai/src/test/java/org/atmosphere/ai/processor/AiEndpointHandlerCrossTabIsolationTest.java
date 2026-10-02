@@ -46,7 +46,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -100,7 +100,7 @@ class AiEndpointHandlerCrossTabIsolationTest {
                 mock(AgentRuntime.class),
                 List.<AiInterceptor>of()));
         // The dispatch itself (session, @Prompt thread) is not what these tests pin.
-        doNothing().when(handler).dispatchPrompt(any(), any());
+        doReturn(true).when(handler).dispatchPrompt(any(), any());
 
         config = mock(AtmosphereConfig.class);
         resourcesFactory = mock(AtmosphereResourceFactory.class);
@@ -115,6 +115,7 @@ class AiEndpointHandlerCrossTabIsolationTest {
         when(resource.uuid()).thenReturn(uuid);
         when(resource.getBroadcaster()).thenReturn(originatingBroadcaster);
         when(resource.getRequest()).thenReturn(request);
+        when(resource.isSuspended()).thenReturn(true);
         when(request.getAttribute(AiEndpointHandler.ENDPOINT_HANDLER_ATTRIBUTE)).thenReturn(handler);
         return resource;
     }

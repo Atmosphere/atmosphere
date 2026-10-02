@@ -392,17 +392,26 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         //
         // A prompt is never fanned out to the per-path broadcaster: every
         // subscriber's @Prompt would answer it. When the client's connection is
-        // not registered — a long-polling client posting between two polls — the
-        // prompt waits briefly for that client's next connection, and is
-        // otherwise refused with a retryable 503. No identifier at all is a 400.
+        // not registered — a long-polling client posting between two polls — or
+        // is no longer usable — a poll that just returned, still registered but
+        // resumed, its request possibly recycled by the container — the prompt
+        // waits briefly for that client's next connection, and is otherwise
+        // refused with a retryable 503. No identifier at all is a 400.
         // A WebSocket frame whose connection is gone is answered at once with an
         // error frame over its socket (see refuseWebSocketFrame).
         if ("POST".equalsIgnoreCase(method)) {
             var msg = readPrompt(resource);
             if (msg != null) {
                 var since = System.nanoTime();
+                // Dispatched to the one connection directly, never broadcast: a
+                // broadcast runs the path broadcaster's filters, and a
+                // ClusterBroadcastFilter would publish the prompt and its sender's
+                // tracking id to every subscriber on the other nodes.
                 var target = findOriginatingResource(resource);
-                if (target == null) {
+                if (target == null || !dispatchPrompt(target, msg)) {
+                    // No connection, or one whose request the container already
+                    // recycled (a long-polling poll that just returned): both wait
+                    // for the client's next connection, never run on a dead one.
                     if (resource.getRequest().getAttribute(FrameworkConfig.WEBSOCKET_MESSAGE) != null) {
                         refuseWebSocketFrame(resource);
                         return;
@@ -430,21 +439,16 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                     var outcome = repollGate.await(trackingId, since,
                             () -> resolveTrackingId(resource, trackingId),
                             resource.getAtmosphereConfig());
-                    target = outcome.target();
-                    if (target == null) {
+                    var next = outcome.target();
+                    if (next == null || !dispatchPrompt(next, msg)) {
                         logger.warn("No connection of {} on {} could take its prompt ({}); answering 503",
-                                trackingId, pathTemplate, outcome.refusal());
+                                trackingId, pathTemplate,
+                                next == null ? outcome.refusal() : "request no longer usable");
                         var response = resource.getResponse();
                         response.setHeader("Retry-After", "1");
                         response.setStatus(503);
-                        return;
                     }
                 }
-                // Dispatched to the one connection directly, never broadcast: a
-                // broadcast runs the path broadcaster's filters, and a
-                // ClusterBroadcastFilter would publish the prompt and its sender's
-                // tracking id to every subscriber on the other nodes.
-                dispatchPrompt(target, msg);
             }
             return;
         }
@@ -718,8 +722,13 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * connection that sent it: an approval answer is routed to its pending
      * approval, anything else starts a streaming session and dispatches the
      * {@code @Prompt} method on a virtual thread.
+     *
+     * @return {@code false}, with nothing started, when the connection's request
+     * can no longer be read (the container recycled it: a long-polling poll that
+     * returned after the prompt resolved to it); the caller then treats the
+     * prompt as one whose connection is not registered
      */
-    void dispatchPrompt(AtmosphereResource resource, String userMessage) {
+    boolean dispatchPrompt(AtmosphereResource resource, String userMessage) {
 
         // Fast-path: route approval responses to the existing session's registry
         // instead of creating a new session and dispatching to @Prompt. Walks
@@ -730,7 +739,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         if (ApprovalRegistry.isApprovalMessage(userMessage)) {
             if (AiStreamingSession.tryResolveApprovalForResource(resource.uuid(), userMessage)) {
                 logger.debug("Approval response routed for resource {}", resource.uuid());
-                return;
+                return true;
             }
             // Not ours. Behind a load balancer the reviewer's answer routinely
             // lands on a node that isn't parking the run, so hand it to the
@@ -741,7 +750,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             if (org.atmosphere.ai.approval.ClusterApprovalRelay.publish(userMessage)) {
                 logger.debug("Approval not local to resource {}; relayed to the cluster",
                         resource.uuid());
-                return;
+                return true;
             }
             // Cross-session fallback deliberately not used here: scanning all
             // active sessions weakens approval ownership guarantees. Without a
@@ -749,7 +758,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             // transport reconnect times out and the new session must re-trigger
             // the tool call.
             logger.warn("Approval message with no pending approval for resource {}", resource.uuid());
-            return;
+            return true;
         }
 
         // Multi-modal input: when inbound decoding is enabled, an uploaded
@@ -767,7 +776,46 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // thread-local — setting it on the servlet thread does nothing for
         // logs produced by the VT. Apply + clear is wrapped around the VT
         // body (see promptThread below).
-        var businessMdc = snapshotBusinessMdc(resource);
+        // Everything this turn reads from the connection's request is read here,
+        // before anything is registered for it (streaming session, run, @Prompt
+        // thread): a request the container recycled throws IllegalStateException
+        // on the first read, and the prompt is then handed back undispatched.
+        final java.util.Map<String, String> businessMdc;
+        final boolean roomBroadcast;
+        final String effectivePrompt;
+        final String runUserId;
+        try {
+            businessMdc = snapshotBusinessMdc(resource);
+            // Per-client by default: the reply streams back only to the resource
+            // that sent the prompt. When the endpoint opts into broadcastReply, the
+            // single reply instead fans out to every subscriber on the per-path
+            // broadcaster (the room). Either way the prompt was already dispatched
+            // to this one originating resource (see onRequest), so the @Prompt
+            // method — and the LLM call inside it — runs exactly once.
+            // Read the volatile once so the delivery scope stamped on the request
+            // below is the one the delegate actually uses. Interceptors read the
+            // stamp to keep prompter-scoped frames off a room-wide reply.
+            roomBroadcast = broadcastReply;
+            if (resource.getRequest() != null) {
+                resource.getRequest().setAttribute(
+                        StreamingSessions.ROOM_BROADCAST_ATTRIBUTE, roomBroadcast);
+            }
+            // Append grounded facts to the END of the system prompt via
+            // FactResolver. Appending (not prepending) keeps the stable
+            // persona/skills text a byte-identical prefix across turns so
+            // provider prompt-prefix caches keep hitting while volatile facts
+            // (time.now changes every minute) ride in a trailing block.
+            // DefaultFactResolver supplies time.now + time.timezone; apps can
+            // install a richer resolver via FactResolverHolder.install(). Every
+            // turn pays one resolver call per endpoint — no ThreadLocal, no
+            // per-@AiTool wiring.
+            effectivePrompt = appendResolvedFacts(systemPrompt, resource);
+            runUserId = resolveRunOwner(resource);
+        } catch (IllegalStateException e) {
+            logger.debug("Request of connection {} is no longer usable; prompt not dispatched to it",
+                    resource.uuid(), e);
+            return false;
+        }
         if (multiModal.parts().isEmpty()) {
             logger.info("Received prompt from {}: {}", resource.uuid(), promptText);
         } else {
@@ -775,20 +823,6 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                     resource.uuid(), multiModal.parts().size(), promptText);
         }
 
-        // Per-client by default: the reply streams back only to the resource
-        // that sent the prompt. When the endpoint opts into broadcastReply, the
-        // single reply instead fans out to every subscriber on the per-path
-        // broadcaster (the room). Either way the prompt was already dispatched
-        // to this one originating resource (see onRequest), so the @Prompt
-        // method — and the LLM call inside it — runs exactly once.
-        // Read the volatile once so the delivery scope stamped on the request
-        // below is the one the delegate actually uses. Interceptors read the
-        // stamp to keep prompter-scoped frames off a room-wide reply.
-        var roomBroadcast = broadcastReply;
-        if (resource.getRequest() != null) {
-            resource.getRequest().setAttribute(
-                    StreamingSessions.ROOM_BROADCAST_ATTRIBUTE, roomBroadcast);
-        }
         var delegate = roomBroadcast
                 ? StreamingSessions.startRoomBroadcast(resource)
                 : StreamingSessions.start(resource);
@@ -817,16 +851,6 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         }
 
         var responseType = injectables.get(Class.class) instanceof Class<?> c ? c : null;
-        // Append grounded facts to the END of the system prompt via
-        // FactResolver. Appending (not prepending) keeps the stable
-        // persona/skills text a byte-identical prefix across turns so
-        // provider prompt-prefix caches keep hitting while volatile facts
-        // (time.now changes every minute) ride in a trailing block.
-        // DefaultFactResolver supplies time.now + time.timezone; apps can
-        // install a richer resolver via FactResolverHolder.install(). Every
-        // turn pays one resolver call per endpoint — no ThreadLocal, no
-        // per-@AiTool wiring.
-        var effectivePrompt = appendResolvedFacts(systemPrompt, resource);
         var session = new AiStreamingSession(traced, runtime,
                 effectivePrompt, model, interceptors, resource, memory,
                 toolRegistry, guardrails, contextProviders, metrics, responseType);
@@ -924,7 +948,6 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 t.interrupt();
             }
         });
-        var runUserId = resolveRunOwner(resource);
         rememberRunOwner(resource.uuid(), runUserId);
         var handle = org.atmosphere.ai.resume.RunRegistryHolder.get().register(
                 pathTemplate, runUserId, resource.uuid(), runExecutionHandle);
@@ -1021,6 +1044,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 }
             });
         }
+        return true;
     }
 
     /**
@@ -1524,13 +1548,27 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     }
 
     /**
-     * The connection {@code trackingId} names, if this endpoint suspended it. A
-     * connection of another endpoint is never a prompt's target here: its own
-     * handler, with its own {@code @Prompt} and {@code broadcastReply}, serves it.
+     * The connection {@code trackingId} names, if this endpoint suspended it and
+     * it is still suspended. A connection of another endpoint is never a prompt's
+     * target here: its own handler, with its own {@code @Prompt} and
+     * {@code broadcastReply}, serves it. Nor is one that is no longer suspended —
+     * a long-polling poll that just returned (resumed), a cancelled or closed
+     * connection — even while the factory still lists it: the container may have
+     * recycled its request already, and reading that throws. Its state is checked
+     * before its request is touched; a request that throws anyway is treated the
+     * same way. The caller then waits for the client's next connection.
      */
     private AtmosphereResource resolveTrackingId(AtmosphereResource resource, String trackingId) {
         var found = resource.getAtmosphereConfig().resourcesFactory().findResource(trackingId).orElse(null);
-        return found != null && found.getRequest().getAttribute(ENDPOINT_HANDLER_ATTRIBUTE) == this ? found : null;
+        if (found == null || !found.isSuspended()) {
+            return null;
+        }
+        try {
+            return found.getRequest().getAttribute(ENDPOINT_HANDLER_ATTRIBUTE) == this ? found : null;
+        } catch (IllegalStateException e) {
+            logger.debug("Request of connection {} is no longer usable; not a prompt target", trackingId, e);
+            return null;
+        }
     }
 
     /**

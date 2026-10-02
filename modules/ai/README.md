@@ -606,6 +606,9 @@ names its connection with the server-set suspended uuid; an SSE or long-polling
 POST names it with the `X-Atmosphere-tracking-id` header. A long-polling client
 that posts between two polls has no registered connection for a moment, so its
 prompt waits for that client's next poll and is answered `503` with `Retry-After: 1` if none arrives.
+A poll that has just returned counts as no connection too, even while the server
+still lists it: a prompt runs only on a connection that is still suspended and
+whose request the container has not recycled.
 In a multi-node deployment, SSE, streaming and long-polling clients of an
 `@AiEndpoint` need session affinity (on the tracking id or a cookie): a prompt POST
 that reaches a node without its sender's connection is answered `503` there, and is
