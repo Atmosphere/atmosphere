@@ -106,8 +106,8 @@ class AiEndpointHandlerFactsCachePrefixTest {
                 null, AnnotatedLifecycle.scan(StubEndpoint.class));
         var resource = subscriber();
 
-        handler.onStateChange(new AtmosphereResourceEventImpl(
-                (AtmosphereResourceImpl) resource).setMessage("plan a trip"));
+        handler.onStateChange(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) resource).setMessage(
+                new AiEndpointHandler.PromptDispatch("plan a trip", resource.uuid())));
 
         assertTrue(runtime.dispatched.await(10, TimeUnit.SECONDS),
                 "runtime must be dispatched by the @Prompt turn");

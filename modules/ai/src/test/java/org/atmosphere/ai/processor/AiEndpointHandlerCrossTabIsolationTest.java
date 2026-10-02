@@ -42,6 +42,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -124,6 +125,8 @@ class AiEndpointHandlerCrossTabIsolationTest {
         assertSame(originatingResource, targetCaptor.getValue(),
                 "WebSocket prompt must dispatch to the suspended resource recorded in "
                         + "SUSPENDED_ATMOSPHERE_RESOURCE_UUID, not be broadcast to all subscribers.");
+        assertEquals(new AiEndpointHandler.PromptDispatch("tab-A-prompt", "ws-suspended-uuid-A"),
+                msgCaptor.getValue(), "the prompt is dispatched addressed to its sender");
 
         // The fanout overload (the bug path) must NEVER be called when the suspended
         // UUID resolves cleanly — that is the whole point of this regression pin.
@@ -146,7 +149,8 @@ class AiEndpointHandlerCrossTabIsolationTest {
 
         handler.onRequest(tempResource);
 
-        verify(originatingBroadcaster).broadcast(eq("tab-B-prompt"), eq(originatingResource));
+        verify(originatingBroadcaster).broadcast(eq(new AiEndpointHandler.PromptDispatch("tab-B-prompt", "sse-tracking-uuid-B")),
+                eq(originatingResource));
         verify(originatingBroadcaster, never()).broadcast(any());
     }
 
@@ -177,7 +181,8 @@ class AiEndpointHandlerCrossTabIsolationTest {
 
         handler.onRequest(postResource);
 
-        verify(originatingBroadcaster).broadcast(eq("tab-C-prompt"), eq(originatingResource));
+        verify(originatingBroadcaster).broadcast(eq(new AiEndpointHandler.PromptDispatch("tab-C-prompt", "lp-tracking-uuid-C")),
+                eq(originatingResource));
         verify(originatingBroadcaster, never()).broadcast(any());
         // Cached back for any later reader of the same request.
         verify(request).body("tab-C-prompt");

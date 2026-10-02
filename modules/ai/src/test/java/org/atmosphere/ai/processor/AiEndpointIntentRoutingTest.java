@@ -421,12 +421,14 @@ class AiEndpointIntentRoutingTest {
                 AnnotatedLifecycle.scan(RoutedEndpoint.class));
         handler.setIntentRouting(routing);
 
-        handler.onStateChange(new AtmosphereResourceEventImpl(resource).setMessage("where is order 7?"));
+        handler.onStateChange(new AtmosphereResourceEventImpl(resource).setMessage(
+                new AiEndpointHandler.PromptDispatch("where is order 7?", resource.uuid())));
         assertTrue(approvalAsked.await(10, TimeUnit.SECONDS), "a confirmation must be requested: " + frames);
         var matcher = APPROVAL_ID.matcher(String.join("\n", frames));
         assertTrue(matcher.find());
         handler.onStateChange(new AtmosphereResourceEventImpl(resource)
-                .setMessage("/__approval/" + matcher.group() + "/" + answer));
+                .setMessage(new AiEndpointHandler.PromptDispatch(
+                        "/__approval/" + matcher.group() + "/" + answer, resource.uuid())));
 
         assertTrue(done.await(10, TimeUnit.SECONDS), "the confirmed turn must complete: " + frames);
         verify(runtime, never()).executeWithHandle(any(), any());
@@ -462,7 +464,8 @@ class AiEndpointIntentRoutingTest {
                 AnnotatedLifecycle.scan(RoutedEndpoint.class));
         handler.setIntentRouting(ROUTING);
 
-        handler.onStateChange(new AtmosphereResourceEventImpl(resource).setMessage("where is order 7?"));
+        handler.onStateChange(new AtmosphereResourceEventImpl(resource).setMessage(
+                new AiEndpointHandler.PromptDispatch("where is order 7?", resource.uuid())));
 
         assertTrue(done.await(10, TimeUnit.SECONDS), "the routed turn must complete: " + frames);
         assertTrue(frames.stream().anyMatch(f -> f.contains("tracked:where is order 7?")), frames.toString());
@@ -563,7 +566,8 @@ class AiEndpointIntentRoutingTest {
                 AnnotatedLifecycle.scan(RoutedEndpoint.class));
         handler.setIntentRouting(routing);
 
-        handler.onStateChange(new AtmosphereResourceEventImpl(resource).setMessage("where is order 7?"));
+        handler.onStateChange(new AtmosphereResourceEventImpl(resource).setMessage(
+                new AiEndpointHandler.PromptDispatch("where is order 7?", resource.uuid())));
 
         assertTrue(done.await(endpointTimeout + 10_000, TimeUnit.MILLISECONDS),
                 "the turn must end: " + frames);

@@ -134,8 +134,8 @@ class AiEndpointHandlerBroadcastReplyTest {
 
         // Expect the single reply to be delivered to BOTH subscribers.
         capture.expectReplies(2);
-        handler.onStateChange(new AtmosphereResourceEventImpl(
-                (AtmosphereResourceImpl) originating).setMessage("hello room"));
+        handler.onStateChange(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) originating).setMessage(
+                new AiEndpointHandler.PromptDispatch("hello room", originating.uuid())));
 
         assertTrue(capture.await(10, TimeUnit.SECONDS),
                 "the one reply must reach both subscribers on the room broadcaster");
@@ -162,8 +162,8 @@ class AiEndpointHandlerBroadcastReplyTest {
         var handler = newHandler(endpoint);
 
         capture.expectReplies(1);
-        handler.onStateChange(new AtmosphereResourceEventImpl(
-                (AtmosphereResourceImpl) originating).setMessage("hello room"));
+        handler.onStateChange(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) originating).setMessage(
+                new AiEndpointHandler.PromptDispatch("hello room", originating.uuid())));
 
         assertTrue(capture.await(10, TimeUnit.SECONDS),
                 "the originating subscriber must receive its own reply");
@@ -191,8 +191,8 @@ class AiEndpointHandlerBroadcastReplyTest {
 
         var handler = newGovernanceHandler();
         handler.setBroadcastReply(true);
-        handler.onStateChange(new AtmosphereResourceEventImpl(
-                (AtmosphereResourceImpl) originating).setMessage("deploy to prod?"));
+        handler.onStateChange(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) originating).setMessage(
+                new AiEndpointHandler.PromptDispatch("deploy to prod?", originating.uuid())));
 
         awaitComplete(originating);
         awaitComplete(bystander);
@@ -215,8 +215,8 @@ class AiEndpointHandlerBroadcastReplyTest {
         recordPrefer(originating.uuid());
 
         var handler = newGovernanceHandler();
-        handler.onStateChange(new AtmosphereResourceEventImpl(
-                (AtmosphereResourceImpl) originating).setMessage("deploy to prod?"));
+        handler.onStateChange(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) originating).setMessage(
+                new AiEndpointHandler.PromptDispatch("deploy to prod?", originating.uuid())));
 
         awaitComplete(originating);
         // The handler stamped this turn per-client, so the signal goes out — to the prompter.

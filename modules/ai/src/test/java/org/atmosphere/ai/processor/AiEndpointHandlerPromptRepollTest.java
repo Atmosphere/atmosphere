@@ -178,6 +178,11 @@ class AiEndpointHandlerPromptRepollTest {
         return new Post(resource, response);
     }
 
+    /** The carrier onRequest dispatches {@code text} in, addressed to {@code trackingId}. */
+    private static AiEndpointHandler.PromptDispatch dispatched(String text, String trackingId) {
+        return new AiEndpointHandler.PromptDispatch(text, trackingId);
+    }
+
     private Future<?> send(Post post) {
         return send(handler, post);
     }
@@ -207,7 +212,7 @@ class AiEndpointHandlerPromptRepollTest {
         var nextPollA = poll("client-A");
         pending.get(5, TimeUnit.SECONDS);
 
-        verify(pathBroadcaster).broadcast(eq("A's prompt"), eq(nextPollA));
+        verify(pathBroadcaster).broadcast(eq(dispatched("A's prompt", "client-A")), eq(nextPollA));
         verify(pathBroadcaster, never()).broadcast(any(), eq(pollB));
         verify(pathBroadcaster, never()).broadcast(any());
         verify(post.response(), never()).setStatus(503);
@@ -263,8 +268,8 @@ class AiEndpointHandlerPromptRepollTest {
 
         var nextPoll = poll("client-A");
         pendingFirst.get(5, TimeUnit.SECONDS);
-        verify(pathBroadcaster).broadcast(eq("first"), eq(nextPoll));
-        verify(pathBroadcaster, never()).broadcast(eq("second"), any(AtmosphereResource.class));
+        verify(pathBroadcaster).broadcast(eq(dispatched("first", "client-A")), eq(nextPoll));
+        verify(pathBroadcaster, never()).broadcast(eq(dispatched("second", "client-A")), any(AtmosphereResource.class));
     }
 
     @Test
@@ -289,7 +294,7 @@ class AiEndpointHandlerPromptRepollTest {
 
         var nextPoll = poll("client-A");
         pendingA.get(5, TimeUnit.SECONDS);
-        verify(pathBroadcaster).broadcast(eq("A"), eq(nextPoll));
+        verify(pathBroadcaster).broadcast(eq(dispatched("A", "client-A")), eq(nextPoll));
     }
 
     @Test
@@ -319,7 +324,7 @@ class AiEndpointHandlerPromptRepollTest {
         handler = first;
         var nextPoll = poll("client-A");
         pendingA.get(5, TimeUnit.SECONDS);
-        verify(pathBroadcaster).broadcast(eq("A"), eq(nextPoll));
+        verify(pathBroadcaster).broadcast(eq(dispatched("A", "client-A")), eq(nextPoll));
     }
 
     @Test
@@ -379,7 +384,7 @@ class AiEndpointHandlerPromptRepollTest {
         var post = post("client-A", "live");
         send(post).get(5, TimeUnit.SECONDS);
 
-        verify(pathBroadcaster).broadcast(eq("live"), eq(pollA));
+        verify(pathBroadcaster).broadcast(eq(dispatched("live", "client-A")), eq(pollA));
         verify(pathBroadcaster, never()).broadcast(any());
         verify(post.response(), never()).setStatus(anyInt());
     }
@@ -451,7 +456,7 @@ class AiEndpointHandlerPromptRepollTest {
         var firstPoll = poll("server-id");
         pending.get(5, TimeUnit.SECONDS);
 
-        verify(pathBroadcaster).broadcast(eq("first prompt"), eq(firstPoll));
+        verify(pathBroadcaster).broadcast(eq(dispatched("first prompt", "server-id")), eq(firstPoll));
         verify(pathBroadcaster, never()).broadcast(any(), eq(pollB));
         verify(pathBroadcaster, never()).broadcast(any());
         verify(post.response(), never()).setStatus(anyInt());

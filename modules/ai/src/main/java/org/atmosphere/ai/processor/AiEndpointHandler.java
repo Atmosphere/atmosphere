@@ -432,7 +432,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                         return;
                     }
                 }
-                target.getBroadcaster().broadcast(msg, target);
+                // The carrier names its recipient: onStateChange runs @Prompt only
+                // for a PromptDispatch addressed to the receiving connection.
+                target.getBroadcaster().broadcast(new PromptDispatch(msg, target.uuid()), target);
             }
             return;
         }
@@ -688,25 +690,29 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // the AsyncIOWriter chain (TrackMessageSizeInterceptor adds length-prefix).
         if (message instanceof RawMessage raw) {
             event.setMessage(raw.message());
-
-            boolean resumeOnBroadcast = resource.resumeOnBroadcast();
-            if (resumeOnBroadcast) {
-                resource.resumeOnBroadcast(false);
-                resource.getRequest().setAttribute(
-                        ApplicationConfig.RESUME_ON_BROADCAST, false);
-            }
-
-            super.onStateChange(event);
-
-            if (resumeOnBroadcast && resource.isSuspended()) {
-                resource.resume();
-            }
+            writeThrough(event, resource);
             return;
         }
 
-        // Plain String = user prompt (broadcast from onRequest POST handler).
+        // Only a PromptDispatch is a prompt: onRequest addresses one to the
+        // connection that sent it. Anything else broadcast on the path (a gRPC
+        // Send, an application or admin broadcast, a message a cluster filter
+        // relayed from another node) is written to the subscribers like any
+        // broadcast, and never run as a prompt in every subscriber's session.
+        if (!(message instanceof PromptDispatch dispatch)) {
+            writeThrough(event, resource);
+            return;
+        }
+        if (!dispatch.targetUuid().equals(resource.uuid())) {
+            // Never expected from onRequest's targeted broadcast; refuse rather
+            // than answer one user's prompt in another user's session.
+            logger.warn("Dropping a prompt addressed to {} that reached {} on {}",
+                    dispatch.targetUuid(), resource.uuid(), pathTemplate);
+            return;
+        }
+
         // Dispatch to the @Prompt method on a virtual thread.
-        var userMessage = message.toString();
+        var userMessage = dispatch.text();
 
         // Fast-path: route approval responses to the existing session's registry
         // instead of creating a new session and dispatching to @Prompt. Walks
@@ -1440,6 +1446,42 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         }
         var headerUuid = headerTrackingId(req);
         return headerUuid != null ? resolveTrackingId(resource, headerUuid) : null;
+    }
+
+    /**
+     * A user prompt as {@link #onRequest} dispatches it: the text, and the uuid of
+     * the one connection it is addressed to. {@link #onStateChange} runs
+     * {@code @Prompt} only for this carrier, and only on that connection, so a
+     * message broadcast on the path any other way never starts a prompt in every
+     * subscriber's session. {@link #toString()} leaves the text out: a
+     * {@code ClusterBroadcastFilter} serializes a message with it, and a broadcaster
+     * logs it.
+     */
+    record PromptDispatch(String text, String targetUuid) {
+        @Override
+        public String toString() {
+            return "PromptDispatch[targetUuid=" + targetUuid + ", length=" + text.length() + "]";
+        }
+    }
+
+    /**
+     * Writes a broadcast message to {@code resource} through the AsyncIOWriter
+     * chain, with resume-on-broadcast turned off for the write; a connection that
+     * had it on is resumed once the write returns.
+     */
+    private void writeThrough(AtmosphereResourceEvent event, AtmosphereResource resource) throws IOException {
+        boolean resumeOnBroadcast = resource.resumeOnBroadcast();
+        if (resumeOnBroadcast) {
+            resource.resumeOnBroadcast(false);
+            resource.getRequest().setAttribute(
+                    ApplicationConfig.RESUME_ON_BROADCAST, false);
+        }
+
+        super.onStateChange(event);
+
+        if (resumeOnBroadcast && resource.isSuspended()) {
+            resource.resume();
+        }
     }
 
     /** The {@code data} of the error frame a refused WebSocket prompt is answered with. */
