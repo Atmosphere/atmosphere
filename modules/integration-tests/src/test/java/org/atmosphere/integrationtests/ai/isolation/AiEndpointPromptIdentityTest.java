@@ -104,9 +104,13 @@ public class AiEndpointPromptIdentityTest {
         assertEquals(200, post(aliceId, "alice", "alice-prompt").get(10, TimeUnit.SECONDS).statusCode());
         awaitTrue(() -> !PromptIsolationTestEndpoint.INVOCATIONS.isEmpty(), "Alice's prompt must run");
         assertEquals(List.of(aliceId + "|alice-prompt"), PromptIsolationTestEndpoint.INVOCATIONS);
-        // A long poll returns with the first frame of the run: Alice's own.
-        var frame = alicePoll.get(10, TimeUnit.SECONDS).body();
-        assertTrue(frame.contains("X-Atmosphere-Run-Id"), "Alice must be sent her run's frames: " + frame);
+        // A long-polling reply is handed over whole: Alice's waiting poll returns
+        // to fetch it, and her next poll carries every frame of her run.
+        alicePoll.get(10, TimeUnit.SECONDS);
+        var reply = poll(aliceId, "alice").get(10, TimeUnit.SECONDS).body();
+        assertTrue(reply.contains("X-Atmosphere-Run-Id"), "Alice must be sent her run's frames: " + reply);
+        assertTrue(reply.contains("reply-to:alice-prompt"), "Alice must be sent her whole reply: " + reply);
+        assertTrue(reply.contains("\"complete\""), "Alice's reply must end with its terminal frame: " + reply);
     }
 
     @Timeout(value = 30, unit = TimeUnit.SECONDS)

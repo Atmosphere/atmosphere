@@ -152,7 +152,8 @@ public final class RunReattachSupport {
     }
 
     /**
-     * Apply the broadcast-filter chain to a single replay frame.
+     * Apply the broadcast-filter chain to a single replay frame (also each
+     * frame a long-polling reply buffers, {@link org.atmosphere.ai.LongPollingReplies}).
      * {@code ABORT} drops the frame entirely (content-safety / PII
      * filters use this to strip payloads that shouldn't reach the
      * wire); {@code SKIP} stops iterating but delivers the last
@@ -162,7 +163,7 @@ public final class RunReattachSupport {
      * @return the filtered frame as a String ready to write, or
      *         {@code null} when the chain aborted.
      */
-    private static String applyFilters(
+    public static String applyFilters(
             java.util.List<org.atmosphere.cpr.BroadcastFilter> filters,
             String broadcasterId, String frame) {
         // The AI-family filters (PiiRedactionFilter, CostMeteringFilter,

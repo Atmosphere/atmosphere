@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer, type SampleConfig } from './fixtures/sample-server';
 import { AiWsClient, type StreamingEvent } from './helpers/ai-ws-client';
-import { quarantined } from './helpers/quarantine';
 import { llmBudget } from './helpers/llm-rate-budget';
 
 /**
@@ -405,36 +404,17 @@ test.describe('Quarkus AI Chat', () => {
   // asserted to be a long-polling one. The Console is pointed at the
   // multimodal @Agent by serving /api/console/info with that endpoint — what
   // `atmosphere.console-endpoint` would do — because a plain-text prompt gets
-  // a fixed reply there without touching the model: keyless, so the weekly
-  // quarantine lane (fake mode) runs it — quarantined() skips it in every
-  // other lane until its expiry. The same prompt over a raw WebSocket supplies
-  // the envelope to compare against.
+  // a fixed reply there without touching the model, so it runs keyless in
+  // every lane. The same prompt over a raw WebSocket supplies the envelope to
+  // compare against.
   //
-  // STILL FAILS, on the product side. Driven for real on 2026-09-30 (Quarkus
-  // and spring-boot-dentist-agent alike), an AI endpoint over long-polling
-  // (1) dropped the prompt POST outright — AiEndpointHandler never read an
-  // HTTP request entity; fixed alongside this rewrite — and (2) still delivers
-  // only the first frame of the reply: the long-poll resumes on it and no later
-  // frame reaches the poll that replaces it. Tracing a poll on the wire found
-  // several causes, none of them the cache class alone: BoundedMemoryCache
-  // reads the uuid addToCache receives as a sender to skip, so a frame
-  // addressed to one client is kept for every other one; DefaultBroadcaster
-  // hands a frame for a resumed poll to the waiting poll only when their
-  // uuid-based hashCodes differ, so never; a poll answered from the cache is
-  // suspended again; a late resume unregisters the next poll by uuid; and
-  // AiEndpointHandler reads cached frames handed back as a List as one
-  // prompt. The atmosphere.js tracking-id propagation once blamed here works:
-  // every poll and POST carries the server-assigned id. Fixing (2) needs a
-  // long-polling delivery design, tracked by carnet#60; this test fails until
-  // it lands.
-  quarantined({
-    owner: 'jfarcand',
-    expires: '2026-10-31',
-    issue: 'carnet#60',
-    reason: 'first-frame-only long-polling delivery: an AI reply over long-polling reaches the '
-      + 'client with its first frame only; the frames streamed after the poll resumed never '
-      + 'reach the next poll',
-  })('long-polling transport: prompt round-trips with same wire envelope @quarantined', async ({ page }) => {
+  // A long-polling poll is answered by the first frame written to it, so an AI
+  // reply over long-polling is not streamed: the session keeps its frames
+  // (filtered, bounded) and hands them over whole at its terminal frame, and
+  // the client's next poll receives every frame, length-delimited, in one
+  // response (LongPollingReplies). Before that, only the first frame reached
+  // the client and the frames written after the poll resumed were lost.
+  test('long-polling transport: prompt round-trips with same wire envelope', async ({ page }) => {
     const endpoint = '/atmosphere/agent/multimodal';
     const prompt = 'long-polling parity check';
     const reply = `MultiModalAgent accepts 'image:<base64>' prompts. Got plain text: ${prompt}`;
@@ -488,7 +468,10 @@ test.describe('Quarkus AI Chat', () => {
 
     await page.getByTestId('chat-input').fill(prompt);
     await page.getByTestId('chat-send').click();
-    await expect(page.locator('.message--assistant').last()).toContainText(reply, { timeout: 30_000 });
+    // The bubble renders the reply as markdown, which drops the literal
+    // `<base64>` as an unknown tag; the exact text is asserted on the wire below.
+    await expect(page.locator('.message--assistant').last())
+      .toContainText(`Got plain text: ${prompt}`, { timeout: 30_000 });
 
     expect(notLongPolling, 'every chat request must ride long-polling').toEqual([]);
 
@@ -496,8 +479,22 @@ test.describe('Quarkus AI Chat', () => {
     // the WebSocket delivered.
     await expect.poll(() => frameKinds(parseFrames(lpBodies.join('\n'))),
       { timeout: 10_000 }).toEqual(wsKinds);
+    // Every frame, not only the first: the whole reply text and its terminal frame.
+    const lpFrames = parseFrames(lpBodies.join('\n'));
+    expect(lpFrames.map(frameText).join(''),
+      'the long-polling responses must carry the whole reply').toBe(reply);
+    expect(frameKinds(lpFrames).at(-1), 'the reply must end with its terminal frame').toBe('complete');
   });
 });
+
+/** The reply text a frame carries: a text-delta's text or a streaming-text's data, else nothing. */
+function frameText(e: StreamingEvent): string {
+  if (e.event === 'text-delta') {
+    const d = e.data as Record<string, unknown> | undefined;
+    return typeof d?.text === 'string' ? d.text : '';
+  }
+  return e.type === 'streaming-text' && typeof e.data === 'string' ? e.data : '';
+}
 
 /** Kinds of AI frames, in order: the AiEvent name when present, else the legacy type. */
 function frameKinds(events: StreamingEvent[]): string[] {

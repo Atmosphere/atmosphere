@@ -107,12 +107,13 @@ public final class StreamingSessionSweeper {
         return SWEEPER.get() != null;
     }
 
-    /** One sweep pass over both registries. Visible for testing. */
+    /** One sweep pass over both registries and the parked long-polling replies. Visible for testing. */
     static void sweep() {
         try {
             var ttl = ttlMs();
             var reaped = DefaultStreamingSession.sweepExpired(ttl)
                     + AiStreamingSession.sweepExpired(ttl);
+            LongPollingReplies.sweepExpired();
             if (reaped > 0) {
                 logger.info("Reaped {} expired AI streaming session(s) idle longer than {} ms", reaped, ttl);
             }

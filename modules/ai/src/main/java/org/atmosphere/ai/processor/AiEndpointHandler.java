@@ -24,6 +24,7 @@ import org.atmosphere.ai.AiStreamingSession;
 import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.ContextProvider;
 import org.atmosphere.ai.DefaultStreamingSession;
+import org.atmosphere.ai.LongPollingReplies;
 import org.atmosphere.ai.PostPromptHook;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.StreamingSessionSweeper;
@@ -46,6 +47,7 @@ import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.AtmosphereResourceHeartbeatEventListener;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.BroadcastFilter;
@@ -63,6 +65,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -102,7 +105,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * onto the request, so it holds what the auth layer established. A prompt
      * runs only on a connection whose identity is its sender's.
      */
-    static final String CONNECTION_OWNER_ATTRIBUTE = "org.atmosphere.ai.connectionOwner";
+    static final String CONNECTION_OWNER_ATTRIBUTE = LongPollingReplies.CONNECTION_OWNER_ATTRIBUTE;
 
     /**
      * Identity of a request whose servlet principal could not be read: equal to
@@ -470,6 +473,16 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             return;
         }
 
+        // A long-polling reply that ended while the client was between polls, or
+        // that resumed its last poll to be fetched: this poll is answered with it,
+        // as a plain response, and is not suspended.
+        if (resource.transport() == AtmosphereResource.TRANSPORT.LONG_POLLING
+                && resource instanceof AtmosphereResourceImpl
+                && LongPollingReplies.deliver(resource,
+                        parkedOwner -> sameIdentity(parkedOwner, resource.getRequest()), this::writeParkedReply)) {
+            return;
+        }
+
         // Initial connection: suspend the resource.
         if (resource.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
                 || resource.transport() == AtmosphereResource.TRANSPORT.SSE
@@ -498,11 +511,26 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             // to THIS resource so the client catches up on what it missed
             // mid-stream. Silent no-op when the attr is absent (fresh
             // connection) or the run is unknown (expired or never existed).
-            reattachPendingRun(resource);
+            // The poll of a long-polling client whose reply is still running, or
+            // waits for its next poll, is not a reconnection: that reply reaches it
+            // in full, and replaying the run here would hand it the frames twice.
+            if (resource.transport() != AtmosphereResource.TRANSPORT.LONG_POLLING
+                    || !LongPollingReplies.inFlight(resource.uuid())
+                    && !LongPollingReplies.hasParked(resource.uuid(), parkedOwner -> true)) {
+                reattachPendingRun(resource);
+            }
             // Last: the connection now carries its path params and system prompt,
             // so a prompt that waited for it may be dispatched to it.
             if (resource.isSuspended()) {
                 repollGate.connectionReady(resource.uuid());
+            }
+            // A reply parked after this poll looked for one and before it was
+            // suspended found no poll to resume: resume this one, empty, so the
+            // client comes back for the reply now rather than at the poll's timeout.
+            if (resource.transport() == AtmosphereResource.TRANSPORT.LONG_POLLING
+                    && resource.isSuspended() && LongPollingReplies.hasParked(resource.uuid(),
+                            parkedOwner -> sameIdentity(parkedOwner, resource.getRequest()))) {
+                resource.resume();
             }
         }
     }
@@ -1280,6 +1308,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             memory.clear(uuid);
         }
         DefaultStreamingSession.cleanupResource(uuid);
+        // After the sessions are closed, so none of them parks a reply for the
+        // departed client once its parked one is dropped.
+        LongPollingReplies.discard(uuid);
         AiStreamingSession.removeAllForResource(uuid);
         // Session tape: cancel-mark every open taped run of this resource
         // (reconnects get a fresh uuid, so this never races a live run). The
@@ -1509,6 +1540,23 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         }
         var headerUuid = headerTrackingId(req);
         return headerUuid != null ? resolveTrackingId(resource, headerUuid) : null;
+    }
+
+    /**
+     * Writes a long-polling reply's parked frames to {@code poll}, a poll this
+     * handler answers without suspending it, each frame through the AsyncIOWriter
+     * chain on its own (so each is length-delimited). The poll is then marked
+     * answered ({@link Action#CANCELLED}, as the protocol handshake answers its
+     * request), so no interceptor suspends it after this handler returns
+     * ({@code AtmosphereResourceLifecycleInterceptor} suspends every GET left
+     * unsuspended, long-polling included) and the container completes it.
+     */
+    private void writeParkedReply(AtmosphereResource poll, List<String> frames) throws IOException {
+        var impl = (AtmosphereResourceImpl) poll;
+        var event = new AtmosphereResourceEventImpl(impl);
+        event.setMessage(new ArrayList<>(frames));
+        writeThrough(event, poll);
+        impl.setAction(Action.CANCELLED);
     }
 
     /**

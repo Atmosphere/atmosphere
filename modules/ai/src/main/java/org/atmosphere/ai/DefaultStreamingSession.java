@@ -18,11 +18,16 @@ package org.atmosphere.ai;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.BroadcastFilter;
+import org.atmosphere.cpr.ClusterBroadcastFilter;
 import org.atmosphere.cpr.RawMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -47,6 +52,13 @@ import java.util.concurrent.atomic.AtomicLong;
  * handler upstream, so the model runs exactly once regardless of room size.
  * For a broadcaster-only session with no originating resource, use
  * {@link BroadcasterStreamingSession}.</p>
+ *
+ * <p>A session whose originating resource is a long-polling poll does not
+ * stream: a poll is answered by the first frame written to it. Its frames run
+ * through the broadcaster's filters as they are produced, are kept in a bounded
+ * buffer, and are handed over complete, at the terminal frame and at an
+ * {@code approval-required} frame, to the client's next poll; see
+ * {@link LongPollingReplies}.</p>
  *
  * <p>Wire protocol:</p>
  * <pre>
@@ -73,6 +85,16 @@ public final class DefaultStreamingSession implements StreamingSession {
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final AtomicBoolean errored = new AtomicBoolean(false);
     private final AtomicLong sequence = new AtomicLong(0);
+    /** The reply kept for a long-polling client, or {@code null} when the session streams. */
+    private final LongPollingReplies.Buffer longPolling;
+    /** The identity the long-polling connection was suspended under; its reply goes only to it. */
+    private final Object longPollingOwner;
+    /** Guards {@link #longPolling} while a frame runs through the filters and is buffered. */
+    private final Object longPollingLock = new Object();
+    /** Frames a filter deferred while the frame being buffered ran through it. */
+    private final ArrayList<String> deferredFrames = new ArrayList<>();
+    /** Bounds the frames filters may defer past one frame. */
+    private static final int MAX_DEFERRAL_ROUNDS = 8;
     /**
      * Last outbound-activity timestamp (epoch millis), refreshed on every
      * broadcast so {@link #sweepExpired} never reaps a session that is still
@@ -94,6 +116,14 @@ public final class DefaultStreamingSession implements StreamingSession {
         this.sessionId = sessionId;
         this.resource = resource;
         this.broadcastToRoom = broadcastToRoom;
+        if (!broadcastToRoom && isLongPolling(resource)) {
+            this.longPolling = new LongPollingReplies.Buffer(resource.uuid(),
+                    LongPollingReplies.Limits.of(resource.getAtmosphereConfig()));
+            this.longPollingOwner = connectionOwner(resource);
+        } else {
+            this.longPolling = null;
+            this.longPollingOwner = null;
+        }
         SESSION_RESOURCES.put(sessionId, resource);
         SESSION_INSTANCES.put(sessionId, this);
         StreamingSessionSweeper.ensureStarted();
@@ -138,6 +168,24 @@ public final class DefaultStreamingSession implements StreamingSession {
             return Optional.of(new Delivery(session.resource, session.broadcastToRoom));
         }
         return TOPIC_TERMINALS.contains(sessionId) ? Optional.of(new Delivery(null, true)) : Optional.empty();
+    }
+
+    /**
+     * Keep {@code message}, a frame a broadcast filter defers past the frame it is
+     * filtering, in the reply of a long-polling session that is buffering that
+     * frame on this thread, after the frame itself.
+     *
+     * @return {@code false} when no long-polling session of {@code sessionId} is
+     * buffering a frame on this thread; the caller then delivers the frame itself
+     */
+    public static boolean deferForLongPolling(String sessionId, RawMessage message) {
+        var session = sessionId != null ? SESSION_INSTANCES.get(sessionId) : null;
+        if (session == null || session.longPolling == null || message == null || message.message() == null
+                || !Thread.holdsLock(session.longPollingLock)) {
+            return false;
+        }
+        session.deferredFrames.add(message.message().toString());
+        return true;
     }
 
     /**
@@ -186,6 +234,7 @@ public final class DefaultStreamingSession implements StreamingSession {
                     && session.closed.compareAndSet(false, true)) {
                 SESSION_INSTANCES.remove(entry.getKey(), session);
                 SESSION_RESOURCES.remove(entry.getKey(), session.resource);
+                session.closeLongPolling();
             }
         }
     }
@@ -213,6 +262,7 @@ public final class DefaultStreamingSession implements StreamingSession {
                     && session.closed.compareAndSet(false, true)) {
                 SESSION_INSTANCES.remove(entry.getKey(), session);
                 SESSION_RESOURCES.remove(entry.getKey());
+                session.closeLongPolling();
                 removed++;
                 logger.debug("Swept idle streaming session {}", entry.getKey());
             }
@@ -321,6 +371,10 @@ public final class DefaultStreamingSession implements StreamingSession {
                     return;
                 }
                 broadcast(buildEventMessage(event));
+                if (longPolling != null && event instanceof AiEvent.ApprovalRequired) {
+                    // The run waits for the client's answer: hand the reply so far over now.
+                    flushLongPolling();
+                }
             }
         }
     }
@@ -400,9 +454,158 @@ public final class DefaultStreamingSession implements StreamingSession {
     private void broadcastTerminal(String json) {
         try {
             broadcast(json);
+            if (longPolling != null) {
+                flushLongPolling();
+            }
         } finally {
+            closeLongPolling();
             SESSION_RESOURCES.remove(sessionId);
             SESSION_INSTANCES.remove(sessionId);
+        }
+    }
+
+    private static boolean isLongPolling(AtmosphereResource resource) {
+        try {
+            return resource.transport() == AtmosphereResource.TRANSPORT.LONG_POLLING;
+        } catch (RuntimeException e) {
+            logger.trace("Unable to read the transport of {}", resource, e);
+            return false;
+        }
+    }
+
+    /** The identity the connection was suspended under, or {@code null} for none or an unreadable request. */
+    private static Object connectionOwner(AtmosphereResource resource) {
+        try {
+            var request = resource.getRequest();
+            return request != null ? request.getAttribute(LongPollingReplies.CONNECTION_OWNER_ATTRIBUTE) : null;
+        } catch (RuntimeException e) {
+            // Read as anonymous: a poll carrying an authenticated principal is then never handed the reply.
+            logger.trace("Unable to read the owner of {}", resource.uuid(), e);
+            return null;
+        }
+    }
+
+    /**
+     * Run {@code json} through the broadcaster's filters, as a broadcast would,
+     * and keep what they let through, followed by the frames they deferred past
+     * it, in the long-polling reply. A frame that takes the reply past its
+     * bounds ends the session with an error frame in place of its frames.
+     */
+    private void bufferForLongPolling(String json) {
+        synchronized (longPollingLock) {
+            if (longPolling.isClosed()) {
+                logger.debug("Dropping a frame of session {}: its long-polling reply was closed", sessionId);
+                return;
+            }
+            List<BroadcastFilter> filters;
+            try {
+                filters = broadcastFilters();
+            } catch (RuntimeException e) {
+                // Fail closed, as the streaming path does when broadcast throws:
+                // a frame its filters cannot see is never delivered.
+                logger.warn("Unable to read the broadcast filters of session {}; ending its long-polling reply",
+                        sessionId, e);
+                failLongPolling("The reply could not be filtered for delivery over long-polling");
+                return;
+            }
+            var broadcasterId = broadcasterId();
+            var pending = new ArrayDeque<String>();
+            pending.add(json);
+            var rounds = 0;
+            while (!pending.isEmpty()) {
+                var filtered = org.atmosphere.ai.resume.RunReattachSupport.applyFilters(
+                        filters, broadcasterId, pending.poll());
+                if (filtered != null && !longPolling.add(filtered)) {
+                    deferredFrames.clear();
+                    logger.warn("The long-polling reply of session {} exceeds {} bytes, {} frames or the {} bytes"
+                                    + " all long-polling replies may hold; ending it with an error frame", sessionId,
+                            longPolling.limits().maxReplyBytes(), longPolling.limits().maxReplyFrames(),
+                            longPolling.limits().maxBufferedBytes());
+                    failLongPolling("The reply is too large to be delivered over long-polling");
+                    return;
+                }
+                if (!deferredFrames.isEmpty()) {
+                    if (++rounds > MAX_DEFERRAL_ROUNDS) {
+                        logger.warn("Filters of {} kept deferring frames of session {}; dropping {} of them",
+                                broadcasterId, sessionId, deferredFrames.size());
+                    } else {
+                        pending.addAll(deferredFrames);
+                    }
+                    deferredFrames.clear();
+                }
+            }
+        }
+    }
+
+    /** Hand the frames buffered so far over to the client's next poll. */
+    private void flushLongPolling() {
+        synchronized (longPollingLock) {
+            if (longPolling.isClosed()) {
+                return;
+            }
+            LongPollingReplies.park(resource, longPolling.trackingId(), longPollingOwner,
+                    longPolling.drain(), longPolling.limits());
+            if (longPolling.isClosed()) {
+                // Cleaned up while handing over: the client is gone, so is its reply.
+                LongPollingReplies.discard(longPolling.trackingId());
+            }
+        }
+    }
+
+    /**
+     * The reply cannot be delivered (it outgrew a bound, or its frames cannot be
+     * filtered): drop its frames, end the session, and hand the client an error
+     * frame carrying {@code clientMessage} in their place, so it is told rather
+     * than left with a reply that never completes.
+     */
+    private void failLongPolling(String clientMessage) {
+        if (longPolling.isClosed()) {
+            // Cleaned up or reaped meanwhile: nobody is left to tell.
+            return;
+        }
+        closed.set(true);
+        errored.set(true);
+        longPolling.discardFrames();
+        var error = buildMessage("error", clientMessage);
+        LongPollingReplies.park(resource, longPolling.trackingId(), longPollingOwner,
+                new LongPollingReplies.Batch(List.of(error), 0), longPolling.limits());
+        closeLongPolling();
+        SESSION_RESOURCES.remove(sessionId);
+        SESSION_INSTANCES.remove(sessionId);
+    }
+
+    private void closeLongPolling() {
+        if (longPolling != null) {
+            longPolling.close();
+        }
+    }
+
+    /**
+     * The broadcaster's filters a unicast frame runs through, cluster filters
+     * excepted (a broadcast to chosen resources skips them too); throws when the
+     * broadcaster cannot be read.
+     */
+    private List<BroadcastFilter> broadcastFilters() {
+        var broadcaster = resource.getBroadcaster();
+        if (broadcaster == null) {
+            throw new IllegalStateException("no broadcaster");
+        }
+        var filters = new ArrayList<BroadcastFilter>();
+        for (var filter : broadcaster.getBroadcasterConfig().filters()) {
+            if (!(filter instanceof ClusterBroadcastFilter)) {
+                filters.add(filter);
+            }
+        }
+        return filters;
+    }
+
+    private String broadcasterId() {
+        try {
+            var broadcaster = resource.getBroadcaster();
+            return broadcaster != null ? broadcaster.getID() : sessionId;
+        } catch (RuntimeException e) {
+            logger.trace("Unable to read the broadcaster of session {}", sessionId, e);
+            return sessionId;
         }
     }
 
@@ -410,6 +613,10 @@ public final class DefaultStreamingSession implements StreamingSession {
         // Every outbound frame refreshes the TTL clock so the sweeper never
         // reaps a session that is actively streaming.
         lastActivityMillis = System.currentTimeMillis();
+        if (longPolling != null) {
+            bufferForLongPolling(json);
+            return;
+        }
         // Wrap in RawMessage so ManagedAtmosphereHandler.onStateChange()
         // delivers the JSON as-is without re-invoking @Message handlers.
         try {

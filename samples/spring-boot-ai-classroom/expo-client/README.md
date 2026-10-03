@@ -129,7 +129,7 @@ server.
 | Transport | Status |
 |-----------|--------|
 | WebSocket | Full support (primary) |
-| Long-Polling | Fallback only: an `@AiEndpoint` reply is not yet delivered reliably over it (see below) |
+| Long-Polling | Fallback: an `@AiEndpoint` reply arrives whole, not streamed (see below) |
 | SSE | Via polyfill (ReadableStream on RN 0.73+) |
 | Streaming | Requires ReadableStream (RN 0.73+) |
 
@@ -137,7 +137,7 @@ The app subscribes with `enableProtocol: true`. Over WebSocket it is not needed,
 but once the client falls back to long-polling every question is its own HTTP
 POST, and the server routes it to the asking connection by the tracking id the
 protocol handshake assigned. With the protocol off the POST carries id `0`, which
-names no connection, and the `@AiEndpoint` answers `400`. Long-polling still
-does not carry an `@AiEndpoint` reply reliably, so treat it as a last resort (see
-"Prompt routing over HTTP transports" in
+names no connection, and the `@AiEndpoint` answers `400`. Over long-polling an
+`@AiEndpoint` reply is not streamed: it arrives whole, in one poll response, once
+it ends (see "Prompt routing over HTTP transports" in
 [`modules/ai/README.md`](../../../modules/ai/README.md)).

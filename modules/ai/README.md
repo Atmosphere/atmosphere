@@ -630,10 +630,24 @@ for an `@AiEndpoint`. A WebSocket subscription whose `fallbackTransport` is one 
 too, since the fallback carries the prompts once it takes over: the classroom sample's Expo client
 (`samples/spring-boot-ai-classroom/expo-client`) sets it for its long-polling fallback.
 
-Long-polling routes the prompt but does not yet carry the reply: the first reply
-frame completes the poll the prompt was dispatched to, and the frames after it
-(the streamed text, `complete`, `error`) are not delivered to the client's next
-poll. Use WebSocket, SSE or streaming for an `@AiEndpoint`.
+A reply over long-polling is delivered whole, not streamed: a poll is answered
+by the first frame written to it. The session runs each frame through the
+broadcaster's filters (cluster filters excepted) as it is produced and keeps it;
+at the terminal frame, and at an `approval-required` frame (the run then waits
+for the client's answer), it hands the frames so far over: the client's waiting
+poll returns empty and its next poll receives every frame, length-delimited, in
+one response. Only a poll carrying the identity the prompt was sent under
+receives them. WebSocket, SSE and streaming keep streaming frame by frame. A
+reply that outgrows a bound ends with an `error` frame in place of its frames;
+one no poll takes within its time to live is dropped.
+
+| Init-param | Default | Meaning |
+|---|---|---|
+| `org.atmosphere.ai.longPolling.maxReplyBytes` | `8388608` (8 MiB) | UTF-8 bytes of one long-polling reply |
+| `org.atmosphere.ai.longPolling.maxReplyFrames` | `10000` | Frames of one long-polling reply |
+| `org.atmosphere.ai.longPolling.maxBufferedBytes` | `268435456` (256 MiB) | Bytes of every long-polling reply buffered or waiting for a poll, across the JVM |
+| `org.atmosphere.ai.longPolling.maxParkedReplies` | `1024` | Clients with a reply waiting for their next poll |
+| `org.atmosphere.ai.longPolling.parkedReplyTtlMs` | `120000` | How long a reply waits for its client's next poll |
 
 | Init-param | Default | Meaning |
 |---|---|---|

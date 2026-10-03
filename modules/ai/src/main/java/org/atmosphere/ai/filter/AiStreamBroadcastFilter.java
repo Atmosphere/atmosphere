@@ -80,6 +80,11 @@ public abstract class AiStreamBroadcastFilter implements BroadcastFilterLifecycl
      * @param message       the deferred stream-end frame
      */
     protected void deferStreamEnd(String broadcasterId, String sessionId, RawMessage message) {
+        // A long-polling session filters its frames itself, as it buffers them:
+        // the deferred frame joins its reply right after the one being filtered.
+        if (DefaultStreamingSession.deferForLongPolling(sessionId, message)) {
+            return;
+        }
         var delivery = DefaultStreamingSession.deliveryForSession(sessionId).orElse(null);
         if (delivery == null) {
             logger.warn("Dropping the deferred stream-end frame of session {} on {}: no live session"
