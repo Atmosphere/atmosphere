@@ -1431,7 +1431,14 @@
         <logback-version>1.5.37</logback-version>
         <commons-pool2>2.12.0</commons-pool2>
         <junit-jupiter.version>5.11.4</junit-jupiter.version>
-        <jackson.version>3.2.1</jackson.version>
+        <jackson.version>3.2.3</jackson.version>
+        <!-- Jackson 3 line for the Spring Boot 4 modules and samples, which import
+             tools.jackson:jackson-bom ahead of spring-boot-dependencies to override
+             Boot 4.1.x's managed 3.1 line (4.1.0: 3.1.4, 4.1.1: 3.1.5). 3.1.7 closes
+             GHSA-7hhh-6rmp-j9qf, GHSA-cxp5-3px4-pw24, GHSA-gx83-3vf8-gh7j,
+             GHSA-p6pp-m3f8-5c89, GHSA-q4xh-88c3-wmh7, GHSA-wjgm-6hv5-3cvf and
+             GHSA-wv8q-qhhj-9h54. -->
+        <jackson-boot.version>3.1.7</jackson-boot.version>
         <!-- Mozilla Rhino: pure-Java JS engine backing the optional, default-off
              in-process 'eval' tool (org.atmosphere.ai.code). Sandboxed via a
              deny-all ClassShutter + interpreted-mode instruction budget. -->
@@ -1443,8 +1450,11 @@
              bypasses, @JsonView bypasses, eager-DNS InetSocketAddress) and retains
              the earlier GHSA-72hv-8253-57qq fix. 2.21.x cannot close CVE-2026-54515
              (needs >= 2.21.5, unpublished), so we move to the 2.22 line. 2.22.1
-             closes GHSA-5gvw-p9qm-jgwh on the Jackson 2 side. -->
-        <jackson2.version>2.22.1</jackson2.version>
+             closes GHSA-5gvw-p9qm-jgwh on the Jackson 2 side. 2.22.3 closes the
+             2026-09/10 batch (GHSA-7hhh-6rmp-j9qf, GHSA-cxp5-3px4-pw24,
+             GHSA-gx83-3vf8-gh7j, GHSA-p6pp-m3f8-5c89, GHSA-q4xh-88c3-wmh7,
+             GHSA-wjgm-6hv5-3cvf, GHSA-wv8q-qhhj-9h54). -->
+        <jackson2.version>2.22.3</jackson2.version>
         <jackson-annotations.version>2.22</jackson-annotations.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
         <!-- CVE force-pin properties (entries in the dependencyManagement

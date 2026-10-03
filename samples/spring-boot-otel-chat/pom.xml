@@ -52,14 +52,14 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- tools.jackson pinned one patch above Spring Boot 4.1.0's
-                 managed 3.1.4: 3.1.5 closes GHSA-5gvw-p9qm-jgwh
-                 (jackson-databind DoS). Imported BEFORE spring-boot-dependencies
+            <!-- tools.jackson pinned above Spring Boot 4.1.0's managed
+                 3.1.4 to the patched 3.1 line (root jackson-boot.version).
+                 Imported BEFORE spring-boot-dependencies
                  so Maven's first-declared-wins rule takes the patched line. -->
             <dependency>
                 <groupId>tools.jackson</groupId>
                 <artifactId>jackson-bom</artifactId>
-                <version>3.1.5</version>
+                <version>${jackson-boot.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
