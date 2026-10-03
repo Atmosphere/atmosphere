@@ -42,6 +42,11 @@ import java.io.Reader;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -168,6 +173,126 @@ public class IOUtils {
             }
         }
         return stringBuilder;
+    }
+
+    /**
+     * Reads the request body as text of at most {@code maxBytes} bytes, decoded
+     * strictly with the request's character encoding (UTF-8 when it names none).
+     * A body cached on the request is checked against the same limit. A GET body
+     * is read only when {@link ApplicationConfig#READ_GET_BODY} allows it, as by
+     * {@link #readEntirelyAsString(AtmosphereResource)}. A body the container
+     * already opened as a {@link Reader} is decoded by the container (malformed
+     * bytes replaced, not reported) and measured approximately.
+     *
+     * @return the body, empty when there is none
+     * @throws PayloadTooLargeException when the body is larger than {@code maxBytes};
+     *         a declared {@code Content-Length} over it is refused before any read
+     * @throws java.nio.charset.CharacterCodingException when the body is not valid
+     *         in its character encoding
+     * @throws UnsupportedEncodingException when the request names an unknown
+     *         encoding, or one that only decodes
+     */
+    public static String readEntirelyAsString(AtmosphereResource r, int maxBytes) throws IOException {
+        boolean readGetBody = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.READ_GET_BODY, false);
+        AtmosphereRequest request = r.getRequest();
+        if (!readGetBody && "GET".equalsIgnoreCase(request.getMethod())) {
+            logger.debug("Blocking an I/O read operation from a GET request. To enable GET + body, set {} to true", ApplicationConfig.READ_GET_BODY);
+            return "";
+        }
+        Charset charset = requestCharset(request);
+        AtmosphereRequestImpl.Body body = request.body();
+        if (!body.isEmpty()) {
+            if (body.hasString()) {
+                String cached = body.asString();
+                if (cached.getBytes(charset).length > maxBytes) {
+                    throw new PayloadTooLargeException(maxBytes);
+                }
+                return cached;
+            }
+            if (body.byteLength() > maxBytes) {
+                throw new PayloadTooLargeException(maxBytes);
+            }
+            return decode(body.asBytes(), body.byteOffset(), body.byteLength(), charset);
+        }
+        if (request.getContentLength() > maxBytes) {
+            throw new PayloadTooLargeException(maxBytes);
+        }
+        InputStream in;
+        try {
+            in = request.getInputStream();
+        } catch (IllegalStateException ex) {
+            // The body was opened as a Reader: read characters, bounded by the
+            // bytes they encode to.
+            logger.trace("", ex);
+            return readBounded(request.getReader(), maxBytes, charset);
+        }
+        if (in == null) {
+            return "";
+        }
+        var out = new ByteArrayOutputStream();
+        var buffer = new byte[8192];
+        int read;
+        while ((read = in.read(buffer)) > 0) {
+            if ((long) out.size() + read > maxBytes) {
+                throw new PayloadTooLargeException(maxBytes);
+            }
+            out.write(buffer, 0, read);
+        }
+        return decode(out.toByteArray(), 0, out.size(), charset);
+    }
+
+    /**
+     * Reads a body the container already decoded into a {@link Reader}: its
+     * malformed bytes were replaced by the container, not reported, and its size
+     * is measured by encoding each chunk again, so it is approximate (a byte-order
+     * mark or a surrogate pair split across chunks moves it by a few bytes).
+     */
+    private static String readBounded(Reader reader, int maxBytes, Charset charset) throws IOException {
+        if (reader == null) {
+            return "";
+        }
+        var text = new StringBuilder();
+        var buffer = new char[8192];
+        long bytes = 0;
+        int read;
+        while ((read = reader.read(buffer)) > 0) {
+            bytes += new String(buffer, 0, read).getBytes(charset).length;
+            if (bytes > maxBytes) {
+                throw new PayloadTooLargeException(maxBytes);
+            }
+            text.append(buffer, 0, read);
+        }
+        return text.toString();
+    }
+
+    /** The request's character encoding, UTF-8 when it names none; an unknown one is malformed input. */
+    private static Charset requestCharset(AtmosphereRequest request) throws UnsupportedEncodingException {
+        String encoding = request.getCharacterEncoding();
+        if (encoding == null || encoding.isBlank()) {
+            return StandardCharsets.UTF_8;
+        }
+        Charset charset;
+        try {
+            charset = Charset.forName(encoding.trim());
+        } catch (IllegalArgumentException e) {
+            logger.trace("Unknown request encoding", e);
+            throw new UnsupportedEncodingException(encoding);
+        }
+        if (!charset.canEncode()) {
+            // A decode-only charset (x-JISAutoDetect, ISO-2022-CN) cannot measure
+            // a body in bytes.
+            throw new UnsupportedEncodingException(encoding);
+        }
+        return charset;
+    }
+
+    private static String decode(byte[] bytes, int offset, int length, Charset charset)
+            throws CharacterCodingException {
+        return charset.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT)
+                .decode(ByteBuffer.wrap(bytes, offset, length))
+                .toString();
     }
 
     public static byte[] readEntirelyAsByte(AtmosphereResource r) throws IOException {
