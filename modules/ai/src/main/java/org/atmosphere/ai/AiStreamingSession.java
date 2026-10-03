@@ -1325,13 +1325,17 @@ public class AiStreamingSession implements StreamingSession {
         }
 
         try {
-            // Use the handler's public API: get the handler via the wrapper's
-            // accessor and call onStateChange with a crafted event.
-            var handler = handlerWrapper.atmosphereHandler();
-            var event = new org.atmosphere.cpr.AtmosphereResourceEventImpl(
-                    (org.atmosphere.cpr.AtmosphereResourceImpl) resource);
-            event.setMessage(message);
-            handler.onStateChange(event);
+            // Run the message as a prompt of this connection on the target's
+            // handler, so the target's @Prompt method runs with its own
+            // runtime, tools and pipeline hooks. A broadcast on the target's
+            // path never runs as a prompt, so the handler must take it directly.
+            if (!(handlerWrapper.atmosphereHandler() instanceof HandoffTarget target)) {
+                delegate.error(new IllegalArgumentException(
+                        "Agent '" + agentName + "' at " + targetPath + " cannot accept a handoff"));
+            } else if (!target.acceptHandoff(resource, message)) {
+                delegate.error(new IllegalStateException(
+                        "Handoff to '" + agentName + "' failed: the connection is no longer available"));
+            }
         } catch (Exception e) {
             logger.error("Handoff to '{}' failed", agentName, e);
             delegate.error(e);

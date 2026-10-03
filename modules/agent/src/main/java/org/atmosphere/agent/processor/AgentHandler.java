@@ -48,7 +48,7 @@ import java.util.Map;
  * {@link CommandRouter}; all other messages fall through to the AI pipeline.
  */
 public class AgentHandler extends AbstractReflectorAtmosphereHandler
-        implements AtmosphereResourceHeartbeatEventListener {
+        implements AtmosphereResourceHeartbeatEventListener, org.atmosphere.ai.HandoffTarget {
 
     private static final Logger logger = LoggerFactory.getLogger(AgentHandler.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -187,6 +187,11 @@ public class AgentHandler extends AbstractReflectorAtmosphereHandler
     @Override
     public void onStateChange(AtmosphereResourceEvent event) throws IOException {
         aiDelegate.onStateChange(event);
+    }
+
+    @Override
+    public boolean acceptHandoff(AtmosphereResource resource, String message) {
+        return aiDelegate.acceptHandoff(resource, message);
     }
 
     @Override

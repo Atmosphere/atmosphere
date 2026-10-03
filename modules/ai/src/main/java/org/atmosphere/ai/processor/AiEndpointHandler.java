@@ -76,7 +76,7 @@ import java.util.concurrent.TimeoutException;
  * the standard {@code AsyncIOWriter} interceptor chain.
  */
 public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
-        implements AtmosphereResourceHeartbeatEventListener {
+        implements AtmosphereResourceHeartbeatEventListener, org.atmosphere.ai.HandoffTarget {
 
     /**
      * Request attribute key for the system prompt configured on the {@code @AiEndpoint}.
@@ -736,6 +736,11 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // relayed from another node) is written to the subscribers like any
         // broadcast, and never run as a prompt in every subscriber's session.
         writeThrough(event, resource);
+    }
+
+    @Override
+    public boolean acceptHandoff(AtmosphereResource resource, String message) {
+        return dispatchPrompt(resource, message);
     }
 
     /**
