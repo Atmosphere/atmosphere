@@ -130,8 +130,11 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
         if (Utils.pollableTransport(r.transport()) || r.transport().equals(UNDEFINED) || Utils.webSocketMessage(r)) return;
 
         AtmosphereResourceImpl impl = (AtmosphereResourceImpl) r;
+        // A resource the handler already resumed (a long-poll answered at once) is
+        // done: suspending it again would hold the request until its timeout.
         if ( (force || impl.getRequest(false).getMethod().equalsIgnoreCase(method))
             && !impl.action().equals(Action.CANCELLED)
+            && !impl.isResumed()
             && impl.isInScope()) {
 
             logger.trace("Marking AtmosphereResource {} for suspend operation", r.uuid());

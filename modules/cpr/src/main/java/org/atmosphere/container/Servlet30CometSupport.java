@@ -85,7 +85,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
      * @param req    the {@link AtmosphereRequest}
      * @param res    the {@link AtmosphereResponse}
      */
-    private void suspend(Action action, AtmosphereRequest req, AtmosphereResponse res) {
+    void suspend(Action action, AtmosphereRequest req, AtmosphereResponse res) {
 
         if (!req.isAsyncStarted() && !Utils.webSocketEnabled(req)) {
             AsyncContext asyncContext = req.startAsync(req, res);
@@ -99,6 +99,13 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
                 asyncContext.setTimeout(Integer.MAX_VALUE);
             }
             req.setAttribute(FrameworkConfig.ASYNC_CONTEXT, asyncContext);
+            // A resume that ran after the handler returned and before the async
+            // context existed found nothing to complete: complete it now. A resume
+            // running from here on finds the context through the attribute.
+            var resource = req.resource();
+            if (resource != null && resource.isResumed()) {
+                endAsyncContext(req);
+            }
         }
     }
 

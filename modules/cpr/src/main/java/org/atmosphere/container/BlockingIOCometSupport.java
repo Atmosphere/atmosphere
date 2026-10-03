@@ -112,6 +112,12 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
                         latch.countDown();
                     }
                 });
+                // A resume that ran before the latch was set and the listener added
+                // found neither: release the request instead of parking it until its
+                // timeout.
+                if (resource.isResumed()) {
+                    latch.countDown();
+                }
                 
                 if (action.timeout() != -1) {
                     ok = latch.await(action.timeout(), TimeUnit.MILLISECONDS);

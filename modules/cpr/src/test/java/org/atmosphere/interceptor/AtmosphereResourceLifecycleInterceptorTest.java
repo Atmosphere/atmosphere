@@ -17,6 +17,7 @@ package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,7 +27,9 @@ import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERERESOURCE_INTERCEPTO
 import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERERESOURCE_INTERCEPTOR_TIMEOUT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -110,6 +113,39 @@ class AtmosphereResourceLifecycleInterceptorTest {
 
         Action result = interceptor.inspect(r);
         assertEquals(Action.CONTINUE, result);
+    }
+
+    @Test
+    void postInspectSuspendsAGetTheHandlerLeftUnsuspended() {
+        var r = longPollingGet();
+        when(r.isResumed()).thenReturn(false);
+
+        interceptor.postInspect(r);
+
+        verify(r).suspend(-1L);
+    }
+
+    @Test
+    void postInspectNeverSuspendsAResourceTheHandlerAlreadyResumed() {
+        // A long-poll resumed during onRequest (answered at once) suspended again
+        // would hold its request until the timeout, -1 here: forever.
+        var r = longPollingGet();
+        when(r.isResumed()).thenReturn(true);
+
+        interceptor.postInspect(r);
+
+        verify(r, never()).suspend(anyLong());
+    }
+
+    private static AtmosphereResourceImpl longPollingGet() {
+        AtmosphereResourceImpl r = mock(AtmosphereResourceImpl.class);
+        var request = mock(AtmosphereRequest.class);
+        when(request.getMethod()).thenReturn("GET");
+        when(r.transport()).thenReturn(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        when(r.getRequest(false)).thenReturn(request);
+        when(r.action()).thenReturn(new Action(Action.TYPE.CREATED));
+        when(r.isInScope()).thenReturn(true);
+        return r;
     }
 
     @Test
