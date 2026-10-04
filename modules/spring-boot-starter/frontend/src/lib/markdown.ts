@@ -1,7 +1,41 @@
-import { marked } from 'marked'
+import { Marked } from 'marked'
 import DOMPurify from 'dompurify'
 
-marked.setOptions({ breaks: true, gfm: true })
+const HTML_ESCAPES: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(/[&<>"']/g, (c) => HTML_ESCAPES[c])
+}
+
+/**
+ * Raw HTML in the source (block or inline) is rendered as literal text, not
+ * markup: model replies routinely mention `List<String>`, `<token>` or
+ * `image:<base64>`, which a markdown renderer would otherwise parse as tags
+ * and the sanitizer would then drop, silently losing words from the reply.
+ * After an inline `<pre>`, `<code>`, `<kbd>` or `<script>` marked flags the
+ * following text as already escaped; it is not, since the tag itself is now
+ * text, so the flag is cleared and that text is escaped like any other.
+ */
+const markdown = new Marked({
+  breaks: true,
+  gfm: true,
+  walkTokens(token) {
+    if (token.type === 'text' && token.escaped) {
+      token.escaped = false
+    }
+  },
+  renderer: {
+    html({ text }) {
+      return escapeHtml(text)
+    },
+  },
+})
 
 /**
  * Render untrusted markdown (LLM output, tool results, user messages) to
@@ -13,6 +47,6 @@ marked.setOptions({ breaks: true, gfm: true })
  * emits `<img src=x onerror=...>` would execute script in the console origin.
  */
 export function renderMarkdown(text: string | null | undefined): string {
-  const html = marked.parse(text ?? '', { async: false }) as string
+  const html = markdown.parse(text ?? '', { async: false }) as string
   return DOMPurify.sanitize(html)
 }

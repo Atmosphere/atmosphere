@@ -468,10 +468,9 @@ test.describe('Quarkus AI Chat', () => {
 
     await page.getByTestId('chat-input').fill(prompt);
     await page.getByTestId('chat-send').click();
-    // The bubble renders the reply as markdown, which drops the literal
-    // `<base64>` as an unknown tag; the exact text is asserted on the wire below.
+    // The whole reply, `<base64>` included: the bubble renders raw HTML as text.
     await expect(page.locator('.message--assistant').last())
-      .toContainText(`Got plain text: ${prompt}`, { timeout: 30_000 });
+      .toContainText(reply, { timeout: 30_000 });
 
     expect(notLongPolling, 'every chat request must ride long-polling').toEqual([]);
 

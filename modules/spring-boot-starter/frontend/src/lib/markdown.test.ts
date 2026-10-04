@@ -2,6 +2,13 @@
 import { describe, it, expect } from 'vitest'
 import { renderMarkdown } from './markdown'
 
+/** Parse the rendered HTML the way `v-html` would, to assert on the DOM it builds. */
+function dom(html: string): HTMLElement {
+  const div = document.createElement('div')
+  div.innerHTML = html
+  return div
+}
+
 /**
  * Regression for the console XSS: chat messages and tool results are LLM/tool
  * output rendered via `v-html`, previously through `marked.parse` with no
@@ -12,12 +19,13 @@ describe('renderMarkdown sanitization', () => {
   it('strips <script> tags', () => {
     const out = renderMarkdown('text before <script>alert(1)</script> text after')
     expect(out).not.toContain('<script')
-    expect(out).not.toContain('alert(1)')
+    expect(dom(out).querySelector('script')).toBeNull()
   })
 
   it('strips inline event-handler attributes (onerror)', () => {
     const out = renderMarkdown('<img src=x onerror="alert(document.cookie)">')
-    expect(out.toLowerCase()).not.toContain('onerror')
+    expect(out.toLowerCase()).not.toContain('<img')
+    expect(dom(out).querySelector('[onerror]')).toBeNull()
   })
 
   it('strips javascript: URLs', () => {
@@ -40,5 +48,32 @@ describe('renderMarkdown sanitization', () => {
   it('handles null/undefined input safely', () => {
     expect(renderMarkdown(null)).toBe('')
     expect(renderMarkdown(undefined)).toBe('')
+  })
+})
+
+describe('renderMarkdown raw HTML in the source', () => {
+  it('renders angle-bracket placeholders and generic types verbatim', () => {
+    const reply = "MultiModalAgent accepts 'image:<base64>' prompts. Use List<String> here."
+    expect(dom(renderMarkdown(reply)).textContent).toContain(reply)
+  })
+
+  it('renders an HTML block as text, not markup', () => {
+    const out = dom(renderMarkdown('<div class="x">\n<b>hi</b>\n</div>'))
+    expect(out.querySelector('div, b')).toBeNull()
+    expect(out.textContent).toContain('<b>hi</b>')
+  })
+
+  it('renders inline HTML as text alongside markdown formatting', () => {
+    const out = dom(renderMarkdown('**bold** <em>not em</em> and `<code-span>`'))
+    expect(out.querySelector('strong')?.textContent).toBe('bold')
+    expect(out.querySelector('em')).toBeNull()
+    expect(out.textContent).toContain('<em>not em</em>')
+    expect(out.querySelector('code')?.textContent).toBe('<code-span>')
+  })
+
+  it('keeps text after an inline <code> or <pre> tag verbatim', () => {
+    for (const reply of ['Wrap it in <code> then Map<K, V> ok', 'see <pre> then Map<K, V> ok']) {
+      expect(dom(renderMarkdown(reply)).textContent).toContain(reply)
+    }
   })
 })
