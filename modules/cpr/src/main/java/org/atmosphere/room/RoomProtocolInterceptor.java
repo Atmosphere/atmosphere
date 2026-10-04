@@ -16,6 +16,7 @@
 package org.atmosphere.room;
 
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -28,10 +29,15 @@ import org.atmosphere.room.auth.RoomAuthorizer;
 import org.atmosphere.room.protocol.RoomProtocolCodec;
 import org.atmosphere.room.protocol.RoomProtocolMessage;
 import org.atmosphere.util.IOUtils;
+import org.atmosphere.util.ReaderInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.SequenceInputStream;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Optional;
@@ -63,8 +69,20 @@ public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(RoomProtocolInterceptor.class);
 
+    /**
+     * Init-param: the largest HTTP request body, in bytes, read as a room
+     * command. This interceptor sees every POST; a longer body is left unread for
+     * the handler. WebSocket frames are bounded by the container's WebSocket
+     * message size instead.
+     */
+    public static final String MAX_BODY_BYTES_PARAM = "org.atmosphere.room.protocol.maxBytes";
+
+    /** Default {@link #MAX_BODY_BYTES_PARAM}: 1 MiB. */
+    static final int DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
+
     private RoomManager roomManager;
     private RoomAuthorizer authorizer;
+    private int maxBodyBytes = DEFAULT_MAX_BODY_BYTES;
 
     /**
      * One {@link DropAnnouncer} per (resource, room) membership, keyed by
@@ -83,6 +101,7 @@ public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public void configure(AtmosphereConfig config) {
         this.roomManager = RoomManager.getOrCreate(config.framework());
+        this.maxBodyBytes = maxBodyBytes(config);
 
         // Scan for @RoomAuth on registered AtmosphereHandler classes
         scanAuthorizer(config);
@@ -403,6 +422,18 @@ public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
         if (body != null && body.hasString()) {
             return body.asString();
         }
+        if (body != null && !body.isEmpty()) {
+            // Bytes another interceptor already cached: in memory, nothing left to read.
+            if (body.byteLength() > maxBodyBytes) {
+                return null;
+            }
+            try {
+                return IOUtils.readEntirelyAsString(r).toString();
+            } catch (IOException e) {
+                logger.debug("Failed to read request body: {}", e.getMessage());
+                return null;
+            }
+        }
 
         // Fall back to reading from input stream (HTTP).
         //
@@ -413,18 +444,62 @@ public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
         // SSE never reaches the annotated method at all, while the same message
         // over WebSocket works because there the body is already cached.
         // HeartbeatInterceptor puts back the bytes it peeks at for the same reason.
+        //
+        // This interceptor sees every POST, not only room commands, so it reads at
+        // most maxBodyBytes + 1 bytes: a longer body is not a room command and is
+        // put back unread for the handler, which applies its own limit.
+        boolean readGetBody = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.READ_GET_BODY, false);
+        if (!readGetBody && "GET".equalsIgnoreCase(request.getMethod())) {
+            return null;
+        }
+        if (request.getContentLength() > maxBodyBytes) {
+            return null;
+        }
         try {
-            var sb = IOUtils.readEntirelyAsString(r);
-            if (sb.length() == 0) {
+            InputStream stream;
+            try {
+                stream = request.getInputStream();
+            } catch (IllegalStateException ex) {
+                logger.trace("", ex);
+                var reader = request.getReader();
+                stream = reader != null ? new ReaderInputStream(reader) : null;
+            }
+            if (stream == null) {
                 return null;
             }
-            var content = sb.toString();
+            byte[] head = stream.readNBytes(maxBodyBytes + 1);
+            if (head.length > maxBodyBytes) {
+                request.body(new SequenceInputStream(new ByteArrayInputStream(head), stream));
+                logger.debug("Body of {} is larger than {} bytes: not a room command", r.uuid(), maxBodyBytes);
+                return null;
+            }
+            if (head.length == 0) {
+                return null;
+            }
+            var content = new String(head, Charset.defaultCharset());
             request.body(content);
             return content;
         } catch (IOException e) {
             logger.debug("Failed to read request body: {}", e.getMessage());
             return null;
         }
+    }
+
+    private static int maxBodyBytes(AtmosphereConfig config) {
+        String value = config.getInitParameter(MAX_BODY_BYTES_PARAM);
+        if (value == null) {
+            return DEFAULT_MAX_BODY_BYTES;
+        }
+        try {
+            int max = Integer.parseInt(value.trim());
+            if (max > 0 && max < Integer.MAX_VALUE) {
+                return max;
+            }
+        } catch (NumberFormatException e) {
+            logger.trace("", e);
+        }
+        logger.warn("{}={} is not a usable size, using {}", MAX_BODY_BYTES_PARAM, value, DEFAULT_MAX_BODY_BYTES);
+        return DEFAULT_MAX_BODY_BYTES;
     }
 
     private void scanAuthorizer(AtmosphereConfig config) {

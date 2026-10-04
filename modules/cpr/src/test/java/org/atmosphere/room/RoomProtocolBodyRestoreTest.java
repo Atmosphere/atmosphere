@@ -15,6 +15,7 @@
  */
 package org.atmosphere.room;
 
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -33,11 +34,17 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 
 /**
  * Pins that this interceptor leaves the request body readable for whoever runs next.
@@ -133,5 +140,98 @@ class RoomProtocolBodyRestoreTest {
         assertTrue(request.body().hasString(),
                 "the restore must not depend on whether the body parsed as a command");
         assertEquals(payload, request.body().asString());
+    }
+
+    private void limitBodyTo(int maxBytes) {
+        var limited = spy(config);
+        doReturn(String.valueOf(maxBytes)).when(limited).getInitParameter(RoomProtocolInterceptor.MAX_BODY_BYTES_PARAM);
+        interceptor = new RoomProtocolInterceptor();
+        interceptor.configure(limited);
+    }
+
+    @Test
+    void anEndlessPostIsNotReadPastTheLimit() throws Exception {
+        limitBodyTo(1024);
+        // Endless, but it fails a read past 64 KiB rather than exhaust the heap
+        // of a build where the interceptor reads the whole body again.
+        var endless = new InputStream() {
+            long served;
+
+            @Override
+            public int read() throws IOException {
+                if (served > 65_536) {
+                    throw new IOException("read past 64 KiB");
+                }
+                served++;
+                return '{';
+            }
+
+            @Override
+            public int read(byte[] b, int off, int len) throws IOException {
+                if (served > 65_536) {
+                    throw new IOException("read past 64 KiB");
+                }
+                Arrays.fill(b, off, off + len, (byte) '{');
+                served += len;
+                return len;
+            }
+        };
+        var request = new AtmosphereRequestImpl.Builder()
+                .method("POST")
+                .pathInfo("/chat")
+                .inputStream(endless)
+                .build();
+
+        assertEquals(Action.CONTINUE, interceptor.inspect(resourceFor(request)));
+        assertTrue(endless.served <= 1025, "read " + endless.served + " bytes to look for a room command");
+        assertTrue(request.body().isEmpty(), "a body over the limit must not be cached");
+
+        // The bytes it looked at are still there for the handler, ahead of the rest.
+        var next = request.getInputStream().readNBytes(2048);
+        assertArrayEquals("{".repeat(2048).getBytes(StandardCharsets.UTF_8), next);
+    }
+
+    @Test
+    void aDeclaredLengthOverTheLimitIsNotRead() throws Exception {
+        limitBodyTo(16);
+        var payload = "{\"type\":\"join\",\"room\":\"lobby\"}";
+        var request = new AtmosphereRequestImpl.Builder()
+                .method("POST")
+                .pathInfo("/chat")
+                .contentLength((long) payload.length())
+                .inputStream(new ByteArrayInputStream(payload.getBytes(StandardCharsets.UTF_8)))
+                .build();
+
+        assertEquals(Action.CONTINUE, interceptor.inspect(resourceFor(request)));
+        assertEquals(payload, new String(request.getInputStream().readAllBytes(), StandardCharsets.UTF_8),
+                "nothing may be consumed from a body whose declared length is over the limit");
+        assertFalse(RoomManager.getOrCreate(config.framework()).exists("lobby"), "the command must not run");
+    }
+
+    @Test
+    void aCommandAtTheLimitIsHandledAndOneByteOverIsNot() throws Exception {
+        var payload = "{\"type\":\"join\",\"room\":\"lobby\"}";
+        int length = payload.getBytes(StandardCharsets.UTF_8).length;
+
+        limitBodyTo(length);
+        assertEquals(Action.CANCELLED, interceptor.inspect(resourceFor(streamBackedRequest(payload))),
+                "a command exactly at the limit is a room command");
+
+        limitBodyTo(length - 1);
+        var request = streamBackedRequest(payload);
+        assertEquals(Action.CONTINUE, interceptor.inspect(resourceFor(request)));
+        assertEquals(payload, new String(request.getInputStream().readAllBytes(), StandardCharsets.UTF_8),
+                "a body one byte over the limit reaches the handler whole");
+    }
+
+    @Test
+    void anUnreadableLimitFallsBackToTheDefault() throws Exception {
+        var misconfigured = spy(config);
+        doReturn("1MB").when(misconfigured).getInitParameter(RoomProtocolInterceptor.MAX_BODY_BYTES_PARAM);
+        interceptor = new RoomProtocolInterceptor();
+        interceptor.configure(misconfigured);
+
+        var payload = "{\"type\":\"join\",\"room\":\"lobby\"}";
+        assertEquals(Action.CANCELLED, interceptor.inspect(resourceFor(streamBackedRequest(payload))));
     }
 }
