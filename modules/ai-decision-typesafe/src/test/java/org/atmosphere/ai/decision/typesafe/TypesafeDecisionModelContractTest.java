@@ -590,6 +590,11 @@ class TypesafeDecisionModelContractTest {
                     .filter(e -> e.getStackTrace() != null && e.getStackTrace().getFrames().stream()
                             .anyMatch(f -> f.getMethod().getType().getName()
                                     .equals(TypesafeDecisionModel.class.getName())))
+                    // The JDK pins while it initializes a class the probe uses for the
+                    // first time in this JVM (java.net.http on JDK 26), depending on
+                    // test order: that is the class loader's monitor, not the probe's.
+                    .filter(e -> !(e.hasField("pinnedReason")
+                            && String.valueOf(e.getValue("pinnedReason")).contains("<clinit>")))
                     .toList();
             assertEquals(List.of(), pinnedHere, "the probe parked a virtual thread inside a monitor");
             assertEquals(1, stub.hits("/v1/models"));
