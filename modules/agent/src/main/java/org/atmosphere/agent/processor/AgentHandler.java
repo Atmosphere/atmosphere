@@ -28,16 +28,18 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceHeartbeatEventListener;
-import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.config.managed.Decoder;
 import org.atmosphere.config.managed.Encoder;
 import org.atmosphere.cpr.RawMessage;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
+import org.atmosphere.util.PayloadTooLargeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Method;
+import java.nio.charset.CharacterCodingException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -145,10 +147,18 @@ public class AgentHandler extends AbstractReflectorAtmosphereHandler
         }
 
         if ("POST".equalsIgnoreCase(method)) {
-            AtmosphereRequestImpl.Body body = resource.getRequest().body();
-            if (!body.isEmpty()) {
-                var msg = body.hasString() ? body.asString() : new String(body.asBytes());
-
+            // An SSE or long-polling POST arrives unread, a WebSocket frame
+            // cached: read both the way the AI endpoint does, bounded, so a
+            // command or @Message input is routed on every transport. The text
+            // stays cached on the request for the AI endpoint below.
+            String msg;
+            try {
+                msg = AiEndpointHandler.readPrompt(resource);
+            } catch (PayloadTooLargeException | CharacterCodingException | UnsupportedEncodingException e) {
+                aiDelegate.refuseUnreadablePrompt(resource, e);
+                return;
+            }
+            if (msg != null) {
                 // Try command routing first
                 var clientId = resource.uuid();
                 var result = commandRouter.route(clientId, msg);

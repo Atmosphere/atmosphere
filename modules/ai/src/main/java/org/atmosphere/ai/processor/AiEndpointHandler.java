@@ -437,16 +437,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             String msg;
             try {
                 msg = readPrompt(resource);
-            } catch (PayloadTooLargeException e) {
-                logger.warn("Prompt on {} is larger than {} bytes ({}); answering 413",
-                        pathTemplate, e.limit(), MAX_PROMPT_BYTES_PARAM);
-                resource.getResponse().setStatus(413);
-                return;
-            } catch (CharacterCodingException | UnsupportedEncodingException e) {
-                // Not logged with the body: it is untrusted input.
-                logger.warn("Prompt on {} is not valid text in its character encoding; answering 400", pathTemplate);
-                logger.trace("Malformed prompt body", e);
-                resource.getResponse().setStatus(400);
+            } catch (PayloadTooLargeException | CharacterCodingException | UnsupportedEncodingException e) {
+                refuseUnreadablePrompt(resource, e);
                 return;
             }
             if (msg != null) {
@@ -1531,8 +1523,17 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * dropped: the POST answered 200 and the suspended request never received
      * a reply. The read content is cached back on the request for any
      * downstream reader.</p>
+     *
+     * <p>A handler that reads the prompt before delegating here (an
+     * {@code @Agent} routing slash commands) reads it with this method, so the
+     * same bound applies and this endpoint then finds it cached.</p>
+     *
+     * @throws PayloadTooLargeException the body exceeds {@value #MAX_PROMPT_BYTES_PARAM}
+     * @throws CharacterCodingException the body is not valid text in its character encoding
+     * @throws UnsupportedEncodingException the request names an unknown charset, or one that only decodes
+     * @see #refuseUnreadablePrompt(AtmosphereResource, IOException)
      */
-    private static String readPrompt(AtmosphereResource resource) throws IOException {
+    public static String readPrompt(AtmosphereResource resource) throws IOException {
         var request = resource.getRequest();
         if (request.getAttribute(FrameworkConfig.WEBSOCKET_MESSAGE) != null) {
             // A WebSocket frame is already in memory, bounded by the container's
@@ -1549,6 +1550,30 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         }
         request.body(content);
         return content;
+    }
+
+    /**
+     * Answers a POST whose prompt {@link #readPrompt(AtmosphereResource)} could
+     * not read: {@code 413} when it is larger than {@value #MAX_PROMPT_BYTES_PARAM},
+     * {@code 400} when it is not valid text in its character encoding or names a
+     * charset that cannot read it. The prompt is not dispatched.
+     *
+     * @param e one of the exceptions {@link #readPrompt(AtmosphereResource)} throws for
+     *          an unreadable prompt: {@link PayloadTooLargeException},
+     *          {@link CharacterCodingException} or {@link UnsupportedEncodingException};
+     *          any other is answered 400 as well
+     */
+    public void refuseUnreadablePrompt(AtmosphereResource resource, IOException e) {
+        if (e instanceof PayloadTooLargeException tooLarge) {
+            logger.warn("Prompt on {} is larger than {} bytes ({}); answering 413",
+                    pathTemplate, tooLarge.limit(), MAX_PROMPT_BYTES_PARAM);
+            resource.getResponse().setStatus(413);
+        } else {
+            // Not logged with the body: it is untrusted input.
+            logger.warn("Prompt on {} is not valid text in its character encoding; answering 400", pathTemplate);
+            logger.trace("Malformed prompt body", e);
+            resource.getResponse().setStatus(400);
+        }
     }
 
     /** The {@value #MAX_PROMPT_BYTES_PARAM} init-param, else {@link #DEFAULT_MAX_PROMPT_BYTES}. */

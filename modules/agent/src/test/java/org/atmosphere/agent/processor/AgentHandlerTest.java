@@ -29,12 +29,17 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.RawMessage;
+import org.atmosphere.util.PayloadTooLargeException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -261,6 +266,7 @@ public class AgentHandlerTest {
         var request = mock(AtmosphereRequest.class);
         var broadcaster = mock(Broadcaster.class);
         when(resource.getRequest()).thenReturn(request);
+        when(resource.getAtmosphereConfig()).thenReturn(mock(AtmosphereConfig.class));
         when(resource.getBroadcaster()).thenReturn(broadcaster);
         when(resource.uuid()).thenReturn("client-1");
         when(request.getMethod()).thenReturn("POST");
@@ -294,6 +300,7 @@ public class AgentHandlerTest {
         var resource = mock(AtmosphereResource.class);
         var request = mock(AtmosphereRequest.class);
         when(resource.getRequest()).thenReturn(request);
+        when(resource.getAtmosphereConfig()).thenReturn(mock(AtmosphereConfig.class));
         when(resource.uuid()).thenReturn("client-1");
         when(request.getMethod()).thenReturn("POST");
         when(request.body()).thenReturn(new AtmosphereRequestImpl.Body.StringBody("hello"));
@@ -318,6 +325,7 @@ public class AgentHandlerTest {
         var resource = mock(AtmosphereResource.class);
         var request = mock(AtmosphereRequest.class);
         when(resource.getRequest()).thenReturn(request);
+        when(resource.getAtmosphereConfig()).thenReturn(mock(AtmosphereConfig.class));
         when(resource.uuid()).thenReturn("client-1");
         when(request.getMethod()).thenReturn("POST");
         when(request.body()).thenReturn(new AtmosphereRequestImpl.Body.StringBody("hello"));
@@ -340,6 +348,7 @@ public class AgentHandlerTest {
         var resource = mock(AtmosphereResource.class);
         var request = mock(AtmosphereRequest.class);
         when(resource.getRequest()).thenReturn(request);
+        when(resource.getAtmosphereConfig()).thenReturn(mock(AtmosphereConfig.class));
         when(resource.uuid()).thenReturn("client-1");
         when(request.getMethod()).thenReturn("POST");
         when(request.body()).thenReturn(new AtmosphereRequestImpl.Body.StringBody("/echo test"));
@@ -363,6 +372,7 @@ public class AgentHandlerTest {
         var resource = mock(AtmosphereResource.class);
         var request = mock(AtmosphereRequest.class);
         when(resource.getRequest()).thenReturn(request);
+        when(resource.getAtmosphereConfig()).thenReturn(mock(AtmosphereConfig.class));
         when(request.getMethod()).thenReturn("GET");
 
         handler.onRequest(resource);
@@ -409,6 +419,7 @@ public class AgentHandlerTest {
         var resource = mock(AtmosphereResource.class);
         var request = mock(AtmosphereRequest.class);
         when(resource.getRequest()).thenReturn(request);
+        when(resource.getAtmosphereConfig()).thenReturn(mock(AtmosphereConfig.class));
         when(resource.uuid()).thenReturn("client-1");
         when(request.getMethod()).thenReturn("POST");
         when(request.body()).thenReturn(new AtmosphereRequestImpl.Body.StringBody("hello"));
@@ -417,5 +428,123 @@ public class AgentHandlerTest {
 
         // No messageTarget -> AI delegate called
         verify(aiDelegate).onRequest(resource);
+    }
+
+    // ── SSE / long-polling POSTs: the body arrives unread, not cached ──
+
+    private static AtmosphereRequest streamedPost(String body) {
+        return new AtmosphereRequestImpl.Builder().method("POST")
+                .inputStream(new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8))).build();
+    }
+
+    private static AtmosphereResource resourceFor(AtmosphereRequest request, AtmosphereConfig config) {
+        var resource = mock(AtmosphereResource.class);
+        when(resource.getRequest()).thenReturn(request);
+        when(resource.getAtmosphereConfig()).thenReturn(config);
+        when(resource.uuid()).thenReturn("client-1");
+        when(resource.getBroadcaster()).thenReturn(mock(Broadcaster.class));
+        return resource;
+    }
+
+    @Test
+    public void testStreamedCommandIsRouted() throws IOException {
+        var agent = new TestHandlerAgent();
+        var aiDelegate = mock(AiEndpointHandler.class);
+        var registry = new CommandRegistry();
+        registry.scan(TestHandlerAgent.class);
+        var handler = new AgentHandler(aiDelegate, new CommandRouter(registry, agent), agent, null);
+        var resource = resourceFor(streamedPost("/ping"), mock(AtmosphereConfig.class));
+
+        handler.onRequest(resource);
+
+        var written = ArgumentCaptor.forClass(String.class);
+        verify(resource, atLeastOnce()).write(written.capture());
+        assertTrue(written.getAllValues().stream().anyMatch(frame -> frame.contains("pong")),
+                "the /ping command must answer: " + written.getAllValues());
+        verify(aiDelegate, never()).onRequest(any());
+    }
+
+    @Test
+    public void testStreamedMessageReachesMessageMethod() throws IOException {
+        var agent = new MessageAgent();
+        var aiDelegate = mock(AiEndpointHandler.class);
+        var handler = new AgentHandler(aiDelegate, new CommandRouter(new CommandRegistry(), agent), agent, null);
+        var resource = resourceFor(streamedPost("hello world"), mock(AtmosphereConfig.class));
+
+        handler.onRequest(resource);
+
+        assertEquals("hello world", agent.lastReceived.get());
+        verify(aiDelegate, never()).onRequest(any());
+    }
+
+    @Test
+    public void testStreamedPromptStaysReadableForTheAiEndpoint() throws IOException {
+        var agent = new NoMessageAgent();
+        var aiDelegate = mock(AiEndpointHandler.class);
+        var registry = new CommandRegistry();
+        registry.scan(NoMessageAgent.class);
+        var handler = new AgentHandler(aiDelegate, new CommandRouter(registry, agent), agent, null);
+        var request = streamedPost("what is atmosphere?");
+        var resource = resourceFor(request, mock(AtmosphereConfig.class));
+
+        handler.onRequest(resource);
+
+        verify(aiDelegate).onRequest(resource);
+        assertEquals("what is atmosphere?", AiEndpointHandler.readPrompt(resource),
+                "the prompt the agent read must still be there for the AI endpoint");
+    }
+
+    @Test
+    public void testOversizeStreamedPostIsRefusedNotRouted() throws IOException {
+        var agent = new MessageAgent();
+        var aiDelegate = mock(AiEndpointHandler.class);
+        var handler = new AgentHandler(aiDelegate, new CommandRouter(new CommandRegistry(), agent), agent, null);
+        var config = mock(AtmosphereConfig.class);
+        when(config.getInitParameter(AiEndpointHandler.MAX_PROMPT_BYTES_PARAM)).thenReturn("16");
+        var resource = resourceFor(streamedPost("x".repeat(17)), config);
+
+        handler.onRequest(resource);
+
+        verify(aiDelegate).refuseUnreadablePrompt(eq(resource), any(PayloadTooLargeException.class));
+        assertNull(agent.lastReceived.get());
+        verify(aiDelegate, never()).onRequest(any());
+    }
+
+    @Test
+    public void testMalformedStreamedPostIsRefusedNotRouted() throws IOException {
+        var agent = new MessageAgent();
+        var aiDelegate = mock(AiEndpointHandler.class);
+        var handler = new AgentHandler(aiDelegate, new CommandRouter(new CommandRegistry(), agent), agent, null);
+        var request = new AtmosphereRequestImpl.Builder().method("POST")
+                .inputStream(new ByteArrayInputStream(new byte[]{(byte) 0xC3, (byte) 0x28})).build();
+        var resource = resourceFor(request, mock(AtmosphereConfig.class));
+
+        handler.onRequest(resource);
+
+        verify(aiDelegate).refuseUnreadablePrompt(eq(resource), any(CharacterCodingException.class));
+        assertNull(agent.lastReceived.get());
+        verify(aiDelegate, never()).onRequest(any());
+    }
+
+    @Test
+    public void testWebSocketFrameCommandIsRouted() throws IOException {
+        var agent = new TestHandlerAgent();
+        var aiDelegate = mock(AiEndpointHandler.class);
+        var registry = new CommandRegistry();
+        registry.scan(TestHandlerAgent.class);
+        var handler = new AgentHandler(aiDelegate, new CommandRouter(registry, agent), agent, null);
+        var request = mock(AtmosphereRequest.class);
+        when(request.getMethod()).thenReturn("POST");
+        when(request.getAttribute(FrameworkConfig.WEBSOCKET_MESSAGE)).thenReturn("true");
+        when(request.body()).thenReturn(new AtmosphereRequestImpl.Body.StringBody("/ping"));
+        // No AtmosphereConfig: a WebSocket frame is taken as cached, without the HTTP read.
+        var resource = resourceFor(request, null);
+
+        handler.onRequest(resource);
+
+        var written = ArgumentCaptor.forClass(String.class);
+        verify(resource, atLeastOnce()).write(written.capture());
+        assertTrue(written.getAllValues().stream().anyMatch(frame -> frame.contains("pong")));
+        verify(aiDelegate, never()).onRequest(any());
     }
 }
