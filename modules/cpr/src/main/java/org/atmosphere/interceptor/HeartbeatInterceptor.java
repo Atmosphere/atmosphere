@@ -33,11 +33,15 @@ import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.cpr.HeartbeatAtmosphereResourceEvent;
 import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.IOUtils;
+import org.atmosphere.util.ReaderInputStream;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.SequenceInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.concurrent.Future;
@@ -198,7 +202,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
                 byte[] bytes;
                 try {
-                    bytes = IOUtils.forceReadEntirelyAsByte(r);
+                    bytes = body.isEmpty() ? peekBody(request) : IOUtils.forceReadEntirelyAsByte(r);
                 } catch (IOException e) {
                     logger.warn("", e);
                     cancelF(request);
@@ -223,10 +227,6 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                     r.notifyListeners(event);
 
                     return Action.CANCELLED;
-                }
-
-                if (body.isEmpty()) {
-                    request.body(bytes);
                 }
             }
         }
@@ -301,6 +301,39 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         }
 
         return Action.CONTINUE;
+    }
+
+    /**
+     * Reads no more of an unread body than it takes to tell a heartbeat from a
+     * message: {@code paddingBytes.length + 1} bytes. A body that ends within
+     * them is cached on the request whole; a longer one is handed back as the
+     * bytes read followed by the unread rest of the stream, so the handler
+     * reads it (and bounds the read) itself instead of this interceptor
+     * buffering every POST, whatever its size.
+     *
+     * @return the bytes read, at most {@code paddingBytes.length + 1}
+     */
+    private byte[] peekBody(AtmosphereRequest request) throws IOException {
+        InputStream stream;
+        try {
+            stream = request.getInputStream();
+        } catch (IllegalStateException ex) {
+            logger.trace("", ex);
+            var reader = request.getReader();
+            stream = reader != null ? new ReaderInputStream(reader) : null;
+        }
+        if (stream == null) {
+            return new byte[0];
+        }
+
+        int limit = paddingBytes.length + 1;
+        byte[] head = stream.readNBytes(limit);
+        if (head.length == limit) {
+            request.body(new SequenceInputStream(new ByteArrayInputStream(head), stream));
+        } else if (head.length > 0) {
+            request.body(head);
+        }
+        return head;
     }
 
     /**

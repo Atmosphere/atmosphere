@@ -1525,9 +1525,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      *
      * <p>A WebSocket frame arrives with its payload already cached on the
      * request body. A long-polling / SSE / streaming POST arrives as a plain
-     * HTTP request whose entity nothing upstream reads unless an interceptor
-     * happens to (HeartbeatInterceptor does, only when a client heartbeat is
-     * configured) — so without reading it here the prompt was silently
+     * HTTP request whose entity nothing upstream reads whole (with client
+     * heartbeats on, HeartbeatInterceptor reads only the first bytes and puts
+     * them back) — so without reading it here the prompt was silently
      * dropped: the POST answered 200 and the suspended request never received
      * a reply. The read content is cached back on the request for any
      * downstream reader.</p>

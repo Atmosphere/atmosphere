@@ -412,7 +412,7 @@ public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
         // "Stream closed" — which means a chat message sent over long-polling or
         // SSE never reaches the annotated method at all, while the same message
         // over WebSocket works because there the body is already cached.
-        // HeartbeatInterceptor does the same read-then-restore for the same reason.
+        // HeartbeatInterceptor puts back the bytes it peeks at for the same reason.
         try {
             var sb = IOUtils.readEntirelyAsString(r);
             if (sb.length() == 0) {
