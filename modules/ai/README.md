@@ -653,6 +653,7 @@ one no poll takes within its time to live is dropped.
 |---|---|---|
 | `org.atmosphere.ai.prompt.repollWaitMs` | `2000` | How long such a prompt waits for its client's next connection (capped at 30000; `0` refuses at once) |
 | `org.atmosphere.ai.prompt.maxRepollWaiters` | `64` | Prompts that may wait at once across every `@AiEndpoint` of the application (each holds a request thread); one per tracking id. Prompts whose id only a handshake vouches for (no poll of it arrived yet) may hold half of them (at least one) |
+| `org.atmosphere.ai.prompt.maxBytes` | `1048576` (1 MiB) | Largest prompt body an SSE, streaming or long-polling POST may carry. A larger one is answered `413` without being read past the limit (a declared `Content-Length` over it is refused before any read); a body that is not valid text in its character encoding (UTF-8 unless the request names one) is answered `400`. WebSocket frames are bounded by the container's WebSocket message size instead. With client heartbeats on (`org.atmosphere.interceptor.HeartbeatInterceptor.clientHeartbeatFrequencyInSeconds` > 0) that interceptor reads every POST body whole before the endpoint does, so the limit then still answers `413` but no longer caps what is read |
 
 Only a tracking id the endpoint recently suspended a connection for, or assigned
 in a protocol handshake no longer ago than `repollWaitMs` (at most 1024 such ids

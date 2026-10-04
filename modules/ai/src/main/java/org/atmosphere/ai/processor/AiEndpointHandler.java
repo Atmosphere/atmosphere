@@ -55,6 +55,7 @@ import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.cpr.RawMessage;
 import org.atmosphere.util.IOUtils;
+import org.atmosphere.util.PayloadTooLargeException;
 import org.atmosphere.util.Utils;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.interceptor.InvokationOrder;
@@ -62,8 +63,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.charset.CharacterCodingException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -106,6 +109,17 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * runs only on a connection whose identity is its sender's.
      */
     static final String CONNECTION_OWNER_ATTRIBUTE = LongPollingReplies.CONNECTION_OWNER_ATTRIBUTE;
+
+    /**
+     * Init-param: the largest prompt body, in bytes, an SSE, streaming or
+     * long-polling POST may carry; a larger one is answered {@code 413} without
+     * being read past the limit. WebSocket frames are bounded by the
+     * container's WebSocket message size instead.
+     */
+    public static final String MAX_PROMPT_BYTES_PARAM = "org.atmosphere.ai.prompt.maxBytes";
+
+    /** Default {@link #MAX_PROMPT_BYTES_PARAM}: 1 MiB. */
+    static final int DEFAULT_MAX_PROMPT_BYTES = 1024 * 1024;
 
     /**
      * Identity of a request whose servlet principal could not be read: equal to
@@ -420,7 +434,21 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // A WebSocket frame whose connection is gone is answered at once with an
         // error frame over its socket (see refuseWebSocketFrame).
         if ("POST".equalsIgnoreCase(method)) {
-            var msg = readPrompt(resource);
+            String msg;
+            try {
+                msg = readPrompt(resource);
+            } catch (PayloadTooLargeException e) {
+                logger.warn("Prompt on {} is larger than {} bytes ({}); answering 413",
+                        pathTemplate, e.limit(), MAX_PROMPT_BYTES_PARAM);
+                resource.getResponse().setStatus(413);
+                return;
+            } catch (CharacterCodingException | UnsupportedEncodingException e) {
+                // Not logged with the body: it is untrusted input.
+                logger.warn("Prompt on {} is not valid text in its character encoding; answering 400", pathTemplate);
+                logger.trace("Malformed prompt body", e);
+                resource.getResponse().setStatus(400);
+                return;
+            }
             if (msg != null) {
                 var since = System.nanoTime();
                 // Dispatched to the one connection directly, never broadcast: a
@@ -1506,17 +1534,40 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      */
     private static String readPrompt(AtmosphereResource resource) throws IOException {
         var request = resource.getRequest();
-        AtmosphereRequestImpl.Body body = request.body();
-        if (!body.isEmpty()) {
+        if (request.getAttribute(FrameworkConfig.WEBSOCKET_MESSAGE) != null) {
+            // A WebSocket frame is already in memory, bounded by the container's
+            // WebSocket message size.
+            AtmosphereRequestImpl.Body body = request.body();
+            if (body.isEmpty()) {
+                return null;
+            }
             return body.hasString() ? body.asString() : new String(body.asBytes());
         }
-        var read = IOUtils.readEntirelyAsString(resource);
-        if (read.length() == 0) {
+        var content = IOUtils.readEntirelyAsString(resource, maxPromptBytes(resource.getAtmosphereConfig()));
+        if (content.isEmpty()) {
             return null;
         }
-        var content = read.toString();
         request.body(content);
         return content;
+    }
+
+    /** The {@value #MAX_PROMPT_BYTES_PARAM} init-param, else {@link #DEFAULT_MAX_PROMPT_BYTES}. */
+    static int maxPromptBytes(AtmosphereConfig config) {
+        var raw = config != null ? config.getInitParameter(MAX_PROMPT_BYTES_PARAM) : null;
+        if (raw == null || raw.isBlank()) {
+            return DEFAULT_MAX_PROMPT_BYTES;
+        }
+        try {
+            var value = Integer.parseInt(raw.trim());
+            if (value > 0) {
+                return value;
+            }
+        } catch (NumberFormatException e) {
+            logger.trace("{} is not a number", MAX_PROMPT_BYTES_PARAM, e);
+        }
+        logger.warn("Ignoring {}={}: not a positive integer; using {}",
+                MAX_PROMPT_BYTES_PARAM, raw, DEFAULT_MAX_PROMPT_BYTES);
+        return DEFAULT_MAX_PROMPT_BYTES;
     }
 
     /**
