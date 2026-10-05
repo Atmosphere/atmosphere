@@ -7,6 +7,141 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.72] - 2026-10-05
+
+### Added
+
+- add a bounded, strictly decoded request body read to IOUtils
+- add atmosphere-ai-decision-typesafe, a DecisionModel over the TypeSafe System One API
+- route each request to a handler, the LLM or a person before dispatch
+- signal injected governance guidance and assert CARRY on it in the e2e
+- add the DecisionModel SPI and route the LLM injection tier through it
+- score the decision field's value distribution, not the fluency of every token
+- route completed turns on confidence (ACT/CONFIRM/ESCALATE, unknown fails closed)
+- add carnet issue claims, the bilan completion score and remote-first vault sync
+
+### Fixed
+
+- RoomProtocolInterceptor reads at most maxBytes+1 of a POST body looking for a room command
+- route slash commands and @Message inputs from SSE and long-polling POSTs
+- HeartbeatInterceptor peeks at most padding+1 bytes instead of reading every POST whole
+- render raw HTML in chat text literally so <base64> and List<String> are not dropped
+- bound prompt POST bodies; answer 413 when oversize and 400 when malformed
+- deliver a whole AI reply to the next long-poll instead of its first frame
+- complete a long-poll resumed before its suspension took effect
+- pin checkpoint-temporal's Jackson 2 to the root jackson2.version (2.22.3)
+- dispatch an agent handoff as a prompt of the same connection
+- close the Sept-Oct Jackson + npm advisory batch, one property for the Boot Jackson line
+- run a prompt only on a connection of its sender's identity
+- keep a run reattach replay off the cluster filters
+- keep cache replays off the cluster and send room messages to other nodes again
+- wait for the next poll when a prompt's connection was resumed or recycled
+- give a DSL agent the protocol handshake recorder
+- run a prompt only on a connection its own endpoint suspended
+- keep a broadcast to chosen resources off the cluster filters
+- subscribe the classroom Expo client with the Atmosphere protocol on
+- dispatch a prompt to its connection directly, never through the path's filters
+- keep half the repoll waiter slots from handshake-only ids, forget closed ids
+- run @Prompt only for a prompt dispatched to the receiving connection
+- wait on a handshake-assigned tracking id only within the repoll wait
+- name a session in the WebSocket refusal frame so subscribeStreaming reports it
+- never send a deferred stream end to every subscriber after a disconnect
+- read a deferred stream end's recipient while its terminal frame is filtered
+- send a filter's deferred stream-end frame to the sender, never to the whole path
+- answer a WebSocket prompt whose connection is gone with an error frame over its socket
+- keep a client-chosen tracking id across reconnects
+- new client tracking id per HTTP subscription, resend under the current one
+- answer a malformed prompt tracking id 400, let a prompt wait on a long-polling handshake id
+- open protocol long-polling after its handshake; hooks keep state on send errors
+- name HTTP subscriptions without the protocol; Console frees a refused prompt
+- bound waiting prompts across every @AiEndpoint, refuse them at once on destroy
+- never fan a prompt out to every subscriber of an @AiEndpoint path
+- resend an HTTP push the server answers 503, report one it refuses
+- score every embeddable forbidden topic before the semantic-intent tier degrades
+- check the embedding scope threshold before an unembeddable topic degrades a request
+- check the semantic-intent floor before forbidden topics, report its resolved impl
+- degrade the semantic-intent scope tier to rule-based instead of admitting all
+- time out TypeSafe connects cut short by the deadline, document what its probe checks
+- keep TypeSafe answers when token counts are unreported, record no verdict on interrupt
+- abort TypeSafe requests on close, retry connect timeouts, log config once
+- bound TypeSafe retry waits, share its probe verdict, enforce required fields
+- close the resolver's cached decision model on reset and recheck a provisional fallback
+- close decision-model registrations the resolver loads but does not select
+- keep intent-routed turns out of model metrics and bound confirmation waits
+- end endpoint intent confirmations before the prompt watchdog; signal routes on OpenAI
+- skip RAG and cancelled turns in intent routing and escalate unconfirmable CONFIRM at once
+- read the prompt from the request entity on long-polling and SSE POSTs
+- announce presence/leave when a room member's connection drops
+- keep governance guidance frames off room replies and report only what reached the model
+- read the LLM scope fail-open property on each uncertain verdict
+- gate moderation only on undecided blocked categories and size the shared decision pool
+- fail the LLM moderation detector closed through the DecisionModel
+- fail the LLM scope classifier closed through the DecisionModel
+- score the decision value the reply carries and never clear a flagged document
+- gate model-reported injection verdicts like measured ones and bound decision replies
+- score the decision value the model emitted and keep decision turns on chat completions
+- score decision rivals before the value and resolve unseen mass against the answer
+- write broadcast frames in the passivation, budget-breaker and structured-output handlers
+- wait for the long-polling receiver itself before broadcasting in WAsync test
+- assert the AG-UI Console keeps its input enabled while streaming
+- honour quarkus.atmosphere.websocket-support in both container modes
+
+### Changed
+
+- ignore JDK class-initialization pins in the TypeSafe probe pinning test
+- state where prompts and replies go now that plain broadcasts are never prompts
+- give the repoll gate's expiry test a window a loaded machine cannot outrun
+- pin streaming's new id on reconnect and the 1 s retry without Retry-After
+- pin repollWaitMs=0 refusing a between-poll prompt at once
+- state that a client-chosen tracking id bypasses the UUIDProvider and first-request marks
+- state that long-polling routes an @AiEndpoint prompt but does not carry its reply
+- pin which refused send marks a prompt undelivered
+- pin the getRandomValues tracking id on a runtime without randomUUID
+- pin the repoll gate giving its shared waiter slot back and the documented init-params
+- pin the handshake recorder on the Spring Boot default AI endpoint and @Coordinator mappings
+- pin repoll-gate id expiry, the full-set sweep and the 30 s wait cap
+- pin AtmosphereChatTransport handing the send error to onError intact
+- pin the documented 3-attempt and 5 s send-retry bounds as literals
+- name atmosphere-3.x the bug-fix-only legacy branch and never touch 2.x
+- state the duplicate-import limits, Spotless coverage gate and pre-push modes
+- run the root-project Spotless check in pre-push validation
+- fail validation on a Java file outside every Spotless include
+- match duplicate imports on the imported name, not the raw line
+- log the overstated Spotless header coverage
+- restore the code rationale that lived in removed NOPMD comments
+- catch duplicate imports that differ only by trailing blanks
+- header-check every staged Java file's owning module at commit
+- run the Spotless gate on the three samples that skipped it
+- remove PMD and its ruleset, skip flags and NOPMD comments
+- enforce the Java license header with Spotless instead of the hook
+- normalize the license header of 26 Java files to one form
+- replace Checkstyle with a Spotless import and tab gate
+- reset keeps built injection screens; true+no confidence flags
+- remove a merge-conflict marker left in AtmosphereFilterChain Javadoc
+- say the quarkus long-polling test runs only in the quarantine lane
+- point the quarkus long-polling quarantine at the delivery design issue
+- say the coverage gate skips docs-only pushes and log the gate's CI claims
+- list the coverage gate's suite under CI=true and pin that the gate fails closed
+- anchor the ai-classroom testMatch and fail a spec two workflow projects run
+- pin the identity a re-joined room member's drop announces
+- count statically skipped specs as uncovered by the spec-coverage gate
+- force the WebTransport fallback and require an answer over WebSocket
+- prove the missed history message reached the server before the sinceId re-join
+- require the drained classroom question to get the code room's answer, not an error
+- say the five resilience projects drive the bundled Console, not the removed React app
+- take spec coverage from playwright --list under the per-push env, grep included
+- drive the quarkus long-polling test through the Console, keyless
+- run the five orphaned resilience specs and fail when a spec file matches no running project
+- anchor every Console connect guard so 'Disconnected' no longer satisfies it
+- scope the governance Decisions-tab PREFER row to this run's conversation_id
+- wait for a real Connected pill before sending in the governance-feedback spec
+- document fail-closed LLM scope and moderation tiers and log the drift
+- run the nine unmapped Playwright projects and fail when a project runs in no workflow
+- gate JMH regressions on a same-runner A/B instead of stored scores
+- give npm five minutes to serve a published create-atmosphere-app
+- make the WebTransport offline-queue drain test deterministic
+- point the README at the Quarkus Vert.x container mode
+
 ## [4.0.71] - 2026-09-24
 
 ### Added
