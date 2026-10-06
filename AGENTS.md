@@ -87,7 +87,6 @@ atmosphere/
 │   ├── spring-boot-chat/
 │   └── quarkus-chat/
 ├── atmosphere.js/                 (TypeScript client library)
-├── assembly/
 └── pom.xml                        (4.0.57-SNAPSHOT, JDK 21)
 ```
 
@@ -299,7 +298,7 @@ The script picks one of three modes from the diff:
 
 | Mode | Trigger | Maven invocation |
 |------|---------|------------------|
-| `full` | `pom.xml` / `modules/pom.xml` / `bom/pom.xml` / `assembly/pom.xml` / `.mvn/*` changed, or `--full` flag | `./mvnw install -B -ntp -Dgroups=!flaky` |
+| `full` | `pom.xml` / `modules/pom.xml` / `bom/pom.xml` / `.mvn/*` changed, or `--full` flag | `./mvnw install -B -ntp -Dgroups=!flaky` |
 | `none` | only files outside every Maven module changed (`*.md`, `docs/`, `.github/`, `scripts/`, `e2e/`, `atmosphere.js/`, `.claude/`, `generator/`, ...) | no reactor build |
 | `incremental` | a file under a leaf Maven module (`modules/*`, `samples/*`) changed: its Java sources or `pom.xml` | `./mvnw install -B -ntp -pl <modules> -am -Dgroups=!flaky`, the modules being the nearest `pom.xml` of each changed file (`modules/benchmarks` goes through `-Pperf`) |
 
