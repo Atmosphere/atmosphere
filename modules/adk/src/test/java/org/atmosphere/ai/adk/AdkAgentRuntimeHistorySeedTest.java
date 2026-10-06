@@ -62,7 +62,7 @@ class AdkAgentRuntimeHistorySeedTest {
         var session = runner.sessionService()
                 .getSession(runner.appName(), userId, sessionId, Optional.empty())
                 .blockingGet();
-        var events = session.events();
+        var events = session.immutableEvents();
 
         assertEquals(4, events.size(), "all four history messages should land as ADK events");
         assertEquals("user", events.get(0).author());
@@ -100,7 +100,7 @@ class AdkAgentRuntimeHistorySeedTest {
         var session = runner.sessionService()
                 .getSession(runner.appName(), "u1", sessionId, Optional.empty())
                 .blockingGet();
-        assertEquals(0, session.events().size(), "empty history should not create any events");
+        assertEquals(0, session.immutableEvents().size(), "empty history should not create any events");
     }
 
     private static String textOf(com.google.adk.events.Event event) {
