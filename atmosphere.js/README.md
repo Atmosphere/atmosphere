@@ -113,8 +113,9 @@ interface AtmosphereRequest {
   contentType?: string;             // Content-Type header
   timeout?: number;                 // Request timeout in milliseconds
   reconnect?: boolean;              // Enable auto-reconnection
-  reconnectInterval?: number;       // Time between reconnections (ms)
+  reconnectInterval?: number;       // Base of the reconnect backoff (ms)
   maxReconnectOnClose?: number;     // Maximum reconnection attempts
+  retryStrategy?: RetryStrategy;    // Reconnect delay policy (see "Configuring fallback + reconnect")
   trackMessageLength?: boolean;     // Enable message length tracking
   messageDelimiter?: string;        // Delimiter for split messages
   enableProtocol?: boolean;         // Enable Atmosphere protocol
@@ -711,9 +712,26 @@ const request = {
   transport: 'websocket',
   fallbackTransport: 'long-polling',  // tried if WebSocket fails
   reconnect: true,                     // default
-  reconnectInterval: 5000,             // ms between attempts
+  reconnectInterval: 5000,             // base delay of the backoff (ms)
   maxReconnectOnClose: 10,             // give up after N attempts
   heartbeat: { client: 30000 },        // watchdog interval (ms)
+};
+```
+
+Without a `retryStrategy`, reconnect attempt `n` waits `reconnectInterval * 2^min(n - 1, 5)`
+times a random jitter in `[0.5, 1)`, so `reconnectInterval: 5000` grows to between 80 s and
+160 s. Set `retryStrategy` for another policy: `linear` (`initialDelay * n`), `exponential`
+(`initialDelay * 2^(n - 1)`, capped at `maxDelay`, or at 32x when it is absent) or `custom`
+(`customCalculate(n)`). `maxDelay` caps every strategy, strategy delays carry no jitter,
+`initialDelay` falls back to `reconnectInterval`, and `maxAttempts`, when set, replaces
+`maxReconnectOnClose`. A constant 5 s delay:
+
+```typescript
+const request = {
+  url: '/atmosphere/chat',
+  transport: 'websocket',
+  reconnect: true,
+  retryStrategy: { strategy: 'custom', customCalculate: () => 5000, maxAttempts: 20 },
 };
 ```
 

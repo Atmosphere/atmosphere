@@ -27,7 +27,6 @@ import { logger } from '../utils/logger';
  */
 export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
   private abortController: AbortController | null = null;
-  private reconnectAttempts = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private _polling = false;
   private aborted = false;
@@ -196,7 +195,7 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
     if (
       this._polling &&
       this.request.reconnect &&
-      this.reconnectAttempts < (this.request.maxReconnectOnClose ?? 5)
+      this.reconnectAttempts < this.maxReconnectAttempts()
     ) {
       this.scheduleReconnect();
     } else if (this._polling && this.request.reconnect) {
@@ -205,7 +204,7 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
   }
 
   private scheduleReconnect(): void {
-    const delay = this.calculateReconnectDelay();
+    const delay = this.nextReconnectDelay();
     this.reconnectAttempts++;
 
     logger.info(`Long-polling reconnect attempt ${this.reconnectAttempts} in ${delay}ms`);
@@ -226,14 +225,12 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
       this.protocol.reset();
       this.poll(true).catch((error) => {
         logger.error('Long-polling reconnection failed:', error);
+        // Re-enter the close flow so the retry quota and delay policy apply to
+        // the next attempt too; otherwise one failed attempt ends the chain.
+        if (!this.aborted) {
+          this.handleDisconnect(false);
+        }
       });
     }, delay);
-  }
-
-  private calculateReconnectDelay(): number {
-    const baseDelay = this.request.reconnectInterval ?? 1000;
-    const exponentialDelay = baseDelay * Math.pow(2, Math.min(this.reconnectAttempts, 5));
-    const jitter = 0.5 + Math.random() * 0.5;
-    return exponentialDelay * jitter;
   }
 }

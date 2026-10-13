@@ -57,8 +57,24 @@ export interface AtmosphereRequest {
   timeout?: number;
   connectTimeout?: number;
   reconnect?: boolean;
+  /**
+   * Base delay (ms) of the reconnect backoff when no {@link retryStrategy} is
+   * set: attempt `n` (1-based) waits `reconnectInterval * 2^min(n - 1, 5)`
+   * scaled by a random jitter in `[0.5, 1)`. Default 1000. With a
+   * `retryStrategy`, it is only the fallback for `retryStrategy.initialDelay`.
+   */
   reconnectInterval?: number;
+  /**
+   * Reconnect attempts made after a drop before `failureToReconnect` fires.
+   * Default 5. Overridden by `retryStrategy.maxAttempts` when that is set.
+   */
   maxReconnectOnClose?: number;
+  /**
+   * How long to wait between reconnect attempts, and how many to make.
+   * Absent, the exponential backoff described on {@link reconnectInterval}
+   * applies. See {@link RetryStrategy}.
+   */
+  retryStrategy?: RetryStrategy;
   maxRequest?: number;
   trackMessageLength?: boolean;
   messageDelimiter?: string;
@@ -193,13 +209,43 @@ export interface AtmosphereInterceptor {
 }
 
 /**
- * Retry strategy configuration
+ * Reconnect delay policy, set on {@link AtmosphereRequest.retryStrategy}.
+ *
+ * `attempt` below is the number of the reconnect attempt being scheduled:
+ * 1 for the first reconnect after a drop, 2 for the next, and so on. It goes
+ * back to 1 once a connection opens again. Delays computed from a strategy
+ * are deterministic (no jitter); add your own in `customCalculate` if many
+ * clients may reconnect at once.
+ *
+ * - `linear`: `initialDelay * attempt`.
+ * - `exponential`: `initialDelay * 2^(attempt - 1)`, capped at `maxDelay`, or
+ *   at `initialDelay * 32` when `maxDelay` is not set.
+ * - `custom`: `customCalculate(attempt)`.
+ *
+ * Every result is then capped at `maxDelay` when set and clamped to
+ * `[0, 2^31 - 1]` ms (`NaN` becomes 0).
+ *
+ * A constant delay, e.g. every 5 s: `{ strategy: 'custom', customCalculate: () => 5000 }`,
+ * or equivalently `{ strategy: 'linear', initialDelay: 5000, maxDelay: 5000 }`.
  */
 export interface RetryStrategy {
   strategy: 'linear' | 'exponential' | 'custom';
-  maxAttempts: number;
-  initialDelay: number;
-  maxDelay: number;
+  /**
+   * Reconnect attempts before `failureToReconnect` fires. When set it
+   * replaces {@link AtmosphereRequest.maxReconnectOnClose} (it wins whether
+   * larger or smaller); when absent `maxReconnectOnClose` (default 5) applies.
+   */
+  maxAttempts?: number;
+  /**
+   * Delay (ms) of the first attempt for `linear` and `exponential`.
+   * Default: {@link AtmosphereRequest.reconnectInterval}, then 1000.
+   * Not used by `custom` unless `customCalculate` is missing, in which case
+   * every attempt waits `initialDelay`.
+   */
+  initialDelay?: number;
+  /** Upper bound (ms) on any computed delay, whatever the strategy. */
+  maxDelay?: number;
+  /** Delay (ms) before reconnect attempt `attempt` (1-based); used by `custom`. */
   customCalculate?: (attempt: number) => number;
 }
 

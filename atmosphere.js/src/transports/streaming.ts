@@ -27,7 +27,6 @@ import { logger } from '../utils/logger';
  */
 export class StreamingTransport<T = unknown> extends BaseTransport<T> {
   private abortController: AbortController | null = null;
-  private reconnectAttempts = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private aborted = false;
   private opened = false;
@@ -212,7 +211,7 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
     if (
       !this.aborted &&
       this.request.reconnect &&
-      this.reconnectAttempts < (this.request.maxReconnectOnClose ?? 5)
+      this.reconnectAttempts < this.maxReconnectAttempts()
     ) {
       this.scheduleReconnect();
     } else if (!this.aborted && this.request.reconnect) {
@@ -227,7 +226,7 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
   }
 
   private scheduleReconnect(): void {
-    const delay = this.calculateReconnectDelay();
+    const delay = this.nextReconnectDelay();
     this.reconnectAttempts++;
 
     logger.info(`Streaming reconnect attempt ${this.reconnectAttempts} in ${delay}ms`);
@@ -249,14 +248,12 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
       this.opened = false;
       this.connect().catch((error) => {
         logger.error('Streaming reconnection failed:', error);
+        // Re-enter the close flow so the retry quota and delay policy apply to
+        // the next attempt too; otherwise one failed attempt ends the chain.
+        if (!this.aborted) {
+          this.handleClose();
+        }
       });
     }, delay);
-  }
-
-  private calculateReconnectDelay(): number {
-    const baseDelay = this.request.reconnectInterval ?? 1000;
-    const exponentialDelay = baseDelay * Math.pow(2, Math.min(this.reconnectAttempts, 5));
-    const jitter = 0.5 + Math.random() * 0.5;
-    return exponentialDelay * jitter;
   }
 }

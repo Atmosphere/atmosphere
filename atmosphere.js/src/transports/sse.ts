@@ -26,7 +26,6 @@ import { logger } from '../utils/logger';
  */
 export class SSETransport<T = unknown> extends BaseTransport<T> {
   private eventSource: EventSource | null = null;
-  private reconnectAttempts = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   get name(): string {
@@ -200,7 +199,7 @@ export class SSETransport<T = unknown> extends BaseTransport<T> {
 
     if (
       this.request.reconnect &&
-      this.reconnectAttempts < (this.request.maxReconnectOnClose ?? 5)
+      this.reconnectAttempts < this.maxReconnectAttempts()
     ) {
       this.scheduleReconnect();
     } else if (this.request.reconnect) {
@@ -215,7 +214,7 @@ export class SSETransport<T = unknown> extends BaseTransport<T> {
   }
 
   private scheduleReconnect(): void {
-    const delay = this.calculateReconnectDelay();
+    const delay = this.nextReconnectDelay();
     this.reconnectAttempts++;
 
     logger.info(`SSE reconnect attempt ${this.reconnectAttempts} in ${delay}ms`);
@@ -236,14 +235,10 @@ export class SSETransport<T = unknown> extends BaseTransport<T> {
       this.protocol.reset();
       this.connect().catch((error) => {
         logger.error('SSE reconnection failed:', error);
+        // Re-enter the close flow so the retry quota and delay policy apply to
+        // the next attempt too; otherwise one failed attempt ends the chain.
+        this.handleClose();
       });
     }, delay);
-  }
-
-  private calculateReconnectDelay(): number {
-    const baseDelay = this.request.reconnectInterval ?? 1000;
-    const exponentialDelay = baseDelay * Math.pow(2, Math.min(this.reconnectAttempts, 5));
-    const jitter = 0.5 + Math.random() * 0.5;
-    return exponentialDelay * jitter;
   }
 }

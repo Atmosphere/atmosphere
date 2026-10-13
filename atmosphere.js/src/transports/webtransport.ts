@@ -30,7 +30,6 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
   private writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
   private reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   private readLoopAborted = false;
-  private reconnectAttempts = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private textDecoder = new TextDecoder();
   private textEncoder = new TextEncoder();
@@ -398,7 +397,7 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
 
     if (
       this.request.reconnect &&
-      this.reconnectAttempts < (this.request.maxReconnectOnClose ?? 5)
+      this.reconnectAttempts < this.maxReconnectAttempts()
     ) {
       this.scheduleReconnect();
     } else if (this.request.reconnect) {
@@ -413,7 +412,7 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
   }
 
   private scheduleReconnect(): void {
-    const delay = this.calculateReconnectDelay();
+    const delay = this.nextReconnectDelay();
     this.reconnectAttempts++;
 
     logger.info(
@@ -445,13 +444,5 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
         this.handleClose();
       });
     }, delay);
-  }
-
-  private calculateReconnectDelay(): number {
-    const baseDelay = this.request.reconnectInterval ?? 1000;
-    const exponentialDelay =
-      baseDelay * Math.pow(2, Math.min(this.reconnectAttempts, 5));
-    const jitter = 0.5 + Math.random() * 0.5;
-    return exponentialDelay * jitter;
   }
 }

@@ -25,6 +25,7 @@ import type { OfflineQueue } from '../queue/offline-queue';
 import { logger } from '../utils/logger';
 import { AtmosphereProtocol } from '../utils/protocol';
 import { SEND_ERROR_NAME } from '../utils/send-error';
+import { computeReconnectDelay, maxReconnectAttempts } from '../utils/reconnect-delay';
 
 /**
  * Base class for all transport implementations.
@@ -43,6 +44,11 @@ export abstract class BaseTransport<T = unknown> {
   private _inactivityTimer: ReturnType<typeof setTimeout> | null = null;
   protected _requestCount = 0;
   private _offlineQueue: OfflineQueue | null = null;
+  /**
+   * Reconnect attempts made since the connection last opened. Each transport
+   * resets it to 0 on open and increments it when it schedules a reconnect.
+   */
+  protected reconnectAttempts = 0;
 
   constructor(
     request: AtmosphereRequest,
@@ -354,6 +360,23 @@ export abstract class BaseTransport<T = unknown> {
     if (result.expired) {
       this.notifyAuthExpired(result.expired);
     }
+  }
+
+  /**
+   * Reconnect attempts allowed before `failureToReconnect`:
+   * `retryStrategy.maxAttempts`, else `maxReconnectOnClose`, else 5.
+   */
+  protected maxReconnectAttempts(): number {
+    return maxReconnectAttempts(this.request);
+  }
+
+  /**
+   * Delay before the next reconnect attempt (number `reconnectAttempts + 1`),
+   * per `request.retryStrategy` or the default jittered exponential backoff.
+   * Call it before incrementing {@link reconnectAttempts}.
+   */
+  protected nextReconnectDelay(): number {
+    return computeReconnectDelay(this.request, this.reconnectAttempts + 1);
   }
 
   /** Returns true if maxRequest has been reached. */
