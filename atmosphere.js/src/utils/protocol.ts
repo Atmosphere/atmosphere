@@ -134,6 +134,22 @@ export class AtmosphereProtocol {
   }
 
   /**
+   * Build the URL of Atmosphere's close message for this connection: the
+   * parameters {@link buildUrl} sends (tracking id, custom `headers`, auth and
+   * session tokens) with `X-Atmosphere-Transport=close`, which the server's
+   * `OnDisconnectInterceptor` answers by releasing the `AtmosphereResource`
+   * whose uuid is the tracking id. Everything rides in the query string
+   * because `navigator.sendBeacon` cannot set request headers; the server
+   * reads `X-Atmosphere-*` query parameters as headers on HTTP requests.
+   */
+  buildCloseUrl(request: AtmosphereRequest): string {
+    // `close` is a wire value of X-Atmosphere-Transport, not a transport the
+    // client can open, so it is not part of the TransportType union.
+    const transport = 'close' as unknown as AtmosphereRequest['transport'];
+    return this.buildUrl({ ...request, transport, enableProtocol: false });
+  }
+
+  /**
    * Process an incoming message through the Atmosphere protocol layer.
    * Handles the initial handshake (UUID + heartbeat config extraction)
    * and subsequent messages.

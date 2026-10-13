@@ -48,6 +48,11 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
     return 'webtransport';
   }
 
+  /** Closing the session tells the server; no close message is needed. */
+  get needsCloseMessage(): boolean {
+    return false;
+  }
+
   async connect(): Promise<void> {
     try {
       this._state = 'connecting';

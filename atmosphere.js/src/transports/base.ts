@@ -81,6 +81,30 @@ export abstract class BaseTransport<T = unknown> {
     return this.protocol.uuid;
   }
 
+  /**
+   * Whether the server learns that this connection is gone only from
+   * Atmosphere's close message. True for the HTTP transports (long-polling,
+   * streaming, SSE), whose aborted request the server cannot see; WebSocket
+   * and WebTransport override it with `false`, since closing the socket or
+   * session already tells the server.
+   */
+  get needsCloseMessage(): boolean {
+    return true;
+  }
+
+  /**
+   * URL of Atmosphere's close message for this connection, or `null` when
+   * there is none to send: the transport does not need one
+   * ({@link needsCloseMessage}), or no handshake has assigned a tracking id
+   * yet (uuid `'0'`), so there is no server resource to name.
+   */
+  closeMessageUrl(): string | null {
+    if (!this.needsCloseMessage || this.protocol.uuid === '0') {
+      return null;
+    }
+    return this.protocol.buildCloseUrl(this.request);
+  }
+
   /** Whether this connection has opened at least once. */
   get hasOpened(): boolean {
     return this._hasOpened;

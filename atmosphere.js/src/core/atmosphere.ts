@@ -32,6 +32,7 @@ import { StreamingTransport } from '../transports/streaming';
 import { WebTransportTransport } from '../transports/webtransport';
 import { BaseTransport } from '../transports/base';
 import { logger } from '../utils/logger';
+import { sendCloseMessage } from '../utils/close-message';
 import { VERSION } from '../version';
 
 /**
@@ -169,6 +170,26 @@ export class Atmosphere {
       dispatchEvent('reopen', response);
     }) as SubscriptionHandlers<T>['reopen'];
 
+    // Atmosphere's close message tells the server to release the resource an
+    // HTTP transport leaves behind (see BaseTransport.needsCloseMessage). It
+    // is sent by close() and, as a beacon, when the page is hidden or
+    // unloaded: `pagehide` rather than `unload`, which browsers no longer
+    // reliably fire. Only browsers (window with addEventListener) get the
+    // listener; React Native and Node have no page lifecycle.
+    const withCredentials = mergedRequest.withCredentials;
+    let closed = false;
+    let pageHideListener: (() => void) | null = null;
+    if (currentTransport.needsCloseMessage && typeof window !== 'undefined'
+        && typeof window.addEventListener === 'function') {
+      pageHideListener = () => {
+        const url = currentTransport.closeMessageUrl();
+        if (url !== null) {
+          sendCloseMessage(url, { beacon: true, withCredentials });
+        }
+      };
+      window.addEventListener('pagehide', pageHideListener);
+    }
+
     const subscription: Subscription = {
       id,
       get uuid(): string {
@@ -192,6 +213,19 @@ export class Atmosphere {
         currentTransport.send(data);
       },
       close: async () => {
+        if (!closed) {
+          closed = true;
+          if (pageHideListener !== null) {
+            window.removeEventListener('pagehide', pageHideListener);
+            pageHideListener = null;
+          }
+          // Read before disconnect(): the message names the resource the
+          // request being aborted belongs to.
+          const url = currentTransport.closeMessageUrl();
+          if (url !== null) {
+            sendCloseMessage(url, { beacon: false, withCredentials });
+          }
+        }
         await currentTransport.disconnect();
         this.subscriptions.delete(id);
         logger.info(`Subscription ${id} closed`);

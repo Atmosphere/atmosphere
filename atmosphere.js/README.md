@@ -155,6 +155,19 @@ is `'0'` until the Atmosphere protocol handshake arrives, which requires
 `enableProtocol: true`, and it is the fallback transport's id when the
 fallback took over. `subscription.id` is a client-side counter (`sub-N`).
 
+Over long-polling, streaming and SSE, `close()` also tells the server the
+connection is gone: it sends Atmosphere's close message
+(`X-Atmosphere-Transport=close` with the `uuid` as `X-Atmosphere-tracking-id`,
+plus the request's URL parameters and `headers`, as a `keepalive` POST), which
+the server's default `OnDisconnectInterceptor` answers by releasing the
+`AtmosphereResource`. While the subscription is open, a `pagehide` listener
+sends the same message with `navigator.sendBeacon` (falling back to a
+`keepalive` fetch) when the page is hidden or unloaded; `close()` removes it.
+No message is sent while `uuid` is `'0'`, so it requires `enableProtocol: true`.
+WebSocket and WebTransport send none: closing the socket tells the server. A
+second `close()` sends nothing, and a failed close message is logged at debug
+level, never thrown.
+
 ## Examples
 
 ### Basic WebSocket Connection

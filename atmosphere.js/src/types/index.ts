@@ -220,6 +220,20 @@ export interface Subscription {
   readonly uuid: string;
   readonly state: ConnectionState;
   push(message: string | object | ArrayBuffer): void;
+  /**
+   * Close the connection. Over long-polling, streaming and SSE it also sends
+   * Atmosphere's close message (`X-Atmosphere-Transport=close` with this
+   * connection's {@link uuid} as `X-Atmosphere-tracking-id`, as a body-less
+   * `fetch` POST with `keepalive`), which the server's
+   * `OnDisconnectInterceptor` (a default interceptor) answers by releasing the
+   * `AtmosphereResource`; nothing is sent while {@link uuid} is `'0'` (no
+   * `enableProtocol` handshake). While the subscription is open, a `pagehide`
+   * listener sends the same message with `navigator.sendBeacon` when the page
+   * is hidden or unloaded; `close()` removes it. WebSocket and WebTransport
+   * send no extra request: closing the socket tells the server. Calling
+   * `close()` again sends nothing more, and a failed close message is logged
+   * at debug level, never thrown.
+   */
   close(): Promise<void>;
   suspend(): void;
   resume(): Promise<void>;

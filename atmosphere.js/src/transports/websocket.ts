@@ -35,6 +35,11 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
     return 'websocket';
   }
 
+  /** Closing the socket tells the server; no close message is needed. */
+  get needsCloseMessage(): boolean {
+    return false;
+  }
+
   async connect(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
