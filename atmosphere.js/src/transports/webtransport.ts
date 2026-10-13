@@ -42,6 +42,8 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
    * that silently corrupted them. Mirrors the server's BidiFraming.
    */
   private incomingBytes = new Uint8Array(0);
+  /** Set by disconnect(): the close is deliberate, so it neither reports nor reconnects. */
+  private aborted = false;
 
   get name(): string {
     return 'webtransport';
@@ -50,6 +52,7 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
   async connect(): Promise<void> {
     try {
       this._state = 'connecting';
+      this.aborted = false;
       const url = this.buildWebTransportUrl(this.request.url);
 
       logger.debug(`Connecting to WebTransport: ${url}`);
@@ -73,18 +76,25 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
 
       if (result === 'closed') {
         const error = new Error('WebTransport connection closed before ready');
-        this.handleError(error);
+        if (!this.aborted) {
+          this.handleError(error);
+        }
         throw error;
       }
 
       const stream = await this.transport.createBidirectionalStream();
+      if (this.aborted) {
+        // disconnect() closed this connection while its stream was being opened.
+        throw new Error('WebTransport connection closed before ready');
+      }
       this.writer = stream.writable.getWriter();
       this.reader = stream.readable.getReader();
 
       this.handleOpen();
       this.startReadLoop();
     } catch (error) {
-      if ((error as Error).message !== 'WebTransport connection closed before ready') {
+      // A connection disconnect() abandoned mid-handshake is not an error to report.
+      if (!this.aborted && (error as Error).message !== 'WebTransport connection closed before ready') {
         this.handleError(error as Error);
       }
       throw error;
@@ -92,6 +102,7 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
   }
 
   async disconnect(): Promise<void> {
+    this.aborted = true;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -364,7 +375,7 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
   }
 
   private handleClose(): void {
-    if (this.request.closed) {
+    if (this.aborted || this.request.closed) {
       return;
     }
 

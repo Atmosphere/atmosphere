@@ -29,6 +29,8 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
   private ws: WebSocket | null = null;
   private reconnectAttempts = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Set by disconnect(): the close is deliberate, so it neither reports nor reconnects. */
+  private aborted = false;
 
   get name(): string {
     return 'websocket';
@@ -38,6 +40,7 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
     return new Promise((resolve, reject) => {
       try {
         this._state = 'connecting';
+        this.aborted = false;
         const wsUrl = this.buildWebSocketUrl(this.request.url);
 
         logger.debug(`Connecting to WebSocket: ${wsUrl}`);
@@ -55,7 +58,9 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
 
         this.ws.onerror = () => {
           const error = new Error('WebSocket connection error');
-          this.handleError(error);
+          if (!this.aborted) {
+            this.handleError(error);
+          }
           reject(error);
         };
 
@@ -70,13 +75,16 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
   }
 
   async disconnect(): Promise<void> {
+    this.aborted = true;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
     this.protocol.stopHeartbeat();
 
-    if (this.ws?.readyState === WebSocket.OPEN) {
+    // A socket still connecting (a reconnect in flight) is closed too, or it
+    // would open after the subscription was closed.
+    if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) {
       this.ws.close();
     }
 
@@ -194,7 +202,7 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
   }
 
   private handleClose(event: CloseEvent): void {
-    if (this.request.closed) {
+    if (this.aborted || this.request.closed) {
       return;
     }
 
