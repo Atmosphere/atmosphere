@@ -42,7 +42,15 @@
                  GHSA-r5w3-xv2f-j59q SpEL advisory and spring-core
                  GHSA-659m-px2c-25wj, on top of 6.2.18's static-resource DoS
                  + cache-poisoning + Multipart Temp Files DoS fixes.
-                 Maven first-declared-wins for imported BOMs. -->
+                 Maven first-declared-wins for imported BOMs.
+                 6.2.19 is the last OSS 6.2 release on Maven Central. The
+                 spring-webmvc advisories GHSA-j9f9-w8pj-32f8 (CVE-2026-47890)
+                 and GHSA-pc63-qcmh-9cmg (CVE-2026-47884) affect 6.2.0-6.2.19
+                 and are fixed on 6.2 only in the Enterprise Support Only
+                 6.2.20; the OSS fix is 7.0.9, which a Boot 3.5 starter cannot
+                 take. spring-webmvc reaches this module only at test scope
+                 (spring-boot-starter-web, for the RANDOM_PORT integration
+                 test); it is not a dependency of the published starter. -->
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-framework-bom</artifactId>

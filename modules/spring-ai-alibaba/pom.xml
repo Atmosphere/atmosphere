@@ -41,16 +41,23 @@
                 <artifactId>spring-ai-rag</artifactId>
                 <version>${spring-ai-alibaba-spring-ai.version}</version>
             </dependency>
-            <!-- Pin Spring Framework 6.x to 6.2.19 (Spring AI 1.1.x still pulls
-                 6.2.14 transitively). 6.2.19 closes the spring-webflux
-                 GHSA-x23c-287f-qqv5 (high) batch, spring-expression
-                 GHSA-r5w3-xv2f-j59q and spring-core GHSA-659m-px2c-25wj, on
-                 top of 6.2.18's static-resource DoS + cache-poisoning +
-                 Multipart Temp Files DoS fixes. -->
+            <!-- Pin Spring Framework to 7.0.9. Spring AI 1.1.x declares 6.2.x
+                 (1.1.8 -> 6.2.19, the Alibaba framework's 1.1.2 -> 6.2.14), and
+                 6.2.19 is the last OSS 6.2 release: spring-webflux
+                 GHSA-j9f9-w8pj-32f8 (CVE-2026-47890, SSE stream corruption) and
+                 GHSA-9qf2-26p9-2q2q (CVE-2026-47892, functional-endpoint header
+                 predicate bypass) affect 6.2.0-6.2.19 and are fixed on 6.2 only
+                 in the Enterprise Support Only 6.2.20; the OSS fix is 7.0.9.
+                 This module already compiles against spring-boot-autoconfigure
+                 ${spring-boot.version} (Boot 4 / Spring 7), and every Spring
+                 artifact here is provided-scope, so the pin aligns Atmosphere's
+                 own build and tests with Spring 7 without reaching consumers:
+                 an application running Spring AI Alibaba 1.1.x on Boot 3.5
+                 still brings its own Spring 6.2.x. -->
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-framework-bom</artifactId>
-                <version>6.2.19</version>
+                <version>7.0.9</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
