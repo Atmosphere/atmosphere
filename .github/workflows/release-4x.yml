@@ -26,6 +26,16 @@ on:
         required: true
         type: boolean
         default: false
+      legacy_js_ref:
+        description: 'Legacy 4.x npm publish only: full Atmosphere/atmosphere.js-node commit SHA. When set, every other job is skipped.'
+        required: false
+        type: string
+        default: ''
+      legacy_dist_tag:
+        description: 'npm dist-tag for the legacy 4.x publish (never latest: latest belongs to atmosphere.js 5.x)'
+        required: false
+        type: string
+        default: 'legacy'
 
 env:
   MAVEN_OPTS: '-Xmx2g'
@@ -41,6 +51,7 @@ jobs:
   # ─────────────────────────────────────────────
   validate:
     name: Validate & Test
+    if: inputs.legacy_js_ref == ''
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v7
@@ -131,7 +142,7 @@ jobs:
   # ─────────────────────────────────────────────
   release-gate-samples:
     name: Release Gate — Samples E2E
-    if: ${{ !inputs.js_only }}
+    if: ${{ !inputs.js_only && inputs.legacy_js_ref == '' }}
     # Boots every runnable sample from its packaged artifact (java -jar, not
     # spring-boot:run) and runs its Playwright/smoke coverage — the layer
     # where the 2026-07 sweep found failures push-CI never saw. release-maven
@@ -144,7 +155,7 @@ jobs:
   build-js:
     name: Build atmosphere.js
     runs-on: ubuntu-latest
-    if: inputs.publish_js
+    if: inputs.publish_js && inputs.legacy_js_ref == ''
     steps:
     - uses: actions/checkout@v7
       with:
@@ -864,3 +875,101 @@ jobs:
           git commit -m "chore: update atmosphere to ${VERSION}"
           git push origin main
         }
+
+  # ─────────────────────────────────────────────
+  # Legacy 4.x npm publish (legacy_js_ref set; every job above is skipped)
+  # ─────────────────────────────────────────────
+  # atmosphere.js 4.x is the Atmosphere/atmosphere.js-node wrapper around the
+  # atmosphere.js released with the matching javascript-project-<version> tag of
+  # Atmosphere/atmosphere-javascript. It publishes from this workflow because this
+  # is the file npm Trusted Publishing accepts for the atmosphere.js package.
+  release-legacy-js:
+    name: Publish legacy atmosphere.js 4.x to NPM
+    if: inputs.legacy_js_ref != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+    - name: Reject the latest dist-tag
+      env:
+        DIST_TAG: ${{ inputs.legacy_dist_tag }}
+      run: |
+        if [ -z "$DIST_TAG" ] || [ "$DIST_TAG" = "latest" ]; then
+          echo "::error::legacy_dist_tag must be set and must not be 'latest' (atmosphere.js 5.x owns latest)"
+          exit 1
+        fi
+
+    - name: Checkout atmosphere.js-node
+      uses: actions/checkout@v7
+      with:
+        repository: Atmosphere/atmosphere.js-node
+        ref: ${{ inputs.legacy_js_ref }}
+        path: node
+
+    - name: Read package version
+      id: pkg
+      working-directory: node
+      run: |
+        VERSION=$(node -p "require('./package.json').version")
+        case "$VERSION" in
+          4.*) ;;
+          *) echo "::error::package.json version $VERSION is not a 4.x legacy release"; exit 1 ;;
+        esac
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+    - name: Checkout atmosphere-javascript release tag
+      uses: actions/checkout@v7
+      with:
+        repository: Atmosphere/atmosphere-javascript
+        ref: javascript-project-${{ steps.pkg.outputs.version }}
+        path: browser
+
+    - name: Verify the wrapper ships the released client
+      run: |
+        cmp node/lib/atmosphere.js browser/modules/javascript/src/main/webapp/javascript/atmosphere.js
+        echo "lib/atmosphere.js matches javascript-project-${{ steps.pkg.outputs.version }}"
+
+    - name: Setup Node.js 24
+      uses: actions/setup-node@v7
+      with:
+        node-version: '24'
+        registry-url: 'https://registry.npmjs.org'
+
+    - name: Publish to NPM (Trusted Publishing / OIDC)
+      working-directory: node
+      env:
+        DIST_TAG: ${{ inputs.legacy_dist_tag }}
+        VERSION: ${{ steps.pkg.outputs.version }}
+        # No provenance: the wrapper's repository.url is atmosphere.js-node, and
+        # provenance rejects a package whose repository.url is not this repository.
+        NPM_CONFIG_PROVENANCE: 'false'
+      run: |
+        set -euo pipefail
+        if [ "$(npm view "atmosphere.js@$VERSION" version 2>/dev/null || true)" = "$VERSION" ]; then
+          echo "atmosphere.js@$VERSION is already on NPM — nothing to publish"
+          exit 0
+        fi
+        LATEST_BEFORE=$(npm view atmosphere.js dist-tags.latest)
+        echo "latest before publish: $LATEST_BEFORE"
+        npm publish --tag "$DIST_TAG" --access public
+
+        for attempt in $(seq 1 30); do
+          if [ "$(npm view "atmosphere.js@$VERSION" version 2>/dev/null || true)" = "$VERSION" ]; then
+            break
+          fi
+          if [ "$attempt" = 30 ]; then
+            echo "::error::atmosphere.js@$VERSION is not served by NPM after 5 minutes"
+            exit 1
+          fi
+          sleep 10
+        done
+
+        LATEST_AFTER=$(npm view atmosphere.js dist-tags.latest)
+        if [ "$LATEST_AFTER" != "$LATEST_BEFORE" ]; then
+          npm dist-tag add "atmosphere.js@$LATEST_BEFORE" latest
+          echo "::error::publishing moved latest from $LATEST_BEFORE to $LATEST_AFTER; restored $LATEST_BEFORE"
+          exit 1
+        fi
+        echo "verified: atmosphere.js@$VERSION is live under '$DIST_TAG', latest is still $LATEST_AFTER"
+        npm view atmosphere.js dist-tags
