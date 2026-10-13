@@ -145,6 +145,28 @@ describe('open fires after subscribe() resolved (#2784)', () => {
     await sub.close();
   });
 
+  it('long-polling with the protocol: an empty first body opens once, and the handshake that follows sets the id', async () => {
+    const bodies = ['', 'server-uuid-1|0|X|'];
+    global.fetch = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      polls.push(url);
+      const body = bodies.shift();
+      return body === undefined ? heldPoll(init) : Promise.resolve(okResponse(body));
+    });
+    let opens = 0;
+    const sub = await new Atmosphere().subscribe(
+      { url: 'http://localhost/chat', transport: 'long-polling', enableProtocol: true },
+      { open: () => { opens++; } },
+    );
+    await vi.waitFor(() => expect(polls.length).toBe(3));
+    await vi.waitFor(() => expect(sub.uuid).toBe('server-uuid-1'));
+    await vi.waitFor(() => expect(opens).toBe(1));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(opens).toBe(1);
+    expect(trackingId(polls[1])).toBe('0');
+    expect(trackingId(polls[2])).toBe('server-uuid-1');
+    await sub.close();
+  });
+
   it('long-polling without the protocol still opens, after subscribe() resolved and before its message', async () => {
     mockLongPolling('hello');
     const order: string[] = [];
