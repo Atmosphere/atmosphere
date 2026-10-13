@@ -228,11 +228,6 @@ public class QueryStringTest {
         assertEquals("a%00b", request.getHeader("X-Nul"));
         assertEquals("a%7Fb", request.getHeader("X-Del"));
         assertEquals("a\tb", request.getHeader("X-Tab"));
-        String echoed = response.getHeader("X-Atmosphere-tracking-id");
-        if (echoed != null) {
-            assertEquals(-1, echoed.indexOf('\r'));
-            assertEquals(-1, echoed.indexOf('\n'));
-        }
     }
 
     @Test

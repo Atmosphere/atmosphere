@@ -154,8 +154,8 @@
             <scope>test</scope>
         </dependency>
         <!-- JDBC driver for the JdbcAuditSink against the Postgres container.
-             Explicit 42.7.13: Spring Boot 4.1.0 manages 42.7.11, which is
-             GHSA-j92g-9f8w-j867. -->
+             Explicit 42.7.13: Spring Boot 4.1.0 managed 42.7.11, which is
+             GHSA-j92g-9f8w-j867; 4.1.1 manages 42.7.13 itself. -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
