@@ -41,7 +41,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * extends fixtures. The trees under
  * {@code modules/ai/src/test/resources/ms-acs-extends/} are verbatim copies
  * of {@code policy-engine/core/tests/fixtures/extends/} in
- * microsoft/agent-governance-toolkit — they are <b>behaviour fixtures pinned
+ * microsoft/agent-governance-toolkit (ACS 0.3.1-beta). Upstream has since
+ * removed that directory; its ACS 0.4.0-alpha.1 successors, which use
+ * {@code $target} transform paths, live under {@code engine/tests/fixtures/extends/}
+ * in responsibleai/agent-control-spec — they are <b>behaviour fixtures pinned
  * by the assertions in this test</b> and deliberately NOT added to the
  * weekly {@code ms-yaml-conformance} byte-diff workflow (which tracks the
  * manifest contract fixtures under {@code ms-acs/} only).

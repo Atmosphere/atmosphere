@@ -32,8 +32,9 @@ import java.util.StringJoiner;
 
 /**
  * Resolves an ACS manifest's {@code extends:} chain, faithful to the upstream
- * resolver in microsoft/agent-governance-toolkit
- * ({@code policy-engine/core/src/manifest.rs}):
+ * resolver as it stood in microsoft/agent-governance-toolkit
+ * ({@code policy-engine/core/src/manifest.rs}, ACS 0.3.1-beta); upstream has
+ * since moved it to responsibleai/agent-control-spec ({@code engine/src/manifest.rs}):
  *
  * <ul>
  *   <li><b>Trust root</b> — the canonicalized parent directory of the

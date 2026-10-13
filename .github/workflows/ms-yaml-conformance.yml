@@ -109,9 +109,9 @@ jobs:
             echo "drift<<EOF" >> "$GITHUB_OUTPUT"
             printf "%b" "$DRIFT" >> "$GITHUB_OUTPUT"
             echo "EOF" >> "$GITHUB_OUTPUT"
-            echo "::error::Microsoft ACS manifest fixtures drifted — see step summary"
+            echo "::error::ACS manifest fixtures drifted from responsibleai/agent-control-spec — see step summary"
             {
-              echo "## MS Agent Control Specification manifest drift detected"
+              echo "## Agent Control Specification manifest drift detected (responsibleai/agent-control-spec)"
               echo
               echo "\`\`\`"
               printf "%b" "$DRIFT"
