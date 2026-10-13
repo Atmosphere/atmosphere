@@ -307,7 +307,7 @@ For Spring Boot 3.5 deployments, including Spring AI Alibaba, use `atmosphere-sp
 
 On Quarkus, the extension runs Atmosphere on the Undertow servlet by default; `quarkus.atmosphere.container=vertx` serves it from a Vert.x route instead, with a virtual thread per request and Vert.x WebSockets. See [Container modes](modules/quarkus-extension/README.md#container-modes).
 
-**Requirements:** Java 21+ · Spring Boot 4.1.0 or Spring Boot 3.5 via `-Pspring-boot3` · Quarkus 3.39.5+ · current release from the Maven Central badge above.
+**Requirements:** Java 21+ · Spring Boot 4.1.1 or Spring Boot 3.5 via `-Pspring-boot3` · Quarkus 3.39.5+ · current release from the Maven Central badge above.
 
 ## Documentation
 

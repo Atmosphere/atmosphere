@@ -32,8 +32,8 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- tools.jackson pinned above Spring Boot 4.1.0's managed
-                 3.1.4 to the patched 3.1 line (root jackson-boot.version).
+            <!-- tools.jackson pinned above Spring Boot 4.1.1's managed
+                 3.1.5 to the patched 3.1 line (root jackson-boot.version).
                  Imported BEFORE spring-boot-dependencies
                  so Maven's first-declared-wins rule takes the patched line. -->
             <dependency>

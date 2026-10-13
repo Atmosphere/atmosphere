@@ -1222,8 +1222,8 @@
                      bypass CVE-2026-68525 (GHSA-h3x4-894j-xpx5). 11.0.22 itself
                      closed GHSA-5m62-pw8w-7w9f, GHSA-h6fc-48rj-7qqh,
                      GHSA-r29c-68gh-xp6x, GHSA-5mp6-jrq3-r938, GHSA-fv25-8xcx-gqjc,
-                     GHSA-gx5v-xp9w-j4cg and GHSA-9m89-8frq-c98c. Spring Boot 4.1.0
-                     still manages 11.0.22 (4.1.1: 11.0.24), so the pin leads the
+                     GHSA-gx5v-xp9w-j4cg and GHSA-9m89-8frq-c98c. Spring Boot 4.1.1
+                     still manages 11.0.24 (4.1.0: 11.0.22), so the pin leads the
                      BOM within the 11.0 patch line. Only tomcat-embed-core is
                      pinned here — tomcat-embed-el and -websocket follow their
                      respective Spring Boot BOMs so the Boot 3.5 lanes keep their
@@ -1496,9 +1496,15 @@
         <maven-shade-plugin.version>3.6.2</maven-shade-plugin.version>
         <maven-install-plugin.version>3.1.4</maven-install-plugin.version>
         <lettuce.version>6.5.5.RELEASE</lettuce.version>
-        <spring-boot.version>4.1.0</spring-boot.version>
-        <!-- Override Spring Boot 4.1.0's netty 4.2.x pin (4.2.15.Final) to
-             4.2.17.Final, closing the codec-family batch: GHSA-jppx-w49h-x2qq /
+        <!-- 4.1.1 manages Spring Framework 7.0.9 (4.1.0: 7.0.8), closing the
+             spring-webmvc / spring-webflux batch GHSA-j9f9-w8pj-32f8 (SSE fragment
+             stream corruption), GHSA-pc63-qcmh-9cmg (XsltView path limitation) and
+             GHSA-9qf2-26p9-2q2q (WebFlux functional-endpoint header predicate
+             bypass) in every module and sample importing spring-boot-dependencies
+             at ${spring-boot.version}. -->
+        <spring-boot.version>4.1.1</spring-boot.version>
+        <!-- Floor netty at 4.2.17.Final (Spring Boot 4.1.0 pinned 4.2.15.Final;
+             4.1.1 manages 4.2.17.Final itself), closing the codec-family batch: GHSA-jppx-w49h-x2qq /
              GHSA-mvh2-crg5-v77c / GHSA-6jqx-86gh-f27w (codec-http),
              GHSA-93wv-jw9v-4972 (codec-http2), GHSA-558v-64gr-wgg4
              (codec-compression), GHSA-hpcc-26xq-25fv (codec-http3) and the
