@@ -305,9 +305,16 @@ export class AtmosphereProtocol {
   /**
    * Reset protocol state for a new connection.
    * Preserves the session token across reconnects.
+   *
+   * The server sends the protocol handshake only to a request whose tracking
+   * id is `0`. A reconnect that sends the uuid this protocol already holds
+   * gets no handshake, so the handshake parser is armed only while the uuid
+   * is still `0`: otherwise the first message containing the delimiter would
+   * be parsed as a handshake, replacing the uuid and eating the payload.
+   * Every transport calls this right before the request that sends `uuid`.
    */
   reset(): void {
-    this.firstMessage = true;
+    this.firstMessage = this.uuid === '0';
     this.partialMessage = '';
     this.stopHeartbeat();
     // sessionToken is intentionally preserved across reconnects

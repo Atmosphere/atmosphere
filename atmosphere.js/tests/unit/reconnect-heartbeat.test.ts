@@ -59,7 +59,7 @@ describe('WebSocket heartbeat after reconnect (issue #294)', () => {
     vi.restoreAllMocks();
   });
 
-  it('restarts heartbeat after a reconnect with enableProtocol', async () => {
+  it('starts heartbeat from a handshake that arrives on a reconnect', async () => {
     const transport = new WebSocketTransport(
       {
         url: 'ws://localhost:8080/chat',
@@ -76,16 +76,8 @@ describe('WebSocket heartbeat after reconnect (issue #294)', () => {
     mocks[0].onopen?.();
     await p1;
 
-    // Initial handshake → uuid + 1000ms heartbeat
-    mocks[0].onmessage?.({ data: 'uuid-1|1000|X|' });
-    expect(mockHandlers.open).toHaveBeenCalledTimes(1);
-
-    // Heartbeat fires
-    vi.advanceTimersByTime(1000);
-    expect(mocks[0].send).toHaveBeenCalledWith('X');
-    mocks[0].send.mockClear();
-
-    // Connection drops
+    // Connection drops before its handshake: no uuid was assigned, so the
+    // reconnect still sends tracking id 0 and the server sends a handshake.
     mocks[0].onclose?.({ code: 1006, reason: '' });
     expect(mockHandlers.reconnect).toHaveBeenCalled();
 
@@ -94,16 +86,17 @@ describe('WebSocket heartbeat after reconnect (issue #294)', () => {
     expect(mocks.length).toBe(2);
     mocks[1].onopen?.();
 
-    // New handshake with different heartbeat
+    // Handshake on the new connection → uuid + 2000ms heartbeat
     mocks[1].onmessage?.({ data: 'uuid-2|2000|Y|' });
-    expect(mockHandlers.reopen).toHaveBeenCalled();
+    expect(mockHandlers.open).toHaveBeenCalledTimes(1);
+    expect(transport.uuid).toBe('uuid-2');
 
     // Heartbeat MUST fire on the new connection
     vi.advanceTimersByTime(2000);
     expect(mocks[1].send).toHaveBeenCalledWith('Y');
   });
 
-  it('restarts heartbeat after reconnect when handshake carries trailing data', async () => {
+  it('starts heartbeat on reconnect when the handshake carries trailing data', async () => {
     const transport = new WebSocketTransport(
       {
         url: 'ws://localhost:8080/chat',
@@ -120,26 +113,18 @@ describe('WebSocket heartbeat after reconnect (issue #294)', () => {
     mocks[0].onopen?.();
     await p1;
 
-    // Initial handshake includes a trailing payload
-    mocks[0].onmessage?.({ data: 'uuid-1|1000|X|first-payload' });
-    expect(mockHandlers.open).toHaveBeenCalledTimes(1);
-    expect(mockHandlers.message).toHaveBeenCalledWith(
-      expect.objectContaining({ responseBody: 'first-payload' }),
-    );
-
-    vi.advanceTimersByTime(1000);
-    expect(mocks[0].send).toHaveBeenCalledWith('X');
-    mocks[0].send.mockClear();
-
-    // Drop and reconnect
+    // Drop before the handshake, then reconnect under tracking id 0
     mocks[0].onclose?.({ code: 1006, reason: '' });
     await vi.advanceTimersByTimeAsync(500);
     expect(mocks.length).toBe(2);
     mocks[1].onopen?.();
 
-    // New handshake also carries trailing data — the regression case
+    // The handshake carries trailing data — the regression case
     mocks[1].onmessage?.({ data: 'uuid-2|2000|Y|second-payload' });
-    expect(mockHandlers.reopen).toHaveBeenCalled();
+    expect(mockHandlers.open).toHaveBeenCalledTimes(1);
+    expect(mockHandlers.message).toHaveBeenCalledWith(
+      expect.objectContaining({ responseBody: 'second-payload' }),
+    );
 
     vi.advanceTimersByTime(2000);
     expect(mocks[1].send).toHaveBeenCalledWith('Y');

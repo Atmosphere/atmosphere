@@ -195,7 +195,7 @@ describe('AtmosphereProtocol', () => {
   });
 
   describe('reset', () => {
-    it('should reset protocol state', () => {
+    it('does not expect a handshake after a reset that keeps the server-assigned uuid', () => {
       const protocol = new AtmosphereProtocol();
       const request: AtmosphereRequest = {
         url: 'http://localhost/test',
@@ -208,10 +208,29 @@ describe('AtmosphereProtocol', () => {
       protocol.handleProtocol(request, 'uuid|5000|X|');
       expect(protocol.uuid).toBe('uuid');
 
-      // Reset
+      // Reset: the reconnect sends tracking id "uuid", so the server sends no handshake
       protocol.reset();
 
-      // Should treat next message as handshake again
+      const result = protocol.handleProtocol(request, 'a|b|c|');
+      expect(result.wasHandshake).toBe(false);
+      expect(result.message).toBe('a|b|c|');
+      expect(protocol.uuid).toBe('uuid');
+      expect(protocol.heartbeatInterval).toBe(5000);
+      expect(protocol.heartbeatPadding).toBe('X');
+    });
+
+    it('still expects a handshake after a reset while no uuid was assigned', () => {
+      const protocol = new AtmosphereProtocol();
+      const request: AtmosphereRequest = {
+        url: 'http://localhost/test',
+        transport: 'websocket',
+        enableProtocol: true,
+        messageDelimiter: '|',
+      };
+
+      // The connection dropped before its handshake arrived: uuid is still "0"
+      protocol.reset();
+
       const result = protocol.handleProtocol(request, 'new-uuid|3000|Y|');
       expect(result.wasHandshake).toBe(true);
       expect(protocol.uuid).toBe('new-uuid');
