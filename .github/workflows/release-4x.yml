@@ -240,6 +240,15 @@ jobs:
       # step did not stage samples/**/*.md — fixed below).
       run: ATMO_RELEASED_VERSION=${{ inputs.release_version }} ./scripts/validate-atmosphere-doc-version.sh
 
+    - name: Release preflight (version references)
+      # After the doc bump, before any publish: a red step here costs a re-run,
+      # never a burned Central version. It repeats the doc-version gate above on
+      # purpose (the preflight is also run by hand) and adds the atmosphere.js
+      # checks (version.ts derives VERSION from package.json), the sample-README
+      # stale-path check and the previous-version sweep over tracked docs. Runs
+      # under dry_run too. The JS version defaults to atmosphere.js/package.json.
+      run: ./scripts/release-preflight.sh "${{ inputs.release_version }}"
+
     - name: Regenerate SKILLCARD manifests
       # SKILLCARD.yaml stamps the artifact version from each module pom. Without
       # regenerating after versions:set, the manifests lag the bump and the

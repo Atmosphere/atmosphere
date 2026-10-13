@@ -159,6 +159,11 @@ PY
 # A Java file outside every Spotless include, staged as intent-to-add.
 s_uncovered()   { printf 'public class ZzzUncovered {\n}\n' > e2e/ZzzUncovered.java
                   git add -N e2e/ZzzUncovered.java; }
+# The current release version, typed into a workflow. Derived here, never
+# spelled out: this file is itself under scripts/, which the check scans.
+s_hardcoded_ver(){ local v
+                   v=$(python3 -c 'import re; print(re.search(r"atmosphere-project</artifactId>.*?<version>(\d+\.\d+\.\d+)", open("pom.xml").read(), re.S).group(1))')
+                   printf '\n# zzz\nenv:\n  ZZZ_RELEASE: "%s"\n' "$v" >> .github/workflows/e2e.yml; }
 
 # ---- cases ------------------------------------------------------------------
 run_case "noop-constants"      "NOOP constants declared but never referenced"        s_noop
@@ -187,6 +192,7 @@ run_case "experimental"        "@Experimental marker not allowed"               
 run_case "hardcoded-secret"    "hardcoded API keys"                                  s_secret
 run_case "jetty-protected"     "without setProtectedTargets"                         s_jetty
 run_case "spotless-coverage"   "outside every Spotless include"                      s_uncovered
+run_case "hardcoded-version"   "hardcoded Atmosphere version literal"                s_hardcoded_ver
 
 echo ""
 echo "==== Gate bite-proof ===="

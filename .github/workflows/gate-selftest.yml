@@ -20,12 +20,14 @@ on:
       - 'scripts/architectural-validation.sh'
       - 'scripts/validation-patterns.toml'
       - 'scripts/lib/**'
+      - 'scripts/validate-no-hardcoded-atmosphere-version.sh'
       - '.github/workflows/gate-selftest.yml'
   pull_request:
     paths:
       - 'scripts/architectural-validation.sh'
       - 'scripts/validation-patterns.toml'
       - 'scripts/lib/**'
+      - 'scripts/validate-no-hardcoded-atmosphere-version.sh'
       - '.github/workflows/gate-selftest.yml'
   workflow_dispatch:
 

@@ -8,6 +8,7 @@
 # 5. Mock / fake code leaked into production sources
 # 6. Fluent builder misuse (return values silently discarded)
 # 7. ServiceLoader SPIs declared but not wired
+# 8. Current Atmosphere version hardcoded in release/build tooling
 #
 # Configuration: scripts/validation-patterns.toml
 #
@@ -1101,6 +1102,27 @@ else
     echo "  Spotless <java> section of the root pom.xml (root-project includes only"
     echo "  match from the root project, so the pre-commit hook and"
     echo "  scripts/pre-push-validate.sh must learn the new path too)."
+fi
+
+# ============================================================================
+# 14. NO HARDCODED CURRENT ATMOSPHERE VERSION IN TOOLING
+# ============================================================================
+
+echo ""
+echo -e "${BLUE}--- Hardcoded Atmosphere Version Literals ---${NC}"
+
+# Release and build tooling (scripts/, .github/workflows/, atmosphere.js/src,
+# atmosphere.js/scripts) must read the Atmosphere / atmosphere.js version from
+# pom.xml, cli/atmosphere and atmosphere.js/package.json — a typed literal is
+# right for one release and stale from the next. The current literals are
+# derived at run time; scope and allowlist are [hardcoded_atmosphere_version]
+# in validation-patterns.toml. Exit 2 (a version source unreadable) fails too:
+# a gate that cannot tell what to look for must not print PASS.
+if HARDCODED_VERSION_OUT=$(./scripts/validate-no-hardcoded-atmosphere-version.sh 2>&1); then
+    pass_validation "No hardcoded current Atmosphere version ($(echo "$HARDCODED_VERSION_OUT" | sed -n 's/^literals: //p'))"
+else
+    fail_validation "hardcoded Atmosphere version literal(s) in tooling (scripts/validate-no-hardcoded-atmosphere-version.sh):"
+    echo "$HARDCODED_VERSION_OUT" | sed 's/^/  /'
 fi
 
 # ============================================================================

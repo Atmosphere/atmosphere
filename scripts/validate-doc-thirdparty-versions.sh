@@ -52,11 +52,19 @@ if ap.exists():
 # enough to exclude real upstream versions that merely share a 4.0 prefix
 # (e.g. javax.servlet-api:4.0.1, a build plugin at 4.0.3). A third-party dep
 # must never carry a version on this band.
+# No fallback: a hardcoded default version silently aims the band at a stale
+# release decade, so the gate would scan for the wrong versions and pass.
 pom = Path("pom.xml").read_text()
 pm = re.search(r"atmosphere-project</artifactId>.*?<version>([^<]+)</version>", pom, re.DOTALL)
-proj_ver = pm.group(1).strip() if pm else "4.0.55-SNAPSHOT"
+if not pm:
+    sys.exit("validate-doc-thirdparty-versions.sh: cannot read the atmosphere-project "
+             "<version> from pom.xml; refusing to guess the Atmosphere version band.")
+proj_ver = pm.group(1).strip()
 vm = re.match(r"(\d+)\.(\d+)\.(\d+)", proj_ver)
-maj, minr, patch = (vm.group(1), vm.group(2), vm.group(3)) if vm else ("4", "0", "55")
+if not vm:
+    sys.exit(f"validate-doc-thirdparty-versions.sh: pom.xml atmosphere-project version "
+             f"{proj_ver!r} is not X.Y.Z[-qualifier]; refusing to guess the version band.")
+maj, minr, patch = vm.group(1), vm.group(2), vm.group(3)
 decade = patch[0]
 ATMO_VER = re.compile(rf"^{maj}\.{minr}\.{decade}[0-9](-SNAPSHOT)?$")
 # A <dependency>...</dependency> block (xml fenced or inline), non-greedy.

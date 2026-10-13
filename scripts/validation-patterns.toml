@@ -362,3 +362,35 @@ placeholder_markers = 0
 system_out_calls = 0
 print_stack_trace = 0
 todo_markers = 0
+
+# ============================================================================
+# HARDCODED ATMOSPHERE VERSION — scripts/validate-no-hardcoded-atmosphere-version.sh
+# ============================================================================
+
+[hardcoded_atmosphere_version]
+# Release/build tooling must derive the Atmosphere and atmosphere.js versions
+# (pom.xml, cli/atmosphere VERSION=, atmosphere.js/package.json) instead of
+# spelling them out. The literals are computed at run time by the script; only
+# the scope and the exceptions are configured here.
+#
+# cli/atmosphere and cli/install.sh carry VERSION="X.Y.Z" by design (the CLI
+# ships as a standalone file; release-4x.yml rewrites the line on every release
+# and cli/test-cli.sh pins it to cli/samples.json). They stay OUTSIDE these scan
+# paths on purpose — do not add cli/ here. Likewise release-4x.yml's
+# `sed "s/^VERSION=\"[^\"]*\"/..."` rewrite targets match a pattern, not a
+# literal, so they need no allowlist entry.
+scan_paths = [
+    "scripts",
+    ".github/workflows",
+    "atmosphere.js/src",
+    "atmosphere.js/scripts"
+]
+# fnmatch globs on the repo-relative path. Keep each entry narrow and justified.
+allow_globs = [
+    # Script test harnesses build fixtures that may need a concrete version
+    # (e.g. jar names, commit subjects); they test the tooling, they do not
+    # drive a release.
+    "scripts/test-*.sh",
+    # Append-only release history legitimately names released versions.
+    "*CHANGELOG*"
+]
