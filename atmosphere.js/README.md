@@ -135,6 +135,9 @@ subscription.push(new ArrayBuffer(8));         // Binary data
 // Get current state
 const state = subscription.state; // 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'suspended' | 'closed' | 'error'
 
+// The server's tracking id (X-Atmosphere-tracking-id) of this connection
+const uuid = subscription.uuid;
+
 // Close the subscription
 await subscription.close();
 
@@ -145,6 +148,12 @@ subscription.on('custom-event', (data) => {
 
 subscription.off('custom-event', handler);
 ```
+
+`subscription.uuid` is the id the server knows the connection by (the
+`AtmosphereResource` uuid). It is read from the transport on every access: it
+is `'0'` until the Atmosphere protocol handshake arrives, which requires
+`enableProtocol: true`, and it is the fallback transport's id when the
+fallback took over. `subscription.id` is a client-side counter (`sub-N`).
 
 ## Examples
 

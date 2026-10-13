@@ -66,6 +66,7 @@ describe('streaming session lifecycle', () => {
   beforeEach(() => {
     mockSubscription = {
       id: 'sub-1',
+      uuid: '0',
       state: 'connected' as const,
       push: vi.fn(),
       close: vi.fn().mockResolvedValue(undefined),
@@ -290,6 +291,7 @@ describe('metadata and routing coexistence', () => {
   beforeEach(() => {
     mockSubscription = {
       id: 'sub-1',
+      uuid: '0',
       state: 'connected' as const,
       push: vi.fn(),
       close: vi.fn().mockResolvedValue(undefined),

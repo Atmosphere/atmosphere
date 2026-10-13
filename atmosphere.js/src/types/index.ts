@@ -208,7 +208,16 @@ export interface SubscriptionHandlers<T = unknown> {
  * Subscription object returned from subscribe()
  */
 export interface Subscription {
+  /** Client-side subscription id (`sub-N`); the server never sees it. */
   readonly id: string;
+  /**
+   * The server's tracking id for this connection (`X-Atmosphere-tracking-id`,
+   * the `AtmosphereResource` uuid), read from the transport in use on every
+   * access. It is `'0'` until the Atmosphere protocol handshake has been
+   * received, which happens only with `enableProtocol: true`; when the
+   * fallback transport took over, it is the fallback transport's id.
+   */
+  readonly uuid: string;
   readonly state: ConnectionState;
   push(message: string | object | ArrayBuffer): void;
   close(): Promise<void>;

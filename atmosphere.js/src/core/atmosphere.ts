@@ -171,6 +171,9 @@ export class Atmosphere {
 
     const subscription: Subscription = {
       id,
+      get uuid(): string {
+        return currentTransport.uuid;
+      },
       get state(): ConnectionState {
         return currentTransport.state;
       },

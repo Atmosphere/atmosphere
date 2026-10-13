@@ -25,6 +25,7 @@ function createMockSubscription(): Subscription & { pushed: string[] } {
   const pushed: string[] = [];
   return {
     id: 'test-sub',
+    uuid: '0',
     state: 'connected' as const,
     pushed,
     push: vi.fn((msg: string | object | ArrayBuffer) => {

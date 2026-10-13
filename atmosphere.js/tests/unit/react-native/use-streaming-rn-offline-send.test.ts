@@ -93,6 +93,7 @@ function createFakeWire(): FakeWire {
 
   const subscription: Subscription = {
     id: 'fake-sub',
+    uuid: '0',
     get state(): ConnectionState {
       return state;
     },
