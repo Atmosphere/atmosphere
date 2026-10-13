@@ -273,6 +273,25 @@ describe('WebTransportTransport', () => {
     });
   });
 
+  describe('explicit webTransportUrl', () => {
+    it('encodes a space in a header value as %20, never as a literal-plus "+"', async () => {
+      const request: AtmosphereRequest = {
+        url: 'https://localhost:8080/chat',
+        transport: 'webtransport',
+        webTransportUrl: 'https://localhost:4443/chat',
+        headers: { 'X-Custom': 'a b+c' },
+      };
+      transport = new WebTransportTransport(request, mockHandlers);
+      await transport.connect();
+
+      const url = new URL(((globalThis as any).WebTransport as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+      expect(url.port).toBe('4443');
+      expect(url.search).toContain('X-Custom=a%20b%2Bc');
+      expect(url.search).not.toMatch(/X-Custom=a\+b/);
+      await transport.disconnect();
+    });
+  });
+
   describe('send()', () => {
     it('should write encoded string through stream writer', async () => {
       await transport.connect();

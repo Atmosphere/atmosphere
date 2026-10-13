@@ -215,6 +215,27 @@ public class QueryStringTest {
     }
 
     @Test
+    public void controlCharactersAreNeverDecodedIntoHeaders() throws IOException {
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder()
+                .queryString("X-Atmosphere-tracking-id=abc%0D%0ASet-Cookie:%20x=y"
+                        + "&X-Custom=a%0Ab&X-Nul=a%00b&X-Del=a%7Fb&X-Tab=a%09b")
+                .pathInfo("/a").build();
+        AtmosphereResponse response = AtmosphereResponseImpl.newInstance();
+        framework.configureRequestResponse(request, response);
+
+        assertEquals("abc%0D%0ASet-Cookie:%20x=y", request.getHeader("X-Atmosphere-tracking-id"));
+        assertEquals("a%0Ab", request.getHeader("X-Custom"));
+        assertEquals("a%00b", request.getHeader("X-Nul"));
+        assertEquals("a%7Fb", request.getHeader("X-Del"));
+        assertEquals("a\tb", request.getHeader("X-Tab"));
+        String echoed = response.getHeader("X-Atmosphere-tracking-id");
+        if (echoed != null) {
+            assertEquals(-1, echoed.indexOf('\r'));
+            assertEquals(-1, echoed.indexOf('\n'));
+        }
+    }
+
+    @Test
     public void postBodyIsDecodedOnceAsTheBody() throws IOException {
         AtmosphereRequest request = configure("X-Atmosphere-tracking-id=" + TRACKING_ID
                 + "&X-Atmosphere-Post-Body=100%2525%20sure");

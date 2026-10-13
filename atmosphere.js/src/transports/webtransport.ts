@@ -188,6 +188,9 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
       paramsUrl.searchParams.forEach((value, key) => {
         explicit.searchParams.set(key, value);
       });
+      // URLSearchParams writes a space as '+'; the server reads a bare '+' as a
+      // literal plus, so spell spaces %20 as buildUrl's encodeURIComponent does.
+      explicit.search = explicit.searchParams.toString().replace(/\+/g, '%20');
       return explicit.toString();
     }
 

@@ -1339,18 +1339,29 @@ public class AtmosphereFramework {
      * Percent-decode one query string name or value as UTF-8, the encoding of {@code encodeURIComponent}
      * (RFC 3986). A bare {@code +} stays a {@code +}: a client that does not encode a value (a token with a
      * {@code +} in it) must not see it turned into a space. A malformed escape keeps the raw text; only the
-     * parameter name is logged, the value may be a credential.
+     * parameter name is logged, the value may be a credential. A value that decodes to a control character
+     * (CR, LF, NUL...) also keeps the raw text: a header could never carry one, and some, like the tracking
+     * id, are echoed into response headers.
      */
     private static String decodeQueryComponent(String raw, String parameter) {
         if (raw.indexOf('%') < 0) {
             return raw;
         }
+        final String decoded;
         try {
-            return URLDecoder.decode(raw.replace("+", "%2B"), StandardCharsets.UTF_8);
+            decoded = URLDecoder.decode(raw.replace("+", "%2B"), StandardCharsets.UTF_8);
         } catch (IllegalArgumentException e) {
             logger.debug("Malformed percent-encoding in query parameter '{}', keeping it as sent", parameter, e);
             return raw;
         }
+        for (int i = 0; i < decoded.length(); i++) {
+            char c = decoded.charAt(i);
+            if ((c < 0x20 && c != '\t') || c == 0x7F) {
+                logger.debug("Query parameter '{}' decodes to a control character, keeping it as sent", parameter);
+                return raw;
+            }
+        }
+        return decoded;
     }
 
     public WebSocketProtocol getWebSocketProtocol() {

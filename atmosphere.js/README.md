@@ -251,13 +251,15 @@ How the headers and `authToken` (sent as `X-Atmosphere-Auth`) travel:
   `Content-Type`, or a value outside Latin-1 or with a line break) stays a query parameter.
 
 On the server, read these values with `request.getHeader(name)`, which sees both forms; a
-value sent as a header is not returned by `request.getParameter(name)`. The server
-percent-decodes (UTF-8) the query parameters it maps to headers, so a value that needed
-URL-encoding (a space, `&`, `+`, non-ASCII) reads the same from `getHeader` whichever way it
-travelled. A malformed escape such as `%zz` is kept as sent. Servers before 4.0.73 return
-these values still percent-encoded; on 4.0.73 and later, setting
-`org.atmosphere.cpr.decodeQueryStringHeaders` to `false` restores that behavior for an
-application that decodes them itself.
+value sent as a header is not returned by `request.getParameter(name)`. On HTTP transports
+the server percent-decodes (UTF-8) the query parameters it maps to headers, so a value that
+needed URL-encoding (a space, `&`, `+`, non-ASCII) reads the same from `getHeader` whether it
+travelled as a header or a query parameter; WebSocket requests already get their headers
+from the container-decoded parameters. A malformed escape such as `%zz`, or one that decodes
+to a control character such as CR or LF, is kept as sent. Earlier server releases returned
+the HTTP query-parameter values still percent-encoded: an application that decodes them
+itself must stop doing so, or set `org.atmosphere.cpr.decodeQueryStringHeaders` to `false`
+to keep the raw values.
 
 ### Type-Safe Messages
 
