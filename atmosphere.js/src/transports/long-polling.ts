@@ -97,8 +97,9 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
       });
 
       if (!response.ok) {
-        this.handleDisconnect(isFirst);
+        // A failed first poll is reported once, by the catch below.
         if (isFirst) throw new Error('Long-polling connection failed');
+        this.handleDisconnect(false);
         return;
       }
 
@@ -175,7 +176,9 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
 
     if (isFirst) {
       const error = new Error('Long-polling connection failed');
-      this.notifyError(error);
+      // A failed reconnect attempt re-enters handleDisconnect(false) from the
+      // reconnect timer; the initial poll rejects to `subscribe()` instead.
+      this.notifyError(error, this.reconnectAttempts > 0 && this._polling && this.reconnectAllowed());
       return;
     }
 

@@ -58,7 +58,9 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
         this.ws.onerror = () => {
           const error = new Error('WebSocket connection error');
           if (!this.aborted) {
-            this.handleError(error);
+            // The browser fires onclose right after onerror, and handleClose
+            // reconnects while the quota allows it.
+            this.handleError(error, !this.request.closed && this.reconnectAllowed());
           }
           reject(error);
         };
@@ -67,7 +69,8 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
           this.handleClose(event);
         };
       } catch (error) {
-        this.handleError(error as Error);
+        // No socket was created, so no onclose follows: nothing is retried.
+        this.handleError(error as Error, false);
         reject(error);
       }
     });
@@ -232,10 +235,10 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
     }
   }
 
-  private handleError(error: Error): void {
+  private handleError(error: Error, willRetry: boolean): void {
     logger.error('WebSocket error:', error);
     this.protocol.stopHeartbeat();
-    this.notifyError(error);
+    this.notifyError(error, willRetry);
   }
 
   private scheduleReconnect(): void {

@@ -76,7 +76,7 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
       if (result === 'closed') {
         const error = new Error('WebTransport connection closed before ready');
         if (!this.aborted) {
-          this.handleError(error);
+          this.handleError(error, this.failedAttemptWillRetry());
         }
         throw error;
       }
@@ -94,7 +94,7 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
     } catch (error) {
       // A connection disconnect() abandoned mid-handshake is not an error to report.
       if (!this.aborted && (error as Error).message !== 'WebTransport connection closed before ready') {
-        this.handleError(error as Error);
+        this.handleError(error as Error, this.failedAttemptWillRetry());
       }
       throw error;
     }
@@ -160,7 +160,9 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
     }
     this.writer.write(bytes).catch((error: Error) => {
       logger.error('WebTransport write failed:', error);
-      this.handleError(error);
+      // The write failure itself schedules no reconnect; if the session is
+      // gone, the read loop reports that failure and reconnects.
+      this.handleError(error, false);
     });
   }
 
@@ -260,7 +262,8 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
       this.drainFrames(true);
     } catch (error) {
       if (!this.readLoopAborted) {
-        this.handleError(error as Error);
+        // handleClose follows below and reconnects while the quota allows it.
+        this.handleError(error as Error, !this.aborted && !this.request.closed && this.reconnectAllowed());
       }
     }
 
@@ -405,10 +408,19 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
     }
   }
 
-  private handleError(error: Error): void {
+  private handleError(error: Error, willRetry: boolean): void {
     logger.error('WebTransport error:', error);
     this.protocol.stopHeartbeat();
-    this.notifyError(error);
+    this.notifyError(error, willRetry);
+  }
+
+  /**
+   * A failed connect is retried only when it is a reconnect attempt: the
+   * reconnect timer re-enters handleClose. The initial connect rejects to
+   * `subscribe()` instead.
+   */
+  private failedAttemptWillRetry(): boolean {
+    return this.reconnectAttempts > 0 && !this.aborted && !this.request.closed && this.reconnectAllowed();
   }
 
   private scheduleReconnect(): void {

@@ -256,7 +256,11 @@ try {
     transport: 'websocket'
   }, {
     error: (error) => {
-      console.error('Connection error:', error);
+      if (error.willRetry) {
+        console.warn(`Attempt ${error.attempt} failed, reconnecting:`, error.message);
+      } else {
+        console.error('Connection error:', error);
+      }
     },
     close: (response) => {
       console.log('Connection closed:', response.reasonPhrase);
@@ -266,6 +270,15 @@ try {
   console.error('Failed to connect:', error);
 }
 ```
+
+The `error` handler fires for every failed connection attempt, including those the client
+recovers from on its own, so the `Error` it receives is an `AtmosphereError` with two extra
+fields. `willRetry` is `true` when the transport follows the failure with an automatic
+reconnect attempt and `false` when nothing more is attempted for it: `reconnect` is off, the
+reconnect quota is spent (`failureToReconnect` fires as well), the initial SSE, streaming,
+long-polling or WebTransport connection failed (`subscribe()` rejects or falls back), or a
+message was not delivered (`isSendError`). `attempt` is 0 for the initial connection or a
+drop of an open one, and `n` for the n-th reconnect attempt since the connection was last open.
 
 ## Framework Hooks
 
@@ -631,7 +644,7 @@ classic Atmosphere 3.x lifecycle so your UI can react to every step:
 | `reopen`                | Connection re-established after a disconnect                            |
 | `reconnect`             | A reconnection attempt has begun                                        |
 | `close`                 | Transport closed (clean shutdown)                                       |
-| `error`                 | Transport-level error (not necessarily fatal)                           |
+| `error`                 | Transport-level error; `error.willRetry` says if a reconnect follows    |
 | `transportFailure`      | Primary transport failed; client is falling back to `fallbackTransport` |
 | `clientTimeout`         | Client-side heartbeat watchdog expired                                  |
 | `failureToReconnect`    | `maxReconnectOnClose` exhausted — terminal state                        |

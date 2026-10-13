@@ -16,6 +16,7 @@
 
 import type {
   AtmosphereConfig,
+  AtmosphereError,
   AtmosphereRequest,
   AtmosphereResponse,
   AtmosphereInterceptor,
@@ -86,7 +87,7 @@ export class Atmosphere {
     const canFallBack = Boolean(fallback && fallback !== transport);
     let primaryOpened = false;
     const primaryHandlers: SubscriptionHandlers<T> = canFallBack
-      ? { ...handlers, error: (err: Error) => { if (primaryOpened) handlers.error?.(err); } }
+      ? { ...handlers, error: (err: AtmosphereError) => { if (primaryOpened) handlers.error?.(err); } }
       : handlers;
 
     try {
@@ -151,7 +152,7 @@ export class Atmosphere {
     }) as SubscriptionHandlers<T>['close'];
 
     const originalError = handlers.error;
-    handlers.error = ((error: Error) => {
+    handlers.error = ((error: AtmosphereError) => {
       originalError?.(error);
       dispatchEvent('error', error);
     }) as SubscriptionHandlers<T>['error'];

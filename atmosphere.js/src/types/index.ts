@@ -134,13 +134,47 @@ export interface AtmosphereRequest {
 }
 
 /**
+ * The `Error` passed to the {@link SubscriptionHandlers.error} handler, carrying
+ * whether the client recovers from it on its own.
+ *
+ * atmosphere.js sets both fields on every error it reports. They are optional
+ * in the type only so that code calling an `error` handler itself with a plain
+ * `Error` (a test, a wrapper) keeps compiling; such errors read `undefined`.
+ */
+export interface AtmosphereError extends Error {
+  /**
+   * `true` when the transport follows this failure with an automatic
+   * reconnect attempt (`reconnect` is on and the attempt quota is not spent);
+   * `false` when nothing more is attempted for it: the failure of the initial
+   * connection made by `subscribe()` over SSE, streaming, long-polling or
+   * WebTransport (which `subscribe()` rejects with or falls back from), the
+   * failure of the last allowed reconnect attempt, any failure with
+   * `reconnect` off, and an undelivered message (`isSendError`).
+   */
+  willRetry?: boolean;
+  /**
+   * Reconnect attempt this failure belongs to: 0 for the initial connection
+   * or for an open connection that fails, `n` for the n-th reconnect attempt
+   * since the connection was last open.
+   */
+  attempt?: number;
+}
+
+/**
  * Event handlers for subscriptions
  */
 export interface SubscriptionHandlers<T = unknown> {
   message?: (response: AtmosphereResponse<T>) => void;
   open?: (response: AtmosphereResponse<T>) => void;
   close?: (response: AtmosphereResponse<T>) => void;
-  error?: (error: Error) => void;
+  /**
+   * Called for every failed connection attempt, including those the transport
+   * retries on its own, and for an undelivered message. Use
+   * {@link AtmosphereError.willRetry} to tell a transient failure (a reconnect
+   * attempt follows, announced by `reconnect`) from a terminal one; after the
+   * last failed reconnect attempt `failureToReconnect` also fires.
+   */
+  error?: (error: AtmosphereError) => void;
   reconnect?: (request: AtmosphereRequest, response: AtmosphereResponse<T>) => void;
   clientTimeout?: (request: AtmosphereRequest) => void;
   /** Called when the primary transport fails and a fallback is attempted. */

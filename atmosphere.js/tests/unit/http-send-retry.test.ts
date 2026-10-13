@@ -121,6 +121,8 @@ describe('HTTP transport POST send retry', () => {
     const reported = (handlers.error as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(reported.message).toContain('status 503');
     expect(reported.name).toBe('AtmosphereSendError');
+    // Nothing is retried after a lost message.
+    expect(reported).toMatchObject({ willRetry: false, attempt: 0 });
     await transport.disconnect();
   });
 

@@ -64,14 +64,14 @@ export class SSETransport<T = unknown> extends BaseTransport<T> {
         this.eventSource.onerror = () => {
           if (this._state === 'connecting') {
             const error = new Error('SSE connection failed');
-            this.handleError(error);
+            this.handleError(error, this.failedAttemptWillRetry());
             reject(error);
           } else {
             this.handleClose();
           }
         };
       } catch (error) {
-        this.handleError(error as Error);
+        this.handleError(error as Error, this.failedAttemptWillRetry());
         reject(error);
       }
     });
@@ -207,10 +207,19 @@ export class SSETransport<T = unknown> extends BaseTransport<T> {
     }
   }
 
-  private handleError(error: Error): void {
+  private handleError(error: Error, willRetry: boolean): void {
     logger.error('SSE error:', error);
     this.protocol.stopHeartbeat();
-    this.notifyError(error);
+    this.notifyError(error, willRetry);
+  }
+
+  /**
+   * A failed connect is retried only when it is a reconnect attempt: the
+   * reconnect timer re-enters handleClose. The initial connect rejects to
+   * `subscribe()` instead.
+   */
+  private failedAttemptWillRetry(): boolean {
+    return this.reconnectAttempts > 0 && this.reconnectAllowed();
   }
 
   private scheduleReconnect(): void {

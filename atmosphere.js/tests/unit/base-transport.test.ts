@@ -37,8 +37,8 @@ class TestTransport extends BaseTransport<string> {
     this.notifyClose(response);
   }
 
-  doNotifyError(error: Error): void {
-    this.notifyError(error);
+  doNotifyError(error: Error, willRetry = false): void {
+    this.notifyError(error, willRetry);
   }
 
   doApplyOutgoing(data: string | ArrayBuffer) {
@@ -201,6 +201,21 @@ describe('BaseTransport', () => {
     transport.doNotifyError(new Error('boom'));
     expect(transport.state).toBe('error');
     expect(handlers.error).toHaveBeenCalledWith(expect.any(Error));
+  });
+
+  it('passes the same Error to the handler with willRetry and attempt attached', () => {
+    const error = new Error('boom');
+    transport.doNotifyError(error, true);
+    expect(handlers.error).toHaveBeenCalledWith(error);
+    expect(error).toMatchObject({ message: 'boom', willRetry: true, attempt: 0 });
+  });
+
+  it('copies a non-extensible Error instead of throwing', () => {
+    const error = Object.freeze(new Error('frozen'));
+    transport.doNotifyError(error, false);
+    const reported = (handlers.error as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(reported).toBeInstanceOf(Error);
+    expect(reported).toMatchObject({ message: 'frozen', willRetry: false, attempt: 0 });
   });
 
   // ── suspend / resume ──

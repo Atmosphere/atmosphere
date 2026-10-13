@@ -57,13 +57,13 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
     } catch (error) {
       if (this.aborted || (error as Error).name === 'AbortError') return;
       const connectError = new Error('Streaming connection error');
-      this.handleError(connectError);
+      this.handleError(connectError, this.failedAttemptWillRetry());
       throw connectError;
     }
 
     if (!response.ok || !response.body) {
       const error = new Error(`Streaming connection failed: ${response.status}`);
-      this.handleError(error);
+      this.handleError(error, this.failedAttemptWillRetry());
       throw error;
     }
 
@@ -147,7 +147,8 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
       if (this.opened) {
         this.handleClose();
       } else {
-        this.handleError(error as Error);
+        // Not followed by handleClose, so nothing is retried.
+        this.handleError(error as Error, false);
       }
       return;
     }
@@ -219,10 +220,19 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
     }
   }
 
-  private handleError(error: Error): void {
+  private handleError(error: Error, willRetry: boolean): void {
     logger.error('Streaming error:', error);
     this.protocol.stopHeartbeat();
-    this.notifyError(error);
+    this.notifyError(error, willRetry);
+  }
+
+  /**
+   * A failed connect is retried only when it is a reconnect attempt: the
+   * reconnect timer re-enters handleClose. The initial connect rejects to
+   * `subscribe()` instead.
+   */
+  private failedAttemptWillRetry(): boolean {
+    return this.reconnectAttempts > 0 && !this.aborted && this.reconnectAllowed();
   }
 
   private scheduleReconnect(): void {

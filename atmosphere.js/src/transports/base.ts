@@ -15,6 +15,7 @@
  */
 
 import type {
+  AtmosphereError,
   AtmosphereRequest,
   AtmosphereResponse,
   AtmosphereInterceptor,
@@ -180,7 +181,9 @@ export abstract class BaseTransport<T = unknown> {
         // undelivered message from a broken transport.
         error.name = BaseTransport.SEND_ERROR_NAME;
         logger.warn(error.message);
-        this.handlers.error?.(error);
+        // Nothing is retried after this: neither the message nor (the
+        // connection being up) a reconnect.
+        this.handlers.error?.(this.toAtmosphereError(error, false));
       }
       return response;
     }
@@ -324,11 +327,37 @@ export abstract class BaseTransport<T = unknown> {
     this.handlers.close?.(response);
   }
 
-  protected notifyError(error: Error): void {
+  /**
+   * Report a transport failure to the `error` handler as an
+   * {@link AtmosphereError}. `willRetry` must say what the calling path does
+   * next: `true` only when this failure is followed by an automatic reconnect
+   * attempt. `attempt` is taken from {@link reconnectAttempts}.
+   */
+  protected notifyError(error: Error, willRetry: boolean): void {
     this._state = 'error';
     this.stopInactivityTimer();
-    logger.error(`${this.name} transport error:`, error);
-    this.handlers.error?.(error);
+    logger.error(`${this.name} transport error (willRetry=${willRetry}, attempt=${this.reconnectAttempts}):`, error);
+    this.handlers.error?.(this.toAtmosphereError(error, willRetry));
+  }
+
+  /**
+   * Whether `reconnect` is on and the attempt quota ({@link maxReconnectAttempts})
+   * still allows another reconnect attempt.
+   */
+  protected reconnectAllowed(): boolean {
+    return Boolean(this.request.reconnect) && this.reconnectAttempts < this.maxReconnectAttempts();
+  }
+
+  /** Attach `willRetry`/`attempt` to `error`, in place when the object is extensible. */
+  private toAtmosphereError(error: Error, willRetry: boolean): AtmosphereError {
+    const fields = { willRetry, attempt: this.reconnectAttempts };
+    if (Object.isExtensible(error)) {
+      return Object.assign(error, fields);
+    }
+    const copy = new Error(error.message);
+    copy.name = error.name;
+    copy.stack = error.stack;
+    return Object.assign(copy, fields);
   }
 
   protected notifyReconnect(request: AtmosphereRequest, response: AtmosphereResponse<T>): void {

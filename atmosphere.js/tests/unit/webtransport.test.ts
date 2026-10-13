@@ -740,6 +740,11 @@ describe('WebTransportTransport', () => {
 
       // The quota was consumed by real retries, not one silent death.
       expect(mockHandlers.reconnect).toHaveBeenCalledTimes(2);
+
+      // Each failed handshake is reported once: the first is retried, the
+      // last one (quota spent) is terminal.
+      const errors = (mockHandlers.error as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
+      expect(errors.map((e) => [e.attempt, e.willRetry])).toEqual([[1, true], [2, false]]);
     });
 
     it('should not reconnect when reconnect is false', async () => {
