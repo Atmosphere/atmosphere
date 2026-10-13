@@ -56,13 +56,16 @@ sha_cmd() {
 #
 # The package's own "version" line is masked out of the manifest/lockfile hash.
 # The release workflow bumps atmosphere.js to the next -SNAPSHOT as its last
-# step, and that bump cannot change a single byte of the emitted bundle — but
-# it did move the fingerprint, so the first commit after every release was
-# blocked on a re-sync that produced identical bytes. Masking keeps the gate
-# firing on real input changes (dependencies, sources, build config) and stops
-# it firing on the version string alone. Only the top-level and root-package
-# "version" keys are masked; a dependency's pinned version sits deeper in the
-# lockfile and still counts.
+# step. That bump moved the fingerprint, so the first commit after every
+# release was blocked on a re-sync. Masking keeps the gate firing on real
+# input changes (dependencies, sources, build config) and stops it firing on
+# the version string alone. The one byte-level effect of the bump is the
+# atmosphere.js VERSION string (injected from package.json at build time and
+# sent as X-Atmosphere-Framework): the committed copies keep the version they
+# were last synced with until the next real input change re-syncs them, while
+# the spring-boot-starter console, built from source, always carries the
+# current one. Only the top-level and root-package "version" keys are masked;
+# a dependency's pinned version sits deeper in the lockfile and still counts.
 mask_version() {
   sed -E 's/^([[:space:]]*)"version"[[:space:]]*:[[:space:]]*"[^"]*"/\1"version": "MASKED"/'
 }

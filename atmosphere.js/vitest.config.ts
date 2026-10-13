@@ -1,7 +1,15 @@
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as {
+  version: string;
+};
+
 export default defineConfig({
+  // Same constant tsup.config.ts injects into the bundles: src/version.ts
+  // reads it, so the tests see the package.json version the build ships.
+  define: { __ATMOSPHERE_VERSION__: JSON.stringify(version) },
   resolve: {
     alias: {
       // `react-native` is an optional peer dependency and is not installed

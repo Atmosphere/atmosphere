@@ -48,7 +48,6 @@ if [ -n "$JS_VERSION" ]; then
   echo "── atmosphere.js version references ──"
 
   PKG_VER=$(grep '"version"' atmosphere.js/package.json | grep -o '[0-9][0-9.]*')
-  SRC_VER=$(grep 'VERSION' atmosphere.js/src/version.ts | grep -o '[0-9][0-9.]*')
 
   if [ "$PKG_VER" = "$JS_VERSION" ]; then
     pass "package.json: ${PKG_VER}"
@@ -56,16 +55,20 @@ if [ -n "$JS_VERSION" ]; then
     fail "package.json: ${PKG_VER} (expected ${JS_VERSION})"
   fi
 
-  if [ "$SRC_VER" = "$JS_VERSION" ]; then
-    pass "version.ts: ${SRC_VER}"
+  # VERSION (sent as X-Atmosphere-Framework) is injected from package.json by
+  # tsup's `define`; a literal in version.ts is the drift this replaced.
+  if grep -q '^export const VERSION[^=]*= *__ATMOSPHERE_VERSION__ *;' atmosphere.js/src/version.ts; then
+    pass "version.ts derives VERSION from package.json at build time"
   else
-    fail "version.ts: ${SRC_VER} (expected ${JS_VERSION})"
+    fail "version.ts no longer reads __ATMOSPHERE_VERSION__ — VERSION can drift from package.json"
   fi
 
-  if [ "$PKG_VER" = "$SRC_VER" ]; then
-    pass "package.json and version.ts match"
-  else
-    fail "MISMATCH: package.json=${PKG_VER} version.ts=${SRC_VER}"
+  if [ -f atmosphere.js/dist/atmosphere.global.js ]; then
+    if grep -q "\"${JS_VERSION}\"" atmosphere.js/dist/atmosphere.global.js; then
+      pass "dist/atmosphere.global.js carries VERSION ${JS_VERSION}"
+    else
+      fail "dist/atmosphere.global.js does not carry VERSION ${JS_VERSION} — rebuild atmosphere.js"
+    fi
   fi
 
   echo ""

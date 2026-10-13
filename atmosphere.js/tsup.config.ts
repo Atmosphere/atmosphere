@@ -1,4 +1,13 @@
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'tsup';
+
+// src/version.ts reads __ATMOSPHERE_VERSION__, which every config below
+// replaces with the package.json version so VERSION (sent to the server as
+// X-Atmosphere-Framework) follows the release workflow's version bumps.
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as {
+  version: string;
+};
+const define = { __ATMOSPHERE_VERSION__: JSON.stringify(version) };
 
 export default defineConfig([
   {
@@ -33,6 +42,7 @@ export default defineConfig([
     platform: 'browser',
     treeshake: true,
     external: ['react', 'vue', 'svelte'],
+    define,
   },
   {
     entry: {
@@ -53,6 +63,7 @@ export default defineConfig([
     platform: 'neutral',
     treeshake: true,
     external: ['react', 'react-native', '@react-native-community/netinfo'],
+    define,
   },
   {
     entry: { atmosphere: 'src/index.ts' },
@@ -66,6 +77,7 @@ export default defineConfig([
     target: 'es2020',
     platform: 'browser',
     treeshake: true,
+    define,
     onSuccess: 'node -e "const fs=require(\'fs\');const f=\'dist/atmosphere.global.js\';let c=fs.readFileSync(f,\'utf8\');c+=\'\\nif(typeof window!==\"undefined\"){window.atmosphere=AtmosphereJS.atmosphere;window.Atmosphere=AtmosphereJS.Atmosphere;window.AtmosphereRooms=AtmosphereJS.AtmosphereRooms;window.subscribeStreaming=AtmosphereJS.subscribeStreaming;}\\n\';fs.writeFileSync(f,c);"',
   },
 ]);
