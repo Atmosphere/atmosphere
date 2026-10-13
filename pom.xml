@@ -1283,14 +1283,17 @@
                 <artifactId>commons-compress</artifactId>
                 <version>1.27.1</version>
             </dependency>
-            <!-- Force lz4-java to 1.11.1 (kafka-clients 3.9.2 ships 1.10.1 at
-                 runtime scope; <= 1.11.0 is GHSA-xx22-p4ch-683r). Pulled only
+            <!-- Force lz4-java to 1.11.4 (kafka-clients 3.9.2 ships 1.10.1 at
+                 runtime scope; <= 1.11.0 is GHSA-xx22-p4ch-683r, <= 1.11.1 is
+                 GHSA-4v53-57pg-c464 / GHSA-6cx8-rjf8-pr8g, <= 1.11.3 is
+                 GHSA-mcr4-qmvw-px4g / GHSA-gm45-99xc-r7wv / GHSA-343h-94h5-c4wr).
+                 No kafka-clients release ships a patched lz4-java. Pulled only
                  transitively through kafka-clients in the kafka / ai-audit-kafka
                  modules and their test consumers. -->
             <dependency>
                 <groupId>at.yawk.lz4</groupId>
                 <artifactId>lz4-java</artifactId>
-                <version>1.11.1</version>
+                <version>1.11.4</version>
             </dependency>
             <!-- Force the Log4j artifacts to 2.25.5 (CVE-2026-49844 on
                  log4j-api). Log4j reaches the tree transitively across 33
