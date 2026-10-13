@@ -785,7 +785,7 @@ const request = {
   url: '/atmosphere/chat',
   transport: 'websocket',
   fallbackTransport: 'long-polling',  // tried if WebSocket fails
-  reconnect: true,                     // default
+  reconnect: true,                     // off unless set
   reconnectInterval: 5000,             // base delay of the backoff (ms)
   maxReconnectOnClose: 10,             // give up after N attempts
   heartbeat: { client: 30000 },        // watchdog interval (ms)
