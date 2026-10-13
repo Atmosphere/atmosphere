@@ -169,12 +169,14 @@ jobs:
         cache: 'npm'
         cache-dependency-path: atmosphere.js/package-lock.json
 
-    - name: Install, test, and build
+    # Build before testing: tests/unit/iife-globals.test.ts runs the built
+    # dist/atmosphere.global.js and fails under CI when it is missing.
+    - name: Install, build, and test
       working-directory: atmosphere.js
       run: |
         npm ci
-        npm run test:ci
         npm run build
+        npm run test:ci
 
     - name: Upload JS dist
       uses: actions/upload-artifact@v7

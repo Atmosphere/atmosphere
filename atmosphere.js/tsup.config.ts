@@ -78,8 +78,25 @@ export default defineConfig([
     outDir: 'dist',
     target: 'es2020',
     platform: 'browser',
-    treeshake: true,
+    // No rollup pass for the IIFE: tsup's treeshake re-bundles esbuild's output
+    // through rollup, which moves the footer below inside the IIFE body (where
+    // AtmosphereJS is not assigned yet) and appends a second sourceMappingURL
+    // comment. esbuild already tree-shakes while bundling.
+    treeshake: false,
     define,
-    onSuccess: 'node -e "const fs=require(\'fs\');const f=\'dist/atmosphere.global.js\';let c=fs.readFileSync(f,\'utf8\');c+=\'\\nif(typeof window!==\"undefined\"){window.atmosphere=AtmosphereJS.atmosphere;window.Atmosphere=AtmosphereJS.Atmosphere;window.AtmosphereRooms=AtmosphereJS.AtmosphereRooms;window.subscribeStreaming=AtmosphereJS.subscribeStreaming;}\\n\';fs.writeFileSync(f,c);"',
+    // Browser globals for <script> users. A footer instead of an onSuccess
+    // shell one-liner: shell quoting stripped the quotes around 'undefined',
+    // so the guard was always true and threw outside a browser (#2791).
+    // esbuild places the footer after the IIFE and before the single
+    // sourceMappingURL comment, so the map still lines up.
+    footer: {
+      js:
+        "if(typeof window!=='undefined'){" +
+        'window.atmosphere=AtmosphereJS.atmosphere;' +
+        'window.Atmosphere=AtmosphereJS.Atmosphere;' +
+        'window.AtmosphereRooms=AtmosphereJS.AtmosphereRooms;' +
+        'window.subscribeStreaming=AtmosphereJS.subscribeStreaming;' +
+        '}',
+    },
   },
 ]);
