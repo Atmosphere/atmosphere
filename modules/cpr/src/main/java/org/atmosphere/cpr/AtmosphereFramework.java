@@ -50,6 +50,7 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -1283,6 +1284,7 @@ public class AtmosphereFramework {
 
     protected Map<String, String> configureQueryStringAsRequest(AtmosphereRequest request) {
         var headers = new HashMap<String, String>();
+        boolean decode = !"false".equalsIgnoreCase(config.getInitParameter(ApplicationConfig.DECODE_QUERYSTRING_HEADERS));
 
         var q = new StringBuilder();
         try {
@@ -1292,14 +1294,19 @@ public class AtmosphereFramework {
                 String[] s;
                 for (String p : params) {
                     s = p.split("=", 2);
-                    final String header = s[0];
-                    final String value = s.length > 1 ? s[1] : "";
+                    final String rawHeader = s[0];
+                    final String rawValue = s.length > 1 ? s[1] : "";
+                    final String header = decode ? decodeQueryComponent(rawHeader, rawHeader) : rawHeader;
+                    // The post body is decoded once, as the body, by configureRequestResponse.
+                    final String value = decode && !header.equals(ATMOSPHERE_POST_BODY)
+                            ? decodeQueryComponent(rawValue, rawHeader) : rawValue;
 
                     if (header.equalsIgnoreCase("Content-Type")) {
+                        String contentType = decodeQueryComponent(rawValue, rawHeader);
                         // Use the one set by the user first.
-                        if (request.getContentType() == null ||
-                                !request.getContentType().equalsIgnoreCase(s.length > 1 ? value : "")) {
-                            request.contentType(s.length > 1 ? URLDecoder.decode(value, "UTF-8") : "");
+                        if (request.getContentType() == null
+                                || !request.getContentType().equalsIgnoreCase(contentType)) {
+                            request.contentType(contentType);
                         }
                     }
                     if (!header.isEmpty()
@@ -1307,9 +1314,9 @@ public class AtmosphereFramework {
                             && !header.equalsIgnoreCase(HeaderConfig.X_HEARTBEAT_SERVER)
                             && !header.equalsIgnoreCase("Content-Type")
                             && !header.equalsIgnoreCase("_")) {
-                        q.append(header).append("=").append(s.length > 1 ? value : "").append("&");
+                        q.append(rawHeader).append("=").append(rawValue).append("&");
                     }
-                    headers.put(header, s.length > 1 ? value : "");
+                    headers.put(header, value);
                 }
             }
         } catch (Exception ex) {
@@ -1326,6 +1333,24 @@ public class AtmosphereFramework {
 
         logger.trace("Query String translated to headers {}", headers);
         return headers;
+    }
+
+    /**
+     * Percent-decode one query string name or value as UTF-8, the encoding of {@code encodeURIComponent}
+     * (RFC 3986). A bare {@code +} stays a {@code +}: a client that does not encode a value (a token with a
+     * {@code +} in it) must not see it turned into a space. A malformed escape keeps the raw text; only the
+     * parameter name is logged, the value may be a credential.
+     */
+    private static String decodeQueryComponent(String raw, String parameter) {
+        if (raw.indexOf('%') < 0) {
+            return raw;
+        }
+        try {
+            return URLDecoder.decode(raw.replace("+", "%2B"), StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            logger.debug("Malformed percent-encoding in query parameter '{}', keeping it as sent", parameter, e);
+            return raw;
+        }
     }
 
     public WebSocketProtocol getWebSocketProtocol() {

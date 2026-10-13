@@ -311,6 +311,22 @@ public interface ApplicationConfig {
      */
     String DISALLOW_MODIFY_QUERYSTRING = "org.atmosphere.cpr.disallowModifyQueryString";
     /**
+     * Percent-decode the query parameters Atmosphere maps to request headers (see {@link #ALLOW_QUERYSTRING_AS_REQUEST}).
+     * <p/>
+     * Clients that cannot set request headers (WebSocket, SSE {@code EventSource}, cross-origin requests) send them as
+     * query parameters, percent-encoded. When this property is true, {@code request.getHeader(name)} returns the decoded
+     * value (UTF-8, RFC 3986: {@code %20} is a space, {@code %2B} and a bare {@code +} are both a {@code +}), the same
+     * value a client sending a real header produces. A malformed escape such as {@code %zz} keeps the raw value. The
+     * {@link HeaderConfig#ATMOSPHERE_POST_BODY} parameter is not affected: it is decoded once, as the request body.
+     * <p/>
+     * Set it to false to restore the earlier behavior, where header names and values are kept as sent (only
+     * {@code Content-Type} is decoded), for an application that decodes those headers itself.
+     * <p/>
+     * Default: true<br>
+     * Value: org.atmosphere.cpr.decodeQueryStringHeaders
+     */
+    String DECODE_QUERYSTRING_HEADERS = "org.atmosphere.cpr.decodeQueryStringHeaders";
+    /**
      * Configure {@link Broadcaster} to share the same {@link java.util.concurrent.ExecutorService} among them.
      * <p/>
      * Default: true<br>

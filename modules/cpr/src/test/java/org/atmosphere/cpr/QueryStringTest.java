@@ -164,4 +164,83 @@ public class QueryStringTest {
         assertNotNull(q.get());
         assertEquals("text/x-gwt-rpc; charset=UTF-8", q.get());
     }
+
+    private static final String TRACKING_ID = "c8834462-c46e-4dad-a22f-b86aabe3f883";
+
+    private AtmosphereRequest configure(String queryString) throws IOException {
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().queryString(queryString).pathInfo("/a").build();
+        framework.configureRequestResponse(request, AtmosphereResponseImpl.newInstance());
+        return request;
+    }
+
+    @Test
+    public void queryParametersMappedToHeadersArePercentDecoded() throws IOException {
+        AtmosphereRequest request = configure("X-Atmosphere-tracking-id=" + TRACKING_ID
+                + "&X-Atmosphere-Transport=long-polling"
+                + "&X-Custom=a%20b%26c%3Dd"
+                + "&X-Name=caf%C3%A9%20%E2%82%AC"
+                + "&X-Atmosphere-Auth=ab%2Bc%2Fd%3D%3D"
+                + "&X%2DEncoded=name");
+
+        assertEquals("a b&c=d", request.getHeader("X-Custom"));
+        assertEquals("caf\u00E9 \u20AC", request.getHeader("X-Name"));
+        assertEquals("ab+c/d==", request.getHeader("X-Atmosphere-Auth"));
+        assertEquals("name", request.getHeader("X-Encoded"));
+        assertEquals(TRACKING_ID, request.getHeader("X-Atmosphere-tracking-id"));
+        assertEquals("long-polling", request.getHeader("X-Atmosphere-Transport"));
+    }
+
+    @Test
+    public void plusIsLiteralEncodedOrNot() throws IOException {
+        AtmosphereRequest request = configure("X-Encoded-Plus=a%2Bb&X-Bare-Plus=a+b&X-Mixed=a+b%20c");
+
+        assertEquals("a+b", request.getHeader("X-Encoded-Plus"));
+        assertEquals("a+b", request.getHeader("X-Bare-Plus"));
+        assertEquals("a+b c", request.getHeader("X-Mixed"));
+    }
+
+    @Test
+    public void malformedEscapeKeepsRawValueAndLaterParameters() throws IOException {
+        AtmosphereRequest request = configure("Content-Type=text%zz&X-Bad=%zz&X-Truncated=a%2&X-After=x%20y");
+
+        assertEquals("text%zz", request.getContentType());
+        assertEquals("%zz", request.getHeader("X-Bad"));
+        assertEquals("a%2", request.getHeader("X-Truncated"));
+        assertEquals("x y", request.getHeader("X-After"));
+        // The rebuilt query string keeps every parameter as sent; only the malformed ones are not parameters.
+        assertEquals("X-Bad=%zz&X-Truncated=a%2&X-After=x%20y", request.getQueryString());
+        assertEquals("x y", request.getParameter("X-After"));
+        assertNull(request.getParameter("X-Bad"));
+        assertNull(request.getParameter("X-Truncated"));
+    }
+
+    @Test
+    public void postBodyIsDecodedOnceAsTheBody() throws IOException {
+        AtmosphereRequest request = configure("X-Atmosphere-tracking-id=" + TRACKING_ID
+                + "&X-Atmosphere-Post-Body=100%2525%20sure");
+
+        assertEquals("POST", request.getMethod());
+        assertEquals("100%25 sure", request.body().asString());
+        assertNull(request.getHeader("X-Atmosphere-Post-Body"));
+    }
+
+    @Test
+    public void rebuiltQueryStringKeepsTheEncodedForm() throws IOException {
+        AtmosphereRequest request = configure("X-Atmosphere-tracking-id=" + TRACKING_ID + "&q=a%20b%26c&_=1");
+
+        assertEquals("q=a%20b%26c", request.getQueryString());
+        assertEquals("a b&c", request.getParameter("q"));
+        assertEquals("a b&c", request.getHeader("q"));
+    }
+
+    @Test
+    public void decodingCanBeDisabled() throws IOException {
+        framework.addInitParameter(ApplicationConfig.DECODE_QUERYSTRING_HEADERS, "false");
+        AtmosphereRequest request = configure("X-Custom=a%20b&X-Atmosphere-Post-Body=a%2520b"
+                + "&Content-Type=text/plain;%20charset=UTF-8");
+
+        assertEquals("a%20b", request.getHeader("X-Custom"));
+        assertEquals("a%20b", request.body().asString());
+        assertEquals("text/plain; charset=UTF-8", request.getContentType());
+    }
 }

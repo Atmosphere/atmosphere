@@ -78,6 +78,8 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
 public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements AtmosphereRequest {
 
     private final static Logger logger = LoggerFactory.getLogger(AtmosphereRequestImpl.class);
+    // The bound QueryStringDecoder applies by default (HashDOS).
+    private static final int MAX_QUERY_PARAMETERS = 1024;
     private ServletInputStream bis;
     private BufferedReader br;
     private final Builder b;
@@ -507,8 +509,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         if (qs == null) return this;
 
         if (!qs.isEmpty()) {
-            var decoder = new QueryStringDecoder(getRequestURI() + "?" + qs);
-            Map<String, List<String>> m = decoder.getParameters();
+            Map<String, List<String>> m = decodeQueryString(qs);
             var newM = new HashMap<String, String[]>();
             for (Map.Entry<String, List<String>> q : m.entrySet()) {
                 newM.put(q.getKey(), q.getValue().toArray(new String[0]));
@@ -517,6 +518,35 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         }
         b.queryString = qs;
         return this;
+    }
+
+    /**
+     * Decode the parameters of a query string. A malformed escape such as {@code %zz} in one parameter
+     * drops that parameter only, instead of failing the whole request.
+     */
+    private Map<String, List<String>> decodeQueryString(String qs) {
+        try {
+            return new QueryStringDecoder(getRequestURI() + "?" + qs).getParameters();
+        } catch (IllegalArgumentException e) {
+            // The exception message quotes the value, which may be a credential: do not log it.
+            logger.debug("Malformed percent-encoding in the query string, dropping the malformed parameters");
+        }
+        var params = new HashMap<String, List<String>>();
+        int count = 0;
+        for (String pair : qs.replace(';', '&').split("&")) {
+            if (count >= MAX_QUERY_PARAMETERS) {
+                break;
+            }
+            try {
+                for (Map.Entry<String, List<String>> p : new QueryStringDecoder(pair, false).getParameters().entrySet()) {
+                    params.computeIfAbsent(p.getKey(), k -> new ArrayList<>(1)).addAll(p.getValue());
+                    count++;
+                }
+            } catch (IllegalArgumentException e) {
+                logger.trace("Dropping a query parameter with a malformed percent-encoding");
+            }
+        }
+        return params;
     }
 
     @Override
