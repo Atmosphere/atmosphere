@@ -1,4 +1,4 @@
-agent_control_specification_version: "0.3.1-beta"
+agent_control_specification_version: "0.4.0-alpha.1"
 metadata:
   name: canonical-all-interventions
   description: Frozen stateless manifest contract covering every intervention point.
@@ -22,7 +22,7 @@ intervention_points:
     policy_target_kind: agent_metadata
     annotations:
       startup_context:
-        from: "$policy_target.id"
+        from: "$target.id"
     policy:
       id: lifecycle_policy
   input:
@@ -32,7 +32,7 @@ intervention_points:
       actor_context:
         from: "$pi.snapshot.actor.id"
       prompt_classifier:
-        from: "$policy_target.text"
+        from: "$target.text"
     policy:
       id: input_policy
       query: data.agent_control_specification.input.verdict
@@ -41,7 +41,7 @@ intervention_points:
     policy_target_kind: model_request
     annotations:
       prompt_classifier:
-        from: "$policy_target.messages[1].content"
+        from: "$target.messages[1].content"
     policy:
       id: model_policy
   post_model_call:
@@ -49,7 +49,7 @@ intervention_points:
     policy_target_kind: model_response
     annotations:
       response_judge:
-        from: "$policy_target.content"
+        from: "$target.content"
     policy:
       id: model_policy
   pre_tool_call:
@@ -60,7 +60,7 @@ intervention_points:
       actor_context:
         from: "$pi.snapshot.actor.id"
       tool_risk:
-        from: "$policy_target.query"
+        from: "$target.query"
     policy:
       id: tool_authz_policy
   post_tool_call:
@@ -69,7 +69,7 @@ intervention_points:
     tool_name_from: "$snap.tool_call.name"
     annotations:
       tool_result_scanner:
-        from: "$policy_target"
+        from: "$target"
     policy:
       id: output_policy
   output:
@@ -77,7 +77,7 @@ intervention_points:
     policy_target_kind: assistant_output
     annotations:
       output_safety:
-        from: "$policy_target.content"
+        from: "$target.content"
     policy:
       id: output_policy
   agent_shutdown:

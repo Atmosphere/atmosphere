@@ -2345,8 +2345,11 @@ the April 2026 public source):
   missing engines, malformed verdicts, invalid transform targets —
   denies fail-closed with an `acs_runtime_error` reason, matching the
   upstream safety model. `AcsManifestConformanceTest` pins the manifest
-  shape against verbatim copies of upstream's own contract fixtures
-  (`policy-engine/core/tests/fixtures/manifests/`), and the weekly
+  shape against verbatim copies of the ACS engine's own contract fixtures
+  (`engine/tests/fixtures/manifests/` in `responsibleai/agent-control-spec`,
+  the engine the Microsoft toolkit depends on; the toolkit's own copies under
+  `policy-engine/core/tests/fixtures/manifests/` were removed upstream on
+  2026-09-13), and the weekly
   `ms-yaml-conformance` workflow diffs those copies against upstream
   `main` so a shape change fails loudly; `AcsExtendsResolverTest` pins
   the extends behaviour against copies of upstream's `fixtures/extends/`

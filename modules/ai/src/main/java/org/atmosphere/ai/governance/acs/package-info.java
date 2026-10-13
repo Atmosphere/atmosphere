@@ -23,7 +23,8 @@
  * {@code rego} {@link org.atmosphere.ai.governance.acs.AcsPolicyEngine}
  * backed by the real {@code opa} binary. Conformance with the upstream
  * manifest contract is pinned by {@code AcsManifestConformanceTest} against
- * verbatim copies of microsoft/agent-governance-toolkit's own contract
- * fixtures, kept in sync by the weekly {@code ms-yaml-conformance} workflow.
+ * verbatim copies of the ACS engine's own contract fixtures
+ * (responsibleai/agent-control-spec, which microsoft/agent-governance-toolkit
+ * depends on), kept in sync by the weekly {@code ms-yaml-conformance} workflow.
  */
 package org.atmosphere.ai.governance.acs;

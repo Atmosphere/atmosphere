@@ -1,17 +1,19 @@
 name: "CI: MS Agent Governance YAML Conformance"
 
-# Tier 7.1 — weekly diff against Microsoft's upstream Agent Governance Toolkit
-# ACS manifest contract fixtures. Guards the claim that Atmosphere parses MS
+# Tier 7.1 — weekly diff against the upstream ACS manifest contract fixtures
+# (the engine Microsoft's Agent Governance Toolkit depends on). Guards the
+# claim that Atmosphere parses MS
 # Agent Control Specification manifests byte-for-byte: if upstream changes the
 # manifest shape (ACS is public preview — it will), the workflow opens an
 # issue and fails loudly instead of letting our copies drift silently.
 #
 # The fixture directory is modules/ai/src/test/resources/ms-acs/, a verbatim
-# copy of upstream's own contract fixtures at
-# policy-engine/core/tests/fixtures/manifests/ — the files upstream's core
-# test suite pins the manifest shape with. AcsManifestConformanceTest
-# (runs in CI: Core) asserts the shipped parser accepts every file in that
-# directory; this workflow keeps the directory aligned with upstream main.
+# copy of the ACS engine's own contract fixtures at
+# engine/tests/fixtures/manifests/ in responsibleai/agent-control-spec — the
+# files the engine's test suite pins the manifest shape with.
+# AcsManifestConformanceTest (runs in CI: Core) asserts the shipped parser
+# accepts every file in that directory; this workflow keeps the directory
+# aligned with upstream main.
 #
 # History: the workflow originally diffed docs/tutorials/policy-as-code/
 # examples, the pre-ACS policy YAML dialect. Upstream deleted that directory
@@ -19,7 +21,12 @@ name: "CI: MS Agent Governance YAML Conformance"
 # manifests. The legacy dialect fixtures remain frozen under
 # modules/ai/src/test/resources/ms-agent-os/, pinned by
 # MsAgentOsYamlConformanceTest — they are no longer diffed upstream because
-# upstream no longer ships them.
+# upstream no longer ships them. The ACS fixtures were then diffed against
+# microsoft/agent-governance-toolkit's policy-engine/core/tests/fixtures/
+# manifests/ until upstream commit cdb87ad523 (2026-09-13) deleted that
+# directory when the toolkit retargeted onto the published agent-control-spec
+# engine (see its policy-engine/docs/acs-retarget.md); the same two fixtures
+# now live in responsibleai/agent-control-spec, which this workflow diffs.
 
 on:
   schedule:
@@ -29,7 +36,7 @@ on:
   workflow_dispatch:
     inputs:
       upstream_ref:
-        description: 'MS Agent Governance Toolkit git ref to diff against (default: main)'
+        description: 'responsibleai/agent-control-spec git ref to diff against (default: main)'
         default: 'main'
         required: false
   pull_request:
@@ -51,19 +58,20 @@ jobs:
       - name: Checkout Atmosphere
         uses: actions/checkout@v7
 
-      - name: Clone MS Agent Governance Toolkit upstream
+      - name: Clone ACS engine upstream
         run: |
           set -euo pipefail
           REF="${{ github.event.inputs.upstream_ref }}"
           REF="${REF:-main}"
           mkdir -p /tmp/ms-upstream
-          # MS ships the toolkit at microsoft/agent-governance-toolkit. If
-          # the repo is moved or the path changes, this block is the one
-          # thing to edit. init+fetch instead of clone --branch so the ref
-          # can also be a bare commit SHA on manual dispatch.
+          # The ACS engine microsoft/agent-governance-toolkit depends on
+          # ships at responsibleai/agent-control-spec. If the repo is moved
+          # or the path changes, this block and UPSTREAM below are the things
+          # to edit. init+fetch instead of clone --branch so the ref can also
+          # be a bare commit SHA on manual dispatch.
           git init -q /tmp/ms-upstream
           git -C /tmp/ms-upstream remote add origin \
-            https://github.com/microsoft/agent-governance-toolkit.git
+            https://github.com/responsibleai/agent-control-spec.git
           git -C /tmp/ms-upstream fetch -q --depth 1 origin "$REF" || {
               echo "::error::upstream repo unreachable or ref '$REF' does not exist"
               exit 1
@@ -75,7 +83,7 @@ jobs:
         run: |
           set -euo pipefail
           FIXTURES=modules/ai/src/test/resources/ms-acs
-          UPSTREAM=/tmp/ms-upstream/policy-engine/core/tests/fixtures/manifests
+          UPSTREAM=/tmp/ms-upstream/engine/tests/fixtures/manifests
           if [ ! -d "$UPSTREAM" ]; then
             echo "::error::upstream ACS manifest fixtures not found at $UPSTREAM"
             exit 1

@@ -25,8 +25,9 @@ import java.util.Map;
  * points such as {@code input}, {@code pre_tool_call} and {@code output}.
  *
  * <p>The shape mirrors the upstream contract fixtures at
- * {@code policy-engine/core/tests/fixtures/manifests/} in
- * microsoft/agent-governance-toolkit; {@code AcsManifestConformanceTest}
+ * {@code engine/tests/fixtures/manifests/} in responsibleai/agent-control-spec
+ * (the ACS engine microsoft/agent-governance-toolkit depends on, which held
+ * them until 2026-09-13); {@code AcsManifestConformanceTest}
  * parses verbatim copies of those fixtures, and the weekly
  * {@code ms-yaml-conformance} workflow diffs our copies against upstream
  * {@code main} so a shape change upstream fails loudly here.</p>

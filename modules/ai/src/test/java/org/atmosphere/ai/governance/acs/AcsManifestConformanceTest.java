@@ -32,13 +32,21 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Pins byte-for-byte conformance with Microsoft's ACS manifest contract.
+ * Pins byte-for-byte conformance with the ACS manifest contract.
  * The fixtures under {@code modules/ai/src/test/resources/ms-acs/} are
- * verbatim copies of upstream's own contract fixtures
- * ({@code policy-engine/core/tests/fixtures/manifests/} in
- * microsoft/agent-governance-toolkit) — the weekly {@code ms-yaml-conformance}
- * workflow diffs our copies against upstream {@code main}, so an upstream
- * shape change lands here as a failing diff, not silent drift.
+ * verbatim copies of the ACS engine's own contract fixtures
+ * ({@code engine/tests/fixtures/manifests/} in responsibleai/agent-control-spec)
+ * — the weekly {@code ms-yaml-conformance} workflow diffs our copies against
+ * upstream {@code main}, so an upstream shape change lands here as a failing
+ * diff, not silent drift.
+ *
+ * <p>Until 2026-09-13 these fixtures lived in
+ * microsoft/agent-governance-toolkit under
+ * {@code policy-engine/core/tests/fixtures/manifests/}; upstream commit
+ * {@code cdb87ad523} deleted them when the toolkit retargeted onto the
+ * published agent-control-spec engine. The engine's copies carry manifest
+ * contract {@code 0.4.0-alpha.1} (ours were {@code 0.3.1-beta}) and their
+ * annotation paths read {@code $target}, no longer {@code $policy_target}.</p>
  *
  * <p>Every parse in this test goes through {@link YamlPolicyParser} — the
  * production routing an operator's policy file takes — never through the
@@ -51,7 +59,7 @@ class AcsManifestConformanceTest {
         var policy = parseSingle("ms-acs/canonical-all-interventions.yaml");
 
         assertEquals("canonical-all-interventions", policy.name());
-        assertEquals("0.3.1-beta", policy.version());
+        assertEquals("0.4.0-alpha.1", policy.version());
 
         var manifest = policy.manifest();
         assertEquals(List.of("./base-controls.yaml"), manifest.extendsRefs());
@@ -73,7 +81,7 @@ class AcsManifestConformanceTest {
         assertNotNull(input);
         assertEquals("data.agent_control_specification.input.verdict", input.query());
         assertEquals(2, input.annotations().size());
-        assertEquals("$policy_target.text", input.annotations().get("prompt_classifier"));
+        assertEquals("$target.text", input.annotations().get("prompt_classifier"));
 
         var search = manifest.tools().get("search");
         assertNotNull(search);
@@ -91,7 +99,7 @@ class AcsManifestConformanceTest {
         var policy = parseSingle("ms-acs/minimal-all-interventions.yaml");
 
         assertEquals("minimal-all-interventions", policy.name());
-        assertEquals("0.3.1-beta", policy.version());
+        assertEquals("0.4.0-alpha.1", policy.version());
         var manifest = policy.manifest();
         assertTrue(manifest.extendsRefs().isEmpty(),
                 "minimal fixture declares an empty extends chain");

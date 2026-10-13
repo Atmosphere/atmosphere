@@ -273,7 +273,7 @@ Microsoft superseded the `rules:` dialect with Agent Control Specification (ACS)
 
 ### Conformance
 
-`MsAgentOsYamlConformanceTest` pins the frozen legacy `rules:` dialect (byte-for-byte copies of the pre-removal `docs/tutorials/policy-as-code/examples/`, kept for existing operator policy files). `AcsManifestConformanceTest` pins the ACS manifest shape against verbatim copies of upstream's own contract fixtures (`policy-engine/core/tests/fixtures/manifests/`), and the weekly `ms-yaml-conformance` workflow diffs those copies against upstream `main` — parity is pinned in CI, not in marketing copy.
+`MsAgentOsYamlConformanceTest` pins the frozen legacy `rules:` dialect (byte-for-byte copies of the pre-removal `docs/tutorials/policy-as-code/examples/`, kept for existing operator policy files). `AcsManifestConformanceTest` pins the ACS manifest shape against verbatim copies of the ACS engine's own contract fixtures (`engine/tests/fixtures/manifests/` in `responsibleai/agent-control-spec`, the engine the Microsoft toolkit depends on; the toolkit's own copies under `policy-engine/core/tests/fixtures/manifests/` were removed upstream on 2026-09-13), and the weekly `ms-yaml-conformance` workflow diffs those copies against upstream `main` — parity is pinned in CI, not in marketing copy.
 
 ---
 
