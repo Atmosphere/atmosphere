@@ -79,7 +79,40 @@ export interface AtmosphereRequest {
   trackMessageLength?: boolean;
   messageDelimiter?: string;
   enableProtocol?: boolean;
-  headers?: Record<string, string>;
+  /**
+   * Custom request headers. A value may be a function, called for every
+   * request; plain values (and getters) are also re-read for every request, so
+   * a value may change between two polls or two sends.
+   *
+   * Where they travel:
+   * - fetch requests (long-polling and streaming connections, and every
+   *   message `push`ed over long-polling, streaming or SSE) send them as real
+   *   HTTP headers, left out of the URL, when {@link headerDelivery} allows it;
+   * - otherwise, and always for WebSocket, WebTransport and the SSE
+   *   `EventSource` (which cannot set headers), they are query parameters,
+   *   which the Atmosphere server turns back into request headers.
+   *
+   * A name that is not a valid header token, a forbidden header name (such as
+   * `Cookie` or `Origin`), `Content-Type`, or a value with characters outside
+   * Latin-1 or with line breaks cannot be a fetch header and stays a query
+   * parameter.
+   */
+  headers?: Record<string, string | (() => string)>;
+  /**
+   * How {@link headers} and {@link authToken} travel on fetch requests:
+   * - `'auto'` (default): as HTTP headers on a same-origin request (and where
+   *   there is no page origin, as in React Native, so no CORS preflight), as
+   *   query parameters on a cross-origin one: custom headers would make the
+   *   browser send a CORS preflight, and the Atmosphere `CorsInterceptor`
+   *   allows only a fixed list of request headers;
+   * - `'headers'`: as HTTP headers on every fetch request, cross-origin too.
+   *   Use it only when the server's CORS policy allows these headers;
+   * - `'query'`: as query parameters on every request (earlier versions' only behaviour).
+   *
+   * A value sent as a header is not visible to the server through
+   * `request.getParameter()`, only through `request.getHeader()`.
+   */
+  headerDelivery?: 'auto' | 'headers' | 'query';
   /**
    * Durable session token for reconnection across server restarts.
    * When set, the token is sent as {@code X-Atmosphere-Session-Token}
@@ -98,8 +131,10 @@ export interface AtmosphereRequest {
    */
   runId?: string | null;
   /**
-   * Authentication token sent as {@code X-Atmosphere-Auth} query parameter
-   * on every request. Works with all transports (WebSocket, SSE, long-polling).
+   * Authentication token sent as {@code X-Atmosphere-Auth} on every request.
+   * Works with all transports (WebSocket, SSE, long-polling). It travels like
+   * {@link headers}: an HTTP header on fetch requests that
+   * {@link headerDelivery} allows, a query parameter otherwise.
    */
   authToken?: string;
   withCredentials?: boolean;

@@ -182,12 +182,14 @@ export abstract class BaseTransport<T = unknown> {
    * {@link SEND_MAX_ATTEMPTS} attempts in all, while the transport is not
    * disconnected. A message the server still refuses, or answers with any other
    * non-2xx status, is reported to the `error` handler instead of being dropped
-   * silently. Network failures reject, as before. The URL is built for each
-   * attempt from the transport's current tracking id.
+   * silently. Network failures reject, as before. The URL and headers are
+   * built for each attempt ({@link buildFetchRequest}), from the transport's
+   * current tracking id and the current header values.
    */
-  protected async postMessage(url: () => string, init: RequestInit): Promise<Response> {
+  protected async postMessage(init: RequestInit & { headers: Record<string, string> }): Promise<Response> {
     for (let attempt = 1; ; attempt++) {
-      const response = await fetch(url(), init);
+      const target = this.buildFetchRequest();
+      const response = await fetch(target.url, { ...init, headers: { ...target.headers, ...init.headers } });
       if (response.status === 503 && attempt < BaseTransport.SEND_MAX_ATTEMPTS
           && !this.isDisconnected()) {
         const delay = BaseTransport.retryAfterMs(response.headers?.get('Retry-After') ?? null);
@@ -210,6 +212,47 @@ export abstract class BaseTransport<T = unknown> {
         this.handlers.error?.(this.toAtmosphereError(error, false));
       }
       return response;
+    }
+  }
+
+  /**
+   * URL and custom headers of one fetch request. The custom headers and the
+   * auth token go as HTTP headers when {@link sendsRealHeaders} says so, as
+   * query parameters otherwise; see `AtmosphereRequest.headerDelivery`.
+   */
+  protected buildFetchRequest(): { url: string; headers: Record<string, string> } {
+    return this.protocol.buildRequest(this.request, this.sendsRealHeaders());
+  }
+
+  /** Whether this transport's fetch requests carry the custom headers as HTTP headers. */
+  protected sendsRealHeaders(): boolean {
+    switch (this.request.headerDelivery ?? 'auto') {
+      case 'query':
+        return false;
+      case 'headers':
+        return true;
+      default:
+        return BaseTransport.isSameOrigin(this.request.url);
+    }
+  }
+
+  /**
+   * Whether a fetch of `url` is same-origin, so custom headers trigger no CORS
+   * preflight. Without a page origin (React Native, Node) there is no CORS:
+   * `true`. An opaque origin (`'null'`) makes every request cross-origin.
+   */
+  static isSameOrigin(url: string): boolean {
+    const page = typeof location !== 'undefined' ? location : undefined;
+    if (!page?.origin) {
+      return true;
+    }
+    if (page.origin === 'null') {
+      return false;
+    }
+    try {
+      return new URL(url, page.href).origin === page.origin;
+    } catch {
+      return false;
     }
   }
 

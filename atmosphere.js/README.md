@@ -119,7 +119,8 @@ interface AtmosphereRequest {
   trackMessageLength?: boolean;     // Enable message length tracking
   messageDelimiter?: string;        // Delimiter for split messages
   enableProtocol?: boolean;         // Enable Atmosphere protocol
-  headers?: Record<string, string>; // Custom headers
+  headers?: Record<string, string | (() => string)>; // Custom headers, re-read on every request
+  headerDelivery?: 'auto' | 'headers' | 'query';     // How fetch requests carry them (default 'auto')
   withCredentials?: boolean;        // Include credentials
 }
 ```
@@ -226,6 +227,34 @@ const subscription = await atmosphere.subscribe({
   }
 });
 ```
+
+A header value may be a function: it is called for every request (each poll, each
+`push`), and plain values are re-read every time too, so a value can change during the
+subscription:
+
+```typescript
+headers: { 'X-Last-Seen-Id': () => String(lastSeenId) }
+```
+
+How the headers and `authToken` (sent as `X-Atmosphere-Auth`) travel:
+
+- WebSocket, WebTransport and the SSE `EventSource` cannot set request headers, so they
+  are always query parameters; the Atmosphere server turns them back into request headers.
+- Requests made with `fetch` (long-polling and streaming connections, and every message
+  pushed over long-polling, streaming or SSE) send them as real HTTP headers, out of the URL
+  and so out of access logs, when the request is same-origin, or when there is no page
+  origin (React Native). A cross-origin request keeps them as query parameters: custom
+  headers make the browser send a CORS preflight, and the server's `CorsInterceptor` allows
+  only a fixed list of request headers. Set `headerDelivery: 'headers'` when your server's
+  CORS policy allows them, or `'query'` to keep every value in the URL.
+- A header fetch cannot carry (an invalid name, a forbidden one such as `Cookie`,
+  `Content-Type`, or a value outside Latin-1 or with a line break) stays a query parameter.
+
+On the server, read these values with `request.getHeader(name)`, which sees both forms; a
+value sent as a header is not returned by `request.getParameter(name)`. A value that needed
+URL-encoding (a space, `&`, non-ASCII) and travelled as a query parameter is returned by
+`getHeader` still percent-encoded: the server does not decode the query parameters it maps
+to headers.
 
 ### Type-Safe Messages
 

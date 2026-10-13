@@ -96,7 +96,7 @@ export class SSETransport<T = unknown> extends BaseTransport<T> {
     // SSE is server-to-client only; send via HTTP POST
     const outgoing = this.applyOutgoing(message);
 
-    this.postMessage(() => this.protocol.buildUrl(this.request), {
+    this.postMessage({
       method: 'POST',
       headers: { 'Content-Type': this.request.contentType ?? 'text/plain' },
       credentials: this.request.withCredentials ? 'include' : 'same-origin',

@@ -42,7 +42,7 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
 
     this.protocol.setPushFunction((msg) => this.send(msg));
 
-    const url = this.protocol.buildUrl(this.request);
+    const { url, headers } = this.buildFetchRequest();
     logger.debug(`Streaming connect: ${url}`);
 
     this.abortController = new AbortController();
@@ -50,7 +50,7 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
     let response: Response;
     try {
       response = await fetch(url, {
-        headers: { 'Content-Type': this.request.contentType ?? 'text/plain' },
+        headers: { ...headers, 'Content-Type': this.request.contentType ?? 'text/plain' },
         credentials: this.request.withCredentials ? 'include' : 'same-origin',
         signal: this.abortController.signal,
       });
@@ -121,7 +121,7 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
   send(message: string | ArrayBuffer): void {
     const outgoing = this.applyOutgoing(message);
 
-    this.postMessage(() => this.protocol.buildUrl(this.request), {
+    this.postMessage({
       method: 'POST',
       headers: { 'Content-Type': this.request.contentType ?? 'text/plain' },
       credentials: this.request.withCredentials ? 'include' : 'same-origin',

@@ -75,9 +75,23 @@ export class AtmosphereProtocol {
 
   /**
    * Build the URL with Atmosphere framework headers attached as query parameters.
-   * Mirrors legacy `_attachHeaders()`.
+   * Mirrors legacy `_attachHeaders()`. The custom headers and the auth token are
+   * query parameters too: this is the URL of a request that cannot set headers
+   * (WebSocket, WebTransport, `EventSource`).
    */
   buildUrl(request: AtmosphereRequest): string {
+    return this.buildRequest(request, false).url;
+  }
+
+  /**
+   * Build one fetch request: the URL, and the headers it sends. With
+   * `realHeaders`, the custom headers and the auth token that can be fetch
+   * headers (see {@link isSendableHeader}) are returned as headers and left out
+   * of the URL; the rest stay query parameters. Function-valued headers are
+   * called, and every value read, once per call.
+   */
+  buildRequest(request: AtmosphereRequest, realHeaders: boolean): { url: string; headers: Record<string, string> } {
+    const headers: Record<string, string> = {};
     const base = request.url;
     const sep = base.includes('?') ? '&' : '?';
     const params: string[] = [];
@@ -118,20 +132,54 @@ export class AtmosphereProtocol {
       params.push(`X-Atmosphere-Run-Id=${encodeURIComponent(runId)}`);
     }
 
+    const custom: Array<[string, string]> = [];
     // Send authentication token if available
     const authToken = request.authToken ?? this.authToken;
     if (authToken) {
-      params.push(`X-Atmosphere-Auth=${encodeURIComponent(authToken)}`);
+      custom.push(['X-Atmosphere-Auth', authToken]);
     }
 
     if (request.headers) {
       for (const [name, value] of Object.entries(request.headers)) {
+        custom.push([name, String(typeof value === 'function' ? value() : value)]);
+      }
+    }
+
+    for (const [name, value] of custom) {
+      if (realHeaders && AtmosphereProtocol.isSendableHeader(name, value)) {
+        headers[name] = value;
+      } else {
         params.push(`${encodeURIComponent(name)}=${encodeURIComponent(value)}`);
       }
     }
 
-    return base + sep + params.join('&');
+    return { url: base + sep + params.join('&'), headers };
   }
+
+  /**
+   * Whether `name: value` can be sent as a fetch request header: a valid token
+   * name that is neither forbidden (the browser would drop it silently) nor
+   * `Content-Type` (the transport sets it), and a Latin-1 value without line
+   * breaks (fetch would throw).
+   */
+  static isSendableHeader(name: string, value: string): boolean {
+    const lower = name.toLowerCase();
+    return /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/.test(name)
+      && /^[\t\x20-\x7E\x80-\xFF]*$/.test(value)
+      && lower !== 'content-type'
+      && !AtmosphereProtocol.FORBIDDEN_HEADERS.has(lower)
+      && !lower.startsWith('proxy-')
+      && !lower.startsWith('sec-');
+  }
+
+  /** Request headers a browser does not let a script set (Fetch standard), besides `Proxy-*` and `Sec-*`. */
+  private static readonly FORBIDDEN_HEADERS: ReadonlySet<string> = new Set([
+    'accept-charset', 'accept-encoding', 'access-control-request-headers',
+    'access-control-request-method', 'connection', 'content-length', 'cookie', 'cookie2',
+    'date', 'dnt', 'expect', 'host', 'keep-alive', 'origin', 'referer', 'set-cookie', 'te',
+    'trailer', 'transfer-encoding', 'upgrade', 'via', 'x-http-method', 'x-http-method-override',
+    'x-method-override',
+  ]);
 
   /**
    * Build the URL of Atmosphere's close message for this connection: the

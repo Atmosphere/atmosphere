@@ -66,7 +66,7 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
   send(message: string | ArrayBuffer): void {
     const outgoing = this.applyOutgoing(message);
 
-    this.postMessage(() => this.protocol.buildUrl(this.request), {
+    this.postMessage({
       method: 'POST',
       headers: { 'Content-Type': this.request.contentType ?? 'text/plain' },
       credentials: this.request.withCredentials ? 'include' : 'same-origin',
@@ -83,7 +83,7 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
       return;
     }
 
-    const url = this.protocol.buildUrl(this.request);
+    const { url, headers } = this.buildFetchRequest();
     logger.debug(`Long-polling request: ${url}`);
 
     this.abortController = new AbortController();
@@ -91,7 +91,7 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
 
     try {
       const response = await fetch(url, {
-        headers: { 'Content-Type': this.request.contentType ?? 'text/plain' },
+        headers: { ...headers, 'Content-Type': this.request.contentType ?? 'text/plain' },
         credentials: this.request.withCredentials ? 'include' : 'same-origin',
         signal: this.abortController.signal,
       });
