@@ -41,7 +41,9 @@ export default defineConfig([
     target: 'es2020',
     platform: 'browser',
     treeshake: true,
-    external: ['react', 'vue', 'svelte'],
+    // react-markdown and remark-gfm are optional peer dependencies used only by
+    // the chat entry; the consumer installs them, the bundle never inlines them.
+    external: ['react', 'vue', 'svelte', 'react-markdown', 'remark-gfm'],
     define,
   },
   {

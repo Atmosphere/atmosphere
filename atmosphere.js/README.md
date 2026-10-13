@@ -12,7 +12,7 @@ TypeScript client for the Atmosphere Framework. Supports WebSocket, SSE, Long-Po
 - Multiple transports: WebSocket, SSE, Long-polling, Streaming, WebTransport
 - Automatic reconnection with exponential backoff
 - Tree-shakeable — import only what you need
-- Lightweight runtime dependencies; React, Vue, and Svelte integrations are optional peer dependencies
+- No runtime dependencies; React, Vue, Svelte, React Native, and the chat UI's markdown renderers are optional peer dependencies
 - Promise-based API with async/await
 - Comprehensive test coverage
 
@@ -20,6 +20,14 @@ TypeScript client for the Atmosphere Framework. Supports WebSocket, SSE, Long-Po
 
 ```bash
 npm install atmosphere.js
+```
+
+The React chat UI components in `atmosphere.js/chat` render markdown with `react-markdown` and
+`remark-gfm`, which are optional peer dependencies: install them (with `react`) only if you
+import that entry point.
+
+```bash
+npm install atmosphere.js react react-markdown remark-gfm
 ```
 
 ## Quick Start
