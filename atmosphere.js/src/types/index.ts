@@ -165,6 +165,12 @@ export interface AtmosphereError extends Error {
  */
 export interface SubscriptionHandlers<T = unknown> {
   message?: (response: AtmosphereResponse<T>) => void;
+  /**
+   * Called once the connection is open. Through `Atmosphere.subscribe()` it
+   * fires only after `subscribe()` has resolved, so the handler can use the
+   * returned `Subscription`; with `enableProtocol` it also waits for the
+   * protocol handshake, so the tracking id is known.
+   */
   open?: (response: AtmosphereResponse<T>) => void;
   close?: (response: AtmosphereResponse<T>) => void;
   /**

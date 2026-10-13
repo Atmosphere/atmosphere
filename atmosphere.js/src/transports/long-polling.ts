@@ -103,28 +103,24 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
         return;
       }
 
+      // With the protocol, a poll sent with tracking id 0 gets the
+      // server-assigned id (and the heartbeat interval) in its body. Opening
+      // before that body is parsed would let `open` handlers and the
+      // offline-queue drain POST under id 0, which names no connection: open
+      // once the body is parsed, as WebSocket, SSE and streaming open on the
+      // handshake. A reconnect keeps its id, gets no handshake, and opens on
+      // the response itself.
+      const awaitHandshake = isFirst && this.request.enableProtocol === true
+        && this.protocol.uuid === '0';
       if (isFirst) {
         this.reconnectAttempts = 0;
-
-        const openResponse: AtmosphereResponse<T> = {
-          status: 200,
-          reasonPhrase: 'OK',
-          responseBody: '' as T,
-          messages: [],
-          headers: {},
-          state: 'open',
-          transport: 'long-polling',
-          error: null,
-          request: this.request,
-        };
-        this.notifyOpen(openResponse);
-        this.protocol.startHeartbeat();
+        if (!awaitHandshake) {
+          this.openPoll();
+        }
       }
 
       const responseText = await response.text();
-      if (responseText.trim().length > 0) {
-        this.handleResponse(responseText);
-      }
+      this.handleResponse(responseText, awaitHandshake);
 
       // Extract session token from response headers (for durable sessions)
       this.protocol.extractSessionToken((name) => response.headers.get(name));
@@ -144,11 +140,39 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
     }
   }
 
-  private handleResponse(responseText: string): void {
-    const result = this.protocol.processMessage(responseText, this.request);
+  private openPoll(): void {
+    const openResponse: AtmosphereResponse<T> = {
+      status: 200,
+      reasonPhrase: 'OK',
+      responseBody: '' as T,
+      messages: [],
+      headers: {},
+      state: 'open',
+      transport: 'long-polling',
+      error: null,
+      request: this.request,
+    };
+    this.notifyOpen(openResponse);
+    this.protocol.startHeartbeat();
+  }
+
+  /**
+   * Process one poll's body. `openFirst` (a first poll waiting for the
+   * handshake) opens the connection once the body is parsed, before any
+   * message it carries: the handshake, when the body held one, has set the
+   * uuid by then, and a body without one opens all the same.
+   */
+  private handleResponse(responseText: string, openFirst: boolean): void {
+    const result = responseText.trim().length > 0
+      ? this.protocol.processMessage(responseText, this.request)
+      : null;
+
+    if (openFirst && this._state !== 'connected' && !this.aborted) {
+      this.openPoll();
+    }
 
     if (result === null) {
-      return; // Handshake or partial
+      return; // Empty, handshake-only or partial
     }
 
     for (const msg of result.messages) {

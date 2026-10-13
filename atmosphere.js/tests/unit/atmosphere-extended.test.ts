@@ -42,15 +42,16 @@ describe('Atmosphere – extended', () => {
 
   // ── subscribe with handlers ──
 
-  it('should invoke open handler on connect', async () => {
+  it('should invoke open handler on connect, after subscribe() resolved', async () => {
     const openFn = vi.fn();
     await atmosphere.subscribe(
       { url: 'ws://localhost/test', transport: 'websocket' },
       { open: openFn },
     );
-    expect(openFn).toHaveBeenCalledWith(
+    expect(openFn).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(openFn).toHaveBeenCalledWith(
       expect.objectContaining({ state: 'open', transport: 'websocket' }),
-    );
+    ));
   });
 
   it('should invoke message handler on incoming data', async () => {

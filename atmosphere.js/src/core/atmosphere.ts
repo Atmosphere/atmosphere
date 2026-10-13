@@ -31,6 +31,7 @@ import { LongPollingTransport } from '../transports/long-polling';
 import { StreamingTransport } from '../transports/streaming';
 import { WebTransportTransport } from '../transports/webtransport';
 import { BaseTransport } from '../transports/base';
+import { HandlerGate } from './handler-gate';
 import { logger } from '../utils/logger';
 import { sendCloseMessage } from '../utils/close-message';
 import { VERSION } from '../version';
@@ -87,12 +88,14 @@ export class Atmosphere {
     // the thrown primaryError below, so nothing is swallowed silently.
     const canFallBack = Boolean(fallback && fallback !== transport);
     let primaryOpened = false;
-    const primaryHandlers: SubscriptionHandlers<T> = canFallBack
-      ? { ...handlers, error: (err: AtmosphereError) => { if (primaryOpened) handlers.error?.(err); } }
-      : handlers;
+    // Events the transport reports before subscribe() resolves (every
+    // transport can fire `open` from inside connect()) are held until the
+    // caller has the Subscription; see HandlerGate.
+    let gate = new HandlerGate<T>(handlers,
+      (name) => name === 'error' && canFallBack && !primaryOpened);
 
     try {
-      activeTransport = this.createTransport(mergedRequest, primaryHandlers);
+      activeTransport = this.createTransport(mergedRequest, gate.handlers);
       if (mergedRequest.offlineQueue) {
         activeTransport.setOfflineQueue(mergedRequest.offlineQueue);
       }
@@ -100,6 +103,8 @@ export class Atmosphere {
       primaryOpened = true;
     } catch (primaryError) {
       if (fallback && fallback !== transport) {
+        // Nothing the abandoned primary reported, or reports late, reaches the application.
+        gate.discard();
         // Ensure the failed primary transport is fully torn down so it
         // cannot linger as an orphan connection alongside the fallback.
         if (activeTransport) {
@@ -110,12 +115,19 @@ export class Atmosphere {
         logger.info(`${transport} failed, falling back to ${fallback}`);
         handlers.transportFailure?.(reason, mergedRequest);
         const fallbackRequest = { ...mergedRequest, transport: fallback };
-        activeTransport = this.createTransport(fallbackRequest, handlers);
+        gate = new HandlerGate<T>(handlers);
+        activeTransport = this.createTransport(fallbackRequest, gate.handlers);
         if (mergedRequest.offlineQueue) {
           activeTransport.setOfflineQueue(mergedRequest.offlineQueue);
         }
-        await activeTransport.connectWithTimeout();
+        try {
+          await activeTransport.connectWithTimeout();
+        } catch (fallbackError) {
+          gate.flush();
+          throw fallbackError;
+        }
       } else {
+        gate.flush();
         throw primaryError;
       }
     }
@@ -251,6 +263,7 @@ export class Atmosphere {
     };
 
     this.subscriptions.set(id, subscription);
+    gate.release(() => currentTransport.state === 'disconnected');
     return subscription;
   }
 

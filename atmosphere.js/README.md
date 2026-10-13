@@ -671,6 +671,16 @@ classic Atmosphere 3.x lifecycle so your UI can react to every step:
 | `clientTimeout`         | Client-side heartbeat watchdog expired                                  |
 | `failureToReconnect`    | `maxReconnectOnClose` exhausted — terminal state                        |
 
+`open` fires only after `subscribe()` has resolved, on every transport, so an `open`
+handler can use the subscription: `const sub = await atmosphere.subscribe(request,
+{ open: () => sub.push('hello') })` works. Events the transport reports while
+`subscribe()` is still connecting are held and delivered, in order, from a task that runs
+after the `await` continuation, or with the next network event if that comes first; they
+are dropped if the subscription is closed before then. With `enableProtocol: true`, `open`
+also waits for the protocol handshake, so the tracking id is known; long-polling waits for
+the first poll's body, and a long-polling reconnect, which the server answers without a
+handshake, fires `reopen` on its first successful response.
+
 ### `ConnectionStatus` — the unified view
 
 Wiring eight hooks per consumer is busywork, so atmosphere.js ships a `ConnectionStatus`
