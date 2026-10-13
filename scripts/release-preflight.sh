@@ -76,7 +76,9 @@ fi
 
 # ── 3. Check for stale file references in sample READMEs ──
 echo "── Sample README file references ──"
-STALE_JS=$(grep -rn 'javascript/' samples/*/README.md 2>/dev/null || true)
+# Targets static asset paths (static/javascript/atmosphere.js moved to assets/);
+# the atmosphere.js client docs URL (.../docs/clients/javascript/) is current.
+STALE_JS=$(grep -rn 'javascript/' samples/*/README.md 2>/dev/null | grep -v 'atmosphere.github.io/docs/clients/javascript/' || true)
 if [ -z "$STALE_JS" ]; then
   pass "No stale javascript/ references in sample READMEs"
 else
