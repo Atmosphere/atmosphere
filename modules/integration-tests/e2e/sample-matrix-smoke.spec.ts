@@ -32,5 +32,14 @@ for (const sampleName of ALL_SAMPLE_NAMES) {
       // Accept any non-5xx status (some samples redirect or return 404 for /)
       expect(res.status).toBeLessThan(500);
     });
+
+    test(`serves a favicon`, async () => {
+      // Every page load requests /favicon.ico. The Spring Boot starters answer
+      // it; the bare-Jetty, WAR and Quarkus samples ship their own copy, or
+      // the first page of the sample logs a 404 console error.
+      const res = await fetch(server.baseUrl + '/favicon.ico');
+      expect(res.status).toBe(200);
+      expect((await res.arrayBuffer()).byteLength).toBeGreaterThan(0);
+    });
   });
 }

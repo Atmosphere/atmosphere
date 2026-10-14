@@ -1499,6 +1499,28 @@ if [ -d "$repo_root/samples" ]; then
         fail "samples missing README.md:$missing_readmes"
     fi
 
+    # A sample that serves pages without a Spring Boot starter (which answers
+    # /favicon.ico itself) must ship its own favicon.ico, or every page load
+    # logs a 404 console error.
+    jq -r '.samples[] | select(.packaging != "spring-boot") | .name' "$SAMPLES_JSON" > "$fs_tmp"
+    missing_favicons=""
+    favicon_checked=0
+    while read -r name; do
+        for web_root in "$repo_root/samples/$name/src/main/webapp" \
+                        "$repo_root/samples/$name/src/main/resources/META-INF/resources"; do
+            [ -d "$web_root" ] || continue
+            favicon_checked=$((favicon_checked + 1))
+            [ -s "$web_root/favicon.ico" ] || missing_favicons="$missing_favicons ${web_root#"$repo_root"/}"
+        done
+    done < "$fs_tmp"
+    if [ "$favicon_checked" -eq 0 ]; then
+        fail "non-Boot samples: no web root found (favicon gate is vacuous)"
+    elif [ -z "$missing_favicons" ]; then
+        pass "every non-Boot sample web root ships a favicon.ico ($favicon_checked checked)"
+    else
+        fail "non-Boot sample web roots without favicon.ico:$missing_favicons"
+    fi
+
     # A default samples.json documents for an env var ("(default: X)" or
     # "(default X;") must be the one the sample's own config falls back to
     # (${KEY:X} in src/main/resources/application*): `atmosphere info` prints
