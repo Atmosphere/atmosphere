@@ -163,11 +163,22 @@ public class AtmosphereAdminAutoConfiguration {
             @Override
             public void stop() {
                 running = false;
-                if (producer != null) {
-                    producer.uninstall();
-                    producer = null;
+                // Each step runs even when an earlier one fails, so a broken
+                // uninstall cannot leave the admin handler mounted.
+                var current = producer;
+                producer = null;
+                if (current != null) {
+                    try {
+                        current.uninstall();
+                    } catch (RuntimeException e) {
+                        logger.warn("Failed to uninstall the admin event producer", e);
+                    }
                 }
-                framework.removeAtmosphereHandler(AdminEventHandler.ADMIN_BROADCASTER_ID);
+                try {
+                    framework.removeAtmosphereHandler(AdminEventHandler.ADMIN_BROADCASTER_ID);
+                } catch (RuntimeException e) {
+                    logger.warn("Failed to remove the admin event handler", e);
+                }
             }
 
             @Override

@@ -1572,10 +1572,14 @@ public class AtmosphereFramework {
     }
 
     /**
-     * Remove a previously added {@link BroadcasterListener}.
+     * Remove a previously added {@link BroadcasterListener}. Safe to call after
+     * {@link #destroy()}, which already dropped the {@link BroadcasterFactory}.
      */
     public AtmosphereFramework removeBroadcasterListener(BroadcasterListener b) {
-        broadcasterSetup.broadcasterFactory().removeBroadcasterListener(b);
+        var factory = broadcasterSetup.broadcasterFactory();
+        if (factory != null) {
+            factory.removeBroadcasterListener(b);
+        }
         broadcasterSetup.broadcasterListeners().remove(b);
         return this;
     }

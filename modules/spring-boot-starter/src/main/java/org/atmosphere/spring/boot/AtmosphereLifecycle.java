@@ -30,7 +30,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * {@link AtmosphereFramework} is properly destroyed before the servlet
  * container shuts down.
  *
- * <p>This runs at {@code DEFAULT_PHASE - 1} so it stops before the web server.
+ * <p>This runs at {@code DEFAULT_PHASE - 512} so it stops before the web server
+ * and after the lifecycles that register into the framework.
  * During stop, it publishes {@link ReadinessState#REFUSING_TRAFFIC} to signal
  * Kubernetes readiness probes, then calls {@link AtmosphereFramework#destroy()}
  * which disconnects all resources and cleans up thread pools.</p>
@@ -70,7 +71,12 @@ public class AtmosphereLifecycle implements SmartLifecycle {
 
     @Override
     public int getPhase() {
-        // Stop before the web server (which runs at DEFAULT_PHASE)
-        return SmartLifecycle.DEFAULT_PHASE - 1;
+        // Stop before the web server (graceful shutdown at DEFAULT_PHASE - 1024,
+        // start/stop at DEFAULT_PHASE - 2048), but after every lifecycle that
+        // registers into the framework (admin, interactions and voice at
+        // Integer.MAX_VALUE - 2; gRPC and WebTransport at Integer.MAX_VALUE - 1):
+        // stop runs in descending phase order, and destroy() drops the
+        // BroadcasterFactory those lifecycles unregister from.
+        return SmartLifecycle.DEFAULT_PHASE - 512;
     }
 }

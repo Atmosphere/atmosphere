@@ -371,6 +371,23 @@ public class AtmosphereFrameworkTest {
         assertTrue(actualAutodetect);
     }
 
+    /**
+     * Regression: in Spring Boot the framework is destroyed (which nulls the
+     * BroadcasterFactory) before the admin lifecycle uninstalls its
+     * BroadcasterListener, so the removal hit a null factory and the stop
+     * threw an NPE at every shutdown. Removal after destroy must be a no-op.
+     */
+    @Test
+    public void testRemoveBroadcasterListenerAfterDestroy() throws ServletException {
+        AtmosphereFramework f = new AtmosphereFramework().addInitParameter(ApplicationConfig.WEBSOCKET_SUPPRESS_JSR356, "true");
+        f.init();
+        BroadcasterListener listener = new BroadcasterListenerAdapter();
+        f.addBroadcasterListener(listener);
+        f.destroy();
+
+        assertDoesNotThrow(() -> f.removeBroadcasterListener(listener));
+    }
+
     @Test
     public void testDefaultInterceptorsImmutable() {
             assertThrows(UnsupportedOperationException.class, () -> {
