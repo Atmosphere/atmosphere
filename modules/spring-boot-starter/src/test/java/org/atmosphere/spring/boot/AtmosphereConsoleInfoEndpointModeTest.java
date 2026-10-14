@@ -104,6 +104,26 @@ class AtmosphereConsoleInfoEndpointModeTest {
     }
 
     @Test
+    void pathTemplateManagedServiceYieldsBroadcastModeBeforeAnyClientConnects() {
+        // A templated @ManagedService registers only its template until the first
+        // request for a concrete path: the console mounts before that request.
+        var props = new AtmosphereProperties();
+        props.setConsoleEndpoint("/atmosphere/rooms/general");
+        var info = newEndpoint(props,
+                Map.of("/atmosphere/rooms/{room}", wrapperFor(mock(ManagedAtmosphereHandler.class))));
+        assertThat(info.info()).containsEntry("mode", "broadcast");
+    }
+
+    @Test
+    void pathTemplateAiEndpointYieldsAiModeBeforeAnyClientConnects() {
+        var props = new AtmosphereProperties();
+        props.setConsoleEndpoint("/atmosphere/classroom/math");
+        var info = newEndpoint(props,
+                Map.of("/atmosphere/classroom/{room}", wrapperFor(new FakeAtmosphereAiHandler())));
+        assertThat(info.info()).containsEntry("mode", "ai");
+    }
+
+    @Test
     void noWrapperRegisteredFallsBackToAiMode() {
         // Endpoint resolves to a path that has no registered handler yet —
         // happens on cold-start before the @AiEndpoint scanner has run.

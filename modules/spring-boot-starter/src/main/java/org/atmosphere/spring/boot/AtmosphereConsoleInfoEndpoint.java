@@ -15,6 +15,7 @@
  */
 package org.atmosphere.spring.boot;
 
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -22,6 +23,7 @@ import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.governance.memory.MemorySafetyConfig;
 import org.atmosphere.ai.governance.rag.RagSafetyConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.util.PathTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -419,12 +421,35 @@ public class AtmosphereConsoleInfoEndpoint {
      * a hard compile-time dep on {@code modules/ai} or {@code modules/agent}
      * — the AI Console must keep loading even when those JARs are absent.</p>
      */
+    private static <W> W templateWrapper(Map<String, W> handlers, String endpoint) {
+        for (var entry : handlers.entrySet()) {
+            if (!entry.getKey().contains("{")) {
+                continue;
+            }
+            try {
+                if (new PathTemplate(entry.getKey()).match(endpoint, new HashMap<>())) {
+                    return entry.getValue();
+                }
+            } catch (IllegalArgumentException e) {
+                logger.trace("Not a path template: {}", entry.getKey(), e);
+            }
+        }
+        return null;
+    }
+
     private String detectMode(String endpoint) {
         if (endpoint == null) {
             return "ai";
         }
         try {
-            var wrapper = framework.getAtmosphereHandlers().get(endpoint);
+            var handlers = framework.getAtmosphereHandlers();
+            var wrapper = handlers.get(endpoint);
+            if (wrapper == null) {
+                // A path-template service (/rooms/{room}) registers the concrete
+                // path only on its first request: classify by the template it
+                // already serves, not by whether a client has connected yet.
+                wrapper = templateWrapper(handlers, endpoint);
+            }
             if (wrapper == null) {
                 return "ai";
             }
