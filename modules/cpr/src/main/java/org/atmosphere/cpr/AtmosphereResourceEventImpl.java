@@ -37,14 +37,14 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
     private final AtomicBoolean isClosedByClient = new AtomicBoolean(false);
     private final String uuid;
     private final AtomicBoolean isClosedByApplication = new AtomicBoolean(false);
-    // The resource's own flag, shared by every event built for it.
-    private final AtomicBoolean disconnectDispatched;
+    // The resource's own dispatch, shared by every event built for it.
+    private final DisconnectDispatch disconnectDispatch;
 
     public AtmosphereResourceEventImpl(AtmosphereResourceImpl resource) {
         this.resource = resource;
         this.throwable = null;
         uuid = resource.uuid();
-        disconnectDispatched = disconnectDispatchedOf(resource);
+        disconnectDispatch = disconnectDispatchOf(resource);
     }
 
     public AtmosphereResourceEventImpl(AtmosphereResourceImpl resource, boolean isCancelled,
@@ -54,7 +54,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         this.resource = resource;
         this.throwable = null;
         uuid = resource.uuid();
-        disconnectDispatched = disconnectDispatchedOf(resource);
+        disconnectDispatch = disconnectDispatchOf(resource);
     }
 
     public AtmosphereResourceEventImpl(AtmosphereResourceImpl resource, boolean isCancelled,
@@ -65,7 +65,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         this.resource = resource;
         this.throwable = throwable;
         uuid = resource.uuid();
-        disconnectDispatched = disconnectDispatchedOf(resource);
+        disconnectDispatch = disconnectDispatchOf(resource);
     }
 
     public AtmosphereResourceEventImpl(AtmosphereResourceImpl resource,
@@ -79,7 +79,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         this.throwable = throwable;
         this.isClosedByClient.set(isClosedByClient);
         uuid = resource.uuid();
-        disconnectDispatched = disconnectDispatchedOf(resource);
+        disconnectDispatch = disconnectDispatchOf(resource);
     }
 
     /**
@@ -95,10 +95,10 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         return uuid;
     }
 
-    private static AtomicBoolean disconnectDispatchedOf(AtmosphereResourceImpl resource) {
-        var flag = resource.disconnectDispatched();
-        // A mocked resource has no flag; the event then guards itself.
-        return flag != null ? flag : new AtomicBoolean();
+    private static DisconnectDispatch disconnectDispatchOf(AtmosphereResourceImpl resource) {
+        var dispatch = resource.disconnectDispatch();
+        // A mocked resource has none; the event then guards itself.
+        return dispatch != null ? dispatch : new DisconnectDispatch();
     }
 
     /**
@@ -110,11 +110,23 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
      * Only the first caller may dispatch (Invariant #2). The claim survives
      * {@link #destroy()}.
      *
+     * A caller that claimed it must call {@link #disconnectDispatchDone()} once
+     * the callback returns: the resource is not torn down while it runs.
+     *
      * @return true if the disconnect was already dispatched, false if this
      * call claimed it
      */
     public boolean getAndSetDisconnectDispatched() {
-        return disconnectDispatched.getAndSet(true);
+        return !disconnectDispatch.claim();
+    }
+
+    /**
+     * The disconnect callback this caller claimed with
+     * {@link #getAndSetDisconnectDispatched()} has returned or thrown; a close
+     * waiting to tear the resource down may proceed.
+     */
+    public void disconnectDispatchDone() {
+        disconnectDispatch.done();
     }
 
     @Override

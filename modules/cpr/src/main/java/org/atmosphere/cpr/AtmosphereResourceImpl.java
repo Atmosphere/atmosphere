@@ -94,7 +94,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     // this one guards the handler's disconnect callback (@Disconnect), so
     // each fires once and neither mutes the other. Shared with every event
     // built for this resource (see AtmosphereResourceEventImpl).
-    private final AtomicBoolean disconnectDispatched = new AtomicBoolean();
+    private final DisconnectDispatch disconnectDispatch = new DisconnectDispatch();
 
     private final ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners =
             new ConcurrentLinkedQueue<>();
@@ -561,7 +561,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         isPendingClose.set(false);
         isSuspendEvent.set(false);
         disconnected.set(false);
-        disconnectDispatched.set(false);
+        disconnectDispatch.reset();
         listeners.clear();
         broadcasters.clear();
         broadcasterIdIndex.clear();
@@ -851,6 +851,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             var prev = state.getAndSet(LifecycleState.CANCELLED);
             if (prev != LifecycleState.CANCELLED) {
                 logger.trace("Cancelling {}", uuid());
+                // A broadcast thread that won the @Disconnect claim may still be
+                // running it: tear nothing down under it (Invariant #2).
+                disconnectDispatch.awaitDispatch();
 
                 if (config.getBroadcasterFactory() != null) {
                     removeFromAllBroadcasters();
@@ -1105,11 +1108,11 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     /**
-     * The flag {@link AtmosphereResourceEventImpl#getAndSetDisconnectDispatched()}
+     * The dispatch {@link AtmosphereResourceEventImpl#getAndSetDisconnectDispatched()}
      * claims. Events hold it themselves so the claim still works after
      * {@link AtmosphereResourceEventImpl#destroy()} has dropped the resource.
      */
-    AtomicBoolean disconnectDispatched() {
-        return disconnectDispatched;
+    DisconnectDispatch disconnectDispatch() {
+        return disconnectDispatch;
     }
 }

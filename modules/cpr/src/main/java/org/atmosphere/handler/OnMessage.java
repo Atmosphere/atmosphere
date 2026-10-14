@@ -57,8 +57,14 @@ public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
         if (event.isCancelled() || event.isClosedByApplication() || event.isClosedByClient()) {
             // The close thread and a broadcast in flight can both deliver the
             // cancelled event: onDisconnect runs once per resource (Invariant #2).
-            if (!(event instanceof AtmosphereResourceEventImpl impl) || !impl.getAndSetDisconnectDispatched()) {
+            if (!(event instanceof AtmosphereResourceEventImpl impl)) {
                 onDisconnect(response);
+            } else if (!impl.getAndSetDisconnectDispatched()) {
+                try {
+                    onDisconnect(response);
+                } finally {
+                    impl.disconnectDispatchDone();
+                }
             }
         } else if (event.getMessage() instanceof List<?> messages) {
             for (Object item : messages) {

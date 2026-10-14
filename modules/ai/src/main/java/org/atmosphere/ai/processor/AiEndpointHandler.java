@@ -1295,6 +1295,18 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             logger.trace("Disconnect already dispatched for {}", impl.uuid());
             return;
         }
+        try {
+            disconnect(resource, event, logMessage);
+        } finally {
+            // The close waits on this before it tears the resource down.
+            if (event instanceof AtmosphereResourceEventImpl impl) {
+                impl.disconnectDispatchDone();
+            }
+        }
+    }
+
+    private void disconnect(AtmosphereResource resource, AtmosphereResourceEvent event,
+                            String logMessage) {
         // Tomcat can fire the async error/cancel listener with a recycled request
         // after the async context has been torn down. When that happens the
         // AtmosphereResourceEvent has already been stripped of its resource and

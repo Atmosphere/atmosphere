@@ -260,7 +260,13 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             logger.trace("@Disconnect already dispatched for {}", impl.uuid());
             return;
         }
-        invoke(onDisconnectMethod, event);
+        try {
+            invoke(onDisconnectMethod, event);
+        } finally {
+            if (event instanceof AtmosphereResourceEventImpl impl) {
+                impl.disconnectDispatchDone();
+            }
+        }
     }
 
     @Override

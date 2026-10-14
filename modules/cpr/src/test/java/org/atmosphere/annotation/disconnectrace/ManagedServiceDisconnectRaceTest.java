@@ -27,6 +27,7 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.DefaultBroadcaster;
@@ -90,6 +91,27 @@ class ManagedServiceDisconnectRaceTest {
         }
     }
 
+    // Parks the thread that won the @Disconnect claim, then records whether the
+    // resource was still whole when the callback went on.
+    static volatile CountDownLatch holdInDisconnect;
+    static volatile CountDownLatch inHeldDisconnect;
+    static final Map<String, Boolean> RESOURCE_WHOLE = new ConcurrentHashMap<>();
+
+    @ManagedService(path = "/disconnect-hold")
+    public static final class HoldService {
+
+        @Disconnect
+        public void onDisconnect(AtmosphereResourceEvent event) throws InterruptedException {
+            inHeldDisconnect.countDown();
+            holdInDisconnect.await(WAIT_SECONDS, TimeUnit.SECONDS);
+            var resource = event.getResource();
+            RESOURCE_WHOLE.put(resource != null ? resource.uuid() : "torn-down", resource != null);
+            if (resource != null) {
+                record(event);
+            }
+        }
+    }
+
     @ManagedService(path = "/disconnect-race-hook", broadcaster = GapBroadcaster.class)
     public static final class HookService {
 
@@ -138,6 +160,9 @@ class ManagedServiceDisconnectRaceTest {
     @BeforeEach
     void setUp() throws Exception {
         DISCONNECTS.clear();
+        RESOURCE_WHOLE.clear();
+        holdInDisconnect = new CountDownLatch(1);
+        inHeldDisconnect = new CountDownLatch(1);
         HOOK_ARMED.set(false);
         writerPastCheck = new CountDownLatch(1);
         closerInDisconnect = new CountDownLatch(1);
@@ -181,6 +206,7 @@ class ManagedServiceDisconnectRaceTest {
         // Never leave a parked thread behind a failed assertion.
         closerInDisconnect.countDown();
         writerDispatched.countDown();
+        holdInDisconnect.countDown();
         framework.destroy();
     }
 
@@ -219,6 +245,43 @@ class ManagedServiceDisconnectRaceTest {
         assertTrue(writerDispatched.await(WAIT_SECONDS, TimeUnit.SECONDS), "the write must have dispatched");
 
         assertEquals(1, disconnects(uuid), "@Disconnect must fire exactly once per resource");
+    }
+
+    @Test
+    void theCloseDoesNotTearDownAResourceWhoseDisconnectAnotherThreadIsRunning() throws Exception {
+        var webSocket = open("/disconnect-hold");
+        var resource = (AtmosphereResourceImpl) webSocket.resource();
+        var uuid = resource.uuid();
+        var event = resource.getAtmosphereResourceEvent();
+        event.isClosedByClient(true);
+
+        // A broadcast thread delivers the closed event first: it wins the claim
+        // and is still inside @Disconnect when the close tears the resource down.
+        var broadcastThread = Thread.ofPlatform().start(() -> {
+            try {
+                resource.getAtmosphereHandler().onStateChange(event);
+            } catch (IOException ex) {
+                throw new IllegalStateException(ex);
+            }
+        });
+        assertTrue(inHeldDisconnect.await(WAIT_SECONDS, TimeUnit.SECONDS), "the broadcast thread runs @Disconnect");
+
+        var closeThread = Thread.ofPlatform().start(() -> {
+            try {
+                resource.cancel();
+            } catch (IOException ex) {
+                throw new IllegalStateException(ex);
+            }
+        });
+        closeThread.join(500);
+        assertTrue(closeThread.isAlive(), "the close must wait for the @Disconnect another thread is running");
+
+        holdInDisconnect.countDown();
+        broadcastThread.join(TimeUnit.SECONDS.toMillis(WAIT_SECONDS));
+        closeThread.join(TimeUnit.SECONDS.toMillis(WAIT_SECONDS));
+        assertFalse(closeThread.isAlive(), "the close finishes once @Disconnect returned");
+        assertEquals(Boolean.TRUE, RESOURCE_WHOLE.get(uuid), "@Disconnect must see its resource");
+        assertEquals(1, disconnects(uuid), "@Disconnect must fire exactly once");
     }
 
     @Test
