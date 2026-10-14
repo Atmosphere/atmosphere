@@ -273,7 +273,14 @@ onUnmounted(() => {
           </table>
         </article>
       </section>
-      <p v-if="loaded && groups.length === 0" class="obs-empty" data-testid="metrics-empty">
+      <!-- No metrics plane (console info hasMetrics: false): traffic cannot fill
+           a panel the server does not expose, so do not ask for any. -->
+      <p v-if="!metricsPath" class="obs-empty" data-testid="metrics-not-exposed">
+        This server does not expose a metrics endpoint the Console can read, so no
+        atmosphere.* meters are shown. Expose the actuator <code>metrics</code> endpoint
+        on the application port to see them here.
+      </p>
+      <p v-else-if="loaded && groups.length === 0" class="obs-empty" data-testid="metrics-empty">
         No atmosphere.* meters have recorded anything yet. Send a message, then check back.
       </p>
     </template>
