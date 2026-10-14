@@ -26,6 +26,9 @@ import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -72,9 +75,21 @@ public final class MicrometerAiMetrics implements AiMetrics {
 
     private static final Logger logger = LoggerFactory.getLogger(MicrometerAiMetrics.class);
 
+    /**
+     * One active-session counter per (registry, provider). Every AI endpoint
+     * and agent resolves its own {@code MicrometerAiMetrics} instance, and
+     * Micrometer keeps only the first gauge registered under a meter id: with
+     * a counter per instance, the gauge reported the first endpoint's
+     * sessions and ignored every other one. Sharing the counter makes the
+     * single gauge count them all. Weak on the registry so a closed registry
+     * does not pin its counters; bounded by the configured provider names.
+     */
+    private static final Map<MeterRegistry, Map<String, AtomicInteger>> ACTIVE_SESSIONS =
+            new WeakHashMap<>();
+
     private final MeterRegistry registry;
     private final String provider;
-    private final AtomicInteger activeSessions = new AtomicInteger(0);
+    private final AtomicInteger activeSessions;
 
     /**
      * Set once if a co-resident instrumentation (e.g. quarkus-langchain4j)
@@ -102,8 +117,25 @@ public final class MicrometerAiMetrics implements AiMetrics {
     public MicrometerAiMetrics(MeterRegistry registry, String provider) {
         this.registry = registry;
         this.provider = provider != null ? provider : "unknown";
-        registry.gauge("atmosphere.ai.active_sessions", Tags.of("provider", this.provider),
-                activeSessions, AtomicInteger::doubleValue);
+        this.activeSessions = sharedActiveSessions(registry, this.provider);
+    }
+
+    /**
+     * The counter behind {@code atmosphere.ai.active_sessions} for this
+     * registry and provider, registering the gauge the first time only.
+     */
+    private static AtomicInteger sharedActiveSessions(MeterRegistry registry, String provider) {
+        synchronized (ACTIVE_SESSIONS) {
+            var byProvider = ACTIVE_SESSIONS.computeIfAbsent(registry, r -> new HashMap<>());
+            var counter = byProvider.get(provider);
+            if (counter == null) {
+                counter = new AtomicInteger();
+                byProvider.put(provider, counter);
+                registry.gauge("atmosphere.ai.active_sessions", Tags.of("provider", provider),
+                        counter, AtomicInteger::doubleValue);
+            }
+            return counter;
+        }
     }
 
     @Override
@@ -262,7 +294,8 @@ public final class MicrometerAiMetrics implements AiMetrics {
     }
 
     /**
-     * Return the current number of active sessions. Useful for testing.
+     * Return the current number of active sessions across every instance
+     * sharing this registry and provider. Useful for testing.
      *
      * @return active session count
      */

@@ -149,6 +149,44 @@ public class MicrometerAiMetricsTest {
     }
 
     @Test
+    public void activeSessionGaugeCountsEveryEndpointSharingARegistry() {
+        // Regression: each AI endpoint resolves its own instance; the gauge kept
+        // the first instance's counter only, so the second endpoint's sessions
+        // were invisible (and Micrometer warned about the duplicate gauge).
+        var chatEndpoint = new MicrometerAiMetrics(registry, "atmosphere");
+        var ragEndpoint = new MicrometerAiMetrics(registry, "atmosphere");
+
+        chatEndpoint.sessionStarted("gpt-4");
+        ragEndpoint.sessionStarted("gpt-4");
+        ragEndpoint.sessionStarted("gpt-4");
+
+        var gauges = registry.find("atmosphere.ai.active_sessions")
+                .tag("provider", "atmosphere")
+                .gauges();
+        assertEquals(1, gauges.size(), "one gauge per provider, not one per endpoint");
+        assertEquals(3.0, gauges.iterator().next().value(),
+                "the gauge must sum the sessions of every endpoint");
+
+        ragEndpoint.sessionEnded("gpt-4");
+        assertEquals(2.0, gauges.iterator().next().value());
+    }
+
+    @Test
+    public void activeSessionCountersStayApartAcrossProvidersAndRegistries() {
+        var other = new MicrometerAiMetrics(registry, "langchain4j");
+        var elsewhere = new MicrometerAiMetrics(new SimpleMeterRegistry(), "spring-ai");
+        metrics.sessionStarted("gpt-4");
+        other.sessionStarted("gpt-4");
+        other.sessionStarted("gpt-4");
+        elsewhere.sessionStarted("gpt-4");
+
+        assertEquals(1.0, registry.find("atmosphere.ai.active_sessions")
+                .tag("provider", "spring-ai").gauge().value());
+        assertEquals(2.0, registry.find("atmosphere.ai.active_sessions")
+                .tag("provider", "langchain4j").gauge().value());
+    }
+
+    @Test
     public void testMetricTagsContainModelAndProvider() {
         metrics.recordLatency("claude-3", Duration.ofMillis(100), Duration.ofMillis(500));
 
