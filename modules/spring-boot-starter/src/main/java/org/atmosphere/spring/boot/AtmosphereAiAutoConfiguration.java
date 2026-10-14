@@ -1580,6 +1580,44 @@ public class AtmosphereAiAutoConfiguration {
         }
     }
 
+    /**
+     * {@code atmosphere.ai.runtime} is not a runtime selector: the
+     * {@code AgentRuntime} is the highest-priority runtime module on the
+     * classpath. A configured name that differs from the runtime actually
+     * running is configuration intent the deployment does not have, so it is
+     * reported once the context is up (Correctness Invariant #5) rather than
+     * left to the operator to discover from the console.
+     */
+    @Bean
+    ApplicationListener<WebServerInitializedEvent> atmosphereAiRuntimeIntentCheck(
+            org.springframework.core.env.Environment env) {
+        return event -> {
+            var configured = env.getProperty("atmosphere.ai.runtime");
+            if (configured == null || configured.isBlank()) {
+                return;
+            }
+            runtimeIntentWarning(configured,
+                    org.atmosphere.ai.AgentRuntimeResolver.resolve().name())
+                    .ifPresent(logger::warn);
+        };
+    }
+
+    /**
+     * The warning for a configured {@code atmosphere.ai.runtime} that is not
+     * the running runtime, or empty when nothing was configured or it matches.
+     */
+    static java.util.Optional<String> runtimeIntentWarning(String configured, String running) {
+        if (configured == null || configured.isBlank()
+                || configured.trim().equalsIgnoreCase(running)) {
+            return java.util.Optional.empty();
+        }
+        var name = configured.trim();
+        return java.util.Optional.of("atmosphere.ai.runtime=" + name + " is not honored: the "
+                + "running AgentRuntime is '" + running + "'. Atmosphere runs the "
+                + "highest-priority runtime module on the classpath; add the '" + name
+                + "' runtime artifact to the application to run it.");
+    }
+
     @Bean
     ApplicationListener<WebServerInitializedEvent> atmosphereAiConsoleLog() {
         return event -> {

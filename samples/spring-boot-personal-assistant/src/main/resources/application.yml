@@ -42,10 +42,11 @@ atmosphere:
     # Per-primitive runtime state is visible in the console
     # (/api/console/info, "harness" section).
 
-    # Any runtime adapter artifact on the classpath is picked up by
-    # AgentRuntime ServiceLoader discovery. Switching runtimes is a Maven
-    # dependency swap plus setting this to the runtime name.
-    runtime: spring-ai
+    # The AgentRuntime is picked by ServiceLoader discovery: the
+    # highest-priority runtime adapter artifact on the classpath runs.
+    # Switching runtimes is a Maven dependency swap — there is no runtime
+    # property to set. By default this sample ships no adapter, so the
+    # built-in runtime runs; -Pruntime-langchain4j adds LangChain4j.
     # This proof sample keeps a deterministic keyword-router fallback that
     # runs without LLM credentials, so we opt out of the starter's
     # fail-fast default. Production apps should leave fail-fast on.
