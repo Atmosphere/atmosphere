@@ -736,7 +736,12 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     // See https://github.com/Atmosphere/atmosphere/issues/1590
                     // Better to call onDisconnect that onResume.
                     if (allowedToClose) {
-                        if (ff || closingTime > 0) {
+                        // The delay lets a client that reconnects at once keep its resource. A close
+                        // the server started (an idle eviction marks the event cancelled) has no
+                        // client coming back, and its initiator may already have unregistered the
+                        // resource the delayed close looks up.
+                        boolean serverInitiated = resource.getAtmosphereResourceEvent().isCancelled();
+                        if ((ff || closingTime > 0) && !serverInitiated) {
                             completeLifecycle = false;
                             logger.debug("Delaying closing operation for firefox and resource {}", resource.uuid());
                             ExecutorsFactory.getScheduler(framework.getAtmosphereConfig()).schedule(() -> {

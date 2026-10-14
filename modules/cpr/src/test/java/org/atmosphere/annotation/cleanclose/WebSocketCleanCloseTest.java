@@ -37,16 +37,19 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.util.Enumeration;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.atmosphere.cpr.ApplicationConfig.CLOSED_ATMOSPHERE_THINK_TIME;
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 import static org.atmosphere.cpr.ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -63,6 +66,8 @@ class WebSocketCleanCloseTest {
 
     /** The flags {@code @Disconnect} saw: {closedByClient, cancelled}. */
     static final AtomicReference<boolean[]> SEEN = new AtomicReference<>();
+    /** How many times {@code @Disconnect} ran. */
+    static final AtomicInteger CALLS = new AtomicInteger();
 
     @ManagedService(path = "/clean-close")
     public static final class LeaveService {
@@ -70,6 +75,7 @@ class WebSocketCleanCloseTest {
         @Disconnect
         public void onDisconnect(AtmosphereResourceEvent event) {
             SEEN.set(new boolean[] {event.isClosedByClient(), event.isCancelled()});
+            CALLS.incrementAndGet();
         }
     }
 
@@ -78,6 +84,7 @@ class WebSocketCleanCloseTest {
     @BeforeEach
     void setUp() {
         SEEN.set(null);
+        CALLS.set(0);
     }
 
     private void start(String thinkTimeMillis) throws ServletException {
@@ -169,9 +176,11 @@ class WebSocketCleanCloseTest {
         assertFalse(seen[1], "a delayed " + closeCode + " close is not an unexpected disconnect");
     }
 
-    @Test
-    void idleEvictionIsCancelledNotClosedByTheClient() throws Exception {
-        start(null);
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = "50")
+    void idleEvictionIsCancelledNotClosedByTheClient(String thinkTimeMillis) throws Exception {
+        start(thinkTimeMillis);
         var processor = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework);
         var webSocket = new ContainerWebSocket(framework, processor);
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder()
@@ -201,6 +210,9 @@ class WebSocketCleanCloseTest {
         assertTrue(webSocket.closed, "the eviction closes the WebSocket");
         assertFalse(seen[0], "the server evicted the client: the client did not leave");
         assertTrue(seen[1], "an evicted client is an unexpected disconnect");
+        // Past any configured think time: no second dispatch.
+        Thread.sleep(200);
+        assertEquals(1, CALLS.get(), "@Disconnect must run once for an evicted client");
     }
 
     @Test
