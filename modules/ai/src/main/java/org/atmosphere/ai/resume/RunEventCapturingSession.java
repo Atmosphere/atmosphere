@@ -15,24 +15,28 @@
  */
 package org.atmosphere.ai.resume;
 
+import org.atmosphere.ai.AiEvent;
+import org.atmosphere.ai.Content;
 import org.atmosphere.ai.DelegatingStreamingSession;
 import org.atmosphere.ai.StreamingSession;
 
 import java.util.Objects;
 
 /**
- * {@link StreamingSession} decorator that mirrors the {@code send},
- * {@code complete} and {@code error} calls an {@code @Prompt} method makes on
- * the session it was handed into the run's {@link RunEventReplayBuffer}. This
- * is the producer side of the reattach wire — without it the buffer stays
- * empty in production and {@link RunReattachSupport#replayPendingRun} has
- * nothing to drain on reconnect.
+ * {@link StreamingSession} decorator that mirrors the text and the terminal
+ * frame a client receives into the run's {@link RunEventReplayBuffer}. This is
+ * the producer side of the reattach wire — without it the buffer stays empty in
+ * production and {@link RunReattachSupport#replayPendingRun} has nothing to
+ * drain on reconnect.
  *
- * <p>It wraps that session from the outside, so the output a runtime streams
- * for {@code session.stream(...)} — written by the runtime to the session
- * below this decorator — is not captured: a run whose answer comes from
- * {@code stream} replays only what the method body itself sent, plus the run's
- * terminal frame.</p>
+ * <p>The endpoint handler installs it directly above the connection's leaf
+ * session, below {@code AiStreamingSession}, where every outbound frame of the
+ * run passes: what the {@code @Prompt} method sends itself and what the runtime
+ * streams for {@code session.stream(...)} alike. Text arrives as
+ * {@code send}, {@code sendContent} with a text part, or an
+ * {@link AiEvent.TextDelta}; the terminal frame as {@code complete},
+ * {@code error}, {@link AiEvent.Complete} or {@link AiEvent.Error}. Other
+ * frames (metadata, progress, tool events) are not captured.</p>
  *
  * <p>The capture happens BEFORE the delegate write so the client sees
  * the live stream unchanged and a disconnect between the buffer write
@@ -58,20 +62,55 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
 
     @Override
     public void send(String text) {
-        if (text != null && !text.isEmpty()) {
-            // Capture under the wire-protocol type name so the replay
-            // path can emit a valid AiStreamMessage JSON frame without
-            // a type-name translation step — "text" would not parse as
-            // a streaming-text event on the client.
-            buffer.capture("streaming-text", text);
-        }
-        if (delegate.isClosed()) {
-            // The client this session wrote to is gone; the event is in the
-            // buffer, which is how a reattached client receives it. Writing to
-            // the closed session would only log a WARN per remaining chunk.
+        if (captureText(text)) {
             return;
         }
         delegate.send(text);
+    }
+
+    @Override
+    public void sendContent(Content content) {
+        if (content instanceof Content.Text text && captureText(text.text())) {
+            return;
+        }
+        delegate.sendContent(content);
+    }
+
+    @Override
+    public void emit(AiEvent event) {
+        switch (event) {
+            case AiEvent.TextDelta delta -> {
+                if (captureText(delta.text())) {
+                    return;
+                }
+            }
+            case AiEvent.Complete complete ->
+                    buffer.terminate("complete", complete.summary() != null ? complete.summary() : "");
+            case AiEvent.Error error ->
+                    buffer.terminate("error", error.message() != null ? error.message() : "error");
+            default -> {
+                // Not a text or terminal frame: forwarded, not captured.
+            }
+        }
+        delegate.emit(event);
+    }
+
+    /**
+     * Capture a text frame under the wire-protocol type name, so the replay
+     * path can emit a valid AiStreamMessage JSON frame without a type-name
+     * translation step — "text" would not parse as a streaming-text event on
+     * the client.
+     *
+     * @return {@code true} when the client this session wrote to is gone: the
+     *         event is in the buffer, which is how a reattached client receives
+     *         it, and writing to the closed session would only log a WARN per
+     *         remaining chunk
+     */
+    private boolean captureText(String text) {
+        if (text != null && !text.isEmpty()) {
+            buffer.capture("streaming-text", text);
+        }
+        return delegate.isClosed();
     }
 
     // Terminal events go through terminate: the first one ends the run, so a
@@ -91,8 +130,8 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
 
     @Override
     public void error(Throwable t) {
-        var msg = t != null && t.getMessage() != null ? t.getMessage() : "error";
-        buffer.terminate("error", msg);
+        buffer.terminate("error", t == null ? "error"
+                : t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName());
         delegate.error(t);
     }
 }

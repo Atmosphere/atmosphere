@@ -45,14 +45,13 @@ import org.slf4j.LoggerFactory;
  * tail. Long-polling keeps the single-write drain: its first write resumes
  * the poll, so there is no open response to forward to.</p>
  *
- * <p>The events are what {@link RunEventCapturingSession} captures: what the
- * {@code @Prompt} method sends, completes or fails with on its session. The
- * output a runtime streams for {@code session.stream(...)} is not captured,
- * and the disconnect of the client that started the run cancels a runtime
- * call still in flight, so such a run's answer is neither replayed nor
- * continued: a reattached client receives the run's terminal frame, an
- * {@code error} saying the run was cancelled when the disconnect cut its
- * model call short.</p>
+ * <p>The events are what {@link RunEventCapturingSession} captures: the text
+ * and the terminal frame the client received, whether the {@code @Prompt}
+ * method sent them or the runtime streamed them for {@code session.stream(...)}.
+ * The disconnect of the client that started the run cancels a runtime call
+ * still in flight, so such a run's answer is not continued: a reattached
+ * client receives the text streamed before the disconnect, then an
+ * {@code error} saying the run was cancelled.</p>
  */
 public final class RunReattachSupport {
 

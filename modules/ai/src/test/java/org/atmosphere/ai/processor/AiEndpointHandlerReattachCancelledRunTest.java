@@ -59,12 +59,14 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * An {@code @Prompt} that answers with {@code session.stream(...)} loses its
- * answer when the client that started it disconnects: the disconnect cancels
- * the in-flight runtime call and the runtime completes normally on that
- * cancel. A client that reattaches with the run id must be told the run was
- * cancelled, not handed a {@code complete} frame that makes a cut-short run
- * look finished.
+ * An {@code @Prompt} that answers with {@code session.stream(...)} loses the
+ * rest of its answer when the client that started it disconnects: the
+ * disconnect cancels the in-flight runtime call and the runtime completes
+ * normally on that cancel. A client that reattaches with the run id must get
+ * the tokens the runtime streamed before the disconnect — they are written to
+ * the session below {@code AiStreamingSession}, which the replay capture used
+ * to sit above — and be told the run was cancelled, not handed a
+ * {@code complete} frame that makes a cut-short run look finished.
  */
 // Constructs a real AtmosphereResourceImpl via the deprecated 6-arg
 // constructor — the same harness AiEndpointHandlerFactsCachePrefixTest uses.
@@ -126,10 +128,12 @@ class AiEndpointHandlerReattachCancelledRunTest {
         RunReattachSupport.replayPendingRun(reattachingResource(RUN_ID.get(), out), registry);
 
         var frames = out.toString().strip().split("\n");
-        var terminal = frames[frames.length - 1];
-        assertTrue(terminal.contains("\"type\":\"error\"") && terminal.contains("cancelled"),
-                "a run the disconnect cut short must not replay as complete: " + out);
-        assertEquals(1, frames.length, "the streamed tokens are not captured: " + out);
+        assertEquals(2, frames.length, "the streamed token, then the terminal frame: " + out);
+        assertTrue(frames[0].contains("\"type\":\"streaming-text\"")
+                        && frames[0].contains("\"data\":\"partial answer\""),
+                "the tokens the runtime streamed before the disconnect replay: " + frames[0]);
+        assertTrue(frames[1].contains("\"type\":\"error\"") && frames[1].contains("cancelled"),
+                "a run the disconnect cut short must not replay as complete: " + frames[1]);
     }
 
     private static AtmosphereResource reattachingResource(String runId, StringWriter out)

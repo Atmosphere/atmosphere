@@ -911,9 +911,18 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                     resource.uuid(), multiModal.parts().size(), promptText);
         }
 
-        var delegate = roomBroadcast
-                ? StreamingSessions.startRoomBroadcast(resource)
-                : StreamingSessions.start(resource);
+        // Producer side of the reattach wire: capture the run's text and
+        // terminal frame directly above the connection's leaf session, where
+        // every outbound frame passes — what the @Prompt method sends and what
+        // the runtime streams for session.stream(...) alike — so the replay
+        // buffer holds what the client received. Registered with the run below.
+        // See RunEventCapturingSession javadoc.
+        var replayBuffer = new org.atmosphere.ai.resume.RunEventReplayBuffer();
+        StreamingSession delegate = new org.atmosphere.ai.resume.RunEventCapturingSession(
+                roomBroadcast
+                        ? StreamingSessions.startRoomBroadcast(resource)
+                        : StreamingSessions.start(resource),
+                replayBuffer);
         var settings = AiConfig.get();
         var model = endpointModel != null ? endpointModel
                 : (settings != null ? settings.model() : null);
@@ -1038,7 +1047,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         });
         recordConnectionOwner(resource);
         var handle = org.atmosphere.ai.resume.RunRegistryHolder.get().register(
-                pathTemplate, runUserId, resource.uuid(), runExecutionHandle);
+                pathTemplate, runUserId, resource.uuid(), runExecutionHandle, replayBuffer, null);
         session.setRunId(handle.runId());
         // Late-bind the tape run to the registry-minted identity so the taped
         // run joins the RunRegistry / EffectJournal runId (provenance). The
@@ -1055,15 +1064,6 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // the seams take their byte-identical non-durable path.
         var durableSpine = org.atmosphere.ai.resume.DurableRunSpineHolder.get();
         var durableScope = durableSpine.beginDrive(handle.runId(), runUserId, pathTemplate);
-
-        // Producer side of the reattach wire: wrap the session handed to the
-        // @Prompt method so every send / complete / error it calls on that
-        // session also lands in the run's replay buffer. Without this,
-        // RunReattachSupport has nothing to drain on reconnect. Output the
-        // runtime streams for session.stream(...) is written below this
-        // wrapper and is not captured. See RunEventCapturingSession javadoc.
-        var capturingSession = new org.atmosphere.ai.resume.RunEventCapturingSession(
-                session, handle.replayBuffer());
 
         // Single terminal flag for the durable spine: set true only when the
         // @Prompt body returned normally, read in finally so completeDrive runs
@@ -1083,7 +1083,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             // the VT pool leaks keys across turns.
             businessMdc.forEach(org.slf4j.MDC::put);
             try {
-                invokePrompt(promptText, capturingSession, resource);
+                invokePrompt(promptText, session, resource);
                 runExecutionHandle.complete();
                 durableSuccess[0] = true;
             } catch (Exception e) {
@@ -1097,12 +1097,12 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                     throw err;
                 }
                 logger.error("Error invoking @Prompt method", cause);
-                // Route the terminal error through the capturing session so
-                // the replay buffer records the failure envelope — a
+                // Route the terminal error through the session, whose capture
+                // records the failure envelope in the replay buffer — a
                 // reconnecting client must be able to tell the turn
                 // terminated in error, not just see the partial text and
                 // hang waiting for a complete frame that never arrives.
-                capturingSession.error(cause);
+                session.error(cause);
                 runExecutionHandle.completeExceptionally(cause);
             } finally {
                 durableScope.ifPresent(c -> durableSpine.completeDrive(c, durableSuccess[0]));
@@ -1126,8 +1126,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                         // and returns cannot end the run as complete first.
                         handle.replayBuffer().terminate("error", timeout.getMessage());
                         promptThread.interrupt();
-                        if (!capturingSession.isClosed()) {
-                            capturingSession.error(timeout);
+                        if (!session.isClosed()) {
+                            session.error(timeout);
                         }
                     }
                 } catch (InterruptedException e) {

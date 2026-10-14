@@ -39,6 +39,30 @@ import static org.mockito.Mockito.when;
  */
 class RunEventCapturingSessionTest {
 
+    /**
+     * Runtimes that stream through {@code emit} (ADK, Embabel) or a text
+     * content part write the same frames {@code send} / {@code complete}
+     * would; the capture sits below them all, so each lands in the buffer.
+     */
+    @Test
+    void textAndTerminalEventsEmittedAsAiEventsOrContentAreCaptured() {
+        var buffer = new RunEventReplayBuffer();
+        var session = new RunEventCapturingSession(new CollectingSession(), buffer);
+
+        session.emit(new org.atmosphere.ai.AiEvent.TextDelta("Hello, "));
+        session.sendContent(new org.atmosphere.ai.Content.Text("world"));
+        session.emit(new org.atmosphere.ai.AiEvent.Progress("thinking", null));
+        session.emit(new org.atmosphere.ai.AiEvent.Complete("done", java.util.Map.of()));
+
+        var replay = buffer.snapshot();
+        assertEquals(3, replay.size(), "two text frames and the terminal one: " + replay);
+        assertEquals("Hello, ", replay.get(0).payload());
+        assertEquals("world", replay.get(1).payload());
+        assertEquals("complete", replay.get(2).type());
+        assertEquals("done", replay.get(2).payload());
+        assertTrue(buffer.isTerminated());
+    }
+
     @Test
     void sendCapturesTextEventsInOrder() {
         var buffer = new RunEventReplayBuffer();

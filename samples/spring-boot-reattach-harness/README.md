@@ -29,10 +29,9 @@ default).
 
 This works because `SlowEmitterChat` emits with `session.send(...)` and keeps
 running after the first socket drops. An `@Prompt` that answers with
-`session.stream(...)` does not get this: the tokens the runtime streams are
-not captured into the replay buffer, and the dropped socket cancels the
-in-flight model call, so a reattach receives only an `error` frame saying the
-run was cancelled.
+`session.stream(...)` is captured the same way, but the dropped socket cancels
+the in-flight model call: a reattach receives the tokens streamed before the
+drop, then an `error` frame saying the run was cancelled.
 
 ### `SyntheticRunController` — deterministic REST surface
 

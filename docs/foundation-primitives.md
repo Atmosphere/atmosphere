@@ -92,12 +92,11 @@ SSE and streaming, a reattach to a run still in flight also receives the
 run's later events through its terminal frame; long-polling gets the buffered
 events in one reply. A run that already finished stays replayable for the
 registry TTL (at most `RunRegistry.MAX_RETAINED_COMPLETED` finished runs are
-kept). The events are what the `@Prompt` method sends, completes or fails with
-on its `StreamingSession`; the tokens a runtime streams for
-`session.stream(...)` are not captured, and the original client's disconnect
-cancels a model call still in flight. A reattach to such a run therefore gets
-no answer text, only the terminal frame: an `error` saying the run was
-cancelled when the disconnect cut the model call short.
+kept). The events are the text and terminal frame the client received,
+whether the `@Prompt` method sent them or the runtime streamed them for
+`session.stream(...)`. The original client's disconnect cancels a model call
+still in flight, so a reattach to such a run gets the tokens streamed before
+the disconnect, then an `error` saying the run was cancelled.
 
 ## Proof samples
 
