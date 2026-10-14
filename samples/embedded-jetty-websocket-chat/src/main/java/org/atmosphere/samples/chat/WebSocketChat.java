@@ -18,6 +18,7 @@ package org.atmosphere.samples.chat;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import tools.jackson.databind.ObjectMapper;
+import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.util.SimpleBroadcaster;
@@ -36,9 +37,18 @@ import java.util.Date;
 /**
  * Simple {@link WebSocketHandler} that implement the logic to build a Chat application.
  *
+ * <p>{@link TrackMessageSizeInterceptor} is installed because the Atmosphere Console (and any
+ * atmosphere.js client with {@code trackMessageLength}) subscribes with
+ * {@code X-Atmosphere-TrackMessageSize=true} and reads every frame, the protocol handshake
+ * included, as {@code <length>|<message>}. Unlike {@code @ManagedService}, a
+ * {@code @WebSocketHandlerService} installs no interceptor of its own, so without it the
+ * client read the handshake's uuid as the length and ran with uuid {@code 0}: every
+ * reconnect then created a new server resource.</p>
+ *
  * @author Jeanfrancois Arcand
  */
 @WebSocketHandlerService(path = "/chat", broadcaster = SimpleBroadcaster.class,
+        interceptors = {TrackMessageSizeInterceptor.class},
         atmosphereConfig = {"org.atmosphere.websocket.WebSocketProtocol=org.atmosphere.websocket.protocol.StreamingHttpProtocol"})
 public class WebSocketChat extends WebSocketStreamingHandlerAdapter {
 

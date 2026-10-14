@@ -106,6 +106,10 @@ public class EmbeddedJettyWebSocketChat {
         atmosphereServlet.setInitParameter(ApplicationConfig.ANNOTATION_PACKAGE, "org.atmosphere.samples.chat");
         atmosphereServlet.setInitParameter(ApplicationConfig.WEBSOCKET_CONTENT_TYPE, "application/json");
         atmosphereServlet.setInitParameter(ApplicationConfig.WEBSOCKET_SUPPORT, "true");
+        // Jetty closes a WebSocket that carried nothing for 30 s (its default idle timeout),
+        // and the default server heartbeat is 60 s, so every idle chat dropped and
+        // reconnected twice a minute. A heartbeat inside the idle window keeps it open.
+        atmosphereServlet.setInitParameter(ApplicationConfig.HEARTBEAT_INTERVAL_IN_SECONDS, "20");
         atmosphereServlet.setInitOrder(1); // Load on startup AFTER WebSocket configured
         atmosphereServlet.setAsyncSupported(true);
         context.addServlet(atmosphereServlet, "/chat/*");
