@@ -24,6 +24,7 @@ import org.atmosphere.ai.AiPipeline;
 import org.atmosphere.ai.Content;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.protocol.SseEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -255,8 +256,9 @@ public final class AgUiStreamingSession implements StreamingSession {
             var sseFrame = "event: " + event.type() + "\ndata: " + json + "\n\n";
             writeLock.lock();
             try {
-                response.getWriter().write(sseFrame);
-                response.getWriter().flush();
+                // Past the SSE interceptor, which would frame these frames again
+                // when the client's Accept is exactly text/event-stream.
+                SseEvents.write(response, sseFrame);
             } finally {
                 writeLock.unlock();
             }

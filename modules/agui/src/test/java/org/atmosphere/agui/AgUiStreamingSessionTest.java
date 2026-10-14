@@ -15,10 +15,13 @@
  */
 package org.atmosphere.agui;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.atmosphere.agui.runtime.AgUiStreamingSession;
 import org.atmosphere.agui.runtime.RunContext;
 import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,6 +56,24 @@ class AgUiStreamingSessionTest {
         when(response.getWriter()).thenReturn(new PrintWriter(output));
         runContext = new RunContext("thread-1", "run-1", List.of(), Map.of(), Map.of(), List.of());
         session = new AgUiStreamingSession(delegate, response, runContext);
+    }
+
+    @Test
+    void framesGoToTheContainerResponseSoTheSseInterceptorCannotFrameThemAgain() throws Exception {
+        var container = mock(HttpServletResponse.class);
+        var containerOutput = new StringWriter();
+        when(container.getWriter()).thenReturn(new PrintWriter(containerOutput));
+        var request = mock(AtmosphereRequest.class);
+        when(request.getAttribute(ApplicationConfig.PROPERTY_USE_STREAM)).thenReturn(Boolean.FALSE);
+        when(response.getResponse()).thenReturn(container);
+        when(response.request()).thenReturn(request);
+
+        session.emit(new AiEvent.TextDelta("Hello"));
+
+        assertEquals("", output.toString(),
+                "nothing may go through the AtmosphereResponse, whose SSE interceptor frames each line");
+        assertTrue(containerOutput.toString().startsWith("event: TEXT_MESSAGE_START\ndata: {"),
+                "the container gets the AG-UI frames as written: " + containerOutput);
     }
 
     @Test
