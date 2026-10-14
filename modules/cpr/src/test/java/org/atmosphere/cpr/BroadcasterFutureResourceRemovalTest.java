@@ -21,6 +21,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -159,6 +161,58 @@ class BroadcasterFutureResourceRemovalTest {
         broadcaster.release.countDown();
 
         assertEquals("hello", future.get(WAIT_SECONDS, TimeUnit.SECONDS));
+    }
+
+    @Test
+    void everyResourceRemovedBeforeTheDeliveryStartsCompletesTheFuture() throws Exception {
+        start(null);
+        var first = subscribe();
+        var second = subscribe();
+
+        broadcaster.armed.set(true);
+        // Counted for both subscribed resources.
+        var future = broadcaster.broadcast("hello");
+        assertTrue(broadcaster.parked.await(WAIT_SECONDS, TimeUnit.SECONDS), "the delivery must be parked");
+
+        // Both leave: the delivery finds no resource at all.
+        broadcaster.removeAtmosphereResource(first);
+        broadcaster.removeAtmosphereResource(second);
+        broadcaster.release.countDown();
+
+        assertEquals("hello", future.get(WAIT_SECONDS, TimeUnit.SECONDS));
+    }
+
+    @Test
+    void everyResourceOfASubsetRemovedBeforeTheDeliveryStartsCompletesTheFuture() throws Exception {
+        start(null);
+        var first = subscribe();
+        var second = subscribe();
+
+        broadcaster.armed.set(true);
+        // Counted for both resources of the subset.
+        var future = broadcaster.broadcast("hello", Set.of(first, second));
+        assertTrue(broadcaster.parked.await(WAIT_SECONDS, TimeUnit.SECONDS), "the delivery must be parked");
+
+        broadcaster.removeAtmosphereResource(first);
+        broadcaster.removeAtmosphereResource(second);
+        broadcaster.release.countDown();
+
+        assertEquals("hello", future.get(WAIT_SECONDS, TimeUnit.SECONDS));
+    }
+
+    @Test
+    void failingCallableCompletesTheFutureOfEverySubscribedResource() throws Exception {
+        start(null);
+        subscribe();
+        subscribe();
+
+        // Counted for both subscribed resources; the message is lost before any is reached.
+        Callable<String> failing = () -> {
+            throw new IllegalStateException("no message");
+        };
+        var future = broadcaster.broadcast(failing);
+
+        assertEquals(failing, future.get(WAIT_SECONDS, TimeUnit.SECONDS));
     }
 
     @Test

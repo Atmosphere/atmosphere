@@ -708,7 +708,7 @@ public class DefaultBroadcaster implements Broadcaster {
         if (finalMsg == null) {
             logger.error("Callable exception. Please catch all exceptions from your callable. Message {} will be lost and all AtmosphereResource " +
                     "associated with this Broadcaster resumed.", deliver.message);
-            entryDone(deliver.future);
+            undelivered(deliver);
             switch (deliver.type) {
                 case ALL -> {
                     resourcesLock.lock();
@@ -740,7 +740,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         if (deliver.originalMessage == null) {
             logger.trace("Broadcasted message was null {}", prevM);
-            entryDone(deliver.future);
+            undelivered(deliver);
             return;
         }
 
@@ -763,7 +763,7 @@ public class DefaultBroadcaster implements Broadcaster {
         notifyOnMessage(deliver);
         if (resources.isEmpty()) {
             logger.trace("No resource available for {} and message {}", getID(), finalMsg);
-            entryDone(deliver.future);
+            undelivered(deliver);
             if (cacheForSet != null) {
                 cacheForSet.clear();
             }
@@ -1765,6 +1765,23 @@ public class DefaultBroadcaster implements Broadcaster {
         }
         if (future != null) {
             future.done();
+        }
+    }
+
+    /**
+     * End a delivery that reaches none of its resources. A delivery to one
+     * resource holds one share of its future; a delivery to all resources or
+     * to a set was counted for every resource it targeted, so release them all
+     * (Invariant #2): no write will ever complete them.
+     */
+    private void undelivered(Deliver deliver) {
+        if (deliver.type == Deliver.TYPE.RESOURCE) {
+            entryDone(deliver.future);
+            return;
+        }
+        notifyBroadcastListener();
+        if (deliver.future != null) {
+            deliver.future.reached(0);
         }
     }
 
