@@ -228,6 +228,33 @@ class BroadcasterFutureResourceRemovalTest {
     }
 
     @Test
+    void broadcastOnResumePendingOnADestroyedBroadcasterCompletesItsFuture() throws Exception {
+        start(null);
+        subscribe();
+        subscribe();
+        // Counted for both subscribed resources, delivered only when they resume.
+        var pending = broadcaster.broadcastOnResume("on-resume");
+
+        broadcaster.destroy();
+
+        assertEquals("on-resume", pending.get(WAIT_SECONDS, TimeUnit.SECONDS));
+        assertTrue(pending.isCancelled(), "a message that was never delivered is cancelled");
+    }
+
+    @Test
+    void delayedBroadcastPendingOnADestroyedBroadcasterCompletesItsFuture() throws Exception {
+        start(null);
+        subscribe();
+        // Far enough out that only destroy() can end it.
+        var pending = broadcaster.delayBroadcast("delayed", 1, TimeUnit.HOURS);
+
+        broadcaster.destroy();
+
+        assertEquals("delayed", pending.get(WAIT_SECONDS, TimeUnit.SECONDS));
+        assertTrue(pending.isCancelled(), "a message that was never delivered is cancelled");
+    }
+
+    @Test
     void writeRejectedByDropNewestCompletesItsFuture() throws Exception {
         start("drop-newest");
         var resource = subscribe();

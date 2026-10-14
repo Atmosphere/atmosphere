@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Objects;
+import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
@@ -268,21 +269,15 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
 
                 lifecycle.clearListeners();
-                delayedBroadcast.clear();
+                cancelPending(delayedBroadcast);
                 if (!sharedListeners) {
                     broadcasterListeners.clear();
                 }
             }
 
             resources.clear();
-            broadcastOnResume.clear();
-            Deliver pending;
-            while ((pending = messages.poll()) != null) {
-                // Never delivered: release whoever waits on it.
-                if (pending.future != null) {
-                    pending.future.cancel(true);
-                }
-            }
+            cancelPending(broadcastOnResume);
+            cancelPending(messages);
             for (WriteQueue writeQueue : writeQueues.values()) {
                 drain(writeQueue);
             }
@@ -1765,6 +1760,19 @@ public class DefaultBroadcaster implements Broadcaster {
         }
         if (future != null) {
             future.done();
+        }
+    }
+
+    /**
+     * Empty a queue of messages that will never be delivered, cancelling each
+     * one's future so whoever waits on it is released (Invariant #2).
+     */
+    private static void cancelPending(Queue<Deliver> pending) {
+        Deliver deliver;
+        while ((deliver = pending.poll()) != null) {
+            if (deliver.future != null) {
+                deliver.future.cancel(true);
+            }
         }
     }
 
