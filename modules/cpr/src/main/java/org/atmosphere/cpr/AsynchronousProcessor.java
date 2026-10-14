@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.inject.AtmosphereResourceEventIntrospector;
 import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.Utils;
@@ -553,14 +554,18 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                     AtmosphereHandler atmosphereHandler = r.getAtmosphereHandler();
 
                     if (atmosphereHandler != null && r.isInScope()) {
-
+                        var callbackEvent = AtmosphereResourceEventIntrospector.current();
                         try {
-                            Utils.inject(r);
-                        } catch (IllegalAccessException e) {
-                            logger.warn("", e);
-                        }
+                            try {
+                                Utils.inject(r);
+                            } catch (IllegalAccessException e) {
+                                logger.warn("", e);
+                            }
 
-                        atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
+                            atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
+                        } finally {
+                            AtmosphereResourceEventIntrospector.restore(callbackEvent);
+                        }
                     }
                 }
             } catch (IOException ex) {

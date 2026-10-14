@@ -23,6 +23,7 @@ import org.atmosphere.config.FrameworkConfiguration;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
+import org.atmosphere.inject.AtmosphereResourceEventIntrospector;
 import org.atmosphere.inject.InjectableObjectFactory;
 import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.DefaultUUIDProvider;
@@ -1125,6 +1126,8 @@ public class AtmosphereFramework {
 
         if (isDestroyed.get()) return Action.CANCELLED;
 
+        // The callbacks of this request inject their resource's event: end that on return.
+        var callbackEvent = AtmosphereResourceEventIntrospector.current();
         Action a = null;
         try {
             configureRequestResponse(req, res);
@@ -1133,16 +1136,20 @@ public class AtmosphereFramework {
             logger.error("AtmosphereFramework exception", ex);
             throw ex;
         } finally {
-            if (a != null) {
-                notify(a.type(), req, res);
-            }
-
-            if (!externalizeDestroy) {
-                if (req != null && a != null && a.type() != Action.TYPE.SUSPEND) {
-                    req.destroy();
-                    res.destroy();
-                    notify(Action.TYPE.DESTROYED, req, res);
+            try {
+                if (a != null) {
+                    notify(a.type(), req, res);
                 }
+
+                if (!externalizeDestroy) {
+                    if (req != null && a != null && a.type() != Action.TYPE.SUSPEND) {
+                        req.destroy();
+                        res.destroy();
+                        notify(Action.TYPE.DESTROYED, req, res);
+                    }
+                }
+            } finally {
+                AtmosphereResourceEventIntrospector.restore(callbackEvent);
             }
         }
         return a;

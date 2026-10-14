@@ -35,6 +35,7 @@ import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
+import org.atmosphere.inject.AtmosphereResourceEventIntrospector;
 import org.atmosphere.util.DefaultEndpointMapper;
 import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.ExecutorsFactory;
@@ -501,6 +502,15 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     @Override
     public void invokeWebSocketProtocol(final WebSocket webSocket, String webSocketMessage) {
+        var callbackEvent = AtmosphereResourceEventIntrospector.current();
+        try {
+            invokeText(webSocket, webSocketMessage);
+        } finally {
+            AtmosphereResourceEventIntrospector.restore(callbackEvent);
+        }
+    }
+
+    private void invokeText(final WebSocket webSocket, String webSocketMessage) {
         WebSocketHandlerProxy webSocketHandler = webSocketHandlerForMessage(webSocket);
 
         if (webSocketHandler == null) {
@@ -534,6 +544,15 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     @Override
     public void invokeWebSocketProtocol(WebSocket webSocket, byte[] data, int offset, int length) {
+        var callbackEvent = AtmosphereResourceEventIntrospector.current();
+        try {
+            invokeBytes(webSocket, data, offset, length);
+        } finally {
+            AtmosphereResourceEventIntrospector.restore(callbackEvent);
+        }
+    }
+
+    private void invokeBytes(WebSocket webSocket, byte[] data, int offset, int length) {
         WebSocketHandlerProxy webSocketHandler = webSocketHandlerForMessage(webSocket);
 
         if (webSocketHandler == null) {
@@ -567,6 +586,15 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     @Override
     public void invokeWebSocketProtocol(WebSocket webSocket, InputStream stream) {
+        var callbackEvent = AtmosphereResourceEventIntrospector.current();
+        try {
+            invokeStream(webSocket, stream);
+        } finally {
+            AtmosphereResourceEventIntrospector.restore(callbackEvent);
+        }
+    }
+
+    private void invokeStream(WebSocket webSocket, InputStream stream) {
         WebSocketHandlerProxy webSocketHandler = webSocketHandlerForMessage(webSocket);
 
         try {
@@ -600,6 +628,15 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     @Override
     public void invokeWebSocketProtocol(WebSocket webSocket, Reader reader) {
+        var callbackEvent = AtmosphereResourceEventIntrospector.current();
+        try {
+            invokeReader(webSocket, reader);
+        } finally {
+            AtmosphereResourceEventIntrospector.restore(callbackEvent);
+        }
+    }
+
+    private void invokeReader(WebSocket webSocket, Reader reader) {
         WebSocketHandlerProxy webSocketHandler = webSocketHandlerForMessage(webSocket);
 
         try {
@@ -1103,21 +1140,31 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     @Override
     public void onPong(WebSocket webSocket, byte[] payload, int offset, int length) {
-        WebSocketHandlerProxy webSocketHandler = webSocketHandlerForMessage(webSocket);
+        var callbackEvent = AtmosphereResourceEventIntrospector.current();
+        try {
+            WebSocketHandlerProxy webSocketHandler = webSocketHandlerForMessage(webSocket);
 
-        if (webSocketHandler != null &&
-                webSocketHandler.proxied() instanceof WebSocketPingPongListener pingPong) {
-            pingPong.onPong(webSocket, payload, offset, length);
+            if (webSocketHandler != null &&
+                    webSocketHandler.proxied() instanceof WebSocketPingPongListener pingPong) {
+                pingPong.onPong(webSocket, payload, offset, length);
+            }
+        } finally {
+            AtmosphereResourceEventIntrospector.restore(callbackEvent);
         }
     }
 
     @Override
     public void onPing(WebSocket webSocket, byte[] payload, int offset, int length) {
-        WebSocketHandlerProxy webSocketHandler = webSocketHandlerForMessage(webSocket);
+        var callbackEvent = AtmosphereResourceEventIntrospector.current();
+        try {
+            WebSocketHandlerProxy webSocketHandler = webSocketHandlerForMessage(webSocket);
 
-        if (webSocketHandler != null &&
-                webSocketHandler.proxied() instanceof WebSocketPingPongListener pingPong) {
-            pingPong.onPing(webSocket, payload, offset, length);
+            if (webSocketHandler != null &&
+                    webSocketHandler.proxied() instanceof WebSocketPingPongListener pingPong) {
+                pingPong.onPing(webSocket, payload, offset, length);
+            }
+        } finally {
+            AtmosphereResourceEventIntrospector.restore(callbackEvent);
         }
     }
 }
