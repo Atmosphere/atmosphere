@@ -14,12 +14,24 @@ of sample #25.
 
 This is a native app: Expo SDK 57 / React Native 0.86, no `react-native-web`
 dependency and no `web` script in `package.json`. **chrome-devtools cannot drive
-it.** Use the iOS simulator MCP (`mcp__ios-simulator__*`) — `launch_app`,
-`ui_describe_all`, `ui_find_element`, `ui_tap`, `ui_type`, `screenshot`.
+it.** Two drivers split the work:
+
+| Job | Driver |
+|---|---|
+| Read the screen — `ui_describe_all`, `ui_find_element`, `ui_view`, `screenshot`, `launch_app`, `open_url` | iOS simulator MCP (`mcp__ios-simulator__*`, backed by idb) |
+| Touch and type — tap a room, type a prompt, Send, Leave | **Maestro** (`~/.maestro/bin/maestro`, 2.10.0; not on `PATH` by default) |
+
+**Why not idb for input.** On Xcode 27 the idb MCP's `ui_tap` / `ui_type` fail with
+`SimulatorKit is required for HID interactions`: idb_companion 1.1.8 (2022) looks for
+`SimulatorKit.framework` under `Contents/Developer/Library/PrivateFrameworks`, and
+Xcode 27 moved it to `Contents/SharedFrameworks`. A shadow `DEVELOPER_DIR` only makes
+the companion report "hid succeeded" while no touch arrives. Reads still work. On
+Xcode 26 and older the MCP's `ui_tap` / `ui_type` remain usable; check with
+`xcodebuild -version` before choosing.
 
 The same evidence discipline applies: assert the **rendered element** from
-`ui_describe_all` / `ui_find_element`, not a log line and not a screenshot you
-did not read.
+`ui_describe_all` / `ui_find_element` or a Maestro `extendedWaitUntil: visible:`,
+not a log line and not a screenshot you did not read.
 
 ## What it actually exercises
 
@@ -93,18 +105,53 @@ Host addressing, per the client README:
 bunx expo start        # then press `i` for the iOS simulator
 ```
 
-Drive with the simulator MCP:
+Drive the input with Maestro and read with the simulator MCP. The flow below
+joined Math, sent a prompt and left on Xcode 27 / iOS 27 with Expo Go 57.0.9
+(2026-10-14). Two things it encodes on purpose:
 
+- **Selectors are regexes for the room tiles.** React Native merges a touchable's
+  children into one accessibility label, so the Math tile reads `π, Math`, not
+  `Math`; `tapOn: "Math"` finds nothing. Buttons with a single label (`Send`,
+  `Queue`, `Leave`) match exactly, and the prompt box matches its placeholder.
+- **`stopApp` first.** Opening the same `exp://` URL in a running Expo Go keeps
+  the bundle it already has, including a previous run's `EXPO_PUBLIC_SERVER_URL`,
+  and the room then reports "Server unreachable".
+
+```yaml
+# classroom.yaml — run: ~/.maestro/bin/maestro --device <booted-udid> test classroom.yaml
+# openLink names the Metro port of `bunx expo start --port 8141`.
+appId: host.exp.Exponent
+---
+- stopApp
+- openLink: exp://127.0.0.1:8141
+- extendedWaitUntil:
+    visible: ".*Math"
+    timeout: 90000
+- tapOn: ".*Math"
+- extendedWaitUntil:
+    visible: "Send"
+    timeout: 30000
+- tapOn: "Ask a math question..."
+- inputText: "What is 7 times 8?"
+- tapOn: "Send"
+- extendedWaitUntil:
+    visible: "What is 7 times 8?"
+    timeout: 20000
+- takeScreenshot: classroom-after-send
+- tapOn: "Leave"
+- extendedWaitUntil:
+    visible: ".*Science"
+    timeout: 20000
 ```
-open_simulator / get_booted_sim_id
-launch_app
-ui_describe_all        → confirm the 4 rooms render: Math, Code, Science, General
-ui_tap                 → join a room
-ui_type + send         → a prompt
-ui_describe_all        → assert the AI reply text is present AND grew between
-                         two reads (that is what proves streaming, not a final blob)
-screenshot             → evidence for the report
-```
+
+`Send` reads `Queue` while the stream is not open — a wait on `Send` that times out
+means the room never connected, not that the selector is wrong.
+
+Between Send and Leave, read the reply with the MCP: two `ui_describe_all` reads
+during the turn must show the AI text present AND grown — that is what proves
+streaming, not a final blob. `maestro hierarchy` prints the same tree when the
+MCP is unavailable. The backend log line `Classroom prompt in room 'math'` confirms
+the prompt reached the room it was typed in.
 
 ### Headline assertions
 
