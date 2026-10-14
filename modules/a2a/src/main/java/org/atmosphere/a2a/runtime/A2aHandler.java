@@ -15,6 +15,7 @@
  */
 package org.atmosphere.a2a.runtime;
 
+import jakarta.servlet.http.HttpServletResponse;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -310,19 +311,34 @@ public final class A2aHandler extends AbstractProtocolHandler<A2aSession>
         }
     }
 
+    /**
+     * Stream a {@code message/stream} response as spec-valid SSE events. The
+     * frames are written to the native servlet response, bypassing the
+     * Atmosphere response chain: {@code Accept: text/event-stream} selects
+     * cpr's {@code SSEAtmosphereInterceptor}, which re-prefixes every line of
+     * these already-framed events with {@code data:} and consumes their
+     * blank-line terminators, so a WHATWG-compliant client (EventSource,
+     * httpx-sse) would never dispatch an event. Same approach as the AG-UI
+     * handler's run stream.
+     */
     private void handleSseStreaming(AtmosphereResource resource, String body)
             throws IOException {
-        var response = resource.getResponse();
-        response.setStatus(200);
-        response.setContentType(EVENT_STREAM);
-        response.setCharacterEncoding("UTF-8");
+        var servletResponse = (HttpServletResponse) resource.getResponse().getResponse();
+        servletResponse.setStatus(200);
+        servletResponse.setContentType(EVENT_STREAM);
+        servletResponse.setCharacterEncoding("UTF-8");
+        servletResponse.setHeader("Cache-Control", "no-cache");
+        servletResponse.setHeader("X-Accel-Buffering", "no");
 
         var rpcId = parseRequestId(body);
-        var writer = response.getWriter();
+        var writer = servletResponse.getWriter();
         protocolHandler.handleStreamingMessage(body,
                 token -> writeStreamChunk(writer, rpcId, token),
                 errorMessage -> writeStreamError(writer, rpcId, errorMessage),
-                () -> writer.write("data: [DONE]\n\n"));
+                () -> {
+                    writer.write("data: [DONE]\n\n");
+                    writer.flush();
+                });
     }
 
     /**
