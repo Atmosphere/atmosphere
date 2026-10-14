@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { renderMarkdown } from '../lib/markdown'
+import { formatToolArg } from '../lib/toolArgs'
 import type { ToolCall } from '../composables/useAtmosphereChat'
 
 const props = defineProps<{
@@ -56,7 +57,7 @@ const argEntries = computed(() =>
     <div v-if="argEntries.length" class="tool-args">
       <div v-for="[key, val] in argEntries" :key="key" class="tool-arg">
         <span class="arg-key">{{ key }}:</span>
-        <span class="arg-val">{{ String(val).slice(0, 120) }}</span>
+        <span class="arg-val">{{ formatToolArg(val) }}</span>
       </div>
     </div>
     <div v-if="tool.approval && !tool.done" class="approval-prompt" data-testid="approval-prompt">
