@@ -437,10 +437,101 @@ case_fixture_boots_artifact() {
     fi
 }
 
+# ---------------------------------------------------------------------------
+# sweep-sample.sh boots — the launcher end to end, against a synthetic sample.
+#
+# A `java` shim on PATH stands in for the JVM: it records the environment it
+# was started with, then serves HTTP on the -Dserver.port the launcher passed,
+# so `start` sees a ready sample and `stop` has a real PID to kill. Nothing
+# here touches a real sample, port block or the operator's sweep state.
+# ---------------------------------------------------------------------------
+free_port() {
+    local p
+    for _ in $(seq 1 50); do
+        p=$((20000 + RANDOM % 20000))
+        (exec 3<>"/dev/tcp/127.0.0.1/$p") 2>/dev/null || { echo "$p"; return 0; }
+    done
+    return 1
+}
+
+# boot_fixture <name> — a fake root with one main-jar sample "chan", plus the
+# java shim. Prints the fake root; the shim writes $fake/env.<port>.
+boot_fixture() {
+    local fake; fake="$(make_root "$1" 4.0.66-SNAPSHOT)"
+    jars "$fake" chan atmosphere-chan-4.0.66-SNAPSHOT.jar
+    mkdir -p "$fake/bin"
+    cat >"$fake/bin/java" <<EOF
+#!/usr/bin/env bash
+port=""
+for a in "\$@"; do case "\$a" in -Dserver.port=*) port="\${a#-Dserver.port=}" ;; esac; done
+env >"$fake/env.\$port"
+exec python3 -m http.server "\$port" --bind 127.0.0.1
+EOF
+    chmod +x "$fake/bin/java"
+    echo "$fake"
+}
+
+sweep_cli() {
+    local fake="$1"; shift
+    PATH="$fake/bin:$PATH" bash "$fake/.claude/skills/release-sample-sweep/scripts/sweep-sample.sh" "$@" 2>&1
+}
+
+# ---------------------------------------------------------------------------
+# CASE [BITES] — the operator's messaging-channel credentials must not reach
+# a booted sample. The dentist sample inherited SLACK_BOT_TOKEN and
+# TELEGRAM_BOT_TOKEN from the operator's shell and registered live Slack and
+# Telegram channels; SCRUB_VARS only named LLM and provider keys.
+# ---------------------------------------------------------------------------
+case_channel_env_scrubbed() {
+    if ! command -v python3 >/dev/null 2>&1; then
+        fail "channel_env_scrubbed" "python3 is required for the boot fixture"
+        return
+    fi
+    local fake port out
+    fake="$(boot_fixture channel_env)"
+    port="$(free_port)" || { fail "channel_env_scrubbed" "no free port"; return; }
+    out="$(SLACK_BOT_TOKEN=xoxb-operator TELEGRAM_BOT_TOKEN=tg-operator \
+           ATMOSPHERE_CHANNELS_DISCORD_BOT_TOKEN=dc-operator \
+           sweep_cli "$fake" start chan --port "$port" --timeout 30)"
+    sweep_cli "$fake" stop chan >/dev/null
+    if [[ ! -f "$fake/env.$port" ]]; then
+        fail "channel_env_scrubbed" "the sample never started: $out"
+        return
+    fi
+    local leaked
+    leaked="$(grep -E '^(SLACK_BOT_TOKEN|TELEGRAM_BOT_TOKEN|ATMOSPHERE_CHANNELS_DISCORD_BOT_TOKEN)=' "$fake/env.$port" | cut -d= -f1 | paste -sd, -)"
+    if [[ -z "$leaked" ]]; then
+        pass "channel_env_scrubbed: SLACK_/TELEGRAM_/ATMOSPHERE_CHANNELS_ credentials did not reach the sample"
+    else
+        fail "channel_env_scrubbed" "the booted sample inherited the operator's channel credentials: $leaked"
+    fi
+
+    # The opt-in and an explicit --env still deliver a token to a lane that
+    # deliberately tests a real channel.
+    port="$(free_port)" || { fail "channel_env_scrubbed(opt-in)" "no free port"; return; }
+    SLACK_BOT_TOKEN=xoxb-operator SWEEP_KEEP_CHANNEL_ENV=1 \
+        sweep_cli "$fake" start chan --port "$port" --timeout 30 >/dev/null
+    sweep_cli "$fake" stop chan >/dev/null
+    if grep -q '^SLACK_BOT_TOKEN=xoxb-operator$' "$fake/env.$port" 2>/dev/null; then
+        pass "channel_env_scrubbed: SWEEP_KEEP_CHANNEL_ENV=1 inherits the channel credentials"
+    else
+        fail "channel_env_scrubbed(opt-in)" "SWEEP_KEEP_CHANNEL_ENV=1 did not pass SLACK_BOT_TOKEN through"
+    fi
+    port="$(free_port)" || { fail "channel_env_scrubbed(--env)" "no free port"; return; }
+    SLACK_BOT_TOKEN=xoxb-operator \
+        sweep_cli "$fake" start chan --port "$port" --timeout 30 --env SLACK_BOT_TOKEN=xoxb-lane >/dev/null
+    sweep_cli "$fake" stop chan >/dev/null
+    if grep -q '^SLACK_BOT_TOKEN=xoxb-lane$' "$fake/env.$port" 2>/dev/null; then
+        pass "channel_env_scrubbed: an explicit --env outranks the scrub"
+    else
+        fail "channel_env_scrubbed(--env)" "--env SLACK_BOT_TOKEN=xoxb-lane did not reach the sample"
+    fi
+}
+
 CASES=(case_lexicographic case_stale_only case_original_excluded
        case_quarkus_stale case_smoke_selector case_unversioned_exec
        case_no_version_blind_glob case_playwright_fixture
-       case_fixture_boots_artifact)
+       case_fixture_boots_artifact case_channel_env_scrubbed)
 
 echo "Sample artifact selection — stale-jar regression"
 echo "==============================================="

@@ -94,6 +94,18 @@ SCRUB_VARS=(LLM_API_KEY LLM_BASE_URL LLM_MODEL LLM_MODE
             COHERE_API_KEY AZURE_OPENAI_API_KEY
             SPRING_AI_OPENAI_API_KEY SPRING_AI_OPENAI_BASE_URL)
 
+# Messaging-channel credentials are scrubbed by PREFIX, separately from the LLM
+# keys: a channel sample (spring-boot-dentist-agent, spring-boot-channels-chat)
+# that inherits SLACK_BOT_TOKEN / TELEGRAM_BOT_TOKEN from the operator's shell
+# registers a LIVE Slack or Telegram channel. Found on 2026-10-14: the dentist
+# sample came up with channels=[web, slack, telegram] on the operator's real
+# bot tokens, so the run was not reproducible on another machine and booted a
+# sample holding live channel secrets. ATMOSPHERE_CHANNELS_* is the relaxed-binding
+# spelling of the atmosphere.channels.* properties and is scrubbed with them.
+# A lane that deliberately tests a real channel opts in with
+# SWEEP_KEEP_CHANNEL_ENV=1, or passes the one token it needs with --env.
+CHANNEL_SCRUB_PREFIX_RE='^(SLACK|TELEGRAM|DISCORD|WHATSAPP|MESSENGER|ATMOSPHERE_CHANNELS)_'
+
 mkdir -p "$STATE_DIR"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
@@ -337,10 +349,20 @@ cmd_start() {
     #     signal the whole group — macOS has no setsid, and the war/exec:java
     #     boots fork a second JVM under the Maven wrapper.
     local -a scrub=()
+    local v
     if [[ "${SWEEP_KEEP_ENV:-0}" != "1" ]]; then
-        local v
         for v in "${SCRUB_VARS[@]}"; do scrub+=(-u "$v"); done
         info "$sample: ambient LLM env scrubbed (SWEEP_KEEP_ENV=1 to inherit)"
+    fi
+    if [[ "${SWEEP_KEEP_CHANNEL_ENV:-0}" != "1" ]]; then
+        local -a channel_vars=()
+        while IFS= read -r v; do
+            [[ -n "$v" ]] && channel_vars+=("$v")
+        done < <(compgen -e | grep -E "$CHANNEL_SCRUB_PREFIX_RE" || true)
+        for v in ${channel_vars[@]+"${channel_vars[@]}"}; do scrub+=(-u "$v"); done
+        if [[ ${#channel_vars[@]} -gt 0 ]]; then
+            info "$sample: ambient channel credentials scrubbed: ${channel_vars[*]} (SWEEP_KEEP_CHANNEL_ENV=1 to inherit)"
+        fi
     fi
 
     set -m

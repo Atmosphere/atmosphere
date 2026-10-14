@@ -114,8 +114,12 @@ curl -s -o /dev/null -w '%{http_code}\n' http://localhost:11434/v1/models
 - **The launcher scrubs ambient LLM env** (`LLM_API_KEY`, `LLM_BASE_URL`,
   `LLM_MODE`, `LLM_MODEL`, and the provider keys) from every sample it boots, so
   the sweep is reproducible on any machine. `SWEEP_KEEP_ENV=1` inherits instead.
-  If you boot a sample by hand, scrub them yourself — a maintainer's profile
-  routinely exports these.
+  It also scrubs messaging-channel credentials by prefix (`SLACK_*`,
+  `TELEGRAM_*`, `DISCORD_*`, `WHATSAPP_*`, `MESSENGER_*`, `ATMOSPHERE_CHANNELS_*`),
+  or a channel sample registers live channels on the operator's real bot tokens;
+  `SWEEP_KEEP_CHANNEL_ENV=1` (or `--env` for one token) for a lane that tests a
+  real channel. If you boot a sample by hand, scrub them yourself — a
+  maintainer's profile routinely exports these.
 - **Always read the resolved endpoint out of the boot log before driving:**
 
   ```
