@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Bidirectional mapper between {@link AiEvent} and {@link AgUiEvent}. Maintains
- * stateful counters for message IDs, tool call IDs, and step IDs to produce
+ * stateful counters for message IDs, tool call IDs, and activity IDs to produce
  * correctly sequenced AG-UI event streams.
  *
  * <p>This mapper is <em>not</em> thread-safe — each AG-UI session should use
@@ -42,7 +42,6 @@ public final class AgUiEventMapper {
 
     private final AtomicInteger messageCounter = new AtomicInteger();
     private final AtomicInteger toolCallCounter = new AtomicInteger();
-    private final AtomicInteger stepCounter = new AtomicInteger();
     private final AtomicInteger activityCounter = new AtomicInteger();
 
     /** {@code activityType} of the activity message progress reports patch. */
@@ -51,6 +50,7 @@ public final class AgUiEventMapper {
     private volatile String currentMessageId;
     private volatile String currentToolCallId;
     private volatile String currentReasoningId;
+    private volatile String currentReasoningSpanId;
     private volatile String currentActivityId;
 
     /**
@@ -94,7 +94,10 @@ public final class AgUiEventMapper {
                 var events = new ArrayList<AgUiEvent>();
                 var resultStr = result.result() instanceof String s ? s : serializeQuietly(result.result());
                 if (currentToolCallId != null) {
-                    events.add(new AgUiEvent.ToolCallResult(currentToolCallId, resultStr));
+                    // TOOL_CALL_RESULT mints a tool message, so it takes a
+                    // message id of its own rather than the calling message's.
+                    events.add(new AgUiEvent.ToolCallResult(
+                            "msg-" + messageCounter.incrementAndGet(), currentToolCallId, resultStr));
                     events.add(new AgUiEvent.ToolCallEnd(currentToolCallId));
                     currentToolCallId = null;
                 }
@@ -108,13 +111,9 @@ public final class AgUiEventMapper {
                 }
                 yield events;
             }
-            case AiEvent.AgentStep step -> {
-                var stepId = "step-" + stepCounter.incrementAndGet();
-                yield List.<AgUiEvent>of(
-                        new AgUiEvent.StepStarted(stepId, step.stepName()),
-                        new AgUiEvent.StepFinished(stepId, step.stepName())
-                );
-            }
+            case AiEvent.AgentStep step -> List.<AgUiEvent>of(
+                    new AgUiEvent.StepStarted(step.stepName()),
+                    new AgUiEvent.StepFinished(step.stepName()));
             case AiEvent.Progress progress -> {
                 // An ACTIVITY_DELTA patches an activity message a prior
                 // ACTIVITY_SNAPSHOT established: the first progress of a run
@@ -134,9 +133,7 @@ public final class AgUiEventMapper {
                                 patchOp("replace", "/percentage", percentage))));
             }
             case AiEvent.Error error -> List.<AgUiEvent>of(
-                    new AgUiEvent.RunError(null, error.message(),
-                            error.code() != null ? error.code().hashCode() : -1)
-            );
+                    new AgUiEvent.RunError(null, runErrorMessage(error.message(), null), error.code()));
             case AiEvent.Complete ignored -> List.of();
             // Structured output streams into the shared state as RFC 6902
             // patches: the entity opens at /entity with an empty field map,
@@ -169,8 +166,9 @@ public final class AgUiEventMapper {
                 // client learns reasoning happened) without content.
                 var events = new ArrayList<AgUiEvent>();
                 if (currentReasoningId == null) {
+                    currentReasoningSpanId = "rsn-span-" + messageCounter.incrementAndGet();
                     currentReasoningId = "rsn-" + messageCounter.incrementAndGet();
-                    events.add(new AgUiEvent.ReasoningStart());
+                    events.add(new AgUiEvent.ReasoningStart(currentReasoningSpanId));
                     events.add(new AgUiEvent.ReasoningMessageStart(currentReasoningId));
                 }
                 if (!reasoning.redacted() && !reasoning.text().isEmpty()) {
@@ -185,8 +183,9 @@ public final class AgUiEventMapper {
                 }
                 var closing = List.<AgUiEvent>of(
                         new AgUiEvent.ReasoningMessageEnd(currentReasoningId),
-                        new AgUiEvent.ReasoningEnd());
+                        new AgUiEvent.ReasoningEnd(currentReasoningSpanId));
                 currentReasoningId = null;
+                currentReasoningSpanId = null;
                 yield closing;
             }
             case AiEvent.Citation citation -> {
@@ -228,7 +227,24 @@ public final class AgUiEventMapper {
         currentMessageId = null;
         currentToolCallId = null;
         currentReasoningId = null;
+        currentReasoningSpanId = null;
         currentActivityId = null;
+    }
+
+    /**
+     * The message a RUN_ERROR carries. The AG-UI schema requires it, so an
+     * error without one (an exception with a null message) falls back to the
+     * error's own description rather than being omitted from the wire.
+     *
+     * @param message the error message, may be null
+     * @param error   the failure the message came from, may be null
+     * @return a non-null message
+     */
+    public static String runErrorMessage(String message, Throwable error) {
+        if (message != null) {
+            return message;
+        }
+        return error != null ? error.toString() : "error";
     }
 
     private static Map<String, Object> patchOp(String op, String path, Object value) {

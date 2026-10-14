@@ -102,7 +102,7 @@ class AgUiStreamingSessionTest {
         var sse = output.toString();
         assertTrue(sse.contains("event: TOOL_CALL_START"), "Should contain ToolCallStart event");
         assertTrue(sse.contains("event: TOOL_CALL_ARGS"), "Should contain ToolCallArgs event");
-        assertTrue(sse.contains("\"name\":\"weather\""), "Should contain tool name");
+        assertTrue(sse.contains("\"toolCallName\":\"weather\""), "Should contain tool name");
         assertTrue(sse.contains("\"toolCallId\":\"tc-1\""), "Should contain toolCallId");
     }
 
@@ -114,7 +114,7 @@ class AgUiStreamingSessionTest {
         var sse = output.toString();
         assertTrue(sse.contains("event: TOOL_CALL_RESULT"), "Should contain ToolCallResult event");
         assertTrue(sse.contains("event: TOOL_CALL_END"), "Should contain ToolCallEnd event");
-        assertTrue(sse.contains("\"result\":\"22C\""), "Should contain the tool result");
+        assertTrue(sse.contains("\"content\":\"22C\""), "Should contain the tool result");
     }
 
     @Test
@@ -124,7 +124,7 @@ class AgUiStreamingSessionTest {
         var sse = output.toString();
         assertTrue(sse.contains("event: STEP_STARTED"), "Should contain StepStarted event");
         assertTrue(sse.contains("event: STEP_FINISHED"), "Should contain StepFinished event");
-        assertTrue(sse.contains("\"name\":\"s1\""), "Should contain step name (stepName, not description)");
+        assertTrue(sse.contains("\"stepName\":\"s1\""), "Should contain step name (stepName, not description)");
     }
 
     @Test

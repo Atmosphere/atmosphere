@@ -116,7 +116,7 @@ test.describe('AG-UI real-LLM lane', () => {
     expect(events[events.length - 1].type).toBe('RUN_FINISHED');
 
     const toolStart = events.find(
-      e => e.type === 'TOOL_CALL_START' && e.data.name === 'get_weather',
+      e => e.type === 'TOOL_CALL_START' && e.data.toolCallName === 'get_weather',
     );
     expect(toolStart, 'model should dispatch get_weather').toBeDefined();
     const toolCallId = toolStart!.data.toolCallId as string;

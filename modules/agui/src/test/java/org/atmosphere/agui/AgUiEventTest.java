@@ -31,9 +31,9 @@ class AgUiEventTest {
     void allEventTypesHaveCorrectTypeString() {
         assertEquals("RUN_STARTED", new AgUiEvent.RunStarted("r1", "t1").type());
         assertEquals("RUN_FINISHED", new AgUiEvent.RunFinished("r1", "t1").type());
-        assertEquals("RUN_ERROR", new AgUiEvent.RunError("r1", "err", 500).type());
-        assertEquals("STEP_STARTED", new AgUiEvent.StepStarted("s1", "step").type());
-        assertEquals("STEP_FINISHED", new AgUiEvent.StepFinished("s1", "step").type());
+        assertEquals("RUN_ERROR", new AgUiEvent.RunError("r1", "err", "500").type());
+        assertEquals("STEP_STARTED", new AgUiEvent.StepStarted("step").type());
+        assertEquals("STEP_FINISHED", new AgUiEvent.StepFinished("step").type());
         assertEquals("TEXT_MESSAGE_START", new AgUiEvent.TextMessageStart("m1", "assistant").type());
         assertEquals("TEXT_MESSAGE_CONTENT", new AgUiEvent.TextMessageContent("m1", "hi").type());
         assertEquals("TEXT_MESSAGE_END", new AgUiEvent.TextMessageEnd("m1").type());
@@ -41,17 +41,17 @@ class AgUiEventTest {
         assertEquals("TOOL_CALL_START", new AgUiEvent.ToolCallStart("tc1", "tool", "m1").type());
         assertEquals("TOOL_CALL_ARGS", new AgUiEvent.ToolCallArgs("tc1", "{}").type());
         assertEquals("TOOL_CALL_END", new AgUiEvent.ToolCallEnd("tc1").type());
-        assertEquals("TOOL_CALL_RESULT", new AgUiEvent.ToolCallResult("tc1", "ok").type());
+        assertEquals("TOOL_CALL_RESULT", new AgUiEvent.ToolCallResult("m2", "tc1", "ok").type());
         assertEquals("TOOL_CALL_CHUNK", new AgUiEvent.ToolCallChunk("tc1", "chunk").type());
         assertEquals("STATE_SNAPSHOT", new AgUiEvent.StateSnapshot(java.util.Map.of()).type());
         assertEquals("STATE_DELTA", new AgUiEvent.StateDelta(java.util.List.of()).type());
         assertEquals("MESSAGES_SNAPSHOT", new AgUiEvent.MessagesSnapshot(java.util.List.of()).type());
-        assertEquals("REASONING_START", new AgUiEvent.ReasoningStart().type());
+        assertEquals("REASONING_START", new AgUiEvent.ReasoningStart("rs1").type());
         assertEquals("REASONING_MESSAGE_START", new AgUiEvent.ReasoningMessageStart("r1").type());
         assertEquals("REASONING_MESSAGE_CONTENT", new AgUiEvent.ReasoningMessageContent("r1", "thinking").type());
         assertEquals("REASONING_MESSAGE_END", new AgUiEvent.ReasoningMessageEnd("r1").type());
         assertEquals("REASONING_MESSAGE_CHUNK", new AgUiEvent.ReasoningMessageChunk("r1", "chunk").type());
-        assertEquals("REASONING_END", new AgUiEvent.ReasoningEnd().type());
+        assertEquals("REASONING_END", new AgUiEvent.ReasoningEnd("rs1").type());
         assertEquals("ACTIVITY_SNAPSHOT", new AgUiEvent.ActivitySnapshot(
                 "a1", "progress", java.util.Map.of(), null).type());
         assertEquals("ACTIVITY_DELTA", new AgUiEvent.ActivityDelta(

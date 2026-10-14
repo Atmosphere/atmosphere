@@ -16,6 +16,7 @@
 package org.atmosphere.agui.event;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,10 @@ import java.util.Map;
  *
  * <p>Being sealed enables exhaustive pattern matching in switch expressions,
  * ensuring compile-time safety when handling AG-UI events.</p>
+ *
+ * <p>Component names are the wire field names of the AG-UI 1.0 schema
+ * ({@code EventSchema} in {@code @ag-ui/core}); null components are omitted,
+ * so an optional field is absent rather than {@code null} on the wire.</p>
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public sealed interface AgUiEvent {
@@ -51,21 +56,27 @@ public sealed interface AgUiEvent {
         }
     }
 
-    record RunError(String runId, String message, int code) implements AgUiEvent {
+    /**
+     * {@code message} is required; {@code code} is an optional string. The
+     * schema's run-error event carries no {@code runId}: it is an extension
+     * field, which the schema's open objects admit.
+     */
+    record RunError(String runId, String message, String code) implements AgUiEvent {
         @Override
         public String type() {
             return AgUiEventType.RUN_ERROR.value();
         }
     }
 
-    record StepStarted(String stepId, String name) implements AgUiEvent {
+    /** A step is identified by its {@code stepName}; STEP_FINISHED names the step it closes. */
+    record StepStarted(String stepName) implements AgUiEvent {
         @Override
         public String type() {
             return AgUiEventType.STEP_STARTED.value();
         }
     }
 
-    record StepFinished(String stepId, String name) implements AgUiEvent {
+    record StepFinished(String stepName) implements AgUiEvent {
         @Override
         public String type() {
             return AgUiEventType.STEP_FINISHED.value();
@@ -104,7 +115,8 @@ public sealed interface AgUiEvent {
 
     // ── Tool Calls (5) ──────────────────────────────────────────────────
 
-    record ToolCallStart(String toolCallId, String name, String parentMessageId) implements AgUiEvent {
+    record ToolCallStart(String toolCallId, String toolCallName, String parentMessageId)
+            implements AgUiEvent {
         @Override
         public String type() {
             return AgUiEventType.TOOL_CALL_START.value();
@@ -125,7 +137,12 @@ public sealed interface AgUiEvent {
         }
     }
 
-    record ToolCallResult(String toolCallId, String result) implements AgUiEvent {
+    /**
+     * What a tool returned. The event mints a tool message, so
+     * {@code messageId} is a new message id, not the id of the assistant
+     * message that made the call; {@code content} is the result as text.
+     */
+    record ToolCallResult(String messageId, String toolCallId, String content) implements AgUiEvent {
         @Override
         public String type() {
             return AgUiEventType.TOOL_CALL_RESULT.value();
@@ -175,14 +192,21 @@ public sealed interface AgUiEvent {
 
     // ── Reasoning (6) ───────────────────────────────────────────────────
 
-    record ReasoningStart() implements AgUiEvent {
+    /** Opens the reasoning span {@code messageId}; {@link ReasoningEnd} closes it by the same id. */
+    record ReasoningStart(String messageId) implements AgUiEvent {
         @Override
         public String type() {
             return AgUiEventType.REASONING_START.value();
         }
     }
 
+    /** {@code role} is always {@code "reasoning"}, which the schema requires on the wire. */
     record ReasoningMessageStart(String messageId) implements AgUiEvent {
+        @JsonProperty("role")
+        public String role() {
+            return "reasoning";
+        }
+
         @Override
         public String type() {
             return AgUiEventType.REASONING_MESSAGE_START.value();
@@ -210,7 +234,7 @@ public sealed interface AgUiEvent {
         }
     }
 
-    record ReasoningEnd() implements AgUiEvent {
+    record ReasoningEnd(String messageId) implements AgUiEvent {
         @Override
         public String type() {
             return AgUiEventType.REASONING_END.value();

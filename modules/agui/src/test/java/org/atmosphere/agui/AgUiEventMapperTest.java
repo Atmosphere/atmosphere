@@ -74,7 +74,7 @@ class AgUiEventMapperTest {
         assertInstanceOf(AgUiEvent.ToolCallArgs.class, events.get(1));
 
         var start = (AgUiEvent.ToolCallStart) events.get(0);
-        assertEquals("weather", start.name());
+        assertEquals("weather", start.toolCallName());
     }
 
     @Test
@@ -195,7 +195,7 @@ class AgUiEventMapperTest {
         assertEquals(2, start1.size());
         var callStart1 = (AgUiEvent.ToolCallStart) start1.get(0);
         var args1 = (AgUiEvent.ToolCallArgs) start1.get(1);
-        assertEquals("get_weather", callStart1.name());
+        assertEquals("get_weather", callStart1.toolCallName());
         assertEquals("tc-1", callStart1.toolCallId());
         assertEquals("tc-1", args1.toolCallId());
         assertTrue(args1.delta().contains("Paris"), "args JSON should carry the city argument");
@@ -210,7 +210,7 @@ class AgUiEventMapperTest {
         // Second tool call: get_time — must advance to tc-2 (id reset proven).
         var start2 = mapper.toAgUi(new AiEvent.ToolStart("get_time", Map.of("timezone", "Europe/Paris")));
         var callStart2 = (AgUiEvent.ToolCallStart) start2.get(0);
-        assertEquals("get_time", callStart2.name());
+        assertEquals("get_time", callStart2.toolCallName());
         assertEquals("tc-2", callStart2.toolCallId());
 
         var result2 = mapper.toAgUi(new AiEvent.ToolResult("get_time", "12:00"));

@@ -18,6 +18,7 @@ package org.atmosphere.agui.runtime;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.agui.event.AgUiEvent;
+import org.atmosphere.agui.event.AgUiEventMapper;
 import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.Content;
 import org.atmosphere.ai.StreamingSession;
@@ -29,7 +30,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -165,7 +169,7 @@ public final class AgUiHandler implements AtmosphereHandler {
         // state at run start (registre#29 — this event type was advertised
         // but never constructed). Only sent when the run carries history.
         if (runContext.messages() != null && !runContext.messages().isEmpty()) {
-            sseWriter.write(new AgUiEvent.MessagesSnapshot(runContext.messages()));
+            sseWriter.write(new AgUiEvent.MessagesSnapshot(withMessageIds(runContext.messages())));
         }
 
         // Execute on virtual thread
@@ -193,10 +197,9 @@ public final class AgUiHandler implements AtmosphereHandler {
                 }
             } catch (Exception e) {
                 logger.error("AG-UI action failed", e);
-                sseWriter.write(new AgUiEvent.RunError(
-                        finalRunContext.runId(),
-                        e.getCause() != null ? e.getCause().getMessage() : e.getMessage(),
-                        -1));
+                var failure = e.getCause() != null ? e.getCause() : e;
+                sseWriter.write(new AgUiEvent.RunError(finalRunContext.runId(),
+                        AgUiEventMapper.runErrorMessage(failure.getMessage(), failure), null));
             } finally {
                 try {
                     servletWriter.close();
@@ -214,6 +217,30 @@ public final class AgUiHandler implements AtmosphereHandler {
             Thread.currentThread().interrupt();
             runThread.interrupt();
         }
+    }
+
+    /**
+     * The client's messages as a MESSAGES_SNAPSHOT carries them. The AG-UI
+     * schema requires an {@code id} on every message; a client that sent none
+     * gets one minted here, and an id the client sent is kept.
+     */
+    static List<Map<String, Object>> withMessageIds(List<Map<String, Object>> messages) {
+        var snapshot = new ArrayList<Map<String, Object>>(messages.size());
+        for (var message : messages) {
+            if (message.get("id") instanceof String id && !id.isEmpty()) {
+                snapshot.add(message);
+            } else {
+                var withId = new LinkedHashMap<String, Object>();
+                withId.put("id", "msg-" + UUID.randomUUID());
+                message.forEach((key, value) -> {
+                    if (!"id".equals(key)) {
+                        withId.put(key, value);
+                    }
+                });
+                snapshot.add(withId);
+            }
+        }
+        return snapshot;
     }
 
     private void handleGet(AtmosphereResource resource) {
@@ -372,7 +399,8 @@ public final class AgUiHandler implements AtmosphereHandler {
                 // open, and fabricating an END would signal normal completion
                 // of a message that failed mid-stream. The mapper reset drops
                 // the open-message state.
-                writer.write(new AgUiEvent.RunError(runContext.runId(), t.getMessage(), -1));
+                writer.write(new AgUiEvent.RunError(runContext.runId(),
+                        AgUiEventMapper.runErrorMessage(t.getMessage(), t), null));
                 eventMapper.reset();
             }
         }

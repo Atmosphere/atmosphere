@@ -77,12 +77,28 @@ describe('AgUiEventTranslator', () => {
       .toEqual([{ type: 'streaming-text', data: 'tok' }])
   })
 
+  // Spec shapes (@ag-ui/core 1.0 EventSchema): TOOL_CALL_START names the
+  // tool in toolCallName; TOOL_CALL_RESULT carries messageId + content.
   it('correlates TOOL_CALL_RESULT to the name from TOOL_CALL_START', () => {
     const t = new AgUiEventTranslator()
-    expect(t.translate({ type: 'TOOL_CALL_START', data: { toolCallId: 'tc1', name: 'getWeather' } }))
+    expect(t.translate({ type: 'TOOL_CALL_START', data: { toolCallId: 'tc1', toolCallName: 'getWeather' } }))
       .toEqual([{ event: 'tool-start', data: { toolName: 'getWeather', arguments: {} } }])
-    expect(t.translate({ type: 'TOOL_CALL_RESULT', data: { toolCallId: 'tc1', result: '22C' } }))
-      .toEqual([{ event: 'tool-result', data: { toolName: 'getWeather', result: '22C' } }])
+    expect(t.translate({
+      type: 'TOOL_CALL_RESULT',
+      data: { messageId: 'msg-2', toolCallId: 'tc1', content: '22C' },
+    })).toEqual([{ event: 'tool-result', data: { toolName: 'getWeather', result: '22C' } }])
+  })
+
+  it('reads a TOOL_CALL_RESULT whose content is an array of parts', () => {
+    const t = new AgUiEventTranslator()
+    t.translate({ type: 'TOOL_CALL_START', data: { toolCallId: 'tc1', toolCallName: 'search' } })
+    expect(t.translate({
+      type: 'TOOL_CALL_RESULT',
+      data: {
+        messageId: 'msg-2', toolCallId: 'tc1',
+        content: [{ type: 'text', text: 'first' }, { type: 'text', text: ' second' }],
+      },
+    })).toEqual([{ event: 'tool-result', data: { toolName: 'search', result: 'first second' } }])
   })
 
   it('maps RUN_FINISHED to complete and RUN_ERROR to error', () => {
@@ -126,8 +142,8 @@ describe('AgUiChatTransport', () => {
     const body = sse('RUN_STARTED', { runId: 'r1' })
       + sse('TEXT_MESSAGE_START', { messageId: 'm1', role: 'assistant' })
       + sse('TEXT_MESSAGE_CONTENT', { messageId: 'm1', delta: 'The weather ' })
-      + sse('TOOL_CALL_START', { toolCallId: 'tc1', name: 'getWeather' })
-      + sse('TOOL_CALL_RESULT', { toolCallId: 'tc1', result: 'sunny' })
+      + sse('TOOL_CALL_START', { toolCallId: 'tc1', toolCallName: 'getWeather', parentMessageId: 'm1' })
+      + sse('TOOL_CALL_RESULT', { messageId: 'msg-2', toolCallId: 'tc1', content: 'sunny' })
       + sse('TEXT_MESSAGE_CONTENT', { messageId: 'm1', delta: 'is sunny' })
       + sse('TEXT_MESSAGE_END', { messageId: 'm1' })
       + sse('RUN_FINISHED', { runId: 'r1' })
@@ -154,7 +170,9 @@ describe('AgUiChatTransport', () => {
       { type: 'complete' },
     ])
     const runBody = JSON.parse(fetchMock.mock.calls[1][1].body as string)
-    expect(runBody.messages).toEqual([{ role: 'user', content: 'weather?' }])
+    // RunAgentInput requires an id on every message.
+    expect(runBody.messages).toEqual([{ id: expect.any(String), role: 'user', content: 'weather?' }])
+    expect(runBody.messages[0].id).not.toBe('')
     expect(runBody.threadId).toBeTruthy()
     expect(runBody.runId).toBeTruthy()
   })

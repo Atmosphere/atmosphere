@@ -32,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AgUiEventMapperCompleteTest {
@@ -91,7 +92,10 @@ class AgUiEventMapperCompleteTest {
         assertNotEquals(firstMsgStart.messageId(), secondMsgStart.messageId(),
                 "Different messages should have different IDs");
         assertEquals("msg-1", firstMsgStart.messageId());
-        assertEquals("msg-2", secondMsgStart.messageId());
+        // TOOL_CALL_RESULT mints the tool message between the two text messages
+        var toolResult = (AgUiEvent.ToolCallResult) allEvents.get(7);
+        assertEquals("msg-2", toolResult.messageId());
+        assertEquals("msg-3", secondMsgStart.messageId());
 
         // Total: 5 + 4 + 4 = 13
         assertEquals(13, allEvents.size());
@@ -271,15 +275,15 @@ class AgUiEventMapperCompleteTest {
     }
 
     @Test
-    void testAgentStepIdsIncrement() {
+    void testAgentStepsAreIdentifiedByName() {
         var events1 = mapper.toAgUi(new AiEvent.AgentStep("s1", "Step One", Map.of()));
         var events2 = mapper.toAgUi(new AiEvent.AgentStep("s2", "Step Two", Map.of()));
 
         var step1Start = (AgUiEvent.StepStarted) events1.get(0);
         var step2Start = (AgUiEvent.StepStarted) events2.get(0);
 
-        assertEquals("step-1", step1Start.stepId());
-        assertEquals("step-2", step2Start.stepId());
+        assertEquals("s1", step1Start.stepName());
+        assertEquals("s2", step2Start.stepName());
     }
 
     @Test
@@ -290,21 +294,20 @@ class AgUiEventMapperCompleteTest {
         var started = (AgUiEvent.StepStarted) events.get(0);
         var finished = (AgUiEvent.StepFinished) events.get(1);
 
-        // The mapper uses stepName, not description
-        assertEquals("analyze", started.name());
-        assertEquals("analyze", finished.name());
-        assertEquals(started.stepId(), finished.stepId(), "Start and finish should share same stepId");
+        // The mapper uses stepName, not description; STEP_FINISHED names the
+        // step it closes.
+        assertEquals("analyze", started.stepName());
+        assertEquals("analyze", finished.stepName());
     }
 
     @Test
-    void testErrorEventContainsCodeHash() {
+    void testErrorEventCarriesTheStringCode() {
         var events = mapper.toAgUi(new AiEvent.Error("Rate limited", "rate_limit", true));
 
         assertEquals(1, events.size());
         var error = (AgUiEvent.RunError) events.get(0);
         assertEquals("Rate limited", error.message());
-        // code is hashCode of the string code
-        assertEquals("rate_limit".hashCode(), error.code());
+        assertEquals("rate_limit", error.code());
     }
 
     @Test
@@ -314,7 +317,7 @@ class AgUiEventMapperCompleteTest {
         assertEquals(1, events.size());
         var error = (AgUiEvent.RunError) events.get(0);
         assertEquals("Unknown error", error.message());
-        assertEquals(-1, error.code(), "Null code should map to -1");
+        assertNull(error.code(), "A null code stays absent from the wire");
     }
 
     @Test
@@ -368,7 +371,7 @@ class AgUiEventMapperCompleteTest {
         assertFalse(events.isEmpty());
         var result = (AgUiEvent.ToolCallResult) events.get(0);
         // Non-string result should be serialized to JSON
-        assertTrue(result.result().contains("42"), "Non-string result should be serialized");
+        assertTrue(result.content().contains("42"), "Non-string result should be serialized");
     }
 
     @Test

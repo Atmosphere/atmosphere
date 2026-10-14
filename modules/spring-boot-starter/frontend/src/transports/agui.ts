@@ -42,6 +42,24 @@ export class AgUiSseParser {
 }
 
 /**
+ * A TOOL_CALL_RESULT's content as text. The AG-UI schema types it as a string
+ * or an array of content parts: text parts are joined, any other part keeps
+ * its JSON form.
+ */
+function toolResultText(content: unknown): string {
+  if (typeof content === 'string') return content
+  if (Array.isArray(content)) {
+    return content
+      .map(part => (part && typeof part === 'object' && (part as { type?: unknown }).type === 'text'
+        && typeof (part as { text?: unknown }).text === 'string')
+        ? (part as { text: string }).text
+        : JSON.stringify(part))
+      .join('')
+  }
+  return JSON.stringify(content ?? '')
+}
+
+/**
  * Map one AG-UI event onto the Console's normalized chat-event vocabulary
  * (the inverse of the server's AgUiEventMapper). Stateful: AG-UI correlates
  * tool results by toolCallId while the Console's renderer correlates by
@@ -62,7 +80,7 @@ export class AgUiEventTranslator {
       }
       case 'TOOL_CALL_START': {
         const id = String(d.toolCallId ?? '')
-        const name = String(d.name ?? '')
+        const name = String(d.toolCallName ?? '')
         if (!name) return []
         if (id) this.toolNames.set(id, name)
         return [{ event: 'tool-start', data: { toolName: name, arguments: {} } }]
@@ -70,7 +88,7 @@ export class AgUiEventTranslator {
       case 'TOOL_CALL_RESULT': {
         const id = String(d.toolCallId ?? '')
         const name = this.toolNames.get(id) ?? ''
-        const result = typeof d.result === 'string' ? d.result : JSON.stringify(d.result ?? '')
+        const result = toolResultText(d.content)
         return [{ event: 'tool-result', data: { toolName: name, result } }]
       }
       case 'RUN_FINISHED':
@@ -156,7 +174,8 @@ export class AgUiChatTransport implements ChatTransport {
         body: JSON.stringify({
           threadId: this.threadId,
           runId: crypto.randomUUID(),
-          messages: [{ role: 'user', content: text }],
+          // RunAgentInput requires an id on every message.
+          messages: [{ id: crypto.randomUUID(), role: 'user', content: text }],
         }),
         signal,
       })

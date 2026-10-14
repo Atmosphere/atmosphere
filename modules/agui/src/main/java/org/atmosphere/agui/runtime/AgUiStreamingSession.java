@@ -128,7 +128,8 @@ public final class AgUiStreamingSession implements StreamingSession {
         // terminal hard-abort while a text message is open, and fabricating an
         // END would signal normal completion of a message that failed
         // mid-stream. The mapper reset drops the open-message state.
-        writeSSE(new AgUiEvent.RunError(runContext.runId(), t.getMessage(), -1));
+        writeSSE(new AgUiEvent.RunError(runContext.runId(),
+                AgUiEventMapper.runErrorMessage(t.getMessage(), t), null));
         eventMapper.reset();
         delegate.error(t);
     }

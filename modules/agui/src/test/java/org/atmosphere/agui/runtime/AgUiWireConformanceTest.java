@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -69,9 +70,114 @@ class AgUiWireConformanceTest {
         }
     }
 
+    public static class ToolStepReasoningEndpoint {
+        @AgUiAction
+        public void onRun(RunContext run, StreamingSession session) {
+            session.send("Checking");
+            session.emit(new AiEvent.AgentStep("plan", "Planning", Map.of()));
+            session.emit(new AiEvent.ReasoningDelta("think", false));
+            session.emit(new AiEvent.ReasoningComplete(null));
+            session.emit(new AiEvent.ToolStart("get_weather", Map.of("city", "Paris")));
+            session.emit(new AiEvent.ToolResult("get_weather", Map.of("tempC", 22)));
+            session.complete();
+        }
+    }
+
+    public static class FailingEndpoint {
+        @AgUiAction
+        public void onRun(RunContext run, StreamingSession session) {
+            session.error(new IllegalStateException());
+        }
+    }
+
+    /**
+     * Field names and types of the events whose payloads the AG-UI 1.0 schema
+     * ({@code @ag-ui/core} 1.0.2 {@code EventSchema}) fixes: a spec-strict
+     * client rejects a TOOL_CALL_START without {@code toolCallName}, a
+     * TOOL_CALL_RESULT without {@code messageId} and {@code content}, a step
+     * event without {@code stepName}, a numeric RUN_ERROR {@code code}, a
+     * snapshot message without {@code id}, and reasoning events without the
+     * {@code messageId} / {@code role} the schema requires.
+     */
+    @Test
+    void eventPayloadsUseTheAgUiSchemaFieldNames() throws Exception {
+        var frames = run(ToolStepReasoningEndpoint.class, "{\"threadId\":\"t1\",\"runId\":\"r1\","
+                + "\"messages\":[{\"role\":\"user\",\"content\":\"Weather?\"},"
+                + "{\"id\":\"a1\",\"role\":\"assistant\",\"content\":\"Hi\"}]}");
+
+        var snapshot = frame(frames, "MESSAGES_SNAPSHOT").get("messages");
+        for (var message : snapshot) {
+            assertTrue(message.get("id") != null && message.get("id").isString()
+                    && !message.get("id").stringValue().isEmpty(),
+                    "every snapshot message needs a string id: " + snapshot);
+        }
+        assertEquals("a1", snapshot.get(1).get("id").stringValue(), "a client id is kept: " + snapshot);
+
+        var toolStart = frame(frames, "TOOL_CALL_START");
+        assertEquals("get_weather", text(toolStart, "toolCallName"), "TOOL_CALL_START: " + toolStart);
+        assertFalse(toolStart.has("name"), "TOOL_CALL_START has no name field: " + toolStart);
+
+        var toolResult = frame(frames, "TOOL_CALL_RESULT");
+        assertEquals(text(toolStart, "toolCallId"), text(toolResult, "toolCallId"),
+                "TOOL_CALL_RESULT: " + toolResult);
+        assertTrue(toolResult.get("content") != null && toolResult.get("content").isString(),
+                "TOOL_CALL_RESULT.content must be a string: " + toolResult);
+        assertTrue(toolResult.get("content").stringValue().contains("22"), "content: " + toolResult);
+        var resultMessageId = text(toolResult, "messageId");
+        assertFalse(resultMessageId.isEmpty(), "TOOL_CALL_RESULT.messageId: " + toolResult);
+        assertFalse(toolResult.has("result"), "TOOL_CALL_RESULT has no result field: " + toolResult);
+        var textMessageIds = frames.stream().filter(f -> "TEXT_MESSAGE_START".equals(f.type()))
+                .map(f -> text(f.data(), "messageId")).toList();
+        assertFalse(textMessageIds.contains(resultMessageId),
+                "the tool message id must not collide with a text message: " + toolResult);
+
+        for (var type : List.of("STEP_STARTED", "STEP_FINISHED")) {
+            var step = frame(frames, type);
+            assertEquals("plan", text(step, "stepName"), type + ": " + step);
+            assertFalse(step.has("stepId") || step.has("name"), type + " carries stepName only: " + step);
+        }
+
+        var reasoningStart = frame(frames, "REASONING_START");
+        var reasoningEnd = frame(frames, "REASONING_END");
+        assertFalse(text(reasoningStart, "messageId").isEmpty(), "REASONING_START: " + reasoningStart);
+        assertEquals(text(reasoningStart, "messageId"), text(reasoningEnd, "messageId"),
+                "REASONING_END closes the span REASONING_START opened: " + reasoningEnd);
+        var reasoningMessage = frame(frames, "REASONING_MESSAGE_START");
+        assertEquals("reasoning", text(reasoningMessage, "role"), "REASONING_MESSAGE_START: " + reasoningMessage);
+
+        var error = frame(run(FailingEndpoint.class, "{\"threadId\":\"t2\",\"runId\":\"r2\"}"), "RUN_ERROR");
+        assertTrue(error.get("message") != null && error.get("message").isString(),
+                "RUN_ERROR.message is required even when the exception has none: " + error);
+        assertTrue(!error.has("code") || error.get("code").isString(),
+                "RUN_ERROR.code is an optional string: " + error);
+    }
+
+    @Test
+    void runErrorCodeIsTheStringCode() throws Exception {
+        var mapper = new org.atmosphere.agui.event.AgUiEventMapper();
+        var json = MAPPER.readTree(MAPPER.writeValueAsString(
+                mapper.toAgUi(new AiEvent.Error("slow down", "rate_limit", true)).get(0)));
+        assertEquals("rate_limit", text(json, "code"), "RUN_ERROR.code: " + json);
+    }
+
+    private static JsonNode frame(List<Frame> frames, String type) {
+        return frames.stream().filter(f -> type.equals(f.type())).findFirst()
+                .orElseThrow(() -> new AssertionError("no " + type + " frame: "
+                        + frames.stream().map(Frame::type).toList()))
+                .data();
+    }
+
+    private static String text(JsonNode node, String field) {
+        var value = node.get(field);
+        if (value == null || !value.isString()) {
+            throw new AssertionError(field + " must be a string: " + node);
+        }
+        return value.stringValue();
+    }
+
     @Test
     void everyStructuredPayloadMatchesTheAgUiSchemaShape() throws Exception {
-        var frames = run("{\"threadId\":\"t1\",\"runId\":\"r1\",\"messages\":["
+        var frames = run(StructuredEndpoint.class, "{\"threadId\":\"t1\",\"runId\":\"r1\",\"messages\":["
                 + "{\"id\":\"u1\",\"role\":\"user\",\"content\":\"Hi\"},"
                 + "{\"id\":\"a1\",\"role\":\"assistant\",\"content\":\"Hello\"}]}");
 
@@ -151,7 +257,7 @@ class AgUiWireConformanceTest {
     private record Frame(String type, JsonNode data) {
     }
 
-    private static List<Frame> run(String body) throws Exception {
+    private static List<Frame> run(Class<?> endpointType, String body) throws Exception {
         var resource = mock(AtmosphereResource.class);
         var request = mock(AtmosphereRequest.class);
         var response = mock(AtmosphereResponse.class);
@@ -164,9 +270,9 @@ class AgUiWireConformanceTest {
         when(response.getResponse()).thenReturn(servletResponse);
         when(servletResponse.getWriter()).thenReturn(new PrintWriter(output));
 
-        var endpoint = new StructuredEndpoint();
+        var endpoint = endpointType.getDeclaredConstructor().newInstance();
         var handler = new AgUiHandler(endpoint,
-                StructuredEndpoint.class.getMethod("onRun", RunContext.class, StreamingSession.class));
+                endpointType.getMethod("onRun", RunContext.class, StreamingSession.class));
         // handlePost joins the run thread, so the stream is complete on return.
         handler.onRequest(resource);
 
