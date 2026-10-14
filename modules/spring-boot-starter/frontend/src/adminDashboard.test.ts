@@ -13,6 +13,7 @@ const DASHBOARDS: Array<[string, string]> = [
 ]
 
 type Route = { status: number; body: unknown }
+type RouteSource = Route | (() => Route)
 
 interface Dashboard {
   win: Window
@@ -35,7 +36,7 @@ class FakeSocket {
  * replaced before the page script runs. `routes` maps an /api/admin path
  * prefix to a canned answer; anything else answers 200 [].
  */
-function boot(html: string, routes: Record<string, Route>): Dashboard {
+function boot(html: string, routes: Record<string, RouteSource>): Dashboard {
   const iframe = document.createElement('iframe')
   document.body.appendChild(iframe)
   const win = iframe.contentWindow as Window & typeof globalThis
@@ -43,7 +44,8 @@ function boot(html: string, routes: Record<string, Route>): Dashboard {
   win.fetch = vi.fn(async (input: RequestInfo | URL) => {
     const path = String(input).replace('/api/admin', '')
     const match = Object.keys(routes).find((prefix) => path.startsWith(prefix))
-    const route = match ? routes[match] : { status: 200, body: [] }
+    const source = match ? routes[match] : { status: 200, body: [] }
+    const route = typeof source === 'function' ? source() : source
     return new Response(JSON.stringify(route.body), { status: route.status })
   }) as typeof fetch
   win.WebSocket = class extends FakeSocket {
@@ -112,4 +114,30 @@ describe.each(DASHBOARDS)('admin dashboard (%s)', (_host, html) => {
     await settle()
     expect(d.doc.getElementById('audit-list')!.textContent).toContain('No audit entries')
   })
+
+  /**
+   * The first loadDashboard() runs before the dashboard's own admin-events
+   * socket is open, so the CONNECTIONS tile read 0 until the 15 s refresh
+   * while /overview already counted that socket.
+   */
+  it('refreshes the CONNECTIONS tile once its own event socket is open', async () => {
+    let connections = 0
+    const d = boot(html, {
+      '/overview': () => ({ status: 200, body: { status: 'UP', connections, broadcasters: 1, agentCount: 0 } }),
+    })
+    await settle()
+    expect(connectionsTile(d)).toBe('0')
+
+    // The server registers the dashboard's socket, then it opens.
+    connections = 1
+    d.sockets[0].onopen?.()
+    await settle()
+    expect(connectionsTile(d)).toBe('1')
+  })
 })
+
+function connectionsTile(d: Dashboard): string | undefined {
+  const tile = Array.from(d.doc.querySelectorAll('#stats-grid .stat'))
+    .find((el) => el.querySelector('.label')?.textContent === 'Connections')
+  return tile?.querySelector('.value')?.textContent ?? undefined
+}

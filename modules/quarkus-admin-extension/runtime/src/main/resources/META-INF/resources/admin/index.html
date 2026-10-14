@@ -448,7 +448,13 @@ function connectEventStream() {
     indicator.textContent = 'Event stream: connection failed';
     return;
   }
-  ws.onopen = () => { indicator.textContent = 'Event stream: connected'; feed.innerHTML = ''; };
+  ws.onopen = () => {
+    indicator.textContent = 'Event stream: connected';
+    feed.innerHTML = '';
+    // The first loadDashboard() ran before this socket existed; count it now
+    // rather than on the next 15 s refresh.
+    loadDashboard();
+  };
   ws.onmessage = (e) => {
     try {
       const ev = JSON.parse(e.data);
