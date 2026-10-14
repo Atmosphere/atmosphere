@@ -39,8 +39,11 @@ export interface UseStreamingRNOptions {
    *   answer that is streaming when the app is backgrounded keeps arriving.
    * - `suspend` — suspend the subscription and resume it on foreground.
    *   The socket stays open, but frames that arrive while suspended are
-   *   dropped, so an in-flight answer comes back truncated.
-   * - `disconnect` — close the stream and open a new one on foreground.
+   *   dropped, so an in-flight answer comes back truncated: the hook ends
+   *   that turn (`isStreaming` false, `progress` null) when it suspends.
+   * - `disconnect` — close the stream and open a new one on foreground. An
+   *   in-flight turn ends when the stream closes, and `connectionStatus`
+   *   (so `canSend`) stays off `open` until the new stream is bound.
    *
    * The default differs from {@link useAtmosphereRN}'s `suspend` because a
    * suspended stream loses the frames of an in-flight answer.
@@ -339,6 +342,15 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
       unbindStatus = null;
       handleRef.current?.close();
       handleRef.current = null;
+      // The binding is gone, so the handle's own close event never reaches
+      // `connectionStatus`: without this it stays `open` while no stream
+      // exists, and `canSend` reads true through the whole reconnect.
+      setConnectionStatus(new ConnectionStatus({ initialTransport: request.transport }).snapshot);
+      // `cancelled` now drops the old handle's onComplete/onError, and the
+      // next subscription starts a fresh session, so nothing else would ever
+      // end a turn that was in flight on this one.
+      setIsStreaming(false);
+      setProgress(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [atmosphere, request.url, request.transport, streamEnabled]);
@@ -356,6 +368,11 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
           if (!handle) return;
           handle.suspend();
           appliedInBackgroundRef.current = 'suspend';
+          // Frames that arrive while suspended are dropped, the `complete`
+          // frame among them, so an in-flight answer can never finish: end
+          // the turn here rather than leave `isStreaming` stuck on.
+          setIsStreaming(false);
+          setProgress(null);
         } else if (behavior === 'disconnect') {
           // Unmounting the subscription effect closes the handle.
           setClosedInBackground(true);

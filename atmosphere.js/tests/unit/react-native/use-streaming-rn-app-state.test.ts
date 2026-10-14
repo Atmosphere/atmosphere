@@ -117,3 +117,118 @@ describe('useStreamingRN applies backgroundBehavior on AppState transitions', ()
     expect(mock.subs).toHaveLength(1);
   });
 });
+
+/**
+ * Leaving the foreground in `suspend` or `disconnect` mode cuts an in-flight
+ * answer short: suspended frames are dropped (the `complete` frame among
+ * them) and a closed stream never completes its turn. Nothing else ends the
+ * turn, so `isStreaming` must be reset when the behavior is applied, or the
+ * typing indicator stays on forever after the app returns.
+ */
+describe('useStreamingRN ends an in-flight turn when it leaves the foreground', () => {
+  afterEach(() => {
+    act(() => __emitAppState('active'));
+  });
+
+  for (const backgroundBehavior of ['suspend', 'disconnect'] as const) {
+    it(`${backgroundBehavior}: isStreaming and progress are reset after a background -> active cycle mid-answer`, async () => {
+      const mock = createMockAtmosphere();
+      const { result } = renderHook(() => useStreamingRN({ request, backgroundBehavior }),
+        { wrapper: wrapper(mock.atmosphere) });
+      await vi.waitFor(() => expect(mock.subs).toHaveLength(1));
+      await act(async () => { await Promise.resolve(); });
+
+      act(() => { result.current.send('hello'); });
+      act(() => {
+        mock.handlers().message?.({
+          status: 200, transport: 'websocket', state: 'messageReceived',
+          responseBody: JSON.stringify({ type: 'progress', data: 'thinking', sessionId: 's1', seq: 1 }),
+        });
+      });
+      expect(result.current.isStreaming).toBe(true);
+      expect(result.current.progress).toBe('thinking');
+
+      act(() => __emitAppState('background'));
+      act(() => __emitAppState('active'));
+      await act(async () => { await Promise.resolve(); });
+
+      expect(result.current.isStreaming).toBe(false);
+      expect(result.current.progress).toBeNull();
+    });
+  }
+
+  it('keep-alive: an in-flight answer keeps streaming across a background -> active cycle', async () => {
+    const mock = createMockAtmosphere();
+    const { result } = renderHook(() => useStreamingRN({ request }), { wrapper: wrapper(mock.atmosphere) });
+    await vi.waitFor(() => expect(mock.subs).toHaveLength(1));
+    await act(async () => { await Promise.resolve(); });
+
+    act(() => { result.current.send('hello'); });
+    act(() => __emitAppState('background'));
+    act(() => __emitAppState('active'));
+
+    expect(result.current.isStreaming).toBe(true);
+  });
+});
+
+/**
+ * `disconnect` tears the subscription down, and the hook used to unbind the
+ * status tracker before closing the handle, so `connectionStatus` froze at
+ * `open`. On return `canSend` then read true for the whole reconnect while no
+ * handle existed, and a send in that window was rejected with "connection is
+ * open". The second subscribe is held open here so that window is observable.
+ */
+describe('useStreamingRN disconnect does not advertise a closed stream as open', () => {
+  afterEach(() => {
+    act(() => __emitAppState('active'));
+  });
+
+  it('connectionStatus leaves open in background and canSend stays false until the new stream is bound', async () => {
+    let releaseSecond: () => void = () => {};
+    const secondGate = new Promise<void>((resolve) => { releaseSecond = resolve; });
+    let handlers: Record<string, (...args: unknown[]) => void> = {};
+    const subs: Array<{ close: ReturnType<typeof vi.fn> }> = [];
+    const atmosphere = {
+      subscribe: vi.fn(async (_req: AtmosphereRequest, h: Record<string, unknown>) => {
+        handlers = h as typeof handlers;
+        if (subs.length === 1) await secondGate;
+        const sub = {
+          id: `sub-${subs.length}`, state: 'connected', push: vi.fn(),
+          close: vi.fn(async () => {}), suspend: vi.fn(), resume: vi.fn(async () => {}),
+          on: vi.fn(), off: vi.fn(),
+        };
+        subs.push(sub);
+        handlers.open?.({ transport: 'websocket' });
+        return sub as unknown as Subscription;
+      }),
+    } as unknown as Atmosphere;
+
+    const { result, unmount } = renderHook(
+      () => useStreamingRN({ request, backgroundBehavior: 'disconnect' }),
+      { wrapper: wrapper(atmosphere) });
+    await vi.waitFor(() => expect(subs).toHaveLength(1));
+    await act(async () => { await Promise.resolve(); });
+    expect(result.current.connectionStatus.phase).toBe('open');
+
+    act(() => __emitAppState('background'));
+    expect(subs[0].close).toHaveBeenCalledTimes(1);
+    expect(result.current.connectionStatus.phase).not.toBe('open');
+
+    act(() => __emitAppState('active'));
+    await vi.waitFor(() => expect(atmosphere.subscribe).toHaveBeenCalledTimes(2));
+    // Reconnect in flight: no handle is bound yet.
+    expect(result.current.connectionStatus.phase).not.toBe('open');
+    expect(result.current.canSend).toBe(false);
+    let outcome: ReturnType<typeof result.current.send> | undefined;
+    act(() => { outcome = result.current.send('too early'); });
+    expect(outcome?.outcome).toBe('rejected');
+    expect(outcome?.reason).not.toContain('connection is open');
+
+    await act(async () => { releaseSecond(); await secondGate; await Promise.resolve(); });
+    await vi.waitFor(() => expect(subs).toHaveLength(2));
+    await act(async () => { await Promise.resolve(); });
+    expect(result.current.connectionStatus.phase).toBe('open');
+    expect(result.current.canSend).toBe(true);
+    unmount();
+  });
+});
