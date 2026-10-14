@@ -63,6 +63,10 @@ class AgUiRunErrorTerminalTest {
     }
 
     private static Fixture fixture(Kind kind) throws Exception {
+        return fixture(kind, null);
+    }
+
+    private static Fixture fixture(Kind kind, AiPipeline pipeline) throws Exception {
         var output = new StringWriter();
         var calls = new CopyOnWriteArrayList<String>();
         var delegate = new RecordingSession(calls);
@@ -71,10 +75,10 @@ class AgUiRunErrorTerminalTest {
             case STREAMING_SESSION -> {
                 var response = mock(AtmosphereResponse.class);
                 when(response.getWriter()).thenReturn(new PrintWriter(output));
-                yield new AgUiStreamingSession(delegate, response, runContext);
+                yield new AgUiStreamingSession(delegate, response, runContext, pipeline);
             }
             case RESOURCE_SESSION -> new AgUiHandler.ResourceAgUiStreamingSession(
-                    delegate, new AgUiHandler.SseWriter(new PrintWriter(output)), runContext);
+                    delegate, new AgUiHandler.SseWriter(new PrintWriter(output)), runContext, pipeline);
         };
         return new Fixture(session, output, calls);
     }
@@ -126,6 +130,59 @@ class AgUiRunErrorTerminalTest {
         assertEquals(List.of("RUN_FINISHED"), f.types(), "no RUN_ERROR after RUN_FINISHED");
         assertFalse(f.session().hasErrored(), "a completed run did not error");
         assertEquals(List.of("complete"), f.delegateCalls(), "the wrapped session is completed once");
+    }
+
+    @ParameterizedTest
+    @EnumSource(Kind.class)
+    void emittedCompleteFinishesTheRunLikeComplete(Kind kind) throws Exception {
+        var f = fixture(kind);
+        f.session().send("hi ");
+        f.session().emit(new AiEvent.ToolStart("weather", java.util.Map.of()));
+        f.session().emit(new AiEvent.Complete("hi", java.util.Map.of()));
+        f.session().send("too late");
+        f.session().complete("again");
+        f.session().error(new IllegalStateException("late"));
+
+        assertEquals(List.of("TEXT_MESSAGE_START", "TEXT_MESSAGE_CONTENT", "TOOL_CALL_START",
+                        "TOOL_CALL_ARGS", "TOOL_CALL_END", "TEXT_MESSAGE_END", "RUN_FINISHED"), f.types(),
+                "an emitted Complete closes the open scopes and finishes the run, exactly like complete()");
+        assertTrue(f.session().isClosed(), "the session is closed after RUN_FINISHED");
+        assertFalse(f.session().hasErrored());
+        assertEquals(List.of("complete"), f.delegateCalls(), "the wrapped session is completed once");
+    }
+
+    @Test
+    void streamWithoutAPipelineFailsLoudlyInsteadOfWritingNothing() throws Exception {
+        var f = fixture(Kind.STREAMING_SESSION);
+        org.junit.jupiter.api.Assertions.assertThrows(UnsupportedOperationException.class,
+                () -> f.session().stream("hello"),
+                "stream() with no pipeline must not hand the prompt to a session off the AG-UI wire");
+        assertEquals("", f.output().toString(), "no frame was written");
+        assertEquals(List.of(), f.delegateCalls(), "the prompt did not go to the wrapped session");
+    }
+
+    @ParameterizedTest
+    @EnumSource(Kind.class)
+    void streamRunsThePipelineOntoTheAgUiWire(Kind kind) throws Exception {
+        var pipeline = mock(AiPipeline.class);
+        doAnswer(invocation -> {
+            StreamingSession session = invocation.getArgument(2);
+            session.send("Sunny");
+            session.emit(new AiEvent.ToolStart("weather", java.util.Map.of()));
+            session.emit(new AiEvent.ToolResult("weather", "22C"));
+            session.complete();
+            return null;
+        }).when(pipeline).execute(anyString(), anyString(), any(StreamingSession.class));
+        var f = fixture(kind, pipeline);
+
+        f.session().stream("weather?");
+
+        assertEquals(List.of("TEXT_MESSAGE_START", "TEXT_MESSAGE_CONTENT", "TOOL_CALL_START",
+                        "TOOL_CALL_ARGS", "TOOL_CALL_RESULT", "TOOL_CALL_END", "TEXT_MESSAGE_END",
+                        "RUN_FINISHED"), f.types(),
+                "both session types stream a prompt onto the AG-UI wire the same way");
+        org.mockito.Mockito.verify(pipeline).execute("t1", "weather?", f.session());
+        assertEquals(List.of("complete"), f.delegateCalls(), "the prompt did not bypass the AG-UI session");
     }
 
     // ── Through the handler: action return, action exception, stream mode ──
@@ -253,5 +310,6 @@ class AgUiRunErrorTerminalTest {
             }
         }
         @Override public void sendContent(Content content) { }
+        @Override public void stream(String message) { calls.add("stream"); }
     }
 }

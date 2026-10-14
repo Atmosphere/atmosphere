@@ -298,9 +298,12 @@ class AgUiStreamingSessionTest {
     }
 
     @Test
-    void testStreamDelegatesToDelegate() {
-        session.stream("user message");
-        verify(delegate).stream("user message");
+    void testStreamWithoutPipelineDoesNotBypassTheAgUiWire() {
+        // Handing the prompt to the delegate would run it off the AG-UI wire
+        // and write no frame; without a pipeline, stream() fails instead.
+        org.junit.jupiter.api.Assertions.assertThrows(UnsupportedOperationException.class,
+                () -> session.stream("user message"));
+        verify(delegate, never()).stream(org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test

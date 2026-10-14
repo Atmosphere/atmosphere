@@ -20,6 +20,7 @@ import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.agui.event.AgUiEvent;
 import org.atmosphere.agui.event.AgUiEventMapper;
 import org.atmosphere.ai.AiEvent;
+import org.atmosphere.ai.AiPipeline;
 import org.atmosphere.ai.Content;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -46,8 +47,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * session's {@link #complete()} / {@link #error(Throwable)} methods.</p>
  *
  * <p>RUN_FINISHED and RUN_ERROR are terminal, whichever path reaches one first
- * ({@link #complete()}, {@link #error(Throwable)} or an {@link AiEvent.Error}
- * passed to {@link #emit(AiEvent)}): nothing is written after it, later
+ * ({@link #complete()}, {@link #error(Throwable)}, or an {@link AiEvent.Complete}
+ * or {@link AiEvent.Error} passed to {@link #emit(AiEvent)}): nothing is written after it, later
  * terminal calls are no-ops, and the wrapped session is completed or errored
  * exactly once. The state check and the frames it guards run under one lock,
  * so a concurrent emission cannot land after the terminal frame.</p>
@@ -61,16 +62,28 @@ public final class AgUiStreamingSession implements StreamingSession {
     private final AgUiEventMapper eventMapper;
     private final AtmosphereResponse response;
     private final RunContext runContext;
+    private final AiPipeline pipeline;
     private final ReentrantLock writeLock = new ReentrantLock();
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private volatile boolean errored;
 
     public AgUiStreamingSession(StreamingSession delegate, AtmosphereResponse response,
                                 RunContext runContext) {
+        this(delegate, response, runContext, null);
+    }
+
+    /**
+     * @param pipeline the pipeline {@link #stream(String)} runs a prompt
+     *                 through, with this session receiving the run; may be
+     *                 null, and {@code stream} then fails
+     */
+    public AgUiStreamingSession(StreamingSession delegate, AtmosphereResponse response,
+                                RunContext runContext, AiPipeline pipeline) {
         this.delegate = delegate;
         this.eventMapper = new AgUiEventMapper();
         this.response = response;
         this.runContext = runContext;
+        this.pipeline = pipeline;
     }
 
     @Override
@@ -186,6 +199,12 @@ public final class AgUiStreamingSession implements StreamingSession {
 
     @Override
     public void emit(AiEvent event) {
+        if (event instanceof AiEvent.Complete done) {
+            // RUN_FINISHED ends the run: an emitted Complete finishes it
+            // exactly like complete(), as StreamingSession#emit routes it.
+            complete(done.summary());
+            return;
+        }
         if (event instanceof AiEvent.Error error) {
             // RUN_ERROR ends the run: route it through the terminal path, as
             // StreamingSession#emit routes an Error to error(Throwable).
@@ -211,9 +230,16 @@ public final class AgUiStreamingSession implements StreamingSession {
         delegate.emit(event);
     }
 
+    /**
+     * Runs {@code message} through the pipeline with this session receiving
+     * the run, so its events reach the AG-UI wire, the same way the handler's
+     * session streams.
+     *
+     * @throws UnsupportedOperationException when the session has no pipeline
+     */
     @Override
     public void stream(String message) {
-        delegate.stream(message);
+        AgUiHandler.streamThroughPipeline(pipeline, runContext, message, this);
     }
 
     /**

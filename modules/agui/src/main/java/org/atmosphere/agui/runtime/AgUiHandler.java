@@ -299,8 +299,9 @@ public final class AgUiHandler implements AtmosphereHandler {
      * AG-UI streaming session that uses {@link SseWriter} for proper browser delivery.
      *
      * <p>RUN_FINISHED and RUN_ERROR are terminal, whichever path reaches one
-     * first ({@link #complete()}, {@link #error(Throwable)} or an
-     * {@link AiEvent.Error} passed to {@link #emit(AiEvent)}): nothing is
+     * first ({@link #complete()}, {@link #error(Throwable)}, or an
+     * {@link AiEvent.Complete} or {@link AiEvent.Error} passed to
+     * {@link #emit(AiEvent)}): nothing is
      * written after it, later terminal calls are no-ops, and the wrapped
      * session is completed or errored exactly once. The state check and the
      * frames it guards run under one lock, so a concurrent emission cannot
@@ -456,6 +457,12 @@ public final class AgUiHandler implements AtmosphereHandler {
 
         @Override
         public void emit(AiEvent event) {
+            if (event instanceof AiEvent.Complete done) {
+                // RUN_FINISHED ends the run: an emitted Complete finishes it
+                // exactly like complete(), as StreamingSession#emit routes it.
+                complete(done.summary());
+                return;
+            }
             if (event instanceof AiEvent.Error error) {
                 // RUN_ERROR ends the run: route it through the terminal path,
                 // as StreamingSession#emit routes an Error to error(Throwable).
@@ -482,24 +489,37 @@ public final class AgUiHandler implements AtmosphereHandler {
 
         @Override
         public void stream(String message) {
-            if (pipeline == null) {
-                throw new UnsupportedOperationException(
-                        "stream(String) requires an AiPipeline. "
-                                + "Ensure the AG-UI handler is registered with a pipeline.");
-            }
-            // Fast-path: route @RequiresApproval protocol responses
-            // ("/__approval/<id>/approve") through the pipeline's
-            // ApprovalRegistry before treating them as new prompts. AG-UI
-            // surfaces tool approval UIs via client state-deltas; the
-            // client sends the approval outcome back as a STREAM input
-            // message that must land on the parked VT rather than being
-            // dispatched to the LLM as a literal user prompt.
-            if (org.atmosphere.ai.approval.ApprovalRegistry.isApprovalMessage(message)
-                    && pipeline.tryResolveApproval(message)) {
-                return;
-            }
-            pipeline.execute(runContext.threadId(), message, this);
+            streamThroughPipeline(pipeline, runContext, message, this);
         }
+    }
+
+    /**
+     * Runs {@code message} through {@code pipeline} with {@code session} as
+     * the session it streams into, so the run reaches the AG-UI wire. Shared
+     * by both AG-UI session types, which must stream the same way.
+     *
+     * @throws UnsupportedOperationException when there is no pipeline: the
+     *         prompt would otherwise produce no AG-UI frame at all
+     */
+    static void streamThroughPipeline(org.atmosphere.ai.AiPipeline pipeline, RunContext runContext,
+                                      String message, StreamingSession session) {
+        if (pipeline == null) {
+            throw new UnsupportedOperationException(
+                    "stream(String) requires an AiPipeline. "
+                            + "Ensure the AG-UI handler is registered with a pipeline.");
+        }
+        // Fast-path: route @RequiresApproval protocol responses
+        // ("/__approval/<id>/approve") through the pipeline's
+        // ApprovalRegistry before treating them as new prompts. AG-UI
+        // surfaces tool approval UIs via client state-deltas; the
+        // client sends the approval outcome back as a STREAM input
+        // message that must land on the parked VT rather than being
+        // dispatched to the LLM as a literal user prompt.
+        if (org.atmosphere.ai.approval.ApprovalRegistry.isApprovalMessage(message)
+                && pipeline.tryResolveApproval(message)) {
+            return;
+        }
+        pipeline.execute(runContext.threadId(), message, session);
     }
 
     private static final class NoOpStreamingSession implements StreamingSession {
