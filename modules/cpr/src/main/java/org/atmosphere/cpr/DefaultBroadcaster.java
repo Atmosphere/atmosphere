@@ -1693,7 +1693,21 @@ public class DefaultBroadcaster implements Broadcaster {
     private boolean isAtmosphereResourceValid(AtmosphereResource r) {
         return !r.isResumed()
                 && !r.isCancelled()
-                && ((AtmosphereResourceImpl) r).isInScope();
+                && ((AtmosphereResourceImpl) r).isInScope()
+                && !isClosing(r);
+    }
+
+    /**
+     * A resource whose event is already cancelled or closed by the client is
+     * in its closing phase: still subscribed and in scope until
+     * {@code completeLifecycle} cancels it, but its handler has (or is about
+     * to) run the disconnect. Delivering a broadcast there hands the handler
+     * a cancelled event again, which annotated handlers take for a second
+     * {@code @Disconnect} (Invariant #2: disconnect fires once).
+     */
+    private static boolean isClosing(AtmosphereResource r) {
+        var event = r.getAtmosphereResourceEvent();
+        return event != null && (event.isCancelled() || event.isClosedByClient());
     }
 
     protected void entryDone(final BroadcasterFuture<?> f) {
