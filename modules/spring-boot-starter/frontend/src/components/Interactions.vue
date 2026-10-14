@@ -33,9 +33,25 @@ let detailTimer: ReturnType<typeof setInterval> | null = null
 
 const terminal = (s?: string) => s === 'COMPLETED' || s === 'FAILED' || s === 'CANCELLED'
 
+/**
+ * Put the detail pane's copy of an interaction into its history row, so the
+ * row does not read RUNNING beside a COMPLETED detail until the next list poll.
+ */
+function syncListRow(it: Interaction) {
+  if (list.value.some((row) => row.id === it.id && row !== it)) {
+    list.value = list.value.map((row) => (row.id === it.id ? it : row))
+  }
+}
+
 async function refreshList() {
   try {
-    list.value = await listInteractions()
+    const rows = await listInteractions()
+    // A finished run stays finished: a list response read before the
+    // selected run ended must not move its row back to RUNNING.
+    const sel = selected.value
+    list.value = sel && terminal(sel.status)
+      ? rows.map((row) => (row.id === sel.id && !terminal(row.status) ? sel : row))
+      : rows
     error.value = null
     // Drop a selection the server no longer knows about (e.g. the backend was
     // restarted and its in-memory store reset) so the detail pane never shows
@@ -59,6 +75,7 @@ async function pollSelected() {
   if (!id) return
   try {
     selected.value = await getInteraction(id)
+    syncListRow(selected.value)
     if (terminal(selected.value?.status)) stopDetailPoll()
   } catch (e) {
     // The selected interaction is gone (404) or unreachable — clear it so the
