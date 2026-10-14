@@ -397,6 +397,48 @@ rm -rf "$run_qapp"
 out=$(env -u ATMOSPHERE_SOURCE_REF -u ATMOSPHERE_VERSION_OVERRIDE PATH="$run_cache_tmp/bin:$PATH" \
       ATMOSPHERE_HOME="$run_cache_tmp/home" "$CLI" run quarkus-chat 2>&1) && ec=0 || ec=$?
 assert_contains "$out" "app is missing — rebuilding" "run: a cached Quarkus marker whose app is gone is rebuilt"
+# A branch ref moves: the ref name alone cannot say the cached jar is current.
+# build_sample records the commit the source archive came from, and a cached run
+# compares it with the commit the branch points at now (git ls-remote, shimmed
+# here). A SNAPSHOT override builds from main.
+cat > "$run_cache_tmp/bin/git" <<'GITSHIMEOF'
+#!/bin/sh
+[ "$1" = "ls-remote" ] || exit 1
+[ -n "$GIT_SHIM_HEAD" ] || exit 128
+printf '%s\trefs/heads/main\n' "$GIT_SHIM_HEAD"
+GITSHIMEOF
+chmod +x "$run_cache_tmp/bin/git"
+run_old_commit=1111111111111111111111111111111111111111
+run_new_commit=2222222222222222222222222222222222222222
+run_snap_dir="$run_cache_tmp/home/cache/v9.9.9-SNAPSHOT"
+# Each case starts from an intact cached jar: a rebuild attempt deletes it.
+run_snap_jar() {
+    : > "$run_snap_dir/spring-boot-chat.jar"
+    echo "$run_empty_sha" > "$run_snap_dir/spring-boot-chat.jar.sha256"
+    printf '%s\n' "$@" > "$run_snap_dir/spring-boot-chat.jar.ref"
+}
+run_snap_jar main "$run_old_commit"
+out=$(env -u ATMOSPHERE_SOURCE_REF PATH="$run_cache_tmp/bin:$PATH" ATMOSPHERE_HOME="$run_cache_tmp/home" \
+      ATMOSPHERE_VERSION_OVERRIDE=9.9.9-SNAPSHOT GIT_SHIM_HEAD="$run_new_commit" "$CLI" run spring-boot-chat 2>&1) && ec=0 || ec=$?
+assert_not_contains "$out" "(verified)" "run: a jar built from an older commit of a moving branch is not called verified"
+assert_contains "$out" "main has moved" "run: a jar built from an older commit of a moving branch is rebuilt"
+assert_not_contains "$out" "JAVA-SHIM" "run: a jar built from an older commit of a moving branch is not launched"
+run_snap_jar main "$run_old_commit"
+out=$(env -u ATMOSPHERE_SOURCE_REF PATH="$run_cache_tmp/bin:$PATH" ATMOSPHERE_HOME="$run_cache_tmp/home" \
+      ATMOSPHERE_VERSION_OVERRIDE=9.9.9-SNAPSHOT GIT_SHIM_HEAD="$run_old_commit" "$CLI" run spring-boot-chat 2>&1) && ec=0 || ec=$?
+assert_contains "$out" "Using cached spring-boot-chat v9.9.9-SNAPSHOT (verified)" "run: a branch jar built from the branch's current commit is verified"
+run_snap_jar main "$run_old_commit"
+out=$(env -u ATMOSPHERE_SOURCE_REF -u GIT_SHIM_HEAD PATH="$run_cache_tmp/bin:$PATH" ATMOSPHERE_HOME="$run_cache_tmp/home" \
+      ATMOSPHERE_VERSION_OVERRIDE=9.9.9-SNAPSHOT "$CLI" run spring-boot-chat 2>&1) && ec=0 || ec=$?
+assert_not_contains "$out" "(verified)" "run: a branch jar is not called verified when the branch head cannot be read"
+assert_contains "$out" "could not check whether main has moved" "run: an unreadable branch head is reported, not hidden"
+assert_contains "$out" "JAVA-SHIM" "run: an unreadable branch head still runs the cached jar"
+# The stamp written before commits were recorded: the ref name alone.
+run_snap_jar main
+out=$(env -u ATMOSPHERE_SOURCE_REF PATH="$run_cache_tmp/bin:$PATH" ATMOSPHERE_HOME="$run_cache_tmp/home" \
+      ATMOSPHERE_VERSION_OVERRIDE=9.9.9-SNAPSHOT GIT_SHIM_HEAD="$run_old_commit" "$CLI" run spring-boot-chat 2>&1) && ec=0 || ec=$?
+assert_not_contains "$out" "(verified)" "run: a branch jar with no recorded commit is not called verified"
+assert_contains "$out" "main has moved" "run: a branch jar with no recorded commit is rebuilt"
 rm -rf "$run_cache_tmp"
 
 printf "\n"

@@ -715,6 +715,22 @@ download_source_tarball() {
     printf '%s' "$tarball"
 }
 
+# Commit a GitHub source archive was cut from. `git archive` (which serves
+# GitHub's tarballs) writes it into the pax global header that opens the tar
+# stream ("52 comment=<sha>"), so it comes with the download. Empty when absent.
+tarball_commit() {
+    gzip -dc "$1" 2>/dev/null | dd bs=512 count=2 2>/dev/null | tr -d '\000' \
+        | sed -n 's/.*comment=\([0-9a-f]\{40\}\).*/\1/p' | head -1
+}
+
+# Commit the branch SOURCE_REF names points at right now; empty when git is
+# missing or the remote cannot be reached. Only branches move; a tag is fixed.
+branch_head_commit() {
+    command -v git >/dev/null 2>&1 || return 0
+    GIT_TERMINAL_PROMPT=0 git ls-remote https://github.com/Atmosphere/atmosphere.git \
+        "refs/heads/$SOURCE_REF" 2>/dev/null | cut -f1 | head -1
+}
+
 # Extract sample dir + mvnw from tarball into a build directory
 extract_sample() {
     sample="$1"
@@ -763,6 +779,7 @@ build_sample() {
 
     ensure_cache_dir
     tarball=$(download_source_tarball)
+    source_commit=$(tarball_commit "$tarball")
 
     build_dir=$(mktemp -d)
     build_cleanup() { rm -rf "$build_dir"; }
@@ -806,7 +823,7 @@ build_sample() {
             # The app is a directory, so its checksum covers the whole tree
             # (quarkus-run.jar, lib/, app/, quarkus/), as the jar's covers the jar.
             tree_digest_portable "$cache_qdir" > "${jar_file}.sha256"
-            printf '%s\n' "$SOURCE_REF" > "${jar_file}.ref"
+            printf '%s\n%s\n' "$SOURCE_REF" "$source_commit" > "${jar_file}.ref"
             ok "Built and cached $sample"
         else
             die "No quarkus-app directory found after build"
@@ -823,9 +840,10 @@ build_sample() {
         cp "$built_jar" "$jar_file"
         # Record checksum for cache integrity verification
         sha256sum_portable "$jar_file" > "${jar_file}.sha256"
-        # Record the ref the sources came from, so cmd_run can tell a cached
-        # build of another ref from the one it was asked to run.
-        printf '%s\n' "$SOURCE_REF" > "${jar_file}.ref"
+        # Record the ref the sources came from and the commit it resolved to,
+        # so cmd_run can tell a cached build of another ref, or of an older
+        # commit of a branch, from the one it was asked to run.
+        printf '%s\n%s\n' "$SOURCE_REF" "$source_commit" > "${jar_file}.ref"
         ok "Built and cached $sample"
     fi
 
@@ -935,11 +953,17 @@ cmd_run() {
     if [ ! -f "$jar_file" ]; then
         build_sample "$sample" "$packaging" "$jar_file"
     else
-        # build_sample stamps the source ref next to the checksum, so a cached
-        # build from another ref is rebuilt rather than served, and "(verified)"
-        # means both "unmodified" and "built from the ref this run asked for".
+        # build_sample stamps the source ref (line 1) and the commit it resolved
+        # to (line 2) next to the checksum, so a cached build from another ref
+        # is rebuilt rather than served. "(verified)" means "unmodified" and
+        # "built from the ref this run asked for" and, for a branch, which
+        # moves, "built from the commit the branch points at now".
         cached_ref=""
-        [ -f "${jar_file}.ref" ] && cached_ref=$(cat "${jar_file}.ref")
+        cached_commit=""
+        if [ -f "${jar_file}.ref" ]; then
+            cached_ref=$(sed -n 1p "${jar_file}.ref")
+            cached_commit=$(sed -n 2p "${jar_file}.ref")
+        fi
         if [ -n "$cached_ref" ] && [ "$cached_ref" != "$SOURCE_REF" ]; then
             warn "Cached $sample was built from $cached_ref, not $SOURCE_REF — rebuilding"
             rm -f "$jar_file" "${jar_file}.sha256" "${jar_file}.ref"
@@ -961,6 +985,17 @@ cmd_run() {
                 warn "Cached JAR checksum mismatch — rebuilding $sample"
                 rm -f "$jar_file" "${jar_file}.sha256" "${jar_file}.ref"
                 build_sample "$sample" "$packaging" "$jar_file"
+            elif [ -n "$cached_ref" ] && [ "$SOURCE_ARCHIVE_REF" = "refs/heads/$SOURCE_REF" ]; then
+                head_commit=$(branch_head_commit)
+                if [ -z "$head_commit" ]; then
+                    ok "Using cached $sample v$jar_version (built from $SOURCE_REF${cached_commit:+ at $cached_commit}; could not check whether $SOURCE_REF has moved)"
+                elif [ "$head_commit" = "$cached_commit" ]; then
+                    ok "Using cached $sample v$jar_version (verified)"
+                else
+                    warn "Cached $sample was built from $SOURCE_REF at ${cached_commit:-an unrecorded commit}; $SOURCE_REF has moved to $head_commit — rebuilding"
+                    rm -f "$jar_file" "${jar_file}.sha256" "${jar_file}.ref"
+                    build_sample "$sample" "$packaging" "$jar_file"
+                fi
             elif [ -n "$cached_ref" ]; then
                 ok "Using cached $sample v$jar_version (verified)"
             else

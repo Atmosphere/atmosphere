@@ -34,7 +34,11 @@ Verified from `.github/workflows/cli-e2e.yml`, `cli-install.yml`, and
 `atmosphere run` caches built jars at `$ATMOSPHERE_HOME/cache/v$VERSION`
 (default `$HOME/.atmosphere`; `v$ATMOSPHERE_VERSION_OVERRIDE` when the override
 is set, with a `-<ref>` suffix when `ATMOSPHERE_SOURCE_REF` overrides the ref),
-verified by sha256 and by the source ref recorded next to it (`<jar>.ref`).
+verified by sha256 and by the source ref recorded next to it (`<jar>.ref`, which
+also records the commit the ref resolved to). For a branch ref (`main` under a
+SNAPSHOT override) a cached run compares that commit with `git ls-remote` and
+rebuilds when the branch has moved; if it cannot reach the remote it prints
+`could not check whether main has moved` instead of `(verified)`.
 A cached jar from a previous version boots the **old** artifact and reports a
 green sweep for code you are not shipping.
 
