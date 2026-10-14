@@ -305,6 +305,11 @@ out=$("$CLI" run no-such-sample 2>&1) && ec=0 || ec=$?
 assert_exit_code "$ec" 1 "unknown sample exits with error"
 assert_contains "$out" "Unknown sample: no-such-sample" "unknown sample is reported as unknown"
 assert_not_contains "$out" "not directly runnable" "unknown sample is not called non-runnable"
+out=$("$CLI" run spring-boot-chatt 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 1 "mistyped sample exits with error"
+assert_contains "$out" "Did you mean: spring-boot-chat," "run: a mistyped sample suggests the closest registry name first"
+out=$("$CLI" info ai-chat 2>&1) && ec=0 || ec=$?
+assert_contains "$out" "spring-boot-ai-chat" "info: an unknown sample suggests registry names that contain it"
 
 # The built-jar cache is keyed on the version the jar was built against. With
 # a v$VERSION key, a jar built under ATMOSPHERE_VERSION_OVERRIDE (a main

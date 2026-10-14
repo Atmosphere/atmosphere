@@ -209,6 +209,38 @@ list_sample_names() {
     fi
 }
 
+# Print up to three registry names closest to a mistyped one: names that
+# contain it, then names within a small edit distance.
+closest_sample_names() {
+    list_sample_names "$2" | awk -v want="$1" '
+        function dist(a, b,    i, j, la, lb, cost, d, x, y, z) {
+            la = length(a); lb = length(b)
+            for (i = 0; i <= la; i++) d[i, 0] = i
+            for (j = 0; j <= lb; j++) d[0, j] = j
+            for (i = 1; i <= la; i++)
+                for (j = 1; j <= lb; j++) {
+                    cost = (substr(a, i, 1) == substr(b, j, 1)) ? 0 : 1
+                    x = d[i - 1, j] + 1; y = d[i, j - 1] + 1; z = d[i - 1, j - 1] + cost
+                    d[i, j] = (x < y) ? ((x < z) ? x : z) : ((y < z) ? y : z)
+                }
+            return d[la, lb]
+        }
+        NF {
+            if (index($0, want)) score = 0
+            else score = dist(want, $0)
+            limit = int(length(want) / 3); if (limit < 2) limit = 2
+            if (score <= limit) printf "%d %s\n", score, $0
+        }' | sort -n | head -3 | cut -d' ' -f2- | paste -sd, - | sed 's/,/, /g'
+}
+
+die_unknown_sample() {
+    suggestions=$(closest_sample_names "$1" "$2")
+    if [ -n "$suggestions" ]; then
+        die "Unknown sample: $1. Did you mean: $suggestions? See: atmosphere list"
+    fi
+    die "Unknown sample: $1. See: atmosphere list"
+}
+
 # ── Commands ────────────────────────────────────────────────────────────────
 
 cmd_version() {
@@ -313,7 +345,7 @@ cmd_info() {
 
     if has_jq; then
         block=$(printf '%s' "$json" | jq ".samples[] | select(.name == \"$sample\")")
-        [ -z "$block" ] && die "Unknown sample: $sample"
+        [ -z "$block" ] && die_unknown_sample "$sample" "$json"
 
         name=$(printf '%s' "$block" | jq -r '.name')
         desc=$(printf '%s' "$block" | jq -r '.description')
@@ -831,7 +863,7 @@ cmd_run() {
     json=$(get_samples_json)
 
     runnable=$(get_sample_field "$sample" "runnable" "$json")
-    [ -z "$runnable" ] && die "Unknown sample: $sample. See: atmosphere list"
+    [ -z "$runnable" ] && die_unknown_sample "$sample" "$json"
     [ "$runnable" != "true" ] && die "'$sample' is not directly runnable. See: atmosphere info $sample"
 
     ensure_java
