@@ -196,6 +196,13 @@ export const SAMPLES: Record<string, SampleConfig> = {
     port: 8096,
     type: 'spring-boot',
     readyPath: '/atmosphere/agent/dentist',
+    // A channel registers only with a non-blank credential. Placeholder
+    // tokens register the webhooks; nothing is sent until a channel replies
+    // to a webhook delivery, which these tests never post.
+    env: {
+      TELEGRAM_BOT_TOKEN: 'e2e-placeholder-not-real',
+      SLACK_BOT_TOKEN: 'e2e-placeholder-not-real',
+    },
   },
   'spring-boot-orchestration-demo': {
     name: 'spring-boot-orchestration-demo',
@@ -210,6 +217,17 @@ export const SAMPLES: Record<string, SampleConfig> = {
     port: 8104,
     type: 'spring-boot',
     readyPath: '/atmosphere/ai-chat',
+    // A channel registers only with a non-blank credential. Placeholder
+    // tokens bring up the four webhook channels; nothing is sent until a
+    // channel replies to a webhook delivery, which these tests never post.
+    // Discord is left out on purpose: its channel opens a Gateway connection
+    // at startup, which a placeholder token would send to Discord.
+    env: {
+      TELEGRAM_BOT_TOKEN: 'e2e-placeholder-not-real',
+      SLACK_BOT_TOKEN: 'e2e-placeholder-not-real',
+      WHATSAPP_ACCESS_TOKEN: 'e2e-placeholder-not-real',
+      MESSENGER_PAGE_TOKEN: 'e2e-placeholder-not-real',
+    },
   },
   'spring-boot-coding-agent': {
     name: 'spring-boot-coding-agent',

@@ -58,21 +58,23 @@ test.describe('Channels Chat', () => {
     expect(res.status).not.toBe(404);
   });
 
-  test('the omnichannel ChannelAiBridge wires the agent to every messaging channel', () => {
+  test('the omnichannel ChannelAiBridge wires the agent to every configured messaging channel', () => {
     const output = server.getOutput();
-    // Headline runtime-truth: ONE @Agent ('omnichannel') is bridged — with its
-    // AI pipeline — to all five messaging channels, which is what makes this
-    // sample "omnichannel" rather than a plain web chat. External delivery also
-    // needs bot tokens (absent keyless), but the agent-to-channel wiring is
-    // deterministic. The old assertion here only checked "Starting service
-    // [Tomcat]" — which every Spring Boot app prints and proves nothing about
-    // the headline feature.
+    // Headline runtime-truth: ONE @Agent ('omnichannel') is bridged, with its
+    // AI pipeline, to every messaging channel that is running, which is what
+    // makes this sample "omnichannel" rather than a plain web chat. A channel
+    // runs only when its credential is set: the fixture gives the four webhook
+    // channels placeholder tokens and Discord none.
     expect(output, "ChannelAiBridge must register the 'omnichannel' agent with its AI pipeline")
       .toMatch(/ChannelAiBridge: agent 'omnichannel' registered \(pipeline=true/);
-    for (const channel of ['telegram', 'slack', 'discord', 'whatsapp', 'messenger']) {
-      expect(output, `the omnichannel agent must be bridged to the ${channel} channel`)
-        .toMatch(new RegExp(`channels=\\[[^\\]]*\\b${channel}\\b`));
+    const running = output.match(/ChannelAiBridge: running channels \[([^\]]*)\]/);
+    expect(running, 'ChannelAiBridge must log the channels it runs').not.toBeNull();
+    const channels = running![1].split(',').map((c) => c.trim());
+    for (const channel of ['telegram', 'slack', 'whatsapp', 'messenger']) {
+      expect(channels, `the ${channel} channel has a credential, so it must be running`).toContain(channel);
     }
+    expect(channels, 'discord has no credential, so it must not be reported as running')
+      .not.toContain('discord');
   });
 
   // -- WebSocket streaming (demo mode) --
