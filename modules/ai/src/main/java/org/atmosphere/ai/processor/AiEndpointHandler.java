@@ -1056,12 +1056,12 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         var durableSpine = org.atmosphere.ai.resume.DurableRunSpineHolder.get();
         var durableScope = durableSpine.beginDrive(handle.runId(), runUserId, pathTemplate);
 
-        // Producer side of the reattach wire: wrap the outgoing session so
-        // every text / complete / error event the @Prompt method emits also
-        // lands in the run's replay buffer. Without this, RunReattachSupport
-        // has nothing to drain on reconnect — the reattach primitive was
-        // half-shipped (consumer wired, producer not). See
-        // RunEventCapturingSession javadoc.
+        // Producer side of the reattach wire: wrap the session handed to the
+        // @Prompt method so every send / complete / error it calls on that
+        // session also lands in the run's replay buffer. Without this,
+        // RunReattachSupport has nothing to drain on reconnect. Output the
+        // runtime streams for session.stream(...) is written below this
+        // wrapper and is not captured. See RunEventCapturingSession javadoc.
         var capturingSession = new org.atmosphere.ai.resume.RunEventCapturingSession(
                 session, handle.replayBuffer());
 
@@ -1357,12 +1357,36 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // After the sessions are closed, so none of them parks a reply for the
         // departed client once its parked one is dropped.
         LongPollingReplies.discard(uuid);
+        endRunsCancelledByDisconnect(uuid);
         AiStreamingSession.removeAllForResource(uuid);
         // Session tape: cancel-mark every open taped run of this resource
         // (reconnects get a fresh uuid, so this never races a live run). The
         // writer drains already-queued steps before CANCELLED lands. No-op
         // when nothing is installed.
         org.atmosphere.ai.tape.TapeSupport.resourceDisconnected(uuid);
+    }
+
+    /**
+     * The terminal frame a reattached client receives for a run whose runtime
+     * call the disconnect of the client that started it cancelled.
+     */
+    static final String RUN_CANCELLED_BY_DISCONNECT =
+            "Run cancelled: the client that started it disconnected before the model call finished";
+
+    /**
+     * The disconnect cancels every runtime call still in flight on the
+     * connection ({@link AiStreamingSession#removeAllForResource}), so the
+     * answer of such a run is cut short; runtimes then complete normally on
+     * the cancel. Before that happens, end each of those runs' replay buffers
+     * in {@code error}, so a client that reattaches with the run id is told
+     * the run was cancelled instead of being handed a {@code complete} frame.
+     */
+    private static void endRunsCancelledByDisconnect(String uuid) {
+        var registry = org.atmosphere.ai.resume.RunRegistryHolder.get();
+        for (var runId : AiStreamingSession.runIdsWithInflightCall(uuid)) {
+            registry.lookup(runId).ifPresent(run ->
+                    run.replayBuffer().terminate("error", RUN_CANCELLED_BY_DISCONNECT));
+        }
     }
 
     /**

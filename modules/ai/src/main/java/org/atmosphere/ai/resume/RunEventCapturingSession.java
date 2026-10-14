@@ -21,12 +21,18 @@ import org.atmosphere.ai.StreamingSession;
 import java.util.Objects;
 
 /**
- * {@link StreamingSession} decorator that mirrors every outbound event
- * emitted during an {@code @Prompt} turn into the run's
- * {@link RunEventReplayBuffer}. This is the producer side of the
- * reattach wire — without it the buffer stays empty in production and
- * {@link RunReattachSupport#replayPendingRun} has nothing to drain on
- * reconnect.
+ * {@link StreamingSession} decorator that mirrors the {@code send},
+ * {@code complete} and {@code error} calls an {@code @Prompt} method makes on
+ * the session it was handed into the run's {@link RunEventReplayBuffer}. This
+ * is the producer side of the reattach wire — without it the buffer stays
+ * empty in production and {@link RunReattachSupport#replayPendingRun} has
+ * nothing to drain on reconnect.
+ *
+ * <p>It wraps that session from the outside, so the output a runtime streams
+ * for {@code session.stream(...)} — written by the runtime to the session
+ * below this decorator — is not captured: a run whose answer comes from
+ * {@code stream} replays only what the method body itself sent, plus the run's
+ * terminal frame.</p>
  *
  * <p>The capture happens BEFORE the delegate write so the client sees
  * the live stream unchanged and a disconnect between the buffer write

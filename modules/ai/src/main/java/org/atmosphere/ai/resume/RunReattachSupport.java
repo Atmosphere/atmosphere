@@ -37,13 +37,22 @@ import org.slf4j.LoggerFactory;
  * <p>The run itself keeps writing into the session bound to the connection
  * that went away. On a streaming transport (WebSocket, SSE, streaming) a
  * reattach to a run still in flight therefore also subscribes the
- * reconnected resource to the run's later events, so it receives the rest of
- * the run through its terminal {@code complete} / {@code error} frame; the
- * subscription ends with that frame or when the reconnected resource
- * disconnects. A run that already finished stays replayable for the registry
- * TTL ({@link RunRegistry#lookupReplayable}), so a late reconnect gets the
- * whole tail. Long-polling keeps the single-write drain: its first write
- * resumes the poll, so there is no open response to forward to.</p>
+ * reconnected resource to the run's later events through its terminal
+ * {@code complete} / {@code error} frame; the subscription ends with that
+ * frame or when the reconnected resource disconnects. A run that already
+ * finished stays replayable for the registry TTL
+ * ({@link RunRegistry#lookupReplayable}), so a late reconnect gets the whole
+ * tail. Long-polling keeps the single-write drain: its first write resumes
+ * the poll, so there is no open response to forward to.</p>
+ *
+ * <p>The events are what {@link RunEventCapturingSession} captures: what the
+ * {@code @Prompt} method sends, completes or fails with on its session. The
+ * output a runtime streams for {@code session.stream(...)} is not captured,
+ * and the disconnect of the client that started the run cancels a runtime
+ * call still in flight, so such a run's answer is neither replayed nor
+ * continued: a reattached client receives the run's terminal frame, an
+ * {@code error} saying the run was cancelled when the disconnect cut its
+ * model call short.</p>
  */
 public final class RunReattachSupport {
 

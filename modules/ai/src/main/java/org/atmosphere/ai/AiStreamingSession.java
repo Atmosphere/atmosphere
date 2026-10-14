@@ -456,6 +456,34 @@ public class AiStreamingSession implements StreamingSession {
     }
 
     /**
+     * The run ids of the sessions registered for {@code resourceUuid} whose
+     * runtime call is still in flight — the runs that {@link #removeAllForResource}
+     * would truncate by cancelling that call. Read by the disconnect path
+     * before it cancels, so a client that reattaches to such a run is told it
+     * was cancelled rather than shown it as completed.
+     *
+     * @param resourceUuid the atmosphere resource UUID (may be null)
+     * @return the run ids, empty when none
+     */
+    public static List<String> runIdsWithInflightCall(String resourceUuid) {
+        if (resourceUuid == null) {
+            return List.of();
+        }
+        var sessions = ACTIVE_SESSIONS.get(resourceUuid);
+        if (sessions == null) {
+            return List.of();
+        }
+        var runIds = new java.util.ArrayList<String>();
+        for (var session : sessions) {
+            var handle = session.currentHandle;
+            if (session.runId != null && handle != null && !handle.isDone()) {
+                runIds.add(session.runId);
+            }
+        }
+        return runIds;
+    }
+
+    /**
      * Abort the in-flight LLM call (if any) and release every pending tool
      * approval registered on this session. Called from the disconnect cleanup
      * path so the upstream HTTP request to the model provider is cancelled

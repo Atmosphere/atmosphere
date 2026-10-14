@@ -88,10 +88,16 @@ Closes the gap where `DurableSessionInterceptor` reattached rooms and
 broadcasters on reconnect but not in-flight agent runs. Clients that
 disconnect mid-stream reattach via `runId` and receive the events they
 missed, up to the buffer's bounded capacity (oldest-evicted). On WebSocket,
-SSE and streaming, a reattach to a run still in flight also receives the rest
-of the run through its terminal frame; long-polling gets the buffered events
-in one reply. A run that already finished stays replayable for the registry
-TTL (at most `RunRegistry.MAX_RETAINED_COMPLETED` finished runs are kept).
+SSE and streaming, a reattach to a run still in flight also receives the
+run's later events through its terminal frame; long-polling gets the buffered
+events in one reply. A run that already finished stays replayable for the
+registry TTL (at most `RunRegistry.MAX_RETAINED_COMPLETED` finished runs are
+kept). The events are what the `@Prompt` method sends, completes or fails with
+on its `StreamingSession`; the tokens a runtime streams for
+`session.stream(...)` are not captured, and the original client's disconnect
+cancels a model call still in flight. A reattach to such a run therefore gets
+no answer text, only the terminal frame: an `error` saying the run was
+cancelled when the disconnect cut the model call short.
 
 ## Proof samples
 

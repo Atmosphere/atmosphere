@@ -54,7 +54,10 @@ import java.util.function.Consumer;
  * <h2>Live subscribers</h2>
  *
  * A reconnecting client needs the events it missed <em>and</em> the rest of
- * the run, which keeps writing into the original, now-closed session.
+ * the run, which keeps writing into the original, now-closed session. "The
+ * run" is what {@link RunEventCapturingSession} captures: the calls the
+ * {@code @Prompt} method makes on its session, not the output a runtime
+ * streams for {@code session.stream(...)}.
  * {@link #subscribe} hands back the retained backlog and registers a
  * listener for every later capture in one step under the buffer lock, so
  * nothing falls between the backlog and the first live event and nothing is

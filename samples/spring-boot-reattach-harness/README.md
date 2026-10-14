@@ -27,6 +27,13 @@ buffered events in one reply. A reconnect after the turn ended still replays
 the whole run, `complete` included, for the registry TTL (30 minutes by
 default).
 
+This works because `SlowEmitterChat` emits with `session.send(...)` and keeps
+running after the first socket drops. An `@Prompt` that answers with
+`session.stream(...)` does not get this: the tokens the runtime streams are
+not captured into the replay buffer, and the dropped socket cancels the
+in-flight model call, so a reattach receives only an `error` frame saying the
+run was cancelled.
+
 ### `SyntheticRunController` — deterministic REST surface
 
 `POST /harness/synthetic-run` pre-registers a run in
