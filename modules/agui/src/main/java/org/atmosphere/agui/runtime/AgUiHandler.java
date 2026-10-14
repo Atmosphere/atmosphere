@@ -25,6 +25,7 @@ import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.protocol.SseEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -255,12 +256,11 @@ public final class AgUiHandler implements AtmosphereHandler {
             logger.debug("AG-UI connection closed: {}", event.getResource().uuid());
             return;
         }
-        // resource.write() delivers data here — flush it to the client
+        // A message delivered to a suspended GET stream reaches the client as
+        // one SSE event whatever the Accept list; a WebSocket gets it unchanged.
         var message = event.getMessage();
         if (message instanceof String text) {
-            var response = event.getResource().getResponse();
-            response.getWriter().write(text);
-            response.getWriter().flush();
+            SseEvents.deliver(event.getResource(), text);
         }
     }
 

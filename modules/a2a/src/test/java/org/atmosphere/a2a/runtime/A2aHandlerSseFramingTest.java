@@ -26,16 +26,23 @@ import org.atmosphere.a2a.annotation.AgentSkillParam;
 import org.atmosphere.a2a.registry.A2aRegistry;
 import org.atmosphere.a2a.types.Artifact;
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AsyncIOWriter;
+import org.atmosphere.cpr.AsyncIOWriterAdapter;
 import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
+import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mockito;
 import tools.jackson.databind.ObjectMapper;
 
@@ -214,6 +221,105 @@ class A2aHandlerSseFramingTest {
         assertEquals("2.0", node.get("jsonrpc").stringValue());
         assertEquals(9, node.get("id").intValue());
         assertTrue(node.has("result"), "a JSON-RPC result: " + events.get(0));
+    }
+
+    /**
+     * A JSON-RPC message delivered to a suspended GET stream is answered on
+     * that stream as one spec-valid event, whatever the Accept list.
+     */
+    @ParameterizedTest(name = "Accept: {0}")
+    @ValueSource(strings = {"text/event-stream", "application/json, text/event-stream"})
+    void answerOnTheGetStreamIsOneEventForEitherAccept(String accept) throws Exception {
+        var registry = new A2aRegistry();
+        registry.scan(new TwoArtifactAgent());
+        var card = registry.buildAgentCard("agent", "test", "1.0", "/a2a");
+        var handler = new A2aHandler(new A2aProtocolHandler(registry, taskManager, card, card));
+
+        var wire = new ByteArrayOutputStream();
+        var nativeWriter = new PrintWriter(new OutputStreamWriter(wire, StandardCharsets.UTF_8), true);
+        var nativeResponse = Mockito.mock(HttpServletResponse.class);
+        Mockito.when(nativeResponse.getOutputStream()).thenReturn(new CapturingStream(wire));
+        Mockito.when(nativeResponse.getWriter()).thenReturn(nativeWriter);
+        var request = new AtmosphereRequestImpl.Builder()
+                .method("GET")
+                .pathInfo("/a2a")
+                .inputStream(new ByteArrayInputStream(new byte[0]))
+                .build();
+        request.header("Accept", accept);
+        request.setAttribute(ApplicationConfig.PROPERTY_USE_STREAM, Boolean.TRUE);
+        var response = AtmosphereResponseImpl.newInstance(request);
+        response.request(request);
+        response.setResponse(nativeResponse);
+        var resource = new AtmosphereResourceImpl();
+        resource.initialize(framework.getAtmosphereConfig(),
+                framework.getBroadcasterFactory().get(),
+                request, response, Mockito.mock(AsyncSupport.class), handler);
+        request.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
+        var interceptor = new SSEAtmosphereInterceptor();
+        interceptor.configure(framework.getAtmosphereConfig());
+        interceptor.inspect(resource);
+
+        handler.onRequest(resource);
+        handler.onStateChange(new AtmosphereResourceEventImpl(resource).setMessage(
+                "{\"jsonrpc\":\"2.0\",\"id\":11,\"method\":\"tasks/get\",\"params\":{\"id\":\"none\"}}"));
+
+        // A container flushes its writer when the response completes.
+        nativeWriter.flush();
+        var stream = wire.toString(StandardCharsets.UTF_8);
+        var events = strictSseEvents(stream);
+        assertEquals(1, events.size(), "one event for the answer; wire was: " + stream.strip());
+        assertEquals(11, mapper.readTree(events.get(0)).get("id").intValue());
+    }
+
+    @Test
+    void answerOnAWebSocketStaysUnframedJson() throws Exception {
+        var registry = new A2aRegistry();
+        registry.scan(new TwoArtifactAgent());
+        var card = registry.buildAgentCard("agent", "test", "1.0", "/a2a");
+        var handler = new A2aHandler(new A2aProtocolHandler(registry, taskManager, card, card));
+
+        var request = new AtmosphereRequestImpl.Builder()
+                .method("GET")
+                .pathInfo("/a2a")
+                .inputStream(new ByteArrayInputStream(new byte[0]))
+                .build();
+        request.header(HeaderConfig.X_ATMOSPHERE_TRANSPORT, "websocket");
+        var frames = new ByteArrayOutputStream();
+        // As a WebSocket response: no status line, writes go to the socket.
+        var response = new AtmosphereResponseImpl.Builder()
+                .request(request)
+                .writeHeader(false)
+                .asyncIOWriter(new AsyncIOWriterAdapter() {
+                    @Override
+                    public AsyncIOWriter write(AtmosphereResponse r, String data) {
+                        frames.writeBytes(data.getBytes(StandardCharsets.UTF_8));
+                        return this;
+                    }
+
+                    @Override
+                    public AsyncIOWriter write(AtmosphereResponse r, byte[] data) {
+                        frames.writeBytes(data);
+                        return this;
+                    }
+
+                    @Override
+                    public AsyncIOWriter write(AtmosphereResponse r, byte[] data, int offset, int length) {
+                        frames.write(data, offset, length);
+                        return this;
+                    }
+                })
+                .build();
+        var resource = new AtmosphereResourceImpl();
+        resource.initialize(framework.getAtmosphereConfig(),
+                framework.getBroadcasterFactory().get(),
+                request, response, Mockito.mock(AsyncSupport.class), handler);
+        request.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
+
+        handler.onStateChange(new AtmosphereResourceEventImpl(resource).setMessage(
+                "{\"jsonrpc\":\"2.0\",\"id\":12,\"method\":\"tasks/get\",\"params\":{\"id\":\"none\"}}"));
+
+        var sent = frames.toString(StandardCharsets.UTF_8);
+        assertEquals(12, mapper.readTree(sent).get("id").intValue(), "unframed JSON-RPC: " + sent);
     }
 
     private String artifactText(String eventData) {

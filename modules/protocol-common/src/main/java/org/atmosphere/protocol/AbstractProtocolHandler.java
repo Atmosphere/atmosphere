@@ -155,7 +155,7 @@ public abstract class AbstractProtocolHandler<S extends ProtocolSession>
         } else if (message instanceof List<?> list) {
             for (var item : list) {
                 if (item instanceof String text) {
-                    write(resource.getResponse(), text);
+                    SseEvents.deliver(resource, text);
                 }
             }
         }
@@ -163,11 +163,13 @@ public abstract class AbstractProtocolHandler<S extends ProtocolSession>
 
     /**
      * Handle an incoming message (WebSocket text frame or broadcast).
-     * Subclasses can override for protocol-specific message processing.
+     * Subclasses can override for protocol-specific message processing. The
+     * default delivers it through {@link SseEvents#deliver}: one SSE event on an
+     * SSE stream, the message unchanged on a WebSocket.
      */
     protected void handleIncomingMessage(AtmosphereResource resource, String message)
             throws IOException {
-        write(resource.getResponse(), message);
+        SseEvents.deliver(resource, message);
     }
 
     // ── Session management ──────────────────────────────────────────────

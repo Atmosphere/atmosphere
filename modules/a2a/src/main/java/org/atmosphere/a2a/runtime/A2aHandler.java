@@ -22,6 +22,7 @@ import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.a2a.protocol.A2aMethod;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.protocol.AbstractProtocolHandler;
+import org.atmosphere.protocol.SseEvents;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -189,7 +190,7 @@ public final class A2aHandler extends AbstractProtocolHandler<A2aSession>
             throws IOException {
         var jsonResponse = protocolHandler.handleMessage(message);
         if (jsonResponse != null) {
-            write(resource.getResponse(), jsonResponse);
+            SseEvents.deliver(resource, jsonResponse);
         }
     }
 

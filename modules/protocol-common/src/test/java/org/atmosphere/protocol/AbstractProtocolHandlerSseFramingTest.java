@@ -21,16 +21,22 @@ import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.WriteListener;
 import jakarta.servlet.http.HttpServletResponse;
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AsyncIOWriter;
+import org.atmosphere.cpr.AsyncIOWriterAdapter;
 import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mockito;
@@ -142,6 +148,96 @@ class AbstractProtocolHandlerSseFramingTest {
         var bytes = completed(wire);
         assertEquals(List.of(new Event("message", "{\"id\":2}")),
                 strictSseEvents(bytes), "wire was: " + bytes.strip());
+    }
+
+    @ParameterizedTest(name = "Accept: {0}")
+    @ValueSource(strings = {"text/event-stream", "application/json, text/event-stream"})
+    void liveMessageOnASuspendedStreamIsOneEventForEitherAccept(String accept) throws Exception {
+        var wire = new ByteArrayOutputStream();
+        var resource = sseResource("GET", accept, true, wire);
+        resource.suspend();
+
+        handler.onStateChange(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) resource)
+                .setMessage("{\"live\":1}"));
+
+        var bytes = completed(wire);
+        assertEquals(List.of(new Event("message", "{\"live\":1}")),
+                strictSseEvents(bytes), "wire was: " + bytes.strip());
+    }
+
+    @ParameterizedTest(name = "Accept: {0}")
+    @ValueSource(strings = {"text/event-stream", "application/json, text/event-stream"})
+    void liveMessageBatchOnASuspendedStreamIsOneEventPerMessage(String accept) throws Exception {
+        var wire = new ByteArrayOutputStream();
+        var resource = sseResource("GET", accept, true, wire);
+        resource.suspend();
+
+        handler.onStateChange(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) resource)
+                .setMessage(List.of("{\"a\":1}", "{\"b\":2}")));
+
+        var bytes = completed(wire);
+        assertEquals(List.of(new Event("message", "{\"a\":1}"), new Event("message", "{\"b\":2}")),
+                strictSseEvents(bytes), "wire was: " + bytes.strip());
+    }
+
+    @ParameterizedTest(name = "Accept: {0}")
+    @ValueSource(strings = {"text/event-stream", "application/json, text/event-stream"})
+    void multiLineLiveMessageIsStillOneEvent(String accept) throws Exception {
+        var wire = new ByteArrayOutputStream();
+        var resource = sseResource("GET", accept, true, wire);
+        resource.suspend();
+
+        handler.onStateChange(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) resource)
+                .setMessage("{\n  \"pretty\": true\n}"));
+
+        var bytes = completed(wire);
+        assertEquals(List.of(new Event("message", "{\n  \"pretty\": true\n}")),
+                strictSseEvents(bytes), "wire was: " + bytes.strip());
+    }
+
+    @Test
+    void liveMessageOnAWebSocketStaysUnframedJson() throws Exception {
+        var request = new AtmosphereRequestImpl.Builder()
+                .method("GET")
+                .pathInfo("/protocol")
+                .inputStream(new ByteArrayInputStream(new byte[0]))
+                .build();
+        request.header(HeaderConfig.X_ATMOSPHERE_TRANSPORT, "websocket");
+        var frames = new ByteArrayOutputStream();
+        // As a WebSocket response: no status line, writes go to the socket.
+        var response = new AtmosphereResponseImpl.Builder()
+                .request(request)
+                .writeHeader(false)
+                .asyncIOWriter(new AsyncIOWriterAdapter() {
+                    @Override
+                    public AsyncIOWriter write(AtmosphereResponse r, byte[] data) {
+                        frames.writeBytes(data);
+                        return this;
+                    }
+
+                    @Override
+                    public AsyncIOWriter write(AtmosphereResponse r, byte[] data, int offset, int length) {
+                        frames.write(data, offset, length);
+                        return this;
+                    }
+
+                    @Override
+                    public AsyncIOWriter write(AtmosphereResponse r, String data) {
+                        frames.writeBytes(data.getBytes(StandardCharsets.UTF_8));
+                        return this;
+                    }
+                })
+                .build();
+        var resource = new AtmosphereResourceImpl();
+        resource.initialize(framework.getAtmosphereConfig(),
+                framework.getBroadcasterFactory().get(),
+                request, response, Mockito.mock(AsyncSupport.class), handler);
+        request.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
+        assertEquals(AtmosphereResource.TRANSPORT.WEBSOCKET, resource.transport());
+
+        handler.onStateChange(new AtmosphereResourceEventImpl(resource).setMessage("{\"ws\":1}"));
+
+        assertEquals("{\"ws\":1}", frames.toString(StandardCharsets.UTF_8));
     }
 
     /**

@@ -21,12 +21,17 @@ import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.WriteListener;
 import jakarta.servlet.http.HttpServletResponse;
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AsyncIOWriter;
+import org.atmosphere.cpr.AsyncIOWriterAdapter;
 import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
+import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
 import org.atmosphere.mcp.annotation.McpParam;
 import org.atmosphere.mcp.annotation.McpTool;
@@ -37,6 +42,8 @@ import org.atmosphere.mcp.runtime.McpSession;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mockito;
 import tools.jackson.databind.ObjectMapper;
 
@@ -63,6 +70,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  */
 class McpHandlerSseFramingTest {
 
+    private static final String EXACT = "text/event-stream";
     private final ObjectMapper mapper = new ObjectMapper();
     private AtmosphereFramework framework;
     private McpHandler handler;
@@ -113,7 +121,7 @@ class McpHandlerSseFramingTest {
 
     @Test
     void postResponseIsOneSpecValidEventThroughTheSseInterceptor() throws Exception {
-        var exchange = exchange("POST", "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"ping\"}", null);
+        var exchange = exchange("POST", "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"ping\"}", null, EXACT);
 
         handler.onRequest(exchange.resource());
 
@@ -130,14 +138,14 @@ class McpHandlerSseFramingTest {
     void replayedNotificationsAreSpecValidEventsOnTheGetStream() throws Exception {
         var init = exchange("POST", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\","
                 + "\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},"
-                + "\"clientInfo\":{\"name\":\"t\",\"version\":\"1\"}}}", null);
+                + "\"clientInfo\":{\"name\":\"t\",\"version\":\"1\"}}}", null, EXACT);
         handler.onRequest(init.resource());
         assertEquals(1, handler.sessions().size(), "initialize must open a session");
         McpSession session = handler.sessions().values().iterator().next();
         session.addPendingNotification("{\"jsonrpc\":\"2.0\",\"method\":\"n1\"}");
         session.addPendingNotification("{\"jsonrpc\":\"2.0\",\"method\":\"n2\"}");
 
-        var get = exchange("GET", "", session.sessionId());
+        var get = exchange("GET", "", session.sessionId(), EXACT);
         handler.onRequest(get.resource());
 
         var wire = get.completed();
@@ -146,13 +154,102 @@ class McpHandlerSseFramingTest {
                 strictSseEvents(wire), "wire was: " + wire.strip());
     }
 
+    @ParameterizedTest(name = "Accept: {0}")
+    @ValueSource(strings = {EXACT, "application/json, text/event-stream"})
+    void broadcastOnTheGetStreamIsOneEventPerNotificationForEitherAccept(String accept)
+            throws Exception {
+        var get = exchange("GET", "", null, accept);
+        handler.onRequest(get.resource());
+
+        handler.onStateChange(new AtmosphereResourceEventImpl(get.resource()).setMessage(List.of(
+                "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/a\"}",
+                "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/b\"}")));
+
+        var wire = get.completed();
+        assertEquals(List.of(new Event("message", "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/a\"}"),
+                        new Event("message", "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/b\"}")),
+                strictSseEvents(wire), "wire was: " + wire.strip());
+    }
+
+    @ParameterizedTest(name = "Accept: {0}")
+    @ValueSource(strings = {EXACT, "application/json, text/event-stream"})
+    void answerToAMessageOnTheGetStreamIsOneEventForEitherAccept(String accept) throws Exception {
+        var get = exchange("GET", "", null, accept);
+        handler.onRequest(get.resource());
+
+        handler.onStateChange(new AtmosphereResourceEventImpl(get.resource())
+                .setMessage("{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"ping\"}"));
+
+        var wire = get.completed();
+        var events = strictSseEvents(wire);
+        assertEquals(1, events.size(), "one message event; wire was: " + wire.strip());
+        assertEquals("message", events.get(0).type());
+        assertEquals(5, mapper.readTree(events.get(0).data()).get("id").intValue());
+    }
+
+    @Test
+    void answerOnAWebSocketStaysUnframedJson() throws Exception {
+        var request = new AtmosphereRequestImpl.Builder()
+                .method("GET")
+                .pathInfo("/mcp")
+                .inputStream(new ByteArrayInputStream(new byte[0]))
+                .build();
+        request.header(HeaderConfig.X_ATMOSPHERE_TRANSPORT, "websocket");
+        var frames = new ByteArrayOutputStream();
+        // As a WebSocket response: no status line, writes go to the socket.
+        var response = new AtmosphereResponseImpl.Builder()
+                .request(request)
+                .writeHeader(false)
+                .asyncIOWriter(new CapturingSocket(frames))
+                .build();
+        var resource = new AtmosphereResourceImpl();
+        resource.initialize(framework.getAtmosphereConfig(),
+                framework.getBroadcasterFactory().get(),
+                request, response, Mockito.mock(AsyncSupport.class), handler);
+        request.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
+
+        handler.onStateChange(new AtmosphereResourceEventImpl(resource)
+                .setMessage("{\"jsonrpc\":\"2.0\",\"id\":6,\"method\":\"ping\"}"));
+
+        var sent = frames.toString(StandardCharsets.UTF_8);
+        var node = mapper.readTree(sent);
+        assertEquals(6, node.get("id").intValue(), "unframed JSON-RPC on the socket: " + sent);
+    }
+
+    private static final class CapturingSocket extends AsyncIOWriterAdapter {
+        private final ByteArrayOutputStream frames;
+
+        CapturingSocket(ByteArrayOutputStream frames) {
+            this.frames = frames;
+        }
+
+        @Override
+        public AsyncIOWriter write(AtmosphereResponse r, String data) {
+            frames.writeBytes(data.getBytes(StandardCharsets.UTF_8));
+            return this;
+        }
+
+        @Override
+        public AsyncIOWriter write(AtmosphereResponse r, byte[] data) {
+            frames.writeBytes(data);
+            return this;
+        }
+
+        @Override
+        public AsyncIOWriter write(AtmosphereResponse r, byte[] data, int offset, int length) {
+            frames.write(data, offset, length);
+            return this;
+        }
+    }
+
     /**
      * An HTTP exchange as {@code AtmosphereFramework.doCometSupport} hands it
      * to a handler, with {@code Accept: text/event-stream} alone and the SSE
      * interceptor inspected. The container response hands out either its
      * writer or its output stream, never both.
      */
-    private Exchange exchange(String method, String body, String sessionId) throws Exception {
+    private Exchange exchange(String method, String body, String sessionId, String accept)
+            throws Exception {
         var wire = new ByteArrayOutputStream();
         var nativeResponse = Mockito.mock(HttpServletResponse.class);
         var stream = new CapturingStream(wire);
@@ -178,7 +275,7 @@ class McpHandlerSseFramingTest {
                 .pathInfo("/mcp")
                 .inputStream(new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)))
                 .build();
-        request.header("Accept", "text/event-stream");
+        request.header("Accept", accept);
         if (sessionId != null) {
             request.header(McpSession.SESSION_ID_HEADER, sessionId);
         }

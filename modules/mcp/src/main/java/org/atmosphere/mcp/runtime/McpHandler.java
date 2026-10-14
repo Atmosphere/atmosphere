@@ -18,7 +18,6 @@ package org.atmosphere.mcp.runtime;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.mcp.protocol.Mcp2026;
 import org.atmosphere.mcp.protocol.McpMethod;
 import org.atmosphere.protocol.SseEvents;
@@ -471,18 +470,20 @@ public final class McpHandler implements AtmosphereHandler {
             return;
         }
 
+        // SseEvents.deliver frames each write once on an SSE stream and leaves
+        // it unchanged on a WebSocket.
         var message = event.getMessage();
         if (message instanceof String text) {
             // Incoming WebSocket message
             var response = protocolHandler.handleMessage(resource, text);
             if (response != null) {
-                write(resource.getResponse(), response);
+                SseEvents.deliver(resource, response);
             }
         } else if (message instanceof List<?> list) {
             // Broadcast — write each message
             for (var item : list) {
                 if (item instanceof String text) {
-                    write(resource.getResponse(), text);
+                    SseEvents.deliver(resource, text);
                 }
             }
         }
@@ -494,7 +495,7 @@ public final class McpHandler implements AtmosphereHandler {
     public void processMessage(AtmosphereResource resource, String message) throws IOException {
         var response = protocolHandler.handleMessage(resource, message);
         if (response != null) {
-            write(resource.getResponse(), response);
+            SseEvents.deliver(resource, response);
         }
     }
 
@@ -542,10 +543,5 @@ public final class McpHandler implements AtmosphereHandler {
             }
         }
         return evicted;
-    }
-
-    private void write(AtmosphereResponse response, String data) throws IOException {
-        response.getWriter().write(data);
-        response.getWriter().flush();
     }
 }

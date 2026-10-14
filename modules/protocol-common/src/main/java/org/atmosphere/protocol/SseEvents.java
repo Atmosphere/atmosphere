@@ -17,13 +17,16 @@ package org.atmosphere.protocol;
 
 import jakarta.servlet.http.HttpServletResponse;
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -56,9 +59,56 @@ public final class SseEvents {
     private SseEvents() {
     }
 
-    /** Frame {@code data} (a single-line JSON document) as one {@code message} event. */
+    /**
+     * Frame {@code data} as one {@code message} event. Each line of
+     * {@code data} becomes its own {@code data:} field, so a payload that spans
+     * lines still arrives as one event (a CRLF or CR line end reaches the
+     * client as LF, as the SSE format defines).
+     */
     public static String message(String data) {
-        return "event: message\ndata: " + data + "\n\n";
+        var event = new StringBuilder(data.length() + 24).append("event: message\n");
+        for (var line : data.split("\r\n|\r|\n", -1)) {
+            event.append("data: ").append(line).append('\n');
+        }
+        return event.append('\n').toString();
+    }
+
+    /**
+     * Deliver one message on a live connection, such as a broadcast to a
+     * suspended GET stream or the answer to a message received on it. An SSE
+     * stream gets it as one {@code message} event, framed here and written past
+     * the SSE interceptor, whether the client's {@code Accept} is exactly
+     * {@code text/event-stream} or a list that includes it. Any other transport
+     * (WebSocket, long-polling) gets the message unchanged.
+     */
+    public static void deliver(AtmosphereResource resource, String message) throws IOException {
+        var response = resource.getResponse();
+        if (isEventStream(resource)) {
+            write(response, message(message));
+            return;
+        }
+        var writer = response.getWriter();
+        writer.write(message);
+        writer.flush();
+    }
+
+    /**
+     * True when {@code resource} is an SSE stream: not a WebSocket, and either
+     * negotiated as SSE or asked for {@code text/event-stream}. A resource with
+     * no request carries no {@code Accept} to go by and is not treated as one.
+     */
+    static boolean isEventStream(AtmosphereResource resource) {
+        var transport = resource.transport();
+        var request = resource.getRequest();
+        if (request == null || transport == AtmosphereResource.TRANSPORT.WEBSOCKET
+                || request.getAttribute(FrameworkConfig.WEBSOCKET_MESSAGE) != null) {
+            return false;
+        }
+        if (transport == AtmosphereResource.TRANSPORT.SSE) {
+            return true;
+        }
+        var accept = request.getHeader("Accept");
+        return accept != null && accept.toLowerCase(Locale.ROOT).contains(TEXT_EVENT_STREAM);
     }
 
     /**
