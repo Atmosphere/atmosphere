@@ -1499,6 +1499,23 @@ if [ -d "$repo_root/samples" ]; then
         fail "samples missing README.md:$missing_readmes"
     fi
 
+    # The root pom manages logback at test scope, so a sample that declares only
+    # logback-classic gets logback-core on its test classpath alone: at run time
+    # LogbackServiceProvider cannot load, SLF4J falls back to its no-operation
+    # logger, and the sample prints nothing (grpc-chat under exec:java did).
+    logback_half=""
+    for sample_pom in "$repo_root"/samples/*/pom.xml; do
+        if grep -q '<artifactId>logback-classic</artifactId>' "$sample_pom" \
+           && ! grep -q '<artifactId>logback-core</artifactId>' "$sample_pom"; then
+            logback_half="$logback_half ${sample_pom#"$repo_root"/}"
+        fi
+    done
+    if [ -z "$logback_half" ]; then
+        pass "every sample declaring logback-classic also declares logback-core"
+    else
+        fail "samples declare logback-classic without logback-core (SLF4J falls back to NOP at run time):$logback_half"
+    fi
+
     # A sample that serves pages without a Spring Boot starter (which answers
     # /favicon.ico itself) must ship its own favicon.ico, or every page load
     # logs a 404 console error.

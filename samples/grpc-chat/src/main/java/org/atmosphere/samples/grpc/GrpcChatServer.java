@@ -35,7 +35,8 @@ import java.nio.file.Path;
  * <p>Both transports share the same {@link AtmosphereFramework} and Broadcaster,
  * so gRPC CLI clients and browser clients see each other's messages.
  *
- * <p>Run with: {@code mvn exec:java -pl samples/grpc-chat}
+ * <p>Run with: {@code mvn exec:java -pl samples/grpc-chat}; {@code -Dhttp.port} and
+ * {@code -Dgrpc.port} move the two listeners.
  */
 public class GrpcChatServer {
 
@@ -48,7 +49,7 @@ public class GrpcChatServer {
 
         try (var grpcServer = AtmosphereGrpcServer.builder()
                 .framework(framework)
-                .port(9090)
+                .port(Integer.getInteger("grpc.port", 9090))
                 .handler(new ChatHandler())
                 .build()) {
 

@@ -42,15 +42,31 @@
             <version>${protobuf.version}</version>
         </dependency>
 
+        <!-- Both at compile scope on purpose: the parent pom manages logback at test
+             scope, so logback-core reached the run classpath only transitively and was
+             dropped. LogbackServiceProvider then failed to load, SLF4J fell back to its
+             no-operation logger, and the server printed nothing. -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <version>${logback-version}</version>
+            <scope>compile</scope>
+        </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
             <version>${logback-version}</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
 
     <properties>
         <maven.deploy.skip>true</maven.deploy.skip>
+        <!-- exec:exec defaults: override with -Dhttp.port / -Dgrpc.port, and run the CLI
+             client with -Dexec.mainClass=org.atmosphere.samples.grpc.GrpcChatClient. -->
+        <exec.mainClass>org.atmosphere.samples.grpc.GrpcChatServer</exec.mainClass>
+        <http.port>8080</http.port>
+        <grpc.port>9090</grpc.port>
     </properties>
 
     <build>

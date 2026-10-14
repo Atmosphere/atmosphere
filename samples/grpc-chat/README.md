@@ -30,8 +30,12 @@ mvn exec:java -pl samples/grpc-chat
 ```
 
 This starts:
-- **gRPC server** on `localhost:9090` (native bidi streaming)
-- **HTTP server** on `localhost:8080` (Connect protocol + the bundled Atmosphere Console)
+- **gRPC server** on `localhost:9090` (native bidi streaming; `-Dgrpc.port=N` moves it)
+- **HTTP server** on `localhost:8080` (Connect protocol + the bundled Atmosphere Console; `-Dhttp.port=N`)
+
+The boot log starts with Atmosphere's `Atmosphere Framework <version> started.` line. If it
+shows `SLF4J(W): Defaulting to no-operation (NOP) logger implementation` instead, Logback is
+missing from the run classpath and the server is logging nothing at all.
 
 ### Open the web UI
 
