@@ -4420,3 +4420,21 @@ case `spotless-coverage` in `scripts/lib/prove_gate.sh`). `pre-push-validate.sh`
 `./mvnw -N spotless:check` for pushed `generator/` and `scripts/` Java outside `full` mode. The
 `AGENTS.md` pre-push table now describes the script as it runs. Still not matched: blanks inside the
 dotted name, a trailing `/* */` comment on the earlier copy, two imports on one line.
+
+## 2026-10-14 — async-io.live listed gRPC as one of its five client transports
+
+**Session:** accessibility and privacy fixes on the company site (`atmosphere.github.io/website`).
+
+**Claim:** the "5 transports, one API" pillar card listed WebSocket, SSE, WebTransport/HTTP3,
+Long-Polling and gRPC, and the "Atmosphere only" feature list said "WebSocket, SSE,
+WebTransport/HTTP3, gRPC, long-poll with automatic fallback".
+**Truth:** `atmosphere.js/src/types/index.ts` defines `TransportType` as `websocket | sse |
+long-polling | streaming | webtransport`. HTTP Streaming is the fifth client transport and was
+missing from both lists. gRPC is a separate server-side module (`modules/grpc`), whose clients
+share a Broadcaster with the others but are not part of the client fallback chain. The hero on the
+same page already showed the correct five.
+**Slip path:** the July 2026 refresh fixed the hero after a review caught it, but nobody searched
+the sibling components for the same list, so two copies stayed live for three months.
+**Gate added:** none. Both copies are fixed in `atmosphere.github.io` `ab83dc3`. No check ties the
+site's transport lists to `TransportType`, so the next edit needs a manual
+`grep -rn -i grpc website/src` before it ships.
