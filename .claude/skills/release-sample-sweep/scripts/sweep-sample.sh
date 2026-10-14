@@ -39,11 +39,11 @@
 # Usage:
 #   sweep-sample.sh start <sample> [--port N] [--ready-path /p] [--env K=V]...
 #                                  [--jvm-arg -Dx=y]... [--timeout SECONDS]
-#   sweep-sample.sh stop  <sample>
+#   sweep-sample.sh stop  <sample> [--port N]
 #   sweep-sample.sh stop-all
 #   sweep-sample.sh status
-#   sweep-sample.sh log   <sample> [lines]
-#   sweep-sample.sh warnings <sample>     # WARN/ERROR/exception lines only
+#   sweep-sample.sh log   <sample> [--port N] [lines]
+#   sweep-sample.sh warnings <sample> [--port N]  # WARN/ERROR/exception lines only
 #   sweep-sample.sh jar   <sample>        # artifact that WOULD boot (no boot)
 #   sweep-sample.sh stale [sample...]     # leftover non-current jars + bytes
 #
@@ -51,6 +51,11 @@
 #   sweep-sample.sh start spring-boot-ai-chat --port 9101 \
 #       --ready-path /atmosphere/console/ \
 #       --env LLM_MODE=local --env LLM_MODEL=qwen2.5:3b
+#
+# State is kept per sample AND port (target/sweep/<sample>-<port>.{pid,log}),
+# so two lanes can boot the same sample on different ports. `stop`, `log` and
+# `warnings` name the instance with --port; without it they act only when the
+# sample has exactly one instance, and refuse otherwise rather than guess.
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
@@ -286,11 +291,16 @@ cmd_start() {
         esac
     done
     [[ -n "$port" ]] || die "--port is required (use the sweep block 9101+, see references/sample-matrix.md)"
+    [[ "$port" =~ ^[0-9]+$ ]] || die "--port must be numeric (got '$port')"
 
-    local pidfile="$STATE_DIR/$sample.pid" log="$STATE_DIR/$sample.log"
+    # One pidfile and log per sample AND port: two lanes booting the same sample
+    # (the Expo lane and the browser lane both run spring-boot-ai-classroom) used
+    # to share target/sweep/<sample>.pid, so the second start died with "already
+    # running" and either lane's stop killed the other's JVM.
+    local pidfile="$STATE_DIR/$sample-$port.pid" log="$STATE_DIR/$sample-$port.log"
     if [[ -f "$pidfile" ]]; then
         local old; old="$(cut -d' ' -f1 <"$pidfile")"
-        kill -0 "$old" 2>/dev/null && die "$sample already running as PID $old (stop it first)"
+        kill -0 "$old" 2>/dev/null && die "$sample already running on port $port as PID $old (stop it first)"
         rm -f "$pidfile"
     fi
     # Runtime truth: a probe that goes green against a process we did not
@@ -317,13 +327,26 @@ cmd_start() {
 
     # ${arr[@]+"${arr[@]}"} — expanding an EMPTY array as "${arr[@]}" aborts
     # under `set -u` on bash 3.2, which is still /bin/bash on macOS.
+    # WebTransport listens on a FIXED UDP port per sample (application.yml:
+    # 4446 for spring-boot-ai-classroom AND spring-boot-browser-agent, 4443 for
+    # spring-boot-chat AND spring-boot-ai-chat), so a second boot of the same
+    # sample, or of a sample sharing the number, fails "WebTransport server
+    # failed to start" through no fault of the release. UDP and TCP port spaces
+    # are separate, so the sweep's own HTTP port is a free, per-lane UDP port.
+    # A caller's explicit -Datmosphere.web-transport.port wins.
+    local -a wt_args=()
+    case " ${jvm_args[*]-} " in
+        *" -Datmosphere.web-transport.port="*) ;;
+        *) wt_args=("-Datmosphere.web-transport.port=$port") ;;
+    esac
+
     local -a cmd=()
     case "$kind" in
         quarkus)
             envs+=("QUARKUS_HTTP_PORT=$port")
             cmd=(java ${jvm_args[@]+"${jvm_args[@]}"} -jar "$jar") ;;
         spring-boot)
-            cmd=(java ${jvm_args[@]+"${jvm_args[@]}"} -jar "$jar" "--server.port=$port") ;;
+            cmd=(java ${wt_args[@]+"${wt_args[@]}"} ${jvm_args[@]+"${jvm_args[@]}"} -jar "$jar" "--server.port=$port") ;;
         main-jar)
             cmd=(java "-Dserver.port=$port" ${jvm_args[@]+"${jvm_args[@]}"} -jar "$jar") ;;
         war)
@@ -387,7 +410,7 @@ cmd_start() {
         sleep 2
     done
     echo "--- last 60 log lines ---" >&2; tail -60 "$log" >&2 || true
-    cmd_stop "$sample" >/dev/null 2>&1 || true
+    cmd_stop "$sample" --port "$port" >/dev/null 2>&1 || true
     die "$sample did not answer $ready_path within ${timeout}s"
 }
 
@@ -405,10 +428,62 @@ kill_pid() {
     kill -KILL -- "-$pid" 2>/dev/null || kill -KILL "$pid" 2>/dev/null || true
 }
 
+# instance_files <sample> — the pidfiles of every running-or-stale instance of
+# <sample>, one per line. Matched as <sample>-<digits>.pid exactly, so one
+# sample's name being a prefix of another's cannot select the wrong one.
+instance_files() {
+    local sample="$1" f base
+    for f in "$STATE_DIR"/*.pid; do
+        [[ -e "$f" ]] || continue
+        base="$(basename "$f" .pid)"
+        if [[ "${base%-*}" == "$sample" && "${base##*-}" =~ ^[0-9]+$ ]]; then
+            echo "$f"
+        fi
+    done
+}
+
+# resolve_instance <sample> [port] — sets STEM to the state-file stem
+# (<dir>/<sample>-<port>) of the one instance meant. With a port it is exact;
+# without one there must be exactly one instance, otherwise this refuses
+# instead of acting on a guess (a guess is how one lane's stop killed another
+# lane's JVM). Returns 1 when the sample has no instance. Call it directly, not
+# in $(…): the refusal has to exit the script, not a subshell.
+resolve_instance() {
+    local sample="$1" port="${2:-}"
+    STEM=""
+    if [[ -n "$port" ]]; then
+        STEM="$STATE_DIR/$sample-$port"; return 0
+    fi
+    local -a found=()
+    local f
+    while IFS= read -r f; do [[ -n "$f" ]] && found+=("$f"); done < <(instance_files "$sample")
+    case ${#found[@]} in
+        0) return 1 ;;
+        1) STEM="${found[0]%.pid}" ;;
+        *) local ports="" g
+           for g in "${found[@]}"; do ports="$ports $(basename "$g" .pid | sed 's/.*-//')"; done
+           die "$sample has ${#found[@]} instances (ports:$ports) — pass --port N to choose one" ;;
+    esac
+}
+
+# parse_port_flag "$@" — sets PORT_FLAG and leaves the remaining args in REST.
+parse_port_flag() {
+    PORT_FLAG=""; REST=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --port) PORT_FLAG="${2:?--port needs a value}"; shift 2 ;;
+            *)      REST+=("$1"); shift ;;
+        esac
+    done
+}
+
 cmd_stop() {
-    local sample="${1:?usage: $0 stop <sample>}"
-    local pidfile="$STATE_DIR/$sample.pid"
-    [[ -f "$pidfile" ]] || { info "$sample: not running (no pidfile)"; return 0; }
+    local sample="${1:?usage: $0 stop <sample> [--port N]}"; shift
+    parse_port_flag "$@"
+    resolve_instance "$sample" "$PORT_FLAG" \
+        || { info "$sample: not running (no pidfile)"; return 0; }
+    local pidfile="$STEM.pid"
+    [[ -f "$pidfile" ]] || { info "$sample: not running on port $PORT_FLAG (no pidfile)"; return 0; }
     local pid port; read -r pid port _ <"$pidfile"
     kill_pid "$pid"
     rm -f "$pidfile"
@@ -425,7 +500,8 @@ cmd_stop_all() {
     local f
     for f in "$STATE_DIR"/*.pid; do
         [[ -e "$f" ]] || continue
-        cmd_stop "$(basename "$f" .pid)"
+        local base; base="$(basename "$f" .pid)"
+        cmd_stop "${base%-*}" --port "${base##*-}"
     done
 }
 
@@ -434,26 +510,32 @@ cmd_status() {
     for f in "$STATE_DIR"/*.pid; do
         [[ -e "$f" ]] || continue
         any=1
-        local pid port kind; read -r pid port kind <"$f"
+        local pid port kind base; read -r pid port kind <"$f"
+        base="$(basename "$f" .pid)"
         if kill -0 "$pid" 2>/dev/null; then
-            printf '  %-40s PID %-8s port %-6s %-12s RUNNING\n' "$(basename "$f" .pid)" "$pid" "$port" "$kind"
+            printf '  %-40s PID %-8s port %-6s %-12s RUNNING\n' "${base%-*}" "$pid" "$port" "$kind"
         else
-            printf '  %-40s PID %-8s port %-6s %-12s DEAD (stale pidfile)\n' "$(basename "$f" .pid)" "$pid" "$port" "$kind"
+            printf '  %-40s PID %-8s port %-6s %-12s DEAD (stale pidfile)\n' "${base%-*}" "$pid" "$port" "$kind"
         fi
     done
     [[ "$any" == 1 ]] || echo "  (nothing running)"
 }
 
 cmd_log() {
-    local sample="${1:?usage: $0 log <sample> [lines]}" lines="${2:-120}"
-    tail -"$lines" "$STATE_DIR/$sample.log"
+    local sample="${1:?usage: $0 log <sample> [--port N] [lines]}"; shift
+    parse_port_flag "$@"
+    local lines="${REST[0]:-120}"
+    resolve_instance "$sample" "$PORT_FLAG" || die "no log for $sample"
+    tail -"$lines" "$STEM.log"
 }
 
 cmd_warnings() {
     # The server-side half of the evidence: everything the sweep must record
     # alongside the browser console. Empty output is a real result — say so.
-    local sample="${1:?usage: $0 warnings <sample>}"
-    local log="$STATE_DIR/$sample.log"
+    local sample="${1:?usage: $0 warnings <sample> [--port N]}"; shift
+    parse_port_flag "$@"
+    resolve_instance "$sample" "$PORT_FLAG" || die "no log for $sample"
+    local log="$STEM.log"
     [[ -f "$log" ]] || die "no log for $sample"
     # -a: some samples log raw frame bytes (spring-boot-otel-chat does), which makes the log a
     # binary file. Without -a, grep prints "Binary file <log> matches" and NOTHING else — which

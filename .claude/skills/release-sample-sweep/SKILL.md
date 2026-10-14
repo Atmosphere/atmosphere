@@ -123,7 +123,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://localhost:11434/v1/models
 - **Always read the resolved endpoint out of the boot log before driving:**
 
   ```
-  grep 'AI config:' target/sweep/<sample>.log
+  grep 'AI config:' target/sweep/<sample>-<port>.log
   ```
 
   Expect `mode=local … endpoint=http://localhost:11434/v1`. Anything else means
@@ -179,8 +179,22 @@ Work through `references/sample-matrix.md` in order. For each sample:
      (missing third-party key, Docker unavailable, model limitation).
    - **FAIL** — feature broken, error frame, exception, or the sample won't boot.
 8. **Teardown** — `close_page`, then
-   `sweep-sample.sh stop <sample>`. The helper verifies the port is actually
-   released; if it is not, stop and investigate before the next sample claims it.
+   `sweep-sample.sh stop <sample> --port <port>`. The helper verifies the port is
+   actually released; if it is not, stop and investigate before the next sample
+   claims it.
+
+**Parallel lanes.** State is per sample *and* port
+(`target/sweep/<sample>-<port>.{pid,log}`), so two lanes may boot the same
+sample on different ports — the Expo lane and the browser lane both need
+spring-boot-ai-classroom. Name the instance with `--port` on `stop`, `log` and
+`warnings`; without it they act only when the sample has a single instance and
+refuse otherwise. `stop-all` stops every instance in the state dir, other
+lanes' included — give each lane its own `SWEEP_STATE_DIR` if lanes might call
+it. WebTransport's UDP port is fixed per sample in `application.yml` (4446 is
+shared by ai-classroom and browser-agent), so the launcher passes each Spring
+Boot boot `-Datmosphere.web-transport.port=<its HTTP port>` — UDP and TCP port
+spaces are separate, so the lane's own port is a free UDP port. A
+`--jvm-arg -Datmosphere.web-transport.port=N` overrides it.
 
 ## Step 1b — The Expo client
 

@@ -138,8 +138,11 @@ needed, ask the maintainer to perform it at a time of their choosing.
 # revert the SERVER_URL edit
 git checkout -- samples/spring-boot-ai-classroom/expo-client/App.tsx
 # stop the backend
-.claude/skills/release-sample-sweep/scripts/sweep-sample.sh stop spring-boot-ai-classroom
+.claude/skills/release-sample-sweep/scripts/sweep-sample.sh stop spring-boot-ai-classroom --port 9125
 ```
+
+The browser lane may have its own spring-boot-ai-classroom up at the same time
+on another port; `--port` stops this lane's instance only.
 
 Confirm `git status --porcelain` is clean before moving on.
 

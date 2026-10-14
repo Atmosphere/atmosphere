@@ -454,17 +454,27 @@ free_port() {
     return 1
 }
 
-# boot_fixture <name> — a fake root with one main-jar sample "chan", plus the
-# java shim. Prints the fake root; the shim writes $fake/env.<port>.
+# boot_fixture <name> — a fake root with a main-jar sample "chan" and a Spring
+# Boot jar sample "boot", plus the java shim. Prints the fake root; the shim
+# writes $fake/env.<port> and $fake/args.<port>.
 boot_fixture() {
     local fake; fake="$(make_root "$1" 4.0.66-SNAPSHOT)"
     jars "$fake" chan atmosphere-chan-4.0.66-SNAPSHOT.jar
+    mkdir -p "$fake/samples/boot/target"
+    printf 'Manifest-Version: 1.0\nMain-Class: org.springframework.boot.loader.launch.JarLauncher\nSpring-Boot-Classes: BOOT-INF/classes/\n' \
+        >"$fake/boot-manifest.mf"
+    jar cfm "$fake/samples/boot/target/atmosphere-boot-4.0.66-SNAPSHOT.jar" "$fake/boot-manifest.mf" \
+        -C "$MANIFEST_DIR/empty" .
+    echo '<project><artifactId>boot</artifactId></project>' >"$fake/samples/boot/pom.xml"
     mkdir -p "$fake/bin"
     cat >"$fake/bin/java" <<EOF
 #!/usr/bin/env bash
 port=""
-for a in "\$@"; do case "\$a" in -Dserver.port=*) port="\${a#-Dserver.port=}" ;; esac; done
+for a in "\$@"; do
+    case "\$a" in -Dserver.port=*) port="\${a#-Dserver.port=}" ;; --server.port=*) port="\${a#--server.port=}" ;; esac
+done
 env >"$fake/env.\$port"
+printf '%s\n' "\$@" >"$fake/args.\$port"
 exec python3 -m http.server "\$port" --bind 127.0.0.1
 EOF
     chmod +x "$fake/bin/java"
@@ -528,10 +538,64 @@ case_channel_env_scrubbed() {
     fi
 }
 
+# ---------------------------------------------------------------------------
+# CASE [BITES] — two lanes booting the same sample. State was one pidfile and
+# log per sample name, so the second `start` died "already running" and a
+# `stop` from either lane killed the other's JVM. Per sample+port state lets
+# both run; an unqualified stop refuses while two instances exist; a --port
+# stop stops only that one. WebTransport's fixed UDP port collided the same
+# way, so a Spring Boot boot is handed its own HTTP port as the UDP port.
+# ---------------------------------------------------------------------------
+case_two_lanes_same_sample() {
+    if ! command -v python3 >/dev/null 2>&1; then
+        fail "two_lanes_same_sample" "python3 is required for the boot fixture"
+        return
+    fi
+    local fake a b out
+    fake="$(boot_fixture two_lanes)"
+    a="$(free_port)" && b="$(free_port)" || { fail "two_lanes_same_sample" "no free port"; return; }
+    [[ "$a" != "$b" ]] || b=$((a + 1))
+    sweep_cli "$fake" start chan --port "$a" --timeout 30 >/dev/null
+    out="$(sweep_cli "$fake" start chan --port "$b" --timeout 30)"
+    local up=0
+    port_open() { (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null; }
+    port_open "$a" && port_open "$b" && up=1
+    if [[ "$up" == 1 ]]; then
+        pass "two_lanes_same_sample: the same sample runs on two ports at once"
+    else
+        fail "two_lanes_same_sample" "second start did not come up beside the first: $(tail -3 <<<"$out")"
+    fi
+
+    out="$(sweep_cli "$fake" stop chan)"
+    if port_open "$a" && port_open "$b" && [[ "$out" == *"pass --port"* ]]; then
+        pass "two_lanes_same_sample: an unqualified stop refuses to pick one of two instances"
+    else
+        fail "two_lanes_same_sample(stop)" "an unqualified stop acted on a guess: $out"
+    fi
+
+    sweep_cli "$fake" stop chan --port "$a" >/dev/null
+    if ! port_open "$a" && port_open "$b"; then
+        pass "two_lanes_same_sample: stop --port stops that lane's instance only"
+    else
+        fail "two_lanes_same_sample(stop --port)" "stop --port $a did not leave port $b running alone"
+    fi
+    sweep_cli "$fake" stop chan --port "$b" >/dev/null
+
+    local c; c="$(free_port)" || { fail "two_lanes_same_sample(wt)" "no free port"; return; }
+    sweep_cli "$fake" start boot --port "$c" --timeout 30 >/dev/null
+    sweep_cli "$fake" stop boot >/dev/null
+    if grep -qx -- "-Datmosphere.web-transport.port=$c" "$fake/args.$c" 2>/dev/null; then
+        pass "two_lanes_same_sample: a Spring Boot boot gets its HTTP port as its WebTransport UDP port"
+    else
+        fail "two_lanes_same_sample(wt)" "no -Datmosphere.web-transport.port=$c in: $(paste -sd' ' "$fake/args.$c" 2>/dev/null)"
+    fi
+}
+
 CASES=(case_lexicographic case_stale_only case_original_excluded
        case_quarkus_stale case_smoke_selector case_unversioned_exec
        case_no_version_blind_glob case_playwright_fixture
-       case_fixture_boots_artifact case_channel_env_scrubbed)
+       case_fixture_boots_artifact case_channel_env_scrubbed
+       case_two_lanes_same_sample)
 
 echo "Sample artifact selection — stale-jar regression"
 echo "==============================================="
