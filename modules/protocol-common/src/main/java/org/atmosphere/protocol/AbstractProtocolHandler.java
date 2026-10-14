@@ -44,7 +44,6 @@ public abstract class AbstractProtocolHandler<S extends ProtocolSession>
         implements AtmosphereHandler {
 
     private static final String APPLICATION_JSON = "application/json";
-    private static final String TEXT_EVENT_STREAM = "text/event-stream";
 
     protected final Logger logger = LoggerFactory.getLogger(getClass());
 
@@ -211,14 +210,19 @@ public abstract class AbstractProtocolHandler<S extends ProtocolSession>
         resource.getRequest().setAttribute(sessionAttributeKey, session);
     }
 
-    /** Replay pending notifications for a session to the response. */
+    /**
+     * Replay pending notifications for a session to the response, one SSE
+     * {@code message} event each, written through {@link SseEvents} so the SSE
+     * interceptor does not frame them a second time.
+     */
     protected void replayPending(S session, AtmosphereResponse response) throws IOException {
         var pending = session.drainPendingNotifications();
-        for (var notification : pending) {
-            response.getWriter().write("event: message\ndata: " + notification + "\n\n");
-        }
         if (!pending.isEmpty()) {
-            response.getWriter().flush();
+            var events = new StringBuilder();
+            for (var notification : pending) {
+                events.append(SseEvents.message(notification));
+            }
+            SseEvents.write(response, events.toString());
             logger.debug("Replayed {} pending notifications for session {}",
                     pending.size(), session.sessionId());
         }
@@ -235,17 +239,19 @@ public abstract class AbstractProtocolHandler<S extends ProtocolSession>
 
     // ── Helpers ─────────────────────────────────────────────────────────
 
-    /** Write a response as SSE or JSON depending on Accept header. */
+    /**
+     * Write a response as SSE or JSON depending on Accept header. The SSE event
+     * goes through {@link SseEvents}, so an {@code Accept} of exactly
+     * {@code text/event-stream} (which selects the SSE interceptor) still puts
+     * one spec-valid event on the wire.
+     */
     protected void writeResponse(AtmosphereResource resource, String jsonResponse)
             throws IOException {
         var response = resource.getResponse();
         var accept = resource.getRequest().getHeader("Accept");
-        if (accept != null && accept.contains(TEXT_EVENT_STREAM)) {
-            response.setStatus(200);
-            response.setContentType(TEXT_EVENT_STREAM);
-            response.setCharacterEncoding("UTF-8");
-            response.getWriter().write("event: message\ndata: " + jsonResponse + "\n\n");
-            response.getWriter().flush();
+        if (accept != null && accept.contains(SseEvents.TEXT_EVENT_STREAM)) {
+            SseEvents.begin(response);
+            SseEvents.write(response, SseEvents.message(jsonResponse));
         } else {
             response.setStatus(200);
             response.setContentType(APPLICATION_JSON);

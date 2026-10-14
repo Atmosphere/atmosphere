@@ -21,6 +21,7 @@ import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.mcp.protocol.Mcp2026;
 import org.atmosphere.mcp.protocol.McpMethod;
+import org.atmosphere.protocol.SseEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.databind.JsonNode;
@@ -320,12 +321,10 @@ public final class McpHandler implements AtmosphereHandler {
 
         var accept = request.getHeader("Accept");
         if (accept != null && accept.contains(TEXT_EVENT_STREAM)) {
-            // SSE format
-            response.setStatus(200);
-            response.setContentType(TEXT_EVENT_STREAM);
-            response.setCharacterEncoding("UTF-8");
-            response.getWriter().write("event: message\ndata: " + jsonResponse + "\n\n");
-            response.getWriter().flush();
+            // SSE format, written past the SSE interceptor so an Accept of
+            // exactly text/event-stream does not frame the event twice
+            SseEvents.begin(response);
+            SseEvents.write(response, SseEvents.message(jsonResponse));
         } else {
             // Plain JSON
             response.setStatus(200);
@@ -423,11 +422,12 @@ public final class McpHandler implements AtmosphereHandler {
         // Replay any notifications buffered while the client was disconnected
         if (session != null) {
             var pending = session.drainPendingNotifications();
-            for (var notification : pending) {
-                response.getWriter().write("event: message\ndata: " + notification + "\n\n");
-            }
             if (!pending.isEmpty()) {
-                response.getWriter().flush();
+                var events = new StringBuilder();
+                for (var notification : pending) {
+                    events.append(SseEvents.message(notification));
+                }
+                SseEvents.write(response, events.toString());
                 logger.debug("Replayed {} pending notifications for session {}", pending.size(), sessionId);
             }
         }

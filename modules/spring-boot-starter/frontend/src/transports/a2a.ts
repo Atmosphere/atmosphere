@@ -24,11 +24,12 @@ export type A2aFrame =
  */
 export function parseA2aData(payload: string): A2aFrame[] {
   let trimmed = payload.trim()
-  // The server's SSE layer re-frames the handler's hand-framed terminal
-  // write, so the wire carries lines like `data:data:data: [DONE]` and empty
-  // `data:` fragments (observed via od -c against the live sample). Strip
-  // every repeated prefix before classifying — framing lint must never
-  // become chat text.
+  // The server writes spec-valid SSE events past cpr's SSE interceptor, so a
+  // payload is the value of one `data:` line. Servers built before that fix
+  // let the interceptor re-frame the handler's events, putting lines like
+  // `data:data: [DONE]` and empty `data:` fragments on the wire. Stripping
+  // every repeated prefix keeps the Console working against those servers:
+  // framing lint must never become chat text.
   while (trimmed.startsWith('data:')) {
     trimmed = trimmed.slice(5).trim()
   }

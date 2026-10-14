@@ -160,6 +160,62 @@ class A2aHandlerSseFramingTest {
         assertEquals("[DONE]", events.get(2));
     }
 
+    /**
+     * A unary call ({@code message/send}) with {@code Accept: text/event-stream}
+     * alone answers through {@code AbstractProtocolHandler.writeResponse}: one
+     * spec-valid {@code message} event carrying the JSON-RPC response.
+     */
+    @Test
+    void unaryCallWithEventStreamAcceptIsOneSpecValidEvent() throws Exception {
+        var registry = new A2aRegistry();
+        registry.scan(new TwoArtifactAgent());
+        var card = registry.buildAgentCard("agent", "test", "1.0", "/a2a");
+        var handler = new A2aHandler(new A2aProtocolHandler(registry, taskManager, card, card));
+
+        var wire = new ByteArrayOutputStream();
+        var nativeWriter = new PrintWriter(new OutputStreamWriter(wire, StandardCharsets.UTF_8), true);
+        var nativeResponse = Mockito.mock(HttpServletResponse.class);
+        Mockito.when(nativeResponse.getOutputStream()).thenReturn(new CapturingStream(wire));
+        Mockito.when(nativeResponse.getWriter()).thenReturn(nativeWriter);
+
+        var body = "{\"jsonrpc\":\"2.0\",\"id\":9,\"method\":\"message/send\","
+                + "\"params\":{\"message\":{\"role\":\"user\",\"parts\":[{\"type\":\"text\","
+                + "\"text\":\"x\"}],\"messageId\":\"m9\",\"metadata\":{\"skillId\":\"two\"}},"
+                + "\"arguments\":{\"message\":\"x\"}}}";
+        var request = new AtmosphereRequestImpl.Builder()
+                .method("POST")
+                .pathInfo("/a2a")
+                .inputStream(new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)))
+                .build();
+        request.header("Accept", "text/event-stream");
+        request.setAttribute(ApplicationConfig.PROPERTY_USE_STREAM, Boolean.TRUE);
+        var response = AtmosphereResponseImpl.newInstance(request);
+        response.request(request);
+        response.setResponse(nativeResponse);
+
+        var resource = new AtmosphereResourceImpl();
+        resource.initialize(framework.getAtmosphereConfig(),
+                framework.getBroadcasterFactory().get(),
+                request, response, Mockito.mock(AsyncSupport.class), handler);
+        request.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
+
+        var interceptor = new SSEAtmosphereInterceptor();
+        interceptor.configure(framework.getAtmosphereConfig());
+        interceptor.inspect(resource);
+
+        handler.onRequest(resource);
+
+        // A container flushes its writer when the response completes.
+        nativeWriter.flush();
+        var stream = wire.toString(StandardCharsets.UTF_8);
+        var events = strictSseEvents(stream);
+        assertEquals(1, events.size(), "one event for the unary response; wire was: " + stream.strip());
+        var node = mapper.readTree(events.get(0));
+        assertEquals("2.0", node.get("jsonrpc").stringValue());
+        assertEquals(9, node.get("id").intValue());
+        assertTrue(node.has("result"), "a JSON-RPC result: " + events.get(0));
+    }
+
     private String artifactText(String eventData) {
         var node = mapper.readTree(eventData);
         assertEquals("2.0", node.get("jsonrpc").stringValue());
