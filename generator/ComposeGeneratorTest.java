@@ -537,13 +537,14 @@ public class ComposeGeneratorTest {
         var agentYml = Files.readString(outputDir.resolve("agents/researcher/src/main/resources/application.yml"));
         assertEquals("com.example.researcher", packagesValue(agentYml), "agent packages is a scalar");
 
-        // A2A in one JVM: the fleet URLs follow the coordinator's own port, under
-        // the key CoordinatorProcessor reads (atmosphere.fleet.agents.<name>.url).
-        assertTrue(coordYml.contains("  init-params:\n"
-                + "    atmosphere.fleet.agents.researcher.url: "
-                + "http://localhost:${server.port}/atmosphere/agent/researcher/a2a\n"
-                + "    atmosphere.fleet.agents.writer.url: "
-                + "http://localhost:${server.port}/atmosphere/agent/writer/a2a\n"), coordYml);
+        // A2A in one JVM: no fleet URL. CoordinatorProcessor reads
+        // atmosphere.fleet.agents.<name>.url while the servlet initializes, before
+        // the connector binds, so a URL built from ${server.port} stays
+        // http://localhost:0/... under server.port=0 (or a RANDOM_PORT test) and
+        // every call fails. Without one, LocalAgentTransport invokes each agent's
+        // A2A handler in-process, whatever port, context path or TLS the jar has.
+        assertFalse(coordYml.contains("atmosphere.fleet.agents."), coordYml);
+        assertFalse(coordYml.contains("${server.port}"), coordYml);
 
         // Every module's skill lives at its own classpath path: in one jar a
         // shared prompts/skill.md resolves to a single copy for every agent.

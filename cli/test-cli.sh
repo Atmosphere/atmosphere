@@ -1229,10 +1229,10 @@ COMPOSESKILLEOF
         fail "compose: coordinator jar is an executable Spring Boot jar" "jar=$coord_jar"
     fi
     if [ -n "$coord_jar" ]; then
-        # A real port, not 0: the generated fleet URLs follow ${server.port},
-        # which stays the literal 0 when Spring picks an ephemeral port.
-        coord_port=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')
-        java -jar "$coord_jar" --server.port="$coord_port" > "$compose_tmp/boot.log" 2>&1 &
+        # Port 0 on purpose: the fleet must not depend on knowing the port up
+        # front. Fleet URLs built from ${server.port} named port 0 here, because
+        # the coordinator wires its fleet before the connector binds.
+        java -jar "$coord_jar" --server.port=0 > "$compose_tmp/boot.log" 2>&1 &
         coord_pid=$!
         coord_wait=0
         while [ "$coord_wait" -lt 120 ] && kill -0 "$coord_pid" 2>/dev/null \
@@ -1240,9 +1240,11 @@ COMPOSESKILLEOF
             sleep 1
             coord_wait=$((coord_wait + 1))
         done
+        # The port Spring actually bound, from its "<Container> started on port N" line.
+        coord_port=$(sed -n 's/.* started on port[^0-9]*\([0-9][0-9]*\).*/\1/p' "$compose_tmp/boot.log" | head -1)
         # The fleet itself must be reachable, not just the coordinator booted:
-        # agents serving no endpoint, an unread fleet URL key, or unscanned agent
-        # packages each left availableCount at 0.
+        # agents serving no endpoint, an unread fleet URL key, unscanned agent
+        # packages, or a fleet URL naming port 0 each left availableCount at 0.
         coordinators=$(curl -s "http://localhost:$coord_port/api/admin/coordinators")
         analyst_card=$(curl -s "http://localhost:$coord_port/atmosphere/agent/analyst/a2a/agent.json")
         kill "$coord_pid" 2>/dev/null || true

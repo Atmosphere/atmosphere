@@ -506,9 +506,14 @@ public class ComposeGenerator implements Runnable {
             packages.add(groupId + "." + agent.packageSuffix);
         }
         m.put("allPackages", String.join(",", packages));
-        // The fleet is reached over A2A HTTP unless every agent runs in the
-        // coordinator's JVM and the local protocol was chosen.
-        m.put("isRemoteFleet", "a2a".equals(protocol) || !"single-jar".equals(deploy));
+        // The fleet is reached over A2A HTTP only when the agents run in other
+        // processes. In a single jar every agent is in the coordinator's JVM, and
+        // with no fleet URL CoordinatorProcessor hands each one a
+        // LocalAgentTransport, which invokes the agent's A2A handler in-process.
+        // A loopback URL cannot work there: the processor reads it while the
+        // servlet initializes, before the connector binds, so under
+        // server.port=0 it can only name port 0.
+        m.put("isRemoteFleet", !"single-jar".equals(deploy));
 
         // Workflow steps
         m.put("workflowSteps", buildWorkflowModel());

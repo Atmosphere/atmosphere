@@ -14,12 +14,7 @@ atmosphere:
   # variable overrides it (docker-compose sets one per service).
   init-params:
 {{#agents}}
-{{#isSingleJar}}
-    atmosphere.fleet.agents.{{name}}.url: http://localhost:${server.port}/atmosphere/agent/{{name}}/a2a
-{{/isSingleJar}}
-{{^isSingleJar}}
     atmosphere.fleet.agents.{{name}}.url: http://localhost:{{port}}/atmosphere/agent/{{name}}/a2a
-{{/isSingleJar}}
 {{/agents}}
 {{/isRemoteFleet}}
 
