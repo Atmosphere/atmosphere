@@ -221,6 +221,8 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
         const handle = await subscribeStreaming(atmosphere, request, {
           onOpen: () => {
             if (cancelled) return;
+            // An open transport retires any earlier connection error.
+            setError(null);
             lifecycleRef.current.onOpen?.();
           },
           onClose: () => {
@@ -233,6 +235,7 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
           },
           onReopen: () => {
             if (cancelled) return;
+            setError(null);
             lifecycleRef.current.onReopen?.();
           },
           onClientTimeout: () => {

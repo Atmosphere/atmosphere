@@ -222,6 +222,8 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
           onOpen: () => {
             if (cancelled) return;
             setConnectionState('connected');
+            // An open transport retires any earlier connection error.
+            setError(null);
             lifecycleRef.current.onOpen?.();
           },
           onClose: () => {
@@ -237,6 +239,7 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
           onReopen: () => {
             if (cancelled) return;
             setConnectionState('connected');
+            setError(null);
             lifecycleRef.current.onReopen?.();
           },
           onClientTimeout: () => {

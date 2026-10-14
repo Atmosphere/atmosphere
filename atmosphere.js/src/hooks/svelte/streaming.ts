@@ -91,6 +91,13 @@ export function createStreamingStore(
     connected = true;
     try {
       handle = await subscribeStreaming(atmosphere, request, {
+        // An open transport retires any earlier connection error.
+        onOpen: () => {
+          if (current.error !== null) update({ error: null });
+        },
+        onReopen: () => {
+          if (current.error !== null) update({ error: null });
+        },
         onStreamingText: (text) => {
           update({ streamingTexts: [...current.streamingTexts, text], isStreaming: true });
         },

@@ -108,6 +108,8 @@ export function useStreaming(
       handle = await subscribeStreaming(atmosphere, request, {
         onOpen: () => {
           connectionState.value = 'connected';
+          // An open transport retires any earlier connection error.
+          error.value = null;
           lifecycle?.onOpen?.();
         },
         onClose: () => {
@@ -120,6 +122,7 @@ export function useStreaming(
         },
         onReopen: () => {
           connectionState.value = 'connected';
+          error.value = null;
           lifecycle?.onReopen?.();
         },
         onClientTimeout: () => {
