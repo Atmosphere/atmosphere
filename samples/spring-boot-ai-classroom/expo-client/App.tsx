@@ -7,12 +7,14 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   StyleSheet,
   StatusBar,
   Image,
 } from 'react-native';
 import { registerRootComponent } from 'expo';
+// React Native's own SafeAreaView is deprecated (and iOS-only); the
+// safe-area-context one reads the insets on both platforms.
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Markdown from 'react-native-markdown-display';
 import NetInfo from '@react-native-community/netinfo';
 import {
@@ -406,13 +408,15 @@ function App() {
   const [room, setRoom] = useState<string | null>(null);
 
   return (
-    <AtmosphereProvider config={{ logLevel: 'info' }}>
-      {room ? (
-        <Classroom room={room} onLeave={() => setRoom(null)} />
-      ) : (
-        <RoomSelector onJoin={setRoom} />
-      )}
-    </AtmosphereProvider>
+    <SafeAreaProvider>
+      <AtmosphereProvider config={{ logLevel: 'info' }}>
+        {room ? (
+          <Classroom room={room} onLeave={() => setRoom(null)} />
+        ) : (
+          <RoomSelector onJoin={setRoom} />
+        )}
+      </AtmosphereProvider>
+    </SafeAreaProvider>
   );
 }
 

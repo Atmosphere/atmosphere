@@ -1516,6 +1516,23 @@ if [ -d "$repo_root/samples" ]; then
         fail "samples declare logback-classic without logback-core (SLF4J falls back to NOP at run time):$logback_half"
     fi
 
+    # React Native deprecated its own SafeAreaView ("will be removed in a future
+    # release"): a sample that still imports it logs that warning on every load
+    # and stops rendering when it is removed. Use react-native-safe-area-context.
+    rn_safe_area=""
+    rn_sources=$(find "$repo_root/samples" -type f \( -name '*.tsx' -o -name '*.ts' -o -name '*.jsx' \) \
+        -not -path '*/node_modules/*' -not -path '*/target/*' -not -path '*/.expo/*' 2>/dev/null)
+    for rn_file in $rn_sources; do
+        if perl -0777 -ne 'exit(!/import\s*\{[^}]*\bSafeAreaView\b[^}]*\}\s*from\s*["\x27]react-native["\x27]/)' "$rn_file"; then
+            rn_safe_area="$rn_safe_area ${rn_file#"$repo_root"/}"
+        fi
+    done
+    if [ -z "$rn_safe_area" ]; then
+        pass "no React Native sample imports the deprecated react-native SafeAreaView"
+    else
+        fail "React Native samples import the deprecated react-native SafeAreaView:$rn_safe_area"
+    fi
+
     # A sample that serves pages without a Spring Boot starter (which answers
     # /favicon.ico itself) must ship its own favicon.ico, or every page load
     # logs a 404 console error.
