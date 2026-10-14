@@ -239,6 +239,13 @@ export interface StreamingHandle {
    * guard, and every frame of the answer is discarded.
    */
   resetSession(): void;
+  /**
+   * Suspend the underlying subscription: the connection stays open but
+   * frames that arrive while suspended are dropped, not buffered.
+   */
+  suspend(): void;
+  /** Resume a subscription previously suspended with {@link #suspend}. */
+  resume(): Promise<void>;
   /** Close the streaming session. */
   close(): Promise<void>;
 }

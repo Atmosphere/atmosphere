@@ -23,6 +23,8 @@ import { useAtmosphereContext } from '../react/provider';
 import { getRegisteredNetInfo } from '../../react-native/platform';
 import { ConnectionStatus } from '../../resilience';
 import type { ConnectionStatusSnapshot } from '../../resilience';
+import { logger } from '../../utils/logger';
+import type { BackgroundBehavior } from './useAtmosphereRN';
 
 /**
  * Options for {@link useStreamingRN}.
@@ -30,6 +32,20 @@ import type { ConnectionStatusSnapshot } from '../../resilience';
 export interface UseStreamingRNOptions {
   request: AtmosphereRequest;
   enabled?: boolean;
+  /**
+   * What the stream does while the app is not in the foreground
+   * (AppState `background` or `inactive`):
+   * - `keep-alive` (default) — nothing; the stream stays open and an
+   *   answer that is streaming when the app is backgrounded keeps arriving.
+   * - `suspend` — suspend the subscription and resume it on foreground.
+   *   The socket stays open, but frames that arrive while suspended are
+   *   dropped, so an in-flight answer comes back truncated.
+   * - `disconnect` — close the stream and open a new one on foreground.
+   *
+   * The default differs from {@link useAtmosphereRN}'s `suspend` because a
+   * suspended stream loses the frames of an in-flight answer.
+   */
+  backgroundBehavior?: BackgroundBehavior;
   /** Called when the underlying transport opens (initial connect). */
   onOpen?: () => void;
   /** Called when the underlying transport closes. */
@@ -133,8 +149,9 @@ export interface UseStreamingRNResult {
  *
  * Wraps the core streaming logic with AppState and optional NetInfo
  * awareness:
- * - Pauses streaming when app moves to background
- * - Resumes streaming when app returns to foreground
+ * - Applies {@link UseStreamingRNOptions#backgroundBehavior} when the app
+ *   leaves the foreground: keeps the stream open (default), suspends it
+ *   until the app returns, or closes it and reconnects on return
  * - Diverts sends away from an unusable stream — into
  *   {@code request.offlineQueue} when one is configured, otherwise into
  *   the hook's `error` state. A send is never silently dropped.
@@ -167,7 +184,7 @@ export interface UseStreamingRNResult {
 export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNResult {
   const atmosphere = useAtmosphereContext();
   const {
-    request, enabled = true,
+    request, enabled = true, backgroundBehavior = 'keep-alive',
     onOpen, onClose, onReconnect, onReopen,
     onClientTimeout, onTransportFailure, onFailureToReconnect, onError,
   } = options;
@@ -181,6 +198,10 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
   const [aiEvents, setAiEvents] = useState<{ event: string; data: Record<string, unknown> }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(true);
+  // True while `backgroundBehavior: 'disconnect'` holds the stream closed
+  // because the app is in the background.
+  const [closedInBackground, setClosedInBackground] = useState(false);
+  const streamEnabled = enabled && !closedInBackground;
 
   // Connection-status tracking. Seeded with an idle snapshot; the streaming
   // handle's own tracker takes over (and stays bound) once subscribe()
@@ -190,7 +211,10 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
   );
 
   const handleRef = useRef<StreamingHandle | null>(null);
-  const pausedInBackgroundRef = useRef(false);
+  const backgroundBehaviorRef = useRef(backgroundBehavior);
+  backgroundBehaviorRef.current = backgroundBehavior;
+  // The behavior applied when the app left the foreground, undone on return.
+  const appliedInBackgroundRef = useRef<BackgroundBehavior | null>(null);
 
   // `send` must read the request that is current at call time — the offline
   // queue can be attached after mount — without re-creating the callback on
@@ -211,7 +235,7 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
 
   // --- Core streaming subscription ---
   useEffect(() => {
-    if (!enabled) return;
+    if (!streamEnabled) return;
 
     let cancelled = false;
     let unbindStatus: (() => void) | null = null;
@@ -317,7 +341,7 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
       handleRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [atmosphere, request.url, request.transport, enabled]);
+  }, [atmosphere, request.url, request.transport, streamEnabled]);
 
   // --- AppState integration ---
   useEffect(() => {
@@ -325,11 +349,28 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
 
     const handleAppStateChange = (nextState: string) => {
       if (nextState === 'background' || nextState === 'inactive') {
-        pausedInBackgroundRef.current = true;
-      } else if (nextState === 'active' && pausedInBackgroundRef.current) {
-        pausedInBackgroundRef.current = false;
-        // Streaming resumes automatically via the underlying transport;
-        // no explicit action needed here since the handle stays alive.
+        if (appliedInBackgroundRef.current !== null) return;
+        const behavior = backgroundBehaviorRef.current;
+        if (behavior === 'suspend') {
+          const handle = handleRef.current;
+          if (!handle) return;
+          handle.suspend();
+          appliedInBackgroundRef.current = 'suspend';
+        } else if (behavior === 'disconnect') {
+          // Unmounting the subscription effect closes the handle.
+          setClosedInBackground(true);
+          appliedInBackgroundRef.current = 'disconnect';
+        }
+      } else if (nextState === 'active') {
+        const applied = appliedInBackgroundRef.current;
+        appliedInBackgroundRef.current = null;
+        if (applied === 'suspend') {
+          handleRef.current?.resume().catch((err: unknown) => {
+            logger.warn('Resuming the stream on foreground failed', err);
+          });
+        } else if (applied === 'disconnect') {
+          setClosedInBackground(false);
+        }
       }
     };
 
@@ -352,7 +393,7 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
   // A send only reaches the wire when the device has a network *and* the
   // stream is open. NetInfo alone is not enough: with the server down the
   // radio stays up and `isConnected` stays true while the socket is dead.
-  const canSend = enabled && isConnected && connectionStatus.phase === 'open';
+  const canSend = streamEnabled && isConnected && connectionStatus.phase === 'open';
 
   const send = useCallback((message: string | object, sendOpts?: SendOptions): StreamingSendResult => {
     const handle = handleRef.current;

@@ -672,12 +672,18 @@ import { useStreamingRN } from 'atmosphere.js/react-native';
 function AiChat() {
   const { fullText, isStreaming, isConnected, send, reset } = useStreamingRN({
     request: { url: 'https://example.com/ai/chat', transport: 'websocket' },
+    backgroundBehavior: 'keep-alive', // default; or 'suspend' | 'disconnect'
   });
   // ...
 }
 ```
 
 Returns the same fields as `useStreaming` plus `isConnected`.
+
+`backgroundBehavior` defaults to `keep-alive` here, unlike `useAtmosphereRN`: an answer
+that is streaming when the app is backgrounded keeps arriving. `suspend` suspends the
+subscription until the app returns (frames that arrive meanwhile are dropped), and
+`disconnect` closes the stream and opens a new one on return.
 
 #### Installation
 

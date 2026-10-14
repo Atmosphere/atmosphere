@@ -100,11 +100,11 @@ screenshot             → evidence for the report
 | 1 | Connects to the backend over WebSocket | Backend log shows the connection; the room UI leaves its connecting state |
 | 2 | All four rooms render and are selectable | `ui_describe_all` lists Math / Code / Science / General |
 | 3 | AI response streams **text-by-text** | Two `ui_describe_all` reads during one turn show a growing string — a single atomic message means `useStreamingRN` collapsed |
-| 4 | AppState-aware suspend | Background the app (`press_home`-equivalent), return, confirm it reconnects rather than dying |
+| 4 | Stream survives backgrounding | Background the app (`press_home`-equivalent), return, confirm the stream is still usable. The sample uses the `useStreamingRN` default `backgroundBehavior: 'keep-alive'`, so the server should log no disconnect; the `suspend`/`disconnect` wiring is unit-tested in `use-streaming-rn-app-state.test.ts` |
 | 5 | NetInfo offline banner | **Do not drive this one.** See below — record it PARTIAL against its unit coverage |
 
-Assertion 4 is the one no other test in the repo covers — it is the reason this
-pass exists.
+Assertion 4 is the only one that exercises a real OS background/foreground
+cycle — it is the reason this pass exists.
 
 **Assertion 5 is off-limits to the sweep.** The simulator has no network of its
 own: it rides the host's. Taking it offline means turning off the machine's

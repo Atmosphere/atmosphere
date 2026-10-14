@@ -144,6 +144,12 @@ export async function subscribeStreaming(
       sub.push(buildStreamingPayload(message, options));
     },
     resetSession,
+    suspend() {
+      sub.suspend();
+    },
+    async resume() {
+      await sub.resume();
+    },
     async close() {
       await sub.close();
     },
