@@ -27,6 +27,7 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.IoEventLoopGroup;
 import io.netty.channel.MultiThreadIoEventLoopGroup;
 import io.netty.channel.nio.NioIoHandler;
+import io.netty.channel.socket.ChannelInputShutdownEvent;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.codec.http3.DefaultHttp3HeadersFrame;
 import io.netty.handler.codec.http3.DefaultHttp3SettingsFrame;
@@ -39,6 +40,7 @@ import io.netty.handler.codec.http3.Http3Settings;
 import io.netty.handler.codec.quic.QuicSslContext;
 import io.netty.handler.codec.quic.QuicSslContextBuilder;
 import io.netty.handler.codec.quic.QuicStreamChannel;
+import io.netty.handler.codec.quic.QuicStreamResetException;
 import io.netty.handler.codec.quic.QuicStreamType;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -146,6 +148,9 @@ public class ReactorNettyTransportServer {
                                 var removed = wtSessions.remove(ch);
                                 if (removed != null) {
                                     logger.debug("QUIC connection closed, cleaned up WT session: {}", ch);
+                                    // A session no stream ended (idle timeout, lost
+                                    // peer) was dropped, not closed by the client.
+                                    removed.closeSession(framework, ABNORMAL_CLOSURE);
                                 }
                             });
                             try {
@@ -188,6 +193,9 @@ public class ReactorNettyTransportServer {
                                             // This is a WT bidi data stream — handle directly, bypass HTTP/3 codec
                                             streamCh.pipeline().addLast(
                                                     new WebTransportBidiStreamHandler(framework, wtSessions));
+                                            // Report the peer's FIN as an input shutdown instead of
+                                            // closing the stream, so it reads as the client leaving.
+                                            streamCh.config().setAllowHalfClosure(true);
                                             // Register and start reading
                                             streamCh.config().setAutoRead(true);
                                             ch.eventLoop().register(streamCh).addListener(f -> {
@@ -363,6 +371,10 @@ public class ReactorNettyTransportServer {
         private CompositeByteBuf headerBuf;
         /** Max frame size to prevent unbounded buffer growth (DoS protection). */
         private static final int MAX_FRAME_BYTES = 1_048_576; // 1 MB
+        /** The peer sent FIN on this stream. */
+        private boolean peerFinished;
+        /** The peer reset this stream because its session ended. */
+        private boolean sessionGone;
 
         WebTransportBidiStreamHandler(AtmosphereFramework framework,
                                        java.util.concurrent.ConcurrentMap<Channel, WebTransportConnectionState> sessions) {
@@ -536,6 +548,18 @@ public class ReactorNettyTransportServer {
         }
 
         @Override
+        public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+            if (evt instanceof ChannelInputShutdownEvent) {
+                // The peer finished its stream (atmosphere.js disconnect() sends
+                // this FIN before its CLOSE capsule): it ended the session.
+                peerFinished = true;
+                ctx.close();
+                return;
+            }
+            super.userEventTriggered(ctx, evt);
+        }
+
+        @Override
         public void channelInactive(ChannelHandlerContext ctx) throws Exception {
             // Flush any remaining buffered TEXT as a final message. A partial
             // binary frame at close is incomplete by definition — decode only
@@ -556,9 +580,12 @@ public class ReactorNettyTransportServer {
                     processor.invokeWebTransportProtocol(state.session, message);
                 }
             }
-            if (state != null && state.session != null) {
-                logger.debug("WebTransport bidi stream closed");
-                state.closeSession(framework);
+            if (state != null && state.session != null && !sessionGone) {
+                // A stream the peer did not finish was dropped or reset. A
+                // session-gone reset leaves it to the CONNECT stream, which
+                // carries how the session ended.
+                logger.debug("WebTransport bidi stream closed (peer finished: {})", peerFinished);
+                state.closeSession(framework, peerFinished ? NORMAL_CLOSURE : ABNORMAL_CLOSURE);
             }
             if (headerBuf != null) {
                 headerBuf.release();
@@ -576,12 +603,40 @@ public class ReactorNettyTransportServer {
 
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-            logger.error("WebTransport bidi stream error", cause);
+            if (cause instanceof QuicStreamResetException reset
+                    && reset.applicationProtocolCode() == WEBTRANSPORT_SESSION_GONE) {
+                sessionGone = true;
+                logger.debug("WebTransport bidi stream reset: session gone");
+            } else {
+                logger.error("WebTransport bidi stream error", cause);
+            }
             if (byteAccumulator.refCnt() > 0) {
                 byteAccumulator.release();
             }
             ctx.close();
         }
+    }
+
+    /** A close the peer made on purpose: the client left (WebSocket 1000). */
+    static final int NORMAL_CLOSURE = 1000;
+    /** The peer violated the capsule protocol (WebSocket 1002). */
+    static final int PROTOCOL_ERROR = 1002;
+    /** The session went away without a close (WebSocket 1006): a dropped client. */
+    static final int ABNORMAL_CLOSURE = 1006;
+    /** WEBTRANSPORT_SESSION_GONE: the reset code of a stream whose session ended. */
+    static final long WEBTRANSPORT_SESSION_GONE = 0x170d7b68L;
+
+    /**
+     * The close code of a CLOSE_WEBTRANSPORT_SESSION capsule as the processor
+     * reads it: the application error code 0 ("no error", what
+     * {@code transport.close()} sends) is a normal close, any other code is
+     * passed through.
+     */
+    static int closeCode(long webTransportErrorCode) {
+        if (webTransportErrorCode == 0) {
+            return NORMAL_CLOSURE;
+        }
+        return (int) Math.min(webTransportErrorCode, Integer.MAX_VALUE);
     }
 
     /**
@@ -607,14 +662,14 @@ public class ReactorNettyTransportServer {
          * FIN, bidi stream teardown); only the first reaches the processor,
          * so the application sees one disconnect per session (Invariant #2).
          */
-        void closeSession(AtmosphereFramework framework) {
+        void closeSession(AtmosphereFramework framework, int closeCode) {
             var current = session;
             if (current == null || !closed.compareAndSet(false, true)) {
                 return;
             }
             org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
                     .getWebTransportProcessor(framework)
-                    .close(current, 1000);
+                    .close(current, closeCode);
         }
     }
 
@@ -763,7 +818,7 @@ public class ReactorNettyTransportServer {
                 if (capsule.type() == WebTransportCapsules.CLOSE_WEBTRANSPORT_SESSION) {
                     logger.debug("WebTransport CLOSE_WEBTRANSPORT_SESSION for {} (code {}, reason '{}')",
                             sessionPath(), capsule.closeErrorCode(), capsule.closeReason());
-                    endSession(ctx);
+                    endSession(ctx, closeCode(capsule.closeErrorCode()));
                     return;
                 } else if (capsule.type() == WebTransportCapsules.DRAIN_WEBTRANSPORT_SESSION) {
                     logger.debug("WebTransport DRAIN_WEBTRANSPORT_SESSION for {}", sessionPath());
@@ -775,7 +830,7 @@ public class ReactorNettyTransportServer {
             if (drained.corrupt()) {
                 logger.warn("WebTransport capsule larger than {} bytes on {}, closing the session",
                         WebTransportCapsules.MAX_CAPSULE_VALUE_BYTES, sessionPath());
-                endSession(ctx);
+                endSession(ctx, PROTOCOL_ERROR);
             }
         }
 
@@ -787,10 +842,10 @@ public class ReactorNettyTransportServer {
          * End the WebTransport session: close the Atmosphere side once, then
          * the session's bidi stream and this CONNECT stream.
          */
-        private void endSession(ChannelHandlerContext ctx) {
+        private void endSession(ChannelHandlerContext ctx, int closeCode) {
             releaseCapsuleBuf();
             if (state != null) {
-                state.closeSession(framework);
+                state.closeSession(framework, closeCode);
                 if (state.session != null) {
                     state.session.close();
                 }
@@ -836,9 +891,10 @@ public class ReactorNettyTransportServer {
         protected void channelInputClosed(ChannelHandlerContext ctx) {
             if (isSessionStream) {
                 // FIN on the CONNECT stream terminates the session. Unread
-                // bytes are an incomplete capsule, never a message.
+                // bytes are an incomplete capsule, never a message. Without a
+                // CLOSE capsule it is a close with code 0 (draft-ietf-webtrans-http3).
                 logger.debug("WebTransport CONNECT stream closed");
-                endSession(ctx);
+                endSession(ctx, NORMAL_CLOSURE);
                 return;
             }
             // Flush any remaining buffered data as a final message
@@ -852,9 +908,21 @@ public class ReactorNettyTransportServer {
             }
             if (isDataStream && state != null && state.session != null) {
                 logger.debug("WebTransport data stream closed");
-                state.closeSession(framework);
+                state.closeSession(framework, NORMAL_CLOSURE);
             }
             ctx.close();
+        }
+
+        @Override
+        public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+            // A stream that goes away without a FIN or a CLOSE capsule (reset,
+            // lost connection) dropped its session. After a clean end the
+            // session is already closed and this is a no-op.
+            if (isDataStream && state != null) {
+                releaseCapsuleBuf();
+                state.closeSession(framework, ABNORMAL_CLOSURE);
+            }
+            super.channelInactive(ctx);
         }
 
         @Override
