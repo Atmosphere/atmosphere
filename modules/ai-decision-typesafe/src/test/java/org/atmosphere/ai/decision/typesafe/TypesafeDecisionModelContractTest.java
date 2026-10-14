@@ -593,8 +593,10 @@ class TypesafeDecisionModelContractTest {
                     // The JDK pins while it initializes a class the probe uses for the
                     // first time in this JVM (java.net.http on JDK 26), depending on
                     // test order: that is the class loader's monitor, not the probe's.
+                    // getValue is generic: without the Object witness javac picks
+                    // String.valueOf(char[]) and the String reason fails the cast.
                     .filter(e -> !(e.hasField("pinnedReason")
-                            && String.valueOf(e.getValue("pinnedReason")).contains("<clinit>")))
+                            && String.valueOf(e.<Object>getValue("pinnedReason")).contains("<clinit>")))
                     .toList();
             assertEquals(List.of(), pinnedHere, "the probe parked a virtual thread inside a monitor");
             assertEquals(1, stub.hits("/v1/models"));
