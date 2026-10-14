@@ -99,6 +99,9 @@ describe('WebSocketTransport explicit close (#2782)', () => {
 
     await transport.disconnect();
     expect(ws.close).toHaveBeenCalledTimes(1);
+    // 1000: the server reports a coded clean close to @Disconnect as the client
+    // leaving; a close with no code arrives as 1005 and reads as a lost client.
+    expect(ws.close).toHaveBeenCalledWith(1000, 'Client disconnect');
 
     // The browser then delivers the close event of the socket we closed.
     ws.readyState = 3;

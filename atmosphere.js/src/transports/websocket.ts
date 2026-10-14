@@ -92,7 +92,9 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
     // A socket still connecting (a reconnect in flight) is closed too, or it
     // would open after the subscription was closed.
     if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) {
-      this.ws.close();
+      // 1000 tells the server the client left; with no code it sees 1005 and
+      // reports the close to @Disconnect as a lost connection.
+      this.ws.close(1000, 'Client disconnect');
     }
 
     this.ws = null;
