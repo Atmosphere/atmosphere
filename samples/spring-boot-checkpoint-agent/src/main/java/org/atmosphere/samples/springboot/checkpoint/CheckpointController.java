@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,6 +66,9 @@ public class CheckpointController {
             Pattern.compile("\"request\"\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\"");
 
     private final CheckpointStore store;
+    /** Metadata key of the approve child snapshot naming the human approver. */
+    static final String APPROVED_BY_METADATA = "approvedBy";
+
     private final ApproverAgent approverAgent;
 
     public CheckpointController(CheckpointStore store, ApproverAgent approverAgent) {
@@ -139,8 +143,22 @@ public class CheckpointController {
 
         // Chain the approver's completion as a child snapshot. Its state is
         // the approver's result string; its parent is the analyzer's
-        // snapshot, so the full workflow history is preserved.
-        var resumed = store.fork(sourceId, approverResult);
+        // snapshot, so the full workflow history is preserved. Not a fork:
+        // fork copies the parent's agentName, which attributed the approval
+        // to the analyzer. The child names the agent that produced it and
+        // records who approved.
+        var parent = source.get();
+        var metadata = new LinkedHashMap<>(parent.metadata());
+        metadata.put(APPROVED_BY_METADATA, by);
+        var resumed = store.save(WorkflowSnapshot.<Object>builder()
+                .id(CheckpointId.random())
+                .parentId(sourceId)
+                .coordinationId(parent.coordinationId())
+                .agentName(ApproverAgent.NAME)
+                .state(approverResult)
+                .metadata(metadata)
+                .createdAt(Instant.now())
+                .build());
         return ResponseEntity.ok(toJson(resumed));
     }
 

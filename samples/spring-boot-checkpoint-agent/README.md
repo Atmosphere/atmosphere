@@ -57,7 +57,8 @@ curl http://localhost:8095/api/checkpoints/<id>
 # Resume the workflow: recovers the original request from the snapshot,
 # invokes the approver, and chains its result as a child snapshot.
 curl -X POST 'http://localhost:8095/api/checkpoints/<id>/approve?by=alice'
-# -> { "parentId": "<id>", "agentName": null,
+# -> { "parentId": "<id>", "agentName": "approver",
+#      "metadata": { "approvedBy": "alice" },
 #      "state": "Executed 'please refund order 1234' approved by alice", ... }
 
 # Override the recovered request (useful if the reviewer amended it):

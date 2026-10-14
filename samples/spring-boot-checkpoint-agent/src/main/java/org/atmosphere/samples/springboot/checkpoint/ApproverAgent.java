@@ -29,10 +29,13 @@ import org.springframework.stereotype.Component;
  */
 @AgentScope(unrestricted = true,
         justification = "Checkpoint demo; reviews whatever the analyzer produced — input is the demo's own pipeline")
-@Agent(name = "approver",
+@Agent(name = ApproverAgent.NAME,
         description = "Executes an approved action")
 @Component
 public class ApproverAgent {
+
+    /** The agent name, also the {@code agentName} of the snapshot an approval chains. */
+    public static final String NAME = "approver";
 
     @AiTool(name = "execute",
             description = "Execute the approved action")

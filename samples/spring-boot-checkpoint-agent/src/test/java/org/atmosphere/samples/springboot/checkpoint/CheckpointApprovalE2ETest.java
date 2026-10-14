@@ -140,5 +140,16 @@ class CheckpointApprovalE2ETest {
                 "approve result should record the approver, got: " + approve.body());
         assertTrue(approve.body().contains(REQUEST),
                 "approve result should chain the recovered request, got: " + approve.body());
+
+        // Lineage: the child is the approver's work, chained under the
+        // analyzer's snapshot, and records who approved — not a copy of the
+        // parent's agentName.
+        var childId = java.util.regex.Pattern.compile("\"id\"\\s*:\\s*\"([^\"]+)\"")
+                .matcher(approve.body()).results().findFirst().orElseThrow().group(1);
+        var child = store.load(org.atmosphere.checkpoint.CheckpointId.of(childId)).orElseThrow();
+        assertEquals("approver", child.agentName(),
+                "the approve child must name the approver, not inherit the parent's agent");
+        assertEquals(saved.id(), child.parent().orElseThrow());
+        assertEquals("alice", child.metadata().get("approvedBy"));
     }
 }
