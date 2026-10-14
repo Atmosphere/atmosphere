@@ -61,6 +61,22 @@ class RunEventCapturingSessionTest {
     }
 
     @Test
+    void sendOnAClosedSessionIsCapturedForReplayButNotWrittenToIt() {
+        // The client of the original session went away mid-run: the rest of the
+        // run reaches a reattached client through the buffer, so the closed
+        // session must not be written to (it logged a WARN per remaining chunk).
+        var delegate = Mockito.mock(org.atmosphere.ai.StreamingSession.class);
+        when(delegate.isClosed()).thenReturn(true);
+        var buffer = new RunEventReplayBuffer();
+        var session = new RunEventCapturingSession(delegate, buffer);
+
+        session.send("event-2");
+
+        assertEquals(1, buffer.snapshot().size(), "the event is still captured for replay");
+        Mockito.verify(delegate, Mockito.never()).send(Mockito.anyString());
+    }
+
+    @Test
     void emptySendIsNotCaptured() {
         // A runtime that emits an empty partial (whitespace stripping, end
         // of buffer) shouldn't consume a buffer slot — the capture side

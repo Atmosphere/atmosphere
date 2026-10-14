@@ -17,6 +17,16 @@ Every event is captured by `RunEventCapturingSession` into the run's
 asked for — useful for manual verification and future timing-tolerant
 integration tests.
 
+Drop the WebSocket after `event-1` and reconnect with
+`?X-Atmosphere-Run-Id=<runId>` (the run id arrives in the `X-Atmosphere-Run-Id` metadata
+frame): the new socket receives `event-0` and `event-1` from the replay
+buffer, then `event-2`..`event-5` and the `complete` frame as the still-running
+`@Prompt` emits them. Over WebSocket, SSE and streaming the reattached
+connection is subscribed to the rest of the run; long-polling gets the
+buffered events in one reply. A reconnect after the turn ended still replays
+the whole run, `complete` included, for the registry TTL (30 minutes by
+default).
+
 ### `SyntheticRunController` — deterministic REST surface
 
 `POST /harness/synthetic-run` pre-registers a run in

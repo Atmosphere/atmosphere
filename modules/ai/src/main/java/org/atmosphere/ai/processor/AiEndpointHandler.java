@@ -591,7 +591,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             return;
         }
         var runId = org.atmosphere.ai.resume.RunReattachSupport.pendingRunId(resource);
-        if (runId == null || registry.lookup(runId).isPresent()) {
+        if (runId == null || registry.lookupReplayable(runId).isPresent()) {
             return;
         }
         var principal = resolveResumePrincipal(resource);

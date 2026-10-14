@@ -87,7 +87,11 @@ Run ID + registry + bounded event replay buffer for mid-stream reconnect.
 Closes the gap where `DurableSessionInterceptor` reattached rooms and
 broadcasters on reconnect but not in-flight agent runs. Clients that
 disconnect mid-stream reattach via `runId` and receive the events they
-missed, up to the buffer's bounded capacity (oldest-evicted).
+missed, up to the buffer's bounded capacity (oldest-evicted). On WebSocket,
+SSE and streaming, a reattach to a run still in flight also receives the rest
+of the run through its terminal frame; long-polling gets the buffered events
+in one reply. A run that already finished stays replayable for the registry
+TTL (at most `RunRegistry.MAX_RETAINED_COMPLETED` finished runs are kept).
 
 ## Proof samples
 

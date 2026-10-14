@@ -33,6 +33,17 @@ import org.slf4j.LoggerFactory;
  * bypassing the broadcaster because peer subscribers already saw the
  * events live. Returns the number of events replayed (0 when no run id,
  * unknown run id, or empty buffer).</p>
+ *
+ * <p>The run itself keeps writing into the session bound to the connection
+ * that went away. On a streaming transport (WebSocket, SSE, streaming) a
+ * reattach to a run still in flight therefore also subscribes the
+ * reconnected resource to the run's later events, so it receives the rest of
+ * the run through its terminal {@code complete} / {@code error} frame; the
+ * subscription ends with that frame or when the reconnected resource
+ * disconnects. A run that already finished stays replayable for the registry
+ * TTL ({@link RunRegistry#lookupReplayable}), so a late reconnect gets the
+ * whole tail. Long-polling keeps the single-write drain: its first write
+ * resumes the poll, so there is no open response to forward to.</p>
  */
 public final class RunReattachSupport {
 
@@ -259,7 +270,7 @@ public final class RunReattachSupport {
         if (!(attr instanceof String runId) || runId.isBlank()) {
             return 0;
         }
-        var handleOpt = registry.lookup(runId);
+        var handleOpt = registry.lookupReplayable(runId);
         if (handleOpt.isEmpty()) {
             logger.debug("Reconnect with run id {} but no live run in the registry "
                     + "(expired or never existed); treating as fresh session", runId);
@@ -280,6 +291,9 @@ public final class RunReattachSupport {
                     + "(run userId={}, caller userId={})",
                     resource.uuid(), runId, handle.userId(), resolveCallerUserId(req));
             return 0;
+        }
+        if (!handle.isDone() && forwardsLiveEvents(resource)) {
+            return replayAndForward(resource, runId, handle);
         }
         var replayed = handle.replayableEvents();
         if (replayed.isEmpty()) {
@@ -339,5 +353,150 @@ public final class RunReattachSupport {
         logger.info("Reattach run {} for resource {}: replayed {}/{} event(s)",
                 runId, resource.uuid(), written, replayed.size());
         return written;
+    }
+
+    /** Transports whose response stays open after a write, so later frames can follow. */
+    private static boolean forwardsLiveEvents(AtmosphereResource resource) {
+        var transport = resource.transport();
+        return transport == AtmosphereResource.TRANSPORT.WEBSOCKET
+                || transport == AtmosphereResource.TRANSPORT.SSE
+                || transport == AtmosphereResource.TRANSPORT.STREAMING;
+    }
+
+    /**
+     * Write the backlog of a run still in flight, then keep forwarding its
+     * events to {@code resource} until the run ends or the resource goes away.
+     * The forwarder's lock is held from before the subscription until the
+     * backlog is written, so an event captured meanwhile waits and lands after
+     * the backlog, in order.
+     */
+    private static int replayAndForward(AtmosphereResource resource, String runId,
+                                        AgentResumeHandle handle) {
+        var forwarder = new LiveForwarder(resource, runId, filtersFor(resource),
+                broadcasterIdFor(resource));
+        synchronized (forwarder) {
+            var subscription = handle.replayBuffer().subscribe(forwarder::forward);
+            forwarder.cancelWith(subscription.cancel());
+            var written = 0;
+            for (var event : subscription.backlog()) {
+                var outcome = forwarder.write(event);
+                if (outcome == Write.FAILED) {
+                    break;
+                }
+                if (outcome == Write.WRITTEN) {
+                    written++;
+                }
+            }
+            if (subscription.live() && !forwarder.isCancelled()) {
+                forwarder.attach();
+            } else {
+                forwarder.cancel();
+            }
+            logger.info("Reattach run {} for resource {}: replayed {}/{} event(s), "
+                    + "forwarding the rest of the run: {}", runId, resource.uuid(), written,
+                    subscription.backlog().size(), !forwarder.isCancelled());
+            return written;
+        }
+    }
+
+    /** Outcome of writing one frame to a reattached resource. */
+    private enum Write { WRITTEN, FILTERED, FAILED }
+
+    /**
+     * Writes one run's frames to one reattached resource and owns that
+     * subscription: it removes the buffer listener and its own resource
+     * listener on the terminal frame, on a failed write and on disconnect.
+     */
+    private static final class LiveForwarder {
+
+        private final AtmosphereResource resource;
+        private final String runId;
+        private final java.util.List<org.atmosphere.cpr.BroadcastFilter> filters;
+        private final String broadcasterId;
+        private final org.atmosphere.cpr.AtmosphereResourceEventListener disconnectListener;
+        private long seq;
+        private boolean cancelled;
+        private Runnable unsubscribe = () -> { };
+
+        LiveForwarder(AtmosphereResource resource, String runId,
+                      java.util.List<org.atmosphere.cpr.BroadcastFilter> filters,
+                      String broadcasterId) {
+            this.resource = resource;
+            this.runId = runId;
+            this.filters = filters;
+            this.broadcasterId = broadcasterId;
+            this.disconnectListener = new org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter() {
+                @Override
+                public void onDisconnect(org.atmosphere.cpr.AtmosphereResourceEvent event) {
+                    cancel();
+                }
+
+                @Override
+                public void onClose(org.atmosphere.cpr.AtmosphereResourceEvent event) {
+                    cancel();
+                }
+            };
+        }
+
+        synchronized void cancelWith(Runnable unsubscribe) {
+            this.unsubscribe = unsubscribe;
+        }
+
+        synchronized void attach() {
+            resource.addEventListener(disconnectListener);
+        }
+
+        synchronized boolean isCancelled() {
+            return cancelled;
+        }
+
+        /** Buffer listener: forward one live event, ending the subscription on a terminal one. */
+        synchronized void forward(RunEvent event) {
+            if (cancelled) {
+                return;
+            }
+            if (write(event) == Write.FAILED
+                    || "complete".equals(event.type()) || "error".equals(event.type())) {
+                cancel();
+            }
+        }
+
+        /** Write one frame through the filter chain; a failed write cancels. */
+        synchronized Write write(RunEvent event) {
+            seq++;
+            var msg = new org.atmosphere.ai.filter.AiStreamMessage(
+                    event.type(), event.payload(), runId, seq, null, null);
+            var json = applyFilters(filters, broadcasterId, msg.toJson());
+            if (json == null) {
+                return Write.FILTERED;
+            }
+            try {
+                var writer = resource.getResponse().getWriter();
+                writer.write(json + "\n");
+                writer.flush();
+                if (writer.checkError()) {
+                    throw new java.io.IOException("writer reported an error");
+                }
+                return Write.WRITTEN;
+            } catch (java.io.IOException | RuntimeException e) {
+                logger.warn("Forwarding run {} to resource {} failed; stopping: {}",
+                        runId, resource.uuid(), e.getMessage());
+                cancel();
+                return Write.FAILED;
+            }
+        }
+
+        synchronized void cancel() {
+            if (cancelled) {
+                return;
+            }
+            cancelled = true;
+            unsubscribe.run();
+            try {
+                resource.removeEventListener(disconnectListener);
+            } catch (RuntimeException e) {
+                logger.trace("Removing the reattach listener from {} failed", resource.uuid(), e);
+            }
+        }
     }
 }

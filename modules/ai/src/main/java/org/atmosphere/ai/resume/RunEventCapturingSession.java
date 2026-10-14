@@ -59,6 +59,12 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
             // a streaming-text event on the client.
             buffer.capture("streaming-text", text);
         }
+        if (delegate.isClosed()) {
+            // The client this session wrote to is gone; the event is in the
+            // buffer, which is how a reattached client receives it. Writing to
+            // the closed session would only log a WARN per remaining chunk.
+            return;
+        }
         delegate.send(text);
     }
 

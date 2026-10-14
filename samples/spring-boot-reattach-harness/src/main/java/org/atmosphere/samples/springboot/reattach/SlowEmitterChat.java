@@ -29,7 +29,9 @@ import org.slf4j.LoggerFactory;
  * harness needs. Every {@code session.send(...)} flows through
  * {@code RunEventCapturingSession}, landing in the run's
  * {@code RunEventReplayBuffer} so a reconnecting client carrying
- * {@code X-Atmosphere-Run-Id} can replay what it missed.
+ * {@code X-Atmosphere-Run-Id} can replay what it missed and, over WebSocket,
+ * SSE or streaming, keep receiving the rest of the turn through its
+ * {@code complete} frame.
  *
  * <p>Path: {@code /atmosphere/agent/harness}. The prompt content is
  * ignored — the harness is about the wire, not the semantics.</p>

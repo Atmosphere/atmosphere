@@ -22,7 +22,9 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
 /**
  * Bounded in-memory ring buffer of recent {@link RunEvent}s for a single
@@ -48,6 +50,18 @@ import java.util.concurrent.atomic.AtomicLong;
  * logged at WARN — durability silently turning itself off is an operator
  * incident — and repeats at TRACE. By default the journal is
  * {@link RunJournal#NOOP} and capture adds zero extra work.
+ *
+ * <h2>Live subscribers</h2>
+ *
+ * A reconnecting client needs the events it missed <em>and</em> the rest of
+ * the run, which keeps writing into the original, now-closed session.
+ * {@link #subscribe} hands back the retained backlog and registers a
+ * listener for every later capture in one step under the buffer lock, so
+ * nothing falls between the backlog and the first live event and nothing is
+ * delivered twice. Listeners are notified outside the lock, are dropped when
+ * they throw, and are released once a terminal {@code complete} /
+ * {@code error} event is captured. At most {@link #MAX_SUBSCRIBERS} are held
+ * per run (Correctness Invariant #3).
  */
 public final class RunEventReplayBuffer {
 
@@ -56,11 +70,30 @@ public final class RunEventReplayBuffer {
     /** Default capacity — enough for a few minutes of streaming. */
     public static final int DEFAULT_CAPACITY = 1_024;
 
+    /** Upper bound on live subscribers per run — one per reattached connection. */
+    public static final int MAX_SUBSCRIBERS = 8;
+
+    /**
+     * The backlog a {@link #subscribe} call returned, whether later captures
+     * will reach the listener, and the handle that stops them.
+     *
+     * @param backlog every retained event at subscription time, oldest first
+     * @param live    {@code true} when the listener was registered; {@code false}
+     *                when the run already ended or the subscriber cap was reached
+     * @param cancel  removes the listener; idempotent, a no-op when not live
+     */
+    public record Subscription(List<RunEvent> backlog, boolean live, Runnable cancel) {
+    }
+
     private final int capacity;
     private final AtomicLong nextSequence = new AtomicLong();
     private final List<RunEvent> buffer;
     private volatile RunJournal journal = RunJournal.NOOP;
     private volatile String runId;
+    /** Guarded by {@code buffer}. */
+    private final List<Consumer<RunEvent>> subscribers = new ArrayList<>();
+    /** Guarded by {@code buffer}: a terminal event was captured. */
+    private boolean terminated;
 
     public RunEventReplayBuffer() {
         this(DEFAULT_CAPACITY);
@@ -105,14 +138,71 @@ public final class RunEventReplayBuffer {
                 type,
                 payload,
                 Instant.now());
+        List<Consumer<RunEvent>> listeners;
         synchronized (buffer) {
             buffer.add(event);
             while (buffer.size() > capacity) {
                 buffer.remove(0);
             }
+            listeners = subscribers.isEmpty() ? List.of() : List.copyOf(subscribers);
+            if (isTerminal(type)) {
+                terminated = true;
+                subscribers.clear();
+            }
         }
         mirrorToJournal(event);
+        // Outside the lock: a listener writes to a network connection, and a
+        // reattach holds its own write lock while it subscribes.
+        for (var listener : listeners) {
+            try {
+                listener.accept(event);
+            } catch (RuntimeException e) {
+                logger.warn("Run event subscriber failed on event {} of run {}; dropping it ({})",
+                        event.sequence(), runId, e.toString());
+                unsubscribe(listener);
+            }
+        }
         return event;
+    }
+
+    /**
+     * Return the retained backlog and, unless the run already ended or
+     * {@link #MAX_SUBSCRIBERS} listeners are registered, deliver every later
+     * capture to {@code listener}. Backlog and registration happen atomically,
+     * so the two together are the complete, duplicate-free event stream.
+     */
+    public Subscription subscribe(Consumer<RunEvent> listener) {
+        Objects.requireNonNull(listener, "listener");
+        synchronized (buffer) {
+            var backlog = List.copyOf(buffer);
+            if (terminated) {
+                return new Subscription(backlog, false, () -> { });
+            }
+            if (subscribers.size() >= MAX_SUBSCRIBERS) {
+                logger.warn("Run {} already has {} live subscribers; this reattach gets the "
+                        + "backlog only", runId, MAX_SUBSCRIBERS);
+                return new Subscription(backlog, false, () -> { });
+            }
+            subscribers.add(listener);
+            return new Subscription(backlog, true, () -> unsubscribe(listener));
+        }
+    }
+
+    /** Number of live subscribers. */
+    public int subscriberCount() {
+        synchronized (buffer) {
+            return subscribers.size();
+        }
+    }
+
+    private void unsubscribe(Consumer<RunEvent> listener) {
+        synchronized (buffer) {
+            subscribers.remove(listener);
+        }
+    }
+
+    private static boolean isTerminal(String type) {
+        return "complete".equals(type) || "error".equals(type);
     }
 
     /**

@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -36,11 +37,15 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <h2>Lifecycle</h2>
  *
- * A run registers on start via {@link #register}. It removes itself when
- * the execution handle's future completes. Runs that never complete are
- * garbage-collected by {@link #sweepExpired} — callers typically invoke
- * this from a scheduled executor to keep abandoned runs from leaking
- * memory.
+ * A run registers on start via {@link #register}. When the execution
+ * handle's future completes it leaves the live set ({@link #lookup} no longer
+ * finds it) but stays replayable through {@link #lookupReplayable} for the
+ * registry TTL, so a client that reconnects after the run finished still
+ * receives its tail and terminal event. Retired runs are bounded by
+ * {@link #MAX_RETAINED_COMPLETED} (oldest evicted first) and expire on access,
+ * so they need no sweeper. Runs that never complete are removed by
+ * {@link #sweepExpired}, which nothing in the framework schedules — an
+ * application that registers runs which may never complete calls it.
  *
  * <h2>Backpressure</h2>
  *
@@ -67,7 +72,15 @@ public final class RunRegistry {
         DEGRADED_WARNED.set(false);
     }
 
+    /** Upper bound on finished runs kept replayable (Correctness Invariant #3). */
+    public static final int MAX_RETAINED_COMPLETED = 256;
+
     private final Map<String, AgentResumeHandle> runs = new ConcurrentHashMap<>();
+    /** Finished runs still replayable, oldest first. Guarded by itself. */
+    private final LinkedHashMap<String, Retired> completed = new LinkedHashMap<>();
+
+    private record Retired(AgentResumeHandle handle, Instant completedAt) {
+    }
     private final Clock clock;
     private final Duration ttl;
     private final RunJournal journal;
@@ -157,7 +170,7 @@ public final class RunRegistry {
         // the durable journal entry too, closing the terminal path
         // (Invariant #2) so a completed run is not rehydrated after restart.
         executionHandle.whenDone().whenComplete((ok, err) -> {
-            runs.remove(id);
+            retire(handle);
             removeFromJournal(id);
         });
         return handle;
@@ -170,10 +183,58 @@ public final class RunRegistry {
             return Optional.empty();
         }
         if (handle.isDone()) {
-            runs.remove(runId);
+            retire(handle);
             return Optional.empty();
         }
         return Optional.of(handle);
+    }
+
+    /**
+     * Look up a run whose events a reconnecting client may replay: a live run,
+     * or one that finished within the TTL. Empty when unknown or expired.
+     */
+    public Optional<AgentResumeHandle> lookupReplayable(String runId) {
+        var live = lookup(runId);
+        if (live.isPresent()) {
+            return live;
+        }
+        synchronized (completed) {
+            var retired = completed.get(runId);
+            if (retired == null) {
+                return Optional.empty();
+            }
+            if (retired.completedAt().isBefore(Instant.now(clock).minus(ttl))) {
+                completed.remove(runId);
+                return Optional.empty();
+            }
+            return Optional.of(retired.handle());
+        }
+    }
+
+    /** Number of finished runs currently kept replayable. */
+    public int retainedCompletedCount() {
+        synchronized (completed) {
+            return completed.size();
+        }
+    }
+
+    /**
+     * Move a finished run out of the live set into the bounded replayable
+     * set. Only the registered handle is moved, so a late completion callback
+     * never retires a different run under the same id.
+     */
+    private void retire(AgentResumeHandle handle) {
+        if (!runs.remove(handle.runId(), handle)) {
+            return;
+        }
+        synchronized (completed) {
+            completed.put(handle.runId(), new Retired(handle, Instant.now(clock)));
+            var it = completed.entrySet().iterator();
+            while (completed.size() > MAX_RETAINED_COMPLETED && it.hasNext()) {
+                it.next();
+                it.remove();
+            }
+        }
     }
 
     /**
@@ -202,12 +263,18 @@ public final class RunRegistry {
                 }
             }
         }
+        synchronized (completed) {
+            completed.values().removeIf(r -> r.completedAt().isBefore(cutoff));
+        }
         return removed;
     }
 
     /** Explicit removal — typically used when the owning session is closed. */
     public void unregister(String runId) {
         runs.remove(runId);
+        synchronized (completed) {
+            completed.remove(runId);
+        }
         removeFromJournal(runId);
     }
 
@@ -219,6 +286,9 @@ public final class RunRegistry {
      */
     public void clear() {
         runs.clear();
+        synchronized (completed) {
+            completed.clear();
+        }
     }
 
     /**
