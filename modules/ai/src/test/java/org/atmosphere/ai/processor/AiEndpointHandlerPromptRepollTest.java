@@ -752,12 +752,14 @@ class AiEndpointHandlerPromptRepollTest {
 
     @Test
     void onlyARecentlySeenTrackingIdIsWaitedFor() throws Exception {
-        // A 1 ms suspend window and a 1 ms wait: an id is remembered for about 2 ms.
+        // A 300 ms suspend window and a 1 ms wait: an id is remembered for about
+        // 301 ms. "stale" is 600 ms old when asked about, "fresh" well under 301 ms
+        // even on a loaded build machine (a 2 ms window flipped under load).
         when(config.getInitParameter(PromptRepollGate.WAIT_MS_PARAM)).thenReturn("1");
-        var gate = new PromptRepollGate(1L);
+        var gate = new PromptRepollGate(300L);
         gate.connectionReady("fresh");
         gate.connectionReady("stale");
-        Thread.sleep(50);
+        Thread.sleep(600);
         gate.connectionReady("fresh");
 
         assertEquals(PromptRepollGate.Refusal.TIMEOUT,
