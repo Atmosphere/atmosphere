@@ -301,6 +301,38 @@ out=$("$CLI" run chat 2>&1) && ec=0 || ec=$?
 assert_exit_code "$ec" 1 "non-runnable sample (WAR) exits with error"
 assert_contains "$out" "not directly runnable" "non-runnable sample shows helpful message"
 
+out=$("$CLI" run no-such-sample 2>&1) && ec=0 || ec=$?
+assert_exit_code "$ec" 1 "unknown sample exits with error"
+assert_contains "$out" "Unknown sample: no-such-sample" "unknown sample is reported as unknown"
+assert_not_contains "$out" "not directly runnable" "unknown sample is not called non-runnable"
+
+# The built-jar cache is keyed on the version the jar was built against. With
+# a v$VERSION key, a jar built under ATMOSPHERE_VERSION_OVERRIDE (a main
+# SNAPSHOT) was later served as the release, and an override run booted a stale
+# release jar labelled "(verified)". A java shim stands in for the JVM: it
+# reports Java 21 and echoes the jar it was asked to launch.
+run_cli_version=$(sed -n 's/^VERSION="\([^"]*\)"$/\1/p' "$CLI")
+run_cache_tmp=$(mktemp -d)
+mkdir -p "$run_cache_tmp/bin" "$run_cache_tmp/home/cache/v$run_cli_version" "$run_cache_tmp/home/cache/v9.9.9-SNAPSHOT"
+cat > "$run_cache_tmp/bin/java" <<'JAVASHIMEOF'
+#!/bin/sh
+case "$1" in
+    -version|--version) echo 'openjdk version "21.0.2" 2024-01-16 LTS' >&2; exit 0 ;;
+esac
+echo "JAVA-SHIM $*"
+JAVASHIMEOF
+chmod +x "$run_cache_tmp/bin/java"
+: > "$run_cache_tmp/home/cache/v$run_cli_version/spring-boot-chat.jar"
+: > "$run_cache_tmp/home/cache/v9.9.9-SNAPSHOT/spring-boot-chat.jar"
+out=$(env -u ATMOSPHERE_SOURCE_REF PATH="$run_cache_tmp/bin:$PATH" ATMOSPHERE_HOME="$run_cache_tmp/home" \
+      ATMOSPHERE_VERSION_OVERRIDE=9.9.9-SNAPSHOT "$CLI" run spring-boot-chat 2>&1) && ec=0 || ec=$?
+assert_contains "$out" "Using cached spring-boot-chat v9.9.9-SNAPSHOT" "run: override run reports the override version's cached jar"
+assert_contains "$out" "cache/v9.9.9-SNAPSHOT/spring-boot-chat.jar" "run: override run launches the override version's jar"
+out=$(env -u ATMOSPHERE_SOURCE_REF -u ATMOSPHERE_VERSION_OVERRIDE PATH="$run_cache_tmp/bin:$PATH" \
+      ATMOSPHERE_HOME="$run_cache_tmp/home" "$CLI" run spring-boot-chat 2>&1) && ec=0 || ec=$?
+assert_contains "$out" "cache/v$run_cli_version/spring-boot-chat.jar" "run: release run launches the release version's jar"
+rm -rf "$run_cache_tmp"
+
 printf "\n"
 
 # ── 10. CLI: unknown command ───────────────────────────────────────────────
@@ -1471,6 +1503,15 @@ if [ -n "$import_run_cmd" ]; then
     fi
 else
     fail "import: banner advertises no run command"
+fi
+# Test 5d: ATMOSPHERE_VERSION_OVERRIDE pins the imported project's Atmosphere
+# version, as it does for new, run and compose.
+env ATMOSPHERE_VERSION_OVERRIDE=9.9.9-SNAPSHOT "$CLI" import --name test-override "$IMPORT_TMP/test-skill.md" >/dev/null 2>&1 || true
+if grep -q '<atmosphere.version>9.9.9-SNAPSHOT</atmosphere.version>' "$IMPORT_TMP/test-override/pom.xml" 2>/dev/null; then
+    pass "import: ATMOSPHERE_VERSION_OVERRIDE pins atmosphere.version"
+else
+    fail "import: ATMOSPHERE_VERSION_OVERRIDE pins atmosphere.version" \
+         "$(grep 'atmosphere.version>' "$IMPORT_TMP/test-override/pom.xml" 2>&1)"
 fi
 if [ ! -e "$IMPORT_TMP/test-weather-bot/.mvn/extensions.xml" ]; then
     pass "import: project excludes reactor-internal .mvn files"

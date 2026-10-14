@@ -828,6 +828,7 @@ cmd_run() {
     json=$(get_samples_json)
 
     runnable=$(get_sample_field "$sample" "runnable" "$json")
+    [ -z "$runnable" ] && die "Unknown sample: $sample. See: atmosphere list"
     [ "$runnable" != "true" ] && die "'$sample' is not directly runnable. See: atmosphere info $sample"
 
     ensure_java
@@ -853,7 +854,11 @@ cmd_run() {
     fi
 
     ensure_cache_dir
-    jar_dir="$CACHE_DIR/v$VERSION"
+    # Key the cache on the version the jar is built against: build_sample pins
+    # ATMOSPHERE_VERSION_OVERRIDE when set, so a v$VERSION key would serve a
+    # SNAPSHOT build as the release (and a release jar to an override run).
+    jar_version="${ATMOSPHERE_VERSION_OVERRIDE:-$VERSION}"
+    jar_dir="$CACHE_DIR/v$jar_version"
     mkdir -p "$jar_dir"
 
     if [ "$packaging" = "quarkus" ]; then
@@ -875,10 +880,10 @@ cmd_run() {
                 rm -f "$jar_file" "${jar_file}.sha256"
                 build_sample "$sample" "$packaging" "$jar_file"
             else
-                ok "Using cached $sample v$VERSION (verified)"
+                ok "Using cached $sample v$jar_version (verified)"
             fi
         else
-            ok "Using cached $sample v$VERSION"
+            ok "Using cached $sample v$jar_version"
         fi
     fi
 
@@ -1684,7 +1689,7 @@ YMLEOF
 
     <properties>
         <java.version>21</java.version>
-        <atmosphere.version>${VERSION}</atmosphere.version>
+        <atmosphere.version>${ATMOSPHERE_VERSION_OVERRIDE:-$VERSION}</atmosphere.version>
     </properties>
 
     <dependencies>
@@ -1939,7 +1944,7 @@ COMPOSEEOF
     [ -n "$compose_output" ]    && jbang_args="$jbang_args --output $compose_output"
 
     # Pass the CLI version so the generator uses the same Atmosphere version as the framework
-    jbang_args="$jbang_args --atmosphere-version $VERSION"
+    jbang_args="$jbang_args --atmosphere-version ${ATMOSPHERE_VERSION_OVERRIDE:-$VERSION}"
 
     need_cmd jbang
 
