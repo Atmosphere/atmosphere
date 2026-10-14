@@ -150,7 +150,7 @@
       "hasFrontend": false,
       "envVars": {
         "LLM_API_KEY": "API key for your LLM provider (Gemini, OpenAI, etc.)",
-        "LLM_MODEL": "Model name (default: gemini-2.0-flash)",
+        "LLM_MODEL": "Model name (default: gemini-2.5-flash)",
         "LLM_BASE_URL": "API base URL (default: Gemini)"
       }
     },
@@ -192,7 +192,7 @@
       "hasFrontend": false,
       "envVars": {
         "LLM_API_KEY": "API key for your LLM provider",
-        "LLM_MODEL": "Model name (default: gemini-2.0-flash)"
+        "LLM_MODEL": "Model name (default: gemini-2.5-flash)"
       }
     },
     {

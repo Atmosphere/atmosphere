@@ -1498,6 +1498,36 @@ if [ -d "$repo_root/samples" ]; then
     else
         fail "samples missing README.md:$missing_readmes"
     fi
+
+    # A default samples.json documents for an env var ("(default: X)" or
+    # "(default X;") must be the one the sample's own config falls back to
+    # (${KEY:X} in src/main/resources/application*): `atmosphere info` prints
+    # it. Entries whose default is not a config placeholder are not compared.
+    jq -r '.samples[] | select(.envVars) | .name as $n | .envVars | to_entries[] | "\($n)\t\(.key)\t\(.value)"' \
+        "$SAMPLES_JSON" > "$fs_tmp"
+    env_default_drift=""
+    env_default_checked=0
+    tab=$(printf '\t')
+    while IFS="$tab" read -r name key desc; do
+        documented=$(printf '%s' "$desc" | sed -n 's/.*(default:\{0,1\} \([^;)]*\)[;)].*/\1/p')
+        [ -n "$documented" ] || continue
+        res_dir="$repo_root/samples/$name/src/main/resources"
+        [ -d "$res_dir" ] || continue
+        configured=$(find "$res_dir" -maxdepth 1 -type f -name 'application*' -exec cat {} + \
+            | sed -n "s/.*\${$key:\([^}]*\)}.*/\1/p" | head -1)
+        [ -n "$configured" ] || continue
+        env_default_checked=$((env_default_checked + 1))
+        if [ "$documented" != "$configured" ]; then
+            env_default_drift="$env_default_drift $name:$key(samples.json=$documented,config=$configured)"
+        fi
+    done < "$fs_tmp"
+    if [ "$env_default_checked" -eq 0 ]; then
+        fail "samples.json env defaults: no documented default matched a config placeholder (gate is vacuous)"
+    elif [ -z "$env_default_drift" ]; then
+        pass "samples.json env defaults match the samples' config ($env_default_checked compared)"
+    else
+        fail "samples.json env defaults drift from the samples' config:$env_default_drift"
+    fi
     rm -f "$fs_tmp"
 else
     fail "samples directory not found at $repo_root/samples"
