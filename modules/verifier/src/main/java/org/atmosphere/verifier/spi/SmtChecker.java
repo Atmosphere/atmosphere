@@ -18,9 +18,7 @@ package org.atmosphere.verifier.spi;
 import org.atmosphere.verifier.ast.Workflow;
 import org.atmosphere.verifier.policy.Policy;
 
-import java.util.Comparator;
 import java.util.List;
-import java.util.ServiceLoader;
 
 /**
  * SPI for SMT-backed proof checking — the long tail of
@@ -37,7 +35,7 @@ import java.util.ServiceLoader;
  *       conjunction of declared invariants holds in Z3."</li>
  * </ul>
  *
- * <p>Implementations are discovered via {@link ServiceLoader}. Alongside the
+ * <p>Implementations are discovered via {@link java.util.ServiceLoader}. Alongside the
  * {@link NoOpSmtChecker} fallback, a Z3-backed checker and an SMTInterpol
  * checker both ship and are ServiceLoader-registered, so a solver is selected
  * without touching {@link org.atmosphere.verifier.checks.SmtVerifier}'s call
@@ -96,16 +94,17 @@ public interface SmtChecker {
 
     /**
      * Resolve the highest-priority available checker via
-     * {@link ServiceLoader}. Falls back to the {@link NoOpSmtChecker}
+     * {@link java.util.ServiceLoader}. Falls back to the {@link NoOpSmtChecker}
      * when nothing else is on the classpath, so call sites never need
      * to null-check.
+     *
+     * <p>Resolution runs once per JVM, on the first call, and every later
+     * call returns the same checker: providers are instantiated and probed
+     * for availability (a native library load for Z3) only once, not on
+     * every admin request or verifier construction.</p>
      */
     static SmtChecker resolve() {
-        return ServiceLoader.load(SmtChecker.class).stream()
-                .map(ServiceLoader.Provider::get)
-                .filter(SmtChecker::isAvailable)
-                .max(Comparator.comparingInt(SmtChecker::priority))
-                .orElseGet(NoOpSmtChecker::new);
+        return ResolvedSmtChecker.INSTANCE;
     }
 
     /**
