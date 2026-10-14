@@ -1366,36 +1366,14 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // After the sessions are closed, so none of them parks a reply for the
         // departed client once its parked one is dropped.
         LongPollingReplies.discard(uuid);
-        endRunsCancelledByDisconnect(uuid);
+        // Cancels every model call still in flight on the connection; the turn
+        // of a call it cuts short ends in an error saying so, not complete.
         AiStreamingSession.removeAllForResource(uuid);
         // Session tape: cancel-mark every open taped run of this resource
         // (reconnects get a fresh uuid, so this never races a live run). The
         // writer drains already-queued steps before CANCELLED lands. No-op
         // when nothing is installed.
         org.atmosphere.ai.tape.TapeSupport.resourceDisconnected(uuid);
-    }
-
-    /**
-     * The terminal frame a reattached client receives for a run whose runtime
-     * call the disconnect of the client that started it cancelled.
-     */
-    static final String RUN_CANCELLED_BY_DISCONNECT =
-            "Run cancelled: the client that started it disconnected before the model call finished";
-
-    /**
-     * The disconnect cancels every runtime call still in flight on the
-     * connection ({@link AiStreamingSession#removeAllForResource}), so the
-     * answer of such a run is cut short; runtimes then complete normally on
-     * the cancel. Before that happens, end each of those runs' replay buffers
-     * in {@code error}, so a client that reattaches with the run id is told
-     * the run was cancelled instead of being handed a {@code complete} frame.
-     */
-    private static void endRunsCancelledByDisconnect(String uuid) {
-        var registry = org.atmosphere.ai.resume.RunRegistryHolder.get();
-        for (var runId : AiStreamingSession.runIdsWithInflightCall(uuid)) {
-            registry.lookup(runId).ifPresent(run ->
-                    run.replayBuffer().terminate("error", RUN_CANCELLED_BY_DISCONNECT));
-        }
     }
 
     /**
