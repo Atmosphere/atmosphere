@@ -44,6 +44,13 @@ import java.util.concurrent.locks.ReentrantLock;
  * <p>Lifecycle events ({@link AgUiEvent.RunStarted}, {@link AgUiEvent.RunFinished},
  * {@link AgUiEvent.RunError}) are emitted automatically by the handler and this
  * session's {@link #complete()} / {@link #error(Throwable)} methods.</p>
+ *
+ * <p>RUN_FINISHED and RUN_ERROR are terminal, whichever path reaches one first
+ * ({@link #complete()}, {@link #error(Throwable)} or an {@link AiEvent.Error}
+ * passed to {@link #emit(AiEvent)}): nothing is written after it, later
+ * terminal calls are no-ops, and the wrapped session is completed or errored
+ * exactly once. The state check and the frames it guards run under one lock,
+ * so a concurrent emission cannot land after the terminal frame.</p>
  */
 public final class AgUiStreamingSession implements StreamingSession {
 
@@ -56,6 +63,7 @@ public final class AgUiStreamingSession implements StreamingSession {
     private final RunContext runContext;
     private final ReentrantLock writeLock = new ReentrantLock();
     private final AtomicBoolean closed = new AtomicBoolean(false);
+    private volatile boolean errored;
 
     public AgUiStreamingSession(StreamingSession delegate, AtmosphereResponse response,
                                 RunContext runContext) {
@@ -92,9 +100,19 @@ public final class AgUiStreamingSession implements StreamingSession {
 
     @Override
     public void complete(String summary) {
-        if (!closed.compareAndSet(false, true)) {
-            return;
+        writeLock.lock();
+        try {
+            if (!closed.compareAndSet(false, true)) {
+                return;
+            }
+            writeFinish(summary);
+        } finally {
+            writeLock.unlock();
         }
+        delegate.complete(summary);
+    }
+
+    private void writeFinish(String summary) {
         // Close any in-flight tool call first (innermost scope): a ToolStart
         // with no ToolResult/ToolError before complete() would leave
         // TOOL_CALL_START dangling, and the mapper reset below would silently
@@ -116,27 +134,49 @@ public final class AgUiStreamingSession implements StreamingSession {
         }
         writeSSE(new AgUiEvent.RunFinished(runContext.runId(), runContext.threadId()));
         eventMapper.reset();
-        delegate.complete(summary);
     }
 
     @Override
     public void error(Throwable t) {
-        if (!closed.compareAndSet(false, true)) {
-            return;
+        if (terminateWithError(AgUiEventMapper.runErrorMessage(t.getMessage(), t), null)) {
+            delegate.error(t);
         }
-        // No TEXT_MESSAGE_END here: the AG-UI protocol permits RUN_ERROR as a
-        // terminal hard-abort while a text message is open, and fabricating an
-        // END would signal normal completion of a message that failed
-        // mid-stream. The mapper reset drops the open-message state.
-        writeSSE(new AgUiEvent.RunError(runContext.runId(),
-                AgUiEventMapper.runErrorMessage(t.getMessage(), t), null));
-        eventMapper.reset();
-        delegate.error(t);
+    }
+
+    /**
+     * Writes RUN_ERROR and closes the session, unless a terminal frame was
+     * already written.
+     *
+     * @return whether this call ended the run
+     */
+    private boolean terminateWithError(String message, String code) {
+        writeLock.lock();
+        try {
+            if (!closed.compareAndSet(false, true)) {
+                return false;
+            }
+            errored = true;
+            // No TEXT_MESSAGE_END here: the AG-UI protocol permits RUN_ERROR
+            // as a terminal hard-abort while a text message is open, and
+            // fabricating an END would signal normal completion of a message
+            // that failed mid-stream. The mapper reset drops the open-message
+            // state.
+            writeSSE(new AgUiEvent.RunError(runContext.runId(), message, code));
+            eventMapper.reset();
+            return true;
+        } finally {
+            writeLock.unlock();
+        }
     }
 
     @Override
     public boolean isClosed() {
         return closed.get();
+    }
+
+    @Override
+    public boolean hasErrored() {
+        return errored;
     }
 
     @Override
@@ -146,13 +186,27 @@ public final class AgUiStreamingSession implements StreamingSession {
 
     @Override
     public void emit(AiEvent event) {
-        if (closed.get()) {
-            // Frames after RUN_FINISHED / RUN_ERROR are AG-UI protocol
-            // violations — drop late emissions once the run is terminal.
+        if (event instanceof AiEvent.Error error) {
+            // RUN_ERROR ends the run: route it through the terminal path, as
+            // StreamingSession#emit routes an Error to error(Throwable).
+            var message = AgUiEventMapper.runErrorMessage(error.message(), null);
+            if (terminateWithError(message, error.code())) {
+                delegate.error(new IllegalStateException(message));
+            }
             return;
         }
-        for (var agUiEvent : eventMapper.toAgUi(event)) {
-            writeSSE(agUiEvent);
+        writeLock.lock();
+        try {
+            if (closed.get()) {
+                // Frames after RUN_FINISHED / RUN_ERROR are AG-UI protocol
+                // violations — drop late emissions once the run is terminal.
+                return;
+            }
+            for (var agUiEvent : eventMapper.toAgUi(event)) {
+                writeSSE(agUiEvent);
+            }
+        } finally {
+            writeLock.unlock();
         }
         delegate.emit(event);
     }

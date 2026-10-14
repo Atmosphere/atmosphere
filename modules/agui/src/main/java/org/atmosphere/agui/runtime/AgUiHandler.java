@@ -174,11 +174,10 @@ public final class AgUiHandler implements AtmosphereHandler {
 
         // Execute on virtual thread
         var finalRunContext = runContext;
+        var session = new ResourceAgUiStreamingSession(
+                new NoOpStreamingSession(), sseWriter, finalRunContext, pipeline);
         var runThread = Thread.ofVirtual().name("agui-run-" + runContext.runId()).start(() -> {
             try {
-                var delegateSession = new NoOpStreamingSession();
-                var session = new ResourceAgUiStreamingSession(
-                        delegateSession, sseWriter, finalRunContext, pipeline);
                 var localTracing = tracing;
                 if (localTracing != null) {
                     localTracing.traced("action", actionMethod.getName(),
@@ -197,9 +196,9 @@ public final class AgUiHandler implements AtmosphereHandler {
                 }
             } catch (Exception e) {
                 logger.error("AG-UI action failed", e);
-                var failure = e.getCause() != null ? e.getCause() : e;
-                sseWriter.write(new AgUiEvent.RunError(finalRunContext.runId(),
-                        AgUiEventMapper.runErrorMessage(failure.getMessage(), failure), null));
+                // Through the session, so a run the action already finished or
+                // errored gets no second terminal frame.
+                session.error(e.getCause() != null ? e.getCause() : e);
             } finally {
                 try {
                     servletWriter.close();
@@ -298,6 +297,14 @@ public final class AgUiHandler implements AtmosphereHandler {
 
     /**
      * AG-UI streaming session that uses {@link SseWriter} for proper browser delivery.
+     *
+     * <p>RUN_FINISHED and RUN_ERROR are terminal, whichever path reaches one
+     * first ({@link #complete()}, {@link #error(Throwable)} or an
+     * {@link AiEvent.Error} passed to {@link #emit(AiEvent)}): nothing is
+     * written after it, later terminal calls are no-ops, and the wrapped
+     * session is completed or errored exactly once. The state check and the
+     * frames it guards run under one lock, so a concurrent emission cannot
+     * land after the terminal frame.</p>
      */
     static final class ResourceAgUiStreamingSession implements StreamingSession {
         private final StreamingSession delegate;
@@ -307,6 +314,8 @@ public final class AgUiHandler implements AtmosphereHandler {
         private final org.atmosphere.agui.event.AgUiEventMapper eventMapper =
                 new org.atmosphere.agui.event.AgUiEventMapper();
         private final AtomicBoolean closed = new AtomicBoolean(false);
+        private final ReentrantLock stateLock = new ReentrantLock();
+        private volatile boolean errored;
 
         ResourceAgUiStreamingSession(StreamingSession delegate, SseWriter writer,
                                      RunContext runContext) {
@@ -337,10 +346,15 @@ public final class AgUiHandler implements AtmosphereHandler {
             // actually learns what happened instead of the frame vanishing.
             // CUSTOM.value is any JSON value: JSON-native values keep their
             // structure, anything else travels as its string form.
-            if (closed.get()) {
-                return;
+            stateLock.lock();
+            try {
+                if (closed.get()) {
+                    return;
+                }
+                writer.write(new AgUiEvent.Custom(key, jsonValue(value)));
+            } finally {
+                stateLock.unlock();
             }
-            writer.write(new AgUiEvent.Custom(key, jsonValue(value)));
         }
 
         private static Object jsonValue(Object value) {
@@ -364,7 +378,11 @@ public final class AgUiHandler implements AtmosphereHandler {
 
         @Override
         public void complete(String summary) {
-            if (closed.compareAndSet(false, true)) {
+            stateLock.lock();
+            try {
+                if (!closed.compareAndSet(false, true)) {
+                    return;
+                }
                 // Close any in-flight tool call first (innermost scope): a
                 // ToolStart with no ToolResult/ToolError before complete()
                 // would leave TOOL_CALL_START dangling, and the mapper reset
@@ -388,24 +406,48 @@ public final class AgUiHandler implements AtmosphereHandler {
                 }
                 writer.write(new AgUiEvent.RunFinished(runContext.runId(), runContext.threadId()));
                 eventMapper.reset();
+            } finally {
+                stateLock.unlock();
             }
+            delegate.complete(summary);
         }
 
         @Override
         public void error(Throwable t) {
-            if (closed.compareAndSet(false, true)) {
+            if (terminateWithError(AgUiEventMapper.runErrorMessage(t.getMessage(), t), null)) {
+                delegate.error(t);
+            }
+        }
+
+        /**
+         * Writes RUN_ERROR and closes the session, unless a terminal frame was
+         * already written.
+         *
+         * @return whether this call ended the run
+         */
+        private boolean terminateWithError(String message, String code) {
+            stateLock.lock();
+            try {
+                if (!closed.compareAndSet(false, true)) {
+                    return false;
+                }
+                errored = true;
                 // No TEXT_MESSAGE_END here: the AG-UI protocol permits
                 // RUN_ERROR as a terminal hard-abort while a text message is
                 // open, and fabricating an END would signal normal completion
                 // of a message that failed mid-stream. The mapper reset drops
                 // the open-message state.
-                writer.write(new AgUiEvent.RunError(runContext.runId(),
-                        AgUiEventMapper.runErrorMessage(t.getMessage(), t), null));
+                writer.write(new AgUiEvent.RunError(runContext.runId(), message, code));
                 eventMapper.reset();
+                return true;
+            } finally {
+                stateLock.unlock();
             }
         }
 
         @Override public boolean isClosed() { return closed.get(); }
+
+        @Override public boolean hasErrored() { return errored; }
         // sendContent intentionally NOT overridden: the StreamingSession
         // default routes Content.Text through send() (a TextDelta on the
         // wire) and drops binary variants with a content.binary.dropped
@@ -414,13 +456,27 @@ public final class AgUiHandler implements AtmosphereHandler {
 
         @Override
         public void emit(AiEvent event) {
-            if (closed.get()) {
-                // Frames after RUN_FINISHED / RUN_ERROR are AG-UI protocol
-                // violations — drop late emissions once the run is terminal.
+            if (event instanceof AiEvent.Error error) {
+                // RUN_ERROR ends the run: route it through the terminal path,
+                // as StreamingSession#emit routes an Error to error(Throwable).
+                var message = AgUiEventMapper.runErrorMessage(error.message(), null);
+                if (terminateWithError(message, error.code())) {
+                    delegate.error(new IllegalStateException(message));
+                }
                 return;
             }
-            for (var agUiEvent : eventMapper.toAgUi(event)) {
-                writer.write(agUiEvent);
+            stateLock.lock();
+            try {
+                if (closed.get()) {
+                    // Frames after RUN_FINISHED / RUN_ERROR are AG-UI protocol
+                    // violations — drop late emissions once the run is terminal.
+                    return;
+                }
+                for (var agUiEvent : eventMapper.toAgUi(event)) {
+                    writer.write(agUiEvent);
+                }
+            } finally {
+                stateLock.unlock();
             }
         }
 
