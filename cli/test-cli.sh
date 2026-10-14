@@ -331,6 +331,41 @@ assert_contains "$out" "cache/v9.9.9-SNAPSHOT/spring-boot-chat.jar" "run: overri
 out=$(env -u ATMOSPHERE_SOURCE_REF -u ATMOSPHERE_VERSION_OVERRIDE PATH="$run_cache_tmp/bin:$PATH" \
       ATMOSPHERE_HOME="$run_cache_tmp/home" "$CLI" run spring-boot-chat 2>&1) && ec=0 || ec=$?
 assert_contains "$out" "cache/v$run_cli_version/spring-boot-chat.jar" "run: release run launches the release version's jar"
+# An explicit ATMOSPHERE_SOURCE_REF builds other sources against the same
+# version, so it gets its own cache key instead of sharing (and poisoning) the
+# release tag's.
+mkdir -p "$run_cache_tmp/home/cache/v$run_cli_version-my-branch"
+: > "$run_cache_tmp/home/cache/v$run_cli_version-my-branch/spring-boot-chat.jar"
+out=$(env -u ATMOSPHERE_VERSION_OVERRIDE PATH="$run_cache_tmp/bin:$PATH" ATMOSPHERE_HOME="$run_cache_tmp/home" \
+      ATMOSPHERE_SOURCE_REF=my-branch "$CLI" run spring-boot-chat 2>&1) && ec=0 || ec=$?
+assert_contains "$out" "cache/v$run_cli_version-my-branch/spring-boot-chat.jar" "run: an explicit source ref launches its own cached jar"
+# build_sample stamps the source ref next to the sha256: a cached jar built
+# from another ref is rebuilt, never served "(verified)". A curl shim fails the
+# rebuild's download so the test stays offline; the rebuild attempt is the proof.
+cat > "$run_cache_tmp/bin/curl" <<'CURLSHIMEOF'
+#!/bin/sh
+echo "CURL-SHIM $*" >&2
+exit 22
+CURLSHIMEOF
+chmod +x "$run_cache_tmp/bin/curl"
+run_release_dir="$run_cache_tmp/home/cache/v$run_cli_version"
+run_empty_sha=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+echo "$run_empty_sha" > "$run_release_dir/spring-boot-chat.jar.sha256"
+echo "main" > "$run_release_dir/spring-boot-chat.jar.ref"
+out=$(env -u ATMOSPHERE_SOURCE_REF -u ATMOSPHERE_VERSION_OVERRIDE PATH="$run_cache_tmp/bin:$PATH" \
+      ATMOSPHERE_HOME="$run_cache_tmp/home" "$CLI" run spring-boot-chat 2>&1) && ec=0 || ec=$?
+assert_contains "$out" "was built from main, not atmosphere-$run_cli_version" "run: a cached jar from another source ref is rebuilt"
+assert_not_contains "$out" "JAVA-SHIM" "run: a cached jar from another source ref is not launched"
+: > "$run_release_dir/spring-boot-chat.jar"
+echo "$run_empty_sha" > "$run_release_dir/spring-boot-chat.jar.sha256"
+echo "atmosphere-$run_cli_version" > "$run_release_dir/spring-boot-chat.jar.ref"
+out=$(env -u ATMOSPHERE_SOURCE_REF -u ATMOSPHERE_VERSION_OVERRIDE PATH="$run_cache_tmp/bin:$PATH" \
+      ATMOSPHERE_HOME="$run_cache_tmp/home" "$CLI" run spring-boot-chat 2>&1) && ec=0 || ec=$?
+assert_contains "$out" "Using cached spring-boot-chat v$run_cli_version (verified)" "run: checksum and source ref match -> verified"
+rm -f "$run_release_dir/spring-boot-chat.jar.ref"
+out=$(env -u ATMOSPHERE_SOURCE_REF -u ATMOSPHERE_VERSION_OVERRIDE PATH="$run_cache_tmp/bin:$PATH" \
+      ATMOSPHERE_HOME="$run_cache_tmp/home" "$CLI" run spring-boot-chat 2>&1) && ec=0 || ec=$?
+assert_not_contains "$out" "(verified)" "run: a jar with no recorded source ref is not called verified"
 rm -rf "$run_cache_tmp"
 
 printf "\n"

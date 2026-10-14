@@ -30,16 +30,15 @@ CACHE_DIR="$ATMOSPHERE_HOME/cache"
 # ATMOSPHERE_VERSION_OVERRIDE points the generated pom at a locally-installed
 # build instead of the pinned release; when that build is a SNAPSHOT the
 # matching source is `main`. ATMOSPHERE_SOURCE_REF overrides the ref outright.
-if [ -n "${ATMOSPHERE_SOURCE_REF:-}" ]; then
-    SOURCE_REF="$ATMOSPHERE_SOURCE_REF"
-elif [ -z "${ATMOSPHERE_VERSION_OVERRIDE:-}" ]; then
-    SOURCE_REF="atmosphere-$VERSION"
+if [ -z "${ATMOSPHERE_VERSION_OVERRIDE:-}" ]; then
+    DEFAULT_SOURCE_REF="atmosphere-$VERSION"
 else
     case "$ATMOSPHERE_VERSION_OVERRIDE" in
-        *SNAPSHOT) SOURCE_REF="main" ;;
-        *)         SOURCE_REF="atmosphere-$ATMOSPHERE_VERSION_OVERRIDE" ;;
+        *SNAPSHOT) DEFAULT_SOURCE_REF="main" ;;
+        *)         DEFAULT_SOURCE_REF="atmosphere-$ATMOSPHERE_VERSION_OVERRIDE" ;;
     esac
 fi
+SOURCE_REF="${ATMOSPHERE_SOURCE_REF:-$DEFAULT_SOURCE_REF}"
 # Branches and tags live under different paths in GitHub's archive API.
 case "$SOURCE_REF" in
     main|master) SOURCE_ARCHIVE_REF="refs/heads/$SOURCE_REF" ;;
@@ -752,6 +751,7 @@ build_sample() {
             cp -r "$quarkus_app" "$cache_qdir"
             # Create a marker file so cmd_run knows this is a quarkus app
             printf '%s' "$cache_qdir" > "$jar_file"
+            printf '%s\n' "$SOURCE_REF" > "${jar_file}.ref"
             ok "Built and cached $sample"
         else
             die "No quarkus-app directory found after build"
@@ -768,6 +768,9 @@ build_sample() {
         cp "$built_jar" "$jar_file"
         # Record checksum for cache integrity verification
         sha256sum_portable "$jar_file" > "${jar_file}.sha256"
+        # Record the ref the sources came from, so cmd_run can tell a cached
+        # build of another ref from the one it was asked to run.
+        printf '%s\n' "$SOURCE_REF" > "${jar_file}.ref"
         ok "Built and cached $sample"
     fi
 
@@ -859,6 +862,12 @@ cmd_run() {
     # SNAPSHOT build as the release (and a release jar to an override run).
     jar_version="${ATMOSPHERE_VERSION_OVERRIDE:-$VERSION}"
     jar_dir="$CACHE_DIR/v$jar_version"
+    # An explicit ATMOSPHERE_SOURCE_REF builds other sources against that same
+    # version, so the ref is part of the key too: a branch build must never be
+    # served to a run that asked for the release tag, nor the other way round.
+    if [ "$SOURCE_REF" != "$DEFAULT_SOURCE_REF" ]; then
+        jar_dir="$jar_dir-$(printf '%s' "$SOURCE_REF" | LC_ALL=C tr -c 'A-Za-z0-9._-' '_')"
+    fi
     mkdir -p "$jar_dir"
 
     if [ "$packaging" = "quarkus" ]; then
@@ -871,16 +880,27 @@ cmd_run() {
     if [ ! -f "$jar_file" ]; then
         build_sample "$sample" "$packaging" "$jar_file"
     else
-        # Verify cached JAR integrity if checksum exists
-        if [ -f "${jar_file}.sha256" ]; then
+        # build_sample stamps the source ref next to the checksum, so a cached
+        # build from another ref is rebuilt rather than served, and "(verified)"
+        # means both "unmodified" and "built from the ref this run asked for".
+        cached_ref=""
+        [ -f "${jar_file}.ref" ] && cached_ref=$(cat "${jar_file}.ref")
+        if [ -n "$cached_ref" ] && [ "$cached_ref" != "$SOURCE_REF" ]; then
+            warn "Cached $sample was built from $cached_ref, not $SOURCE_REF — rebuilding"
+            rm -f "$jar_file" "${jar_file}.sha256" "${jar_file}.ref"
+            build_sample "$sample" "$packaging" "$jar_file"
+        elif [ -f "${jar_file}.sha256" ]; then
+            # Verify cached JAR integrity if checksum exists
             expected=$(cat "${jar_file}.sha256")
             actual=$(sha256sum_portable "$jar_file")
             if [ "$expected" != "$actual" ] && [ "$actual" != "no-checksum-tool" ]; then
                 warn "Cached JAR checksum mismatch — rebuilding $sample"
-                rm -f "$jar_file" "${jar_file}.sha256"
+                rm -f "$jar_file" "${jar_file}.sha256" "${jar_file}.ref"
                 build_sample "$sample" "$packaging" "$jar_file"
-            else
+            elif [ -n "$cached_ref" ]; then
                 ok "Using cached $sample v$jar_version (verified)"
+            else
+                ok "Using cached $sample v$jar_version (source ref not recorded)"
             fi
         else
             ok "Using cached $sample v$jar_version"

@@ -32,7 +32,9 @@ Verified from `.github/workflows/cli-e2e.yml`, `cli-install.yml`, and
 ## Cold cache — the trap that fakes a pass
 
 `atmosphere run` caches built jars at `$ATMOSPHERE_HOME/cache/v$VERSION`
-(default `$HOME/.atmosphere`), verified by sha256 when a checksum file exists.
+(default `$HOME/.atmosphere`; `v$ATMOSPHERE_VERSION_OVERRIDE` when the override
+is set, with a `-<ref>` suffix when `ATMOSPHERE_SOURCE_REF` overrides the ref),
+verified by sha256 and by the source ref recorded next to it (`<jar>.ref`).
 A cached jar from a previous version boots the **old** artifact and reports a
 green sweep for code you are not shipping.
 
