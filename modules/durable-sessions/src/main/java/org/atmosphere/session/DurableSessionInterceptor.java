@@ -20,6 +20,7 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.interceptor.InvokationOrder;
 import org.atmosphere.room.RoomManager;
 import org.slf4j.Logger;
@@ -126,6 +127,13 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
         if (runId != null && !runId.isBlank()) {
             request.setAttribute(RUN_ID_ATTRIBUTE, runId);
             logger.debug("Reconnect with run id {} for resource {}", runId, r.uuid());
+        }
+
+        // The session belongs to the WebSocket connection, created or restored when
+        // it opened: a message frame must not create another one, nor register
+        // another save-on-disconnect listener on the same resource.
+        if (request.getAttribute(FrameworkConfig.WEBSOCKET_MESSAGE) != null) {
+            return Action.CONTINUE;
         }
 
         if (token != null) {
