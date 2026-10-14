@@ -382,7 +382,9 @@ public class ResilientChat {
 }
 ```
 
-When a mobile client drops mid-stream, `UUIDBroadcasterCache` buffers the cached frames keyed by client UUID. On reconnect with the same UUID (or via the `X-Atmosphere-Run-Id` header `DurableSessionInterceptor` reads), the un-acked frames replay so the client catches up on what it missed. The matching JS hook is `onReconnect` — see the sample wiring under `samples/spring-boot-ai-chat/frontend/`.
+When a mobile client drops mid-stream, `UUIDBroadcasterCache` buffers the cached frames keyed by client UUID. On reconnect with the same UUID, the un-acked frames replay so the client catches up on what it missed. The matching JS hook is `onReconnect` — see the sample wiring under `samples/spring-boot-ai-chat/frontend/`.
+
+A reconnect that carries the run id instead (`X-Atmosphere-Run-Id`, which `DurableSessionInterceptor` reads) replays from the run's own buffer, not the broadcaster cache. That buffer holds the text frames and the terminal `complete` / `error` frame the client received — whether the `@Prompt` method sent them or the runtime streamed them for `session.stream(...)` — up to 1,024 events, oldest evicted. Metadata, progress and tool-event frames are not replayed. Over WebSocket, SSE and streaming, a reattach to a run still in flight keeps receiving its frames through the terminal one; long-polling gets the buffered frames in one reply. The dropped connection cancels a model call still in flight, so such a run replays the tokens streamed before the drop and ends in an `error` saying it was cancelled. A finished run stays replayable for the registry TTL (30 minutes; at most 256 finished runs are kept).
 
 ### 2. `ClusterBroadcastFilter` for cross-pod memory replication
 
