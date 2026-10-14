@@ -106,6 +106,9 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
 
                         WebSocket webSocket = ((AtmosphereResourceImpl) r).webSocket();
                         if (webSocket != null) {
+                            // The container reports this server-side close as a normal (1000)
+                            // one: mark the eviction so it does not read as the client leaving.
+                            ((AtmosphereResourceImpl) r).getAtmosphereResourceEvent().setCancelled(true);
                             webSocket.close();
                         } else {
                             ((AsynchronousProcessor) config.framework().getAsyncSupport()).endRequest((AtmosphereResourceImpl) r, true);

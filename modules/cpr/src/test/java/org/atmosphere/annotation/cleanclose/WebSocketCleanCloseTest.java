@@ -26,12 +26,16 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
+import org.atmosphere.interceptor.IdleResourceInterceptor;
 import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocketProcessor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -41,6 +45,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.atmosphere.cpr.ApplicationConfig.CLOSED_ATMOSPHERE_THINK_TIME;
+import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 import static org.atmosphere.cpr.ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -162,6 +167,98 @@ class WebSocketCleanCloseTest {
         var seen = openThenClose(closeCode);
         assertTrue(seen[0], "a delayed " + closeCode + " close is the client leaving");
         assertFalse(seen[1], "a delayed " + closeCode + " close is not an unexpected disconnect");
+    }
+
+    @Test
+    void idleEvictionIsCancelledNotClosedByTheClient() throws Exception {
+        start(null);
+        var processor = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework);
+        var webSocket = new ContainerWebSocket(framework, processor);
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder()
+                .destroyable(false).pathInfo("/clean-close").build();
+        processor.open(webSocket, request,
+                AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, webSocket));
+        var resource = (AtmosphereResourceImpl) webSocket.resource();
+        assertNotNull(resource, "the WebSocket must be open");
+        // The client's network vanished a minute ago: nothing came from it since.
+        resource.getRequest(false).setAttribute(MAX_INACTIVE, System.currentTimeMillis() - 60_000);
+
+        var idle = new IdleResourceInterceptor();
+        idle.configure(framework.getAtmosphereConfig());
+        try {
+            // Starts the eviction sweep, which runs at once.
+            idle.maxInactiveTime(1_000);
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (SEEN.get() == null && System.nanoTime() < deadline) {
+                Thread.sleep(10);
+            }
+        } finally {
+            idle.destroy();
+        }
+
+        var seen = SEEN.get();
+        assertNotNull(seen, "@Disconnect must run for an evicted client");
+        assertTrue(webSocket.closed, "the eviction closes the WebSocket");
+        assertFalse(seen[0], "the server evicted the client: the client did not leave");
+        assertTrue(seen[1], "an evicted client is an unexpected disconnect");
+    }
+
+    @Test
+    void frameworkDestroyIsNotTheClientLeaving() throws Exception {
+        start(null);
+        var processor = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework);
+        var webSocket = new ContainerWebSocket(framework, processor);
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder()
+                .destroyable(false).pathInfo("/clean-close").build();
+        processor.open(webSocket, request,
+                AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, webSocket));
+        assertNotNull(webSocket.resource(), "the WebSocket must be open");
+
+        framework.destroy();
+
+        // The shutdown closes the WebSocket, and the container reports a 1000 close.
+        assertTrue(webSocket.closed, "the shutdown closes the WebSocket");
+        var seen = SEEN.get();
+        assertTrue(seen == null || !seen[0], "the server shut down: the client did not leave");
+    }
+
+    /**
+     * Closes like a servlet container: closing the session from the server
+     * reports a normal (1000) close to the endpoint at once, as Tomcat's
+     * {@code WsSession.close()} does.
+     */
+    private static final class ContainerWebSocket extends WebSocket {
+
+        private final WebSocketProcessor processor;
+        volatile boolean closed;
+
+        ContainerWebSocket(AtmosphereFramework framework, WebSocketProcessor processor) {
+            super(framework.getAtmosphereConfig());
+            this.processor = processor;
+        }
+
+        @Override
+        public boolean isOpen() {
+            return !closed;
+        }
+
+        @Override
+        public WebSocket write(String s) {
+            return this;
+        }
+
+        @Override
+        public WebSocket write(byte[] b, int offset, int length) {
+            return this;
+        }
+
+        @Override
+        public void close() {
+            if (!closed) {
+                closed = true;
+                processor.close(this, 1000);
+            }
+        }
     }
 
     private static final class NoopWebSocket extends WebSocket {

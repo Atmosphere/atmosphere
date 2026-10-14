@@ -777,10 +777,13 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         boolean isClosedByClient = r == null || r.getAtmosphereResourceEvent().isClosedByClient();
         try {
             if (r != null) {
-                if (clientLeft(closeCode)) {
-                    // A WebSocket client sends no close message: the close code is what tells a
-                    // user who left from a dropped connection, which stays cancelled.
-                    ((AtmosphereResourceImpl) r).getAtmosphereResourceEvent().isClosedByClient(true);
+                var event = ((AtmosphereResourceImpl) r).getAtmosphereResourceEvent();
+                // A WebSocket client sends no close message: the close code is what tells a
+                // user who left from a dropped connection, which stays cancelled. A close the
+                // server started reports 1000/1001 too: its initiator marks the event cancelled
+                // first (an idle eviction), or the framework is shutting down.
+                if (clientLeft(closeCode) && !event.isCancelled() && !framework.isDestroyed()) {
+                    event.isClosedByClient(true);
                 }
                 asynchronousProcessor.endRequest((AtmosphereResourceImpl) r, true);
             }

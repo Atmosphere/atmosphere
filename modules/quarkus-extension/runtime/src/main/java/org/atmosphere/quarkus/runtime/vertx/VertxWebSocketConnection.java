@@ -17,6 +17,7 @@ package org.atmosphere.quarkus.runtime.vertx;
 
 import io.vertx.core.http.ServerWebSocket;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
@@ -118,6 +119,11 @@ final class VertxWebSocketConnection {
                 task = inbox.take();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+                // The server stops this connection, the client did not leave: mark the
+                // event so the 1001 close reaches @Disconnect as cancelled.
+                if (webSocket.resource() instanceof AtmosphereResourceImpl resource) {
+                    resource.getAtmosphereResourceEvent().setCancelled(true);
+                }
                 closeOnce(1001);
                 return;
             }
