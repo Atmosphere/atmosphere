@@ -79,7 +79,23 @@ class AiStreamingSessionCancelledTerminalTest {
         turn.assertEndedInError(AiStreamingSession.CANCELLED_BY_OPERATOR);
     }
 
+    @Test
+    void aCancelThatArrivesBeforeTheCallPublishesItsHandleStillEndsInError() throws Exception {
+        var runtime = new CompletingOnCancelRuntime();
+        runtime.holdBeforeReturning = new java.util.concurrent.CountDownLatch(1);
+        var turn = startTurn(runtime, false);
+        // The runtime is still inside executeWithHandle: no handle is published yet.
+        assertEquals(null, turn.session.currentHandle());
+        AiStreamingSession.cancelInflightForResource(UUID);
+        runtime.holdBeforeReturning.countDown();
+        turn.assertEndedInError(AiStreamingSession.CANCELLED_BY_OPERATOR);
+    }
+
     private Turn startTurn(CompletingOnCancelRuntime runtime) throws Exception {
+        return startTurn(runtime, true);
+    }
+
+    private Turn startTurn(CompletingOnCancelRuntime runtime, boolean awaitHandle) throws Exception {
         var resource = mock(AtmosphereResource.class);
         when(resource.uuid()).thenReturn(UUID);
         when(resource.getRequest()).thenReturn(mock(AtmosphereRequest.class));
@@ -101,7 +117,7 @@ class AiStreamingSessionCancelledTerminalTest {
         // stream() publishes the handle right after executeWithHandle returns:
         // the cancel below must find the call in flight.
         var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
-        while (session.currentHandle() == null && System.nanoTime() < deadline) {
+        while (awaitHandle && session.currentHandle() == null && System.nanoTime() < deadline) {
             Thread.sleep(5);
         }
         return new Turn(session, client, buffer, streamed);
@@ -125,6 +141,7 @@ class AiStreamingSessionCancelledTerminalTest {
     private static final class CompletingOnCancelRuntime implements AgentRuntime {
         final CompletableFuture<Void> inFlight = new CompletableFuture<>();
         volatile boolean completeOnCancel = true;
+        volatile java.util.concurrent.CountDownLatch holdBeforeReturning;
 
         @Override public String name() { return "completing-on-cancel"; }
         @Override public boolean isAvailable() { return true; }
@@ -148,6 +165,14 @@ class AiStreamingSessionCancelledTerminalTest {
             });
             session.send("partial");
             inFlight.complete(null);
+            var hold = holdBeforeReturning;
+            if (hold != null) {
+                try {
+                    hold.await(10, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
             return handle;
         }
     }

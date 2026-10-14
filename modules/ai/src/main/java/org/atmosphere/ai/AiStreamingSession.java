@@ -238,6 +238,14 @@ public class AiStreamingSession implements StreamingSession {
             new java.util.concurrent.atomic.AtomicReference<>();
 
     /**
+     * The reason of a {@link #cancelInflight(String)} that arrived while no
+     * model call had published its handle yet; {@link #stream(String)} cancels
+     * the call it then publishes under it, so that call ends as cancelled too.
+     */
+    private final java.util.concurrent.atomic.AtomicReference<String> pendingCancelReason =
+            new java.util.concurrent.atomic.AtomicReference<>();
+
+    /**
      * Last-activity timestamp (epoch millis), refreshed on every delegated
      * outbound call and on approval routing so {@link #sweepExpired} never
      * reaps a session that is still in use. Package-private volatile so
@@ -503,7 +511,10 @@ public class AiStreamingSession implements StreamingSession {
     public void cancelInflight(String reason) {
         // Set the latch BEFORE reading currentHandle so that a concurrent
         // stream() VT publishing its handle after this read still observes
-        // the cancel intent and self-cancels post-publish.
+        // the cancel intent and self-cancels post-publish. The reason is
+        // recorded before the latch, so the stream() that sees the latch
+        // sees the reason.
+        pendingCancelReason.compareAndSet(null, reason);
         cancelPending.set(true);
         var handle = this.currentHandle;
         if (handle != null && !handle.isDone()) {
@@ -1273,6 +1284,7 @@ public class AiStreamingSession implements StreamingSession {
             // assigned would have read null and dropped the cancel. Re-check
             // the latch here so we catch up on that intent before parking.
             if (cancelPending.get() && !handle.isDone()) {
+                cancelledReason.compareAndSet(null, pendingCancelReason.get());
                 handle.cancel();
             }
             try {
