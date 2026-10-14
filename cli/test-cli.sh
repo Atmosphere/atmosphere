@@ -401,6 +401,31 @@ rm -rf "$run_cache_tmp"
 
 printf "\n"
 
+# ── 9b. CLI: checkpoint list output is pure JSON on stdout ─────────────────
+printf "${BOLD}atmosphere checkpoint list (stdout)${RESET}\n"
+# A curl shim stands in for the agent's /api/checkpoints endpoint. The
+# "→ GET <url>" progress line used to go to stdout ahead of the JSON, so
+# `checkpoint list | jq` failed to parse.
+ckpt_tmp=$(mktemp -d)
+cat > "$ckpt_tmp/curl" <<'CURLSHIMEOF'
+#!/bin/sh
+printf '[{"id":"snap-1"},{"id":"snap-2"}]'
+CURLSHIMEOF
+chmod +x "$ckpt_tmp/curl"
+PATH="$ckpt_tmp:$PATH" "$CLI" checkpoint list --base-url http://localhost:1 \
+    > "$ckpt_tmp/stdout" 2> "$ckpt_tmp/stderr" && ec=0 || ec=$?
+assert_exit_code "$ec" 0 "checkpoint list exits 0 against a responding agent"
+ckpt_len=$(jq length < "$ckpt_tmp/stdout" 2>&1) || ckpt_len="jq failed: $ckpt_len"
+if [ "$ckpt_len" = "2" ]; then
+    pass "checkpoint list stdout parses as JSON"
+else
+    fail "checkpoint list stdout parses as JSON" "$ckpt_len — stdout: $(cat "$ckpt_tmp/stdout")"
+fi
+assert_contains "$(cat "$ckpt_tmp/stderr")" "GET http://localhost:1/api/checkpoints" "checkpoint list reports the request on stderr"
+rm -rf "$ckpt_tmp"
+
+printf "\n"
+
 # ── 10. CLI: unknown command ───────────────────────────────────────────────
 printf "${BOLD}atmosphere (error cases)${RESET}\n"
 

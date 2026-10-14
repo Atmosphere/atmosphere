@@ -2193,7 +2193,9 @@ cmd_checkpoint() {
             [ -n "$limit" ]        && qs="${qs}&limit=$(urlencode "$limit")"
             qs="${qs#&}"
             local url="${base}/api/checkpoints${qs:+?$qs}"
-            info "GET $url"
+            # Progress goes to stderr: stdout carries only the JSON, as for
+            # show/fork/approve, so `checkpoint list | jq` parses.
+            info "GET $url" >&2
             ac_curl "$url" || die "Failed to list checkpoints at $url"
             printf "\n"
             ;;
