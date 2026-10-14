@@ -103,10 +103,19 @@ class AgUiEventMapperTest {
     }
 
     @Test
-    void progressMapsToActivityDelta() {
-        var events = mapper.toAgUi(new AiEvent.Progress("Loading...", 0.5));
-        assertEquals(1, events.size());
-        assertInstanceOf(AgUiEvent.ActivityDelta.class, events.get(0));
+    void progressSnapshotsTheActivityThenPatchesIt() {
+        var first = mapper.toAgUi(new AiEvent.Progress("Loading...", 0.5));
+        assertEquals(1, first.size());
+        var snapshot = assertInstanceOf(AgUiEvent.ActivitySnapshot.class, first.get(0));
+        assertEquals("Loading...", snapshot.content().get("message"));
+
+        var second = mapper.toAgUi(new AiEvent.Progress("Ranking", 0.75));
+        assertEquals(1, second.size());
+        var delta = assertInstanceOf(AgUiEvent.ActivityDelta.class, second.get(0));
+        assertEquals(snapshot.messageId(), delta.messageId(),
+                "the delta must patch the activity the snapshot established");
+        assertEquals(java.util.Map.of("op", "replace", "path", "/message", "value", "Ranking"),
+                delta.patch().get(0));
     }
 
     @Test
@@ -260,5 +269,8 @@ class AgUiEventMapperTest {
 
         org.junit.jupiter.api.Assertions.assertEquals(1, events.size());
         org.junit.jupiter.api.Assertions.assertEquals("CUSTOM", events.get(0).type());
+        var value = ((AgUiEvent.Custom) events.get(0)).value();
+        org.junit.jupiter.api.Assertions.assertEquals(java.util.List.of("doc-1"),
+                ((java.util.Map<?, ?>) value).get("sources"), "the citation value stays structured");
     }
 }

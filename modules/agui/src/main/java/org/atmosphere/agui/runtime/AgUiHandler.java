@@ -29,6 +29,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.util.Collection;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
@@ -163,12 +165,7 @@ public final class AgUiHandler implements AtmosphereHandler {
         // state at run start (registre#29 — this event type was advertised
         // but never constructed). Only sent when the run carries history.
         if (runContext.messages() != null && !runContext.messages().isEmpty()) {
-            try {
-                sseWriter.write(new AgUiEvent.MessagesSnapshot(
-                        MAPPER.writeValueAsString(runContext.messages())));
-            } catch (RuntimeException e) {
-                logger.debug("MESSAGES_SNAPSHOT serialization failed", e);
-            }
+            sseWriter.write(new AgUiEvent.MessagesSnapshot(runContext.messages()));
         }
 
         // Execute on virtual thread
@@ -311,10 +308,24 @@ public final class AgUiHandler implements AtmosphereHandler {
             // hatch — response metadata (model used, cache hit, budget
             // degradation, binary-drop breadcrumbs) rides it so the client
             // actually learns what happened instead of the frame vanishing.
+            // CUSTOM.value is any JSON value: JSON-native values keep their
+            // structure, anything else travels as its string form.
             if (closed.get()) {
                 return;
             }
-            writer.write(new AgUiEvent.Custom(key, String.valueOf(value)));
+            writer.write(new AgUiEvent.Custom(key, jsonValue(value)));
+        }
+
+        private static Object jsonValue(Object value) {
+            return switch (value) {
+                case null -> null;
+                case String s -> s;
+                case Number n -> n;
+                case Boolean b -> b;
+                case Map<?, ?> m -> m;
+                case Collection<?> c -> c;
+                default -> String.valueOf(value);
+            };
         }
 
         @Override public void progress(String message) { emit(new AiEvent.Progress(message, null)); }

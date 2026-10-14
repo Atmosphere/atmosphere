@@ -128,12 +128,15 @@ class AgUiStreamingSessionTest {
     }
 
     @Test
-    void testProgressEmitsActivityDelta() {
+    void testProgressSnapshotsThenPatchesTheActivity() {
         session.emit(new AiEvent.Progress("Loading...", 0.5));
+        session.emit(new AiEvent.Progress("Ranking", 0.75));
 
         var sse = output.toString();
-        assertTrue(sse.contains("event: ACTIVITY_DELTA"), "Should contain ActivityDelta event");
-        assertTrue(sse.contains("Loading..."), "Should contain progress message");
+        assertTrue(sse.contains("event: ACTIVITY_SNAPSHOT"), "first progress establishes the activity");
+        assertTrue(sse.indexOf("event: ACTIVITY_SNAPSHOT") < sse.indexOf("event: ACTIVITY_DELTA"),
+                "later progress patches it: " + sse);
+        assertTrue(sse.contains("Loading...") && sse.contains("Ranking"), "Should contain progress messages");
     }
 
     @Test
@@ -244,7 +247,7 @@ class AgUiStreamingSessionTest {
         session.progress("Thinking...");
 
         var sse = output.toString();
-        assertTrue(sse.contains("event: ACTIVITY_DELTA"), "progress() should trigger ActivityDelta");
+        assertTrue(sse.contains("event: ACTIVITY_SNAPSHOT"), "progress() should report an activity");
         verify(delegate).emit(new AiEvent.Progress("Thinking...", null));
     }
 

@@ -137,6 +137,56 @@ public class OpenAiCompatibleClientTest {
         assertTrue(messages.stream().anyMatch(m -> m.contains("\"type\":\"complete\"")));
     }
 
+    /**
+     * Every Chat Completions chunk repeats {@code model}; forwarding it per
+     * chunk put one {@code ai.model} metadata frame after every text delta on
+     * every transport (a CUSTOM event per token on AG-UI). The model is
+     * forwarded once per call, and again only if the provider reports a
+     * different one.
+     */
+    @Test
+    public void testModelMetadataForwardedOncePerCallNotPerChunk() throws Exception {
+        var sseResponse = """
+                data: {"id":"c1","model":"gpt-x","choices":[{"index":0,"delta":{"content":"a"},"finish_reason":null}]}
+
+                data: {"id":"c1","model":"gpt-x","choices":[{"index":0,"delta":{"content":"b"},"finish_reason":null}]}
+
+                data: {"id":"c1","model":"gpt-x","choices":[{"index":0,"delta":{"content":"c"},"finish_reason":null}]}
+
+                data: {"id":"c1","model":"gpt-x","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+                data: [DONE]
+
+                """;
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("http://localhost:11434/v1")
+                .httpClient(mockHttpClient(200, sseResponse))
+                .build();
+        var models = new java.util.concurrent.CopyOnWriteArrayList<Object>();
+        var text = new StringBuilder();
+        var closed = new java.util.concurrent.atomic.AtomicBoolean();
+        var session = new org.atmosphere.ai.StreamingSession() {
+            @Override public String sessionId() { return "model-once"; }
+            @Override public void send(String t) { text.append(t); }
+            @Override public void sendMetadata(String key, Object value) {
+                if ("ai.model".equals(key)) {
+                    models.add(value);
+                }
+            }
+            @Override public void progress(String message) { }
+            @Override public void complete() { closed.set(true); }
+            @Override public void complete(String summary) { closed.set(true); }
+            @Override public void error(Throwable t) { closed.set(true); }
+            @Override public boolean isClosed() { return closed.get(); }
+        };
+
+        client.streamChatCompletion(ChatCompletionRequest.of("gpt-x", "Hi"), session);
+
+        assertEquals("abc", text.toString());
+        assertEquals(java.util.List.of("gpt-x"), models,
+                "ai.model must be forwarded once per call, not once per chunk");
+    }
+
     @Test
     public void testAPIErrorHandling() throws Exception {
         var errorBody = """

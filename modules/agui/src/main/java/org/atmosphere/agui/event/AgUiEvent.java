@@ -17,6 +17,9 @@ package org.atmosphere.agui.event;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * Sealed interface representing all 27 AG-UI protocol events. Each record variant
  * maps to a specific wire-format event type defined by {@link AgUiEventType}.
@@ -138,21 +141,32 @@ public sealed interface AgUiEvent {
 
     // ── State (3) ───────────────────────────────────────────────────────
 
-    record StateSnapshot(String snapshot) implements AgUiEvent {
+    /** {@code snapshot} is the complete new state: any JSON value. */
+    record StateSnapshot(Object snapshot) implements AgUiEvent {
         @Override
         public String type() {
             return AgUiEventType.STATE_SNAPSHOT.value();
         }
     }
 
-    record StateDelta(String delta) implements AgUiEvent {
+    /** {@code delta} is an RFC 6902 JSON Patch against the current state. */
+    record StateDelta(List<Map<String, Object>> delta) implements AgUiEvent {
+        public StateDelta {
+            delta = List.copyOf(delta);
+        }
+
         @Override
         public String type() {
             return AgUiEventType.STATE_DELTA.value();
         }
     }
 
-    record MessagesSnapshot(String messages) implements AgUiEvent {
+    /** {@code messages} is the ordered list of message objects the producer owns. */
+    record MessagesSnapshot(List<Map<String, Object>> messages) implements AgUiEvent {
+        public MessagesSnapshot {
+            messages = List.copyOf(messages);
+        }
+
         @Override
         public String type() {
             return AgUiEventType.MESSAGES_SNAPSHOT.value();
@@ -205,14 +219,33 @@ public sealed interface AgUiEvent {
 
     // ── Activity (2) ────────────────────────────────────────────────────
 
-    record ActivitySnapshot(String activity) implements AgUiEvent {
+    /**
+     * Establishes the activity message {@code messageId} (or, with
+     * {@code replace} absent or true, overwrites its content); {@code content}
+     * is an open object.
+     */
+    record ActivitySnapshot(String messageId, String activityType, Map<String, Object> content,
+                            Boolean replace) implements AgUiEvent {
+        public ActivitySnapshot {
+            content = Map.copyOf(content);
+        }
+
         @Override
         public String type() {
             return AgUiEventType.ACTIVITY_SNAPSHOT.value();
         }
     }
 
-    record ActivityDelta(String delta) implements AgUiEvent {
+    /**
+     * Changes the content of an activity a prior {@link ActivitySnapshot}
+     * established; {@code patch} is an RFC 6902 JSON Patch against it.
+     */
+    record ActivityDelta(String messageId, String activityType,
+                         List<Map<String, Object>> patch) implements AgUiEvent {
+        public ActivityDelta {
+            patch = List.copyOf(patch);
+        }
+
         @Override
         public String type() {
             return AgUiEventType.ACTIVITY_DELTA.value();
@@ -221,14 +254,20 @@ public sealed interface AgUiEvent {
 
     // ── Special (2) ─────────────────────────────────────────────────────
 
-    record Raw(String data) implements AgUiEvent {
+    /** {@code event} is the provider's own event (any JSON value); {@code source} is optional. */
+    record Raw(Object event, String source) implements AgUiEvent {
         @Override
         public String type() {
             return AgUiEventType.RAW.value();
         }
     }
 
-    record Custom(String name, String value) implements AgUiEvent {
+    /**
+     * The protocol's extension point. {@code value} is any JSON value and is
+     * required, so it is written even when null.
+     */
+    record Custom(String name, @JsonInclude(JsonInclude.Include.ALWAYS) Object value)
+            implements AgUiEvent {
         @Override
         public String type() {
             return AgUiEventType.CUSTOM.value();

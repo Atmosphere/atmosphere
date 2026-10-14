@@ -134,8 +134,18 @@ class AgUiEventMapperCompleteTest {
         assertEquals(1, events.size());
         assertTrue(events.getFirst() instanceof AgUiEvent.StateDelta);
         var delta = (AgUiEvent.StateDelta) events.getFirst();
-        assertTrue(delta.delta().contains("\"field\":\"name\""));
-        assertTrue(delta.delta().contains("\"value\":\"John\""));
+        assertEquals(1, delta.delta().size());
+        var op = delta.delta().getFirst();
+        assertEquals("add", op.get("op"));
+        assertEquals("/entity/fields/name", op.get("path"));
+        assertEquals(Map.of("value", "John", "type", "string"), op.get("value"));
+    }
+
+    @Test
+    void testStructuredFieldNameIsEscapedAsAJsonPointerToken() {
+        var events = mapper.toAgUi(new AiEvent.StructuredField("a/b~c", 1, "integer"));
+        var delta = (AgUiEvent.StateDelta) events.getFirst();
+        assertEquals("/entity/fields/a~1b~0c", delta.delta().getFirst().get("path"));
     }
 
     @Test
@@ -144,7 +154,10 @@ class AgUiEventMapperCompleteTest {
         assertEquals(1, events.size());
         assertTrue(events.getFirst() instanceof AgUiEvent.StateDelta);
         var delta = (AgUiEvent.StateDelta) events.getFirst();
-        assertTrue(delta.delta().contains("\"entityType\":\"Person\""));
+        var op = delta.delta().getFirst();
+        assertEquals("add", op.get("op"));
+        assertEquals("/entity", op.get("path"));
+        assertEquals("Person", ((Map<?, ?>) op.get("value")).get("entityType"));
     }
 
     @Test
@@ -153,7 +166,9 @@ class AgUiEventMapperCompleteTest {
         assertEquals(1, events.size());
         assertTrue(events.getFirst() instanceof AgUiEvent.StateSnapshot);
         var snapshot = (AgUiEvent.StateSnapshot) events.getFirst();
-        assertTrue(snapshot.snapshot().contains("\"entityType\":\"Person\""));
+        var state = (Map<?, ?>) snapshot.snapshot();
+        assertEquals("Person", state.get("entityType"));
+        assertEquals(Map.of("name", "John"), state.get("entity"));
     }
 
     @Test
@@ -167,22 +182,33 @@ class AgUiEventMapperCompleteTest {
         var events = mapper.toAgUi(new AiEvent.Progress("Loading...", null));
 
         assertEquals(1, events.size());
-        assertInstanceOf(AgUiEvent.ActivityDelta.class, events.get(0));
-
-        var delta = (AgUiEvent.ActivityDelta) events.get(0);
-        assertNotNull(delta.delta());
+        var snapshot = assertInstanceOf(AgUiEvent.ActivitySnapshot.class, events.get(0));
+        assertNotNull(snapshot.messageId());
+        assertEquals("progress", snapshot.activityType());
+        assertEquals("Loading...", snapshot.content().get("message"));
         // With null percentage, mapper uses -1 as default
-        assertTrue(delta.delta().contains("Loading..."), "Should contain the progress message");
-        assertTrue(delta.delta().contains("-1"), "Should contain -1 for null percentage");
+        assertEquals(-1.0, snapshot.content().get("percentage"));
     }
 
     @Test
     void testProgressWithPercentage() {
+        mapper.toAgUi(new AiEvent.Progress("Started", 0.1));
         var events = mapper.toAgUi(new AiEvent.Progress("Almost done", 0.95));
 
         assertEquals(1, events.size());
-        var delta = (AgUiEvent.ActivityDelta) events.get(0);
-        assertTrue(delta.delta().contains("0.95"), "Should contain the percentage");
+        var delta = assertInstanceOf(AgUiEvent.ActivityDelta.class, events.get(0));
+        assertEquals(Map.of("op", "replace", "path", "/percentage", "value", 0.95),
+                delta.patch().get(1));
+    }
+
+    @Test
+    void testResetStartsANewProgressActivity() {
+        var first = (AgUiEvent.ActivitySnapshot) mapper.toAgUi(new AiEvent.Progress("one", null)).getFirst();
+        mapper.reset();
+        var next = mapper.toAgUi(new AiEvent.Progress("two", null)).getFirst();
+        var snapshot = assertInstanceOf(AgUiEvent.ActivitySnapshot.class, next,
+                "a new run has no activity to patch, so it must snapshot again");
+        assertNotEquals(first.messageId(), snapshot.messageId());
     }
 
     @Test

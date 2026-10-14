@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -42,10 +43,15 @@ public final class AgUiEventMapper {
     private final AtomicInteger messageCounter = new AtomicInteger();
     private final AtomicInteger toolCallCounter = new AtomicInteger();
     private final AtomicInteger stepCounter = new AtomicInteger();
+    private final AtomicInteger activityCounter = new AtomicInteger();
+
+    /** {@code activityType} of the activity message progress reports patch. */
+    static final String PROGRESS_ACTIVITY = "progress";
 
     private volatile String currentMessageId;
     private volatile String currentToolCallId;
     private volatile String currentReasoningId;
+    private volatile String currentActivityId;
 
     /**
      * Convert an {@link AiEvent} into zero or more {@link AgUiEvent}s.
@@ -110,34 +116,51 @@ public final class AgUiEventMapper {
                 );
             }
             case AiEvent.Progress progress -> {
-                var json = serializeQuietly(Map.of(
-                        "message", progress.message(),
-                        "percentage", progress.percentage() != null ? progress.percentage() : -1));
-                yield List.<AgUiEvent>of(new AgUiEvent.ActivityDelta(json));
+                // An ACTIVITY_DELTA patches an activity message a prior
+                // ACTIVITY_SNAPSHOT established: the first progress of a run
+                // snapshots it, later ones patch its content.
+                var message = progress.message() != null ? progress.message() : "";
+                double percentage = progress.percentage() != null ? progress.percentage() : -1.0;
+                if (currentActivityId == null) {
+                    currentActivityId = "act-" + activityCounter.incrementAndGet();
+                    yield List.<AgUiEvent>of(new AgUiEvent.ActivitySnapshot(currentActivityId,
+                            PROGRESS_ACTIVITY,
+                            Map.of("message", message, "percentage", percentage),
+                            Boolean.TRUE));
+                }
+                yield List.<AgUiEvent>of(new AgUiEvent.ActivityDelta(currentActivityId,
+                        PROGRESS_ACTIVITY, List.of(
+                                patchOp("replace", "/message", message),
+                                patchOp("replace", "/percentage", percentage))));
             }
             case AiEvent.Error error -> List.<AgUiEvent>of(
                     new AgUiEvent.RunError(null, error.message(),
                             error.code() != null ? error.code().hashCode() : -1)
             );
             case AiEvent.Complete ignored -> List.of();
-            case AiEvent.EntityStart start -> {
-                var json = serializeQuietly(Map.of(
-                        "entityType", start.typeName(),
-                        "state", "streaming"));
-                yield List.<AgUiEvent>of(new AgUiEvent.StateDelta(json));
-            }
+            // Structured output streams into the shared state as RFC 6902
+            // patches: the entity opens at /entity with an empty field map,
+            // each field lands at /entity/fields/<name>, and the finished
+            // entity replaces the state wholesale.
+            case AiEvent.EntityStart start -> List.<AgUiEvent>of(new AgUiEvent.StateDelta(List.of(
+                    patchOp("add", "/entity", Map.of(
+                            "entityType", start.typeName(),
+                            "state", "streaming",
+                            "fields", Map.of())))));
             case AiEvent.StructuredField field -> {
-                var json = serializeQuietly(Map.of(
-                        "field", field.fieldName(),
-                        "value", field.value() != null ? field.value() : "",
-                        "type", field.schemaType()));
-                yield List.<AgUiEvent>of(new AgUiEvent.StateDelta(json));
+                var fieldState = new LinkedHashMap<String, Object>();
+                fieldState.put("value", field.value() != null ? field.value() : "");
+                if (field.schemaType() != null) {
+                    fieldState.put("type", field.schemaType());
+                }
+                yield List.<AgUiEvent>of(new AgUiEvent.StateDelta(List.of(patchOp("add",
+                        "/entity/fields/" + escapePointerToken(field.fieldName()), fieldState))));
             }
             case AiEvent.EntityComplete complete -> {
-                var json = serializeQuietly(Map.of(
-                        "entityType", complete.typeName(),
-                        "entity", complete.entity()));
-                yield List.<AgUiEvent>of(new AgUiEvent.StateSnapshot(json));
+                var snapshot = new LinkedHashMap<String, Object>();
+                snapshot.put("entityType", complete.typeName());
+                snapshot.put("entity", complete.entity());
+                yield List.<AgUiEvent>of(new AgUiEvent.StateSnapshot(snapshot));
             }
             case AiEvent.ReasoningDelta reasoning -> {
                 // Reasoning streams inside its own REASONING_* scope
@@ -166,12 +189,14 @@ public final class AgUiEventMapper {
                 currentReasoningId = null;
                 yield closing;
             }
-            case AiEvent.Citation citation -> List.<AgUiEvent>of(new AgUiEvent.Custom(
-                    "citation", serializeQuietly(java.util.Map.of(
-                            "text", citation.text(),
-                            "start", citation.start(),
-                            "end", citation.end(),
-                            "sources", citation.sources()))));
+            case AiEvent.Citation citation -> {
+                var value = new LinkedHashMap<String, Object>();
+                value.put("text", citation.text());
+                value.put("start", citation.start());
+                value.put("end", citation.end());
+                value.put("sources", citation.sources());
+                yield List.<AgUiEvent>of(new AgUiEvent.Custom("citation", value));
+            }
             default -> List.of();
         };
     }
@@ -203,6 +228,20 @@ public final class AgUiEventMapper {
         currentMessageId = null;
         currentToolCallId = null;
         currentReasoningId = null;
+        currentActivityId = null;
+    }
+
+    private static Map<String, Object> patchOp(String op, String path, Object value) {
+        var operation = new LinkedHashMap<String, Object>();
+        operation.put("op", op);
+        operation.put("path", path);
+        operation.put("value", value);
+        return operation;
+    }
+
+    /** Escape one JSON Pointer reference token (RFC 6901 section 3). */
+    private static String escapePointerToken(String token) {
+        return token.replace("~", "~0").replace("/", "~1");
     }
 
     private String serializeQuietly(Object obj) {

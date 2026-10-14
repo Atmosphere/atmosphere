@@ -43,18 +43,20 @@ class AgUiEventTest {
         assertEquals("TOOL_CALL_END", new AgUiEvent.ToolCallEnd("tc1").type());
         assertEquals("TOOL_CALL_RESULT", new AgUiEvent.ToolCallResult("tc1", "ok").type());
         assertEquals("TOOL_CALL_CHUNK", new AgUiEvent.ToolCallChunk("tc1", "chunk").type());
-        assertEquals("STATE_SNAPSHOT", new AgUiEvent.StateSnapshot("{}").type());
-        assertEquals("STATE_DELTA", new AgUiEvent.StateDelta("[]").type());
-        assertEquals("MESSAGES_SNAPSHOT", new AgUiEvent.MessagesSnapshot("[]").type());
+        assertEquals("STATE_SNAPSHOT", new AgUiEvent.StateSnapshot(java.util.Map.of()).type());
+        assertEquals("STATE_DELTA", new AgUiEvent.StateDelta(java.util.List.of()).type());
+        assertEquals("MESSAGES_SNAPSHOT", new AgUiEvent.MessagesSnapshot(java.util.List.of()).type());
         assertEquals("REASONING_START", new AgUiEvent.ReasoningStart().type());
         assertEquals("REASONING_MESSAGE_START", new AgUiEvent.ReasoningMessageStart("r1").type());
         assertEquals("REASONING_MESSAGE_CONTENT", new AgUiEvent.ReasoningMessageContent("r1", "thinking").type());
         assertEquals("REASONING_MESSAGE_END", new AgUiEvent.ReasoningMessageEnd("r1").type());
         assertEquals("REASONING_MESSAGE_CHUNK", new AgUiEvent.ReasoningMessageChunk("r1", "chunk").type());
         assertEquals("REASONING_END", new AgUiEvent.ReasoningEnd().type());
-        assertEquals("ACTIVITY_SNAPSHOT", new AgUiEvent.ActivitySnapshot("active").type());
-        assertEquals("ACTIVITY_DELTA", new AgUiEvent.ActivityDelta("delta").type());
-        assertEquals("RAW", new AgUiEvent.Raw("data").type());
+        assertEquals("ACTIVITY_SNAPSHOT", new AgUiEvent.ActivitySnapshot(
+                "a1", "progress", java.util.Map.of(), null).type());
+        assertEquals("ACTIVITY_DELTA", new AgUiEvent.ActivityDelta(
+                "a1", "progress", java.util.List.of()).type());
+        assertEquals("RAW", new AgUiEvent.Raw("data", null).type());
         assertEquals("CUSTOM", new AgUiEvent.Custom("name", "value").type());
     }
 

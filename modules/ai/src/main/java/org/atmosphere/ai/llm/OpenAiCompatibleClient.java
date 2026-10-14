@@ -16,6 +16,7 @@
 package org.atmosphere.ai.llm;
 
 import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.RetryPolicy;
@@ -432,6 +433,9 @@ public class OpenAiCompatibleClient implements LlmClient {
         // holder mirrors the existing capturedResponseId / toolCallsRequested
         // mutable-output pattern in this method.
         org.atmosphere.ai.TokenUsage[] capturedUsage = new org.atmosphere.ai.TokenUsage[1];
+        // Last model forwarded as ai.model in this round: every Chat
+        // Completions chunk repeats it, and only a change is news.
+        String[] forwardedModel = new String[1];
         if (logprobCapture != null) {
             // The decision is scored on the final round's tokens only.
             logprobCapture.beginRound();
@@ -445,10 +449,10 @@ public class OpenAiCompatibleClient implements LlmClient {
                 if (useResponsesApi) {
                     processResponsesApiSSELine(line, session, accumulators,
                             toolCallsRequested, capturedResponseId, capturedUsage, roundText,
-                            logprobCapture);
+                            logprobCapture, forwardedModel);
                 } else {
                     processSSELine(line, session, accumulators, toolCallsRequested,
-                            capturedUsage, roundText, logprobCapture);
+                            capturedUsage, roundText, logprobCapture, forwardedModel);
                 }
             }
         } catch (java.io.IOException e) {
@@ -883,7 +887,8 @@ public class OpenAiCompatibleClient implements LlmClient {
                                 boolean[] toolCallsRequested,
                                 org.atmosphere.ai.TokenUsage[] usageHolder,
                                 StringBuilder roundText,
-                                LogprobCapture logprobCapture) {
+                                LogprobCapture logprobCapture,
+                                String[] forwardedModel) {
         if (line.isBlank() || !line.startsWith(DATA_PREFIX)) {
             return;
         }
@@ -978,12 +983,26 @@ public class OpenAiCompatibleClient implements LlmClient {
             }
 
             // Forward model metadata
-            var modelNode = node.get("model");
-            if (modelNode != null && !modelNode.isNull()) {
-                session.sendMetadata("ai.model", modelNode.stringValue());
-            }
+            forwardModel(node.get("model"), session, forwardedModel);
         } catch (JacksonException e) {
             logger.warn("Failed to parse SSE data: {}", data, e);
+        }
+    }
+
+    /**
+     * Forward {@code ai.model} when the round reports a model it has not yet
+     * forwarded. Chat Completions repeats {@code model} on every chunk, so
+     * forwarding each one emitted a metadata frame per token.
+     */
+    private static void forwardModel(JsonNode modelNode, StreamingSession session,
+                                     String[] forwardedModel) {
+        if (modelNode == null || modelNode.isNull()) {
+            return;
+        }
+        var model = modelNode.stringValue();
+        if (model != null && !model.equals(forwardedModel[0])) {
+            forwardedModel[0] = model;
+            session.sendMetadata("ai.model", model);
         }
     }
 
@@ -1517,7 +1536,8 @@ public class OpenAiCompatibleClient implements LlmClient {
                                             String[] capturedResponseId,
                                             org.atmosphere.ai.TokenUsage[] usageHolder,
                                             StringBuilder roundText,
-                                            LogprobCapture logprobCapture) {
+                                            LogprobCapture logprobCapture,
+                                            String[] forwardedModel) {
         if (line.isBlank() || !line.startsWith(DATA_PREFIX)) {
             return;
         }
@@ -1534,7 +1554,7 @@ public class OpenAiCompatibleClient implements LlmClient {
             if (type == null) {
                 // Fallback: treat as Chat Completions format (shouldn't happen normally)
                 processSSELine(line, session, accumulators, toolCallsRequested, usageHolder,
-                        roundText, logprobCapture);
+                        roundText, logprobCapture, forwardedModel);
                 return;
             }
 
@@ -1605,10 +1625,7 @@ public class OpenAiCompatibleClient implements LlmClient {
                             }
                         }
                         // Forward model metadata
-                        var modelNode = responseNode.get("model");
-                        if (modelNode != null && !modelNode.isNull()) {
-                            session.sendMetadata("ai.model", modelNode.stringValue());
-                        }
+                        forwardModel(responseNode.get("model"), session, forwardedModel);
                     }
                 }
                 default -> logger.trace("Ignoring Responses API event type: {}", type);
