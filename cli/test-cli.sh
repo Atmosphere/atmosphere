@@ -1380,6 +1380,7 @@ cd "$IMPORT_TMP"
 
 # Test 1: Import from local file
 output=$("$CLI" import --name test-weather-bot "$IMPORT_TMP/test-skill.md" 2>&1) || true
+import_banner="$output"   # assert_contains reuses $output; keep the banner for Test 5c
 assert_contains "$output" "Parsed skill: weather-bot" "import: parses skill name from YAML frontmatter"
 assert_contains "$output" "weather assistant" "import: parses description from YAML frontmatter"
 assert_contains "$output" "2 @AiTool stubs" "import: generates @AiTool stubs from ## Tools"
@@ -1442,6 +1443,39 @@ if [ -f "$IMPORT_TMP/test-weather-bot/src/main/resources/application.yml" ]; the
     assert_contains "$(cat "$IMPORT_TMP/test-weather-bot/src/main/resources/application.yml")" "LLM_API_KEY" "import: application.yml references LLM_API_KEY"
 else
     fail "import: application.yml not generated"
+fi
+
+# Test 5b: the Spring Boot parent comes from the reactor root pom. A literal
+# (4.0.3) left every imported project on Spring Framework 7.0.5 after the
+# reactor moved to a Boot line that closes its CVEs.
+if [ -f "$IMPORT_TMP/test-weather-bot/pom.xml" ]; then
+    import_repo_sb=$(sed -n 's|.*<spring-boot\.version>\([^<]*\)</spring-boot\.version>.*|\1|p' "$REPO_ROOT/pom.xml" | head -1)
+    import_parent_sb=$(awk '/<parent>/{p=1} p && /<version>/{gsub(/.*<version>|<\/version>.*/, ""); print; exit}' \
+        "$IMPORT_TMP/test-weather-bot/pom.xml")
+    if [ -n "$import_repo_sb" ] && [ "$import_repo_sb" = "$import_parent_sb" ]; then
+        pass "import: spring-boot-starter-parent pins the reactor's Spring Boot version ($import_repo_sb)"
+    else
+        fail "import: spring-boot-starter-parent pins the reactor's Spring Boot version" \
+             "reactor=$import_repo_sb imported=$import_parent_sb"
+    fi
+fi
+
+# Test 5c: the banner's run command must exist in the generated project.
+import_run_cmd=$(printf '%s\n' "$import_banner" | grep -o '\./mvnw spring-boot:run' | head -1)
+if [ -n "$import_run_cmd" ]; then
+    if [ -x "$IMPORT_TMP/test-weather-bot/mvnw" ] \
+       && [ -f "$IMPORT_TMP/test-weather-bot/.mvn/wrapper/maven-wrapper.properties" ]; then
+        pass "import: advertised ./mvnw ships with the project (mvnw + .mvn/wrapper)"
+    else
+        fail "import: banner says ./mvnw spring-boot:run but the project has no Maven wrapper"
+    fi
+else
+    fail "import: banner advertises no run command"
+fi
+if [ ! -e "$IMPORT_TMP/test-weather-bot/.mvn/extensions.xml" ]; then
+    pass "import: project excludes reactor-internal .mvn files"
+else
+    fail "import: project excludes reactor-internal .mvn files"
 fi
 
 # Test 6: Import with --headless flag

@@ -1503,6 +1503,12 @@ cmd_import() {
         die "Directory '$project_dir' already exists"
     fi
 
+    # Pin the Spring Boot parent the same reactor root pom compose reads, and
+    # ship that source's Maven wrapper so the advertised ./mvnw exists.
+    local source_root spring_boot_version
+    source_root=$(resolve_source_root)
+    spring_boot_version=$(read_spring_boot_version "$source_root")
+
     # Place skill file at both paths:
     # - META-INF/skills/{name}/SKILL.md for auto-discovery (4.0.26+)
     # - prompts/skill.md for explicit skillFile reference (4.0.25 compat)
@@ -1669,7 +1675,7 @@ YMLEOF
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.3</version>
+        <version>${spring_boot_version}</version>
     </parent>
 
     <groupId>com.example</groupId>
@@ -1724,6 +1730,9 @@ YMLEOF
 </project>
 POMEOF
 
+    copy_maven_wrapper "$source_root" "$project_dir"
+    [ -x "$project_dir/mvnw" ] || die "No Maven wrapper found in $source_root to copy into $project_dir."
+
     ok "Project scaffolded at ./$project_dir"
     printf "\n"
     printf "  ${BOLD}Run it:${RESET}\n"
@@ -1747,10 +1756,19 @@ POMEOF
 # a checkout of this repo. Materialise the generator from the pinned source ref
 # and hand jbang an explicit -Djbang.source.
 resolve_compose_generator() {
+    _rcg_src_root=$(resolve_source_root) || exit 1
+    printf '%s\n' "$_rcg_src_root/generator"
+}
+
+# Print the root of the Atmosphere sources this CLI scaffolds from: the checkout
+# the script lives in, or else the $SOURCE_REF tree staged in the cache. It holds
+# the compose generator, the Maven wrapper (mvnw + .mvn/wrapper) and the reactor
+# root pom.xml whose <spring-boot.version> generated projects must pin.
+resolve_source_root() {
     _rcg_script_dir="$(cd "$(dirname "$0")" && pwd)"
     if [ -f "$_rcg_script_dir/../generator/ComposeGenerator.java" ] \
        && [ -d "$_rcg_script_dir/../generator/templates/compose" ]; then
-        (cd "$_rcg_script_dir/../generator" && pwd)
+        (cd "$_rcg_script_dir/.." && pwd)
         return 0
     fi
 
@@ -1761,7 +1779,7 @@ resolve_compose_generator() {
     _rcg_root="$CACHE_DIR/generator-src-$SOURCE_REF"
     if [ -f "$_rcg_root/generator/ComposeGenerator.java" ] \
        && [ -d "$_rcg_root/generator/templates/compose" ]; then
-        printf '%s\n' "$_rcg_root/generator"
+        printf '%s\n' "$_rcg_root"
         return 0
     fi
 
@@ -1786,7 +1804,16 @@ resolve_compose_generator() {
     chmod +x "$_rcg_stage/mvnw" 2>/dev/null || true
     rm -rf "$_rcg_root"
     mv "$_rcg_stage" "$_rcg_root"
-    printf '%s\n' "$_rcg_root/generator"
+    printf '%s\n' "$_rcg_root"
+}
+
+# Print the <spring-boot.version> the reactor root pom of a source root declares.
+# No fallback: a literal here is what left `atmosphere import` on Spring Boot
+# 4.0.3 (Spring Framework 7.0.5) after the reactor moved past its CVEs.
+read_spring_boot_version() {
+    _rsb_version=$(sed -n 's|.*<spring-boot\.version>\([^<]*\)</spring-boot\.version>.*|\1|p' "$1/pom.xml" 2>/dev/null | head -1)
+    [ -n "$_rsb_version" ] || die "Could not read <spring-boot.version> from $1/pom.xml."
+    printf '%s\n' "$_rsb_version"
 }
 
 cmd_compose() {
