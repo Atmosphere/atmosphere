@@ -707,7 +707,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                                 framework.atmosphereFactory().findResource(resource.uuid())
                                         .filter(AtmosphereResource::isSuspended)
                                         .ifPresent(currentResource -> {
-                                            executeClose(webSocket, 1005);
+                                            executeClose(webSocket, closeCode);
                                             finish(webSocket, currentResource, r, s, false);
                                         });
                                 return null;
@@ -777,6 +777,11 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         boolean isClosedByClient = r == null || r.getAtmosphereResourceEvent().isClosedByClient();
         try {
             if (r != null) {
+                if (clientLeft(closeCode)) {
+                    // A WebSocket client sends no close message: the close code is what tells a
+                    // user who left from a dropped connection, which stays cancelled.
+                    ((AtmosphereResourceImpl) r).getAtmosphereResourceEvent().isClosedByClient(true);
+                }
                 asynchronousProcessor.endRequest((AtmosphereResourceImpl) r, true);
             }
         } finally {
@@ -784,6 +789,13 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent<>(closeCode, CLOSE, webSocket));
             }
         }
+    }
+
+    /**
+     * @return true for a normal (1000) or going-away (1001) close: the client closed the connection
+     */
+    private static boolean clientLeft(int closeCode) {
+        return closeCode == 1000 || closeCode == 1001;
     }
 
     @Override
