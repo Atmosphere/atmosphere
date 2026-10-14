@@ -18,6 +18,7 @@ package org.atmosphere.handler;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.slf4j.Logger;
@@ -54,7 +55,11 @@ public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
 
         logger.trace("{} with event {}", event.getResource().uuid(), event);
         if (event.isCancelled() || event.isClosedByApplication() || event.isClosedByClient()) {
-            onDisconnect(response);
+            // The close thread and a broadcast in flight can both deliver the
+            // cancelled event: onDisconnect runs once per resource (Invariant #2).
+            if (!(event instanceof AtmosphereResourceEventImpl impl) || !impl.getAndSetDisconnectDispatched()) {
+                onDisconnect(response);
+            }
         } else if (event.getMessage() instanceof List<?> messages) {
             for (Object item : messages) {
                 onMessage(response, (T) item);

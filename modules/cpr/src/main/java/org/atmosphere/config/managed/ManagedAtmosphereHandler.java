@@ -31,6 +31,7 @@ import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceHeartbeatEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
@@ -146,7 +147,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             resource.addEventListener(new OnClose() {
                 @Override
                 public void onClose(AtmosphereResourceEvent event) {
-                    invoke(onDisconnectMethod, event);
+                    invokeDisconnect(event);
                 }
             });
         }
@@ -208,7 +209,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         }
 
         if (event.isCancelled() || event.isClosedByClient()) {
-            invoke(onDisconnectMethod, event);
+            invokeDisconnect(event);
         } else if (event.isResumedOnTimeout() || event.isResuming()) {
             invoke(onTimeoutMethod, event);
         } else {
@@ -245,6 +246,21 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         if (resumeOnBroadcast && r.isSuspended()) {
             r.resume();
         }
+    }
+
+    /**
+     * Invokes {@code @Disconnect} once per resource. The close thread and a
+     * broadcast in flight can both reach here with the same cancelled event,
+     * and an application {@code close()} racing a cancel reaches both the
+     * {@link OnClose} listener and {@link #onStateChange}: only the first
+     * caller runs it (Invariant #2).
+     */
+    private void invokeDisconnect(AtmosphereResourceEvent event) {
+        if (event instanceof AtmosphereResourceEventImpl impl && impl.getAndSetDisconnectDispatched()) {
+            logger.trace("@Disconnect already dispatched for {}", impl.uuid());
+            return;
+        }
+        invoke(onDisconnectMethod, event);
     }
 
     @Override

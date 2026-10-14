@@ -122,6 +122,22 @@ class AtmosphereResourceImplStateTest {
     }
 
     @Test
+    void disconnectDispatchIsClaimedOncePerResourceAcrossEventsAndDestroy() {
+        var event = resource.getAtmosphereResourceEvent();
+        var other = new AtmosphereResourceEventImpl(resource, true, false);
+
+        assertFalse(event.getAndSetDisconnectDispatched(), "the first claim wins");
+        assertTrue(other.getAndSetDisconnectDispatched(),
+                "every event built for the resource shares its claim");
+        event.destroy();
+        assertTrue(event.getAndSetDisconnectDispatched(),
+                "the claim survives destroy(), which strips the resource");
+
+        resource.reset();
+        assertFalse(other.getAndSetDisconnectDispatched(), "reset() re-arms the claim");
+    }
+
+    @Test
     void isSuspendedShouldReturnFalseInitially() {
         assertFalse(resource.isSuspended());
     }

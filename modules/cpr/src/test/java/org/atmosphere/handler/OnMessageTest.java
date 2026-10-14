@@ -17,6 +17,7 @@ package org.atmosphere.handler;
 
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -105,6 +107,33 @@ class OnMessageTest {
 
         handler.onStateChange(event);
         assertEquals(response, disconnected.get());
+    }
+
+    @Test
+    void cancelledEventDeliveredTwiceCallsOnDisconnectOnce() throws IOException {
+        var disconnects = new AtomicInteger();
+
+        var handler = new OnMessage<String>() {
+            @Override
+            public void onMessage(AtmosphereResponse response, String message) {
+            }
+
+            @Override
+            public void onDisconnect(AtmosphereResponse response) {
+                disconnects.incrementAndGet();
+            }
+        };
+
+        var resource = mock(AtmosphereResourceImpl.class);
+        when(resource.uuid()).thenReturn("uuid-on-message");
+        when(resource.getResponse(false)).thenReturn(mock(AtmosphereResponse.class));
+        // The close thread and a broadcast that passed the broadcaster's
+        // validity check both deliver the resource's cancelled event.
+        var event = new AtmosphereResourceEventImpl(resource, true, false);
+
+        handler.onStateChange(event);
+        handler.onStateChange(event);
+        assertEquals(1, disconnects.get(), "onDisconnect must run once per resource");
     }
 
     @Test

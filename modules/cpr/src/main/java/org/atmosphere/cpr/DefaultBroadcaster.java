@@ -1004,6 +1004,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected void executeAsyncWrite(final AsyncWriteToken token) {
         boolean notifyListeners = true;
         boolean lostCandidate = false;
+        boolean accepted = false;
 
         if (token.resource == null) {
             logger.trace("AsyncWriteToken has null resource — token already destroyed. Skipping write.");
@@ -1017,14 +1018,17 @@ public class DefaultBroadcaster implements Broadcaster {
         final AtmosphereRequest request = r.getRequest(false);
         try {
 
-            event.setMessage(token.msg);
-
             // Make sure we cache the message in case the AtmosphereResource has been cancelled, resumed or the client disconnected.
             if (!isAtmosphereResourceValid(r)) {
                 logger.trace("AtmosphereResource {} state is invalid for Broadcaster {}. Message will be cached", r.uuid(), name);
                 removeAtmosphereResource(r, false);
                 return;
             }
+
+            // Only once the resource is accepted: a rejected token must not
+            // overwrite the message of the event a closing resource shares.
+            accepted = true;
+            event.setMessage(token.msg);
 
             bc.getBroadcasterCache().clearCache(getID(), r.uuid(), token.cache);
             try {
@@ -1057,7 +1061,10 @@ public class DefaultBroadcaster implements Broadcaster {
             if (notifyListeners) {
                 // Long Polling listener will be cleared when the resume() is called.
                 if (willBeResumed) {
-                    event.setMessage(token.msg);
+                    // listeners is only filled for an accepted token
+                    if (accepted) {
+                        event.setMessage(token.msg);
+                    }
                     for (AtmosphereResourceEventListener e : listeners) {
                         e.onBroadcast(event);
                     }

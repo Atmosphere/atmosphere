@@ -90,6 +90,11 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private volatile Object writeOnTimeout;
     private volatile boolean disableSuspend;
     private final AtomicBoolean disconnected = new AtomicBoolean();
+    // Separate from 'disconnected', which guards the listeners' onDisconnect:
+    // this one guards the handler's disconnect callback (@Disconnect), so
+    // each fires once and neither mutes the other. Shared with every event
+    // built for this resource (see AtmosphereResourceEventImpl).
+    private final AtomicBoolean disconnectDispatched = new AtomicBoolean();
 
     private final ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners =
             new ConcurrentLinkedQueue<>();
@@ -556,6 +561,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         isPendingClose.set(false);
         isSuspendEvent.set(false);
         disconnected.set(false);
+        disconnectDispatched.set(false);
         listeners.clear();
         broadcasters.clear();
         broadcasterIdIndex.clear();
@@ -1096,5 +1102,14 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     public boolean getAndSetPendingClose() {
         return isPendingClose.getAndSet(true);
+    }
+
+    /**
+     * The flag {@link AtmosphereResourceEventImpl#getAndSetDisconnectDispatched()}
+     * claims. Events hold it themselves so the claim still works after
+     * {@link AtmosphereResourceEventImpl#destroy()} has dropped the resource.
+     */
+    AtomicBoolean disconnectDispatched() {
+        return disconnectDispatched;
     }
 }

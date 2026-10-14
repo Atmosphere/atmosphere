@@ -37,11 +37,14 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
     private final AtomicBoolean isClosedByClient = new AtomicBoolean(false);
     private final String uuid;
     private final AtomicBoolean isClosedByApplication = new AtomicBoolean(false);
+    // The resource's own flag, shared by every event built for it.
+    private final AtomicBoolean disconnectDispatched;
 
     public AtmosphereResourceEventImpl(AtmosphereResourceImpl resource) {
         this.resource = resource;
         this.throwable = null;
         uuid = resource.uuid();
+        disconnectDispatched = disconnectDispatchedOf(resource);
     }
 
     public AtmosphereResourceEventImpl(AtmosphereResourceImpl resource, boolean isCancelled,
@@ -51,6 +54,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         this.resource = resource;
         this.throwable = null;
         uuid = resource.uuid();
+        disconnectDispatched = disconnectDispatchedOf(resource);
     }
 
     public AtmosphereResourceEventImpl(AtmosphereResourceImpl resource, boolean isCancelled,
@@ -61,6 +65,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         this.resource = resource;
         this.throwable = throwable;
         uuid = resource.uuid();
+        disconnectDispatched = disconnectDispatchedOf(resource);
     }
 
     public AtmosphereResourceEventImpl(AtmosphereResourceImpl resource,
@@ -74,6 +79,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         this.throwable = throwable;
         this.isClosedByClient.set(isClosedByClient);
         uuid = resource.uuid();
+        disconnectDispatched = disconnectDispatchedOf(resource);
     }
 
     /**
@@ -87,6 +93,28 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
      */
     public String uuid() {
         return uuid;
+    }
+
+    private static AtomicBoolean disconnectDispatchedOf(AtmosphereResourceImpl resource) {
+        var flag = resource.disconnectDispatched();
+        // A mocked resource has no flag; the event then guards itself.
+        return flag != null ? flag : new AtomicBoolean();
+    }
+
+    /**
+     * Claims the dispatch of the handler's disconnect callback (e.g.
+     * {@code @Disconnect}) for this event's resource. A close and an in-flight
+     * broadcast can both hand the handler a cancelled event: the close thread
+     * runs the disconnect, and a broadcast that passed the broadcaster's
+     * validity check just before the cancel delivers the same event again.
+     * Only the first caller may dispatch (Invariant #2). The claim survives
+     * {@link #destroy()}.
+     *
+     * @return true if the disconnect was already dispatched, false if this
+     * call claimed it
+     */
+    public boolean getAndSetDisconnectDispatched() {
+        return disconnectDispatched.getAndSet(true);
     }
 
     @Override
