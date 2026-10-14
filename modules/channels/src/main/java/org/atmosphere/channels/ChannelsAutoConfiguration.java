@@ -25,7 +25,6 @@ import org.atmosphere.channels.whatsapp.WhatsAppChannel;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
@@ -34,7 +33,8 @@ import tools.jackson.databind.ObjectMapper;
 /**
  * Spring Boot auto-configuration for Atmosphere messaging channels.
  * <p>
- * Each channel activates when its credentials are configured:
+ * Each channel activates when its credential (the bot or access token) is set
+ * to a non-blank value; an empty-default placeholder leaves it off:
  * <pre>
  * atmosphere:
  *   channels:
@@ -75,21 +75,21 @@ public class ChannelsAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnProperty("atmosphere.channels.telegram.bot-token")
+    @ConditionalOnNonBlankProperty("atmosphere.channels.telegram.bot-token")
     public TelegramChannel telegramChannel(ChannelsProperties props, ObjectMapper objectMapper) {
         var telegram = props.getTelegram();
         return new TelegramChannel(telegram.getBotToken(), telegram.getWebhookSecret(), objectMapper);
     }
 
     @Bean
-    @ConditionalOnProperty("atmosphere.channels.slack.bot-token")
+    @ConditionalOnNonBlankProperty("atmosphere.channels.slack.bot-token")
     public SlackChannel slackChannel(ChannelsProperties props, ObjectMapper objectMapper) {
         var slack = props.getSlack();
         return new SlackChannel(slack.getBotToken(), slack.getSigningSecret(), objectMapper);
     }
 
     @Bean
-    @ConditionalOnProperty("atmosphere.channels.discord.bot-token")
+    @ConditionalOnNonBlankProperty("atmosphere.channels.discord.bot-token")
     public DiscordChannel discordChannel(ChannelsProperties props, ObjectMapper objectMapper,
                                          ObjectProvider<ChannelWebhookController> webhookControllerProvider) {
         var discord = props.getDiscord();
@@ -103,7 +103,7 @@ public class ChannelsAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnProperty("atmosphere.channels.whatsapp.access-token")
+    @ConditionalOnNonBlankProperty("atmosphere.channels.whatsapp.access-token")
     public WhatsAppChannel whatsAppChannel(ChannelsProperties props, ObjectMapper objectMapper) {
         var whatsapp = props.getWhatsapp();
         return new WhatsAppChannel(whatsapp.getPhoneNumberId(), whatsapp.getAccessToken(),
@@ -111,7 +111,7 @@ public class ChannelsAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnProperty("atmosphere.channels.messenger.page-access-token")
+    @ConditionalOnNonBlankProperty("atmosphere.channels.messenger.page-access-token")
     public MessengerChannel messengerChannel(ChannelsProperties props, ObjectMapper objectMapper) {
         var messenger = props.getMessenger();
         return new MessengerChannel(messenger.getPageAccessToken(), messenger.getAppSecret(),

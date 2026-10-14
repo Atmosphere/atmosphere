@@ -71,6 +71,13 @@ public class ChannelAiBridge {
         for (MessagingChannel channel : channels) {
             channelsByType.put(channel.channelType().id(), channel);
         }
+        logger.info("ChannelAiBridge: running channels {}",
+                channelsByType.keySet().stream().sorted().toList());
+    }
+
+    /** Ids of the channels actually registered with this bridge, sorted. */
+    List<String> runningChannels() {
+        return channelsByType.keySet().stream().sorted().toList();
     }
 
     /**
@@ -132,7 +139,9 @@ public class ChannelAiBridge {
                     : List.<String>of();
             agentBindings.add(new AgentBinding(name, router, method, systemPrompt,
                     pipeline, normalized));
-            logger.info("ChannelAiBridge: agent '{}' registered (pipeline={}, channels={}, "
+            // allowedChannels is the agent's configured filter, not the set of
+            // running channels: the bridge logs those when it is built.
+            logger.info("ChannelAiBridge: agent '{}' registered (pipeline={}, allowedChannels={}, "
                             + "incomingMessageAware={}) — {} agent(s) active on channels",
                     name, pipeline != null,
                     normalized.isEmpty() ? "all" : normalized,
