@@ -22,7 +22,9 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
+import org.atmosphere.room.RoomAction;
 import org.atmosphere.room.auth.RoomAuth;
+import org.atmosphere.room.auth.RoomAuthorizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,12 +44,21 @@ import org.slf4j.LoggerFactory;
  * <p><strong>Caveat worth knowing:</strong> {@code scanAuthorizer} stops at the first match,
  * so exactly one {@link org.atmosphere.room.auth.RoomAuthorizer} is installed framework-wide
  * no matter how many handlers declare one.</p>
+ *
+ * <p><strong>{@code @RoomAuth} guards Room Protocol frames only.</strong>
+ * {@code RoomProtocolInterceptor} asks the authorizer about join, broadcast and send-to
+ * frames; a plain HTTP {@code POST} to this path is not one, and reached the broadcaster
+ * with no check at all. So the {@code POST} branch asks the same authorizer itself and
+ * refuses an anonymous or off-rota publish with {@code 403} — fail closed, one rule for
+ * both paths.</p>
  */
 @AtmosphereHandlerService(path = "/atmosphere/raw/ops")
 @RoomAuth(authorizer = OncallRoomAuthorizer.class)
 public class OpsFeedHandler extends AbstractReflectorAtmosphereHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(OpsFeedHandler.class);
+
+    private final RoomAuthorizer authorizer = new OncallRoomAuthorizer();
 
     @Override
     public void onRequest(AtmosphereResource resource) throws IOException {
@@ -61,6 +72,12 @@ public class OpsFeedHandler extends AbstractReflectorAtmosphereHandler {
                 logger.info("{} suspended on the raw ops feed", resource.uuid());
             }
             case "POST" -> {
+                if (!authorizer.authorize(resource, resource.getBroadcaster().getID(), RoomAction.BROADCAST)) {
+                    AtmosphereResponse response = resource.getResponse();
+                    response.setStatus(403);
+                    response.getWriter().write("");
+                    return;
+                }
                 String body = resource.getRequest().getReader().readLine();
                 logger.info("raw ops broadcast: {}", body);
                 resource.getBroadcaster().broadcast(body == null ? "" : body);

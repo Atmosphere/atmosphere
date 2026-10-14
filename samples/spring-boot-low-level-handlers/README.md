@@ -44,6 +44,17 @@ installed framework-wide no matter how many handlers declare one.
 `OncallRoomAuthorizer` **fails closed**: an absent or unknown identity may read, never
 publish. Flipping that to fail open fails the test that names it.
 
+**`@RoomAuth` guards Room Protocol frames only.** `RoomProtocolInterceptor` asks the
+authorizer about join, broadcast and send-to frames, and consumes them. A plain HTTP `POST`
+to the raw feed is not a Room Protocol frame, so `OpsFeedHandler` asks the same authorizer
+itself before broadcasting: without an on-call `X-Ops-User` the publish is refused with `403`
+and nobody receives it (`OpsFeedHandlerAuthTest`).
+
+```bash
+curl -i -X POST -d 'db failover in progress' http://localhost:8106/atmosphere/raw/ops                     # 403
+curl -i -X POST -H 'X-Ops-User: alice' -d 'db failover in progress' http://localhost:8106/atmosphere/raw/ops # 200, broadcast
+```
+
 ## Three listener layers, side by side
 
 The same connection lifecycle is observable at three depths, and they do not see the same
@@ -73,5 +84,6 @@ counters sat at zero until the 2026-08-28 sweep drove a real connect/disconnect 
 ./mvnw test -pl samples/spring-boot-low-level-handlers
 ```
 
-15 tests covering the raw/managed parity claim, the `@RoomAuth` placement constraint, the
-fail-closed authorization contract, and the three listener layers.
+18 tests covering the raw/managed parity claim, the `@RoomAuth` placement constraint, the
+fail-closed authorization contract (Room Protocol frames and plain `POST`s alike), and the
+three listener layers.
