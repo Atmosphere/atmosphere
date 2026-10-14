@@ -19,8 +19,8 @@ import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.processor.AiEndpointHandler;
 import org.atmosphere.config.service.Disconnect;
-import org.atmosphere.config.service.PathParam;
 import org.atmosphere.config.service.Ready;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
@@ -35,7 +35,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Demonstrates standard Atmosphere annotations with {@code @AiEndpoint}:</p>
  * <ul>
- *   <li>{@link PathParam @PathParam} — injects the {@code {room}} path variable</li>
+ *   <li>{@code {room}} path variable — read per call from the resource with
+ *       {@link AiEndpointHandler#pathParam(AtmosphereResource, String)}</li>
  *   <li>{@link Ready @Ready} — invoked when a client connects and is suspended</li>
  *   <li>{@link Disconnect @Disconnect} — invoked when a client disconnects</li>
  * </ul>
@@ -49,6 +50,12 @@ import org.slf4j.LoggerFactory;
  * element and {@code AgentProcessor} wires an empty {@code AiInterceptor} list,
  * so the per-room {@link RoomContextInterceptor} (persona + scope per
  * {@code {room}}) could not be installed.</p>
+ *
+ * <p>The room is deliberately <em>not</em> an {@code @PathParam} field: one
+ * {@code AiClassroom} instance serves every room, so a field holds whichever
+ * room the last student joined, and a math student's prompt would be logged
+ * as the code room's. Each callback reads the room of the resource it was
+ * given, as {@link RoomContextInterceptor} does.</p>
  */
 @AiEndpoint(path = "/atmosphere/classroom/{room}",
         systemPromptResource = "skill:classroom",
@@ -71,13 +78,21 @@ public class AiClassroom {
 
     private static final Logger logger = LoggerFactory.getLogger(AiClassroom.class);
 
-    @PathParam("room")
-    private String room;
+    /**
+     * The {@code {room}} this resource connected to. {@code AiEndpointHandler}
+     * records it on the resource's request before {@code @Ready}; a resource
+     * whose request is gone (a recycled one at disconnect) has no room left.
+     */
+    static String roomOf(AtmosphereResource resource) {
+        var request = resource.getRequest();
+        var room = request == null ? null : AiEndpointHandler.pathParam(resource, "room");
+        return room == null ? "unknown" : room;
+    }
 
     @Ready
     public void onReady(AtmosphereResource resource) {
         logger.info("Student {} joined room '{}' (broadcaster: {})",
-                resource.uuid(), room, resource.getBroadcaster().getID());
+                resource.uuid(), roomOf(resource), resource.getBroadcaster().getID());
         broadcastPresence(resource, "join");
     }
 
@@ -85,10 +100,10 @@ public class AiClassroom {
     public void onDisconnect(AtmosphereResourceEvent event) {
         var resource = event.getResource();
         if (resource == null) {
-            logger.debug("Ignoring disconnect for room '{}' because resource is null", room);
+            logger.debug("Ignoring disconnect because resource is null");
             return;
         }
-        logger.info("Student {} left room '{}'", resource.uuid(), room);
+        logger.info("Student {} left room '{}'", resource.uuid(), roomOf(resource));
         broadcastPresence(resource, "leave");
     }
 
@@ -107,7 +122,7 @@ public class AiClassroom {
         var broadcaster = resource.getBroadcaster();
         if (broadcaster == null) {
             logger.debug("Skipping presence {} for resource {} in room '{}' because broadcaster is null",
-                    action, resource.uuid(), room);
+                    action, resource.uuid(), roomOf(resource));
             return;
         }
         int count = broadcaster.getAtmosphereResources().size();
@@ -130,7 +145,7 @@ public class AiClassroom {
 
     @Prompt
     public void onPrompt(String message, StreamingSession session, AtmosphereResource resource) {
-        logger.info("Classroom prompt in room '{}': {}", room, message);
+        logger.info("Classroom prompt in room '{}': {}", roomOf(resource), message);
         // Always through the pipeline: DemoAgentRuntime takes over when no
         // LLM_API_KEY is configured, otherwise the real runtime streams. The
         // per-request ScopeConfig installed by RoomContextInterceptor rides

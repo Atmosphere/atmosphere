@@ -15,19 +15,29 @@
  */
 package org.atmosphere.samples.springboot.aiclassroom;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
+import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.processor.AiEndpointHandler;
+import org.atmosphere.config.service.PathParam;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.RawMessage;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -36,7 +46,6 @@ class AiClassroomTest {
     @Test
     void onReadyBroadcastsPresenceAsRawMessage() throws Exception {
         var endpoint = new AiClassroom();
-        setRoom(endpoint, "math");
 
         var captured = new AtomicReference<Object>();
         var members = new LinkedHashSet<AtmosphereResource>();
@@ -55,7 +64,6 @@ class AiClassroomTest {
     @Test
     void onDisconnectWithNullResourceIsIgnored() throws Exception {
         var endpoint = new AiClassroom();
-        setRoom(endpoint, "math");
 
         var event = eventProxy(null);
         assertDoesNotThrow(() -> endpoint.onDisconnect(event));
@@ -64,7 +72,6 @@ class AiClassroomTest {
     @Test
     void onDisconnectLeaveAdjustsCountWhenResourceStillPresent() throws Exception {
         var endpoint = new AiClassroom();
-        setRoom(endpoint, "math");
 
         var captured = new AtomicReference<Object>();
         var members = new LinkedHashSet<AtmosphereResource>();
@@ -83,10 +90,76 @@ class AiClassroomTest {
     @Test
     void onDisconnectSkipsBroadcastWhenBroadcasterIsNull() throws Exception {
         var endpoint = new AiClassroom();
-        setRoom(endpoint, "math");
 
         var resource = resourceProxy("student-3", null);
         assertDoesNotThrow(() -> endpoint.onDisconnect(eventProxy(resource)));
+    }
+
+    /**
+     * One {@code AiClassroom} instance serves every room. With the room in an
+     * {@code @PathParam} field, the last student to join decided which room
+     * every later callback named: a math student's prompt was logged as the
+     * code room's. Each callback must name the room of its own resource.
+     */
+    @Test
+    void promptIsAttributedToTheSendersRoomNotTheLastJoinedOne() {
+        var endpoint = new AiClassroom();
+        var members = new LinkedHashSet<AtmosphereResource>();
+        var math = resourceProxy("math-student", broadcasterProxy("/atmosphere/classroom/math",
+                members, new AtomicReference<>()), "math");
+        var code = resourceProxy("code-student", broadcasterProxy("/atmosphere/classroom/code",
+                members, new AtomicReference<>()), "code");
+
+        var logger = (Logger) LoggerFactory.getLogger(AiClassroom.class);
+        var appender = new ListAppender<ILoggingEvent>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            endpoint.onReady(math);
+            endpoint.onReady(code);
+            endpoint.onPrompt("What is 7 times 8?", sessionProxy(), math);
+        } finally {
+            logger.detachAppender(appender);
+        }
+
+        var prompt = appender.list.stream()
+                .map(ILoggingEvent::getFormattedMessage)
+                .filter(m -> m.startsWith("Classroom prompt"))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("Classroom prompt in room 'math': What is 7 times 8?", prompt);
+    }
+
+    @Test
+    void endpointKeepsNoPathParamStateOnTheSharedInstance() {
+        assertFalse(Arrays.stream(AiClassroom.class.getDeclaredFields())
+                        .anyMatch(f -> f.isAnnotationPresent(PathParam.class)),
+                "AiClassroom is a single instance for every room; a @PathParam field "
+                        + "holds whichever room the last student joined");
+    }
+
+    private static StreamingSession sessionProxy() {
+        return (StreamingSession) Proxy.newProxyInstance(
+                StreamingSession.class.getClassLoader(),
+                new Class<?>[] { StreamingSession.class },
+                (proxy, method, args) -> "toString".equals(method.getName())
+                        ? "StreamingSessionProxy" : defaultValue(method.getReturnType()));
+    }
+
+    private static AtmosphereRequest requestProxy(String room) {
+        return (AtmosphereRequest) Proxy.newProxyInstance(
+                AtmosphereRequest.class.getClassLoader(),
+                new Class<?>[] { AtmosphereRequest.class },
+                (proxy, method, args) -> {
+                    if ("getAttribute".equals(method.getName())) {
+                        return (AiEndpointHandler.PATH_PARAM_ATTRIBUTE_PREFIX + "room").equals(args[0])
+                                ? room : null;
+                    }
+                    if ("toString".equals(method.getName())) {
+                        return "AtmosphereRequestProxy(" + room + ")";
+                    }
+                    return defaultValue(method.getReturnType());
+                });
     }
 
     private static Broadcaster broadcasterProxy(String id,
@@ -110,6 +183,11 @@ class AiClassroomTest {
     }
 
     private static AtmosphereResource resourceProxy(String uuid, Broadcaster broadcaster) {
+        return resourceProxy(uuid, broadcaster, "math");
+    }
+
+    private static AtmosphereResource resourceProxy(String uuid, Broadcaster broadcaster, String room) {
+        var request = requestProxy(room);
         return (AtmosphereResource) Proxy.newProxyInstance(
                 AtmosphereResource.class.getClassLoader(),
                 new Class<?>[] { AtmosphereResource.class },
@@ -117,6 +195,7 @@ class AiClassroomTest {
                     return switch (method.getName()) {
                         case "uuid" -> uuid;
                         case "getBroadcaster" -> broadcaster;
+                        case "getRequest" -> request;
                         case "toString" -> "AtmosphereResourceProxy(" + uuid + ")";
                         default -> defaultValue(method.getReturnType());
                     };
@@ -167,11 +246,5 @@ class AiClassroomTest {
             return '\0';
         }
         return null;
-    }
-
-    private static void setRoom(AiClassroom endpoint, String room) throws Exception {
-        Field field = AiClassroom.class.getDeclaredField("room");
-        field.setAccessible(true);
-        field.set(endpoint, room);
     }
 }
