@@ -1619,6 +1619,34 @@ else
     fail "import: agent with emphasis tools not generated"
 fi
 
+# Test: the tool-name grammar the runtime cross-reference uses
+# (SkillFileParser.toolName) — name ends at '(', ':', a dash or whitespace.
+cat > "$IMPORT_TMP/dash-skill.md" <<'DASHEOF'
+---
+name: dash-test
+description: "Test dash and argument tool bullets"
+---
+# Dash Test
+
+## Tools
+- convert_units — Convert between Celsius and Fahrenheit: both ways
+- `get_weather(city)` — returns a short weather report for a city.
+- lookup_order - Find an order by id
+DASHEOF
+
+output=$("$CLI" import --name test-dash "$IMPORT_TMP/dash-skill.md" 2>&1) || true
+dash_file=$(find "$IMPORT_TMP/test-dash/src/main/java" -name "*Agent.java" 2>/dev/null | head -1)
+if [ -n "$dash_file" ]; then
+    dash_content=$(cat "$dash_file")
+    assert_contains "$dash_content" '@AiTool(name = "convert_units", description = "Convert between Celsius and Fahrenheit: both ways")' "import: em-dash bullet names convert_units, colon stays in the description"
+    assert_contains "$dash_content" '@AiTool(name = "get_weather", description = "returns a short weather report for a city.")' "import: backticked name(args) bullet names get_weather"
+    assert_contains "$dash_content" '@AiTool(name = "lookup_order", description = "Find an order by id")' "import: hyphen-separated bullet names lookup_order"
+    assert_contains "$dash_content" "convertUnits(" "import: camelCase method for convert_units"
+    assert_not_contains "$dash_content" "get_weather_city" "import: argument list is not folded into the tool name"
+else
+    fail "import: agent with dash tools not generated"
+fi
+
 # Test 10: Skills without ## Tools generates no @AiTool stubs
 cat > "$IMPORT_TMP/no-tools-skill.md" <<'NOTOOLSEOF'
 ---

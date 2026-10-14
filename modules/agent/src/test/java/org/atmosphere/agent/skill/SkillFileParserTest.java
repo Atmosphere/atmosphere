@@ -17,7 +17,13 @@ package org.atmosphere.agent.skill;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -182,5 +188,80 @@ public class SkillFileParserTest {
     public void testNotIsEmpty() {
         var parsed = SkillFileParser.parse(FULL_SKILL_FILE);
         assertFalse(parsed.isEmpty());
+    }
+
+    /**
+     * Every {@code ## Tools} bullet form the samples, the skill catalog and
+     * {@code atmosphere import} use. Splitting on ':' alone turned the
+     * backticked-with-arguments and em-dash forms into the whole line, so each
+     * boot warned about a tool that was registered and fired.
+     */
+    @Test
+    public void toolNameUnderstandsEveryBulletForm() {
+        assertEquals("get_weather", SkillFileParser.toolName("get_weather: Get current weather").orElseThrow());
+        assertEquals("get_data", SkillFileParser.toolName("**get_data**: Fetch data from API").orElseThrow());
+        assertEquals("check_status", SkillFileParser.toolName("`check_status`: Check system status").orElseThrow());
+        assertEquals("get_weather", SkillFileParser.toolName(
+                "`get_weather(city)` \u2014 returns a short weather report for a city.").orElseThrow());
+        assertEquals("get_time", SkillFileParser.toolName(
+                "`get_time(timezone)` \u2014 returns the current time for an IANA timezone").orElseThrow());
+        assertEquals("convert_units", SkillFileParser.toolName(
+                "convert_units \u2014 Convert between Celsius and Fahrenheit").orElseThrow());
+        assertEquals("convert_units", SkillFileParser.toolName(
+                "convert_units - Convert between Celsius and Fahrenheit").orElseThrow());
+        assertEquals("search-web", SkillFileParser.toolName("search-web: Search the web").orElseThrow());
+        assertEquals("lookup", SkillFileParser.toolName("lookup").orElseThrow());
+        assertTrue(SkillFileParser.toolName("\u2014 no name here").isEmpty());
+        assertTrue(SkillFileParser.toolName(null).isEmpty());
+    }
+
+    /**
+     * The samples' skill files must name tools their own {@code @AiTool}
+     * methods register — the cross-reference the runtime warns about at boot.
+     */
+    @Test
+    public void sampleSkillFilesNameToolsTheirSamplesRegister() throws IOException {
+        var samples = Path.of("../../samples").toAbsolutePath().normalize();
+        assertTrue(Files.isDirectory(samples), "samples directory: " + samples);
+        var checked = 0;
+        try (var sampleDirs = Files.list(samples)) {
+            for (var sample : sampleDirs.sorted().toList()) {
+                var resources = sample.resolve("src/main/resources");
+                var sources = sample.resolve("src/main/java");
+                if (!Files.isDirectory(resources) || !Files.isDirectory(sources)) {
+                    continue;
+                }
+                var registered = registeredToolNames(sources);
+                try (var files = Files.walk(resources)) {
+                    for (var md : files.filter(f -> f.toString().endsWith(".md")).toList()) {
+                        for (var item : SkillFileParser.parse(Files.readString(md)).listItems("Tools")) {
+                            var name = SkillFileParser.toolName(item);
+                            assertTrue(name.isPresent(), md + ": no tool name in '" + item + "'");
+                            if (registered.isEmpty()) {
+                                continue;    // the sample registers no @AiTool of its own
+                            }
+                            assertTrue(registered.contains(name.get()), md + " declares '"
+                                    + name.get() + "' but the sample registers " + registered);
+                            checked++;
+                        }
+                    }
+                }
+            }
+        }
+        assertTrue(checked >= 6, "expected the agui and orchestration skill tools, checked " + checked);
+    }
+
+    private static Set<String> registeredToolNames(Path sources) throws IOException {
+        var pattern = Pattern.compile("@AiTool\\(\\s*name\\s*=\\s*\"([^\"]+)\"");
+        var names = new HashSet<String>();
+        try (var files = Files.walk(sources)) {
+            for (var source : files.filter(f -> f.toString().endsWith(".java")).toList()) {
+                var matcher = pattern.matcher(Files.readString(source));
+                while (matcher.find()) {
+                    names.add(matcher.group(1));
+                }
+            }
+        }
+        return names;
     }
 }

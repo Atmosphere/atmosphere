@@ -21,6 +21,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 /**
  * Parses a skill markdown file into its component sections. The entire file
@@ -49,6 +50,16 @@ import java.util.Optional;
  * </pre>
  */
 public final class SkillFileParser {
+
+    /**
+     * A {@code ## Tools} bullet's tool name: the leading identifier once
+     * markdown emphasis / code marks are stripped. It ends at the first
+     * character that cannot be part of a tool name, so {@code name: desc},
+     * {@code name — desc}, {@code name - desc}, {@code `name(args)` — desc}
+     * and {@code **name**: desc} all name {@code name}.
+     */
+    private static final Pattern TOOL_NAME =
+            Pattern.compile("^[*`\\s]*([A-Za-z0-9_][A-Za-z0-9_-]*)");
 
     private final String rawContent;
     private final String title;
@@ -288,6 +299,23 @@ public final class SkillFileParser {
             }
         }
         return List.copyOf(items);
+    }
+
+    /**
+     * The tool name a {@code ## Tools} bullet declares (see {@link #listItems}).
+     * This is the grammar {@code atmosphere import} uses to generate the
+     * matching {@code @AiTool} stubs, so a skill file the CLI imports
+     * cross-references cleanly at runtime.
+     *
+     * @param item one {@code ## Tools} list item, without its {@code "- "} prefix
+     * @return the declared tool name, or empty when the item names none
+     */
+    public static Optional<String> toolName(String item) {
+        if (item == null) {
+            return Optional.empty();
+        }
+        var matcher = TOOL_NAME.matcher(item);
+        return matcher.find() ? Optional.of(matcher.group(1)) : Optional.empty();
     }
 
     /**

@@ -875,10 +875,13 @@ public class AgentProcessor implements Processor<Object> {
                 .map(t -> t.name())
                 .toList();
         for (var skillTool : skillTools) {
-            // Extract tool name (before any ":" or description)
-            var toolName = skillTool.contains(":") ? skillTool.split(":")[0].trim() : skillTool.trim();
-            if (!registeredNames.contains(toolName)) {
-                logger.warn("Skill file declares tool '{}' but no matching @AiTool method found", toolName);
+            var toolName = SkillFileParser.toolName(skillTool);
+            if (toolName.isEmpty()) {
+                logger.warn("Skill file ## Tools entry '{}' does not start with a tool name",
+                        skillTool);
+            } else if (!registeredNames.contains(toolName.get())) {
+                logger.warn("Skill file declares tool '{}' but no matching @AiTool method found",
+                        toolName.get());
             }
         }
     }
