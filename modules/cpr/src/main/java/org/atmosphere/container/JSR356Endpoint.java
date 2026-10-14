@@ -28,6 +28,7 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.util.CookieUtil;
 import org.atmosphere.util.IOUtils;
@@ -341,8 +342,27 @@ public class JSR356Endpoint extends Endpoint {
         logger.trace("{} closed {}", session, closeCode);
         if (request != null) {
             request.destroy();
-            webSocketProcessor.close(webSocket, closeCode.getCloseCode().getCode());
+            int code = closeCode.getCloseCode().getCode();
+            if (containerGoingAway(code, closeCode.getReasonPhrase())
+                    && webSocket.resource() instanceof AtmosphereResourceImpl resource) {
+                // The container ended the connection: the client did not leave.
+                resource.getAtmosphereResourceEvent().setCancelled(true);
+            }
+            webSocketProcessor.close(webSocket, code);
         }
+    }
+
+    /**
+     * A browser leaving the page closes with going-away (1001) and no reason.
+     * The containers end connections themselves with going-away and say why:
+     * Jetty 12 on an idle timeout ("Connection Idle Timeout", a client whose
+     * network vanished) and on a graceful stop ("Container being shut down"),
+     * Tomcat when the web application stops. Those closes reach {@link #onClose}
+     * like a peer's, so the reason is what tells them apart.
+     */
+    static boolean containerGoingAway(int closeCode, String reasonPhrase) {
+        return closeCode == CloseReason.CloseCodes.GOING_AWAY.getCode()
+                && reasonPhrase != null && !reasonPhrase.isBlank();
     }
 
     @Override
