@@ -62,11 +62,11 @@
 
     <properties>
         <maven.deploy.skip>true</maven.deploy.skip>
-        <!-- exec:exec defaults: override with -Dhttp.port / -Dgrpc.port, and run the CLI
-             client with -Dexec.mainClass=org.atmosphere.samples.grpc.GrpcChatClient. -->
+        <!-- exec:java entry point: the server by default; run the CLI client with
+             -Dexec.mainClass=org.atmosphere.samples.grpc.GrpcChatClient. The ports are
+             read from -Dhttp.port / -Dgrpc.port on the mvn command line (exec:java runs
+             in Maven's JVM), defaulting to 8080 / 9090 in the code. -->
         <exec.mainClass>org.atmosphere.samples.grpc.GrpcChatServer</exec.mainClass>
-        <http.port>8080</http.port>
-        <grpc.port>9090</grpc.port>
     </properties>
 
     <build>
@@ -77,7 +77,8 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.6.3</version>
                 <configuration>
-                    <mainClass>org.atmosphere.samples.grpc.GrpcChatServer</mainClass>
+                    <!-- Through the property: a literal value here outranks -Dexec.mainClass. -->
+                    <mainClass>${exec.mainClass}</mainClass>
                 </configuration>
             </plugin>
         </plugins>

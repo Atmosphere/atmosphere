@@ -1516,6 +1516,25 @@ if [ -d "$repo_root/samples" ]; then
         fail "samples declare logback-classic without logback-core (SLF4J falls back to NOP at run time):$logback_half"
     fi
 
+    # A literal <mainClass> in the exec-maven-plugin configuration outranks the
+    # exec.mainClass user property, so a sample that defaults the property and
+    # documents `-Dexec.mainClass=...` to pick another entry point (grpc-chat's
+    # CLI client) must read it through ${exec.mainClass}, or that command
+    # silently starts the default class instead.
+    exec_literal=""
+    for sample_pom in "$repo_root"/samples/*/pom.xml; do
+        grep -q '<exec.mainClass>' "$sample_pom" || continue
+        if sed -n '/<artifactId>exec-maven-plugin<\/artifactId>/,/<\/plugin>/p' "$sample_pom" \
+                | grep '<mainClass>' | grep -qv '<mainClass>\${exec.mainClass}</mainClass>'; then
+            exec_literal="$exec_literal ${sample_pom#"$repo_root"/}"
+        fi
+    done
+    if [ -z "$exec_literal" ]; then
+        pass "samples defaulting exec.mainClass let -Dexec.mainClass pick the entry point"
+    else
+        fail "samples hard-code the exec-maven-plugin mainClass, so -Dexec.mainClass is ignored:$exec_literal"
+    fi
+
     # React Native deprecated its own SafeAreaView ("will be removed in a future
     # release"): a sample that still imports it logs that warning on every load
     # and stops rendering when it is removed. Use react-native-safe-area-context.
