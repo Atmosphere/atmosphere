@@ -808,6 +808,21 @@ jobs:
         GITHUB_TOKEN: ${{ github.token }}
 
   # ─────────────────────────────────────────────
+  # After the GitHub release: label the issues it fixed with its version
+  # ─────────────────────────────────────────────
+  label-fixed-issues:
+    name: Label fixed issues
+    needs: [github-release]
+    if: inputs.dry_run == false
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    uses: ./.github/workflows/release-label-issues.yml
+    with:
+      release_version: ${{ inputs.release_version }}
+
+  # ─────────────────────────────────────────────
   # Phase 6: Update CLI version + Homebrew tap
   # ─────────────────────────────────────────────
   update-cli:

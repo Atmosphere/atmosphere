@@ -1,0 +1,51 @@
+name: "Release: Label Fixed Issues"
+
+# Labels every issue a release fixed with the release version (the repository's
+# version-label convention, `3.0.12`, `3.1.0`, ...). release-4x.yml calls it
+# once the GitHub release exists; `on: release` would never fire, because that
+# release is created with GITHUB_TOKEN, whose events start no workflow.
+# Run it by hand to label a past release. What counts as fixed, and every skip
+# with its reason, is in scripts/release-label-issues.sh.
+
+on:
+  workflow_call:
+    inputs:
+      release_version:
+        description: 'Released version; the label is named after it'
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Released version (tag atmosphere-<version> must exist)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Print the issues without creating or applying the label'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  label:
+    name: Label issues fixed in ${{ inputs.release_version }}
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+
+    - name: Label fixed issues
+      env:
+        GH_TOKEN: ${{ github.token }}
+        RELEASE_VERSION: ${{ inputs.release_version }}
+        # Unset under workflow_call, which has no dry_run input.
+        DRY_RUN: ${{ inputs.dry_run && 'true' || '' }}
+      run: |
+        git fetch --tags --force origin
+        ./scripts/release-label-issues.sh "$RELEASE_VERSION" ${DRY_RUN:+--dry-run}

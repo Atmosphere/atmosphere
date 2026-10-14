@@ -46,6 +46,11 @@ jobs:
     - name: Prove the hardcoded Atmosphere version gate bites
       run: ./scripts/test-no-hardcoded-atmosphere-version.sh
 
+    # The release labeller runs once a release, against real issues. A stub gh
+    # serves the issue states so its filters are proven on every push instead.
+    - name: Prove the release issue labeller picks only fixed issues
+      run: ./scripts/test-release-label-issues.sh
+
     # The Playwright coverage gate lists the suite with Playwright itself
     # (`playwright test --list`, no browsers), so it needs the e2e module's
     # npm dependencies on the same Node the e2e legs use.
