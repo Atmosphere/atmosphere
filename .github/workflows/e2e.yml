@@ -112,7 +112,7 @@ jobs:
           - name: protocols
             projects: "mcp-server,mcp-tools,a2a-agent,a2a-discovery,agui-chat,multi-agent-startup-team,browser-agent"
           - name: protocols-extra
-            projects: "grpc-browser,rooms-api,room-typing-direct,channels-chat"
+            projects: "grpc-browser,rooms-api,room-typing-direct,channels-chat,team-rooms"
           - name: resilience
             projects: "durable-sessions,durable-session-token,durable-session-identity,otel-chat,chat-observability"
           - name: resilience-extra

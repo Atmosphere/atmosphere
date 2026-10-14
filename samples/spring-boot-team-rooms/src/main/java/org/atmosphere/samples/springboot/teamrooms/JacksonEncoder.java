@@ -18,13 +18,21 @@ package org.atmosphere.samples.springboot.teamrooms;
 import org.atmosphere.config.managed.Encoder;
 
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
+/**
+ * Writes {@code {"room","author","text","at","message"}}. {@code message} repeats
+ * {@code text} because the Atmosphere Console renders a broadcast frame as
+ * {@code author: message}; without it the Console drops every line it receives.
+ */
 public class JacksonEncoder implements Encoder<Message, String> {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Override
     public String encode(Message m) {
-        return mapper.writeValueAsString(m);
+        ObjectNode node = mapper.valueToTree(m);
+        node.put("message", m.text());
+        return mapper.writeValueAsString(node);
     }
 }

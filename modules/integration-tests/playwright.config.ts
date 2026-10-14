@@ -195,6 +195,10 @@ export default defineConfig({
       testMatch: /rooms-api\.spec\.ts/,
     },
     {
+      name: 'team-rooms',
+      testMatch: /team-rooms\.spec\.ts/,
+    },
+    {
       name: 'ai-session-stats',
       testMatch: /ai-session-stats\.spec\.ts/,
     },

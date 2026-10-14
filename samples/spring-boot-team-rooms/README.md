@@ -19,6 +19,11 @@ Occupancy and replay counters: <http://localhost:8105/api/presence>.
 Change the room by pointing the Console at `/atmosphere/rooms/<anything>`; each distinct path
 is a separate room with separate membership and separate history.
 
+A room accepts the sample's own `{"author","text"}`, the Console's `{"author","message"}`
+envelope and plain text (`JacksonDecoder`), and answers `{"room","author","text","at","message"}`
+— `message` is the field the Console renders as `author: message` (`JacksonEncoder`). The room
+and the timestamp always come from the path and the server, never from the client.
+
 ## What each annotation does here
 
 | Annotation | Class | The production question it answers |
@@ -67,7 +72,7 @@ carries, not with the object you returned.
 ./mvnw test -pl samples/spring-boot-team-rooms
 ```
 
-25 tests. They assert behaviour, not absence of exceptions: neutering `RedactingFilter` to a
+30 tests. They assert behaviour, not absence of exceptions: neutering `RedactingFilter` to a
 pass-through fails 3 of them by name, feeding it the encoded JSON or a `RawMessage` fails 2
 more, loosening a cache bound past the framework default fails another, and deleting the
 `configure()` override fails it a different way.

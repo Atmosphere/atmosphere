@@ -183,6 +183,13 @@ export const SAMPLES: Record<string, SampleConfig> = {
     // This is the documented dev/demo config for viewing tapes.
     jvmArgs: ['-Datmosphere.admin.content-read-auth-required=false'],
   },
+  'spring-boot-team-rooms': {
+    name: 'spring-boot-team-rooms',
+    dir: 'spring-boot-team-rooms',
+    port: 8105,
+    type: 'spring-boot',
+    readyPath: '/atmosphere/rooms/general',
+  },
   'spring-boot-dentist-agent': {
     name: 'spring-boot-dentist-agent',
     dir: 'spring-boot-dentist-agent',
