@@ -58,7 +58,7 @@ The console header reads *"Microsoft Agent Governance Toolkit — rules-over-con
 ## The policy file — a verbatim MS artifact
 
 ```yaml
-# src/main/resources/atmosphere-policies.yaml (first rules shown; full file has 11)
+# src/main/resources/atmosphere-policies.yaml (excerpt — the full file has 11 rules)
 version: "1.0"
 name: ms-customer-service-demo
 description: Customer-support governance matching MS Agent OS customer-service example
@@ -73,6 +73,8 @@ rules:
     priority: 100
     message: "Destructive SQL statements are not permitted in this chat."
 
+  # … block-delete-account (95) …
+
   - name: block-legal-escalation
     condition:
       field: message
@@ -82,14 +84,18 @@ rules:
     priority: 90
     message: "Legal-language queries are routed to a human agent — the AI cannot handle them."
 
+  # … media (88), executive (85) and ask-for-a-human (80) escalations …
+
   - name: block-ssn-shape
     condition:
       field: message
       operator: matches
       value: '\b\d{3}-\d{2}-\d{4}\b'
     action: deny
-    priority: 80
-    message: "The message looks like it contains a US Social Security number; refusing to process."
+    priority: 70
+    message: "That looks like a US Social Security number — please redact before sending."
+
+  # … credit-card (68), password (65), discount (60) and the audit-only code-request rule (50) …
 
 defaults:
   action: allow
@@ -127,8 +133,8 @@ Open the console at `http://localhost:8090/atmosphere/console/`:
 |---|---|---|
 | `please DROP TABLE users` | **Error:** *Denied by policy 'ms-customer-service-demo': Destructive SQL statements are not permitted in this chat.* | `matches` (regex) |
 | `I will sue us if this isn't fixed` | **Error:** *Denied by policy 'ms-customer-service-demo': Legal-language queries are routed to a human agent — the AI cannot handle them.* | `matches` (regex) |
-| `my SSN is 123-45-6789` | **Error:** *Denied by policy 'ms-customer-service-demo': The message looks like it contains a US Social Security number; refusing to process.* | `matches` (regex) |
-| `hello, what services do you offer?` | **AI:** *Got it — you said: "hello, what services do you offer?". …* | No rule matched → `defaults.action: allow` |
+| `my SSN is 123-45-6789` | **Error:** *Denied by policy 'ms-customer-service-demo': That looks like a US Social Security number — please redact before sending.* | `matches` (regex) |
+| `hello, what services do you offer?` | **AI:** *Thanks for contacting Example Corp support. I see your message: "hello, what services do you offer?". …* | No rule matched → `defaults.action: allow` |
 
 Every denial surfaces MS's exact `message:` field — no re-phrasing, no editorializing.
 
@@ -144,14 +150,35 @@ MS's `PolicyProviderHandler` is an ASGI app with three endpoints: `/check`, `/po
 curl -s http://localhost:8090/api/admin/governance/policies | jq
 ```
 
+Seven policies, in evaluation order: six operator policies composed in `PoliciesConfig`
+(`kill-switch`, `require-support-role`, `require-tenant-id`, `per-user-rate-limit`,
+`support-business-hours`, `per-user-concurrency-limit`, the last one evaluated after the YAML)
+plus the MS-schema YAML policy. Each is wrapped in `TimedPolicy` for per-policy latency
+metrics, so `className` names the wrapper and `delegateClassName` the policy. Two entries
+shown, digests elided:
+
 ```json
 [
+  {
+    "name": "kill-switch",
+    "source": "code:org.atmosphere.ai.governance.KillSwitchPolicy",
+    "version": "1",
+    "className": "org.atmosphere.ai.governance.TimedPolicy",
+    "timed": true,
+    "delegateClassName": "org.atmosphere.ai.governance.CountingPolicy",
+    "digest": "sha256:…"
+  },
+  …
   {
     "name": "ms-customer-service-demo",
     "source": "classpath:atmosphere-policies.yaml",
     "version": "1.0",
-    "className": "org.atmosphere.ai.governance.MsAgentOsPolicy"
-  }
+    "className": "org.atmosphere.ai.governance.TimedPolicy",
+    "timed": true,
+    "delegateClassName": "org.atmosphere.ai.governance.MsAgentOsPolicy",
+    "digest": "sha256:…"
+  },
+  …
 ]
 ```
 
@@ -162,15 +189,29 @@ curl -s http://localhost:8090/api/admin/governance/summary | jq
 ```
 
 ```json
-{ "policyCount": 1, "sources": ["classpath:atmosphere-policies.yaml"] }
+{
+  "policyCount": 7,
+  "sources": [
+    "code:org.atmosphere.ai.governance.KillSwitchPolicy",
+    "code:org.atmosphere.samples.springboot.msgovernance.PoliciesConfig$$SpringCGLIB$$0",
+    "code:org.atmosphere.ai.governance.RateLimitPolicy",
+    "classpath:atmosphere-policies.yaml",
+    "code:org.atmosphere.ai.governance.ConcurrencyLimitPolicy"
+  ]
+}
 ```
 
 ### Ad-hoc decision (MS `POST /check` wire format)
 
+The operator policies run before the YAML, so a probe has to carry what the console's
+`DemoIdentityInterceptor` stamps on every chat turn — a `tenant-id` and the
+`support-chat-user` role. Without them `require-support-role` denies first
+(`"no roles claimed by subject; required: [support-chat-user]"`).
+
 ```bash
 curl -s -X POST http://localhost:8090/api/admin/governance/check \
   -H 'content-type: application/json' \
-  -d '{"agent_id":"probe","action":"call_tool","context":{"message":"please DROP TABLE logs"}}' \
+  -d '{"agent_id":"probe","action":"call_tool","context":{"message":"please DROP TABLE logs","tenant-id":"demo-tenant","roles":["support-chat-user"]}}' \
   | jq
 ```
 
@@ -181,7 +222,7 @@ curl -s -X POST http://localhost:8090/api/admin/governance/check \
   "reason": "Destructive SQL statements are not permitted in this chat.",
   "matched_policy": "ms-customer-service-demo",
   "matched_source": "classpath:atmosphere-policies.yaml",
-  "evaluation_ms": 3.27
+  "evaluation_ms": 0.09
 }
 ```
 
@@ -190,13 +231,13 @@ The allowed path:
 ```bash
 curl -s -X POST http://localhost:8090/api/admin/governance/check \
   -H 'content-type: application/json' \
-  -d '{"agent_id":"probe","context":{"message":"what is 2+2"}}' \
+  -d '{"agent_id":"probe","context":{"message":"what is 2+2","tenant-id":"demo-tenant","roles":["support-chat-user"]}}' \
   | jq
 ```
 
 ```json
 { "allowed": true, "decision": "allow", "reason": "", "matched_policy": null,
-  "matched_source": null, "evaluation_ms": 0.08 }
+  "matched_source": null, "evaluation_ms": 0.33 }
 ```
 
 ---
