@@ -317,7 +317,10 @@ onMounted(async () => {
           </button>
         </div>
       </div>
-      <ChatContainer v-else-if="ready && activeTab === 'chat'"
+      <!-- Kept mounted like every other tab: leaving Chat must not close its
+           subscription or drop the conversation. -->
+      <ChatContainer v-if="ready && (endpointOptions.length === 0 || pickedEndpoint)"
+                     v-show="activeTab === 'chat'"
                      :key="pickedEndpoint ?? endpoint"
                      :endpoint="pickedEndpoint ?? endpoint" :mode="mode" :transport="transport"
                      :web-transport="webTransport" :fleet="fleet" :room="room" />
