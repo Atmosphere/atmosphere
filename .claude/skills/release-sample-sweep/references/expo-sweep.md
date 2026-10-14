@@ -52,7 +52,7 @@ cd atmosphere.js && npm run build
 
 # 2. Backend: the classroom sample, booted like any other sweep sample
 .claude/skills/release-sample-sweep/scripts/sweep-sample.sh start spring-boot-ai-classroom \
-    --port 9125 --ready-path /atmosphere/classroom/general \
+    --port 9125 --ready-path /atmosphere/console/ \
     --env LLM_MODE=local --env LLM_MODEL=qwen2.5:3b
 
 # 3. Client deps (bun — this sample uses bun.lock, not package-lock.json)
