@@ -19,10 +19,19 @@ import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.ai.llm.ChatMessage;
+import org.atmosphere.ai.resume.RunRegistryHolder;
+import org.atmosphere.config.managed.AnnotatedLifecycle;
+import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.DefaultBroadcaster;
+import org.atmosphere.cpr.DefaultBroadcasterFactory;
+import org.atmosphere.util.ExecutorsFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,6 +43,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -89,6 +99,52 @@ class AiEndpointHandlerAnonymousMemoryOwnerTest {
         when(resource.getRequest()).thenReturn(request);
         when(resource.getBroadcaster()).thenReturn(mock(Broadcaster.class));
         return resource;
+    }
+
+    /**
+     * Drives the fix's call site: the owner a prompt dispatch records for its
+     * connection, then the recycled-request disconnect that reads it back.
+     * The other tests call the recording helper directly, so reverting the
+     * dispatch to record the run owner would leave them green.
+     */
+    @Test
+    // A real AtmosphereResourceImpl through the deprecated 6-arg constructor —
+    // the harness AiEndpointHandlerFactsCachePrefixTest uses for a dispatch.
+    @SuppressWarnings("deprecation")
+    void anAnonymousPromptDispatchLeavesItsDisconnectWithoutAMemoryOwner() throws Exception {
+        var config = new AtmosphereFramework().getAtmosphereConfig();
+        var factory = new DefaultBroadcasterFactory();
+        factory.configure(DefaultBroadcaster.class, "NEVER", config);
+        config.framework().setBroadcasterFactory(factory);
+        var room = factory.get(DefaultBroadcaster.class, "/ai/anonymous-owner");
+        try {
+            var dispatching = new AiEndpointHandler(new Endpoint(),
+                    Endpoint.class.getMethod("onPrompt", String.class), 30_000L, "",
+                    "/ai/anonymous-owner", mock(AgentRuntime.class), List.<AiInterceptor>of(interceptor),
+                    null, AnnotatedLifecycle.scan(Endpoint.class));
+            var visitor = new AtmosphereResourceImpl(config, room,
+                    AtmosphereRequestImpl.newInstance(), AtmosphereResponseImpl.newInstance(),
+                    mock(BlockingIOCometSupport.class),
+                    new org.atmosphere.handler.AbstractReflectorAtmosphereHandler.Default());
+            room.addAtmosphereResource(visitor);
+            uuids.add(visitor.uuid());
+
+            assertTrue(dispatching.dispatchPrompt(visitor, "hello"), "the prompt is dispatched");
+            assertNull(AiEndpointHandler.recallRunOwner(visitor.uuid()),
+                    "an anonymous dispatch records no owner, never the 'anonymous' run-owner marker");
+
+            var event = new AtmosphereResourceEventImpl(visitor, true, false);
+            event.destroy(); // Tomcat recycled the request: only the uuid is left
+            dispatching.onStateChange(event);
+
+            assertEquals(Arrays.asList((String) null), interceptor.owners,
+                    "the disconnect extracts under no identity, not a shared 'anonymous' bucket");
+        } finally {
+            RunRegistryHolder.reset();
+            room.destroy();
+            factory.destroy();
+            ExecutorsFactory.reset(config);
+        }
     }
 
     @Test
