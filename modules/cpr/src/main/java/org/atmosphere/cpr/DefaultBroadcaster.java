@@ -120,6 +120,8 @@ public class DefaultBroadcaster implements Broadcaster {
     protected volatile SCOPE scope = SCOPE.APPLICATION;
     protected volatile String name = DefaultBroadcaster.class.getSimpleName();
     protected final ConcurrentLinkedQueue<Deliver> delayedBroadcast = new ConcurrentLinkedQueue<>();
+    /** The scheduled tasks of pending {@link #delayBroadcast(Object, long, TimeUnit)} calls. */
+    private final ConcurrentHashMap<Deliver, Future<?>> delayedTasks = new ConcurrentHashMap<>();
     protected final ConcurrentLinkedQueue<Deliver> broadcastOnResume = new ConcurrentLinkedQueue<>();
     protected final ConcurrentHashMap<String, WriteQueue> writeQueues = new ConcurrentHashMap<>();
     protected final WriteQueue uniqueWriteQueue = new WriteQueue("-1");
@@ -269,13 +271,17 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
 
                 lifecycle.clearListeners();
-                cancelPending(delayedBroadcast);
                 if (!sharedListeners) {
                     broadcasterListeners.clear();
                 }
             }
 
             resources.clear();
+            // Never delivered: release whoever waits on them, pooled or not.
+            for (Deliver delayed : delayedTasks.keySet()) {
+                cancelDelayedTask(delayed);
+            }
+            cancelPending(delayedBroadcast);
             cancelPending(broadcastOnResume);
             cancelPending(messages);
             for (WriteQueue writeQueue : writeQueues.values()) {
@@ -1528,7 +1534,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
 
         if (resources.isEmpty()) {
-            broadcastOnResume.clear();
+            completePending(broadcastOnResume);
         }
     }
 
@@ -1777,6 +1783,27 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     /**
+     * Empty a queue of on-resume messages no resource is left to receive,
+     * completing each one's future: the resources it was counted for are gone.
+     */
+    private static void completePending(Queue<Deliver> pending) {
+        Deliver deliver;
+        while ((deliver = pending.poll()) != null) {
+            if (deliver.future != null) {
+                deliver.future.reached(0);
+            }
+        }
+    }
+
+    /** Cancel the scheduled task of a delayed broadcast, so it neither runs nor holds this broadcaster. */
+    private void cancelDelayedTask(Deliver delayed) {
+        var task = delayedTasks.remove(delayed);
+        if (task != null) {
+            task.cancel(false);
+        }
+    }
+
+    /**
      * End a delivery that reaches none of its resources. A delivery to one
      * resource holds one share of its future; a delivery to all resources or
      * to a set was counted for every resource it targeted, so release them all
@@ -1852,6 +1879,11 @@ public class DefaultBroadcaster implements Broadcaster {
 
         logger.trace("Removing AtmosphereResource {} for Broadcaster {}", r.uuid(), name);
 
+        if (resources.isEmpty()) {
+            // No resource is left to resume: the on-resume broadcasts are complete.
+            completePending(broadcastOnResume);
+        }
+
         // Drain any pending tokens before removing the queue to prevent orphaned message accumulation
         WriteQueue removedQueue = writeQueues.remove(r.uuid());
         if (removedQueue != null) {
@@ -1905,31 +1937,41 @@ public class DefaultBroadcaster implements Broadcaster {
         final var future = new BroadcasterFuture<>(msg);
         final var e = new Deliver(msg, future, o);
         if (delay > 0) {
-            bc.getScheduledExecutorService().schedule(() -> {
-                delayedBroadcast.remove(e);
-                if (o instanceof Callable<?> c) {
-                    try {
-                        Object r = c.call();
-                        final Object msg1 = filter(r);
-                        if (msg1 != null) {
-                            var deliver = new Deliver(msg1, future, r);
-                            push(deliver);
+            var task = bc.getScheduledExecutorService().schedule(() -> {
+                try {
+                    delayedBroadcast.remove(e);
+                    if (o instanceof Callable<?> c) {
+                        try {
+                            Object r = c.call();
+                            final Object msg1 = filter(r);
+                            if (msg1 != null) {
+                                var deliver = new Deliver(msg1, future, r);
+                                push(deliver);
+                            }
+                            return msg1;
+                        } catch (Exception e1) {
+                            logger.error("delayBroadcast", e);
                         }
-                        return msg1;
-                    } catch (Exception e1) {
-                        logger.error("delayBroadcast", e);
                     }
-                }
 
-                final Object msg1 = filter(o);
-                final var e12 = new Deliver(msg1, future, o);
-                push(e12);
-                return msg1;
+                    final Object msg1 = filter(o);
+                    final var e12 = new Deliver(msg1, future, o);
+                    push(e12);
+                    return msg1;
+                } finally {
+                    delayedTasks.remove(e);
+                }
             }, delay, t);
+            // Tracked so destroy() can cancel it; a task that already ran untracks itself.
+            delayedTasks.put(e, task);
+            if (task.isDone()) {
+                delayedTasks.remove(e);
+            }
         }
         if (!delayedBroadcast.offer(e)) {
             logger.warn("delayedBroadcast queue full for Broadcaster {}", getID());
             future.cancel(true);
+            cancelDelayedTask(e);
         }
         return future;
     }

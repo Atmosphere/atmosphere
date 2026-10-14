@@ -24,11 +24,14 @@ import org.junit.jupiter.api.Test;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Delayed;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
@@ -252,6 +255,61 @@ class BroadcasterFutureResourceRemovalTest {
 
         assertEquals("delayed", pending.get(WAIT_SECONDS, TimeUnit.SECONDS));
         assertTrue(pending.isCancelled(), "a message that was never delivered is cancelled");
+    }
+
+    @Test
+    void destroyCancelsTheScheduledTaskOfADelayedBroadcast() throws Exception {
+        start(null);
+        subscribe();
+        broadcaster.delayBroadcast("delayed", 1, TimeUnit.HOURS);
+        var scheduler = (ScheduledThreadPoolExecutor) broadcaster.getBroadcasterConfig().getScheduledExecutorService();
+        assertTrue(liveTasksDueInMoreThan(scheduler, 30) > 0, "precondition: the delayed broadcast is scheduled");
+
+        broadcaster.destroy();
+
+        // A task left scheduled holds the broadcaster an hour, and the scheduler's shutdown waits on it.
+        assertEquals(0, liveTasksDueInMoreThan(scheduler, 30), "destroy must cancel the delayed broadcast's task");
+    }
+
+    @Test
+    void poolableBroadcasterReleasesItsDelayedBroadcastsWhenDestroyed() throws Exception {
+        start(null);
+        subscribe();
+        broadcaster.candidateForPoolable = true;
+        try {
+            var pending = broadcaster.delayBroadcast("delayed", 1, TimeUnit.HOURS);
+
+            // Returned to the pool: the next user must not inherit, nor anyone wait on, this message.
+            broadcaster.destroy();
+
+            assertEquals("delayed", pending.get(WAIT_SECONDS, TimeUnit.SECONDS));
+            assertTrue(pending.isCancelled(), "a message that was never delivered is cancelled");
+        } finally {
+            broadcaster.candidateForPoolable = false;
+        }
+    }
+
+    @Test
+    void broadcastOnResumeCompletesWhenTheLastResourceLeaves() throws Exception {
+        start(null);
+        var first = subscribe();
+        var second = subscribe();
+        // Counted for both subscribed resources, delivered only when they resume.
+        var pending = broadcaster.broadcastOnResume("on-resume");
+
+        // Neither resumes: both leave.
+        broadcaster.removeAtmosphereResource(first);
+        broadcaster.removeAtmosphereResource(second);
+
+        assertEquals("on-resume", pending.get(WAIT_SECONDS, TimeUnit.SECONDS));
+        assertFalse(pending.isCancelled(), "no resource is left to deliver to: the broadcast is complete");
+    }
+
+    private static long liveTasksDueInMoreThan(ScheduledThreadPoolExecutor scheduler, long minutes) {
+        return scheduler.getQueue().stream()
+                .filter(task -> !((Future<?>) task).isCancelled())
+                .filter(task -> ((Delayed) task).getDelay(TimeUnit.MINUTES) > minutes)
+                .count();
     }
 
     @Test
