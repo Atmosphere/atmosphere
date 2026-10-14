@@ -633,6 +633,12 @@ public class ComposeGenerator implements Runnable {
                 var targetResDir = resDir.resolve("skill-resources/" + sanitizeName(desc.name));
                 copyDirectory(skillResources, targetResDir);
             }
+        } else if (desc.content != null) {
+            // generateDefaultCoordinator builds its skill in memory; the generated
+            // @Coordinator still declares skillFile = "prompts/skill.md".
+            var promptsDir = resDir.resolve("prompts");
+            Files.createDirectories(promptsDir);
+            Files.writeString(promptsDir.resolve("skill.md"), desc.content);
         }
     }
 

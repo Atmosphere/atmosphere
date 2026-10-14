@@ -2,8 +2,7 @@ server:
   port: {{coordinator.port}}
 
 atmosphere:
-  packages:
-    - {{agent.packageName}}
+  packages: {{agent.packageName}}
 {{#isA2a}}
   coordinator:
     agents:

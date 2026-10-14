@@ -466,6 +466,70 @@ public class ComposeGeneratorTest {
         assertTrue(parentPom.contains("<module>agents/worker</module>"));
     }
 
+    @Test
+    void generateProject_singleJarCoordinatorBootsWithItsFleet(@TempDir Path tmp) throws IOException {
+        // Agents only: the coordinator comes from generateDefaultCoordinator, which
+        // has content but no source file. This is what `atmosphere compose skills/`
+        // produces when no skill declares role: coordinator.
+        var skillsDir = tmp.resolve("skills");
+        Files.createDirectories(skillsDir);
+        Files.writeString(skillsDir.resolve("researcher.md"),
+                "---\nname: researcher\ndescription: \"Researches\"\n---\n# Researcher\n");
+        Files.writeString(skillsDir.resolve("writer.md"),
+                "---\nname: writer\ndescription: \"Writes\"\n---\n# Writer\n");
+
+        var g = gen();
+        g.name = "my-fleet";
+        g.deploy = "single-jar";
+        g.agents.add(g.parseSkillFile(skillsDir.resolve("researcher.md")));
+        g.agents.add(g.parseSkillFile(skillsDir.resolve("writer.md")));
+        g.coordinator = g.generateDefaultCoordinator(g.agents);
+        g.workflowSteps = g.parseWorkflow(g.coordinator.content);
+        g.coordinator.port = 8080;
+        g.agents.get(0).port = 8081;
+        g.agents.get(1).port = 8082;
+
+        var outputDir = tmp.resolve("output");
+        g.generateProject(g.buildModel(), outputDir);
+
+        // The generated @Coordinator declares skillFile = "prompts/skill.md";
+        // without it registration throws "Prompt resource not found on classpath".
+        var coordSkill = outputDir.resolve("coordinator/src/main/resources/prompts/skill.md");
+        assertTrue(Files.isRegularFile(coordSkill), "default coordinator writes prompts/skill.md");
+        var coordSkillContent = Files.readString(coordSkill);
+        assertTrue(coordSkillContent.contains("## Fleet"), "coordinator skill carries the fleet");
+        assertTrue(coordSkillContent.contains("- researcher: Researches"), "coordinator skill lists researcher");
+
+        // The parent imports spring-boot-dependencies rather than inheriting
+        // spring-boot-starter-parent, so the plugin binds no goal unless the
+        // module asks for repackage: `java -jar coordinator/target/*.jar` would
+        // fail with "no main manifest attribute".
+        var coordPom = Files.readString(outputDir.resolve("coordinator/pom.xml"));
+        assertTrue(coordPom.contains("<goal>repackage</goal>"), "coordinator jar is repackaged");
+
+        // AtmosphereProperties.packages is a String (comma-separated): a YAML
+        // list binds nothing and no annotated class is ever scanned.
+        var coordYml = Files.readString(outputDir.resolve("coordinator/src/main/resources/application.yml"));
+        assertEquals("com.example.myfleetcoordinator", packagesValue(coordYml), "coordinator packages is a scalar");
+        var agentYml = Files.readString(outputDir.resolve("agents/researcher/src/main/resources/application.yml"));
+        assertEquals("com.example.researcher", packagesValue(agentYml), "agent packages is a scalar");
+    }
+
+    /** The scalar value of {@code atmosphere.packages}, failing on the YAML list form. */
+    private static String packagesValue(String yml) {
+        var lines = yml.lines().toList();
+        for (int i = 0; i < lines.size(); i++) {
+            var line = lines.get(i);
+            if (line.trim().startsWith("packages:")) {
+                var value = line.substring(line.indexOf(':') + 1).trim();
+                assertFalse(value.isEmpty(), "atmosphere.packages must be a scalar, found a YAML list: "
+                        + (i + 1 < lines.size() ? lines.get(i + 1).trim() : ""));
+                return value;
+            }
+        }
+        return fail("no atmosphere.packages in application.yml");
+    }
+
     // ========== Utility Tests ==========
 
     @Test

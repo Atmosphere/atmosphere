@@ -1062,6 +1062,54 @@ COMPOSESKILLEOF
         fail "compose output ships .mvn/wrapper/maven-wrapper.properties"
     fi
 
+    # The documented next step: package, `java -jar coordinator/target/*.jar`,
+    # and the @Coordinator is discovered. Three generator bugs broke it: the
+    # coordinator jar was never repackaged ("no main manifest attribute"),
+    # atmosphere.packages was a YAML list bound to a String property (nothing
+    # scanned), and the auto-generated coordinator never wrote the
+    # prompts/skill.md its @Coordinator(skillFile) names.
+    coord_yml="$compose_tmp/out/coordinator/src/main/resources/application.yml"
+    if grep -q '^  packages: com\.example\.[a-z0-9]*$' "$coord_yml" 2>/dev/null; then
+        pass "compose: coordinator atmosphere.packages is a scalar"
+    else
+        fail "compose: coordinator atmosphere.packages is a scalar" "$(grep -A1 'packages:' "$coord_yml" 2>&1)"
+    fi
+    if [ -f "$compose_tmp/out/coordinator/src/main/resources/prompts/skill.md" ]; then
+        pass "compose: default coordinator writes prompts/skill.md"
+    else
+        fail "compose: default coordinator writes prompts/skill.md"
+    fi
+    if (cd "$compose_tmp/out" && ./mvnw -B -q package -DskipTests) > "$compose_tmp/package.log" 2>&1; then
+        pass "compose: generated project packages with its ./mvnw"
+    else
+        fail "compose: generated project packages with its ./mvnw" "$(tail -5 "$compose_tmp/package.log")"
+    fi
+    coord_jar=$(ls "$compose_tmp/out/coordinator/target/"*-coordinator-1.0.0-SNAPSHOT.jar 2>/dev/null | head -1)
+    if [ -n "$coord_jar" ] && unzip -p "$coord_jar" META-INF/MANIFEST.MF 2>/dev/null \
+            | grep -q '^Main-Class: org.springframework.boot.loader'; then
+        pass "compose: coordinator jar is an executable Spring Boot jar"
+    else
+        fail "compose: coordinator jar is an executable Spring Boot jar" "jar=$coord_jar"
+    fi
+    if [ -n "$coord_jar" ]; then
+        java -jar "$coord_jar" --server.port=0 > "$compose_tmp/boot.log" 2>&1 &
+        coord_pid=$!
+        coord_wait=0
+        while [ "$coord_wait" -lt 120 ] && kill -0 "$coord_pid" 2>/dev/null \
+                && ! grep -q "Started Application" "$compose_tmp/boot.log"; do
+            sleep 1
+            coord_wait=$((coord_wait + 1))
+        done
+        kill "$coord_pid" 2>/dev/null || true
+        wait "$coord_pid" 2>/dev/null || true
+        if grep -q "Coordinator 'probe-fleet-coordinator' registered" "$compose_tmp/boot.log"; then
+            pass "compose: java -jar boots the coordinator and registers its @Coordinator"
+        else
+            fail "compose: java -jar boots the coordinator and registers its @Coordinator" \
+                 "$(grep -E 'ERROR|Exception|Started' "$compose_tmp/boot.log" | head -5)"
+        fi
+    fi
+
     rm -rf "$compose_tmp"
 else
     printf "  ${DIM}— skipping compose (needs ATMOSPHERE_NETWORK_TESTS=1 and jbang)${RESET}\n"
