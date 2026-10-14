@@ -1086,24 +1086,33 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 invokePrompt(promptText, session, resource);
                 runExecutionHandle.complete();
                 durableSuccess[0] = true;
-            } catch (Exception e) {
-                Throwable cause = e;
-                if (e instanceof java.lang.reflect.InvocationTargetException ite
+            } catch (Throwable t) {
+                // Throwable, not Exception: an Error the @Prompt path throws
+                // without reflection wrapping it must end the run too, or its
+                // handle never completes and the run never leaves the registry.
+                Throwable cause = t;
+                if (t instanceof java.lang.reflect.InvocationTargetException ite
                         && ite.getCause() != null) {
                     cause = ite.getCause();
-                }
-                if (cause instanceof Error err) {
-                    runExecutionHandle.completeExceptionally(err);
-                    throw err;
                 }
                 logger.error("Error invoking @Prompt method", cause);
                 // Route the terminal error through the session, whose capture
                 // records the failure envelope in the replay buffer — a
                 // reconnecting client must be able to tell the turn
                 // terminated in error, not just see the partial text and
-                // hang waiting for a complete frame that never arrives.
-                session.error(cause);
+                // hang waiting for a complete frame that never arrives. An
+                // Error gets the same frame (Invariant #2); a failure to write
+                // it must not stop the handle completing or the Error rethrowing.
+                try {
+                    session.error(cause);
+                } catch (RuntimeException writeFailure) {
+                    logger.warn("Could not send the terminal error of the @Prompt to {}: {}",
+                            resource.uuid(), writeFailure.toString(), writeFailure);
+                }
                 runExecutionHandle.completeExceptionally(cause);
+                if (cause instanceof Error err) {
+                    throw err;
+                }
             } finally {
                 durableScope.ifPresent(c -> durableSpine.completeDrive(c, durableSuccess[0]));
                 businessMdc.keySet().forEach(org.slf4j.MDC::remove);
