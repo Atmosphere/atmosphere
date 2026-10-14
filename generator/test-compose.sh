@@ -93,8 +93,15 @@ run_test() {
     # 1. Extract versions from root POM
     # Use the versions from the local Maven repo (most reliable)
     local atmo_version sb_version
-    atmo_version=$(ls -d "$HOME/.m2/repository/org/atmosphere/atmosphere-runtime/"*-SNAPSHOT 2>/dev/null | sort -V | tail -1 | xargs basename 2>/dev/null || echo "4.0.29-SNAPSHOT")
-    sb_version="4.0.5"
+    atmo_version=$(ls -d "$HOME/.m2/repository/org/atmosphere/atmosphere-runtime/"*-SNAPSHOT 2>/dev/null | sort -V | tail -1 | xargs basename 2>/dev/null)
+    # Spring Boot comes from the reactor root pom, like the generator itself
+    # reads it: a literal here pinned every generated project to a stale Boot.
+    sb_version=$(sed -n 's|.*<spring-boot\.version>\([^<]*\)</spring-boot\.version>.*|\1|p' "$REPO_ROOT/pom.xml" | head -1)
+    if [[ -z "$atmo_version" || -z "$sb_version" ]]; then
+        red "  FAIL: could not resolve versions (atmosphere='$atmo_version' from ~/.m2, spring-boot='$sb_version' from $REPO_ROOT/pom.xml)"
+        FAIL=$((FAIL + 1))
+        return
+    fi
 
     echo "  Versions: atmosphere=$atmo_version, spring-boot=$sb_version"
 
@@ -198,12 +205,12 @@ run_test() {
 
     # 6. Verify skill files were copied
     echo "  Checking skill files..."
-    if ! find "$output_dir/coordinator" -name "skill.md" -print -quit | grep -q .; then
+    if ! find "$output_dir/coordinator" -name "SKILL.md" -print -quit | grep -q .; then
         red "  FAIL: coordinator skill file not copied"
         FAIL=$((FAIL + 1))
         return
     fi
-    if ! find "$output_dir/agents/researcher" -name "skill.md" -print -quit | grep -q .; then
+    if ! find "$output_dir/agents/researcher" -name "SKILL.md" -print -quit | grep -q .; then
         red "  FAIL: researcher skill file not copied"
         FAIL=$((FAIL + 1))
         return
@@ -241,17 +248,17 @@ echo "Working directory: $WORK_DIR"
 # Test 1: A2A + docker-compose (default)
 run_test "a2a-docker" \
     "--protocol a2a --deploy docker-compose --frontend none --ai builtin" \
-    "pom.xml,docker-compose.yml,Dockerfile,README.md,Application.java,application.yml,skill.md"
+    "pom.xml,docker-compose.yml,Dockerfile,README.md,Application.java,application.yml,SKILL.md"
 
 # Test 2: A2A + single-jar
 run_test "a2a-single" \
     "--protocol a2a --deploy single-jar --frontend none --ai builtin" \
-    "pom.xml,README.md,Application.java,application.yml,skill.md"
+    "pom.xml,README.md,Application.java,application.yml,SKILL.md"
 
 # Test 3: Local protocol
 run_test "local" \
     "--protocol local --deploy single-jar --frontend none --ai builtin" \
-    "pom.xml,README.md,Application.java,application.yml,skill.md"
+    "pom.xml,README.md,Application.java,application.yml,SKILL.md"
 
 echo ""
 echo "====================================="

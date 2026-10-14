@@ -498,6 +498,18 @@ public class ComposeGenerator implements Runnable {
         }
         m.put("agents", agentModels);
 
+        // A single jar bundles every agent jar into the coordinator, so the
+        // coordinator must scan the agent packages too or no @Agent registers.
+        var packages = new java.util.LinkedHashSet<String>();
+        packages.add(groupId + "." + coordinator.packageSuffix);
+        for (var agent : agents) {
+            packages.add(groupId + "." + agent.packageSuffix);
+        }
+        m.put("allPackages", String.join(",", packages));
+        // The fleet is reached over A2A HTTP unless every agent runs in the
+        // coordinator's JVM and the local protocol was chosen.
+        m.put("isRemoteFleet", "a2a".equals(protocol) || !"single-jar".equals(deploy));
+
         // Workflow steps
         m.put("workflowSteps", buildWorkflowModel());
 
@@ -515,6 +527,7 @@ public class ComposeGenerator implements Runnable {
         m.put("port", desc.port);
         m.put("envName", desc.name.replaceAll("[^a-zA-Z0-9]", "_").toUpperCase());
         m.put("varName", toCamelCase(desc.name));
+        m.put("skillResource", skillResource(desc));
 
         // Tools
         var toolMaps = new ArrayList<Map<String, Object>>();
@@ -622,10 +635,10 @@ public class ComposeGenerator implements Runnable {
         }
 
         // Copy skill file into resources
+        var skillTarget = resDir.resolve(skillResource(desc));
         if (desc.sourcePath != null && Files.isRegularFile(desc.sourcePath)) {
-            var promptsDir = resDir.resolve("prompts");
-            Files.createDirectories(promptsDir);
-            Files.copy(desc.sourcePath, promptsDir.resolve("skill.md"), StandardCopyOption.REPLACE_EXISTING);
+            Files.createDirectories(skillTarget.getParent());
+            Files.copy(desc.sourcePath, skillTarget, StandardCopyOption.REPLACE_EXISTING);
 
             // Copy resources/ directory if it exists alongside the skill file
             var skillResources = desc.sourcePath.getParent().resolve("resources");
@@ -635,11 +648,21 @@ public class ComposeGenerator implements Runnable {
             }
         } else if (desc.content != null) {
             // generateDefaultCoordinator builds its skill in memory; the generated
-            // @Coordinator still declares skillFile = "prompts/skill.md".
-            var promptsDir = resDir.resolve("prompts");
-            Files.createDirectories(promptsDir);
-            Files.writeString(promptsDir.resolve("skill.md"), desc.content);
+            // @Coordinator still names this resource as its skillFile.
+            Files.createDirectories(skillTarget.getParent());
+            Files.writeString(skillTarget, desc.content);
         }
+    }
+
+    /**
+     * Classpath location of a module's skill file, unique per agent: a single
+     * jar puts every module on one classpath, where a shared
+     * {@code prompts/skill.md} would hand every agent whichever copy comes
+     * first. {@code META-INF/skills/<name>/SKILL.md} is also the first location
+     * the agent and coordinator processors auto-discover.
+     */
+    static String skillResource(SkillDescriptor desc) {
+        return "META-INF/skills/" + sanitizeName(desc.name) + "/SKILL.md";
     }
 
     private void copyDirectory(Path source, Path target) throws IOException {
@@ -766,11 +789,13 @@ public class ComposeGenerator implements Runnable {
                     return matcher.group(1);
                 }
             } catch (IOException ex) {
-                System.getLogger(ComposeGenerator.class.getName())
-                        .log(System.Logger.Level.TRACE, "Failed to read Spring Boot version from POM", ex);
+                throw new UncheckedIOException("Failed to read Spring Boot version from " + candidate, ex);
             }
         }
-        return "4.0.5";
+        // No literal fallback: a hard-coded version silently pins generated
+        // projects to a stale Spring Boot once the reactor moves on.
+        throw new IllegalStateException("Could not read <spring-boot.version> from "
+                + repoRoot.resolve("pom.xml") + "; pass --spring-boot-version");
     }
 
     String readAtmosphereVersion() {
@@ -791,11 +816,11 @@ public class ComposeGenerator implements Runnable {
                     }
                 }
             } catch (IOException ex) {
-                System.getLogger(ComposeGenerator.class.getName())
-                        .log(System.Logger.Level.TRACE, "Failed to read Atmosphere version from POM", ex);
+                throw new UncheckedIOException("Failed to read Atmosphere version from " + pomFile, ex);
             }
         }
-        return "4.0.28";
+        throw new IllegalStateException("Could not read the Atmosphere version from "
+                + pomFile + "; pass --atmosphere-version");
     }
 
     private Path resolveScriptDir() {

@@ -2,15 +2,26 @@ server:
   port: {{coordinator.port}}
 
 atmosphere:
+{{#isSingleJar}}
+  packages: {{allPackages}}
+{{/isSingleJar}}
+{{^isSingleJar}}
   packages: {{agent.packageName}}
-{{#isA2a}}
-  coordinator:
-    agents:
+{{/isSingleJar}}
+{{#isRemoteFleet}}
+  # Fleet agents are called over A2A (JSON-RPC over HTTP). The coordinator
+  # reads atmosphere.fleet.agents.<name>.url; an AGENT_<NAME>_URL environment
+  # variable overrides it (docker-compose sets one per service).
+  init-params:
 {{#agents}}
-      {{name}}:
-        url: http://localhost:{{port}}
+{{#isSingleJar}}
+    atmosphere.fleet.agents.{{name}}.url: http://localhost:${server.port}/atmosphere/agent/{{name}}/a2a
+{{/isSingleJar}}
+{{^isSingleJar}}
+    atmosphere.fleet.agents.{{name}}.url: http://localhost:{{port}}/atmosphere/agent/{{name}}/a2a
+{{/isSingleJar}}
 {{/agents}}
-{{/isA2a}}
+{{/isRemoteFleet}}
 
 {{#isBuiltin}}
 atmosphere.ai:

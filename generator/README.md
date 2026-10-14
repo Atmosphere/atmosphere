@@ -72,7 +72,7 @@ my-fleet/
 `ComposeGeneratorTest.java` runs via JBang:
 
 ```bash
-jbang generator/ComposeGeneratorTest.java
+cd generator && jbang ComposeGeneratorTest.java
 ```
 
 The `test-compose.sh` integration script exercises the end-to-end generated

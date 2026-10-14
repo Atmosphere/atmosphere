@@ -139,6 +139,13 @@ jobs:
     - name: Build Atmosphere modules
       run: ./mvnw -B install -DskipTests -Dgpg.skip=true -Dspotless.check.skip=true -q
 
+    # ComposeGeneratorTest pins the generated fleet's wiring (fleet URL key,
+    # scanned packages, per-module skill paths, no version fallbacks). It runs
+    # from generator/ because the generator resolves templates/ against it.
+    - name: Compose generator unit tests
+      working-directory: generator
+      run: jbang ComposeGeneratorTest.java
+
     - name: Resolve SNAPSHOT version
       id: version
       run: |

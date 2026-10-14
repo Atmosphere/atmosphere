@@ -40,7 +40,8 @@ import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 /**
  * Unit tests for ComposeGenerator — skill parsing, workflow DSL, model building.
  *
- * Run with: jbang generator/ComposeGeneratorTest.java
+ * Run from generator/ (templates resolve against the working directory):
+ * {@code cd generator && jbang ComposeGeneratorTest.java}
  */
 public class ComposeGeneratorTest {
 
@@ -450,15 +451,33 @@ public class ComposeGeneratorTest {
         assertTrue(agentContent.contains("@AiTool"), "has @AiTool for do_task");
         assertTrue(agentContent.contains("doTask"), "has camelCase method name");
 
-        // Verify skill files copied
-        assertTrue(Files.exists(outputDir.resolve("coordinator/src/main/resources/prompts/skill.md")));
-        assertTrue(Files.exists(outputDir.resolve("agents/worker/src/main/resources/prompts/skill.md")));
+        // Verify skill files copied, each at a path unique to its module
+        assertTrue(Files.exists(outputDir.resolve("coordinator/src/main/resources/META-INF/skills/lead/SKILL.md")));
+        assertTrue(Files.exists(outputDir.resolve("agents/worker/src/main/resources/META-INF/skills/worker/SKILL.md")));
+        assertTrue(coordContent.contains("skillFile = \"META-INF/skills/lead/SKILL.md\""), coordContent);
+        assertTrue(agentContent.contains("skillFile = \"META-INF/skills/worker/SKILL.md\""), agentContent);
 
-        // Verify docker-compose contains both services
+        // A headless @Agent registers A2A only for @AgentSkill methods, which the
+        // template has none of: the agent must be a full @Agent whose A2A default
+        // skill reaches its @Prompt.
+        assertFalse(agentContent.contains("headless"), "agent must not be headless: " + agentContent);
+        var agentPom = Files.readString(outputDir.resolve("agents/worker/pom.xml"));
+        assertTrue(agentPom.contains("<artifactId>atmosphere-spring-boot-starter</artifactId>"),
+                "a standalone agent service must boot Atmosphere");
+
+        // Verify docker-compose contains both services, and hands the coordinator
+        // the AGENT_<NAME>_URL variable CoordinatorProcessor actually reads.
         var compose = Files.readString(outputDir.resolve("docker-compose.yml"));
         assertTrue(compose.contains("coordinator:"), "has coordinator service");
         assertTrue(compose.contains("worker:"), "has worker service");
         assertTrue(compose.contains("8081"), "has worker port");
+        assertTrue(compose.contains("- AGENT_WORKER_URL=http://worker:8081/atmosphere/agent/worker/a2a"), compose);
+
+        // Multi-jar: the coordinator reaches each agent service on its own port.
+        var coordYml = Files.readString(outputDir.resolve("coordinator/src/main/resources/application.yml"));
+        assertTrue(coordYml.contains(
+                "atmosphere.fleet.agents.worker.url: http://localhost:8081/atmosphere/agent/worker/a2a"), coordYml);
+        assertFalse(coordYml.contains("coordinator:"), "the unread atmosphere.coordinator.agents key is gone");
 
         // Verify parent POM modules
         var parentPom = Files.readString(outputDir.resolve("pom.xml"));
@@ -492,10 +511,11 @@ public class ComposeGeneratorTest {
         var outputDir = tmp.resolve("output");
         g.generateProject(g.buildModel(), outputDir);
 
-        // The generated @Coordinator declares skillFile = "prompts/skill.md";
-        // without it registration throws "Prompt resource not found on classpath".
-        var coordSkill = outputDir.resolve("coordinator/src/main/resources/prompts/skill.md");
-        assertTrue(Files.isRegularFile(coordSkill), "default coordinator writes prompts/skill.md");
+        // The generated @Coordinator names its skill file; without it registration
+        // throws "Prompt resource not found on classpath".
+        var coordSkill = outputDir.resolve(
+                "coordinator/src/main/resources/META-INF/skills/my-fleet-coordinator/SKILL.md");
+        assertTrue(Files.isRegularFile(coordSkill), "default coordinator writes its SKILL.md");
         var coordSkillContent = Files.readString(coordSkill);
         assertTrue(coordSkillContent.contains("## Fleet"), "coordinator skill carries the fleet");
         assertTrue(coordSkillContent.contains("- researcher: Researches"), "coordinator skill lists researcher");
@@ -509,10 +529,77 @@ public class ComposeGeneratorTest {
 
         // AtmosphereProperties.packages is a String (comma-separated): a YAML
         // list binds nothing and no annotated class is ever scanned.
+        // The single jar bundles the agent jars, so the coordinator scans their
+        // packages too — otherwise no @Agent registers and the fleet stays empty.
         var coordYml = Files.readString(outputDir.resolve("coordinator/src/main/resources/application.yml"));
-        assertEquals("com.example.myfleetcoordinator", packagesValue(coordYml), "coordinator packages is a scalar");
+        assertEquals("com.example.myfleetcoordinator,com.example.researcher,com.example.writer",
+                packagesValue(coordYml), "coordinator scans its own and every agent package");
         var agentYml = Files.readString(outputDir.resolve("agents/researcher/src/main/resources/application.yml"));
         assertEquals("com.example.researcher", packagesValue(agentYml), "agent packages is a scalar");
+
+        // A2A in one JVM: the fleet URLs follow the coordinator's own port, under
+        // the key CoordinatorProcessor reads (atmosphere.fleet.agents.<name>.url).
+        assertTrue(coordYml.contains("  init-params:\n"
+                + "    atmosphere.fleet.agents.researcher.url: "
+                + "http://localhost:${server.port}/atmosphere/agent/researcher/a2a\n"
+                + "    atmosphere.fleet.agents.writer.url: "
+                + "http://localhost:${server.port}/atmosphere/agent/writer/a2a\n"), coordYml);
+
+        // Every module's skill lives at its own classpath path: in one jar a
+        // shared prompts/skill.md resolves to a single copy for every agent.
+        assertTrue(Files.isRegularFile(outputDir.resolve(
+                "agents/researcher/src/main/resources/META-INF/skills/researcher/SKILL.md")));
+        assertTrue(Files.isRegularFile(outputDir.resolve(
+                "agents/writer/src/main/resources/META-INF/skills/writer/SKILL.md")));
+        try (var walk = Files.walk(outputDir)) {
+            assertTrue(walk.noneMatch(p -> p.endsWith(Path.of("prompts", "skill.md"))),
+                    "no module may ship the shared prompts/skill.md path");
+        }
+    }
+
+    @Test
+    void generateProject_localSingleJarWritesNoFleetUrls(@TempDir Path tmp) throws IOException {
+        var g = gen();
+        g.protocol = "local";
+        g.deploy = "single-jar";
+        setupMinimalSkills(g, tmp);
+        var outputDir = tmp.resolve("output");
+        g.generateProject(g.buildModel(), outputDir);
+
+        // In-process fleet: LocalAgentTransport finds the agents' handlers, and
+        // a URL would force an HTTP hop the user did not ask for.
+        var coordYml = Files.readString(outputDir.resolve("coordinator/src/main/resources/application.yml"));
+        assertFalse(coordYml.contains("atmosphere.fleet.agents."), coordYml);
+        assertEquals("com.example.coord,com.example.a,com.example.b", packagesValue(coordYml));
+    }
+
+    @Test
+    void readSpringBootVersion_failsInsteadOfFallingBackToALiteral(@TempDir Path tmp) {
+        var g = gen();
+        g.springBootVersionOverride = null;
+        g.scriptDir = tmp.resolve("generator"); // its parent holds no pom.xml
+        var e = assertThrows(IllegalStateException.class, g::readSpringBootVersion);
+        assertTrue(e.getMessage().contains("--spring-boot-version"), e.getMessage());
+    }
+
+    @Test
+    void readSpringBootVersion_readsTheReactorPom() {
+        var g = gen();
+        g.springBootVersionOverride = null;
+        g.scriptDir = Path.of("").toAbsolutePath().resolve("generator");
+        if (!Files.isRegularFile(g.scriptDir.getParent().resolve("pom.xml"))) {
+            g.scriptDir = Path.of("").toAbsolutePath(); // running from generator/
+        }
+        assertTrue(g.readSpringBootVersion().matches("\\d+\\.\\d+\\.\\d+.*"), g.readSpringBootVersion());
+    }
+
+    @Test
+    void readAtmosphereVersion_failsInsteadOfFallingBackToALiteral(@TempDir Path tmp) {
+        var g = gen();
+        g.atmosphereVersionOverride = null;
+        g.scriptDir = tmp.resolve("generator");
+        var e = assertThrows(IllegalStateException.class, g::readAtmosphereVersion);
+        assertTrue(e.getMessage().contains("--atmosphere-version"), e.getMessage());
     }
 
     /** The scalar value of {@code atmosphere.packages}, failing on the YAML list form. */

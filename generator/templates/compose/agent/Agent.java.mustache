@@ -26,14 +26,16 @@ import org.slf4j.LoggerFactory;
 /**
  * {{agent.description}}
  *
- * <p>The skill file at {@code prompts/skill.md} defines this agent's personality,
- * capabilities, and guardrails. The {@code @Prompt} method delegates to the
- * configured AI runtime, which uses the skill file as the system prompt.</p>
+ * <p>The skill file at {@code {{agent.skillResource}}} defines this agent's
+ * personality, capabilities, and guardrails. The {@code @Prompt} method
+ * delegates to the configured AI runtime, which uses the skill file as the
+ * system prompt. The agent serves A2A at
+ * {@code /atmosphere/agent/{{agent.name}}/a2a}, where the coordinator's fleet
+ * calls reach this {@code @Prompt} method.</p>
  */
 @Agent(name = "{{agent.name}}",
-       skillFile = "prompts/skill.md",
-       description = "{{agent.description}}",
-       headless = true)
+       skillFile = "{{agent.skillResource}}",
+       description = "{{agent.description}}")
 public class {{agent.className}} {
 
     private static final Logger logger = LoggerFactory.getLogger({{agent.className}}.class);

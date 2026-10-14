@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 
 @Coordinator(name = "{{agent.name}}",
-        skillFile = "prompts/skill.md",
+        skillFile = "{{agent.skillResource}}",
         description = "{{agent.description}}")
 @Fleet({
 {{#agents}}

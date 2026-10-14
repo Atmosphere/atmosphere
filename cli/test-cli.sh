@@ -1044,7 +1044,7 @@ printf "\n"
 printf "${BOLD}atmosphere compose${RESET}\n"
 if [ "${ATMOSPHERE_NETWORK_TESTS:-0}" = "1" ] && command -v jbang >/dev/null 2>&1; then
     compose_tmp=$(mktemp -d)
-    mkdir -p "$compose_tmp/skills/analyst" "$compose_tmp/out"
+    mkdir -p "$compose_tmp/skills/analyst" "$compose_tmp/skills/writer" "$compose_tmp/out"
     cat > "$compose_tmp/skills/analyst/SKILL.md" <<'COMPOSESKILLEOF'
 ---
 name: analyst
@@ -1053,9 +1053,18 @@ description: "Analyzes data"
 # Analyst
 You analyze data.
 COMPOSESKILLEOF
+    cat > "$compose_tmp/skills/writer/SKILL.md" <<'COMPOSESKILLEOF'
+---
+name: writer
+description: "Writes reports"
+---
+# Writer
+You write reports.
+COMPOSESKILLEOF
 
+    # a2a + single-jar is what a non-interactive `atmosphere compose` defaults to.
     out=$(cd "$compose_tmp" && "$CLI" compose --name probe-fleet --group com.example \
-            --protocol local --transport websocket --frontend none --deploy single-jar \
+            --protocol a2a --transport websocket --frontend none --deploy single-jar \
             --ai builtin --output "$compose_tmp/out" "$compose_tmp/skills" </dev/null 2>&1) && ec=0 || ec=$?
     assert_exit_code "$ec" 0 "compose succeeds from a directory outside the repo"
     assert_not_contains "$out" "Cannot find generator templates" "compose resolves its templates"
@@ -1101,15 +1110,20 @@ COMPOSESKILLEOF
     # scanned), and the auto-generated coordinator never wrote the
     # prompts/skill.md its @Coordinator(skillFile) names.
     coord_yml="$compose_tmp/out/coordinator/src/main/resources/application.yml"
-    if grep -q '^  packages: com\.example\.[a-z0-9]*$' "$coord_yml" 2>/dev/null; then
-        pass "compose: coordinator atmosphere.packages is a scalar"
+    # A comma-separated scalar (a YAML list binds nothing). The single jar bundles
+    # the agent jars, so the coordinator must scan their packages too.
+    if grep -q '^  packages: com\.example\.probefleetcoordinator,com\.example\.analyst,com\.example\.writer$' \
+            "$coord_yml" 2>/dev/null; then
+        pass "compose: coordinator atmosphere.packages scans every module"
     else
-        fail "compose: coordinator atmosphere.packages is a scalar" "$(grep -A1 'packages:' "$coord_yml" 2>&1)"
+        fail "compose: coordinator atmosphere.packages scans every module" "$(grep -A1 'packages:' "$coord_yml" 2>&1)"
     fi
-    if [ -f "$compose_tmp/out/coordinator/src/main/resources/prompts/skill.md" ]; then
-        pass "compose: default coordinator writes prompts/skill.md"
+    if [ -f "$compose_tmp/out/coordinator/src/main/resources/META-INF/skills/probe-fleet-coordinator/SKILL.md" ] \
+            && [ -f "$compose_tmp/out/agents/analyst/src/main/resources/META-INF/skills/analyst/SKILL.md" ]; then
+        pass "compose: every module writes its skill to its own classpath path"
     else
-        fail "compose: default coordinator writes prompts/skill.md"
+        fail "compose: every module writes its skill to its own classpath path" \
+             "$(find "$compose_tmp/out" -iname 'skill.md' 2>&1)"
     fi
     if (cd "$compose_tmp/out" && ./mvnw -B -q package -DskipTests) > "$compose_tmp/package.log" 2>&1; then
         pass "compose: generated project packages with its ./mvnw"
@@ -1124,7 +1138,10 @@ COMPOSESKILLEOF
         fail "compose: coordinator jar is an executable Spring Boot jar" "jar=$coord_jar"
     fi
     if [ -n "$coord_jar" ]; then
-        java -jar "$coord_jar" --server.port=0 > "$compose_tmp/boot.log" 2>&1 &
+        # A real port, not 0: the generated fleet URLs follow ${server.port},
+        # which stays the literal 0 when Spring picks an ephemeral port.
+        coord_port=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')
+        java -jar "$coord_jar" --server.port="$coord_port" > "$compose_tmp/boot.log" 2>&1 &
         coord_pid=$!
         coord_wait=0
         while [ "$coord_wait" -lt 120 ] && kill -0 "$coord_pid" 2>/dev/null \
@@ -1132,6 +1149,11 @@ COMPOSESKILLEOF
             sleep 1
             coord_wait=$((coord_wait + 1))
         done
+        # The fleet itself must be reachable, not just the coordinator booted:
+        # agents serving no endpoint, an unread fleet URL key, or unscanned agent
+        # packages each left availableCount at 0.
+        coordinators=$(curl -s "http://localhost:$coord_port/api/admin/coordinators")
+        analyst_card=$(curl -s "http://localhost:$coord_port/atmosphere/agent/analyst/a2a/agent.json")
         kill "$coord_pid" 2>/dev/null || true
         wait "$coord_pid" 2>/dev/null || true
         if grep -q "Coordinator 'probe-fleet-coordinator' registered" "$compose_tmp/boot.log"; then
@@ -1139,6 +1161,19 @@ COMPOSESKILLEOF
         else
             fail "compose: java -jar boots the coordinator and registers its @Coordinator" \
                  "$(grep -E 'ERROR|Exception|Started' "$compose_tmp/boot.log" | head -5)"
+        fi
+        fleet_counts=$(printf '%s' "$coordinators" \
+            | jq -r '.[] | select(.name == "probe-fleet-coordinator") | "\(.agentCount)/\(.availableCount)"' 2>/dev/null)
+        if [ "$fleet_counts" = "2/2" ]; then
+            pass "compose: both composed agents are available to the coordinator"
+        else
+            fail "compose: both composed agents are available to the coordinator" \
+                 "agentCount/availableCount=$fleet_counts coordinators=$coordinators"
+        fi
+        if printf '%s' "$analyst_card" | jq -e '.name == "analyst"' >/dev/null 2>&1; then
+            pass "compose: the analyst agent serves its A2A card"
+        else
+            fail "compose: the analyst agent serves its A2A card" "$analyst_card"
         fi
     fi
 

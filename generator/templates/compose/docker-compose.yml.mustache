@@ -11,7 +11,7 @@ services:
       - LLM_API_KEY=${LLM_API_KEY}
       - LLM_MODEL=${LLM_MODEL:-gpt-4o}
       {{#agents}}
-      - {{envName}}_URL=http://{{name}}:{{port}}
+      - AGENT_{{envName}}_URL=http://{{name}}:{{port}}/atmosphere/agent/{{name}}/a2a
       {{/agents}}
     depends_on:
       {{#agents}}
