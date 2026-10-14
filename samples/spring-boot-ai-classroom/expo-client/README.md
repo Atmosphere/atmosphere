@@ -62,6 +62,10 @@ bunx expo start
 
 4. **Open in Expo Go** on your phone, or press `i` for iOS simulator / `a` for Android emulator.
 
+This sample targets **Expo SDK 57** (React Native 0.86). Expo Go runs a single SDK and the
+store build always tracks the latest one, so an Expo Go for another SDK refuses the project
+with *"Project is incompatible with this version of Expo Go"*.
+
 ## Rooms
 
 | Room | Persona | Color |

@@ -12,7 +12,7 @@ of sample #25.
 
 ## Why it needs a different driver
 
-This is a native app: Expo SDK 55 / React Native 0.83, no `react-native-web`
+This is a native app: Expo SDK 57 / React Native 0.86, no `react-native-web`
 dependency and no `web` script in `package.json`. **chrome-devtools cannot drive
 it.** Use the iOS simulator MCP (`mcp__ios-simulator__*`) — `launch_app`,
 `ui_describe_all`, `ui_find_element`, `ui_tap`, `ui_type`, `screenshot`.
@@ -45,7 +45,20 @@ cd atmosphere.js && npm run build
 
 # 3. Client deps (bun — this sample uses bun.lock, not package-lock.json)
 cd samples/spring-boot-ai-classroom/expo-client && bun install
+
+# 4. The SDK must match the Expo Go on the simulator. Expo Go runs exactly one SDK,
+#    and the App Store build is always the latest; a mismatch fails at open with
+#    "Project is incompatible with this version of Expo Go".
+grep '"expo"' package.json                                   # the sample's SDK
+xcrun simctl listapps booted | grep -A12 host.exp.Exponent | grep CFBundleShortVersionString
+bunx expo install --check                                    # deps match that SDK
 ```
+
+If Expo Go is ahead of the sample, the sample is behind: upgrade it
+(`expo` to the new SDK, then `bunx expo install --fix`, then `bunx tsc --noEmit -p .`
+and `bunx expo export --platform ios`) and file it, rather than side-installing an
+old Expo Go from github.com/expo/expo-go-releases and sweeping a client no user
+can open.
 
 **The port gotcha.** The sweep runs the classroom sample on **9125** while the
 client defaults to `:8080`, so the client must be pointed at the sweep port or it

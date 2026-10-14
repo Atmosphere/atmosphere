@@ -1533,6 +1533,26 @@ if [ -d "$repo_root/samples" ]; then
         fail "React Native samples import the deprecated react-native SafeAreaView:$rn_safe_area"
     fi
 
+    # The Expo client's docs name the Expo SDK it targets, because Expo Go runs a
+    # single SDK and refuses any other. The SDK they name must be the one the
+    # client's package.json pins, or a reader installs the wrong Expo Go.
+    expo_dir="$repo_root/samples/spring-boot-ai-classroom/expo-client"
+    if [ -f "$expo_dir/package.json" ]; then
+        expo_sdk=$(jq -r '.dependencies.expo' "$expo_dir/package.json" | sed 's/[^0-9.]//g' | cut -d. -f1)
+        expo_drift=""
+        for expo_doc in "$expo_dir/README.md" "$repo_root/.claude/skills/release-sample-sweep/references/expo-sweep.md"; do
+            for named in $(grep -oE 'Expo SDK [0-9]+' "$expo_doc" | awk '{print $3}' | sort -u); do
+                [ "$named" = "$expo_sdk" ] || expo_drift="$expo_drift ${expo_doc#"$repo_root"/}(SDK $named)"
+            done
+            grep -qE "Expo SDK $expo_sdk([^0-9]|$)" "$expo_doc" || expo_drift="$expo_drift ${expo_doc#"$repo_root"/}(no 'Expo SDK $expo_sdk')"
+        done
+        if [ -z "$expo_drift" ]; then
+            pass "expo-client docs name the Expo SDK its package.json pins ($expo_sdk)"
+        else
+            fail "expo-client pins Expo SDK $expo_sdk but its docs say otherwise:$expo_drift"
+        fi
+    fi
+
     # A sample that serves pages without a Spring Boot starter (which answers
     # /favicon.ico itself) must ship its own favicon.ico, or every page load
     # logs a 404 console error.
