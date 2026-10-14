@@ -12,7 +12,7 @@ The `WeatherTimeAgent` exposes three skills via `@Agent` (headless A2A mode):
 | **Get Weather** | `get-weather` | AI-generated weather report for any location |
 | **Get Time** | `get-time` | Current date/time in any IANA timezone |
 
-The agent auto-publishes an **Agent Card** describing its capabilities, fetched via the A2A `agent/authenticatedExtendedCard` method. Note: that is the standard A2A method name, but **this sample serves it without authentication** (see [Security](#security) below).
+The agent auto-publishes an **Agent Card** describing its capabilities, fetched via the A2A `GetExtendedAgentCard` method. Note: that is the standard A2A method name, but **this sample serves it without authentication** (see [Security](#security) below).
 
 ## Calling Another A2A Agent (Outbound)
 
@@ -20,7 +20,7 @@ A2A is bidirectional: an Atmosphere agent can also **call** other A2A agents ove
 JSON-RPC. The calling side is the `A2aAgentTransport` from the
 [`atmosphere-coordinator`](../../modules/coordinator/) module — point it at any
 A2A endpoint and `send(agentName, skillId, args)` performs the JSON-RPC
-`message/send` round trip, returning the remote agent's reply as an `AgentResult`:
+`SendMessage` round trip, returning the remote agent's reply as an `AgentResult`:
 
 ```java
 try (var transport = new A2aAgentTransport("atmosphere-assistant",
@@ -50,31 +50,36 @@ GEMINI_API_KEY=your-key ./mvnw spring-boot:run -pl samples/spring-boot-a2a-agent
 
 Open **http://localhost:8084** — it redirects to the bundled Atmosphere
 Console at `/atmosphere/console/`, whose `a2a` transport adapter drives the
-real A2A wire (JSON-RPC `message/stream` over SSE, `message/send` fallback)
+real A2A wire (JSON-RPC `SendStreamingMessage` over SSE, `SendMessage` fallback)
 from the browser. Or use curl directly:
 
 ```bash
 # Discover the agent
 curl -X POST http://localhost:8084/atmosphere/a2a \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"agent/authenticatedExtendedCard"}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"GetExtendedAgentCard"}'
 
 # Ask a question
 curl -X POST http://localhost:8084/atmosphere/a2a \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":2,"method":"message/send","params":{
-    "message":{"role":"user","parts":[{"type":"text","text":"hello"}],"messageId":"m1","metadata":{"skillId":"ask"}},
+  -d '{"jsonrpc":"2.0","id":2,"method":"SendMessage","params":{
+    "message":{"role":"ROLE_USER","parts":[{"text":"hello"}],"messageId":"m1","metadata":{"skillId":"ask"}},
     "arguments":{"message":"What is the Atmosphere Framework?"}
   }}'
 
 # Get weather
 curl -X POST http://localhost:8084/atmosphere/a2a \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":3,"method":"message/send","params":{
-    "message":{"role":"user","parts":[{"type":"text","text":"weather"}],"messageId":"m2","metadata":{"skillId":"get-weather"}},
+  -d '{"jsonrpc":"2.0","id":3,"method":"SendMessage","params":{
+    "message":{"role":"ROLE_USER","parts":[{"text":"weather"}],"messageId":"m2","metadata":{"skillId":"get-weather"}},
     "arguments":{"location":"Montreal"}
   }}'
 ```
+
+These are the A2A v1.0.0 method names. The server still accepts the pre-1.0
+slash names (`message/send`, `message/stream`, `tasks/get`,
+`agent/authenticatedExtendedCard`, ...) as aliases, but logs a deprecation
+`WARN` the first time it sees each one.
 
 ## Configuration
 
@@ -87,7 +92,7 @@ curl -X POST http://localhost:8084/atmosphere/a2a \
 ## Security
 
 ⚠️ **This sample ships without authentication for local demonstration.** The
-`/atmosphere/a2a` endpoint accepts `message/send` from any caller, which drives
+`/atmosphere/a2a` endpoint accepts `SendMessage` from any caller, which drives
 the agent (LLM dispatch + tool execution). On startup you will see a `WARN` that
 the A2A endpoint is exposed without auth — that is expected for the demo.
 
@@ -121,7 +126,7 @@ unguessable capability tokens — neither replaces fronting the endpoint with au
 A2A Client (other agent, curl, browser)
     │
     │  POST /atmosphere/a2a  (JSON-RPC 2.0)
-    │  {"method":"message/send", "params":{...}}
+    │  {"method":"SendMessage", "params":{...}}
     ▼
 ┌─────────────────────────────────┐
 │  Atmosphere A2A Handler         │

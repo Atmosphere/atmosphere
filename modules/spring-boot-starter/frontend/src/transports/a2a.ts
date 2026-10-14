@@ -66,7 +66,7 @@ export function parseA2aData(payload: string): A2aFrame[] {
 }
 
 /**
- * Extract the reply text from a unary `message/send` Task result:
+ * Extract the reply text from a unary `SendMessage` Task result:
  * result.artifacts[0].parts[0].text (the A2A sync-fallback contract).
  * Accepts both the bare Task and the SendMessageResponse {task: ...} oneof.
  */
@@ -104,7 +104,9 @@ function unwrapTask(result: unknown): Record<string, unknown> | null {
 
 /**
  * A2A (Agent-to-Agent) chat transport: JSON-RPC 2.0 over HTTP POST with
- * SSE streaming (`message/stream`) and a unary `message/send` fallback.
+ * SSE streaming (`SendStreamingMessage`) and a unary `SendMessage` fallback.
+ * Method names are the A2A v1.0.0 ones; the server still aliases the pre-1.0
+ * slash names but logs a deprecation warning for each.
  * "Connected" is runtime truth here — the agent card must answer before the
  * transport reports open, since A2A has no persistent connection to probe.
  */
@@ -127,9 +129,8 @@ export class A2aChatTransport implements ChatTransport {
   }
 
   async connect(): Promise<void> {
-    // Same probe the A2A protocol defines for discovery; the legacy alias is
-    // what the shipped sample sends and A2aMethod canonicalizes it.
-    await this.rpc('agent/authenticatedExtendedCard', {})
+    // Same probe the A2A protocol defines for discovery.
+    await this.rpc('GetExtendedAgentCard', {})
     this.connected = true
     this.lifecycle.open?.(undefined as never)
     this.handlers.onOpen()
@@ -166,9 +167,9 @@ export class A2aChatTransport implements ChatTransport {
     } catch (e) {
       if (signal.aborted) return
       // Streaming path failed (network, non-SSE response) — the A2A contract
-      // defines message/send as the sync fallback.
+      // defines SendMessage as the sync fallback.
       try {
-        const result = await this.rpc('message/send', this.messageParams(text), signal)
+        const result = await this.rpc('SendMessage', this.messageParams(text), signal)
         const failure = extractTaskFailure(result)
         const reply = extractTaskText(result)
         if (failure) {
@@ -193,7 +194,7 @@ export class A2aChatTransport implements ChatTransport {
       body: JSON.stringify({
         jsonrpc: '2.0',
         id: ++this.rpcId,
-        method: 'message/stream',
+        method: 'SendStreamingMessage',
         params: this.messageParams(text),
       }),
       signal,
@@ -242,8 +243,8 @@ export class A2aChatTransport implements ChatTransport {
   private messageParams(text: string): Record<string, unknown> {
     return {
       message: {
-        role: 'user',
-        parts: [{ type: 'text', text }],
+        role: 'ROLE_USER',
+        parts: [{ text }],
         messageId: `m-${this.rpcId + 1}`,
       },
       // Duplicated flat form some skills read (matches the shipped sample).

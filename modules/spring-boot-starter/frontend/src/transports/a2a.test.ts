@@ -160,7 +160,7 @@ describe('A2aChatTransport', () => {
 
     expect(h.onOpen).toHaveBeenCalledOnce()
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string)
-    expect(body.method).toBe('agent/authenticatedExtendedCard')
+    expect(body.method).toBe('GetExtendedAgentCard')
   })
 
   it('refuses to open when the agent card errors', async () => {
@@ -194,15 +194,16 @@ describe('A2aChatTransport', () => {
       { type: 'complete' },
     ])
     const streamBody = JSON.parse(fetchMock.mock.calls[1][1].body as string)
-    expect(streamBody.method).toBe('message/stream')
+    expect(streamBody.method).toBe('SendStreamingMessage')
     expect(streamBody.params.message.parts[0].text).toBe('hi')
+    expect(streamBody.params.message.role).toBe('ROLE_USER')
   })
 
-  it('falls back to unary message/send when streaming fails', async () => {
+  it('falls back to unary SendMessage when streaming fails', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(jsonResponse({ jsonrpc: '2.0', id: 1, result: {} })) // card
       .mockRejectedValueOnce(new Error('stream down'))                            // stream
-      .mockResolvedValueOnce(jsonResponse({                                       // message/send
+      .mockResolvedValueOnce(jsonResponse({                                       // SendMessage
         jsonrpc: '2.0', id: 3,
         result: { artifacts: [{ parts: [{ text: 'sync reply' }] }] },
       }))
@@ -220,7 +221,7 @@ describe('A2aChatTransport', () => {
       { type: 'streaming-text', data: 'sync reply' },
       { type: 'complete' },
     ])
-    expect(JSON.parse(fetchMock.mock.calls[2][1].body as string).method).toBe('message/send')
+    expect(JSON.parse(fetchMock.mock.calls[2][1].body as string).method).toBe('SendMessage')
   })
 
   it('closes the bubble when the stream ends without [DONE]', async () => {
@@ -242,5 +243,35 @@ describe('A2aChatTransport', () => {
     const t = await createChatTransport('a2a', options(), handlers([]))
     expect(t).toBeInstanceOf(A2aChatTransport)
     expect(t.name).toBe('a2a')
+  })
+})
+
+describe('A2A v1.0.0 method names', () => {
+  // The server aliases the pre-1.0 slash names (A2aMethod.LEGACY_ALIASES)
+  // and logs a deprecation WARN per name, so a first-party client that
+  // still sends one trips the server's own warning.
+  const LEGACY = /^(message|tasks|agent)\//
+
+  it('never puts a pre-1.0 method name on the wire', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ jsonrpc: '2.0', id: 1, result: {} })) // card
+      .mockRejectedValueOnce(new Error('stream down'))                            // stream
+      .mockResolvedValueOnce(jsonResponse({
+        jsonrpc: '2.0', id: 3,
+        result: { artifacts: [{ parts: [{ text: 'sync reply' }] }] },
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const events: Array<Record<string, unknown>> = []
+    const t = new A2aChatTransport(options(), handlers(events))
+    await t.connect()
+    t.send('hi')
+    await vi.waitFor(() => {
+      expect(events).toContainEqual({ type: 'complete' })
+    })
+
+    const methods = fetchMock.mock.calls.map(([, init]) => JSON.parse(init.body as string).method as string)
+    expect(methods).toEqual(['GetExtendedAgentCard', 'SendStreamingMessage', 'SendMessage'])
+    expect(methods.filter(m => LEGACY.test(m))).toEqual([])
   })
 })

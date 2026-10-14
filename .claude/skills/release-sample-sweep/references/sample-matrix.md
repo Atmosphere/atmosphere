@@ -94,7 +94,7 @@ browser-driving; it is not a curl exemption for UI samples.
 
 | # | Sample | Port | Boot | `--ready-path` | Drive | Headline assertion |
 |---|---|---|---|---|---|---|
-| 17 | `spring-boot-a2a-agent` | 9117 | spring-boot | `/` | A2A JSON-RPC | Agent Card discoverable at `/.well-known/agent.json`; `message/send` → `TASK_STATE_COMPLETED` with a real artifact |
+| 17 | `spring-boot-a2a-agent` | 9117 | spring-boot | `/` | A2A JSON-RPC | Agent Card discoverable at `/.well-known/agent.json`; `SendMessage` → `TASK_STATE_COMPLETED` with a real artifact |
 | 18 | `spring-boot-mcp-server` | 9118 | spring-boot | `/atmosphere/chat` | MCP streamable HTTP | `initialize` + `tools/list` enumerates the tools + `tools/call` returns a **runtime-resolved** payload (Invariant #5: version must come from the running framework, not a constant) |
 | 19 | `spring-boot-passivation-agent` | 9119 | spring-boot | `/` | REST | pause → inspect → resume: history restored, signal applied, `continued:true` |
 | 21 | `spring-boot-reattach-harness` | 9121 | spring-boot | `/atmosphere/agent/harness/` | REST + WS replay | run-id reconnect drains **all** buffered events in order (server logs `replayed N/N`) |

@@ -4,15 +4,17 @@ Agent-to-Agent (A2A) protocol support for Atmosphere `@Agent`s. When
 `atmosphere-a2a` is on the classpath, every `@Agent` automatically exposes an
 A2A JSON-RPC endpoint (default `{basePath}/a2a`) and serves a discovery
 **AgentCard** at `/.well-known/agent.json`. A2A clients can then call
-`message/send` / `message/stream` to invoke the agent, and
-`agent/authenticatedExtendedCard` to enumerate its skills.
+`SendMessage` / `SendStreamingMessage` to invoke the agent, and
+`GetExtendedAgentCard` to enumerate its skills. The pre-1.0 slash names
+(`message/send`, `tasks/get`, `agent/authenticatedExtendedCard`, ...) are still
+accepted as aliases, with a deprecation `WARN` the first time each one is seen.
 
 The implementation targets A2A **v1.0.0** (typed `securitySchemes`, structured
 `AgentProvider`, `signatures`, `supportedInterfaces`).
 
 ## ⚠️ Security: the A2A endpoint is unauthenticated by default
 
-`message/send` drives the agent — **LLM dispatch and tool execution** — so the
+`SendMessage` drives the agent — **LLM dispatch and tool execution** — so the
 A2A inbound endpoint is a mutating surface. Like every Atmosphere transport, it
 ships with **no framework-enforced authentication**: the framework registers the
 handler with no auth interceptor and delegates authentication to the deployer
@@ -61,12 +63,12 @@ Security filter chain requiring a bearer token on the `/**/a2a` path.
 Even unauthenticated, two controls limit blast radius (but are **not** a
 substitute for fronting the endpoint with auth):
 
-- **Governance runs on the A2A path.** `message/send` dispatches through the
+- **Governance runs on the A2A path.** `SendMessage` dispatches through the
   shared `AiPipeline`, so any installed `GovernancePolicy` (deny rules, tool
   approval, guardrails) is enforced and fails closed.
 - **Task access uses unguessable capability tokens.** Task ids are
-  server-generated random UUIDs; `tasks/get` / `tasks/cancel` require knowing
-  the id, and `tasks/list` requires a `contextId`.
+  server-generated random UUIDs; `GetTask` / `CancelTask` require knowing
+  the id, and `ListTasks` requires a `contextId`.
 
 ## Other card decorations
 

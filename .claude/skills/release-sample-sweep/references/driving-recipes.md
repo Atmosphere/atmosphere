@@ -102,7 +102,8 @@ correct analog to browser-driving — this is **not** a licence to validate UI
 samples with curl.
 
 - **A2A**: `GET /.well-known/agent.json` for the Agent Card, then a
-  `message/send` JSON-RPC call; assert `TASK_STATE_COMPLETED` **and** a real
+  `SendMessage` JSON-RPC call (the v1.0.0 name; the pre-1.0 `message/send`
+  alias makes the server log a deprecation WARN); assert `TASK_STATE_COMPLETED` **and** a real
   artifact in the response.
 - **MCP**: `initialize`, `tools/list`, `tools/call` over streamable HTTP;
   assert the payload is runtime-resolved.
