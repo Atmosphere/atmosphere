@@ -15,12 +15,16 @@
  */
 package org.atmosphere.ai.governance.scope;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.EmbeddingRuntime;
 import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.governance.PolicyContext;
 import org.atmosphere.ai.governance.PolicyDecision;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -158,6 +162,57 @@ class EmbeddingScopeGuardrailTest {
         assertEquals(ScopeGuardrail.Outcome.OUT_OF_SCOPE,
                 guardrail.evaluate(new AiRequest("write a python script for me"),
                         ruleConfig("dentistry")).outcome());
+    }
+
+    @Test
+    void aStandingEmbeddingFailureIsReportedOnceAtWarnNotAsAnErrorPerTurn() {
+        // Regression: with no embedding model behind the runtime (Ollama 404s
+        // on the OpenAI default), every turn logged an ERROR plus a WARN.
+        var appender = new ListAppender<ILoggingEvent>();
+        appender.start();
+        var logger = (ch.qos.logback.classic.Logger)
+                LoggerFactory.getLogger(EmbeddingScopeGuardrail.class);
+        logger.addAppender(appender);
+        try {
+            var guardrail = new EmbeddingScopeGuardrail(new ThrowingEmbeddingRuntime());
+            for (int turn = 0; turn < 5; turn++) {
+                assertEquals(ScopeGuardrail.Outcome.IN_SCOPE,
+                        guardrail.evaluate(new AiRequest("book a dental cleaning"),
+                                ruleConfig("dentistry")).outcome(),
+                        "every turn must still degrade to the rule-based tier");
+            }
+            var errors = appender.list.stream()
+                    .filter(e -> e.getLevel() == Level.ERROR).toList();
+            var warns = appender.list.stream()
+                    .filter(e -> e.getLevel() == Level.WARN).toList();
+            assertEquals(List.of(), errors.stream().map(ILoggingEvent::getFormattedMessage).toList(),
+                    "a handled, degraded embedding failure is not an ERROR");
+            assertEquals(2, warns.size(),
+                    "one WARN for the failure and one for the degrade, not per turn: "
+                            + warns.stream().map(ILoggingEvent::getFormattedMessage).toList());
+        } finally {
+            logger.detachAppender(appender);
+        }
+    }
+
+    @Test
+    void aMissingRuntimeIsReportedOnce() {
+        var appender = new ListAppender<ILoggingEvent>();
+        appender.start();
+        var logger = (ch.qos.logback.classic.Logger)
+                LoggerFactory.getLogger(EmbeddingScopeGuardrail.class);
+        logger.addAppender(appender);
+        try {
+            var guardrail = new EmbeddingScopeGuardrail(null);
+            for (int turn = 0; turn < 3; turn++) {
+                guardrail.evaluate(new AiRequest("hi"), ruleConfig("support"));
+            }
+            assertEquals(1, appender.list.stream()
+                    .filter(e -> e.getLevel() == Level.WARN).count(),
+                    "the no-runtime degrade is a standing condition, reported once");
+        } finally {
+            logger.detachAppender(appender);
+        }
     }
 
     @Test

@@ -16,12 +16,14 @@
 package org.atmosphere.ai.llm;
 
 import tools.jackson.databind.ObjectMapper;
+import org.atmosphere.ai.AiConfig;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -108,6 +110,37 @@ class BuiltInEmbeddingRuntimeTest {
             assertTrue(ite.getCause() instanceof IllegalStateException,
                     "Expected IllegalStateException, got " + ite.getCause());
         }
+    }
+
+    private static AiConfig.LlmSettings settings(String mode, String model, String apiKey) {
+        return new AiConfig.LlmSettings(null, model, mode, "http://localhost:11434/v1", apiKey);
+    }
+
+    @Test
+    void aLocalBackendWithAChatModelHasNoEmbeddingModelToOffer() {
+        // Regression: local mode fell back to the OpenAI name text-embedding-3-small,
+        // which Ollama 404s, while still reporting itself available.
+        var runtime = new BuiltInEmbeddingRuntime();
+        assertFalse(runtime.isAvailable(settings("local", "qwen2.5:7b-instruct-q4_K_M", "ollama")));
+        assertFalse(runtime.isAvailable(settings("local", "llama3.2", null)));
+    }
+
+    @Test
+    void aLocalBackendWithAnExplicitEmbeddingModelIsAvailable() {
+        var runtime = new BuiltInEmbeddingRuntime();
+        assertTrue(runtime.isAvailable(settings("local", "text-embedding-nomic-embed-text-v1.5", null)),
+                "an embedding-model LLM_MODEL is posted as-is, no credential needed locally");
+        runtime.setEmbeddingModel("nomic-embed-text");
+        assertTrue(runtime.isAvailable(settings("local", "llama3.2", null)),
+                "an explicit embedding model makes a local backend usable");
+    }
+
+    @Test
+    void aCredentialedRemoteKeepsTheDefaultModel() {
+        var runtime = new BuiltInEmbeddingRuntime();
+        assertTrue(runtime.isAvailable(settings("remote", "gpt-4o", "sk-test-not-a-real-key")));
+        assertFalse(runtime.isAvailable(settings("remote", "gpt-4o", null)));
+        assertFalse(runtime.isAvailable(settings("fake", "gpt-4o", "sk-test-not-a-real-key")));
     }
 
     @Test

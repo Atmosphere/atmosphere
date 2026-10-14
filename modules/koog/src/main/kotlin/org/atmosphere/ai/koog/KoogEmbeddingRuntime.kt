@@ -52,12 +52,13 @@ class KoogEmbeddingRuntime : EmbeddingRuntime {
 
     override fun name(): String = "koog"
 
-    override fun isAvailable(): Boolean = embeddingProvider != null || try {
-        Class.forName("ai.koog.prompt.executor.clients.LLMEmbeddingProvider")
-        true
-    } catch (e: ClassNotFoundException) {
-        false
-    }
+    /**
+     * Available only once an [LLMEmbeddingProvider] is installed. Koog being on
+     * the classpath says nothing about whether this runtime can embed: reporting
+     * it available there made it outrank the other runtimes and fail every
+     * [embed] call with "LLMEmbeddingProvider not configured".
+     */
+    override fun isAvailable(): Boolean = embeddingProvider != null
 
     override fun embed(text: String): FloatArray {
         require(text.isNotBlank()) { "text must not be blank" }

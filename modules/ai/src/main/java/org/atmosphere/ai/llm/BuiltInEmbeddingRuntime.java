@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * {@link EmbeddingRuntime} that posts to an OpenAI-compatible {@code /v1/embeddings}
@@ -40,9 +41,15 @@ import java.util.Objects;
  * {@link OpenAiCompatibleClient} for the chat path.
  *
  * <p>Configuration comes from {@link AiConfig}: base URL, API key, and the
- * embedding-model name (defaults to {@code text-embedding-3-small}). The
- * caller can override the per-instance model via
- * {@link #setEmbeddingModel(String)}.</p>
+ * embedding-model name. Against a remote provider the model defaults to
+ * {@code text-embedding-3-small}. In {@code llm.mode=local} there is no
+ * default: an OpenAI model name is not something Ollama, vLLM or LM Studio
+ * serves, so posting it only produced an HTTP 404 on every call while the
+ * runtime advertised itself as available. A local backend is therefore used
+ * only when the configured {@code LLM_MODEL} is itself an embedding model
+ * ({@code text-embedding*}) or the caller set one via
+ * {@link #setEmbeddingModel(String)}; otherwise {@link #isAvailable()} reports
+ * {@code false} and consumers take their documented no-runtime path.</p>
  *
  * <p>Discovered through the standard {@code ServiceLoader} path so
  * programmatic callers can use {@code EmbeddingRuntime} without wiring a
@@ -77,14 +84,21 @@ public class BuiltInEmbeddingRuntime implements EmbeddingRuntime {
 
     @Override
     public boolean isAvailable() {
-        var settings = AiConfig.get();
-        if (settings == null) {
+        return isAvailable(AiConfig.get());
+    }
+
+    /**
+     * Availability against explicit settings: a reachable backend (a
+     * credentialed remote, or a local server) plus an embedding model this
+     * runtime can actually name to it. Package-private so tests can pin the
+     * answer without touching the {@link AiConfig} singleton.
+     */
+    boolean isAvailable(AiConfig.LlmSettings settings) {
+        if (settings == null || settings.baseUrl() == null || settings.baseUrl().isBlank()
+                || !settings.hasReachableModel()) {
             return false;
         }
-        var apiKey = settings.apiKey();
-        var baseUrl = settings.baseUrl();
-        return baseUrl != null && !baseUrl.isBlank()
-                && apiKey != null && !apiKey.isBlank();
+        return resolveModel(settings).isPresent();
     }
 
     @Override
@@ -116,7 +130,10 @@ public class BuiltInEmbeddingRuntime implements EmbeddingRuntime {
                 ? "not-needed-for-local"
                 : configured;
         var baseUrl = settings.baseUrl();
-        var model = resolveModel(settings);
+        var model = resolveModel(settings).orElseThrow(() -> new IllegalStateException(
+                "Built-in embedding runtime has no embedding model for llm.mode=local: "
+                        + "LLM_MODEL '" + settings.model() + "' is not an embedding model "
+                        + "and no model was set via setEmbeddingModel(String)"));
         var endpoint = normalizedEndpoint(baseUrl) + "/embeddings";
         try {
             var body = buildRequestBody(model, texts);
@@ -150,19 +167,21 @@ public class BuiltInEmbeddingRuntime implements EmbeddingRuntime {
         return 50;
     }
 
-    private String resolveModel(AiConfig.LlmSettings settings) {
+    private Optional<String> resolveModel(AiConfig.LlmSettings settings) {
         var override = modelOverride;
         if (override != null && !override.isBlank()) {
-            return override;
+            return Optional.of(override);
         }
         // Re-use the chat model surface only when it is recognizably an
         // embedding model; otherwise fall back to the safe default. Mixing a
         // chat model name into /v1/embeddings would 400 at the provider.
         var chatModel = settings.model();
         if (chatModel != null && chatModel.startsWith("text-embedding")) {
-            return chatModel;
+            return Optional.of(chatModel);
         }
-        return DEFAULT_MODEL;
+        // The default is an OpenAI model name; a local server does not serve
+        // it, so a local backend has no embedding model unless one was named.
+        return settings.isLocal() ? Optional.empty() : Optional.of(DEFAULT_MODEL);
     }
 
     private static String normalizedEndpoint(String endpoint) {

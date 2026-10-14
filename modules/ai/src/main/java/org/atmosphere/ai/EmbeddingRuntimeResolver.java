@@ -47,8 +47,10 @@ public final class EmbeddingRuntimeResolver {
      * Returns the highest-priority available runtime, or
      * {@link Optional#empty()} when no runtime has a wired native
      * {@code EmbeddingModel} (Built-in is reported only when
-     * {@link AiConfig} carries a baseUrl + apiKey; otherwise it is
-     * excluded from the result).
+     * {@link AiConfig} carries a baseUrl, a reachable backend and an
+     * embedding model it can name — in {@code llm.mode=local} that means an
+     * embedding-model {@code LLM_MODEL}; otherwise it is excluded from the
+     * result).
      */
     public static Optional<EmbeddingRuntime> resolve() {
         var all = resolveAll();

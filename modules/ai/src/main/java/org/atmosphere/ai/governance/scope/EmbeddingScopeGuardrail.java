@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -66,6 +67,16 @@ public final class EmbeddingScopeGuardrail implements ScopeGuardrail {
      */
     private final ScopeGuardrail ruleBasedFallback = new RuleBasedScopeGuardrail();
 
+    /**
+     * Degradation causes already reported at WARN. A missing embedding model is
+     * a standing condition, not a per-request event: logging it on every turn
+     * (as ERROR, before) buried real errors under one line per prompt. Each
+     * cause is reported once at WARN, then at DEBUG. Keys are the fixed cause
+     * labels plus configured forbidden topics, so the set is bounded by
+     * configuration, not by traffic.
+     */
+    private final Set<String> reportedDegradations = ConcurrentHashMap.newKeySet();
+
     /** Default constructor — resolves an {@link EmbeddingRuntime} via ServiceLoader. */
     public EmbeddingScopeGuardrail() {
         this(EmbeddingRuntimeResolver.resolve().orElse(null));
@@ -93,8 +104,8 @@ public final class EmbeddingScopeGuardrail implements ScopeGuardrail {
             // No embedding runtime available — fail-closed on scope would
             // starve every request; degrade to the rule-based tier so the
             // agent stays usable and forbidden topics are still enforced.
-            logger.warn("No EmbeddingRuntime available — EmbeddingScopeGuardrail degrading to "
-                    + "RULE_BASED scope enforcement. Install a runtime module "
+            warnOnce("no-runtime", "No EmbeddingRuntime available — EmbeddingScopeGuardrail "
+                    + "degrading to RULE_BASED scope enforcement. Install a runtime module "
                     + "(spring-ai/langchain4j/etc.) or set the tier to RULE_BASED explicitly.");
             return ruleBasedFallback.evaluate(request, config);
         }
@@ -107,15 +118,15 @@ public final class EmbeddingScopeGuardrail implements ScopeGuardrail {
             // provider has no matching embedding model). Block-everything is
             // worse than degrading to keyword scope, which still enforces
             // forbidden topics — so fall back rather than fail closed.
-            logger.warn("Could not embed scope purpose — degrading to RULE_BASED scope "
-                    + "enforcement for this request.");
+            warnOnce("degrade:scope purpose", "Could not embed scope purpose — degrading to "
+                    + "RULE_BASED scope enforcement.");
             return ruleBasedFallback.evaluate(request, config);
         }
 
         var messageVector = safeEmbed(request.message(), "request message");
         if (messageVector == null) {
-            logger.warn("Could not embed request message — degrading to RULE_BASED scope "
-                    + "enforcement for this request.");
+            warnOnce("degrade:request message", "Could not embed request message — degrading "
+                    + "to RULE_BASED scope enforcement.");
             return ruleBasedFallback.evaluate(request, config);
         }
 
@@ -158,8 +169,8 @@ public final class EmbeddingScopeGuardrail implements ScopeGuardrail {
             // The message clears the threshold but could not be compared with
             // every forbidden topic; degrade like the other embed failures
             // above so the keyword tier still enforces that topic.
-            logger.warn("Could not embed forbidden topic '{}' — degrading to RULE_BASED scope "
-                    + "enforcement for this request.", unembeddedTopic);
+            warnOnce("degrade:forbidden topic " + unembeddedTopic, "Could not embed forbidden "
+                    + "topic '{}' — degrading to RULE_BASED scope enforcement.", unembeddedTopic);
             return ruleBasedFallback.evaluate(request, config);
         }
         return Decision.inScope(similarity);
@@ -169,8 +180,24 @@ public final class EmbeddingScopeGuardrail implements ScopeGuardrail {
         try {
             return runtime.embed(text);
         } catch (RuntimeException e) {
-            logger.error("Embedding failed for {} ({}): {}", label, runtime.name(), e.getMessage());
+            // Handled: every caller degrades to the rule-based tier, so this
+            // is a WARN (once per label), never an ERROR per request.
+            warnOnce("embed:" + label, "Embedding failed for {} ({}): {}",
+                    label, runtime.name(), e.getMessage());
+            logger.debug("Embedding failure detail for {}", label, e);
             return null;
+        }
+    }
+
+    /**
+     * Logs at WARN the first time {@code key} is seen and at DEBUG afterwards,
+     * with a note on the first line that repeats are demoted.
+     */
+    private void warnOnce(String key, String format, Object... args) {
+        if (reportedDegradations.add(key)) {
+            logger.warn(format + " (further occurrences are logged at DEBUG)", args);
+        } else if (logger.isDebugEnabled()) {
+            logger.debug(format, args);
         }
     }
 
