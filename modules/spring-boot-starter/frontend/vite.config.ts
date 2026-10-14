@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, searchForWorkspaceRoot } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
@@ -20,5 +20,17 @@ export default defineConfig({
     // gitignored), so a stale committed bundle can never drift onto the wire.
     outDir: '../target/classes/META-INF/resources/atmosphere/console',
     emptyOutDir: true,
+  },
+  server: {
+    fs: {
+      allow: [
+        searchForWorkspaceRoot(process.cwd()),
+        // src/adminDashboard.test.ts loads each host's copy of the standalone
+        // admin dashboard page (?raw) to run it under jsdom. Dev/test only.
+        '../src/main/resources/META-INF/resources/atmosphere/admin',
+        '../../spring-boot3-starter/src/main/resources/META-INF/resources/atmosphere/admin',
+        '../../quarkus-admin-extension/runtime/src/main/resources/META-INF/resources/admin',
+      ],
+    },
   },
 })

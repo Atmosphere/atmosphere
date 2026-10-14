@@ -217,10 +217,25 @@ document.querySelectorAll('.tab').forEach(tab => {
   });
 });
 
-// Fetch helper
-async function api(path) {
+// Fetch helpers. apiRead() keeps the HTTP status so a refused read is not
+// rendered as "nothing recorded"; api() is for reads where null is enough.
+async function apiRead(path) {
   const r = await fetch(API + path);
-  return r.ok ? r.json() : null;
+  return { ok: r.ok, status: r.status, data: r.ok ? await r.json() : null };
+}
+
+async function api(path) {
+  return (await apiRead(path)).data;
+}
+
+// What a failed read renders instead of its empty state.
+function readFailure(status) {
+  if (status === 401 || status === 403) {
+    return `<div class="empty">Access denied (HTTP ${status}). This read returns recorded content and is `
+      + 'default-deny: authenticate the request, or set '
+      + '<code>atmosphere.admin.content-read-auth-required=false</code> to open it.</div>';
+  }
+  return `<div class="empty">Could not load (HTTP ${status})</div>`;
 }
 
 // Dashboard
@@ -374,8 +389,8 @@ async function loadJournal() {
   if (coordId) qs += '&coordinationId=' + encodeURIComponent(coordId);
   if (agent) qs += '&agent=' + encodeURIComponent(agent);
 
-  const events = await api('/journal' + qs);
-  document.getElementById('journal-list').innerHTML = events && events.length
+  const { ok, status, data: events } = await apiRead('/journal' + qs);
+  document.getElementById('journal-list').innerHTML = !ok ? readFailure(status) : events && events.length
     ? tbl(['Type', 'Coordination', 'Agent', 'Skill', 'Duration', 'Time'],
         events.map(e => [badge(e.type, typeColor(e.type)), (e.coordinationId||'').substring(0,8),
           e.agentName||e.coordinatorName||'', e.skill||'', e.duration||e.totalDuration||'', e.timestamp]))
@@ -413,8 +428,8 @@ async function doCancelTask() {
 }
 
 async function loadAudit() {
-  const entries = await api('/audit?limit=50');
-  document.getElementById('audit-list').innerHTML = entries && entries.length
+  const { ok, status, data: entries } = await apiRead('/audit?limit=50');
+  document.getElementById('audit-list').innerHTML = !ok ? readFailure(status) : entries && entries.length
     ? tbl(['Time', 'Action', 'Target', 'Principal', 'Success'],
         entries.map(e => [new Date(e.timestamp).toLocaleTimeString(), badge(e.action,'blue'),
           e.target, e.principal, e.success ? badge('yes','green') : badge('no','red')]))
