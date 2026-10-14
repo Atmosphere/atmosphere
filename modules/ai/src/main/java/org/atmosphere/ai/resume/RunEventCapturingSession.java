@@ -68,22 +68,25 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
         delegate.send(text);
     }
 
+    // Terminal events go through terminate: the first one ends the run, so a
+    // run that already timed out or completed does not record a second.
+
     @Override
     public void complete() {
-        buffer.capture("complete", "");
+        buffer.terminate("complete", "");
         delegate.complete();
     }
 
     @Override
     public void complete(String summary) {
-        buffer.capture("complete", summary != null ? summary : "");
+        buffer.terminate("complete", summary != null ? summary : "");
         delegate.complete(summary);
     }
 
     @Override
     public void error(Throwable t) {
         var msg = t != null && t.getMessage() != null ? t.getMessage() : "error";
-        buffer.capture("error", msg);
+        buffer.terminate("error", msg);
         delegate.error(t);
     }
 }

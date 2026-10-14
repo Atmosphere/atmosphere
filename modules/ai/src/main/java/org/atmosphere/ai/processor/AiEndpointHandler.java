@@ -1117,14 +1117,17 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                     if (!promptThread.join(Duration.ofMillis(suspendTimeout))) {
                         logger.warn("@Prompt method timed out after {}ms for client {}",
                                 suspendTimeout, resource.uuid());
+                        var timeout = new TimeoutException(
+                                "Prompt processing timed out after " + suspendTimeout + "ms");
+                        // The timeout is the run's terminal frame for a client
+                        // that reattached, also when the client this session
+                        // wrote to is gone (its session is closed). Recorded
+                        // before the interrupt, so a @Prompt that swallows it
+                        // and returns cannot end the run as complete first.
+                        handle.replayBuffer().terminate("error", timeout.getMessage());
                         promptThread.interrupt();
                         if (!capturingSession.isClosed()) {
-                            // Terminal timeout flows through the capturing
-                            // session so the replay buffer captures the
-                            // error frame — otherwise reconnecting clients
-                            // see partial streams with no terminator.
-                            capturingSession.error(new TimeoutException(
-                                    "Prompt processing timed out after " + suspendTimeout + "ms"));
+                            capturingSession.error(timeout);
                         }
                     }
                 } catch (InterruptedException e) {

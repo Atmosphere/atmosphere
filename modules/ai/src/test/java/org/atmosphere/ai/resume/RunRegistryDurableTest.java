@@ -87,10 +87,12 @@ class RunRegistryDurableTest {
         var found = revived.lookup(runId);
         assertTrue(found.isPresent(), "rehydrated run is looked up by id post-restart");
         var events = found.get().replayableEvents();
-        assertEquals(2, events.size());
+        assertEquals(3, events.size(), "both events, then the terminal frame of a run that cannot continue");
         assertEquals("part-one", events.get(0).payload());
         assertEquals(0, events.get(0).sequence(), "original sequence numbers preserved");
         assertEquals(1, events.get(1).sequence());
+        assertEquals("error", events.get(2).type());
+        assertEquals(2, journal.loadEvents(runId).size(), "the journal keeps what the run recorded");
         // Authorization key carried through (Invariant #6 — caller-owns-run).
         assertEquals("alice", found.get().userId());
     }

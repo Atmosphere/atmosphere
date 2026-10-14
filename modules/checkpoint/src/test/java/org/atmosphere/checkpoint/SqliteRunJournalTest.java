@@ -64,10 +64,13 @@ class SqliteRunJournalTest {
             var handle = registry.lookup("run-1").orElseThrow();
             assertEquals("alice", handle.userId(), "the authorization owner survives the restart");
             var events = handle.replayableEvents();
-            assertEquals(2, events.size(), "captured events survive a reopen");
+            assertEquals(3, events.size(),
+                    "captured events survive a reopen, then the terminal frame of a run that cannot continue");
             assertEquals(0L, events.get(0).sequence());
             assertEquals(1L, events.get(1).sequence());
             assertEquals("llo", events.get(1).payload());
+            assertEquals("error", events.get(2).type());
+            assertEquals(2, reopened.loadEvents("run-1").size(), "the journal keeps what the run recorded");
         }
     }
 

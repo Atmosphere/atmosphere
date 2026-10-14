@@ -60,8 +60,13 @@ import java.util.function.Consumer;
  * nothing falls between the backlog and the first live event and nothing is
  * delivered twice. Listeners are notified outside the lock, are dropped when
  * they throw, and are released once a terminal {@code complete} /
- * {@code error} event is captured. At most {@link #MAX_SUBSCRIBERS} are held
- * per run (Correctness Invariant #3).
+ * {@code error} event is captured. A run that ends without capturing one (its
+ * {@code @Prompt} returned without completing, threw an {@link Error}, timed
+ * out after its client left, or was removed from the {@link RunRegistry}) is
+ * closed by {@link #terminate}, which the registry calls on each of those
+ * paths, so every live listener receives a terminal frame and is released
+ * (Correctness Invariant #2). At most {@link #MAX_SUBSCRIBERS} are held per run
+ * (Correctness Invariant #3).
  */
 public final class RunEventReplayBuffer {
 
@@ -133,13 +138,44 @@ public final class RunEventReplayBuffer {
      * stream.
      */
     public RunEvent capture(String type, String payload) {
-        var event = new RunEvent(
-                nextSequence.getAndIncrement(),
-                type,
-                payload,
-                Instant.now());
+        return append(type, payload, false);
+    }
+
+    /**
+     * End the run with a terminal {@code complete} or {@code error} event
+     * unless one was already captured: the event is stored, delivered to every
+     * live listener and the listeners are released, exactly as a captured
+     * terminal event is. Idempotent; the first terminal event wins.
+     *
+     * @return {@code true} when this call ended the run, {@code false} when it
+     *         had already ended
+     */
+    public boolean terminate(String type, String payload) {
+        if (!isTerminal(type)) {
+            throw new IllegalArgumentException("not a terminal event type: " + type);
+        }
+        return append(type, payload, true) != null;
+    }
+
+    /** Whether a terminal {@code complete} / {@code error} event was captured. */
+    public boolean isTerminated() {
+        synchronized (buffer) {
+            return terminated;
+        }
+    }
+
+    private RunEvent append(String type, String payload, boolean onlyIfOpen) {
+        RunEvent event;
         List<Consumer<RunEvent>> listeners;
         synchronized (buffer) {
+            if (onlyIfOpen && terminated) {
+                return null;
+            }
+            event = new RunEvent(
+                    nextSequence.getAndIncrement(),
+                    type,
+                    payload,
+                    Instant.now());
             buffer.add(event);
             while (buffer.size() > capacity) {
                 buffer.remove(0);
@@ -210,7 +246,8 @@ public final class RunEventReplayBuffer {
      * original sequence numbers so replay ordering survives a restart. Used
      * by {@link RunRegistry#rehydrate()}. Advances the internal sequence
      * counter past the highest restored sequence so any further captures do
-     * not collide with rehydrated history.
+     * not collide with rehydrated history. A restored terminal event ends the
+     * run, as a captured one does.
      */
     void restore(List<RunEvent> events) {
         if (events == null || events.isEmpty()) {
@@ -221,6 +258,7 @@ public final class RunEventReplayBuffer {
             for (var event : events) {
                 buffer.add(event);
                 maxSeq = Math.max(maxSeq, event.sequence());
+                terminated |= isTerminal(event.type());
             }
             while (buffer.size() > capacity) {
                 buffer.remove(0);

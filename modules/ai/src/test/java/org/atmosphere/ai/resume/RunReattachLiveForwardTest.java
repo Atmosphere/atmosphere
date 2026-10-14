@@ -142,6 +142,113 @@ class RunReattachLiveForwardTest {
     }
 
     @Test
+    void aRunThatReturnsWithoutATerminalFrameStillEndsTheReattachedStream() {
+        var registry = new RunRegistry();
+        var execution = new ExecutionHandle.Settable(() -> { });
+        var handle = registry.register("harness", "anonymous", "sess-1", execution);
+        handle.replayBuffer().capture("streaming-text", "event-0");
+        var out = new StringWriter();
+        var resource = resource(handle.runId(), AtmosphereResource.TRANSPORT.WEBSOCKET, out);
+        RunReattachSupport.replayPendingRun(resource, registry);
+
+        // The @Prompt returned without calling complete(): only the run's end says so.
+        execution.complete();
+
+        var frames = frames(out);
+        assertEquals(2, frames.size(), "event-0 then a terminal frame: " + frames);
+        assertTrue(frames.get(1).contains("\"type\":\"complete\""), frames.get(1));
+        assertTrue(handle.replayBuffer().isTerminated(), "the run's end ends its buffer");
+        assertEquals(0, handle.replayBuffer().subscriberCount(), "the run's end releases the subscription");
+        Mockito.verify(resource).removeEventListener(Mockito.any());
+    }
+
+    @Test
+    void aRunThatFailsWithoutAnErrorFrameEndsTheReattachedStreamInError() {
+        var registry = new RunRegistry();
+        var execution = new ExecutionHandle.Settable(() -> { });
+        var handle = registry.register("harness", "anonymous", "sess-1", execution);
+        var out = new StringWriter();
+        var resource = resource(handle.runId(), AtmosphereResource.TRANSPORT.WEBSOCKET, out);
+        RunReattachSupport.replayPendingRun(resource, registry);
+
+        // An Error thrown from the @Prompt completes the run exceptionally and captures nothing.
+        execution.completeExceptionally(new StackOverflowError("prompt blew the stack"));
+
+        var frames = frames(out);
+        assertEquals(1, frames.size(), frames.toString());
+        assertTrue(frames.get(0).contains("\"type\":\"error\""), frames.get(0));
+        assertTrue(frames.get(0).contains("prompt blew the stack"), frames.get(0));
+        assertEquals(0, handle.replayBuffer().subscriberCount());
+    }
+
+    @Test
+    void anUnregisteredRunEndsTheReattachedStreamInError() {
+        var registry = new RunRegistry();
+        var handle = registry.register("harness", "anonymous", "sess-1",
+                new ExecutionHandle.Settable(() -> { }));
+        var out = new StringWriter();
+        var resource = resource(handle.runId(), AtmosphereResource.TRANSPORT.WEBSOCKET, out);
+        RunReattachSupport.replayPendingRun(resource, registry);
+
+        registry.unregister(handle.runId());
+
+        var frames = frames(out);
+        assertEquals(1, frames.size(), frames.toString());
+        assertTrue(frames.get(0).contains("\"type\":\"error\""), frames.get(0));
+        assertEquals(0, handle.replayBuffer().subscriberCount());
+    }
+
+    @Test
+    void aSweptRunEndsTheReattachedStreamInError() {
+        var now = new AtomicReference<>(Instant.parse("2026-10-14T10:00:00Z"));
+        var registry = new RunRegistry(clockAt(now), Duration.ofMinutes(30));
+        var handle = registry.register("harness", "anonymous", "sess-1",
+                new ExecutionHandle.Settable(() -> { }));
+        var out = new StringWriter();
+        var resource = resource(handle.runId(), AtmosphereResource.TRANSPORT.WEBSOCKET, out);
+        RunReattachSupport.replayPendingRun(resource, registry);
+
+        now.set(now.get().plus(Duration.ofMinutes(31)));
+        assertEquals(1, registry.sweepExpired());
+
+        var frames = frames(out);
+        assertEquals(1, frames.size(), frames.toString());
+        assertTrue(frames.get(0).contains("\"type\":\"error\""), frames.get(0));
+        assertEquals(0, handle.replayBuffer().subscriberCount());
+    }
+
+    @Test
+    void aRehydratedRunReplaysItsBacklogAndATerminalFrameWithoutALiveSubscription() {
+        var journal = new InMemoryRunJournal();
+        var before = new RunRegistry(Clock.systemUTC(), RunRegistry.DEFAULT_TTL, journal);
+        var original = before.register("harness", "anonymous", "sess-1",
+                new ExecutionHandle.Settable(() -> { }));
+        original.replayBuffer().capture("streaming-text", "event-0");
+
+        // Restart: the generation died with the process, nothing writes to the run again.
+        var registry = new RunRegistry(Clock.systemUTC(), RunRegistry.DEFAULT_TTL, journal);
+        assertEquals(1, registry.rehydrate());
+        var handle = registry.lookup(original.runId()).orElseThrow();
+        var out = new StringWriter();
+        var resource = resource(handle.runId(), AtmosphereResource.TRANSPORT.WEBSOCKET, out);
+
+        assertEquals(2, RunReattachSupport.replayPendingRun(resource, registry));
+        var frames = frames(out);
+        assertTrue(frames.get(1).contains("\"type\":\"error\""), frames.toString());
+        assertEquals(0, handle.replayBuffer().subscriberCount(),
+                "a run nothing writes to again must not hold a live subscription");
+        Mockito.verify(resource, Mockito.never()).addEventListener(Mockito.any());
+    }
+
+    private static Clock clockAt(AtomicReference<Instant> now) {
+        return new Clock() {
+            @Override public ZoneId getZone() { return ZoneOffset.UTC; }
+            @Override public Clock withZone(ZoneId zone) { return this; }
+            @Override public Instant instant() { return now.get(); }
+        };
+    }
+
+    @Test
     void retainedFinishedRunsAreBoundedAndExpire() {
         var now = new AtomicReference<>(Instant.parse("2026-10-14T10:00:00Z"));
         var clock = new Clock() {

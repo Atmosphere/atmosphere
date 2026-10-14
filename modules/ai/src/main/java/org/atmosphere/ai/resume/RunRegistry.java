@@ -47,6 +47,14 @@ import java.util.concurrent.ConcurrentHashMap;
  * {@link #sweepExpired}, which nothing in the framework schedules — an
  * application that registers runs which may never complete calls it.
  *
+ * <p>A run's end is its replay buffer's end too: when the execution handle
+ * completes, and when a run that has not completed is swept, unregistered or
+ * rehydrated without its generation, the registry
+ * {@linkplain RunEventReplayBuffer#terminate terminates} the buffer unless the
+ * run already captured its own {@code complete} / {@code error} frame. A client
+ * that reattached to the run therefore always receives a terminal frame, and
+ * its live subscription is released (Correctness Invariant #2).</p>
+ *
  * <h2>Backpressure</h2>
  *
  * No hard cap on registered runs today; applications that need one wrap
@@ -170,6 +178,7 @@ public final class RunRegistry {
         // the durable journal entry too, closing the terminal path
         // (Invariant #2) so a completed run is not rehydrated after restart.
         executionHandle.whenDone().whenComplete((ok, err) -> {
+            endRun(handle, err);
             retire(handle);
             removeFromJournal(id);
         });
@@ -219,6 +228,28 @@ public final class RunRegistry {
     }
 
     /**
+     * Close the replay buffer of a run whose execution ended, so a reattached
+     * client waiting on its live subscription gets a terminal frame even when
+     * the run never emitted one: an {@code @Prompt} that returned without
+     * completing ends in {@code complete}, one that failed in {@code error}.
+     */
+    private static void endRun(AgentResumeHandle handle, Throwable failure) {
+        if (failure == null) {
+            handle.replayBuffer().terminate("complete", "");
+            return;
+        }
+        var cause = failure instanceof java.util.concurrent.CompletionException
+                && failure.getCause() != null ? failure.getCause() : failure;
+        var message = cause.getMessage() != null ? cause.getMessage() : cause.getClass().getSimpleName();
+        handle.replayBuffer().terminate("error", message);
+    }
+
+    /** Close the replay buffer of a run that is removed before its execution ended. */
+    private static void endRemovedRun(AgentResumeHandle handle, String reason) {
+        handle.replayBuffer().terminate("error", reason);
+    }
+
+    /**
      * Move a finished run out of the live set into the bounded replayable
      * set. Only the registered handle is moved, so a late completion callback
      * never retires a different run under the same id.
@@ -256,7 +287,8 @@ public final class RunRegistry {
         for (var entry : Map.copyOf(runs).entrySet()) {
             if (entry.getValue().createdAt().isBefore(cutoff)
                     || entry.getValue().isDone()) {
-                if (runs.remove(entry.getKey()) != null) {
+                if (runs.remove(entry.getKey(), entry.getValue())) {
+                    endRemovedRun(entry.getValue(), "Run expired after the registry TTL of " + ttl);
                     removed++;
                     removeFromJournal(entry.getKey());
                     logger.trace("swept run {}", entry.getKey());
@@ -271,7 +303,10 @@ public final class RunRegistry {
 
     /** Explicit removal — typically used when the owning session is closed. */
     public void unregister(String runId) {
-        runs.remove(runId);
+        var removed = runs.remove(runId);
+        if (removed != null) {
+            endRemovedRun(removed, "Run was unregistered");
+        }
         synchronized (completed) {
             completed.remove(runId);
         }
@@ -313,6 +348,12 @@ public final class RunRegistry {
         for (var record : journal.loadAll()) {
             var buffer = new RunEventReplayBuffer();
             buffer.restore(journal.loadEvents(record.runId()));
+            // Nothing writes to this buffer again: end it, so a client that
+            // reattaches over a streaming transport gets the backlog and a
+            // terminal frame instead of a live subscription that never ends.
+            // Before the journal is attached, so the journal keeps exactly
+            // what the run recorded.
+            buffer.terminate("error", "Run did not survive a restart; its generation cannot continue");
             buffer.attachJournal(journal, record.runId());
             // A never-completing handle so lookup() keeps serving the
             // rehydrated run until it is replayed and then swept by TTL; the
