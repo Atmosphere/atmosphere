@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.73] - 2026-10-14
+
+### Added
+
+- expose the server tracking id as Subscription.uuid (#2787)
+- tag error events with willRetry and attempt (#2790)
+- honor RetryStrategy with a single reconnect-delay calculator (#2788)
+
+### Fixed
+
+- dispatch @Disconnect once per resource when a broadcast races the close
+- report unknown run samples and key the jar cache on the override version
+- pin import's Spring Boot parent to the reactor pom and ship mvnw
+- make the composed coordinator jar runnable and discoverable
+- destroy the framework after the admin lifecycle stops, not before
+- decode CONNECT-stream capsules instead of dispatching them as messages
+- stop a broadcast reaching a closing resource from re-running @Disconnect
+- bump Spring Boot to 4.1.1 for Spring Framework 7.0.9 across the Boot 4 line
+- pin lz4-java to 1.11.4 for the yawkat LZ4 advisories
+- stop release preflight flagging the atmosphere.js docs URL as a stale asset path
+- keep query values decoding to control characters raw; WebTransport spells spaces %20
+- percent-decode query parameters mapped to request headers
+- guard the IIFE window globals with a tsup footer. Fixes #2791
+- send request headers as real headers on same-origin fetch (#2789)
+- open long-polling after subscribe() resolves and the handshake (#2784)
+- send the close message on close() and pagehide (#2783)
+- make react-markdown and remark-gfm optional peer deps (#2786)
+- derive VERSION from package.json at build time (#2785)
+- make an explicit WebSocket/WebTransport close terminal (#2782)
+- parse the handshake only when one is expected (#2781)
+
+### Changed
+
+- label the issues a release fixed with its version
+- assert the raw control-character values directly; note Boot 4.1.1 manages pgjdbc 42.7.13
+- bump vue to 3.5.44 in atmosphere.js and Console for npm advisories
+- bump jsoup to 1.23.2 and align spring-ai-alibaba to Spring 7.0.9
+- derive Atmosphere versions in release scripts and gate hardcoded literals
+- cite the moved ACS extends resolver and fixtures, and name the drift source
+- diff ACS fixtures against responsibleai/agent-control-spec
+- getHeader returns decoded query-parameter values
+- publish the legacy atmosphere.js 4.x npm package from release-4x via Trusted Publishing
+- add workflow publishing the legacy atmosphere.js 4.x client to npm
+- reconnect is off unless the request sets it
+- cover an empty first long-polling body under the protocol (#2784)
+- bump Google ADK to 1.11.0 and LangChain4j to 1.21.0
+- stop publishing the legacy assembly distribution to Maven Central
+
 ## [4.0.72] - 2026-10-05
 
 ### Added
