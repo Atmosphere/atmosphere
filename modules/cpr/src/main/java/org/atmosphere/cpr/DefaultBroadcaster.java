@@ -276,7 +276,16 @@ public class DefaultBroadcaster implements Broadcaster {
 
             resources.clear();
             broadcastOnResume.clear();
-            messages.clear();
+            Deliver pending;
+            while ((pending = messages.poll()) != null) {
+                // Never delivered: release whoever waits on it.
+                if (pending.future != null) {
+                    pending.future.cancel(true);
+                }
+            }
+            for (WriteQueue writeQueue : writeQueues.values()) {
+                drain(writeQueue);
+            }
             writeQueues.clear();
             resourceLocks.clear();
 
@@ -773,15 +782,24 @@ public class DefaultBroadcaster implements Broadcaster {
             switch (deliver.type) {
                 case ALL -> {
                     var count = new AtomicInteger(resources.size());
+                    int reached = 0;
 
-                    for (AtmosphereResource r : resources) {
-                        deliver.message = beforeProcessingMessage;
-                        boolean deliverMessage = perRequestFilter(r, deliver);
+                    try {
+                        for (AtmosphereResource r : resources) {
+                            reached++;
+                            deliver.message = beforeProcessingMessage;
+                            boolean deliverMessage = perRequestFilter(r, deliver);
 
-                        if (endBroadcast(deliver, r, deliver.cache, deliverMessage)) continue;
+                            if (endBroadcast(deliver, r, deliver.cache, deliverMessage)) continue;
 
-                        if (deliver.writeLocally) {
-                            queueWriteIO(r, hasFilters ? new Deliver(r, deliver) : deliver, count);
+                            if (deliver.writeLocally) {
+                                queueWriteIO(r, hasFilters ? new Deliver(r, deliver) : deliver, count);
+                            }
+                        }
+                    } finally {
+                        // A resource that left between broadcast() and now holds a share of the future.
+                        if (deliver.future != null) {
+                            deliver.future.reached(reached);
                         }
                     }
                 }
@@ -853,6 +871,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         removeAtmosphereResource(r2);
                         checkCachedAndPush(r2, r2.getAtmosphereResourceEvent());
                     }
+                    writeDropped(deliver.future, count);
                     return;
                 }
             }
@@ -863,6 +882,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
                 if (!applyBackpressure(r, writeQueue)) {
                     // DROP_NEWEST / DISCONNECT: the incoming message is rejected and must not be queued.
+                    writeDropped(deliver.future, count);
                     return;
                 }
                 writeQueue.queue.put(w);
@@ -911,6 +931,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 AsyncWriteToken oldest = writeQueue.queue.poll();
                 if (oldest != null) {
                     bp.messageDelivered(uuid);
+                    writeDropped(oldest.future, oldest.count);
                     logger.warn("Backpressure DROP_OLDEST on Broadcaster {}: evicted oldest queued message for "
                                     + "AtmosphereResource {} (queueDepth={}, highWaterMark={})",
                             name, uuid, writeQueue.queue.size(), bp.highWaterMark());
@@ -1717,6 +1738,36 @@ public class DefaultBroadcaster implements Broadcaster {
         return event != null && (event.isCancelled() || event.isClosedByClient());
     }
 
+    /**
+     * Drop the pending writes of a write queue, completing each one's share of
+     * its broadcast future (Invariant #2): the message stays in the
+     * {@link BroadcasterCache}, which is only cleared by a successful write.
+     *
+     * @return the number of dropped writes
+     */
+    private int drain(WriteQueue writeQueue) {
+        var drained = new ArrayList<AsyncWriteToken>();
+        writeQueue.queue.drainTo(drained);
+        for (AsyncWriteToken token : drained) {
+            writeDropped(token.future, token.count);
+            token.destroy();
+        }
+        return drained.size();
+    }
+
+    /**
+     * Complete the share of a broadcast future held by a write that will never
+     * run, exactly as {@link #executeAsyncWrite} does for a write that ran.
+     */
+    private void writeDropped(BroadcasterFuture<?> future, AtomicInteger count) {
+        if (count != null && count.decrementAndGet() == 0) {
+            notifyBroadcastListener();
+        }
+        if (future != null) {
+            future.done();
+        }
+    }
+
     protected void entryDone(final BroadcasterFuture<?> f) {
         notifyBroadcastListener();
         if (f != null) f.done();
@@ -1779,10 +1830,9 @@ public class DefaultBroadcaster implements Broadcaster {
         // Drain any pending tokens before removing the queue to prevent orphaned message accumulation
         WriteQueue removedQueue = writeQueues.remove(r.uuid());
         if (removedQueue != null) {
-            var drained = new ArrayList<AsyncWriteToken>();
-            removedQueue.queue.drainTo(drained);
-            if (!drained.isEmpty()) {
-                logger.trace("Drained {} pending write tokens for removed AtmosphereResource {}", drained.size(), r.uuid());
+            var drained = drain(removedQueue);
+            if (drained > 0) {
+                logger.trace("Drained {} pending write tokens for removed AtmosphereResource {}", drained, r.uuid());
             }
         }
         resourceLocks.remove(r);

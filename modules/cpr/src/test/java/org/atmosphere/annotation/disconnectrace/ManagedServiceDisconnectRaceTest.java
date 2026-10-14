@@ -263,9 +263,7 @@ class ManagedServiceDisconnectRaceTest {
 
             assertEquals(1, disconnects(uuid), "@Disconnect must fire exactly once (iteration " + i + ")");
         }
-        // A write still in flight when an iteration asserted lands by now:
-        // the broadcaster is not waited on per delivery, since a broadcast
-        // future whose resource closes mid-delivery is not always completed.
+        // A write still in flight when an iteration asserted lands by now.
         for (var uuid : uuids) {
             assertEquals(1, disconnects(uuid), "@Disconnect must fire exactly once for " + uuid);
         }

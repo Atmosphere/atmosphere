@@ -31,6 +31,7 @@ import java.util.concurrent.TimeoutException;
 public class BroadcasterFuture<E> implements Future<E> {
 
     private final CountDownLatch latch;
+    private final int latchCount;
     private volatile boolean isCancelled;
     private volatile boolean isDone;
     private final E msg;
@@ -51,6 +52,7 @@ public class BroadcasterFuture<E> implements Future<E> {
     public BroadcasterFuture(Future<?> innerFuture, E msg, int latchCount) {
         this.msg = msg;
         this.innerFuture = innerFuture;
+        this.latchCount = latchCount;
         if (innerFuture == null) {
             latch = new CountDownLatch(latchCount);
         } else {
@@ -102,6 +104,20 @@ public class BroadcasterFuture<E> implements Future<E> {
         }
         isDone = latch == null || latch.getCount() == 0;
         return this;
+    }
+
+    /**
+     * Invoked once a delivery has walked its target resources. The future was
+     * counted for the resources subscribed when the broadcast was requested;
+     * a resource that left before the delivery reached it will never complete
+     * its share, so release that share here.
+     *
+     * @param reached the number of resources the delivery handed the message to
+     */
+    void reached(int reached) {
+        for (int i = reached; i < latchCount; i++) {
+            done();
+        }
     }
 
     @SuppressWarnings("unchecked")
