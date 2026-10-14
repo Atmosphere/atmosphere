@@ -357,7 +357,11 @@ public class AtmosphereAdminAutoConfiguration {
             // on every call, so the reported roster is runtime truth regardless
             // of bean-vs-framework startup ordering (parity with the Spring
             // Boot 4 starter; the previous empty-map wiring always returned []).
-            var controller = new CoordinatorController(() -> {
+            // The journal is read back from the same fleets: the processor
+            // resolves it itself (often via ServiceLoader, never a bean), so a
+            // fixed NOOP reported an empty journal that existed.
+            java.util.function.Supplier<java.util.Map<String,
+                    org.atmosphere.coordinator.fleet.AgentFleet>> liveFleets = () -> {
                 try {
                     var cfg = framework.getAtmosphereConfig();
                     if (cfg != null && cfg.properties()
@@ -371,7 +375,10 @@ public class AtmosphereAdminAutoConfiguration {
                     logger.debug("Coordinator fleets not available", e);
                 }
                 return java.util.Map.<String, org.atmosphere.coordinator.fleet.AgentFleet>of();
-            }, org.atmosphere.coordinator.journal.CoordinationJournal.NOOP);
+            };
+            var controller = new CoordinatorController(liveFleets,
+                    new org.atmosphere.admin.coordinator.FleetCoordinationJournal(liveFleets,
+                            org.atmosphere.coordinator.journal.CoordinationJournal.NOOP));
             admin.setCoordinatorController(controller);
             logger.debug("Atmosphere Admin: Coordinator controller wired");
             return controller;

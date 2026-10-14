@@ -119,6 +119,9 @@ internal class KoogPlanBridgeTest {
         assertEquals(listOf("planner-output: collect requirements | draft answer"),
             session.textCompletes,
             "the planner's String output must surface as a terminal TextComplete")
+        assertEquals(listOf("planner-output: collect requirements | draft answer"),
+            session.textDeltas,
+            "nothing streamed, so the output must also go out as the one text delta a client renders")
         assertTrue(session.completed, "the session must complete on the success path")
         assertFalse(session.errored, "the LLM-free planner run must not error")
     }
@@ -482,13 +485,14 @@ internal class KoogPlanBridgeTest {
             null, null
         )
 
-    /** Session double capturing PlanUpdate / TextComplete frames + terminal calls. */
+    /** Session double capturing PlanUpdate / TextDelta / TextComplete frames + terminal calls. */
     private class RecordingSession(
         private val closed: Boolean = false,
         private val failOnEmit: Boolean = false
     ) : StreamingSession {
         val planUpdates = mutableListOf<AiEvent.PlanUpdate>()
         val textCompletes = mutableListOf<String>()
+        val textDeltas = mutableListOf<String>()
         var completed = false
             private set
         var errored = false
@@ -519,6 +523,7 @@ internal class KoogPlanBridgeTest {
             when (event) {
                 is AiEvent.PlanUpdate -> planUpdates.add(event)
                 is AiEvent.TextComplete -> textCompletes.add(event.fullText)
+                is AiEvent.TextDelta -> textDeltas.add(event.text)
                 else -> {}
             }
         }

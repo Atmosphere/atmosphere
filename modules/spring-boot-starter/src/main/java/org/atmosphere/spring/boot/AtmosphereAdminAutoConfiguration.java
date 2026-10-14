@@ -670,8 +670,13 @@ public class AtmosphereAdminAutoConfiguration {
             // of bean-vs-framework startup ordering. (This wiring was previously
             // an empty immutable map — /api/admin/coordinators always returned
             // [] and the "populated later" hook it referenced never existed.)
-            var controller = new CoordinatorController(fleetsSupplier(framework),
-                    org.atmosphere.coordinator.journal.CoordinationJournal.NOOP);
+            // The journal is read back from those fleets for the same reason:
+            // the processor resolves it itself (often via ServiceLoader, never
+            // a bean), so a fixed NOOP here reported an empty journal that existed.
+            var fleets = fleetsSupplier(framework);
+            var controller = new CoordinatorController(fleets,
+                    new org.atmosphere.admin.coordinator.FleetCoordinationJournal(fleets,
+                            org.atmosphere.coordinator.journal.CoordinationJournal.NOOP));
             admin.setCoordinatorController(controller);
             logger.debug("Atmosphere Admin: Coordinator controller wired");
             return controller;
@@ -699,22 +704,26 @@ public class AtmosphereAdminAutoConfiguration {
 
         /**
          * Wires the agent-to-agent flow viewer backing the
-         * {@code /api/admin/flow} endpoints. Reads the Spring-bridged
-         * {@link org.atmosphere.coordinator.journal.CoordinationJournal} bean
-         * so it sees the same event stream as the coordinator pipeline
-         * (NOOP fallback keeps the endpoint usable when no bean is present).
+         * {@code /api/admin/flow} endpoints. Reads the journals the registered
+         * fleets record into, plus the Spring-bridged
+         * {@link org.atmosphere.coordinator.journal.CoordinationJournal} bean when
+         * one exists, so it sees the same event stream as the coordinator pipeline
+         * whether the journal came from a bean or from {@code ServiceLoader}.
          */
         @Bean
         org.atmosphere.admin.flow.FlowController atmosphereAdminFlowController(
                 AtmosphereAdmin admin,
+                org.atmosphere.cpr.AtmosphereFramework framework,
                 org.springframework.beans.factory.ObjectProvider<
                         org.atmosphere.coordinator.journal.CoordinationJournal> journalProvider) {
-            var journal = journalProvider.getIfAvailable(
+            var beanJournal = journalProvider.getIfAvailable(
                     () -> org.atmosphere.coordinator.journal.CoordinationJournal.NOOP);
+            var journal = new org.atmosphere.admin.coordinator.FleetCoordinationJournal(
+                    fleetsSupplier(framework), beanJournal);
             var controller = new org.atmosphere.admin.flow.FlowController(journal);
             admin.setFlowController(controller);
-            logger.debug("Atmosphere Admin: Flow controller wired (journal={})",
-                    journal.getClass().getSimpleName());
+            logger.debug("Atmosphere Admin: Flow controller wired (bean journal={})",
+                    beanJournal.getClass().getSimpleName());
             return controller;
         }
 

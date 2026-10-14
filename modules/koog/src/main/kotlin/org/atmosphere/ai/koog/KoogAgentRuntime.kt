@@ -426,6 +426,10 @@ class KoogAgentRuntime : AgentRuntime {
         // to AgentLifecycleListener.fireModelStart/End/Error.
         val lifecycleListeners = context.listeners()
         val lifecycleModelName = context.model() ?: name()
+        // chatAgentStrategy() calls the model without streaming, so on the default
+        // path no frame reaches the session and agent.run()'s return value is the
+        // only copy of the answer; forwardAgentResult sends it when nothing streamed.
+        val textStreamed = AtomicBoolean(false)
 
         // Framework-level generation override: the AIAgent factory threads
         // its temperature parameter onto the agent prompt's LLMParams
@@ -443,7 +447,8 @@ class KoogAgentRuntime : AgentRuntime {
                 temperature = temperature,
                 maxIterations = maxIterations
             ) {
-                wireFeatureHandlers(cancelled, session, lifecycleListeners, lifecycleModelName)
+                wireFeatureHandlers(cancelled, session, lifecycleListeners, lifecycleModelName,
+                    textStreamed)
             }
         } else {
             AIAgent(
@@ -454,7 +459,8 @@ class KoogAgentRuntime : AgentRuntime {
                 toolRegistry = toolRegistry,
                 maxIterations = maxIterations
             ) {
-                wireFeatureHandlers(cancelled, session, lifecycleListeners, lifecycleModelName)
+                wireFeatureHandlers(cancelled, session, lifecycleListeners, lifecycleModelName,
+                    textStreamed)
             }
         }
 
@@ -465,6 +471,7 @@ class KoogAgentRuntime : AgentRuntime {
                 if (result.isNotBlank()) {
                     logger.debug("Agent completed with result length: {}", result.length)
                 }
+                forwardAgentResult(result, session, cancelled, textStreamed)
                 agent.close()
             }
             if (!session.isClosed) session.complete()
@@ -569,6 +576,7 @@ class KoogAgentRuntime : AgentRuntime {
         val planAgentId = org.atmosphere.ai.tool.ToolScopes.agentId(injectables, context.agentId())
         val planStoreInScope = injectables[org.atmosphere.ai.plan.AgentPlanStore::class.java]
             as? org.atmosphere.ai.plan.AgentPlanStore
+        val textStreamed = AtomicBoolean(false)
 
         val agent = PlannerAIAgent(
             promptExecutor = executor,
@@ -590,7 +598,7 @@ class KoogAgentRuntime : AgentRuntime {
         ) {
             install(EventHandler.Feature) {
                 wireAtmosphereEventHandlers(cancelled, streamingSession,
-                    lifecycleListeners, lifecycleModelName)
+                    lifecycleListeners, lifecycleModelName, textStreamed)
             }
             if (observePlan) {
                 install(KoogPlanBridge.Feature) {
@@ -609,9 +617,7 @@ class KoogAgentRuntime : AgentRuntime {
             runBlocking {
                 activeJob.set(coroutineContext[kotlinx.coroutines.Job])
                 val result = agent.run(context.message())
-                if (!cancelled.get() && !session.isClosed && result.isNotBlank()) {
-                    session.emit(AiEvent.TextComplete(result))
-                }
+                forwardAgentResult(result, session, cancelled, textStreamed)
                 agent.close()
             }
             if (!session.isClosed) session.complete()
@@ -633,6 +639,24 @@ class KoogAgentRuntime : AgentRuntime {
                 session.error(org.atmosphere.ai.ProviderErrorClassifier.wrap(e))
             }
         }
+    }
+
+    /**
+     * Delivers an agent run's String result. A client renders only streamed text
+     * ([AiEvent.TextDelta] → `send`); [AiEvent.TextComplete] travels as metadata. When
+     * the run streamed no text — Koog's default graph and the planner call the model
+     * without streaming — the result is sent as one delta so the answer reaches the
+     * client, then closed with the terminal [AiEvent.TextComplete].
+     */
+    private fun forwardAgentResult(
+        result: String, session: StreamingSession,
+        cancelled: AtomicBoolean, textStreamed: AtomicBoolean
+    ) {
+        if (cancelled.get() || session.isClosed || result.isBlank()) return
+        if (!textStreamed.get()) {
+            session.emit(AiEvent.TextDelta(result))
+        }
+        session.emit(AiEvent.TextComplete(result))
     }
 
     /**
@@ -999,10 +1023,11 @@ private fun GraphAIAgent.FeatureContext.wireFeatureHandlers(
     cancelled: AtomicBoolean,
     session: StreamingSession,
     listeners: List<org.atmosphere.ai.AgentLifecycleListener> = emptyList(),
-    modelName: String = "koog"
+    modelName: String = "koog",
+    textStreamed: AtomicBoolean = AtomicBoolean(false)
 ) {
     handleEvents {
-        wireAtmosphereEventHandlers(cancelled, session, listeners, modelName)
+        wireAtmosphereEventHandlers(cancelled, session, listeners, modelName, textStreamed)
     }
 }
 
@@ -1022,7 +1047,8 @@ private fun EventHandlerConfig.wireAtmosphereEventHandlers(
     cancelled: AtomicBoolean,
     session: StreamingSession,
     listeners: List<org.atmosphere.ai.AgentLifecycleListener> = emptyList(),
-    modelName: String = "koog"
+    modelName: String = "koog",
+    textStreamed: AtomicBoolean = AtomicBoolean(false)
 ) {
     // Per-LLM-call observation span for fireModelStart/End duration computation.
     // Koog's AIAgent runs may issue multiple LLM calls (tool loop), so we open a
@@ -1035,8 +1061,14 @@ private fun EventHandlerConfig.wireAtmosphereEventHandlers(
     onLLMStreamingFrameReceived { ctx ->
         if (cancelled.get() || session.isClosed) return@onLLMStreamingFrameReceived
         when (val frame = ctx.streamFrame) {
-            is StreamFrame.TextDelta -> session.emit(AiEvent.TextDelta(frame.text))
-            is StreamFrame.TextComplete -> session.emit(AiEvent.TextComplete(frame.text))
+            is StreamFrame.TextDelta -> {
+                textStreamed.set(true)
+                session.emit(AiEvent.TextDelta(frame.text))
+            }
+            is StreamFrame.TextComplete -> {
+                textStreamed.set(true)
+                session.emit(AiEvent.TextComplete(frame.text))
+            }
             is StreamFrame.ReasoningDelta -> {
                 val text = frame.text
                 if (text != null) session.emit(AiEvent.Progress(text, null))

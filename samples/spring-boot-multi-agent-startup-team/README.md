@@ -18,7 +18,7 @@ This sample demonstrates:
 - **Skill files from GitHub** — `skill:` prefix loads prompts from [atmosphere-skills](https://github.com/Atmosphere/atmosphere-skills) with SHA-256 integrity verification
 - **WebTransport over HTTP/3** — self-signed cert auto-discovery via `/api/webtransport-info`
 - **Admin Control Plane** — live dashboard at `/atmosphere/admin/` with kill-switch, hot-reload, OWASP matrix, `agt verify` export
-- **Sample runtime toggles**: ADK (default), Embabel, Spring AI, and LangChain4j. Atmosphere has twelve contract-tested `AgentRuntime` adapters; this sample ships ready-made dependency toggles for these four.
+- **Sample runtime toggles**: Koog (default), ADK, Embabel, Spring AI, and LangChain4j. Atmosphere has twelve contract-tested `AgentRuntime` adapters; this sample ships ready-made dependency toggles for these five (see [Switching AI Runtimes](#switching-ai-runtimes)).
 
 ## Prerequisites
 

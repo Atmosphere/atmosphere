@@ -17,6 +17,7 @@ package org.atmosphere.quarkus.admin.runtime;
 
 import org.atmosphere.admin.AtmosphereAdmin;
 import org.atmosphere.admin.coordinator.CoordinatorController;
+import org.atmosphere.admin.coordinator.FleetCoordinationJournal;
 import org.atmosphere.coordinator.fleet.AgentFleet;
 import org.atmosphere.coordinator.journal.CoordinationJournal;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -71,8 +72,12 @@ final class CoordinatorAdminWiring {
     }
 
     static void install(AtmosphereAdmin admin, AtmosphereFramework framework) {
-        admin.setCoordinatorController(new CoordinatorController(
-                fleetsSupplier(framework), CoordinationJournal.NOOP));
+        // The journal is read back from the fleets: the processor resolves it
+        // itself (often via ServiceLoader), so a fixed NOOP reported an empty
+        // journal that existed.
+        var fleets = fleetsSupplier(framework);
+        admin.setCoordinatorController(new CoordinatorController(fleets,
+                new FleetCoordinationJournal(fleets, CoordinationJournal.NOOP)));
         logger.debug("Atmosphere Admin: Coordinator controller wired");
     }
 }

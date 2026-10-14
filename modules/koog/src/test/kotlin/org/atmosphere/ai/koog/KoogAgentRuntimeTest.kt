@@ -244,6 +244,55 @@ class KoogAgentRuntimeTest {
     }
 
     @Test
+    fun `tool-calling agent delivers a non-streamed final answer as text-delta`() {
+        // chatAgentStrategy() calls execute() (not executeStreaming), so the
+        // answer exists only as agent.run()'s result. It used to be logged and
+        // dropped: the client got a 0-token turn with no text.
+        val answer = "Executive briefing: GO, with a phased rollout."
+        KoogAgentRuntime.setPromptExecutor(object : PromptExecutor() {
+            override fun executeStreaming(
+                prompt: Prompt,
+                model: LLModel,
+                tools: List<ToolDescriptor>
+            ): Flow<StreamFrame> = flowOf()
+
+            override suspend fun execute(
+                prompt: Prompt,
+                model: LLModel,
+                tools: List<ToolDescriptor>
+            ): Message.Assistant = Message.Assistant(content = answer, metaInfo = ResponseMetaInfo.Empty)
+
+            override suspend fun moderate(prompt: Prompt, model: LLModel): ModerationResult =
+                ModerationResult(false, emptyMap<ModerationCategory, ModerationCategoryResult>())
+
+            override fun close() {}
+        })
+        val tool = org.atmosphere.ai.tool.ToolDefinition.builder("write_report", "Write the briefing")
+            .executor(org.atmosphere.ai.tool.ToolExecutor { _ -> "ok" })
+            .build()
+        val withTool = context("Analyze the market").let {
+            AgentExecutionContext(
+                it.message(), null, null, null, null, null, null,
+                listOf(tool), null, null,
+                emptyList<org.atmosphere.ai.ContextProvider>(),
+                emptyMap<String, Any>(),
+                emptyList<org.atmosphere.ai.llm.ChatMessage>(),
+                null, null
+            )
+        }
+
+        val session = StreamingSessions.start("agent-session", resource)
+        KoogAgentRuntime().execute(withTool, session)
+
+        val messages = capturedMessages()
+        val deltas = messages.filter { it.contains("\"event\":\"text-delta\"") }
+        assertEquals(1, deltas.size, "the answer must reach the client exactly once: $messages")
+        assertTrue(deltas.single().contains("Executive briefing"))
+        assertTrue(messages.any { it.contains("\"event\":\"text-complete\"") && it.contains("Executive briefing") })
+        assertTrue(messages.none { it.contains("\"event\":\"error\"") }, "no error on the success path: $messages")
+    }
+
+    @Test
     fun `TextComplete frame is forwarded as text-complete AiEvent`() {
         KoogAgentRuntime.setPromptExecutor(fakeExecutor(
             StreamFrame.TextComplete("Full response"),
