@@ -208,7 +208,7 @@ export class SSETransport<T = unknown> extends BaseTransport<T> {
   }
 
   private handleError(error: Error, willRetry: boolean): void {
-    logger.error('SSE error:', error);
+    logger.debug('SSE error:', error);
     this.protocol.stopHeartbeat();
     this.notifyError(error, willRetry);
   }
@@ -243,7 +243,8 @@ export class SSETransport<T = unknown> extends BaseTransport<T> {
     this.reconnectTimer = setTimeout(() => {
       this.protocol.reset();
       this.connect().catch((error) => {
-        logger.error('SSE reconnection failed:', error);
+        // notifyError already reported this attempt at the level its willRetry selects.
+        logger.debug('SSE reconnection failed:', error);
         // Re-enter the close flow so the retry quota and delay policy apply to
         // the next attempt too; otherwise one failed attempt ends the chain.
         this.handleClose();

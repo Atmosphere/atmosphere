@@ -403,7 +403,15 @@ export abstract class BaseTransport<T = unknown> {
   protected notifyError(error: Error, willRetry: boolean): void {
     this._state = 'error';
     this.stopInactivityTimer();
-    logger.error(`${this.name} transport error (willRetry=${willRetry}, attempt=${this.reconnectAttempts}):`, error);
+    const summary = `${this.name} transport error (willRetry=${willRetry}, attempt=${this.reconnectAttempts}):`;
+    // A failure the transport retries on its own is expected while a server
+    // restarts; only the one it gives up on is an error. console.error (and
+    // console.warn) become a React Native LogBox toast in dev mode.
+    if (willRetry) {
+      logger.info(summary, error);
+    } else {
+      logger.error(summary, error);
+    }
     this.handlers.error?.(this.toAtmosphereError(error, willRetry));
   }
 

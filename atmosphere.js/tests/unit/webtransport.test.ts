@@ -737,6 +737,7 @@ describe('WebTransportTransport', () => {
         reconnectInterval: 5,
       };
       transport = new WebTransportTransport(request, mockHandlers);
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
       await transport.connect();
 
       await vi.waitFor(() => {
@@ -764,6 +765,11 @@ describe('WebTransportTransport', () => {
       // last one (quota spent) is terminal.
       const errors = (mockHandlers.error as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
       expect(errors.map((e) => [e.attempt, e.willRetry])).toEqual([[1, true], [2, false]]);
+      // Only the terminal failure is logged at error level: a retried one
+      // becomes a React Native LogBox toast in dev mode.
+      expect(consoleError.mock.calls.map(([line]) => String(line)))
+        .toEqual([expect.stringContaining('willRetry=false')]);
+      consoleError.mockRestore();
     });
 
     it('should not reconnect when reconnect is false', async () => {

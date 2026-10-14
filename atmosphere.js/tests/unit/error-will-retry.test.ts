@@ -31,6 +31,21 @@ function reported(h: SubscriptionHandlers | ReturnType<typeof vi.fn>): Array<[nu
   });
 }
 
+/**
+ * First argument of every `console.error` / `console.warn` call. A retried
+ * failure is expected while a server restarts, so it must not reach either:
+ * in React Native dev mode each one becomes a LogBox toast over the UI.
+ */
+function logged(level: 'error' | 'warn'): string[] {
+  return (console[level] as unknown as ReturnType<typeof vi.fn>).mock.calls.map(([line]) => String(line));
+}
+
+/** Only the terminal failure is logged at error level, and no retried one at warn. */
+function expectOnlyTerminalFailureLoggedAsError(): void {
+  expect(logged('error')).toEqual([expect.stringContaining('willRetry=false')]);
+  expect(logged('warn').filter((line) => line.includes('willRetry=true'))).toEqual([]);
+}
+
 function handlers(): SubscriptionHandlers {
   return {
     open: vi.fn(),
@@ -46,6 +61,8 @@ function handlers(): SubscriptionHandlers {
 describe('error handler: willRetry / attempt', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -101,6 +118,7 @@ describe('error handler: willRetry / attempt', () => {
       expect(h.reconnect).toHaveBeenCalledTimes(2);
       expect(h.failureToReconnect).toHaveBeenCalledTimes(1);
       expect(sockets).toHaveLength(3);
+      expectOnlyTerminalFailureLoggedAsError();
     });
 
     it('honours retryStrategy.maxAttempts for willRetry', async () => {
@@ -208,6 +226,7 @@ describe('error handler: willRetry / attempt', () => {
       expect(calls).toBe(5);
       expect(reported(h)).toEqual([[1, true], [2, true], [3, false]]);
       expect(h.failureToReconnect).toHaveBeenCalledTimes(1);
+      expectOnlyTerminalFailureLoggedAsError();
     });
   });
 
@@ -242,6 +261,7 @@ describe('error handler: willRetry / attempt', () => {
 
       expect(reported(h)).toEqual([[1, true], [2, false]]);
       expect(h.failureToReconnect).toHaveBeenCalledTimes(1);
+      expectOnlyTerminalFailureLoggedAsError();
     });
 
     it('reports a failed initial connect as terminal', async () => {
@@ -284,6 +304,7 @@ describe('error handler: willRetry / attempt', () => {
 
       expect(reported(h)).toEqual([[1, true], [2, false]]);
       expect(h.failureToReconnect).toHaveBeenCalledTimes(1);
+      expectOnlyTerminalFailureLoggedAsError();
     });
   });
 });

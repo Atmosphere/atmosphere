@@ -417,7 +417,7 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
   }
 
   private handleError(error: Error, willRetry: boolean): void {
-    logger.error('WebTransport error:', error);
+    logger.debug('WebTransport error:', error);
     this.protocol.stopHeartbeat();
     this.notifyError(error, willRetry);
   }
@@ -455,7 +455,8 @@ export class WebTransportTransport<T = unknown> extends BaseTransport<T> {
       this.protocol.reset();
       this.incomingBytes = new Uint8Array(0);
       this.connect().catch((error) => {
-        logger.error('Reconnection failed:', error);
+        // notifyError already reported this attempt at the level its willRetry selects.
+        logger.debug('Reconnection failed:', error);
         // Re-enter the close flow so the retry/quota logic runs — without
         // this the reconnect chain dies silently on a rejected connect().
         // WebSocket gets the equivalent for free (the browser fires onclose

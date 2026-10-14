@@ -251,7 +251,8 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
     this.reconnectTimer = setTimeout(() => {
       this.protocol.reset();
       this.poll(true).catch((error) => {
-        logger.error('Long-polling reconnection failed:', error);
+        // notifyError already reported this attempt at the level its willRetry selects.
+        logger.debug('Long-polling reconnection failed:', error);
         // Re-enter the close flow so the retry quota and delay policy apply to
         // the next attempt too; otherwise one failed attempt ends the chain.
         if (!this.aborted) {

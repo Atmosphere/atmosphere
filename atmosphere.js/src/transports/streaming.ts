@@ -221,7 +221,7 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
   }
 
   private handleError(error: Error, willRetry: boolean): void {
-    logger.error('Streaming error:', error);
+    logger.debug('Streaming error:', error);
     this.protocol.stopHeartbeat();
     this.notifyError(error, willRetry);
   }
@@ -257,7 +257,8 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
       this.protocol.reset();
       this.opened = false;
       this.connect().catch((error) => {
-        logger.error('Streaming reconnection failed:', error);
+        // notifyError already reported this attempt at the level its willRetry selects.
+        logger.debug('Streaming reconnection failed:', error);
         // Re-enter the close flow so the retry quota and delay policy apply to
         // the next attempt too; otherwise one failed attempt ends the chain.
         if (!this.aborted) {

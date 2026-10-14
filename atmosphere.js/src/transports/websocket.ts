@@ -241,7 +241,7 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
   }
 
   private handleError(error: Error, willRetry: boolean): void {
-    logger.error('WebSocket error:', error);
+    logger.debug('WebSocket error:', error);
     this.protocol.stopHeartbeat();
     this.notifyError(error, willRetry);
   }
@@ -269,7 +269,8 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
     this.reconnectTimer = setTimeout(() => {
       this.protocol.reset();
       this.connect().catch((error) => {
-        logger.error('Reconnection failed:', error);
+        // notifyError already reported this attempt at the level its willRetry selects.
+        logger.debug('Reconnection failed:', error);
       });
     }, delay);
   }
