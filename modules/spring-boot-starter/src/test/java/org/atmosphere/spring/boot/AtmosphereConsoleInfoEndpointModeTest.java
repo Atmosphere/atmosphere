@@ -116,11 +116,24 @@ class AtmosphereConsoleInfoEndpointModeTest {
 
     @Test
     void pathTemplateAiEndpointYieldsAiModeBeforeAnyClientConnects() {
+        // "ai" is also the answer when nothing matches, so the mode alone cannot
+        // show the template was resolved: pin the handler it resolves to.
+        var aiWrapper = wrapperFor(new FakeAtmosphereAiHandler());
+        Map<String, AtmosphereHandlerWrapper> handlers = Map.of("/atmosphere/classroom/{room}", aiWrapper);
+        assertThat(AtmosphereConsoleInfoEndpoint.templateWrapper(handlers, "/atmosphere/classroom/math"))
+                .isSameAs(aiWrapper);
+
         var props = new AtmosphereProperties();
         props.setConsoleEndpoint("/atmosphere/classroom/math");
-        var info = newEndpoint(props,
-                Map.of("/atmosphere/classroom/{room}", wrapperFor(new FakeAtmosphereAiHandler())));
-        assertThat(info.info()).containsEntry("mode", "ai");
+        assertThat(newEndpoint(props, handlers).info()).containsEntry("mode", "ai");
+    }
+
+    @Test
+    void pathTemplateDoesNotResolveAPathWithMoreSegments() {
+        Map<String, AtmosphereHandlerWrapper> handlers =
+                Map.of("/atmosphere/rooms/{room}", wrapperFor(mock(ManagedAtmosphereHandler.class)));
+        assertThat(AtmosphereConsoleInfoEndpoint.templateWrapper(handlers, "/atmosphere/rooms/general/admin"))
+                .isNull();
     }
 
     @Test

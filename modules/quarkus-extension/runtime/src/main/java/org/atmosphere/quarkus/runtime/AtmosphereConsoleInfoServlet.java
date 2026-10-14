@@ -16,6 +16,7 @@
 package org.atmosphere.quarkus.runtime;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -25,6 +26,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.util.PathTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -223,12 +225,42 @@ public class AtmosphereConsoleInfoServlet extends HttpServlet {
         };
     }
 
-    private static String detectMode(AtmosphereFramework framework, String endpoint) {
+    /**
+     * Resolve the handler of a path-template service ({@code /rooms/{room}})
+     * that serves {@code endpoint}. Mirrors the Spring starter's
+     * {@code AtmosphereConsoleInfoEndpoint#templateWrapper}.
+     *
+     * @return the wrapper whose template matches {@code endpoint}, or {@code null}
+     */
+    static <W> W templateWrapper(Map<String, W> handlers, String endpoint) {
+        for (var entry : handlers.entrySet()) {
+            if (!entry.getKey().contains("{")) {
+                continue;
+            }
+            try {
+                if (new PathTemplate(entry.getKey()).match(endpoint, new HashMap<>())) {
+                    return entry.getValue();
+                }
+            } catch (IllegalArgumentException e) {
+                logger.trace("Not a path template: {}", entry.getKey(), e);
+            }
+        }
+        return null;
+    }
+
+    static String detectMode(AtmosphereFramework framework, String endpoint) {
         if (framework == null || endpoint == null) {
             return "ai";
         }
         try {
-            var wrapper = framework.getAtmosphereHandlers().get(endpoint);
+            var handlers = framework.getAtmosphereHandlers();
+            var wrapper = handlers.get(endpoint);
+            if (wrapper == null) {
+                // A path-template service (/rooms/{room}) registers the concrete
+                // path only on its first request: classify by the template it
+                // already serves, not by whether a client has connected yet.
+                wrapper = templateWrapper(handlers, endpoint);
+            }
             if (wrapper == null) {
                 return "ai";
             }

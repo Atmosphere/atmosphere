@@ -410,18 +410,12 @@ public class AtmosphereConsoleInfoEndpoint {
     }
 
     /**
-     * Reports whether the handler registered at {@code endpoint} is an
-     * AI-shaped handler ({@code AiEndpointHandler} / {@code AgentHandler})
-     * or a plain broadcast handler (e.g. {@code @ManagedService} →
-     * {@code ManagedAtmosphereHandler}). The frontend uses this to render
-     * honest empty-state copy — "Type a message below to begin chatting
-     * with the AI assistant" is only accurate when an assistant exists.
+     * Resolve the handler of a path-template service ({@code /rooms/{room}})
+     * that serves {@code endpoint}. Package-visible for unit testing.
      *
-     * <p>Detection is class-name based so this controller doesn't drag in
-     * a hard compile-time dep on {@code modules/ai} or {@code modules/agent}
-     * — the AI Console must keep loading even when those JARs are absent.</p>
+     * @return the wrapper whose template matches {@code endpoint}, or {@code null}
      */
-    private static <W> W templateWrapper(Map<String, W> handlers, String endpoint) {
+    static <W> W templateWrapper(Map<String, W> handlers, String endpoint) {
         for (var entry : handlers.entrySet()) {
             if (!entry.getKey().contains("{")) {
                 continue;
@@ -437,6 +431,18 @@ public class AtmosphereConsoleInfoEndpoint {
         return null;
     }
 
+    /**
+     * Reports whether the handler registered at {@code endpoint} is an
+     * AI-shaped handler ({@code AiEndpointHandler} / {@code AgentHandler})
+     * or a plain broadcast handler (e.g. {@code @ManagedService} →
+     * {@code ManagedAtmosphereHandler}). The frontend uses this to render
+     * honest empty-state copy — "Type a message below to begin chatting
+     * with the AI assistant" is only accurate when an assistant exists.
+     *
+     * <p>Detection is class-name based so this controller doesn't drag in
+     * a hard compile-time dep on {@code modules/ai} or {@code modules/agent}
+     * — the AI Console must keep loading even when those JARs are absent.</p>
+     */
     private String detectMode(String endpoint) {
         if (endpoint == null) {
             return "ai";
