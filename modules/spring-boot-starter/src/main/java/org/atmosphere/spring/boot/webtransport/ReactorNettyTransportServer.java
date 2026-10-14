@@ -54,6 +54,7 @@ import java.security.cert.X509Certificate;
 import java.util.Base64;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Spring-managed HTTP/3 server that bridges HTTP/3 requests and WebTransport
@@ -352,7 +353,7 @@ public class ReactorNettyTransportServer {
      * supported. Binary payloads are not handled; a future version may
      * add a content-type framing byte to distinguish text from binary.</p>
      */
-    private static class WebTransportBidiStreamHandler extends ChannelInboundHandlerAdapter {
+    static class WebTransportBidiStreamHandler extends ChannelInboundHandlerAdapter {
 
         private final AtmosphereFramework framework;
         private final java.util.concurrent.ConcurrentMap<Channel, WebTransportConnectionState> sessions;
@@ -557,9 +558,7 @@ public class ReactorNettyTransportServer {
             }
             if (state != null && state.session != null) {
                 logger.debug("WebTransport bidi stream closed");
-                var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
-                        .getWebTransportProcessor(framework);
-                processor.close(state.session, 1000);
+                state.closeSession(framework);
             }
             if (headerBuf != null) {
                 headerBuf.release();
@@ -593,12 +592,30 @@ public class ReactorNettyTransportServer {
      * event loop thread (Netty I/O thread), so no additional
      * synchronization is needed beyond {@code volatile}.</p>
      */
-    private static class WebTransportConnectionState {
+    static class WebTransportConnectionState {
         volatile ReactorNettyWebTransportSession session;
         volatile boolean opened;
         /** Enforces single bidi stream per WT session (v1). */
         volatile boolean bidiStreamActive;
         String path;
+        /** Close-once guard: the CONNECT stream and the bidi stream both end the session. */
+        private final AtomicBoolean closed = new AtomicBoolean();
+
+        /**
+         * Close the bridged Atmosphere session exactly once. A client close
+         * ends the session on several paths (CLOSE capsule, CONNECT stream
+         * FIN, bidi stream teardown); only the first reaches the processor,
+         * so the application sees one disconnect per session (Invariant #2).
+         */
+        void closeSession(AtmosphereFramework framework) {
+            var current = session;
+            if (current == null || !closed.compareAndSet(false, true)) {
+                return;
+            }
+            org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
+                    .getWebTransportProcessor(framework)
+                    .close(current, 1000);
+        }
     }
 
     /**
@@ -606,15 +623,25 @@ public class ReactorNettyTransportServer {
      * to the WebTransport SPI; returns 501 for all other HTTP/3 methods (v1).
      *
      * <p>Like {@link WebTransportBidiStreamHandler}, data frames use
-     * newline-delimited framing to preserve message boundaries.</p>
+     * newline-delimited framing to preserve message boundaries. The
+     * extended-CONNECT stream itself is the exception: its DATA frames carry
+     * HTTP capsules ({@link WebTransportCapsules}), which are decoded as such
+     * and never delivered as messages.</p>
      */
-    private static class AtmosphereHttp3Handler extends Http3RequestStreamInboundHandler {
+    static class AtmosphereHttp3Handler extends Http3RequestStreamInboundHandler {
 
         private final AtmosphereFramework framework;
         private final java.util.concurrent.ConcurrentMap<Channel, WebTransportConnectionState> sessions;
         private boolean isDataStream;
+        /**
+         * True on the extended-CONNECT stream itself. Its DATA frames carry
+         * HTTP capsules (RFC 9297), never application messages.
+         */
+        private boolean isSessionStream;
         private WebTransportConnectionState state;
         private final StringBuilder lineBuffer = new StringBuilder();
+        /** Accumulates capsule bytes across DATA frames on the CONNECT stream. */
+        private CompositeByteBuf capsuleBuf;
 
         AtmosphereHttp3Handler(AtmosphereFramework framework,
                                java.util.concurrent.ConcurrentMap<Channel, WebTransportConnectionState> sessions) {
@@ -649,6 +676,7 @@ public class ReactorNettyTransportServer {
                 state = new WebTransportConnectionState();
                 state.path = path;
                 isDataStream = true;
+                isSessionStream = true;
 
                 var parentChannel = ctx.channel().parent();
                 if (parentChannel != null) {
@@ -689,6 +717,13 @@ public class ReactorNettyTransportServer {
                     openSessionIfNeeded(ctx);
                 }
             }
+            if (isSessionStream) {
+                // The CONNECT stream carries capsules, never application
+                // messages: decode them as capsules (Invariant #4).
+                readCapsules(ctx, dataFrame.content());
+                dataFrame.release();
+                return;
+            }
             if (isDataStream && state != null && state.session != null) {
                 var data = dataFrame.content();
                 var text = data.toString(StandardCharsets.UTF_8);
@@ -709,6 +744,70 @@ public class ReactorNettyTransportServer {
                 }
             }
             dataFrame.release();
+        }
+
+        /**
+         * Decode the capsules of the CONNECT stream. A CLOSE capsule ends the
+         * session; DRAIN and unknown capsule types (RFC 9297: skip them) carry
+         * no application data. Capsule bytes never reach the processor.
+         */
+        private void readCapsules(ChannelHandlerContext ctx, ByteBuf content) {
+            if (capsuleBuf == null) {
+                capsuleBuf = ctx.alloc().compositeBuffer();
+            }
+            capsuleBuf.addComponent(true, content.retain());
+            var drained = WebTransportCapsules.drain(capsuleBuf,
+                    WebTransportCapsules.MAX_CAPSULE_VALUE_BYTES);
+            capsuleBuf.discardReadComponents();
+            for (var capsule : drained.capsules()) {
+                if (capsule.type() == WebTransportCapsules.CLOSE_WEBTRANSPORT_SESSION) {
+                    logger.debug("WebTransport CLOSE_WEBTRANSPORT_SESSION for {} (code {}, reason '{}')",
+                            sessionPath(), capsule.closeErrorCode(), capsule.closeReason());
+                    endSession(ctx);
+                    return;
+                } else if (capsule.type() == WebTransportCapsules.DRAIN_WEBTRANSPORT_SESSION) {
+                    logger.debug("WebTransport DRAIN_WEBTRANSPORT_SESSION for {}", sessionPath());
+                } else {
+                    logger.trace("Ignoring WebTransport capsule type 0x{} ({} bytes)",
+                            Long.toHexString(capsule.type()), capsule.value().length);
+                }
+            }
+            if (drained.corrupt()) {
+                logger.warn("WebTransport capsule larger than {} bytes on {}, closing the session",
+                        WebTransportCapsules.MAX_CAPSULE_VALUE_BYTES, sessionPath());
+                endSession(ctx);
+            }
+        }
+
+        private String sessionPath() {
+            return state != null ? state.path : null;
+        }
+
+        /**
+         * End the WebTransport session: close the Atmosphere side once, then
+         * the session's bidi stream and this CONNECT stream.
+         */
+        private void endSession(ChannelHandlerContext ctx) {
+            releaseCapsuleBuf();
+            if (state != null) {
+                state.closeSession(framework);
+                if (state.session != null) {
+                    state.session.close();
+                }
+            }
+            ctx.close();
+        }
+
+        private void releaseCapsuleBuf() {
+            if (capsuleBuf != null) {
+                capsuleBuf.release();
+                capsuleBuf = null;
+            }
+        }
+
+        @Override
+        public void handlerRemoved(ChannelHandlerContext ctx) {
+            releaseCapsuleBuf();
         }
 
         /** Open the Atmosphere session if this is the first data stream. */
@@ -735,6 +834,13 @@ public class ReactorNettyTransportServer {
 
         @Override
         protected void channelInputClosed(ChannelHandlerContext ctx) {
+            if (isSessionStream) {
+                // FIN on the CONNECT stream terminates the session. Unread
+                // bytes are an incomplete capsule, never a message.
+                logger.debug("WebTransport CONNECT stream closed");
+                endSession(ctx);
+                return;
+            }
             // Flush any remaining buffered data as a final message
             if (isDataStream && state != null && state.session != null && !lineBuffer.isEmpty()) {
                 var message = lineBuffer.toString();
@@ -746,9 +852,7 @@ public class ReactorNettyTransportServer {
             }
             if (isDataStream && state != null && state.session != null) {
                 logger.debug("WebTransport data stream closed");
-                var processor = org.atmosphere.cpr.WebTransportProcessorFactory.getDefault()
-                        .getWebTransportProcessor(framework);
-                processor.close(state.session, 1000);
+                state.closeSession(framework);
             }
             ctx.close();
         }
