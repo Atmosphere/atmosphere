@@ -394,6 +394,8 @@ public class AtmosphereAdminEndpoint {
      * {@link org.atmosphere.ai.AiStreamingSession#cancelInflight} to operators
      * who want to abort just the upstream call (refunding tokens, releasing
      * approval futures) while keeping the socket open for follow-up turns.
+     * A turn whose model call this cuts short ends with an {@code error}
+     * frame saying an operator cancelled it, not with {@code complete}.
      *
      * <p>For "kill the whole connection" semantics, prefer
      * {@code DELETE /resources/{uuid}} which fires a full transport

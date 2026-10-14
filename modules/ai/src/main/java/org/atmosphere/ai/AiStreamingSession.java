@@ -1418,9 +1418,9 @@ public class AiStreamingSession implements StreamingSession {
 
     /**
      * Resolve the {@code AiStreamingSession} behind an arbitrarily-decorated
-     * session. The session handed to a {@code @Prompt} method is wrapped in
-     * decorators (e.g. {@code RunEventCapturingSession} for reattach replay),
-     * so application code that needs the session-scoped machinery — above all
+     * session. A session handed to application code may be wrapped in
+     * decorators (an application's own, or a bridge's), so application code
+     * that needs the session-scoped machinery — above all
      * {@link #approvalRegistry()}, the registry the endpoint handler routes
      * {@code /__approval/<id>/...} client responses to — must unwrap the
      * decorator chain first. Returns empty when no {@code AiStreamingSession}
