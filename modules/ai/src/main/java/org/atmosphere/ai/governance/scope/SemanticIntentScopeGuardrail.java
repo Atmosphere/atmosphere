@@ -193,7 +193,9 @@ public final class SemanticIntentScopeGuardrail implements ScopeGuardrail {
             }
             logger.warn("No EmbeddingRuntime available — SemanticIntentScopeGuardrail degrading to "
                     + "RULE_BASED scope enforcement. Install a runtime module "
-                    + "(spring-ai/langchain4j/etc.) or set the tier to RULE_BASED explicitly.");
+                    + "(spring-ai/langchain4j/etc.), name the Built-in runtime's model with "
+                    + "LLM_EMBEDDING_MODEL (required in llm.mode=local), or set the tier to "
+                    + "RULE_BASED explicitly.");
             return ruleBasedFallback.evaluate(request, config);
         }
 

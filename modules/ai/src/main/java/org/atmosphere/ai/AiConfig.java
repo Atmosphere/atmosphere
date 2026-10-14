@@ -47,6 +47,7 @@ import java.util.concurrent.locks.ReentrantLock;
  *   <tr><td>{@code LLM_MODEL}</td><td>Model name (e.g. {@code gemini-2.5-flash}, {@code gpt-4o}, {@code llama3.2})</td><td>{@code gemini-2.5-flash}</td></tr>
  *   <tr><td>{@code LLM_API_KEY}, {@code OPENAI_API_KEY}, or {@code GEMINI_API_KEY}</td><td>API key for the provider</td><td>(none)</td></tr>
  *   <tr><td>{@code LLM_BASE_URL}</td><td>Override the API endpoint (auto-detected if omitted)</td><td>(auto)</td></tr>
+ *   <tr><td>{@code LLM_EMBEDDING_MODEL}</td><td>Embedding model of the Built-in embedding runtime (sysprop {@code atmosphere.ai.embedding-model}); required in {@code local} mode</td><td>{@code text-embedding-3-small} remote, none local</td></tr>
  * </table>
  */
 public final class AiConfig {
@@ -194,6 +195,17 @@ public final class AiConfig {
     public static final String TOP_P_PROPERTY = "atmosphere.ai.top-p";
     /** Env var for the top-p override. See {@link #TOP_P_PROPERTY}. */
     public static final String TOP_P_ENV = "LLM_TOP_P";
+
+    /**
+     * Sysprop naming the model {@code BuiltInEmbeddingRuntime} posts to
+     * {@code /v1/embeddings} (e.g. {@code nomic-embed-text} on Ollama). Env:
+     * {@link #EMBEDDING_MODEL_ENV}. Required in {@code llm.mode=local} unless
+     * {@code LLM_MODEL} is itself an embedding model: a local server does not
+     * serve the remote default {@code text-embedding-3-small}.
+     */
+    public static final String EMBEDDING_MODEL_PROPERTY = "atmosphere.ai.embedding-model";
+    /** Env var naming the Built-in embedding model. See {@link #EMBEDDING_MODEL_PROPERTY}. */
+    public static final String EMBEDDING_MODEL_ENV = "LLM_EMBEDDING_MODEL";
 
     /** Sysprop for the comma-separated stop sequences. Env: {@link #STOP_ENV}. */
     public static final String STOP_PROPERTY = "atmosphere.ai.stop";
@@ -638,6 +650,20 @@ public final class AiConfig {
         var topP = parseDoubleKnob(TOP_P_PROPERTY, TOP_P_ENV, "top-p");
         var stop = parseStopKnob(STOP_PROPERTY, STOP_ENV);
         return new GenerationParams(temperature, maxTokens, topP, stop);
+    }
+
+    /**
+     * The embedding model named by the {@code atmosphere.ai.embedding-model}
+     * system property, falling back to the {@code LLM_EMBEDDING_MODEL}
+     * environment variable; the sysprop wins, mirroring
+     * {@link #resolvePromptCacheKeyMode()}. Read on every call, so a value set
+     * after startup is seen by the {@code ServiceLoader}-created
+     * {@code BuiltInEmbeddingRuntime}.
+     *
+     * @return the trimmed model name, or empty when neither is set
+     */
+    public static java.util.Optional<String> resolveEmbeddingModel() {
+        return java.util.Optional.ofNullable(rawKnob(EMBEDDING_MODEL_PROPERTY, EMBEDDING_MODEL_ENV));
     }
 
     private static String rawKnob(String property, String env) {

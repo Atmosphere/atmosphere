@@ -48,7 +48,8 @@ public final class EmbeddingRuntimeResolver {
      * {@link Optional#empty()} when no runtime has a wired native
      * {@code EmbeddingModel} (Built-in is reported only when
      * {@link AiConfig} carries a baseUrl, a reachable backend and an
-     * embedding model it can name — in {@code llm.mode=local} that means an
+     * embedding model it can name — in {@code llm.mode=local} that means
+     * {@code LLM_EMBEDDING_MODEL} / {@code atmosphere.ai.embedding-model} or an
      * embedding-model {@code LLM_MODEL}; otherwise it is excluded from the
      * result).
      */

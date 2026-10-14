@@ -41,15 +41,17 @@ import java.util.Optional;
  * {@link OpenAiCompatibleClient} for the chat path.
  *
  * <p>Configuration comes from {@link AiConfig}: base URL, API key, and the
- * embedding-model name. Against a remote provider the model defaults to
- * {@code text-embedding-3-small}. In {@code llm.mode=local} there is no
- * default: an OpenAI model name is not something Ollama, vLLM or LM Studio
- * serves, so posting it only produced an HTTP 404 on every call while the
- * runtime advertised itself as available. A local backend is therefore used
- * only when the configured {@code LLM_MODEL} is itself an embedding model
- * ({@code text-embedding*}) or the caller set one via
- * {@link #setEmbeddingModel(String)}; otherwise {@link #isAvailable()} reports
- * {@code false} and consumers take their documented no-runtime path.</p>
+ * embedding-model name, which is the {@code atmosphere.ai.embedding-model}
+ * system property or the {@code LLM_EMBEDDING_MODEL} environment variable
+ * ({@link AiConfig#resolveEmbeddingModel()}), else an {@code LLM_MODEL} that is
+ * itself an embedding model ({@code text-embedding*}). Against a remote
+ * provider the model defaults to {@code text-embedding-3-small}. In
+ * {@code llm.mode=local} there is no default: an OpenAI model name is not
+ * something Ollama, vLLM or LM Studio serves, so posting it only produced an
+ * HTTP 404 on every call while the runtime advertised itself as available. A
+ * local backend without a named embedding model makes {@link #isAvailable()}
+ * report {@code false}, and consumers take their documented no-runtime
+ * path.</p>
  *
  * <p>Discovered through the standard {@code ServiceLoader} path so
  * programmatic callers can use {@code EmbeddingRuntime} without wiring a
@@ -72,7 +74,12 @@ public class BuiltInEmbeddingRuntime implements EmbeddingRuntime {
                 .build();
     }
 
-    /** Test / programmatic hook: override the embedding model name. */
+    /**
+     * Programmatic override of the embedding model name on this instance. The
+     * instances {@code EmbeddingRuntimeResolver} discovers are created by
+     * {@code ServiceLoader}, so deployments name the model with
+     * {@link AiConfig#EMBEDDING_MODEL_PROPERTY} / {@link AiConfig#EMBEDDING_MODEL_ENV}.
+     */
     public void setEmbeddingModel(String model) {
         this.modelOverride = model;
     }
@@ -132,8 +139,9 @@ public class BuiltInEmbeddingRuntime implements EmbeddingRuntime {
         var baseUrl = settings.baseUrl();
         var model = resolveModel(settings).orElseThrow(() -> new IllegalStateException(
                 "Built-in embedding runtime has no embedding model for llm.mode=local: "
-                        + "LLM_MODEL '" + settings.model() + "' is not an embedding model "
-                        + "and no model was set via setEmbeddingModel(String)"));
+                        + "LLM_MODEL '" + settings.model() + "' is not an embedding model; name "
+                        + "one with the " + AiConfig.EMBEDDING_MODEL_ENV + " environment variable "
+                        + "or the " + AiConfig.EMBEDDING_MODEL_PROPERTY + " system property"));
         var endpoint = normalizedEndpoint(baseUrl) + "/embeddings";
         try {
             var body = buildRequestBody(model, texts);
@@ -171,6 +179,10 @@ public class BuiltInEmbeddingRuntime implements EmbeddingRuntime {
         var override = modelOverride;
         if (override != null && !override.isBlank()) {
             return Optional.of(override);
+        }
+        var configured = AiConfig.resolveEmbeddingModel();
+        if (configured.isPresent()) {
+            return configured;
         }
         // Re-use the chat model surface only when it is recognizably an
         // embedding model; otherwise fall back to the safe default. Mixing a

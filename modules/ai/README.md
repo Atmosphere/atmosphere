@@ -2786,6 +2786,13 @@ Seven `EmbeddingRuntime` implementations are registered via `ServiceLoader`. The
 | `KoogEmbeddingRuntime` | `atmosphere-koog` | 100 (default) | Wraps Koog `LLMEmbeddingProvider` |
 | `BuiltInEmbeddingRuntime` | `atmosphere-ai` | 50 | HTTP POST to `/v1/embeddings`; zero-dep fallback |
 
+`BuiltInEmbeddingRuntime` posts the model named by `LLM_EMBEDDING_MODEL` (system property
+`atmosphere.ai.embedding-model`), else an `LLM_MODEL` that is itself a `text-embedding*`
+model, else `text-embedding-3-small` against a remote provider. In `llm.mode=local` it has
+no default — a local server does not serve `text-embedding-3-small` — so it reports itself
+unavailable until an embedding model is named (for example
+`LLM_EMBEDDING_MODEL=nomic-embed-text` on Ollama).
+
 See <https://atmosphere.github.io/docs/reference/ai/> for the Astro reference page (maintained in the `atmosphere.github.io` repo).
 
 ## Requirements
