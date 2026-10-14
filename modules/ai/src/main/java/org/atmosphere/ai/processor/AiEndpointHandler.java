@@ -678,6 +678,20 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         RUN_OWNERS.put(uuid, userId);
     }
 
+    /**
+     * Records the identity per-user features read — the {@code ai.userId}
+     * attribute {@link #resolveRunOwner} defaulted from an authenticated
+     * principal — for the recycled-request disconnect path. Deliberately not
+     * the run owner: for an unidentified caller that is the
+     * {@code "anonymous"} (or unresolved-principal) marker, which recall never
+     * reads (it keys on {@code ai.userId}, null there). Recording the marker
+     * made every anonymous visitor's on-close facts land in one shared,
+     * write-only bucket.
+     */
+    static void recordConnectionOwner(AtmosphereResource resource) {
+        rememberRunOwner(resource.uuid(), disconnectUserId(resource));
+    }
+
     /** The owner recorded at connect time, or null. */
     static String recallRunOwner(String uuid) {
         return uuid == null ? null : RUN_OWNERS.get(uuid);
@@ -1022,7 +1036,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 t.interrupt();
             }
         });
-        rememberRunOwner(resource.uuid(), runUserId);
+        recordConnectionOwner(resource);
         var handle = org.atmosphere.ai.resume.RunRegistryHolder.get().register(
                 pathTemplate, runUserId, resource.uuid(), runExecutionHandle);
         session.setRunId(handle.runId());
