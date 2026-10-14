@@ -371,6 +371,32 @@ rm -f "$run_release_dir/spring-boot-chat.jar.ref"
 out=$(env -u ATMOSPHERE_SOURCE_REF -u ATMOSPHERE_VERSION_OVERRIDE PATH="$run_cache_tmp/bin:$PATH" \
       ATMOSPHERE_HOME="$run_cache_tmp/home" "$CLI" run spring-boot-chat 2>&1) && ec=0 || ec=$?
 assert_not_contains "$out" "(verified)" "run: a jar with no recorded source ref is not called verified"
+# A cached Quarkus app is a directory behind a marker file. Its checksum covers
+# the whole tree, so an edited, partial or missing app is rebuilt, not booted.
+run_qapp="$run_release_dir/quarkus-chat-quarkus-app"
+mkdir -p "$run_qapp/lib"
+echo "runner" > "$run_qapp/quarkus-run.jar"
+echo "lib" > "$run_qapp/lib/dep.jar"
+printf '%s' "$run_qapp" > "$run_release_dir/quarkus-chat-runner.jar"
+echo "atmosphere-$run_cli_version" > "$run_release_dir/quarkus-chat-runner.jar.ref"
+if command -v sha256sum >/dev/null 2>&1; then run_sha="sha256sum"; else run_sha="shasum -a 256"; fi
+# shellcheck disable=SC2086
+(cd "$run_qapp" && find . -type f -exec $run_sha {} +) | LC_ALL=C sort | $run_sha | cut -d' ' -f1 \
+    > "$run_release_dir/quarkus-chat-runner.jar.sha256"
+out=$(env -u ATMOSPHERE_SOURCE_REF -u ATMOSPHERE_VERSION_OVERRIDE PATH="$run_cache_tmp/bin:$PATH" \
+      ATMOSPHERE_HOME="$run_cache_tmp/home" "$CLI" run quarkus-chat 2>&1) && ec=0 || ec=$?
+assert_contains "$out" "Using cached quarkus-chat v$run_cli_version (verified)" "run: an intact cached Quarkus app is verified"
+assert_contains "$out" "quarkus-chat-quarkus-app/quarkus-run.jar" "run: an intact cached Quarkus app is launched"
+echo "tampered" > "$run_qapp/lib/dep.jar"
+out=$(env -u ATMOSPHERE_SOURCE_REF -u ATMOSPHERE_VERSION_OVERRIDE PATH="$run_cache_tmp/bin:$PATH" \
+      ATMOSPHERE_HOME="$run_cache_tmp/home" "$CLI" run quarkus-chat 2>&1) && ec=0 || ec=$?
+assert_contains "$out" "checksum mismatch — rebuilding quarkus-chat" "run: a modified cached Quarkus app is rebuilt"
+assert_not_contains "$out" "JAVA-SHIM" "run: a modified cached Quarkus app is not launched"
+printf '%s' "$run_qapp" > "$run_release_dir/quarkus-chat-runner.jar"
+rm -rf "$run_qapp"
+out=$(env -u ATMOSPHERE_SOURCE_REF -u ATMOSPHERE_VERSION_OVERRIDE PATH="$run_cache_tmp/bin:$PATH" \
+      ATMOSPHERE_HOME="$run_cache_tmp/home" "$CLI" run quarkus-chat 2>&1) && ec=0 || ec=$?
+assert_contains "$out" "app is missing — rebuilding" "run: a cached Quarkus marker whose app is gone is rebuilt"
 rm -rf "$run_cache_tmp"
 
 printf "\n"

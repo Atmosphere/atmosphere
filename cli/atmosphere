@@ -129,6 +129,26 @@ sha256sum_portable() {
     fi
 }
 
+# SHA-256 over a directory tree: every file's checksum and relative path, in a
+# stable order, hashed once more. A changed, added, removed or renamed file
+# changes the digest. Used for a cached Quarkus app, which is a directory.
+tree_digest_portable() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        set -- "$1" sha256sum
+    elif command -v shasum >/dev/null 2>&1; then
+        set -- "$1" shasum -a 256
+    else
+        echo "no-checksum-tool"
+        return
+    fi
+    tree_dir="$1"; shift
+    [ -d "$tree_dir" ] || { echo "missing-directory"; return; }
+    tree_manifest=$(mktemp)
+    (cd "$tree_dir" && find . -type f -exec "$@" {} +) | LC_ALL=C sort > "$tree_manifest"
+    sha256sum_portable "$tree_manifest"
+    rm -f "$tree_manifest"
+}
+
 # Percent-encode a string so it can be interpolated into a URL path segment or
 # query value. Unreserved set per RFC 3986: A-Z a-z 0-9 - . _ ~
 # Everything else (spaces, &, ?, /, #, UTF-8 bytes) becomes %XX.
@@ -783,6 +803,9 @@ build_sample() {
             cp -r "$quarkus_app" "$cache_qdir"
             # Create a marker file so cmd_run knows this is a quarkus app
             printf '%s' "$cache_qdir" > "$jar_file"
+            # The app is a directory, so its checksum covers the whole tree
+            # (quarkus-run.jar, lib/, app/, quarkus/), as the jar's covers the jar.
+            tree_digest_portable "$cache_qdir" > "${jar_file}.sha256"
             printf '%s\n' "$SOURCE_REF" > "${jar_file}.ref"
             ok "Built and cached $sample"
         else
@@ -921,10 +944,19 @@ cmd_run() {
             warn "Cached $sample was built from $cached_ref, not $SOURCE_REF — rebuilding"
             rm -f "$jar_file" "${jar_file}.sha256" "${jar_file}.ref"
             build_sample "$sample" "$packaging" "$jar_file"
+        elif [ "$packaging" = "quarkus" ] && [ ! -f "$(cat "$jar_file")/quarkus-run.jar" ]; then
+            warn "Cached $sample app is missing — rebuilding"
+            rm -f "$jar_file" "${jar_file}.sha256" "${jar_file}.ref"
+            build_sample "$sample" "$packaging" "$jar_file"
         elif [ -f "${jar_file}.sha256" ]; then
-            # Verify cached JAR integrity if checksum exists
+            # Verify cached JAR integrity if checksum exists. A Quarkus jar_file
+            # is a marker naming the app directory: verify the directory.
             expected=$(cat "${jar_file}.sha256")
-            actual=$(sha256sum_portable "$jar_file")
+            if [ "$packaging" = "quarkus" ]; then
+                actual=$(tree_digest_portable "$(cat "$jar_file")")
+            else
+                actual=$(sha256sum_portable "$jar_file")
+            fi
             if [ "$expected" != "$actual" ] && [ "$actual" != "no-checksum-tool" ]; then
                 warn "Cached JAR checksum mismatch — rebuilding $sample"
                 rm -f "$jar_file" "${jar_file}.sha256" "${jar_file}.ref"
