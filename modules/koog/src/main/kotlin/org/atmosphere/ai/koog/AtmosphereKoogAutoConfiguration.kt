@@ -77,6 +77,7 @@ open class AtmosphereKoogAutoConfiguration {
          */
         internal fun resolveEndpoint(baseUrl: String, mode: String, model: String): String {
             if (baseUrl.isNotBlank()) {
+                AiConfig.warnIfLocalModeOverridden(mode, baseUrl)
                 return baseUrl
             }
             val derived = AiConfig.resolveBaseUrl(mode, null, model)

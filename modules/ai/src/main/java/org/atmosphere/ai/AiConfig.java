@@ -1073,6 +1073,7 @@ public final class AiConfig {
      */
     public static String resolveBaseUrl(String mode, String explicitUrl, String model) {
         if (explicitUrl != null && !explicitUrl.isBlank()) {
+            warnIfLocalModeOverridden(mode, explicitUrl);
             return explicitUrl;
         }
 
@@ -1086,6 +1087,53 @@ public final class AiConfig {
         }
         // Default to Gemini for remote mode
         return GEMINI_ENDPOINT;
+    }
+
+    /**
+     * Whether {@code llm.mode=local} is overridden by an explicit base URL that
+     * does not point at this machine. An explicit URL out-ranks the mode, so an
+     * inherited {@code LLM_BASE_URL} (a shell profile exporting a hosted
+     * endpoint) silently sends a "local" run's prompts to that remote provider.
+     *
+     * @param mode        the configured mode
+     * @param explicitUrl the explicit base URL, may be null/blank
+     * @return {@code true} when the mode is local and the URL's host is not a
+     *         loopback (or Docker host-gateway) name
+     */
+    public static boolean isLocalModeOverridden(String mode, String explicitUrl) {
+        if (!"local".equalsIgnoreCase(mode) || explicitUrl == null || explicitUrl.isBlank()) {
+            return false;
+        }
+        String host;
+        try {
+            host = java.net.URI.create(explicitUrl.trim()).getHost();
+        } catch (IllegalArgumentException e) {
+            logger.debug("Base URL '{}' is not a URI; local-mode check skipped", explicitUrl, e);
+            return false;
+        }
+        if (host == null) {
+            return false;
+        }
+        var name = host.toLowerCase(java.util.Locale.ROOT);
+        return !(name.equals("localhost") || name.startsWith("127.") || name.equals("[::1]")
+                || name.equals("::1") || name.equals("host.docker.internal"));
+    }
+
+    /**
+     * Log a WARN when {@link #isLocalModeOverridden} — the endpoint a run
+     * actually calls must not contradict the mode it was started in without
+     * saying so (Runtime Truth).
+     *
+     * @param mode        the configured mode
+     * @param explicitUrl the explicit base URL that wins over the mode
+     */
+    public static void warnIfLocalModeOverridden(String mode, String explicitUrl) {
+        if (isLocalModeOverridden(mode, explicitUrl)) {
+            logger.warn("llm.mode=local, but the explicit base URL {} is not on this machine: "
+                    + "prompts go to that remote endpoint, not to a local backend. Unset "
+                    + "LLM_BASE_URL (or the runtime's base-url property) to use the local backend.",
+                    explicitUrl);
+        }
     }
 
     private static String env(String key, String defaultValue) {

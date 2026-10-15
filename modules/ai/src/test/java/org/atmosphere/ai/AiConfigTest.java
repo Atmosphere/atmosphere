@@ -21,6 +21,25 @@ import static org.junit.jupiter.api.Assertions.*;
 public class AiConfigTest {
 
     @Test
+    void anInheritedRemoteBaseUrlOverridingLocalModeIsReported() {
+        // A shell profile exporting a hosted LLM_BASE_URL sent "LLM_MODE=local" runs to Gemini.
+        assertTrue(AiConfig.isLocalModeOverridden("local",
+                "https://generativelanguage.googleapis.com/v1beta/openai/"));
+        assertTrue(AiConfig.isLocalModeOverridden("LOCAL", "http://10.0.0.5:8000/v1"));
+    }
+
+    @Test
+    void aLoopbackBaseUrlInLocalModeIsNotAnOverride() {
+        assertFalse(AiConfig.isLocalModeOverridden("local", "http://localhost:11434/v1"));
+        assertFalse(AiConfig.isLocalModeOverridden("local", "http://127.0.0.1:11434/v1"));
+        assertFalse(AiConfig.isLocalModeOverridden("local", "http://[::1]:11434/v1"));
+        assertFalse(AiConfig.isLocalModeOverridden("local", "http://host.docker.internal:11434/v1"));
+        assertFalse(AiConfig.isLocalModeOverridden("local", ""));
+        assertFalse(AiConfig.isLocalModeOverridden("remote",
+                "https://generativelanguage.googleapis.com/v1beta/openai/"));
+    }
+
+    @Test
     public void testResolveBaseUrlLocal() {
         assertEquals(AiConfig.OLLAMA_ENDPOINT, AiConfig.resolveBaseUrl("local", null, "llama3.2"));
     }
