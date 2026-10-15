@@ -122,6 +122,57 @@ class AiKnobBridgeTest {
                 });
     }
 
+    /**
+     * The application's own beans are created before the auto-configuration's,
+     * so a knob bridge that were an ordinary bean would install too late for
+     * them: the runtime a user bean resolves while it is created is the one
+     * {@code atmosphere.ai.runtime} names, not the highest-priority one.
+     */
+    @Test
+    void aUserBeanThatResolvesTheRuntimeWhileCreatedGetsTheNamedOne() {
+        contextRunner.withUserConfiguration(RuntimeResolvingConfiguration.class)
+                .withPropertyValues("atmosphere.ai.runtime=built-in")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context.getBean("resolvedAtCreation", String.class)).isEqualTo("built-in");
+                });
+    }
+
+    /**
+     * An application-supplied {@code LlmSettings} bean built with
+     * {@code AiConfig.configure} carries the generation knobs of the
+     * application's configuration, as the starter's own bean does.
+     */
+    @Test
+    void anApplicationLlmSettingsBeanCarriesTheGenerationKnobs() {
+        contextRunner.withUserConfiguration(UserSettingsConfiguration.class)
+                .withPropertyValues("atmosphere.ai.temperature=0.2", "atmosphere.ai.prompt-cache-key=off")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    var settings = context.getBean(AiConfig.LlmSettings.class);
+                    assertThat(settings.model()).isEqualTo("user-model");
+                    assertThat(settings.generation().temperature()).isEqualTo(0.2);
+                    assertThat(settings.promptCacheKeyMode())
+                            .isEqualTo(org.atmosphere.ai.llm.PromptCacheKeyMode.DISABLED);
+                });
+    }
+
+    @org.springframework.context.annotation.Configuration(proxyBeanMethods = false)
+    static class RuntimeResolvingConfiguration {
+        @org.springframework.context.annotation.Bean
+        String resolvedAtCreation() {
+            return AgentRuntimeResolver.resolve().name();
+        }
+    }
+
+    @org.springframework.context.annotation.Configuration(proxyBeanMethods = false)
+    static class UserSettingsConfiguration {
+        @org.springframework.context.annotation.Bean
+        AiConfig.LlmSettings userLlmSettings() {
+            return AiConfig.configure("fake", "user-model", null, null);
+        }
+    }
+
     @Test
     void aRuntimeThatIsNotAvailableFailsStartup() {
         contextRunner.withPropertyValues("atmosphere.ai.runtime=spring-ai").run(context -> {

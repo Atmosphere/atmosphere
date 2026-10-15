@@ -86,28 +86,48 @@ public class AtmosphereAiAutoConfiguration {
      * honoured. A JVM system property or the knob's {@code LLM_*} environment
      * variable still wins over it ({@link AiConfig#knob(String)}). Nothing is
      * written to the JVM system properties; closing the context uninstalls it.
+     *
+     * <p>A {@code BeanFactoryPostProcessor}, declared {@code static}: it installs
+     * the knobs before any singleton is created, so the application's own beans,
+     * which are created before the auto-configuration's, already see them (an
+     * {@code LlmSettings} bean built with {@code AiConfig.configure}, a bean
+     * resolving the {@code AgentRuntime}).</p>
      */
     @Bean
     @ConditionalOnMissingBean(AiKnobBridge.class)
-    public AiKnobBridge atmosphereAiKnobBridge(org.springframework.core.env.Environment environment) {
-        return AiKnobBridge.install(environment);
+    public static AiKnobBridge atmosphereAiKnobBridge(org.springframework.core.env.Environment environment) {
+        return new AiKnobBridge(environment);
     }
 
     /**
      * The {@link AiConfig} host configuration read from a Spring
-     * {@code Environment}. {@code destroy()} uninstalls it, and only it
+     * {@code Environment}, installed when the bean factory is post-processed,
+     * before any singleton exists. {@code destroy()} uninstalls it, and only it
      * (Ownership, Correctness Invariant #1).
      */
-    static final class AiKnobBridge implements org.springframework.beans.factory.DisposableBean {
+    static final class AiKnobBridge implements
+            org.springframework.beans.factory.config.BeanFactoryPostProcessor,
+            org.springframework.core.PriorityOrdered,
+            org.springframework.beans.factory.DisposableBean {
 
-        private final AiConfig.HostConfig installed;
+        private final org.springframework.core.env.Environment environment;
+        private volatile AiConfig.HostConfig installed;
 
-        private AiKnobBridge(AiConfig.HostConfig installed) {
-            this.installed = installed;
+        AiKnobBridge(org.springframework.core.env.Environment environment) {
+            this.environment = environment;
         }
 
-        static AiKnobBridge install(org.springframework.core.env.Environment environment) {
-            return new AiKnobBridge(AiConfig.installHostConfig(key -> value(environment, key)));
+        @Override
+        public void postProcessBeanFactory(
+                org.springframework.beans.factory.config.ConfigurableListableBeanFactory beanFactory) {
+            if (installed == null) {
+                installed = AiConfig.installHostConfig(key -> value(environment, key));
+            }
+        }
+
+        @Override
+        public int getOrder() {
+            return org.springframework.core.Ordered.HIGHEST_PRECEDENCE;
         }
 
         /**
@@ -128,7 +148,10 @@ public class AtmosphereAiAutoConfiguration {
 
         @Override
         public void destroy() {
-            installed.close();
+            var current = installed;
+            if (current != null) {
+                current.close();
+            }
         }
     }
 
@@ -151,8 +174,10 @@ public class AtmosphereAiAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(AiConfig.LlmSettings.class)
     public AiConfig.LlmSettings atmosphereAiSettings(AtmosphereProperties properties,
-            // Injected for ordering only: the knobs must be installed before the
-            // settings are built, since configure() reads the generation ones.
+            // The knobs must be installed before the settings are built, since
+            // configure() reads the generation ones. The bridge, a
+            // BeanFactoryPostProcessor, installs them before any bean exists;
+            // injected to make the dependency explicit.
             AiKnobBridge aiKnobBridge) {
         var aiProps = properties.getAi();
         var apiKey = resolveApiKey(aiProps);
