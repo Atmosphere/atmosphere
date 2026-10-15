@@ -95,9 +95,11 @@ class AiEndpointHandlerReattachTimeoutTest {
 
     @Test
     void aTimeoutAfterTheClientLeftEndsTheReattachedStreamInError() throws Exception {
+        // The timeout must fire after the reattach: at 500ms a loaded machine
+        // let it fire first, and the reattach replayed the error frame as well.
         var handler = new AiEndpointHandler(new SlowEndpoint(),
                 SlowEndpoint.class.getDeclaredMethod("onPrompt", String.class, StreamingSession.class),
-                500L, "", "/ai/slow", mock(AgentRuntime.class), List.<AiInterceptor>of(),
+                3_000L, "", "/ai/slow", mock(AgentRuntime.class), List.<AiInterceptor>of(),
                 null, AnnotatedLifecycle.scan(SlowEndpoint.class));
         var original = new AtmosphereResourceImpl(config, room,
                 AtmosphereRequestImpl.newInstance(), AtmosphereResponseImpl.newInstance(),
