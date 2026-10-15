@@ -40,8 +40,17 @@ import java.util.Map;
  * metadata (the {@code /api/admin/governance/check} endpoint, a fronting
  * auth filter, a test) always wins. Production deployments delete this
  * interceptor and stamp both keys from their identity provider instead.</p>
+ *
+ * <p>It {@linkplain #runsBeforeAdmission() runs before admission}, as an auth
+ * layer does: on a turn the framework streams, the identity policies see the
+ * stamped keys. It adds metadata only and never changes the message.</p>
  */
 public final class DemoIdentityInterceptor implements AiInterceptor {
+
+    @Override
+    public boolean runsBeforeAdmission() {
+        return true;
+    }
 
     /** Tenant every unauthenticated demo turn is attributed to. */
     public static final String DEMO_TENANT = "demo-tenant";

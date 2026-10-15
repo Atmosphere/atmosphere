@@ -97,9 +97,14 @@ public class RagInterceptor implements AiInterceptor {
 }
 ```
 
-On `@AiEndpoint` the per-turn order is: request guardrails → interceptor
+On `@AiEndpoint` the per-turn order is: before-admission interceptor
+`preProcess` → request guardrails (governance policies included) → interceptor
 `preProcess` → per-request scope → intent routing (when configured) →
-`ContextProvider` retrieval → LLM. Interceptors therefore see the user message
+`ContextProvider` retrieval → LLM. An interceptor that stamps the caller's
+identity (tenant, roles) the way an auth layer does overrides
+`runsBeforeAdmission()` to return `true`, so a policy requiring that identity
+sees it. Such an interceptor may add metadata but not change the message: a
+rewritten message fails the turn closed. Interceptors therefore see the user message
 **without** the `Relevant context:` block the endpoint's context providers
 append; that block is added after them, on every endpoint whether or not it
 uses intent routing. An interceptor that does its own retrieval, like the

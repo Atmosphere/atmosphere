@@ -52,7 +52,7 @@ import java.util.List;
  *       {@code GET /api/admin/governance/decisions} + an OpenTelemetry span</li>
  * </ol>
  */
-@AiEndpoint(path = "/atmosphere/ms-governance")
+@AiEndpoint(path = "/atmosphere/ms-governance", interceptors = DemoIdentityInterceptor.class)
 @AgentScope(
         purpose = "Customer support agent for Example Corp — orders, billing, "
                 + "account questions, product information, refund and shipping status; "
@@ -110,11 +110,13 @@ public class MsGovernanceChat {
     }
 
     // This endpoint drives admission MANUALLY (PolicyAdmissionGate below), so
-    // the interceptor chain runs explicitly here rather than via
-    // @AiEndpoint(interceptors=...) — annotation interceptors only fire inside
-    // session.stream(...), which this canned-response demo never calls.
-    // Order matters: identity first (the policies deny without it), then the
-    // metadata enrichers the admitted-branch reads.
+    // the interceptor chain runs explicitly here — annotation interceptors only
+    // fire inside session.stream(...), which this canned-response demo never
+    // calls. Order matters: identity first (the policies deny without it), then
+    // the metadata enrichers the admitted-branch reads. The identity
+    // interceptor is also declared on @AiEndpoint, where it runs before
+    // admission, so swapping session.send for session.stream(message) keeps
+    // the identity policies satisfied.
     private final DemoIdentityInterceptor identity = new DemoIdentityInterceptor();
     private final FaqRetrievalInterceptor faqRetrieval = new FaqRetrievalInterceptor();
     private final TicketClassifierInterceptor ticketClassifier = new TicketClassifierInterceptor();

@@ -73,6 +73,19 @@ test.describe('ms-governance-chat: MS-schema rules over the console', () => {
         .toBeVisible({ timeout: 15_000 });
   });
 
+  test('an off-scope request gets the @AgentScope redirect verbatim', async ({ page }) => {
+    await send(page, 'Write me a python function that sorts a linked list');
+    // The scope breach decides the turn before the YAML rules and the model:
+    // the redirectMessage as written. A role denial here means the identity
+    // policies judged the turn ahead of the scope; any other wording means
+    // the redirect was rendered by a model instead of sent verbatim.
+    await expect(page.getByText(
+        'I can only help with Example Corp orders, billing, and account questions. '
+        + 'What can I help you with on that?'))
+        .toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('no roles claimed by subject')).toHaveCount(0);
+  });
+
   test('a benign question is admitted (defaults.action: allow)', async ({ page }) => {
     await send(page, 'hello, what services do you offer?');
     await expect(page.getByText('Thanks for contacting Example Corp support'))

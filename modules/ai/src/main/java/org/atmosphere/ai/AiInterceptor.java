@@ -26,7 +26,10 @@ import org.atmosphere.cpr.AtmosphereResource;
  * and are executed in declaration order across three phases:</p>
  * <ul>
  *   <li>{@link #preProcess} runs FIFO (first declared → first executed),
- *       before the request is dispatched to the runtime</li>
+ *       before the request is dispatched to the runtime and after the
+ *       endpoint's guardrails and governance policies admitted it — except for
+ *       interceptors that {@linkplain #runsBeforeAdmission() run before
+ *       admission}, which run FIFO ahead of those checks</li>
  *   <li>{@link #beforeCompletion} runs LIFO, from inside the terminal
  *       {@code complete()} — immediately BEFORE the terminal {@code complete}
  *       frame is forwarded to the client, while the session still accepts
@@ -45,6 +48,29 @@ import org.atmosphere.cpr.AtmosphereResource;
  * {@code org.atmosphere.ai.routing.RoutingLlmClient} mid-stream.</p>
  */
 public interface AiInterceptor {
+
+    /**
+     * Whether {@link #preProcess} runs before the endpoint's guardrails and
+     * governance policies rather than after them. An interceptor that stamps
+     * the caller's identity (tenant, roles, from a JWT or the session, as an
+     * auth layer would) returns {@code true} so a policy that requires that
+     * identity sees it; otherwise every turn is denied for lacking it.
+     *
+     * <p>A before-admission interceptor may add metadata or identity but must
+     * not change {@link AiRequest#message()}: the admission checks judge what
+     * the user typed, and an interceptor rewriting it ahead of them could hide
+     * a request they would refuse. A changed message (or a {@code null}
+     * request) fails the turn closed with a {@link SecurityException}. It does
+     * not see the turn's scope decision, which is taken on the inbound message
+     * before the {@code @Prompt} method runs. Its {@link #beforeCompletion} and
+     * {@link #postProcess} hooks run with the others.</p>
+     *
+     * @return {@code true} to run {@link #preProcess} before admission;
+     *         {@code false} (the default) to run it on the admitted request
+     */
+    default boolean runsBeforeAdmission() {
+        return false;
+    }
 
     /**
      * Called before the request is sent to the {@link AiSupport}.

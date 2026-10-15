@@ -1004,6 +1004,30 @@ public class AiStreamingSession implements StreamingSession {
 
         var request = turnRequest(message);
 
+        // Before-admission interceptors stamp the identity the guardrails and
+        // policies below read (tenant, roles), as an auth layer would. They may
+        // not change the message: the admission steps judge what the user
+        // typed, so a rewrite here fails the turn closed.
+        for (var interceptor : interceptors) {
+            if (!interceptor.runsBeforeAdmission()) {
+                continue;
+            }
+            try {
+                var stamped = interceptor.preProcess(request, resource);
+                if (stamped == null || !request.message().equals(stamped.message())) {
+                    logger.error("Before-admission AiInterceptor {} changed the message; failing the turn closed",
+                            interceptor.getClass().getName());
+                    delegate.error(new SecurityException("Before-admission interceptor "
+                            + interceptor.getClass().getName() + " must not change the message"));
+                    return;
+                }
+                request = stamped;
+            } catch (Exception e) {
+                logger.error("AiInterceptor.preProcess failed: {}", interceptor.getClass().getName(), e);
+                delegate.error(e);
+                return;
+            }
+        }
         var userId = request.userId();
         var agentId = request.agentId();
         var conversationId = request.conversationId();
@@ -1041,8 +1065,11 @@ public class AiStreamingSession implements StreamingSession {
             }
         }
 
-        // Pre-process: FIFO order
+        // Pre-process: FIFO order (the before-admission interceptors already ran)
         for (var interceptor : interceptors) {
+            if (interceptor.runsBeforeAdmission()) {
+                continue;
+            }
             try {
                 request = interceptor.preProcess(request, resource);
             } catch (Exception e) {

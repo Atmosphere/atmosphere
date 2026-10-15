@@ -34,7 +34,10 @@ support bot needs). The bundled console carries no identity, so
 `DemoIdentityInterceptor` stamps `tenant-id=demo-tenant` and
 `roles=support-chat-user` onto any turn that doesn't already have them —
 production deployments delete that interceptor and stamp both keys from
-their auth layer (JWT claims, session).
+their auth layer (JWT claims, session). It runs before the policies
+(`runsBeforeAdmission()`), as an auth layer does. An off-scope request
+("write me a python function…") gets the `@AgentScope` redirect message
+verbatim, before the YAML rules run.
 
 **Business hours:** `support-business-hours` denies outside 08:00–20:00
 America/New_York, Mon–Sat — by design. Demoing on a Sunday or at night?
