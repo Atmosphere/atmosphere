@@ -327,6 +327,102 @@ class RunReattachSupportTest {
                 + "assuming partial delivery");
     }
 
+    /**
+     * A long-polling poll answers with its response only once it is resumed:
+     * the replay, written straight to the response, must end the poll after
+     * the flush, or the client sees it only at the poll's suspend timeout.
+     */
+    @Test
+    void longPollingReplayResumesThePollAfterTheFlush() {
+        handle.replayBuffer().capture("streaming-text", "missed while away");
+        handle.replayBuffer().capture("complete", "[complete]");
+        var steps = new ArrayList<String>();
+        var resource = suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, steps);
+
+        var replayed = RunReattachSupport.replayPendingRun(resource, registry);
+
+        assertEquals(2, replayed);
+        assertEquals(List.of("flush", "resume"), steps,
+                "the poll must be resumed once, after the replay was flushed");
+    }
+
+    @Test
+    void longPollingPollWithNothingReplayedStaysSuspended() {
+        var steps = new ArrayList<String>();
+        var resource = suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, steps);
+
+        var replayed = RunReattachSupport.replayPendingRun(resource, registry);
+
+        assertEquals(0, replayed);
+        assertTrue(steps.isEmpty(), "an empty replay must leave the poll suspended: " + steps);
+    }
+
+    @Test
+    void longPollingPollWhoseReplayWasAllFilteredStaysSuspended() {
+        handle.replayBuffer().capture("streaming-text", "dropped by a filter");
+        var steps = new ArrayList<String>();
+        var resource = suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, steps);
+        var broadcaster = Mockito.mock(org.atmosphere.cpr.Broadcaster.class);
+        var config = Mockito.mock(org.atmosphere.cpr.BroadcasterConfig.class);
+        when(resource.getBroadcaster()).thenReturn(broadcaster);
+        when(broadcaster.getBroadcasterConfig()).thenReturn(config);
+        when(broadcaster.getID()).thenReturn("/atmosphere/ai");
+        org.atmosphere.cpr.BroadcastFilter abort = (id, original, message) ->
+                new org.atmosphere.cpr.BroadcastFilter.BroadcastAction(
+                        org.atmosphere.cpr.BroadcastFilter.BroadcastAction.ACTION.ABORT, message);
+        when(config.filters()).thenReturn(List.of(abort));
+
+        var replayed = RunReattachSupport.replayPendingRun(resource, registry);
+
+        assertEquals(0, replayed);
+        assertTrue(steps.isEmpty(), "nothing written, so the poll must stay suspended: " + steps);
+    }
+
+    @Test
+    void streamingTransportsAreNotResumedByTheReplay() {
+        handle.replayBuffer().capture("streaming-text", "missed while away");
+        handle.replayBuffer().capture("complete", "[complete]");
+        for (var transport : List.of(AtmosphereResource.TRANSPORT.WEBSOCKET,
+                AtmosphereResource.TRANSPORT.SSE, AtmosphereResource.TRANSPORT.STREAMING)) {
+            var steps = new ArrayList<String>();
+            var resource = suspendedPoll(transport, steps);
+
+            RunReattachSupport.replayPendingRun(resource, registry);
+
+            assertTrue(!steps.contains("resume"), transport + " must stay open after the replay: " + steps);
+        }
+    }
+
+    /** A suspended connection of {@code transport} reattaching to the run; flushes and resumes land in {@code steps}. */
+    private AtmosphereResource suspendedPoll(AtmosphereResource.TRANSPORT transport, List<String> steps) {
+        var resource = Mockito.mock(AtmosphereResource.class);
+        var request = Mockito.mock(AtmosphereRequest.class);
+        var response = Mockito.mock(AtmosphereResponse.class);
+        var printWriter = new java.io.PrintWriter(new java.io.StringWriter()) {
+            @Override public void flush() {
+                super.flush();
+                steps.add("flush");
+            }
+        };
+        when(resource.getRequest()).thenReturn(request);
+        when(request.getAttribute(RunReattachSupport.RUN_ID_ATTRIBUTE)).thenReturn(handle.runId());
+        when(request.getAttribute("ai.userId")).thenReturn("alice");
+        when(resource.uuid()).thenReturn("poll-" + transport);
+        when(resource.transport()).thenReturn(transport);
+        when(resource.isSuspended()).thenReturn(true);
+        when(resource.resume()).thenAnswer(inv -> {
+            steps.add("resume");
+            return resource;
+        });
+        try {
+            when(resource.getResponse()).thenReturn(response);
+            when(response.getWriter()).thenReturn(printWriter);
+        } catch (java.io.IOException e) {
+            throw new AssertionError("mock cannot throw", e);
+        }
+        return resource;
+    }
+
     private static AtmosphereResource mockResourceWithRunId(
             String attributeValue, String headerValue, List<String> writes) {
         // Default: caller identity matches the run's userId ("alice" —

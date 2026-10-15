@@ -16,6 +16,7 @@
 package org.atmosphere.ai.resume;
 
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,8 +43,10 @@ import org.slf4j.LoggerFactory;
  * frame or when the reconnected resource disconnects. A run that already
  * finished stays replayable for the registry TTL
  * ({@link RunRegistry#lookupReplayable}), so a late reconnect gets the whole
- * tail. Long-polling keeps the single-write drain: its first write resumes
- * the poll, so there is no open response to forward to.</p>
+ * tail. Long-polling keeps the single-write drain: the backlog is written
+ * to the poll's response in one write, then the poll is resumed so the
+ * response reaches the client now rather than at the poll's suspend timeout;
+ * there is no open response left to forward later events to.</p>
  *
  * <p>The events are what {@link RunEventCapturingSession} captures: the text
  * and the terminal frame the client received, whether the {@code @Prompt}
@@ -264,7 +267,9 @@ public final class RunReattachSupport {
      * request attribute / header onto {@code resource}. Returns the
      * number of events successfully written; {@code 0} when no run id
      * is present, the run is unknown or completed, or the buffer is
-     * empty.
+     * empty. A suspended long-polling poll that events were written to is
+     * resumed, so it answers with them now; one nothing was written to stays
+     * suspended.
      *
      * @param resource the reconnecting resource
      * @param registry the registry to look the run id up in
@@ -355,10 +360,8 @@ public final class RunReattachSupport {
                     written++;
                 }
             }
-            // Single write so long-polling's resume-on-broadcast fires
-            // exactly once after every event is flushed — per-event
-            // writes would flush+close on the first one and drop the
-            // rest.
+            // Single write: a long-polling poll answers with one response,
+            // so every replayed event goes out in it.
             if (batch.length() > 0) {
                 writer.write(batch.toString());
                 writer.flush();
@@ -368,9 +371,26 @@ public final class RunReattachSupport {
                     resource.uuid(), e.getMessage());
             written = 0;
         }
+        if (written > 0) {
+            // Written straight to the response, not broadcast, so no
+            // resume-on-broadcast ends a long-polling poll: resume it here, or
+            // the client sees the replay only at the poll's suspend timeout.
+            resumePoll(resource);
+        }
         logger.info("Reattach run {} for resource {}: replayed {}/{} event(s)",
                 runId, resource.uuid(), written, replayed.size());
         return written;
+    }
+
+    /**
+     * Ends a suspended long-polling poll that the replay was written to, so its
+     * response goes out now. A connection of any other transport stays open.
+     */
+    private static void resumePoll(AtmosphereResource resource) {
+        var transport = resource.transport();
+        if (transport != null && Utils.resumableTransport(transport) && resource.isSuspended()) {
+            resource.resume();
+        }
     }
 
     /** The reattach grace, bounded by the registry TTL (Correctness Invariant #3). */
