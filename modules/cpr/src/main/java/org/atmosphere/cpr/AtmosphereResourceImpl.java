@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.inject.CallbackScope;
 import org.atmosphere.interceptor.AllowInterceptor;
 import org.atmosphere.util.Utils;
 import org.atmosphere.websocket.WebSocket;
@@ -1067,6 +1068,11 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
+        if (o instanceof AtmosphereResource r && !(o instanceof AtmosphereResourceImpl)) {
+            // An @Inject AtmosphereResource field holds a proxy: the proxy equals its
+            // resource, so the resource must equal the proxy (a Set of injected fields).
+            o = CallbackScope.unwrap(r);
+        }
         if (o == null || getClass() != o.getClass()) return false;
 
         AtmosphereResourceImpl that = (AtmosphereResourceImpl) o;

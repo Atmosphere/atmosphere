@@ -29,6 +29,7 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
@@ -49,6 +50,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CyclicBarrier;
@@ -88,6 +90,10 @@ class InjectedResourceThreadScopeTest {
     static final Queue<String> MESSAGE_READS = new ConcurrentLinkedQueue<>();
     static final Map<String, AtmosphereResource> CAPTURED = new ConcurrentHashMap<>();
     static final AtomicReference<CapturingService> CAPTURING = new AtomicReference<>();
+    static final Map<String, AtmosphereResource> USERS = new ConcurrentHashMap<>();
+    static final Set<AtmosphereResource> CONNECTED = ConcurrentHashMap.newKeySet();
+    static final Queue<Lookup> LOOKUPS = new ConcurrentLinkedQueue<>();
+    static volatile String lookedUp;
     static volatile CyclicBarrier allInjected;
 
     static Read read(AtmosphereResource r, AtmosphereRequest req, AtmosphereResponse res) {
@@ -158,6 +164,35 @@ class InjectedResourceThreadScopeTest {
         }
     }
 
+    /** What a callback of {@code caller} reached through the reference another client stored. */
+    record Lookup(String caller, String reached) {
+    }
+
+    /** Keeps each client's injected field, the way a chat keeps its connected users. */
+    @ManagedService(path = "/injected-resource-users")
+    public static final class UsersService {
+
+        @Inject
+        private AtmosphereResource r;
+
+        @Ready
+        public void onReady() {
+            USERS.put(r.uuid(), r);
+            CONNECTED.add(r);
+        }
+
+        @Message
+        public String onMessage(String message) {
+            LOOKUPS.add(new Lookup(r.uuid(), USERS.get(lookedUp).uuid()));
+            return message;
+        }
+
+        @Disconnect
+        public void onDisconnect(AtmosphereResourceEvent event) {
+            CONNECTED.remove(event.getResource());
+        }
+    }
+
     private AtmosphereFramework framework;
     private WebSocketProcessor processor;
     private ExecutorService pool;
@@ -168,6 +203,10 @@ class InjectedResourceThreadScopeTest {
         MESSAGE_READS.clear();
         CAPTURED.clear();
         CAPTURING.set(null);
+        USERS.clear();
+        CONNECTED.clear();
+        LOOKUPS.clear();
+        lookedUp = null;
         allInjected = new CyclicBarrier(CLIENTS);
         pool = Executors.newSingleThreadExecutor();
         framework = new AtmosphereFramework();
@@ -313,6 +352,61 @@ class InjectedResourceThreadScopeTest {
         assertNotNull(service);
         assertSame(alice.resource().getClass(), service.impl().getClass(),
                 "an implementation-typed field receives the resource itself");
+    }
+
+    @Test
+    void aReferenceAClientStoredActsOnThatClientInAnotherClientsCallback() throws Exception {
+        var alice = open("/injected-resource-users", "alice");
+        var bob = open("/injected-resource-users", "bob");
+        var aliceUuid = alice.resource().uuid();
+        var bobUuid = bob.resource().uuid();
+        lookedUp = aliceUuid;
+
+        // Bob's message looks up the reference Alice's @Ready stored.
+        processor.invokeWebSocketProtocol(bob, "hi");
+
+        assertEquals(List.of(new Lookup(bobUuid, aliceUuid)), List.copyOf(LOOKUPS),
+                "a stored reference must act on the client it was injected for, not on the caller");
+    }
+
+    @Test
+    void aBroadcastDeliveryReachesTheLatestClientThroughItsStoredReference() throws Exception {
+        var alice = open("/injected-resource-users", "alice");
+        // Bob connects last: his is the latest injection into the shared field.
+        var bob = open("/injected-resource-users", "bob");
+        var aliceUuid = alice.resource().uuid();
+        var bobUuid = bob.resource().uuid();
+        lookedUp = bobUuid;
+
+        // Each delivery runs @Message on a broadcast thread, which injected nothing.
+        alice.resource().getBroadcaster().broadcast("hello").get(10, TimeUnit.SECONDS);
+
+        assertEquals(Set.of(new Lookup(aliceUuid, bobUuid), new Lookup(bobUuid, bobUuid)), Set.copyOf(LOOKUPS),
+                "each delivery must read its own client, and Bob's stored reference must act on Bob");
+    }
+
+    @Test
+    void aStoredReferenceIsRemovedWithTheResourceItWasInjectedFor() throws Exception {
+        var alice = open("/injected-resource-users", "alice");
+        var bob = open("/injected-resource-users", "bob");
+        var aliceResource = alice.resource();
+        assertEquals(2, CONNECTED.size(), "@Ready must have stored both clients");
+        assertTrue(CONNECTED.contains(aliceResource), "the set finds a resource by the reference stored for it");
+        assertTrue(aliceResource.equals(USERS.get(aliceResource.uuid())),
+                "a resource equals the reference stored for it");
+
+        processor.close(alice, 1000);
+
+        assertEquals(Set.of(bob.resource().uuid()), uuids(CONNECTED),
+                "@Disconnect must remove the departed client's stored reference");
+    }
+
+    private static Set<String> uuids(Set<AtmosphereResource> resources) {
+        var uuids = new HashSet<String>();
+        for (var resource : resources) {
+            uuids.add(resource.uuid());
+        }
+        return uuids;
     }
 
     private static Map<String, Read> byUuid(List<Read> reads) {

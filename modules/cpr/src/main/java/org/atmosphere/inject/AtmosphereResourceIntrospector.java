@@ -28,15 +28,15 @@ import java.lang.reflect.Type;
  * callback re-injects its own resource into the shared field just before it
  * runs. While a callback runs, the injected proxy resolves the resource of the
  * client whose callback runs on the calling thread, so concurrent callbacks
- * never read each other's client. Outside a callback the proxy acts on the
- * resource it was injected for. To keep a client's resource beyond its
- * callback (a map of connected users), store {@link CallbackScope#unwrap}
- * of the field, not the field's value. See {@link CallbackScope}.
+ * never read each other's client. A reference kept beyond the callback that
+ * injected it (a map of connected users), or used outside every callback, acts
+ * on the resource it was injected for. See {@link CallbackScope}.
  *
  * @author Jeanfrancois Arcand
  */
 @RequestScoped
-public class AtmosphereResourceIntrospector extends InjectIntrospectorAdapter<AtmosphereResource> {
+public class AtmosphereResourceIntrospector extends InjectIntrospectorAdapter<AtmosphereResource>
+        implements CallbackScoped {
 
     @Override
     public boolean supportedType(Type t) {

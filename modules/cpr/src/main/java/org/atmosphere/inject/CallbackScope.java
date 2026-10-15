@@ -25,6 +25,7 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
 /**
@@ -35,30 +36,44 @@ import java.util.function.Function;
  * callback re-injects its own {@link AtmosphereResource},
  * {@link AtmosphereRequest}, {@link AtmosphereResponse} and
  * {@link AtmosphereResourceEvent} into the shared fields just before it runs. A
- * field therefore holds a proxy: while a callback runs, it resolves the
- * resource bound to the calling thread, so concurrent callbacks never read each
- * other's client. Outside a callback (a reference handed to another thread) the
- * proxy acts on the resource it was injected for.
+ * field therefore holds a proxy, which acts on one of two resources:
+ * <ul>
+ * <li>a proxy injected after the callback running on the calling thread started
+ * (the callback's own injection, or a concurrent callback's that replaced it in
+ * the field) resolves the resource of that callback, so concurrent callbacks
+ * never read each other's client;</li>
+ * <li>any other proxy, a reference stored by an earlier callback (a map of
+ * connected users) or used outside every callback, acts on the resource it was
+ * injected for.</li>
+ * </ul>
+ * Which one never changes while a callback runs. One window remains, inherent to
+ * a field shared by concurrent callbacks: a reference a concurrent callback
+ * stored after the calling thread's callback started resolves, for the rest of
+ * that callback, the calling thread's resource.
  * <p>
- * An injection binds its resource to the injecting thread. A handler that runs
- * a callback on a thread that injected nothing (a broadcast delivery, a
- * {@code @Disconnect} a broadcast thread claimed) binds the callback's resource
- * itself. The framework brackets every callback that may bind with
- * {@link #current()} and {@link #restore(Binding)}, so a pooled thread never
- * keeps the resource of a callback it ran earlier.
+ * An injection pass binds its resource to the injecting thread. A handler that
+ * runs a callback on a thread that injected nothing (a broadcast delivery, a
+ * {@code @Disconnect} a broadcast thread claimed) injects the callback's
+ * resource again and binds it itself. The framework brackets every callback
+ * that may bind with {@link #current()} and {@link #restore(Binding)}, so a
+ * pooled thread never keeps the resource of a callback it ran earlier.
  */
 public final class CallbackScope {
 
     private static final ThreadLocal<Binding> CALLBACK = new ThreadLocal<>();
 
+    /** Orders the start of each callback and the creation of each injected proxy. */
+    private static final AtomicLong CLOCK = new AtomicLong();
+
     /**
-     * The resource of the callback running on a thread, and the event that
-     * callback runs for.
+     * The resource of the callback running on a thread, the event that callback
+     * runs for, and when the callback started.
      *
      * @param resource the resource
      * @param event    the event of the callback, or {@code null} for the resource's own
+     * @param since    when the callback started, on the clock that orders injections
      */
-    public record Binding(AtmosphereResource resource, AtmosphereResourceEvent event) {
+    public record Binding(AtmosphereResource resource, AtmosphereResourceEvent event, long since) {
 
         AtmosphereResourceEvent resolvedEvent() {
             return event != null ? event : resource.getAtmosphereResourceEvent();
@@ -88,8 +103,11 @@ public final class CallbackScope {
     }
 
     /**
-     * Start a callback of {@code resource} on the calling thread. A {@code null}
-     * resource (an event already destroyed) binds nothing.
+     * Run a callback of {@code resource} on the calling thread. A {@code null}
+     * resource (an event already destroyed) binds nothing. A callback of the
+     * resource the thread already runs one for (a request that injected it, a
+     * callback nested in another of the same resource) keeps its start, so the
+     * fields that injection filled still resolve it.
      *
      * @param resource the resource whose callback runs
      * @param event    the event the callback runs for, or {@code null} for the resource's own
@@ -98,7 +116,9 @@ public final class CallbackScope {
     public static Binding bind(AtmosphereResource resource, AtmosphereResourceEvent event) {
         var previous = CALLBACK.get();
         if (resource != null) {
-            CALLBACK.set(new Binding(unwrap(resource), event));
+            var bound = unwrap(resource);
+            var since = previous != null && previous.resource() == bound ? previous.since() : CLOCK.incrementAndGet();
+            CALLBACK.set(new Binding(bound, event, since));
         }
         return previous;
     }
@@ -118,12 +138,8 @@ public final class CallbackScope {
     }
 
     /**
-     * The object an injected proxy acts on now: the callback's own on the thread
-     * running it, the injected one elsewhere. Anything else is returned as is.
-     * <p>
-     * A service that keeps a client's resource beyond its callback (a map of
-     * connected users) must store {@code unwrap(field)}, not the field's value:
-     * the proxy resolves the client of whichever callback reads it.
+     * The object an injected proxy acts on now (see the class description).
+     * Anything else is returned as is.
      *
      * @param resource a resource, possibly an injected proxy
      * @return the resource itself, never a proxy
@@ -141,26 +157,49 @@ public final class CallbackScope {
     }
 
     /**
-     * Bind {@code injected} to the injecting thread, and return the handler of
-     * the proxy a shared field holds for it. Each introspector creates its proxy
-     * itself, with a literal interface array, so that native-image analysis can
-     * detect the proxy class.
+     * Start a callback of {@code resource} on the calling thread for an injection
+     * pass: the proxies the pass injects resolve it there.
+     *
+     * @param resource the resource being injected
+     */
+    static void enter(AtmosphereResource resource) {
+        CALLBACK.set(new Binding(unwrap(resource), resource.getAtmosphereResourceEvent(), CLOCK.incrementAndGet()));
+    }
+
+    /**
+     * Return the handler of the proxy a shared field holds for {@code injected},
+     * binding {@code injected} to the injecting thread unless a callback of it
+     * already runs there. Each introspector creates its proxy itself, with a
+     * literal interface array, so that native-image analysis can detect the proxy
+     * class.
      *
      * @param injected the resource being injected
      * @param resolve  what the field resolves from the bound resource
      * @return the handler of the injected proxy
      */
     static InvocationHandler inject(AtmosphereResource injected, Function<Binding, ?> resolve) {
-        var binding = new Binding(unwrap(injected), injected.getAtmosphereResourceEvent());
-        CALLBACK.set(binding);
-        return new Resolver(binding, resolve);
+        var resource = unwrap(injected);
+        var bound = CALLBACK.get();
+        if (bound == null || bound.resource() != resource) {
+            enter(resource);
+            bound = CALLBACK.get();
+        }
+        var binding = new Binding(resource, injected.getAtmosphereResourceEvent(), bound.since());
+        return new Resolver(binding, CLOCK.incrementAndGet(), resolve);
     }
 
-    private record Resolver(Binding injected, Function<Binding, ?> resolve) implements InvocationHandler {
+    /**
+     * @param injected the resource the proxy was injected for
+     * @param created  when the proxy was created, on the clock that orders callbacks
+     * @param resolve  what the proxy acts on, from a binding
+     */
+    private record Resolver(Binding injected, long created, Function<Binding, ?> resolve) implements InvocationHandler {
 
         Object target() {
             var binding = CALLBACK.get();
-            return resolve.apply(binding != null ? binding : injected);
+            // Only a proxy injected during the running callback stands for that
+            // callback's client; an older one is a reference stored for its own.
+            return resolve.apply(binding != null && created > binding.since() ? binding : injected);
         }
 
         @Override

@@ -35,10 +35,12 @@ import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceHeartbeatEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.RawMessage;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.AnnotatedProxy;
 import org.atmosphere.inject.CallbackScope;
+import org.atmosphere.inject.InjectableObjectFactory;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
@@ -193,9 +195,9 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
     @Override
     public void onStateChange(AtmosphereResourceEvent event) throws IOException {
-        // A broadcast delivery runs on a thread that injected nothing: bind the
-        // resource the shared @Inject fields resolve while its callbacks run.
-        var callback = CallbackScope.bind(event.getResource(), event);
+        // A broadcast delivery runs on a thread that injected nothing: inject and
+        // bind the resource the shared @Inject fields resolve while its callbacks run.
+        var callback = enterCallback(event);
         try {
             stateChange(event);
         } finally {
@@ -297,13 +299,35 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
      * calling thread: the shared {@code @Inject} fields of the service resolve
      * it, whichever thread runs the callback.
      */
-    private static void inCallback(AtmosphereResourceEvent event, Runnable callback) {
-        var previous = CallbackScope.bind(event.getResource(), event);
+    private void inCallback(AtmosphereResourceEvent event, Runnable callback) {
+        var previous = enterCallback(event);
         try {
             callback.run();
         } finally {
             CallbackScope.restore(previous);
         }
+    }
+
+    /**
+     * Start a callback of the event's resource on the calling thread, which may
+     * not be the one that injected it: inject the resource again into the fields
+     * that resolve it, then bind it with its event.
+     *
+     * @return what the calling thread resolved before, for {@link CallbackScope#restore}
+     */
+    private CallbackScope.Binding enterCallback(AtmosphereResourceEvent event) {
+        var previous = CallbackScope.current();
+        var resource = event.getResource();
+        if (resource != null && config.properties().get(FrameworkConfig.NEED_RUNTIME_INJECTION) != null
+                && config.framework().objectFactory() instanceof InjectableObjectFactory factory) {
+            try {
+                factory.injectCallbackScoped(proxiedInstance, resource);
+            } catch (IllegalAccessException e) {
+                logger.warn("Unable to inject {} into {}", resource.uuid(), proxiedInstance.getClass().getName(), e);
+            }
+        }
+        CallbackScope.bind(resource, event);
+        return previous;
     }
 
     @Override

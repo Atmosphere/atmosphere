@@ -29,14 +29,15 @@ import java.lang.reflect.Type;
  * a room path, for instance), and each callback re-injects its own event into the
  * shared field just before it runs. While a callback runs, the injected proxy
  * resolves the event of the resource whose callback runs on the calling thread,
- * so concurrent callbacks never read each other's event. Outside a callback (a
- * reference handed to another thread) the proxy acts on the event it was
- * injected for. See {@link CallbackScope}.
+ * so concurrent callbacks never read each other's event. A reference kept beyond
+ * the callback that injected it, or handed to another thread, acts on the event
+ * it was injected for. See {@link CallbackScope}.
  *
  * @author Jeanfrancois Arcand
  */
 @RequestScoped
-public class AtmosphereResourceEventIntrospector extends InjectIntrospectorAdapter<AtmosphereResourceEvent> {
+public class AtmosphereResourceEventIntrospector extends InjectIntrospectorAdapter<AtmosphereResourceEvent>
+        implements CallbackScoped {
 
     @Override
     public boolean supportedType(Type t) {

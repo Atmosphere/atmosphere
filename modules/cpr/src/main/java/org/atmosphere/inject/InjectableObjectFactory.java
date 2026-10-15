@@ -37,6 +37,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.atmosphere.util.Utils.getInheritedPrivateFields;
 import static org.atmosphere.util.Utils.getInheritedPrivateMethod;
@@ -59,6 +60,8 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
     private final LinkedList<InjectIntrospector<?>> requestScopedIntrospectors = new LinkedList<>();
     private final LinkedHashSet<Object> pushBackInjection = new LinkedHashSet<>();
     private final List<InjectionListener> listeners = new LinkedList<>();
+    /** Per service class, bounded by the classes deployed. */
+    private final ConcurrentHashMap<Class<?>, List<CallbackScopedField>> callbackScopedFields = new ConcurrentHashMap<>();
     private int maxTry;
 
     private AtmosphereConfig config;
@@ -340,6 +343,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         var fields = new HashSet<Field>();
         fields.addAll(getInheritedPrivateFields(defaultType));
 
+        var entered = false;
         for (Field field : fields) {
             for (InjectIntrospector c : requestScopedIntrospectors) {
 
@@ -349,15 +353,14 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                         c.introspectField(instance.getClass(), field);
 
                         if (c.supportedType(field.getType())) {
-                            var value = c.injectable(r);
-                            if (value != null && !field.getType().isInstance(value)) {
-                                // A field of an implementation type cannot hold the
-                                // per-thread proxy: it gets the object itself.
-                                value = CallbackScope.target(value);
+                            if (c instanceof CallbackScoped && !entered) {
+                                // One callback start for the whole pass: every proxy it injects resolves it.
+                                CallbackScope.enter(r);
+                                entered = true;
                             }
                             try {
                                 field.setAccessible(true);
-                                field.set(instance, value);
+                                field.set(instance, fieldValue(field, c.injectable(r)));
                             } finally {
                                 field.setAccessible(false);
                             }
@@ -367,6 +370,63 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                 }
             }
         }
+    }
+
+    /**
+     * Inject {@code r} again into the fields of {@code instance} that resolve the
+     * resource of the callback running on the calling thread: its
+     * {@link org.atmosphere.cpr.AtmosphereResource}, request, response and event
+     * fields, and only those. A handler calls it before it runs a callback of
+     * {@code r} on a thread that may not have injected {@code r} (a broadcast
+     * delivery, a {@code @Disconnect} a broadcast thread claimed), so the fields
+     * hold proxies injected for that callback rather than references stored for
+     * another client. See {@link CallbackScope}.
+     *
+     * @param instance the service instance
+     * @param r        the resource whose callback runs next
+     * @throws IllegalAccessException if a field cannot be set
+     */
+    public void injectCallbackScoped(Object instance, AtmosphereResource r) throws IllegalAccessException {
+        var fields = callbackScopedFields.computeIfAbsent(instance.getClass(), this::callbackScopedFields);
+        if (fields.isEmpty()) {
+            return;
+        }
+        CallbackScope.enter(r);
+        for (var f : fields) {
+            f.field().set(instance, fieldValue(f.field(), f.introspector().injectable(r)));
+        }
+    }
+
+    /** A field of an implementation type cannot hold the per-thread proxy: it gets the object itself. */
+    private static Object fieldValue(Field field, Object value) {
+        return value != null && !field.getType().isInstance(value) ? CallbackScope.target(value) : value;
+    }
+
+    /** The fields {@link #requestScoped(Object, Class, AtmosphereResource)} fills with a {@link CallbackScoped} introspector. */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private List<CallbackScopedField> callbackScopedFields(Class<?> type) {
+        var found = new LinkedList<CallbackScopedField>();
+        for (Field field : getInheritedPrivateFields(type)) {
+            InjectIntrospector<?> last = null;
+            for (InjectIntrospector c : requestScopedIntrospectors) {
+                for (Class annotation : c.getClass().getAnnotation(RequestScoped.class).value()) {
+                    if (field.isAnnotationPresent(annotation) && c.supportedType(field.getType())) {
+                        last = c;
+                        break;
+                    }
+                }
+            }
+            // The last introspector that matches is the one whose value the field keeps.
+            if (last instanceof CallbackScoped) {
+                // A private copy of the field, kept accessible for the injections to come.
+                field.setAccessible(true);
+                found.add(new CallbackScopedField(field, last));
+            }
+        }
+        return List.copyOf(found);
+    }
+
+    private record CallbackScopedField(Field field, InjectIntrospector<?> introspector) {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

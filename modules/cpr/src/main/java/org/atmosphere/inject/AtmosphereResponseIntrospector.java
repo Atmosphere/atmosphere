@@ -29,13 +29,15 @@ import java.lang.reflect.Type;
  * callback re-injects its own response into the shared field just before it
  * runs. While a callback runs, the injected proxy resolves the response of the
  * client whose callback runs on the calling thread, so concurrent callbacks
- * never read each other's client. Outside a callback the proxy acts on the
- * response it was injected for. See {@link CallbackScope}.
+ * never read each other's client. A reference kept beyond the callback that
+ * injected it, or used outside every callback, acts on the response it was
+ * injected for. See {@link CallbackScope}.
  *
  * @author Jeanfrancois Arcand
  */
 @RequestScoped
-public class AtmosphereResponseIntrospector extends InjectIntrospectorAdapter<AtmosphereResponse> {
+public class AtmosphereResponseIntrospector extends InjectIntrospectorAdapter<AtmosphereResponse>
+        implements CallbackScoped {
 
     @Override
     public boolean supportedType(Type t) {
