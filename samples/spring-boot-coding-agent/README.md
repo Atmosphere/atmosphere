@@ -134,10 +134,10 @@ rejection all return the result inline unchanged. Tune the threshold with
 `LLM_TOOL_OUTPUT_OFFLOAD_THRESHOLD` env var); `0` disables it.
 
 **Composite filesystem routing (opt-in).** By default every path lives in the
-per-conversation workspace. Set `atmosphere.ai.filesystem.routes` (or the
-`LLM_FILESYSTEM_ROUTES` env var) to a comma-separated `prefix=dir` list to
-route a prefix to a durable backend shared across conversations while
-everything else stays per-conversation:
+per-conversation workspace. Set the `org.atmosphere.ai.filesystem.routes` JVM
+system property (`-D...`, or the `LLM_FILESYSTEM_ROUTES` env var) to a
+comma-separated `prefix=dir` list to route a prefix to a durable backend
+shared across conversations while everything else stays per-conversation:
 
 ```bash
 # Reads/writes under memory/ land in a durable shared store; all other
