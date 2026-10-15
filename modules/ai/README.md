@@ -773,7 +773,10 @@ late loss of a poll a newer one replaced does not end it), or when no poll of it
 is suspended and none arrived within `departureGraceMs` of the last one ending; a
 client that comes back afterwards runs `@Ready` again. A client that finds
 `maxTrackedClients` connections open is not tracked, and `@Ready` runs on each of
-its polls.
+its polls, as does a client whose principal cannot be read. A cookie or query
+parameter a client starts sending from its second poll on (a session cookie the
+first response set, an `X-Atmosphere-Session-Token`) makes that poll open the
+connection again, so `@Ready` runs a second time for such a client, then no more.
 
 | Init-param | Default | Meaning |
 |---|---|---|
