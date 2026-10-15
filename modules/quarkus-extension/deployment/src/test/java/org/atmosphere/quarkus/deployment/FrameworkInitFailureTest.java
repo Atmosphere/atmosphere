@@ -26,8 +26,11 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -134,6 +137,53 @@ class FrameworkInitFailureTest {
         } finally {
             other.close();
         }
+    }
+
+    /**
+     * The environment the extension creates for the framework
+     * ({@link AtmosphereBootstrap#bridgeAiKnobs}, as both container modes call
+     * it inside {@code initFramework}) is closed by the failed start: a dev-mode
+     * reload that fails does not leave it open beside the next application's.
+     */
+    @Test
+    void aFailedStartClosesTheEnvironmentTheExtensionCreated() {
+        System.setProperty(AiConfig.RUNTIME_PROPERTY, "no-such-runtime");
+        var framework = new AtmosphereFramework(false, false);
+        var liveBefore = AiEnvironment.live().size();
+        var created = new AtomicReference<AiEnvironment>();
+
+        var failure = assertThrows(IllegalStateException.class,
+                () -> AtmosphereBootstrap.initFramework(framework, () -> {
+                    AtmosphereBootstrap.bridgeAiKnobs(framework);
+                    created.set(AiEnvironment.find(framework.getAtmosphereConfig()).orElse(null));
+                }));
+
+        assertTrue(failure.getMessage().contains("no-such-runtime names no available AgentRuntime"),
+                failure.getMessage());
+        assertNotNull(created.get(), "the extension attached an AI environment to the framework");
+        assertTrue(created.get().isClosed(), "the failed start closed the environment the extension created");
+        assertTrue(AiEnvironment.find(framework.getAtmosphereConfig()).isEmpty());
+        assertEquals(liveBefore, AiEnvironment.live().size(), "no AI environment is left open");
+    }
+
+    /** Destroying a framework that started closes the environment the extension created for it. */
+    @Test
+    void destroyingTheFrameworkClosesTheEnvironmentTheExtensionCreated() throws ServletException {
+        var framework = new AtmosphereFramework(false, false);
+        var created = new AtomicReference<AiEnvironment>();
+        try {
+            AtmosphereBootstrap.initFramework(framework, () -> {
+                AtmosphereBootstrap.bridgeAiKnobs(framework);
+                created.set(AiEnvironment.find(framework.getAtmosphereConfig()).orElse(null));
+            });
+            assertNotNull(created.get(), "the extension attached an AI environment to the framework");
+            assertFalse(created.get().isClosed(), "a framework that started keeps its environment");
+        } finally {
+            framework.destroy();
+        }
+
+        assertTrue(created.get().isClosed(), "the framework's destroy closed its AI environment");
+        assertFalse(AiEnvironment.live().contains(created.get()));
     }
 
     @Test
