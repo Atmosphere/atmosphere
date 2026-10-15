@@ -16,6 +16,7 @@
 package org.atmosphere.spring.boot;
 
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.RagRetrieval;
 import org.atmosphere.ai.code.CodeSandboxConfig;
@@ -67,20 +68,25 @@ public class AtmosphereAiAutoConfiguration {
     static final String COMPACTION_PARAM = "org.atmosphere.ai.compaction";
     static final String PROMPT_CACHE_DEFAULT_PARAM = "org.atmosphere.ai.prompt-cache.default";
 
+    /** The name of the context's {@link AiEnvironment} singleton. */
+    static final String AI_ENVIRONMENT_BEAN = "atmosphereAiEnvironment";
+
     /**
-     * Installs the {@code atmosphere.ai.*} knobs of the Spring {@code Environment}
+     * Creates this application's {@link AiEnvironment} from the
+     * {@code atmosphere.ai.*} knobs of the Spring {@code Environment}
      * ({@link AiConfig#knobProperties()}: generation parameters, planning,
-     * filesystem, runtime, ...) as the {@link AiConfig} host configuration, so a
-     * value set in {@code application.yml} or {@code application.properties} is
-     * honoured. A JVM system property or the knob's {@code LLM_*} environment
-     * variable still wins over it ({@link AiConfig#knob(String)}). Nothing is
-     * written to the JVM system properties; closing the context uninstalls it.
+     * filesystem, runtime, ...), so a value set in {@code application.yml} or
+     * {@code application.properties} is honoured by this application, and by
+     * no other application in the JVM. A JVM system property or the knob's
+     * {@code LLM_*} environment variable still wins over it
+     * ({@link AiEnvironment#knob(String)}). Nothing is written to the JVM system
+     * properties; closing the context closes the environment.
      *
-     * <p>A {@code BeanFactoryPostProcessor}, declared {@code static}: it installs
-     * the knobs before any singleton is created, so the application's own beans,
-     * which are created before the auto-configuration's, already see them (an
-     * {@code LlmSettings} bean built with {@code AiConfig.configure}, a bean
-     * resolving the {@code AgentRuntime}).</p>
+     * <p>A {@code BeanFactoryPostProcessor}, declared {@code static}: it creates
+     * the environment before any singleton is created, so the application's own
+     * beans, which are created before the auto-configuration's, already see its
+     * knobs through the static API (an {@code LlmSettings} bean built with
+     * {@code AiConfig.configure}, a bean resolving the {@code AgentRuntime}).</p>
      */
     @Bean
     @ConditionalOnMissingBean(AiKnobBridge.class)
@@ -89,10 +95,11 @@ public class AtmosphereAiAutoConfiguration {
     }
 
     /**
-     * The {@link AiConfig} host configuration read from a Spring
-     * {@code Environment}, installed when the bean factory is post-processed,
-     * before any singleton exists. {@code destroy()} uninstalls it, and only it
-     * (Ownership, Correctness Invariant #1).
+     * Creates the context's {@link AiEnvironment} from a Spring
+     * {@code Environment} when the bean factory is post-processed, before any
+     * singleton exists, and registers it as the
+     * {@value AtmosphereAiAutoConfiguration#AI_ENVIRONMENT_BEAN} singleton. {@code destroy()} closes it, and only it (Ownership,
+     * Correctness Invariant #1).
      */
     static final class AiKnobBridge implements
             org.springframework.beans.factory.config.BeanFactoryPostProcessor,
@@ -100,7 +107,7 @@ public class AtmosphereAiAutoConfiguration {
             org.springframework.beans.factory.DisposableBean {
 
         private final org.springframework.core.env.Environment environment;
-        private volatile AiConfig.HostConfig installed;
+        private volatile AiEnvironment aiEnvironment;
 
         AiKnobBridge(org.springframework.core.env.Environment environment) {
             this.environment = environment;
@@ -109,9 +116,26 @@ public class AtmosphereAiAutoConfiguration {
         @Override
         public void postProcessBeanFactory(
                 org.springframework.beans.factory.config.ConfigurableListableBeanFactory beanFactory) {
-            if (installed == null) {
-                installed = AiConfig.installHostConfig(key -> value(environment, key));
+            if (aiEnvironment == null) {
+                aiEnvironment = AiEnvironment.create(key -> value(environment, key));
+                if (!beanFactory.containsSingleton(AI_ENVIRONMENT_BEAN)) {
+                    beanFactory.registerSingleton(AI_ENVIRONMENT_BEAN, aiEnvironment);
+                }
             }
+        }
+
+        /**
+         * The context's environment.
+         *
+         * @throws IllegalStateException before the bean factory was post-processed
+         */
+        AiEnvironment aiEnvironment() {
+            var created = aiEnvironment;
+            if (created == null) {
+                throw new IllegalStateException("The AI environment is created when the bean factory "
+                        + "is post-processed");
+            }
+            return created;
         }
 
         @Override
@@ -137,11 +161,53 @@ public class AtmosphereAiAutoConfiguration {
 
         @Override
         public void destroy() {
-            var current = installed;
+            var current = aiEnvironment;
             if (current != null) {
                 current.close();
             }
         }
+    }
+
+    /**
+     * The context's {@link AiEnvironment}, attached to its
+     * {@link AtmosphereFramework} so the {@code @AiEndpoint}, {@code @Agent} and
+     * {@code @Coordinator} processors, which run when the web server starts,
+     * use it. Attaching fails when the framework already has an environment
+     * (one created before this context's: two for one application).
+     *
+     * @param environment the attached environment
+     */
+    record AiEnvironmentAttachment(AiEnvironment environment) {
+    }
+
+    /**
+     * Attaches the context's {@link AiEnvironment} to its framework, then makes
+     * the application's {@code LlmSettings} bean the environment's own settings
+     * (the starter's {@code atmosphereAiSettings}, or the application's own;
+     * with several, the {@code @Primary} one, and none is an error).
+     */
+    @Bean
+    AiEnvironmentAttachment atmosphereAiEnvironmentAttachment(AtmosphereFramework framework,
+            AiKnobBridge aiKnobBridge,
+            org.springframework.beans.factory.ObjectProvider<AiConfig.LlmSettings> settingsProvider,
+            org.springframework.beans.factory.ListableBeanFactory beanFactory) {
+        var aiEnvironment = aiKnobBridge.aiEnvironment();
+        aiEnvironment.attachTo(framework.getAtmosphereConfig());
+        var settings = settingsProvider.getIfUnique();
+        if (settings == null) {
+            var names = beanFactory.getBeanNamesForType(AiConfig.LlmSettings.class);
+            if (names.length > 1) {
+                throw new IllegalStateException("Several AiConfig.LlmSettings beans " + java.util.List.of(names)
+                        + " and none is @Primary: mark the one this application's AI endpoints use "
+                        + "with @Primary");
+            }
+        } else if (!aiEnvironment.hasOwnSettings() || aiEnvironment.settings() != settings) {
+            // A bean that is the process default's settings (AiConfig.get()
+            // at creation) is adopted too, so another context configuring the
+            // process default later does not change this one's.
+            aiEnvironment.adopt(settings);
+        }
+        return new AiEnvironmentAttachment(aiEnvironment);
     }
 
     /**
@@ -155,23 +221,27 @@ public class AtmosphereAiAutoConfiguration {
      */
     @Bean
     org.springframework.beans.factory.SmartInitializingSingleton atmosphereAiRuntimeSelection(
-            AiKnobBridge aiKnobBridge) {
+            AtmosphereFramework framework, AiEnvironmentAttachment attachment) {
         return () -> {
-            AiConfig.knob(AiConfig.RUNTIME_PROPERTY).ifPresent(requested ->
+            var aiEnvironment = attachment.environment();
+            var attached = AiEnvironment.find(framework.getAtmosphereConfig()).orElse(null);
+            if (attached != aiEnvironment) {
+                throw new IllegalStateException("The Atmosphere framework uses the AI environment "
+                        + attached + ", not this application's " + aiEnvironment);
+            }
+            aiEnvironment.knob(AiConfig.RUNTIME_PROPERTY).ifPresent(requested ->
                     logger.info("AgentRuntime '{}' selected by {}={}",
-                            org.atmosphere.ai.AgentRuntimeResolver.resolve().name(),
+                            aiEnvironment.runtimes().resolve().name(),
                             AiConfig.RUNTIME_PROPERTY, requested));
-            AiConfig.reportKnobsNotInEffect();
+            aiEnvironment.reportKnobsNotInEffect();
         };
     }
 
     @Bean
     @ConditionalOnMissingBean(AiConfig.LlmSettings.class)
     public AiConfig.LlmSettings atmosphereAiSettings(AtmosphereProperties properties,
-            // The knobs must be installed before the settings are built, since
-            // configure() reads the generation ones. The bridge, a
-            // BeanFactoryPostProcessor, installs them before any bean exists;
-            // injected to make the dependency explicit.
+            // The settings are built with the environment's knobs. The bridge,
+            // a BeanFactoryPostProcessor, creates it before any bean exists.
             AiKnobBridge aiKnobBridge) {
         var aiProps = properties.getAi();
         var apiKey = resolveApiKey(aiProps);
@@ -190,11 +260,10 @@ public class AtmosphereAiAutoConfiguration {
                     + "LLM_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY environment variable "
                     + "(set atmosphere.ai.fail-fast=true to refuse startup on missing keys)");
         }
-        var settings = AiConfig.configure(mode, model, apiKey, baseUrl);
-        // Drop any cached runtime resolution so DemoAgentRuntime (whose
-        // isAvailable depends on AiConfig) is evaluated against the config
-        // we just wrote, not the null config the cache may have frozen.
-        org.atmosphere.ai.AgentRuntimeResolver.reset();
+        // This application's settings; configuring them drops the
+        // environment's cached runtime resolution, so DemoAgentRuntime (whose
+        // availability depends on the settings) is evaluated against them.
+        var settings = aiKnobBridge.aiEnvironment().configure(mode, model, apiKey, baseUrl);
         logger.info("Atmosphere AI configured: mode={}, model={}", mode, model);
         return settings;
     }
@@ -460,7 +529,7 @@ public class AtmosphereAiAutoConfiguration {
             settingsProvider.getIfAvailable();
             String runtimeName;
             try {
-                runtimeName = org.atmosphere.ai.AgentRuntimeResolver.resolve().name();
+                runtimeName = aiKnobBridge.aiEnvironment().runtimes().resolve().name();
             } catch (LinkageError | RuntimeException e) {
                 logger.debug("Could not resolve the AgentRuntime for the harness preset log", e);
                 runtimeName = "unknown";
@@ -1516,7 +1585,8 @@ public class AtmosphereAiAutoConfiguration {
     @ConditionalOnMissingBean(RoutingClientInstaller.class)
     @ConditionalOnProperty(name = "atmosphere.ai.routing.enabled", havingValue = "true")
     public RoutingClientInstaller atmosphereRoutingClientInstaller(
-            AiConfig.LlmSettings baseSettings, AtmosphereProperties properties) {
+            AiConfig.LlmSettings baseSettings, AtmosphereProperties properties,
+            AiEnvironmentAttachment attachment) {
         var routing = properties.getAi().getRouting();
         var defaultModel = (routing.getDefaultModel() != null && !routing.getDefaultModel().isBlank())
                 ? routing.getDefaultModel()
@@ -1590,12 +1660,13 @@ public class AtmosphereAiAutoConfiguration {
         }
 
         var router = builder.build();
-        AiConfig.installClient(router);
+        var aiEnvironment = attachment.environment();
+        aiEnvironment.installClient(router);
         logger.info("Atmosphere AI routing enabled: wrapped resolved client in RoutingLlmClient with "
                 + "{} rule(s) [content={}, model={}, cost={}, latency={}], defaultModel={}",
                 ruleCount, routing.getContentRules().size(), routing.getModelRules().size(),
                 routing.getCostRules().size(), routing.getLatencyRules().size(), defaultModel);
-        return new RoutingClientInstaller(router, baseSettings.client(), ruleCount);
+        return new RoutingClientInstaller(aiEnvironment, router, baseSettings.client(), ruleCount);
     }
 
     /**
@@ -1645,19 +1716,21 @@ public class AtmosphereAiAutoConfiguration {
     /**
      * Marker bean recording the installed {@link org.atmosphere.ai.routing.RoutingLlmClient}
      * and the un-wrapped resolved client it decorates. Restores the resolved
-     * client into {@link AiConfig} on shutdown so the process-wide singleton
-     * does not carry the router across context restarts (Correctness
-     * Invariant #1 — every install has a symmetric uninstall).
+     * client into the application's {@link AiEnvironment} on shutdown
+     * (Correctness Invariant #1 — every install has a symmetric uninstall).
      */
     static final class RoutingClientInstaller
             implements org.springframework.beans.factory.DisposableBean {
 
+        private final AiEnvironment aiEnvironment;
         private final org.atmosphere.ai.routing.RoutingLlmClient router;
         private final org.atmosphere.ai.llm.LlmClient resolvedClient;
         private final int ruleCount;
 
-        RoutingClientInstaller(org.atmosphere.ai.routing.RoutingLlmClient router,
+        RoutingClientInstaller(AiEnvironment aiEnvironment,
+                org.atmosphere.ai.routing.RoutingLlmClient router,
                 org.atmosphere.ai.llm.LlmClient resolvedClient, int ruleCount) {
+            this.aiEnvironment = aiEnvironment;
             this.router = router;
             this.resolvedClient = resolvedClient;
             this.ruleCount = ruleCount;
@@ -1668,9 +1741,12 @@ public class AtmosphereAiAutoConfiguration {
             // Only restore if our router is still the installed client — a
             // later install (another decorator) takes precedence and must not
             // be clobbered on our shutdown.
-            var current = AiConfig.get();
+            if (aiEnvironment.isClosed()) {
+                return;
+            }
+            var current = aiEnvironment.settings();
             if (current != null && current.client() == router) {
-                AiConfig.installClient(resolvedClient);
+                aiEnvironment.installClient(resolvedClient);
                 logger.info("Restored un-wrapped resolved client on routing installer shutdown");
             }
         }

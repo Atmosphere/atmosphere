@@ -197,10 +197,17 @@ environment variable (e.g. `LLM_TEMPERATURE`), then the Spring `Environment` (`a
 it). `atmosphere.ai.runtime=<name>` selects the `AgentRuntime` among the runtime modules on the
 classpath, by `AgentRuntime.name()` (`built-in`, `spring-ai`, `langchain4j`, `google-adk`, ...); a
 name that matches no available runtime fails startup with the requested and the available names.
-The knobs are installed before any bean is created, so an application `LlmSettings` bean built with
-`AiConfig.configure(...)` carries them too. Settings built before the context starts (in `main()`, a
-static initializer) keep the generation, `prompt-cache-key` and `logprobs` values they were built with; startup
-logs a warning naming the knobs they do not apply.
+The knobs, the LLM settings and the `AgentRuntime` instances belong to the context: the starter
+creates the context's `AiEnvironment` (also an `AiEnvironment` bean) before any bean is created,
+attaches it to the context's `AtmosphereFramework` before the endpoint scan, and closes it with the
+context, so two contexts in one JVM (two applications, or Spring's test context cache) do not read
+each other's values (see [`modules/ai/README.md`](../ai/README.md#one-aienvironment-per-application)).
+An application `LlmSettings` bean built with `AiConfig.configure(...)` carries the context's knobs
+too, and becomes the settings of the context's endpoints; with several `LlmSettings` beans the
+`@Primary` one does, and startup fails when none is. Settings built before the context starts (in
+`main()`, a static initializer) keep the generation, `prompt-cache-key` and `logprobs` values they
+were built with; startup logs a warning naming the knobs they do not apply. A native client bound
+through a runtime adapter's static setter is still shared by every context in the JVM.
 
 ### How It Works
 

@@ -25,7 +25,6 @@ import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.CompactionConfig;
 import org.atmosphere.ai.ContextProvider;
 import org.atmosphere.ai.ConversationPersistence;
-import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.DefaultModelRouter;
 import org.atmosphere.ai.InMemoryConversationMemory;
 import org.atmosphere.ai.ModelRouter;
@@ -171,12 +170,16 @@ public class AiEndpointProcessor implements Processor<Object> {
 
             var systemPrompt = resolveSystemPrompt(annotation);
             var fallbackStrategy = parseFallbackStrategy(annotation.fallbackStrategy());
-            var settings = resolveSettings();
+            // The AI configuration of this application, not of the JVM: its
+            // knobs, settings and runtime instances.
+            var aiEnvironment = org.atmosphere.ai.AiEnvironment.of(
+                    framework != null ? framework.getAtmosphereConfig() : null);
+            var settings = aiEnvironment.settingsOrEnvironment();
             // Let the tool-output injection screen read its mode from init-params
             // like every other governance knob; sysprop and env still win.
             org.atmosphere.ai.tool.ToolOutputSafetyScreen.install(
                     framework != null ? framework.getAtmosphereConfig() : null);
-            var runtime = resolveRuntimeWithRouting(fallbackStrategy, settings,
+            var runtime = resolveRuntimeWithRouting(aiEnvironment, fallbackStrategy, settings,
                     annotation.requires());
             // Resolved here rather than at its point of use further down because
             // conversation memory is built before that point and needs it: a
@@ -668,14 +671,11 @@ public class AiEndpointProcessor implements Processor<Object> {
         }
     }
 
-    private AiConfig.LlmSettings resolveSettings() {
-        return AiConfig.getOrConfigureFromEnvironment();
-    }
-
-    private AgentRuntime resolveRuntimeWithRouting(ModelRouter.FallbackStrategy strategy,
+    private AgentRuntime resolveRuntimeWithRouting(org.atmosphere.ai.AiEnvironment aiEnvironment,
+                                                  ModelRouter.FallbackStrategy strategy,
                                                   AiConfig.LlmSettings settings,
                                                   AiCapability[] requiredCapabilities) {
-        var allBackends = AgentRuntimeResolver.resolveAll();
+        var allBackends = aiEnvironment.runtimes().resolveAll();
         for (var backend : allBackends) {
             // configure() may throw if a runtime tries to eagerly construct its
             // native client and the underlying CDI / connection pool / TLS layer
@@ -699,12 +699,17 @@ public class AiEndpointProcessor implements Processor<Object> {
             var required = Set.of(requiredCapabilities);
             logger.info("Routing enabled: strategy={}, backends={}", strategy,
                     allBackends.stream().map(AgentRuntime::name).toList());
-            return new RoutingAiSupport(router, allBackends, required);
+            var routing = new RoutingAiSupport(router, allBackends, required);
+            if (aiEnvironment != org.atmosphere.ai.AiEnvironment.processDefault()) {
+                // The process default's runtimes keep reading the static API.
+                routing.attach(aiEnvironment);
+            }
+            return routing;
         }
 
         if (strategy != ModelRouter.FallbackStrategy.NONE && allBackends.size() <= 1) {
             logger.warn(routingUnavailableWarning(strategy, allBackends.size(),
-                    AiConfig.knob(AiConfig.RUNTIME_PROPERTY)));
+                    aiEnvironment.knob(AiConfig.RUNTIME_PROPERTY)));
         }
         return allBackends.getFirst();
     }

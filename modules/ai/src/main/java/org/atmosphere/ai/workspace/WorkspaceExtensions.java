@@ -48,9 +48,11 @@ import java.util.Optional;
  *   <li>{@code RUNTIME.md} → agent-scoped {@link AiConfig#configureForAgent}
  *       (model / mode / base URL / API key) plus the generation values
  *       ({@code temperature}, {@code maxTokens}, {@code topP}, {@code stop}),
- *       pinned on those settings only. The first workspace also seeds the process-wide default; later
- *       workspaces stay scoped to their own agent — see
- *       {@link #applyRuntime(AgentDefinition, String)}.</li>
+ *       pinned on those settings only. The first workspace also seeds the
+ *       application's settings (the {@code @Agent} and {@code @Coordinator}
+ *       processors pass the application's {@link org.atmosphere.ai.AiEnvironment});
+ *       later workspaces stay scoped to their own agent — see
+ *       {@link #applyRuntime(org.atmosphere.ai.AiEnvironment, AgentDefinition, String)}.</li>
  *   <li>{@code PERMISSIONS.md} → {@link GovernancePolicy} instances installed
  *       into the framework's {@link GovernancePolicy#POLICIES_PROPERTY} bag, the
  *       single source of truth every dispatch path admits against.</li>
@@ -229,8 +231,9 @@ public final class WorkspaceExtensions {
     // -- RUNTIME.md → AiConfig -------------------------------------------------
 
     /**
-     * Parse {@code RUNTIME.md} and apply it to the process-wide {@link AiConfig}
-     * singleton. Recognized keys: {@code model}, {@code mode}, {@code api-key}
+     * Parse {@code RUNTIME.md} and apply it to the settings of the static
+     * {@link AiConfig} API ({@link #applyRuntime(org.atmosphere.ai.AiEnvironment, AgentDefinition, String)}
+     * applies it to one application's). Recognized keys: {@code model}, {@code mode}, {@code api-key}
      * (or {@code apiKey}), {@code base-url} (or {@code baseUrl}),
      * {@code temperature}, {@code max-tokens}, {@code top-p}, {@code stop}.
      * Unspecified keys inherit the current settings (or framework defaults).
@@ -273,6 +276,28 @@ public final class WorkspaceExtensions {
      * {@code agentId} when non-null — see the scoping contract there.
      */
     public static boolean applyRuntime(AgentDefinition def, String agentId) {
+        return applyRuntime(null, def, agentId);
+    }
+
+    /**
+     * As {@link #applyRuntime(AgentDefinition, String)}, applied to one
+     * application's {@link org.atmosphere.ai.AiEnvironment}: the agent's
+     * settings are that application's, and the first workspace seeds that
+     * application's settings, never another's or the process default.
+     *
+     * @param environment the application's environment; {@code null} applies
+     *                    to the static {@link AiConfig} API, as the overloads
+     *                    without one do
+     * @param def         the loaded workspace definition, may be {@code null}
+     * @param agentId     the agent the settings are scoped to, may be {@code null}
+     * @return {@code true} when {@code RUNTIME.md} was present and applied
+     */
+    public static boolean applyRuntime(org.atmosphere.ai.AiEnvironment environment,
+                                       AgentDefinition def, String agentId) {
+        if (environment == org.atmosphere.ai.AiEnvironment.processDefault()) {
+            // No application: the static API, as before environments existed.
+            environment = null;
+        }
         if (def == null) {
             return false;
         }
@@ -299,7 +324,7 @@ public final class WorkspaceExtensions {
                 envReader.apply("OPENAI_API_KEY"), envReader.apply("GEMINI_API_KEY"));
         var overrideBaseUrl = knobOverride(AiConfig.LLM_BASE_URL, "LLM_BASE_URL");
 
-        var current = AiConfig.get();
+        var current = environment != null ? environment.settings() : AiConfig.get();
         var mode = firstNonBlank(overrideMode, kv.get("mode"), current != null ? current.mode() : null, AiConfig.DEFAULT_MODE);
         var model = firstNonBlank(overrideModel, kv.get("model"), current != null ? current.model() : null, AiConfig.DEFAULT_MODEL);
         var apiKey = firstNonBlank(overrideApiKey, kv.get("api-key"), kv.get("apikey"),
@@ -319,14 +344,27 @@ public final class WorkspaceExtensions {
         if (agentId != null) {
             // Agent-scoped: dispatches for this agent resolve these settings
             // via AiConfig.forAgent; nothing else in the JVM changes.
-            AiConfig.configureForAgent(agentId, mode, model, apiKey, baseUrl, generation);
+            if (environment != null) {
+                environment.configureForAgent(agentId, mode, model, apiKey, baseUrl, generation);
+            } else {
+                AiConfig.configureForAgent(agentId, mode, model, apiKey, baseUrl, generation);
+            }
             // First workspace also seeds the global so single-agent
             // deployments (and paths without an agent id) keep working; a
             // later workspace never overwrites another's global settings.
-            var owner = GLOBAL_RUNTIME_WORKSPACE.compareAndSet(null, def.name())
-                    ? def.name() : GLOBAL_RUNTIME_WORKSPACE.get();
+            String owner;
+            if (environment != null) {
+                owner = environment.claimSettingsOwner(def.name());
+            } else {
+                owner = GLOBAL_RUNTIME_WORKSPACE.compareAndSet(null, def.name())
+                        ? def.name() : GLOBAL_RUNTIME_WORKSPACE.get();
+            }
             if (def.name().equals(owner)) {
-                AiConfig.configure(mode, model, apiKey, baseUrl, generation);
+                if (environment != null) {
+                    environment.configure(mode, model, apiKey, baseUrl, generation);
+                } else {
+                    AiConfig.configure(mode, model, apiKey, baseUrl, generation);
+                }
                 logger.info("Applied RUNTIME.md from workspace '{}': mode={}, model={} "
                         + "(agent '{}' + process default)", def.name(), mode, model, agentId);
             } else {
@@ -339,7 +377,9 @@ public final class WorkspaceExtensions {
         // Legacy unscoped path: loud cross-workspace clobber signal — silently
         // changing the live process-wide settings from a different workspace
         // is how one RUNTIME.md reconfigures every agent in the JVM.
-        var previousWorkspace = GLOBAL_RUNTIME_WORKSPACE.getAndSet(def.name());
+        var previousWorkspace = environment != null
+                ? environment.replaceSettingsOwner(def.name())
+                : GLOBAL_RUNTIME_WORKSPACE.getAndSet(def.name());
         if (previousWorkspace != null && !previousWorkspace.equals(def.name())
                 && current != null
                 && (!java.util.Objects.equals(current.mode(), mode)
@@ -351,7 +391,11 @@ public final class WorkspaceExtensions {
                     def.name(), previousWorkspace,
                     current.mode(), mode, current.model(), model);
         }
-        AiConfig.configure(mode, model, apiKey, baseUrl, generation);
+        if (environment != null) {
+            environment.configure(mode, model, apiKey, baseUrl, generation);
+        } else {
+            AiConfig.configure(mode, model, apiKey, baseUrl, generation);
+        }
         logger.info("Applied RUNTIME.md from workspace '{}': mode={}, model={} (process-global)",
                 def.name(), mode, model);
         return true;

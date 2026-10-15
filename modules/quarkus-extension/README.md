@@ -77,8 +77,10 @@ With `atmosphere-ai` on the classpath, the knobs `AiConfig` reads — `atmospher
 `max-tokens`, `top-p`, `stop`, `embedding-model`, `prompt-cache-key`, `logprobs`,
 `native-structured-output`, `planning`, `filesystem`, `runtime` and `reattach.grace` (the list is
 `AiConfig.knobProperties()`) — can be set in `application.properties` under those names, without a
-`quarkus.` prefix. The extension installs them before the framework initializes, in both container
-modes. A `-D` system property or the knob's `LLM_*` environment variable (e.g. `LLM_TEMPERATURE`)
+`quarkus.` prefix. The extension creates the application's `AiEnvironment` from them and attaches it
+to the framework before the framework initializes, in both container modes, and closes it with the
+framework (a dev-mode live reload gets a new one; see
+[`modules/ai/README.md`](../ai/README.md#one-aienvironment-per-application)). A `-D` system property or the knob's `LLM_*` environment variable (e.g. `LLM_TEMPERATURE`)
 wins over `application.properties`. `atmosphere.ai.runtime=<name>` selects the `AgentRuntime` among
 the runtime modules on the classpath and fails startup when none has that name (see
 [`modules/ai/README.md`](../ai/README.md#agentruntime-spi)). LLM settings built before the framework

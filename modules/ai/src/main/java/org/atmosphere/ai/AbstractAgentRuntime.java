@@ -200,7 +200,7 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
     protected final void streamThroughGateway(AgentExecutionContext context,
             StreamingSession session, String defaultModel, NativeStreamCall call) {
         admitThroughGateway(context);
-        call.stream(effectiveModel(context, defaultModel), assembleMessages(context),
+        call.stream(effectiveModelFor(context, defaultModel), assembleMessages(context),
                 context.systemPrompt(), context.message(), context, session, null);
     }
 
@@ -215,13 +215,19 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
         admitThroughGateway(context);
         var cancelled = new AtomicBoolean();
         var done = new CompletableFuture<Void>();
+        // Tool code that runs on the worker and reads the static API sees
+        // this runtime's application.
+        var aiEnvironment = environment();
         Thread.startVirtualThread(() -> {
+            var binding = AiEnvironment.bind(aiEnvironment);
             try {
-                call.stream(effectiveModel(context, defaultModel), assembleMessages(context),
+                call.stream(effectiveModelFor(context, defaultModel), assembleMessages(context),
                         context.systemPrompt(), context.message(), context, session, cancelled);
                 done.complete(null);
             } catch (Throwable t) {
                 done.completeExceptionally(t);
+            } finally {
+                binding.close();
             }
         });
         return new ExecutionHandle() {
@@ -239,10 +245,23 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
      * default supplied by the adapter.
      */
     protected static String effectiveModel(AgentExecutionContext context, String defaultModel) {
+        return effectiveModel(AiEnvironment.current(), context, defaultModel);
+    }
+
+    /**
+     * As {@link #effectiveModel(AgentExecutionContext, String)}, with the
+     * model this runtime's {@link #environment()} configures.
+     */
+    protected final String effectiveModelFor(AgentExecutionContext context, String defaultModel) {
+        return effectiveModel(environment(), context, defaultModel);
+    }
+
+    private static String effectiveModel(AiEnvironment environment, AgentExecutionContext context,
+                                         String defaultModel) {
         if (context != null && context.model() != null && !context.model().isBlank()) {
             return context.model();
         }
-        var settings = AiConfig.forAgent(context != null ? context.agentId() : null);
+        var settings = environment.forAgent(context != null ? context.agentId() : null);
         if (settings != null && settings.model() != null && !settings.model().isBlank()) {
             return settings.model();
         }
@@ -266,7 +285,7 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
      */
     @Override
     public java.util.List<String> models() {
-        var settings = AiConfig.get();
+        var settings = environment().settings();
         if (settings == null || settings.model() == null || settings.model().isBlank()) {
             return java.util.List.of();
         }
@@ -417,7 +436,8 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
         // cache a dedicated client so one agent's model/endpoint pin never
         // reconfigures the shared client the rest of the JVM uses.
         var agentId = context != null ? context.agentId() : null;
-        var scopedSettings = AiConfig.agentScoped(agentId);
+        var aiEnvironment = environment();
+        var scopedSettings = aiEnvironment.agentScoped(agentId);
         if (scopedSettings != null) {
             var scoped = agentClients.compute(agentId, (id, existing) ->
                     existing != null && existing.settings() == scopedSettings
@@ -427,11 +447,7 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
         }
         var client = nativeClient;
         if (client == null) {
-            var settings = AiConfig.get();
-            if (settings == null) {
-                settings = AiConfig.fromEnvironment();
-            }
-            configure(settings);
+            configure(aiEnvironment.settingsOrEnvironment());
             client = nativeClient;
         }
         if (client == null) {

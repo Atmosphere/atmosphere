@@ -90,6 +90,8 @@ import java.util.function.Function;
 public final class AiEnvironment implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(AiEnvironment.class);
+    /** The messages the static API logged before environments keep their logger. */
+    private static final Logger configLogger = LoggerFactory.getLogger(AiConfig.class);
 
     /**
      * The key under which a framework's environment is stored in
@@ -480,10 +482,11 @@ public final class AiEnvironment implements AutoCloseable {
      * Close this environment, once: it is no longer open, no longer attached
      * to its framework, its knob values leave the host configuration the
      * process default reads, and its runtime instances and agent settings are
-     * dropped. When the process default's settings are this environment's (a
-     * static {@code AiConfig.configure} wrote both), they become the latest
-     * remaining environment's own, so the static API stops returning a closed
-     * application's settings. Native clients bound by the application are not
+     * dropped (a call still in flight keeps the runtime and the settings it
+     * holds; no new runtime is resolved for it). When the process default's
+     * settings are this environment's (a static {@code AiConfig.configure}
+     * wrote both), they become the latest remaining environment's own, so the
+     * static API stops returning a closed application's settings. Native clients bound by the application are not
      * closed: they belong to it. The process default is never closed.
      */
     @Override
@@ -525,12 +528,6 @@ public final class AiEnvironment implements AutoCloseable {
         runtimes.clear();
         embeddings.clear();
         agentSettings.clear();
-        lock.lock();
-        try {
-            store(null, GenerationParams.defaults());
-        } finally {
-            lock.unlock();
-        }
         logger.debug("AI environment {} closed", name);
     }
 
@@ -878,7 +875,7 @@ public final class AiEnvironment implements AutoCloseable {
         Objects.requireNonNull(agentId, "agentId");
         var built = buildSettings(mode, model, apiKey, baseUrl, pinned);
         agentSettings.put(agentId, built);
-        logger.info("AI config scoped to agent '{}': mode={}, model={}", agentId, mode, model);
+        configLogger.info("AI config scoped to agent '{}': mode={}, model={}", agentId, mode, model);
         return built;
     }
 
@@ -973,7 +970,7 @@ public final class AiEnvironment implements AutoCloseable {
         }
         var notInEffect = knobsNotInEffect(current, pinned());
         if (!notInEffect.isEmpty()) {
-            logger.warn("The AI settings in use were built before the application's configuration was "
+            configLogger.warn("The AI settings in use were built before the application's configuration was "
                     + "installed and do not apply {}: build them with AiConfig.configure once the "
                     + "application started, or set these knobs as -D system properties or LLM_* "
                     + "environment variables", notInEffect);

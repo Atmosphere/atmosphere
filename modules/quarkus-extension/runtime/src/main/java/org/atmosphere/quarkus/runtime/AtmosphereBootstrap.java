@@ -101,11 +101,11 @@ public final class AtmosphereBootstrap {
     }
 
     /**
-     * Installs the {@code atmosphere.ai.*} knobs of the Quarkus configuration
-     * as the {@code AiConfig} host configuration before the framework
-     * initializes, so the runtime resolved while the {@code @AiEndpoint} and
-     * {@code @Agent} classes register is the one {@code atmosphere.ai.runtime}
-     * names. A no-op when {@code atmosphere-ai} (an optional dependency) is
+     * Creates the application's {@code AiEnvironment} from the
+     * {@code atmosphere.ai.*} knobs of the Quarkus configuration and attaches it
+     * to the framework before the framework initializes, so the runtime
+     * resolved while the {@code @AiEndpoint} and {@code @Agent} classes
+     * register is the one {@code atmosphere.ai.runtime} names. A no-op when {@code atmosphere-ai} (an optional dependency) is
      * absent; no type from it is linked before that check.
      *
      * @param framework the framework, created but not yet initialized
@@ -120,10 +120,10 @@ public final class AtmosphereBootstrap {
      * Runs {@code init}, which bridges the AI configuration
      * ({@link #bridgeAiKnobs}, {@link #bridgeAiCostGuardrail}) and initializes
      * the framework, then checks the AI runtime selection
-     * ({@link #verifyAiRuntimeSelection()}). When any of them fails, the
-     * framework is destroyed before the failure is rethrown
-     * ({@link #destroyAfterFailedStart}): its shutdown hooks run (the AI host
-     * configuration among them) and its threads stop, since no shutdown task
+     * ({@link #verifyAiRuntimeSelection(AtmosphereFramework)}). When any of them
+     * fails, the framework is destroyed before the failure is rethrown
+     * ({@link #destroyAfterFailedStart}): its shutdown hooks run (closing the
+     * AI environment among them) and its threads stop, since no shutdown task
      * was registered for a container that did not start, and in dev mode the
      * JVM outlives the failed start (Correctness Invariant #2).
      *
@@ -135,7 +135,7 @@ public final class AtmosphereBootstrap {
             throws ServletException {
         try {
             init.run();
-            verifyAiRuntimeSelection();
+            verifyAiRuntimeSelection(framework);
         } catch (ServletException | RuntimeException | Error e) {
             destroyAfterFailedStart(framework, e);
             throw e;
@@ -175,6 +175,19 @@ public final class AtmosphereBootstrap {
     public static void verifyAiRuntimeSelection() {
         if (hasAiConfig()) {
             AiKnobBridge.verifyRuntimeSelection();
+        }
+    }
+
+    /**
+     * As {@link #verifyAiRuntimeSelection()}, for the application of
+     * {@code framework}: the knob and runtimes of its AI environment.
+     *
+     * @param framework the initialized framework
+     * @throws IllegalStateException when the name matches no available runtime
+     */
+    public static void verifyAiRuntimeSelection(AtmosphereFramework framework) {
+        if (hasAiConfig()) {
+            AiKnobBridge.verifyRuntimeSelection(framework);
         }
     }
 

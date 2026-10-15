@@ -62,7 +62,7 @@ final class OnSessionCloseStrategy implements MemoryExtractionStrategy {
         // deprecated 14-arg shim. Pass the configured model explicitly so the
         // extraction call works on runtimes that do not fall back to the
         // AiConfig model when the context model is null.
-        var settings = org.atmosphere.ai.AiConfig.get();
+        var settings = org.atmosphere.ai.AiEnvironment.of(runtime).settings();
         var model = settings != null ? settings.model() : null;
         var prompt = EXTRACTION_PROMPT.formatted(conversationText);
         var context = new AgentExecutionContext(

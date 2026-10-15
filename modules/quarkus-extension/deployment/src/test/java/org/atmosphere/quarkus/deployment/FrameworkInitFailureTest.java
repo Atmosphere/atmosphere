@@ -18,6 +18,7 @@ package org.atmosphere.quarkus.deployment;
 import jakarta.servlet.ServletException;
 import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.quarkus.runtime.AtmosphereBootstrap;
 import org.junit.jupiter.api.AfterEach;
@@ -106,6 +107,33 @@ class FrameworkInitFailureTest {
 
         assertSame(cause, failure);
         assertSame(hookFailure, failure.getSuppressed()[0]);
+    }
+
+    /**
+     * The runtime selection checked once the framework initialized is the
+     * framework's own application's, whatever another application in the JVM
+     * selected; the failed start closes that application's environment.
+     */
+    @Test
+    void aFailedStartChecksAndClosesTheFrameworksOwnAiEnvironment() {
+        var framework = new AtmosphereFramework(false, false);
+        var environment = AiEnvironment.create(framework.getAtmosphereConfig(),
+                Map.of(AiConfig.RUNTIME_PROPERTY, "no-such-runtime")::get);
+        framework.getAtmosphereConfig().shutdownHook(environment::close);
+        // Another application, started later, whose selection is valid.
+        var other = AiEnvironment.create(Map.of(AiConfig.RUNTIME_PROPERTY, "built-in")::get);
+        try {
+            var failure = assertThrows(IllegalStateException.class,
+                    () -> AtmosphereBootstrap.initFramework(framework, () -> { }));
+
+            assertTrue(failure.getMessage().contains("no-such-runtime names no available AgentRuntime"),
+                    failure.getMessage());
+            assertTrue(environment.isClosed(), "the failed start closed the framework's AI environment");
+            assertTrue(AiEnvironment.find(framework.getAtmosphereConfig()).isEmpty());
+            assertFalse(other.isClosed(), "the other application's environment is left alone");
+        } finally {
+            other.close();
+        }
     }
 
     @Test

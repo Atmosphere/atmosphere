@@ -128,12 +128,18 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
         var inFlightStream = new java.util.concurrent.atomic.AtomicReference<java.io.Closeable>();
         var done = new java.util.concurrent.CompletableFuture<Void>();
         java.util.function.Consumer<java.io.Closeable> streamSink = inFlightStream::set;
+        // Tool code the stream runs on the worker and that reads the static
+        // API sees this runtime's application.
+        var aiEnvironment = environment();
         Thread.startVirtualThread(() -> {
+            var binding = org.atmosphere.ai.AiEnvironment.bind(aiEnvironment);
             try {
                 client.streamChatCompletion(buildRequest(context), session, cancelled, streamSink);
                 done.complete(null);
             } catch (Throwable t) {
                 done.completeExceptionally(t);
+            } finally {
+                binding.close();
             }
         });
         return new org.atmosphere.ai.ExecutionHandle() {
@@ -157,11 +163,11 @@ public class BuiltInAgentRuntime extends AbstractAgentRuntime<LlmClient> {
 
     private ChatCompletionRequest buildRequest(AgentExecutionContext context) {
         // Resolve the effective model: an explicit context.model() wins, else
-        // the framework-configured AiConfig model. Without this fallback a
-        // caller that builds a context with a null model (e.g. long-term-memory
-        // fact extraction) would send model=null and get an empty/failed
-        // completion, silently storing no memory.
-        var builder = ChatCompletionRequest.builder(effectiveModel(context, null));
+        // the model this runtime's application configures. Without this
+        // fallback a caller that builds a context with a null model (e.g.
+        // long-term-memory fact extraction) would send model=null and get an
+        // empty/failed completion, silently storing no memory.
+        var builder = ChatCompletionRequest.builder(effectiveModelFor(context, null));
         for (var msg : assembleMessages(context)) {
             builder.message(msg);
         }

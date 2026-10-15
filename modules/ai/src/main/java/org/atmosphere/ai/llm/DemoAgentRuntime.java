@@ -76,6 +76,14 @@ public final class DemoAgentRuntime implements AgentRuntime {
         return STRATEGY.get();
     }
 
+    /** The environment this instance serves; {@code null} until {@link #attach}. */
+    private volatile org.atmosphere.ai.AiEnvironment environment;
+
+    @Override
+    public void attach(org.atmosphere.ai.AiEnvironment environment) {
+        this.environment = environment;
+    }
+
     @Override
     public String name() {
         return "demo";
@@ -92,10 +100,12 @@ public final class DemoAgentRuntime implements AgentRuntime {
      */
     @Override
     public boolean isAvailable() {
-        if (org.atmosphere.ai.AgentRuntimeResolver.hasExplicitClientBinding()) {
+        var attached = environment;
+        var aiEnvironment = attached != null ? attached : org.atmosphere.ai.AiEnvironment.current();
+        if (aiEnvironment.hasExplicitBinding()) {
             return false;
         }
-        var cfg = AiConfig.get();
+        var cfg = aiEnvironment.settings();
         if (cfg == null) {
             return true;
         }

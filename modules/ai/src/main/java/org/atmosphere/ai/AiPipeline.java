@@ -1055,7 +1055,7 @@ public class AiPipeline {
             // emitted by the model — rather than relying solely on the
             // prompt-injection + parse path above. Governed by the tri-state
             // NativeStructuredOutputMode (AUTO default, with graceful fall-back).
-            var nativeMode = AiConfig.resolveNativeStructuredOutputMode();
+            var nativeMode = AiEnvironment.of(runtime).resolveNativeStructuredOutputMode();
             var nativeEligible = hasStructured
                     && nativeMode != NativeStructuredOutputMode.DISABLED
                     && runtime.capabilities().contains(AiCapability.NATIVE_STRUCTURED_OUTPUT);

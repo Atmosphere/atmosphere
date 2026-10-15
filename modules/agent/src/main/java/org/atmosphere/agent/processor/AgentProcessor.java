@@ -26,7 +26,6 @@ import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiConversationMemory;
 import org.atmosphere.ai.AiMetrics;
 import org.atmosphere.ai.AgentRuntime;
-import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.CompactionConfig;
 import org.atmosphere.ai.ConversationPersistence;
 import org.atmosphere.ai.InMemoryConversationMemory;
@@ -134,8 +133,11 @@ public class AgentProcessor implements Processor<Object> {
             var workspaceDef = WorkspaceExtensions
                     .load(WorkspaceExtensions.resolveLocation(framework))
                     .orElse(null);
+            // The AI configuration of this application, not of the JVM.
+            var aiEnvironment = org.atmosphere.ai.AiEnvironment.of(
+                    framework != null ? framework.getAtmosphereConfig() : null);
             if (workspaceDef != null) {
-                WorkspaceExtensions.applyRuntime(workspaceDef, agentName);
+                WorkspaceExtensions.applyRuntime(aiEnvironment, workspaceDef, agentName);
                 systemPrompt = WorkspaceExtensions.augmentSystemPrompt(systemPrompt, workspaceDef);
                 WorkspaceExtensions.installPolicies(framework,
                         WorkspaceExtensions.permissionPolicies(workspaceDef));
@@ -152,8 +154,8 @@ public class AgentProcessor implements Processor<Object> {
                     ? new SyntheticPrompt() : instance;
 
             // Step 5: Resolve AI infrastructure
-            var settings = resolveSettings();
-            var runtime = resolveRuntime(settings);
+            var settings = aiEnvironment.settingsOrEnvironment();
+            var runtime = resolveRuntime(settings, aiEnvironment.runtimes().resolveAll());
             AiConversationMemory memory = resolveMemory(DEFAULT_MAX_HISTORY, framework);
             var toolRegistry = registerTools(instance);
 
@@ -657,10 +659,6 @@ public class AgentProcessor implements Processor<Object> {
         return SkillFileParser.parse("");
     }
 
-    private AiConfig.LlmSettings resolveSettings() {
-        return AiConfig.getOrConfigureFromEnvironment();
-    }
-
     /**
      * Wire the v0.5 foundation primitives into the endpoint's injectables map
      * so {@code @Prompt} and {@code @AiTool} methods can declare them as
@@ -801,10 +799,6 @@ public class AgentProcessor implements Processor<Object> {
      */
     void trackMcpRegistryForTest(AutoCloseable registry) {
         ownedMcpRegistries.add(registry);
-    }
-
-    private AgentRuntime resolveRuntime(AiConfig.LlmSettings settings) {
-        return resolveRuntime(settings, AgentRuntimeResolver.resolveAll());
     }
 
     /**

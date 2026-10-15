@@ -27,7 +27,6 @@ import org.atmosphere.ai.AiConversationMemory;
 import org.atmosphere.ai.AiMetrics;
 import org.atmosphere.ai.AiPipeline;
 import org.atmosphere.ai.AgentRuntime;
-import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.CompactionConfig;
 import org.atmosphere.ai.ConversationPersistence;
 import org.atmosphere.ai.InMemoryConversationMemory;
@@ -221,8 +220,12 @@ public class CoordinatorProcessor implements Processor<Object> {
             var workspaceDef = org.atmosphere.ai.workspace.WorkspaceExtensions
                     .load(org.atmosphere.ai.workspace.WorkspaceExtensions.resolveLocation(framework))
                     .orElse(null);
+            // The AI configuration of this application, not of the JVM.
+            var aiEnvironment = org.atmosphere.ai.AiEnvironment.of(
+                    framework != null ? framework.getAtmosphereConfig() : null);
             if (workspaceDef != null) {
-                org.atmosphere.ai.workspace.WorkspaceExtensions.applyRuntime(workspaceDef, coordinatorName);
+                org.atmosphere.ai.workspace.WorkspaceExtensions.applyRuntime(aiEnvironment, workspaceDef,
+                        coordinatorName);
                 systemPrompt = org.atmosphere.ai.workspace.WorkspaceExtensions
                         .augmentSystemPrompt(systemPrompt, workspaceDef);
                 org.atmosphere.ai.workspace.WorkspaceExtensions.installPolicies(framework,
@@ -239,8 +242,8 @@ public class CoordinatorProcessor implements Processor<Object> {
                     ? new SyntheticPrompt() : instance;
 
             // Step 5: Resolve AI infrastructure
-            var settings = resolveSettings();
-            var runtime = resolveRuntime(settings);
+            var settings = aiEnvironment.settingsOrEnvironment();
+            var runtime = resolveRuntime(aiEnvironment, settings);
             var memory = resolveMemory(DEFAULT_MAX_HISTORY, framework);
             var toolRegistry = registerTools(instance);
 
@@ -861,13 +864,10 @@ public class CoordinatorProcessor implements Processor<Object> {
 
     // --- AI infrastructure (public APIs from atmosphere-ai) ---
 
-    private AiConfig.LlmSettings resolveSettings() {
-        return AiConfig.getOrConfigureFromEnvironment();
-    }
-
-    private AgentRuntime resolveRuntime(AiConfig.LlmSettings settings) {
+    private AgentRuntime resolveRuntime(org.atmosphere.ai.AiEnvironment aiEnvironment,
+                                        AiConfig.LlmSettings settings) {
         try {
-            var all = AgentRuntimeResolver.resolveAll();
+            var all = aiEnvironment.runtimes().resolveAll();
             if (all.isEmpty()) {
                 logger.warn("No AgentRuntime found on classpath");
                 return null;

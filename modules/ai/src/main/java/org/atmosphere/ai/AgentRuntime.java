@@ -265,9 +265,13 @@ public interface AgentRuntime {
                                        Duration timeout) {
         var handleRef = new java.util.concurrent.atomic.AtomicReference<ExecutionHandle>();
         var failureRef = new java.util.concurrent.atomic.AtomicReference<Throwable>();
+        // The carrier sees the application the caller is bound to, as an
+        // inline execute() would (Mode Parity, Correctness Invariant #7).
+        var callerEnvironment = AiEnvironment.bound();
         var carrier = Thread.ofVirtual()
                 .name("ai-generate-" + latch.sessionId())
                 .start(() -> {
+                    var binding = AiEnvironment.bind(callerEnvironment);
                     try {
                         handleRef.set(runtime.executeWithHandle(context, sink));
                     } catch (RuntimeException | Error e) {
@@ -282,6 +286,8 @@ public interface AgentRuntime {
                         // cannot tell from a real one (Correctness Invariant #2).
                         failureRef.set(e);
                         sink.error(e);
+                    } finally {
+                        binding.close();
                     }
                 });
         if (latch.await(timeout)) {

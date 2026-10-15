@@ -17,7 +17,7 @@ package org.atmosphere.ai.plan;
 
 import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.AiCapability;
-import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.preset.HarnessPreset;
 import org.atmosphere.ai.tool.ToolRegistry;
 import org.slf4j.Logger;
@@ -77,7 +77,8 @@ public final class PlanningPreset {
         // REST plan endpoint, the console Workspace tab) — never a twin.
         preset.registerPlanStore(ownerName, store);
 
-        var mode = AiConfig.resolvePlanningMode();
+        // The knob of the application the runtime serves.
+        var mode = AiEnvironment.of(runtime).resolvePlanningMode();
         var nativeCapable = runtime != null
                 && runtime.capabilities().contains(AiCapability.PLANNING);
         switch (mode) {

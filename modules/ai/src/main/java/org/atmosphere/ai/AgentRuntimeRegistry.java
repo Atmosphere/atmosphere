@@ -72,11 +72,16 @@ public final class AgentRuntimeRegistry {
      *
      * @return the runtimes, never empty
      * @throws AgentRuntimeSelectionException when the knob names no available runtime
+     * @throws IllegalStateException          when the environment is closed
      */
     public List<AgentRuntime> resolveAll() {
         var result = cached;
         if (result != null) {
             return result;
+        }
+        if (environment.isClosed()) {
+            throw new IllegalStateException("AI environment " + environment.name()
+                    + " is closed: its application stopped");
         }
         // A runtime that reads the static API while its availability is
         // checked (a third-party one that ignores attach) reads this
@@ -138,6 +143,17 @@ public final class AgentRuntimeRegistry {
         logger.info("AgentRuntime resolution: {} (explicitClientBinding={})",
                 all.stream().map(AgentRuntime::name).toList(), environment.hasExplicitBinding());
         return List.copyOf(all);
+    }
+
+    /**
+     * The runtimes resolved so far, without resolving.
+     *
+     * @return the cached resolution, empty when none is cached (or the
+     *         environment closed)
+     */
+    public List<AgentRuntime> resolved() {
+        var result = cached;
+        return result != null ? result : List.of();
     }
 
     /**

@@ -16,8 +16,8 @@
 package org.atmosphere.kotlin.ai
 
 import org.atmosphere.ai.AgentRuntime
-import org.atmosphere.ai.AgentRuntimeResolver
 import org.atmosphere.ai.AiConfig
+import org.atmosphere.ai.AiEnvironment
 import org.atmosphere.ai.AiConversationMemory
 import org.atmosphere.ai.AiMetrics
 import org.atmosphere.ai.AiPipeline
@@ -46,8 +46,8 @@ private val logger = LoggerFactory.getLogger("org.atmosphere.kotlin.ai.AgentRegi
  * The DSL is a front-end, not a second AI stack. Registration builds the same
  * objects the annotation processors build, in the same order:
  *
- * 1. the runtime comes from [AgentRuntimeResolver] (highest-priority available
- *    runtime, every backend `configure`d first — a backend whose eager
+ * 1. the runtime comes from the framework's [AiEnvironment] (the highest-priority
+ *    available runtime of this application, every backend `configure`d first — a backend whose eager
  *    `configure()` throws is logged and skipped, never fatal);
  * 2. tools land in a [DefaultToolRegistry], the registry `@AiTool` scanning fills;
  * 3. memory is an [InMemoryConversationMemory] honoring the framework's
@@ -61,8 +61,10 @@ private val logger = LoggerFactory.getLogger("org.atmosphere.kotlin.ai.AgentRegi
  *    `AgentProcessor` does for `@Agent`.
  */
 fun AtmosphereFramework.registerAgent(spec: AgentSpec): KotlinAgent {
-    val settings = AiConfig.getOrConfigureFromEnvironment()
-    val runtime = spec.runtime ?: resolveRuntime(settings)
+    // The AI configuration of this application, not of the JVM.
+    val aiEnvironment = AiEnvironment.of(atmosphereConfig)
+    val settings = aiEnvironment.settingsOrEnvironment()
+    val runtime = spec.runtime ?: resolveRuntime(aiEnvironment, settings)
 
     val toolRegistry = DefaultToolRegistry()
     spec.tools.forEach { toolRegistry.register(it) }
@@ -152,8 +154,8 @@ fun AtmosphereFramework.registerAgent(name: String, init: AgentBuilder.() -> Uni
  * the identical resolution (and the identical eager-`configure()` tolerance)
  * the `@Agent` and `@AiEndpoint` processors perform.
  */
-private fun resolveRuntime(settings: AiConfig.LlmSettings): AgentRuntime {
-    val backends = AgentRuntimeResolver.resolveAll()
+private fun resolveRuntime(aiEnvironment: AiEnvironment, settings: AiConfig.LlmSettings): AgentRuntime {
+    val backends = aiEnvironment.runtimes().resolveAll()
     backends.forEach { backend ->
         try {
             backend.configure(settings)

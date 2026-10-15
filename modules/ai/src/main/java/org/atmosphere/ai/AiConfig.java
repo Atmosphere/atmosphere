@@ -31,13 +31,26 @@ import java.util.concurrent.locks.ReentrantLock;
  * environment variables, or programmatically. Environment variables take precedence
  * when using {@link #fromEnvironment()}.</p>
  *
+ * <p>Each application (each {@link org.atmosphere.cpr.AtmosphereFramework}) has its own
+ * {@link AiEnvironment}: its knobs, LLM settings, per-agent settings and runtime
+ * instances. The statics of this class read and write {@link AiEnvironment#current()}:
+ * the application bound to the calling thread (a {@code @Prompt} method's thread is
+ * bound to its own), else the only application running, else
+ * {@link AiEnvironment#processDefault()}. Framework code holds its application's
+ * environment instead.</p>
+ *
  * <p>The {@code atmosphere.ai.*} knobs ({@link #knobs()}: generation parameters,
  * prompt-cache-key, logprobs, native structured output, planning, filesystem,
  * embedding model, runtime) are read from the JVM system property, then the
- * {@code LLM_*} environment variable, then the host configuration a Spring Boot
- * starter or the Quarkus extension installed with {@link #installHostConfig}.</p>
+ * {@code LLM_*} environment variable, then the application's own configuration
+ * (the Spring {@code Environment} on the Spring Boot starters, {@code application.properties}
+ * on the Quarkus extension, the framework's init-params on a plain servlet).</p>
  *
  * <h3>Atmosphere init-params</h3>
+ * <p>On a plain servlet deployment, when no settings are configured, an
+ * application's settings are built from these init-params (each after its
+ * {@code LLM_*} environment variable), as the framework has them when its first
+ * {@code @AiEndpoint}, {@code @Agent} or {@code @Coordinator} registers:</p>
  * <pre>
  * {@literal @}ManagedService(path = "/ai-chat", atmosphereConfig = {
  *     AiConfig.LLM_MODEL + "=gemini-2.5-flash",
@@ -846,13 +859,16 @@ public final class AiConfig {
     }
 
     /**
-     * The value of one knob, trimmed. Resolution order, first non-blank wins:
+     * The value of one knob for {@link AiEnvironment#current()}, trimmed.
+     * Resolution order, first non-blank wins:
      * <ol>
      *   <li>the JVM system property named {@code property} ({@code -D});</li>
      *   <li>the knob's environment variable ({@code LLM_*});</li>
-     *   <li>the host configuration installed by {@link #installHostConfig}
-     *       (Spring {@code application.yml}/{@code application.properties},
-     *       Quarkus {@code application.properties}).</li>
+     *   <li>the application's configuration (Spring
+     *       {@code application.yml}/{@code application.properties}, Quarkus
+     *       {@code application.properties}, a plain servlet's init-params); for
+     *       the process default, the host configuration installed last by
+     *       {@link #installHostConfig}.</li>
      * </ol>
      * This is the order Spring Boot and MicroProfile Config give their own
      * sources: system properties, then environment, then the application's
@@ -890,18 +906,20 @@ public final class AiConfig {
      * {@link AgentRuntimeResolver} resolution is dropped, so the
      * {@link #RUNTIME_PROPERTY} of the new configuration is honoured.</p>
      *
-     * <p>The knobs are JVM-wide, like the system properties and the environment
-     * they fall back from: there is no per-application scope. While several
-     * installations are open (two applications in one JVM, or Spring's test
-     * context cache keeping several contexts alive), the latest one is the one
-     * every application reads, whole, and a warning names the earlier ones it
-     * shadows. The returned handle removes the installation it belongs to, and
-     * only that one: closing the latest makes the previous, still-open
-     * installation the one read again, so the host that installed it closes it
-     * when it stops. The settings ({@link #get()}) are not rebuilt: settings
-     * built while the closed installation was read keep its generation,
-     * prompt-cache-key and logprobs values until {@link #configure} runs again, and the
-     * close logs a warning naming those knobs.</p>
+     * <p>The Spring Boot starters and the Quarkus extension create an
+     * {@link AiEnvironment} per application instead, whose knobs no other
+     * application reads. An installation is read by the process default
+     * ({@link AiEnvironment#processDefault()}: code with no application, or
+     * the static API while several applications run) and, for a knob its
+     * init-params leave unset, by an application created from a plain
+     * framework's init-params. While several installations are open, the
+     * latest one is the one read, whole, and a warning names the earlier ones
+     * it shadows. The returned handle removes the installation it belongs to,
+     * and only that one: closing the latest makes the previous, still-open
+     * installation the one read again. The settings ({@link #get()}) are not
+     * rebuilt: settings built while the closed installation was read keep its
+     * generation, prompt-cache-key and logprobs values until {@link #configure}
+     * runs again, and the close logs a warning naming those knobs.</p>
      *
      * @param lookup the host's configuration, by property name; returns
      *               {@code null} for an unset property

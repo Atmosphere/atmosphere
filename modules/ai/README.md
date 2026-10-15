@@ -663,34 +663,72 @@ order, first non-blank value wins:
 
 1. the JVM system property (`-Datmosphere.ai.temperature=0.2`);
 2. the knob's environment variable (`LLM_TEMPERATURE=0.2`);
-3. the host application's configuration: `application.yml` / `application.properties` with either
+3. the application's own configuration: `application.yml` / `application.properties` with either
    Spring Boot starter, `application.properties` with the Quarkus extension (same key, no
-   `quarkus.` prefix).
+   `quarkus.` prefix), the framework's init-params on a plain servlet or embedded server
+   (`atmosphere.ai.temperature` as the init-param name).
 
-This is the order Spring Boot and MicroProfile Config give their own sources. The hosts install their
-configuration through `AiConfig.installHostConfig(...)`, which keeps it in `AiConfig` and never writes
-it to the JVM system properties, and they uninstall it when they stop. Like the system properties,
-the knobs are JVM-wide, not per application: while two hosts are running in one JVM (two
-applications, or contexts kept alive by Spring's test context cache), both read the configuration of
-the one installed last, and a warning says so; when it stops, the earlier one's configuration is read
-again. The generation knobs, `prompt-cache-key` and `logprobs` are read when the LLM settings are
-built (`AiConfig.configure`; an `OpenAiCompatibleClient` built directly reads `prompt-cache-key` and
-`logprobs` when it is built, unless its builder sets them), the others on every call: settings built
-before a host installed its configuration keep the values they were built with, and the host's startup
-logs a warning naming the knobs they do not apply (`AiConfig.reportKnobsNotInEffect()`). The settings
-are JVM-wide too, and are not rebuilt when a host stops: settings the later host built keep its
-generation, `prompt-cache-key` and `logprobs` values after it stopped, until `AiConfig.configure` runs again, and its stop logs a warning naming the
-knobs they do not apply to the earlier host. A plain servlet deployment has no host
-configuration: it uses the system property or the environment variable.
+This is the order Spring Boot and MicroProfile Config give their own sources. System properties and
+environment variables are JVM-wide: they override every application in the JVM.
+
+#### One `AiEnvironment` per application
+
+Each application — each `AtmosphereFramework` — has its own `AiEnvironment`, stored in its
+`AtmosphereConfig.properties()`: its knob values, its LLM settings, its per-agent settings (a
+workspace `RUNTIME.md`) and its own `AgentRuntime` instances, resolved by its own
+`atmosphere.ai.runtime`. Two applications in one JVM (two Spring contexts, two embedded servers,
+contexts kept alive by Spring's test context cache) do not read each other's knobs, settings or
+runtime clients. The Spring Boot starters create it from the `Environment` before any bean exists,
+attach it to the framework before the endpoint scan, and close it with the context (it is also the
+`AiEnvironment` bean); the Quarkus extension creates it before the framework initializes and closes
+it with the framework; on a plain servlet the first `@AiEndpoint`, `@Agent` or `@Coordinator` that
+registers (or the Kotlin `registerAgent` DSL) creates it from the framework's init-params, and the
+framework's destroy closes it. Closing
+one drops its runtime instances; the other applications are untouched. Framework code reads it with
+`AiEnvironment.of(framework.getAtmosphereConfig())` (or `of(resource.getAtmosphereConfig())`).
+
+The static API (`AiConfig.get()`, `AiConfig.knob(...)`, `AiConfig.configure(...)`,
+`AgentRuntimeResolver.resolve()`, ...) reads and writes `AiEnvironment.current()`: the application
+bound to the calling thread — a `@Prompt` method's thread, the worker thread the built-in runtime
+streams on and the one `AbstractAgentRuntime.streamThroughGatewayWithHandle` starts are bound to
+their application — else the only application running, else the
+process default (`AiEnvironment.processDefault()`). A single application therefore behaves as it did:
+`AiConfig.configure(...)` in `main()` before the server starts sets the process default, and an
+application with no settings of its own uses them. When several applications run and the thread is
+bound to none (an executor of your own, a reactive scheduler), the statics read the process default,
+which is no one application's, and a warning says so once per JVM: read your application's own with
+`AiEnvironment.of(...)` there. `AiConfig.installHostConfig(...)` remains for code with no application:
+its values are what the process default reads, and what an application created from init-params
+reads for a knob its init-params leave unset.
+
+What is not per application yet: a native client bound with a runtime adapter's static setter
+(`SpringAiAgentRuntime.setChatClient`, `LangChain4jAgentRuntime.setModel`, ...) is shared by every
+application's instance of that adapter; the adapter runtimes other than the built-in one read some
+settings and knobs through the static API, which is their application's own only on a bound thread;
+`EmbeddingRuntimeResolver`, the admin and console runtime reports, the interactions service,
+long-term memory and decision-model runtime resolution, the coordinator's LLM result evaluator and
+the channels bridge read the static API.
+
+The generation knobs, `prompt-cache-key` and `logprobs` are read when the LLM settings are
+built (`AiConfig.configure`, `AiEnvironment.configure`; an `OpenAiCompatibleClient` built directly
+reads `prompt-cache-key` and `logprobs` when it is built, unless its builder sets them), the others on
+every call: settings built before the application's configuration was read (in `main()`, a static
+initializer) keep the values they were built with, and the host's startup logs a warning naming the
+knobs they do not apply (`AiEnvironment.reportKnobsNotInEffect()`). When an application stops and the
+process default's settings are its own, they become those of the latest application still running
+that has settings of its own.
 
 The LLM mode, model, API key and base URL are not knobs: the Spring Boot starters read
 `atmosphere.ai.mode` / `model` / `api-key` / `base-url` first and fall back to `LLM_MODE` /
 `LLM_MODEL` / `LLM_API_KEY` / `LLM_BASE_URL`; elsewhere `AiConfig.fromEnvironment()` reads the
-environment variables. When nothing configured the settings, the `@AiEndpoint`, `@Agent` and
-`@Coordinator` processors and the Kotlin `registerAgent` DSL build them from these variables once and publish them
-(`AiConfig.getOrConfigureFromEnvironment()`, which never replaces settings already configured); the
-per-request runner of the ADK runtime uses them without publishing them
-(`AiConfig.settingsFromEnvironment()`).
+environment variables. When neither the application nor the process default has settings, the
+`@AiEndpoint`, `@Agent` and `@Coordinator` processors and the Kotlin `registerAgent` DSL build them
+once from these variables — on a plain servlet, then from the `org.atmosphere.ai.llmMode` /
+`llmModel` / `llmApiKey` / `llmBaseUrl` init-params — with the application's knobs, and keep them as
+the application's own (`AiEnvironment.settingsOrEnvironment()`; with no application,
+`AiConfig.getOrConfigureFromEnvironment()` publishes them as the process default and never replaces
+settings already configured); the per-request runner of the ADK runtime uses them without publishing
+them (`AiConfig.settingsFromEnvironment()`).
 
 ### Prompt routing over HTTP transports
 

@@ -146,6 +146,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     private final String systemPrompt;
     private final String pathTemplate;
     private final AgentRuntime runtime;
+    /** The AI environment last seen on a request ({@link #environmentFor}). */
+    private volatile org.atmosphere.ai.AiEnvironment environment;
     private final List<AiInterceptor> interceptors;
     private final AiConversationMemory memory;
     private final AnnotatedLifecycle lifecycle;
@@ -716,7 +718,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         var session = !org.atmosphere.ai.tape.TapeSupport.installed() ? leaf
                 : org.atmosphere.ai.tape.TapeSupport.wrap(leaf,
                         org.atmosphere.ai.tape.TapeRunInfo.resumed(conversationId(resource),
-                                resource.uuid(), pathTemplate, resumeModel(),
+                                resource.uuid(), pathTemplate, resumeModel(resource),
                                 runtime != null ? runtime.name() : null, runId, principal));
         var resumer = new org.atmosphere.ai.resume.DurableRunResumer(spine);
         Thread.startVirtualThread(() -> {
@@ -735,12 +737,33 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * resolution the live prompt path uses (endpoint override, else the
      * framework-wide {@link AiConfig} model).
      */
-    private String resumeModel() {
+    private String resumeModel(AtmosphereResource resource) {
         if (endpointModel != null) {
             return endpointModel;
         }
-        var settings = AiConfig.get();
+        var settings = environmentFor(resource).settings();
         return settings != null ? settings.model() : null;
+    }
+
+    /**
+     * The AI environment of the application this endpoint belongs to: the one
+     * attached to the resource's framework, else the one its runtime was
+     * attached to (else {@link org.atmosphere.ai.AiEnvironment#current()}).
+     */
+    private org.atmosphere.ai.AiEnvironment environmentFor(AtmosphereResource resource) {
+        var config = resource != null ? resource.getAtmosphereConfig() : null;
+        var found = org.atmosphere.ai.AiEnvironment.find(config);
+        if (found.isPresent()) {
+            environment = found.get();
+            return found.get();
+        }
+        return environment();
+    }
+
+    /** The environment last seen on a request, else the runtime's. */
+    private org.atmosphere.ai.AiEnvironment environment() {
+        var seen = environment;
+        return seen != null && !seen.isClosed() ? seen : org.atmosphere.ai.AiEnvironment.of(runtime);
     }
 
     /** The reconnecting caller's principal, matched against the run owner on resume. */
@@ -1032,7 +1055,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                         ? StreamingSessions.startRoomBroadcast(resource)
                         : StreamingSessions.start(resource),
                 replayBuffer);
-        var settings = AiConfig.get();
+        final var aiEnvironment = environmentFor(resource);
+        var settings = aiEnvironment.settings();
         var model = endpointModel != null ? endpointModel
                 : (settings != null ? settings.model() : null);
 
@@ -1191,6 +1215,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             // tenant/customer/session tags. Clear in finally — otherwise
             // the VT pool leaks keys across turns.
             businessMdc.forEach(org.slf4j.MDC::put);
+            // Static AiConfig / AgentRuntimeResolver reads in the @Prompt
+            // method (user code) see this endpoint's application.
+            var binding = org.atmosphere.ai.AiEnvironment.bind(aiEnvironment);
             try {
                 // Scope confines what the user asked: admit the inbound message
                 // before the @Prompt method runs, so an off-scope prompt never
@@ -1234,6 +1261,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             } finally {
                 durableScope.ifPresent(c -> durableSpine.completeDrive(c, durableSuccess[0]));
                 businessMdc.keySet().forEach(org.slf4j.MDC::remove);
+                binding.close();
             }
         });
         promptThreadRef.set(promptThread);
@@ -1541,7 +1569,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // for a client that left, after the reattach grace for one whose
         // connection was lost; a call it cuts short ends in a cancelled frame,
         // not complete.
-        var grace = transportLoss ? AiConfig.resolveReattachGrace() : Duration.ZERO;
+        var grace = transportLoss ? environment().resolveReattachGrace() : Duration.ZERO;
         var detached = AiStreamingSession.removeAllForResource(uuid, grace);
         var registry = org.atmosphere.ai.resume.RunRegistryHolder.get();
         var ends = detached.stream()

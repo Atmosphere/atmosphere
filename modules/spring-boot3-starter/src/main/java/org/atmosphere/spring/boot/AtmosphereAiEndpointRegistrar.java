@@ -15,11 +15,9 @@
  */
 package org.atmosphere.spring.boot;
 
-import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiConversationMemory;
 import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.AiMetrics;
-import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.InMemoryConversationMemory;
 import org.atmosphere.ai.PromptLoader;
 import org.atmosphere.ai.processor.AiEndpointHandler;
@@ -111,8 +109,10 @@ class AtmosphereAiEndpointRegistrar {
         }
 
         // Resolve AI support
-        var settings = AiConfig.get();
-        var runtime = AgentRuntimeResolver.resolve();
+        // This application's settings and runtime, not the JVM's.
+        var aiEnvironment = org.atmosphere.ai.AiEnvironment.of(framework.getAtmosphereConfig());
+        var settings = aiEnvironment.settings();
+        var runtime = aiEnvironment.runtimes().resolve();
         if (settings != null) {
             runtime.configure(settings);
         }

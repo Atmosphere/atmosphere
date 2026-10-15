@@ -17,19 +17,21 @@ package org.atmosphere.quarkus.runtime;
 
 import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Installs the {@code atmosphere.ai.*} knobs of the Quarkus configuration
+ * Creates the application's {@link AiEnvironment} from the
+ * {@code atmosphere.ai.*} knobs of the Quarkus configuration
  * ({@link AiConfig#knobProperties()}: generation parameters, planning,
- * filesystem, runtime, ...) as the {@link AiConfig} host configuration, so a
- * value set in {@code application.properties} is honoured as it is by the
- * Spring Boot starters. The keys are the ones the AI module documents, without
- * a {@code quarkus.} prefix. A JVM system property or the knob's {@code LLM_*}
- * environment variable still wins ({@link AiConfig#knob(String)}).
+ * filesystem, runtime, ...), so a value set in {@code application.properties}
+ * is honoured as it is by the Spring Boot starters. The keys are the ones the
+ * AI module documents, without a {@code quarkus.} prefix. A JVM system
+ * property or the knob's {@code LLM_*} environment variable still wins
+ * ({@link AiEnvironment#knob(String)}).
  *
  * <p>References {@code atmosphere-ai} types, an optional dependency: only
  * {@link AtmosphereBootstrap} calls it, once it found the module on the
@@ -43,15 +45,23 @@ final class AiKnobBridge {
     }
 
     /**
-     * Installs the knobs and uninstalls them when the framework is destroyed
-     * (Ownership, Correctness Invariant #1), so a dev-mode live reload does not
-     * keep the previous configuration.
+     * Creates the environment, attaches it to {@code framework} before the
+     * framework initializes, and closes it when the framework is destroyed
+     * (Ownership, Correctness Invariant #1), so a dev-mode live reload, which
+     * gets a new framework, gets a new environment.
+     *
+     * @return the environment
      */
-    static void install(AtmosphereFramework framework) {
+    static AiEnvironment install(AtmosphereFramework framework) {
+        var existing = AiEnvironment.find(framework.getAtmosphereConfig());
+        if (existing.isPresent()) {
+            return existing.get();
+        }
         var config = ConfigProvider.getConfig();
-        var installed = AiConfig.installHostConfig(
+        var environment = AiEnvironment.create(framework.getAtmosphereConfig(),
                 key -> config.getOptionalValue(key, String.class).orElse(null));
-        framework.getAtmosphereConfig().shutdownHook(installed::close);
+        framework.getAtmosphereConfig().shutdownHook(environment::close);
+        return environment;
     }
 
     /**
@@ -69,5 +79,24 @@ final class AiKnobBridge {
                 logger.info("AgentRuntime '{}' selected by {}={}",
                         AgentRuntimeResolver.resolve().name(), AiConfig.RUNTIME_PROPERTY, requested));
         AiConfig.reportKnobsNotInEffect();
+    }
+
+    /**
+     * As {@link #verifyRuntimeSelection()}, for the application of
+     * {@code framework}: its environment's runtime knob and settings (the
+     * static API's when no environment is attached to it).
+     *
+     * @throws IllegalStateException when the name matches no available runtime
+     */
+    static void verifyRuntimeSelection(AtmosphereFramework framework) {
+        var environment = AiEnvironment.find(framework.getAtmosphereConfig()).orElse(null);
+        if (environment == null) {
+            verifyRuntimeSelection();
+            return;
+        }
+        environment.knob(AiConfig.RUNTIME_PROPERTY).ifPresent(requested ->
+                logger.info("AgentRuntime '{}' selected by {}={}",
+                        environment.runtimes().resolve().name(), AiConfig.RUNTIME_PROPERTY, requested));
+        environment.reportKnobsNotInEffect();
     }
 }

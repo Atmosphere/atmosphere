@@ -17,7 +17,7 @@ package org.atmosphere.ai.fs;
 
 import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.AiCapability;
-import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.preset.HarnessPreset;
 import org.atmosphere.ai.tool.ToolRegistry;
 import org.slf4j.Logger;
@@ -78,7 +78,8 @@ public final class FilesystemPreset {
         // REST files endpoints, the console Workspace tab) — never a twin.
         preset.registerFileSystemProvider(ownerName, provider);
 
-        var mode = AiConfig.resolveFilesystemMode();
+        // The knob of the application the runtime serves.
+        var mode = AiEnvironment.of(runtime).resolveFilesystemMode();
         var nativeCapable = runtime != null
                 && runtime.capabilities().contains(AiCapability.VIRTUAL_FILESYSTEM);
         switch (mode) {

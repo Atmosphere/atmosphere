@@ -19,6 +19,7 @@ import io.quarkus.test.QuarkusExtensionTest;
 
 import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.quarkus.runtime.LazyAtmosphereConfigurator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -63,6 +64,22 @@ public class AiKnobBridgeTest {
             var expected = env != null && !env.isBlank() ? env.trim() : valueFor(knob.property());
             assertEquals(expected, AiConfig.knob(knob.property()).orElse(null), knob.property());
         }
+    }
+
+    /** The knobs are the application's own: its framework carries the environment holding them. */
+    @Test
+    public void theFrameworkCarriesTheApplicationsAiEnvironment() {
+        var framework = LazyAtmosphereConfigurator.getFramework();
+        assertNotNull(framework, "the Atmosphere framework must be initialized at startup");
+        var environment = AiEnvironment.find(framework.getAtmosphereConfig()).orElse(null);
+        assertNotNull(environment, "the extension attached the application's AI environment to its framework");
+        for (var knob : AiConfig.knobs()) {
+            var env = System.getenv(knob.env());
+            var expected = env != null && !env.isBlank() ? env.trim() : valueFor(knob.property());
+            assertEquals(expected, environment.knob(knob.property()).orElse(null), knob.property());
+            assertEquals(valueFor(knob.property()), environment.values().get(knob.property()), knob.property());
+        }
+        assertEquals("built-in", environment.runtimes().resolve().name());
     }
 
     @Test

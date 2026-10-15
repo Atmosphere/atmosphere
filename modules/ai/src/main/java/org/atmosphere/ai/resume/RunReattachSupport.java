@@ -320,18 +320,18 @@ public final class RunReattachSupport {
             return 0;
         }
         if (!handle.isDone() && forwardsLiveEvents(resource)) {
-            return replayAndForward(resource, runId, handle, reattachGrace(registry));
+            return replayAndForward(resource, runId, handle, reattachGrace(resource, registry));
         }
         if (!handle.isDone()) {
             // A long-polling client listens to the run at most while one poll
             // waits: nothing would detach the run again if it never polled
             // again, so its grace restarts from this poll instead of ending.
-            RunDisconnectGrace.restart(runId, reattachGrace(registry));
+            RunDisconnectGrace.restart(runId, reattachGrace(resource, registry));
         }
         var transport = resource.transport();
         if (transport != null && Utils.resumableTransport(transport)) {
             return new PollReplay(resource, handle, filtersFor(resource), broadcasterIdFor(resource),
-                    reattachGrace(registry)).start();
+                    reattachGrace(resource, registry)).start();
         }
         var replayed = handle.replayableEvents();
         if (replayed.isEmpty()) {
@@ -550,9 +550,15 @@ public final class RunReattachSupport {
         }
     }
 
-    /** The reattach grace, bounded by the registry TTL (Correctness Invariant #3). */
-    static java.time.Duration reattachGrace(RunRegistry registry) {
-        var grace = org.atmosphere.ai.AiConfig.resolveReattachGrace();
+    /**
+     * The reattach grace of the application {@code resource} belongs to,
+     * bounded by the registry TTL (Correctness Invariant #3). The disconnect
+     * reads the same application's value.
+     */
+    static java.time.Duration reattachGrace(AtmosphereResource resource, RunRegistry registry) {
+        var environment = org.atmosphere.ai.AiEnvironment.find(resource.getAtmosphereConfig())
+                .orElseGet(org.atmosphere.ai.AiEnvironment::current);
+        var grace = environment.resolveReattachGrace();
         return grace.compareTo(registry.ttl()) > 0 ? registry.ttl() : grace;
     }
 
