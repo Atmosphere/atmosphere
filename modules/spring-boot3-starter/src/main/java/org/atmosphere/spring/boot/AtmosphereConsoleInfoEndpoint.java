@@ -304,17 +304,36 @@ public class AtmosphereConsoleInfoEndpoint {
     }
 
     /**
-     * Auto-detects the best endpoint for the console. Prefers {@code @Agent}
-     * endpoints (paths starting with {@code /atmosphere/agent/}) over the
-     * default {@code /atmosphere/ai-chat}.
+     * Auto-detects the best endpoint for the console, in the same order as the
+     * Spring Boot 4 starter: {@code atmosphere.ai.path} when it names an agent
+     * path or a registered handler, then an {@code @Agent} endpoint (paths
+     * starting with {@code /atmosphere/agent/}), then any other registered
+     * {@code /atmosphere/*} handler outside the admin surface (e.g. a
+     * {@code @ManagedService}), and finally the configured default.
      */
     private String detectEndpoint() {
         var configuredPath = properties.getAi().getPath();
+        // If explicitly configured to an agent path, respect it
+        if (configuredPath != null && configuredPath.startsWith("/atmosphere/agent/")) {
+            return configuredPath;
+        }
         try {
             var handlers = framework.getAtmosphereHandlers();
+            // Prefer the configured path when it corresponds to a registered handler.
+            // Avoids picking the "wrong" @AiEndpoint in samples that declare multiple
+            // (e.g. a primary chat endpoint + a demo structured-output endpoint).
+            if (configuredPath != null && handlers.containsKey(configuredPath)) {
+                return configuredPath;
+            }
             // Look for @Agent handler (AgentHandler at /atmosphere/agent/*)
             for (var path : handlers.keySet()) {
                 if (path.startsWith("/atmosphere/agent/") && !path.contains("/a2a") && !path.contains("/mcp")) {
+                    return path;
+                }
+            }
+            // Fall back to any registered handler (e.g. @ManagedService)
+            for (var path : handlers.keySet()) {
+                if (path.startsWith("/atmosphere/") && !path.contains("/admin")) {
                     return path;
                 }
             }

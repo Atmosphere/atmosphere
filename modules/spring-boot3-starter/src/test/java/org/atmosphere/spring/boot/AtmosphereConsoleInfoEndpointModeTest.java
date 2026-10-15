@@ -15,6 +15,7 @@
  */
 package org.atmosphere.spring.boot;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.atmosphere.a2a.test.FakeA2aHandler;
@@ -113,6 +114,56 @@ class AtmosphereConsoleInfoEndpointModeTest {
                 Map.of("/atmosphere/rooms/{room}", wrapperFor(mock(ManagedAtmosphereHandler.class)));
         assertThat(AtmosphereConsoleInfoEndpoint.templateWrapper(handlers, "/atmosphere/rooms/general/admin"))
                 .isNull();
+    }
+
+    @Test
+    void managedServiceOffTheDefaultPathIsDiscoveredWithDefaultProperties() {
+        // Default ai.path (/atmosphere/ai-chat) is not registered: the console
+        // falls back to the @ManagedService actually mounted, as on Spring Boot 4.
+        var result = newEndpoint(new AtmosphereProperties(),
+                Map.of("/atmosphere/chat", wrapperFor(mock(ManagedAtmosphereHandler.class)))).info();
+        assertThat(result).containsEntry("endpoint", "/atmosphere/chat");
+        assertThat(result).containsEntry("mode", "broadcast");
+        assertThat(result).containsEntry("subtitle", "Multi-client broadcast chat");
+    }
+
+    @Test
+    void pathTemplateManagedServiceIsDiscoveredWithDefaultProperties() {
+        var result = newEndpoint(new AtmosphereProperties(),
+                Map.of("/atmosphere/rooms/{room}", wrapperFor(mock(ManagedAtmosphereHandler.class)))).info();
+        assertThat(result).containsEntry("endpoint", "/atmosphere/rooms/{room}");
+        assertThat(result).containsEntry("mode", "broadcast");
+    }
+
+    @Test
+    void configuredAiPathWinsOverOtherRegisteredHandlers() {
+        // Insertion order puts the competing handlers first, so the configured
+        // path must win on purpose, not by iteration luck.
+        var handlers = new LinkedHashMap<String, AtmosphereHandlerWrapper>();
+        handlers.put("/atmosphere/agent/dispatch", wrapperFor(new FakeAtmosphereAgentHandler()));
+        handlers.put("/atmosphere/chat", wrapperFor(mock(ManagedAtmosphereHandler.class)));
+        handlers.put("/atmosphere/ai-chat", wrapperFor(new FakeAtmosphereAiHandler()));
+        var result = newEndpoint(new AtmosphereProperties(), handlers).info();
+        assertThat(result).containsEntry("endpoint", "/atmosphere/ai-chat");
+        assertThat(result).containsEntry("mode", "ai");
+    }
+
+    @Test
+    void agentHandlerWinsOverAManagedServiceWhenAiPathIsNotRegistered() {
+        var handlers = new LinkedHashMap<String, AtmosphereHandlerWrapper>();
+        handlers.put("/atmosphere/chat", wrapperFor(mock(ManagedAtmosphereHandler.class)));
+        handlers.put("/atmosphere/agent/dispatch", wrapperFor(new FakeAtmosphereAgentHandler()));
+        var result = newEndpoint(new AtmosphereProperties(), handlers).info();
+        assertThat(result).containsEntry("endpoint", "/atmosphere/agent/dispatch");
+        assertThat(result).containsEntry("mode", "ai");
+    }
+
+    @Test
+    void adminHandlerIsNeverPickedAsTheConsoleEndpoint() {
+        var result = newEndpoint(new AtmosphereProperties(),
+                Map.of("/atmosphere/admin/events", wrapperFor(mock(ManagedAtmosphereHandler.class)))).info();
+        assertThat(result).containsEntry("endpoint", "/atmosphere/ai-chat");
+        assertThat(result).containsEntry("mode", "ai");
     }
 
     @Test
