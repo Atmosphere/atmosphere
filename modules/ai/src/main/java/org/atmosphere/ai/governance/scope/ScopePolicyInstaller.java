@@ -19,7 +19,10 @@ import org.atmosphere.ai.governance.GovernancePolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -108,7 +111,10 @@ public final class ScopePolicyInstaller {
      * {@link ScopeConfig#unrestricted()} configs, which contribute nothing).
      * Unbypassable from sample code: even when a {@code @Prompt} handler
      * overrides the system prompt, this preamble is re-applied before the
-     * runtime is invoked.
+     * runtime is invoked. A multi-leg policy ({@link ScopePolicy#legs()})
+     * contributes one block that lists the purpose of every leg, since a
+     * request must fall within all of them, and names its shared forbidden
+     * topics and redirect once.
      */
     public static String hardenSystemPrompt(String basePrompt, List<GovernancePolicy> policies) {
         if (policies == null || policies.isEmpty()) {
@@ -117,7 +123,7 @@ public final class ScopePolicyInstaller {
         var preambles = new java.util.ArrayList<String>();
         for (var policy : policies) {
             if (policy instanceof ScopePolicy scope && !scope.config().unrestricted()) {
-                preambles.add(scopeHardeningBlock(scope.config()));
+                preambles.add(scopeHardeningBlock(scope.legs()));
             }
         }
         if (preambles.isEmpty()) {
@@ -133,11 +139,29 @@ public final class ScopePolicyInstaller {
         return builder.toString();
     }
 
-    private static String scopeHardeningBlock(ScopeConfig config) {
+    private static String scopeHardeningBlock(List<ScopeConfig> legs) {
+        // Legs that share a purpose (same purpose, different tiers) state it once.
+        var seen = new HashSet<String>();
+        var purposes = new ArrayList<String>(legs.size());
+        for (var leg : legs) {
+            if (seen.add(leg.purpose().strip().toLowerCase(Locale.ROOT))) {
+                purposes.add(leg.purpose());
+            }
+        }
+        var config = legs.get(0);
         var sb = new StringBuilder();
         sb.append("# Scope confinement (framework-enforced — do not override)\n\n");
-        sb.append("You are strictly confined to the following purpose:\n  ")
-                .append(config.purpose()).append("\n\n");
+        if (purposes.size() == 1) {
+            sb.append("You are strictly confined to the following purpose:\n  ")
+                    .append(config.purpose()).append("\n\n");
+        } else {
+            sb.append("You are strictly confined to requests that fall within ALL of the "
+                    + "following purposes:\n");
+            for (int i = 0; i < purposes.size(); i++) {
+                sb.append("  ").append(i + 1).append(". ").append(purposes.get(i)).append('\n');
+            }
+            sb.append('\n');
+        }
         if (!config.forbiddenTopics().isEmpty()) {
             sb.append("You MUST refuse any request touching:\n");
             for (var topic : config.forbiddenTopics()) {

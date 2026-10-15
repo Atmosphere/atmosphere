@@ -24,6 +24,11 @@ import org.atmosphere.ai.governance.PolicyDecision;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+
 /**
  * {@link GovernancePolicy} that delegates scope classification to a
  * {@link ScopeGuardrail} chosen by {@link ScopeConfig#tier()}, then maps
@@ -47,6 +52,18 @@ import org.slf4j.LoggerFactory;
  *   </li>
  *   <li>{@link ScopeGuardrail.Outcome#ERROR} → {@link PolicyDecision.Deny} (fail-closed)</li>
  * </ul>
+ *
+ * <p>A policy has one or more <em>legs</em> ({@link #legs()}), each a
+ * {@link ScopeConfig} classified by the guardrail of its own tier. A request
+ * is admitted only when every leg admits it: legs run on the original
+ * request, cheapest tier first, and the first leg that does not answer
+ * {@code IN_SCOPE} decides the turn. This is how two explicit scope
+ * declarations whose tiers or purposes cannot be ordered against each other
+ * (a skill's {@code scopeTier} and a class {@link AgentScope}) are both
+ * enforced by one policy, so the breach mode, the redirect text and the
+ * prompt-hardening block stay single. The legs share their forbidden topics,
+ * breach mode, redirect message and {@code postResponseCheck}; only the
+ * purpose, tier and threshold vary per leg.</p>
  */
 public final class ScopePolicy implements GovernancePolicy {
 
@@ -87,11 +104,37 @@ public final class ScopePolicy implements GovernancePolicy {
     private final String name;
     private final String source;
     private final String version;
+    /** The legs, sorted by tier ordinal (cheapest first); never empty. */
+    private final List<ScopeConfig> legs;
+    /** {@code guardrails.get(i)} classifies {@code legs.get(i)}. */
+    private final List<ScopeGuardrail> guardrails;
+    /** The primary leg, {@code legs.get(0)}; carries the settings every leg shares. */
     private final ScopeConfig config;
-    private final ScopeGuardrail guardrail;
 
     public ScopePolicy(String name, String source, String version,
                        ScopeConfig config, ScopeGuardrail guardrail) {
+        this(name, source, version, Collections.singletonList(config),
+                Collections.singletonList(guardrail));
+    }
+
+    /**
+     * A policy that admits a request only when every leg admits it.
+     *
+     * @param name       the policy name
+     * @param source     the policy source for the decision log
+     * @param version    the policy version
+     * @param legs       one {@link ScopeConfig} per leg, non-empty. With more
+     *                   than one leg, none may be {@code unrestricted} and all
+     *                   must agree on {@link ScopeConfig#forbiddenTopics()},
+     *                   {@link ScopeConfig#onBreach()},
+     *                   {@link ScopeConfig#redirectMessage()} and
+     *                   {@link ScopeConfig#postResponseCheck()}
+     * @param guardrails the guardrail of each leg, same size and order as
+     *                   {@code legs}, each of its leg's tier
+     * @throws IllegalArgumentException when an argument breaks these rules
+     */
+    public ScopePolicy(String name, String source, String version,
+                       List<ScopeConfig> legs, List<ScopeGuardrail> guardrails) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("name must not be blank");
         }
@@ -101,30 +144,82 @@ public final class ScopePolicy implements GovernancePolicy {
         if (version == null || version.isBlank()) {
             throw new IllegalArgumentException("version must not be blank");
         }
-        if (config == null) {
-            throw new IllegalArgumentException("config must not be null");
+        if (legs == null || legs.isEmpty()) {
+            throw new IllegalArgumentException("legs must not be empty");
         }
-        if (guardrail == null) {
-            throw new IllegalArgumentException("guardrail must not be null");
+        if (guardrails == null || guardrails.size() != legs.size()) {
+            throw new IllegalArgumentException("guardrails must have one entry per leg ("
+                    + legs.size() + "), got " + (guardrails == null ? "null" : guardrails.size()));
         }
-        if (guardrail.tier() != config.tier()) {
-            throw new IllegalArgumentException(
-                    "guardrail tier " + guardrail.tier() + " does not match config tier " + config.tier());
+        var single = legs.size() == 1;
+        var pairs = new ArrayList<Leg>(legs.size());
+        for (int i = 0; i < legs.size(); i++) {
+            var leg = legs.get(i);
+            var guardrail = guardrails.get(i);
+            if (leg == null) {
+                throw new IllegalArgumentException(single
+                        ? "config must not be null" : "leg " + i + " must not be null");
+            }
+            if (guardrail == null) {
+                throw new IllegalArgumentException(single
+                        ? "guardrail must not be null" : "guardrail " + i + " must not be null");
+            }
+            if (guardrail.tier() != leg.tier()) {
+                throw new IllegalArgumentException(
+                        "guardrail tier " + guardrail.tier() + " does not match config tier " + leg.tier());
+            }
+            pairs.add(new Leg(leg, guardrail));
         }
+        if (!single) {
+            var first = legs.get(0);
+            for (var leg : legs) {
+                if (leg.unrestricted()) {
+                    throw new IllegalArgumentException(
+                            "an unrestricted scope cannot be one leg of a multi-leg policy");
+                }
+                if (!leg.forbiddenTopics().equals(first.forbiddenTopics())
+                        || leg.onBreach() != first.onBreach()
+                        || !leg.redirectMessage().equals(first.redirectMessage())
+                        || leg.postResponseCheck() != first.postResponseCheck()) {
+                    throw new IllegalArgumentException("the legs of a multi-leg policy must share "
+                            + "forbiddenTopics, onBreach, redirectMessage and postResponseCheck");
+                }
+            }
+        }
+        // Stable: legs of the same tier keep the order the caller gave them.
+        pairs.sort(Comparator.comparingInt(pair -> pair.config().tier().ordinal()));
         this.name = name;
         this.source = source;
         this.version = version;
-        this.config = config;
-        this.guardrail = guardrail;
+        this.legs = pairs.stream().map(Leg::config).toList();
+        this.guardrails = pairs.stream().map(Leg::guardrail).toList();
+        this.config = this.legs.get(0);
     }
+
+    /** A leg's config and the guardrail that classifies it, kept together while sorting. */
+    private record Leg(ScopeConfig config, ScopeGuardrail guardrail) { }
 
     @Override public String name() { return name; }
     @Override public String source() { return source; }
     @Override public String version() { return version; }
 
-    /** Exposed so admin surfaces can render the configured scope. */
+    /**
+     * The primary leg ({@code legs().get(0)}, the cheapest tier). It carries
+     * every setting the legs share, but not the purpose, tier or threshold of
+     * the other legs: read {@link #legs()} to render the whole scope.
+     */
     public ScopeConfig config() {
         return config;
+    }
+
+    /**
+     * Every leg of this policy, sorted by tier (cheapest first), so admin
+     * surfaces can render the scope that is actually enforced.
+     *
+     * @return the unmodifiable, non-empty list of legs
+     */
+    public List<ScopeConfig> legs() {
+        return legs;
     }
 
     @Override
@@ -138,24 +233,36 @@ public final class ScopePolicy implements GovernancePolicy {
         return evaluatePreAdmission(context);
     }
 
+    /**
+     * Every leg classifies the original request, cheapest first. The first
+     * leg that does not admit decides: OUT_OF_SCOPE is the breach, ERROR or a
+     * throw denies (fail-closed). Later legs are not evaluated.
+     */
     private PolicyDecision evaluatePreAdmission(PolicyContext context) {
-        ScopeGuardrail.Decision decision;
-        try {
-            decision = guardrail.evaluate(context.request(), config);
-        } catch (RuntimeException e) {
-            logger.error("ScopeGuardrail {} threw during pre-admission evaluate — fail-closed",
-                    guardrail.getClass().getSimpleName(), e);
-            GovernanceMetricsHolder.get().recordSimilarity(name, config.tier(), "error", Double.NaN);
-            return PolicyDecision.deny("scope check failed: " + e.getMessage());
+        for (int i = 0; i < legs.size(); i++) {
+            var leg = legs.get(i);
+            var guardrail = guardrails.get(i);
+            ScopeGuardrail.Decision decision;
+            try {
+                decision = guardrail.evaluate(context.request(), leg);
+            } catch (RuntimeException e) {
+                logger.error("ScopeGuardrail {} threw during pre-admission evaluate — fail-closed",
+                        guardrail.getClass().getSimpleName(), e);
+                GovernanceMetricsHolder.get().recordSimilarity(name, leg.tier(), "error", Double.NaN);
+                return PolicyDecision.deny("scope check failed: " + e.getMessage());
+            }
+            var policyDecision = switch (decision.outcome()) {
+                case IN_SCOPE -> PolicyDecision.admit();
+                case ERROR -> PolicyDecision.deny("scope check errored: " + decision.reason());
+                case OUT_OF_SCOPE -> breachDecision(context.request(), decision, leg);
+            };
+            GovernanceMetricsHolder.get().recordSimilarity(name, leg.tier(),
+                    decisionLabel(policyDecision), decision.similarity());
+            if (!(policyDecision instanceof PolicyDecision.Admit)) {
+                return policyDecision;
+            }
         }
-        var policyDecision = switch (decision.outcome()) {
-            case IN_SCOPE -> PolicyDecision.admit();
-            case ERROR -> PolicyDecision.deny("scope check errored: " + decision.reason());
-            case OUT_OF_SCOPE -> breachDecision(context.request(), decision);
-        };
-        GovernanceMetricsHolder.get().recordSimilarity(name, config.tier(),
-                decisionLabel(policyDecision), decision.similarity());
-        return policyDecision;
+        return PolicyDecision.admit();
     }
 
     /**
@@ -172,6 +279,10 @@ public final class ScopePolicy implements GovernancePolicy {
      * prefix note. Errors fail-OPEN on the response path because bytes are
      * already flowing; the admin trail still records the error via
      * {@link org.atmosphere.ai.AiPipeline}'s guardrail-wrapping seam.</p>
+     *
+     * <p>Every leg classifies the response: the first OUT_OF_SCOPE leg denies;
+     * a leg that errors or throws admits on its own account and the next leg
+     * still runs.</p>
      */
     private PolicyDecision evaluatePostResponse(PolicyContext context) {
         if (!config.postResponseCheck()) {
@@ -185,29 +296,36 @@ public final class ScopePolicy implements GovernancePolicy {
         // is symmetric, "is this text in scope?" works the same on request
         // or response text.
         var syntheticRequest = context.request().withMessage(response);
-        ScopeGuardrail.Decision decision;
-        try {
-            decision = guardrail.evaluate(syntheticRequest, config);
-        } catch (RuntimeException e) {
-            logger.error("ScopeGuardrail {} threw during post-response evaluate — admitting "
-                    + "(bytes already on the wire)", guardrail.getClass().getSimpleName(), e);
-            GovernanceMetricsHolder.get().recordSimilarity(name, config.tier(), "error", Double.NaN);
-            return PolicyDecision.admit();
-        }
-        var policyDecision = switch (decision.outcome()) {
-            case IN_SCOPE, ERROR -> PolicyDecision.admit();
-            case OUT_OF_SCOPE -> {
-                var reason = decision.reason().isEmpty()
-                        ? "response drifted outside endpoint scope"
-                        : decision.reason();
-                logger.warn("Scope post-response breach on '{}' (tier={}, similarity={}): {}",
-                        name, config.tier(), decision.similarity(), reason);
-                yield PolicyDecision.deny("post-response: " + reason);
+        for (int i = 0; i < legs.size(); i++) {
+            var leg = legs.get(i);
+            var guardrail = guardrails.get(i);
+            ScopeGuardrail.Decision decision;
+            try {
+                decision = guardrail.evaluate(syntheticRequest, leg);
+            } catch (RuntimeException e) {
+                logger.error("ScopeGuardrail {} threw during post-response evaluate — admitting "
+                        + "(bytes already on the wire)", guardrail.getClass().getSimpleName(), e);
+                GovernanceMetricsHolder.get().recordSimilarity(name, leg.tier(), "error", Double.NaN);
+                continue;
             }
-        };
-        GovernanceMetricsHolder.get().recordSimilarity(name, config.tier(),
-                decisionLabel(policyDecision), decision.similarity());
-        return policyDecision;
+            var policyDecision = switch (decision.outcome()) {
+                case IN_SCOPE, ERROR -> PolicyDecision.admit();
+                case OUT_OF_SCOPE -> {
+                    var reason = decision.reason().isEmpty()
+                            ? "response drifted outside endpoint scope"
+                            : decision.reason();
+                    logger.warn("Scope post-response breach on '{}' (tier={}, similarity={}): {}",
+                            name, leg.tier(), decision.similarity(), reason);
+                    yield PolicyDecision.deny("post-response: " + reason);
+                }
+            };
+            GovernanceMetricsHolder.get().recordSimilarity(name, leg.tier(),
+                    decisionLabel(policyDecision), decision.similarity());
+            if (policyDecision instanceof PolicyDecision.Deny) {
+                return policyDecision;
+            }
+        }
+        return PolicyDecision.admit();
     }
 
     private static String decisionLabel(PolicyDecision decision) {
@@ -219,12 +337,13 @@ public final class ScopePolicy implements GovernancePolicy {
         };
     }
 
-    private PolicyDecision breachDecision(AiRequest original, ScopeGuardrail.Decision decision) {
+    private PolicyDecision breachDecision(AiRequest original, ScopeGuardrail.Decision decision,
+                                          ScopeConfig leg) {
         var reason = decision.reason().isEmpty()
                 ? "request falls outside endpoint scope"
                 : decision.reason();
         logger.warn("Scope breach on policy '{}' (tier={}, similarity={}): {}",
-                name, config.tier(), decision.similarity(), reason);
+                name, leg.tier(), decision.similarity(), reason);
         return switch (config.onBreach()) {
             case DENY -> PolicyDecision.deny(reason);
             case POLITE_REDIRECT, CUSTOM_MESSAGE ->

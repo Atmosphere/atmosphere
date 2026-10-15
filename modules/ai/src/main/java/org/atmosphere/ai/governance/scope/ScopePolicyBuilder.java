@@ -19,6 +19,8 @@ import org.atmosphere.ai.annotation.AgentScope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -88,21 +90,64 @@ public final class ScopePolicyBuilder {
      * @return the resolved policy
      */
     public static ScopePolicy build(ScopeConfig config, String name, String source) {
+        var guardrail = resolveGuardrail(config, source);
+        return new ScopePolicy(name, source, "1.0", againstResolvedTier(config, guardrail),
+                guardrail);
+    }
+
+    /**
+     * Build a multi-leg {@link ScopePolicy} that admits a request only when
+     * every leg admits it — the path two explicit scope declarations take when
+     * their tiers or purposes cannot be merged into one
+     * {@link ScopeConfig}. Each leg resolves the {@link ScopeGuardrail} of its
+     * own tier and is rebuilt against the guardrail actually resolved, as
+     * {@link #build(ScopeConfig, String, String)} does for a single config
+     * (Correctness Invariant #5 — Runtime Truth). The legs must satisfy the
+     * multi-leg rules of
+     * {@link ScopePolicy#ScopePolicy(String, String, String, List, List)};
+     * a single leg builds the same policy as the single-config overload.
+     *
+     * @param legs   the already-validated legs, non-empty
+     * @param name   the policy name
+     * @param source the policy source for the decision log
+     * @return the resolved policy
+     * @throws IllegalArgumentException when {@code legs} is empty or breaks
+     *         the multi-leg rules
+     */
+    public static ScopePolicy build(List<ScopeConfig> legs, String name, String source) {
+        if (legs == null || legs.isEmpty()) {
+            throw new IllegalArgumentException("legs must not be empty");
+        }
+        var resolvedLegs = new ArrayList<ScopeConfig>(legs.size());
+        var guardrails = new ArrayList<ScopeGuardrail>(legs.size());
+        for (var leg : legs) {
+            var guardrail = resolveGuardrail(leg, source);
+            resolvedLegs.add(againstResolvedTier(leg, guardrail));
+            guardrails.add(guardrail);
+        }
+        return new ScopePolicy(name, source, "1.0", resolvedLegs, guardrails);
+    }
+
+    private static ScopeGuardrail resolveGuardrail(ScopeConfig config, String source) {
         var guardrail = ScopeGuardrailResolver.resolve(config.tier());
         if (guardrail.tier() != config.tier()) {
             logger.warn("No {} ScopeGuardrail impl on the classpath for {} — "
                             + "falling back to rule-based tier; install atmosphere-ai-scope-<tier> for the "
                             + "intended behaviour", config.tier(), source);
         }
-        return new ScopePolicy(name, source, "1.0",
-                // rebuild config against the guardrail we actually resolved
-                // so we don't advertise EMBEDDING_SIMILARITY when only the
-                // RULE_BASED fallback is installed
-                new ScopeConfig(config.purpose(), config.forbiddenTopics(),
-                        config.onBreach(), config.redirectMessage(),
-                        guardrail.tier(), config.similarityThreshold(),
-                        config.postResponseCheck(), config.unrestricted(),
-                        config.justification()),
-                guardrail);
+        return guardrail;
+    }
+
+    /**
+     * Rebuild config against the guardrail we actually resolved so we don't
+     * advertise EMBEDDING_SIMILARITY when only the RULE_BASED fallback is
+     * installed.
+     */
+    private static ScopeConfig againstResolvedTier(ScopeConfig config, ScopeGuardrail guardrail) {
+        return new ScopeConfig(config.purpose(), config.forbiddenTopics(),
+                config.onBreach(), config.redirectMessage(),
+                guardrail.tier(), config.similarityThreshold(),
+                config.postResponseCheck(), config.unrestricted(),
+                config.justification());
     }
 }

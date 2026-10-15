@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -103,6 +104,55 @@ class ScopePostResponseCheckTest {
                 new AiRequest("hi"),
                 "here is python code to sort an array"));
         assertInstanceOf(PolicyDecision.Admit.class, decision);
+    }
+
+    @Test
+    void anyLegFindingTheResponseOutOfScopeDenies() {
+        var erroring = new ScopePolicyMultiLegTest.StubGuardrail(
+                AgentScope.Tier.RULE_BASED, ScopeGuardrail.Outcome.ERROR);
+        var drifted = new ScopePolicyMultiLegTest.StubGuardrail(
+                AgentScope.Tier.LLM_CLASSIFIER, ScopeGuardrail.Outcome.OUT_OF_SCOPE);
+        var policy = multiLeg(erroring, drifted, true);
+
+        var deny = assertInstanceOf(PolicyDecision.Deny.class, policy.evaluate(PolicyContext.postResponse(
+                new AiRequest("hi"), "here is python code")));
+        assertTrue(deny.reason().startsWith("post-response:"), deny.reason());
+        assertEquals(List.of("here is python code"), drifted.seen,
+                "a leg that errors does not stop the next leg from classifying the response");
+    }
+
+    @Test
+    void aMultiLegResponseCheckAdmitsWhenEveryLegErrorsOrThrows() {
+        var erroring = new ScopePolicyMultiLegTest.StubGuardrail(
+                AgentScope.Tier.RULE_BASED, ScopeGuardrail.Outcome.ERROR);
+        var throwing = new ScopePolicyMultiLegTest.StubGuardrail(AgentScope.Tier.LLM_CLASSIFIER, null);
+        var policy = multiLeg(erroring, throwing, true);
+
+        assertInstanceOf(PolicyDecision.Admit.class, policy.evaluate(PolicyContext.postResponse(
+                new AiRequest("hi"), "anything")));
+        assertEquals(1, throwing.seen.size());
+    }
+
+    @Test
+    void aMultiLegPolicyWithoutTheCheckNeverClassifiesTheResponse() {
+        var rule = new ScopePolicyMultiLegTest.StubGuardrail(
+                AgentScope.Tier.RULE_BASED, ScopeGuardrail.Outcome.OUT_OF_SCOPE);
+        var llm = new ScopePolicyMultiLegTest.StubGuardrail(
+                AgentScope.Tier.LLM_CLASSIFIER, ScopeGuardrail.Outcome.OUT_OF_SCOPE);
+        var policy = multiLeg(rule, llm, false);
+
+        assertInstanceOf(PolicyDecision.Admit.class, policy.evaluate(PolicyContext.postResponse(
+                new AiRequest("hi"), "here is python code")));
+        assertTrue(rule.seen.isEmpty() && llm.seen.isEmpty());
+    }
+
+    private static ScopePolicy multiLeg(ScopeGuardrail rule, ScopeGuardrail llm, boolean post) {
+        return new ScopePolicy("scope::two", "code:test", "1.0",
+                List.of(ScopePolicyMultiLegTest.leg("Orders", AgentScope.Tier.RULE_BASED,
+                                AgentScope.Breach.POLITE_REDIRECT, post),
+                        ScopePolicyMultiLegTest.leg("Orders", AgentScope.Tier.LLM_CLASSIFIER,
+                                AgentScope.Breach.POLITE_REDIRECT, post)),
+                List.of(rule, llm));
     }
 
     private static ScopePolicy build(boolean postResponseCheck, AgentScope.Breach breach) {
