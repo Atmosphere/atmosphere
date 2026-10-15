@@ -82,8 +82,8 @@ modes. A `-D` system property or the knob's `LLM_*` environment variable (e.g. `
 wins over `application.properties`. `atmosphere.ai.runtime=<name>` selects the `AgentRuntime` among
 the runtime modules on the classpath and fails startup when none has that name (see
 [`modules/ai/README.md`](../ai/README.md#agentruntime-spi)). LLM settings built before the framework
-initializes (by a startup observer calling `AiConfig.configure`, say) keep the generation and
-`prompt-cache-key` values they were built with; startup logs a warning naming the knobs they do not
+initializes (by a startup observer calling `AiConfig.configure`, say) keep the generation,
+`prompt-cache-key` and `logprobs` values they were built with; startup logs a warning naming the knobs they do not
 apply. The LLM mode, model, key and base URL are
 not bridged on Quarkus: they come from the `LLM_MODE` / `LLM_MODEL` / `LLM_API_KEY` /
 `LLM_BASE_URL` environment variables.

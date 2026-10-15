@@ -199,7 +199,7 @@ classpath, by `AgentRuntime.name()` (`built-in`, `spring-ai`, `langchain4j`, `go
 name that matches no available runtime fails startup with the requested and the available names.
 The knobs are installed before any bean is created, so an application `LlmSettings` bean built with
 `AiConfig.configure(...)` carries them too. Settings built before the context starts (in `main()`, a
-static initializer) keep the generation and `prompt-cache-key` values they were built with; startup
+static initializer) keep the generation, `prompt-cache-key` and `logprobs` values they were built with; startup
 logs a warning naming the knobs they do not apply.
 
 ### How It Works

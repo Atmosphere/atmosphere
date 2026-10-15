@@ -113,7 +113,9 @@ public final class AiConfig {
      * (force-request), {@code disabled} (force-suppress), or {@code auto}
      * (shared endpoint allow-list). Parsed leniently — see
      * {@link org.atmosphere.ai.llm.LogprobsMode#parse(String)} — so malformed
-     * values fall back to {@code auto} instead of throwing.
+     * values fall back to {@code auto} instead of throwing. Read when the
+     * client is built ({@link #configure}), like {@link #PROMPT_CACHE_KEY_PROPERTY}:
+     * a client keeps the mode it was built with.
      * <p>Default: {@code auto}</p>
      * <p>Sysprop: {@code atmosphere.ai.logprobs}; env: {@code LLM_LOGPROBS}</p>
      */
@@ -514,8 +516,13 @@ public final class AiConfig {
         // CredentialResolver when settings.apiKey() is null.
         var resolvedKey = (apiKey != null && !apiKey.isBlank()) ? apiKey : null;
 
+        // The prompt-cache-key and logprobs modes are fixed on the client it
+        // builds, so settings configured later in the JVM (another agent,
+        // another application) never change what this client sends.
         var builder = OpenAiCompatibleClient.builder().baseUrl(resolvedUrl)
-                .generation(generation);
+                .generation(generation)
+                .promptCacheKeyMode(cacheKeyMode)
+                .logprobsMode(resolveLogprobsMode());
         if (resolvedKey != null) {
             builder.apiKey(resolvedKey);
         } else if (!"local".equalsIgnoreCase(mode)) {
@@ -784,7 +791,7 @@ public final class AiConfig {
      * properties.
      *
      * <p>Install before {@link #configure}: the generation parameters and the
-     * prompt-cache-key mode are read when the settings are built, so settings
+     * prompt-cache-key and logprobs modes are read when the settings are built, so settings
      * built earlier keep the values they were built with (a host calls
      * {@link #reportKnobsNotInEffect()} once it started, to name them). The cached
      * {@link AgentRuntimeResolver} resolution is dropped, so the
@@ -799,8 +806,8 @@ public final class AiConfig {
      * only that one: closing the latest makes the previous, still-open
      * installation the one read again, so the host that installed it closes it
      * when it stops. The settings ({@link #get()}) are not rebuilt: settings
-     * built while the closed installation was read keep its generation and
-     * prompt-cache-key values until {@link #configure} runs again, and the
+     * built while the closed installation was read keep its generation,
+     * prompt-cache-key and logprobs values until {@link #configure} runs again, and the
      * close logs a warning naming those knobs.</p>
      *
      * @param lookup the host's configuration, by property name; returns
@@ -841,7 +848,7 @@ public final class AiConfig {
      * Names, in a warning, the knobs the settings in use ({@link #get()}) do not
      * apply: settings built before the host configuration was installed (in
      * {@code main()}, a static initializer, a startup observer) keep the
-     * generation and prompt-cache-key values they were built with, so a value
+     * generation, prompt-cache-key and logprobs values they were built with, so a value
      * set in the application's configuration would otherwise be silently
      * ignored (Correctness Invariant #5). A host calls it once it started.
      *
@@ -866,7 +873,7 @@ public final class AiConfig {
     /**
      * Names, in a warning, the knobs the settings in use do not apply once a
      * later host configuration closed and an earlier one is read again: the
-     * settings that host built keep its generation and prompt-cache-key
+     * settings that host built keep its generation, prompt-cache-key and logprobs
      * values, so the application still running would otherwise send them
      * without a word (Correctness Invariant #5).
      */
@@ -885,10 +892,12 @@ public final class AiConfig {
     }
 
     /**
-     * The knobs read when settings are built (prompt-cache-key, temperature,
-     * max-tokens, top-p, stop) whose current value differs from the one
-     * {@code settings} carries: settings built before the host configuration
-     * was installed, which do not apply it.
+     * The knobs read when settings are built (prompt-cache-key, logprobs,
+     * temperature, max-tokens, top-p, stop) whose current value differs from
+     * the one {@code settings} carries: settings built before the host
+     * configuration was installed, which do not apply it. The logprobs mode is
+     * carried by the client, so it is compared only when the settings' client
+     * is an {@link OpenAiCompatibleClient}.
      *
      * @param settings settings built by {@link #configure}
      * @return the differing knob property names, in {@link #knobs()} order
@@ -899,6 +908,10 @@ public final class AiConfig {
         var differing = new java.util.ArrayList<String>();
         if (resolvePromptCacheKeyMode() != settings.promptCacheKeyMode()) {
             differing.add(PROMPT_CACHE_KEY_PROPERTY);
+        }
+        if (settings.client() instanceof OpenAiCompatibleClient client
+                && resolveLogprobsMode() != client.logprobsMode()) {
+            differing.add(LOGPROBS_PROPERTY);
         }
         if (!java.util.Objects.equals(generation.temperature(), baked.temperature())) {
             differing.add(TEMPERATURE_PROPERTY);

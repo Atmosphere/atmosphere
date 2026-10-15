@@ -32,9 +32,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * host-heuristic) behavior: this class proves that an explicit ENABLED/DISABLED
  * mode overrides the host heuristic deterministically.
  *
- * <p>The mode is read from the framework-wide {@link AiConfig} singleton, so
- * each test configures it via the {@code atmosphere.ai.prompt-cache-key}
- * system property and {@link AiConfig#configure}. The {@link AfterEach} clears
+ * <p>A client built directly reads the {@code atmosphere.ai.prompt-cache-key}
+ * knob when it is built, so each test sets the system property (and
+ * {@link AiConfig#configure}) before building the client. The {@link AfterEach} clears
  * the property and re-resolves AiConfig to its AUTO default so no state leaks
  * between tests (each test class also runs in its own Surefire fork:
  * {@code reuseForks=false}).</p>

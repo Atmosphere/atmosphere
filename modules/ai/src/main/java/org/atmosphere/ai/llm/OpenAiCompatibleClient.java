@@ -99,6 +99,17 @@ public class OpenAiCompatibleClient implements LlmClient {
      * headers cannot be overridden accidentally.
      */
     private final java.util.Map<String, String> customHeaders;
+    /**
+     * The tri-state {@code prompt_cache_key} control, fixed when the client is
+     * built: settings configured later in the JVM (another agent, another
+     * application) do not change what this client sends.
+     */
+    private final PromptCacheKeyMode promptCacheKeyMode;
+    /**
+     * The tri-state {@code logprobs} control, fixed when the client is built,
+     * like {@link #promptCacheKeyMode}.
+     */
+    private final LogprobsMode logprobsMode;
 
     /**
      * Max cached conversation IDs for Responses API stateful continuation.
@@ -117,7 +128,9 @@ public class OpenAiCompatibleClient implements LlmClient {
     private OpenAiCompatibleClient(String baseUrl, String apiKey, HttpClient httpClient,
                                    Duration timeout, RetryPolicy retryPolicy,
                                    java.util.Map<String, String> customHeaders,
-                                   org.atmosphere.ai.GenerationParams generation) {
+                                   org.atmosphere.ai.GenerationParams generation,
+                                   PromptCacheKeyMode promptCacheKeyMode,
+                                   LogprobsMode logprobsMode) {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         this.apiKey = apiKey;
         this.httpClient = httpClient;
@@ -126,6 +139,24 @@ public class OpenAiCompatibleClient implements LlmClient {
         this.customHeaders = customHeaders;
         this.generation = generation != null
                 ? generation : org.atmosphere.ai.GenerationParams.defaults();
+        this.promptCacheKeyMode = promptCacheKeyMode;
+        this.logprobsMode = logprobsMode;
+    }
+
+    /**
+     * Returns the {@code prompt_cache_key} mode this client was built with.
+     * Never {@code null}.
+     */
+    public PromptCacheKeyMode promptCacheKeyMode() {
+        return promptCacheKeyMode;
+    }
+
+    /**
+     * Returns the {@code logprobs} mode this client was built with. Never
+     * {@code null}.
+     */
+    public LogprobsMode logprobsMode() {
+        return logprobsMode;
     }
 
     /**
@@ -1133,9 +1164,10 @@ public class OpenAiCompatibleClient implements LlmClient {
     /**
      * Returns {@code true} if this client should emit {@code logprobs: true}
      * for a request that opted in. Resolution mirrors
-     * {@link #supportsPromptCacheKey()}: the tri-state
-     * {@code atmosphere.ai.logprobs} knob ({@link LogprobsMode}) is consulted
-     * first; under {@link LogprobsMode#AUTO} the decision defers to the shared
+     * {@link #supportsPromptCacheKey()}: the tri-state {@link LogprobsMode} this
+     * client was built with (from the {@code atmosphere.ai.logprobs} knob unless
+     * the builder set one) is consulted first; under {@link LogprobsMode#AUTO}
+     * the decision defers to the shared
      * known-tolerant-endpoint allow-list
      * ({@link CacheHint#endpointAcceptsPromptCacheKey(String)}) so both
      * optional OpenAI fields make the identical AUTO decision for any given
@@ -1143,8 +1175,7 @@ public class OpenAiCompatibleClient implements LlmClient {
      * rejects the field would otherwise fail the whole request).
      */
     boolean supportsLogprobs() {
-        return org.atmosphere.ai.AiConfig.resolveLogprobsMode()
-                .resolve(CacheHint.endpointAcceptsPromptCacheKey(baseUrl));
+        return logprobsMode.resolve(CacheHint.endpointAcceptsPromptCacheKey(baseUrl));
     }
 
     /**
@@ -1162,13 +1193,10 @@ public class OpenAiCompatibleClient implements LlmClient {
         // Tri-state override: ENABLED force-emits, DISABLED force-suppresses,
         // AUTO (default) defers to the legacy host allow-list below — keeping
         // the AUTO path byte-identical to the pre-flag behavior. The mode is
-        // read from the framework-wide AiConfig settings; when unconfigured
-        // (e.g. unit tests that build a client directly) it resolves to AUTO.
-        var settings = org.atmosphere.ai.AiConfig.get();
-        var mode = settings != null
-                ? settings.promptCacheKeyMode()
-                : PromptCacheKeyMode.AUTO;
-        return mode.resolve(autoSupportsPromptCacheKey());
+        // the one this client was built with (AiConfig passes the settings'
+        // mode; a client built directly reads the knob when it is built, AUTO
+        // when unset), never the settings configured later in the JVM.
+        return promptCacheKeyMode.resolve(autoSupportsPromptCacheKey());
     }
 
     /**
@@ -1724,6 +1752,8 @@ public class OpenAiCompatibleClient implements LlmClient {
         private final java.util.LinkedHashMap<String, String> customHeaders = new java.util.LinkedHashMap<>();
         private org.atmosphere.ai.GenerationParams generation =
                 org.atmosphere.ai.GenerationParams.defaults();
+        private PromptCacheKeyMode promptCacheKeyMode;
+        private LogprobsMode logprobsMode;
 
         private Builder() {
         }
@@ -1826,6 +1856,30 @@ public class OpenAiCompatibleClient implements LlmClient {
             return this;
         }
 
+        /**
+         * Set the tri-state {@code prompt_cache_key} control this client applies
+         * for its whole life. When unset (or {@code null}), {@link #build()}
+         * reads the {@code atmosphere.ai.prompt-cache-key} knob once
+         * ({@link org.atmosphere.ai.AiConfig#resolvePromptCacheKeyMode()}),
+         * which is {@link PromptCacheKeyMode#AUTO} when the knob is unset.
+         */
+        public Builder promptCacheKeyMode(PromptCacheKeyMode promptCacheKeyMode) {
+            this.promptCacheKeyMode = promptCacheKeyMode;
+            return this;
+        }
+
+        /**
+         * Set the tri-state {@code logprobs} control this client applies for its
+         * whole life. When unset (or {@code null}), {@link #build()} reads the
+         * {@code atmosphere.ai.logprobs} knob once
+         * ({@link org.atmosphere.ai.AiConfig#resolveLogprobsMode()}), which is
+         * {@link LogprobsMode#AUTO} when the knob is unset.
+         */
+        public Builder logprobsMode(LogprobsMode logprobsMode) {
+            this.logprobsMode = logprobsMode;
+            return this;
+        }
+
         public OpenAiCompatibleClient build() {
             var client = this.httpClient != null ? this.httpClient : HttpClient.newBuilder()
                     .connectTimeout(Duration.ofSeconds(30))
@@ -1833,8 +1887,12 @@ public class OpenAiCompatibleClient implements LlmClient {
             var policy = this.retryPolicy != null ? this.retryPolicy
                     : new RetryPolicy(maxRetries, retryBaseDelay, Duration.ofSeconds(30),
                             2.0, RetryPolicy.DEFAULT.retryableErrors());
+            var cacheKeyMode = this.promptCacheKeyMode != null ? this.promptCacheKeyMode
+                    : org.atmosphere.ai.AiConfig.resolvePromptCacheKeyMode();
+            var logprobs = this.logprobsMode != null ? this.logprobsMode
+                    : org.atmosphere.ai.AiConfig.resolveLogprobsMode();
             return new OpenAiCompatibleClient(baseUrl, apiKey, client, timeout, policy,
-                    java.util.Map.copyOf(customHeaders), generation);
+                    java.util.Map.copyOf(customHeaders), generation, cacheKeyMode, logprobs);
         }
     }
 }
