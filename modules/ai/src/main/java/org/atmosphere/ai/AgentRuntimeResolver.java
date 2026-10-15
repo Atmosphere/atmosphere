@@ -16,14 +16,8 @@
 package org.atmosphere.ai;
 
 import org.atmosphere.ai.llm.BuiltInAgentRuntime;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.ServiceConfigurationError;
-import java.util.ServiceLoader;
 
 /**
  * Resolves {@link AgentRuntime} implementations from the classpath via
@@ -38,23 +32,22 @@ import java.util.ServiceLoader;
  * {@link IllegalStateException}) naming the requested and the available
  * runtimes, rather than running a runtime that was not configured.</p>
  *
+ * <p>The statics resolve the runtimes of {@link AiEnvironment#current()}: the
+ * application bound to the calling thread, else the only one running, else
+ * the process default. Framework code that holds an application uses
+ * {@link AiEnvironment#runtimes()} instead.</p>
+ *
  * @see AgentRuntime
+ * @see AgentRuntimeRegistry
  */
 public final class AgentRuntimeResolver {
-
-    private static final Logger logger = LoggerFactory.getLogger(AgentRuntimeResolver.class);
-
-    // Cached after first resolution. ServiceLoader results don't change at
-    // runtime, so resolve once and return the immutable snapshot thereafter.
-    // Volatile ensures visibility; benign double-init on first access is
-    // acceptable (both threads produce the same ServiceLoader result).
-    private static volatile List<AgentRuntime> cachedAll;
 
     // True once application code has explicitly bound a native client to a
     // runtime adapter (SpringAiAgentRuntime.setChatClient,
     // LangChain4jAgentRuntime.setModel, ...). The demo fallback keys its
     // availability off "no API key configured"; a bound client means a real
-    // runtime can serve without any key, so demo must yield.
+    // runtime can serve without any key, so demo must yield. The binders are
+    // process-wide, so this flag is too.
     private static volatile boolean explicitClientBinding;
 
     private AgentRuntimeResolver() {}
@@ -103,14 +96,14 @@ public final class AgentRuntimeResolver {
     }
 
     /**
-     * Drop the cached runtime list so the next {@link #resolveAll()} call
-     * rescans the ServiceLoader. Visible for tests that install a custom
-     * runtime before the first resolution — without this, the cache freezes
-     * at the first call and subsequent {@code configure(...)} changes stay
-     * invisible for the rest of the JVM.
+     * Drop the cached runtime list of the process default and of every open
+     * {@link AiEnvironment}, so the next {@link #resolveAll()} call rescans the
+     * ServiceLoader. Visible for tests that install a custom runtime before
+     * the first resolution — without this, the cache freezes at the first call
+     * and subsequent {@code configure(...)} changes stay invisible.
      */
     public static void reset() {
-        cachedAll = null;
+        AiEnvironment.resetRuntimeCaches();
     }
 
     /**
@@ -126,80 +119,6 @@ public final class AgentRuntimeResolver {
      *                                         names no available runtime
      */
     public static List<AgentRuntime> resolveAll() {
-        var result = cachedAll;
-        if (result != null) {
-            return result;
-        }
-
-        var all = new ArrayList<AgentRuntime>();
-        var unavailable = new ArrayList<String>();
-
-        try {
-            for (var runtime : ServiceLoader.load(AgentRuntime.class)) {
-                try {
-                    if (runtime.isAvailable()) {
-                        all.add(runtime);
-                        logger.debug("AgentRuntime discovered: {} (priority {})",
-                                runtime.name(), runtime.priority());
-                    } else {
-                        unavailable.add(runtime.name());
-                    }
-                } catch (Exception e) {
-                    logger.warn("AgentRuntime failed availability check: {}",
-                            e.getMessage());
-                }
-            }
-        } catch (ServiceConfigurationError e) {
-            logger.debug("ServiceLoader<AgentRuntime> error: {}", e.getMessage());
-        }
-
-        all.sort(Comparator.comparingInt(AgentRuntime::priority).reversed());
-
-        if (all.isEmpty()) {
-            all.add(new BuiltInAgentRuntime());
-            logger.debug("No AgentRuntime on classpath, using built-in");
-        }
-
-        var requested = AiConfig.knob(AiConfig.RUNTIME_PROPERTY);
-        if (requested.isPresent()) {
-            var selected = select(all, requested.get(), unavailable);
-            logger.info("AgentRuntime resolution: {} selected by {}={} (available: {})",
-                    selected.name(), AiConfig.RUNTIME_PROPERTY, requested.get(),
-                    all.stream().map(AgentRuntime::name).toList());
-            result = List.of(selected);
-        } else {
-            logger.info("AgentRuntime resolution: {} (explicitClientBinding={})",
-                    all.stream().map(AgentRuntime::name).toList(), explicitClientBinding);
-            result = List.copyOf(all);
-        }
-        cachedAll = result;
-        return result;
-    }
-
-    /**
-     * The available runtime whose name is {@code requested}, ignoring case and
-     * surrounding blanks.
-     *
-     * @throws AgentRuntimeSelectionException when no available runtime has that name
-     */
-    private static AgentRuntime select(List<AgentRuntime> available, String requested,
-                                       List<String> unavailable) {
-        var name = requested.trim();
-        for (var runtime : available) {
-            if (name.equalsIgnoreCase(runtime.name())) {
-                return runtime;
-            }
-        }
-        var message = new StringBuilder()
-                .append(AiConfig.RUNTIME_PROPERTY).append('=').append(name)
-                .append(" names no available AgentRuntime. Available: ")
-                .append(available.stream().map(AgentRuntime::name).toList());
-        if (!unavailable.isEmpty()) {
-            message.append("; on the classpath but not available: ").append(unavailable);
-        }
-        message.append(". Add the runtime's module to the application, or unset ")
-                .append(AiConfig.RUNTIME_PROPERTY).append(" / ").append(AiConfig.RUNTIME_ENV)
-                .append(" to run the highest-priority runtime.");
-        throw new AgentRuntimeSelectionException(message.toString());
+        return AiEnvironment.current().runtimes().resolveAll();
     }
 }

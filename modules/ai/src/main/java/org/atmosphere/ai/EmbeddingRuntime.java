@@ -41,6 +41,18 @@ public interface EmbeddingRuntime {
     boolean isAvailable();
 
     /**
+     * Attach this instance to the application it serves. An
+     * {@link AiEnvironment}'s {@link EmbeddingRuntimeRegistry} calls it once,
+     * right after creating the instance and before {@link #isAvailable()}.
+     * The default does nothing: the runtime keeps reading the static
+     * {@link AiConfig} API.
+     *
+     * @param environment the environment this instance belongs to
+     */
+    default void attach(AiEnvironment environment) {
+    }
+
+    /**
      * @return embedding dimension produced by the configured model, or {@code -1}
      * when the runtime cannot answer without making a network call.
      */

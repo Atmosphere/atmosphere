@@ -50,6 +50,39 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
     private record ScopedClient(AiConfig.LlmSettings settings, Object client) {
     }
 
+    /** The environment this instance serves; {@code null} until {@link #attach}. */
+    private volatile AiEnvironment environment;
+
+    /**
+     * Attach this instance to {@code environment}. Attaching it again to the
+     * same environment does nothing; an instance never moves to another.
+     *
+     * @throws IllegalStateException when already attached to another environment
+     */
+    @Override
+    public void attach(AiEnvironment environment) {
+        java.util.Objects.requireNonNull(environment, "environment");
+        var current = this.environment;
+        if (current != null && current != environment) {
+            throw new IllegalStateException(name() + " is attached to " + current.name()
+                    + " and cannot serve " + environment.name());
+        }
+        this.environment = environment;
+    }
+
+    /**
+     * The environment whose settings and knobs this instance reads: the one it
+     * was {@link #attach attached} to, else {@link AiEnvironment#current()}
+     * (an instance created by hand reads the static {@link AiConfig} API, as
+     * before environments existed).
+     *
+     * @return the environment, never {@code null}
+     */
+    protected AiEnvironment environment() {
+        var attached = environment;
+        return attached != null ? attached : AiEnvironment.current();
+    }
+
     /** Returns the current native client instance, or {@code null} if not yet configured. */
     protected C getNativeClient() {
         return nativeClient;

@@ -32,6 +32,7 @@ public class RoutingAiSupport implements AgentRuntime {
     private final ModelRouter router;
     private final List<AgentRuntime> backends;
     private final Set<AiCapability> requiredCapabilities;
+    private volatile AiEnvironment environment;
 
     public RoutingAiSupport(ModelRouter router, List<AgentRuntime> backends) {
         this(router, backends, Set.of());
@@ -42,6 +43,24 @@ public class RoutingAiSupport implements AgentRuntime {
         this.router = router;
         this.backends = backends;
         this.requiredCapabilities = requiredCapabilities;
+    }
+
+    /**
+     * Attach the router and every backend it routes across to
+     * {@code environment}: they serve that application.
+     */
+    @Override
+    public void attach(AiEnvironment environment) {
+        this.environment = environment;
+        for (var backend : backends) {
+            backend.attach(environment);
+        }
+    }
+
+    /** The environment this router was attached to, else {@link AiEnvironment#current()}. */
+    AiEnvironment environment() {
+        var attached = environment;
+        return attached != null ? attached : AiEnvironment.current();
     }
 
     @Override

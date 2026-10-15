@@ -61,6 +61,20 @@ public interface AgentRuntime {
     void configure(AiConfig.LlmSettings settings);
 
     /**
+     * Attach this instance to the application it serves. An
+     * {@link AiEnvironment}'s {@link AgentRuntimeRegistry} calls it once,
+     * right after creating the instance and before {@link #isAvailable()}, so
+     * a runtime that reads its settings and knobs from {@code environment}
+     * rather than the static {@link AiConfig} API (as
+     * {@link AbstractAgentRuntime} does) serves that application only. The
+     * default does nothing: such a runtime keeps reading the static API.
+     *
+     * @param environment the environment this instance belongs to
+     */
+    default void attach(AiEnvironment environment) {
+    }
+
+    /**
      * Capabilities supported by this runtime. Used for smart model routing,
      * tool calling negotiation, and feature discovery.
      *

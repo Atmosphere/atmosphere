@@ -16,15 +16,9 @@
 package org.atmosphere.ai;
 
 import org.atmosphere.ai.llm.BuiltInEmbeddingRuntime;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.ServiceConfigurationError;
-import java.util.ServiceLoader;
 
 /**
  * Resolves {@link EmbeddingRuntime} implementations from the classpath via
@@ -34,12 +28,12 @@ import java.util.ServiceLoader;
  *
  * <p>Results are cached after first resolution — the classpath does not
  * change at runtime so the discovered runtimes are stable.</p>
+ *
+ * <p>The statics resolve the process default's runtimes
+ * ({@link AiEnvironment#processDefault()}); an application's own are
+ * {@link AiEnvironment#embeddings()}.</p>
  */
 public final class EmbeddingRuntimeResolver {
-
-    private static final Logger logger = LoggerFactory.getLogger(EmbeddingRuntimeResolver.class);
-
-    private static volatile List<EmbeddingRuntime> cachedAll;
 
     private EmbeddingRuntimeResolver() {}
 
@@ -63,51 +57,12 @@ public final class EmbeddingRuntimeResolver {
      * Unlike {@link AgentRuntimeResolver#resolveAll()}, this may return an
      * empty list when no runtime is ready — there is no always-available
      * fallback because {@link BuiltInEmbeddingRuntime} depends on
-     * {@link AiConfig} being configured.
+     * {@link AiConfig} being configured. An empty result is not cached: if
+     * resolution fires before the settings exist (startup race), Built-in
+     * reports unavailable and the next call rescans.
      */
     public static List<EmbeddingRuntime> resolveAll() {
-        // Fast path: a non-empty result is already cached. Volatile read is
-        // sufficient — the contents are an immutable List.copyOf and
-        // publication is safe.
-        var result = cachedAll;
-        if (result != null && !result.isEmpty()) {
-            return result;
-        }
-        // Slow path: scan under a lock so two early callers don't race into
-        // duplicate ServiceLoader.load()+availability checks, which can be
-        // expensive (each provider's isAvailable() might touch the classpath
-        // or initialise native resources). The empty-result re-scan behavior
-        // is preserved: if resolution fires before AiConfig.set() (startup
-        // race), Built-in reports unavailable and the result is not cached,
-        // so the next call rescans. DCL-safe: we re-check cachedAll inside
-        // the lock before spending work.
-        synchronized (EmbeddingRuntimeResolver.class) {
-            result = cachedAll;
-            if (result != null && !result.isEmpty()) {
-                return result;
-            }
-            var all = new ArrayList<EmbeddingRuntime>();
-            try {
-                for (var runtime : ServiceLoader.load(EmbeddingRuntime.class)) {
-                    try {
-                        if (runtime.isAvailable()) {
-                            all.add(runtime);
-                            logger.debug("EmbeddingRuntime discovered: {} (priority {})",
-                                    runtime.name(), runtime.priority());
-                        }
-                    } catch (Exception e) {
-                        logger.warn("EmbeddingRuntime failed availability check: {}",
-                                e.getMessage());
-                    }
-                }
-            } catch (ServiceConfigurationError e) {
-                logger.debug("ServiceLoader<EmbeddingRuntime> error: {}", e.getMessage());
-            }
-            all.sort(Comparator.comparingInt(EmbeddingRuntime::priority).reversed());
-            result = List.copyOf(all);
-            cachedAll = result;
-            return result;
-        }
+        return AiEnvironment.processDefault().embeddings().resolveAll();
     }
 
     /**
@@ -120,6 +75,6 @@ public final class EmbeddingRuntimeResolver {
      * reason to call this — the classpath is immutable at runtime.
      */
     public static void resetCache() {
-        cachedAll = null;
+        AiEnvironment.resetEmbeddingCaches();
     }
 }

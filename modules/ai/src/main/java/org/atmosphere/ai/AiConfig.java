@@ -387,27 +387,45 @@ public final class AiConfig {
         }
     }
 
-    // -- Singleton holder for framework-wide access --
+    // -- Static API: reads and writes AiEnvironment.current() --
 
-    private static final ReentrantLock LOCK = new ReentrantLock();
+    /**
+     * The process default's settings ({@link AiEnvironment#processDefault()}),
+     * guarded by that environment's lock.
+     */
     private static volatile LlmSettings instance;
     /**
      * The generation values {@link #instance} was built with that came from
      * the caller ({@link #configure(String, String, String, String, GenerationParams)},
      * e.g. a workspace {@code RUNTIME.md}) rather than from the knobs, so
-     * {@link #knobsNotInEffect} does not report them as knobs the settings fail
-     * to apply. Written together with {@link #instance}, under {@link #LOCK}.
+     * {@link #knobsNotInEffect} does not report them. Written together with
+     * {@link #instance}.
      */
     private static volatile GenerationParams instancePinned = GenerationParams.defaults();
 
+    static LlmSettings processSettings() {
+        return instance;
+    }
+
+    static GenerationParams processPinned() {
+        return instancePinned;
+    }
+
+    static void storeProcessSettings(LlmSettings settings, GenerationParams pinned) {
+        instance = settings;
+        instancePinned = pinned != null ? pinned : GenerationParams.defaults();
+    }
+
     /**
-     * Returns the current LLM settings. Available after {@link #configure} or
+     * Returns the current LLM settings: those of {@link AiEnvironment#current()}
+     * (the application bound to the calling thread, else the only one running,
+     * else the process default). Available after {@link #configure} or
      * {@link #fromEnvironment()} has been called.
      *
      * @return the current settings, or {@code null} if not yet configured
      */
     public static LlmSettings get() {
-        return instance;
+        return AiEnvironment.current().settings();
     }
 
     /**
@@ -417,13 +435,7 @@ public final class AiConfig {
      * regardless of test ordering. Not part of the public API.
      */
     static void resetForTesting() {
-        LOCK.lock();
-        try {
-            instance = null;
-            instancePinned = GenerationParams.defaults();
-        } finally {
-            LOCK.unlock();
-        }
+        AiEnvironment.resetProcessDefaultSettings();
     }
 
     /**
@@ -447,6 +459,10 @@ public final class AiConfig {
      * component leaves the knob's value. Nothing is written to the JVM system
      * properties, so settings built later do not see these values.
      *
+     * <p>The settings are built with the knobs of {@link AiEnvironment#current()}
+     * and become the process default's; they are also that application's own
+     * when it holds settings of its own.</p>
+     *
      * @param mode    {@code remote} or {@code local}
      * @param model   model name
      * @param apiKey  API key (may be null for local mode)
@@ -457,19 +473,11 @@ public final class AiConfig {
     public static LlmSettings configure(String mode, String model, String apiKey, String baseUrl,
                                         GenerationParams pinned) {
         var pins = pinned != null ? pinned : GenerationParams.defaults();
-        LOCK.lock();
-        try {
-            instance = buildSettings(mode, model, apiKey, baseUrl, pins);
-            instancePinned = pins;
-            return instance;
-        } finally {
-            LOCK.unlock();
-        }
+        var target = AiEnvironment.current();
+        var settings = target.buildSettings(mode, model, apiKey, baseUrl, pins);
+        target.publishFromStatic(settings, pins);
+        return settings;
     }
-
-    /** Per-agent settings overriding the process-wide singleton (registre#39). */
-    private static final java.util.concurrent.ConcurrentHashMap<String, LlmSettings>
-            AGENT_SETTINGS = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
      * Configure settings scoped to one agent — the process-wide singleton is
@@ -496,9 +504,9 @@ public final class AiConfig {
     public static LlmSettings configureForAgent(String agentId, String mode, String model,
                                                 String apiKey, String baseUrl, GenerationParams pinned) {
         java.util.Objects.requireNonNull(agentId, "agentId");
-        var settings = buildSettings(mode, model, apiKey, baseUrl,
-                pinned != null ? pinned : GenerationParams.defaults());
-        AGENT_SETTINGS.put(agentId, settings);
+        var target = AiEnvironment.current();
+        var settings = target.buildSettings(mode, model, apiKey, baseUrl, pinned);
+        target.publishAgentFromStatic(agentId, settings);
         logger.info("AI config scoped to agent '{}': mode={}, model={}", agentId, mode, model);
         return settings;
     }
@@ -509,38 +517,39 @@ public final class AiConfig {
      * {@link #get()} value (which may be {@code null} when unconfigured).
      */
     public static LlmSettings forAgent(String agentId) {
-        var scoped = agentScoped(agentId);
-        return scoped != null ? scoped : get();
+        return AiEnvironment.current().forAgent(agentId);
     }
 
     /** The agent-scoped settings, or {@code null} when the agent has none. */
     public static LlmSettings agentScoped(String agentId) {
-        return agentId != null ? AGENT_SETTINGS.get(agentId) : null;
+        return AiEnvironment.current().agentScoped(agentId);
     }
 
     /** Remove an agent's scoped settings (undeploy / tests). */
     public static void resetAgent(String agentId) {
-        if (agentId != null) {
-            AGENT_SETTINGS.remove(agentId);
-        }
+        AiEnvironment.current().resetAgent(agentId);
+        AiEnvironment.processDefault().resetAgent(agentId);
     }
 
-    /** Shared construction for the global and agent-scoped configure paths. */
-    private static LlmSettings buildSettings(String mode, String model, String apiKey, String baseUrl,
-                                             GenerationParams pinned) {
+    /**
+     * Shared construction for the global, agent-scoped and environment
+     * configure paths: the knobs are read from {@code knobs}.
+     */
+    static LlmSettings buildSettings(String mode, String model, String apiKey, String baseUrl,
+                                     GenerationParams pinned, AiEnvironment knobs) {
         // Tri-state prompt-cache-key control is resolved once here from the
         // sysprop (then env) and stored on the settings so every
         // realization site reads the same value via AiConfig.get(). AUTO
         // (the default) keeps every path byte-identical to the legacy
         // host-heuristic behavior.
-        var cacheKeyMode = resolvePromptCacheKeyMode();
+        var cacheKeyMode = knobs.resolvePromptCacheKeyMode();
         // Generation parameters (temperature/max-tokens/top-p/stop) are
         // resolved once here from sysprops (then env) and stored on the
         // settings so every realization site reads the same opt-in values.
         // GenerationParams.defaults() (all null) keeps the wire byte-identical
         // to the pre-feature behavior when nothing is configured. A pinned
         // component (a workspace RUNTIME.md value) wins for these settings only.
-        var generation = overlay(resolveGenerationParams(), pinned);
+        var generation = overlay(knobs.resolveGenerationParams(), pinned);
 
         if ("fake".equalsIgnoreCase(mode)) {
             logger.info("AI config: mode=fake (using FakeLlmClient — no real API calls)");
@@ -570,7 +579,7 @@ public final class AiConfig {
         var builder = OpenAiCompatibleClient.builder().baseUrl(resolvedUrl)
                 .generation(generation)
                 .promptCacheKeyMode(cacheKeyMode)
-                .logprobsMode(resolveLogprobsMode());
+                .logprobsMode(knobs.resolveLogprobsMode());
         if (resolvedKey != null) {
             builder.apiKey(resolvedKey);
         } else if (!"local".equalsIgnoreCase(mode)) {
@@ -608,26 +617,28 @@ public final class AiConfig {
         if (client == null) {
             throw new NullPointerException("client must not be null");
         }
-        LOCK.lock();
-        try {
-            var current = instance;
-            if (current == null) {
-                throw new IllegalStateException(
-                        "AiConfig.installClient called before configure()/fromEnvironment() — "
-                                + "there is no resolved client to wrap");
-            }
-            instance = new LlmSettings(client, current.model(), current.mode(),
-                    current.baseUrl(), current.apiKey(), current.promptCacheKeyMode(),
-                    current.generation());
-            // Drop any cached runtime resolution so a runtime that already
-            // cached the previous client re-reads the swapped one lazily.
-            org.atmosphere.ai.AgentRuntimeResolver.reset();
-            logger.info("AI config: installed wrapping client {} (model={}, mode={})",
-                    client.getClass().getSimpleName(), current.model(), current.mode());
-            return instance;
-        } finally {
-            LOCK.unlock();
+        var target = AiEnvironment.current();
+        var current = target.settings();
+        if (current == null) {
+            throw new IllegalStateException(
+                    "AiConfig.installClient called before configure()/fromEnvironment() — "
+                            + "there is no resolved client to wrap");
         }
+        var installed = withClient(current, client);
+        target.publishFromStatic(installed, target.pinned());
+        // Drop any cached runtime resolution so a runtime that already
+        // cached the previous client re-reads the swapped one lazily.
+        org.atmosphere.ai.AgentRuntimeResolver.reset();
+        logger.info("AI config: installed wrapping client {} (model={}, mode={})",
+                client.getClass().getSimpleName(), current.model(), current.mode());
+        return installed;
+    }
+
+    /** {@code settings} with {@code client} in place of its own, every other component kept. */
+    static LlmSettings withClient(LlmSettings settings, LlmClient client) {
+        return new LlmSettings(client, settings.model(), settings.mode(),
+                settings.baseUrl(), settings.apiKey(), settings.promptCacheKeyMode(),
+                settings.generation());
     }
 
     /**
@@ -642,7 +653,11 @@ public final class AiConfig {
      * @return the resolved mode, never {@code null}
      */
     public static PromptCacheKeyMode resolvePromptCacheKeyMode() {
-        return PromptCacheKeyMode.parse(rawKnob(PROMPT_CACHE_KEY_PROPERTY, PROMPT_CACHE_KEY_ENV));
+        return AiEnvironment.current().resolvePromptCacheKeyMode();
+    }
+
+    static PromptCacheKeyMode promptCacheKeyMode(java.util.Map<String, String> host) {
+        return PromptCacheKeyMode.parse(rawKnob(PROMPT_CACHE_KEY_PROPERTY, PROMPT_CACHE_KEY_ENV, host));
     }
 
     /**
@@ -658,7 +673,11 @@ public final class AiConfig {
      * @return the resolved mode, never {@code null}
      */
     public static org.atmosphere.ai.llm.LogprobsMode resolveLogprobsMode() {
-        return org.atmosphere.ai.llm.LogprobsMode.parse(rawKnob(LOGPROBS_PROPERTY, LOGPROBS_ENV));
+        return AiEnvironment.current().resolveLogprobsMode();
+    }
+
+    static org.atmosphere.ai.llm.LogprobsMode logprobsMode(java.util.Map<String, String> host) {
+        return org.atmosphere.ai.llm.LogprobsMode.parse(rawKnob(LOGPROBS_PROPERTY, LOGPROBS_ENV, host));
     }
 
     /**
@@ -672,7 +691,12 @@ public final class AiConfig {
      * @return the resolved mode, never {@code null}
      */
     public static NativeStructuredOutputMode resolveNativeStructuredOutputMode() {
-        return NativeStructuredOutputMode.parse(rawKnob(NATIVE_STRUCTURED_OUTPUT_PROPERTY, NATIVE_STRUCTURED_OUTPUT_ENV));
+        return AiEnvironment.current().resolveNativeStructuredOutputMode();
+    }
+
+    static NativeStructuredOutputMode nativeStructuredOutputMode(java.util.Map<String, String> host) {
+        return NativeStructuredOutputMode.parse(
+                rawKnob(NATIVE_STRUCTURED_OUTPUT_PROPERTY, NATIVE_STRUCTURED_OUTPUT_ENV, host));
     }
 
     /**
@@ -687,7 +711,11 @@ public final class AiConfig {
      * @return the resolved mode, never {@code null}
      */
     public static org.atmosphere.ai.plan.PlanningMode resolvePlanningMode() {
-        return org.atmosphere.ai.plan.PlanningMode.parse(rawKnob(PLANNING_PROPERTY, PLANNING_ENV));
+        return AiEnvironment.current().resolvePlanningMode();
+    }
+
+    static org.atmosphere.ai.plan.PlanningMode planningMode(java.util.Map<String, String> host) {
+        return org.atmosphere.ai.plan.PlanningMode.parse(rawKnob(PLANNING_PROPERTY, PLANNING_ENV, host));
     }
 
     /**
@@ -702,7 +730,11 @@ public final class AiConfig {
      * @return the resolved mode, never {@code null}
      */
     public static org.atmosphere.ai.fs.FilesystemMode resolveFilesystemMode() {
-        return org.atmosphere.ai.fs.FilesystemMode.parse(rawKnob(FILESYSTEM_PROPERTY, FILESYSTEM_ENV));
+        return AiEnvironment.current().resolveFilesystemMode();
+    }
+
+    static org.atmosphere.ai.fs.FilesystemMode filesystemMode(java.util.Map<String, String> host) {
+        return org.atmosphere.ai.fs.FilesystemMode.parse(rawKnob(FILESYSTEM_PROPERTY, FILESYSTEM_ENV, host));
     }
 
     /**
@@ -719,10 +751,14 @@ public final class AiConfig {
      * @return the resolved generation parameters, never {@code null}
      */
     public static GenerationParams resolveGenerationParams() {
-        var temperature = parseDoubleKnob(TEMPERATURE_PROPERTY, TEMPERATURE_ENV, "temperature");
-        var maxTokens = parseIntKnob(MAX_TOKENS_PROPERTY, MAX_TOKENS_ENV, "max-tokens");
-        var topP = parseDoubleKnob(TOP_P_PROPERTY, TOP_P_ENV, "top-p");
-        var stop = parseStopKnob(STOP_PROPERTY, STOP_ENV);
+        return AiEnvironment.current().resolveGenerationParams();
+    }
+
+    static GenerationParams generationParams(java.util.Map<String, String> host) {
+        var temperature = parseDoubleKnob(TEMPERATURE_PROPERTY, TEMPERATURE_ENV, "temperature", host);
+        var maxTokens = parseIntKnob(MAX_TOKENS_PROPERTY, MAX_TOKENS_ENV, "max-tokens", host);
+        var topP = parseDoubleKnob(TOP_P_PROPERTY, TOP_P_ENV, "top-p", host);
+        var stop = parseStopKnob(STOP_PROPERTY, STOP_ENV, host);
         return new GenerationParams(temperature, maxTokens, topP, stop);
     }
 
@@ -738,7 +774,11 @@ public final class AiConfig {
      * @return the trimmed model name, or empty when neither is set
      */
     public static java.util.Optional<String> resolveEmbeddingModel() {
-        return java.util.Optional.ofNullable(rawKnob(EMBEDDING_MODEL_PROPERTY, EMBEDDING_MODEL_ENV));
+        return AiEnvironment.current().resolveEmbeddingModel();
+    }
+
+    static java.util.Optional<String> embeddingModel(java.util.Map<String, String> host) {
+        return java.util.Optional.ofNullable(rawKnob(EMBEDDING_MODEL_PROPERTY, EMBEDDING_MODEL_ENV, host));
     }
 
     // -- Knobs and host configuration --
@@ -823,12 +863,17 @@ public final class AiConfig {
      * @throws IllegalArgumentException if {@code property} is not a knob
      */
     public static java.util.Optional<String> knob(String property) {
+        return AiEnvironment.current().knob(property);
+    }
+
+    /** The knob named {@code property}; throws {@link IllegalArgumentException} when there is none. */
+    static Knob knobFor(String property) {
         var knob = KNOBS_BY_PROPERTY.get(property);
         if (knob == null) {
             throw new IllegalArgumentException("Not an AiConfig knob: " + property
                     + " (knobs: " + knobProperties() + ")");
         }
-        return java.util.Optional.ofNullable(rawKnob(knob.property(), knob.env()));
+        return knob;
     }
 
     /**
@@ -871,7 +916,16 @@ public final class AiConfig {
                 values.put(knob.property(), value.trim());
             }
         }
-        var installed = new HostConfig(java.util.Map.copyOf(values));
+        return pushHostConfig(java.util.Map.copyOf(values), null);
+    }
+
+    /**
+     * Push knob values onto the host-configuration stack the process default
+     * reads. {@code owner} is the {@link AiEnvironment} the values belong to,
+     * {@code null} for {@link #installHostConfig}.
+     */
+    static HostConfig pushHostConfig(java.util.Map<String, String> values, AiEnvironment owner) {
+        var installed = new HostConfig(values, owner);
         int shadowed;
         HOST_CONFIG_LOCK.lock();
         try {
@@ -880,6 +934,11 @@ public final class AiConfig {
             hostConfig = installed;
         } finally {
             HOST_CONFIG_LOCK.unlock();
+        }
+        if (owner != null) {
+            // Only the process default reads an environment's values here.
+            AiEnvironment.processDefault().runtimes().reset();
+            return installed;
         }
         AgentRuntimeResolver.reset();
         if (!values.isEmpty()) {
@@ -890,6 +949,38 @@ public final class AiConfig {
                     + "JVM-wide, so every application now reads this one until it is closed", shadowed);
         }
         return installed;
+    }
+
+    /** The values of the host configuration installed last, empty when none is. */
+    static java.util.Map<String, String> latestHostValues() {
+        var host = hostConfig;
+        return host != null ? host.values : java.util.Map.of();
+    }
+
+    /**
+     * The values of the latest host configuration {@link #installHostConfig}
+     * installed (one that belongs to no {@link AiEnvironment}), empty when none is.
+     */
+    static java.util.Map<String, String> latestStaticHostValues() {
+        var host = hostConfig;
+        if (host == null) {
+            return java.util.Map.of();
+        }
+        if (host.owner == null) {
+            return host.values;
+        }
+        HOST_CONFIG_LOCK.lock();
+        try {
+            for (int i = HOST_CONFIGS.size() - 1; i >= 0; i--) {
+                var candidate = HOST_CONFIGS.get(i);
+                if (candidate.owner == null) {
+                    return candidate.values;
+                }
+            }
+            return java.util.Map.of();
+        } finally {
+            HOST_CONFIG_LOCK.unlock();
+        }
     }
 
     /**
@@ -904,18 +995,7 @@ public final class AiConfig {
      *         apply every knob or none are configured yet
      */
     public static java.util.List<String> reportKnobsNotInEffect() {
-        var settings = instance;
-        if (settings == null) {
-            return java.util.List.of();
-        }
-        var notInEffect = knobsNotInEffect(settings, instancePinned);
-        if (!notInEffect.isEmpty()) {
-            logger.warn("The AI settings in use were built before the application's configuration was "
-                    + "installed and do not apply {}: build them with AiConfig.configure once the "
-                    + "application started, or set these knobs as -D system properties or LLM_* "
-                    + "environment variables", notInEffect);
-        }
-        return notInEffect;
+        return AiEnvironment.current().reportKnobsNotInEffect();
     }
 
     /**
@@ -926,11 +1006,12 @@ public final class AiConfig {
      * without a word (Correctness Invariant #5).
      */
     private static void reportKnobsNotInEffectAfterClose() {
-        var settings = instance;
+        var processDefault = AiEnvironment.processDefault();
+        var settings = processDefault.settings();
         if (settings == null) {
             return;
         }
-        var notInEffect = knobsNotInEffect(settings, instancePinned);
+        var notInEffect = processDefault.knobsNotInEffect(settings, processDefault.pinned());
         if (!notInEffect.isEmpty()) {
             logger.warn("An AI host configuration was closed and the previous one is read again, but the "
                     + "AI settings in use were built while the closed one was read and do not apply {}: "
@@ -960,14 +1041,20 @@ public final class AiConfig {
      * on purpose, over the knobs.
      */
     static java.util.List<String> knobsNotInEffect(LlmSettings settings, GenerationParams pinned) {
-        var generation = overlay(resolveGenerationParams(), pinned);
+        return knobsNotInEffect(settings, pinned, AiEnvironment.current());
+    }
+
+    /** As {@link #knobsNotInEffect(LlmSettings, GenerationParams)}, against the knobs of {@code knobs}. */
+    static java.util.List<String> knobsNotInEffect(LlmSettings settings, GenerationParams pinned,
+                                                   AiEnvironment knobs) {
+        var generation = overlay(knobs.resolveGenerationParams(), pinned);
         var baked = settings.generation();
         var differing = new java.util.ArrayList<String>();
-        if (resolvePromptCacheKeyMode() != settings.promptCacheKeyMode()) {
+        if (knobs.resolvePromptCacheKeyMode() != settings.promptCacheKeyMode()) {
             differing.add(PROMPT_CACHE_KEY_PROPERTY);
         }
         if (settings.client() instanceof OpenAiCompatibleClient client
-                && resolveLogprobsMode() != client.logprobsMode()) {
+                && knobs.resolveLogprobsMode() != client.logprobsMode()) {
             differing.add(LOGPROBS_PROPERTY);
         }
         if (!java.util.Objects.equals(generation.temperature(), baked.temperature())) {
@@ -990,6 +1077,9 @@ public final class AiConfig {
      * {@link AgentRuntimeResolver#reset()}.
      */
     public static void resetHostConfig() {
+        // Every open AiEnvironment too: an application a test left running
+        // would otherwise be the one the static API reads for the rest of the JVM.
+        AiEnvironment.closeAll();
         HOST_CONFIG_LOCK.lock();
         try {
             HOST_CONFIGS.clear();
@@ -1009,9 +1099,11 @@ public final class AiConfig {
     public static final class HostConfig implements AutoCloseable {
 
         private final java.util.Map<String, String> values;
+        private final AiEnvironment owner;
 
-        private HostConfig(java.util.Map<String, String> values) {
+        private HostConfig(java.util.Map<String, String> values, AiEnvironment owner) {
             this.values = values;
+            this.owner = owner;
         }
 
         /**
@@ -1038,7 +1130,11 @@ public final class AiConfig {
             } finally {
                 HOST_CONFIG_LOCK.unlock();
             }
-            if (wasRead) {
+            if (wasRead && owner != null) {
+                AiEnvironment.processDefault().runtimes().reset();
+            } else if (wasRead || owner == null) {
+                // Environments created from init-params also read a host
+                // configuration installHostConfig installed.
                 AgentRuntimeResolver.reset();
             }
             // When the last one closes, the application is stopping: nothing to warn.
@@ -1059,7 +1155,11 @@ public final class AiConfig {
      * @return the grace, {@link java.time.Duration#ZERO} when disabled, never {@code null}
      */
     public static java.time.Duration resolveReattachGrace() {
-        var raw = rawKnob(REATTACH_GRACE_PROPERTY, REATTACH_GRACE_ENV);
+        return AiEnvironment.current().resolveReattachGrace();
+    }
+
+    static java.time.Duration reattachGrace(java.util.Map<String, String> host) {
+        var raw = rawKnob(REATTACH_GRACE_PROPERTY, REATTACH_GRACE_ENV, host);
         if (raw == null) {
             return DEFAULT_REATTACH_GRACE;
         }
@@ -1095,20 +1195,25 @@ public final class AiConfig {
         }
     }
 
-    private static String rawKnob(String property, String env) {
+    /**
+     * One knob's value, trimmed: the JVM system property, then the environment
+     * variable, then {@code host} (the host-configuration layer of the
+     * environment reading it); {@code null} when none sets it.
+     */
+    static String rawKnob(String property, String env, java.util.Map<String, String> host) {
         var raw = System.getProperty(property);
         if (raw == null || raw.isBlank()) {
             raw = System.getenv(env);
         }
         if (raw == null || raw.isBlank()) {
-            var host = hostConfig;
-            raw = host != null ? host.values.get(property) : null;
+            raw = host != null ? host.get(property) : null;
         }
         return (raw != null && !raw.isBlank()) ? raw.trim() : null;
     }
 
-    private static Double parseDoubleKnob(String property, String env, String label) {
-        return parseDouble(rawKnob(property, env), label);
+    private static Double parseDoubleKnob(String property, String env, String label,
+                                          java.util.Map<String, String> host) {
+        return parseDouble(rawKnob(property, env, host), label);
     }
 
     private static Double parseDouble(String raw, String label) {
@@ -1124,8 +1229,9 @@ public final class AiConfig {
         }
     }
 
-    private static Integer parseIntKnob(String property, String env, String label) {
-        return parseInt(rawKnob(property, env), label);
+    private static Integer parseIntKnob(String property, String env, String label,
+                                        java.util.Map<String, String> host) {
+        return parseInt(rawKnob(property, env, host), label);
     }
 
     private static Integer parseInt(String raw, String label) {
@@ -1141,8 +1247,9 @@ public final class AiConfig {
         }
     }
 
-    private static java.util.List<String> parseStopKnob(String property, String env) {
-        return parseStop(rawKnob(property, env));
+    private static java.util.List<String> parseStopKnob(String property, String env,
+                                                        java.util.Map<String, String> host) {
+        return parseStop(rawKnob(property, env, host));
     }
 
     private static java.util.List<String> parseStop(String raw) {
@@ -1219,36 +1326,30 @@ public final class AiConfig {
      * @return settings built from the environment, never {@code null}
      */
     public static LlmSettings settingsFromEnvironment() {
+        return buildFromEnvironment(AiEnvironment.current());
+    }
+
+    /** Settings built from the {@code LLM_*} environment variables with the knobs of {@code knobs}. */
+    static LlmSettings buildFromEnvironment(AiEnvironment knobs) {
         var baseUrl = env("LLM_BASE_URL", "");
         return buildSettings(env("LLM_MODE", DEFAULT_MODE), env("LLM_MODEL", DEFAULT_MODEL),
                 env("LLM_API_KEY", env("OPENAI_API_KEY", env("GEMINI_API_KEY", ""))),
-                baseUrl.isBlank() ? null : baseUrl, GenerationParams.defaults());
+                baseUrl.isBlank() ? null : baseUrl, GenerationParams.defaults(), knobs);
     }
 
     /**
-     * The JVM-wide settings ({@link #get()}), or, when none are configured,
-     * settings built from the environment ({@link #fromEnvironment()}) and
-     * published. The check and the publication are one atomic step, so this
-     * never replaces settings another caller configured meanwhile, and
-     * concurrent callers all get the one instance published.
+     * The settings in effect ({@link #get()}), or, when none are configured,
+     * settings built from the environment ({@link #fromEnvironment()}): the
+     * process default publishes them as its own, an application keeps them as
+     * its own ({@link AiEnvironment#settingsOrEnvironment()}). The check and
+     * the publication are one atomic step, so this never replaces settings
+     * another caller configured meanwhile, and concurrent callers all get the
+     * one instance published.
      *
      * @return the settings in effect, never {@code null}
      */
     public static LlmSettings getOrConfigureFromEnvironment() {
-        var current = instance;
-        if (current != null) {
-            return current;
-        }
-        LOCK.lock();
-        try {
-            if (instance == null) {
-                instance = settingsFromEnvironment();
-                instancePinned = GenerationParams.defaults();
-            }
-            return instance;
-        } finally {
-            LOCK.unlock();
-        }
+        return AiEnvironment.current().settingsOrEnvironment();
     }
 
     /**
