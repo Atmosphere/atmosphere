@@ -710,11 +710,12 @@ deprecated, not for removal: code that holds an application reads it through
 `AiEnvironment.of(config)` (`settings()`, `knob(...)`, `forAgent(...)`, `resolveGenerationParams()`,
 `runtimes().resolve()`, ...), and code with no application through `AiEnvironment.current()`, which
 resolves exactly as the statics do. The mutators (`AiConfig.configure(...)`, `installClient(...)`,
-`configureForAgent(...)`) and `installHostConfig(...)` are not deprecated. Framework code does not
-read the statics or `AiEnvironment.current()` at all: `scripts/architectural-validation.sh` fails the
-build on such a read in `modules/**/src/main` unless `scripts/validation-patterns.toml` allowlists it
-with a reason (an unattached runtime instance, a public entry point that takes no application, the
-façade itself).
+`configureForAgent(...)`) and `installHostConfig(...)` are not deprecated. Framework code that holds
+an application does not read the statics or `AiEnvironment.current()`: `scripts/architectural-validation.sh`
+fails the build on such a read in `modules/**/src/main` unless `scripts/validation-patterns.toml`
+allowlists it with a reason. The remaining reads are allowlisted there: the façade itself, runtime
+instances no environment attached, public entry points that take no application, hosts and reports
+for a framework with no environment attached, and the readers listed below.
 
 Native clients are per application too. A runtime adapter's instance uses, first found: the client
 bound to its application (`SpringAiAgentRuntime.setChatClient(environment, client)`,
