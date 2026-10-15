@@ -28,12 +28,18 @@ import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -149,6 +155,66 @@ class OnDisconnectInterceptorTest {
 
         assertEquals(Action.CANCELLED, result);
         verify(event).isClosedByClient(true);
+    }
+
+    /**
+     * A close message whose page is going away (a reload, a navigation) marks the
+     * event of the suspended resource it names, which the disconnect then reads
+     * like a WebSocket closed with 1001; the close request's own event is not the
+     * one dispatched.
+     */
+    @Test
+    void aGoingAwayCloseMessageMarksTheSuspendedResourceEvent() {
+        var suspended = mock(AtmosphereResourceImpl.class);
+        var suspendedEvent = mock(AtmosphereResourceEventImpl.class);
+        var closeRequestEvent = mock(AtmosphereResourceEventImpl.class);
+        var asyncSupport = closeMessageFor(suspended, suspendedEvent, closeRequestEvent);
+        when(request.getHeader(HeaderConfig.X_ATMOSPHERE_CLOSE_REASON))
+                .thenReturn(HeaderConfig.CLOSE_REASON_GOING_AWAY);
+
+        assertEquals(Action.CANCELLED, interceptor.inspect(resource));
+
+        var order = inOrder(suspendedEvent, asyncSupport);
+        order.verify(suspendedEvent).isClosedByClient(true);
+        order.verify(suspendedEvent).closedGoingAway(true);
+        order.verify(asyncSupport).completeLifecycle(suspended, false);
+        verify(closeRequestEvent, never()).closedGoingAway(anyBoolean());
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = {"", "left", "going-away-not"})
+    void aCloseMessageWithoutTheGoingAwayReasonIsALeave(String reason) {
+        var suspended = mock(AtmosphereResourceImpl.class);
+        var suspendedEvent = mock(AtmosphereResourceEventImpl.class);
+        var asyncSupport = closeMessageFor(suspended, suspendedEvent, mock(AtmosphereResourceEventImpl.class));
+        when(request.getHeader(HeaderConfig.X_ATMOSPHERE_CLOSE_REASON)).thenReturn(reason);
+
+        assertEquals(Action.CANCELLED, interceptor.inspect(resource));
+
+        verify(suspendedEvent).isClosedByClient(true);
+        verify(suspendedEvent, never()).closedGoingAway(true);
+        verify(asyncSupport).completeLifecycle(suspended, false);
+    }
+
+    /** A close message from {@link #resource} naming the distinct {@code suspended} resource. */
+    private AsynchronousProcessor closeMessageFor(AtmosphereResourceImpl suspended,
+            AtmosphereResourceEventImpl suspendedEvent, AtmosphereResourceEventImpl closeRequestEvent) {
+        var factory = mock(AtmosphereResourceFactory.class);
+        var asyncSupport = mock(AsynchronousProcessor.class);
+        var framework = mock(AtmosphereFramework.class);
+        when(resource.getRequest(false)).thenReturn(request);
+        when(request.getAttribute(FrameworkConfig.WEBSOCKET_MESSAGE)).thenReturn(null);
+        when(request.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT))
+                .thenReturn(HeaderConfig.DISCONNECT_TRANSPORT_MESSAGE);
+        when(resource.uuid()).thenReturn("suspended-uuid");
+        when(resource.getAtmosphereResourceEvent()).thenReturn(closeRequestEvent);
+        when(config.resourcesFactory()).thenReturn(factory);
+        when(factory.findResource("suspended-uuid")).thenReturn(Optional.of(suspended));
+        when(suspended.getAtmosphereResourceEvent()).thenReturn(suspendedEvent);
+        when(config.framework()).thenReturn(framework);
+        doReturn(asyncSupport).when(framework).getAsyncSupport();
+        return asyncSupport;
     }
 
     @Test

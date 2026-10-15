@@ -23,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,10 @@ import static org.atmosphere.util.Utils.closeMessage;
 /**
  * When the browser close the connection, the atmosphere.js will send an unsubscribe message to tell
  * framework the browser is disconnecting.
+ * <p>
+ * A close message carrying {@link HeaderConfig#X_ATMOSPHERE_CLOSE_REASON} {@code going-away} (atmosphere.js
+ * sends it from {@code pagehide}) marks the disconnect event {@link AtmosphereResourceEventImpl#closedGoingAway()}:
+ * the page is reloading or navigating, as a WebSocket closed with 1001. Without it, the client left on purpose.
  *
  * @author Jeanfrancois Arcand
  */
@@ -67,7 +72,13 @@ public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
             logger.debug("AtmosphereResource {} disconnected", uuid);
 
             // Block websocket closing detection
-            ((AtmosphereResourceEventImpl) ss.getAtmosphereResourceEvent()).isClosedByClient(true);
+            var event = (AtmosphereResourceEventImpl) ss.getAtmosphereResourceEvent();
+            event.isClosedByClient(true);
+            // A page being hidden or unloaded (a reload, a navigation) may come back, as a
+            // WebSocket closed with 1001; without the reason the client left on purpose.
+            if (goingAway(request)) {
+                event.closedGoingAway(true);
+            }
 
             if (config.framework().getAsyncSupport() instanceof AsynchronousProcessor asyncProcessor) {
                 asyncProcessor.completeLifecycle(ss, false);
@@ -75,6 +86,16 @@ public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
             return Action.CANCELLED;
         }
         return Action.CONTINUE;
+    }
+
+    /**
+     * Whether the close message says the page that held the connection is going
+     * away ({@link HeaderConfig#X_ATMOSPHERE_CLOSE_REASON}). The reason only lets
+     * a listener tell a reload from a leave; the resource is released either way.
+     */
+    private static boolean goingAway(AtmosphereRequest request) {
+        return HeaderConfig.CLOSE_REASON_GOING_AWAY.equalsIgnoreCase(
+                request.getHeader(HeaderConfig.X_ATMOSPHERE_CLOSE_REASON));
     }
 
     public String toString() {

@@ -46,6 +46,19 @@ public interface HeaderConfig {
 
     String DISCONNECT_TRANSPORT_MESSAGE = "close";
 
+    /**
+     * Why a client sends the close message ({@link #DISCONNECT_TRANSPORT_MESSAGE}).
+     * Absent, the client closed the connection on purpose. With
+     * {@link #CLOSE_REASON_GOING_AWAY}, the page that held the connection is being
+     * hidden or unloaded (a reload, a navigation) and may come back, as a WebSocket
+     * closed with 1001. Like every {@code X-Atmosphere-*} header it may be sent as
+     * a query parameter, which is how a beacon carries it.
+     */
+    String X_ATMOSPHERE_CLOSE_REASON = "X-Atmosphere-Close-Reason";
+
+    /** {@link #X_ATMOSPHERE_CLOSE_REASON} of a page being hidden or unloaded. */
+    String CLOSE_REASON_GOING_AWAY = "going-away";
+
     String WEBSOCKET_X_ATMOSPHERE_TRANSPORT= X_ATMOSPHERE_TRANSPORT + "=" + WEBSOCKET_TRANSPORT;
 
     String X_FIRST_REQUEST= "X-Atmosphere-first-request";
