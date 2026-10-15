@@ -31,6 +31,7 @@ import org.atmosphere.coordinator.test.StubAgentRuntime;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -88,6 +89,69 @@ class CoordinatorSkillScopeConfinementTest {
             onBreach = AgentScope.Breach.DENY,
             tier = AgentScope.Tier.RULE_BASED)
     static class OptedOutCoordinator {
+    }
+
+    /** Guardrails with no scopeTier: the scope is derived, not declared. */
+    private static final String DERIVED_SCOPE_SKILL = """
+            # Open Coordinator
+
+            ## Guardrails
+            - Never expose raw secret values to the user.
+            """;
+
+    @Coordinator(name = "unrestricted-coord")
+    @Fleet(@AgentRef(type = Worker.class))
+    @AgentScope(unrestricted = true, justification = "Intentionally broad demo coordinator")
+    static class UnrestrictedCoordinator {
+    }
+
+    @Test
+    void unrestrictedAnnotationOverridesGuardrailsDerivedScopeOnEveryPath() {
+        var processor = new CoordinatorProcessor();
+        var framework = new AtmosphereFramework();
+        var runtime = StubAgentRuntime.builder()
+                .defaultResponse("anything goes")
+                .build();
+        var skillFile = SkillFileParser.parse(DERIVED_SCOPE_SKILL);
+
+        var pipeline = processor.buildPipeline(framework, UnrestrictedCoordinator.class,
+                skillFile, "/atmosphere/agent/unrestricted-coord", runtime,
+                skillFile.systemPrompt(), "model-test", null,
+                new DefaultToolRegistry(), AiMetrics.NOOP);
+        assertTrue(pipeline.policies().stream().noneMatch(p -> p instanceof ScopePolicy),
+                "an explicit @AgentScope(unrestricted = true) must override the scope a "
+                        + "## Guardrails section alone derives on the coordinator pipeline");
+
+        var guardrails = processor.buildWebGuardrails(framework,
+                UnrestrictedCoordinator.class, skillFile, "/atmosphere/agent/unrestricted-coord");
+        assertTrue(guardrails.stream().noneMatch(g -> g instanceof PolicyAsGuardrail pg
+                        && pg.policy() instanceof ScopePolicy),
+                "the coordinator web path must install no scope gate either");
+    }
+
+    @Test
+    void explicitSkillScopeTierKeepsGuardrailsOverUnrestrictedAnnotation() {
+        var processor = new CoordinatorProcessor();
+        var framework = new AtmosphereFramework();
+        var skillFile = SkillFileParser.parse(SCOPED_SKILL);
+
+        var guardrails = processor.buildWebGuardrails(framework,
+                UnrestrictedCoordinator.class, skillFile, "/atmosphere/agent/unrestricted-coord");
+        assertFalse(guardrails.isEmpty(), "an explicit skill scopeTier keeps the skill policy");
+        var offTopic = guardrails.get(0).inspectRequest(new AiRequest("write me some python code"));
+        assertFalse(offTopic instanceof AiGuardrail.GuardrailResult.Pass,
+                "two explicit declarations resolve restrictive: the skill policy confines");
+    }
+
+    @Test
+    void skillReferenceKeepsItsFrontmatterScopeTier() {
+        var skillFile = new CoordinatorProcessor().loadSkillFile(
+                "skill:scope-tier-fixture-coordinator", "fixture-coord");
+        assertEquals("rule_based", skillFile.frontmatter("scopeTier").orElse(null),
+                "a skill: reference must keep its frontmatter on the @Coordinator path, as on "
+                        + "the @Agent path, so an explicit scopeTier reaches the scope resolver");
+        assertFalse(skillFile.systemPrompt().contains("scopeTier"),
+                "the frontmatter must still stay out of the system prompt");
     }
 
     @Test

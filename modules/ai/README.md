@@ -296,8 +296,19 @@ OWASP A03 row's notes, not its evidence list.
 file's `## Guardrails` section, installs a `ScopePolicy` that checks every
 request against the declared purpose before it reaches the LLM. The tier comes
 from `@AgentScope(tier = ...)` or the skill's `scopeTier` frontmatter
-(`rule_based`, `embedding`, `semantic`, `llm`; `none` opts out). There are
-four tiers, each resolved by `ScopeGuardrailResolver`:
+(`rule_based`, `embedding`, `semantic`, `llm`; `none` opts out).
+
+When an `@Agent` or `@Coordinator` carries both, `ScopePolicyResolver` applies
+one precedence on every path: a skill `scopeTier: none` opts out of everything;
+a skill that declares any other `scopeTier` keeps its `## Guardrails` policy over
+the annotation; otherwise an explicit `@AgentScope(unrestricted = true,
+justification = "...")` overrides the scope a `## Guardrails` section alone
+would derive, so no admission policy runs and one WARN at registration names the
+agent, the skill and the justification; otherwise the `## Guardrails` policy
+wins over the annotation. An unrestricted annotation without a justification is
+invalid and overrides nothing.
+
+There are four tiers, each resolved by `ScopeGuardrailResolver`:
 
 | Tier | Guardrail | Backing | When the backing is missing or fails |
 |------|-----------|---------|--------------------------------------|

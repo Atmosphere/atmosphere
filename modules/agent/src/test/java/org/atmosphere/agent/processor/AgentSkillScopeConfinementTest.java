@@ -313,6 +313,45 @@ class AgentSkillScopeConfinementTest {
                 "the skill's ## Guardrails scope must win over the class annotation");
     }
 
+    @AgentScope(unrestricted = true, justification = "Intentionally open demo agent")
+    private static final class UnrestrictedAgent {
+    }
+
+    @Test
+    void unrestrictedAnnotationOverridesGuardrailsDerivedScopeOnEveryPath() {
+        var processor = new AgentProcessor();
+        var framework = new AtmosphereFramework();
+        var skillFile = SkillFileParser.parse(DEFAULT_TIER_SKILL);
+
+        assertNull(processor.resolveScopePolicy(skillFile, UnrestrictedAgent.class,
+                        "support-bot", "Support"),
+                "an explicit @AgentScope(unrestricted = true) must override the scope a "
+                        + "## Guardrails section alone derives (explicit beats derived)");
+        var pipeline = processor.buildPipeline(framework, skillFile, UnrestrictedAgent.class,
+                "support-bot", "Support", new CapturingRuntime(new AtomicReference<>()), "",
+                "model-test", null, new DefaultToolRegistry(), AiMetrics.NOOP);
+        assertTrue(pipeline.policies().stream().noneMatch(p -> p instanceof ScopePolicy),
+                "the pipeline path must install no scope policy for the overridden agent");
+        var guardrails = processor.buildWebGuardrails(framework, skillFile,
+                UnrestrictedAgent.class, "support-bot", "Support");
+        for (var guardrail : guardrails) {
+            var result = guardrail.inspectRequest(
+                    new AiRequest("what are the best gambling strategies"));
+            assertInstanceOf(AiGuardrail.GuardrailResult.Pass.class, result,
+                    "the web path must install no scope gate for the overridden agent");
+        }
+    }
+
+    @Test
+    void explicitSkillScopeTierKeepsGuardrailsOverUnrestrictedAnnotation() {
+        var processor = new AgentProcessor();
+        var policy = processor.resolveScopePolicy(SkillFileParser.parse(SCOPED_SKILL),
+                UnrestrictedAgent.class, "support-bot", "Support");
+        assertNotNull(policy, "a skill with an explicit scopeTier keeps its ## Guardrails "
+                + "policy over an unrestricted annotation");
+        assertEquals(AgentScope.Tier.RULE_BASED, policy.config().tier());
+    }
+
     @Test
     void scopeTierNoneSuppressesAnnotationFallbackToo() {
         var processor = new AgentProcessor();

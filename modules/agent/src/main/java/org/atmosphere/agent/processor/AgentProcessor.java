@@ -217,6 +217,11 @@ public class AgentProcessor implements Processor<Object> {
             // installed on the A2A / AG-UI / channel pipeline below so confinement
             // is the same across every invocation mode (Correctness Invariant #7,
             // Mode Parity).
+            // An explicit @AgentScope(unrestricted = true) overriding the scope the
+            // skill's ## Guardrails would derive is reported once, here, not per
+            // resolution: the web chain and the pipeline below each resolve.
+            ScopePolicyResolver.warnIfUnrestrictedOverridesGuardrails(skillFile, annotatedClass,
+                    agentName, annotation.skillFile());
             var webGuardrails = buildWebGuardrails(framework, skillFile, annotatedClass,
                     agentName, annotation.description());
             // Harness: same long-term-memory attach and prompt-cache default
@@ -400,8 +405,11 @@ public class AgentProcessor implements Processor<Object> {
     /**
      * Resolve the {@code @Agent}'s scope policy with the shared precedence
      * ({@link ScopePolicyResolver#resolve}): a skill-level {@code scopeTier: none}
-     * opt-out beats everything, a {@code ## Guardrails}-derived policy wins next,
-     * otherwise the {@code @AgentScope} annotation on the class is honored.
+     * opt-out beats everything, a skill with an explicit {@code scopeTier} keeps
+     * its {@code ## Guardrails} policy, an explicit
+     * {@code @AgentScope(unrestricted = true)} on the class overrides a
+     * {@code ## Guardrails}-derived one, which otherwise wins over the
+     * {@code @AgentScope} annotation.
      */
     ScopePolicy resolveScopePolicy(SkillFileParser skillFile, Class<?> agentClass,
                                    String agentName, String agentDescription) {

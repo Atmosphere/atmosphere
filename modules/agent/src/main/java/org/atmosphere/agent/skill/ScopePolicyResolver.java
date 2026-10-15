@@ -31,14 +31,31 @@ import java.util.regex.Pattern;
 /**
  * Resolves the admission {@link ScopePolicy} an agent-bearing class mandates,
  * with explicit precedence shared by every processor that consumes skill files
- * ({@code @Agent}, {@code @Coordinator}): a skill-level {@code scopeTier: none}
- * opt-out beats everything (the skill is the agent's own artifact); a
- * {@code ## Guardrails}-derived policy wins next ({@link #fromSkillGuardrails});
- * otherwise an {@link AgentScope} annotation on the class is honored — including
- * the {@code unrestricted = true, justification = "..."} opt-out, which makes an
- * intentionally open agent an <em>explicit, lintable declaration</em> instead of
- * a silent gap (Correctness Invariant #5 — a declared posture must match runtime
- * behavior, so the annotation must be enforced, not just present).
+ * ({@code @Agent}, {@code @Coordinator}). An explicit declaration beats a derived
+ * one, and when the skill and the class both declare a scope explicitly the skill
+ * wins:
+ * <ol>
+ *   <li>a skill-level {@code scopeTier: none} (or {@code off} / {@code disabled})
+ *       opt-out beats everything — the skill is the agent's own artifact;</li>
+ *   <li>a skill whose frontmatter declares any other {@code scopeTier} has made
+ *       its {@code ## Guardrails} scope explicit, so that policy
+ *       ({@link #fromSkillGuardrails}) wins over the class annotation;</li>
+ *   <li>otherwise an explicit {@code @AgentScope(unrestricted = true,
+ *       justification = "...")} on the class overrides the scope a
+ *       {@code ## Guardrails} section alone would derive: no admission policy is
+ *       installed, and the processor logs it once at registration
+ *       ({@link #warnIfUnrestrictedOverridesGuardrails});</li>
+ *   <li>otherwise the {@code ## Guardrails}-derived policy wins, then the
+ *       {@link AgentScope} annotation is honored — including the
+ *       {@code unrestricted = true} opt-out, which makes an intentionally open
+ *       agent an <em>explicit, lintable declaration</em> instead of a silent gap
+ *       (Correctness Invariant #5 — a declared posture must match runtime
+ *       behavior, so the annotation must be enforced, not just present).</li>
+ * </ol>
+ *
+ * <p>An unrestricted annotation without a justification is invalid and never
+ * overrides a skill's guardrails: the override fails closed to the derived
+ * policy.</p>
  *
  * <p>Living in one place keeps the precedence identical across every annotation
  * that loads a skill file (Correctness Invariant #7 — Mode Parity): a skill's
@@ -84,10 +101,16 @@ public final class ScopePolicyResolver {
     }
 
     /**
-     * Resolve the class's scope policy: skill-level {@code scopeTier: none}
-     * opt-out first, then the {@code ## Guardrails}-derived policy, then the
+     * Resolve the class's scope policy with the precedence documented on this
+     * class: skill-level {@code scopeTier: none} opt-out first, then an explicit
+     * skill {@code scopeTier} keeping the {@code ## Guardrails}-derived policy,
+     * then an explicit {@code @AgentScope(unrestricted = true)} overriding a
+     * derived one, then the {@code ## Guardrails}-derived policy, then the
      * {@link AgentScope} annotation fallback. A {@code null} or absent skill
-     * file falls straight through to the annotation.
+     * file falls straight through to the annotation. Logs nothing about the
+     * override, so a processor may resolve more than once per registration; it
+     * reports the override once through
+     * {@link #warnIfUnrestrictedOverridesGuardrails}.
      *
      * @param skillFile      the parsed skill file, or {@code null} when the
      *                       class declares none
@@ -103,23 +126,77 @@ public final class ScopePolicyResolver {
     public static ScopePolicy resolve(SkillFileParser skillFile, Class<?> agentClass,
                                       String agentName, String agentDescription,
                                       String annotationPath) {
+        var scopeAnnotation = agentClass == null
+                ? null : agentClass.getAnnotation(AgentScope.class);
         if (skillFile != null) {
             var tierHint = tierHint(skillFile);
             if (SCOPE_TIER_OPT_OUT.contains(tierHint)) {
                 return null;    // explicit skill-level opt-out — no annotation fallback
+            }
+            if (unrestrictedOverridesGuardrails(skillFile, scopeAnnotation)) {
+                return null;    // explicit unrestricted annotation beats a derived scope
             }
             var skillPolicy = fromSkillGuardrails(skillFile, agentName, agentDescription);
             if (skillPolicy != null) {
                 return skillPolicy;
             }
         }
-        var scopeAnnotation = agentClass == null
-                ? null : agentClass.getAnnotation(AgentScope.class);
         if (scopeAnnotation == null) {
             return null;
         }
         return ScopePolicyBuilder.build(scopeAnnotation, agentClass, annotationPath)
                 .orElse(null);
+    }
+
+    /**
+     * Log one WARN when the class's {@code @AgentScope(unrestricted = true)}
+     * overrides the scope its skill's {@code ## Guardrails} section would derive,
+     * naming the agent, the skill and the annotation's justification. A processor
+     * calls this once per registration, beside {@link #resolve}, so the operator
+     * sees that the skill's guardrails stay prompt-only for this agent.
+     *
+     * @param skillFile  the parsed skill file, or {@code null} when the class
+     *                   declares none
+     * @param agentClass the annotated class, consulted for {@link AgentScope}
+     * @param agentName  agent name for the log line
+     * @param skillRef   the skill reference the class declares; blank for an
+     *                   auto-discovered skill, which the log names by its title
+     * @return {@code true} when the annotation overrides the derived scope
+     */
+    public static boolean warnIfUnrestrictedOverridesGuardrails(SkillFileParser skillFile,
+                                                                Class<?> agentClass,
+                                                                String agentName,
+                                                                String skillRef) {
+        if (skillFile == null || agentClass == null) {
+            return false;
+        }
+        var scopeAnnotation = agentClass.getAnnotation(AgentScope.class);
+        if (!unrestrictedOverridesGuardrails(skillFile, scopeAnnotation)) {
+            return false;
+        }
+        var skillName = skillRef != null && !skillRef.isBlank()
+                ? skillRef : firstNonBlank(skillFile.title(), "(auto-discovered)");
+        logger.warn("Agent '{}' declares @AgentScope(unrestricted = true) — it overrides the "
+                        + "admission scope skill '{}' would derive from its ## Guardrails, which "
+                        + "stay prompt-only (set scopeTier in the skill frontmatter to keep "
+                        + "enforcing them). Justification: {}",
+                agentName, skillName, scopeAnnotation.justification());
+        return true;
+    }
+
+    /**
+     * Whether an explicit, justified {@code @AgentScope(unrestricted = true)}
+     * overrides the scope the skill's {@code ## Guardrails} section would derive:
+     * the skill must carry guardrails but no explicit {@code scopeTier}. An
+     * unjustified annotation is invalid and does not override (fails closed).
+     */
+    private static boolean unrestrictedOverridesGuardrails(SkillFileParser skillFile,
+                                                           AgentScope scopeAnnotation) {
+        return scopeAnnotation != null
+                && scopeAnnotation.unrestricted()
+                && !scopeAnnotation.justification().isBlank()
+                && tierHint(skillFile).isEmpty()
+                && !skillFile.listItems("Guardrails").isEmpty();
     }
 
     /**

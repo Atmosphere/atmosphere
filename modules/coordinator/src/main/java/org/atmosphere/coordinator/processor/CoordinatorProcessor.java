@@ -362,6 +362,10 @@ public class CoordinatorProcessor implements Processor<Object> {
             // A @Coordinator's @AgentScope must confine EVERY invocation path —
             // the web streaming path here and the A2A/AG-UI/channel pipeline in
             // buildPipeline below (Correctness Invariant #7 — Mode Parity).
+            // Reported once per registration; the web chain and the pipeline
+            // below each resolve the scope (same as the @Agent path).
+            ScopePolicyResolver.warnIfUnrestrictedOverridesGuardrails(skillFile, annotatedClass,
+                    coordinatorName, annotation.skillFile());
             var webGuardrails = buildWebGuardrails(framework, annotatedClass, skillFile, path);
             // Harness MEMORY: same long-term-memory attach and prompt-cache
             // default seeding as the @AiEndpoint / @Agent paths (Correctness
@@ -465,8 +469,11 @@ public class CoordinatorProcessor implements Processor<Object> {
      * a plain {@code @AiEndpoint} instead of an empty policy list (Mode Parity
      * #7). The coordinator's scope policy is resolved with the same precedence
      * as an {@code @Agent}'s ({@code ScopePolicyResolver}): the skill file's
-     * {@code ## Guardrails} section wins (its {@code scopeTier: none} opts out
-     * entirely), then a {@code @AgentScope} annotation on the class — and the
+     * {@code scopeTier: none} opts out entirely, a skill with an explicit
+     * {@code scopeTier} keeps its {@code ## Guardrails} policy, an explicit
+     * {@code @AgentScope(unrestricted = true)} overrides a policy the
+     * {@code ## Guardrails} section alone would derive, which otherwise wins
+     * over a {@code @AgentScope} annotation on the class — and the
      * resolved {@link org.atmosphere.ai.governance.scope.ScopePolicy} is
      * prepended so an off-topic request is rejected at the cheapest gate.
      * {@code @Coordinator} "subsumes {@code @Agent}", so a skill file's
@@ -502,8 +509,8 @@ public class CoordinatorProcessor implements Processor<Object> {
     }
 
     /**
-     * Resolve the coordinator's admission scope with the shared skill-beats-
-     * annotation precedence. The coordinator name (falling back to the
+     * Resolve the coordinator's admission scope with the shared precedence
+     * ({@link ScopePolicyResolver#resolve}). The coordinator name (falling back to the
      * registration path) keys the policy; the annotation description seeds the
      * scope purpose when the skill frontmatter declares none.
      */
@@ -1150,8 +1157,10 @@ public class CoordinatorProcessor implements Processor<Object> {
 
     // --- Skill file loading ---
 
-    private SkillFileParser loadSkillFile(String skillFilePath,
-                                          String coordinatorName) {
+    // Package-private so CoordinatorSkillScopeConfinementTest can check a skill:
+    // reference keeps its frontmatter.
+    SkillFileParser loadSkillFile(String skillFilePath,
+                                  String coordinatorName) {
         if (org.atmosphere.ai.prompt.PromptResolver.isManaged(skillFilePath)) {
             // prompt: prefix resolves a versioned, registry-managed prompt
             // (rollout unit = the coordinator name); fails closed on a missing
@@ -1174,8 +1183,11 @@ public class CoordinatorProcessor implements Processor<Object> {
             }
             return null;
         }
-        // skill: prefix loads from atmosphere-skills repo (classpath -> cache -> GitHub)
-        var content = org.atmosphere.ai.PromptLoader.resolve(skillFilePath);
+        // skill: prefix loads from atmosphere-skills repo (classpath -> cache -> GitHub).
+        // Raw form, as on the @Agent path: keeps the YAML frontmatter so a
+        // scopeTier hint reaches the scope resolver (resolve() strips it);
+        // SkillFileParser keeps the block out of systemPrompt().
+        var content = org.atmosphere.ai.PromptLoader.resolveRaw(skillFilePath);
         if (content == null) {
             logger.warn("Skill file '{}' not found for coordinator '{}'",
                     skillFilePath, coordinatorName);
