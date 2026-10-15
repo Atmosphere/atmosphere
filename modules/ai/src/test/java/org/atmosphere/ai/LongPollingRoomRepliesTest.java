@@ -30,10 +30,14 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
+import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterCache;
+import org.atmosphere.cpr.BroadcasterListener;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.DefaultBroadcasterFactory;
+import org.atmosphere.cpr.Deliver;
+import org.atmosphere.cpr.PerRequestBroadcastFilter;
 import org.atmosphere.cpr.RawMessage;
 import org.atmosphere.util.ExecutorsFactory;
 import org.junit.jupiter.api.AfterEach;
@@ -46,6 +50,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -502,6 +507,72 @@ class LongPollingRoomRepliesTest {
                 "the frames kept while the write ran wait for the next poll, once");
         assertTrue(nextPoll(member).isEmpty(), "nothing is handed over twice");
         assertEquals(reservedBefore, LongPollingReplies.reservedBytes(), "every kept frame is released once taken");
+    }
+
+    @Test
+    void aFrameKeptForAMemberStaysOffItsWaitingPollWhileAnotherThreadDeliversTheNextFrame() throws Exception {
+        LongPollingRoomReplies.install(room);
+        var waiting = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        BroadcasterListener listener = ((DefaultBroadcaster) room).broadcasterListeners().stream()
+                .filter(l -> l.getClass().getName().startsWith(LongPollingRoomReplies.class.getName()))
+                .findFirst().orElseThrow();
+        var suppressor = (PerRequestBroadcastFilter) room.getBroadcasterConfig().filters().stream()
+                .filter(f -> f.getClass().getName().startsWith(LongPollingRoomReplies.class.getName()))
+                .findFirst().orElseThrow();
+        var a = new RawMessage(aiFrame("reply-a", "a0"));
+        var b = new RawMessage(aiFrame("reply-b", "b0"));
+
+        // With out-of-order broadcast the broadcaster delivers on several threads: each runs the room's
+        // listener for its frame, then the per-request filters of that same frame, while another thread is
+        // at another frame.
+        listener.onMessage(room, new Deliver(a, null, a));
+        var other = CompletableFuture.supplyAsync(() -> {
+            listener.onMessage(room, new Deliver(b, null, b));
+            return suppressor.filter(room.getID(), waiting, b, b).action();
+        });
+        var otherAction = other.get(10, TimeUnit.SECONDS);
+        var action = suppressor.filter(room.getID(), waiting, a, a).action();
+
+        assertEquals(BroadcastAction.ACTION.ABORT, action,
+                "a frame kept for the member must not also be written to its waiting poll, whatever frame"
+                        + " another delivery thread is at");
+        assertEquals(BroadcastAction.ACTION.ABORT, otherAction);
+        assertEquals(List.of("streaming-text:a0", "streaming-text:b0"), nextPoll(waiting));
+        assertEquals(reservedBefore, LongPollingReplies.reservedBytes(), "every kept frame is released once taken");
+    }
+
+    @Test
+    void withOutOfOrderBroadcastNoFrameKeptForAWaitingMemberIsAlsoWrittenToItsPoll() {
+        params.put(ApplicationConfig.OUT_OF_ORDER_BROADCAST, "true");
+        var unordered = factory.get(DefaultBroadcaster.class, "/atmosphere/unordered/" + UUID.randomUUID());
+        try {
+            LongPollingRoomReplies.install(unordered);
+            var waiting = subscriber(unordered, AtmosphereResource.TRANSPORT.LONG_POLLING);
+            var socket = subscriber(unordered, AtmosphereResource.TRANSPORT.WEBSOCKET);
+            var a = StreamingSessions.startRoomBroadcast(socket);
+            var b = StreamingSessions.startRoomBroadcast(socket);
+            for (var i = 0; i < 20; i++) {
+                a.send("a" + i + ".");
+                b.send("b" + i + ".");
+            }
+            a.complete();
+            b.complete();
+            awaitTerminals(socket, 2);
+
+            assertTrue(frames(waiting).isEmpty(), "every frame of the two replies is kept for the member, so none"
+                    + " may also be written to its waiting poll: " + frames(waiting));
+            var received = nextPollRaw(waiting);
+            assertEquals(42, received.size(), "the next poll receives every frame: " + describe(received));
+            assertEquals(42, Set.copyOf(received).size(), "and each of them once");
+        } finally {
+            unordered.destroy();
+        }
+        assertEquals(reservedBefore, LongPollingReplies.reservedBytes(), "every kept frame is released once taken");
+    }
+
+    private static String aiFrame(String sessionId, String data) {
+        return "{\"type\":\"streaming-text\",\"data\":\"" + data + "\",\"sessionId\":\"" + sessionId
+                + "\",\"seq\":1}";
     }
 
     /** A subscriber of the room on {@code transport}; a long-polling one leaves the room once written to. */

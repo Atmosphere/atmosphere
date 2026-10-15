@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -335,11 +336,26 @@ public final class LongPollingRoomReplies {
         private long touchedNanos = System.nanoTime();
     }
 
+    /**
+     * The frame a delivery thread of the room's broadcaster is at, and the members
+     * it was kept for, or ended a reply for, so that it is not written to a poll of
+     * theirs.
+     */
+    private record Withheld(String json, Set<String> trackingIds) {
+    }
+
     /** A broadcaster's long-polling members, fed by its broadcasts. */
     private static final class Room extends BroadcasterListenerAdapter {
 
         private final ConcurrentHashMap<String, Member> members = new ConcurrentHashMap<>();
         private final Suppressor suppressor = new Suppressor(this);
+        /**
+         * Set by {@link #onMessage} for the {@link Suppressor}: the broadcaster
+         * runs its listeners for a frame, then its per-request filters for each
+         * subscriber, on one thread, and with out-of-order broadcast several
+         * threads each deliver a frame of their own at once.
+         */
+        private final ThreadLocal<Withheld> withheld = new ThreadLocal<>();
 
         @Override
         public void onAddAtmosphereResource(Broadcaster b, AtmosphereResource r) {
@@ -377,6 +393,7 @@ public final class LongPollingRoomReplies {
          */
         @Override
         public void onMessage(Broadcaster b, Deliver deliver) {
+            withheld.remove();
             if (members.isEmpty() || deliver.getType() != Deliver.TYPE.ALL || !deliver.isWriteLocally()
                     || !(deliver.getMessage() instanceof RawMessage raw) || !(raw.message() instanceof String json)) {
                 return;
@@ -388,6 +405,7 @@ public final class LongPollingRoomReplies {
             var kept = new Kept(json, frame.sessionId());
             var cache = cacheOf(b);
             var now = System.nanoTime();
+            var withheldFor = new HashSet<String>();
             for (var member : members.values()) {
                 if (member.expired(now)) {
                     if (members.remove(member.trackingId, member)) {
@@ -397,7 +415,11 @@ public final class LongPollingRoomReplies {
                     }
                     continue;
                 }
-                if (member.keep(frame, kept) != Outcome.NOT_KEPT && cache != null && deliver.getCache() != null) {
+                if (member.keep(frame, kept) == Outcome.NOT_KEPT) {
+                    continue;
+                }
+                withheldFor.add(member.trackingId);
+                if (cache != null && deliver.getCache() != null) {
                     try {
                         cache.clearCache(b.getID(), member.trackingId, deliver.getCache());
                     } catch (RuntimeException e) {
@@ -406,6 +428,16 @@ public final class LongPollingRoomReplies {
                     }
                 }
             }
+            if (!withheldFor.isEmpty()) {
+                withheld.set(new Withheld(json, Set.copyOf(withheldFor)));
+            }
+        }
+
+        /** Whether the frame this thread delivers, {@code json}, was kept for, or withheld from, {@code trackingId}. */
+        boolean withholds(String json, String trackingId) {
+            var current = withheld.get();
+            return current != null && trackingId != null && current.trackingIds().contains(trackingId)
+                    && current.json().equals(json);
         }
 
         void join(AtmosphereResource r) {
@@ -484,8 +516,6 @@ public final class LongPollingRoomReplies {
         private volatile AtmosphereConfig config;
         private volatile LongPollingReplies.Limits limits = LongPollingReplies.Limits.DEFAULTS;
         private volatile long seenNanos = System.nanoTime();
-        /** The last frame offered to this member that no poll of it is to be written. */
-        private volatile String kept;
         private final ArrayList<Kept> mailbox = new ArrayList<>();
         /** The replies this member follows while they run, at most {@value #MAX_REPLIES_PER_MEMBER}. */
         private final LinkedHashMap<String, Reply> replies = new LinkedHashMap<>();
@@ -526,11 +556,6 @@ public final class LongPollingRoomReplies {
                 logger.trace("Unable to find the poll of {}", trackingId, e);
             }
             return true;
-        }
-
-        /** Whether {@code json} was offered to this member and must not be written to a poll of it. */
-        boolean kept(String json) {
-            return json.equals(kept);
         }
 
         long order() {
@@ -613,7 +638,10 @@ public final class LongPollingRoomReplies {
             }
         }
 
-        /** Offers {@code frame} to this member; runs on the broadcaster's delivery, one frame at a time. */
+        /**
+         * Offers {@code frame} to this member; runs on a delivery thread of the
+         * room's broadcaster, one frame at a time per member under its lock.
+         */
         Outcome keep(Frame frame, Kept k) {
             var handOver = new boolean[1];
             try {
@@ -632,13 +660,11 @@ public final class LongPollingRoomReplies {
             lock.lock();
             try {
                 if (gone) {
-                    kept = null;
                     return Outcome.NOT_KEPT;
                 }
                 var now = System.nanoTime();
                 var reply = follow(frame.sessionId(), now);
                 if (reply == null) {
-                    kept = null;
                     return Outcome.NOT_KEPT;
                 }
                 reply.touchedNanos = now;
@@ -647,18 +673,15 @@ public final class LongPollingRoomReplies {
                     replies.remove(frame.sessionId(), reply);
                 }
                 if (reply.bypassed) {
-                    kept = null;
                     return Outcome.NOT_KEPT;
                 }
                 if (reply.abandoned) {
-                    kept = k.json;
                     return Outcome.SUPPRESSED;
                 }
                 var limits = this.limits;
                 if (reply.frames + 1 > limits.maxReplyFrames() || reply.bytes + k.size > limits.maxReplyBytes()) {
                     abandon(reply, frame);
                     handOver[0] = true;
-                    kept = k.json;
                     return Outcome.SUPPRESSED;
                 }
                 if (!k.hold(limits.maxBufferedBytes())) {
@@ -671,7 +694,6 @@ public final class LongPollingRoomReplies {
                 mailbox.add(k);
                 reply.bytes += k.size;
                 reply.frames++;
-                kept = k.json;
                 if (frame.handOver()) {
                     logger.debug("Kept {} room frame(s) for the next poll of {}", mailbox.size(), trackingId);
                     handOver[0] = true;
@@ -704,7 +726,6 @@ public final class LongPollingRoomReplies {
 
         private Outcome bypass(Reply reply, Frame frame) {
             reply.bypassed = true;
-            kept = null;
             logger.warn("Long-polling replies already hold {} bytes; the rest of room reply {} reaches {} only while"
                     + " a poll of it waits", limits.maxBufferedBytes(), frame.sessionId(), trackingId);
             return Outcome.NOT_KEPT;
@@ -740,7 +761,6 @@ public final class LongPollingRoomReplies {
             lock.lock();
             try {
                 gone = true;
-                kept = null;
                 empty();
                 replies.clear();
             } finally {
@@ -812,11 +832,9 @@ public final class LongPollingRoomReplies {
         @Override
         public BroadcastAction filter(String broadcasterId, AtmosphereResource r, Object originalMessage,
                                       Object message) {
-            if (message instanceof RawMessage raw && raw.message() instanceof String json && isLongPolling(r)) {
-                var member = room.members.get(r.uuid());
-                if (member != null && member.kept(json)) {
-                    return new BroadcastAction(BroadcastAction.ACTION.ABORT, message);
-                }
+            if (message instanceof RawMessage raw && raw.message() instanceof String json && isLongPolling(r)
+                    && room.withholds(json, r.uuid())) {
+                return new BroadcastAction(BroadcastAction.ACTION.ABORT, message);
             }
             return new BroadcastAction(message);
         }
