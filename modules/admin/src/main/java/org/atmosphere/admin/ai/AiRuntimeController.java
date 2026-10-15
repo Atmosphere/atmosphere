@@ -16,27 +16,48 @@
 package org.atmosphere.admin.ai;
 
 import org.atmosphere.ai.AgentRuntime;
-import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.AiCapability;
+import org.atmosphere.ai.AiEnvironment;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.Supplier;
 
 /**
  * Read operations for AI runtime inspection — available runtimes,
- * active runtime, and capabilities.
+ * active runtime, and capabilities — of one application: the runtimes its own
+ * {@link AiEnvironment} resolves, so an admin surface never reports another
+ * application's runtime in the same JVM.
  *
  * @since 4.0
  */
 public final class AiRuntimeController {
 
+    private final Supplier<AiEnvironment> environment;
+
+    /** A controller for {@link AiEnvironment#current()}, the static API's application. */
+    public AiRuntimeController() {
+        this(AiEnvironment::current);
+    }
+
+    /**
+     * A controller for one application.
+     *
+     * @param environment the application's environment, looked up on each
+     *                    call (a host may attach it after creating this controller)
+     */
+    public AiRuntimeController(Supplier<AiEnvironment> environment) {
+        this.environment = Objects.requireNonNull(environment, "environment");
+    }
+
     /**
      * List all available AI runtimes with their metadata.
      */
     public List<Map<String, Object>> listRuntimes() {
-        var runtimes = AgentRuntimeResolver.resolveAll();
+        var runtimes = environment.get().runtimes().resolveAll();
         var result = new ArrayList<Map<String, Object>>(runtimes.size());
         for (AgentRuntime runtime : runtimes) {
             result.add(describe(runtime));
@@ -48,7 +69,7 @@ public final class AiRuntimeController {
      * Get the currently active (highest-priority available) runtime.
      */
     public Map<String, Object> getActiveRuntime() {
-        return describe(AgentRuntimeResolver.resolve());
+        return describe(environment.get().runtimes().resolve());
     }
 
     /**

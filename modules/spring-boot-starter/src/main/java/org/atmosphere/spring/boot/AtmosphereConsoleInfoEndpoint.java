@@ -19,7 +19,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.atmosphere.ai.AgentRuntimeResolver;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.governance.memory.MemorySafetyConfig;
 import org.atmosphere.ai.governance.rag.RagSafetyConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -557,10 +557,13 @@ public class AtmosphereConsoleInfoEndpoint {
 
     private String detectRuntime() {
         // Catch LinkageError too — atmosphere-ai may be absent (NoClassDefFoundError
-        // on AgentRuntimeResolver), which would otherwise turn /api/console/info into a 500.
+        // on AiEnvironment), which would otherwise turn /api/console/info into a 500.
         try {
-            var runtime = AgentRuntimeResolver.resolve();
-            return runtime.name();
+            // This application's runtime: its framework's AI environment,
+            // never another application's in the same JVM (Runtime Truth).
+            var aiEnvironment = AiEnvironment.find(framework.getAtmosphereConfig())
+                    .orElseGet(AiEnvironment::current);
+            return aiEnvironment.runtimes().resolve().name();
         } catch (LinkageError | Exception e) {
             logger.debug("Could not resolve AgentRuntime", e);
             return "unknown";

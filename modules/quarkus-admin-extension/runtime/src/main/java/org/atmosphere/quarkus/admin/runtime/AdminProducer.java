@@ -133,8 +133,11 @@ public class AdminProducer {
         // Wire optional AI runtime controller
         try {
             Class.forName("org.atmosphere.ai.AgentRuntimeResolver");
-            admin.setAiRuntimeController(
-                    new org.atmosphere.admin.ai.AiRuntimeController());
+            // This application's runtimes: the framework's AI environment.
+            final var aiFramework = framework;
+            admin.setAiRuntimeController(new org.atmosphere.admin.ai.AiRuntimeController(
+                    () -> org.atmosphere.ai.AiEnvironment.find(aiFramework.getAtmosphereConfig())
+                            .orElseGet(org.atmosphere.ai.AiEnvironment::current)));
         } catch (ClassNotFoundException ignored) {
             // atmosphere-ai not on classpath
         }

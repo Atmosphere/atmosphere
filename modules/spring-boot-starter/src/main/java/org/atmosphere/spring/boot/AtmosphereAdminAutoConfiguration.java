@@ -514,8 +514,14 @@ public class AtmosphereAdminAutoConfiguration {
     static class AiAdminConfiguration {
 
         @Bean
-        AiRuntimeController atmosphereAdminAiRuntimeController(AtmosphereAdmin admin) {
-            var controller = new AiRuntimeController();
+        AiRuntimeController atmosphereAdminAiRuntimeController(AtmosphereAdmin admin,
+                AtmosphereFramework framework) {
+            // This application's runtimes: the framework's AI environment
+            // (the context's own, attached at startup), never another
+            // context's in the same JVM.
+            var controller = new AiRuntimeController(
+                    () -> org.atmosphere.ai.AiEnvironment.find(framework.getAtmosphereConfig())
+                            .orElseGet(org.atmosphere.ai.AiEnvironment::current));
             admin.setAiRuntimeController(controller);
             logger.debug("Atmosphere Admin: AI runtime controller wired");
             return controller;
@@ -888,13 +894,13 @@ public class AtmosphereAdminAutoConfiguration {
                         var model = judgeModel == null || judgeModel.isBlank()
                                 ? defaultJudgeModel : judgeModel;
                         var judge = new org.atmosphere.ai.test.LlmJudge(
-                                org.atmosphere.ai.AgentRuntimeResolver.resolve(), model);
+                                aiEnvironment(frameworkProvider).runtimes().resolve(), model);
                         return new org.atmosphere.admin.evals.LlmJudgeLiveScorer(judge, threshold);
                     };
             logger.debug("Atmosphere Admin: Eval runner wired (concurrency={}, caseTimeoutMs={}, "
                     + "passThreshold={})", concurrency, timeoutMs, threshold);
             var runner = new org.atmosphere.admin.evals.EvalRunner(
-                    org.atmosphere.ai.AgentRuntimeResolver::resolve, scorerFactory,
+                    () -> aiEnvironment(frameworkProvider).runtimes().resolve(), scorerFactory,
                     datasetStore, runStore, concurrency,
                     java.time.Duration.ofMillis(timeoutMs), threshold);
             // Route dataset replays through the durable batch surface whenever
@@ -909,6 +915,20 @@ public class AtmosphereAdminAutoConfiguration {
                                 .orElse(null);
             });
             return runner;
+        }
+
+        /**
+         * The AI environment of this context's framework, else
+         * {@link org.atmosphere.ai.AiEnvironment#current()}.
+         */
+        private static org.atmosphere.ai.AiEnvironment aiEnvironment(
+                org.springframework.beans.factory.ObjectProvider<
+                        org.atmosphere.cpr.AtmosphereFramework> frameworkProvider) {
+            var framework = frameworkProvider.getIfAvailable();
+            return framework != null
+                    ? org.atmosphere.ai.AiEnvironment.find(framework.getAtmosphereConfig())
+                            .orElseGet(org.atmosphere.ai.AiEnvironment::current)
+                    : org.atmosphere.ai.AiEnvironment.current();
         }
     }
 }

@@ -261,8 +261,14 @@ public class AtmosphereAdminAutoConfiguration {
     static class AiAdminConfiguration {
 
         @Bean
-        AiRuntimeController atmosphereAdminAiRuntimeController(AtmosphereAdmin admin) {
-            var controller = new AiRuntimeController();
+        AiRuntimeController atmosphereAdminAiRuntimeController(AtmosphereAdmin admin,
+                AtmosphereFramework framework) {
+            // This application's runtimes: the framework's AI environment
+            // (the context's own, attached at startup), never another
+            // context's in the same JVM.
+            var controller = new AiRuntimeController(
+                    () -> org.atmosphere.ai.AiEnvironment.find(framework.getAtmosphereConfig())
+                            .orElseGet(org.atmosphere.ai.AiEnvironment::current));
             admin.setAiRuntimeController(controller);
             logger.debug("Atmosphere Admin: AI runtime controller wired");
             return controller;

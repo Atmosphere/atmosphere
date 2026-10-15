@@ -15,7 +15,6 @@
  */
 package org.atmosphere.spring.boot;
 
-import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiConversationMemory;
 import org.atmosphere.interactions.InMemoryInteractionStore;
@@ -73,14 +72,18 @@ public class InteractionsAutoConfiguration {
     public InteractionService atmosphereInteractionService(
             InteractionStore store,
             ObjectProvider<AiConversationMemory> memoryProvider,
-            ObjectProvider<org.atmosphere.cpr.AtmosphereFramework> frameworkProvider) {
-        var runtime = AgentRuntimeResolver.resolve();
+            ObjectProvider<org.atmosphere.cpr.AtmosphereFramework> frameworkProvider,
+            ObjectProvider<org.atmosphere.ai.AiEnvironment> aiEnvironmentProvider) {
+        // This context's AiEnvironment (registered by AtmosphereAiAutoConfiguration):
+        // its runtime and settings, never another context's in the same JVM.
+        var aiEnvironment = aiEnvironmentProvider.getIfAvailable(org.atmosphere.ai.AiEnvironment::current);
+        var runtime = aiEnvironment.runtimes().resolve();
         // Resolve the configured default model lazily (at request time, not bean
         // creation) so a Console request that omits a model still reaches the
         // runtime with one even when AiConfig is configured by a user @Bean whose
         // creation is not ordered relative to this service bean.
         java.util.function.Supplier<String> defaultModel = () -> {
-            var settings = AiConfig.get();
+            var settings = aiEnvironment.settings();
             return settings != null ? settings.model() : null;
         };
         // Live-stream factory: broadcasts each step to a per-interaction channel
