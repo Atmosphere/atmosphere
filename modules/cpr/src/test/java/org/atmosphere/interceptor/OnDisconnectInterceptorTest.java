@@ -33,13 +33,17 @@ import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -161,7 +165,8 @@ class OnDisconnectInterceptorTest {
      * A close message whose page is going away (a reload, a navigation) marks the
      * event of the suspended resource it names, which the disconnect then reads
      * like a WebSocket closed with 1001; the close request's own event is not the
-     * one dispatched.
+     * one dispatched. The mark is set before the event reports the client's
+     * close: a disconnect read in between would otherwise see a leave.
      */
     @Test
     void aGoingAwayCloseMessageMarksTheSuspendedResourceEvent() {
@@ -175,10 +180,37 @@ class OnDisconnectInterceptorTest {
         assertEquals(Action.CANCELLED, interceptor.inspect(resource));
 
         var order = inOrder(suspendedEvent, asyncSupport);
-        order.verify(suspendedEvent).isClosedByClient(true);
         order.verify(suspendedEvent).closedGoingAway(true);
+        order.verify(suspendedEvent).isClosedByClient(true);
         order.verify(asyncSupport).completeLifecycle(suspended, false);
         verify(closeRequestEvent, never()).closedGoingAway(anyBoolean());
+    }
+
+    /**
+     * The disconnect may be read on another thread (the container cancelling the
+     * aborted connection) as soon as the event reports the client's close: at that
+     * instant the going-away mark must already be readable, or the reload is read
+     * as a leave and cancelled without the grace.
+     */
+    @Test
+    void theGoingAwayMarkIsReadableWhenTheClientCloseBecomesVisible() {
+        var suspended = mock(AtmosphereResourceImpl.class);
+        var suspendedEvent = spy(new AtmosphereResourceEventImpl(suspended, false, false));
+        var goingAwayWhenClosed = new AtomicReference<Boolean>();
+        doAnswer(inv -> {
+            goingAwayWhenClosed.set(suspendedEvent.closedGoingAway());
+            return inv.callRealMethod();
+        }).when(suspendedEvent).isClosedByClient(true);
+        closeMessageFor(suspended, suspendedEvent, mock(AtmosphereResourceEventImpl.class));
+        when(request.getHeader(HeaderConfig.X_ATMOSPHERE_CLOSE_REASON))
+                .thenReturn(HeaderConfig.CLOSE_REASON_GOING_AWAY);
+
+        assertEquals(Action.CANCELLED, interceptor.inspect(resource));
+
+        assertEquals(Boolean.TRUE, goingAwayWhenClosed.get(),
+                "a reader that sees the client's close must see the page going away too");
+        assertTrue(suspendedEvent.isClosedByClient());
+        assertTrue(suspendedEvent.closedGoingAway());
     }
 
     @ParameterizedTest

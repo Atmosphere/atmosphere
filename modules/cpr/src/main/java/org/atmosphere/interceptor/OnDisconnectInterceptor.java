@@ -73,12 +73,15 @@ public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
 
             // Block websocket closing detection
             var event = (AtmosphereResourceEventImpl) ss.getAtmosphereResourceEvent();
-            event.isClosedByClient(true);
             // A page being hidden or unloaded (a reload, a navigation) may come back, as a
             // WebSocket closed with 1001; without the reason the client left on purpose.
+            // Marked before the client's close: a disconnect read on another thread (the
+            // container cancelling the aborted connection) reads the reason once it sees
+            // that close, as the WebSocket close code is set before it.
             if (goingAway(request)) {
                 event.closedGoingAway(true);
             }
+            event.isClosedByClient(true);
 
             if (config.framework().getAsyncSupport() instanceof AsynchronousProcessor asyncProcessor) {
                 asyncProcessor.completeLifecycle(ss, false);
