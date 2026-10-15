@@ -76,8 +76,7 @@ public final class VertxAtmosphereContainer {
         // @AiEndpoint's runtime and chain, exactly as QuarkusAtmosphereServlet does.
         AtmosphereBootstrap.bridgeAiKnobs(framework);
         AtmosphereBootstrap.bridgeAiCostGuardrail(framework);
-        framework.init(config);
-        AtmosphereBootstrap.verifyAiRuntimeSelection();
+        AtmosphereBootstrap.initFramework(framework, () -> framework.init(config));
 
         ThreadFactory threads = Thread.ofVirtual().name("atmosphere-vertx-", 0).factory();
         var executor = Executors.newThreadPerTaskExecutor(threads);

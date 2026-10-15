@@ -95,8 +95,7 @@ public class QuarkusAtmosphereServlet extends AtmosphereServlet {
         configureFramework(sc, false);
         AtmosphereBootstrap.bridgeAiKnobs(framework());
         AtmosphereBootstrap.bridgeAiCostGuardrail(framework());
-        super.init(sc);
-        AtmosphereBootstrap.verifyAiRuntimeSelection();
+        AtmosphereBootstrap.initFramework(framework(), () -> super.init(sc));
 
         // Make the framework available to the WebSocket endpoint configurator.
         // The JSR-356 endpoints were registered during deployment (before init),

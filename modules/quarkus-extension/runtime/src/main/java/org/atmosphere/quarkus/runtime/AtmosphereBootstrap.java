@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import jakarta.servlet.ServletException;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -113,6 +114,39 @@ public final class AtmosphereBootstrap {
         if (hasAiConfig()) {
             AiKnobBridge.install(framework);
         }
+    }
+
+    /**
+     * Initializes the framework, then checks the AI runtime selection
+     * ({@link #verifyAiRuntimeSelection()}). When either fails, the framework
+     * is destroyed before the failure is rethrown: its shutdown hooks run (the
+     * AI host configuration among them) and its threads stop, since no
+     * shutdown task was registered for a container that did not start, and in
+     * dev mode the JVM outlives the failed start (Correctness Invariant #2).
+     *
+     * @param framework the framework {@code init} initializes
+     * @param init      initializes the framework
+     * @throws ServletException when the initialization fails
+     */
+    public static void initFramework(AtmosphereFramework framework, FrameworkInit init)
+            throws ServletException {
+        try {
+            init.run();
+            verifyAiRuntimeSelection();
+        } catch (ServletException | RuntimeException | Error e) {
+            try {
+                framework.destroy();
+            } catch (RuntimeException destroyFailure) {
+                e.addSuppressed(destroyFailure);
+            }
+            throw e;
+        }
+    }
+
+    /** Initializes an {@link AtmosphereFramework}: {@code framework.init(config)} or the servlet's {@code init}. */
+    @FunctionalInterface
+    public interface FrameworkInit {
+        void run() throws ServletException;
     }
 
     /**
