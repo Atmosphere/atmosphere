@@ -43,8 +43,8 @@ test.describe('channels-chat: web channel answers keyless', () => {
     // Wait for turn 1 to FULLY complete before turn 2: the console gates
     // input while a turn is streaming (the same as every AI sample), so a
     // second message typed mid-stream is dropped by the client. The per-turn
-    // token/latency badge only renders on complete().
-    await expect(page.getByText('tok/s').first()).toBeVisible({ timeout: 15_000 });
+    // chunk/latency badge only renders on complete().
+    await expect(page.getByText('chunks/s').first()).toBeVisible({ timeout: 15_000 });
 
     // The reported failure was the SECOND turn being swallowed — assert a
     // second consecutive turn also lands once the first has completed.

@@ -169,11 +169,11 @@ function handleSend(text: string) {
         <span class="dot"></span><span class="dot"></span><span class="dot"></span>
       </div>
       <div v-if="stats && !isStreaming" class="session-stats" data-testid="session-stats">
-        <span>{{ stats.totalStreamingTexts }} tokens</span>
+        <span>{{ stats.totalStreamingTexts }} chunks</span>
         <span class="sep">&middot;</span>
         <span>{{ stats.elapsedMs }}ms</span>
         <span class="sep">&middot;</span>
-        <span>{{ stats.streamingTextsPerSecond.toFixed(1) }} tok/s</span>
+        <span>{{ stats.streamingTextsPerSecond.toFixed(1) }} chunks/s</span>
         <template v-if="routing.model">
           <span class="sep">&middot;</span>
           <span>{{ routing.model }}</span>

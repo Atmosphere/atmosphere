@@ -39,14 +39,14 @@ async function sendAndSettle(page: import('@playwright/test').Page, prompt: stri
 
 test.describe('AI Session Stats & UI', () => {
   // The stats footer (ChatContainer.vue, data-testid="session-stats") renders
-  // `<n> tokens · <n>ms · <n.n> tok/s`, gated on `stats && !isStreaming`.
+  // `<n> chunks · <n>ms · <n.n> chunks/s`, gated on `stats && !isStreaming`.
   // `stats` is assigned only on the `complete` frame and only when at least one
   // streaming-text was counted (`streamStartedAt > 0`).
   //
   // The previous versions asserted "streaming texts" / "texts/s", a vocabulary
   // the Console has never rendered, so they could not have passed even with a
   // working connection.
-  test('stats bar reports token count and rate after a round', async ({ page }) => {
+  test('stats bar reports chunk count and rate after a round', async ({ page }) => {
     await page.goto(consoleUrl());
     await expect(page.getByText(/^Connected/)).toBeVisible({ timeout: 30_000 });
 
@@ -54,21 +54,21 @@ test.describe('AI Session Stats & UI', () => {
 
     const stats = page.getByTestId('session-stats');
     await expect(stats).toBeVisible({ timeout: 30_000 });
-    await expect(stats).toContainText('tokens');
-    await expect(stats).toContainText('tok/s');
+    await expect(stats).toContainText('chunks');
+    await expect(stats).toContainText('chunks/s');
   });
 
-  test('stats bar shows a non-zero token count and elapsed time', async ({ page }) => {
+  test('stats bar shows a non-zero chunk count and elapsed time', async ({ page }) => {
     await page.goto(consoleUrl());
     await expect(page.getByText(/^Connected/)).toBeVisible({ timeout: 30_000 });
 
     await sendAndSettle(page, 'Hello');
 
     // The demo runtime streams word-by-word, so the count must be >= 1 —
-    // a literal "0 tokens" would mean the streaming-text path never ran.
+    // a literal "0 chunks" would mean the streaming-text path never ran.
     const stats = page.getByTestId('session-stats');
     await expect(stats).toBeVisible({ timeout: 30_000 });
-    await expect(stats).toContainText(/[1-9]\d* tokens/);
+    await expect(stats).toContainText(/[1-9]\d* chunks/);
     await expect(stats).toContainText(/\d+ms/);
   });
 
