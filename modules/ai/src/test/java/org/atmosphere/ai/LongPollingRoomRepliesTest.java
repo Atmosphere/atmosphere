@@ -589,7 +589,9 @@ class LongPollingRoomRepliesTest {
             }
             a.complete();
             b.complete();
-            awaitTerminals(socket, 2);
+            // Every frame, not both terminals: another thread may still be at an earlier frame. A frame is
+            // written to a subscriber after the room's listener ran for it, on the same thread.
+            awaitFrames(socket, 42);
 
             assertTrue(frames(waiting).isEmpty(), "every frame of the two replies is kept for the member, so none"
                     + " may also be written to its waiting poll: " + frames(waiting));
