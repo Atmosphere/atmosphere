@@ -159,6 +159,10 @@ class ScopePolicyResolverTest {
         return appender.list.stream().filter(e -> e.getLevel() == Level.WARN).toList();
     }
 
+    private List<ILoggingEvent> errors() {
+        return appender.list.stream().filter(e -> e.getLevel() == Level.ERROR).toList();
+    }
+
     private static org.atmosphere.ai.governance.scope.ScopePolicy resolve(String skill,
                                                                            Class<?> agentClass) {
         return ScopePolicyResolver.resolve(SkillFileParser.parse(skill), agentClass,
@@ -170,7 +174,7 @@ class ScopePolicyResolverTest {
         assertNull(resolve(OPTED_OUT_SKILL, UnrestrictedAgent.class));
         assertNull(resolve(OPTED_OUT_SKILL, RestrictedAgent.class),
                 "scopeTier: none must not fall back to the annotation");
-        assertFalse(ScopePolicyResolver.warnIfUnrestrictedOverridesGuardrails(
+        assertFalse(ScopePolicyResolver.reportScopeOverrides(
                 SkillFileParser.parse(OPTED_OUT_SKILL), UnrestrictedAgent.class, "assistant", ""));
         assertTrue(warnings().isEmpty());
     }
@@ -186,7 +190,7 @@ class ScopePolicyResolverTest {
         assertFalse(policy.config().unrestricted());
         assertEquals(List.of("gambling"), policy.config().forbiddenTopics(),
                 "an unrestricted annotation contributes no forbidden topic");
-        assertFalse(ScopePolicyResolver.warnIfUnrestrictedOverridesGuardrails(
+        assertFalse(ScopePolicyResolver.reportScopeOverrides(
                 SkillFileParser.parse(EXPLICIT_TIER_SKILL), UnrestrictedAgent.class,
                 "assistant", "skill:support"));
         assertTrue(warnings().isEmpty());
@@ -205,7 +209,7 @@ class ScopePolicyResolverTest {
     @Test
     void overrideLogsOneWarningNamingAgentSkillAndJustification() {
         var skill = SkillFileParser.parse(DERIVED_ONLY_SKILL);
-        assertTrue(ScopePolicyResolver.warnIfUnrestrictedOverridesGuardrails(
+        assertTrue(ScopePolicyResolver.reportScopeOverrides(
                 skill, UnrestrictedAgent.class, "assistant", "skill:assistant"));
         // Resolving (once per invocation path) adds no further warning.
         resolve(DERIVED_ONLY_SKILL, UnrestrictedAgent.class);
@@ -221,7 +225,7 @@ class ScopePolicyResolverTest {
 
     @Test
     void overrideWarningNamesAnAutoDiscoveredSkillByItsTitle() {
-        ScopePolicyResolver.warnIfUnrestrictedOverridesGuardrails(
+        ScopePolicyResolver.reportScopeOverrides(
                 SkillFileParser.parse(DERIVED_ONLY_SKILL), UnrestrictedAgent.class, "assistant", "");
         assertEquals(1, warnings().size());
         assertTrue(warnings().get(0).getFormattedMessage().contains("'Assistant'"),
@@ -234,7 +238,7 @@ class ScopePolicyResolverTest {
         assertNotNull(policy, "an unjustified unrestricted annotation is invalid and must "
                 + "fail closed to the Guardrails-derived policy");
         assertFalse(policy.config().unrestricted());
-        assertFalse(ScopePolicyResolver.warnIfUnrestrictedOverridesGuardrails(
+        assertFalse(ScopePolicyResolver.reportScopeOverrides(
                 SkillFileParser.parse(DERIVED_ONLY_SKILL), UnjustifiedUnrestrictedAgent.class,
                 "assistant", ""));
     }
@@ -300,10 +304,33 @@ class ScopePolicyResolverTest {
                 + "when its skill's guardrails derive a scope");
         assertEquals("Order-status support for an online store", policy.config().purpose());
         assertEquals(List.of("politics"), policy.config().forbiddenTopics());
-        var errors = appender.list.stream().filter(e -> e.getLevel() == Level.ERROR).toList();
-        assertEquals(1, errors.size(), "the invalid annotation is reported: " + errors);
-        assertTrue(errors.get(0).getFormattedMessage().contains(PurposelessAgent.class.getName()),
-                errors.get(0).getFormattedMessage());
+    }
+
+    @Test
+    void invalidRestrictiveAnnotationIsReportedOncePerRegistrationNotPerResolution() {
+        // A processor resolves once per invocation path (web chain, pipeline).
+        resolve(DERIVED_TOPIC_SKILL, PurposelessAgent.class);
+        resolve(DERIVED_TOPIC_SKILL, PurposelessAgent.class);
+        assertTrue(errors().isEmpty(), "resolving must not log the invalid annotation: "
+                + errors());
+
+        assertTrue(ScopePolicyResolver.reportScopeOverrides(
+                SkillFileParser.parse(DERIVED_TOPIC_SKILL), PurposelessAgent.class,
+                "assistant", "skill:support"));
+        var errors = errors();
+        assertEquals(1, errors.size(), "the invalid annotation is reported once: " + errors);
+        var message = errors.get(0).getFormattedMessage();
+        assertTrue(message.contains(PurposelessAgent.class.getName()), message);
+        assertTrue(message.contains("'assistant'"), message);
+        assertTrue(message.contains("skill:support"), message);
+    }
+
+    @Test
+    void validRestrictiveAnnotationReportsNothing() {
+        assertFalse(ScopePolicyResolver.reportScopeOverrides(
+                SkillFileParser.parse(DERIVED_TOPIC_SKILL), RestrictedAgent.class,
+                "assistant", "skill:support"));
+        assertTrue(appender.list.isEmpty(), appender.list.toString());
     }
 
     @Test
@@ -328,7 +355,7 @@ class ScopePolicyResolverTest {
         var policy = resolve(NO_GUARDRAILS_SKILL, UnrestrictedAgent.class);
         assertNotNull(policy, "with no ## Guardrails the annotation is honored as before");
         assertTrue(policy.config().unrestricted());
-        assertFalse(ScopePolicyResolver.warnIfUnrestrictedOverridesGuardrails(
+        assertFalse(ScopePolicyResolver.reportScopeOverrides(
                 SkillFileParser.parse(NO_GUARDRAILS_SKILL), UnrestrictedAgent.class,
                 "assistant", ""));
         assertTrue(warnings().isEmpty());
@@ -340,7 +367,7 @@ class ScopePolicyResolverTest {
                 "assistant", "Assistant", "/atmosphere/agent/assistant"));
         assertNull(ScopePolicyResolver.resolve(null, UnannotatedAgent.class,
                 "assistant", "Assistant", "/atmosphere/agent/assistant"));
-        assertFalse(ScopePolicyResolver.warnIfUnrestrictedOverridesGuardrails(
+        assertFalse(ScopePolicyResolver.reportScopeOverrides(
                 null, UnrestrictedAgent.class, "assistant", ""));
     }
 }

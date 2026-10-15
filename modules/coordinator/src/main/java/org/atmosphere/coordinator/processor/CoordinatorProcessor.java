@@ -362,9 +362,10 @@ public class CoordinatorProcessor implements Processor<Object> {
             // A @Coordinator's @AgentScope must confine EVERY invocation path —
             // the web streaming path here and the A2A/AG-UI/channel pipeline in
             // buildPipeline below (Correctness Invariant #7 — Mode Parity).
-            // Reported once per registration; the web chain and the pipeline
-            // below each resolve the scope (same as the @Agent path).
-            ScopePolicyResolver.warnIfUnrestrictedOverridesGuardrails(skillFile, annotatedClass,
+            // Scope overrides and an invalid @AgentScope are reported once per
+            // registration; the web chain and the pipeline below each resolve
+            // the scope (same as the @Agent path).
+            ScopePolicyResolver.reportScopeOverrides(skillFile, annotatedClass,
                     coordinatorName, annotation.skillFile());
             var webGuardrails = buildWebGuardrails(framework, annotatedClass, skillFile, path);
             // Harness MEMORY: same long-term-memory attach and prompt-cache

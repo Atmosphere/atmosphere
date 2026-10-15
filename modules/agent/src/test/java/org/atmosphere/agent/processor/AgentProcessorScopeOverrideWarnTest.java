@@ -47,6 +47,12 @@ class AgentProcessorScopeOverrideWarnTest {
     public static class UnrestrictedOverrideAgent {
     }
 
+    /** Restrictive but invalid (blank purpose) over a skill whose guardrails derive a scope. */
+    @Agent(name = "invalid-scope-agent", skillFile = "prompts/invalid-scope-agent.md")
+    @AgentScope(forbiddenTopics = "gambling", tier = AgentScope.Tier.RULE_BASED)
+    public static class InvalidScopeAgent {
+    }
+
     private ListAppender<ILoggingEvent> appender;
 
     @BeforeEach
@@ -75,6 +81,32 @@ class AgentProcessorScopeOverrideWarnTest {
             appender.list.clear();
             new AgentProcessor().handle(framework, (Class) UnrestrictedOverrideAgent.class);
             assertOneOverrideWarn(framework);
+        } finally {
+            framework.destroy();
+        }
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"}) // Processor.handle takes Class<Object>
+    void registrationLogsOneErrorForAnInvalidAnnotation() throws Exception {
+        var framework = new AtmosphereFramework();
+        framework.init();
+        try {
+            appender.list.clear();
+            new AgentProcessor().handle(framework, (Class) InvalidScopeAgent.class);
+
+            assertTrue(framework.getAtmosphereHandlers()
+                            .containsKey("/atmosphere/agent/invalid-scope-agent"),
+                    "registration must complete, so the ERROR count reflects a full handle()");
+            List<ILoggingEvent> errors = appender.list.stream()
+                    .filter(e -> e.getLevel() == Level.ERROR)
+                    .toList();
+            assertEquals(1, errors.size(), "registration must log exactly one ERROR for the "
+                    + "invalid @AgentScope, although the web chain and the pipeline each "
+                    + "resolve the scope, got " + errors);
+            var message = errors.get(0).getFormattedMessage();
+            assertTrue(message.contains(InvalidScopeAgent.class.getName()), message);
+            assertTrue(message.contains("prompts/invalid-scope-agent.md"), message);
         } finally {
             framework.destroy();
         }

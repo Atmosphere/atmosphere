@@ -218,9 +218,10 @@ public class AgentProcessor implements Processor<Object> {
             // is the same across every invocation mode (Correctness Invariant #7,
             // Mode Parity).
             // An explicit @AgentScope(unrestricted = true) overriding the scope the
-            // skill's ## Guardrails would derive is reported once, here, not per
-            // resolution: the web chain and the pipeline below each resolve.
-            ScopePolicyResolver.warnIfUnrestrictedOverridesGuardrails(skillFile, annotatedClass,
+            // skill's ## Guardrails would derive, or an invalid @AgentScope that
+            // could not, is reported once, here, not per resolution: the web
+            // chain and the pipeline below each resolve.
+            ScopePolicyResolver.reportScopeOverrides(skillFile, annotatedClass,
                     agentName, annotation.skillFile());
             var webGuardrails = buildWebGuardrails(framework, skillFile, annotatedClass,
                     agentName, annotation.description());

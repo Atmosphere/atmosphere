@@ -55,6 +55,14 @@ class CoordinatorProcessorScopeOverrideWarnTest {
     public static class UnrestrictedOverrideCoordinator {
     }
 
+    /** Restrictive but invalid (blank purpose) over a skill whose guardrails derive a scope. */
+    @Coordinator(name = "invalid-scope-coordinator",
+            skillFile = "prompts/invalid-scope-coordinator.md")
+    @Fleet(@AgentRef(type = Worker.class))
+    @AgentScope(forbiddenTopics = "gambling", tier = AgentScope.Tier.RULE_BASED)
+    public static class InvalidScopeCoordinator {
+    }
+
     private ListAppender<ILoggingEvent> appender;
 
     @BeforeEach
@@ -95,6 +103,32 @@ class CoordinatorProcessorScopeOverrideWarnTest {
             assertTrue(message.contains("unrestricted-override-coordinator"), message);
             assertTrue(message.contains("prompts/unrestricted-override-coordinator.md"), message);
             assertTrue(message.contains("Broad demo coordinator"), message);
+        } finally {
+            framework.destroy();
+        }
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"}) // Processor.handle takes Class<Object>
+    void registrationLogsOneErrorForAnInvalidAnnotation() throws Exception {
+        var framework = new AtmosphereFramework();
+        framework.init();
+        try {
+            appender.list.clear();
+            new CoordinatorProcessor().handle(framework, (Class) InvalidScopeCoordinator.class);
+
+            assertTrue(framework.getAtmosphereHandlers()
+                            .containsKey("/atmosphere/agent/invalid-scope-coordinator"),
+                    "registration must complete, so the ERROR count reflects a full handle()");
+            List<ILoggingEvent> errors = appender.list.stream()
+                    .filter(e -> e.getLevel() == Level.ERROR)
+                    .toList();
+            assertEquals(1, errors.size(), "registration must log exactly one ERROR for the "
+                    + "invalid @AgentScope, although the web chain and the pipeline each "
+                    + "resolve the scope, got " + errors);
+            var message = errors.get(0).getFormattedMessage();
+            assertTrue(message.contains(InvalidScopeCoordinator.class.getName()), message);
+            assertTrue(message.contains("prompts/invalid-scope-coordinator.md"), message);
         } finally {
             framework.destroy();
         }
