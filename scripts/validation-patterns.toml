@@ -160,6 +160,10 @@ static_methods = [
 ]
 # The thread-binding lookup the statics delegate to.
 ambient_methods = ["current", "bound"]
+# Resolvers whose no-argument resolve()/resolveAll() read AiEnvironment.current()
+# while an overload takes the application (DecisionModelResolver.resolve(environment),
+# AiEnvironment.embeddings()): only the no-argument calls are flagged.
+no_arg_facades = ["EmbeddingRuntimeResolver", "DecisionModelResolver"]
 
 # --- The static API itself ---------------------------------------------------
 [[ai_application_state.allowed]]
@@ -356,6 +360,52 @@ reason = "Quarkus admin report for a framework with no environment attached"
 file = "quarkus/runtime/AiKnobBridge.java"
 pattern = 'orElseGet\(AiEnvironment::current\)|verifyRuntimeSelection\(AiEnvironment\.current\(\)\)'
 reason = "startup check of a framework with no environment attached, and the public no-argument AtmosphereBootstrap.verifyAiRuntimeSelection()"
+
+# --- Still on the static API, listed in modules/ai/README.md ("What still reads the static API") ---
+[[ai_application_state.allowed]]
+file = "org/atmosphere/ai/cache/SemanticResponseCache.java"
+pattern = 'EmbeddingRuntimeResolver\.resolve\(\)'
+reason = "a semantic cache built without an embedding runtime: the constructor holds no application"
+
+[[ai_application_state.allowed]]
+file = "org/atmosphere/ai/governance/rag/EmbeddingInjectionClassifier.java"
+pattern = 'EmbeddingRuntimeResolver\.resolve\(\)'
+reason = "an embedding injection classifier built without an embedding runtime: the constructor holds no application"
+
+[[ai_application_state.allowed]]
+file = "org/atmosphere/ai/governance/scope/EmbeddingScopeGuardrail.java"
+pattern = 'EmbeddingRuntimeResolver\.resolve\(\)'
+reason = "an embedding scope guardrail built without an embedding runtime: the constructor holds no application"
+
+[[ai_application_state.allowed]]
+file = "org/atmosphere/ai/governance/scope/SemanticIntentScopeGuardrail.java"
+pattern = 'EmbeddingRuntimeResolver\.resolve\(\)'
+reason = "a semantic scope guardrail built without an embedding runtime: the constructor holds no application"
+
+[[ai_application_state.allowed]]
+file = "org/atmosphere/ai/governance/rag/InjectionClassifierResolver.java"
+pattern = 'EmbeddingRuntimeResolver\.resolve\(\)|DecisionModelResolver\.resolve\(\)'
+reason = "the classifier cache keeps one classifier per tier for the JVM, so it resolves with no application"
+
+[[ai_application_state.allowed]]
+file = "org/atmosphere/ai/governance/rag/LlmClassifierInjectionClassifier.java"
+pattern = 'DecisionModelResolver\.resolve\(\)'
+reason = "the LLM injection tier without a decision model of its own resolves with no application"
+
+[[ai_application_state.allowed]]
+file = "org/atmosphere/ai/governance/scope/LlmClassifierScopeGuardrail.java"
+pattern = 'DecisionModelResolver\.resolve\(\)'
+reason = "the LLM scope tier without a decision model of its own resolves with no application"
+
+[[ai_application_state.allowed]]
+file = "org/atmosphere/ai/guardrails/LlmModerationDetector.java"
+pattern = 'DecisionModelResolver\.resolve\(\)'
+reason = "the LLM moderation tier without a decision model of its own resolves with no application"
+
+[[ai_application_state.allowed]]
+file = "org/atmosphere/ai/intent/IntentRouting.java"
+pattern = 'DecisionModelResolver\.resolve\(\)'
+reason = "intent routing without a decision model of its own resolves with no application"
 
 # --- Process-wide by contract (decision D4: static binders stay the fallback through 4.x) ---
 [[ai_application_state.allowed]]

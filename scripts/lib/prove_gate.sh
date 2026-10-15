@@ -221,6 +221,8 @@ s_ai_ambient()  { inject_after_line "$AI_PROC" "$CLASS_DECL" \
 s_ai_kotlin()   { printf '\nprivate fun zzzAi() = org.atmosphere.ai.AiConfig.knob(org.atmosphere.ai.AiConfig.RUNTIME_PROPERTY)\n' >> "$AI_KT"; }
 s_ai_quarkus()  { inject_after_line "$AI_QUARKUS" "$CLASS_DECL" \
                     '    static Object zzzAi() { return org.atmosphere.ai.AgentRuntimeResolver.resolveAll(); }'; }
+s_ai_noarg()    { inject_after_line "$AI_PROC" "$CLASS_DECL" \
+                    '    private Object zzzAi() { return org.atmosphere.ai.EmbeddingRuntimeResolver.resolve(); }'; }
 # An allowlisted read that goes away must take its allowlist entry with it.
 s_ai_stale()    { python3 - "$AI_RERANKER" <<'PY'
 import sys
@@ -230,11 +232,12 @@ assert old in s, "the allowlisted LlmReranker read moved; update s_ai_stale"
 open(p, 'w').write(s.replace(old, "AiEnvironment.processDefault().runtimes().resolve()"))
 PY
 }
-# A comment or Javadoc naming the static API reads nothing.
+# A comment or Javadoc naming the static API reads nothing, and neither does a
+# resolver overload that is handed the application.
 s_ai_comment()  { inject_after_line "$AI_PROC" "$CLASS_DECL" \
                     '    // AiConfig.get() and AgentRuntimeResolver::resolve read the process default.
     /** Not {@link org.atmosphere.ai.AiEnvironment#current()}: AiEnvironment.current() is the facade. */
-    private static final int ZZZ_AI = 1;'; }
+    private static Object zzzAi(org.atmosphere.ai.AiEnvironment e) { return org.atmosphere.ai.decision.DecisionModelResolver.resolve(e); }'; }
 
 # ---- cases ------------------------------------------------------------------
 run_case "noop-constants"      "NOOP constants declared but never referenced"        s_noop
@@ -269,6 +272,7 @@ run_case "ai-state-methodref"  "process-wide AI state read"                     
 run_case "ai-state-ambient"    "process-wide AI state read"                          s_ai_ambient
 run_case "ai-state-kotlin"     "process-wide AI state read"                          s_ai_kotlin
 run_case "ai-state-quarkus"    "process-wide AI state read"                          s_ai_quarkus
+run_case "ai-state-no-arg"     "process-wide AI state read"                          s_ai_noarg
 run_case "ai-state-stale"      "Stale [[ai_application_state.allowed]]"              s_ai_stale
 run_clean_case "ai-state-comment" "process-wide AI state read" \
                                   "AI state read through the application"            s_ai_comment

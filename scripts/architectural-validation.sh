@@ -172,13 +172,16 @@ ai = config.get("ai_application_state", {})
 classes = ai.get("static_classes", [])
 methods = ai.get("static_methods", [])
 ambient = ai.get("ambient_methods", [])
+no_arg = ai.get("no_arg_facades", [])
 ai_regex = ""
-if classes and methods and ambient:
+if classes and methods and ambient and no_arg:
     cls = "(?:" + "|".join(classes) + ")"
     mth = "(?:" + "|".join(methods) + ")"
     amb = "(?:" + "|".join(ambient) + ")"
     ai_regex = (rf"\b{cls}\s*\.\s*{mth}\s*\(|\b{cls}\s*::\s*{mth}\b"
                 rf"|\bAiEnvironment\s*\.\s*{amb}\s*\(|\bAiEnvironment\s*::\s*{amb}\b"
+                rf"|\b(?:{'|'.join(no_arg)})\s*\.\s*(?:resolve|resolveAll)\s*\(\s*\)"
+                rf"|\b(?:{'|'.join(no_arg)})\s*::\s*(?:resolve|resolveAll)\b"
                 rf"|\bimport\s+static\s+org\.atmosphere\.ai\.(?:{'|'.join(classes)}|AiEnvironment)\.")
 print(f"AI_STATE_REGEX={shlex.quote(ai_regex)}")
 PYTHON_PARSER
@@ -1155,8 +1158,9 @@ echo -e "${BLUE}--- AI State Read Through The Application ---${NC}"
 # The rule (AGENTS.md, Correctness Invariants #1 and #5): framework code that
 # can reach its application reads AI settings, knobs, runtimes and native-client
 # bindings through that application's AiEnvironment, never through the
-# AiConfig / AgentRuntimeResolver statics or the AiEnvironment.current() lookup
-# behind them, which on a thread bound to no application read the process
+# AiConfig / AgentRuntimeResolver statics, the no-argument
+# EmbeddingRuntimeResolver / DecisionModelResolver resolve(), or the
+# AiEnvironment.current() lookup behind them, which on a thread bound to no application read the process
 # default while two applications run. Each remaining read is allowlisted, file +
 # regex + reason, in [ai_application_state]; an entry that matches nothing fails
 # too, so the allowlist cannot outlive the reads it excuses.
