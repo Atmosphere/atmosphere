@@ -9,6 +9,9 @@
 # 6. Fluent builder misuse (return values silently discarded)
 # 7. ServiceLoader SPIs declared but not wired
 # 8. Current Atmosphere version hardcoded in release/build tooling
+# 9. Framework code reading AI state through the process-wide statics
+#    (AiConfig, AgentRuntimeResolver, AiEnvironment.current()) instead of its
+#    application's AiEnvironment
 #
 # Configuration: scripts/validation-patterns.toml
 #
@@ -161,6 +164,23 @@ print(f'NOOP_ALLOWLIST="{"|".join(na)}"')
 # Verified against their poms below; this is not a blind allowlist.
 ns = config.get("non_shipped_modules", {}).get("modules", [])
 print(f'NON_SHIPPED_MODULES="{" ".join(ns)}"')
+
+# AI application state: the calls on the static API and on the thread-binding
+# lookup that read or write an application's AI state (check 15).
+import shlex
+ai = config.get("ai_application_state", {})
+classes = ai.get("static_classes", [])
+methods = ai.get("static_methods", [])
+ambient = ai.get("ambient_methods", [])
+ai_regex = ""
+if classes and methods and ambient:
+    cls = "(?:" + "|".join(classes) + ")"
+    mth = "(?:" + "|".join(methods) + ")"
+    amb = "(?:" + "|".join(ambient) + ")"
+    ai_regex = (rf"\b{cls}\s*\.\s*{mth}\s*\(|\b{cls}\s*::\s*{mth}\b"
+                rf"|\bAiEnvironment\s*\.\s*{amb}\s*\(|\bAiEnvironment\s*::\s*{amb}\b"
+                rf"|\bimport\s+static\s+org\.atmosphere\.ai\.(?:{'|'.join(classes)}|AiEnvironment)\.")
+print(f"AI_STATE_REGEX={shlex.quote(ai_regex)}")
 PYTHON_PARSER
 )"
 
@@ -175,7 +195,7 @@ PYTHON_PARSER
 # MOCK_FALSE_POSITIVES, and neutered the mock check.)
 for required in SPI_ALLOWLIST ALLOWED_SUPPRESSIONS MOCK_FALSE_POSITIVES \
                 CRITICAL_PLACEHOLDERS CI_COE_ALLOWLIST NOOP_ALLOWLIST \
-                NON_SHIPPED_MODULES; do
+                NON_SHIPPED_MODULES AI_STATE_REGEX; do
     if [ -z "${!required}" ]; then
         echo -e "${RED}CRITICAL: $required parsed empty from validation-patterns.toml.${NC}"
         echo -e "${RED}An empty allowlist becomes a match-everything grep filter and${NC}"
@@ -1123,6 +1143,65 @@ if HARDCODED_VERSION_OUT=$(./scripts/validate-no-hardcoded-atmosphere-version.sh
 else
     fail_validation "hardcoded Atmosphere version literal(s) in tooling (scripts/validate-no-hardcoded-atmosphere-version.sh):"
     echo "$HARDCODED_VERSION_OUT" | sed 's/^/  /'
+fi
+
+# ============================================================================
+# 15. AI STATE BELONGS TO THE APPLICATION THAT OWNS THE REQUEST
+# ============================================================================
+
+echo ""
+echo -e "${BLUE}--- AI State Read Through The Application ---${NC}"
+
+# The rule (AGENTS.md, Correctness Invariants #1 and #5): framework code that
+# can reach its application reads AI settings, knobs, runtimes and native-client
+# bindings through that application's AiEnvironment, never through the
+# AiConfig / AgentRuntimeResolver statics or the AiEnvironment.current() lookup
+# behind them, which on a thread bound to no application read the process
+# default while two applications run. Each remaining read is allowlisted, file +
+# regex + reason, in [ai_application_state]; an entry that matches nothing fails
+# too, so the allowlist cannot outlive the reads it excuses.
+#
+# Scope: every src/main under modules/, found with `find` because the
+# SRC_DIRS glob (modules/*/src/main/java) misses Kotlin sources and the nested
+# Quarkus modules, where AiKnobBridge lives. CODE mode: comments and Javadoc
+# are not reads. Non-shipped modules are skipped (their poms were verified
+# above); samples are user code, which the static API exists for.
+AI_STATE_FILTER="$SCRIPT_DIR/lib/filter_ai_state_sites.py"
+if [ ! -f "$AI_STATE_FILTER" ]; then
+    echo -e "${RED}CRITICAL: filter_ai_state_sites.py not found at $AI_STATE_FILTER${NC}"
+    exit 1
+fi
+AI_STATE_ROOTS=()
+while IFS= read -r dir; do
+    keep=true
+    for m in $NON_SHIPPED_MODULES; do
+        case "$dir" in "modules/$m/"*) keep=false ;; esac
+    done
+    $keep && AI_STATE_ROOTS+=("$dir")
+done < <(find modules -type d -path '*/src/main' -not -path '*/node_modules/*' -not -path '*/target/*' | sort)
+# An empty root list would make the scan read nothing and pass (see check 3).
+if [ "${#AI_STATE_ROOTS[@]}" -eq 0 ]; then
+    fail_validation "AI state check found no modules/**/src/main directory to scan"
+elif ! AI_STATE_SCAN=$(python3 "$SCAN" --mode code --regex "$AI_STATE_REGEX" "${AI_STATE_ROOTS[@]}"; \
+        rc=$?; [ "$rc" -le 1 ] || exit "$rc"); then
+    fail_validation "AI state check: the scanner failed (bad regex in [ai_application_state]?)"
+elif ! AI_STATE_HITS=$(printf '%s\n' "$AI_STATE_SCAN" | grep . | python3 "$AI_STATE_FILTER" "$TOML_FILE"); then
+    fail_validation "AI state check: [[ai_application_state.allowed]] is malformed"
+else
+    AI_STATE_STALE=$(printf '%s\n' "$AI_STATE_HITS" | grep '^STALE-ALLOWLIST ' || true)
+    AI_STATE_READS=$(printf '%s\n' "$AI_STATE_HITS" | grep -v '^STALE-ALLOWLIST ' | grep . || true)
+    AI_STATE_COUNT=$(printf '%s' "$AI_STATE_READS" | grep -c . || true)
+    if [ "$AI_STATE_COUNT" -gt 0 ]; then
+        fail_validation "Found $AI_STATE_COUNT process-wide AI state read(s) in framework code: read the application's AiEnvironment (AiEnvironment.of(config), environment(), runtimes()) or allowlist the site with a reason"
+        echo "$AI_STATE_READS" | head -20
+    fi
+    if [ -n "$AI_STATE_STALE" ]; then
+        fail_validation "Stale [[ai_application_state.allowed]] entr(y/ies) matching no AI state read; remove them:"
+        echo "$AI_STATE_STALE" | sed 's/^STALE-ALLOWLIST /  /'
+    fi
+    if [ "$AI_STATE_COUNT" -eq 0 ] && [ -z "$AI_STATE_STALE" ]; then
+        pass_validation "AI state read through the application ($(printf '%s' "$AI_STATE_SCAN" | grep -c . || true) allowlisted site(s) in ${#AI_STATE_ROOTS[@]} source root(s))"
+    fi
 fi
 
 # ============================================================================

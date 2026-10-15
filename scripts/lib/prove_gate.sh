@@ -33,6 +33,13 @@ AI_CLASS=modules/ai/src/main/java/org/atmosphere/ai/AiConfig.java
 TEST_CLASS=modules/cpr/src/test/java/org/atmosphere/inject/InjectableObjectFactoryTest.java
 CONTRACT=modules/anthropic/src/test/java/org/atmosphere/ai/anthropic/AnthropicRuntimeContractTest.java
 JETTY=samples/grpc-chat/src/main/java/org/atmosphere/samples/grpc/GrpcChatServer.java
+# AI application state (check 15): one plain Java target, one Kotlin source and
+# one nested Quarkus module, the two places the modules/*/src/main/java glob
+# misses, plus an allowlisted site whose removal must turn its entry stale.
+AI_PROC=modules/ai/src/main/java/org/atmosphere/ai/processor/AiEndpointProcessor.java
+AI_KT=modules/kotlin/src/main/kotlin/org/atmosphere/kotlin/ai/AgentRegistration.kt
+AI_QUARKUS=modules/quarkus-extension/runtime/src/main/java/org/atmosphere/quarkus/runtime/AtmosphereBootstrap.java
+AI_RERANKER=modules/ai/src/main/java/org/atmosphere/ai/LlmReranker.java
 
 PASSED=0; FAILED=0; RESULTS=""
 
@@ -55,7 +62,8 @@ PY
 # every uncommitted change in the tree — including in-progress fixes to the very
 # script under test, so a run silently graded the old code and reported the fix
 # as a no-op. Never let a test harness revert paths it did not write.
-INJECT_TRACKED=("$CPR_CLASS" "$AI_CLASS" "$TEST_CLASS" "$CONTRACT" "$JETTY" .github/workflows/e2e.yml)
+INJECT_TRACKED=("$CPR_CLASS" "$AI_CLASS" "$TEST_CLASS" "$CONTRACT" "$JETTY" .github/workflows/e2e.yml
+                "$AI_PROC" "$AI_KT" "$AI_QUARKUS" "$AI_RERANKER")
 INJECT_CREATED=(
     modules/ai/src/main/java/org/atmosphere/ai/ZzzDeadIface.java
     modules/ai/src/main/resources/META-INF/services/org.atmosphere.ai.ZzzSpi
@@ -108,6 +116,43 @@ run_case() {
             echo "  untracked created:"; for f in "${INJECT_CREATED[@]}"; do [ -e "$f" ] && echo "    $f"; done
             echo "  full gate FAIL output:"; echo "${out:-<none>}" | sed 's/^/    /'
         } >&2
+    fi
+}
+
+# Insert a line after the first line of $1 matching the regex $2 (a class
+# declaration ending in '{'). inject_in_class keys off the first 'class ' in
+# the text, which a class Javadoc mentioning a "class " would capture, putting
+# the snippet inside the comment, where a code-mode check rightly ignores it.
+inject_after_line() {
+    python3 - "$1" "$2" "$3" <<'PY'
+import re, sys
+path, pattern, snippet = sys.argv[1], sys.argv[2], sys.argv[3]
+lines = open(path).read().split('\n')
+i = next(n for n, line in enumerate(lines) if re.search(pattern, line))
+lines.insert(i + 1, snippet)
+open(path, 'w').write('\n'.join(lines))
+PY
+}
+
+# run_clean_case <name> <check-FAIL-substring> <check-PASS-substring> <setup-fn>
+# The negative twin of run_case: the setup must NOT make the check fail, and the
+# check must still print its PASS line, so a check that stopped running is not
+# mistaken for a clean result.
+run_clean_case() {
+    local name="$1" fail="$2" pass="$3" setup="$4"
+    restore
+    "$setup"
+    local out
+    out=$("$GATE" < /dev/null 2>&1 | sed -e 's/\x1b\[[0-9;]*m//g' || true)
+    restore
+    if ! echo "$out" | grep '^  FAIL' | grep -qF "$fail" \
+            && echo "$out" | grep '^  PASS' | grep -qF "$pass"; then
+        PASSED=$((PASSED+1))
+        RESULTS="${RESULTS}$(printf "${GREEN}  CLEAN${NC}   %s" "$name")\n"
+    else
+        FAILED=$((FAILED+1))
+        RESULTS="${RESULTS}$(printf "${RED}  WRONG${NC}   %s\n            expected no FAIL '%s' and a PASS '%s'\n            got     : %s" \
+            "$name" "$fail" "$pass" "$(echo "$out" | grep -E '^  (FAIL|PASS)' | grep -iF 'AI state' | head -3 | tr '\n' '|')")\n"
     fi
 }
 
@@ -165,6 +210,32 @@ s_hardcoded_ver(){ local v
                    v=$(python3 -c 'import re; print(re.search(r"atmosphere-project</artifactId>.*?<version>(\d+\.\d+\.\d+)", open("pom.xml").read(), re.S).group(1))')
                    printf '\n# zzz\nenv:\n  ZZZ_RELEASE: "%s"\n' "$v" >> .github/workflows/e2e.yml; }
 
+# AI state read through the process-wide statics instead of the application.
+CLASS_DECL='^public (final )?class '
+s_ai_static()   { inject_after_line "$AI_PROC" "$CLASS_DECL" \
+                    '    private Object zzzAi() { return org.atmosphere.ai.AiConfig.get(); }'; }
+s_ai_methodref(){ inject_after_line "$AI_PROC" "$CLASS_DECL" \
+                    '    private final java.util.function.Supplier<?> zzzAi = org.atmosphere.ai.AgentRuntimeResolver::resolve;'; }
+s_ai_ambient()  { inject_after_line "$AI_PROC" "$CLASS_DECL" \
+                    '    private Object zzzAi() { return org.atmosphere.ai.AiEnvironment.current().settings(); }'; }
+s_ai_kotlin()   { printf '\nprivate fun zzzAi() = org.atmosphere.ai.AiConfig.knob(org.atmosphere.ai.AiConfig.RUNTIME_PROPERTY)\n' >> "$AI_KT"; }
+s_ai_quarkus()  { inject_after_line "$AI_QUARKUS" "$CLASS_DECL" \
+                    '    static Object zzzAi() { return org.atmosphere.ai.AgentRuntimeResolver.resolveAll(); }'; }
+# An allowlisted read that goes away must take its allowlist entry with it.
+s_ai_stale()    { python3 - "$AI_RERANKER" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+old = "AiEnvironment.current().runtimes().resolve()"
+assert old in s, "the allowlisted LlmReranker read moved; update s_ai_stale"
+open(p, 'w').write(s.replace(old, "AiEnvironment.processDefault().runtimes().resolve()"))
+PY
+}
+# A comment or Javadoc naming the static API reads nothing.
+s_ai_comment()  { inject_after_line "$AI_PROC" "$CLASS_DECL" \
+                    '    // AiConfig.get() and AgentRuntimeResolver::resolve read the process default.
+    /** Not {@link org.atmosphere.ai.AiEnvironment#current()}: AiEnvironment.current() is the facade. */
+    private static final int ZZZ_AI = 1;'; }
+
 # ---- cases ------------------------------------------------------------------
 run_case "noop-constants"      "NOOP constants declared but never referenced"        s_noop
 run_case "noop-affixed"        "NOOP constants declared but never referenced"        s_noop_affixed
@@ -193,6 +264,14 @@ run_case "hardcoded-secret"    "hardcoded API keys"                             
 run_case "jetty-protected"     "without setProtectedTargets"                         s_jetty
 run_case "spotless-coverage"   "outside every Spotless include"                      s_uncovered
 run_case "hardcoded-version"   "hardcoded Atmosphere version literal"                s_hardcoded_ver
+run_case "ai-state-static"     "process-wide AI state read"                          s_ai_static
+run_case "ai-state-methodref"  "process-wide AI state read"                          s_ai_methodref
+run_case "ai-state-ambient"    "process-wide AI state read"                          s_ai_ambient
+run_case "ai-state-kotlin"     "process-wide AI state read"                          s_ai_kotlin
+run_case "ai-state-quarkus"    "process-wide AI state read"                          s_ai_quarkus
+run_case "ai-state-stale"      "Stale [[ai_application_state.allowed]]"              s_ai_stale
+run_clean_case "ai-state-comment" "process-wide AI state read" \
+                                  "AI state read through the application"            s_ai_comment
 
 echo ""
 echo "==== Gate bite-proof ===="
