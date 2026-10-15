@@ -461,7 +461,11 @@ public final class LongPollingRoomReplies {
     static final class Member {
         private final String trackingId;
         private final long order = MEMBER_SEQUENCE.incrementAndGet();
-        /** Guards the mailbox; held by {@link LongPollingReplies#deliver} while it writes the mailbox. */
+        /**
+         * Guards the mailbox; held by {@link LongPollingReplies#deliver} while it
+         * writes the mailbox, after the lock of the client's parked reply. Nothing
+         * run under it waits for a parked reply's lock or resumes a poll.
+         */
         private final ReentrantLock lock = new ReentrantLock();
         private volatile Object owner;
         private volatile AtmosphereConfig config;
@@ -552,6 +556,20 @@ public final class LongPollingRoomReplies {
 
         /** Offers {@code frame} to this member; runs on the broadcaster's delivery, one frame at a time. */
         Outcome keep(Frame frame, Kept k) {
+            var handOver = new boolean[1];
+            try {
+                return offer(frame, k, handOver);
+            } finally {
+                if (handOver[0]) {
+                    // Outside the lock: resuming a poll never runs under the mailbox lock that
+                    // deliver takes after a parked reply's lock. A poll deliver writes is not
+                    // suspended, so this never resumes it in the middle of the write.
+                    wake();
+                }
+            }
+        }
+
+        private Outcome offer(Frame frame, Kept k, boolean[] handOver) {
             lock.lock();
             try {
                 if (gone) {
@@ -580,6 +598,7 @@ public final class LongPollingRoomReplies {
                 var limits = this.limits;
                 if (reply.frames + 1 > limits.maxReplyFrames() || reply.bytes + k.size > limits.maxReplyBytes()) {
                     abandon(reply, frame);
+                    handOver[0] = true;
                     kept = k.json;
                     return Outcome.SUPPRESSED;
                 }
@@ -596,7 +615,7 @@ public final class LongPollingRoomReplies {
                 kept = k.json;
                 if (frame.handOver()) {
                     logger.debug("Kept {} room frame(s) for the next poll of {}", mailbox.size(), trackingId);
-                    wake();
+                    handOver[0] = true;
                 }
                 return Outcome.KEPT;
             } finally {
@@ -655,7 +674,6 @@ public final class LongPollingRoomReplies {
             error.hold(Long.MAX_VALUE);
             LongPollingReplies.reserve(MEMBER_FRAME_BYTES, Long.MAX_VALUE);
             mailbox.add(error);
-            wake();
         }
 
         /** Left its room: what was kept for it is dropped, and nothing more is. */
@@ -695,7 +713,7 @@ public final class LongPollingRoomReplies {
             mailbox.clear();
         }
 
-        /** Resumes the member's waiting poll, empty, so its next poll takes the mailbox; under the lock. */
+        /** Resumes the member's waiting poll, empty, so its next poll takes the mailbox. */
         private void wake() {
             LongPollingReplies.wake(config, trackingId);
         }

@@ -18,6 +18,7 @@ package org.atmosphere.ai;
 import org.atmosphere.ai.cache.AiResponseCacheInspector;
 import org.atmosphere.ai.filter.AiStreamMessage;
 import org.atmosphere.ai.filter.PiiRedactionFilter;
+import org.atmosphere.cache.BoundedMemoryCache;
 import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.cpr.ApplicationConfig;
@@ -30,6 +31,7 @@ import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.DefaultBroadcasterFactory;
 import org.atmosphere.cpr.RawMessage;
@@ -364,15 +366,29 @@ class LongPollingRoomRepliesTest {
     }
 
     @Test
-    void withABroadcasterCacheALongPollingMemberReceivesEveryFrameOfTheRoomReplyOnce() {
+    void withABroadcasterCacheALongPollingMemberReceivesEveryFrameOfTheRoomReplyOnce() throws Exception {
         var cache = new UUIDBroadcasterCache();
         cache.configure(config);
+        everyFrameOnceWith(cache);
+    }
+
+    @Test
+    void withABoundedMemoryCacheALongPollingMemberReceivesEveryFrameOfTheRoomReplyOnce() throws Exception {
+        // The cache the Spring Boot starter installs for atmosphere.cache.enabled=true.
+        var cache = new BoundedMemoryCache();
+        cache.configure(config);
+        everyFrameOnceWith(cache);
+    }
+
+    private void everyFrameOnceWith(BroadcasterCache cache) throws Exception {
         // What AiEndpointHandler installs on the cache of an AI endpoint's broadcaster.
         cache.inspector(new AiResponseCacheInspector(false));
         room.getBroadcasterConfig().setBroadcasterCache(cache);
         LongPollingRoomReplies.install(room);
         var member = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
         room.removeAtmosphereResource(member);
+        // A client the cache keeps broadcasts for while it is between polls.
+        cache.cacheCandidate(room.getID(), member.uuid());
         var socket = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
 
         var session = StreamingSessions.startRoomBroadcast(socket);
@@ -382,13 +398,15 @@ class LongPollingRoomRepliesTest {
         session.send("second.");
         session.complete();
         awaitComplete(socket);
-
         var expected = frames(socket);
         assertEquals(5, expected.size(), "the WebSocket member streams the whole reply: " + expected);
+        // Not an AI frame: the cache keeps it for the member, as it would keep the reply's frames.
+        room.broadcast("plain chat message").get(10, TimeUnit.SECONDS);
+
         assertEquals(expected, nextPoll(member),
                 "the long-polling member's next poll receives every frame the WebSocket member received,"
                         + " the tool event and the progress frame the cache does not keep included");
-        assertTrue(cache.retrieveFromCache(room.getID(), member.uuid()).isEmpty(),
+        assertEquals(List.of("plain chat message"), cache.retrieveFromCache(room.getID(), member.uuid()),
                 "the cache must not hand the member the frames it already received a second time");
     }
 
