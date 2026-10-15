@@ -28,20 +28,25 @@ test.describe('Browser agent', () => {
   // log is the runtime-truth surface; the container EXECUTION path itself is
   // covered by CodeExecSandboxIntegrationTest (Docker-gated) in modules/ai.
   test('boots with code-as-action wired: code_exec tool registered and enabled', async () => {
-    const out = server.getOutput();
-    expect(out, "code-as-action must be enabled on the @AiEndpoint")
-      .toContain("Code-as-action enabled: registered 'code_exec' tool");
-    expect(out, 'the code_exec tool must be registered in the tool registry')
-      .toMatch(/Registered AI tool: code_exec/);
-    expect(out, 'code execution must be enabled (container sandbox advertised)')
-      .toMatch(/Code execution ENABLED/);
+    // The ready probe only proves HTTP is up: the endpoint registration lines
+    // can still be in the child's stdout pipe, so wait for them to arrive
+    // rather than reading the output once.
+    await expect.poll(() => server.getOutput(), {
+      message: "code-as-action must be enabled on the @AiEndpoint", timeout: 30_000,
+    }).toContain("Code-as-action enabled: registered 'code_exec' tool");
     // The sample's system prompt is registry-managed (systemPrompt =
     // "prompt:browser-agent" -> prompts/browser-agent/v1.md). The resolver
     // logs the selected version at registration; asserting it proves the
     // versioned PromptRegistry is on the endpoint's critical path, not just
     // present on the classpath (runtime truth).
-    expect(out, 'the system prompt must resolve through the versioned prompt registry')
-      .toMatch(/Managed prompt 'browser-agent' resolved to version 'v1'/);
+    await expect.poll(() => server.getOutput(), {
+      message: 'the system prompt must resolve through the versioned prompt registry', timeout: 30_000,
+    }).toMatch(/Managed prompt 'browser-agent' resolved to version 'v1'/);
+    const out = server.getOutput();
+    expect(out, 'the code_exec tool must be registered in the tool registry')
+      .toMatch(/Registered AI tool: code_exec/);
+    expect(out, 'code execution must be enabled (container sandbox advertised)')
+      .toMatch(/Code execution ENABLED/);
   });
 
   // Regression for the browser-agent key handling. The sample pins the Cohere
