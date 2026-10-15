@@ -211,9 +211,9 @@ public class AgentProcessor implements Processor<Object> {
             // Enforce the framework governance policies (including those parsed
             // from PERMISSIONS.md) on the web streaming path by wrapping each as
             // a guardrail — the same mechanism AiEndpointProcessor uses for
-            // @AiEndpoint — and, when the skill file declares a ## Guardrails
-            // section, prepend its auto-built ScopePolicy so a guardrail-violating
-            // request is rejected at the cheapest gate. The identical chain is
+            // @AiEndpoint — and, when the class resolves a scope (its skill's
+            // ## Guardrails or its @AgentScope, see ScopePolicyResolver), prepend
+            // that ScopePolicy so an off-scope request is rejected at the cheapest gate. The identical chain is
             // installed on the A2A / AG-UI / channel pipeline below so confinement
             // is the same across every invocation mode (Correctness Invariant #7,
             // Mode Parity).
@@ -377,9 +377,9 @@ public class AgentProcessor implements Processor<Object> {
     /**
      * Build the web streaming guardrail chain for an {@code @Agent}. Wraps every
      * framework governance policy (including {@code PERMISSIONS.md}-derived ones)
-     * as a guardrail and, when the skill file declares a {@code ## Guardrails}
-     * section, prepends the scope policy so an off-topic / guardrail-violating
-     * request is rejected on the web path exactly as it is on the
+     * as a guardrail and, when the class resolves a scope
+     * ({@link #resolveScopePolicy}), prepends the scope policy so an off-topic /
+     * guardrail-violating request is rejected on the web path exactly as it is on the
      * A2A / AG-UI / channel pipeline ({@link #buildPipeline}). Keeps confinement
      * consistent across every invocation mode (Correctness Invariant #7 —
      * Mode Parity).
@@ -405,11 +405,12 @@ public class AgentProcessor implements Processor<Object> {
     /**
      * Resolve the {@code @Agent}'s scope policy with the shared precedence
      * ({@link ScopePolicyResolver#resolve}): a skill-level {@code scopeTier: none}
-     * opt-out beats everything, a skill with an explicit {@code scopeTier} keeps
-     * its {@code ## Guardrails} policy, an explicit
-     * {@code @AgentScope(unrestricted = true)} on the class overrides a
-     * {@code ## Guardrails}-derived one, which otherwise wins over the
-     * {@code @AgentScope} annotation.
+     * opt-out beats everything; a skill with {@code ## Guardrails} and an explicit
+     * {@code scopeTier} keeps its policy, plus the forbidden topics of a restrictive
+     * {@code @AgentScope}; otherwise an explicit {@code @AgentScope} on the class
+     * beats the {@code ## Guardrails}-derived scope ({@code unrestricted = true}
+     * installs none; a restrictive one installs its own policy plus the skill's
+     * topic prohibitions); otherwise the derived scope, else the annotation.
      */
     ScopePolicy resolveScopePolicy(SkillFileParser skillFile, Class<?> agentClass,
                                    String agentName, String agentDescription) {
@@ -421,8 +422,8 @@ public class AgentProcessor implements Processor<Object> {
      * Build the {@code @Agent}'s protocol pipeline (the A2A / AG-UI / channel
      * surface). Seeded with the framework's installed governance policies so the
      * agent admits against the same chain as a plain {@code @AiEndpoint} instead
-     * of an empty policy list (Mode Parity #7). When the skill file declares a
-     * {@code ## Guardrails} section, the auto-built {@link ScopePolicy} is
+     * of an empty policy list (Mode Parity #7). When the class resolves a scope
+     * ({@link #resolveScopePolicy}), that {@link ScopePolicy} is
      * prepended so an off-topic request is rejected at the cheapest gate — the
      * same confinement {@link #buildWebGuardrails} installs on the web path.
      *

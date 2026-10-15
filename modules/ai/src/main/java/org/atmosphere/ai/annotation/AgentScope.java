@@ -46,14 +46,22 @@ import java.lang.annotation.Target;
  * </ol>
  *
  * <p>On an {@code @Agent} or {@code @Coordinator} class that also loads a skill
- * file, the scope resolves in this order: a skill-level {@code scopeTier: none}
- * (or {@code off} / {@code disabled}) opts out entirely; a skill whose frontmatter
- * declares any other {@code scopeTier} keeps its {@code ## Guardrails} policy over
- * this annotation; otherwise {@code @AgentScope(unrestricted = true,
+ * file, an explicit declaration beats a derived one and two explicit declarations
+ * resolve restrictive. The scope resolves in this order: a skill-level
+ * {@code scopeTier: none} (or {@code off} / {@code disabled}) opts out entirely;
+ * a skill with {@code ## Guardrails} whose frontmatter declares any other
+ * {@code scopeTier} keeps its own policy (purpose, tier, breach mode), and this
+ * annotation's {@link #forbiddenTopics()} are added to it unless the annotation
+ * is unrestricted; otherwise {@code @AgentScope(unrestricted = true,
  * justification = "...")} overrides the scope a {@code ## Guardrails} section
  * alone would derive (no admission policy, one WARN at registration); otherwise
- * the {@code ## Guardrails}-derived policy wins, and this annotation applies only
- * when the skill declares no guardrails.</p>
+ * a restrictive annotation beats that derived scope: its own policy applies,
+ * with the skill's explicit topic prohibitions added to its
+ * {@link #forbiddenTopics()}; a class without this annotation keeps the
+ * {@code ## Guardrails}-derived policy. When the skill declares no guardrails,
+ * this annotation applies as written. An invalid annotation (a blank purpose
+ * while restrictive, or no justification while unrestricted) overrides
+ * nothing.</p>
  *
  * <p>Sample-hygiene CI lint: every {@code @AiEndpoint} / {@code @Coordinator}
  * in {@code samples/} must declare {@code @AgentScope} or explicitly opt out via

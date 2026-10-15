@@ -281,7 +281,7 @@ class AgentSkillScopeConfinementTest {
                 "scopeTier: none must opt the skill out of admission enforcement");
     }
 
-    // ── @AgentScope on @Agent classes: honored as fallback, skill wins ──
+    // ── @AgentScope on @Agent classes: explicit beats derived, explicit pairs resolve restrictive ──
 
     @AgentScope(purpose = "Annotation-declared purpose",
             forbiddenTopics = "gambling", tier = AgentScope.Tier.RULE_BASED)
@@ -303,14 +303,50 @@ class AgentSkillScopeConfinementTest {
     }
 
     @Test
-    void skillGuardrailsWinOverAgentScopeAnnotation() {
+    void explicitSkillScopeTierWinsOverAgentScopeAnnotation() {
         var processor = new AgentProcessor();
         var skillFile = SkillFileParser.parse(SCOPED_SKILL);
         var policy = processor.resolveScopePolicy(skillFile, AnnotationScopedAgent.class,
                 "support-bot", "Support");
         assertNotNull(policy);
         assertEquals("Order-status support for an online store", policy.config().purpose(),
-                "the skill's ## Guardrails scope must win over the class annotation");
+                "a skill that declares its scopeTier keeps its ## Guardrails scope over the "
+                        + "class annotation");
+    }
+
+    @AgentScope(purpose = "Annotation-declared purpose", forbiddenTopics = "crypto",
+            onBreach = AgentScope.Breach.DENY, tier = AgentScope.Tier.RULE_BASED)
+    private static final class DenyingScopedAgent {
+    }
+
+    @Test
+    void restrictiveAnnotationBeatsGuardrailsDerivedScopeOnEveryPath() {
+        var processor = new AgentProcessor();
+        var framework = new AtmosphereFramework();
+        var skillFile = SkillFileParser.parse(DEFAULT_TIER_SKILL);
+
+        var policy = processor.resolveScopePolicy(skillFile, DenyingScopedAgent.class,
+                "support-bot", "Support");
+        assertNotNull(policy);
+        assertEquals("Annotation-declared purpose", policy.config().purpose(),
+                "an explicit restrictive @AgentScope must beat the scope a ## Guardrails "
+                        + "section without scopeTier derives (explicit beats derived)");
+        assertEquals(List.of("crypto", "gambling"), policy.config().forbiddenTopics(),
+                "the skill's topic labels are unioned into the annotation's forbidden topics");
+
+        var pipeline = processor.buildPipeline(framework, skillFile, DenyingScopedAgent.class,
+                "support-bot", "Support", new CapturingRuntime(new AtomicReference<>()), "",
+                "model-test", null, new DefaultToolRegistry(), AiMetrics.NOOP);
+        var pipelineScope = assertInstanceOf(ScopePolicy.class, pipeline.policies().get(0));
+        assertEquals("Annotation-declared purpose", pipelineScope.config().purpose(),
+                "the pipeline path must install the annotation's policy");
+
+        var guardrails = processor.buildWebGuardrails(framework, skillFile,
+                DenyingScopedAgent.class, "support-bot", "Support");
+        var first = guardrails.get(0);
+        assertInstanceOf(AiGuardrail.GuardrailResult.Block.class,
+                first.inspectRequest(new AiRequest("what are the best gambling strategies")),
+                "the web path must block the skill's topic with the annotation's DENY");
     }
 
     @AgentScope(unrestricted = true, justification = "Intentionally open demo agent")

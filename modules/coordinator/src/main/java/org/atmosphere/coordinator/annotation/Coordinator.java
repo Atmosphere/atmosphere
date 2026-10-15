@@ -60,13 +60,16 @@ public @interface Coordinator {
      * admission {@code ScopePolicy} with the same precedence as on
      * {@code @Agent}: a {@code scopeTier: none} frontmatter hint opts out
      * entirely; any other {@code scopeTier} picks the tier and keeps the skill's
-     * guardrails over the class annotation; otherwise an explicit
-     * {@code @AgentScope(unrestricted = true, justification = "...")} on the
-     * class overrides the scope the guardrails alone would derive; otherwise the
-     * guardrails win, and a {@code @AgentScope} annotation on the class applies
-     * when the skill declares no guardrails. The derived scope's purpose is the
-     * skill frontmatter {@code description}, else {@link #description()}; a
-     * {@code skill:} reference keeps its frontmatter for both.
+     * guardrails over the class annotation, adding a restrictive annotation's
+     * forbidden topics; otherwise an explicit {@code @AgentScope} on the class
+     * overrides the scope the guardrails alone would derive
+     * ({@code unrestricted = true} with a justification installs none, a
+     * restrictive one installs its own policy plus the skill's topic
+     * prohibitions); otherwise the guardrails-derived scope applies, and a
+     * {@code @AgentScope} annotation on the class applies when the skill declares
+     * no guardrails. The skill scope's purpose is the skill frontmatter
+     * {@code description}, else {@link #description()}; a {@code skill:}
+     * reference keeps its frontmatter for both.
      */
     String skillFile() default "";
 

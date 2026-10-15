@@ -469,11 +469,13 @@ public class CoordinatorProcessor implements Processor<Object> {
      * a plain {@code @AiEndpoint} instead of an empty policy list (Mode Parity
      * #7). The coordinator's scope policy is resolved with the same precedence
      * as an {@code @Agent}'s ({@code ScopePolicyResolver}): the skill file's
-     * {@code scopeTier: none} opts out entirely, a skill with an explicit
-     * {@code scopeTier} keeps its {@code ## Guardrails} policy, an explicit
-     * {@code @AgentScope(unrestricted = true)} overrides a policy the
-     * {@code ## Guardrails} section alone would derive, which otherwise wins
-     * over a {@code @AgentScope} annotation on the class — and the
+     * {@code scopeTier: none} opts out entirely; a skill with {@code ## Guardrails}
+     * and an explicit {@code scopeTier} keeps its policy, plus the forbidden topics
+     * of a restrictive {@code @AgentScope}; otherwise an explicit
+     * {@code @AgentScope} on the class beats the policy the {@code ## Guardrails}
+     * section alone would derive ({@code unrestricted = true} installs none; a
+     * restrictive one installs its own policy plus the skill's topic
+     * prohibitions); otherwise the derived policy, else the annotation — and the
      * resolved {@link org.atmosphere.ai.governance.scope.ScopePolicy} is
      * prepended so an off-topic request is rejected at the cheapest gate.
      * {@code @Coordinator} "subsumes {@code @Agent}", so a skill file's
@@ -526,9 +528,9 @@ public class CoordinatorProcessor implements Processor<Object> {
     /**
      * Build the coordinator's web streaming guardrail chain. Wraps every
      * framework governance policy (including {@code PERMISSIONS.md}-derived ones)
-     * as a guardrail and, when the class resolves a scope (skill-file
-     * {@code ## Guardrails} first, {@code @AgentScope} annotation fallback —
-     * the same precedence as {@link #buildPipeline}), prepends
+     * as a guardrail and, when the class resolves a scope (from the skill-file
+     * {@code ## Guardrails} and the {@code @AgentScope} annotation, with the
+     * same precedence as {@link #buildPipeline}), prepends
      * the scope policy so an off-topic request is rejected on the web path
      * exactly as it is on the A2A / AG-UI / channel pipeline ({@link #buildPipeline}).
      * This keeps confinement consistent across every invocation mode of the

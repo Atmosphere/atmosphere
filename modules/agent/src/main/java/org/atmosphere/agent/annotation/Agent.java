@@ -94,11 +94,15 @@ public @interface Agent {
      *       {@link #description()}), explicit topic prohibitions become forbidden
      *       topics, and instruction-style lines stay prompt-only guidance. Tier comes
      *       from an optional {@code scopeTier} frontmatter hint ({@code none} opts
-     *       out). Without a {@code scopeTier}, an explicit
-     *       {@code @AgentScope(unrestricted = true, justification = "...")} on the
-     *       class overrides this derived scope; with one, the skill's policy wins
-     *       over the annotation. When the skill declares no {@code ## Guardrails},
-     *       an {@code @AgentScope} annotation on the class is honored instead.</li>
+     *       out). Without a {@code scopeTier} this scope is only derived, so an
+     *       explicit {@code @AgentScope} on the class overrides it:
+     *       {@code unrestricted = true} (with a justification) installs no
+     *       admission policy, and a restrictive annotation installs its own policy
+     *       with the skill's topic prohibitions added to its forbidden topics. With
+     *       a {@code scopeTier}, the skill's policy wins and a restrictive
+     *       annotation's forbidden topics are added to it. When the skill declares
+     *       no {@code ## Guardrails}, an {@code @AgentScope} annotation on the class
+     *       is honored instead.</li>
      * </ul>
      */
     String skillFile() default "";

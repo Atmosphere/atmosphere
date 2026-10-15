@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -32,30 +33,43 @@ import java.util.regex.Pattern;
  * Resolves the admission {@link ScopePolicy} an agent-bearing class mandates,
  * with explicit precedence shared by every processor that consumes skill files
  * ({@code @Agent}, {@code @Coordinator}). An explicit declaration beats a derived
- * one, and when the skill and the class both declare a scope explicitly the skill
- * wins:
+ * one, and two explicit declarations resolve restrictive. A skill's
+ * {@code ## Guardrails} section alone only <em>derives</em> a scope; a skill
+ * frontmatter {@code scopeTier} and a class {@link AgentScope} annotation are
+ * <em>explicit</em> declarations:
  * <ol>
  *   <li>a skill-level {@code scopeTier: none} (or {@code off} / {@code disabled})
  *       opt-out beats everything — the skill is the agent's own artifact;</li>
- *   <li>a skill whose frontmatter declares any other {@code scopeTier} has made
- *       its {@code ## Guardrails} scope explicit, so that policy
- *       ({@link #fromSkillGuardrails}) wins over the class annotation;</li>
+ *   <li>a skill with {@code ## Guardrails} whose frontmatter declares any other
+ *       {@code scopeTier} has made its scope explicit, so that policy
+ *       ({@link #fromSkillGuardrails}) is installed — its purpose, tier and
+ *       breach mode — with the forbidden topics of a restrictive
+ *       {@code @AgentScope} on the class unioned into its own;</li>
  *   <li>otherwise an explicit {@code @AgentScope(unrestricted = true,
  *       justification = "...")} on the class overrides the scope a
  *       {@code ## Guardrails} section alone would derive: no admission policy is
  *       installed, and the processor logs it once at registration
  *       ({@link #warnIfUnrestrictedOverridesGuardrails});</li>
- *   <li>otherwise the {@code ## Guardrails}-derived policy wins, then the
- *       {@link AgentScope} annotation is honored — including the
- *       {@code unrestricted = true} opt-out, which makes an intentionally open
- *       agent an <em>explicit, lintable declaration</em> instead of a silent gap
- *       (Correctness Invariant #5 — a declared posture must match runtime
- *       behavior, so the annotation must be enforced, not just present).</li>
+ *   <li>otherwise an explicit restrictive {@code @AgentScope} on the class beats
+ *       the derived scope: the annotation's policy is installed — its purpose,
+ *       tier, threshold, breach mode and redirect — with the skill's explicit
+ *       topic prohibitions ({@link #forbiddenTopicsFrom}) unioned into its
+ *       forbidden topics;</li>
+ *   <li>otherwise the {@code ## Guardrails}-derived policy is installed, and a
+ *       class whose skill declares no guardrails falls back to its
+ *       {@link AgentScope} annotation — including the {@code unrestricted = true}
+ *       opt-out, which makes an intentionally open agent an <em>explicit,
+ *       lintable declaration</em> instead of a silent gap (Correctness
+ *       Invariant #5 — a declared posture must match runtime behavior, so the
+ *       annotation must be enforced, not just present).</li>
  * </ol>
  *
- * <p>An unrestricted annotation without a justification is invalid and never
- * overrides a skill's guardrails: the override fails closed to the derived
- * policy.</p>
+ * <p>Unions keep the installed policy's topics first, then add the other
+ * declaration's topics not already present, compared ignoring case.</p>
+ *
+ * <p>An unrestricted annotation without a justification, or a restrictive one
+ * without a purpose, is invalid and never overrides a skill's guardrails: the
+ * override fails closed to the derived policy.</p>
  *
  * <p>Living in one place keeps the precedence identical across every annotation
  * that loads a skill file (Correctness Invariant #7 — Mode Parity): a skill's
@@ -103,13 +117,15 @@ public final class ScopePolicyResolver {
     /**
      * Resolve the class's scope policy with the precedence documented on this
      * class: skill-level {@code scopeTier: none} opt-out first, then an explicit
-     * skill {@code scopeTier} keeping the {@code ## Guardrails}-derived policy,
-     * then an explicit {@code @AgentScope(unrestricted = true)} overriding a
-     * derived one, then the {@code ## Guardrails}-derived policy, then the
-     * {@link AgentScope} annotation fallback. A {@code null} or absent skill
-     * file falls straight through to the annotation. Logs nothing about the
-     * override, so a processor may resolve more than once per registration; it
-     * reports the override once through
+     * skill {@code scopeTier} keeping the {@code ## Guardrails}-derived policy
+     * (plus a restrictive annotation's forbidden topics), then an explicit
+     * {@code @AgentScope(unrestricted = true)} overriding a derived one, then an
+     * explicit restrictive {@code @AgentScope} (plus the skill's topic
+     * prohibitions), then the {@code ## Guardrails}-derived policy, then the
+     * {@link AgentScope} annotation fallback. A {@code null} skill file, or one
+     * without {@code ## Guardrails}, falls straight through to the annotation.
+     * Logs nothing about the unrestricted override, so a processor may resolve
+     * more than once per registration; it reports the override once through
      * {@link #warnIfUnrestrictedOverridesGuardrails}.
      *
      * @param skillFile      the parsed skill file, or {@code null} when the
@@ -133,12 +149,26 @@ public final class ScopePolicyResolver {
             if (SCOPE_TIER_OPT_OUT.contains(tierHint)) {
                 return null;    // explicit skill-level opt-out — no annotation fallback
             }
-            if (unrestrictedOverridesGuardrails(skillFile, scopeAnnotation)) {
-                return null;    // explicit unrestricted annotation beats a derived scope
-            }
-            var skillPolicy = fromSkillGuardrails(skillFile, agentName, agentDescription);
-            if (skillPolicy != null) {
-                return skillPolicy;
+            var guardrails = skillFile.listItems("Guardrails");
+            if (!guardrails.isEmpty()) {
+                if (!tierHint.isEmpty()) {
+                    // Explicit skill scope: it wins, and a restrictive annotation's
+                    // forbidden topics still apply (two explicit declarations).
+                    return fromSkillGuardrails(skillFile, agentName, agentDescription,
+                            isRestrictive(scopeAnnotation)
+                                    ? List.of(scopeAnnotation.forbiddenTopics()) : List.of());
+                }
+                if (unrestrictedOverridesGuardrails(skillFile, scopeAnnotation)) {
+                    return null;    // explicit unrestricted annotation beats a derived scope
+                }
+                if (isRestrictive(scopeAnnotation)) {
+                    var annotationPolicy = fromAnnotation(scopeAnnotation, agentClass,
+                            annotationPath, forbiddenTopicsFrom(guardrails));
+                    if (annotationPolicy != null) {
+                        return annotationPolicy;    // explicit annotation beats a derived scope
+                    }
+                }
+                return fromSkillGuardrails(skillFile, agentName, agentDescription);
             }
         }
         if (scopeAnnotation == null) {
@@ -146,6 +176,61 @@ public final class ScopePolicyResolver {
         }
         return ScopePolicyBuilder.build(scopeAnnotation, agentClass, annotationPath)
                 .orElse(null);
+    }
+
+    /** Whether the class declares a restrictive (not {@code unrestricted}) {@link AgentScope}. */
+    private static boolean isRestrictive(AgentScope scopeAnnotation) {
+        return scopeAnnotation != null && !scopeAnnotation.unrestricted();
+    }
+
+    /**
+     * The policy a restrictive {@link AgentScope} declares, with the skill's
+     * topic prohibitions unioned into its forbidden topics, or {@code null} when
+     * the annotation is invalid — logged, so the caller fails closed to the
+     * {@code ## Guardrails}-derived policy instead of leaving the agent unscoped.
+     */
+    private static ScopePolicy fromAnnotation(AgentScope scopeAnnotation, Class<?> agentClass,
+                                              String annotationPath, List<String> skillTopics) {
+        ScopeConfig declared;
+        try {
+            declared = ScopeConfig.fromAnnotation(scopeAnnotation);
+        } catch (IllegalArgumentException e) {
+            logger.error("Invalid @AgentScope on {} ({}) — the scope its skill's ## Guardrails "
+                            + "derive is enforced instead; fix the annotation",
+                    agentClass.getName(), annotationPath, e);
+            return null;
+        }
+        return ScopePolicyBuilder.build(withForbiddenTopics(declared,
+                        union(declared.forbiddenTopics(), skillTopics)),
+                "scope::" + agentClass.getSimpleName(), "annotation:" + agentClass.getName());
+    }
+
+    /** {@code config} with its forbidden topics replaced by {@code topics}. */
+    private static ScopeConfig withForbiddenTopics(ScopeConfig config, List<String> topics) {
+        return new ScopeConfig(config.purpose(), topics, config.onBreach(),
+                config.redirectMessage(), config.tier(), config.similarityThreshold(),
+                config.postResponseCheck(), config.unrestricted(), config.justification());
+    }
+
+    /**
+     * {@code primary} followed by each {@code additional} topic not already
+     * present, compared ignoring case and surrounding blanks; blank topics are
+     * dropped.
+     */
+    private static List<String> union(List<String> primary, List<String> additional) {
+        var seen = new HashSet<String>();
+        var topics = new ArrayList<String>();
+        for (var list : List.of(primary, additional)) {
+            for (var topic : list) {
+                if (topic == null || topic.isBlank()) {
+                    continue;
+                }
+                if (seen.add(topic.strip().toLowerCase(Locale.ROOT))) {
+                    topics.add(topic);
+                }
+            }
+        }
+        return List.copyOf(topics);
     }
 
     /**
@@ -222,6 +307,17 @@ public final class ScopePolicyResolver {
      */
     public static ScopePolicy fromSkillGuardrails(SkillFileParser skillFile, String agentName,
                                                   String agentDescription) {
+        return fromSkillGuardrails(skillFile, agentName, agentDescription, List.of());
+    }
+
+    /**
+     * {@link #fromSkillGuardrails(SkillFileParser, String, String)} with
+     * {@code annotationTopics} — a restrictive {@link AgentScope}'s forbidden
+     * topics — unioned after the skill's own.
+     */
+    private static ScopePolicy fromSkillGuardrails(SkillFileParser skillFile, String agentName,
+                                                   String agentDescription,
+                                                   List<String> annotationTopics) {
         var guardrails = skillFile.listItems("Guardrails");
         if (guardrails.isEmpty()) {
             return null;
@@ -236,7 +332,8 @@ public final class ScopePolicyResolver {
                 skillFile.frontmatter("description").orElse(null),
                 agentDescription,
                 DEFAULT_SCOPE_PURPOSE);
-        var config = new ScopeConfig(purpose, forbiddenTopicsFrom(guardrails),
+        var config = new ScopeConfig(purpose,
+                union(forbiddenTopicsFrom(guardrails), annotationTopics),
                 AgentScope.Breach.POLITE_REDIRECT, null, resolveScopeTier(tierHint),
                 DEFAULT_SCOPE_SIMILARITY_THRESHOLD, false, false, "");
         return ScopePolicyBuilder.build(config,

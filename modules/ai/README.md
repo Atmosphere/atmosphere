@@ -301,14 +301,28 @@ from `@AgentScope(tier = ...)` or the skill's `scopeTier` frontmatter
 (`rule_based`, `embedding`, `semantic`, `llm`; `none` opts out).
 
 When an `@Agent` or `@Coordinator` carries both, `ScopePolicyResolver` applies
-one precedence on every path: a skill `scopeTier: none` opts out of everything;
-a skill that declares any other `scopeTier` keeps its `## Guardrails` policy over
-the annotation; otherwise an explicit `@AgentScope(unrestricted = true,
-justification = "...")` overrides the scope a `## Guardrails` section alone
-would derive, so no admission policy runs and one WARN at registration names the
-agent, the skill and the justification; otherwise the `## Guardrails` policy
-wins over the annotation. An unrestricted annotation without a justification is
-invalid and overrides nothing.
+one precedence on every path. A `## Guardrails` section alone only derives a
+scope; a skill `scopeTier` and the annotation are explicit declarations. An
+explicit declaration beats a derived one, and two explicit declarations resolve
+restrictive:
+
+1. A skill `scopeTier: none` (or `off` / `disabled`) opts out of everything.
+2. A skill with `## Guardrails` and any other `scopeTier` keeps its own policy
+   (purpose, tier, breach mode); a restrictive annotation's `forbiddenTopics`
+   are added to it.
+3. Otherwise an explicit `@AgentScope(unrestricted = true, justification =
+   "...")` overrides the derived scope: no admission policy runs, and one WARN
+   at registration names the agent, the skill and the justification.
+4. Otherwise a restrictive `@AgentScope` overrides the derived scope: the
+   annotation's policy runs (purpose, tier, threshold, breach mode, redirect),
+   with the skill's explicit topic prohibitions (`Never discuss X`, bare topic
+   labels) added to its `forbiddenTopics`.
+5. Otherwise the `## Guardrails`-derived policy runs. A skill without
+   `## Guardrails` leaves the annotation in charge as written.
+
+Added topics are deduplicated ignoring case. An invalid annotation (no
+justification while unrestricted, a blank purpose while restrictive) overrides
+nothing: the derived policy runs.
 
 There are four tiers, each resolved by `ScopeGuardrailResolver`:
 

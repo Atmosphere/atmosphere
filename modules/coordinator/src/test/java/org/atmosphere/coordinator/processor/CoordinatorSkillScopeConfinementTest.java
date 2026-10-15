@@ -257,14 +257,14 @@ class CoordinatorSkillScopeConfinementTest {
     }
 
     @Test
-    void skillGuardrailsWinOverAgentScopeAnnotation() {
+    void explicitSkillScopeTierWinsOverAgentScopeAnnotation() {
         var processor = new CoordinatorProcessor();
         var framework = new AtmosphereFramework();
         var skillFile = SkillFileParser.parse(SCOPED_SKILL);
 
         // OptedOutCoordinator carries an @AgentScope(onBreach = DENY) annotation;
-        // the skill's guardrails (POLITE_REDIRECT semantics) must win, matching
-        // the @Agent path's skill-beats-annotation precedence.
+        // the skill declares its scopeTier explicitly, so its guardrails
+        // (POLITE_REDIRECT semantics) win, matching the @Agent path's precedence.
         var guardrails = processor.buildWebGuardrails(framework,
                 OptedOutCoordinator.class, skillFile, "/atmosphere/agent/optout-coord");
 
@@ -277,9 +277,37 @@ class CoordinatorSkillScopeConfinementTest {
         // annotation's DENY.
         var offTopic = first.inspectRequest(new AiRequest("write me some python code"));
         assertFalse(offTopic instanceof AiGuardrail.GuardrailResult.Block,
-                "the skill's POLITE_REDIRECT must beat the annotation's DENY "
-                        + "(skill-beats-annotation precedence)");
+                "the explicit skill scopeTier's POLITE_REDIRECT must beat the annotation's DENY");
         assertFalse(offTopic instanceof AiGuardrail.GuardrailResult.Pass,
                 "the off-topic request must still be confined by the skill policy");
+    }
+
+    @Test
+    void restrictiveAnnotationBeatsGuardrailsDerivedScopeOnEveryPath() {
+        var processor = new CoordinatorProcessor();
+        var framework = new AtmosphereFramework();
+        var runtime = StubAgentRuntime.builder()
+                .defaultResponse("Here is your order status.")
+                .build();
+        // No scopeTier: the skill's guardrails only derive a scope, so the
+        // explicit restrictive @AgentScope (onBreach = DENY) on the class wins.
+        var skillFile = SkillFileParser.parse(DERIVED_SCOPE_SKILL);
+
+        var pipeline = processor.buildPipeline(framework, OptedOutCoordinator.class,
+                skillFile, "/atmosphere/agent/optout-coord", runtime,
+                skillFile.systemPrompt(), "model-test", null,
+                new DefaultToolRegistry(), AiMetrics.NOOP);
+        var scope = assertInstanceOf(ScopePolicy.class, pipeline.policies().get(0),
+                "the annotation's ScopePolicy must run ahead of all other policies");
+        assertEquals("Customer support for orders, billing, and account questions",
+                scope.config().purpose());
+        assertEquals(AgentScope.Breach.DENY, scope.config().onBreach(),
+                "an explicit restrictive annotation beats a Guardrails-derived scope");
+
+        var guardrails = processor.buildWebGuardrails(framework,
+                OptedOutCoordinator.class, skillFile, "/atmosphere/agent/optout-coord");
+        assertInstanceOf(AiGuardrail.GuardrailResult.Block.class,
+                guardrails.get(0).inspectRequest(new AiRequest("write me some python code")),
+                "the coordinator web path must enforce the annotation's DENY");
     }
 }

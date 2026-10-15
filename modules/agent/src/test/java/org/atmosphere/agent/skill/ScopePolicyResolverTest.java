@@ -35,9 +35,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Pins the scope precedence {@link ScopePolicyResolver} applies for every
  * skill-consuming processor: a skill's {@code scopeTier} opt-out, then an explicit
- * skill {@code scopeTier}, then an explicit {@code @AgentScope(unrestricted = true)}
- * over a {@code ## Guardrails}-derived scope, then the derived scope, then the
- * annotation.
+ * skill {@code scopeTier} (with a restrictive annotation's forbidden topics
+ * unioned in), then an explicit {@code @AgentScope(unrestricted = true)} over a
+ * {@code ## Guardrails}-derived scope, then an explicit restrictive
+ * {@code @AgentScope} (with the skill's topic prohibitions unioned in), then the
+ * derived scope.
  */
 class ScopePolicyResolverTest {
 
@@ -72,6 +74,29 @@ class ScopePolicyResolverTest {
             - gambling
             """;
 
+    /** Guardrails with one explicit topic ban and one instruction line, no scopeTier. */
+    private static final String DERIVED_TOPIC_SKILL = """
+            ---
+            description: Order-status support for an online store
+            ---
+            # Support
+
+            ## Guardrails
+            - Never discuss politics
+            - Never expose raw secret values to the user.
+            """;
+
+    /** An explicit scopeTier but no ## Guardrails section: no skill policy to keep. */
+    private static final String EXPLICIT_TIER_NO_GUARDRAILS_SKILL = """
+            ---
+            scopeTier: rule_based
+            ---
+            # Assistant
+
+            ## Skills
+            - Answer questions
+            """;
+
     private static final String NO_GUARDRAILS_SKILL = """
             # Assistant
 
@@ -88,8 +113,24 @@ class ScopePolicyResolverTest {
     }
 
     @AgentScope(purpose = "Annotation-declared purpose", forbiddenTopics = "gambling",
-            tier = AgentScope.Tier.RULE_BASED)
+            onBreach = AgentScope.Breach.DENY, redirectMessage = "Annotation redirect",
+            tier = AgentScope.Tier.RULE_BASED, similarityThreshold = 0.6)
     private static final class RestrictedAgent {
+    }
+
+    @AgentScope(purpose = "Annotation-declared purpose", forbiddenTopics = {"Gambling", "crypto"},
+            onBreach = AgentScope.Breach.DENY, tier = AgentScope.Tier.RULE_BASED)
+    private static final class CryptoRestrictedAgent {
+    }
+
+    @AgentScope(purpose = "Annotation-declared purpose", forbiddenTopics = "Politics",
+            tier = AgentScope.Tier.RULE_BASED)
+    private static final class PoliticsRestrictedAgent {
+    }
+
+    /** Restrictive but invalid: a blank purpose with unrestricted = false. */
+    @AgentScope(forbiddenTopics = "gambling", tier = AgentScope.Tier.RULE_BASED)
+    private static final class PurposelessAgent {
     }
 
     private static final class UnannotatedAgent {
@@ -143,6 +184,8 @@ class ScopePolicyResolverTest {
         assertEquals("Order-status support for an online store", policy.config().purpose());
         assertEquals(AgentScope.Tier.RULE_BASED, policy.config().tier());
         assertFalse(policy.config().unrestricted());
+        assertEquals(List.of("gambling"), policy.config().forbiddenTopics(),
+                "an unrestricted annotation contributes no forbidden topic");
         assertFalse(ScopePolicyResolver.warnIfUnrestrictedOverridesGuardrails(
                 SkillFileParser.parse(EXPLICIT_TIER_SKILL), UnrestrictedAgent.class,
                 "assistant", "skill:support"));
@@ -197,12 +240,87 @@ class ScopePolicyResolverTest {
     }
 
     @Test
-    void guardrailsDerivedScopeStillBeatsRestrictedAnnotation() {
-        var policy = resolve(EXPLICIT_TIER_SKILL.replace("scopeTier: rule_based\n", ""),
-                RestrictedAgent.class);
+    void explicitSkillScopeTierKeepsSkillPolicyAndUnionsRestrictiveAnnotationTopics() {
+        var policy = resolve(EXPLICIT_TIER_SKILL, CryptoRestrictedAgent.class);
         assertNotNull(policy);
         assertEquals("Order-status support for an online store", policy.config().purpose(),
-                "without an unrestricted annotation the derived policy keeps winning");
+                "an explicit skill scopeTier keeps the skill's purpose");
+        assertEquals(AgentScope.Breach.POLITE_REDIRECT, policy.config().onBreach(),
+                "only the annotation's forbidden topics merge in, not its breach mode");
+        assertEquals(List.of("gambling", "crypto"), policy.config().forbiddenTopics(),
+                "two explicit declarations resolve restrictive: the annotation's forbidden "
+                        + "topics are unioned into the skill's, deduplicated ignoring case");
+        assertEquals("skill-guardrails:assistant", policy.source());
+    }
+
+    @Test
+    void explicitSkillScopeTierWithoutGuardrailsLeavesTheAnnotationInCharge() {
+        var policy = resolve(EXPLICIT_TIER_NO_GUARDRAILS_SKILL, RestrictedAgent.class);
+        assertNotNull(policy);
+        assertEquals("Annotation-declared purpose", policy.config().purpose(),
+                "a scopeTier with no ## Guardrails has no skill policy to keep");
+        assertEquals(List.of("gambling"), policy.config().forbiddenTopics());
+    }
+
+    @Test
+    void restrictiveAnnotationBeatsGuardrailsDerivedScope() {
+        var policy = resolve(DERIVED_TOPIC_SKILL, RestrictedAgent.class);
+        assertNotNull(policy);
+        assertEquals("Annotation-declared purpose", policy.config().purpose(),
+                "an explicit restrictive @AgentScope beats a scope ## Guardrails alone derive");
+        assertEquals(AgentScope.Breach.DENY, policy.config().onBreach());
+        assertEquals("Annotation redirect", policy.config().redirectMessage());
+        assertEquals(AgentScope.Tier.RULE_BASED, policy.config().tier());
+        assertEquals(0.6, policy.config().similarityThreshold());
+        assertEquals("annotation:" + RestrictedAgent.class.getName(), policy.source());
+        assertEquals("scope::" + RestrictedAgent.class.getSimpleName(), policy.name());
+    }
+
+    @Test
+    void restrictiveAnnotationUnionsTheSkillTopicProhibitions() {
+        var policy = resolve(DERIVED_TOPIC_SKILL, RestrictedAgent.class);
+        assertNotNull(policy);
+        assertEquals(List.of("gambling", "politics"), policy.config().forbiddenTopics(),
+                "the skill's explicit topic prohibitions join the annotation's forbidden "
+                        + "topics; its instruction lines stay prompt-only");
+    }
+
+    @Test
+    void unionDeduplicatesTopicsIgnoringCase() {
+        var policy = resolve(DERIVED_TOPIC_SKILL, PoliticsRestrictedAgent.class);
+        assertNotNull(policy);
+        assertEquals(List.of("Politics"), policy.config().forbiddenTopics(),
+                "a topic both declare is kept once, in the winning declaration's spelling");
+    }
+
+    @Test
+    void invalidRestrictiveAnnotationFailsClosedToTheDerivedScope() {
+        var policy = resolve(DERIVED_TOPIC_SKILL, PurposelessAgent.class);
+        assertNotNull(policy, "an invalid annotation must not leave the agent unscoped "
+                + "when its skill's guardrails derive a scope");
+        assertEquals("Order-status support for an online store", policy.config().purpose());
+        assertEquals(List.of("politics"), policy.config().forbiddenTopics());
+        var errors = appender.list.stream().filter(e -> e.getLevel() == Level.ERROR).toList();
+        assertEquals(1, errors.size(), "the invalid annotation is reported: " + errors);
+        assertTrue(errors.get(0).getFormattedMessage().contains(PurposelessAgent.class.getName()),
+                errors.get(0).getFormattedMessage());
+    }
+
+    @Test
+    void noAnnotationKeepsTheGuardrailsDerivedScope() {
+        var policy = resolve(DERIVED_TOPIC_SKILL, UnannotatedAgent.class);
+        assertNotNull(policy);
+        assertEquals("Order-status support for an online store", policy.config().purpose());
+        assertEquals(List.of("politics"), policy.config().forbiddenTopics());
+        assertEquals("skill-guardrails:assistant", policy.source());
+    }
+
+    @Test
+    void restrictiveAnnotationWithoutGuardrailsIsUnchanged() {
+        var policy = resolve(NO_GUARDRAILS_SKILL, RestrictedAgent.class);
+        assertNotNull(policy);
+        assertEquals("Annotation-declared purpose", policy.config().purpose());
+        assertEquals(List.of("gambling"), policy.config().forbiddenTopics());
     }
 
     @Test
