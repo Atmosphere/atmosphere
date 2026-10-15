@@ -401,8 +401,9 @@ final class ResponseWriter {
         if (r != null) {
             r.notifyListeners(
                     new AtmosphereResourceEventImpl((AtmosphereResourceImpl) r, true, false));
-            // Don't take any risk and remove it.
-            r.getAtmosphereConfig().resourcesFactory().remove(response.uuid());
+            // Don't take any risk and remove it. By identity: the write failed on this
+            // resource, not on the client's next poll registered under the same uuid.
+            ((AtmosphereResourceImpl) r).unregister();
         }
         logger.trace("{} unexpected I/O exception {}", response.uuid(), ex);
     }

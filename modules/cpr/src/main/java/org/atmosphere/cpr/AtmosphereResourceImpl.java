@@ -891,12 +891,25 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         }
     }
 
-    private void unregister() {
-        // By identity: equality is by uuid, and the client's next resource (its next
-        // long-polling poll, a reconnected connection) may be registered under it by now.
-        var factory = config.resourcesFactory();
-        if (factory.findResource(uuid()).orElse(null) == this) {
-            factory.remove(uuid());
+    /**
+     * Remove this resource from the {@link AtmosphereResourceFactory} and, when it
+     * was registered there, from all its broadcasters, like
+     * {@link AtmosphereResourceFactory#remove(String)}. By identity: equality is by
+     * uuid, and the client's next resource (its next long-polling poll, a
+     * reconnected connection) may be registered under it by now, or register
+     * while this runs: the check and the removal are one atomic step.
+     */
+    void unregister() {
+        var removed = new boolean[1];
+        config.resourcesFactory().resources().computeIfPresent(uuid(), (key, registered) -> {
+            if (registered != this) {
+                return registered;
+            }
+            removed[0] = true;
+            return null;
+        });
+        if (removed[0]) {
+            removeFromAllBroadcasters();
         }
     }
 

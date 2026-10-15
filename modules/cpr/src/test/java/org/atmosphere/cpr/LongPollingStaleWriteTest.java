@@ -22,9 +22,13 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import jakarta.servlet.http.HttpServletResponse;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -36,8 +40,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Every poll of a long-polling client is a resource of its own under the
@@ -131,15 +137,64 @@ class LongPollingStaleWriteTest {
         }
     }
 
+    /**
+     * Lets the test interleave: the first lookup the armed thread makes, of one
+     * resource or of the map of them, returns what it found, then waits until
+     * the test lets it go on.
+     */
+    static final class PausingResourceFactory extends DefaultAtmosphereResourceFactory {
+
+        final AtomicReference<Thread> pauseOn = new AtomicReference<>();
+        final CountDownLatch paused = new CountDownLatch(1);
+        final CountDownLatch proceed = new CountDownLatch(1);
+
+        @Override
+        public Optional<AtmosphereResource> findResource(String uuid) {
+            var found = super.findResource(uuid);
+            pauseIfArmed();
+            return found;
+        }
+
+        @Override
+        public ConcurrentMap<String, AtmosphereResource> resources() {
+            var resources = super.resources();
+            pauseIfArmed();
+            return resources;
+        }
+
+        private void pauseIfArmed() {
+            if (pauseOn.compareAndSet(Thread.currentThread(), null)) {
+                paused.countDown();
+                try {
+                    proceed.await(WAIT_SECONDS, TimeUnit.SECONDS);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+    }
+
     /** A long-polling GET of the client, suspended on the broadcaster like a real poll. */
     private AtmosphereResourceImpl poll() {
+        return poll(null);
+    }
+
+    /** A poll whose response writes to {@code container}, when not null, like a servlet poll. */
+    private AtmosphereResourceImpl poll(HttpServletResponse container) {
         var request = new AtmosphereRequestImpl.Builder()
                 .headers(Map.of(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, TRACKING_ID,
                         HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.LONG_POLLING_TRANSPORT))
                 .build();
+        var response = container == null
+                ? AtmosphereResponseImpl.newInstance()
+                : new AtmosphereResponseImpl.Builder().request(request).response(container).build();
+        // Set by the framework on every response: the response's uuid is the client's.
+        response.setHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, TRACKING_ID);
         var resource = new AtmosphereResourceImpl();
-        resource.initialize(config, broadcaster, request, AtmosphereResponseImpl.newInstance(),
+        resource.initialize(config, broadcaster, request, response,
                 mock(BlockingIOCometSupport.class), handler);
+        // Set by the AsynchronousProcessor for a real request: how the response finds its resource.
+        request.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
         resource.suspend();
         return resource;
     }
@@ -285,6 +340,53 @@ class LongPollingStaleWriteTest {
                 .toList();
         assertTrue(received.contains("between"),
                 "the client's poll gets the message broadcast between its polls, got " + received);
+    }
+
+    @Test
+    void theNextPollRegisteringWhileTheReturnedOneUnregistersStaysRegisteredAndSubscribed() throws Exception {
+        start(false);
+        var factory = new PausingResourceFactory();
+        config.framework().setAndConfigureAtmosphereResourceFactory(factory);
+        var returned = poll();
+        assertSame(returned, factory.findResource(TRACKING_ID).orElse(null));
+
+        // The poll returns on another thread; while it unregisters, the client's
+        // next poll arrives and registers under the same uuid.
+        var resuming = Thread.ofPlatform().unstarted(returned::resume);
+        factory.pauseOn.set(resuming);
+        resuming.start();
+        assertTrue(factory.paused.await(WAIT_SECONDS, TimeUnit.SECONDS), "the poll never unregistered");
+        var next = poll();
+        factory.proceed.countDown();
+        resuming.join(TimeUnit.SECONDS.toMillis(WAIT_SECONDS));
+        assertFalse(resuming.isAlive(), "the poll never finished returning");
+
+        assertNotSame(returned, next);
+        assertTrue(isMember(next), "the poll that returned removed the next poll from the broadcaster");
+        assertSame(next, factory.findResource(TRACKING_ID).orElse(null),
+                "the poll that returned unregistered the next poll");
+    }
+
+    @Test
+    void aWriteThatFailsOnTheResponseOfAReturnedPollLeavesTheNextPollRegisteredAndSubscribed() throws Exception {
+        start(false);
+        // The client dropped the connection the poll answered on: writes to it fail.
+        var dropped = mock(HttpServletResponse.class);
+        when(dropped.getWriter()).thenThrow(new IOException("Broken pipe"));
+        when(dropped.getOutputStream()).thenThrow(new IOException("Broken pipe"));
+        var returned = poll(dropped);
+        var held = returned.getResponse();
+        returned.resume();
+        var next = poll();
+        assertTrue(isMember(next));
+        assertSame(next, config.resourcesFactory().findResource(TRACKING_ID).orElse(null));
+
+        // Code that kept the returned poll's response writes to it.
+        assertThrows(RuntimeException.class, () -> held.write("late"));
+
+        assertTrue(isMember(next), "the failed write on the returned poll's response removed the next poll");
+        assertSame(next, config.resourcesFactory().findResource(TRACKING_ID).orElse(null),
+                "the failed write on the returned poll's response unregistered the next poll");
     }
 
     /** Checks for a while: the close of a failed poll finishes after it is flagged. */
