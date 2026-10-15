@@ -34,6 +34,7 @@ import java.lang.annotation.Target;
 import java.util.Collections;
 import java.util.Enumeration;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
@@ -69,6 +70,26 @@ class ProcessorInitFailureTest {
         var failure = assertThrows(ServletException.class, () -> framework.init(servletConfig()));
 
         assertSame(FAILURE, failure.getCause());
+    }
+
+    /**
+     * The no-argument {@code init()}, which embedded hosts (the gRPC server,
+     * {@code EmbeddedWebSocketHandler}) call, logs other initialization
+     * failures; a processor failing the initialization reaches the caller
+     * instead of the host starting on a framework that never initialized.
+     */
+    @Test
+    void aProcessorFailingTheInitializationFailsTheNoArgumentInit() {
+        framework = new AtmosphereFramework();
+        framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName());
+        framework.addAnnotationPackage(FailingAnnotation.class);
+        framework.addInitParameter(ApplicationConfig.CUSTOM_ANNOTATION_PACKAGE,
+                ProcessorInitFailureTest.class.getPackage().getName());
+
+        var failure = assertThrows(AtmosphereInitializationException.class, () -> framework.init());
+
+        assertSame(FAILURE, failure);
+        assertFalse(framework.initialized(), "the framework did not initialize");
     }
 
     private static ServletConfig servletConfig() {

@@ -395,11 +395,19 @@ public class AtmosphereFramework {
 
     /**
      * Initialize the AtmosphereFramework. Invoke this method after having properly configured this class using the setters.
+     * Any other initialization failure is logged and the framework is left uninitialized.
+     *
+     * @throws AtmosphereInitializationException when an annotation processor failed the initialization
      */
     public AtmosphereFramework init() {
         try {
             init(servletConfig == null ? new VoidServletConfig(initParams) : servletConfig, false);
         } catch (ServletException e) {
+            for (Throwable t = e.getCause(); t != null; t = t.getCause()) {
+                if (t instanceof AtmosphereInitializationException failure) {
+                    throw failure;
+                }
+            }
             logger.error("", e);
         }
         return this;

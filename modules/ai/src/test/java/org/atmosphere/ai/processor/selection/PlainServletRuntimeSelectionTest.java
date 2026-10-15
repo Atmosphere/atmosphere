@@ -19,10 +19,12 @@ import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import org.atmosphere.ai.AgentRuntimeResolver;
+import org.atmosphere.ai.AgentRuntimeSelectionException;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.processor.AiEndpointProcessor;
 import org.atmosphere.config.AtmosphereAnnotation;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.DefaultAnnotationProcessor;
 import org.junit.jupiter.api.AfterEach;
@@ -36,6 +38,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -77,6 +80,29 @@ class PlainServletRuntimeSelectionTest {
         }
         assertTrue(messages.toString().contains(
                 "atmosphere.ai.runtime=no-such-runtime names no available AgentRuntime"), messages.toString());
+    }
+
+    /**
+     * The no-argument {@code init()} the gRPC server and the embedded
+     * WebSocket handler call: the failure reaches the caller instead of being
+     * logged while the host starts with no AI endpoint.
+     */
+    @Test
+    void aRuntimeNamedButNotAvailableFailsTheNoArgumentInit() {
+        System.setProperty(AiConfig.RUNTIME_PROPERTY, "no-such-runtime");
+        AgentRuntimeResolver.reset();
+        framework = new AtmosphereFramework();
+        // No annotation map in the servlet context: the bytecode scan of this
+        // package runs, and finds the @AiEndpoint processor in the package named.
+        framework.addAnnotationPackage(SelectionProbeEndpoint.class);
+        framework.addInitParameter(ApplicationConfig.CUSTOM_ANNOTATION_PACKAGE,
+                AiEndpointProcessor.class.getPackage().getName());
+
+        var failure = assertThrows(AgentRuntimeSelectionException.class, () -> framework.init());
+
+        assertTrue(failure.getMessage().contains(
+                "atmosphere.ai.runtime=no-such-runtime names no available AgentRuntime"), failure.getMessage());
+        assertFalse(framework.initialized(), "the framework did not initialize");
     }
 
     @Test
