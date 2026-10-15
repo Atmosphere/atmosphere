@@ -13,13 +13,14 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.annotation.initfailure;
+package org.atmosphere.initfailure;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import org.atmosphere.annotation.Processor;
 import org.atmosphere.config.AtmosphereAnnotation;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereInitializationException;
 import org.atmosphere.util.SimpleBroadcaster;
@@ -42,7 +43,8 @@ import static org.mockito.Mockito.mock;
  * fails the framework's initialization, where any other exception it throws is
  * logged and the framework starts without the class. Scanned through the
  * bytecode annotation detector, the path a container without the annotation
- * map takes.
+ * map takes. Kept in a package no other test scans, since every framework
+ * scanning it would fail.
  */
 class ProcessorInitFailureTest {
 
@@ -84,7 +86,10 @@ class ProcessorInitFailureTest {
 
             @Override
             public String getInitParameter(String name) {
-                return null;
+                // Outside org.atmosphere.annotation, a package's processors
+                // are only scanned when it is named a custom-annotation package.
+                return ApplicationConfig.CUSTOM_ANNOTATION_PACKAGE.equals(name)
+                        ? ProcessorInitFailureTest.class.getPackage().getName() : null;
             }
 
             @Override
