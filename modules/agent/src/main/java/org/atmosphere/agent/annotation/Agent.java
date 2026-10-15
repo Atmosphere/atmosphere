@@ -94,18 +94,22 @@ public @interface Agent {
      *       {@link #description()}), explicit topic prohibitions become forbidden
      *       topics, and instruction-style lines stay prompt-only guidance. Tier comes
      *       from an optional {@code scopeTier} frontmatter hint; {@code none} (or
-     *       {@code off} / {@code disabled}) opts out of admission scope entirely,
-     *       so a restrictive {@code @AgentScope} on the class is not applied either,
-     *       with or without {@code ## Guardrails} (logged as a WARN at
-     *       registration). Without a {@code scopeTier} this scope is only derived, so an
-     *       explicit {@code @AgentScope} on the class overrides it:
+     *       {@code off} / {@code disabled}) opts the skill out of admission scope,
+     *       with or without {@code ## Guardrails}, but a valid restrictive
+     *       {@code @AgentScope} on the class is stricter and is enforced as
+     *       written (logged as a WARN at registration). Without a
+     *       {@code scopeTier} this scope is only derived, so an explicit
+     *       {@code @AgentScope} on the class overrides it:
      *       {@code unrestricted = true} (with a justification) installs no
      *       admission policy, and a restrictive annotation installs its own policy
      *       with the skill's topic prohibitions added to its forbidden topics. With
-     *       any other {@code scopeTier}, the skill's policy wins and a restrictive
-     *       annotation contributes only its forbidden topics, not its purpose, tier,
-     *       threshold, breach mode, redirect or {@code postResponseCheck} (logged as
-     *       a WARN at registration). When the skill declares no
+     *       any other {@code scopeTier} the skill's scope is explicit too, so the
+     *       stricter wins: a restrictive annotation is enforced beside it as a
+     *       second leg of the same policy, and a request must pass both (forbidden
+     *       topics of both, {@code DENY} over a redirect, the annotation's
+     *       redirect, the post-response check on both legs when either asks for
+     *       it); an {@code unrestricted = true} annotation is overridden. Both are
+     *       logged at registration. When the skill declares no
      *       {@code ## Guardrails} and does not opt out, an {@code @AgentScope}
      *       annotation on the class is honored instead.</li>
      * </ul>

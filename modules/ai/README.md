@@ -308,15 +308,34 @@ from `@AgentScope(tier = ...)` or the skill's `scopeTier` frontmatter
 When an `@Agent` or `@Coordinator` carries both, `ScopePolicyResolver` applies
 one precedence on every path. A `## Guardrails` section alone only derives a
 scope; a skill `scopeTier` and the annotation are explicit declarations. An
-explicit declaration beats a derived one. When both are explicit, the skill's
-`scopeTier` decides, and one WARN at registration says what the annotation lost:
+explicit declaration beats a derived one. When both are explicit, the stricter
+wins: a request is admitted only if every restrictive declaration admits it.
+The agent's registration logs how the two combined:
 
-1. A skill `scopeTier: none` (or `off` / `disabled`) opts out of everything,
-   with or without `## Guardrails`: a restrictive annotation is not applied.
-2. A skill with `## Guardrails` and any other `scopeTier` keeps its own policy
-   (purpose, tier, threshold, breach mode); a restrictive annotation adds only
-   its `forbiddenTopics`, not its purpose, tier, threshold, breach mode,
-   redirect or `postResponseCheck`.
+1. A skill `scopeTier: none` (or `off` / `disabled`) is the least strict
+   explicit declaration. With no restrictive annotation, no admission policy
+   runs, with or without `## Guardrails`. A valid restrictive annotation is
+   stricter: its policy runs as written, the skill's `## Guardrails` stay
+   prompt-only, and a WARN says so. To run such an agent unscoped, declare
+   `@AgentScope(unrestricted = true, justification = "...")` instead.
+2. A skill with `## Guardrails` and any other `scopeTier` keeps its own scope.
+   Beside a valid restrictive annotation, both are enforced by one
+   `ScopePolicy` with two *legs* (`ScopePolicy.legs()`): one leg keeps the
+   skill's purpose, tier and threshold, the other the annotation's, because a
+   tier or a threshold only means something against its own purpose. Every leg
+   classifies the original request, cheapest tier first, and the first leg
+   that does not admit decides. The settings that have an order are merged to
+   the stricter value and shared by the legs: the union of both declarations'
+   `forbiddenTopics`, `DENY` over a redirect (`CUSTOM_MESSAGE` over
+   `POLITE_REDIRECT`), the annotation's redirect message, and
+   `postResponseCheck` on every leg when either side asks for it. Two legs of
+   the same tier and the same purpose (compared ignoring case) collapse into
+   one with the higher threshold. A skill that declares no purpose (no
+   frontmatter `description`, no agent description) takes the annotation's.
+   The registration logs the legs at INFO, or at WARN when the two purposes
+   differ, the skill took the annotation's purpose, or the shared post-response
+   check adds an `LLM_CLASSIFIER` call per response. Beside
+   `@AgentScope(unrestricted = true)` the skill's scope runs, with a WARN.
 3. Otherwise an explicit `@AgentScope(unrestricted = true, justification =
    "...")` overrides the derived scope: no admission policy runs, and one WARN
    at registration names the agent, the skill and the justification.
@@ -326,12 +345,19 @@ explicit declaration beats a derived one. When both are explicit, the skill's
    labels) added to its `forbiddenTopics`.
 5. Otherwise the `## Guardrails`-derived policy runs. A skill without
    `## Guardrails` and without the opt-out leaves the annotation in charge as
-   written.
+   written; when such a skill declares a `scopeTier`, a WARN says the tier has
+   no skill scope to enforce.
 
 Added topics are deduplicated ignoring case. An invalid annotation (no
 justification while unrestricted, a blank purpose while restrictive) overrides
-nothing: the derived policy runs, and a restrictive one is logged once at ERROR
-when the agent registers.
+nothing: the skill's policy runs, and a restrictive one still adds its
+`forbiddenTopics` to it (a topic ban can only narrow) and is logged once at
+ERROR when the agent registers. A `scopeTier` value that names no tier is
+logged once at ERROR and enforces `EMBEDDING_SIMILARITY`.
+
+A multi-leg policy prepends one confinement block to the system prompt that
+lists every distinct purpose and says a request must fall within all of them;
+a single-leg policy's block is unchanged.
 
 There are four tiers, each resolved by `ScopeGuardrailResolver`:
 

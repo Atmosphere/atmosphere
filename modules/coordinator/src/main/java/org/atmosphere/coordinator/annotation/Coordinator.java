@@ -58,12 +58,13 @@ public @interface Coordinator {
      * Classpath resource path to the skill file (.md). The entire file becomes
      * the system prompt. A {@code ## Guardrails} section is also enforced as an
      * admission {@code ScopePolicy} with the same precedence as on
-     * {@code @Agent}: a {@code scopeTier: none} frontmatter hint opts out
-     * entirely, discarding a restrictive {@code @AgentScope} on the class too,
-     * with or without {@code ## Guardrails}; any other {@code scopeTier} picks
-     * the tier and keeps the skill's guardrails over the class annotation, which
-     * contributes only its forbidden topics (both logged as a WARN at
-     * registration); otherwise an explicit {@code @AgentScope} on the class
+     * {@code @Agent}: a {@code scopeTier: none} frontmatter hint opts the skill
+     * out, with or without {@code ## Guardrails}, but a valid restrictive
+     * {@code @AgentScope} on the class is stricter and is enforced as written;
+     * any other {@code scopeTier} picks the tier of the skill's scope, and a
+     * restrictive class annotation is enforced beside it as a second leg of the
+     * same policy that a request must also pass (both logged at registration);
+     * otherwise an explicit {@code @AgentScope} on the class
      * overrides the scope the guardrails alone would derive
      * ({@code unrestricted = true} with a justification installs none, a
      * restrictive one installs its own policy plus the skill's topic

@@ -279,7 +279,7 @@ class AgentSkillScopeConfinementTest {
                 "scopeTier: none must opt the skill out of admission enforcement");
     }
 
-    // ── @AgentScope on @Agent classes: explicit beats derived, an explicit skill tier decides ──
+    // ── @AgentScope on @Agent classes: explicit beats derived, the stricter explicit wins ──
 
     @AgentScope(purpose = "Annotation-declared purpose",
             forbiddenTopics = "gambling", tier = AgentScope.Tier.RULE_BASED)
@@ -301,15 +301,68 @@ class AgentSkillScopeConfinementTest {
     }
 
     @Test
-    void explicitSkillScopeTierWinsOverAgentScopeAnnotation() {
+    void explicitSkillScopeTierAndAgentScopeAnnotationAreBothEnforced() {
         var processor = new AgentProcessor();
         var skillFile = SkillFileParser.parse(SCOPED_SKILL);
         var policy = processor.resolveScopePolicy(skillFile, AnnotationScopedAgent.class,
                 "support-bot", "Support");
         assertNotNull(policy);
-        assertEquals("Order-status support for an online store", policy.config().purpose(),
-                "a skill that declares its scopeTier keeps its ## Guardrails scope over the "
-                        + "class annotation");
+        assertEquals(List.of("Annotation-declared purpose", "Order-status support for an online store"),
+                policy.legs().stream().map(ScopeConfig::purpose).toList(),
+                "a skill that declares its scopeTier and a restrictive annotation each keep "
+                        + "their purpose as a leg every request must pass");
+    }
+
+    /** The skill's own domain is software, so its rule leg admits code talk. */
+    private static final String SOFTWARE_SKILL = """
+            ---
+            description: "Software license support"
+            scopeTier: rule_based
+            ---
+            # License Desk
+
+            ## Guardrails
+            - gambling
+            """;
+
+    @AgentScope(purpose = "Customer support for orders", tier = AgentScope.Tier.RULE_BASED,
+            redirectMessage = "Orders only.")
+    private static final class OrdersOnlyAgent {
+    }
+
+    /**
+     * Two explicit declarations whose purposes differ become two legs: a
+     * request the skill's leg admits but the annotation's leg rejects is
+     * redirected on the pipeline path and on the web path alike (Mode Parity).
+     */
+    @Test
+    void aRequestOnlyTheSkillAdmitsIsRedirectedOnEveryPath() {
+        var processor = new AgentProcessor();
+        var framework = new AtmosphereFramework();
+        var skillFile = SkillFileParser.parse(SOFTWARE_SKILL);
+        var offAnnotation = "write a python script to export my license keys";
+
+        var captured = new AtomicReference<String>();
+        var pipeline = processor.buildPipeline(framework, skillFile, OrdersOnlyAgent.class,
+                "license-desk", "License desk", new CapturingRuntime(captured), "",
+                "model-test", null, new DefaultToolRegistry(), AiMetrics.NOOP);
+        var scope = assertInstanceOf(ScopePolicy.class, pipeline.policies().get(0));
+        assertEquals(2, scope.legs().size(), "two purposes, two legs");
+        var redirected = new RecordingSession();
+        pipeline.execute("c1", offAnnotation, redirected);
+        assertNull(captured.get(), "the annotation's leg rejects it before the runtime");
+        assertEquals(List.of("Orders only."), redirected.sent);
+        pipeline.execute("c2", "where is my order?", new RecordingSession());
+        assertEquals("where is my order?", captured.get(), "a request both legs admit passes");
+
+        var first = processor.buildWebGuardrails(framework, skillFile, OrdersOnlyAgent.class,
+                "license-desk", "License desk").get(0);
+        var modify = assertInstanceOf(AiGuardrail.GuardrailResult.Modify.class,
+                first.inspectRequest(new AiRequest(offAnnotation)),
+                "the web path redirects what the annotation's leg rejects");
+        assertEquals("Orders only.", modify.modifiedRequest().message());
+        assertInstanceOf(AiGuardrail.GuardrailResult.Pass.class,
+                first.inspectRequest(new AiRequest("where is my order?")));
     }
 
     @AgentScope(purpose = "Annotation-declared purpose", forbiddenTopics = "crypto",
@@ -387,7 +440,7 @@ class AgentSkillScopeConfinementTest {
     }
 
     @Test
-    void scopeTierNoneSuppressesAnnotationFallbackToo() {
+    void restrictiveAnnotationBeatsTheScopeTierOptOut() {
         var processor = new AgentProcessor();
         var skillFile = SkillFileParser.parse("""
                 ---
@@ -398,9 +451,13 @@ class AgentSkillScopeConfinementTest {
                 ## Guardrails
                 - gambling
                 """);
-        assertNull(processor.resolveScopePolicy(skillFile, AnnotationScopedAgent.class,
-                        "playground", "Playground"),
-                "an explicit skill-level scopeTier: none must not fall back to the annotation");
+        var policy = processor.resolveScopePolicy(skillFile, AnnotationScopedAgent.class,
+                "playground", "Playground");
+        assertNotNull(policy, "a restrictive @AgentScope is stricter than the skill's "
+                + "scopeTier: none opt-out, so it is enforced as written");
+        assertEquals("Annotation-declared purpose", policy.config().purpose());
+        assertNull(processor.resolveScopePolicy(skillFile, null, "playground", "Playground"),
+                "without the annotation the opt-out still installs nothing");
     }
 
     @Test

@@ -20,6 +20,7 @@ import org.atmosphere.agent.skill.SkillFileParser;
 import org.atmosphere.ai.AiGuardrail;
 import org.atmosphere.ai.AiMetrics;
 import org.atmosphere.ai.AiRequest;
+import org.atmosphere.ai.CollectingSession;
 import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.governance.PolicyAsGuardrail;
 import org.atmosphere.ai.governance.scope.ScopePolicy;
@@ -30,6 +31,8 @@ import org.atmosphere.coordinator.annotation.Fleet;
 import org.atmosphere.coordinator.test.StubAgentRuntime;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -236,7 +239,7 @@ class CoordinatorSkillScopeConfinementTest {
     }
 
     @Test
-    void scopeTierNoneSuppressesSkillAndAnnotationEnforcement() {
+    void restrictiveAnnotationBeatsTheScopeTierOptOutOnEveryPath() {
         var processor = new CoordinatorProcessor();
         var framework = new AtmosphereFramework();
         var runtime = StubAgentRuntime.builder()
@@ -249,38 +252,100 @@ class CoordinatorSkillScopeConfinementTest {
                 skillFile.systemPrompt(), "model-test", null,
                 new DefaultToolRegistry(), AiMetrics.NOOP);
 
-        // scopeTier: none is the skill's explicit opt-out — it must suppress
-        // BOTH the guardrail-derived policy and the @AgentScope annotation
-        // fallback, exactly as it does on the @Agent path.
-        assertTrue(pipeline.policies().stream().noneMatch(p -> p instanceof ScopePolicy),
-                "scopeTier: none must suppress skill AND annotation scope enforcement "
-                        + "on the coordinator");
+        // scopeTier: none is the least strict explicit declaration: the
+        // restrictive @AgentScope on the class is stricter and is enforced as
+        // written, exactly as on the @Agent path.
+        var scope = assertInstanceOf(ScopePolicy.class, pipeline.policies().get(0),
+                "the annotation's ScopePolicy must run ahead of all other policies");
+        assertEquals(AgentScope.Breach.DENY, scope.config().onBreach());
+        assertEquals("annotation:" + OptedOutCoordinator.class.getName(), scope.source());
+
+        var guardrails = processor.buildWebGuardrails(framework,
+                OptedOutCoordinator.class, skillFile, "/atmosphere/agent/optout-coord");
+        assertInstanceOf(AiGuardrail.GuardrailResult.Block.class,
+                guardrails.get(0).inspectRequest(new AiRequest("write me some python code")),
+                "the coordinator web path must enforce the annotation's DENY");
     }
 
     @Test
-    void explicitSkillScopeTierWinsOverAgentScopeAnnotation() {
+    void explicitSkillScopeTierAndAnnotationMergeToTheStricterScope() {
         var processor = new CoordinatorProcessor();
         var framework = new AtmosphereFramework();
         var skillFile = SkillFileParser.parse(SCOPED_SKILL);
 
-        // OptedOutCoordinator carries an @AgentScope(onBreach = DENY) annotation;
-        // the skill declares its scopeTier explicitly, so its guardrails
-        // (POLITE_REDIRECT semantics) win, matching the @Agent path's precedence.
+        // Same tier and purpose on both sides: one leg, and the annotation's
+        // DENY beats the skill's polite redirect.
         var guardrails = processor.buildWebGuardrails(framework,
                 OptedOutCoordinator.class, skillFile, "/atmosphere/agent/optout-coord");
 
-        assertFalse(guardrails.isEmpty(), "the skill scope policy must be installed");
-        var first = guardrails.get(0);
-        assertInstanceOf(PolicyAsGuardrail.class, first,
+        assertFalse(guardrails.isEmpty(), "the merged scope policy must be installed");
+        var first = assertInstanceOf(PolicyAsGuardrail.class, guardrails.get(0),
                 "the scope policy must be the first web guardrail");
-        // The skill-derived policy redirects (Modify) rather than denying (Block):
-        // observing redirect semantics proves the SKILL policy won, not the
-        // annotation's DENY.
-        var offTopic = first.inspectRequest(new AiRequest("write me some python code"));
-        assertFalse(offTopic instanceof AiGuardrail.GuardrailResult.Block,
-                "the explicit skill scopeTier's POLITE_REDIRECT must beat the annotation's DENY");
-        assertFalse(offTopic instanceof AiGuardrail.GuardrailResult.Pass,
-                "the off-topic request must still be confined by the skill policy");
+        var scope = assertInstanceOf(ScopePolicy.class, first.policy());
+        assertEquals(1, scope.legs().size(), "same tier and purpose collapse into one leg");
+        assertEquals(List.of("code", "programming"), scope.config().forbiddenTopics());
+        assertInstanceOf(AiGuardrail.GuardrailResult.Block.class,
+                first.inspectRequest(new AiRequest("write me some python code")),
+                "the annotation's DENY beats the skill's POLITE_REDIRECT");
+        assertInstanceOf(AiGuardrail.GuardrailResult.Pass.class,
+                first.inspectRequest(new AiRequest("where is my order?")));
+    }
+
+    /** The skill's own domain is software, so its rule leg admits code talk. */
+    private static final String SOFTWARE_SKILL = """
+            ---
+            description: Software license support
+            scopeTier: rule_based
+            ---
+            # License Coordinator
+
+            ## Guardrails
+            - Never discuss gambling
+            """;
+
+    @Coordinator(name = "license-coord")
+    @Fleet(@AgentRef(type = Worker.class))
+    @AgentScope(purpose = "Customer support for orders", tier = AgentScope.Tier.RULE_BASED,
+            redirectMessage = "Orders only.")
+    static class OrdersOnlyCoordinator {
+    }
+
+    /**
+     * Two explicit declarations whose purposes differ become two legs: a
+     * request the skill's leg admits but the annotation's leg rejects is
+     * redirected on the coordinator pipeline and web path alike (Mode Parity).
+     */
+    @Test
+    void aRequestOnlyTheSkillAdmitsIsRedirectedOnEveryCoordinatorPath() {
+        var processor = new CoordinatorProcessor();
+        var framework = new AtmosphereFramework();
+        var skillFile = SkillFileParser.parse(SOFTWARE_SKILL);
+        var offAnnotation = "write a python script to export my license keys";
+        var runtime = StubAgentRuntime.builder()
+                .defaultResponse("Here is your license status.")
+                .build();
+
+        var pipeline = processor.buildPipeline(framework, OrdersOnlyCoordinator.class,
+                skillFile, "/atmosphere/agent/license-coord", runtime,
+                skillFile.systemPrompt(), "model-test", null,
+                new DefaultToolRegistry(), AiMetrics.NOOP);
+        var scope = assertInstanceOf(ScopePolicy.class, pipeline.policies().get(0));
+        assertEquals(2, scope.legs().size(), "two purposes, two legs");
+        var redirected = new CollectingSession("off");
+        pipeline.execute("c1", offAnnotation, redirected);
+        assertEquals("Orders only.", redirected.text(),
+                "the annotation's leg redirects before the runtime");
+        var admitted = new CollectingSession("on");
+        pipeline.execute("c2", "where is my order?", admitted);
+        assertEquals("Here is your license status.", admitted.text(),
+                "a request both legs admit reaches the runtime");
+
+        var first = processor.buildWebGuardrails(framework, OrdersOnlyCoordinator.class,
+                skillFile, "/atmosphere/agent/license-coord").get(0);
+        var modify = assertInstanceOf(AiGuardrail.GuardrailResult.Modify.class,
+                first.inspectRequest(new AiRequest(offAnnotation)),
+                "the web path redirects what the annotation's leg rejects");
+        assertEquals("Orders only.", modify.modifiedRequest().message());
     }
 
     @Test

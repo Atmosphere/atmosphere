@@ -48,24 +48,31 @@ import java.lang.annotation.Target;
  * <p>On an {@code @Agent} or {@code @Coordinator} class that also loads a skill
  * file, a skill's {@code ## Guardrails} section alone only derives a scope, while
  * a skill {@code scopeTier} and this annotation are explicit declarations; an
- * explicit declaration beats a derived one. The scope resolves in this order: a
- * skill-level {@code scopeTier: none} (or {@code off} / {@code disabled}) opts
- * out entirely, so this annotation is not applied even when restrictive, with or
- * without {@code ## Guardrails} (one WARN at registration); a skill with
- * {@code ## Guardrails} whose frontmatter declares any other {@code scopeTier}
- * keeps its own policy (purpose, tier, threshold, breach mode), and a restrictive
- * annotation contributes only its {@link #forbiddenTopics()}, not its purpose,
- * tier, threshold, breach mode, redirect or {@link #postResponseCheck()} (one
- * WARN at registration); otherwise {@code @AgentScope(unrestricted = true,
- * justification = "...")} overrides the scope a {@code ## Guardrails} section
- * alone would derive (no admission policy, one WARN at registration); otherwise
- * a restrictive annotation beats that derived scope: its own policy applies,
- * with the skill's explicit topic prohibitions added to its
- * {@link #forbiddenTopics()}; a class without this annotation keeps the
- * {@code ## Guardrails}-derived policy. When the skill declares no guardrails and
- * does not opt out, this annotation applies as written. An invalid annotation (a
- * blank purpose while restrictive, or no justification while unrestricted)
- * overrides nothing.</p>
+ * explicit declaration beats a derived one, and between two explicit
+ * declarations the stricter wins. The scope resolves in this order: a
+ * skill-level {@code scopeTier: none} (or {@code off} / {@code disabled}) installs
+ * no admission policy, unless this annotation is restrictive and valid, which is
+ * stricter and is then enforced as written (one WARN at registration); a skill
+ * with {@code ## Guardrails} whose frontmatter declares any other
+ * {@code scopeTier} keeps its own scope, and a restrictive annotation is enforced
+ * beside it as a second leg of the same policy: a request must pass the skill's
+ * purpose and tier and this annotation's purpose and tier, the forbidden topics
+ * of both apply, {@code DENY} beats a redirect, this annotation's
+ * {@link #redirectMessage()} is the one redirect, and
+ * {@link #postResponseCheck()} covers both legs when either asks for it; the two
+ * legs collapse into one with the higher threshold when they share a tier and a
+ * purpose (logged at registration); beside such a skill,
+ * {@code unrestricted = true} is overridden (one WARN at registration);
+ * otherwise {@code @AgentScope(unrestricted = true, justification = "...")}
+ * overrides the scope a {@code ## Guardrails} section alone would derive (no
+ * admission policy, one WARN at registration); otherwise a restrictive
+ * annotation beats that derived scope: its own policy applies, with the skill's
+ * explicit topic prohibitions added to its {@link #forbiddenTopics()}; a class
+ * without this annotation keeps the {@code ## Guardrails}-derived policy. When
+ * the skill declares no guardrails and does not opt out, this annotation applies
+ * as written. An invalid annotation (a blank purpose while restrictive, or no
+ * justification while unrestricted) overrides nothing; a restrictive one still
+ * adds its {@link #forbiddenTopics()} to the skill's policy.</p>
  *
  * <p>Sample-hygiene CI lint: every {@code @AiEndpoint} / {@code @Coordinator}
  * in {@code samples/} must declare {@code @AgentScope} or explicitly opt out via

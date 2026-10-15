@@ -362,11 +362,11 @@ public class CoordinatorProcessor implements Processor<Object> {
             // A @Coordinator's @AgentScope must confine EVERY invocation path —
             // the web streaming path here and the A2A/AG-UI/channel pipeline in
             // buildPipeline below (Correctness Invariant #7 — Mode Parity).
-            // Scope overrides and an invalid @AgentScope are reported once per
-            // registration; the web chain and the pipeline below each resolve
+            // Scope overrides, a multi-leg merge and an invalid @AgentScope or
+            // scopeTier are reported once per registration; the web chain and the pipeline below each resolve
             // the scope (same as the @Agent path).
             ScopePolicyResolver.reportScopeOverrides(skillFile, annotatedClass,
-                    coordinatorName, annotation.skillFile());
+                    coordinatorName, annotation.description(), annotation.skillFile());
             var webGuardrails = buildWebGuardrails(framework, annotatedClass, skillFile, path);
             // Harness MEMORY: same long-term-memory attach and prompt-cache
             // default seeding as the @AiEndpoint / @Agent paths (Correctness
@@ -470,9 +470,11 @@ public class CoordinatorProcessor implements Processor<Object> {
      * a plain {@code @AiEndpoint} instead of an empty policy list (Mode Parity
      * #7). The coordinator's scope policy is resolved with the same precedence
      * as an {@code @Agent}'s ({@code ScopePolicyResolver}): the skill file's
-     * {@code scopeTier: none} opts out entirely; a skill with {@code ## Guardrails}
-     * and an explicit {@code scopeTier} keeps its policy, plus the forbidden topics
-     * of a restrictive {@code @AgentScope}; otherwise an explicit
+     * {@code scopeTier: none} opts out unless a restrictive {@code @AgentScope}
+     * is declared, which is enforced as written; a skill with
+     * {@code ## Guardrails} and an explicit {@code scopeTier} keeps its scope, and
+     * a restrictive {@code @AgentScope} is enforced beside it as a second leg of
+     * one policy; otherwise an explicit
      * {@code @AgentScope} on the class beats the policy the {@code ## Guardrails}
      * section alone would derive ({@code unrestricted = true} installs none; a
      * restrictive one installs its own policy plus the skill's topic
