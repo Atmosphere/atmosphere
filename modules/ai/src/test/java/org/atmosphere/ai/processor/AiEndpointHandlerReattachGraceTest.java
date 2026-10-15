@@ -62,6 +62,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -517,7 +518,7 @@ class AiEndpointHandlerReattachGraceTest {
      * loss of the one it replaced must neither detach nor cancel its run.
      */
     @ParameterizedTest
-    @ValueSource(strings = {"WEBSOCKET", "SSE"})
+    @ValueSource(strings = {"WEBSOCKET", "SSE", "LONG_POLLING"})
     void aLossNoticedWhileTheSameIdReconnectIsSetUpLeavesTheRunsOfTheLiveConnectionGoing(String transport)
             throws Exception {
         System.setProperty(GRACE_PROPERTY, "300ms");
@@ -580,7 +581,7 @@ class AiEndpointHandlerReattachGraceTest {
      * through {@code complete}, over WebSocket and over SSE.
      */
     @ParameterizedTest
-    @ValueSource(strings = {"WEBSOCKET", "SSE"})
+    @ValueSource(strings = {"WEBSOCKET", "SSE", "LONG_POLLING"})
     void aLateNoticedLossLeavesTheAnswerTheSameIdReconnectAskedForStreaming(String transport) throws Exception {
         System.setProperty(GRACE_PROPERTY, "300ms");
         var frames = captureFrames();
@@ -611,13 +612,13 @@ class AiEndpointHandlerReattachGraceTest {
     }
 
     /**
-     * A WebSocket or SSE connection whose suspend times out ends without a
+     * A WebSocket, SSE or long-polling connection whose suspend times out ends without a
      * departure reaching the handler: it stops being tracked as the live
      * connection of its tracking id all the same, or every client that times
      * out and never comes back would stay pinned for good.
      */
     @ParameterizedTest
-    @ValueSource(strings = {"websocket", "sse"})
+    @ValueSource(strings = {"websocket", "sse", "long-polling"})
     void aConnectionWhoseSuspendTimesOutStopsBeingTracked(String transport) throws Exception {
         newHandler(new HeldRuntime(), null);
         var connection = connect(transport);
@@ -632,15 +633,65 @@ class AiEndpointHandlerReattachGraceTest {
 
     /** The timeout of a connection replaced under its tracking id leaves the live one tracked. */
     @ParameterizedTest
-    @ValueSource(strings = {"websocket", "sse"})
+    @ValueSource(strings = {"websocket", "sse", "long-polling"})
     void theTimeoutOfAReplacedConnectionLeavesTheLiveOneTracked(String transport) throws Exception {
         newHandler(new HeldRuntime(), null);
         var original = connect(transport);
-        var back = reconnect(original.uuid(), null, new StringWriter());
+        var back = reconnect(original.uuid(),
+                AtmosphereResource.TRANSPORT.valueOf(transport.toUpperCase(Locale.ROOT).replace('-', '_')),
+                inv -> null, new StringWriter());
 
         assertTrue(new BlockingIOCometSupport(config).completeLifecycle(original, false));
         assertSame(back, handler.liveConnection(original.uuid()).orElse(null),
                 "the connection live under the tracking id stays tracked");
+    }
+
+    /**
+     * Suspending a connection closes one of its tracking id still subscribed to
+     * the broadcaster, a poll the client gave up on among them, so that
+     * departure may land inside the suspend: the connection being suspended is
+     * already the live one, and the departure leaves its runs going.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"WEBSOCKET", "SSE", "LONG_POLLING"})
+    void aLossNoticedInsideTheSuspendOfTheSameIdReconnectLeavesTheRunsGoing(String transport) throws Exception {
+        System.setProperty(GRACE_PROPERTY, "300ms");
+        var runtime = new HeldRuntime();
+        var original = startRun(runtime);
+
+        var noticed = new AtomicBoolean();
+        var back = reconnect(original.uuid(), AtmosphereResource.TRANSPORT.valueOf(transport), inv -> null, inv -> {
+            noticed.set(true);
+            handler.onStateChange(new AtmosphereResourceEventImpl(original, true, false));
+            return inv.getMock();
+        }, new StringWriter());
+        assertTrue(noticed.get(), "the loss must be noticed inside the reconnect's suspend");
+        assertFalse(RunDisconnectGrace.isDetached(RUN_ID.get()),
+                "the loss of a replaced connection must not detach the live connection's run");
+        assertFalse(runtime.cancelled.await(1_500, TimeUnit.MILLISECONDS),
+                "the loss of a replaced connection must not cancel the live connection's run");
+
+        handler.onStateChange(leaving(back));
+        assertTrue(runtime.cancelled.await(10, TimeUnit.SECONDS),
+                "the live connection leaving on purpose cancels its run");
+    }
+
+    /**
+     * A poll ends once a broadcast is written to it, with no departure reaching
+     * the handler: it stops being tracked as the live connection of its
+     * tracking id all the same, or every long-polling client would stay pinned.
+     */
+    @Test
+    void aPollResumedByABroadcastStopsBeingTracked() throws Exception {
+        newHandler(new HeldRuntime(), null);
+        var poll = connect("long-polling");
+        assertSame(poll, handler.liveConnection(poll.uuid()).orElse(null),
+                "the suspended poll is tracked under its tracking id");
+
+        poll.getBroadcaster().broadcast("reply").get(10, TimeUnit.SECONDS);
+        assertFalse(poll.isSuspended(), "the broadcast resumed the poll");
+        assertTrue(handler.liveConnection(poll.uuid()).isEmpty(),
+                "a poll resumed by its reply must not stay tracked");
     }
 
     /**
@@ -845,6 +896,12 @@ class AiEndpointHandlerReattachGraceTest {
      */
     private AtmosphereResource reconnect(String uuid, AtmosphereResource.TRANSPORT transport, Answer<Object> runId,
             StringWriter out) throws Exception {
+        return reconnect(uuid, transport, runId, inv -> inv.getMock(), out);
+    }
+
+    /** As above, {@code suspend} answering the connect path's suspend of the connection. */
+    private AtmosphereResource reconnect(String uuid, AtmosphereResource.TRANSPORT transport, Answer<Object> runId,
+            Answer<Object> suspend, StringWriter out) throws Exception {
         var resource = mock(AtmosphereResource.class);
         var request = mock(AtmosphereRequest.class);
         var response = mock(AtmosphereResponse.class);
@@ -857,7 +914,7 @@ class AiEndpointHandlerReattachGraceTest {
         when(resource.transport()).thenReturn(transport);
         when(resource.isSuspended()).thenReturn(true);
         when(resource.addEventListener(any())).thenReturn(resource);
-        when(resource.suspend(30_000L)).thenReturn(resource);
+        when(resource.suspend(30_000L)).thenAnswer(suspend);
         when(request.getMethod()).thenReturn("GET");
         when(request.getAttribute(RunReattachSupport.RUN_ID_ATTRIBUTE)).thenAnswer(runId);
         handler.onRequest(resource);

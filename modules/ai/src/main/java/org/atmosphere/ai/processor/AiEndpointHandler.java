@@ -173,13 +173,14 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     }
 
     /**
-     * Tracking id -> the WebSocket or SSE connection suspended under it last.
-     * atmosphere.js reconnects under the id it holds, often before the server
-     * notices the connection it replaces is gone (an idle timeout, a failed
-     * write): the late departure of the replaced connection then leaves the
-     * state keyed by the id to the live one. An entry is removed when its
-     * connection ends, a suspend timeout or a resume included; long-polling,
-     * whose resumed polls fire no departure, is not tracked.
+     * Tracking id -> the WebSocket, SSE or long-polling connection suspended
+     * under it last. atmosphere.js reconnects, or polls again, under the id it
+     * holds, often before the server notices the connection it replaces is gone
+     * (an idle timeout, a failed write, a poll the client gave up on): the late
+     * departure of the replaced connection then leaves the state keyed by the
+     * id to the live one. An entry is removed when its connection ends: a
+     * departure, a suspend timeout or a resume, which is how a poll ends once
+     * its reply is written.
      */
     private final ConcurrentHashMap<String, AtmosphereResource> liveConnections = new ConcurrentHashMap<>();
 
@@ -542,15 +543,21 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             assignPerPathBroadcaster(resource);
             registerBroadcastFilters(resource.getBroadcaster());
             registerCacheInspector(resource.getBroadcaster());
-            resource.suspend(suspendTimeout);
-            // Right away, not once the connection is set up: a late departure of
-            // the connection it replaces, or the end of a run that departure left
-            // going, may land while onReady runs or a run is replayed to it.
-            if (resource.isSuspended()) {
-                if (resource.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
-                        || resource.transport() == AtmosphereResource.TRANSPORT.SSE) {
-                    trackLiveConnection(resource);
+            // Before the suspend, not once the connection is set up: suspending
+            // it closes a connection of its id still subscribed to the
+            // broadcaster (a poll the client gave up on), and that departure,
+            // like a later one or the end of a run it left going, may land
+            // while the suspend, onReady or a run replayed to it runs.
+            trackLiveConnection(resource);
+            try {
+                resource.suspend(suspendTimeout);
+            } finally {
+                // Not suspended, or already resumed: no end of it is left to untrack it.
+                if (!resource.isSuspended()) {
+                    untrackLiveConnection(resource.uuid(), resource);
                 }
+            }
+            if (resource.isSuspended()) {
                 // A connection back under the id of a lost one owns the state the
                 // lost one's runs kept: its own departure releases it.
                 deferredReleases.computeIfPresent(resource.uuid(),
@@ -596,10 +603,11 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     }
 
     /**
-     * Track {@code resource} as the connection live under its tracking id until
-     * it ends. A suspend timeout or a resume ends it without a departure reaching
-     * {@link #onStateChange}, so its listener untracks it on every end, and an
-     * end that ran before the listener was added is caught by the state check.
+     * Track {@code resource}, about to be suspended, as the connection live
+     * under its tracking id until it ends. A suspend timeout or a resume ends it
+     * without a departure reaching {@link #onStateChange}, so its listener
+     * untracks it on every end; the caller untracks one the suspend did not
+     * leave suspended.
      */
     private void trackLiveConnection(AtmosphereResource resource) {
         var uuid = resource.uuid();
@@ -620,9 +628,6 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 untrackLiveConnection(uuid, resource);
             }
         });
-        if (!resource.isSuspended()) {
-            untrackLiveConnection(uuid, resource);
-        }
     }
 
     /**
@@ -1637,7 +1642,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         return target;
     }
 
-    /** The WebSocket or SSE connection tracked as live under {@code uuid}, if any. */
+    /** The WebSocket, SSE or long-polling connection tracked as live under {@code uuid}, if any. */
     Optional<AtmosphereResource> liveConnection(String uuid) {
         return Optional.ofNullable(liveConnections.get(uuid));
     }
