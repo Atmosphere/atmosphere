@@ -23,6 +23,7 @@ import org.atmosphere.ai.StreamingSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -82,6 +83,11 @@ public final class DemoAgentRuntime implements AgentRuntime {
     @Override
     public void attach(org.atmosphere.ai.AiEnvironment environment) {
         this.environment = environment;
+    }
+
+    @Override
+    public Optional<org.atmosphere.ai.AiEnvironment> attachedEnvironment() {
+        return Optional.ofNullable(environment);
     }
 
     @Override

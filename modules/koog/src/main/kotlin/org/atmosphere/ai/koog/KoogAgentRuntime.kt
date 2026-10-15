@@ -163,6 +163,9 @@ class KoogAgentRuntime : AgentRuntime {
         this.environment = environment
     }
 
+    /** The environment this instance was attached to, so [AiEnvironment.of] finds it. */
+    override fun attachedEnvironment(): java.util.Optional<AiEnvironment> = java.util.Optional.ofNullable(environment)
+
     /**
      * The environment whose settings, knobs and bound executor this instance
      * reads: the one it was attached to, else [AiEnvironment.current] (an

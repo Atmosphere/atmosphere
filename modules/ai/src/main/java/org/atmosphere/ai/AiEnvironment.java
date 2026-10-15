@@ -297,7 +297,8 @@ public final class AiEnvironment implements AutoCloseable {
     /**
      * The environment of {@code runtime}: the one it was {@link AgentRuntime#attach attached}
      * to, else {@link #current()}. A runtime that implements {@link AgentRuntime}
-     * directly is found among the instances the open environments resolved.
+     * directly is found through {@link AgentRuntime#attachedEnvironment()}, else
+     * among the instances the open environments currently have resolved.
      *
      * @param runtime a runtime, may be {@code null}
      * @return the environment, never {@code null}
@@ -310,6 +311,10 @@ public final class AiEnvironment implements AutoCloseable {
             return routing.environment();
         }
         if (runtime != null) {
+            var attached = runtime.attachedEnvironment();
+            if (attached.isPresent()) {
+                return attached.get();
+            }
             for (var environment : live) {
                 for (var resolved : environment.runtimes.resolved()) {
                     if (resolved == runtime) {

@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -81,6 +82,11 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
     protected AiEnvironment environment() {
         var attached = environment;
         return attached != null ? attached : AiEnvironment.current();
+    }
+
+    @Override
+    public Optional<AiEnvironment> attachedEnvironment() {
+        return Optional.ofNullable(environment);
     }
 
     /** Returns the current native client instance, or {@code null} if not yet configured. */

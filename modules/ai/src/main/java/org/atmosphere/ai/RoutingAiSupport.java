@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -55,6 +56,11 @@ public class RoutingAiSupport implements AgentRuntime {
         for (var backend : backends) {
             backend.attach(environment);
         }
+    }
+
+    @Override
+    public Optional<AiEnvironment> attachedEnvironment() {
+        return Optional.ofNullable(environment);
     }
 
     /** The environment this router was attached to, else {@link AiEnvironment#current()}. */

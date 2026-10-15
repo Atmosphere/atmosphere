@@ -16,6 +16,7 @@
 package org.atmosphere.ai;
 
 import java.time.Duration;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -72,6 +73,19 @@ public interface AgentRuntime {
      * @param environment the environment this instance belongs to
      */
     default void attach(AiEnvironment environment) {
+    }
+
+    /**
+     * The environment this instance was {@link #attach attached} to. A
+     * runtime that keeps the environment it is attached to returns it, so
+     * {@link AiEnvironment#of(AgentRuntime)} finds this instance's application
+     * for as long as the instance lives, including after that application
+     * dropped its cached resolution. The default returns empty.
+     *
+     * @return the attached environment, empty when none
+     */
+    default Optional<AiEnvironment> attachedEnvironment() {
+        return Optional.empty();
     }
 
     /**

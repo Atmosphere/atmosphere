@@ -1219,6 +1219,13 @@ public abstract class AbstractAgentRuntimeContractTest {
             assertSame(second, AiEnvironment.of(inSecond), name + ": an instance belongs to the application that resolved it");
             assertThrows(IllegalStateException.class, () -> inFirst.attach(second),
                     name + ": an instance attached to one application must refuse to serve another");
+            // An endpoint keeps the instance it resolved after its application
+            // drops its cached resolution (new settings, a client bound); the
+            // instance still belongs to that application, not to the process
+            // default that current() reads with two applications running.
+            first.configure("remote", "tck-model-first", "tck-key-first", "http://127.0.0.1:9/first/v1");
+            assertSame(first, AiEnvironment.of(inFirst),
+                    name + ": an instance belongs to its application after that application's resolution is reset");
 
             inFirst.configure(first.settings());
             inSecond.configure(second.settings());
