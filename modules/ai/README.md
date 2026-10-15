@@ -704,15 +704,34 @@ which is no one application's, and a warning says so once per JVM: read your app
 its values are what the process default reads, and what an application created from init-params
 reads for a knob its init-params leave unset.
 
-What is not per application yet: a native client bound with a runtime adapter's static setter
-(`SpringAiAgentRuntime.setChatClient`, `LangChain4jAgentRuntime.setModel`, ...) is shared by every
-application's instance of that adapter; the adapter runtimes other than the built-in one read some
-settings and knobs through the static API, which is their application's own only on a bound thread;
-the semantic response cache, the embedding scope guardrails and the embedding injection classifier
-(which resolve their runtime through the `EmbeddingRuntimeResolver` statics when they are built),
-the admin and console runtime reports, the interactions service,
-long-term memory and decision-model runtime resolution, the coordinator's LLM result evaluator and
-the channels bridge read the static API.
+Native clients are per application too. A runtime adapter's instance uses, first found: the client
+bound to its application (`SpringAiAgentRuntime.setChatClient(environment, client)`,
+`LangChain4jAgentRuntime.setModel(environment, model)`, `AdkAgentRuntime.setRunner(environment, runner)`,
+... — every adapter's binder has an overload that takes the `AiEnvironment`), then the one its static
+setter holds (`SpringAiAgentRuntime.setChatClient(client)`, which every application in the JVM shares),
+then the one its application's auto-configuration offered. The adapters' Spring Boot
+auto-configurations bind or offer their context's beans (`ChatClient`, `StreamingChatModel`, `Runner`,
+`ReActAgent`, `ChatCompletionService`, `ReactAgent` and `ChatModel`, Koog's `PromptExecutor` and default
+model, Embabel's `AgentPlatform`, the Spring AI and Spring AI Alibaba `EmbeddingModel`) to the context's
+`AiEnvironment`, so two Spring contexts with different `ChatClient` beans each dispatch through their
+own; without an `AiEnvironment` bean they use the static setters, as before. The adapters read their
+settings and knobs (prompt-cache-key mode, generation values, planning and filesystem modes, the
+Anthropic and Cohere availability keys) from their own application. So do the admin and console
+runtime reports, the interactions service, long-term memory, the endpoint response cache, the
+coordinator's `ResultEvaluator`s (`ResultEvaluator.attach`) and the channels bridge's raw LLM fallback.
+`DecisionModelResolver.resolve(environment)` keeps one decision model per application, its fallback on
+that application's runtime.
+
+What still reads the static API (so its application's own only on a bound thread, or with a single
+application): `DecisionModelResolver.resolve()` and its callers that hold no application (the LLM
+injection, scope and moderation tiers, `IntentRouting` without a decision model of its own), the
+`InjectionClassifierResolver` cache, which keeps one classifier per tier for the JVM, the semantic
+response cache, embedding scope guardrails and embedding injection classifier built without an
+embedding runtime, and the Quarkus LangChain4j bridge, which binds through the static
+`LangChain4jAgentRuntime.setModel`. Adapter configuration statics that are not native clients
+(`AdkAgentRuntime.setDefaults` / `setCacheConfig` / `setMaxSteps`, `EmbabelAgentRuntime.setAgentName`,
+`LangChain4jAgentRuntime.registerChatModelListener`, `DemoAgentRuntime.setResponseStrategy`) apply to
+every application.
 
 The generation knobs, `prompt-cache-key` and `logprobs` are read when the LLM settings are
 built (`AiConfig.configure`, `AiEnvironment.configure`; an `OpenAiCompatibleClient` built directly

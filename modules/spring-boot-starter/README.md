@@ -206,8 +206,11 @@ An application `LlmSettings` bean built with `AiConfig.configure(...)` carries t
 too, and becomes the settings of the context's endpoints; with several `LlmSettings` beans the
 `@Primary` one does, and startup fails when none is. Settings built before the context starts (in
 `main()`, a static initializer) keep the generation, `prompt-cache-key` and `logprobs` values they
-were built with; startup logs a warning naming the knobs they do not apply. A native client bound
-through a runtime adapter's static setter is still shared by every context in the JVM.
+were built with; startup logs a warning naming the knobs they do not apply. The runtime adapters'
+auto-configurations bind or offer the context's native clients (a `ChatClient` bean, a
+`StreamingChatModel`, ...) to the context's `AiEnvironment`, so each context dispatches through its
+own; a client bound through a runtime adapter's static setter (`SpringAiAgentRuntime.setChatClient(client)`)
+is still shared by every context in the JVM.
 
 ### How It Works
 
