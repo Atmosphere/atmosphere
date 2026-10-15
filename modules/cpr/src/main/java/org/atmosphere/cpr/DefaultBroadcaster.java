@@ -592,7 +592,7 @@ public class DefaultBroadcaster implements Broadcaster {
                                             token.originalMessage, token.resource != null ? token.resource.uuid() : "null");
                                     cacheLostMessage(token.resource, token, true);
                                 } finally {
-                                    removeAtmosphereResource(token.resource, false);
+                                    removeWrittenResource(token.resource);
                                     logger.warn("Failed to execute a write operation for Broadcaster {}", getID(), ex);
                                 }
                             }
@@ -859,20 +859,9 @@ public class DefaultBroadcaster implements Broadcaster {
             // Without synchronizing we may end up with a out of order BroadcasterCache queue.
             if (!bc.getBroadcasterCache().getClass().equals(BroadcasterCache.DEFAULT.getClass())) {
                 if (r.isResumed() || r.isCancelled()) {
+                    // The message was cached before delivery and stays there: the cache hands it
+                    // to the next resource of this uuid added here (a long-polling client's next poll).
                     logger.trace("AtmosphereResource {} has been resumed or cancelled, unable to Broadcast message {}", r.uuid(), deliver.message);
-
-                    /*
-                     * https://github.com/Atmosphere/atmosphere/issues/1886
-                     * Before caching the message, double check if the client has reconnected, and if true, send the
-                     * cached message.
-                     */
-                    AtmosphereResource r2 = config.resourcesFactory().findResource(r.uuid()).orElse(null);
-                    logger.trace("Found an AtmosphereResource {} in state {}", r2, r.isSuspended());
-                    if (r2 != null && r2.isSuspended() && r.hashCode() != r2.hashCode()) {
-                        // Prevent other Broadcast to happens
-                        removeAtmosphereResource(r2);
-                        checkCachedAndPush(r2, r2.getAtmosphereResourceEvent());
-                    }
                     writeDropped(deliver.future, count);
                     return;
                 }
@@ -1044,7 +1033,7 @@ public class DefaultBroadcaster implements Broadcaster {
             // Make sure we cache the message in case the AtmosphereResource has been cancelled, resumed or the client disconnected.
             if (!isAtmosphereResourceValid(r)) {
                 logger.trace("AtmosphereResource {} state is invalid for Broadcaster {}. Message will be cached", r.uuid(), name);
-                removeAtmosphereResource(r, false);
+                removeWrittenResource(r);
                 return;
             }
 
@@ -1073,7 +1062,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
                 lostCandidate = cacheOnIOFlushException ? cacheOnIOFlushException : cacheMessageOnIOException(t);
                 // The Request/Response associated with the AtmosphereResource has already been written and commited
-                removeAtmosphereResource(r, false);
+                removeWrittenResource(r);
                 r.removeFromAllBroadcasters();
                 event.setCancelled(true);
                 event.setThrowable(t);
@@ -1861,12 +1850,29 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected Broadcaster removeAtmosphereResource(AtmosphereResource r, boolean executeDone) {
+        return removeAtmosphereResource(r, executeDone, false);
+    }
+
+    /**
+     * Remove the resource a write was addressed to, after that write found it
+     * resumed, cancelled or closing, or failed on it. By identity: equality is
+     * by uuid, and every poll of a long-polling client (like a WebSocket that
+     * reconnected under its id) is a resource of its own under the client's one
+     * uuid. A write left over for a poll that already returned must neither
+     * remove the client's next poll, already suspended here, nor drop the
+     * writes queued for it.
+     */
+    private void removeWrittenResource(AtmosphereResource r) {
+        removeAtmosphereResource(r, false, true);
+    }
+
+    private Broadcaster removeAtmosphereResource(AtmosphereResource r, boolean executeDone, boolean byIdentity) {
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "removeAtmosphereResource(AtmosphereResource r)");
             return this;
         }
 
-        boolean removed = resources.remove(r);
+        boolean removed = byIdentity ? resources.removeIf(member -> member == r) : resources.remove(r);
         if (removed) {
             if (r.isSuspended()) {
                 logger.trace("Excluded from {} : {}", getID(), r.uuid());
@@ -1887,15 +1893,19 @@ public class DefaultBroadcaster implements Broadcaster {
             completePending(broadcastOnResume);
         }
 
-        // Drain any pending tokens before removing the queue to prevent orphaned message accumulation
-        WriteQueue removedQueue = writeQueues.remove(r.uuid());
-        if (removedQueue != null) {
-            var drained = drain(removedQueue);
-            if (drained > 0) {
-                logger.trace("Drained {} pending write tokens for removed AtmosphereResource {}", drained, r.uuid());
+        // The write queue and the write lock are the uuid's: a resource still a member
+        // under it (the client's next poll, after an identity removal) keeps using them.
+        if (!byIdentity || !resources.contains(r)) {
+            // Drain any pending tokens before removing the queue to prevent orphaned message accumulation
+            WriteQueue removedQueue = writeQueues.remove(r.uuid());
+            if (removedQueue != null) {
+                var drained = drain(removedQueue);
+                if (drained > 0) {
+                    logger.trace("Drained {} pending write tokens for removed AtmosphereResource {}", drained, r.uuid());
+                }
             }
+            resourceLocks.remove(r);
         }
-        resourceLocks.remove(r);
 
         // Here we need to make sure we aren't in the process of broadcasting and unlock the Future.
         if (executeDone) {
