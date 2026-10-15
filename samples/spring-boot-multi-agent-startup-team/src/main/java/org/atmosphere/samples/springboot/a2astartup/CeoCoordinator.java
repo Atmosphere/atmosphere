@@ -204,11 +204,13 @@ public class CeoCoordinator {
                           AtmosphereResource resource) {
         logger.info("CEO received: {}", message);
 
-        // Governance admission on user input. PolicyAdmissionGate runs
-        // @AgentScope + any installed GovernancePolicy chain (scope, kill
-        // switch, rate limit, ...) BEFORE any dispatch decisions. If the
-        // scope policy denies (off-topic) or redirects, short-circuit here
-        // — the specialist agents never see off-scope traffic.
+        // Governance admission on user input. On the web path the
+        // coordinator's scope (the skill's ## Guardrails, else @AgentScope)
+        // already admitted this message before @Prompt ran — an off-topic
+        // prompt is redirected without reaching this method. PolicyAdmissionGate then runs the
+        // installed GovernancePolicy chain (kill switch, rate limit, ...)
+        // BEFORE any dispatch decision; a denial short-circuits here, so the
+        // specialist agents never see that traffic.
         var admission = PolicyAdmissionGate.admit(resource, new AiRequest(message));
         if (admission instanceof PolicyAdmissionGate.Result.Denied denied) {
             logger.info("Admission denied by {}: {}", denied.policyName(), denied.reason());

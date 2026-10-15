@@ -1083,7 +1083,16 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             // the VT pool leaks keys across turns.
             businessMdc.forEach(org.slf4j.MDC::put);
             try {
-                invokePrompt(promptText, session, resource);
+                // Scope confines what the user asked: admit the inbound message
+                // before the @Prompt method runs, so an off-scope prompt never
+                // drives its work (a coordinator's fleet dispatch, tool calls).
+                // A breach streams the inbound message, which renders the
+                // recorded block or redirect through the session.
+                if (session.admitScope(promptText)) {
+                    invokePrompt(promptText, session, resource);
+                } else {
+                    session.stream(promptText);
+                }
                 runExecutionHandle.complete();
                 durableSuccess[0] = true;
             } catch (Throwable t) {

@@ -17,6 +17,10 @@ package org.atmosphere.ai;
 
 import org.atmosphere.ai.approval.ApprovalRegistry;
 import org.atmosphere.ai.approval.ApprovalStrategy;
+import org.atmosphere.ai.governance.GovernancePolicy;
+import org.atmosphere.ai.governance.PolicyAsGuardrail;
+import org.atmosphere.ai.governance.scope.ScopePolicy;
+import org.atmosphere.ai.governance.scope.ScopePolicyInstaller;
 import org.atmosphere.ai.tool.ToolRegistry;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
@@ -93,6 +97,19 @@ public class AiStreamingSession implements StreamingSession {
     private final AiConversationMemory memory;
     private final ToolRegistry toolRegistry;
     private final List<AiGuardrail> guardrails;
+    /**
+     * The endpoint's scope policies — the {@link ScopePolicy} each
+     * {@link PolicyAsGuardrail} in {@link #guardrails} wraps. They prepend the
+     * scope-confinement block to every request's system prompt, as
+     * {@code AiPipeline} does for the scopes in its chain (Mode Parity, #7).
+     */
+    private final List<GovernancePolicy> endpointScopes;
+    /**
+     * The scope decisions {@link #admitScope(String)} took on the turn's inbound
+     * message, applied by {@link #stream(String, List)} in place of evaluating
+     * those guardrails again; {@code null} until the handler admits the turn.
+     */
+    private volatile ScopeAdmission scopeAdmission;
     private final List<ContextProvider> contextProviders;
     private final AiMetrics metrics;
     private final Class<?> responseType;
@@ -324,6 +341,11 @@ public class AiStreamingSession implements StreamingSession {
         this.memory = memory;
         this.toolRegistry = toolRegistry;
         this.guardrails = guardrails != null ? guardrails : List.of();
+        this.endpointScopes = this.guardrails.stream()
+                .filter(PolicyAsGuardrail.class::isInstance)
+                .map(g -> ((PolicyAsGuardrail) g).policy())
+                .filter(ScopePolicy.class::isInstance)
+                .toList();
         this.contextProviders = contextProviders != null ? contextProviders : List.of();
         this.metrics = org.atmosphere.ai.jfr.CompositeAiMetrics.withJfr(
                 metrics != null ? metrics : AiMetrics.NOOP);
@@ -767,6 +789,119 @@ public class AiStreamingSession implements StreamingSession {
         return java.util.Optional.ofNullable(runId);
     }
 
+    /**
+     * Admit the turn's inbound user message against the endpoint scope
+     * (the {@link ScopePolicy} guardrails) before the {@code @Prompt} method
+     * runs. Scope confines what the user asked, so it is decided here, once,
+     * rather than on the prompts the method later composes — a coordinator's
+     * synthesis prompt quotes agent and web-search output that is not the
+     * user's request. The decisions are kept for this session:
+     * {@link #stream(String, List)} applies them instead of evaluating the
+     * scope guardrails again, the admitted decision to every prompt of the
+     * turn and a breach decision to the inbound message it was taken on.
+     *
+     * @param message the inbound user message
+     * @return {@code true} when every scope guardrail admitted the message and
+     *         the {@code @Prompt} method may run; {@code false} when one blocked
+     *         or rewrote it, or failed — the caller then streams the inbound
+     *         message, which renders the recorded block or redirect
+     */
+    public boolean admitScope(String message) {
+        if (endpointScopes.isEmpty()) {
+            return true;
+        }
+        var request = turnRequest(message);
+        var decisions = new java.util.IdentityHashMap<AiGuardrail, AiGuardrail.GuardrailResult>();
+        for (var guardrail : guardrails) {
+            if (!(guardrail instanceof PolicyAsGuardrail wrapper)
+                    || !(wrapper.policy() instanceof ScopePolicy)) {
+                continue;
+            }
+            AiGuardrail.GuardrailResult result;
+            try {
+                result = guardrail.inspectRequest(request);
+            } catch (RuntimeException e) {
+                // Fail closed: nothing is recorded, so stream(message) evaluates
+                // the guardrail again and routes its failure to the client.
+                logger.error("Scope admission of the inbound message failed in {}",
+                        wrapper.policy().name(), e);
+                return false;
+            }
+            decisions.put(guardrail, result);
+            if (!(result instanceof AiGuardrail.GuardrailResult.Pass)) {
+                scopeAdmission = new ScopeAdmission(message, false, decisions);
+                // The @Prompt method will not run, so the hook that emits its
+                // work (e.g. the coordination journal) has nothing to emit.
+                preStreamHook.set(null);
+                return false;
+            }
+        }
+        scopeAdmission = new ScopeAdmission(message, true, decisions);
+        return true;
+    }
+
+    /**
+     * The decision {@link #admitScope(String)} recorded for {@code guardrail},
+     * or {@code null} when it must be evaluated: no admission was taken, the
+     * guardrail is not a scope guardrail, or the admission was a breach and
+     * {@code message} is not the inbound message it was taken on.
+     */
+    private AiGuardrail.GuardrailResult admittedScopeResult(AiGuardrail guardrail, String message) {
+        var admission = scopeAdmission;
+        if (admission == null) {
+            return null;
+        }
+        var result = admission.decisions().get(guardrail);
+        if (result == null || (!admission.admitted() && !admission.message().equals(message))) {
+            return null;
+        }
+        return result;
+    }
+
+    /**
+     * Build the turn's request for {@code message}: conversation history,
+     * identity from the resource, the system prompt fronted by the endpoint
+     * scopes' confinement block, and the selected tools.
+     */
+    private AiRequest turnRequest(String message) {
+        // Load conversation history if memory is enabled
+        var history = memory != null
+                ? memory.getHistory(resource.uuid())
+                : List.<org.atmosphere.ai.llm.ChatMessage>of();
+
+        // Populate identity fields from the AtmosphereResource
+        var userId = extractAttribute(resource, "ai.userId");
+        var sessionId = resource.uuid();
+        var agentId = extractAttribute(resource, "ai.agentId");
+        var conversationId = extractAttribute(resource, "ai.conversationId");
+        if (conversationId == null) {
+            conversationId = sessionId;
+        }
+
+        // The endpoint scopes front the system prompt with their confinement
+        // block (and its redirect text) exactly as AiPipeline does, so a
+        // redirected request reaches the model with the instruction to answer it.
+        var effectiveSystemPrompt = endpointScopes.isEmpty()
+                ? systemPrompt
+                : ScopePolicyInstaller.hardenSystemPrompt(systemPrompt, endpointScopes);
+        var request = new AiRequest(message, effectiveSystemPrompt, model,
+                userId, sessionId, agentId, conversationId, Map.of(), history);
+
+        // Attach available tools, dynamically pre-filtered to the most relevant
+        // when maxToolsPerRequest caps a large catalog (Mode Parity with
+        // AiPipeline; <= 0 injects every tool).
+        if (toolRegistry != null && !toolRegistry.allTools().isEmpty()) {
+            request = request.withTools(org.atmosphere.ai.tool.ToolSelection.select(
+                    toolRegistry, message, endpointMaxToolsPerRequest));
+        }
+        return request;
+    }
+
+    /** Scope decisions taken on a turn's inbound message by {@link #admitScope(String)}. */
+    private record ScopeAdmission(String message, boolean admitted,
+                                  Map<AiGuardrail, AiGuardrail.GuardrailResult> decisions) {
+    }
+
     @Override
     public void stream(String message) {
         // Drain any multi-modal parts the @AiEndpoint handler decoded from the
@@ -801,35 +936,16 @@ public class AiStreamingSession implements StreamingSession {
             hook.afterPrompt(this);
         }
 
-        // Load conversation history if memory is enabled
-        var history = memory != null
-                ? memory.getHistory(resource.uuid())
-                : List.<org.atmosphere.ai.llm.ChatMessage>of();
-
-        // Populate identity fields from the AtmosphereResource
-        var userId = extractAttribute(resource, "ai.userId");
-        var sessionId = resource.uuid();
-        var agentId = extractAttribute(resource, "ai.agentId");
-        var conversationId = extractAttribute(resource, "ai.conversationId");
-        if (conversationId == null) {
-            conversationId = sessionId;
-        }
-
-        var request = new AiRequest(message, systemPrompt, model,
-                userId, sessionId, agentId, conversationId, Map.of(), history);
-
-        // Attach available tools, dynamically pre-filtered to the most relevant
-        // when maxToolsPerRequest caps a large catalog (Mode Parity with
-        // AiPipeline; <= 0 injects every tool).
-        if (toolRegistry != null && !toolRegistry.allTools().isEmpty()) {
-            request = request.withTools(org.atmosphere.ai.tool.ToolSelection.select(
-                    toolRegistry, message, endpointMaxToolsPerRequest));
-        }
+        var request = turnRequest(message);
+        var userId = request.userId();
+        var agentId = request.agentId();
+        var conversationId = request.conversationId();
 
         // Guardrails: inspect request (pre)
         for (var guardrail : guardrails) {
             try {
-                var result = guardrail.inspectRequest(request);
+                var admitted = admittedScopeResult(guardrail, message);
+                var result = admitted != null ? admitted : guardrail.inspectRequest(request);
                 switch (result) {
                     case AiGuardrail.GuardrailResult.Block block -> {
                         logger.warn("Request blocked by guardrail {}: {}",
