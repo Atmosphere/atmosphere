@@ -543,17 +543,22 @@ class AiEndpointHandlerReattachGraceTest {
      * Atmosphere's close message for {@code suspended}, sent over {@code transport}
      * with {@code reason} as {@code X-Atmosphere-Close-Reason} (none when null),
      * through the default {@link OnDisconnectInterceptor}; the lifecycle it
-     * completes dispatches the suspended resource's event to the handler.
+     * completes dispatches the suspended resource's event to the handler. The
+     * request has the shape atmosphere.js sends: every parameter, the reason
+     * included, in the query string ({@code navigator.sendBeacon} cannot set
+     * headers), turned into headers by the framework as for any HTTP request.
      */
     private void sendCloseMessage(AtmosphereResourceImpl suspended, String transport, String reason)
             throws Exception {
-        var headers = new HashMap<String, String>();
-        headers.put(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.DISCONNECT_TRANSPORT_MESSAGE);
-        headers.put(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, suspended.uuid());
-        if (reason != null) {
-            headers.put(HeaderConfig.X_ATMOSPHERE_CLOSE_REASON, reason);
-        }
-        var closeRequest = new AtmosphereRequestImpl.Builder().method("POST").headers(headers).build();
+        var query = HeaderConfig.X_ATMOSPHERE_TRACKING_ID + "=" + suspended.uuid()
+                + "&X-Atmosphere-Framework=5.0.32"
+                + "&" + HeaderConfig.X_ATMOSPHERE_TRANSPORT + "=" + HeaderConfig.DISCONNECT_TRANSPORT_MESSAGE
+                + (reason == null ? "" : "&" + HeaderConfig.X_ATMOSPHERE_CLOSE_REASON + "=" + reason);
+        var closeRequest = new AtmosphereRequestImpl.Builder()
+                .method("POST").pathInfo("/ai/grace").queryString(query).build();
+        config.framework().configureRequestResponse(closeRequest, AtmosphereResponseImpl.newInstance());
+        assertEquals(reason, closeRequest.getHeader(HeaderConfig.X_ATMOSPHERE_CLOSE_REASON),
+                "the close reason of the query string is a header of the " + transport + " close message");
         var closing = mock(AtmosphereResourceImpl.class);
         when(closing.getRequest(false)).thenReturn(closeRequest);
         when(closing.uuid()).thenReturn(suspended.uuid());
