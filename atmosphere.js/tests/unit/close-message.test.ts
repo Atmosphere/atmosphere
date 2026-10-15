@@ -121,6 +121,8 @@ describe('Atmosphere close message (#2783)', () => {
       // The close message must not ask for a new handshake.
       expect(params(url).has('X-atmo-protocol')).toBe(false);
       expect(init).toMatchObject({ method: 'POST', keepalive: true, credentials: 'same-origin' });
+      // An explicit close is a client leaving: no going-away reason.
+      expect(params(url).has('X-Atmosphere-Close-Reason')).toBe(false);
       expect(beaconCalls()).toHaveLength(0);
     });
 
@@ -243,6 +245,56 @@ describe('Atmosphere close message (#2783)', () => {
       expect(params(urls[0]).get('X-Atmosphere-tracking-id')).toBe('lp-uuid-1');
       expect(closeCalls()).toHaveLength(0);
       expect(sub.state).toBe('connected');
+    });
+
+    it('marks the beacon going-away, as a WebSocket closes with 1001', async () => {
+      await longPolling();
+
+      pagehide();
+
+      const url = beaconCalls()[0];
+      expect(params(url).get('X-Atmosphere-Transport')).toBe('close');
+      expect(params(url).getAll('X-Atmosphere-Close-Reason')).toEqual(['going-away']);
+    });
+
+    it('marks the beacon going-away over SSE and streaming too', async () => {
+      const es: any = { close: vi.fn(), onopen: null, onmessage: null, onerror: null };
+      global.EventSource = vi.fn(function () {
+        setTimeout(() => es.onopen?.({}), 0);
+        return es;
+      }) as unknown as typeof EventSource;
+      fetchMock = vi.fn(() => Promise.resolve(ok()));
+      global.fetch = fetchMock as unknown as typeof fetch;
+      const sse = await subscribe({ transport: 'sse', enableProtocol: true });
+      es.onmessage({ data: 'sse-uuid-5|0|X|' });
+      expect(sse.uuid).toBe('sse-uuid-5');
+
+      const encoder = new TextEncoder();
+      let controller!: ReadableStreamDefaultController<Uint8Array>;
+      const stream = new ReadableStream<Uint8Array>({ start(c) { controller = c; } });
+      fetchMock.mockImplementation((url: string) => {
+        if (String(url).includes(CLOSE)) return Promise.resolve(ok());
+        return Promise.resolve({ ok: true, status: 200, body: stream, headers: new Headers() });
+      });
+      const streaming = await subscribe({ transport: 'streaming', enableProtocol: true });
+      controller.enqueue(encoder.encode('st-uuid-6|0|X|'));
+      await vi.waitFor(() => expect(streaming.uuid).toBe('st-uuid-6'));
+
+      pagehide();
+
+      const reasons = new Map(beaconCalls().map((u) => [
+        params(u).get('X-Atmosphere-tracking-id'), params(u).get('X-Atmosphere-Close-Reason'),
+      ]));
+      expect(reasons).toEqual(new Map([['sse-uuid-5', 'going-away'], ['st-uuid-6', 'going-away']]));
+    });
+
+    it('keeps the going-away reason on the keepalive fetch fallback', async () => {
+      await longPolling();
+      beacon.mockReturnValue(false);
+
+      pagehide();
+
+      expect(params(closeCalls()[0][0]).get('X-Atmosphere-Close-Reason')).toBe('going-away');
     });
 
     it('falls back to a keepalive fetch when sendBeacon refuses the request', async () => {

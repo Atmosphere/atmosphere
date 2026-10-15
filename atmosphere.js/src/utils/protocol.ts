@@ -189,12 +189,20 @@ export class AtmosphereProtocol {
    * whose uuid is the tracking id. Everything rides in the query string
    * because `navigator.sendBeacon` cannot set request headers; the server
    * reads `X-Atmosphere-*` query parameters as headers on HTTP requests.
+   *
+   * With `goingAway`, the message also carries
+   * `X-Atmosphere-Close-Reason=going-away`: the page is being hidden or
+   * unloaded (a reload, a navigation) and may come back, which a WebSocket
+   * tells the server with a 1001 close. Without it the client left on
+   * purpose; a server that does not know the parameter treats both alike.
    */
-  buildCloseUrl(request: AtmosphereRequest): string {
+  buildCloseUrl(request: AtmosphereRequest, goingAway = false): string {
     // `close` is a wire value of X-Atmosphere-Transport, not a transport the
     // client can open, so it is not part of the TransportType union.
     const transport = 'close' as unknown as AtmosphereRequest['transport'];
-    return this.buildUrl({ ...request, transport, enableProtocol: false });
+    const url = this.buildUrl({ ...request, transport, enableProtocol: false });
+    // Last, so it wins over a request header of the same name.
+    return goingAway ? `${url}&X-Atmosphere-Close-Reason=going-away` : url;
   }
 
   /**

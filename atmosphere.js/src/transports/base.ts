@@ -96,13 +96,15 @@ export abstract class BaseTransport<T = unknown> {
    * URL of Atmosphere's close message for this connection, or `null` when
    * there is none to send: the transport does not need one
    * ({@link needsCloseMessage}), or no handshake has assigned a tracking id
-   * yet (uuid `'0'`), so there is no server resource to name.
+   * yet (uuid `'0'`), so there is no server resource to name. `goingAway`
+   * marks the message sent as the page is hidden or unloaded
+   * ({@link AtmosphereProtocol.buildCloseUrl}).
    */
-  closeMessageUrl(): string | null {
+  closeMessageUrl(goingAway = false): string | null {
     if (!this.needsCloseMessage || this.protocol.uuid === '0') {
       return null;
     }
-    return this.protocol.buildCloseUrl(this.request);
+    return this.protocol.buildCloseUrl(this.request, goingAway);
   }
 
   /** Whether this connection has opened at least once. */

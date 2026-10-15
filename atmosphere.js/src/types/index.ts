@@ -270,7 +270,10 @@ export interface Subscription {
    * `AtmosphereResource`; nothing is sent while {@link uuid} is `'0'` (no
    * `enableProtocol` handshake). While the subscription is open, a `pagehide`
    * listener sends the same message with `navigator.sendBeacon` when the page
-   * is hidden or unloaded; `close()` removes it. WebSocket and WebTransport
+   * is hidden or unloaded, marked `X-Atmosphere-Close-Reason=going-away` (a
+   * reload or navigation that may come back, as a WebSocket's 1001 close;
+   * `close()` sends no reason: the client left); `close()` removes the
+   * listener. WebSocket and WebTransport
    * send no extra request: closing the socket tells the server. Calling
    * `close()` again sends nothing more, and a failed close message is logged
    * at debug level, never thrown.

@@ -164,6 +164,12 @@ the server's default `OnDisconnectInterceptor` answers by releasing the
 `AtmosphereResource`. While the subscription is open, a `pagehide` listener
 sends the same message with `navigator.sendBeacon` (falling back to a
 `keepalive` fetch) when the page is hidden or unloaded; `close()` removes it.
+The beacon adds `X-Atmosphere-Close-Reason=going-away`: the page is reloading
+or navigating and may come back, which is what a WebSocket's 1001 close tells
+the server, while the message `close()` sends has no reason, a client that
+left. The server exposes the reason to its disconnect listeners (an AI run is
+kept going for its reattach grace on a going-away, cancelled at once on a
+leave); a server that predates it treats both alike.
 No message is sent while `uuid` is `'0'`, so it requires `enableProtocol: true`.
 WebSocket and WebTransport send none: closing the socket tells the server. A
 second `close()` sends nothing, and a failed close message is logged at debug

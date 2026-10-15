@@ -186,15 +186,18 @@ export class Atmosphere {
     // HTTP transport leaves behind (see BaseTransport.needsCloseMessage). It
     // is sent by close() and, as a beacon, when the page is hidden or
     // unloaded: `pagehide` rather than `unload`, which browsers no longer
-    // reliably fire. Only browsers (window with addEventListener) get the
-    // listener; React Native and Node have no page lifecycle.
+    // reliably fire. The beacon is marked going-away — a reload or navigation
+    // that may come back, as a WebSocket's 1001 close — so the server tells it
+    // from close(), a client that left. Only browsers (window with
+    // addEventListener) get the listener; React Native and Node have no page
+    // lifecycle.
     const withCredentials = mergedRequest.withCredentials;
     let closed = false;
     let pageHideListener: (() => void) | null = null;
     if (currentTransport.needsCloseMessage && typeof window !== 'undefined'
         && typeof window.addEventListener === 'function') {
       pageHideListener = () => {
-        const url = currentTransport.closeMessageUrl();
+        const url = currentTransport.closeMessageUrl(true);
         if (url !== null) {
           sendCloseMessage(url, { beacon: true, withCredentials });
         }
