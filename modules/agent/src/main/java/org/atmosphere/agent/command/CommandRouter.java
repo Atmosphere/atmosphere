@@ -111,6 +111,42 @@ public final class CommandRouter {
     }
 
     /**
+     * Whether {@link #route} would answer {@code message} itself rather than
+     * return {@link CommandResult.NotACommand}: a registered command or
+     * {@code /help}, or a yes / no answering a confirmation still pending for
+     * {@code clientId}. Nothing is executed or consumed, so a caller can make
+     * sure it has somewhere to send the answer before routing the message. A
+     * pending confirmation may expire in between: {@code route} then returns
+     * {@code NotACommand}.
+     *
+     * @param clientId the unique client identifier (must not be null)
+     * @param message  the raw message text
+     */
+    public boolean handles(String clientId, String message) {
+        if (clientId == null) {
+            throw new IllegalArgumentException("clientId must not be null");
+        }
+        if (message == null || message.isBlank()) {
+            return false;
+        }
+        var trimmed = message.trim();
+        if (isConfirmation(trimmed)) {
+            var pendingCmd = pending.get(clientId);
+            if (pendingCmd != null && !isExpired(pendingCmd)) {
+                return true;
+            }
+        }
+        if (isDenial(trimmed) && pending.containsKey(clientId)) {
+            return true;
+        }
+        if (!trimmed.startsWith("/")) {
+            return false;
+        }
+        var prefix = commandPrefix(trimmed);
+        return "/help".equals(prefix) || registry.lookup(prefix).isPresent();
+    }
+
+    /**
      * Returns the number of pending confirmations (visible for testing).
      */
     int pendingCount() {
@@ -142,9 +178,7 @@ public final class CommandRouter {
 
         // Parse command prefix and args, stripping @botname suffix (Telegram sends /help@BotName)
         var spaceIndex = trimmed.indexOf(' ');
-        var rawPrefix = spaceIndex > 0 ? trimmed.substring(0, spaceIndex) : trimmed;
-        var atIndex = rawPrefix.indexOf('@');
-        var prefix = atIndex > 0 ? rawPrefix.substring(0, atIndex) : rawPrefix;
+        var prefix = commandPrefix(trimmed);
         var args = spaceIndex > 0 ? trimmed.substring(spaceIndex + 1).trim() : "";
 
         // Handle built-in /help
@@ -220,6 +254,17 @@ public final class CommandRouter {
             }
             return false;
         });
+    }
+
+    /**
+     * The command prefix of a trimmed {@code /}-message, without its
+     * {@code @botname} suffix (Telegram sends /help@BotName).
+     */
+    private static String commandPrefix(String trimmed) {
+        var spaceIndex = trimmed.indexOf(' ');
+        var rawPrefix = spaceIndex > 0 ? trimmed.substring(0, spaceIndex) : trimmed;
+        var atIndex = rawPrefix.indexOf('@');
+        return atIndex > 0 ? rawPrefix.substring(0, atIndex) : rawPrefix;
     }
 
     private boolean isConfirmation(String message) {

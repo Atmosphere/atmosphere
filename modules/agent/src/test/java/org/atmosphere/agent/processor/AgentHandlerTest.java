@@ -29,6 +29,7 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.RawMessage;
 import org.atmosphere.util.PayloadTooLargeException;
@@ -40,6 +41,9 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -352,6 +356,7 @@ public class AgentHandlerTest {
         when(resource.uuid()).thenReturn("client-1");
         when(request.getMethod()).thenReturn("POST");
         when(request.body()).thenReturn(new AtmosphereRequestImpl.Body.StringBody("/echo test"));
+        var connection = senderConnection(aiDelegate, resource, AtmosphereResource.TRANSPORT.WEBSOCKET);
 
         handler.onRequest(resource);
 
@@ -359,6 +364,7 @@ public class AgentHandlerTest {
         assertNull(agent.lastReceived.get(),
                 "@Message should not be invoked when a command matches");
         verify(aiDelegate, never()).onRequest(any());
+        assertTrue(framesTo(connection).stream().anyMatch(frame -> frame.contains("echoed: test")));
     }
 
     @Test
@@ -446,6 +452,32 @@ public class AgentHandlerTest {
         return resource;
     }
 
+    /**
+     * The connection {@code aiDelegate} resolves {@code post}'s sender to, over
+     * {@code transport}; its broadcaster records the frames sent to it.
+     */
+    private static AtmosphereResource senderConnection(AiEndpointHandler aiDelegate, AtmosphereResource post,
+                                                       AtmosphereResource.TRANSPORT transport) {
+        var connection = mock(AtmosphereResource.class);
+        var broadcaster = mock(Broadcaster.class);
+        var broadcasterConfig = mock(BroadcasterConfig.class);
+        when(broadcasterConfig.filters()).thenReturn(List.of());
+        when(broadcaster.getBroadcasterConfig()).thenReturn(broadcasterConfig);
+        when(connection.getBroadcaster()).thenReturn(broadcaster);
+        when(connection.uuid()).thenReturn("connection-of-client-1");
+        when(connection.transport()).thenReturn(transport);
+        when(aiDelegate.resolveSender(post)).thenReturn(Optional.of(connection));
+        return connection;
+    }
+
+    /** The frames sent to {@code connection} alone. */
+    private static List<String> framesTo(AtmosphereResource connection) {
+        var frames = ArgumentCaptor.forClass(Object.class);
+        verify(connection.getBroadcaster(), atLeastOnce()).broadcast(frames.capture(), eq(Set.of(connection)));
+        verify(connection.getBroadcaster(), never()).broadcast(any());
+        return frames.getAllValues().stream().map(frame -> ((RawMessage) frame).message().toString()).toList();
+    }
+
     @Test
     public void testStreamedCommandIsRouted() throws IOException {
         var agent = new TestHandlerAgent();
@@ -454,13 +486,39 @@ public class AgentHandlerTest {
         registry.scan(TestHandlerAgent.class);
         var handler = new AgentHandler(aiDelegate, new CommandRouter(registry, agent), agent, null);
         var resource = resourceFor(streamedPost("/ping"), mock(AtmosphereConfig.class));
+        var connection = senderConnection(aiDelegate, resource, AtmosphereResource.TRANSPORT.SSE);
 
         handler.onRequest(resource);
 
-        var written = ArgumentCaptor.forClass(String.class);
-        verify(resource, atLeastOnce()).write(written.capture());
-        assertTrue(written.getAllValues().stream().anyMatch(frame -> frame.contains("pong")),
-                "the /ping command must answer: " + written.getAllValues());
+        var frames = framesTo(connection);
+        assertTrue(frames.stream().anyMatch(frame -> frame.contains("pong")),
+                "the /ping command must answer on the sender's connection: " + frames);
+        verify(resource, never()).write(anyString());
+        verify(aiDelegate, never()).onRequest(any());
+    }
+
+    @Test
+    public void testCommandIsNotRunWhenItsSenderCannotBeAnswered() throws IOException {
+        var runs = new java.util.concurrent.atomic.AtomicInteger();
+        var aiDelegate = mock(AiEndpointHandler.class);
+        var registry = new CommandRegistry();
+        registry.scan(TestHandlerAgent.class);
+        var target = new TestHandlerAgent() {
+            @Override
+            public String ping() {
+                runs.incrementAndGet();
+                return super.ping();
+            }
+        };
+        var handler = new AgentHandler(aiDelegate, new CommandRouter(registry, target), target, null);
+        var resource = resourceFor(streamedPost("/ping"), mock(AtmosphereConfig.class));
+        // The delegate refused the POST (400 / 503 / an error frame): no connection.
+        when(aiDelegate.resolveSender(resource)).thenReturn(Optional.empty());
+
+        handler.onRequest(resource);
+
+        assertEquals(0, runs.get(), "a command refused for a retry must not have run");
+        verify(resource, never()).write(anyString());
         verify(aiDelegate, never()).onRequest(any());
     }
 
@@ -539,12 +597,12 @@ public class AgentHandlerTest {
         when(request.body()).thenReturn(new AtmosphereRequestImpl.Body.StringBody("/ping"));
         // No AtmosphereConfig: a WebSocket frame is taken as cached, without the HTTP read.
         var resource = resourceFor(request, null);
+        var connection = senderConnection(aiDelegate, resource, AtmosphereResource.TRANSPORT.WEBSOCKET);
 
         handler.onRequest(resource);
 
-        var written = ArgumentCaptor.forClass(String.class);
-        verify(resource, atLeastOnce()).write(written.capture());
-        assertTrue(written.getAllValues().stream().anyMatch(frame -> frame.contains("pong")));
+        assertTrue(framesTo(connection).stream().anyMatch(frame -> frame.contains("pong")));
+        verify(resource, never()).write(anyString());
         verify(aiDelegate, never()).onRequest(any());
     }
 }

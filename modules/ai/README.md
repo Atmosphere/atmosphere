@@ -710,6 +710,10 @@ prompt waits for that client's next poll and is answered `503` with `Retry-After
 A poll that has just returned counts as no connection too, even while the server
 still lists it: a prompt runs only on a connection that is still suspended and
 whose request the container has not recycled.
+A slash command of an `@Agent` (or of an `@AiEndpoint` with `@Command` methods)
+is routed the same way before it runs, and its answer is delivered on the
+resolved connection like a reply (see the `atmosphere-agent`
+[README](../agent/README.md#where-a-command-answer-goes)).
 In a multi-node deployment, SSE, streaming and long-polling clients of an
 `@AiEndpoint` need session affinity (on the tracking id or a cookie): a prompt POST
 that reaches a node without its sender's connection is answered `503` there, and is

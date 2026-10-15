@@ -15,11 +15,10 @@
  */
 package org.atmosphere.agent.processor;
 
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.agent.command.CommandResult;
 import org.atmosphere.agent.command.CommandRouter;
 import org.atmosphere.agent.session.AgentSessionRegistry;
+import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.ai.processor.AiEndpointHandler;
 import org.atmosphere.config.managed.Invoker;
 import org.atmosphere.config.service.Message;
@@ -42,7 +41,6 @@ import java.lang.reflect.Method;
 import java.nio.charset.CharacterCodingException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * {@link AtmosphereHandler} that wraps an {@link AiEndpointHandler} with
@@ -53,7 +51,6 @@ public class AgentHandler extends AbstractReflectorAtmosphereHandler
         implements AtmosphereResourceHeartbeatEventListener, org.atmosphere.ai.HandoffTarget {
 
     private static final Logger logger = LoggerFactory.getLogger(AgentHandler.class);
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final AiEndpointHandler aiDelegate;
     private final CommandRouter commandRouter;
@@ -161,24 +158,34 @@ public class AgentHandler extends AbstractReflectorAtmosphereHandler
             if (msg != null) {
                 // Try command routing first
                 var clientId = resource.uuid();
-                var result = commandRouter.route(clientId, msg);
-
-                switch (result) {
-                    case CommandResult.Executed exec -> {
-                        logger.debug("Command executed for client {}: {}",
-                                clientId, exec.response().substring(
-                                        0, Math.min(exec.response().length(), 80)));
-                        sendCommandResponse(resource, exec.response());
+                if (commandRouter.handles(clientId, msg)) {
+                    // The answer goes to the sender's connection, which must be
+                    // found before the command runs: when none resolves the
+                    // message was refused (400 / 503 / an error frame), and a
+                    // client that sends it again must not run it twice.
+                    var sender = aiDelegate.resolveSender(resource);
+                    if (sender.isEmpty()) {
                         return;
                     }
-                    case CommandResult.ConfirmationRequired confirm -> {
-                        logger.debug("Confirmation required for client {}: {}",
-                                clientId, confirm.prompt());
-                        sendCommandResponse(resource, confirm.prompt());
-                        return;
-                    }
-                    case CommandResult.NotACommand ignored -> {
-                        // Fall through to @Message or AI pipeline
+                    var result = commandRouter.route(clientId, msg);
+                    switch (result) {
+                        case CommandResult.Executed exec -> {
+                            logger.debug("Command executed for client {}: {}",
+                                    clientId, exec.response().substring(
+                                            0, Math.min(exec.response().length(), 80)));
+                            sendCommandResponse(sender.get(), exec.response());
+                            return;
+                        }
+                        case CommandResult.ConfirmationRequired confirm -> {
+                            logger.debug("Confirmation required for client {}: {}",
+                                    clientId, confirm.prompt());
+                            sendCommandResponse(sender.get(), confirm.prompt());
+                            return;
+                        }
+                        case CommandResult.NotACommand ignored -> {
+                            // A confirmation that expired meanwhile: fall through
+                            // to @Message or the AI pipeline
+                        }
                     }
                 }
 
@@ -215,24 +222,23 @@ public class AgentHandler extends AbstractReflectorAtmosphereHandler
     }
 
     /**
-     * Sends a command response directly to the requesting client only (unicast).
-     * Uses {@code resource.write()} instead of broadcaster to avoid leaking
-     * command responses to other subscribers on the same path.
+     * Sends a command response to the requesting client only, never to the other
+     * subscribers of the path, as a reply of its own: a {@code streaming-text}
+     * frame and a {@code complete} frame under a fresh session id, so a client
+     * that tracks frames by session id and sequence takes each command's answer
+     * as a new reply.
+     *
+     * <p>{@code connection} is the sender's connection ({@link
+     * AiEndpointHandler#resolveSender}), not the POST that carried the command,
+     * whose response an SSE or long-polling client does not read. The reply is
+     * delivered like an AI reply: through the path broadcaster's filters to that
+     * connection over WebSocket and SSE, and over long-polling kept whole for the
+     * client's next poll.</p>
      */
-    private void sendCommandResponse(AtmosphereResource resource, String response) {
-        var sessionId = "cmd-" + resource.uuid();
-        try {
-            var tokenJson = MAPPER.writeValueAsString(
-                    Map.of("type", "streaming-text", "data", response,
-                            "sessionId", sessionId, "seq", 0));
-            resource.write(tokenJson);
-
-            var completeJson = MAPPER.writeValueAsString(
-                    Map.of("type", "complete", "sessionId", sessionId, "seq", 1));
-            resource.write(completeJson);
-        } catch (JacksonException e) {
-            logger.error("Failed to serialize command response: {}", e.getMessage(), e);
-        }
+    private void sendCommandResponse(AtmosphereResource connection, String response) {
+        var session = StreamingSessions.start(connection);
+        session.send(response);
+        session.complete();
     }
 
     /**

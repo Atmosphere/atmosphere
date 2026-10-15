@@ -376,4 +376,38 @@ public class CommandRouterTest {
                 "Error should mention missing platform context, got: " + response);
         assertNull(agent.lastWhoami, "@Command must not have been invoked");
     }
+
+    @Test
+    public void handlesTellsWhatRouteWouldAnswerWithoutRunningIt() {
+        var runs = new AtomicInteger();
+        var registry = new CommandRegistry();
+        registry.scan(TestAgent.class);
+        var counting = new CommandRouter(registry, new TestAgent() {
+            @Override
+            public String status() {
+                runs.incrementAndGet();
+                return super.status();
+            }
+        });
+
+        assertTrue(counting.handles("client-1", "/status"));
+        assertTrue(counting.handles("client-1", "  /status@MyBot extra"));
+        assertTrue(counting.handles("client-1", "/help"));
+        assertFalse(counting.handles("client-1", "/unknown"));
+        assertFalse(counting.handles("client-1", "hello"));
+        assertFalse(counting.handles("client-1", "   "));
+        assertFalse(counting.handles("client-1", null));
+        // No confirmation pending: a yes / no is a plain message.
+        assertFalse(counting.handles("client-1", "yes"));
+        assertFalse(counting.handles("client-1", "no"));
+        assertEquals(0, runs.get(), "handles must not run a command");
+
+        assertInstanceOf(CommandResult.ConfirmationRequired.class, counting.route("client-1", "/reset"));
+        assertTrue(counting.handles("client-1", "yes"));
+        assertTrue(counting.handles("client-1", "cancel"));
+        assertFalse(counting.handles("client-2", "yes"), "another client's confirmation is not pending");
+        assertEquals(1, counting.pendingCount(), "handles must not consume the pending confirmation");
+        assertInstanceOf(CommandResult.Executed.class, counting.route("client-1", "yes"));
+        assertFalse(counting.handles("client-1", "yes"));
+    }
 }

@@ -1858,6 +1858,56 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     }
 
     /**
+     * The connection of this endpoint that sent {@code post}, resolved the way a
+     * prompt's is: the WebSocket connection a frame arrived on, or the SSE /
+     * long-polling connection the POST's {@link HeaderConfig#X_ATMOSPHERE_TRACKING_ID}
+     * header names, suspended by this endpoint under the sender's identity. A
+     * long-polling client that posted between two polls is waited for, as its
+     * prompt would be. A handler that answers a POST itself (an {@code @Agent}
+     * slash command) replies on this connection: an SSE or long-polling client
+     * does not read the POST's own response.
+     *
+     * <p>When no connection resolves, {@code post} is answered as a prompt is: a
+     * WebSocket frame with a terminal error frame over its socket, a POST naming
+     * no well-formed tracking id {@code 400}, one whose connection did not come
+     * back in time {@code 503} with {@code Retry-After: 1}. The result is then
+     * empty, and the caller must not act on the message.</p>
+     *
+     * @param post the POST or WebSocket frame that carried the message
+     * @return the sender's connection, or empty when {@code post} was refused
+     */
+    public Optional<AtmosphereResource> resolveSender(AtmosphereResource post) {
+        var since = System.nanoTime();
+        var target = findOriginatingResource(post);
+        if (target != null) {
+            return Optional.of(target);
+        }
+        if (post.getRequest().getAttribute(FrameworkConfig.WEBSOCKET_MESSAGE) != null) {
+            refuseWebSocketFrame(post);
+            return Optional.empty();
+        }
+        var trackingId = headerTrackingId(post.getRequest());
+        if (trackingId == null || !isWellFormedTrackingId(trackingId)) {
+            // Not logged with the id: it is untrusted input.
+            logger.warn("Message on {} names no connection with a well-formed {}; answering 400",
+                    pathTemplate, HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
+            post.getResponse().setStatus(400);
+            return Optional.empty();
+        }
+        var outcome = repollGate.await(trackingId, since,
+                () -> resolveTrackingId(post, trackingId), post.getAtmosphereConfig());
+        if (outcome.target() == null) {
+            logger.warn("No connection of {} on {} could take the reply to its message ({}); answering 503",
+                    trackingId, pathTemplate, outcome.refusal());
+            var response = post.getResponse();
+            response.setHeader("Retry-After", "1");
+            response.setStatus(503);
+            return Optional.empty();
+        }
+        return Optional.of(outcome.target());
+    }
+
+    /**
      * Writes a long-polling reply's parked frames to {@code poll}, a poll this
      * handler answers without suspending it, each frame through the AsyncIOWriter
      * chain on its own (so each is length-delimited). The poll is then marked
