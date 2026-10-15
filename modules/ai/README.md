@@ -684,7 +684,9 @@ attach it to the framework before the endpoint scan, and close it with the conte
 it with the framework; on a plain servlet the first `@AiEndpoint`, `@Agent` or `@Coordinator` that
 registers (or the Kotlin `registerAgent` DSL) creates it from the framework's init-params, and the
 framework's destroy closes it. Closing
-one drops its runtime instances; the other applications are untouched. Framework code reads it with
+one drops its runtime instances and shuts down the HTTP clients of the LLM settings it built itself
+(not a client the application installed or gave it, nor one the process default still hands out); the
+other applications are untouched. Framework code reads it with
 `AiEnvironment.of(framework.getAtmosphereConfig())` (or `of(resource.getAtmosphereConfig())`).
 
 The static API (`AiConfig.get()`, `AiConfig.knob(...)`, `AiConfig.configure(...)`,

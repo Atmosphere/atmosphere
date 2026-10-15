@@ -75,6 +75,8 @@ public class OpenAiCompatibleClient implements LlmClient {
     private final String baseUrl;
     private final String apiKey;
     private final HttpClient httpClient;
+    /** Whether {@link #httpClient} was built by this client's builder, not given to it. */
+    private final boolean ownsHttpClient;
     private final Duration timeout;
     private final RetryPolicy retryPolicy;
     /**
@@ -126,7 +128,7 @@ public class OpenAiCompatibleClient implements LlmClient {
             });
 
     private OpenAiCompatibleClient(String baseUrl, String apiKey, HttpClient httpClient,
-                                   Duration timeout, RetryPolicy retryPolicy,
+                                   boolean ownsHttpClient, Duration timeout, RetryPolicy retryPolicy,
                                    java.util.Map<String, String> customHeaders,
                                    org.atmosphere.ai.GenerationParams generation,
                                    PromptCacheKeyMode promptCacheKeyMode,
@@ -134,6 +136,7 @@ public class OpenAiCompatibleClient implements LlmClient {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         this.apiKey = apiKey;
         this.httpClient = httpClient;
+        this.ownsHttpClient = ownsHttpClient;
         this.timeout = timeout;
         this.retryPolicy = retryPolicy;
         this.customHeaders = customHeaders;
@@ -202,6 +205,23 @@ public class OpenAiCompatibleClient implements LlmClient {
      */
     String baseUrl() {
         return baseUrl;
+    }
+
+    /**
+     * Start an orderly shutdown of the HTTP client this client built: requests
+     * already sent run to completion, new ones are refused. An HTTP client
+     * given to the builder ({@link Builder#httpClient}) belongs to the caller
+     * and is left open. Does not block.
+     */
+    public void shutdown() {
+        if (ownsHttpClient) {
+            httpClient.shutdown();
+        }
+    }
+
+    /** The HTTP client requests are sent with; visible for tests. */
+    HttpClient httpClient() {
+        return httpClient;
     }
 
     /**
@@ -1891,8 +1911,8 @@ public class OpenAiCompatibleClient implements LlmClient {
                     : org.atmosphere.ai.AiConfig.resolvePromptCacheKeyMode();
             var logprobs = this.logprobsMode != null ? this.logprobsMode
                     : org.atmosphere.ai.AiConfig.resolveLogprobsMode();
-            return new OpenAiCompatibleClient(baseUrl, apiKey, client, timeout, policy,
-                    java.util.Map.copyOf(customHeaders), generation, cacheKeyMode, logprobs);
+            return new OpenAiCompatibleClient(baseUrl, apiKey, client, this.httpClient == null,
+                    timeout, policy, java.util.Map.copyOf(customHeaders), generation, cacheKeyMode, logprobs);
         }
     }
 }

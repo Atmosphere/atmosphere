@@ -17,12 +17,14 @@ package org.atmosphere.ai;
 
 import org.atmosphere.ai.llm.LlmClient;
 import org.atmosphere.ai.llm.LogprobsMode;
+import org.atmosphere.ai.llm.OpenAiCompatibleClient;
 import org.atmosphere.ai.llm.PromptCacheKeyMode;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -136,6 +138,14 @@ public final class AiEnvironment implements AutoCloseable {
     private volatile GenerationParams ownPinned = GenerationParams.defaults();
     /** Per-agent settings; bounded by the number of agents of this application. */
     private final ConcurrentHashMap<String, AiConfig.LlmSettings> agentSettings = new ConcurrentHashMap<>();
+    /**
+     * The settings this environment built itself and made its own, so
+     * {@link #close()} shuts down their client while they are still its own;
+     * written with {@link #ownSettings}, under {@link #lock}.
+     */
+    private volatile AiConfig.LlmSettings builtSettings;
+    /** The agent settings {@link #configureForAgent} built, by agent; bounded like {@link #agentSettings}. */
+    private final ConcurrentHashMap<String, AiConfig.LlmSettings> builtAgentSettings = new ConcurrentHashMap<>();
     private final AgentRuntimeRegistry runtimes;
     private final EmbeddingRuntimeRegistry embeddings;
     /** The workspace whose {@code RUNTIME.md} seeded this environment's settings, if any. */
@@ -486,8 +496,16 @@ public final class AiEnvironment implements AutoCloseable {
      * holds; no new runtime is resolved for it). When the process default's
      * settings are this environment's (a static {@code AiConfig.configure}
      * wrote both), they become the latest remaining environment's own, so the
-     * static API stops returning a closed application's settings. Native clients bound by the application are not
-     * closed: they belong to it. The process default is never closed.
+     * static API stops returning a closed application's settings. The clients of
+     * the settings this environment built itself ({@link #configure},
+     * {@link #settingsOrEnvironment()}, {@link #configureForAgent}) and still
+     * holds are shut down ({@link OpenAiCompatibleClient#shutdown()}: a request
+     * already sent completes, a later one, such as a call's next tool round,
+     * fails), unless the process default now holds those settings. Clients it
+     * was given ({@link #installClient}, {@link #adopt}, settings a static
+     * {@code AiConfig} mutator built) and native clients bound by the
+     * application are not: they belong to the caller. The process default is
+     * never closed.
      */
     @Override
     public void close() {
@@ -505,6 +523,7 @@ public final class AiEnvironment implements AutoCloseable {
             config.properties().remove(PROPERTY, this);
         }
         var own = ownSettings;
+        AiConfig.LlmSettings processOwn;
         PROCESS_DEFAULT.lock.lock();
         try {
             if (own != null && PROCESS_DEFAULT.own() == own) {
@@ -518,9 +537,20 @@ public final class AiEnvironment implements AutoCloseable {
                     PROCESS_DEFAULT.store(survivor.ownSettings, survivor.ownPinned);
                 }
             }
+            processOwn = PROCESS_DEFAULT.own();
         } finally {
             PROCESS_DEFAULT.lock.unlock();
         }
+        var builtHere = new ArrayList<AiConfig.LlmSettings>();
+        var built = builtSettings;
+        if (built != null && built == own && built != processOwn) {
+            builtHere.add(built);
+        }
+        builtAgentSettings.forEach((agentId, agentBuilt) -> {
+            if (agentSettings.get(agentId) == agentBuilt) {
+                builtHere.add(agentBuilt);
+            }
+        });
         var installed = pushed;
         if (installed != null) {
             installed.close();
@@ -528,6 +558,13 @@ public final class AiEnvironment implements AutoCloseable {
         runtimes.clear();
         embeddings.clear();
         agentSettings.clear();
+        builtAgentSettings.clear();
+        builtSettings = null;
+        for (var settings : builtHere) {
+            if (settings.client() instanceof OpenAiCompatibleClient client) {
+                client.shutdown();
+            }
+        }
         logger.debug("AI environment {} closed", name);
     }
 
@@ -718,7 +755,7 @@ public final class AiEnvironment implements AutoCloseable {
                                           GenerationParams pinned) {
         var pins = pinned != null ? pinned : GenerationParams.defaults();
         var built = buildSettings(mode, model, apiKey, baseUrl, pins);
-        own(built, pins);
+        own(built, pins, true);
         return built;
     }
 
@@ -740,7 +777,7 @@ public final class AiEnvironment implements AutoCloseable {
                         + "there is no resolved client to wrap");
             }
             var installed = AiConfig.withClient(current, client);
-            own(installed, pinned());
+            own(installed, pinned(), false);
             logger.info("AI environment {}: installed client {} (model={}, mode={})", name,
                     client.getClass().getSimpleName(), current.model(), current.mode());
             return installed;
@@ -757,13 +794,14 @@ public final class AiEnvironment implements AutoCloseable {
      */
     public void adopt(AiConfig.LlmSettings adopted) {
         Objects.requireNonNull(adopted, "settings");
-        own(adopted, GenerationParams.defaults());
+        own(adopted, GenerationParams.defaults(), false);
     }
 
-    private void own(AiConfig.LlmSettings built, GenerationParams pins) {
+    private void own(AiConfig.LlmSettings settings, GenerationParams pins, boolean builtHere) {
         lock.lock();
         try {
-            store(built, pins);
+            store(settings, pins);
+            builtSettings = builtHere ? settings : null;
         } finally {
             lock.unlock();
         }
@@ -792,6 +830,7 @@ public final class AiEnvironment implements AutoCloseable {
             if (current == null) {
                 current = buildFromCoordinates();
                 store(current, GenerationParams.defaults());
+                builtSettings = current;
             }
             return current;
         } finally {
@@ -886,6 +925,7 @@ public final class AiEnvironment implements AutoCloseable {
         Objects.requireNonNull(agentId, "agentId");
         var built = buildSettings(mode, model, apiKey, baseUrl, pinned);
         agentSettings.put(agentId, built);
+        builtAgentSettings.put(agentId, built);
         configLogger.info("AI config scoped to agent '{}': mode={}, model={}", agentId, mode, model);
         return built;
     }
@@ -935,6 +975,7 @@ public final class AiEnvironment implements AutoCloseable {
     public void resetAgent(String agentId) {
         if (agentId != null) {
             agentSettings.remove(agentId);
+            builtAgentSettings.remove(agentId);
         }
     }
 
