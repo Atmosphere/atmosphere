@@ -15,15 +15,20 @@
  */
 package org.atmosphere.interceptor;
 
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletContext;
+import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +37,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.util.Enumeration;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -227,6 +233,67 @@ class OnDisconnectInterceptorTest {
         verify(suspendedEvent).isClosedByClient(true);
         verify(suspendedEvent, never()).closedGoingAway(true);
         verify(asyncSupport).completeLifecycle(suspended, false);
+    }
+
+    /**
+     * The close message as atmosphere.js sends it: {@code navigator.sendBeacon}
+     * cannot set headers, so everything, the reason included, rides in the query
+     * string, which the framework turns into headers before the interceptor runs.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void theCloseReasonOfTheBeaconQueryStringReachesTheEvent(boolean goingAway) throws Exception {
+        var framework = new AtmosphereFramework();
+        framework.setAsyncSupport(new BlockingIOCometSupport(framework.getAtmosphereConfig()));
+        framework.init(servletConfig());
+        try {
+            var query = "X-Atmosphere-tracking-id=suspended-uuid&X-Atmosphere-Framework=5.0.32"
+                    + "&X-Atmosphere-Transport=close"
+                    + (goingAway ? "&X-Atmosphere-Close-Reason=going-away" : "");
+            AtmosphereRequest beacon = new AtmosphereRequestImpl.Builder()
+                    .method("POST").pathInfo("/chat").queryString(query).build();
+            framework.configureRequestResponse(beacon, AtmosphereResponseImpl.newInstance());
+            assertEquals("", beacon.getQueryString(), "the X-Atmosphere parameters are moved to headers");
+
+            var suspended = mock(AtmosphereResourceImpl.class);
+            var suspendedEvent = new AtmosphereResourceEventImpl(suspended, false, false);
+            var asyncSupport = closeMessageFor(suspended, suspendedEvent, mock(AtmosphereResourceEventImpl.class));
+            when(resource.getRequest(false)).thenReturn(beacon);
+
+            assertEquals(Action.CANCELLED, interceptor.inspect(resource));
+
+            assertTrue(suspendedEvent.isClosedByClient());
+            assertEquals(goingAway, suspendedEvent.closedGoingAway(),
+                    goingAway ? "the beacon's going-away reason marks the event"
+                            : "a close message without a reason is a leave");
+            verify(asyncSupport).completeLifecycle(suspended, false);
+        } finally {
+            framework.destroy();
+        }
+    }
+
+    private static ServletConfig servletConfig() {
+        return new ServletConfig() {
+            @Override
+            public String getServletName() {
+                return "void";
+            }
+
+            @Override
+            public ServletContext getServletContext() {
+                return mock(ServletContext.class);
+            }
+
+            @Override
+            public String getInitParameter(String name) {
+                return null;
+            }
+
+            @Override
+            public Enumeration<String> getInitParameterNames() {
+                return null;
+            }
+        };
     }
 
     /** A close message from {@link #resource} naming the distinct {@code suspended} resource. */
