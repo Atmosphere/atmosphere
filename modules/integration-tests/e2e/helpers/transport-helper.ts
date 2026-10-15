@@ -3,7 +3,7 @@ import { EventSource } from 'eventsource';
 
 /**
  * Raw WebSocket client for testing Atmosphere endpoints without a browser.
- * Similar to the connectAtmosphere() helper in durable-sessions.spec.ts
+ * Similar to connectDurableChat() in durable-chat-client.ts
  * but with explicit transport header support.
  */
 export function connectWebSocket(

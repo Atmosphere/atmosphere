@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
-import WebSocket from 'ws';
+import { connectDurableChat, waitFor } from './helpers/durable-chat-client';
 
 let server: SampleServer;
 
@@ -13,51 +13,17 @@ test.afterAll(async () => {
   await server?.stop();
 });
 
-/** Open an Atmosphere WebSocket connection with optional session token. */
-function connectAtmosphere(
-  baseUrl: string,
-  opts?: { sessionToken?: string },
-): Promise<{ ws: WebSocket; messages: string[]; close: () => void }> {
-  return new Promise((resolve, reject) => {
-    const wsUrl = baseUrl.replace('http', 'ws') + '/atmosphere/chat';
-    const headers: Record<string, string> = {};
-    if (opts?.sessionToken) {
-      headers['X-Atmosphere-Session-Token'] = opts.sessionToken;
-    }
-    const ws = new WebSocket(wsUrl, { headers });
-    const messages: string[] = [];
-
-    ws.on('message', (data) => {
-      const text = data.toString().trim();
-      if (text) messages.push(text);
-    });
-    ws.on('open', () => resolve({ ws, messages, close: () => ws.close() }));
-    ws.on('error', reject);
-    setTimeout(() => reject(new Error('WebSocket connect timeout')), 10_000);
-  });
-}
-
-/** Wait for a condition with polling. */
-async function waitFor(fn: () => boolean, timeoutMs = 15_000): Promise<void> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    if (fn()) return;
-    await new Promise(r => setTimeout(r, 200));
-  }
-  throw new Error(`waitFor timed out after ${timeoutMs}ms`);
-}
-
 test.describe('Session Token Expiry', () => {
 
   test('fresh connection works without token', async () => {
-    const conn = await connectAtmosphere(server.baseUrl);
+    const conn = await connectDurableChat(server.baseUrl);
     conn.ws.send(JSON.stringify({ author: 'Fresh', message: 'no-token' }));
     await waitFor(() => conn.messages.some(m => m.includes('no-token')));
     conn.close();
   });
 
   test('expired/invalid token is rejected gracefully', async () => {
-    const conn = await connectAtmosphere(server.baseUrl, {
+    const conn = await connectDurableChat(server.baseUrl, {
       sessionToken: 'expired-invalid-token-12345',
     });
 
@@ -68,7 +34,7 @@ test.describe('Session Token Expiry', () => {
   });
 
   test('stale token from different server instance', async () => {
-    const conn = await connectAtmosphere(server.baseUrl, {
+    const conn = await connectDurableChat(server.baseUrl, {
       sessionToken: 'stale-server-instance-token-99999',
     });
 
@@ -80,8 +46,8 @@ test.describe('Session Token Expiry', () => {
 
   test('multiple connections with same token do not conflict', async () => {
     const token = 'shared-test-token-abc';
-    const conn1 = await connectAtmosphere(server.baseUrl, { sessionToken: token });
-    const conn2 = await connectAtmosphere(server.baseUrl, { sessionToken: token });
+    const conn1 = await connectDurableChat(server.baseUrl, { sessionToken: token });
+    const conn2 = await connectDurableChat(server.baseUrl, { sessionToken: token });
 
     conn1.ws.send(JSON.stringify({ author: 'User1', message: 'shared-token-1' }));
     await waitFor(() => conn2.messages.some(m => m.includes('shared-token-1')));
@@ -94,7 +60,7 @@ test.describe('Session Token Expiry', () => {
   });
 
   test('connection cleanup after disconnect', async () => {
-    const conn = await connectAtmosphere(server.baseUrl);
+    const conn = await connectDurableChat(server.baseUrl);
     conn.ws.send(JSON.stringify({ author: 'Cleanup', message: 'before-cleanup' }));
     await waitFor(() => conn.messages.some(m => m.includes('before-cleanup')));
     conn.close();
@@ -103,7 +69,7 @@ test.describe('Session Token Expiry', () => {
     await new Promise(r => setTimeout(r, 2000));
 
     // New connection should work fine
-    const conn2 = await connectAtmosphere(server.baseUrl);
+    const conn2 = await connectDurableChat(server.baseUrl);
     conn2.ws.send(JSON.stringify({ author: 'AfterCleanup', message: 'after-cleanup' }));
     await waitFor(() => conn2.messages.some(m => m.includes('after-cleanup')));
     conn2.close();
@@ -111,7 +77,7 @@ test.describe('Session Token Expiry', () => {
 
   test('rapid connect/disconnect cycles do not leak resources', async () => {
     for (let i = 0; i < 10; i++) {
-      const conn = await connectAtmosphere(server.baseUrl);
+      const conn = await connectDurableChat(server.baseUrl);
       conn.ws.send(JSON.stringify({ author: 'Cycle', message: `cycle-${i}` }));
       // Don't wait for response — rapid disconnect
       conn.close();
@@ -119,7 +85,7 @@ test.describe('Session Token Expiry', () => {
 
     // After rapid cycles, server should still be responsive
     await new Promise(r => setTimeout(r, 2000));
-    const conn = await connectAtmosphere(server.baseUrl);
+    const conn = await connectDurableChat(server.baseUrl);
     conn.ws.send(JSON.stringify({ author: 'AfterCycles', message: 'still-ok' }));
     await waitFor(() => conn.messages.some(m => m.includes('still-ok')));
     conn.close();
