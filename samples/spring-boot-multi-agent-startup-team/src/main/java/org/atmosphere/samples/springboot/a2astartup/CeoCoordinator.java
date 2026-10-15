@@ -205,8 +205,9 @@ public class CeoCoordinator {
         logger.info("CEO received: {}", message);
 
         // Governance admission on user input. On the web path the
-        // coordinator's scope (the skill's ## Guardrails, else @AgentScope)
-        // already admitted this message before @Prompt ran — an off-topic
+        // coordinator's scope (the class @AgentScope, which beats the scope the
+        // skill's instruction-only ## Guardrails would derive) already admitted
+        // this message before @Prompt ran — an off-topic
         // prompt is redirected without reaching this method. PolicyAdmissionGate then runs the
         // installed GovernancePolicy chain (kill switch, rate limit, ...)
         // BEFORE any dispatch decision; a denial short-circuits here, so the
