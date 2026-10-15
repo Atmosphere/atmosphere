@@ -643,7 +643,10 @@ the one installed last, and a warning says so; when it stops, the earlier one's 
 again. The generation knobs and `prompt-cache-key` are read when the LLM settings are built
 (`AiConfig.configure`), the others on every call: settings built before a host installed its
 configuration keep the values they were built with, and the host's startup logs a warning naming the
-knobs they do not apply (`AiConfig.reportKnobsNotInEffect()`). A plain servlet deployment has no host
+knobs they do not apply (`AiConfig.reportKnobsNotInEffect()`). The settings are JVM-wide too, and are
+not rebuilt when a host stops: settings the later host built keep its generation and `prompt-cache-key`
+values after it stopped, until `AiConfig.configure` runs again, and its stop logs a warning naming the
+knobs they do not apply to the earlier host. A plain servlet deployment has no host
 configuration: it uses the system property or the environment variable.
 
 The LLM mode, model, API key and base URL are not knobs: the Spring Boot starters read

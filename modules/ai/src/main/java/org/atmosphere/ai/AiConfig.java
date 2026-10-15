@@ -796,9 +796,12 @@ public final class AiConfig {
      * context cache keeping several contexts alive), the latest one is the one
      * every application reads, whole, and a warning names the earlier ones it
      * shadows. The returned handle removes the installation it belongs to, and
-     * only that one: closing the latest gives the previous, still-open
-     * installation back, so the host that installed it closes it when it
-     * stops.</p>
+     * only that one: closing the latest makes the previous, still-open
+     * installation the one read again, so the host that installed it closes it
+     * when it stops. The settings ({@link #get()}) are not rebuilt: settings
+     * built while the closed installation was read keep its generation and
+     * prompt-cache-key values until {@link #configure} runs again, and the
+     * close logs a warning naming those knobs.</p>
      *
      * @param lookup the host's configuration, by property name; returns
      *               {@code null} for an unset property
@@ -861,6 +864,27 @@ public final class AiConfig {
     }
 
     /**
+     * Names, in a warning, the knobs the settings in use do not apply once a
+     * later host configuration closed and an earlier one is read again: the
+     * settings that host built keep its generation and prompt-cache-key
+     * values, so the application still running would otherwise send them
+     * without a word (Correctness Invariant #5).
+     */
+    private static void reportKnobsNotInEffectAfterClose() {
+        var settings = instance;
+        if (settings == null) {
+            return;
+        }
+        var notInEffect = knobsNotInEffect(settings);
+        if (!notInEffect.isEmpty()) {
+            logger.warn("An AI host configuration was closed and the previous one is read again, but the "
+                    + "AI settings in use were built while the closed one was read and do not apply {}: "
+                    + "rebuild them with AiConfig.configure, or set these knobs as -D system properties "
+                    + "or LLM_* environment variables", notInEffect);
+        }
+    }
+
+    /**
      * The knobs read when settings are built (prompt-cache-key, temperature,
      * max-tokens, top-p, stop) whose current value differs from the one
      * {@code settings} carries: settings built before the host configuration
@@ -909,7 +933,8 @@ public final class AiConfig {
     /**
      * Knob values a host installed with {@link #installHostConfig}. Closing it
      * uninstalls it, and the previous installation still open, if any, is read
-     * again; closing it again does nothing.
+     * again (settings already built are not rebuilt, see
+     * {@link #installHostConfig}); closing it again does nothing.
      */
     public static final class HostConfig implements AutoCloseable {
 
@@ -931,6 +956,7 @@ public final class AiConfig {
         @Override
         public void close() {
             boolean wasRead;
+            boolean previousReadAgain;
             HOST_CONFIG_LOCK.lock();
             try {
                 if (!HOST_CONFIGS.remove(this)) {
@@ -938,11 +964,16 @@ public final class AiConfig {
                 }
                 wasRead = hostConfig == this;
                 hostConfig = HOST_CONFIGS.isEmpty() ? null : HOST_CONFIGS.getLast();
+                previousReadAgain = wasRead && hostConfig != null;
             } finally {
                 HOST_CONFIG_LOCK.unlock();
             }
             if (wasRead) {
                 AgentRuntimeResolver.reset();
+            }
+            // When the last one closes, the application is stopping: nothing to warn.
+            if (previousReadAgain) {
+                reportKnobsNotInEffectAfterClose();
             }
         }
     }

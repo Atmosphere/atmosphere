@@ -15,9 +15,13 @@
  */
 package org.atmosphere.ai;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.atmosphere.ai.plan.PlanningMode;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -139,6 +143,50 @@ class AiConfigKnobsTest {
         first.close();
         assertTrue(AiConfig.knob(AiConfig.TEMPERATURE_PROPERTY).isEmpty(),
                 "no installation is left once both are closed");
+    }
+
+    /**
+     * Closing the latest installation gives the earlier host its knobs back,
+     * but not the LLM settings the later host built: they keep its generation
+     * values, so the earlier host is warned which knobs they do not apply
+     * instead of sending the closed host's values without a word.
+     */
+    @Test
+    void closingTheLatestInstallationNamesTheKnobsTheSettingsInUseDoNotApply() {
+        org.junit.jupiter.api.Assumptions.assumeTrue(System.getenv(AiConfig.TEMPERATURE_ENV) == null,
+                "LLM_TEMPERATURE set");
+        var first = AiConfig.installHostConfig(Map.of(AiConfig.TEMPERATURE_PROPERTY, "0.1")::get);
+        AiConfig.configure("fake", "first-model", null, null);
+        var second = AiConfig.installHostConfig(Map.of(AiConfig.TEMPERATURE_PROPERTY, "0.9")::get);
+        AiConfig.configure("fake", "second-model", null, null);
+
+        var logger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(AiConfig.class);
+        var appender = new ListAppender<ILoggingEvent>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            second.close();
+        } finally {
+            logger.detachAppender(appender);
+        }
+
+        assertEquals(0.1, AiConfig.resolveGenerationParams().temperature(),
+                "the earlier installation, still open, is read again");
+        assertEquals(0.9, AiConfig.get().generation().temperature(),
+                "the settings built while the closed installation was read keep its value");
+        assertTrue(appender.list.stream().anyMatch(e -> e.getLevel() == Level.WARN
+                        && e.getFormattedMessage().contains(AiConfig.TEMPERATURE_PROPERTY)),
+                "no warning names the knob the settings in use do not apply: " + appender.list);
+
+        appender.list.clear();
+        logger.addAppender(appender);
+        try {
+            first.close();
+        } finally {
+            logger.detachAppender(appender);
+        }
+        assertTrue(appender.list.stream().noneMatch(e -> e.getLevel() == Level.WARN),
+                "closing the last installation, as the application stops, warns of nothing: " + appender.list);
     }
 
     @Test
