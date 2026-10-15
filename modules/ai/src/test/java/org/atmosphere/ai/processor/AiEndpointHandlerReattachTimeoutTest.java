@@ -116,7 +116,10 @@ class AiEndpointHandlerReattachTimeoutTest {
 
         var buffer = RunRegistryHolder.get().lookupReplayable(RUN_ID.get()).orElseThrow().replayBuffer();
         var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
-        while (buffer.subscriberCount() > 0 && System.nanoTime() < deadline) {
+        // The buffer releases its subscribers before it hands them the terminal
+        // frame (outside its lock), so wait for the frame itself too.
+        while ((buffer.subscriberCount() > 0 || out.toString().strip().split("\n").length < 2)
+                && System.nanoTime() < deadline) {
             Thread.sleep(20);
         }
 
