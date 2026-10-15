@@ -97,12 +97,26 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
     private static volatile ReactAgent staticAgent;
     private static volatile ChatModel staticChatModel;
 
-    /** Inject a pre-built {@link ReactAgent} from Spring auto-configuration. */
+    /**
+     * Inject a pre-built {@link ReactAgent} from Spring auto-configuration.
+     *
+     * @deprecated binds for every application in the JVM; bind for one application with
+     *             {@link #setAgent(AiEnvironment, ReactAgent)}, as the auto-configuration does for its context. Kept as
+     *             the process-wide fallback through 4.x; not scheduled for removal.
+     */
+    @Deprecated
     public static void setAgent(ReactAgent agent) {
         staticAgent = agent;
     }
 
-    /** Inject the {@link ChatModel} used to build per-request tool-enabled agents. */
+    /**
+     * Inject the {@link ChatModel} used to build per-request tool-enabled agents.
+     *
+     * @deprecated binds for every application in the JVM; bind for one application with
+     *             {@link #setChatModel(AiEnvironment, ChatModel)}, as the auto-configuration does for its context. Kept as
+     *             the process-wide fallback through 4.x; not scheduled for removal.
+     */
+    @Deprecated
     public static void setChatModel(ChatModel chatModel) {
         staticChatModel = chatModel;
     }

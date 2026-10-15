@@ -15,6 +15,7 @@
  */
 package org.atmosphere.samples.springboot.aitools;
 
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.StreamingSession;
@@ -122,7 +123,10 @@ public class CostMeteringInterceptor implements AiInterceptor {
         // the emission and let the router's truth stand. On the plain/demo
         // path (no router installed) the estimates are the only source, so
         // they are emitted as before.
-        var settings = org.atmosphere.ai.AiConfig.get();
+        // The settings of the application that serves the resource (the static
+        // API's application when its framework has no AI environment attached).
+        var settings = AiEnvironment.find(resource.getAtmosphereConfig())
+                .orElseGet(AiEnvironment::current).settings();
         if (settings != null
                 && settings.client() instanceof org.atmosphere.ai.routing.RoutingLlmClient) {
             logger.debug("[Cost] RoutingLlmClient active — skipping routing.* estimates "

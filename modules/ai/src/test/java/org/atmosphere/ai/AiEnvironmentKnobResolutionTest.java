@@ -34,6 +34,10 @@ import static org.junit.jupiter.api.Assertions.assertSame;
  * resolves the same values, so moving the resolution into the environment
  * changes nothing for an application that only uses the statics.
  */
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 class AiEnvironmentKnobResolutionTest {
 
     @AfterEach

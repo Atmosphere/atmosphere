@@ -209,8 +209,10 @@ too, and becomes the settings of the context's endpoints; with several `LlmSetti
 were built with; startup logs a warning naming the knobs they do not apply. The runtime adapters'
 auto-configurations bind or offer the context's native clients (a `ChatClient` bean, a
 `StreamingChatModel`, ...) to the context's `AiEnvironment`, so each context dispatches through its
-own; a client bound through a runtime adapter's static setter (`SpringAiAgentRuntime.setChatClient(client)`)
-is still shared by every context in the JVM.
+own; a client bound through a runtime adapter's deprecated static setter
+(`SpringAiAgentRuntime.setChatClient(client)`) is still shared by every context in the JVM; bind it
+to one context with `SpringAiAgentRuntime.setChatClient(aiEnvironment, client)` and the context's
+`AiEnvironment` bean.
 
 ### How It Works
 

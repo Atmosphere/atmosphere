@@ -76,6 +76,8 @@ public class AtmosphereQuarkusLangChain4jBridge {
      * skipped.
      */
     @PostConstruct
+    // The bridge holds no AtmosphereFramework, so it binds through the process-wide setter.
+    @SuppressWarnings("deprecation")
     void wireModel() {
         if (handles.isUnsatisfied()) {
             logger.info("No StreamingChatModel bean found — Quarkus LangChain4j config missing? "

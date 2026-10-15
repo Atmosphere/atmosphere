@@ -83,6 +83,10 @@ class EmbabelEmbeddingRuntime : EmbeddingRuntime {
         private var staticService: EmbeddingService? = null
 
         /** Spring auto-config hook: supply the configured Embabel EmbeddingService. */
+        @Deprecated(
+            "Binds for every application in the JVM; bind for one application with setEmbeddingService(environment, service). "
+                + "Kept as the process-wide fallback through 4.x; not scheduled for removal."
+        )
         @JvmStatic
         fun setEmbeddingService(service: EmbeddingService) {
             staticService = service

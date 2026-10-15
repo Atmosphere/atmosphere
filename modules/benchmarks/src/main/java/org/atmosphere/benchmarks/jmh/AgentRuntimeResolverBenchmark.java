@@ -56,6 +56,8 @@ import java.util.concurrent.TimeUnit;
 @Measurement(iterations = 10, time = 1)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @BenchmarkMode(Mode.AverageTime)
+// Measures the static resolver itself, deprecated for framework code but kept as the no-framework facade.
+@SuppressWarnings("deprecation")
 public class AgentRuntimeResolverBenchmark {
 
     @Benchmark

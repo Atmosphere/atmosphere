@@ -75,6 +75,10 @@ class KoogAgentRuntime : AgentRuntime {
         @Volatile
         private var defaultModel: LLModel? = null
 
+        @Deprecated(
+            "Binds for every application in the JVM; bind for one application with setPromptExecutor(environment, executor). "
+                + "Kept as the process-wide fallback through 4.x; not scheduled for removal."
+        )
         @JvmStatic
         fun setPromptExecutor(executor: PromptExecutor) {
             promptExecutor = executor
@@ -102,6 +106,10 @@ class KoogAgentRuntime : AgentRuntime {
             environment.offerClient(KoogAgentRuntime::class.java, PromptExecutor::class.java, executor)
         }
 
+        @Deprecated(
+            "Binds for every application in the JVM; bind for one application with setDefaultModel(environment, model). "
+                + "Kept as the process-wide fallback through 4.x; not scheduled for removal."
+        )
         @JvmStatic
         fun setDefaultModel(model: LLModel) {
             defaultModel = model

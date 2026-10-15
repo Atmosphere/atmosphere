@@ -35,6 +35,10 @@ import static org.junit.jupiter.api.Assertions.fail;
  * configuration instead of leaving it installed in a JVM that, in dev mode,
  * outlives the failed start.
  */
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 public class CostGuardrailBridgeFailureTest {
 
     static final String FAILURE = "the cost guardrail bean failed";

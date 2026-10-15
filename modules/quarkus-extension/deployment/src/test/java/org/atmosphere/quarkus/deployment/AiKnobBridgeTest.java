@@ -35,6 +35,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  * authoritative {@link AiConfig#knobProperties()} list, so a knob added to
  * {@code AiConfig} is covered here too.
  */
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 public class AiKnobBridgeTest {
 
     @RegisterExtension

@@ -38,6 +38,10 @@ import static org.mockito.Mockito.verify;
  * RoutingRule families … no Java wiring required" is true on SB3 too (not a
  * silent no-op).
  */
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 class AtmosphereRoutingAutoConfigurationTest {
 
     private final WebApplicationContextRunner contextRunner = new WebApplicationContextRunner()

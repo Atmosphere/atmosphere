@@ -35,6 +35,10 @@ import static org.mockito.Mockito.verify;
  * {@code @Bean} is the production consumer that makes {@link RoutingLlmClient} a
  * real part of the request critical path rather than an unused SPI.
  */
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 class AtmosphereRoutingAutoConfigurationTest {
 
     private final WebApplicationContextRunner contextRunner = new WebApplicationContextRunner()

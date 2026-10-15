@@ -65,7 +65,11 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
      * Set the {@link ChatCompletionService} to use for streaming. Typically
      * called by {@link AtmosphereSemanticKernelAutoConfiguration} or an
      * application's own Spring wiring.
+     * @deprecated binds for every application in the JVM; bind for one application with
+     *             {@link #setChatCompletionService(AiEnvironment, ChatCompletionService)}, as the auto-configuration does for its context. Kept as
+     *             the process-wide fallback through 4.x; not scheduled for removal.
      */
+    @Deprecated
     public static void setChatCompletionService(ChatCompletionService service) {
         staticService = service;
     }

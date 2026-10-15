@@ -76,6 +76,10 @@ class EmbabelAgentRuntime : AgentRuntime {
         @Volatile
         private var agentName: String = "chat-assistant"
 
+        @Deprecated(
+            "Binds for every application in the JVM; bind for one application with setAgentPlatform(environment, platform). "
+                + "Kept as the process-wide fallback through 4.x; not scheduled for removal."
+        )
         @JvmStatic
         fun setAgentPlatform(platform: AgentPlatform) {
             agentPlatform = platform

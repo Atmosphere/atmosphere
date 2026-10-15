@@ -98,6 +98,8 @@ public class AtmosphereAgentScopeAutoConfiguration {
 
     @Bean
     @ConditionalOnBean(ReActAgent.class)
+    // Without an AiEnvironment bean in the context the process-wide binder is the only one.
+    @SuppressWarnings("deprecation")
     AgentScopeAgentRuntime agentScopeAgentRuntime(ReActAgent agent,
             ObjectProvider<AiEnvironment> environmentProvider) {
         // Bound to this context's AiEnvironment when there is one (the

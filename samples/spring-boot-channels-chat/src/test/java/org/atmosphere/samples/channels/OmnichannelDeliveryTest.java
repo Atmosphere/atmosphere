@@ -58,6 +58,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *       proving the agent's multichannel wiring is intact end-to-end.</li>
  * </ol>
  */
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 class OmnichannelDeliveryTest {
 
     @BeforeEach

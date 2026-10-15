@@ -39,6 +39,10 @@ class KoogEmbeddingRuntime : EmbeddingRuntime {
         @Volatile
         private var embeddingModel: LLModel = LLModel(LLMProvider.OpenAI, "text-embedding-3-small")
 
+        @Deprecated(
+            "Binds for every application in the JVM; bind for one application with setEmbeddingProvider(environment, provider). "
+                + "Kept as the process-wide fallback through 4.x; not scheduled for removal."
+        )
         @JvmStatic
         fun setEmbeddingProvider(provider: LLMEmbeddingProvider?) {
             embeddingProvider = provider

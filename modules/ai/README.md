@@ -704,6 +704,18 @@ which is no one application's, and a warning says so once per JVM: read your app
 its values are what the process default reads, and what an application created from init-params
 reads for a knob its init-params leave unset.
 
+The static readers (`AiConfig.get()`, `knob(...)`, `forAgent(...)`, `agentScoped(...)`, the
+`AiConfig.resolve*()` knob readers, `AgentRuntimeResolver.resolve()` and `resolveAll()`) are
+deprecated, not for removal: code that holds an application reads it through
+`AiEnvironment.of(config)` (`settings()`, `knob(...)`, `forAgent(...)`, `resolveGenerationParams()`,
+`runtimes().resolve()`, ...), and code with no application through `AiEnvironment.current()`, which
+resolves exactly as the statics do. The mutators (`AiConfig.configure(...)`, `installClient(...)`,
+`configureForAgent(...)`) and `installHostConfig(...)` are not deprecated. Framework code does not
+read the statics or `AiEnvironment.current()` at all: `scripts/architectural-validation.sh` fails the
+build on such a read in `modules/**/src/main` unless `scripts/validation-patterns.toml` allowlists it
+with a reason (an unattached runtime instance, a public entry point that takes no application, the
+façade itself).
+
 Native clients are per application too. A runtime adapter's instance uses, first found: the client
 bound to its application (`SpringAiAgentRuntime.setChatClient(environment, client)`,
 `LangChain4jAgentRuntime.setModel(environment, model)`, `AdkAgentRuntime.setRunner(environment, runner)`,
@@ -716,7 +728,8 @@ auto-configuration builds itself, so a client the application sets through the s
 they bind the beans the application declares (`Runner`, `ReActAgent`, `ChatCompletionService`,
 `ReactAgent` and `ChatModel`, Embabel's `AgentPlatform`, the Spring AI and Spring AI Alibaba
 `EmbeddingModel`). Two Spring contexts with different `ChatClient` beans each dispatch through their
-own; without an `AiEnvironment` bean they use the static setters, as before. A runtime instance stays
+own; without an `AiEnvironment` bean they use the static setters, as before. The static setters that
+have an `AiEnvironment` overload are deprecated (kept as the process-wide fallback through 4.x). A runtime instance stays
 its application's (`AiEnvironment.of(runtime)`, through `AgentRuntime.attachedEnvironment()` for a
 runtime that implements `AgentRuntime` directly) after that application drops its cached resolution. The adapters read their
 settings and knobs (prompt-cache-key mode, generation values, planning and filesystem modes, the
@@ -731,8 +744,8 @@ application): `DecisionModelResolver.resolve()` and its callers that hold no app
 injection, scope and moderation tiers, `IntentRouting` without a decision model of its own), the
 `InjectionClassifierResolver` cache, which keeps one classifier per tier for the JVM, the semantic
 response cache, embedding scope guardrails and embedding injection classifier built without an
-embedding runtime, and the Quarkus LangChain4j bridge, which binds through the static
-`LangChain4jAgentRuntime.setModel`. Adapter configuration statics that are not native clients
+embedding runtime, and the Quarkus LangChain4j bridge, which binds through the deprecated static
+`LangChain4jAgentRuntime.setModel(model)`. Adapter configuration statics that are not native clients
 (`AdkAgentRuntime.setDefaults` / `setCacheConfig` / `setMaxSteps`, `EmbabelAgentRuntime.setAgentName`,
 `LangChain4jAgentRuntime.registerChatModelListener`, `DemoAgentRuntime.setResponseStrategy`) apply to
 every application.

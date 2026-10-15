@@ -127,6 +127,8 @@ public class AtmosphereSpringAiAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(SpringAiAgentRuntime.class)
+    // Without an AiEnvironment bean in the context the process-wide binder is the only one.
+    @SuppressWarnings("deprecation")
     public SpringAiAgentRuntime springAiAgentRuntime(ObjectProvider<ChatClient> chatClientProvider) {
         var chatClient = chatClientProvider.getIfAvailable();
         if (chatClient == null) {
@@ -150,6 +152,8 @@ public class AtmosphereSpringAiAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(SpringAiEmbeddingRuntime.class)
+    // Without an AiEnvironment bean in the context the process-wide binder is the only one.
+    @SuppressWarnings("deprecation")
     public SpringAiEmbeddingRuntime springAiEmbeddingRuntime(ObjectProvider<EmbeddingModel> embeddingModelProvider) {
         var embeddingModel = embeddingModelProvider.getIfAvailable();
         if (embeddingModel != null) {

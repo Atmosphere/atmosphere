@@ -60,13 +60,16 @@ build the `PromptExecutor` explicitly and inject it via the companion API:
 ```kotlin
 val client = AnthropicLLMClient(apiKey)
 val executor = MultiLLMPromptExecutor(client)
-KoogAgentRuntime.setPromptExecutor(executor)
+KoogAgentRuntime.setPromptExecutor(aiEnvironment, executor)
 ```
 
-An executor (and a model, `KoogAgentRuntime.setDefaultModel`) set this way, or
-for one application with `setPromptExecutor(environment, executor)`, wins over
-the one the auto-configuration builds: with the Atmosphere starter it only
-offers its executor and model to the context's `AiEnvironment`.
+`aiEnvironment` is the application's `AiEnvironment` (the `AiEnvironment` bean the
+Atmosphere starter registers, or `AiEnvironment.of(framework.getAtmosphereConfig())`).
+An executor (and a model, `KoogAgentRuntime.setDefaultModel(aiEnvironment, model)`)
+set this way wins over the one the auto-configuration builds: with the Atmosphere
+starter it only offers its executor and model to the context's `AiEnvironment`.
+The one-argument `setPromptExecutor(executor)` and `setDefaultModel(model)` still
+win too, for every application in the JVM, and are deprecated.
 
 ## Key Classes
 

@@ -42,6 +42,10 @@ import org.atmosphere.ai.llm.ChatCompletionRequest;
  */
 @AiEndpoint(path = "/atmosphere/routing-e2e",
         systemPrompt = "You are a helpful test assistant.")
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 public class RoutingHttpE2eEndpoint {
 
     @Prompt

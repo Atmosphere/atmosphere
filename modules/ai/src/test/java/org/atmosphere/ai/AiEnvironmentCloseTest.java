@@ -31,6 +31,10 @@ import static org.junit.jupiter.api.Assertions.assertSame;
  * settings, the ones the static API returns on a thread bound to no
  * application while several are running.
  */
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 class AiEnvironmentCloseTest {
 
     private static final String URL = "http://127.0.0.1:1/v1";

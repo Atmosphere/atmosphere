@@ -27,6 +27,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * {@code atmosphere.ai.filesystem} sysprop resolution through
  * {@link AiConfig#resolveFilesystemMode()}.
  */
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 public class FilesystemModeTest {
 
     @AfterEach

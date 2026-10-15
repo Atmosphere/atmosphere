@@ -36,6 +36,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * pins that: it fails the moment the spring-ai adapter is back on the
  * classpath and steals runtime resolution again.</p>
  */
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 class RuntimeSelectionTest {
 
     @Test

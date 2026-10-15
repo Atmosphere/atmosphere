@@ -16,6 +16,7 @@
 package org.atmosphere.samples.springboot.springaiadvisors;
 
 import jakarta.annotation.PostConstruct;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.spring.SpringAiAgentRuntime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +28,8 @@ import org.springframework.context.annotation.Configuration;
 /**
  * The heart of the sample: build your OWN, fully configured Spring AI
  * {@link ChatClient} — carrying a {@code defaultAdvisors(...)} chain — and bind
- * it to Atmosphere with {@link SpringAiAgentRuntime#setChatClient(ChatClient)}.
+ * it to this application with
+ * {@link SpringAiAgentRuntime#setChatClient(AiEnvironment, ChatClient)}.
  *
  * <p>This proves the three claims of the Atmosphere 4 blog §3:</p>
  * <ol>
@@ -58,6 +60,16 @@ public class BoundChatClientConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(BoundChatClientConfig.class);
 
+    private final AiEnvironment aiEnvironment;
+
+    /**
+     * @param aiEnvironment this application's AI environment, which the
+     *                      Atmosphere starter registers for the context
+     */
+    public BoundChatClientConfig(AiEnvironment aiEnvironment) {
+        this.aiEnvironment = aiEnvironment;
+    }
+
     /**
      * Expose the shared audit log as a Spring bean so the REST controller can
      * inject it. It is the same instance the framework-instantiated interceptor
@@ -71,7 +83,7 @@ public class BoundChatClientConfig {
     /** Bind the bound ChatClient at startup, before the first AI request. */
     @PostConstruct
     void bindAtStartup() {
-        bindBoundChatClient(AdvisorAuditLog.shared());
+        bindBoundChatClient(aiEnvironment, AdvisorAuditLog.shared());
         logger.info("Bound a custom Spring AI ChatClient (with a default '{}') "
                 + "to SpringAiAgentRuntime via setChatClient(...)", DEFAULT_ADVISOR_NAME);
     }
@@ -79,19 +91,21 @@ public class BoundChatClientConfig {
     /**
      * Build a fully configured {@link ChatClient} that carries a default
      * {@link AuditingAdvisor}, and bind it to Atmosphere via
-     * {@link SpringAiAgentRuntime#setChatClient(ChatClient)}. Factored out as a
+     * {@link SpringAiAgentRuntime#setChatClient(AiEnvironment, ChatClient)}, for
+     * the application of {@code aiEnvironment} only. Factored out as a
      * static method so the delivery test exercises the exact same wiring the
      * running application uses (no drift between demo and proof).
      *
-     * @param auditLog the shared log the default advisor records into
-     * @return the bound client (also installed as the runtime's static client)
+     * @param aiEnvironment the application the client is bound to
+     * @param auditLog      the shared log the default advisor records into
+     * @return the bound client
      */
-    public static ChatClient bindBoundChatClient(AdvisorAuditLog auditLog) {
+    public static ChatClient bindBoundChatClient(AiEnvironment aiEnvironment, AdvisorAuditLog auditLog) {
         var defaultAdvisor = new AuditingAdvisor(DEFAULT_ADVISOR_NAME, 100, auditLog);
         var client = ChatClient.builder(new LocalEchoChatModel())
                 .defaultAdvisors(defaultAdvisor)
                 .build();
-        SpringAiAgentRuntime.setChatClient(client);
+        SpringAiAgentRuntime.setChatClient(aiEnvironment, client);
         return client;
     }
 

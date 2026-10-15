@@ -89,6 +89,8 @@ public class AtmosphereSpringAiAlibabaAutoConfiguration {
         return environmentProvider != null ? environmentProvider.getIfAvailable() : null;
     }
 
+    // Without an AiEnvironment bean in the context the process-wide binder is the only one.
+    @SuppressWarnings("deprecation")
     private void bindChatModel(ChatModel chatModel) {
         var environment = aiEnvironment();
         if (environment != null) {
@@ -127,6 +129,8 @@ public class AtmosphereSpringAiAlibabaAutoConfiguration {
 
     @Bean
     @ConditionalOnBean(ReactAgent.class)
+    // Without an AiEnvironment bean in the context the process-wide binder is the only one.
+    @SuppressWarnings("deprecation")
     SpringAiAlibabaAgentRuntime springAiAlibabaAgentRuntime(
             ReactAgent agent, ObjectProvider<ChatModel> chatModelProvider) {
         var environment = aiEnvironment();
@@ -154,6 +158,8 @@ public class AtmosphereSpringAiAlibabaAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(SpringAiAlibabaEmbeddingRuntime.class)
+    // Without an AiEnvironment bean in the context the process-wide binder is the only one.
+    @SuppressWarnings("deprecation")
     SpringAiAlibabaEmbeddingRuntime springAiAlibabaEmbeddingRuntime(
             ObjectProvider<EmbeddingModel> embeddingModelProvider) {
         var embeddingModel = embeddingModelProvider.getIfAvailable();

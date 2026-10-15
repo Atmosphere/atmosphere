@@ -103,7 +103,15 @@ public final class AgentRuntimeResolver {
      *
      * @throws AgentRuntimeSelectionException when {@link AiConfig#RUNTIME_PROPERTY}
      *                                         names no available runtime
+     * @deprecated resolves the runtime of {@link AiEnvironment#current()}, which,
+     *             with several applications in the JVM and a thread bound to none,
+     *             is the process default's. Resolve the runtime of the application
+     *             you hold: {@code AiEnvironment.of(framework.getAtmosphereConfig()).runtimes().resolve()};
+     *             with no application, {@code AiEnvironment.current().runtimes().resolve()}
+     *             resolves exactly as this method does. Kept for code that runs with
+     *             no framework; not scheduled for removal.
      */
+    @Deprecated
     public static AgentRuntime resolve() {
         return resolveAll().getFirst();
     }
@@ -130,7 +138,13 @@ public final class AgentRuntimeResolver {
      *
      * @throws AgentRuntimeSelectionException when {@link AiConfig#RUNTIME_PROPERTY}
      *                                         names no available runtime
+     * @deprecated resolves the runtimes of {@link AiEnvironment#current()}; resolve
+     *             those of the application you hold with
+     *             {@code AiEnvironment.of(framework.getAtmosphereConfig()).runtimes().resolveAll()}
+     *             ({@code AiEnvironment.current().runtimes().resolveAll()} with no
+     *             application). Not scheduled for removal.
      */
+    @Deprecated
     public static List<AgentRuntime> resolveAll() {
         return AiEnvironment.current().runtimes().resolveAll();
     }

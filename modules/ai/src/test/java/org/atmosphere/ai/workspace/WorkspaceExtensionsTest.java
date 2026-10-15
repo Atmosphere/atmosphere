@@ -47,6 +47,10 @@ import static org.mockito.Mockito.when;
  * framework's policy bag (read by {@link GovernancePolicies#installed}) reflects
  * PERMISSIONS.md, and the augmented prompt carries the SKILLS / SOUL content.
  */
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 class WorkspaceExtensionsTest {
 
     @BeforeEach

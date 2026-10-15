@@ -252,7 +252,11 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
     /**
      * Set the {@link Runner} every application in the JVM streams through,
      * unless one binds its own ({@link #setRunner(AiEnvironment, Runner)}).
+     * @deprecated binds for every application in the JVM; bind for one application with
+     *             {@link #setRunner(AiEnvironment, Runner)}, as the auto-configuration does for its context. Kept as
+     *             the process-wide fallback through 4.x; not scheduled for removal.
      */
+    @Deprecated
     public static void setRunner(Runner adkRunner) {
         staticRunner = adkRunner;
     }

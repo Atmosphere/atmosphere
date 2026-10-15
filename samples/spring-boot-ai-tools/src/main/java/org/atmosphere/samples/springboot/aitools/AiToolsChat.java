@@ -15,8 +15,7 @@
  */
 package org.atmosphere.samples.springboot.aitools;
 
-import org.atmosphere.ai.AgentRuntimeResolver;
-import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
@@ -70,8 +69,13 @@ public class AiToolsChat {
         // Mirrors DemoAgentRuntime.isAvailable(): an explicitly-bound native
         // client (e.g. SpringAiAgentRuntime.setChatClient) serves without any
         // key, so its tool-calling loop owns dispatch exclusively too.
-        var settings = AiConfig.get();
-        if (!AgentRuntimeResolver.hasExplicitClientBinding()
+        // This application's AI settings and bindings: the AiEnvironment of
+        // the framework that serves the resource (the static API's
+        // application when that framework has none attached).
+        var aiEnvironment = AiEnvironment.find(resource.getAtmosphereConfig())
+                .orElseGet(AiEnvironment::current);
+        var settings = aiEnvironment.settings();
+        if (!aiEnvironment.hasExplicitBinding()
                 && (settings == null || !settings.hasReachableModel())) {
             DemoToolRouter.route(message, session);
         }

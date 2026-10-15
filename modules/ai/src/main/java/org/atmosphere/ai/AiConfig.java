@@ -37,7 +37,12 @@ import java.util.concurrent.locks.ReentrantLock;
  * the application bound to the calling thread (a {@code @Prompt} method's thread is
  * bound to its own), else the only application running, else
  * {@link AiEnvironment#processDefault()}. Framework code holds its application's
- * environment instead.</p>
+ * environment instead. The static readers ({@link #get()}, {@link #knob(String)},
+ * {@link #forAgent(String)}, {@link #agentScoped(String)} and the {@code resolve*}
+ * knob readers) are deprecated, not for removal: an application's code reads
+ * {@code AiEnvironment.of(config)}, code with no application
+ * {@link AiEnvironment#current()}, which resolves as they do. The mutators
+ * ({@link #configure}, {@link #installClient}, {@link #configureForAgent}) are not.</p>
  *
  * <p>The {@code atmosphere.ai.*} knobs ({@link #knobs()}: generation parameters,
  * prompt-cache-key, logprobs, native structured output, planning, filesystem,
@@ -436,7 +441,14 @@ public final class AiConfig {
      * {@link #fromEnvironment()} has been called.
      *
      * @return the current settings, or {@code null} if not yet configured
+     * @deprecated reads {@link AiEnvironment#current()}, which, with several applications
+     *             in the JVM and a thread bound to none, is the process default. Read the
+     *             application you hold: {@code AiEnvironment.of(config).settings()}; with no
+     *             application, {@code AiEnvironment.current().settings()} reads exactly what this
+     *             method does. Kept for code that runs with no framework; not scheduled
+     *             for removal.
      */
+    @Deprecated
     public static LlmSettings get() {
         return AiEnvironment.current().settings();
     }
@@ -529,12 +541,29 @@ public final class AiConfig {
      * The settings for one agent: its scoped configuration when
      * {@link #configureForAgent} was called for it, else the process-wide
      * {@link #get()} value (which may be {@code null} when unconfigured).
+     * @deprecated reads {@link AiEnvironment#current()}, which, with several applications
+     *             in the JVM and a thread bound to none, is the process default. Read the
+     *             application you hold: {@code AiEnvironment.of(config).forAgent(agentId)}; with no
+     *             application, {@code AiEnvironment.current().forAgent(agentId)} reads exactly what this
+     *             method does. Kept for code that runs with no framework; not scheduled
+     *             for removal.
      */
+    @Deprecated
     public static LlmSettings forAgent(String agentId) {
         return AiEnvironment.current().forAgent(agentId);
     }
 
-    /** The agent-scoped settings, or {@code null} when the agent has none. */
+    /**
+     * The agent-scoped settings, or {@code null} when the agent has none.
+     *
+     * @deprecated reads {@link AiEnvironment#current()}, which, with several applications
+     *             in the JVM and a thread bound to none, is the process default. Read the
+     *             application you hold: {@code AiEnvironment.of(config).agentScoped(agentId)}; with no
+     *             application, {@code AiEnvironment.current().agentScoped(agentId)} reads exactly what this
+     *             method does. Kept for code that runs with no framework; not scheduled
+     *             for removal.
+     */
+    @Deprecated
     public static LlmSettings agentScoped(String agentId) {
         return AiEnvironment.current().agentScoped(agentId);
     }
@@ -665,7 +694,14 @@ public final class AiConfig {
      * var, mirroring the precedence the per-runtime knobs use elsewhere.
      *
      * @return the resolved mode, never {@code null}
+     * @deprecated reads {@link AiEnvironment#current()}, which, with several applications
+     *             in the JVM and a thread bound to none, is the process default. Read the
+     *             application you hold: {@code AiEnvironment.of(config).resolvePromptCacheKeyMode()}; with no
+     *             application, {@code AiEnvironment.current().resolvePromptCacheKeyMode()} reads exactly what this
+     *             method does. Kept for code that runs with no framework; not scheduled
+     *             for removal.
      */
+    @Deprecated
     public static PromptCacheKeyMode resolvePromptCacheKeyMode() {
         return AiEnvironment.current().resolvePromptCacheKeyMode();
     }
@@ -685,7 +721,14 @@ public final class AiConfig {
      * {@link #resolvePromptCacheKeyMode()}.
      *
      * @return the resolved mode, never {@code null}
+     * @deprecated reads {@link AiEnvironment#current()}, which, with several applications
+     *             in the JVM and a thread bound to none, is the process default. Read the
+     *             application you hold: {@code AiEnvironment.of(config).resolveLogprobsMode()}; with no
+     *             application, {@code AiEnvironment.current().resolveLogprobsMode()} reads exactly what this
+     *             method does. Kept for code that runs with no framework; not scheduled
+     *             for removal.
      */
+    @Deprecated
     public static org.atmosphere.ai.llm.LogprobsMode resolveLogprobsMode() {
         return AiEnvironment.current().resolveLogprobsMode();
     }
@@ -703,7 +746,14 @@ public final class AiConfig {
      * wins over the env var, mirroring {@link #resolvePromptCacheKeyMode()}.
      *
      * @return the resolved mode, never {@code null}
+     * @deprecated reads {@link AiEnvironment#current()}, which, with several applications
+     *             in the JVM and a thread bound to none, is the process default. Read the
+     *             application you hold: {@code AiEnvironment.of(config).resolveNativeStructuredOutputMode()}; with no
+     *             application, {@code AiEnvironment.current().resolveNativeStructuredOutputMode()} reads exactly what this
+     *             method does. Kept for code that runs with no framework; not scheduled
+     *             for removal.
      */
+    @Deprecated
     public static NativeStructuredOutputMode resolveNativeStructuredOutputMode() {
         return AiEnvironment.current().resolveNativeStructuredOutputMode();
     }
@@ -723,7 +773,14 @@ public final class AiConfig {
      * {@link #resolvePromptCacheKeyMode()}.
      *
      * @return the resolved mode, never {@code null}
+     * @deprecated reads {@link AiEnvironment#current()}, which, with several applications
+     *             in the JVM and a thread bound to none, is the process default. Read the
+     *             application you hold: {@code AiEnvironment.of(config).resolvePlanningMode()}; with no
+     *             application, {@code AiEnvironment.current().resolvePlanningMode()} reads exactly what this
+     *             method does. Kept for code that runs with no framework; not scheduled
+     *             for removal.
      */
+    @Deprecated
     public static org.atmosphere.ai.plan.PlanningMode resolvePlanningMode() {
         return AiEnvironment.current().resolvePlanningMode();
     }
@@ -742,7 +799,14 @@ public final class AiConfig {
      * {@link #resolvePromptCacheKeyMode()}.
      *
      * @return the resolved mode, never {@code null}
+     * @deprecated reads {@link AiEnvironment#current()}, which, with several applications
+     *             in the JVM and a thread bound to none, is the process default. Read the
+     *             application you hold: {@code AiEnvironment.of(config).resolveFilesystemMode()}; with no
+     *             application, {@code AiEnvironment.current().resolveFilesystemMode()} reads exactly what this
+     *             method does. Kept for code that runs with no framework; not scheduled
+     *             for removal.
      */
+    @Deprecated
     public static org.atmosphere.ai.fs.FilesystemMode resolveFilesystemMode() {
         return AiEnvironment.current().resolveFilesystemMode();
     }
@@ -763,7 +827,14 @@ public final class AiConfig {
      * the wire stays byte-identical to the pre-feature behavior.
      *
      * @return the resolved generation parameters, never {@code null}
+     * @deprecated reads {@link AiEnvironment#current()}, which, with several applications
+     *             in the JVM and a thread bound to none, is the process default. Read the
+     *             application you hold: {@code AiEnvironment.of(config).resolveGenerationParams()}; with no
+     *             application, {@code AiEnvironment.current().resolveGenerationParams()} reads exactly what this
+     *             method does. Kept for code that runs with no framework; not scheduled
+     *             for removal.
      */
+    @Deprecated
     public static GenerationParams resolveGenerationParams() {
         return AiEnvironment.current().resolveGenerationParams();
     }
@@ -786,7 +857,14 @@ public final class AiConfig {
      * {@code BuiltInEmbeddingRuntime}.
      *
      * @return the trimmed model name, or empty when neither is set
+     * @deprecated reads {@link AiEnvironment#current()}, which, with several applications
+     *             in the JVM and a thread bound to none, is the process default. Read the
+     *             application you hold: {@code AiEnvironment.of(config).resolveEmbeddingModel()}; with no
+     *             application, {@code AiEnvironment.current().resolveEmbeddingModel()} reads exactly what this
+     *             method does. Kept for code that runs with no framework; not scheduled
+     *             for removal.
      */
+    @Deprecated
     public static java.util.Optional<String> resolveEmbeddingModel() {
         return AiEnvironment.current().resolveEmbeddingModel();
     }
@@ -878,7 +956,14 @@ public final class AiConfig {
      * @param property a knob property name, one of {@link #knobProperties()}
      * @return the value, or empty when no source sets it
      * @throws IllegalArgumentException if {@code property} is not a knob
+     * @deprecated reads {@link AiEnvironment#current()}, which, with several applications
+     *             in the JVM and a thread bound to none, is the process default. Read the
+     *             application you hold: {@code AiEnvironment.of(config).knob(property)}; with no
+     *             application, {@code AiEnvironment.current().knob(property)} reads exactly what this
+     *             method does. Kept for code that runs with no framework; not scheduled
+     *             for removal.
      */
+    @Deprecated
     public static java.util.Optional<String> knob(String property) {
         return AiEnvironment.current().knob(property);
     }
@@ -1172,7 +1257,14 @@ public final class AiConfig {
      * thrown (Correctness Invariant #4). Read on every call.
      *
      * @return the grace, {@link java.time.Duration#ZERO} when disabled, never {@code null}
+     * @deprecated reads {@link AiEnvironment#current()}, which, with several applications
+     *             in the JVM and a thread bound to none, is the process default. Read the
+     *             application you hold: {@code AiEnvironment.of(config).resolveReattachGrace()}; with no
+     *             application, {@code AiEnvironment.current().resolveReattachGrace()} reads exactly what this
+     *             method does. Kept for code that runs with no framework; not scheduled
+     *             for removal.
      */
+    @Deprecated
     public static java.time.Duration resolveReattachGrace() {
         return AiEnvironment.current().resolveReattachGrace();
     }

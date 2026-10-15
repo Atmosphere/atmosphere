@@ -46,6 +46,8 @@ public class AtmosphereSemanticKernelAutoConfiguration {
      *
      * @param chatCompletionService the context's service
      */
+    // Binds for every application, as this constructor always did; the Spring constructor below binds per context.
+    @SuppressWarnings("deprecation")
     public AtmosphereSemanticKernelAutoConfiguration(ChatCompletionService chatCompletionService) {
         SemanticKernelAgentRuntime.setChatCompletionService(chatCompletionService);
     }
@@ -60,6 +62,8 @@ public class AtmosphereSemanticKernelAutoConfiguration {
      * @param environmentProvider   the context's environment
      */
     @Autowired
+    // Without an AiEnvironment bean in the context the process-wide binder is the only one.
+    @SuppressWarnings("deprecation")
     public AtmosphereSemanticKernelAutoConfiguration(ChatCompletionService chatCompletionService,
                                                      ObjectProvider<AiEnvironment> environmentProvider) {
         var environment = environmentProvider.getIfAvailable();

@@ -38,6 +38,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * reaches every one of them below the JVM system property and the
  * environment variable.
  */
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 class AiConfigKnobsTest {
 
     @AfterEach

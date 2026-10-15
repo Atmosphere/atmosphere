@@ -16,6 +16,7 @@
 package org.atmosphere.samples.springboot.springaiadvisors;
 
 import org.atmosphere.ai.AgentExecutionContext;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.spring.SpringAiAdvisors;
@@ -52,8 +53,10 @@ class SpringAiAdvisorRoutingTest {
         auditLog.clear();
         // Claim #1: bind our OWN fully-configured ChatClient (LocalEchoChatModel
         // + a default AuditingAdvisor) via SpringAiAgentRuntime.setChatClient(...)
-        // — exactly the wiring the running application performs at startup.
-        BoundChatClientConfig.bindBoundChatClient(auditLog);
+        // — exactly the wiring the running application performs at startup. No
+        // application runs here, so it is bound to the process default, which a
+        // runtime created by hand serves.
+        BoundChatClientConfig.bindBoundChatClient(AiEnvironment.processDefault(), auditLog);
         runtime = new SpringAiAgentRuntime();
     }
 

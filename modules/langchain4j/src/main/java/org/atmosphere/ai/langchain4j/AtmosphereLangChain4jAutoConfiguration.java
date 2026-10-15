@@ -121,6 +121,8 @@ public class AtmosphereLangChain4jAutoConfiguration {
 
     @Bean
     @ConditionalOnBean(StreamingChatModel.class)
+    // Without an AiEnvironment bean in the context the process-wide binder is the only one.
+    @SuppressWarnings("deprecation")
     LangChain4jAgentRuntime langChain4jAiSupportBridge(StreamingChatModel model,
             ObjectProvider<AiEnvironment> environmentProvider) {
         // Offer, never bind: an explicit setModel(...) call from application

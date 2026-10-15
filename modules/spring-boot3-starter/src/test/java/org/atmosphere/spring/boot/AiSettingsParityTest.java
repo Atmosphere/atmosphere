@@ -31,6 +31,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * and configuring them drops a runtime resolution cached before (Mode Parity,
  * Correctness Invariant #7).
  */
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 class AiSettingsParityTest {
 
     private final WebApplicationContextRunner contextRunner = new WebApplicationContextRunner()

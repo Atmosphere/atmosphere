@@ -15,7 +15,7 @@
  */
 package org.atmosphere.samples.springboot.personalassistant;
 
-import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AgentScope;
@@ -146,7 +146,8 @@ public class PrimaryAssistant {
         // the keyword fallback — the sample answered "Configure OPENAI_API_KEY"
         // while a model was running and idle, and the long-term-memory headline
         // was unreachable because nothing ever called the tools.
-        var settings = AiConfig.get();
+        // The application this @Prompt serves: its thread is bound to it.
+        var settings = AiEnvironment.current().settings();
         boolean hasLlm = settings != null && settings.hasReachableModel();
 
         if (hasLlm) {

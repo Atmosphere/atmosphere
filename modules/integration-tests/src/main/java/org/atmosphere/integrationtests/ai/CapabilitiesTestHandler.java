@@ -16,7 +16,7 @@
 package org.atmosphere.integrationtests.ai;
 
 import org.atmosphere.ai.AgentRuntime;
-import org.atmosphere.ai.AgentRuntimeResolver;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 /**
  * E2E test endpoint that reflects the live {@link AgentRuntime#capabilities()}
  * sets of every runtime discovered on the classpath via
- * {@link AgentRuntimeResolver#resolveAll()}. Used by
+ * {@link AiEnvironment#runtimes()}. Used by
  * {@code ai-tool-call-delta.spec.ts} to prove the positive + negative
  * capability assertions for {@link org.atmosphere.ai.AiCapability#TOOL_CALL_DELTA}
  * against runtime truth rather than prose in a matrix.
@@ -62,7 +62,7 @@ public class CapabilitiesTestHandler implements AtmosphereHandler {
 
     @Override
     public void onRequest(AtmosphereResource resource) throws IOException {
-        var runtimes = AgentRuntimeResolver.resolveAll();
+        var runtimes = AiEnvironment.current().runtimes().resolveAll();
         var body = new StringBuilder(256);
         body.append("{\"runtimes\":[");
         var first = true;

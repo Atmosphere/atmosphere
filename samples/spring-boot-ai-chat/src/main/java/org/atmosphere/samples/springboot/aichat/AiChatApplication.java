@@ -15,8 +15,7 @@
  */
 package org.atmosphere.samples.springboot.aichat;
 
-import org.atmosphere.ai.AgentRuntimeResolver;
-import org.atmosphere.ai.EmbeddingRuntimeResolver;
+import org.atmosphere.ai.AiEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
@@ -40,15 +39,17 @@ public class AiChatApplication {
      * Wave 1 showcase: log the resolved {@code AgentRuntime} and its
      * runtime-truth {@code models()} list at startup. Wave 5 showcase:
      * log the discovered {@code EmbeddingRuntime} chain so operators can
-     * confirm which embedding adapter will serve RAG or SPI calls.
+     * confirm which embedding adapter will serve RAG or SPI calls. Both are
+     * this application's: the {@link AiEnvironment} the Atmosphere starter
+     * registers for the context.
      */
     @Bean
-    CommandLineRunner logRuntimeDiscovery() {
+    CommandLineRunner logRuntimeDiscovery(AiEnvironment aiEnvironment) {
         return args -> {
-            var runtime = AgentRuntimeResolver.resolve();
+            var runtime = aiEnvironment.runtimes().resolve();
             logger.info("AgentRuntime resolved: {} (priority {}) models={}",
                     runtime.name(), runtime.priority(), runtime.models());
-            var embeddings = EmbeddingRuntimeResolver.resolveAll();
+            var embeddings = aiEnvironment.embeddings().resolveAll();
             if (embeddings.isEmpty()) {
                 logger.info("No EmbeddingRuntime discovered on the classpath");
             } else {

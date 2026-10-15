@@ -24,6 +24,10 @@ import org.atmosphere.ai.AiConfig;
  * whenever the installed settings reach no model (unconfigured, or fake mode)
  * and no client was explicitly bound.
  */
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 public final class DecisionModelResolverTestAccess {
 
     private static AiConfig.LlmSettings saved;

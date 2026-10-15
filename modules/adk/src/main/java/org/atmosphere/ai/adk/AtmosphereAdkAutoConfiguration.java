@@ -34,6 +34,8 @@ public class AtmosphereAdkAutoConfiguration {
 
     @Bean
     @ConditionalOnBean(Runner.class)
+    // Without an AiEnvironment bean in the context the process-wide binder is the only one.
+    @SuppressWarnings("deprecation")
     AdkAgentRuntime adkAiSupportBridge(Runner runner, ObjectProvider<AiEnvironment> environmentProvider) {
         // Bound to this context's AiEnvironment when there is one (the
         // Atmosphere starter registers it), so another context in the JVM

@@ -31,6 +31,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  * ({@code quarkus.atmosphere.container=vertx}), which boots the framework
  * without the servlet: the knobs reach {@link AiConfig} there too.
  */
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 public class AiKnobBridgeVertxTest {
 
     @RegisterExtension

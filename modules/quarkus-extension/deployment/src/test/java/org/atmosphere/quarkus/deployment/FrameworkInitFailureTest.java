@@ -43,6 +43,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * threads stop. In dev mode the JVM outlives a failed start, so nothing else
  * would release them.
  */
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 class FrameworkInitFailureTest {
 
     @AfterEach

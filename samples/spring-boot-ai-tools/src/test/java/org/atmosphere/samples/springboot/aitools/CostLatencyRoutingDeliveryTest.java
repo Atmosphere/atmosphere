@@ -79,6 +79,10 @@ import static org.mockito.Mockito.when;
  * <p>Same agent, same candidate models, opposite selection — which is exactly
  * "route across models by cost or latency".</p>
  */
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 class CostLatencyRoutingDeliveryTest {
 
     @AfterEach

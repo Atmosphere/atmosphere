@@ -51,7 +51,11 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
      * runtime over the no-key demo fallback — a bound client serves without
      * any API key — and (b) protects the binding from being clobbered by
      * auto-configuration, which must go through {@link #offerChatClient}.
+     * @deprecated binds for every application in the JVM; bind for one application with
+     *             {@link #setChatClient(AiEnvironment, ChatClient)}, as the auto-configuration does for its context. Kept as
+     *             the process-wide fallback through 4.x; not scheduled for removal.
      */
+    @Deprecated
     public static void setChatClient(ChatClient client) {
         staticClient = client;
         if (client != null) {
@@ -65,7 +69,11 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
      * must never overwrite an explicit {@link #setChatClient} call — the
      * binder owns the binding (that clobbering is exactly how a bound
      * client's {@code defaultAdvisors(...)} silently stopped firing).
+     * @deprecated binds for every application in the JVM; bind for one application with
+     *             {@link #offerChatClient(AiEnvironment, ChatClient)}, as the auto-configuration does for its context. Kept as
+     *             the process-wide fallback through 4.x; not scheduled for removal.
      */
+    @Deprecated
     public static void offerChatClient(ChatClient client) {
         if (staticClient == null && client != null) {
             setChatClient(client);

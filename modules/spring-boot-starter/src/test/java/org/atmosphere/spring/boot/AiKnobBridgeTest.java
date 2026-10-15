@@ -33,6 +33,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@link AiConfig}, {@code atmosphere.ai.runtime} selects the
  * {@code AgentRuntime}, and a JVM system property still wins.
  */
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 class AiKnobBridgeTest {
 
     private final WebApplicationContextRunner contextRunner = new WebApplicationContextRunner()

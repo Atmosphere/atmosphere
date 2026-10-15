@@ -44,6 +44,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * the same shape breaks the build instead of breaking CI: CLI 7 minutes after
  * push.</p>
  */
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 class AtmosphereSpringAiAutoConfigurationTest {
 
     private final AtmosphereSpringAiAutoConfiguration autoConfig =

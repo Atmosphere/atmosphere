@@ -17,6 +17,7 @@ package org.atmosphere.integrationtests.ai.real;
 
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.ai.approval.ToolApprovalPolicy;
 import org.atmosphere.ai.llm.BuiltInAgentRuntime;
@@ -53,11 +54,11 @@ public class RealLlmChatTestHandler implements AtmosphereHandler {
     private final BuiltInAgentRuntime runtime;
 
     public RealLlmChatTestHandler() {
-        if (AiConfig.get() == null) {
+        if (AiEnvironment.current().settings() == null) {
             AiConfig.fromEnvironment();
         }
         this.runtime = new BuiltInAgentRuntime();
-        var settings = AiConfig.get();
+        var settings = AiEnvironment.current().settings();
         if (settings != null) {
             this.runtime.configure(settings);
         }
@@ -91,7 +92,7 @@ public class RealLlmChatTestHandler implements AtmosphereHandler {
     }
 
     private void handlePrompt(String prompt, AtmosphereResource resource) {
-        var settings = AiConfig.get();
+        var settings = AiEnvironment.current().settings();
         var model = settings != null ? settings.model() : null;
         System.err.println("[real-llm] handlePrompt start: prompt=" + prompt + ", model=" + model);
         var session = StreamingSessions.start(resource);

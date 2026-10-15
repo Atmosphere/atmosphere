@@ -12,8 +12,11 @@ its name when it actually runs inside the `ChatClient` advisor chain.
 
 1. **Bind your own client.** `BoundChatClientConfig` builds a `ChatClient`
    (`ChatClient.builder(model).defaultAdvisors(...).build()`) and hands it to
-   `SpringAiAgentRuntime.setChatClient(client)`. From then on every Atmosphere AI
-   request runs through *your* client.
+   `SpringAiAgentRuntime.setChatClient(aiEnvironment, client)`, with the
+   `AiEnvironment` the Atmosphere starter registers for the context. From then on
+   every Atmosphere AI request of this application runs through *your* client.
+   (The one-argument `setChatClient(client)` still works but is deprecated: it
+   binds the client for every application in the JVM.)
 2. **Atmosphere keeps your `defaultAdvisors(...)`.** The runtime dispatches via
    `client.prompt()`, so the default advisor you configured fires on every
    request — Atmosphere does nothing special to make that happen.

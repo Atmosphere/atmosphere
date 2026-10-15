@@ -35,6 +35,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * via {@link AiConfig#configureForAgent}, and the built-in runtime serves a
  * scoped agent from its own settings and client.
  */
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 class AgentScopedConfigTest {
 
     @AfterEach

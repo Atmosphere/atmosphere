@@ -147,7 +147,10 @@ open class AtmosphereKoogAutoConfiguration {
             KoogAgentRuntime.offerPromptExecutor(environment, executor)
             KoogAgentRuntime.offerDefaultModel(environment, model)
         } else {
+            // No AiEnvironment bean: the process-wide binders are the only ones.
+            @Suppress("DEPRECATION")
             KoogAgentRuntime.setPromptExecutor(executor)
+            @Suppress("DEPRECATION")
             KoogAgentRuntime.setDefaultModel(model)
         }
         return KoogAgentRuntime()

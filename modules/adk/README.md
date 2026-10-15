@@ -133,8 +133,10 @@ When a custom root is attached, the runtime:
   seeding, and the `ExecutionHandle` cancel path. The bridge replaces only
   the root agent slot, not the surrounding Atmosphere safety rail.
 
-For a process-wide custom root, supply your own pre-built `Runner` via
-`AdkAgentRuntime.setRunner(Runner)` instead.
+For an application-wide custom root, supply your own pre-built `Runner` via
+`AdkAgentRuntime.setRunner(environment, runner)` (the application's `AiEnvironment`) instead.
+The one-argument `AdkAgentRuntime.setRunner(Runner)`, which binds the runner for every
+application in the JVM, is deprecated.
 
 ## Native Virtual Filesystem (`AiCapability.VIRTUAL_FILESYSTEM`)
 

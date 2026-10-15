@@ -37,6 +37,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * class in its own fork ({@code reuseForks=false}), and the precondition is
  * asserted.</p>
  */
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 class AdkRequestLeavesAiConfigUntouchedTest {
 
     @Test

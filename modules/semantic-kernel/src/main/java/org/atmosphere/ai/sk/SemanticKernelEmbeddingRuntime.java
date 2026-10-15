@@ -66,7 +66,11 @@ public class SemanticKernelEmbeddingRuntime implements EmbeddingRuntime {
     /**
      * Supply the {@link TextEmbeddingGenerationService} every application in the JVM uses, unless
      * one binds its own ({@link #setEmbeddingService(AiEnvironment, TextEmbeddingGenerationService)}).
+     * @deprecated binds for every application in the JVM; bind for one application with
+     *             {@link #setEmbeddingService(AiEnvironment, TextEmbeddingGenerationService)}, as the auto-configuration does for its context. Kept as
+     *             the process-wide fallback through 4.x; not scheduled for removal.
      */
+    @Deprecated
     public static void setEmbeddingService(TextEmbeddingGenerationService service) {
         staticService = service;
     }

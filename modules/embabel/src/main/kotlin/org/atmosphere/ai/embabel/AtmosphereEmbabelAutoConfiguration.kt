@@ -63,6 +63,8 @@ open class AtmosphereEmbabelAutoConfiguration {
         if (environment != null) {
             EmbabelAgentRuntime.setAgentPlatform(environment, platform)
         } else {
+            // No AiEnvironment bean: the process-wide binder is the only one.
+            @Suppress("DEPRECATION")
             EmbabelAgentRuntime.setAgentPlatform(platform)
         }
         EmbabelAgentRuntime.setAgentName(agentName)

@@ -48,6 +48,10 @@ import static org.mockito.Mockito.*;
  *       and are omitted (byte-identical to today) when unset.</li>
  * </ul>
  */
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 class AnthropicGenerationParamsTest {
 
     private static final String TEXT_RESPONSE = """

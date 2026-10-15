@@ -60,7 +60,10 @@ import static org.mockito.Mockito.when;
  * {@code harness()} opt-in, the exclude-paths opt-out, the kill switch, the
  * prompt-cache default precedence, and the compaction seam.
  */
-@SuppressWarnings({"unchecked", "rawtypes"})
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings({"unchecked", "rawtypes", "deprecation"})
 public class AiEndpointProcessorHarnessPresetTest {
 
     private AiEndpointProcessor processor;

@@ -124,7 +124,11 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
      * so the resolver prefers this runtime over the no-key demo fallback (a
      * bound model serves without any API key) and protects the binding from
      * auto-configuration, which must go through {@link #offerModel}.
+     * @deprecated binds for every application in the JVM; bind for one application with
+     *             {@link #setModel(org.atmosphere.ai.AiEnvironment, StreamingChatModel)}, as the auto-configuration does for its context. Kept as
+     *             the process-wide fallback through 4.x; not scheduled for removal.
      */
+    @Deprecated
     public static void setModel(StreamingChatModel streamingModel) {
         staticModel = streamingModel;
         if (streamingModel != null) {
@@ -136,7 +140,11 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
      * Auto-configuration seam: binds {@code streamingModel} only when the
      * application has not already bound one — auto-detected context beans
      * must never overwrite an explicit {@link #setModel} call.
+     * @deprecated binds for every application in the JVM; bind for one application with
+     *             {@link #offerModel(org.atmosphere.ai.AiEnvironment, StreamingChatModel)}, as the auto-configuration does for its context. Kept as
+     *             the process-wide fallback through 4.x; not scheduled for removal.
      */
+    @Deprecated
     public static void offerModel(StreamingChatModel streamingModel) {
         if (staticModel == null && streamingModel != null) {
             setModel(streamingModel);

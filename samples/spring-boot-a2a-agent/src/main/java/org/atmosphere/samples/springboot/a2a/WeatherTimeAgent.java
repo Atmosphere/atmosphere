@@ -25,6 +25,7 @@ import org.atmosphere.a2a.types.Artifact;
 import org.atmosphere.a2a.types.Message;
 import org.atmosphere.a2a.types.TaskState;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.llm.ChatCompletionRequest;
 import org.slf4j.Logger;
@@ -65,7 +66,7 @@ public class WeatherTimeAgent {
         task.addMessage(Message.user(message));
 
         try {
-            var settings = AiConfig.get();
+            var settings = AiEnvironment.current().settings();
             if (settings != null && settings.hasReachableModel()) {
                 // Real LLM call
                 var response = callLlm(settings, message);
@@ -94,7 +95,7 @@ public class WeatherTimeAgent {
         task.updateStatus(TaskState.WORKING, "Checking weather for " + location + "...");
 
         try {
-            var settings = AiConfig.get();
+            var settings = AiEnvironment.current().settings();
             if (settings != null && settings.hasReachableModel()) {
                 var prompt = "Give a brief, realistic current weather report for " + location
                         + ". Include temperature, conditions, humidity, and a short forecast. Be concise (2-3 sentences).";

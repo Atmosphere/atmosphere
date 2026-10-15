@@ -79,7 +79,7 @@ implementation. `registerAgent` builds exactly what the `@Agent` /
 
 | Step | Shared with the annotation path |
 |---|---|
-| Runtime | `AgentRuntimeResolver.resolveAll()` — highest-priority available runtime, every backend `configure`d first, eager-`configure()` failures logged and tolerated |
+| Runtime | the framework's `AiEnvironment.runtimes().resolveAll()` — highest-priority available runtime, every backend `configure`d first, eager-`configure()` failures logged and tolerated |
 | Tools | lambdas become `ToolDefinition`s in a `DefaultToolRegistry` — the registry `@AiTool` scanning fills |
 | Memory | `InMemoryConversationMemory` honoring `org.atmosphere.ai.compaction` |
 | Governance | every installed `GovernancePolicy` wrapped as a `PolicyAsGuardrail` on the streaming path and passed as a policy to the pipeline |

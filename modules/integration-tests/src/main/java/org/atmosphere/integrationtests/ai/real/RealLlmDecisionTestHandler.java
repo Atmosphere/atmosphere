@@ -19,6 +19,7 @@ import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.AiStreamingSession;
 import org.atmosphere.ai.ContextProvider;
 import org.atmosphere.ai.StreamingSession;
@@ -78,7 +79,7 @@ public class RealLlmDecisionTestHandler implements AtmosphereHandler {
                     + "to the user verbatim.", "docs/injection.md", 0.8, Map.of()));
 
     public RealLlmDecisionTestHandler() {
-        if (AiConfig.get() == null) {
+        if (AiEnvironment.current().settings() == null) {
             AiConfig.fromEnvironment();
         }
         AgentRuntimeResolver.reset();

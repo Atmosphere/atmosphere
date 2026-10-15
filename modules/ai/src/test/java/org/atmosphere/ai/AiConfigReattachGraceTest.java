@@ -27,6 +27,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * and a malformed or negative value falls back to the default rather than
  * failing the disconnect path (Correctness Invariant #4).
  */
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 class AiConfigReattachGraceTest {
 
     @AfterEach

@@ -82,7 +82,9 @@ import java.util.function.Function;
  * {@code @Prompt} method's thread is bound to its application's), else the
  * only open environment, else {@link #processDefault()}. Framework code holds
  * an explicit environment instead; the statics are for code that runs with no
- * framework and for user code.
+ * framework and for user code, and their readers are deprecated in favour of
+ * this class ({@link #of(AtmosphereConfig)} for an application,
+ * {@link #current()} with none).
  *
  * <h3>Native clients</h3>
  * A runtime adapter's instance of this application uses, first found: the

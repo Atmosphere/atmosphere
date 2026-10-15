@@ -83,7 +83,11 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
      * holds the Spring-managed agent bean and seeds the runtime statically
      * so the {@link java.util.ServiceLoader}-instantiated runtime picks it
      * up without needing constructor injection.
+     * @deprecated binds for every application in the JVM; bind for one application with
+     *             {@link #setAgent(AiEnvironment, ReActAgent)}, as the auto-configuration does for its context. Kept as
+     *             the process-wide fallback through 4.x; not scheduled for removal.
      */
+    @Deprecated
     public static void setAgent(ReActAgent agent) {
         staticAgent = agent;
     }

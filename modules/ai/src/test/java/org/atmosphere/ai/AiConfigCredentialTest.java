@@ -38,6 +38,10 @@ import static org.junit.jupiter.api.Assertions.assertSame;
  * call. The system-property tiers are mutated under a try/finally that
  * restores the prior value; the OS environment is never mutated.</p>
  */
+// Exercises the static AI facade (the AiConfig / AgentRuntimeResolver readers
+// or an adapter's process-wide binder): deprecated for framework code, kept for
+// code that runs with no application.
+@SuppressWarnings("deprecation")
 public class AiConfigCredentialTest {
 
     /**
