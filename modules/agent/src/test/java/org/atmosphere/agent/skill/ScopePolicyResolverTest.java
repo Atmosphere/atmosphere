@@ -97,6 +97,17 @@ class ScopePolicyResolverTest {
             - Answer questions
             """;
 
+    /** The opt-out on a skill with no ## Guardrails section at all. */
+    private static final String OPTED_OUT_NO_GUARDRAILS_SKILL = """
+            ---
+            scopeTier: none
+            ---
+            # Playground
+
+            ## Skills
+            - Answer questions
+            """;
+
     private static final String NO_GUARDRAILS_SKILL = """
             # Assistant
 
@@ -126,6 +137,13 @@ class ScopePolicyResolverTest {
     @AgentScope(purpose = "Annotation-declared purpose", forbiddenTopics = "Politics",
             tier = AgentScope.Tier.RULE_BASED)
     private static final class PoliticsRestrictedAgent {
+    }
+
+    /** Every setting differs from what a skill-derived policy would use. */
+    @AgentScope(purpose = "Strict annotation purpose", forbiddenTopics = "crypto",
+            onBreach = AgentScope.Breach.DENY, tier = AgentScope.Tier.LLM_CLASSIFIER,
+            similarityThreshold = 0.8, postResponseCheck = true)
+    private static final class StrictAgent {
     }
 
     /** Restrictive but invalid: a blank purpose with unrestricted = false. */
@@ -180,11 +198,76 @@ class ScopePolicyResolverTest {
     }
 
     @Test
+    void scopeTierOptOutDiscardingARestrictiveAnnotationIsReported() {
+        assertNull(resolve(OPTED_OUT_SKILL, RestrictedAgent.class));
+        assertTrue(warnings().isEmpty(), "resolving logs nothing: " + warnings());
+
+        assertTrue(ScopePolicyResolver.reportScopeOverrides(
+                SkillFileParser.parse(OPTED_OUT_SKILL), RestrictedAgent.class,
+                "assistant", "skill:playground"));
+        var warnings = warnings();
+        assertEquals(1, warnings.size(), "the discarded annotation is reported: " + warnings);
+        var message = warnings.get(0).getFormattedMessage();
+        assertTrue(message.contains("'assistant'"), message);
+        assertTrue(message.contains("skill:playground"), message);
+        assertTrue(message.contains("scopeTier: none"), message);
+        assertTrue(message.contains(RestrictedAgent.class.getName()), message);
+        assertTrue(message.contains("Annotation-declared purpose"), message);
+    }
+
+    @Test
+    void scopeTierOptOutWithoutGuardrailsAlsoDiscardsTheAnnotationAndIsReported() {
+        assertNull(resolve(OPTED_OUT_NO_GUARDRAILS_SKILL, RestrictedAgent.class),
+                "the opt-out applies before ## Guardrails are considered, so a skill without "
+                        + "them does not fall through to the annotation");
+        assertTrue(ScopePolicyResolver.reportScopeOverrides(
+                SkillFileParser.parse(OPTED_OUT_NO_GUARDRAILS_SKILL), RestrictedAgent.class,
+                "assistant", ""));
+        assertEquals(1, warnings().size(), warnings().toString());
+        assertTrue(warnings().get(0).getFormattedMessage().contains("'Playground'"),
+                warnings().get(0).getFormattedMessage());
+    }
+
+    @Test
+    void explicitSkillScopeTierKeepsTheSkillSettingsOverTheAnnotation() {
+        var policy = resolve(EXPLICIT_TIER_SKILL, StrictAgent.class);
+        assertNotNull(policy);
+        var config = policy.config();
+        assertEquals("Order-status support for an online store", config.purpose());
+        assertEquals(AgentScope.Breach.POLITE_REDIRECT, config.onBreach());
+        assertEquals(AgentScope.Tier.RULE_BASED, config.tier());
+        assertEquals(0.45, config.similarityThreshold());
+        assertFalse(config.postResponseCheck());
+        assertEquals(List.of("gambling", "crypto"), config.forbiddenTopics(),
+                "only the annotation's forbidden topics merge in");
+    }
+
+    @Test
+    void explicitSkillScopeTierDroppingAnnotationSettingsIsReported() {
+        resolve(EXPLICIT_TIER_SKILL, StrictAgent.class);
+        assertTrue(warnings().isEmpty(), "resolving logs nothing: " + warnings());
+
+        assertTrue(ScopePolicyResolver.reportScopeOverrides(
+                SkillFileParser.parse(EXPLICIT_TIER_SKILL), StrictAgent.class,
+                "assistant", "skill:support"));
+        var warnings = warnings();
+        assertEquals(1, warnings.size(), "the dropped annotation settings are reported: "
+                + warnings);
+        var message = warnings.get(0).getFormattedMessage();
+        assertTrue(message.contains("skill:support"), message);
+        assertTrue(message.contains("scopeTier: rule_based"), message);
+        assertTrue(message.contains(StrictAgent.class.getName()), message);
+        assertTrue(message.contains("[crypto]"), message);
+        assertTrue(message.contains("LLM_CLASSIFIER"), message);
+        assertTrue(message.contains("DENY"), message);
+    }
+
+    @Test
     void explicitSkillScopeTierBeatsUnrestrictedAnnotation() {
         var policy = resolve(EXPLICIT_TIER_SKILL, UnrestrictedAgent.class);
         assertNotNull(policy,
                 "a skill that declares its scopeTier explicitly keeps its ## Guardrails policy "
-                        + "over an unrestricted annotation (two explicit declarations: restrictive)");
+                        + "over an unrestricted annotation");
         assertEquals("Order-status support for an online store", policy.config().purpose());
         assertEquals(AgentScope.Tier.RULE_BASED, policy.config().tier());
         assertFalse(policy.config().unrestricted());
@@ -252,8 +335,8 @@ class ScopePolicyResolverTest {
         assertEquals(AgentScope.Breach.POLITE_REDIRECT, policy.config().onBreach(),
                 "only the annotation's forbidden topics merge in, not its breach mode");
         assertEquals(List.of("gambling", "crypto"), policy.config().forbiddenTopics(),
-                "two explicit declarations resolve restrictive: the annotation's forbidden "
-                        + "topics are unioned into the skill's, deduplicated ignoring case");
+                "the annotation's forbidden topics are unioned into the skill's, "
+                        + "deduplicated ignoring case");
         assertEquals("skill-guardrails:assistant", policy.source());
     }
 

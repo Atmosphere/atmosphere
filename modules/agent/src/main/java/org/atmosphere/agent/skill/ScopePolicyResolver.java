@@ -32,19 +32,26 @@ import java.util.regex.Pattern;
 /**
  * Resolves the admission {@link ScopePolicy} an agent-bearing class mandates,
  * with explicit precedence shared by every processor that consumes skill files
- * ({@code @Agent}, {@code @Coordinator}). An explicit declaration beats a derived
- * one, and two explicit declarations resolve restrictive. A skill's
- * {@code ## Guardrails} section alone only <em>derives</em> a scope; a skill
- * frontmatter {@code scopeTier} and a class {@link AgentScope} annotation are
- * <em>explicit</em> declarations:
+ * ({@code @Agent}, {@code @Coordinator}). A skill's {@code ## Guardrails} section
+ * alone only <em>derives</em> a scope; a skill frontmatter {@code scopeTier} and
+ * a class {@link AgentScope} annotation are <em>explicit</em> declarations. An
+ * explicit declaration beats a derived one. When both the skill and the
+ * annotation are explicit, the skill's {@code scopeTier} decides: an opt-out
+ * discards the annotation, and any other tier keeps the skill's policy with only
+ * the annotation's forbidden topics added. Neither case is silent:
+ * {@link #reportScopeOverrides} logs a WARN at registration.
  * <ol>
  *   <li>a skill-level {@code scopeTier: none} (or {@code off} / {@code disabled})
- *       opt-out beats everything — the skill is the agent's own artifact;</li>
+ *       opt-out beats everything — the skill is the agent's own artifact — so
+ *       a restrictive {@code @AgentScope} on the class is not applied, whether
+ *       or not the skill has {@code ## Guardrails};</li>
  *   <li>a skill with {@code ## Guardrails} whose frontmatter declares any other
  *       {@code scopeTier} has made its scope explicit, so that policy
- *       ({@link #fromSkillGuardrails}) is installed — its purpose, tier and
- *       breach mode — with the forbidden topics of a restrictive
- *       {@code @AgentScope} on the class unioned into its own;</li>
+ *       ({@link #fromSkillGuardrails}) is installed — its purpose, tier,
+ *       threshold and breach mode — with the forbidden topics of a restrictive
+ *       {@code @AgentScope} on the class unioned into its own; the annotation's
+ *       purpose, tier, threshold, breach mode, redirect and
+ *       {@code postResponseCheck} are not applied;</li>
  *   <li>otherwise an explicit {@code @AgentScope(unrestricted = true,
  *       justification = "...")} on the class overrides the scope a
  *       {@code ## Guardrails} section alone would derive: no admission policy is
@@ -56,7 +63,8 @@ import java.util.regex.Pattern;
  *       topic prohibitions ({@link #forbiddenTopicsFrom}) unioned into its
  *       forbidden topics;</li>
  *   <li>otherwise the {@code ## Guardrails}-derived policy is installed, and a
- *       class whose skill declares no guardrails falls back to its
+ *       class whose skill declares no guardrails (and no {@code scopeTier}
+ *       opt-out) falls back to its
  *       {@link AgentScope} annotation — including the {@code unrestricted = true}
  *       opt-out, which makes an intentionally open agent an <em>explicit,
  *       lintable declaration</em> instead of a silent gap (Correctness
@@ -123,7 +131,8 @@ public final class ScopePolicyResolver {
      * explicit restrictive {@code @AgentScope} (plus the skill's topic
      * prohibitions), then the {@code ## Guardrails}-derived policy, then the
      * {@link AgentScope} annotation fallback. A {@code null} skill file, or one
-     * without {@code ## Guardrails}, falls straight through to the annotation.
+     * without {@code ## Guardrails} that does not opt out with
+     * {@code scopeTier: none}, falls straight through to the annotation.
      * Logs nothing, so a processor may resolve more than once per registration;
      * it reports overrides and an invalid annotation once through
      * {@link #reportScopeOverrides}.
@@ -241,6 +250,13 @@ public final class ScopePolicyResolver {
      * on its own. {@link #resolve} logs nothing, because a processor resolves
      * once per invocation path; the processor calls this once, beside it:
      * <ul>
+     *   <li>one WARN when the skill's {@code scopeTier: none} opt-out discards a
+     *       restrictive {@code @AgentScope}, naming the agent, the skill, the class
+     *       and the purpose that is not enforced;</li>
+     *   <li>one WARN when the skill declares another {@code scopeTier} and has
+     *       {@code ## Guardrails}, so a restrictive {@code @AgentScope}
+     *       contributes only its forbidden topics, naming the settings of the
+     *       annotation that are not applied;</li>
      *   <li>one WARN when {@code @AgentScope(unrestricted = true)} overrides the
      *       scope the skill's {@code ## Guardrails} section would derive, naming
      *       the agent, the skill and the annotation's justification, so the
@@ -266,6 +282,28 @@ public final class ScopePolicyResolver {
         var scopeAnnotation = agentClass.getAnnotation(AgentScope.class);
         var skillName = skillRef != null && !skillRef.isBlank()
                 ? skillRef : firstNonBlank(skillFile.title(), "(auto-discovered)");
+        var tierHint = tierHint(skillFile);
+        if (SCOPE_TIER_OPT_OUT.contains(tierHint) && isRestrictive(scopeAnnotation)) {
+            logger.warn("Agent '{}': skill '{}' declares scopeTier: {}, which disables the "
+                            + "restrictive @AgentScope on {} — no admission scope policy runs, "
+                            + "so its purpose '{}' and forbidden topics {} are not enforced "
+                            + "(remove scopeTier from the skill to enforce them)",
+                    agentName, skillName, tierHint, agentClass.getName(),
+                    scopeAnnotation.purpose(), List.of(scopeAnnotation.forbiddenTopics()));
+            return true;
+        }
+        if (!tierHint.isEmpty() && isRestrictive(scopeAnnotation)
+                && !skillFile.listItems("Guardrails").isEmpty()) {
+            logger.warn("Agent '{}': skill '{}' declares scopeTier: {}, so the scope its "
+                            + "## Guardrails declare is enforced and the restrictive @AgentScope "
+                            + "on {} adds only its forbidden topics {} — its purpose, tier {}, "
+                            + "threshold, breach mode {}, redirect and postResponseCheck are not "
+                            + "applied (remove scopeTier from the skill to enforce the annotation)",
+                    agentName, skillName, tierHint, agentClass.getName(),
+                    List.of(scopeAnnotation.forbiddenTopics()), scopeAnnotation.tier(),
+                    scopeAnnotation.onBreach());
+            return true;
+        }
         if (unrestrictedOverridesGuardrails(skillFile, scopeAnnotation)) {
             logger.warn("Agent '{}' declares @AgentScope(unrestricted = true) — it overrides the "
                             + "admission scope skill '{}' would derive from its ## Guardrails, "
@@ -274,7 +312,7 @@ public final class ScopePolicyResolver {
                     agentName, skillName, scopeAnnotation.justification());
             return true;
         }
-        if (isRestrictive(scopeAnnotation) && tierHint(skillFile).isEmpty()
+        if (isRestrictive(scopeAnnotation) && tierHint.isEmpty()
                 && !skillFile.listItems("Guardrails").isEmpty()) {
             try {
                 ScopeConfig.fromAnnotation(scopeAnnotation);

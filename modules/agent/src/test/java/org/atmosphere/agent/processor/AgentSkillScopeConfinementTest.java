@@ -281,7 +281,7 @@ class AgentSkillScopeConfinementTest {
                 "scopeTier: none must opt the skill out of admission enforcement");
     }
 
-    // ── @AgentScope on @Agent classes: explicit beats derived, explicit pairs resolve restrictive ──
+    // ── @AgentScope on @Agent classes: explicit beats derived, an explicit skill tier decides ──
 
     @AgentScope(purpose = "Annotation-declared purpose",
             forbiddenTopics = "gambling", tier = AgentScope.Tier.RULE_BASED)

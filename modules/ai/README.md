@@ -303,13 +303,15 @@ from `@AgentScope(tier = ...)` or the skill's `scopeTier` frontmatter
 When an `@Agent` or `@Coordinator` carries both, `ScopePolicyResolver` applies
 one precedence on every path. A `## Guardrails` section alone only derives a
 scope; a skill `scopeTier` and the annotation are explicit declarations. An
-explicit declaration beats a derived one, and two explicit declarations resolve
-restrictive:
+explicit declaration beats a derived one. When both are explicit, the skill's
+`scopeTier` decides, and one WARN at registration says what the annotation lost:
 
-1. A skill `scopeTier: none` (or `off` / `disabled`) opts out of everything.
+1. A skill `scopeTier: none` (or `off` / `disabled`) opts out of everything,
+   with or without `## Guardrails`: a restrictive annotation is not applied.
 2. A skill with `## Guardrails` and any other `scopeTier` keeps its own policy
-   (purpose, tier, breach mode); a restrictive annotation's `forbiddenTopics`
-   are added to it.
+   (purpose, tier, threshold, breach mode); a restrictive annotation adds only
+   its `forbiddenTopics`, not its purpose, tier, threshold, breach mode,
+   redirect or `postResponseCheck`.
 3. Otherwise an explicit `@AgentScope(unrestricted = true, justification =
    "...")` overrides the derived scope: no admission policy runs, and one WARN
    at registration names the agent, the skill and the justification.
@@ -318,11 +320,13 @@ restrictive:
    with the skill's explicit topic prohibitions (`Never discuss X`, bare topic
    labels) added to its `forbiddenTopics`.
 5. Otherwise the `## Guardrails`-derived policy runs. A skill without
-   `## Guardrails` leaves the annotation in charge as written.
+   `## Guardrails` and without the opt-out leaves the annotation in charge as
+   written.
 
 Added topics are deduplicated ignoring case. An invalid annotation (no
 justification while unrestricted, a blank purpose while restrictive) overrides
-nothing: the derived policy runs.
+nothing: the derived policy runs, and a restrictive one is logged once at ERROR
+when the agent registers.
 
 There are four tiers, each resolved by `ScopeGuardrailResolver`:
 

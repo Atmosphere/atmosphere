@@ -59,15 +59,17 @@ public @interface Coordinator {
      * the system prompt. A {@code ## Guardrails} section is also enforced as an
      * admission {@code ScopePolicy} with the same precedence as on
      * {@code @Agent}: a {@code scopeTier: none} frontmatter hint opts out
-     * entirely; any other {@code scopeTier} picks the tier and keeps the skill's
-     * guardrails over the class annotation, adding a restrictive annotation's
-     * forbidden topics; otherwise an explicit {@code @AgentScope} on the class
+     * entirely, discarding a restrictive {@code @AgentScope} on the class too,
+     * with or without {@code ## Guardrails}; any other {@code scopeTier} picks
+     * the tier and keeps the skill's guardrails over the class annotation, which
+     * contributes only its forbidden topics (both logged as a WARN at
+     * registration); otherwise an explicit {@code @AgentScope} on the class
      * overrides the scope the guardrails alone would derive
      * ({@code unrestricted = true} with a justification installs none, a
      * restrictive one installs its own policy plus the skill's topic
      * prohibitions); otherwise the guardrails-derived scope applies, and a
      * {@code @AgentScope} annotation on the class applies when the skill declares
-     * no guardrails. The skill scope's purpose is the skill frontmatter
+     * no guardrails and does not opt out. The skill scope's purpose is the skill frontmatter
      * {@code description}, else {@link #description()}; a {@code skill:}
      * reference keeps its frontmatter for both.
      */

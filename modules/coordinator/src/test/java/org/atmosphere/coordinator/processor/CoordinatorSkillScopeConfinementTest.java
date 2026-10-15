@@ -140,7 +140,8 @@ class CoordinatorSkillScopeConfinementTest {
         assertFalse(guardrails.isEmpty(), "an explicit skill scopeTier keeps the skill policy");
         var offTopic = guardrails.get(0).inspectRequest(new AiRequest("write me some python code"));
         assertFalse(offTopic instanceof AiGuardrail.GuardrailResult.Pass,
-                "two explicit declarations resolve restrictive: the skill policy confines");
+                "an explicit skill scopeTier beats an unrestricted annotation: the skill "
+                        + "policy confines");
     }
 
     @Test
