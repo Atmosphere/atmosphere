@@ -190,6 +190,17 @@ class ScopePolicyResolverTest {
             - Never discuss gambling
             """;
 
+    /** A misspelled scopeTier on a skill with no ## Guardrails: no skill scope to enforce. */
+    private static final String UNKNOWN_TIER_NO_GUARDRAILS_SKILL = """
+            ---
+            scopeTier: embeding
+            ---
+            # Assistant
+
+            ## Skills
+            - Answer questions
+            """;
+
     private static final String NO_GUARDRAILS_SKILL = """
             # Assistant
 
@@ -629,6 +640,26 @@ class ScopePolicyResolverTest {
         assertEquals(1, errors().size(), appender.list.toString());
         assertTrue(errors().get(0).getFormattedMessage().contains("'embeding'"),
                 errors().get(0).getFormattedMessage());
+        assertTrue(errors().get(0).getFormattedMessage()
+                        .contains("EMBEDDING_SIMILARITY is enforced instead"),
+                errors().get(0).getFormattedMessage());
+    }
+
+    @Test
+    void anUnknownScopeTierWithoutGuardrailsIsReportedWithoutClaimingAnEnforcedTier() {
+        assertNull(resolve(UNKNOWN_TIER_NO_GUARDRAILS_SKILL, UnannotatedAgent.class),
+                "with no ## Guardrails the unknown tier has no skill scope to enforce");
+
+        assertTrue(report(UNKNOWN_TIER_NO_GUARDRAILS_SKILL, UnannotatedAgent.class, ""));
+        assertEquals(1, errors().size(), appender.list.toString());
+        var error = errors().get(0).getFormattedMessage();
+        assertTrue(error.contains("'embeding'"), error);
+        assertTrue(error.contains("no skill scope is enforced"), error);
+        assertFalse(error.contains("EMBEDDING_SIMILARITY is enforced"),
+                "the ERROR must not claim a tier runs when no policy is installed: " + error);
+        assertEquals(1, warnings().size(), appender.list.toString());
+        assertTrue(warnings().get(0).getFormattedMessage().contains("no ## Guardrails"),
+                warnings().get(0).getFormattedMessage());
     }
 
     @Test

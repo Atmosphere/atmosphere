@@ -353,7 +353,9 @@ justification while unrestricted, a blank purpose while restrictive) overrides
 nothing: the skill's policy runs, and a restrictive one still adds its
 `forbiddenTopics` to it (a topic ban can only narrow) and is logged once at
 ERROR when the agent registers. A `scopeTier` value that names no tier is
-logged once at ERROR and enforces `EMBEDDING_SIMILARITY`.
+logged once at ERROR; a skill with `## Guardrails` then enforces its scope at
+`EMBEDDING_SIMILARITY`, and one without them enforces no skill scope, which the
+ERROR says.
 
 A multi-leg policy prepends one confinement block to the system prompt that
 lists every distinct purpose and says a request must fall within all of them;

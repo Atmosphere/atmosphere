@@ -364,7 +364,8 @@ public final class ScopePolicyResolver {
      * <ul>
      *   <li>one ERROR when the skill's {@code scopeTier} is not a known tier,
      *       naming the token: {@code EMBEDDING_SIMILARITY} is enforced
-     *       instead;</li>
+     *       instead when the skill has {@code ## Guardrails}; without them the
+     *       ERROR says no skill scope is enforced;</li>
      *   <li>one WARN when a restrictive {@code @AgentScope} beats the skill's
      *       {@code scopeTier: none} opt-out and is enforced as written;</li>
      *   <li>one WARN when the skill declares a {@code scopeTier} but no
@@ -415,10 +416,12 @@ public final class ScopePolicyResolver {
         var hasGuardrails = !skillFile.listItems("Guardrails").isEmpty();
         var reported = false;
         if (!optOut && knownTier(tierHint).isEmpty()) {
-            logger.error("Agent '{}': skill '{}' declares an unknown scopeTier '{}' — "
-                            + "EMBEDDING_SIMILARITY is enforced instead (use rule_based, embedding, "
-                            + "semantic, llm, or none to opt out)",
-                    agentName, skillName, tierHint);
+            // Without ## Guardrails resolve() builds no skill scope, so no tier runs.
+            logger.error("Agent '{}': skill '{}' declares an unknown scopeTier '{}' — {} "
+                            + "(use rule_based, embedding, semantic, llm, or none to opt out)",
+                    agentName, skillName, tierHint, hasGuardrails
+                            ? "EMBEDDING_SIMILARITY is enforced instead"
+                            : "the skill has no ## Guardrails, so no skill scope is enforced");
             reported = true;
         }
         var annotationConfig = restrictiveConfig(scopeAnnotation);
