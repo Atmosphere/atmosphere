@@ -40,14 +40,17 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -446,6 +449,59 @@ class LongPollingRoomRepliesTest {
         assertEquals(reservedBefore, LongPollingReplies.reservedBytes(),
                 "the frames kept for a member gone for its time to live are released");
         assertTrue(nextPoll(member).isEmpty());
+    }
+
+    @Test
+    void aMemberWhosePollResponseBlocksDoesNotHoldUpTheRoom() throws Exception {
+        LongPollingRoomReplies.install(room);
+        var member = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        room.removeAtmosphereResource(member);
+        var socket = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        var first = StreamingSessions.startRoomBroadcast(socket);
+        first.send("one. ");
+        first.complete();
+        awaitComplete(socket);
+
+        // The member's next poll takes the first reply, and its response blocks: a client that does not read it.
+        var writing = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        var taken = new CopyOnWriteArrayList<String>();
+        var poll = mock(AtmosphereResource.class);
+        when(poll.uuid()).thenReturn(member.uuid());
+        var delivery = CompletableFuture.supplyAsync(() -> LongPollingReplies.deliver(poll, owner -> true,
+                (p, frames) -> {
+                    writing.countDown();
+                    try {
+                        if (!release.await(60, TimeUnit.SECONDS)) {
+                            throw new IOException("the test never released the write");
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new IOException(e);
+                    }
+                    taken.addAll(frames);
+                }));
+        try {
+            assertTrue(writing.await(10, TimeUnit.SECONDS), "the poll's response is being written");
+            var second = StreamingSessions.startRoomBroadcast(socket);
+            second.send("two.");
+            awaitFrames(socket, 3);
+            assertEquals(List.of("streaming-text:one. ", "complete", "streaming-text:two."), frames(socket),
+                    "a long-polling member whose poll response blocks must not hold up the frames of the room's"
+                            + " other members");
+            second.complete();
+            awaitTerminals(socket, 2);
+        } finally {
+            release.countDown();
+        }
+        assertTrue(delivery.get(10, TimeUnit.SECONDS), "the poll was answered with the frames kept for it");
+
+        assertEquals(List.of("streaming-text:one. ", "complete"), describe(taken),
+                "the poll receives the frames kept before its write started");
+        assertEquals(List.of("streaming-text:two.", "complete"), nextPoll(member),
+                "the frames kept while the write ran wait for the next poll, once");
+        assertTrue(nextPoll(member).isEmpty(), "nothing is handed over twice");
+        assertEquals(reservedBefore, LongPollingReplies.reservedBytes(), "every kept frame is released once taken");
     }
 
     /** A subscriber of the room on {@code transport}; a long-polling one leaves the room once written to. */

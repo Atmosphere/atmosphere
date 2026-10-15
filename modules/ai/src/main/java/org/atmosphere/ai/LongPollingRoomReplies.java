@@ -32,6 +32,8 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
@@ -189,7 +191,8 @@ public final class LongPollingRoomReplies {
 
     /**
      * The mailboxes of {@code trackingId}, one per room it is a member of, in a
-     * fixed order: {@link LongPollingReplies#deliver} locks them in that order.
+     * fixed order: {@link LongPollingReplies#deliver} takes their delivery locks
+     * in that order.
      */
     static List<Member> mailboxes(String trackingId) {
         return trackingId != null ? MEMBERSHIPS.getOrDefault(trackingId, List.of()) : List.of();
@@ -462,11 +465,21 @@ public final class LongPollingRoomReplies {
         private final String trackingId;
         private final long order = MEMBER_SEQUENCE.incrementAndGet();
         /**
-         * Guards the mailbox; held by {@link LongPollingReplies#deliver} while it
-         * writes the mailbox, after the lock of the client's parked reply. Nothing
-         * run under it waits for a parked reply's lock or resumes a poll.
+         * Guards the mailbox, only for as long as it takes to change it: the
+         * room's broadcaster waits for it on every frame. Nothing run under it
+         * writes to a client, takes the delivery lock or resumes a poll.
          */
         private final ReentrantLock lock = new ReentrantLock();
+        /**
+         * Held by {@link LongPollingReplies#deliver} while a poll of this client
+         * takes the mailbox, the write of the poll's response included, after the
+         * lock of the client's parked reply; and by
+         * {@link LongPollingReplies#hasParked}. Only this client's own polls wait
+         * for it, never the room's broadcaster.
+         */
+        private final ReentrantLock delivery = new ReentrantLock();
+        /** The frames a poll is writing; guarded by {@link #delivery}. */
+        private List<Kept> taking = List.of();
         private volatile Object owner;
         private volatile AtmosphereConfig config;
         private volatile LongPollingReplies.Limits limits = LongPollingReplies.Limits.DEFAULTS;
@@ -528,29 +541,75 @@ public final class LongPollingRoomReplies {
             return owner;
         }
 
-        void lock() {
+        void lockDelivery() {
+            delivery.lock();
+        }
+
+        void unlockDelivery() {
+            delivery.unlock();
+        }
+
+        /** Whether a frame is kept for this member; called holding {@link #lockDelivery}. */
+        boolean hasFrames() {
             lock.lock();
+            try {
+                return !mailbox.isEmpty();
+            } finally {
+                lock.unlock();
+            }
         }
 
-        void unlock() {
-            lock.unlock();
-        }
-
-        /** The frames kept for this member; called holding its lock. */
-        List<String> frames() {
-            var frames = new ArrayList<String>(mailbox.size());
-            for (var k : mailbox) {
+        /**
+         * The frames kept for this member so far, which a poll is about to write;
+         * they stay in the mailbox until {@link #taken}. Called holding
+         * {@link #lockDelivery}.
+         */
+        List<String> take() {
+            lock.lock();
+            try {
+                taking = List.copyOf(mailbox);
+            } finally {
+                lock.unlock();
+            }
+            var frames = new ArrayList<String>(taking.size());
+            for (var k : taking) {
                 frames.add(k.json);
             }
             return frames;
         }
 
-        /** Its frames were written to a poll of it: they leave the mailbox. Called holding its lock. */
+        /** The poll did not write the frames {@link #take} returned: they stay kept. */
+        void untaken() {
+            taking = List.of();
+        }
+
+        /**
+         * The poll wrote the frames {@link #take} returned: they leave the
+         * mailbox, and the frames kept while it wrote stay for the next poll.
+         * Called holding {@link #lockDelivery}.
+         */
         void taken() {
-            empty();
-            for (var reply : replies.values()) {
-                reply.bytes = 0;
-                reply.frames = 0;
+            var written = Collections.newSetFromMap(new IdentityHashMap<Kept, Boolean>());
+            written.addAll(taking);
+            taking = List.of();
+            lock.lock();
+            try {
+                // A frame an outgrown reply or a departure dropped while the poll wrote was released then.
+                mailbox.removeIf(k -> {
+                    if (!written.contains(k)) {
+                        return false;
+                    }
+                    k.release();
+                    LongPollingReplies.release(MEMBER_FRAME_BYTES);
+                    var reply = replies.get(k.sessionId);
+                    if (reply != null && !reply.abandoned) {
+                        reply.bytes = Math.max(0, reply.bytes - k.size);
+                        reply.frames = Math.max(0, reply.frames - 1);
+                    }
+                    return true;
+                });
+            } finally {
+                lock.unlock();
             }
         }
 
@@ -561,9 +620,9 @@ public final class LongPollingRoomReplies {
                 return offer(frame, k, handOver);
             } finally {
                 if (handOver[0]) {
-                    // Outside the lock: resuming a poll never runs under the mailbox lock that
-                    // deliver takes after a parked reply's lock. A poll deliver writes is not
-                    // suspended, so this never resumes it in the middle of the write.
+                    // Outside the lock: nothing run under the mailbox lock resumes a poll. A
+                    // poll deliver writes is not suspended, so this never resumes it in the
+                    // middle of the write.
                     wake();
                 }
             }

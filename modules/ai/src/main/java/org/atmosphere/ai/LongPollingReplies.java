@@ -372,7 +372,9 @@ public final class LongPollingReplies {
      * accepts too, after them. The frames leave the parked reply and the
      * mailboxes only once {@code writer} returned. A poll that is not suspended
      * is never resumed by a hand-over, so nothing ends it in the middle of the
-     * write.
+     * write. The write holds up only this client's own polls and hand-overs,
+     * never the room's broadcaster: the room frames kept for the client while it
+     * runs wait for its next poll.
      *
      * @return whether a reply was written; the poll is then answered with it
      * instead of being suspended
@@ -387,15 +389,17 @@ public final class LongPollingReplies {
         if (entry == null && mailboxes.isEmpty()) {
             return false;
         }
-        // Always the parked reply's lock first, then the mailboxes' in their
-        // fixed order: no other path holds more than one of them.
+        // Always the parked reply's lock first, then the mailboxes' delivery locks
+        // in their fixed order: no other path holds more than one of them.
         if (entry != null) {
             entry.lock.lock();
         }
         var locked = 0;
+        var taken = new ArrayList<LongPollingRoomReplies.Member>();
+        var written = false;
         try {
             for (var mailbox : mailboxes) {
-                mailbox.lock();
+                mailbox.lockDelivery();
                 locked++;
             }
             if (poll.isResumed() || poll.isCancelled()) {
@@ -415,32 +419,34 @@ public final class LongPollingReplies {
                             trackingId);
                 }
             }
-            var taken = new ArrayList<LongPollingRoomReplies.Member>();
             for (var mailbox : mailboxes) {
-                var kept = mailbox.frames();
-                if (kept.isEmpty()) {
+                if (!ownerMatches.test(mailbox.owner())) {
+                    if (mailbox.hasFrames()) {
+                        logger.warn("A poll of {} carries another identity than its room membership; room frames"
+                                + " not delivered", trackingId);
+                    }
                     continue;
                 }
-                if (ownerMatches.test(mailbox.owner())) {
-                    frames.addAll(kept);
-                    taken.add(mailbox);
-                } else {
-                    logger.warn("A poll of {} carries another identity than its room membership; room frames not"
-                            + " delivered", trackingId);
-                }
+                var kept = mailbox.take();
+                taken.add(mailbox);
+                frames.addAll(kept);
             }
             if (frames.isEmpty()) {
                 return false;
             }
-            // The write runs under the locks: a hand-over to this client (and the
-            // sweep of these entries) waits for it, so no resume ends the poll in
-            // the middle of it. Only this client's own replies wait.
+            // The write runs under the parked reply's lock and the delivery locks: a
+            // hand-over of this client's own reply (and the sweep of that reply)
+            // waits for it, so no resume ends the poll in the middle of it. The room
+            // frames stay in their mailboxes until it returned, and the mailbox locks
+            // the room's broadcaster takes on every frame are not held: frames kept
+            // for this client while it runs wait for its next poll.
             try {
                 writer.write(poll, List.copyOf(frames));
             } catch (IOException | RuntimeException e) {
                 logger.debug("Writing the parked reply of {} failed; it stays parked", trackingId, e);
                 return false;
             }
+            written = true;
             logger.debug("Delivered {} parked frame(s) to the poll of {}", frames.size(), trackingId);
             if (takeParked) {
                 RESERVED.addAndGet(-entry.bytes);
@@ -449,13 +455,17 @@ public final class LongPollingReplies {
                 entry.dead = true;
                 PARKED.remove(trackingId, entry);
             }
-            for (var mailbox : taken) {
-                mailbox.taken();
-            }
             return true;
         } finally {
+            for (var mailbox : taken) {
+                if (written) {
+                    mailbox.taken();
+                } else {
+                    mailbox.untaken();
+                }
+            }
             for (var i = locked - 1; i >= 0; i--) {
-                mailboxes.get(i).unlock();
+                mailboxes.get(i).unlockDelivery();
             }
             if (entry != null) {
                 entry.lock.unlock();
@@ -481,13 +491,14 @@ public final class LongPollingReplies {
             }
         }
         for (var mailbox : LongPollingRoomReplies.mailboxes(trackingId)) {
-            mailbox.lock();
+            // After a poll that is writing the mailbox: the frames it writes are not waiting any more.
+            mailbox.lockDelivery();
             try {
-                if (!mailbox.frames().isEmpty() && ownerMatches.test(mailbox.owner())) {
+                if (mailbox.hasFrames() && ownerMatches.test(mailbox.owner())) {
                     return true;
                 }
             } finally {
-                mailbox.unlock();
+                mailbox.unlockDelivery();
             }
         }
         return false;
