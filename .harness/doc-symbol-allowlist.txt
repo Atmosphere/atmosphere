@@ -29,6 +29,7 @@ ConditionalOnExpression
 ConditionalOnProperty
 Configuration
 EventListener
+Primary
 RestController
 GetMapping
 PostMapping
