@@ -53,6 +53,11 @@ public class AiPipeline {
     private final ToolRegistry toolRegistry;
     private final List<AiGuardrail> guardrails;
     private final List<GovernancePolicy> policies;
+    /**
+     * The pipeline whose endpoint scope admitted the inbound message of the
+     * {@code @Prompt} call running on this thread (see {@link #admitScope}).
+     */
+    private static final ThreadLocal<AiPipeline> SCOPE_ADMITTED = new ThreadLocal<>();
     private final List<ContextProvider> contextProviders;
     private final AiMetrics metrics;
     private final Class<?> responseType;
@@ -443,6 +448,96 @@ public class AiPipeline {
     }
 
     /**
+     * Admit the inbound user message of a protocol turn (A2A, AG-UI) against
+     * this pipeline's endpoint scope before the bridge invokes the
+     * {@code @Prompt} method — the counterpart of the web path's
+     * {@code AiStreamingSession.admitScope}. Scope confines what the user asked:
+     * an off-scope message must not run the method (a coordinator's fleet
+     * dispatch, its tool calls), and the prompts the method composes from agent
+     * or web-search output are not the user's request.
+     *
+     * <p>When every scope policy admits the message, the returned handle marks
+     * this pipeline admitted on the calling thread until it is closed: while it
+     * is open, {@link #execute} skips this pipeline's endpoint scope policies
+     * for prompts streamed from that thread. Per-request scopes, other
+     * pipelines and prompts streamed from other threads are evaluated as usual.
+     * When a policy rewrites or denies the message the result is empty and the
+     * caller streams the inbound message, which renders the redirect or the
+     * denial through {@link #execute}.</p>
+     *
+     * @param clientId conversation key, as passed to {@link #execute}
+     * @param message  the inbound user message
+     * @return the open admission to close when the {@code @Prompt} call ends,
+     *         or empty when the message breached (or a policy failed)
+     */
+    public java.util.Optional<AdmittedScope> admitScope(String clientId, String message) {
+        var scopes = policies.stream()
+                .filter(org.atmosphere.ai.governance.scope.ScopePolicy.class::isInstance)
+                .toList();
+        if (!scopes.isEmpty()) {
+            var history = memory != null
+                    ? memory.getHistory(clientId)
+                    : List.<org.atmosphere.ai.llm.ChatMessage>of();
+            var request = new AiRequest(message,
+                    ScopePolicyInstaller.hardenSystemPrompt(systemPrompt, policies), model,
+                    null, clientId, null, clientId, Map.of(), history);
+            var admitted = new ArrayList<Runnable>(scopes.size());
+            for (var policy : scopes) {
+                var ctx = PolicyContext.preAdmission(request);
+                var startNs = System.nanoTime();
+                PolicyDecision decision;
+                try {
+                    decision = policy.evaluate(ctx);
+                } catch (RuntimeException e) {
+                    // Fail closed: nothing is admitted, so streaming the inbound
+                    // message evaluates the policy again and reports its failure.
+                    logger.error("Scope admission of the inbound message failed (policy={})",
+                            policy.name(), e);
+                    return java.util.Optional.empty();
+                }
+                if (!(decision instanceof PolicyDecision.Admit)) {
+                    // Recorded once, by execute, when the caller streams the message.
+                    return java.util.Optional.empty();
+                }
+                var evalMs = (System.nanoTime() - startNs) / 1_000_000.0;
+                admitted.add(() -> GovernanceDecisionLog.installed().record(
+                        GovernanceDecisionLog.entry(policy, ctx, "admit", "", evalMs)));
+            }
+            admitted.forEach(Runnable::run);
+        }
+        var previous = SCOPE_ADMITTED.get();
+        SCOPE_ADMITTED.set(this);
+        return java.util.Optional.of(new AdmittedScope(previous));
+    }
+
+    /**
+     * An open admission from {@link #admitScope}: closing it ends the
+     * {@code @Prompt} call's admitted turn on the thread that opened it.
+     * Close-once; close it on the opening thread.
+     */
+    public static final class AdmittedScope implements AutoCloseable {
+        private final AiPipeline previous;
+        private final java.util.concurrent.atomic.AtomicBoolean closed =
+                new java.util.concurrent.atomic.AtomicBoolean();
+
+        private AdmittedScope(AiPipeline previous) {
+            this.previous = previous;
+        }
+
+        @Override
+        public void close() {
+            if (!closed.compareAndSet(false, true)) {
+                return;
+            }
+            if (previous != null) {
+                SCOPE_ADMITTED.set(previous);
+            } else {
+                SCOPE_ADMITTED.remove();
+            }
+        }
+    }
+
+    /**
      * Execute the full AI pipeline for the given message. Runs on the caller's
      * thread (typically a virtual thread from the channel bridge).
      *
@@ -627,7 +722,13 @@ public class AiPipeline {
         // — a policy that throws denies the turn, matching the guardrail contract.
         // Each evaluation emits an AuditEntry to GovernanceDecisionLog (ring-
         // buffered for /api/admin/governance/decisions) and an OpenTelemetry span.
+        var scopeAdmitted = SCOPE_ADMITTED.get() == this;
         for (var policy : effectivePolicies) {
+            if (scopeAdmitted && policy instanceof org.atmosphere.ai.governance.scope.ScopePolicy
+                    && policy != requestScopePolicy) {
+                // admitScope already admitted the turn's inbound message.
+                continue;
+            }
             var ctx = PolicyContext.preAdmission(request);
             var tracer = GovernanceTracer.start(policy, ctx);
             var startNs = System.nanoTime();

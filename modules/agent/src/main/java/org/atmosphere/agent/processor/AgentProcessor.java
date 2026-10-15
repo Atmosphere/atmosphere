@@ -1096,7 +1096,7 @@ public class AgentProcessor implements Processor<Object> {
             return;
         }
         try {
-            var bridge = new AgUiAgentBridge(promptTarget, promptMethod);
+            var bridge = new AgUiAgentBridge(promptTarget, promptMethod, pipeline);
             var actionMethod = AgUiAgentBridge.class.getDeclaredMethod(
                     "onAction",
                     org.atmosphere.agui.runtime.RunContext.class,
@@ -1125,13 +1125,16 @@ public class AgentProcessor implements Processor<Object> {
     // a public method on a package-private class is not cross-package accessible.
     public static class AgUiAgentBridge {
         private final org.atmosphere.ai.processor.PromptMethodInvoker promptInvoker;
+        private final org.atmosphere.ai.AiPipeline pipeline;
 
-        AgUiAgentBridge(Object promptTarget, Method promptMethod) {
+        AgUiAgentBridge(Object promptTarget, Method promptMethod,
+                        org.atmosphere.ai.AiPipeline pipeline) {
             // Shared @Prompt dispatch seam — same binding (and @SandboxTool
             // scope) as the web path, so AG-UI keeps Mode Parity (#7) for
             // prompt methods with framework-injected parameters.
             this.promptInvoker = org.atmosphere.ai.processor.PromptMethodInvoker
                     .forMethod(promptTarget, promptMethod);
+            this.pipeline = pipeline;
         }
 
         @SuppressWarnings("unused") // invoked reflectively by AgUiHandler
@@ -1139,12 +1142,24 @@ public class AgentProcessor implements Processor<Object> {
                              org.atmosphere.ai.StreamingSession session) {
             var message = context.lastUserMessage();
             if (message != null && !message.isBlank()) {
+                // The agent's scope admits the user's message before @Prompt
+                // runs, as on the web path; a breach streams it, rendering the
+                // redirect.
+                var admission = pipeline != null
+                        ? pipeline.admitScope(context.threadId(), message)
+                        : java.util.Optional.<org.atmosphere.ai.AiPipeline.AdmittedScope>empty();
                 try {
+                    if (pipeline != null && admission.isEmpty()) {
+                        session.stream(message);
+                        return;
+                    }
                     promptInvoker.invoke(message, session, null, java.util.Map.of());
                 } catch (java.lang.reflect.InvocationTargetException e) {
                     session.error(e.getCause() != null ? e.getCause() : e);
                 } catch (Exception e) {
                     session.error(e);
+                } finally {
+                    admission.ifPresent(org.atmosphere.ai.AiPipeline.AdmittedScope::close);
                 }
             } else {
                 session.complete();
@@ -1230,19 +1245,31 @@ public class AgentProcessor implements Processor<Object> {
                 return;
             }
 
+            // The agent's scope admits the user's message before @Prompt runs,
+            // as on the web path; a breach streams it, rendering the redirect
+            // or the denial.
+            var admission = pipeline != null
+                    ? pipeline.admitScope(taskCtx.taskId(), message)
+                    : java.util.Optional.<org.atmosphere.ai.AiPipeline.AdmittedScope>empty();
             try {
                 // For A2A we capture the output synchronously by invoking with
                 // a simple adapter that collects the response text; the shared
                 // invoker binds it to the @Prompt method's StreamingSession
                 // parameter (there is no AtmosphereResource on this path).
                 var collector = new A2aStreamCollector(taskCtx, pipeline);
-                promptInvoker.invoke(message, collector, null, java.util.Map.of());
+                if (pipeline != null && admission.isEmpty()) {
+                    collector.stream(message);
+                } else {
+                    promptInvoker.invoke(message, collector, null, java.util.Map.of());
+                }
                 collector.awaitAndFinalize(120_000L);
             } catch (java.lang.reflect.InvocationTargetException e) {
                 var cause = e.getCause() != null ? e.getCause() : e;
                 taskCtx.fail(cause.getMessage());
             } catch (Exception e) {
                 taskCtx.fail(e.getMessage());
+            } finally {
+                admission.ifPresent(org.atmosphere.ai.AiPipeline.AdmittedScope::close);
             }
         }
     }

@@ -1351,7 +1351,7 @@ public class CoordinatorProcessor implements Processor<Object> {
             return;
         }
         try {
-            var bridge = new AgUiCoordinatorBridge(promptTarget, promptMethod, fleet);
+            var bridge = new AgUiCoordinatorBridge(promptTarget, promptMethod, fleet, pipeline);
             var actionMethod = AgUiCoordinatorBridge.class.getDeclaredMethod(
                     "onAction",
                     org.atmosphere.agui.runtime.RunContext.class,
@@ -1379,12 +1379,14 @@ public class CoordinatorProcessor implements Processor<Object> {
         private final Object promptTarget;
         private final Method bridgedPromptMethod;
         private final AgentFleet fleet;
+        private final AiPipeline pipeline;
 
         AgUiCoordinatorBridge(Object promptTarget, Method promptMethod,
-                              AgentFleet fleet) {
+                              AgentFleet fleet, AiPipeline pipeline) {
             this.promptTarget = promptTarget;
             this.bridgedPromptMethod = promptMethod;
             this.fleet = fleet;
+            this.pipeline = pipeline;
         }
 
         @SuppressWarnings("unused") // invoked reflectively by AgUiHandler
@@ -1392,7 +1394,16 @@ public class CoordinatorProcessor implements Processor<Object> {
                              StreamingSession session) {
             var message = context.lastUserMessage();
             if (message != null && !message.isBlank()) {
+                // The coordinator's scope admits the user's message before
+                // @Prompt runs; a breach streams it, rendering the redirect.
+                var admission = pipeline != null
+                        ? pipeline.admitScope(context.threadId(), message)
+                        : java.util.Optional.<AiPipeline.AdmittedScope>empty();
                 try {
+                    if (pipeline != null && admission.isEmpty()) {
+                        session.stream(message);
+                        return;
+                    }
                     var paramTypes = bridgedPromptMethod.getParameterTypes();
                     var args = new Object[paramTypes.length];
                     for (var i = 0; i < paramTypes.length; i++) {
@@ -1409,6 +1420,8 @@ public class CoordinatorProcessor implements Processor<Object> {
                     session.error(e.getCause() != null ? e.getCause() : e);
                 } catch (Exception e) {
                     session.error(e);
+                } finally {
+                    admission.ifPresent(AiPipeline.AdmittedScope::close);
                 }
             } else {
                 session.complete();
@@ -1458,9 +1471,19 @@ public class CoordinatorProcessor implements Processor<Object> {
                 return;
             }
 
+            var collector = new A2aCoordinatorCollector(taskCtx, pipeline);
+            // The coordinator's scope admits the user's message before @Prompt
+            // runs; a breach streams it, rendering the redirect or the denial.
+            var admission = pipeline != null
+                    ? pipeline.admitScope(taskCtx.taskId(), message)
+                    : java.util.Optional.<AiPipeline.AdmittedScope>empty();
             try {
+                if (pipeline != null && admission.isEmpty()) {
+                    collector.stream(message);
+                    collector.awaitAndFinalize(120_000L);
+                    return;
+                }
                 bridgedPromptMethod.setAccessible(true);
-                var collector = new A2aCoordinatorCollector(taskCtx, pipeline);
                 var paramTypes = bridgedPromptMethod.getParameterTypes();
                 var args = new Object[paramTypes.length];
                 for (var i = 0; i < paramTypes.length; i++) {
@@ -1479,6 +1502,8 @@ public class CoordinatorProcessor implements Processor<Object> {
                 taskCtx.fail(cause.getMessage());
             } catch (Exception e) {
                 taskCtx.fail(e.getMessage());
+            } finally {
+                admission.ifPresent(AiPipeline.AdmittedScope::close);
             }
         }
     }
