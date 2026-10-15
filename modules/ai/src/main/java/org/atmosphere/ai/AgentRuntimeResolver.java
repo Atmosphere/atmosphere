@@ -66,12 +66,21 @@ public final class AgentRuntimeResolver {
     }
 
     /**
-     * Whether application code has explicitly bound a native client to any
-     * runtime adapter in this JVM.
+     * Whether a native client was explicitly bound for the application of
+     * {@link AiEnvironment#current()}: through a runtime adapter's static
+     * binder ({@link #markExplicitClientBinding()}), which applies to every
+     * application, or for that application only, as its auto-configuration
+     * does ({@link AiEnvironment#markExplicitClientBinding()}). This is what
+     * the demo runtime yields to ({@link AiEnvironment#hasExplicitBinding()}).
      *
-     * @return {@code true} once {@link #markExplicitClientBinding()} ran
+     * @return {@code true} once an explicit binding happened for that application
      */
     public static boolean hasExplicitClientBinding() {
+        return AiEnvironment.current().hasExplicitBinding();
+    }
+
+    /** Whether a runtime adapter's static binder marked an explicit binding, for every application. */
+    static boolean hasProcessExplicitClientBinding() {
         return explicitClientBinding;
     }
 

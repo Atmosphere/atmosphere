@@ -1199,12 +1199,12 @@ public final class AiEnvironment implements AutoCloseable {
      * Whether a native client was explicitly bound for this application:
      * through this environment ({@link #markExplicitClientBinding()}) or, for
      * every application, through a runtime adapter's static binder
-     * ({@link AgentRuntimeResolver#hasExplicitClientBinding()}).
+     * ({@link AgentRuntimeResolver#markExplicitClientBinding()}).
      *
      * @return {@code true} once an explicit binding happened
      */
     public boolean hasExplicitBinding() {
-        return explicitBinding || AgentRuntimeResolver.hasExplicitClientBinding();
+        return explicitBinding || AgentRuntimeResolver.hasProcessExplicitClientBinding();
     }
 
     /** Clears the bindings and the explicit-binding mark of this environment. Test hook. */

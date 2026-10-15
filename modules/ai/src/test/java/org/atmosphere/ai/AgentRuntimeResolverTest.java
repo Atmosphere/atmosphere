@@ -114,4 +114,44 @@ class AgentRuntimeResolverTest {
         // Both should return the same name since resolve() returns resolveAll().getFirst()
         assertNotNull(primary.name());
     }
+
+    /**
+     * An auto-configuration marks the explicit binding on its application's
+     * environment only. The static reader resolves that application as the
+     * other statics do, so code that checks it (a sample mirroring the demo
+     * runtime's availability) agrees with the demo runtime, which yields.
+     */
+    @Test
+    void theStaticExplicitBindingReadsTheCallingApplication() {
+        var application = AiEnvironment.create(key -> null);
+        AiEnvironment other = null;
+        try {
+            application.markExplicitClientBinding();
+            assertTrue(application.hasExplicitBinding());
+            assertTrue(AgentRuntimeResolver.hasExplicitClientBinding(),
+                    "with one application running, the static reader must see its explicit binding");
+
+            other = AiEnvironment.create(key -> null);
+            assertTrue(explicitBindingBoundTo(application),
+                    "a thread bound to the application must see its explicit binding");
+            assertFalse(explicitBindingBoundTo(other),
+                    "another application's explicit binding is not this one's");
+        } finally {
+            if (other != null) {
+                other.close();
+            }
+            application.close();
+            AgentRuntimeResolver.clearExplicitClientBinding();
+        }
+    }
+
+    /** What the static reader returns on a thread bound to {@code environment}, as a request thread is. */
+    private static boolean explicitBindingBoundTo(AiEnvironment environment) {
+        var binding = AiEnvironment.bind(environment);
+        try {
+            return AgentRuntimeResolver.hasExplicitClientBinding();
+        } finally {
+            binding.close();
+        }
+    }
 }
