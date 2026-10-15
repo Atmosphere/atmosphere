@@ -116,8 +116,13 @@ import java.util.Map;
                 + "to Research / Strategy / Finance / Writer specialist agents for "
                 + "business-oriented questions about markets, go-to-market plans, and "
                 + "financial projections.",
-        forbiddenTopics = {"code", "programming", "medical advice",
-                "legal advice", "personal therapy"},
+        // RULE_BASED matches each topic on word boundaries, so a topic is a
+        // request for the off-limits activity, not a single word: "code" would
+        // also turn away "no-code website builders" and "AI programming
+        // assistants", which are markets this advisor analyzes. Requests to
+        // write code are caught by the tier's built-in code probe as well.
+        forbiddenTopics = {"coding help", "programming help", "debug my code",
+                "medical advice", "legal advice", "personal therapy"},
         onBreach = AgentScope.Breach.POLITE_REDIRECT,
         redirectMessage = "I can only help with startup advisory — market analysis, "
                 + "strategy, financial modeling. What would you like to analyze?",
