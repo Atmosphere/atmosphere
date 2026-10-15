@@ -53,6 +53,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.atmosphere.cpr.ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -110,10 +111,12 @@ class DurableSessionCachedPollTest {
     static final class CountingStore extends InMemorySessionStore {
 
         final Set<String> tokens = ConcurrentHashMap.newKeySet();
+        final AtomicInteger saves = new AtomicInteger();
 
         @Override
         public void save(DurableSession session) {
             tokens.add(session.token());
+            saves.incrementAndGet();
             super.save(session);
         }
     }
@@ -280,5 +283,24 @@ class DurableSessionCachedPollTest {
         poll(cached.trackingId(), null);
         assertEquals(Set.of(token), store.tokens,
                 "saving the replaced poll must not end the connection's durable session");
+    }
+
+    @Test
+    void aPollResumedByABroadcastIsNotSavedWhenTheNextPollTakesOver() throws Exception {
+        var first = poll("0", null);
+        var trackingId = first.header(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
+        var token = first.header(DurableSessionInterceptor.SESSION_TOKEN_RESPONSE_HEADER);
+        var held = poll(trackingId, token);
+        assertTrue(held.request().resource().isSuspended(), "the poll presenting the token is suspended");
+        var saves = store.saves.get();
+
+        // The regular cycle: a broadcast resumes the poll, and the client polls again.
+        held.request().resource().getBroadcaster().broadcast("delivered").get(WAIT_SECONDS, TimeUnit.SECONDS);
+        assertTrue(held.body().toString().contains("delivered"), "the broadcast reaches the held poll");
+        var next = poll(trackingId, null);
+        assertTrue(next.request().resource().isSuspended(), "precondition: the next poll holds the connection");
+
+        assertEquals(saves, store.saves.get(), "a poll that took over a resumed one must not save the session");
+        assertEquals(Set.of(token), store.tokens, "the polls of one connection keep its durable session");
     }
 }
