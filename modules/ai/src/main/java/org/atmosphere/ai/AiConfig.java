@@ -784,7 +784,9 @@ public final class AiConfig {
      * properties.
      *
      * <p>Install before {@link #configure}: the generation parameters and the
-     * prompt-cache-key mode are read when the settings are built. The cached
+     * prompt-cache-key mode are read when the settings are built, so settings
+     * built earlier keep the values they were built with (a host calls
+     * {@link #reportKnobsNotInEffect()} once it started, to name them). The cached
      * {@link AgentRuntimeResolver} resolution is dropped, so the
      * {@link #RUNTIME_PROPERTY} of the new configuration is honoured.</p>
      *
@@ -830,6 +832,63 @@ public final class AiConfig {
                     + "JVM-wide, so every application now reads this one until it is closed", shadowed);
         }
         return installed;
+    }
+
+    /**
+     * Names, in a warning, the knobs the settings in use ({@link #get()}) do not
+     * apply: settings built before the host configuration was installed (in
+     * {@code main()}, a static initializer, a startup observer) keep the
+     * generation and prompt-cache-key values they were built with, so a value
+     * set in the application's configuration would otherwise be silently
+     * ignored (Correctness Invariant #5). A host calls it once it started.
+     *
+     * @return the knob property names not in effect, empty when the settings
+     *         apply every knob or none are configured yet
+     */
+    public static java.util.List<String> reportKnobsNotInEffect() {
+        var settings = instance;
+        if (settings == null) {
+            return java.util.List.of();
+        }
+        var notInEffect = knobsNotInEffect(settings);
+        if (!notInEffect.isEmpty()) {
+            logger.warn("The AI settings in use were built before the application's configuration was "
+                    + "installed and do not apply {}: build them with AiConfig.configure once the "
+                    + "application started, or set these knobs as -D system properties or LLM_* "
+                    + "environment variables", notInEffect);
+        }
+        return notInEffect;
+    }
+
+    /**
+     * The knobs read when settings are built (prompt-cache-key, temperature,
+     * max-tokens, top-p, stop) whose current value differs from the one
+     * {@code settings} carries: settings built before the host configuration
+     * was installed, which do not apply it.
+     *
+     * @param settings settings built by {@link #configure}
+     * @return the differing knob property names, in {@link #knobs()} order
+     */
+    static java.util.List<String> knobsNotInEffect(LlmSettings settings) {
+        var generation = resolveGenerationParams();
+        var baked = settings.generation();
+        var differing = new java.util.ArrayList<String>();
+        if (resolvePromptCacheKeyMode() != settings.promptCacheKeyMode()) {
+            differing.add(PROMPT_CACHE_KEY_PROPERTY);
+        }
+        if (!java.util.Objects.equals(generation.temperature(), baked.temperature())) {
+            differing.add(TEMPERATURE_PROPERTY);
+        }
+        if (!java.util.Objects.equals(generation.maxTokens(), baked.maxTokens())) {
+            differing.add(MAX_TOKENS_PROPERTY);
+        }
+        if (!java.util.Objects.equals(generation.topP(), baked.topP())) {
+            differing.add(TOP_P_PROPERTY);
+        }
+        if (!java.util.Objects.equals(generation.stop(), baked.stop())) {
+            differing.add(STOP_PROPERTY);
+        }
+        return java.util.List.copyOf(differing);
     }
 
     /**

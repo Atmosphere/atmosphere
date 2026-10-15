@@ -39,6 +39,7 @@ class AiConfigKnobsTest {
     @AfterEach
     void tearDown() {
         AiConfig.resetHostConfig();
+        AiConfig.resetForTesting();
         System.clearProperty(AiConfig.TEMPERATURE_PROPERTY);
         System.clearProperty(AiConfig.PLANNING_PROPERTY);
     }
@@ -152,6 +153,37 @@ class AiConfigKnobsTest {
         first.close();
         assertTrue(AiConfig.knob(AiConfig.TEMPERATURE_PROPERTY).isEmpty(),
                 "closing an already-closed installation again restores nothing");
+    }
+
+    /**
+     * Settings built before the host configuration was installed (in
+     * {@code main()}, a static initializer, a Quarkus startup observer) do not
+     * carry its generation and prompt-cache-key knobs: they are named, so the
+     * operator learns that the values in the application's configuration are
+     * not in effect instead of finding out from the model's answers.
+     */
+    @Test
+    void knobsBakedIntoSettingsBuiltBeforeTheInstallAreNamed() {
+        org.junit.jupiter.api.Assumptions.assumeTrue(System.getenv(AiConfig.TEMPERATURE_ENV) == null
+                && System.getenv(AiConfig.PROMPT_CACHE_KEY_ENV) == null, "LLM_* env set");
+        AiConfig.resetHostConfig();
+        var settings = AiConfig.configure("fake", "early-model", null, null);
+        AiConfig.installHostConfig(Map.of(
+                AiConfig.TEMPERATURE_PROPERTY, "0.2",
+                AiConfig.PROMPT_CACHE_KEY_PROPERTY, "off",
+                AiConfig.PLANNING_PROPERTY, "builtin")::get);
+
+        assertEquals(List.of(AiConfig.PROMPT_CACHE_KEY_PROPERTY, AiConfig.TEMPERATURE_PROPERTY),
+                AiConfig.knobsNotInEffect(settings),
+                "the knobs read when the settings are built, not the ones read on every call");
+
+        assertEquals(List.of(AiConfig.PROMPT_CACHE_KEY_PROPERTY, AiConfig.TEMPERATURE_PROPERTY),
+                AiConfig.reportKnobsNotInEffect(), "the settings in use are reported");
+
+        var rebuilt = AiConfig.configure("fake", "early-model", null, null);
+        assertEquals(List.of(), AiConfig.knobsNotInEffect(rebuilt),
+                "settings built after the install carry the knobs");
+        assertEquals(List.of(), AiConfig.reportKnobsNotInEffect());
     }
 
     @Test

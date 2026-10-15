@@ -160,15 +160,20 @@ public class AtmosphereAiAutoConfiguration {
      * included, exists, when {@code atmosphere.ai.runtime} names one: a name
      * that matches no available runtime fails startup with the requested and
      * the available names (Correctness Invariant #5), instead of failing the
-     * first request or running another runtime.
+     * first request or running another runtime. Then names the generation
+     * knobs the LLM settings in use do not apply, when they were built before
+     * the knobs were installed ({@link AiConfig#reportKnobsNotInEffect()}).
      */
     @Bean
     org.springframework.beans.factory.SmartInitializingSingleton atmosphereAiRuntimeSelection(
             AiKnobBridge aiKnobBridge) {
-        return () -> AiConfig.knob(AiConfig.RUNTIME_PROPERTY).ifPresent(requested ->
-                logger.info("AgentRuntime '{}' selected by {}={}",
-                        org.atmosphere.ai.AgentRuntimeResolver.resolve().name(),
-                        AiConfig.RUNTIME_PROPERTY, requested));
+        return () -> {
+            AiConfig.knob(AiConfig.RUNTIME_PROPERTY).ifPresent(requested ->
+                    logger.info("AgentRuntime '{}' selected by {}={}",
+                            org.atmosphere.ai.AgentRuntimeResolver.resolve().name(),
+                            AiConfig.RUNTIME_PROPERTY, requested));
+            AiConfig.reportKnobsNotInEffect();
+        };
     }
 
     @Bean

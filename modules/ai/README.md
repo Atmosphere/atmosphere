@@ -622,8 +622,11 @@ it to the JVM system properties, and they uninstall it when they stop. Like the 
 the knobs are JVM-wide, not per application: while two hosts are running in one JVM (two
 applications, or contexts kept alive by Spring's test context cache), both read the configuration of
 the one installed last, and a warning says so; when it stops, the earlier one's configuration is read
-again. A plain servlet deployment has no host configuration: it uses the system property or the
-environment variable.
+again. The generation knobs and `prompt-cache-key` are read when the LLM settings are built
+(`AiConfig.configure`), the others on every call: settings built before a host installed its
+configuration keep the values they were built with, and the host's startup logs a warning naming the
+knobs they do not apply (`AiConfig.reportKnobsNotInEffect()`). A plain servlet deployment has no host
+configuration: it uses the system property or the environment variable.
 
 The LLM mode, model, API key and base URL are not knobs: the Spring Boot starters read
 `atmosphere.ai.mode` / `model` / `api-key` / `base-url` first and fall back to `LLM_MODE` /

@@ -58,7 +58,9 @@ final class AiKnobBridge {
      * Resolves the {@code AgentRuntime} when {@code atmosphere.ai.runtime}
      * names one, so a name that matches no available runtime fails startup
      * (Correctness Invariant #5), as it does on the Spring Boot starters,
-     * rather than the first request.
+     * rather than the first request. Then names the generation knobs the LLM
+     * settings in use do not apply, when they were built before the knobs were
+     * installed ({@link AiConfig#reportKnobsNotInEffect()}).
      *
      * @throws IllegalStateException when the name matches no available runtime
      */
@@ -66,5 +68,6 @@ final class AiKnobBridge {
         AiConfig.knob(AiConfig.RUNTIME_PROPERTY).ifPresent(requested ->
                 logger.info("AgentRuntime '{}' selected by {}={}",
                         AgentRuntimeResolver.resolve().name(), AiConfig.RUNTIME_PROPERTY, requested));
+        AiConfig.reportKnobsNotInEffect();
     }
 }

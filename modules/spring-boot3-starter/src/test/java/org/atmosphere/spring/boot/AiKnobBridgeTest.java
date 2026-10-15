@@ -143,6 +143,45 @@ class AiKnobBridgeTest {
                 });
     }
 
+    /**
+     * Settings built before the context (in {@code main()}, say) keep the
+     * generation knobs they were built with: startup names the knobs of the
+     * application's configuration they do not apply instead of ignoring them.
+     */
+    @Test
+    void settingsBuiltBeforeTheContextAreReportedAtStartup() {
+        org.junit.jupiter.api.Assumptions.assumeTrue(System.getenv(AiConfig.TEMPERATURE_ENV) == null,
+                "LLM_TEMPERATURE set");
+        AiConfig.configure("fake", "built-in-main", null, null);
+        var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        var aiConfigLogger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(AiConfig.class);
+        appender.start();
+        aiConfigLogger.addAppender(appender);
+        try {
+            contextRunner.withUserConfiguration(EarlySettingsConfiguration.class)
+                    .withPropertyValues("atmosphere.ai.temperature=0.2")
+                    .run(context -> {
+                        assertThat(context).hasNotFailed();
+                        assertThat(appender.list)
+                                .filteredOn(e -> e.getLevel() == ch.qos.logback.classic.Level.WARN)
+                                .extracting(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage)
+                                .anySatisfy(m -> assertThat(m)
+                                        .contains("do not apply [" + AiConfig.TEMPERATURE_PROPERTY + "]"));
+                    });
+        } finally {
+            aiConfigLogger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @org.springframework.context.annotation.Configuration(proxyBeanMethods = false)
+    static class EarlySettingsConfiguration {
+        @org.springframework.context.annotation.Bean
+        AiConfig.LlmSettings earlySettings() {
+            return AiConfig.get();
+        }
+    }
+
     @org.springframework.context.annotation.Configuration(proxyBeanMethods = false)
     static class RuntimeResolvingConfiguration {
         @org.springframework.context.annotation.Bean
