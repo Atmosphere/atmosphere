@@ -753,6 +753,27 @@ one no poll takes within its time to live is dropped.
 | `org.atmosphere.ai.longPolling.maxBufferedBytes` | `268435456` (256 MiB) | Bytes of every long-polling reply buffered or waiting for a poll, across the JVM |
 | `org.atmosphere.ai.longPolling.maxParkedReplies` | `1024` | Clients with a reply waiting for their next poll |
 | `org.atmosphere.ai.longPolling.parkedReplyTtlMs` | `120000` | How long a reply waits for its client's next poll |
+| `org.atmosphere.ai.longPolling.departureGraceMs` | `30000` | How long a long-polling client with no poll suspended may go without polling before its connection counts as ended |
+| `org.atmosphere.ai.longPolling.maxTrackedClients` | `10000` | Long-polling clients one endpoint tracks as connected at once |
+
+`@Ready` runs once per long-polling client, as it runs once per WebSocket or SSE
+connection, not on every poll. The first poll of a tracking id opens the client's
+connection. A later poll continues it when it carries the same identity and
+presents the same request: the same path, the same query parameters (but
+`X-Atmosphere-Run-Id`) and the same `Authorization`, `X-Atmosphere-Auth` and
+`Cookie` headers. `@Ready` does not run on it; the request attributes `@Ready` set
+on the first poll (but `org.atmosphere.*`, `jakarta.*` and `javax.*` ones) are set
+on it where it does not carry them already, so a prompt dispatched to it reads
+them, an `ai.userId` derived from a token for instance. Any other effect `@Ready`
+had on the first poll's resource does not carry over. A poll that differs in any
+of these opens a connection of its own, and `@Ready` runs on it: what `@Ready`
+derived from one request is never handed to another one under the same tracking
+id. The connection ends when the client's latest poll is cancelled or closed (the
+late loss of a poll a newer one replaced does not end it), or when no poll of it
+is suspended and none arrived within `departureGraceMs` of the last one ending; a
+client that comes back afterwards runs `@Ready` again. A client that finds
+`maxTrackedClients` connections open is not tracked, and `@Ready` runs on each of
+its polls.
 
 | Init-param | Default | Meaning |
 |---|---|---|

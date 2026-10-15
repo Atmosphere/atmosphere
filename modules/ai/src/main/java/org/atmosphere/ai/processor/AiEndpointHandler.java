@@ -184,6 +184,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      */
     private final ConcurrentHashMap<String, AtmosphereResource> liveConnections = new ConcurrentHashMap<>();
 
+    /** The long-polling clients whose connection is open: {@code @Ready} runs once per client. */
+    private final LongPollingClients longPollingClients = new LongPollingClients();
+
     /**
      * @param target       the user's @AiEndpoint instance
      * @param promptMethod the @Prompt-annotated method
@@ -569,9 +572,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             extractPathParams(resource);
             lifecycle.injectPathParams(target, resource, pathTemplate,
                     resource.getAtmosphereConfig());
-            lifecycle.onReady(target, resource);
-            logger.info("Client {} connected to AI endpoint (broadcaster: {})",
-                    resource.uuid(), resource.getBroadcaster().getID());
+            connectionReady(resource, owner);
             // Consume the X-Atmosphere-Run-Id header that
             // DurableSessionInterceptor stashes on reconnection: if the run
             // is still live in the RunRegistry, replay the buffered events
@@ -599,6 +600,26 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                             parkedOwner -> sameIdentity(parkedOwner, resource.getRequest()))) {
                 resource.resume();
             }
+        }
+    }
+
+    /**
+     * Runs {@code @Ready} and logs the connection, once per connection. A
+     * long-polling client's polls are one connection: {@code @Ready} runs on the
+     * poll that opens it, and a later poll continuing it gets the request
+     * attributes {@code @Ready} set instead (see {@link LongPollingClients}).
+     */
+    private void connectionReady(AtmosphereResource resource, Object owner) {
+        Runnable ready = () -> {
+            lifecycle.onReady(target, resource);
+            logger.info("Client {} connected to AI endpoint (broadcaster: {})",
+                    resource.uuid(), resource.getBroadcaster().getID());
+        };
+        if (resource.transport() == AtmosphereResource.TRANSPORT.LONG_POLLING
+                && resource.isSuspended() && owner != UNRESOLVED_IDENTITY) {
+            longPollingClients.ready(resource, owner, ready);
+        } else {
+            ready.run();
         }
     }
 
@@ -1640,6 +1661,11 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     // visible for testing
     Object target() {
         return target;
+    }
+
+    /** Long-polling clients whose connection is tracked as open; for tests. */
+    int longPollingClients() {
+        return longPollingClients.size();
     }
 
     /** The WebSocket, SSE or long-polling connection tracked as live under {@code uuid}, if any. */
