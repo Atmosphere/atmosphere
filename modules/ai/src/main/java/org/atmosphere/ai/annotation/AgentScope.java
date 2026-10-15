@@ -45,9 +45,15 @@ import java.lang.annotation.Target;
  *       slipped past the input check.</li>
  * </ol>
  *
- * <p>On an {@code @Agent} class the annotation is the fallback: a skill file's
- * {@code ## Guardrails} section is the agent-native declaration and wins when
- * present; a skill-level {@code scopeTier: none} opts out entirely.</p>
+ * <p>On an {@code @Agent} or {@code @Coordinator} class that also loads a skill
+ * file, the scope resolves in this order: a skill-level {@code scopeTier: none}
+ * (or {@code off} / {@code disabled}) opts out entirely; a skill whose frontmatter
+ * declares any other {@code scopeTier} keeps its {@code ## Guardrails} policy over
+ * this annotation; otherwise {@code @AgentScope(unrestricted = true,
+ * justification = "...")} overrides the scope a {@code ## Guardrails} section
+ * alone would derive (no admission policy, one WARN at registration); otherwise
+ * the {@code ## Guardrails}-derived policy wins, and this annotation applies only
+ * when the skill declares no guardrails.</p>
  *
  * <p>Sample-hygiene CI lint: every {@code @AiEndpoint} / {@code @Coordinator}
  * in {@code samples/} must declare {@code @AgentScope} or explicitly opt out via

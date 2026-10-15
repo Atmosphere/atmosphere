@@ -58,10 +58,15 @@ public @interface Coordinator {
      * Classpath resource path to the skill file (.md). The entire file becomes
      * the system prompt. A {@code ## Guardrails} section is also enforced as an
      * admission {@code ScopePolicy} with the same precedence as on
-     * {@code @Agent}: the skill's guardrails win, an optional {@code scopeTier}
-     * frontmatter hint picks the tier ({@code none} opts out entirely), and a
-     * {@code @AgentScope} annotation on the class is the fallback when the
-     * skill declares no guardrails.
+     * {@code @Agent}: a {@code scopeTier: none} frontmatter hint opts out
+     * entirely; any other {@code scopeTier} picks the tier and keeps the skill's
+     * guardrails over the class annotation; otherwise an explicit
+     * {@code @AgentScope(unrestricted = true, justification = "...")} on the
+     * class overrides the scope the guardrails alone would derive; otherwise the
+     * guardrails win, and a {@code @AgentScope} annotation on the class applies
+     * when the skill declares no guardrails. The derived scope's purpose is the
+     * skill frontmatter {@code description}, else {@link #description()}; a
+     * {@code skill:} reference keeps its frontmatter for both.
      */
     String skillFile() default "";
 

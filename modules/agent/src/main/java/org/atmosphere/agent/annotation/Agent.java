@@ -90,11 +90,15 @@ public @interface Agent {
      *   <li>{@code ## Channels} — included in system prompt (routing validation planned)</li>
      *   <li>{@code ## Guardrails} — included in the system prompt AND enforced as an
      *       admission {@code ScopePolicy}: the section's presence pins the agent to its
-     *       declared purpose, explicit topic prohibitions become forbidden topics, and
-     *       instruction-style lines stay prompt-only guidance. Tier comes from an
-     *       optional {@code scopeTier} frontmatter hint ({@code none} opts out). When
-     *       the skill declares no {@code ## Guardrails}, an {@code @AgentScope}
-     *       annotation on the class is honored instead.</li>
+     *       declared purpose (the frontmatter {@code description}, else
+     *       {@link #description()}), explicit topic prohibitions become forbidden
+     *       topics, and instruction-style lines stay prompt-only guidance. Tier comes
+     *       from an optional {@code scopeTier} frontmatter hint ({@code none} opts
+     *       out). Without a {@code scopeTier}, an explicit
+     *       {@code @AgentScope(unrestricted = true, justification = "...")} on the
+     *       class overrides this derived scope; with one, the skill's policy wins
+     *       over the annotation. When the skill declares no {@code ## Guardrails},
+     *       an {@code @AgentScope} annotation on the class is honored instead.</li>
      * </ul>
      */
     String skillFile() default "";
