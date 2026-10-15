@@ -19,7 +19,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -88,6 +90,27 @@ class AtmosphereRequestImplTest {
         assertFalse(request.localAttributes().containsKey("ai.streamingSession"),
                 "a null write after the recycle removes the attribute");
         assertEquals("alice", request.getAttribute("ai.userId"));
+    }
+
+    @Test
+    void attributeReadsAfterTheContainerRequestWasRecycledDoNotThrow() {
+        HttpServletRequest container = mock(HttpServletRequest.class);
+        when(container.getAttributeNames()).thenReturn(Collections.emptyEnumeration());
+        when(container.getHeaderNames()).thenReturn(Collections.emptyEnumeration());
+        AtmosphereRequest request = AtmosphereRequestImpl.wrap(container);
+        request.setAttribute("ai.runId", "run-1");
+
+        // Like Tomcat's request facade once the container recycled the request.
+        var recycled = new IllegalStateException(
+                "The request object has been recycled and is no longer associated with this facade");
+        doThrow(recycled).when(container).getAttribute(anyString());
+        doThrow(recycled).when(container).getAttributeNames();
+
+        assertEquals("run-1", request.getAttribute("ai.runId"));
+        assertNull(request.getAttribute("ai.userId"),
+                "an attribute never set reads as absent once the container request was recycled");
+        assertEquals(Set.of("ai.runId"), new HashSet<>(Collections.list(request.getAttributeNames())),
+                "the attribute names are the Atmosphere request's once the container request was recycled");
     }
 
     @Test

@@ -941,6 +941,10 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             b.requestLock.lock();
             try {
                 l.addAll(Collections.list(b.request.getAttributeNames()));
+            } catch (NullPointerException | IllegalStateException ex) {
+                // The container request was recycled (see setAttribute): only the
+                // Atmosphere request's attributes are left.
+                logger.trace("Container request recycled, attribute names read from the Atmosphere request", ex);
             } finally {
                 b.requestLock.unlock();
             }
@@ -955,6 +959,11 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             // https://github.com/Atmosphere/atmosphere/issues/1732
             logger.trace("Unexpected NPE", ex);
             return "";
+        } catch (IllegalStateException ex) {
+            // The container request was recycled (see setAttribute): an attribute the
+            // Atmosphere request does not hold is absent.
+            logger.trace("Container request recycled, attribute {} read as absent", attribute, ex);
+            return null;
         }
     }
 
