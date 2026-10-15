@@ -213,8 +213,11 @@ class DurableSessionCachedPollTest {
         return new Poll(request, response, body);
     }
 
-    @Test
-    void aPollAnsweredFromTheCacheKeepsTheConnectionsDurableSession() throws Exception {
+    /** The connection after a re-poll answered from the cache. */
+    private record Cached(String trackingId, String token, String broadcasterId) {
+    }
+
+    private Cached answerAPollFromTheCache() throws Exception {
         // The client's first poll gets a session and its token.
         var first = poll("0", null);
         var trackingId = first.header(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
@@ -240,9 +243,16 @@ class DurableSessionCachedPollTest {
                 "precondition: the re-poll is answered from the BroadcasterCache");
         assertTrue(cached.body().toString().contains("missed"), "the re-poll receives the cached message");
         releaseWrite.countDown();
+        return new Cached(trackingId, token, broadcaster.getID());
+    }
+
+    @Test
+    void aPollAnsweredFromTheCacheKeepsTheConnectionsDurableSession() throws Exception {
+        var cached = answerAPollFromTheCache();
+        var token = cached.token();
 
         // The client polls again, still without the token.
-        var next = poll(trackingId, null);
+        var next = poll(cached.trackingId(), null);
 
         assertEquals(Set.of(token), store.tokens,
                 "polls of one connection must keep its durable session after a poll answered from the cache");
@@ -251,7 +261,24 @@ class DurableSessionCachedPollTest {
         assertTrue(next.request().resource().isSuspended(), "precondition: the next poll holds the connection");
         var asyncSupport = (AsynchronousProcessor) framework.getAsyncSupport();
         asyncSupport.endRequest((AtmosphereResourceImpl) next.request().resource(), true);
-        assertEquals(Set.of(broadcaster.getID()), store.restore(token).orElseThrow().broadcasters(),
+        assertEquals(Set.of(cached.broadcasterId()), store.restore(token).orElseThrow().broadcasters(),
                 "the connection's state must be saved into its session when the client leaves");
+    }
+
+    @Test
+    void aClientGoneAfterAPollAnsweredFromTheCacheHasItsStateSaved() throws Exception {
+        var cached = answerAPollFromTheCache();
+        var token = cached.token();
+
+        // The poll answered from the cache never fires a disconnect: if the client
+        // never polls again, the state saved when the runtime closed the replaced
+        // poll is what the session keeps.
+        assertEquals(Set.of(cached.broadcasterId()), store.restore(token).orElseThrow().broadcasters(),
+                "closing the replaced poll must save the connection's state");
+
+        // The client that does come back, without the token, keeps the same session.
+        poll(cached.trackingId(), null);
+        assertEquals(Set.of(token), store.tokens,
+                "saving the replaced poll must not end the connection's durable session");
     }
 }

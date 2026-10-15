@@ -84,7 +84,9 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
      * message) or an older poll the runtime closes when a fresh one replaces it leaves
      * it. The fresh poll takes the connection over before the runtime closes the older
      * one, and whether or not it then suspends: a poll answered straight from the
-     * {@code BroadcasterCache} is resumed without ever suspending. The
+     * {@code BroadcasterCache} is resumed without ever suspending, and never fires a
+     * disconnect. The older poll therefore still saves the connection's state when
+     * the runtime closes it, but leaves the entry to the poll that replaced it. The
      * entry's session is fixed until the connection ends: a request presenting
      * another token for a live connection gets that session for itself, and cannot
      * make the connection's later requests feed it.</p>
@@ -300,13 +302,19 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
      * poll answered from the {@code BroadcasterCache} never reaches onSuspend at
      * all. Taking over only on onSuspend let the older poll's close end the
      * connection, and the client's next poll without the token open a second
-     * durable session.</p>
+     * durable session. The replaced poll still saves the connection's state when
+     * it goes, once, because the poll that replaced it may never fire a
+     * disconnect.</p>
      */
     private final class SaveOnDisconnect extends AtmosphereResourceEventListenerAdapter
             implements AllowInterceptor {
 
         private final String token;
         private final long registration;
+        /** Whether this resource held the connection at some point. */
+        private volatile boolean held;
+        /** Saves once when this resource goes after a newer one took the connection over. */
+        private final AtomicBoolean savedReplaced = new AtomicBoolean();
 
         SaveOnDisconnect(String token, long registration) {
             this.token = token;
@@ -324,20 +332,31 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
         }
 
         private void holdConnection(AtmosphereResourceEvent event) {
-            connections.compute(event.getResource().uuid(), (uuid, connection) ->
-                    connection == null || connection.token().equals(token)
-                            ? new Connection(token, registration, System.nanoTime())
-                            : connection);
+            connections.compute(event.getResource().uuid(), (uuid, connection) -> {
+                if (connection == null || connection.token().equals(token)) {
+                    held = true;
+                    return new Connection(token, registration, System.nanoTime());
+                }
+                return connection;
+            });
         }
 
         @Override
         public void onDisconnect(AtmosphereResourceEvent event) {
-            saveOnDisconnect(event.getResource(), token, registration);
+            connectionGoes(event.getResource());
         }
 
         @Override
         public void onClose(AtmosphereResourceEvent event) {
-            saveOnDisconnect(event.getResource(), token, registration);
+            connectionGoes(event.getResource());
+        }
+
+        private void connectionGoes(AtmosphereResource r) {
+            if (saveOnDisconnect(r, token, registration) && held && savedReplaced.compareAndSet(false, true)) {
+                // The poll that took the connection over may never fire a disconnect
+                // (one answered from the BroadcasterCache): save now, and leave it the entry.
+                saveCurrentState(r, token);
+            }
         }
     }
 
@@ -346,11 +365,15 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
      * onDisconnect and onClose can fire for a connection: only the callback that
      * removes the connection's entry saves, so the connection is saved once. A
      * client that reconnects with the same tracking id is a new entry, saved again.
+     *
+     * @return whether a newer resource of the same session holds the connection
      */
-    private void saveOnDisconnect(AtmosphereResource r, String token, long registration) {
+    private boolean saveOnDisconnect(AtmosphereResource r, String token, long registration) {
         var removed = new AtomicBoolean();
+        var replaced = new AtomicBoolean();
         connections.computeIfPresent(r.uuid(), (uuid, connection) -> {
             if (connection.registration() != registration) {
+                replaced.set(connection.token().equals(token));
                 return connection;
             }
             removed.set(true);
@@ -359,6 +382,7 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
         if (removed.get()) {
             saveCurrentState(r, token);
         }
+        return replaced.get();
     }
 
     /**

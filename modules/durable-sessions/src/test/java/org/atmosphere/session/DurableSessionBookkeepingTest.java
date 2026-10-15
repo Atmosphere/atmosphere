@@ -62,10 +62,12 @@ class DurableSessionBookkeepingTest {
     static final class CountingStore extends InMemorySessionStore {
 
         final Set<String> tokens = ConcurrentHashMap.newKeySet();
+        final AtomicInteger saves = new AtomicInteger();
 
         @Override
         public void save(DurableSession session) {
             tokens.add(session.token());
+            saves.incrementAndGet();
             super.save(session);
         }
     }
@@ -239,14 +241,19 @@ class DurableSessionBookkeepingTest {
         verify(secondPoll.getResponse(), never())
                 .setHeader(eq(DurableSessionInterceptor.SESSION_TOKEN_RESPONSE_HEADER), anyString());
 
-        // Resources that do not hold the connection go: the POST, and the first
-        // poll, closed after the second one took the connection over. Neither
-        // saves the connection nor ends it.
-        var stale = broadcaster("/stale");
-        when(firstPoll.broadcasters()).thenReturn(List.of(stale));
+        // Resources that do not hold the connection go: the POST, which never held
+        // it, and the first poll, closed after the second one took the connection
+        // over. Neither ends the connection. The first poll saves the state it
+        // holds, once, because the second may never fire a disconnect (a poll
+        // answered from the BroadcasterCache); the POST saves nothing.
+        var replaced = broadcaster("/replaced");
+        when(firstPoll.broadcasters()).thenReturn(List.of(replaced));
+        var saves = store.saves.get();
         saveListener(post).onClose(eventFor(post));
         firstPollListener.onDisconnect(eventFor(firstPoll));
-        assertEquals(Set.of(), store.restore(token).orElseThrow().broadcasters());
+        firstPollListener.onClose(eventFor(firstPoll));
+        assertEquals(saves + 1, store.saves.get(), "the replaced poll saves once and the POST never");
+        assertEquals(Set.of("/replaced"), store.restore(token).orElseThrow().broadcasters());
         var thirdPoll = request("tracking-1", null);
         interceptor.inspect(thirdPoll);
         assertEquals(Set.of(token), store.tokens);
