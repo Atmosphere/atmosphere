@@ -154,6 +154,37 @@ class CoordinatorSkillScopeConfinementTest {
                 "the frontmatter must still stay out of the system prompt");
     }
 
+    @Coordinator(name = "purpose-coord", description = "Purpose declared by @Coordinator")
+    @Fleet(@AgentRef(type = Worker.class))
+    static class PurposeCoordinator {
+    }
+
+    @Test
+    void skillReferenceFrontmatterDescriptionIsTheDerivedScopePurpose() {
+        // Same purpose precedence as @Agent: the skill frontmatter description,
+        // which a skill: reference now keeps, beats the @Coordinator description.
+        assertEquals("Purpose declared by the skill frontmatter",
+                derivedScopePurpose("skill:purpose-fixture-coordinator"));
+    }
+
+    @Test
+    void coordinatorDescriptionIsTheDerivedScopePurposeWithoutFrontmatter() {
+        assertEquals("Purpose declared by @Coordinator",
+                derivedScopePurpose("skill:unrestricted-override-coordinator"));
+    }
+
+    private static String derivedScopePurpose(String skillRef) {
+        var processor = new CoordinatorProcessor();
+        var skillFile = processor.loadSkillFile(skillRef, "purpose-coord");
+        var guardrails = processor.buildWebGuardrails(new AtmosphereFramework(),
+                PurposeCoordinator.class, skillFile, "/atmosphere/agent/purpose-coord");
+        return guardrails.stream()
+                .filter(g -> g instanceof PolicyAsGuardrail pg && pg.policy() instanceof ScopePolicy)
+                .map(g -> ((ScopePolicy) ((PolicyAsGuardrail) g).policy()).config().purpose())
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("the ## Guardrails section must install a scope gate"));
+    }
+
     @Test
     void skillGuardrailsConfineOffTopicOnTheCoordinatorPipeline() {
         var processor = new CoordinatorProcessor();
