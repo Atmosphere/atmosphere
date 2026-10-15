@@ -19,7 +19,9 @@ import com.embabel.agent.api.dsl.agent
 import com.embabel.agent.core.Agent
 import com.embabel.agent.core.AgentPlatform
 import com.embabel.agent.domain.library.HasContent
+import org.atmosphere.ai.AiEnvironment
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -51,9 +53,18 @@ open class AtmosphereEmbabelAutoConfiguration {
     @ConditionalOnBean(AgentPlatform::class)
     open fun embabelAgentRuntime(
         platform: AgentPlatform,
-        @Value("\${atmosphere.embabel.agent-name:atmosphere-agent}") agentName: String
+        @Value("\${atmosphere.embabel.agent-name:atmosphere-agent}") agentName: String,
+        environmentProvider: ObjectProvider<AiEnvironment>? = null
     ): EmbabelAgentRuntime {
-        EmbabelAgentRuntime.setAgentPlatform(platform)
+        // Bound to this context's AiEnvironment when there is one (the
+        // Atmosphere starter registers it), so another context in the JVM
+        // keeps its own platform; else to the JVM, as before.
+        val environment = environmentProvider?.getIfAvailable()
+        if (environment != null) {
+            EmbabelAgentRuntime.setAgentPlatform(environment, platform)
+        } else {
+            EmbabelAgentRuntime.setAgentPlatform(platform)
+        }
         EmbabelAgentRuntime.setAgentName(agentName)
         logger.info("Embabel runtime configured: default agent name '{}'", agentName)
         return EmbabelAgentRuntime()

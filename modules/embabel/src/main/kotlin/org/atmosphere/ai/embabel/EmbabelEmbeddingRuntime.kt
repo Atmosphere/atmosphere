@@ -16,6 +16,7 @@
 package org.atmosphere.ai.embabel
 
 import com.embabel.common.ai.model.EmbeddingService
+import org.atmosphere.ai.AiEnvironment
 import org.atmosphere.ai.EmbeddingRuntime
 
 /**
@@ -38,6 +39,14 @@ class EmbabelEmbeddingRuntime : EmbeddingRuntime {
     /** Test / programmatic hook: override the injected service on a single instance. */
     fun setNativeEmbeddingService(service: EmbeddingService) {
         this.instanceService = service
+    }
+
+    /** The application this instance serves; `null` until [attach]. */
+    @Volatile
+    private var environment: AiEnvironment? = null
+
+    override fun attach(environment: AiEnvironment) {
+        this.environment = environment
     }
 
     override fun name(): String = "embabel"
@@ -65,7 +74,8 @@ class EmbabelEmbeddingRuntime : EmbeddingRuntime {
 
     private fun resolve(): EmbeddingService? {
         instanceService?.let { return it }
-        return staticService
+        return (environment ?: AiEnvironment.current())
+            .client(EmbabelEmbeddingRuntime::class.java, EmbeddingService::class.java, staticService)
     }
 
     companion object {
@@ -76,6 +86,16 @@ class EmbabelEmbeddingRuntime : EmbeddingRuntime {
         @JvmStatic
         fun setEmbeddingService(service: EmbeddingService) {
             staticService = service
+        }
+
+        /**
+         * Supply the Embabel EmbeddingService of one application: it wins over
+         * [setEmbeddingService], which applies to every application in the
+         * JVM, for that application. `null` removes the binding.
+         */
+        @JvmStatic
+        fun setEmbeddingService(environment: AiEnvironment, service: EmbeddingService?) {
+            environment.bindClient(EmbabelEmbeddingRuntime::class.java, EmbeddingService::class.java, service)
         }
     }
 }

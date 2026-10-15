@@ -17,6 +17,7 @@ package org.atmosphere.ai.anthropic;
 
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.CollectingSession;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.fs.AgentFileSystem;
@@ -346,6 +347,33 @@ class AnthropicMemoryToolTest {
                     "BUILTIN pins the portable floor — the native surface must stay off");
         } finally {
             System.clearProperty(AiConfig.FILESYSTEM_PROPERTY);
+        }
+    }
+
+    @Test
+    void theApplicationsBuiltinFilesystemModeSuppressesTheNativeSurface() throws Exception {
+        // Two applications in the JVM: the client follows its own application's
+        // filesystem knob, not the static API's (which reads neither then).
+        var builtin = AiEnvironment.create(key -> AiConfig.FILESYSTEM_PROPERTY.equals(key) ? "builtin" : null);
+        var other = AiEnvironment.create(key -> null);
+        try {
+            var httpClient = mockResponses(TEXT_RESPONSE);
+            var client = AnthropicMessagesClient.builder()
+                    .apiKey("test-key")
+                    .httpClient(httpClient)
+                    .environment(builtin)
+                    .build();
+            var session = new InjectableSession(Map.of(AgentFileSystem.class, fs()));
+
+            client.stream("claude-sonnet-4-6", List.of(), null, "Hi",
+                    textContext(), session, null);
+            session.await(Duration.ofSeconds(5));
+
+            assertFalse(firstBody(httpClient).contains("memory_20250818"),
+                    "the application's BUILTIN mode pins the portable floor — the native surface must stay off");
+        } finally {
+            other.close();
+            builtin.close();
         }
     }
 

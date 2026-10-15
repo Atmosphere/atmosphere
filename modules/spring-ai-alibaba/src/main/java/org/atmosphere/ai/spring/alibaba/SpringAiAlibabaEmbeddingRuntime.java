@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.spring.alibaba;
 
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.EmbeddingRuntime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,9 +38,32 @@ public class SpringAiAlibabaEmbeddingRuntime implements EmbeddingRuntime {
 
     private volatile EmbeddingModel instanceModel;
 
-    /** Spring auto-config hook: supply the configured Alibaba {@link EmbeddingModel}. */
+    /** The application this instance serves; {@code null} until {@link #attach}. */
+    private volatile AiEnvironment environment;
+
+    /**
+     * Supply the {@link EmbeddingModel} every application in the JVM uses, unless
+     * one binds its own ({@link #setEmbeddingModel(AiEnvironment, EmbeddingModel)}).
+     */
     public static void setEmbeddingModel(EmbeddingModel model) {
         staticModel = model;
+    }
+
+    /**
+     * Supply the {@link EmbeddingModel} of one application (the Spring
+     * auto-configuration binds its context's bean this way): it wins over
+     * {@link #setEmbeddingModel(EmbeddingModel)} for that application.
+     *
+     * @param environment the application's environment
+     * @param model the model, {@code null} to remove the binding
+     */
+    public static void setEmbeddingModel(AiEnvironment environment, EmbeddingModel model) {
+        environment.bindClient(SpringAiAlibabaEmbeddingRuntime.class, EmbeddingModel.class, model);
+    }
+
+    @Override
+    public void attach(AiEnvironment environment) {
+        this.environment = Objects.requireNonNull(environment, "environment");
     }
 
     /** Test / programmatic hook: override the injected model on a single instance. */
@@ -101,6 +125,11 @@ public class SpringAiAlibabaEmbeddingRuntime implements EmbeddingRuntime {
 
     private EmbeddingModel resolve() {
         var local = instanceModel;
-        return local != null ? local : staticModel;
+        if (local != null) {
+            return local;
+        }
+        var attached = environment;
+        return (attached != null ? attached : AiEnvironment.current())
+                .client(SpringAiAlibabaEmbeddingRuntime.class, EmbeddingModel.class, staticModel);
     }
 }

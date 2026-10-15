@@ -94,6 +94,12 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
      * byte-identical to today.
      */
     private final org.atmosphere.ai.GenerationParams generation;
+    /**
+     * The application whose {@code atmosphere.ai.filesystem} knob gates the
+     * native memory tool; {@code null} for a client built without one, which
+     * reads {@link org.atmosphere.ai.AiEnvironment#current()}.
+     */
+    private final org.atmosphere.ai.AiEnvironment environment;
 
     private AnthropicMessagesClient(Builder b) {
         super(new SseClientConfig(b.baseUrl, b.apiKey, b.httpClient, b.timeout,
@@ -101,6 +107,7 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
         this.anthropicVersion = b.anthropicVersion;
         this.generation = b.generation != null
                 ? b.generation : org.atmosphere.ai.GenerationParams.defaults();
+        this.environment = b.environment;
     }
 
     public static Builder builder() {
@@ -497,8 +504,8 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
      */
     private org.atmosphere.ai.fs.AgentFileSystem resolveMemoryFileSystem(
             AgentExecutionContext context, StreamingSession session) {
-        if (org.atmosphere.ai.AiConfig.resolveFilesystemMode()
-                == org.atmosphere.ai.fs.FilesystemMode.BUILTIN) {
+        var aiEnvironment = environment != null ? environment : org.atmosphere.ai.AiEnvironment.current();
+        if (aiEnvironment.resolveFilesystemMode() == org.atmosphere.ai.fs.FilesystemMode.BUILTIN) {
             return null;
         }
         if (context != null
@@ -882,6 +889,7 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
         private org.atmosphere.ai.GenerationParams generation =
                 org.atmosphere.ai.GenerationParams.defaults();
         private org.atmosphere.ai.RetryPolicy retryPolicy;
+        private org.atmosphere.ai.AiEnvironment environment;
 
         private Builder() {
         }
@@ -958,6 +966,16 @@ public final class AnthropicMessagesClient extends AbstractSseLlmClient {
                     customHeader(entry.getKey(), entry.getValue());
                 }
             }
+            return this;
+        }
+
+        /**
+         * The application this client serves: its {@code atmosphere.ai.filesystem}
+         * knob decides whether the native memory tool is declared. Without
+         * one the client reads {@link org.atmosphere.ai.AiEnvironment#current()}.
+         */
+        public Builder environment(org.atmosphere.ai.AiEnvironment environment) {
+            this.environment = environment;
             return this;
         }
 

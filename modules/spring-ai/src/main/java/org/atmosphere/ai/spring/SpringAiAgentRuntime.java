@@ -19,6 +19,7 @@ import org.atmosphere.ai.AbstractAgentRuntime;
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.ExecutionHandle;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.llm.ChatMessage;
@@ -71,9 +72,50 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
         }
     }
 
+    /**
+     * Binds the {@link ChatClient} one application's Atmosphere AI requests
+     * dispatch through: its runtime instances use it, whatever
+     * {@link #setChatClient(ChatClient)} holds for the JVM. Marks an explicit
+     * client binding for that application, as {@link #setChatClient(ChatClient)}
+     * does for every one.
+     *
+     * @param environment the application's environment
+     * @param client      the client, {@code null} to remove the binding
+     */
+    public static void setChatClient(AiEnvironment environment, ChatClient client) {
+        environment.bindClient(SpringAiAgentRuntime.class, ChatClient.class, client);
+        if (client != null) {
+            environment.markExplicitClientBinding();
+        }
+    }
+
+    /**
+     * Auto-configuration seam for one application: its runtime instances use
+     * {@code client} only when neither that application nor the JVM
+     * ({@link #setChatClient(ChatClient)}) bound one, and a client offered
+     * earlier is kept.
+     *
+     * @param environment the application's environment
+     * @param client      the context's client
+     */
+    public static void offerChatClient(AiEnvironment environment, ChatClient client) {
+        if (client != null && environment.offerClient(SpringAiAgentRuntime.class, ChatClient.class, client)) {
+            environment.markExplicitClientBinding();
+        }
+    }
+
     /** The currently bound client, if any. Package-private for tests. */
     static ChatClient boundClient() {
         return staticClient;
+    }
+
+    /**
+     * The client this instance's application uses: its own binding, else the
+     * JVM's ({@link #setChatClient(ChatClient)}), else the one its
+     * auto-configuration offered.
+     */
+    private ChatClient applicationClient() {
+        return environment().client(SpringAiAgentRuntime.class, ChatClient.class, staticClient);
     }
 
     /** Test hook: drops the bound client so each test starts unbound. */
@@ -98,13 +140,14 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
 
     @Override
     protected ChatClient createNativeClient(AiConfig.LlmSettings settings) {
-        return staticClient;
+        return applicationClient();
     }
 
     @Override
     public void configure(AiConfig.LlmSettings settings) {
-        if (getNativeClient() == null && staticClient != null) {
-            setNativeClient(staticClient);
+        var client = applicationClient();
+        if (getNativeClient() == null && client != null) {
+            setNativeClient(client);
             logger.info("Spring AI auto-configured: model={}, endpoint={}",
                     settings != null ? settings.model() : "default",
                     settings != null ? settings.baseUrl() : "default");
@@ -187,7 +230,7 @@ public class SpringAiAgentRuntime extends AbstractAgentRuntime<ChatClient> {
         // other host — including a strict OpenAI-compat proxy that would reject
         // the unknown field — the injection is suppressed and the generic
         // ChatOptions path is kept.
-        var settings = org.atmosphere.ai.AiConfig.get();
+        var settings = environment().settings();
         var endpointUrl = settings != null ? settings.baseUrl() : null;
         // Tri-state override: ENABLED force-emits, DISABLED force-suppresses,
         // AUTO (default) defers to the shared allow-list, so the framework and

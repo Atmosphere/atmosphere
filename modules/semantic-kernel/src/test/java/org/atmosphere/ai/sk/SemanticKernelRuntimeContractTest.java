@@ -47,6 +47,13 @@ import static org.mockito.Mockito.when;
 class SemanticKernelRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
     @Override
+    protected Object bindApplicationClient(org.atmosphere.ai.AiEnvironment environment) {
+        var client = org.mockito.Mockito.mock(com.microsoft.semantickernel.services.chatcompletion.ChatCompletionService.class);
+        SemanticKernelAgentRuntime.setChatCompletionService(environment, client);
+        return client;
+    }
+
+    @Override
     protected AgentRuntime createRuntime() {
         @SuppressWarnings("unchecked")
         var frame = (StreamingChatContent<Object>) mock(StreamingChatContent.class);

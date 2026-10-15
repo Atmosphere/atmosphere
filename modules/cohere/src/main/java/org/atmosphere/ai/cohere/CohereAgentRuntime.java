@@ -160,7 +160,7 @@ public class CohereAgentRuntime extends AbstractAgentRuntime<CohereChatClient> {
         // POST to api.cohere.com would 401 — and ApiKeyResolver
         // deliberately does NOT fall back to OPENAI_API_KEY/GEMINI_API_KEY, so
         // another provider's key can never mark Cohere available.
-        var settings = AiConfig.get();
+        var settings = environment().settings();
         var settingsKey = settings != null ? settings.apiKey() : null;
         return ApiKeyResolver.resolveProvider(PROVIDER_NAME, API_KEY_ENV_VAR, settingsKey) != null;
     }

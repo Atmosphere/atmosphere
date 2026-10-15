@@ -97,11 +97,12 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
      * Provider-neutral entry point to install the native client without a
      * compile-time dependency on its concrete type — for reflective or non-DI
      * wiring. The argument is validated against {@link #nativeClientClassName()}
-     * and delegated to {@link #setNativeClient(Object)}. Provider-typed static
+     * and delegated to {@link #setNativeClient(Object)}. Provider-typed
      * setters (e.g. LangChain4j {@code setModel}, Spring AI
-     * {@code setChatClient}) remain the primary, documented wiring path and
-     * additionally carry the ServiceLoader handoff this neutral entry cannot
-     * replace.
+     * {@code setChatClient}, static for every application or taking an
+     * {@link AiEnvironment} for one) remain the primary, documented wiring path
+     * and additionally carry the ServiceLoader handoff this neutral entry
+     * cannot replace.
      *
      * @param client the native client instance; must be assignable to this
      *               runtime's native client type

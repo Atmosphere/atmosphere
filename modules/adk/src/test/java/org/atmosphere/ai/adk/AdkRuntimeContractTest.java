@@ -52,6 +52,13 @@ import static org.mockito.Mockito.when;
 class AdkRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
     @Override
+    protected Object bindApplicationClient(org.atmosphere.ai.AiEnvironment environment) {
+        var client = org.mockito.Mockito.mock(com.google.adk.runner.Runner.class);
+        AdkAgentRuntime.setRunner(environment, client);
+        return client;
+    }
+
+    @Override
     protected AgentRuntime createRuntime() {
         return new TestableAdkAgentRuntime(stubRunner());
     }

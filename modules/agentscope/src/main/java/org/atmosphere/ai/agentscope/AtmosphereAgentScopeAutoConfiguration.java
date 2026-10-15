@@ -18,8 +18,10 @@ package org.atmosphere.ai.agentscope;
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.model.Model;
 import io.agentscope.core.model.OpenAIChatModel;
+import org.atmosphere.ai.AiEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -96,8 +98,17 @@ public class AtmosphereAgentScopeAutoConfiguration {
 
     @Bean
     @ConditionalOnBean(ReActAgent.class)
-    AgentScopeAgentRuntime agentScopeAgentRuntime(ReActAgent agent) {
-        AgentScopeAgentRuntime.setAgent(agent);
+    AgentScopeAgentRuntime agentScopeAgentRuntime(ReActAgent agent,
+            ObjectProvider<AiEnvironment> environmentProvider) {
+        // Bound to this context's AiEnvironment when there is one (the
+        // Atmosphere starter registers it), so another context in the JVM
+        // keeps its own agent; else to the JVM, as before.
+        var environment = environmentProvider.getIfAvailable();
+        if (environment != null) {
+            AgentScopeAgentRuntime.setAgent(environment, agent);
+        } else {
+            AgentScopeAgentRuntime.setAgent(agent);
+        }
         return new AgentScopeAgentRuntime();
     }
 }

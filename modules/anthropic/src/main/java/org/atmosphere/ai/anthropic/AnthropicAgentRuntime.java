@@ -114,6 +114,7 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
     @Override
     protected AnthropicMessagesClient createNativeClient(AiConfig.LlmSettings settings) {
         var builder = AnthropicMessagesClient.builder()
+                .environment(environment())
                 .apiKey(ApiKeyResolver.resolveProvider(PROVIDER_NAME, API_KEY_ENV_VAR,
                         settings != null ? settings.apiKey() : null))
                 .anthropicVersion(systemProperty(VERSION_PROPERTY, "2023-06-01"));
@@ -171,7 +172,7 @@ public class AnthropicAgentRuntime extends AbstractAgentRuntime<AnthropicMessage
         // first POST to api.anthropic.com would 401 — and ApiKeyResolver
         // deliberately does NOT fall back to OPENAI_API_KEY/GEMINI_API_KEY, so
         // another provider's key can never mark Anthropic available.
-        var settings = AiConfig.get();
+        var settings = environment().settings();
         var settingsKey = settings != null ? settings.apiKey() : null;
         return ApiKeyResolver.resolveProvider(PROVIDER_NAME, API_KEY_ENV_VAR, settingsKey) != null;
     }

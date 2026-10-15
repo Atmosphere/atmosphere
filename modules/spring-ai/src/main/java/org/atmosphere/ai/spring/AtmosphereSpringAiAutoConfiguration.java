@@ -19,6 +19,7 @@ import com.openai.client.OpenAIClient;
 import com.openai.client.OpenAIClientAsync;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.micrometer.observation.ObservationRegistry;
+import org.atmosphere.ai.AiEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -58,6 +59,30 @@ import java.util.Map;
 public class AtmosphereSpringAiAutoConfiguration {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereSpringAiAutoConfiguration.class);
+
+    /** The context's {@link AiEnvironment}; {@code null} when built by hand. */
+    private final ObjectProvider<AiEnvironment> environmentProvider;
+
+    /** An instance that binds through the adapters' static binders, as before environments existed. */
+    public AtmosphereSpringAiAutoConfiguration() {
+        this(null);
+    }
+
+    /**
+     * @param environmentProvider the context's {@link AiEnvironment} (the
+     *                            Atmosphere starter registers one): the
+     *                            context's {@code ChatClient} and
+     *                            {@code EmbeddingModel} are bound to it, so
+     *                            they serve this context only
+     */
+    @org.springframework.beans.factory.annotation.Autowired
+    public AtmosphereSpringAiAutoConfiguration(ObjectProvider<AiEnvironment> environmentProvider) {
+        this.environmentProvider = environmentProvider;
+    }
+
+    private AiEnvironment aiEnvironment() {
+        return environmentProvider != null ? environmentProvider.getIfAvailable() : null;
+    }
 
     @Bean
     @ConditionalOnMissingBean
@@ -111,8 +136,15 @@ public class AtmosphereSpringAiAutoConfiguration {
         // Offer, never bind: an application that already called
         // setChatClient(...) (e.g. a caller-built client carrying
         // defaultAdvisors) owns the binding; the context bean is only the
-        // default when no explicit binding exists.
-        SpringAiAgentRuntime.offerChatClient(chatClient);
+        // default when no explicit binding exists. Offered to this context's
+        // AiEnvironment when there is one, so another context in the JVM
+        // keeps its own ChatClient.
+        var environment = aiEnvironment();
+        if (environment != null) {
+            SpringAiAgentRuntime.offerChatClient(environment, chatClient);
+        } else {
+            SpringAiAgentRuntime.offerChatClient(chatClient);
+        }
         return new SpringAiAgentRuntime();
     }
 
@@ -121,7 +153,12 @@ public class AtmosphereSpringAiAutoConfiguration {
     public SpringAiEmbeddingRuntime springAiEmbeddingRuntime(ObjectProvider<EmbeddingModel> embeddingModelProvider) {
         var embeddingModel = embeddingModelProvider.getIfAvailable();
         if (embeddingModel != null) {
-            SpringAiEmbeddingRuntime.setEmbeddingModel(embeddingModel);
+            var environment = aiEnvironment();
+            if (environment != null) {
+                SpringAiEmbeddingRuntime.setEmbeddingModel(environment, embeddingModel);
+            } else {
+                SpringAiEmbeddingRuntime.setEmbeddingModel(embeddingModel);
+            }
         }
         return new SpringAiEmbeddingRuntime();
     }

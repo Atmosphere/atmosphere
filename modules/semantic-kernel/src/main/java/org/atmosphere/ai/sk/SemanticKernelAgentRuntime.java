@@ -24,6 +24,7 @@ import org.atmosphere.ai.AbstractAgentRuntime;
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.ExecutionHandle;
 import org.atmosphere.ai.StreamingSession;
 import org.slf4j.Logger;
@@ -69,6 +70,24 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
         staticService = service;
     }
 
+    /**
+     * Set the {@link ChatCompletionService} of one application (the Spring
+     * auto-configuration binds its context's bean this way): it wins over
+     * {@link #setChatCompletionService(ChatCompletionService)}, which applies
+     * to every application in the JVM, for that application.
+     *
+     * @param environment the application's environment
+     * @param service     the service, {@code null} to remove the binding
+     */
+    public static void setChatCompletionService(AiEnvironment environment, ChatCompletionService service) {
+        environment.bindClient(SemanticKernelAgentRuntime.class, ChatCompletionService.class, service);
+    }
+
+    /** The service this instance's application uses: its own binding, else the JVM's. */
+    private ChatCompletionService applicationService() {
+        return environment().client(SemanticKernelAgentRuntime.class, ChatCompletionService.class, staticService);
+    }
+
     @Override
     public String name() {
         return "semantic-kernel";
@@ -96,13 +115,14 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
         // OpenAIChatCompletion. That dependency is scoped 'provided' in this
         // module; auto-creation from AiConfig alone is not supported — rely on
         // Spring auto-configuration or an explicit setChatCompletionService call.
-        return staticService;
+        return applicationService();
     }
 
     @Override
     public void configure(AiConfig.LlmSettings settings) {
-        if (getNativeClient() == null && staticService != null) {
-            setNativeClient(staticService);
+        var bound = applicationService();
+        if (getNativeClient() == null && bound != null) {
+            setNativeClient(bound);
             logger.info("Semantic Kernel auto-configured: model={}, endpoint={}",
                     settings != null ? settings.model() : "default",
                     settings != null ? settings.baseUrl() : "default");
@@ -167,7 +187,7 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
                 ? org.atmosphere.ai.NativeStructuredOutput.schema(context) : null;
         var invocationContext = perRequestInvocation != null
                 ? perRequestInvocation
-                : buildInvocationContext(toolPlugin != null, nativeSchema);
+                : buildInvocationContext(toolPlugin != null, nativeSchema, currentGeneration(environment()));
         if (perRequestInvocation != null) {
             logger.debug("Applied per-request SK InvocationContext override");
         }
@@ -255,7 +275,7 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
      * them explicitly so tests can pin the mapping.</p>
      */
     static InvocationContext buildInvocationContext(boolean hasTools, String nativeSchema) {
-        return buildInvocationContext(hasTools, nativeSchema, currentGeneration());
+        return buildInvocationContext(hasTools, nativeSchema, currentGeneration(AiEnvironment.current()));
     }
 
     /**
@@ -332,8 +352,8 @@ public class SemanticKernelAgentRuntime extends AbstractAgentRuntime<ChatComplet
      * — so generation overrides intentionally do not apply on that path
      * (same posture as native structured output).
      */
-    private static org.atmosphere.ai.GenerationParams currentGeneration() {
-        var settings = AiConfig.get();
+    private static org.atmosphere.ai.GenerationParams currentGeneration(AiEnvironment environment) {
+        var settings = environment.settings();
         return settings != null ? settings.generation()
                 : org.atmosphere.ai.GenerationParams.defaults();
     }

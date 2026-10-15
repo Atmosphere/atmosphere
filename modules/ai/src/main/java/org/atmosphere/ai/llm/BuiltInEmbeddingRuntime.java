@@ -18,6 +18,7 @@ package org.atmosphere.ai.llm;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.EmbeddingRuntime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,6 +68,8 @@ public class BuiltInEmbeddingRuntime implements EmbeddingRuntime {
 
     private volatile String modelOverride;
     private final HttpClient httpClient;
+    /** The application this instance serves; {@code null} until {@link #attach}. */
+    private volatile AiEnvironment environment;
 
     public BuiltInEmbeddingRuntime() {
         this.httpClient = HttpClient.newBuilder()
@@ -85,13 +88,27 @@ public class BuiltInEmbeddingRuntime implements EmbeddingRuntime {
     }
 
     @Override
+    public void attach(AiEnvironment environment) {
+        this.environment = Objects.requireNonNull(environment, "environment");
+    }
+
+    /**
+     * The environment whose settings and knobs this instance reads: the one it
+     * was attached to, else {@link AiEnvironment#current()}.
+     */
+    private AiEnvironment environment() {
+        var attached = environment;
+        return attached != null ? attached : AiEnvironment.current();
+    }
+
+    @Override
     public String name() {
         return "built-in";
     }
 
     @Override
     public boolean isAvailable() {
-        return isAvailable(AiConfig.get());
+        return isAvailable(environment().settings());
     }
 
     /**
@@ -121,7 +138,7 @@ public class BuiltInEmbeddingRuntime implements EmbeddingRuntime {
         if (texts.isEmpty()) {
             return List.of();
         }
-        var settings = AiConfig.get();
+        var settings = environment().settings();
         // A local embedding server needs no credential, so requiring a key here
         // made every keyless-local deployment throw before it ever issued a
         // request — the RAG path in particular, where the ingest is the first
@@ -180,7 +197,7 @@ public class BuiltInEmbeddingRuntime implements EmbeddingRuntime {
         if (override != null && !override.isBlank()) {
             return Optional.of(override);
         }
-        var configured = AiConfig.resolveEmbeddingModel();
+        var configured = environment().resolveEmbeddingModel();
         if (configured.isPresent()) {
             return configured;
         }

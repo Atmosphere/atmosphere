@@ -19,7 +19,7 @@ import ai.koog.prompt.executor.clients.LLMEmbeddingProvider
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.llm.LLMProvider
 import kotlinx.coroutines.runBlocking
-import org.atmosphere.ai.AiConfig
+import org.atmosphere.ai.AiEnvironment
 import org.atmosphere.ai.EmbeddingRuntime
 
 /**
@@ -44,11 +44,35 @@ class KoogEmbeddingRuntime : EmbeddingRuntime {
             embeddingProvider = provider
         }
 
+        /**
+         * Install the [LLMEmbeddingProvider] of one application: it wins over
+         * [setEmbeddingProvider], which applies to every application in the
+         * JVM, for that application. `null` removes the binding.
+         */
+        @JvmStatic
+        fun setEmbeddingProvider(environment: AiEnvironment, provider: LLMEmbeddingProvider?) {
+            environment.bindClient(KoogEmbeddingRuntime::class.java, LLMEmbeddingProvider::class.java, provider)
+        }
+
         @JvmStatic
         fun setEmbeddingModel(model: LLModel) {
             embeddingModel = model
         }
     }
+
+    /** The application this instance serves; `null` until [attach]. */
+    @Volatile
+    private var environment: AiEnvironment? = null
+
+    override fun attach(environment: AiEnvironment) {
+        this.environment = environment
+    }
+
+    private fun environment(): AiEnvironment = environment ?: AiEnvironment.current()
+
+    /** The provider of this instance's application: its own binding, else the JVM's. */
+    private fun provider(): LLMEmbeddingProvider? =
+        environment().client(KoogEmbeddingRuntime::class.java, LLMEmbeddingProvider::class.java, embeddingProvider)
 
     override fun name(): String = "koog"
 
@@ -58,11 +82,11 @@ class KoogEmbeddingRuntime : EmbeddingRuntime {
      * it available there made it outrank the other runtimes and fail every
      * [embed] call with "LLMEmbeddingProvider not configured".
      */
-    override fun isAvailable(): Boolean = embeddingProvider != null
+    override fun isAvailable(): Boolean = provider() != null
 
     override fun embed(text: String): FloatArray {
         require(text.isNotBlank()) { "text must not be blank" }
-        val provider = embeddingProvider
+        val provider = provider()
             ?: throw IllegalStateException(
                 "KoogEmbeddingRuntime: LLMEmbeddingProvider not configured. " +
                     "Call KoogEmbeddingRuntime.setEmbeddingProvider() before embedding."
@@ -73,7 +97,7 @@ class KoogEmbeddingRuntime : EmbeddingRuntime {
     override fun embedAll(texts: List<String>): List<FloatArray> {
         if (texts.isEmpty()) return emptyList()
         texts.forEach { require(it.isNotBlank()) { "texts must not contain blank entries" } }
-        val provider = embeddingProvider
+        val provider = provider()
             ?: throw IllegalStateException(
                 "KoogEmbeddingRuntime: LLMEmbeddingProvider not configured. " +
                     "Call KoogEmbeddingRuntime.setEmbeddingProvider() before embedding."
@@ -82,7 +106,7 @@ class KoogEmbeddingRuntime : EmbeddingRuntime {
     }
 
     private fun resolveModel(): LLModel {
-        val configured = AiConfig.get()?.model()
+        val configured = environment().settings()?.model()
         return if (configured.isNullOrBlank() || configured == embeddingModel.id) {
             embeddingModel
         } else {

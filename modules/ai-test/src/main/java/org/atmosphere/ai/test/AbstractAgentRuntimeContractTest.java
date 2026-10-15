@@ -19,6 +19,7 @@ import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AgentRuntime;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.approval.ApprovalStrategy;
 import org.atmosphere.ai.approval.PendingApproval;
@@ -44,7 +45,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -1151,6 +1154,98 @@ public abstract class AbstractAgentRuntimeContractTest {
         @Override public void complete(String summary) { }
         @Override public void error(Throwable t) { }
         @Override public boolean isClosed() { return false; }
+    }
+
+    /**
+     * Binds a new native client of this runtime to {@code environment} the
+     * way an application binds one for itself (the runtime's typed binder that
+     * takes an {@link AiEnvironment}), and returns it. Runtimes whose native
+     * client comes from a binder, rather than from the application's
+     * {@code LlmSettings}, override it; the default returns {@code null}: the
+     * runtime builds its client from the settings.
+     *
+     * @param environment the application to bind the client to
+     * @return the bound client, a new one on every call, or {@code null}
+     */
+    protected Object bindApplicationClient(AiEnvironment environment) {
+        return null;
+    }
+
+    /**
+     * The native client {@code runtime} dispatches through once configured.
+     * The default reads it from {@link org.atmosphere.ai.AbstractAgentRuntime};
+     * runtimes that implement {@link AgentRuntime} directly override it.
+     *
+     * @param runtime a configured runtime
+     * @return its native client, or {@code null} when it has none
+     */
+    protected Object nativeClientOf(AgentRuntime runtime) {
+        if (!(runtime instanceof org.atmosphere.ai.AbstractAgentRuntime<?>)) {
+            return fail(runtime.name() + " does not extend AbstractAgentRuntime: override nativeClientOf()");
+        }
+        try {
+            var field = org.atmosphere.ai.AbstractAgentRuntime.class.getDeclaredField("nativeClient");
+            field.setAccessible(true);
+            return field.get(runtime);
+        } catch (ReflectiveOperationException e) {
+            return fail("cannot read the native client of " + runtime.name() + ": " + e);
+        }
+    }
+
+    /**
+     * Two applications in one JVM each get their own instance of this runtime
+     * from their own {@link AiEnvironment}, attached to it for good, and each
+     * instance dispatches through its own application's native client: the
+     * one bound to that application ({@link #bindApplicationClient}), or the
+     * one built from that application's settings. A runtime instance or a
+     * native client shared by two applications sends one application's
+     * requests with the other's client, model and generation values.
+     */
+    @Test
+    protected void eachApplicationGetsItsOwnInstanceAndNativeClient() {
+        var name = createRuntime().name();
+        var first = AiEnvironment.create(key -> null);
+        var second = AiEnvironment.create(key -> null);
+        try {
+            first.configure("remote", "tck-model-first", "tck-key-first", "http://127.0.0.1:9/first/v1");
+            second.configure("remote", "tck-model-second", "tck-key-second", "http://127.0.0.1:9/second/v1");
+            var boundFirst = bindApplicationClient(first);
+            var boundSecond = bindApplicationClient(second);
+
+            var inFirst = runtimeNamed(first, name);
+            var inSecond = runtimeNamed(second, name);
+            assertNotSame(inFirst, inSecond, name + ": each application must get its own instance");
+            assertThrows(IllegalStateException.class, () -> inFirst.attach(second),
+                    name + ": an instance attached to one application must refuse to serve another");
+
+            inFirst.configure(first.settings());
+            inSecond.configure(second.settings());
+            var clientFirst = nativeClientOf(inFirst);
+            var clientSecond = nativeClientOf(inSecond);
+            if (boundFirst != null) {
+                assertNotSame(boundFirst, boundSecond, "bindApplicationClient() must return a new client per call");
+                assertSame(boundFirst, clientFirst,
+                        name + " must dispatch through the client bound to its own application");
+                assertSame(boundSecond, clientSecond,
+                        name + " must dispatch through the client bound to its own application");
+            } else {
+                assertNotNull(clientFirst, name + " must build a client from its application's settings");
+                assertNotSame(clientFirst, clientSecond,
+                        name + ": two applications must not share one native client");
+            }
+        } finally {
+            second.close();
+            first.close();
+        }
+    }
+
+    private static AgentRuntime runtimeNamed(AiEnvironment environment, String name) {
+        var resolved = environment.runtimes().resolveAll();
+        return resolved.stream()
+                .filter(runtime -> name.equals(runtime.name()))
+                .findFirst()
+                .orElseGet(() -> fail(name + " is not among the runtimes an application resolves: "
+                        + resolved.stream().map(AgentRuntime::name).toList()));
     }
 
     @Test

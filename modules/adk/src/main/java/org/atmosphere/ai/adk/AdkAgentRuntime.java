@@ -23,6 +23,7 @@ import com.google.genai.types.Part;
 import org.atmosphere.ai.AbstractAgentRuntime;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.ExecutionHandle;
 import org.atmosphere.ai.StreamingSession;
@@ -249,10 +250,23 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
     }
 
     /**
-     * Set the {@link Runner} to use for streaming.
+     * Set the {@link Runner} every application in the JVM streams through,
+     * unless one binds its own ({@link #setRunner(AiEnvironment, Runner)}).
      */
     public static void setRunner(Runner adkRunner) {
         staticRunner = adkRunner;
+    }
+
+    /**
+     * Set the {@link Runner} one application streams through (the Spring
+     * auto-configuration binds its context's bean this way): it wins over
+     * {@link #setRunner(Runner)} for that application.
+     *
+     * @param environment the application's environment
+     * @param adkRunner   the runner, {@code null} to remove the binding
+     */
+    public static void setRunner(AiEnvironment environment, Runner adkRunner) {
+        environment.bindClient(AdkAgentRuntime.class, Runner.class, adkRunner);
     }
 
     // Held for static setter compatibility with Spring auto-configuration
@@ -260,9 +274,11 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
 
     @Override
     public void configure(AiConfig.LlmSettings settings) {
-        // If a static runner was set via Spring auto-configuration, use it
-        if (getNativeClient() == null && staticRunner != null) {
-            setNativeClient(staticRunner);
+        // If a runner was bound (for this application, the JVM, or by Spring
+        // auto-configuration), use it
+        var bound = environment().client(AdkAgentRuntime.class, Runner.class, staticRunner);
+        if (getNativeClient() == null && bound != null) {
+            setNativeClient(bound);
         }
         super.configure(settings);
     }
@@ -310,17 +326,17 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
 
     /**
      * Settings built from the {@code LLM_*} environment, for this runtime's own
-     * requests when nothing configured the JVM-wide settings. Built once, never
-     * published: a request reads the settings, it does not configure them for
-     * every other agent and application in the JVM. Two concurrent first
-     * requests may each build one; either is kept.
+     * requests when nothing configured its application's settings. Built once,
+     * never published: a request reads the settings, it does not configure
+     * them for every other agent and application in the JVM. Two concurrent
+     * first requests may each build one; either is kept.
      */
     private volatile AiConfig.LlmSettings environmentSettings;
 
-    private AiConfig.LlmSettings environmentSettings() {
+    private AiConfig.LlmSettings environmentSettings(AiEnvironment environment) {
         var settings = environmentSettings;
         if (settings == null) {
-            settings = AiConfig.settingsFromEnvironment();
+            settings = environment.settingsFromEnvironment();
             environmentSettings = settings;
         }
         return settings;
@@ -337,9 +353,10 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
     // this method to return a mocked Runner so they can exercise the
     // doExecuteWithHandle cancel path without needing a live Gemini API key.
     Runner buildRequestRunner(AgentExecutionContext context, StreamingSession session) {
-        var settings = AiConfig.get();
+        var aiEnvironment = environment();
+        var settings = aiEnvironment.settings();
         if (settings == null) {
-            settings = environmentSettings();
+            settings = environmentSettings(aiEnvironment);
         }
 
         // When the caller attached a per-request root via AdkRootAgent.attach(),
@@ -358,7 +375,7 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         // own machinery — a Runner-level AdkArtifactService bridge plus the
         // load_artifacts / save_artifact tool pair — instead of the built-in
         // portable file tools (which FilesystemPreset did not register).
-        var agentFs = resolveAgentFileSystem(session);
+        var agentFs = resolveAgentFileSystem(environment(), session);
 
         var customRoot = AdkRootAgent.from(context);
         com.google.adk.agents.BaseAgent rootAgent;
@@ -461,7 +478,13 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
      * would duplicate the file tools.
      */
     static org.atmosphere.ai.fs.AgentFileSystem resolveAgentFileSystem(StreamingSession session) {
-        if (AiConfig.resolveFilesystemMode() == org.atmosphere.ai.fs.FilesystemMode.BUILTIN) {
+        return resolveAgentFileSystem(AiEnvironment.current(), session);
+    }
+
+    /** As {@link #resolveAgentFileSystem(StreamingSession)}, with the filesystem mode of {@code environment}. */
+    static org.atmosphere.ai.fs.AgentFileSystem resolveAgentFileSystem(AiEnvironment environment,
+                                                                      StreamingSession session) {
+        if (environment.resolveFilesystemMode() == org.atmosphere.ai.fs.FilesystemMode.BUILTIN) {
             return null;
         }
         var injectables = session != null ? session.injectables() : Map.<Class<?>, Object>of();
@@ -542,7 +565,7 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
         // forces a fresh Runner too: the AdkArtifactService bridge is wired at
         // Runner.Builder time (artifactService is not mutable per request), so
         // the cached tool-less runner cannot carry the native file surface.
-        var nativeFsActive = resolveAgentFileSystem(session) != null;
+        var nativeFsActive = resolveAgentFileSystem(environment(), session) != null;
         var needsPerRequestRunner = !tools.isEmpty() || adkHint.enabled() || customRootPresent
                 || nativeFsActive;
         Runner requestRunner = needsPerRequestRunner

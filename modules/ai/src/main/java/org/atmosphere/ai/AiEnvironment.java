@@ -84,10 +84,17 @@ import java.util.function.Function;
  * an explicit environment instead; the statics are for code that runs with no
  * framework and for user code.
  *
- * <p>Native clients bound through the runtime adapters' static setters
- * ({@code SpringAiAgentRuntime.setChatClient}, {@code LangChain4jAgentRuntime.setModel},
- * ...) are still process-wide: every environment's runtime instance of that
- * adapter uses the same bound client.</p>
+ * <h3>Native clients</h3>
+ * A runtime adapter's instance of this application uses, first found: the
+ * native client {@linkplain #bindClient bound} to this environment (the adapters'
+ * typed binders that take an {@code AiEnvironment}, such as
+ * {@code SpringAiAgentRuntime.setChatClient(AiEnvironment, ChatClient)}), then
+ * the one the adapter's static binder holds ({@code SpringAiAgentRuntime.setChatClient(ChatClient)},
+ * which applies to every application in the JVM), then the one this
+ * application's auto-configuration {@linkplain #offerClient offered}. The Spring
+ * Boot auto-configurations of the adapters bind or offer their context's beans
+ * to the context's environment, so two Spring contexts with different
+ * {@code ChatClient} beans each dispatch through their own.
  */
 public final class AiEnvironment implements AutoCloseable {
 
@@ -148,6 +155,20 @@ public final class AiEnvironment implements AutoCloseable {
     private final ConcurrentHashMap<String, AiConfig.LlmSettings> builtAgentSettings = new ConcurrentHashMap<>();
     private final AgentRuntimeRegistry runtimes;
     private final EmbeddingRuntimeRegistry embeddings;
+
+    /** One native-client slot: the runtime adapter and the client type it takes. */
+    private record BindingKey(Class<?> adapter, Class<?> type) {
+    }
+
+    /**
+     * Native clients bound ({@link #bindClient}) and offered ({@link #offerClient}) for
+     * this application; bounded by the slots of the runtime adapters on the
+     * classpath (one or two per adapter).
+     */
+    private final ConcurrentHashMap<BindingKey, Object> boundClients = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<BindingKey, Object> offeredClients = new ConcurrentHashMap<>();
+    /** Whether this application explicitly bound a native client ({@link #markExplicitClientBinding()}). */
+    private volatile boolean explicitBinding;
     /** The workspace whose {@code RUNTIME.md} seeded this environment's settings, if any. */
     private final AtomicReference<String> settingsOwner = new AtomicReference<>();
     private final AtomicBoolean closed = new AtomicBoolean();
@@ -275,7 +296,8 @@ public final class AiEnvironment implements AutoCloseable {
 
     /**
      * The environment of {@code runtime}: the one it was {@link AgentRuntime#attach attached}
-     * to, else {@link #current()}.
+     * to, else {@link #current()}. A runtime that implements {@link AgentRuntime}
+     * directly is found among the instances the open environments resolved.
      *
      * @param runtime a runtime, may be {@code null}
      * @return the environment, never {@code null}
@@ -286,6 +308,15 @@ public final class AiEnvironment implements AutoCloseable {
         }
         if (runtime instanceof RoutingAiSupport routing) {
             return routing.environment();
+        }
+        if (runtime != null) {
+            for (var environment : live) {
+                for (var resolved : environment.runtimes.resolved()) {
+                    if (resolved == runtime) {
+                        return environment;
+                    }
+                }
+            }
         }
         return current();
     }
@@ -557,6 +588,10 @@ public final class AiEnvironment implements AutoCloseable {
         }
         runtimes.clear();
         embeddings.clear();
+        // Bound and offered native clients belong to the application that
+        // handed them over: dropped, never closed.
+        boundClients.clear();
+        offeredClients.clear();
         agentSettings.clear();
         builtAgentSettings.clear();
         builtSettings = null;
@@ -839,6 +874,20 @@ public final class AiEnvironment implements AutoCloseable {
     }
 
     /**
+     * Settings built as {@link #settingsOrEnvironment()} builds them when
+     * there are none (from the {@code LLM_*} environment variables, then, for
+     * an environment created from init-params, the init-params), with this
+     * environment's knobs, for the caller only: nothing is kept, here or in
+     * the process default. For a request-time fallback, which must read the
+     * settings, never write them.
+     *
+     * @return new settings, never {@code null}
+     */
+    public AiConfig.LlmSettings settingsFromEnvironment() {
+        return buildFromCoordinates();
+    }
+
+    /**
      * Settings from the {@code LLM_*} environment variables, and for an
      * environment created from init-params the init-params after them, built
      * with this environment's knobs.
@@ -1056,15 +1105,126 @@ public final class AiEnvironment implements AutoCloseable {
         return embeddings;
     }
 
+    // -- Native-client bindings --
+
     /**
-     * Whether the application bound a native client to a runtime adapter
-     * ({@code SpringAiAgentRuntime.setChatClient}, ...). The adapters' static
-     * binders are process-wide, so this is the JVM's answer
+     * Bind a native client to a runtime adapter for this application only:
+     * its runtime instances of {@code adapter} use {@code client}, whatever
+     * the adapter's static binder holds. Replaces this environment's previous
+     * binding of the same slot; {@code null} removes it. The runtimes resolved
+     * so far are dropped, so the next resolution creates instances that use
+     * it. The client stays the caller's: {@link #close()} does not close it.
+     *
+     * <p>Runtime adapters wrap this in typed binders (for example
+     * {@code SpringAiAgentRuntime.setChatClient(AiEnvironment, ChatClient)}),
+     * which also {@linkplain #markExplicitClientBinding() mark} an explicit
+     * binding when their static binder does.</p>
+     *
+     * @param adapter the runtime adapter class that owns the slot
+     * @param type    the native client type of the slot
+     * @param client  the client, {@code null} to remove the binding
+     * @param <T>     the native client type
+     */
+    public <T> void bindClient(Class<?> adapter, Class<T> type, T client) {
+        var key = new BindingKey(adapter, type);
+        if (client == null) {
+            boundClients.remove(key);
+        } else {
+            ensureOpen();
+            boundClients.put(key, type.cast(client));
+        }
+        resetResolutions();
+    }
+
+    /**
+     * Offer a native client to a runtime adapter for this application, as an
+     * auto-configuration does: it is used only when neither this environment
+     * nor the adapter's static binder holds an explicit one, and a client
+     * offered earlier is kept.
+     *
+     * @param adapter the runtime adapter class that owns the slot
+     * @param type    the native client type of the slot
+     * @param client  the client
+     * @param <T>     the native client type
+     * @return {@code true} when this offer is now the environment's offered
+     *         client, {@code false} when another was offered first
+     */
+    public <T> boolean offerClient(Class<?> adapter, Class<T> type, T client) {
+        Objects.requireNonNull(client, "client");
+        ensureOpen();
+        if (offeredClients.putIfAbsent(new BindingKey(adapter, type), type.cast(client)) != null) {
+            return false;
+        }
+        resetResolutions();
+        return true;
+    }
+
+    /**
+     * The native client a runtime adapter's instance of this application uses,
+     * first found: the client {@linkplain #bindClient bound} here, then
+     * {@code processBinding} (what the adapter's static binder holds, which
+     * applies to every application), then the client {@linkplain #offerClient offered}
+     * here.
+     *
+     * @param adapter        the runtime adapter class that owns the slot
+     * @param type           the native client type of the slot
+     * @param processBinding the adapter's static binding, may be {@code null}
+     * @param <T>            the native client type
+     * @return the client, or {@code null} when there is none
+     */
+    public <T> T client(Class<?> adapter, Class<T> type, T processBinding) {
+        var key = new BindingKey(adapter, type);
+        var bound = boundClients.get(key);
+        if (bound != null) {
+            return type.cast(bound);
+        }
+        if (processBinding != null) {
+            return processBinding;
+        }
+        var offered = offeredClients.get(key);
+        return offered != null ? type.cast(offered) : null;
+    }
+
+    /**
+     * Record that this application explicitly bound a native client to a
+     * runtime adapter, so the demo runtime, which answers only when nothing
+     * real can serve, yields to it ({@link #hasExplicitBinding()}).
+     */
+    public void markExplicitClientBinding() {
+        explicitBinding = true;
+        runtimes.reset();
+    }
+
+    /**
+     * Whether a native client was explicitly bound for this application:
+     * through this environment ({@link #markExplicitClientBinding()}) or, for
+     * every application, through a runtime adapter's static binder
      * ({@link AgentRuntimeResolver#hasExplicitClientBinding()}).
      *
      * @return {@code true} once an explicit binding happened
      */
     public boolean hasExplicitBinding() {
-        return AgentRuntimeResolver.hasExplicitClientBinding();
+        return explicitBinding || AgentRuntimeResolver.hasExplicitClientBinding();
+    }
+
+    /** Clears the bindings and the explicit-binding mark of this environment. Test hook. */
+    void clearBindings() {
+        boundClients.clear();
+        offeredClients.clear();
+        explicitBinding = false;
+        resetResolutions();
+    }
+
+    /** Clears the bindings of the process default and every open environment. Test hook. */
+    static void clearAllBindings() {
+        PROCESS_DEFAULT.clearBindings();
+        for (var environment : live) {
+            environment.clearBindings();
+        }
+    }
+
+    private void resetResolutions() {
+        runtimes.reset();
+        embeddings.reset();
     }
 }

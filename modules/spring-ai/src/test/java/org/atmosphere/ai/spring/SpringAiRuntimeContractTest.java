@@ -41,6 +41,13 @@ import static org.mockito.Mockito.when;
 class SpringAiRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
     @Override
+    protected Object bindApplicationClient(org.atmosphere.ai.AiEnvironment environment) {
+        var client = org.mockito.Mockito.mock(org.springframework.ai.chat.client.ChatClient.class);
+        SpringAiAgentRuntime.setChatClient(environment, client);
+        return client;
+    }
+
+    @Override
     protected AgentRuntime createRuntime() {
         return new TestableSpringAiRuntime(mockToolAwareChatClient());
     }

@@ -20,6 +20,7 @@ import org.atmosphere.ai.AbstractAgentRuntime;
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.ExecutionHandle;
 import org.atmosphere.ai.StreamingSession;
 import org.slf4j.Logger;
@@ -106,6 +107,41 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
         staticChatModel = chatModel;
     }
 
+    /**
+     * Inject the {@link ReactAgent} of one application (the Spring
+     * auto-configuration binds its context's bean this way): it wins over
+     * {@link #setAgent(ReactAgent)}, which applies to every application in the
+     * JVM, for that application.
+     *
+     * @param environment the application's environment
+     * @param agent       the agent, {@code null} to remove the binding
+     */
+    public static void setAgent(AiEnvironment environment, ReactAgent agent) {
+        environment.bindClient(SpringAiAlibabaAgentRuntime.class, ReactAgent.class, agent);
+    }
+
+    /**
+     * Inject the {@link ChatModel} one application builds its per-request
+     * tool-enabled agents with: it wins over {@link #setChatModel(ChatModel)}
+     * for that application.
+     *
+     * @param environment the application's environment
+     * @param chatModel   the model, {@code null} to remove the binding
+     */
+    public static void setChatModel(AiEnvironment environment, ChatModel chatModel) {
+        environment.bindClient(SpringAiAlibabaAgentRuntime.class, ChatModel.class, chatModel);
+    }
+
+    /** The agent this instance's application uses: its own binding, else the JVM's. */
+    private ReactAgent applicationAgent() {
+        return environment().client(SpringAiAlibabaAgentRuntime.class, ReactAgent.class, staticAgent);
+    }
+
+    /** The chat model this instance's application uses: its own binding, else the JVM's. */
+    private ChatModel applicationChatModel() {
+        return environment().client(SpringAiAlibabaAgentRuntime.class, ChatModel.class, staticChatModel);
+    }
+
     @Override
     public String name() {
         return "spring-ai-alibaba";
@@ -129,13 +165,14 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
 
     @Override
     protected ReactAgent createNativeClient(AiConfig.LlmSettings settings) {
-        return staticAgent;
+        return applicationAgent();
     }
 
     @Override
     public void configure(AiConfig.LlmSettings settings) {
-        if (getNativeClient() == null && staticAgent != null) {
-            setNativeClient(staticAgent);
+        var bound = applicationAgent();
+        if (getNativeClient() == null && bound != null) {
+            setNativeClient(bound);
         }
         super.configure(settings);
     }
@@ -164,8 +201,9 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
         // adapter rebuilds the agent per request, so the previous turn's live
         // plan re-hydrates through the system prompt (see
         // SpringAiAlibabaPlanBridge).
-        var planning = provisionPlanSurface(context, session);
-        if (planning != null && staticChatModel == null && context.tools().isEmpty()) {
+        var chatModel = applicationChatModel();
+        var planning = provisionPlanSurface(environment(), context, session);
+        if (planning != null && chatModel == null && context.tools().isEmpty()) {
             // Graceful degradation: a user-supplied ReactAgent without a
             // ChatModel bean is a documented setup that dispatched fine
             // before planning existed — a default-on harness primitive must
@@ -205,7 +243,7 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
 
         var activeAgent = agent;
         if (!context.tools().isEmpty() || planning != null) {
-            if (staticChatModel == null) {
+            if (chatModel == null) {
                 throw new IllegalStateException(
                         "Spring AI Alibaba runtime received an @AiTool-bearing or "
                                 + "planning-enabled request but no Spring AI ChatModel bean "
@@ -213,7 +251,7 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
             }
             var agentBuilder = ReactAgent.builder()
                     .name("atmosphere-spring-ai-alibaba-tools")
-                    .model(staticChatModel)
+                    .model(chatModel)
                     .systemPrompt(effectiveSystemPrompt);
             if (!context.tools().isEmpty()) {
                 agentBuilder.tools(SpringAiAlibabaToolBridge.toToolCallbacks(
@@ -237,7 +275,7 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
         // supplied ReactAgent bypassed auto-config) — TOKEN_USAGE will then
         // be a no-op on this path, consistent with the singleton ReactAgent
         // never seeing the wrapper.
-        var captureUsage = staticChatModel instanceof UsageCapturingChatModel;
+        var captureUsage = chatModel instanceof UsageCapturingChatModel;
         UsageCapturingChatModel.UsageCollector collector =
                 captureUsage ? UsageCapturingChatModel.beginCapture() : null;
 
@@ -429,13 +467,19 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
      */
     static SpringAiAlibabaPlanBridge.Provision provisionPlanSurface(
             AgentExecutionContext context, StreamingSession session) {
+        return provisionPlanSurface(AiEnvironment.current(), context, session);
+    }
+
+    /** As {@link #provisionPlanSurface(AgentExecutionContext, StreamingSession)}, with the planning mode of {@code environment}. */
+    static SpringAiAlibabaPlanBridge.Provision provisionPlanSurface(AiEnvironment environment,
+            AgentExecutionContext context, StreamingSession session) {
         var injectables = session.injectables();
         if (injectables == null
                 || !(injectables.get(org.atmosphere.ai.plan.AgentPlanStore.class)
                         instanceof org.atmosphere.ai.plan.AgentPlanStore store)) {
             return null;
         }
-        if (AiConfig.resolvePlanningMode() == org.atmosphere.ai.plan.PlanningMode.BUILTIN) {
+        if (environment.resolvePlanningMode() == org.atmosphere.ai.plan.PlanningMode.BUILTIN) {
             return null;
         }
         for (var tool : context.tools()) {
@@ -533,8 +577,9 @@ public class SpringAiAlibabaAgentRuntime extends AbstractAgentRuntime<ReactAgent
                 // is non-empty. The bridge routes every tool invocation
                 // through ToolExecutionHelper.executeWithApproval so
                 // @RequiresApproval gates fire uniformly. AtmosphereSpring-
-                // AiAlibabaAutoConfiguration guarantees staticChatModel is
-                // set whenever a Spring AI ChatModel bean is available; the
+                // AiAlibabaAutoConfiguration binds the ChatModel (to the
+                // context's AiEnvironment, else the JVM) whenever a Spring AI
+                // ChatModel bean is available; the
                 // runtime fails fast with configurationHint() at first tool-
                 // bearing dispatch otherwise.
                 AiCapability.TOOL_CALLING,

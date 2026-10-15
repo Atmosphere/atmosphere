@@ -17,6 +17,7 @@ package org.atmosphere.ai.sk;
 
 import com.microsoft.semantickernel.services.textembedding.Embedding;
 import com.microsoft.semantickernel.services.textembedding.TextEmbeddingGenerationService;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.EmbeddingRuntime;
 
 import java.time.Duration;
@@ -59,9 +60,31 @@ public class SemanticKernelEmbeddingRuntime implements EmbeddingRuntime {
 
     private volatile TextEmbeddingGenerationService instanceService;
 
-    /** Spring auto-config hook: supply the configured SK service. */
+    /** The application this instance serves; {@code null} until {@link #attach}. */
+    private volatile AiEnvironment environment;
+
+    /**
+     * Supply the {@link TextEmbeddingGenerationService} every application in the JVM uses, unless
+     * one binds its own ({@link #setEmbeddingService(AiEnvironment, TextEmbeddingGenerationService)}).
+     */
     public static void setEmbeddingService(TextEmbeddingGenerationService service) {
         staticService = service;
+    }
+
+    /**
+     * Supply the {@link TextEmbeddingGenerationService} of one application: it wins over
+     * {@link #setEmbeddingService(TextEmbeddingGenerationService)} for that application.
+     *
+     * @param environment the application's environment
+     * @param service the service, {@code null} to remove the binding
+     */
+    public static void setEmbeddingService(AiEnvironment environment, TextEmbeddingGenerationService service) {
+        environment.bindClient(SemanticKernelEmbeddingRuntime.class, TextEmbeddingGenerationService.class, service);
+    }
+
+    @Override
+    public void attach(AiEnvironment environment) {
+        this.environment = Objects.requireNonNull(environment, "environment");
     }
 
     /** Test / programmatic hook: override the injected service on a single instance. */
@@ -121,7 +144,12 @@ public class SemanticKernelEmbeddingRuntime implements EmbeddingRuntime {
 
     private TextEmbeddingGenerationService resolve() {
         var local = instanceService;
-        return local != null ? local : staticService;
+        if (local != null) {
+            return local;
+        }
+        var attached = environment;
+        return (attached != null ? attached : AiEnvironment.current())
+                .client(SemanticKernelEmbeddingRuntime.class, TextEmbeddingGenerationService.class, staticService);
     }
 
     private static float[] toFloatArray(Embedding embedding) {

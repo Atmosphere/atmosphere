@@ -46,8 +46,9 @@ public final class AgentRuntimeResolver {
     // runtime adapter (SpringAiAgentRuntime.setChatClient,
     // LangChain4jAgentRuntime.setModel, ...). The demo fallback keys its
     // availability off "no API key configured"; a bound client means a real
-    // runtime can serve without any key, so demo must yield. The binders are
-    // process-wide, so this flag is too.
+    // runtime can serve without any key, so demo must yield. The static
+    // binders apply to every application, so this flag does too; a binding
+    // made for one application is marked on its AiEnvironment instead.
     private static volatile boolean explicitClientBinding;
 
     private AgentRuntimeResolver() {}
@@ -75,11 +76,14 @@ public final class AgentRuntimeResolver {
     }
 
     /**
-     * Test hook: clears the {@link #markExplicitClientBinding()} mark and the
-     * cached resolution, restoring the pristine no-binding state.
+     * Test hook: clears the {@link #markExplicitClientBinding()} mark, the
+     * native clients bound or offered to the process default and to every
+     * open {@link AiEnvironment} (and their marks), and the cached resolution,
+     * restoring the pristine no-binding state.
      */
     public static void clearExplicitClientBinding() {
         explicitClientBinding = false;
+        AiEnvironment.clearAllBindings();
         reset();
     }
 

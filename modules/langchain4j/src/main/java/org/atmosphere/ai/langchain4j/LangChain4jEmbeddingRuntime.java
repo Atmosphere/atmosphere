@@ -17,6 +17,7 @@ package org.atmosphere.ai.langchain4j;
 
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.EmbeddingRuntime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,9 +45,31 @@ public class LangChain4jEmbeddingRuntime implements EmbeddingRuntime {
 
     private volatile EmbeddingModel instanceModel;
 
-    /** Spring auto-config hook: supply the configured {@link EmbeddingModel}. */
+    /** The application this instance serves; {@code null} until {@link #attach}. */
+    private volatile AiEnvironment environment;
+
+    /**
+     * Supply the {@link EmbeddingModel} every application in the JVM uses, unless
+     * one binds its own ({@link #setEmbeddingModel(AiEnvironment, EmbeddingModel)}).
+     */
     public static void setEmbeddingModel(EmbeddingModel model) {
         staticModel = model;
+    }
+
+    /**
+     * Supply the {@link EmbeddingModel} of one application: it wins over
+     * {@link #setEmbeddingModel(EmbeddingModel)} for that application.
+     *
+     * @param environment the application's environment
+     * @param model the model, {@code null} to remove the binding
+     */
+    public static void setEmbeddingModel(AiEnvironment environment, EmbeddingModel model) {
+        environment.bindClient(LangChain4jEmbeddingRuntime.class, EmbeddingModel.class, model);
+    }
+
+    @Override
+    public void attach(AiEnvironment environment) {
+        this.environment = Objects.requireNonNull(environment, "environment");
     }
 
     /** Test / programmatic hook: override the injected model on a single instance. */
@@ -119,6 +142,11 @@ public class LangChain4jEmbeddingRuntime implements EmbeddingRuntime {
 
     private EmbeddingModel resolve() {
         var local = instanceModel;
-        return local != null ? local : staticModel;
+        if (local != null) {
+            return local;
+        }
+        var attached = environment;
+        return (attached != null ? attached : AiEnvironment.current())
+                .client(LangChain4jEmbeddingRuntime.class, EmbeddingModel.class, staticModel);
     }
 }

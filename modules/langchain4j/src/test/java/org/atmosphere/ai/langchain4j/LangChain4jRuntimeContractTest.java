@@ -41,6 +41,13 @@ import static org.mockito.Mockito.mock;
 class LangChain4jRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
     @Override
+    protected Object bindApplicationClient(org.atmosphere.ai.AiEnvironment environment) {
+        var client = org.mockito.Mockito.mock(dev.langchain4j.model.chat.StreamingChatModel.class);
+        LangChain4jAgentRuntime.setModel(environment, client);
+        return client;
+    }
+
+    @Override
     protected AgentRuntime createRuntime() {
         var model = mock(StreamingChatModel.class);
         doAnswer(inv -> {

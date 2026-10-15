@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.flowOf
 import org.atmosphere.ai.AgentExecutionContext
 import org.atmosphere.ai.AgentRuntime
 import org.atmosphere.ai.AiCapability
+import org.atmosphere.ai.AiEnvironment
 import org.atmosphere.ai.test.AbstractAgentRuntimeContractTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -73,6 +74,16 @@ internal class KoogRuntimeContractTest : AbstractAgentRuntimeContractTest() {
     }
 
     override fun createRuntime(): AgentRuntime = KoogAgentRuntime()
+
+    // The application's own executor wins over the static one @BeforeEach installs.
+    override fun bindApplicationClient(environment: AiEnvironment): Any {
+        val executor = ContractFakeExecutor()
+        KoogAgentRuntime.setPromptExecutor(environment, executor)
+        return executor
+    }
+
+    override fun nativeClientOf(runtime: AgentRuntime): Any? =
+        (runtime as KoogAgentRuntime).applicationExecutor()
 
     override fun createTextContext(): AgentExecutionContext =
         AgentExecutionContext(

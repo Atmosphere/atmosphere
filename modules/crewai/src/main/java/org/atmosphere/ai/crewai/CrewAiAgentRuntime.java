@@ -269,7 +269,7 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
         var callbackToken = callbackServer != null ? callbackServer.token() : null;
         var request = new CrewAiSidecarClient.StartRequest(
                 context.message(),
-                effectiveModel(context),
+                crewModel(context),
                 history,
                 sessionOptions(context),
                 context.systemPrompt(),
@@ -383,11 +383,11 @@ public class CrewAiAgentRuntime extends AbstractAgentRuntime<CrewAiSidecarClient
         return out;
     }
 
-    private static String effectiveModel(AgentExecutionContext context) {
+    private String crewModel(AgentExecutionContext context) {
         if (context != null && context.model() != null && !context.model().isBlank()) {
             return context.model();
         }
-        var settings = AiConfig.get();
+        var settings = environment().settings();
         if (settings != null && settings.model() != null && !settings.model().isBlank()) {
             return settings.model();
         }

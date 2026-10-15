@@ -28,6 +28,7 @@ import com.embabel.chat.SystemMessage
 import com.embabel.chat.UserMessage
 import org.atmosphere.ai.AiCapability
 import org.atmosphere.ai.AiConfig
+import org.atmosphere.ai.AiEnvironment
 import org.atmosphere.ai.AgentExecutionContext
 import org.atmosphere.ai.AgentRuntime
 import org.atmosphere.ai.ExecutionHandle
@@ -80,6 +81,17 @@ class EmbabelAgentRuntime : AgentRuntime {
             agentPlatform = platform
         }
 
+        /**
+         * Set the [AgentPlatform] of one application (the Spring
+         * auto-configuration binds its context's platform this way): it wins
+         * over [setAgentPlatform], which applies to every application in the
+         * JVM, for that application. `null` removes the binding.
+         */
+        @JvmStatic
+        fun setAgentPlatform(environment: AiEnvironment, platform: AgentPlatform?) {
+            environment.bindClient(EmbabelAgentRuntime::class.java, AgentPlatform::class.java, platform)
+        }
+
         @JvmStatic
         fun setAgentName(name: String) {
             agentName = name
@@ -104,8 +116,15 @@ class EmbabelAgentRuntime : AgentRuntime {
         @JvmStatic
         internal fun resolveAgentFileSystem(
             session: StreamingSession?
+        ): org.atmosphere.ai.fs.AgentFileSystem? = resolveAgentFileSystem(AiEnvironment.current(), session)
+
+        /** As [resolveAgentFileSystem], with the filesystem mode of [environment]. */
+        @JvmStatic
+        internal fun resolveAgentFileSystem(
+            environment: AiEnvironment,
+            session: StreamingSession?
         ): org.atmosphere.ai.fs.AgentFileSystem? {
-            if (AiConfig.resolveFilesystemMode() != org.atmosphere.ai.fs.FilesystemMode.NATIVE) {
+            if (environment.resolveFilesystemMode() != org.atmosphere.ai.fs.FilesystemMode.NATIVE) {
                 // Explicit opt-in only (atmosphere.ai.filesystem=native): the
                 // runtime does not declare VIRTUAL_FILESYSTEM (the deployed
                 // path cannot receive per-process tools), so under AUTO the
@@ -158,6 +177,33 @@ class EmbabelAgentRuntime : AgentRuntime {
         }
     }
 
+    /** The application this instance serves; `null` until [attach]. */
+    @Volatile
+    private var environment: AiEnvironment? = null
+
+    /**
+     * Attach this instance to [environment]. Attaching it again to the same
+     * environment does nothing; an instance never moves to another.
+     */
+    override fun attach(environment: AiEnvironment) {
+        val current = this.environment
+        check(current == null || current === environment) {
+            "${name()} is attached to ${current?.name()} and cannot serve ${environment.name()}"
+        }
+        this.environment = environment
+    }
+
+    /**
+     * The environment whose knobs and bound platform this instance reads: the
+     * one it was attached to, else [AiEnvironment.current] (an instance
+     * created by hand reads the static API, as before environments existed).
+     */
+    internal fun environment(): AiEnvironment = environment ?: AiEnvironment.current()
+
+    /** The platform this instance's application uses: its own binding, else the JVM's ([setAgentPlatform]). */
+    internal fun applicationPlatform(): AgentPlatform? =
+        environment().client(EmbabelAgentRuntime::class.java, AgentPlatform::class.java, agentPlatform)
+
     override fun name(): String = "embabel"
 
     override fun isAvailable(): Boolean {
@@ -172,7 +218,7 @@ class EmbabelAgentRuntime : AgentRuntime {
     override fun priority(): Int = 100
 
     override fun configure(settings: AiConfig.LlmSettings) {
-        if (agentPlatform != null) {
+        if (applicationPlatform() != null) {
             return
         }
         logger.info(
@@ -182,18 +228,29 @@ class EmbabelAgentRuntime : AgentRuntime {
         )
     }
 
+    /**
+     * Dispatches on the calling thread, bound to this instance's application
+     * for the whole dispatch (as `AbstractAgentRuntime.execute` does), so tool
+     * code that reads the static API on it sees this application.
+     */
     override fun execute(context: AgentExecutionContext, session: StreamingSession) {
         // Admit through the process-wide AiGateway before issuing the native
         // Embabel dispatch — uniform per-user rate limiting and credential
         // resolution across all twelve contract-tested runtimes (Correctness Invariant #3).
         org.atmosphere.ai.AbstractAgentRuntime.admitThroughGateway(name(), context)
+        AiEnvironment.bind(environment()).use {
+            dispatch(context, session)
+        }
+    }
+
+    private fun dispatch(context: AgentExecutionContext, session: StreamingSession) {
         // Install the cross-runtime ToolLoopGuard before reading listeners so
         // the guard sees every onModelStart this dispatch fires. No-op when
         // no ToolLoopPolicy is attached. Same install pattern as the Java
         // base class (AbstractAgentRuntime.execute) — keeps the cap behaviour
         // uniform across all runtimes regardless of base class.
         val effective = org.atmosphere.ai.llm.ToolLoopGuard.installIfPresent(name(), context, session)
-        val platform = agentPlatform
+        val platform = applicationPlatform()
             ?: throw IllegalStateException(
                 "EmbabelAgentRuntime: AgentPlatform not configured. " +
                     "Call EmbabelAgentRuntime.setAgentPlatform() or use Spring auto-configuration."
@@ -399,7 +456,7 @@ class EmbabelAgentRuntime : AgentRuntime {
      * tool floor owns the surface and already flows through `context.tools()`.
      */
     private fun hasFileStoreInScope(session: StreamingSession): Boolean {
-        if (AiConfig.resolveFilesystemMode() != org.atmosphere.ai.fs.FilesystemMode.NATIVE) {
+        if (environment().resolveFilesystemMode() != org.atmosphere.ai.fs.FilesystemMode.NATIVE) {
             return false
         }
         val injectables = session.injectables()
@@ -432,7 +489,7 @@ class EmbabelAgentRuntime : AgentRuntime {
             // dispatches that never see a plan — the same path-asymmetry
             // reasoning that keeps Koog's capability undeclared. Under the
             // AUTO default the floor owns the surface everywhere.
-            if (AiConfig.resolvePlanningMode() == org.atmosphere.ai.plan.PlanningMode.NATIVE) {
+            if (environment().resolvePlanningMode() == org.atmosphere.ai.plan.PlanningMode.NATIVE) {
                 val injectables = session.injectables()
                 options = options.withListener(EmbabelGoapPlanBridge(
                     session,
@@ -741,7 +798,7 @@ class EmbabelAgentRuntime : AgentRuntime {
      * skip is logged loudly rather than faking a surface (Invariant #5).
      */
     private fun resolveNativeFileTools(session: StreamingSession): AtmosphereFileTools? {
-        val fs = resolveAgentFileSystem(session) ?: return null
+        val fs = resolveAgentFileSystem(environment(), session) ?: return null
         val fileTools = AtmosphereFileTools.forStore(fs)
         if (fileTools == null) {
             logger.warn(

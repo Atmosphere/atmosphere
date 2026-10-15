@@ -23,6 +23,7 @@ import com.embabel.agent.domain.library.HasContent
 import org.atmosphere.ai.AgentExecutionContext
 import org.atmosphere.ai.AgentRuntime
 import org.atmosphere.ai.AiCapability
+import org.atmosphere.ai.AiEnvironment
 import org.atmosphere.ai.test.AbstractAgentRuntimeContractTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -74,6 +75,16 @@ internal class EmbabelRuntimeContractTest : AbstractAgentRuntimeContractTest() {
     }
 
     override fun createRuntime(): AgentRuntime = EmbabelAgentRuntime()
+
+    // The application's own platform wins over the static one @BeforeEach installs.
+    override fun bindApplicationClient(environment: AiEnvironment): Any {
+        val platform = buildMockPlatform()
+        EmbabelAgentRuntime.setAgentPlatform(environment, platform)
+        return platform
+    }
+
+    override fun nativeClientOf(runtime: AgentRuntime): Any? =
+        (runtime as EmbabelAgentRuntime).applicationPlatform()
 
     override fun createTextContext(): AgentExecutionContext =
         AgentExecutionContext(

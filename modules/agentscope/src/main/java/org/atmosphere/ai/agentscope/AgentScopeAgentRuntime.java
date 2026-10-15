@@ -25,6 +25,7 @@ import org.atmosphere.ai.AbstractAgentRuntime;
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.ExecutionHandle;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.TokenUsage;
@@ -87,6 +88,24 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
         staticAgent = agent;
     }
 
+    /**
+     * Set the {@link ReActAgent} of one application (the Spring
+     * auto-configuration binds its context's bean this way): it wins over
+     * {@link #setAgent(ReActAgent)}, which applies to every application in the
+     * JVM, for that application.
+     *
+     * @param environment the application's environment
+     * @param agent       the agent, {@code null} to remove the binding
+     */
+    public static void setAgent(AiEnvironment environment, ReActAgent agent) {
+        environment.bindClient(AgentScopeAgentRuntime.class, ReActAgent.class, agent);
+    }
+
+    /** The agent this instance's application uses: its own binding, else the JVM's. */
+    private ReActAgent applicationAgent() {
+        return environment().client(AgentScopeAgentRuntime.class, ReActAgent.class, staticAgent);
+    }
+
     @Override
     public String name() {
         return "agentscope";
@@ -113,13 +132,14 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
         // AgentScope's Model surface (DashScope, OpenAI-compatible) needs
         // provider-specific construction the AiConfig.LlmSettings DTO can't
         // express. Defer to the user's @Bean wired via autoconfig.
-        return staticAgent;
+        return applicationAgent();
     }
 
     @Override
     public void configure(AiConfig.LlmSettings settings) {
-        if (getNativeClient() == null && staticAgent != null) {
-            setNativeClient(staticAgent);
+        var bound = applicationAgent();
+        if (getNativeClient() == null && bound != null) {
+            setNativeClient(bound);
         }
         super.configure(settings);
     }
@@ -166,7 +186,7 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
         // with the bridged toolkit — ReActAgent.Builder registers the plan
         // tools into the same toolkit copy, so per-request tool rebuilds
         // never clobber the plan surface.
-        var planNotebook = provisionPlanNotebook(context, session);
+        var planNotebook = provisionPlanNotebook(environment(), context, session);
         if (!context.tools().isEmpty() || planNotebook != null) {
             if (context.tools().isEmpty()) {
                 // Planning-only rebuild of a tool-less dispatch: the rebuild
@@ -330,12 +350,18 @@ public class AgentScopeAgentRuntime extends AbstractAgentRuntime<ReActAgent> {
      */
     static PlanNotebook provisionPlanNotebook(
             AgentExecutionContext context, StreamingSession session) {
+        return provisionPlanNotebook(AiEnvironment.current(), context, session);
+    }
+
+    /** As {@link #provisionPlanNotebook(AgentExecutionContext, StreamingSession)}, with the planning mode of {@code environment}. */
+    static PlanNotebook provisionPlanNotebook(AiEnvironment environment,
+            AgentExecutionContext context, StreamingSession session) {
         var injectables = session.injectables();
         if (injectables == null
                 || !(injectables.get(AgentPlanStore.class) instanceof AgentPlanStore store)) {
             return null;
         }
-        if (AiConfig.resolvePlanningMode() == PlanningMode.BUILTIN) {
+        if (environment.resolvePlanningMode() == PlanningMode.BUILTIN) {
             return null;
         }
         var agentId = ToolScopes.agentId(injectables, context.agentId());

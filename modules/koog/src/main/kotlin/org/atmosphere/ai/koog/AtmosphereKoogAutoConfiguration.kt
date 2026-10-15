@@ -22,7 +22,9 @@ import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
 import org.atmosphere.ai.AiConfig
+import org.atmosphere.ai.AiEnvironment
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -90,7 +92,8 @@ open class AtmosphereKoogAutoConfiguration {
         @Value("\${atmosphere.koog.model:\${LLM_MODEL:gpt-4o}}") modelName: String,
         @Value("\${atmosphere.koog.api-key:\${LLM_API_KEY:\${OPENAI_API_KEY:}}}") apiKey: String,
         @Value("\${atmosphere.koog.base-url:\${LLM_BASE_URL:}}") baseUrl: String,
-        @Value("\${llm.mode:\${LLM_MODE:}}") mode: String
+        @Value("\${llm.mode:\${LLM_MODE:}}") mode: String,
+        environmentProvider: ObjectProvider<AiEnvironment>? = null
     ): KoogAgentRuntime {
         // A locally served backend (Ollama, vLLM, LM Studio) needs no credential,
         // so a blank key says nothing about whether a model is reachable. Keying
@@ -132,8 +135,17 @@ open class AtmosphereKoogAutoConfiguration {
             logger.info("Koog runtime configured: model '{}' via OpenAILLMClient ({})", model.id, resolvedBaseUrl)
         }
 
-        KoogAgentRuntime.setPromptExecutor(executor)
-        KoogAgentRuntime.setDefaultModel(model)
+        // Bound to this context's AiEnvironment when there is one (the
+        // Atmosphere starter registers it), so another context in the JVM
+        // keeps its own executor and model; else to the JVM, as before.
+        val environment = environmentProvider?.getIfAvailable()
+        if (environment != null) {
+            KoogAgentRuntime.setPromptExecutor(environment, executor)
+            KoogAgentRuntime.setDefaultModel(environment, model)
+        } else {
+            KoogAgentRuntime.setPromptExecutor(executor)
+            KoogAgentRuntime.setDefaultModel(model)
+        }
         return KoogAgentRuntime()
     }
 }

@@ -16,6 +16,7 @@
 package org.atmosphere.ai.spring.alibaba;
 
 import com.alibaba.cloud.ai.graph.agent.ReactAgent;
+import org.atmosphere.ai.AiEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.model.ChatModel;
@@ -64,6 +65,39 @@ public class AtmosphereSpringAiAlibabaAutoConfiguration {
     private static final Logger logger =
             LoggerFactory.getLogger(AtmosphereSpringAiAlibabaAutoConfiguration.class);
 
+    /** The context's {@link AiEnvironment}; {@code null} when built by hand. */
+    private final ObjectProvider<AiEnvironment> environmentProvider;
+
+    /** An instance that binds through the runtimes' static binders, as before environments existed. */
+    public AtmosphereSpringAiAlibabaAutoConfiguration() {
+        this(null);
+    }
+
+    /**
+     * @param environmentProvider the context's {@link AiEnvironment} (the
+     *                            Atmosphere starter registers one): the
+     *                            context's {@code ReactAgent}, {@code ChatModel}
+     *                            and {@code EmbeddingModel} are bound to it, so
+     *                            they serve this context only
+     */
+    @org.springframework.beans.factory.annotation.Autowired
+    public AtmosphereSpringAiAlibabaAutoConfiguration(ObjectProvider<AiEnvironment> environmentProvider) {
+        this.environmentProvider = environmentProvider;
+    }
+
+    private AiEnvironment aiEnvironment() {
+        return environmentProvider != null ? environmentProvider.getIfAvailable() : null;
+    }
+
+    private void bindChatModel(ChatModel chatModel) {
+        var environment = aiEnvironment();
+        if (environment != null) {
+            SpringAiAlibabaAgentRuntime.setChatModel(environment, chatModel);
+        } else {
+            SpringAiAlibabaAgentRuntime.setChatModel(chatModel);
+        }
+    }
+
     @Bean
     @ConditionalOnMissingBean(ReactAgent.class)
     @ConditionalOnBean(ChatModel.class)
@@ -77,7 +111,7 @@ public class AtmosphereSpringAiAlibabaAutoConfiguration {
             // tool agent — pushes ChatResponse.getMetadata().getUsage() into the
             // per-thread accumulator the runtime reads for TOKEN_USAGE.
             var captured = wrap(chatModel);
-            SpringAiAlibabaAgentRuntime.setChatModel(captured);
+            bindChatModel(captured);
             return ReactAgent.builder()
                     .name("atmosphere-spring-ai-alibaba")
                     .model(captured)
@@ -95,7 +129,12 @@ public class AtmosphereSpringAiAlibabaAutoConfiguration {
     @ConditionalOnBean(ReactAgent.class)
     SpringAiAlibabaAgentRuntime springAiAlibabaAgentRuntime(
             ReactAgent agent, ObjectProvider<ChatModel> chatModelProvider) {
-        SpringAiAlibabaAgentRuntime.setAgent(agent);
+        var environment = aiEnvironment();
+        if (environment != null) {
+            SpringAiAlibabaAgentRuntime.setAgent(environment, agent);
+        } else {
+            SpringAiAlibabaAgentRuntime.setAgent(agent);
+        }
         var chatModel = chatModelProvider.getIfAvailable();
         if (chatModel != null) {
             // User-supplied ReactAgent path: we still wrap their ChatModel so
@@ -104,7 +143,7 @@ public class AtmosphereSpringAiAlibabaAutoConfiguration {
             // unwrapped bean — that singleton path will not emit TOKEN_USAGE
             // for tool-free calls; documented in SpringAiAlibabaAgentRuntime
             // class javadoc.
-            SpringAiAlibabaAgentRuntime.setChatModel(wrap(chatModel));
+            bindChatModel(wrap(chatModel));
         }
         return new SpringAiAlibabaAgentRuntime();
     }
@@ -119,7 +158,12 @@ public class AtmosphereSpringAiAlibabaAutoConfiguration {
             ObjectProvider<EmbeddingModel> embeddingModelProvider) {
         var embeddingModel = embeddingModelProvider.getIfAvailable();
         if (embeddingModel != null) {
-            SpringAiAlibabaEmbeddingRuntime.setEmbeddingModel(embeddingModel);
+            var environment = aiEnvironment();
+            if (environment != null) {
+                SpringAiAlibabaEmbeddingRuntime.setEmbeddingModel(environment, embeddingModel);
+            } else {
+                SpringAiAlibabaEmbeddingRuntime.setEmbeddingModel(embeddingModel);
+            }
         }
         return new SpringAiAlibabaEmbeddingRuntime();
     }

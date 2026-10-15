@@ -50,6 +50,13 @@ import static org.mockito.Mockito.when;
 class AgentScopeRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
     @Override
+    protected Object bindApplicationClient(org.atmosphere.ai.AiEnvironment environment) {
+        var client = org.mockito.Mockito.mock(io.agentscope.core.ReActAgent.class);
+        AgentScopeAgentRuntime.setAgent(environment, client);
+        return client;
+    }
+
+    @Override
     protected AgentRuntime createRuntime() {
         var agent = mock(ReActAgent.class);
         var msg = Msg.builder()

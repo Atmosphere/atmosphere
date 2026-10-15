@@ -43,6 +43,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.runBlocking
 import org.atmosphere.ai.AiCapability
 import org.atmosphere.ai.AiConfig
+import org.atmosphere.ai.AiEnvironment
 import org.atmosphere.ai.AiEvent
 import org.atmosphere.ai.AgentExecutionContext
 import org.atmosphere.ai.AgentRuntime
@@ -75,9 +76,29 @@ class KoogAgentRuntime : AgentRuntime {
             promptExecutor = executor
         }
 
+        /**
+         * Set the [PromptExecutor] of one application (the Spring
+         * auto-configuration binds its context's executor this way): it wins
+         * over [setPromptExecutor], which applies to every application in the
+         * JVM, for that application. `null` removes the binding.
+         */
+        @JvmStatic
+        fun setPromptExecutor(environment: AiEnvironment, executor: PromptExecutor?) {
+            environment.bindClient(KoogAgentRuntime::class.java, PromptExecutor::class.java, executor)
+        }
+
         @JvmStatic
         fun setDefaultModel(model: LLModel) {
             defaultModel = model
+        }
+
+        /**
+         * Set the default [LLModel] of one application: it wins over
+         * [setDefaultModel] for that application. `null` removes the binding.
+         */
+        @JvmStatic
+        fun setDefaultModel(environment: AiEnvironment, model: LLModel?) {
+            environment.bindClient(KoogAgentRuntime::class.java, LLModel::class.java, model)
         }
 
         /**
@@ -93,10 +114,12 @@ class KoogAgentRuntime : AgentRuntime {
          * plan surfaces). The planner itself still executes either way;
          * only the observation mirror is gated.
          */
-        internal fun shouldObservePlan(context: AgentExecutionContext): Boolean {
-            if (org.atmosphere.ai.AiConfig.resolvePlanningMode()
-                == org.atmosphere.ai.plan.PlanningMode.BUILTIN
-            ) {
+        internal fun shouldObservePlan(context: AgentExecutionContext): Boolean =
+            shouldObservePlan(AiEnvironment.current(), context)
+
+        /** As [shouldObservePlan], with the planning mode of [environment]. */
+        internal fun shouldObservePlan(environment: AiEnvironment, context: AgentExecutionContext): Boolean {
+            if (environment.resolvePlanningMode() == org.atmosphere.ai.plan.PlanningMode.BUILTIN) {
                 return false
             }
             for (tool in context.tools()) {
@@ -124,6 +147,41 @@ class KoogAgentRuntime : AgentRuntime {
         }
     }
 
+    /** The application this instance serves; `null` until [attach]. */
+    @Volatile
+    private var environment: AiEnvironment? = null
+
+    /**
+     * Attach this instance to [environment]. Attaching it again to the same
+     * environment does nothing; an instance never moves to another.
+     */
+    override fun attach(environment: AiEnvironment) {
+        val current = this.environment
+        check(current == null || current === environment) {
+            "${name()} is attached to ${current?.name()} and cannot serve ${environment.name()}"
+        }
+        this.environment = environment
+    }
+
+    /**
+     * The environment whose settings, knobs and bound executor this instance
+     * reads: the one it was attached to, else [AiEnvironment.current] (an
+     * instance created by hand reads the static API, as before environments
+     * existed).
+     */
+    internal fun environment(): AiEnvironment = environment ?: AiEnvironment.current()
+
+    /**
+     * The executor this instance's application uses: its own binding, else
+     * the JVM's ([setPromptExecutor]).
+     */
+    internal fun applicationExecutor(): PromptExecutor? =
+        environment().client(KoogAgentRuntime::class.java, PromptExecutor::class.java, promptExecutor)
+
+    /** The default model of this instance's application: its own binding, else the JVM's ([setDefaultModel]). */
+    private fun applicationDefaultModel(): LLModel =
+        environment().client(KoogAgentRuntime::class.java, LLModel::class.java, null) ?: defaultModel
+
     override fun name(): String = "koog"
 
     override fun isAvailable(): Boolean {
@@ -138,7 +196,7 @@ class KoogAgentRuntime : AgentRuntime {
     override fun priority(): Int = 100
 
     override fun configure(settings: AiConfig.LlmSettings) {
-        if (promptExecutor != null) {
+        if (applicationExecutor() != null) {
             return
         }
         logger.info(
@@ -160,7 +218,12 @@ class KoogAgentRuntime : AgentRuntime {
         // belt for the suspenders, ensuring the cap holds even if the native
         // path is bypassed (e.g. executeWithExecutor).
         val effective = org.atmosphere.ai.llm.ToolLoopGuard.installIfPresent(name(), context, session)
-        executeWithOuterRetry(effective, session)
+        // Bound to this instance's application for the whole dispatch, as
+        // AbstractAgentRuntime.execute does: tool code that reads the static
+        // API on this thread sees this application.
+        AiEnvironment.bind(environment()).use {
+            executeWithOuterRetry(effective, session)
+        }
     }
 
     /**
@@ -229,8 +292,10 @@ class KoogAgentRuntime : AgentRuntime {
         val done = CompletableFuture<Void>()
         val activeJob = java.util.concurrent.atomic.AtomicReference<kotlinx.coroutines.Job?>()
         val activeThread = java.util.concurrent.atomic.AtomicReference<Thread?>()
+        val aiEnvironment = environment()
         Thread.startVirtualThread {
             activeThread.set(Thread.currentThread())
+            val binding = AiEnvironment.bind(aiEnvironment)
             try {
                 executeInternal(effective, session, cancelled, activeJob)
                 done.complete(null)
@@ -248,6 +313,7 @@ class KoogAgentRuntime : AgentRuntime {
                 }
                 done.completeExceptionally(e)
             } finally {
+                binding.close()
                 activeThread.set(null)
             }
         }
@@ -281,7 +347,7 @@ class KoogAgentRuntime : AgentRuntime {
         activeJob: java.util.concurrent.atomic.AtomicReference<kotlinx.coroutines.Job?> =
             java.util.concurrent.atomic.AtomicReference()
     ) {
-        val executor = promptExecutor
+        val executor = applicationExecutor()
             ?: throw IllegalStateException(
                 "KoogAgentRuntime: PromptExecutor not configured. " +
                     "Call KoogAgentRuntime.setPromptExecutor() or use Spring auto-configuration."
@@ -289,6 +355,7 @@ class KoogAgentRuntime : AgentRuntime {
 
         session.progress("Connecting to koog...")
 
+        val defaultModel = applicationDefaultModel()
         val model = if (context.model() != null && context.model() != defaultModel.id) {
             LLModel(defaultModel.provider, context.model(),
                 defaultModel.capabilities, defaultModel.contextLength, defaultModel.maxOutputTokens)
@@ -568,7 +635,7 @@ class KoogAgentRuntime : AgentRuntime {
 
         val lifecycleListeners = context.listeners()
         val lifecycleModelName = context.model() ?: name()
-        val observePlan = shouldObservePlan(context)
+        val observePlan = shouldObservePlan(environment(), context)
         val injectables = session.injectables()
         val streamingSession = session
         val planGoalLabel = planGoal(context.message())
@@ -761,7 +828,7 @@ class KoogAgentRuntime : AgentRuntime {
      * [AiConfig] has been resolved or the knob is not set.
      */
     private fun generationTemperature(): Double? =
-        AiConfig.get()?.generation()?.temperature()
+        environment().settings()?.generation()?.temperature()
 
     private fun buildPrompt(context: AgentExecutionContext): Prompt {
         return prompt("atmosphere", nativeStructuredParams(context)) {
@@ -1006,7 +1073,7 @@ class KoogAgentRuntime : AgentRuntime {
     override fun models(): List<String> {
         // Koog's LLModel carries an id; report the default plus any
         // override. context.model() takes precedence at dispatch time.
-        return listOf(defaultModel.id)
+        return listOf(applicationDefaultModel().id)
     }
 }
 

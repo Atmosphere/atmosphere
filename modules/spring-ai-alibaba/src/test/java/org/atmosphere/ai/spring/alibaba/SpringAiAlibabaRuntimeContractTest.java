@@ -42,6 +42,13 @@ import static org.mockito.Mockito.when;
 class SpringAiAlibabaRuntimeContractTest extends AbstractAgentRuntimeContractTest {
 
     @Override
+    protected Object bindApplicationClient(org.atmosphere.ai.AiEnvironment environment) {
+        var client = org.mockito.Mockito.mock(com.alibaba.cloud.ai.graph.agent.ReactAgent.class);
+        SpringAiAlibabaAgentRuntime.setAgent(environment, client);
+        return client;
+    }
+
+    @Override
     protected AgentRuntime createRuntime() {
         var agent = mock(ReactAgent.class);
         try {

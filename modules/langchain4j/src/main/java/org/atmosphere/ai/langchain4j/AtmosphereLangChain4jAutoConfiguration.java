@@ -17,8 +17,10 @@ package org.atmosphere.ai.langchain4j;
 
 import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
+import org.atmosphere.ai.AiEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -119,10 +121,19 @@ public class AtmosphereLangChain4jAutoConfiguration {
 
     @Bean
     @ConditionalOnBean(StreamingChatModel.class)
-    LangChain4jAgentRuntime langChain4jAiSupportBridge(StreamingChatModel model) {
+    LangChain4jAgentRuntime langChain4jAiSupportBridge(StreamingChatModel model,
+            ObjectProvider<AiEnvironment> environmentProvider) {
         // Offer, never bind: an explicit setModel(...) call from application
         // code owns the binding; the context bean is only the default.
-        LangChain4jAgentRuntime.offerModel(model);
+        // Offered to this context's AiEnvironment when there is one (the
+        // Atmosphere starter registers it), so another context in the JVM
+        // keeps its own model; else to the JVM, as before.
+        var environment = environmentProvider.getIfAvailable();
+        if (environment != null) {
+            LangChain4jAgentRuntime.offerModel(environment, model);
+        } else {
+            LangChain4jAgentRuntime.offerModel(model);
+        }
         return new LangChain4jAgentRuntime();
     }
 }

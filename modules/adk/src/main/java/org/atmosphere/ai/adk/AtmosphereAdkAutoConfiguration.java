@@ -16,6 +16,8 @@
 package org.atmosphere.ai.adk;
 
 import com.google.adk.runner.Runner;
+import org.atmosphere.ai.AiEnvironment;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -32,8 +34,16 @@ public class AtmosphereAdkAutoConfiguration {
 
     @Bean
     @ConditionalOnBean(Runner.class)
-    AdkAgentRuntime adkAiSupportBridge(Runner runner) {
-        AdkAgentRuntime.setRunner(runner);
+    AdkAgentRuntime adkAiSupportBridge(Runner runner, ObjectProvider<AiEnvironment> environmentProvider) {
+        // Bound to this context's AiEnvironment when there is one (the
+        // Atmosphere starter registers it), so another context in the JVM
+        // keeps its own Runner; else to the JVM, as before.
+        var environment = environmentProvider.getIfAvailable();
+        if (environment != null) {
+            AdkAgentRuntime.setRunner(environment, runner);
+        } else {
+            AdkAgentRuntime.setRunner(runner);
+        }
         return new AdkAgentRuntime();
     }
 }

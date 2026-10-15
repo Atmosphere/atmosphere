@@ -146,6 +146,46 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
     // Held for static setter compatibility with Spring auto-configuration
     private static volatile StreamingChatModel staticModel;
 
+    /**
+     * Binds the {@link StreamingChatModel} one application streams through:
+     * its runtime instances use it, whatever {@link #setModel(StreamingChatModel)}
+     * holds for the JVM. Marks an explicit client binding for that
+     * application, as {@link #setModel(StreamingChatModel)} does for every one.
+     *
+     * @param environment    the application's environment
+     * @param streamingModel the model, {@code null} to remove the binding
+     */
+    public static void setModel(org.atmosphere.ai.AiEnvironment environment, StreamingChatModel streamingModel) {
+        environment.bindClient(LangChain4jAgentRuntime.class, StreamingChatModel.class, streamingModel);
+        if (streamingModel != null) {
+            environment.markExplicitClientBinding();
+        }
+    }
+
+    /**
+     * Auto-configuration seam for one application: its runtime instances use
+     * {@code streamingModel} only when neither that application nor the JVM
+     * ({@link #setModel(StreamingChatModel)}) bound one.
+     *
+     * @param environment    the application's environment
+     * @param streamingModel the context's model
+     */
+    public static void offerModel(org.atmosphere.ai.AiEnvironment environment, StreamingChatModel streamingModel) {
+        if (streamingModel != null
+                && environment.offerClient(LangChain4jAgentRuntime.class, StreamingChatModel.class, streamingModel)) {
+            environment.markExplicitClientBinding();
+        }
+    }
+
+    /**
+     * The model this instance's application uses: its own binding, else the
+     * JVM's ({@link #setModel(StreamingChatModel)}), else the one its
+     * auto-configuration offered.
+     */
+    private StreamingChatModel applicationModel() {
+        return environment().client(LangChain4jAgentRuntime.class, StreamingChatModel.class, staticModel);
+    }
+
     // Native LangChain4j ChatModelListeners attached to models this runtime
     // auto-builds (createNativeClient). CopyOnWriteArrayList because registration
     // happens during application wiring while reads happen on model-build paths.
@@ -190,9 +230,11 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
 
     @Override
     public void configure(AiConfig.LlmSettings settings) {
-        // If a static model was set via Spring auto-configuration, use it
-        if (getNativeClient() == null && staticModel != null) {
-            setNativeClient(staticModel);
+        // If a model was bound (for this application, the JVM, or by Spring
+        // auto-configuration), use it
+        var bound = applicationModel();
+        if (getNativeClient() == null && bound != null) {
+            setNativeClient(bound);
         }
         super.configure(settings);
     }
@@ -283,7 +325,7 @@ public class LangChain4jAgentRuntime extends AbstractAgentRuntime<StreamingChatM
         // the shared default-DENY allow-list (api.openai.com / Azure OpenAI /
         // loopback only); on every other host — including a strict OpenAI-compat
         // proxy that would reject the unknown field — the injection is suppressed.
-        var settings = org.atmosphere.ai.AiConfig.get();
+        var settings = environment().settings();
         var endpointUrl = settings != null ? settings.baseUrl() : null;
         // Tri-state override: ENABLED force-emits, DISABLED force-suppresses,
         // AUTO (default) defers to the shared allow-list, so the framework and
