@@ -364,8 +364,9 @@ public @interface AiEndpoint {
      *
      * <p>A long-polling member of the room receives the reply whole on its next
      * poll, as a client receives its own reply over long-polling, even when none
-     * of its polls waited while the reply ran; see
-     * {@link org.atmosphere.ai.LongPollingRoomReplies}.</p>
+     * of its polls waited while the reply ran, within the bounds of a
+     * long-polling reply, and unless the framework shares broadcaster listeners
+     * between broadcasters; see {@link org.atmosphere.ai.LongPollingRoomReplies}.</p>
      *
      * <p>Defaults to {@code false} (per-client: the reply streams back only to
      * the originating client). Most useful combined with a path template that

@@ -17,6 +17,7 @@ package org.atmosphere.ai;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
@@ -29,9 +30,15 @@ import org.atmosphere.cpr.RawMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Delivery of a room reply ({@code @AiEndpoint(broadcastReply = true)},
@@ -47,21 +54,39 @@ import java.util.concurrent.ConcurrentHashMap;
  * ({@link LongPollingReplies#PARKED_TTL_MS_PARAM}), whether a poll of it waits
  * or not. Each frame of an AI reply broadcast to the whole room, as the room's
  * filters let it through (it is filtered once, for every subscriber), is kept
- * for every member in that member's mailbox ({@link LongPollingReplies}) instead
- * of being written to a waiting poll of it. At a terminal frame and at an
- * {@code approval-required} frame the member's waiting poll is resumed, empty,
- * and its next poll receives every frame kept for it in one response, as a
- * client's own long-polling reply is delivered. A client that becomes a member
- * in the middle of a reply receives that reply from there on.</p>
+ * in every member's own mailbox instead of being written to a waiting poll of
+ * it. At a terminal frame and at an {@code approval-required} frame the member's
+ * waiting poll is resumed, empty, and its next poll receives every frame kept
+ * for it in one response ({@link LongPollingReplies#deliver}), with the reply of
+ * its own that waits for it, if any. A client that becomes a member in the
+ * middle of a reply receives that reply from there on.</p>
  *
- * <p>Nothing changes for a room whose broadcaster has a {@link BroadcasterCache}
- * configured: the cache is left to keep those frames for a client between polls
- * and hand them to its next poll, as {@code UUIDBroadcasterCache} and
- * {@code BoundedMemoryCache} do for each client seen recently. A frame that cannot be kept for a member (no
- * room is left for long-polling replies) reaches it the way it did before, only
- * while a poll of it waits; one that would take the frames waiting for a member
- * past the bounds of one reply is replaced, for that member, by an {@code error}
- * frame, and the rest of that reply is not kept for it.</p>
+ * <p>Bounds (Correctness Invariant #3), from the init parameters of the member's
+ * framework. A room takes at most
+ * {@value LongPollingReplies#MAX_PARKED_REPLIES_PARAM} members; a member's
+ * mailbox does not count against that bound for the replies waiting in the JVM.
+ * A frame kept for several members is held once: its bytes count once against
+ * {@value LongPollingReplies#MAX_BUFFERED_BYTES_PARAM}, and each member it is
+ * kept for adds {@value #MEMBER_FRAME_BYTES} bytes. The frames of one reply
+ * waiting for a member are bounded like one reply
+ * ({@value LongPollingReplies#MAX_REPLY_BYTES_PARAM},
+ * {@value LongPollingReplies#MAX_REPLY_FRAMES_PARAM}); the reply that would
+ * outgrow them is replaced, for that member only, by an {@code error} frame, and
+ * the rest of that reply is not kept for it, while the other replies kept for
+ * it stay whole. A member follows at most {@value #MAX_REPLIES_PER_MEMBER}
+ * replies at once. A frame of a reply that cannot be kept (no room is left, or
+ * the member already follows that many replies) reaches that member the way it
+ * did before, only while a poll of it waits, and so does the rest of that
+ * reply.</p>
+ *
+ * <p>When the room's broadcaster has a {@link BroadcasterCache}, the frame kept
+ * for a member is also removed from what the cache keeps for that member, so its
+ * next poll does not receive it twice; the cache keeps the frames that could not
+ * be kept for the member, as its inspectors allow. When the framework shares one
+ * list of broadcaster listeners between broadcasters
+ * ({@link ApplicationConfig#BROADCASTER_SHAREABLE_LISTENERS}), a broadcaster
+ * registers no listener of its own, so no room is set up: its long-polling
+ * clients receive a room reply only while a poll of theirs waits.</p>
  */
 public final class LongPollingRoomReplies {
 
@@ -69,9 +94,17 @@ public final class LongPollingRoomReplies {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     /** Error sent to a member, in place of a room reply, that the reply outgrew. */
     static final String TOO_LARGE_MESSAGE = "The reply is too large to be delivered over long-polling";
+    /** Bytes a frame kept for one more member counts, on top of the frame's own bytes, counted once. */
+    static final int MEMBER_FRAME_BYTES = 16;
+    /** Replies a member follows at once; the frames of a reply past them are not kept for it. */
+    static final int MAX_REPLIES_PER_MEMBER = 64;
 
     /** Broadcaster -> its room; an entry leaves when its broadcaster is destroyed. */
     private static final ConcurrentHashMap<Broadcaster, Room> ROOMS = new ConcurrentHashMap<>();
+    /** Tracking id -> its memberships, in the order they were made; see {@link #mailboxes}. */
+    private static final ConcurrentHashMap<String, List<Member>> MEMBERSHIPS = new ConcurrentHashMap<>();
+    private static final AtomicLong MEMBER_SEQUENCE = new AtomicLong();
+    private static final AtomicBoolean SHARED_LISTENERS_WARNED = new AtomicBoolean();
 
     private LongPollingRoomReplies() {
     }
@@ -109,6 +142,18 @@ public final class LongPollingRoomReplies {
             if (config == null) {
                 return null;
             }
+            if (sharesListeners(config.getAtmosphereConfig())) {
+                // The broadcaster would ignore the room's listener: the room would never see a member, and
+                // nothing would remove it from ROOMS once the broadcaster is destroyed.
+                if (SHARED_LISTENERS_WARNED.compareAndSet(false, true)) {
+                    logger.warn("{} is set: the AI room replies of {} and every other room reach their long-polling"
+                            + " members only while a poll waits", ApplicationConfig.BROADCASTER_SHAREABLE_LISTENERS,
+                            broadcaster.getID());
+                } else {
+                    logger.debug("Shared broadcaster listeners: no long-polling room for {}", broadcaster.getID());
+                }
+                return null;
+            }
             var room = new Room();
             broadcaster.addBroadcasterListener(room);
             try {
@@ -125,20 +170,62 @@ public final class LongPollingRoomReplies {
         }
     }
 
-    /** {@code trackingId}'s client left: it is no longer a member of any room. */
+    private static boolean sharesListeners(AtmosphereConfig config) {
+        return config != null && config.getInitParameter(ApplicationConfig.BROADCASTER_SHAREABLE_LISTENERS, false);
+    }
+
+    /** {@code trackingId}'s client left: it is no longer a member of any room, and what was kept for it is dropped. */
     static void forget(String trackingId) {
         if (trackingId == null) {
             return;
         }
         for (var room : ROOMS.values()) {
-            room.members.remove(trackingId);
+            var member = room.members.remove(trackingId);
+            if (member != null) {
+                member.leave();
+            }
         }
+    }
+
+    /**
+     * The mailboxes of {@code trackingId}, one per room it is a member of, in a
+     * fixed order: {@link LongPollingReplies#deliver} locks them in that order.
+     */
+    static List<Member> mailboxes(String trackingId) {
+        return trackingId != null ? MEMBERSHIPS.getOrDefault(trackingId, List.of()) : List.of();
+    }
+
+    /**
+     * Drops the members no poll of which was seen for their time to live, with
+     * what was kept for them; run with {@link LongPollingReplies#sweepExpired}.
+     *
+     * @return how many members left
+     */
+    static int sweepExpired() {
+        var now = System.nanoTime();
+        var left = 0;
+        for (var room : ROOMS.entrySet()) {
+            for (var member : room.getValue().members.values()) {
+                if (member.expired(now) && room.getValue().members.remove(member.trackingId, member)) {
+                    member.leave();
+                    left++;
+                    logger.debug("Long-polling client {} left room {}: no poll of it for its time to live",
+                            member.trackingId, room.getKey().getID());
+                }
+            }
+        }
+        return left;
     }
 
     /** Members of {@code broadcaster}'s room; for tests. */
     static Set<String> members(Broadcaster broadcaster) {
         var room = ROOMS.get(broadcaster);
         return room != null ? Set.copyOf(room.members.keySet()) : Set.of();
+    }
+
+    /** Whether {@code broadcaster} is a room; for tests. */
+    static boolean installed(Broadcaster broadcaster) {
+        return ROOMS.containsKey(broadcaster);
     }
 
     private static boolean isLongPolling(AtmosphereResource resource) {
@@ -172,19 +259,77 @@ public final class LongPollingRoomReplies {
                 return null;
             }
             var seq = node.get("seq");
-            var handOver = switch (kind) {
-                case "complete", "error", RunCancelledException.FRAME_TYPE, "approval-required" -> true;
+            var terminal = switch (kind) {
+                case "complete", "error", RunCancelledException.FRAME_TYPE -> true;
                 default -> false;
             };
-            return new Frame(sessionId.stringValue(), seq != null ? seq.asLong() : 0L, handOver);
+            return new Frame(sessionId.stringValue(), seq != null ? seq.asLong() : 0L,
+                    terminal || "approval-required".equals(kind), terminal);
         } catch (JacksonException | IllegalArgumentException e) {
             logger.trace("Not an AI frame", e);
             return null;
         }
     }
 
-    /** What the room needs of an AI frame: its session, its sequence and whether it ends a hand-over. */
-    private record Frame(String sessionId, long seq, boolean handOver) {
+    /**
+     * What the room needs of an AI frame: its session, its sequence, whether it
+     * ends a hand-over and whether it ends its reply.
+     */
+    private record Frame(String sessionId, long seq, boolean handOver, boolean terminal) {
+    }
+
+    /** What became of a frame offered to a member. */
+    private enum Outcome {
+        /** Kept in the member's mailbox. */
+        KEPT,
+        /** Not kept and not to be written to the member: its reply ended, for it, with an error frame. */
+        SUPPRESSED,
+        /** Not kept: it reaches the member only while a poll of it waits. */
+        NOT_KEPT
+    }
+
+    /**
+     * A frame kept for one member or more, held once; its bytes are reserved
+     * while at least one member holds it.
+     */
+    private static final class Kept {
+        private final String json;
+        private final String sessionId;
+        private final long size;
+        private int holders;
+
+        private Kept(String json, String sessionId) {
+            this.json = json;
+            this.sessionId = sessionId;
+            this.size = json.getBytes(StandardCharsets.UTF_8).length;
+        }
+
+        /** One more member holds this frame, or none can: no room is left under {@code maxBytes}. */
+        synchronized boolean hold(long maxBytes) {
+            if (holders == 0 && !LongPollingReplies.reserve(size, maxBytes)) {
+                return false;
+            }
+            holders++;
+            return true;
+        }
+
+        synchronized void release() {
+            if (holders > 0 && --holders == 0) {
+                LongPollingReplies.release(size);
+            }
+        }
+    }
+
+    /** A reply a member follows, while it runs. */
+    private static final class Reply {
+        /** Its frames are no longer kept for the member: an error frame took their place. */
+        private boolean abandoned;
+        /** Its frames are no longer kept for the member: they reach its waiting polls directly. */
+        private boolean bypassed;
+        /** Bytes and frames of it waiting for the member. */
+        private long bytes;
+        private int frames;
+        private long touchedNanos = System.nanoTime();
     }
 
     /** A broadcaster's long-polling members, fed by its broadcasts. */
@@ -213,35 +358,50 @@ public final class LongPollingRoomReplies {
         @Override
         public void onPreDestroy(Broadcaster b) {
             ROOMS.remove(b, this);
-            members.clear();
+            for (var member : members.values()) {
+                if (members.remove(member.trackingId, member)) {
+                    member.leave();
+                }
+            }
         }
 
         /**
          * Keeps a frame of an AI reply broadcast to the whole room for every
          * member. Runs where the broadcaster delivers the frame, after its
          * filters and before it is written to any subscriber; a frame kept for a
-         * member is then not written to a poll of it ({@link Suppressor}).
+         * member is then not written to a poll of it ({@link Suppressor}), nor
+         * kept for it by the broadcaster's cache.
          */
         @Override
         public void onMessage(Broadcaster b, Deliver deliver) {
             if (members.isEmpty() || deliver.getType() != Deliver.TYPE.ALL || !deliver.isWriteLocally()
-                    || !(deliver.getMessage() instanceof RawMessage raw) || !(raw.message() instanceof String json)
-                    || cacheKeepsFrames(b)) {
+                    || !(deliver.getMessage() instanceof RawMessage raw) || !(raw.message() instanceof String json)) {
                 return;
             }
             var frame = parse(json);
             if (frame == null) {
                 return;
             }
+            var kept = new Kept(json, frame.sessionId());
+            var cache = cacheOf(b);
             var now = System.nanoTime();
             for (var member : members.values()) {
                 if (member.expired(now)) {
-                    members.remove(member.trackingId, member);
-                    logger.debug("Long-polling client {} left room {}: no poll of it for its time to live",
-                            member.trackingId, b.getID());
+                    if (members.remove(member.trackingId, member)) {
+                        member.leave();
+                        logger.debug("Long-polling client {} left room {}: no poll of it for its time to live",
+                                member.trackingId, b.getID());
+                    }
                     continue;
                 }
-                member.keep(frame, json);
+                if (member.keep(frame, kept) != Outcome.NOT_KEPT && cache != null && deliver.getCache() != null) {
+                    try {
+                        cache.clearCache(b.getID(), member.trackingId, deliver.getCache());
+                    } catch (RuntimeException e) {
+                        logger.debug("Unable to remove a room frame kept for {} from the cache of {}",
+                                member.trackingId, b.getID(), e);
+                    }
+                }
             }
         }
 
@@ -263,42 +423,57 @@ public final class LongPollingRoomReplies {
             if (member == null) {
                 if (members.size() >= limits.maxParkedReplies()) {
                     var now = System.nanoTime();
-                    members.values().removeIf(m -> m.expired(now));
+                    for (var m : members.values()) {
+                        if (m.expired(now) && members.remove(m.trackingId, m)) {
+                            m.leave();
+                        }
+                    }
                 }
                 if (members.size() >= limits.maxParkedReplies()) {
                     logger.warn("A room already has {} long-polling members; {} receives its replies only while"
                             + " a poll of it waits", limits.maxParkedReplies(), trackingId);
                     return;
                 }
-                member = members.computeIfAbsent(trackingId, Member::new);
+                // Listed under its tracking id before any other thread can see it, so a
+                // removal, which comes after, always finds it listed.
+                member = members.computeIfAbsent(trackingId, id -> {
+                    var created = new Member(id);
+                    created.index();
+                    return created;
+                });
             }
             member.polled(owner, config, limits);
         }
 
-        private static boolean cacheKeepsFrames(Broadcaster b) {
+        /** The broadcaster's cache, or {@code null} when it keeps nothing. */
+        private static BroadcasterCache cacheOf(Broadcaster b) {
             try {
                 var cache = b.getBroadcasterConfig().getBroadcasterCache();
-                return cache != null && !cache.getClass().equals(BroadcasterCache.DEFAULT.getClass());
+                return cache != null && !cache.getClass().equals(BroadcasterCache.DEFAULT.getClass()) ? cache : null;
             } catch (RuntimeException e) {
                 logger.trace("Unable to read the cache of {}", b.getID(), e);
-                return true;
+                return null;
             }
         }
     }
 
-    /** One long-polling client of a room, and the room frames kept for it. */
-    private static final class Member {
+    /** One long-polling client of a room, and its mailbox: the room frames kept for it. */
+    static final class Member {
         private final String trackingId;
+        private final long order = MEMBER_SEQUENCE.incrementAndGet();
+        /** Guards the mailbox; held by {@link LongPollingReplies#deliver} while it writes the mailbox. */
+        private final ReentrantLock lock = new ReentrantLock();
         private volatile Object owner;
         private volatile AtmosphereConfig config;
         private volatile LongPollingReplies.Limits limits = LongPollingReplies.Limits.DEFAULTS;
         private volatile long seenNanos = System.nanoTime();
-        /** The last frame kept for this member, which no poll of it is then written. */
+        /** The last frame offered to this member that no poll of it is to be written. */
         private volatile String kept;
-        /** A reply this member outgrew: the rest of it is not kept for it, nor written to its polls. */
-        private String abandonedSession;
-        /** A reply a frame of which could not be kept: the rest of it reaches this member's polls directly. */
-        private String bypassedSession;
+        private final ArrayList<Kept> mailbox = new ArrayList<>();
+        /** The replies this member follows while they run, at most {@value #MAX_REPLIES_PER_MEMBER}. */
+        private final LinkedHashMap<String, Reply> replies = new LinkedHashMap<>();
+        /** Left its room: nothing more is kept for it. */
+        private boolean gone;
 
         private Member(String trackingId) {
             this.trackingId = trackingId;
@@ -336,35 +511,193 @@ public final class LongPollingRoomReplies {
             return true;
         }
 
-        /** Whether {@code json} was kept for this member, so a poll of it must not be written it too. */
+        /** Whether {@code json} was offered to this member and must not be written to a poll of it. */
         boolean kept(String json) {
             return json.equals(kept);
         }
 
-        /** Keeps {@code frame} for this member; runs on the broadcaster's delivery, one frame at a time. */
-        synchronized void keep(Frame frame, String json) {
-            if (frame.sessionId().equals(bypassedSession)) {
-                return;
+        long order() {
+            return order;
+        }
+
+        Object owner() {
+            return owner;
+        }
+
+        void lock() {
+            lock.lock();
+        }
+
+        void unlock() {
+            lock.unlock();
+        }
+
+        /** The frames kept for this member; called holding its lock. */
+        List<String> frames() {
+            var frames = new ArrayList<String>(mailbox.size());
+            for (var k : mailbox) {
+                frames.add(k.json);
             }
-            if (frame.sessionId().equals(abandonedSession)) {
-                kept = json;
-                return;
+            return frames;
+        }
+
+        /** Its frames were written to a poll of it: they leave the mailbox. Called holding its lock. */
+        void taken() {
+            empty();
+            for (var reply : replies.values()) {
+                reply.bytes = 0;
+                reply.frames = 0;
             }
-            switch (LongPollingReplies.parkRoomFrame(config, trackingId, owner, json, frame.handOver(), limits)) {
-                case PARKED -> kept = json;
-                case REFUSED -> bypassedSession = frame.sessionId();
-                case TOO_LARGE -> {
-                    abandonedSession = frame.sessionId();
-                    kept = json;
-                    logger.warn("The room reply {} outgrew the bounds of a long-polling reply for {}; sending it"
-                            + " an error frame in its place", frame.sessionId(), trackingId);
-                    LongPollingReplies.discardParked(trackingId);
-                    var error = errorFrame(frame);
-                    if (error != null) {
-                        LongPollingReplies.parkRoomFrame(config, trackingId, owner, error, true, limits);
-                    }
+        }
+
+        /** Offers {@code frame} to this member; runs on the broadcaster's delivery, one frame at a time. */
+        Outcome keep(Frame frame, Kept k) {
+            lock.lock();
+            try {
+                if (gone) {
+                    kept = null;
+                    return Outcome.NOT_KEPT;
+                }
+                var now = System.nanoTime();
+                var reply = follow(frame.sessionId(), now);
+                if (reply == null) {
+                    kept = null;
+                    return Outcome.NOT_KEPT;
+                }
+                reply.touchedNanos = now;
+                if (frame.terminal()) {
+                    // Its last frame: nothing of the reply is left to tell apart.
+                    replies.remove(frame.sessionId(), reply);
+                }
+                if (reply.bypassed) {
+                    kept = null;
+                    return Outcome.NOT_KEPT;
+                }
+                if (reply.abandoned) {
+                    kept = k.json;
+                    return Outcome.SUPPRESSED;
+                }
+                var limits = this.limits;
+                if (reply.frames + 1 > limits.maxReplyFrames() || reply.bytes + k.size > limits.maxReplyBytes()) {
+                    abandon(reply, frame);
+                    kept = k.json;
+                    return Outcome.SUPPRESSED;
+                }
+                if (!k.hold(limits.maxBufferedBytes())) {
+                    return bypass(reply, frame);
+                }
+                if (!LongPollingReplies.reserve(MEMBER_FRAME_BYTES, limits.maxBufferedBytes())) {
+                    k.release();
+                    return bypass(reply, frame);
+                }
+                mailbox.add(k);
+                reply.bytes += k.size;
+                reply.frames++;
+                kept = k.json;
+                if (frame.handOver()) {
+                    logger.debug("Kept {} room frame(s) for the next poll of {}", mailbox.size(), trackingId);
+                    wake();
+                }
+                return Outcome.KEPT;
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        /** The reply {@code sessionId} as this member follows it, or {@code null} when it follows too many. */
+        private Reply follow(String sessionId, long now) {
+            var reply = replies.get(sessionId);
+            if (reply != null) {
+                return reply;
+            }
+            if (replies.size() >= MAX_REPLIES_PER_MEMBER) {
+                // A reply that sent nothing for the time to live is not running any more.
+                replies.values().removeIf(r -> now - r.touchedNanos > limits.parkedTtlNanos());
+            }
+            if (replies.size() >= MAX_REPLIES_PER_MEMBER) {
+                logger.debug("{} already follows {} room replies; the frames of {} reach it only while a poll"
+                        + " of it waits", trackingId, MAX_REPLIES_PER_MEMBER, sessionId);
+                return null;
+            }
+            reply = new Reply();
+            replies.put(sessionId, reply);
+            return reply;
+        }
+
+        private Outcome bypass(Reply reply, Frame frame) {
+            reply.bypassed = true;
+            kept = null;
+            logger.warn("Long-polling replies already hold {} bytes; the rest of room reply {} reaches {} only while"
+                    + " a poll of it waits", limits.maxBufferedBytes(), frame.sessionId(), trackingId);
+            return Outcome.NOT_KEPT;
+        }
+
+        /** Drops the frames of {@code reply} kept for this member and keeps an error frame in their place. */
+        private void abandon(Reply reply, Frame frame) {
+            reply.abandoned = true;
+            logger.warn("The room reply {} outgrew the bounds of a long-polling reply for {}; sending it an error"
+                    + " frame in its place", frame.sessionId(), trackingId);
+            var it = mailbox.iterator();
+            while (it.hasNext()) {
+                var k = it.next();
+                if (k.sessionId.equals(frame.sessionId())) {
+                    it.remove();
+                    k.release();
+                    LongPollingReplies.release(MEMBER_FRAME_BYTES);
                 }
             }
+            var json = errorFrame(frame);
+            if (json == null) {
+                return;
+            }
+            // Always kept, past the bounds: the member is told why the rest of the reply does not come.
+            var error = new Kept(json, frame.sessionId());
+            error.hold(Long.MAX_VALUE);
+            LongPollingReplies.reserve(MEMBER_FRAME_BYTES, Long.MAX_VALUE);
+            mailbox.add(error);
+            wake();
+        }
+
+        /** Left its room: what was kept for it is dropped, and nothing more is. */
+        void leave() {
+            lock.lock();
+            try {
+                gone = true;
+                kept = null;
+                empty();
+                replies.clear();
+            } finally {
+                lock.unlock();
+            }
+            MEMBERSHIPS.computeIfPresent(trackingId, (id, list) -> {
+                var rest = list.stream().filter(m -> m != this).toList();
+                return rest.isEmpty() ? null : rest;
+            });
+        }
+
+        /** Listed under its tracking id, after the memberships made before it. */
+        void index() {
+            MEMBERSHIPS.compute(trackingId, (id, list) -> {
+                if (list == null) {
+                    return List.of(this);
+                }
+                var all = new ArrayList<>(list);
+                all.add(this);
+                return List.copyOf(all);
+            });
+        }
+
+        private void empty() {
+            for (var k : mailbox) {
+                k.release();
+                LongPollingReplies.release(MEMBER_FRAME_BYTES);
+            }
+            mailbox.clear();
+        }
+
+        /** Resumes the member's waiting poll, empty, so its next poll takes the mailbox; under the lock. */
+        private void wake() {
+            LongPollingReplies.wake(config, trackingId);
         }
 
         private static String errorFrame(Frame frame) {
@@ -383,7 +716,7 @@ public final class LongPollingRoomReplies {
     }
 
     /**
-     * Keeps a frame kept for a long-polling member off that member's waiting
+     * Keeps a frame offered to a long-polling member off that member's waiting
      * poll: its next poll receives it with the rest of the reply.
      */
     private static final class Suppressor implements PerRequestBroadcastFilter {

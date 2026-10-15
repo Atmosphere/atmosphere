@@ -60,14 +60,19 @@ import java.util.function.Predicate;
  *   <li>{@value #MAX_REPLY_BYTES_PARAM}: UTF-8 bytes of one reply (8 MiB);</li>
  *   <li>{@value #MAX_REPLY_FRAMES_PARAM}: frames of one reply (10,000);</li>
  *   <li>{@value #MAX_BUFFERED_BYTES_PARAM}: bytes of every reply buffered or
- *       parked in the JVM (256 MiB);</li>
+ *       parked in the JVM, and of the room frames kept for long-polling room
+ *       members, each counted once (256 MiB);</li>
  *   <li>{@value #MAX_PARKED_REPLIES_PARAM}: tracking ids with a parked reply
- *       (1,024);</li>
+ *       (1,024), and the long-polling members of one room; the room frames kept
+ *       for a member do not count against the parked replies;</li>
  *   <li>{@value #PARKED_TTL_MS_PARAM}: how long a parked reply waits for a poll
  *       (120 s).</li>
  * </ul>
  * <p>A reply that outgrows a bound ends with an {@code error} frame in place of
- * its frames; a reply that cannot be parked is dropped and logged.</p>
+ * its frames; a reply that cannot be parked is dropped and logged. A room
+ * reply's frames are kept for each long-polling member of the room apart from
+ * the parked replies, and a poll takes both; see
+ * {@link LongPollingRoomReplies}.</p>
  */
 public final class LongPollingReplies {
 
@@ -253,7 +258,8 @@ public final class LongPollingReplies {
         }
     }
 
-    private static boolean reserve(long size, long max) {
+    /** Reserves {@code size} bytes, or none when that would take every reply past {@code max}. */
+    static boolean reserve(long size, long max) {
         while (true) {
             var current = RESERVED.get();
             if (current + size > max) {
@@ -263,6 +269,11 @@ public final class LongPollingReplies {
                 return true;
             }
         }
+    }
+
+    /** Releases {@code size} bytes {@link #reserve} reserved. */
+    static void release(long size) {
+        RESERVED.addAndGet(-size);
     }
 
     /**
@@ -320,81 +331,6 @@ public final class LongPollingReplies {
         }
     }
 
-    /** What became of a frame of a room reply offered to a member's mailbox; see {@link #parkRoomFrame}. */
-    enum RoomFrame {
-        /** Kept for the member's next poll. */
-        PARKED,
-        /** Not kept: the frames waiting for the member would outgrow the bounds of one reply. */
-        TOO_LARGE,
-        /** Not kept: no room is left, or a reply of another identity waits for that client. */
-        REFUSED
-    }
-
-    /**
-     * Parks {@code frame}, one frame of a room reply, for the room member
-     * {@code trackingId}, after the frames already parked for it, reserving its
-     * bytes. The frames waiting for the member are bounded like one reply. The
-     * member's waiting poll is resumed, empty, only when {@code handOver} is set
-     * (the reply ended, or waits for an answer), so its next poll takes the reply
-     * whole; a poll that arrives earlier takes the frames parked so far.
-     *
-     * @param config the framework of the member's connection, to find its poll with
-     * @param owner  the identity the member's connection was suspended under
-     */
-    static RoomFrame parkRoomFrame(AtmosphereConfig config, String trackingId, Object owner, String frame,
-                                   boolean handOver, Limits limits) {
-        var size = frame.getBytes(StandardCharsets.UTF_8).length;
-        if (!reserve(size, limits.maxBufferedBytes())) {
-            logger.warn("Long-polling replies already hold {} bytes; dropping a room frame for {}",
-                    limits.maxBufferedBytes(), trackingId);
-            return RoomFrame.REFUSED;
-        }
-        while (true) {
-            var entry = PARKED.get(trackingId);
-            if (entry == null) {
-                if (PARKED.size() >= limits.maxParkedReplies()) {
-                    sweepExpired();
-                }
-                if (PARKED.size() >= limits.maxParkedReplies()) {
-                    RESERVED.addAndGet(-size);
-                    logger.warn("{} long-polling replies are already waiting for a poll; dropping a room frame for {}",
-                            limits.maxParkedReplies(), trackingId);
-                    return RoomFrame.REFUSED;
-                }
-                var fresh = new Parked(owner, limits.parkedTtlNanos());
-                entry = PARKED.putIfAbsent(trackingId, fresh);
-                if (entry == null) {
-                    entry = fresh;
-                }
-            }
-            entry.lock.lock();
-            try {
-                if (entry.dead) {
-                    continue;
-                }
-                if (!Objects.equals(entry.owner, owner)) {
-                    RESERVED.addAndGet(-size);
-                    logger.warn("A reply of another identity is already parked for {}; dropping a room frame", trackingId);
-                    return RoomFrame.REFUSED;
-                }
-                if (entry.frames.size() >= limits.maxReplyFrames() || entry.bytes + size > limits.maxReplyBytes()) {
-                    RESERVED.addAndGet(-size);
-                    return RoomFrame.TOO_LARGE;
-                }
-                entry.frames.add(frame);
-                entry.bytes += size;
-                entry.touchedNanos = System.nanoTime();
-                if (handOver) {
-                    logger.debug("Parked {} room frame(s) for the next poll of {}", entry.frames.size(), trackingId);
-                    wake(config, trackingId);
-                }
-                return RoomFrame.PARKED;
-            } finally {
-                entry.lock.unlock();
-            }
-        }
-    }
-
     /** Resumes the client's suspended poll, empty, so its next poll takes the parked frames. */
     private static void wake(AtmosphereResource origin, String trackingId) {
         AtmosphereConfig config;
@@ -408,7 +344,8 @@ public final class LongPollingReplies {
         wake(config, trackingId);
     }
 
-    private static void wake(AtmosphereConfig config, String trackingId) {
+    /** Resumes the suspended poll of {@code trackingId}, empty, so its next poll takes what waits for it. */
+    static void wake(AtmosphereConfig config, String trackingId) {
         try {
             var factory = config != null ? config.resourcesFactory() : null;
             if (factory == null) {
@@ -429,85 +366,143 @@ public final class LongPollingReplies {
     /**
      * Writes the reply parked for {@code poll}'s tracking id to {@code poll}, a
      * long-polling poll of that client not suspended yet, when
-     * {@code ownerMatches} accepts the identity the reply was asked under. The
-     * frames leave the parked reply only once {@code writer} returned. A poll
-     * that is not suspended is never resumed by a hand-over, so nothing ends it
-     * in the middle of the write.
+     * {@code ownerMatches} accepts the identity the reply was asked under, with
+     * the frames of room replies kept for that client
+     * ({@link LongPollingRoomReplies}) whose membership {@code ownerMatches}
+     * accepts too, after them. The frames leave the parked reply and the
+     * mailboxes only once {@code writer} returned. A poll that is not suspended
+     * is never resumed by a hand-over, so nothing ends it in the middle of the
+     * write.
      *
      * @return whether a reply was written; the poll is then answered with it
      * instead of being suspended
      */
     public static boolean deliver(AtmosphereResource poll, Predicate<Object> ownerMatches, FrameWriter writer) {
         var trackingId = poll.uuid();
-        var entry = trackingId != null ? PARKED.get(trackingId) : null;
-        if (entry == null) {
+        if (trackingId == null) {
             return false;
         }
-        entry.lock.lock();
+        var entry = PARKED.get(trackingId);
+        var mailboxes = LongPollingRoomReplies.mailboxes(trackingId);
+        if (entry == null && mailboxes.isEmpty()) {
+            return false;
+        }
+        // Always the parked reply's lock first, then the mailboxes' in their
+        // fixed order: no other path holds more than one of them.
+        if (entry != null) {
+            entry.lock.lock();
+        }
+        var locked = 0;
         try {
-            if (entry.dead || entry.frames.isEmpty() || poll.isResumed() || poll.isCancelled()) {
+            for (var mailbox : mailboxes) {
+                mailbox.lock();
+                locked++;
+            }
+            if (poll.isResumed() || poll.isCancelled()) {
                 // A poll the hand-over already resumed: the next one takes the frames.
-                logger.debug("Poll of {} not handed its parked reply (dead={}, frames={}, resumed={})",
-                        trackingId, entry.dead, entry.frames.size(), poll.isResumed());
+                logger.debug("Poll of {} not handed its parked reply (resumed={})", trackingId, poll.isResumed());
                 return false;
             }
-            if (!ownerMatches.test(entry.owner)) {
-                // Not logged with the identities: one of them is another user's.
-                logger.warn("A poll of {} carries another identity than its parked reply; not delivered", trackingId);
+            var frames = new ArrayList<String>();
+            var takeParked = false;
+            if (entry != null && !entry.dead && !entry.frames.isEmpty()) {
+                if (ownerMatches.test(entry.owner)) {
+                    frames.addAll(entry.frames);
+                    takeParked = true;
+                } else {
+                    // Not logged with the identities: one of them is another user's.
+                    logger.warn("A poll of {} carries another identity than its parked reply; not delivered",
+                            trackingId);
+                }
+            }
+            var taken = new ArrayList<LongPollingRoomReplies.Member>();
+            for (var mailbox : mailboxes) {
+                var kept = mailbox.frames();
+                if (kept.isEmpty()) {
+                    continue;
+                }
+                if (ownerMatches.test(mailbox.owner())) {
+                    frames.addAll(kept);
+                    taken.add(mailbox);
+                } else {
+                    logger.warn("A poll of {} carries another identity than its room membership; room frames not"
+                            + " delivered", trackingId);
+                }
+            }
+            if (frames.isEmpty()) {
                 return false;
             }
-            // The write runs under the entry's lock: a hand-over to this client
-            // (and the sweep of this one entry) waits for it, so no resume ends
-            // the poll in the middle of it. Only this client's own reply waits.
+            // The write runs under the locks: a hand-over to this client (and the
+            // sweep of these entries) waits for it, so no resume ends the poll in
+            // the middle of it. Only this client's own replies wait.
             try {
-                writer.write(poll, List.copyOf(entry.frames));
+                writer.write(poll, List.copyOf(frames));
             } catch (IOException | RuntimeException e) {
                 logger.debug("Writing the parked reply of {} failed; it stays parked", trackingId, e);
                 return false;
             }
-            logger.debug("Delivered {} parked frame(s) to the poll of {}", entry.frames.size(), trackingId);
-            RESERVED.addAndGet(-entry.bytes);
-            entry.frames.clear();
-            entry.bytes = 0;
-            entry.dead = true;
-            PARKED.remove(trackingId, entry);
+            logger.debug("Delivered {} parked frame(s) to the poll of {}", frames.size(), trackingId);
+            if (takeParked) {
+                RESERVED.addAndGet(-entry.bytes);
+                entry.frames.clear();
+                entry.bytes = 0;
+                entry.dead = true;
+                PARKED.remove(trackingId, entry);
+            }
+            for (var mailbox : taken) {
+                mailbox.taken();
+            }
             return true;
         } finally {
-            entry.lock.unlock();
+            for (var i = locked - 1; i >= 0; i--) {
+                mailboxes.get(i).unlock();
+            }
+            if (entry != null) {
+                entry.lock.unlock();
+            }
         }
     }
 
     /**
-     * Whether a reply waits for the next poll of {@code trackingId} that
-     * {@code ownerMatches} accepts the identity of.
+     * Whether a reply, or a room frame kept for the client, waits for the next
+     * poll of {@code trackingId} that {@code ownerMatches} accepts the identity
+     * of.
      */
     public static boolean hasParked(String trackingId, Predicate<Object> ownerMatches) {
         var entry = trackingId != null ? PARKED.get(trackingId) : null;
-        if (entry == null) {
-            return false;
+        if (entry != null) {
+            entry.lock.lock();
+            try {
+                if (!entry.dead && !entry.frames.isEmpty() && ownerMatches.test(entry.owner)) {
+                    return true;
+                }
+            } finally {
+                entry.lock.unlock();
+            }
         }
-        entry.lock.lock();
-        try {
-            return !entry.dead && !entry.frames.isEmpty() && ownerMatches.test(entry.owner);
-        } finally {
-            entry.lock.unlock();
+        for (var mailbox : LongPollingRoomReplies.mailboxes(trackingId)) {
+            mailbox.lock();
+            try {
+                if (!mailbox.frames().isEmpty() && ownerMatches.test(mailbox.owner())) {
+                    return true;
+                }
+            } finally {
+                mailbox.unlock();
+            }
         }
+        return false;
     }
 
     /**
      * Drops the reply parked for a client that went away; the client is no
-     * longer a long-polling member of any room ({@link LongPollingRoomReplies}).
+     * longer a long-polling member of any room ({@link LongPollingRoomReplies}),
+     * and the room frames kept for it are dropped too.
      */
     public static void discard(String trackingId) {
         if (trackingId == null) {
             return;
         }
         LongPollingRoomReplies.forget(trackingId);
-        discardParked(trackingId);
-    }
-
-    /** Drops the reply parked for {@code trackingId}, the client staying a member of its rooms. */
-    static void discardParked(String trackingId) {
         var entry = PARKED.get(trackingId);
         if (entry != null) {
             drop(trackingId, entry);
@@ -524,10 +519,15 @@ public final class LongPollingReplies {
     }
 
     /**
-     * Drops the parked replies no poll took within their time to live; run by
-     * {@link StreamingSessionSweeper}, and by a hand-over that finds no room.
+     * Drops the parked replies no poll took within their time to live, and the
+     * room members no poll of which was seen for it, with the frames kept for
+     * them; run by {@link StreamingSessionSweeper}, and by a hand-over that
+     * finds no room.
+     *
+     * @return how many parked replies were dropped
      */
     static int sweepExpired() {
+        LongPollingRoomReplies.sweepExpired();
         var now = System.nanoTime();
         var dropped = 0;
         for (var e : PARKED.entrySet()) {

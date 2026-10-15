@@ -752,23 +752,34 @@ client is a member from the first of its polls the room's broadcaster takes,
 and stays one between its polls, until it leaves or no poll of it is seen for
 `parkedReplyTtlMs` (a room takes at most `maxParkedReplies` members). Each frame
 of the reply runs through the broadcaster's filters once, for every subscriber,
-and what they let through is kept for each member instead of being written to
-its waiting poll. At the terminal frame and at an `approval-required` frame the
-member's waiting poll returns empty and its next poll receives every frame kept
-for it; a poll that arrives earlier receives the frames kept so far. A client
-that becomes a member in the middle of a reply receives it from there on. The
-bounds below apply to the frames waiting for each member, and a reply a member
-outgrows ends, for that member, with an `error` frame. A room whose broadcaster
-has a `BroadcasterCache` configured is left to the cache, as before: the
-`UUIDBroadcasterCache` and `BoundedMemoryCache` keep a frame broadcast to the
-room for each client seen recently and hand it to that client's next poll.
+and what they let through is kept in each member's own mailbox instead of being
+written to its waiting poll. At the terminal frame and at an `approval-required`
+frame the member's waiting poll returns empty and its next poll receives every
+frame kept for it, with its own reply if one waits; a poll that arrives earlier
+receives the frames kept so far. A client that becomes a member in the middle of
+a reply receives it from there on. A frame kept for several members counts its
+bytes once against `maxBufferedBytes`, plus 16 bytes per member, and the
+mailboxes do not count against `maxParkedReplies`, so a room reply leaves room
+for every other long-polling reply. `maxReplyBytes` and `maxReplyFrames` apply
+to the frames of each reply waiting for a member: the reply that outgrows them
+ends, for that member only, with an `error` frame, nothing more of it reaches
+the member, and the other replies kept for it stay whole. A member follows at
+most 64 replies at once; the frames of a reply that cannot be kept for it (no
+bytes are left, or it follows 64 already) reach it only while a poll of it
+waits. When the room's broadcaster has a `BroadcasterCache`, a frame kept for a
+member is removed from what the cache keeps for that member, so the next poll
+does not receive it twice; the cache still keeps, as its inspectors allow, the
+frames that could not be kept for the member. With
+`org.atmosphere.cpr.Broadcaster.sharedListenersList` set, a broadcaster does not
+register listeners of its own, so no room is set up (a warning is logged once):
+a long-polling client then receives a room reply only while a poll of it waits.
 
 | Init-param | Default | Meaning |
 |---|---|---|
 | `org.atmosphere.ai.longPolling.maxReplyBytes` | `8388608` (8 MiB) | UTF-8 bytes of one long-polling reply |
 | `org.atmosphere.ai.longPolling.maxReplyFrames` | `10000` | Frames of one long-polling reply |
-| `org.atmosphere.ai.longPolling.maxBufferedBytes` | `268435456` (256 MiB) | Bytes of every long-polling reply buffered or waiting for a poll, across the JVM |
-| `org.atmosphere.ai.longPolling.maxParkedReplies` | `1024` | Clients with a reply waiting for their next poll |
+| `org.atmosphere.ai.longPolling.maxBufferedBytes` | `268435456` (256 MiB) | Bytes of every long-polling reply buffered or waiting for a poll, and of the room frames kept for long-polling room members (each frame once), across the JVM |
+| `org.atmosphere.ai.longPolling.maxParkedReplies` | `1024` | Clients with a reply waiting for their next poll; also the long-polling members one room takes |
 | `org.atmosphere.ai.longPolling.parkedReplyTtlMs` | `120000` | How long a reply waits for its client's next poll |
 | `org.atmosphere.ai.longPolling.departureGraceMs` | `30000` | How long a long-polling client with no poll suspended may go without polling before its connection counts as ended |
 | `org.atmosphere.ai.longPolling.maxTrackedClients` | `10000` | Long-polling clients one endpoint tracks as connected at once |
