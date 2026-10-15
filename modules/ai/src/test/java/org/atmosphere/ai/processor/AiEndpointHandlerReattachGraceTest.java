@@ -43,10 +43,12 @@ import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
+import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.DefaultBroadcasterFactory;
 import org.atmosphere.cpr.HeaderConfig;
+import org.atmosphere.cpr.RawMessage;
 import org.atmosphere.interceptor.OnDisconnectInterceptor;
 import org.atmosphere.util.ExecutorsFactory;
 import org.junit.jupiter.api.AfterEach;
@@ -64,6 +66,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -572,6 +575,42 @@ class AiEndpointHandlerReattachGraceTest {
     }
 
     /**
+     * The reconnect asks its own question, then the server notices the original
+     * connection is gone: the answer streaming to the live connection goes on
+     * through {@code complete}, over WebSocket and over SSE.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"WEBSOCKET", "SSE"})
+    void aLateNoticedLossLeavesTheAnswerTheSameIdReconnectAskedForStreaming(String transport) throws Exception {
+        System.setProperty(GRACE_PROPERTY, "300ms");
+        var frames = captureFrames();
+        var runtime = new HeldRuntime();
+        newHandler(runtime, null);
+        var original = connect(transport.toLowerCase());
+
+        var back = reconnect(original.uuid(), AtmosphereResource.TRANSPORT.valueOf(transport),
+                inv -> null, new StringWriter());
+        assertTrue(handler.dispatchPrompt(back, "explain"), "the reconnect's prompt is dispatched");
+        assertTrue(runtime.streaming.await(10, TimeUnit.SECONDS), "the model call must be in flight");
+        handler.onStateChange(new AtmosphereResourceEventImpl(original, true, false));
+        assertFalse(runtime.cancelled.await(1_500, TimeUnit.MILLISECONDS),
+                "the loss of a replaced connection must not cancel the reconnect's own run");
+
+        runtime.finish();
+        awaitRunEnd();
+        var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (frames.stream().noneMatch(f -> f.contains("\"type\":\"complete\"")) && System.nanoTime() < deadline) {
+            Thread.sleep(20);
+        }
+        var partial = indexOf(frames, "\"data\":\"partial \"");
+        var rest = indexOf(frames, "\"data\":\"rest\"");
+        var complete = indexOf(frames, "\"type\":\"complete\"");
+        assertTrue(partial >= 0 && partial < rest && rest < complete,
+                "the reconnect gets its whole answer through complete over " + transport + ": " + frames);
+        assertEquals(-1, indexOf(frames, "\"type\":\"cancelled\""), frames.toString());
+    }
+
+    /**
      * A WebSocket or SSE connection whose suspend times out ends without a
      * departure reaching the handler: it stops being tracked as the live
      * connection of its tracking id all the same, or every client that times
@@ -730,6 +769,27 @@ class AiEndpointHandlerReattachGraceTest {
         handler.onRequest(connection);
         assertTrue(connection.isSuspended(), "the " + transport + " connection is suspended");
         return connection;
+    }
+
+    /** The JSON frames the streaming sessions broadcast on {@link #room}, in order. */
+    private List<String> captureFrames() {
+        var frames = new CopyOnWriteArrayList<String>();
+        room.getBroadcasterConfig().addFilter((BroadcastFilter) (broadcasterId, originalMessage, message) -> {
+            if (message instanceof RawMessage raw) {
+                frames.add(String.valueOf(raw.message()));
+            }
+            return new BroadcastFilter.BroadcastAction(message);
+        });
+        return frames;
+    }
+
+    private static int indexOf(List<String> frames, String fragment) {
+        for (var i = 0; i < frames.size(); i++) {
+            if (frames.get(i).contains(fragment)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private AtmosphereResourceImpl startRun(HeldRuntime runtime, InMemoryConversationMemory memory,
