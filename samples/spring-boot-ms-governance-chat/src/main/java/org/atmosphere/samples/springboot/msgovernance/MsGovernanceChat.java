@@ -38,8 +38,10 @@ import java.util.List;
  * canonical sample — escalation triggers, forbidden keywords, PII patterns,
  * discount-limit enforcement, audit-only probes — all expressed as MS-schema
  * rules. {@link AgentScope} layers the goal-hijacking defense on top (code
- * / medical / legal / financial probes rejected architecturally, not via
- * prompt engineering).
+ * / medical / financial probes rejected architecturally, not via prompt
+ * engineering). Legal language is the YAML policy's to answer — it routes it
+ * to a human — so the purpose claims legal escalation and the scope's own
+ * legal probe stands down for it; requests for legal advice stay forbidden.
  *
  * <p>Defense-in-depth stack on every turn:</p>
  * <ol>
@@ -53,7 +55,8 @@ import java.util.List;
 @AiEndpoint(path = "/atmosphere/ms-governance")
 @AgentScope(
         purpose = "Customer support agent for Example Corp — orders, billing, "
-                + "account questions, product information, refund and shipping status.",
+                + "account questions, product information, refund and shipping status; "
+                + "legal-language complaints are escalated to a human by policy.",
         forbiddenTopics = {"legal advice", "medical advice", "financial advice",
                 "competitor products"},
         onBreach = AgentScope.Breach.POLITE_REDIRECT,
