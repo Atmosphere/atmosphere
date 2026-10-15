@@ -360,7 +360,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                             }
                             try {
                                 field.setAccessible(true);
-                                field.set(instance, fieldValue(field, c.injectable(r)));
+                                CallbackScope.publish(instance, field, fieldValue(field, c.injectable(r)));
                             } finally {
                                 field.setAccessible(false);
                             }
@@ -393,7 +393,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         }
         CallbackScope.enter(r);
         for (var f : fields) {
-            f.field().set(instance, fieldValue(f.field(), f.introspector().injectable(r)));
+            CallbackScope.publish(instance, f.field(), fieldValue(f.field(), f.introspector().injectable(r)));
         }
     }
 
