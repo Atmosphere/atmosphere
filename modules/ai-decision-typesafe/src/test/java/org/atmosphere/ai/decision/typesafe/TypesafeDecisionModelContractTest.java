@@ -597,6 +597,12 @@ class TypesafeDecisionModelContractTest {
                     // String.valueOf(char[]) and the String reason fails the cast.
                     .filter(e -> !(e.hasField("pinnedReason")
                             && String.valueOf(e.<Object>getValue("pinnedReason")).contains("<clinit>")))
+                    // Loading such a class pins the same way: the JDK defines it under
+                    // the built-in loader and reads it from the runtime image behind the
+                    // image reader's monitor.
+                    .filter(e -> e.getStackTrace().getFrames().stream()
+                            .noneMatch(f -> f.getMethod().getType().getName()
+                                    .startsWith("jdk.internal.loader.")))
                     .toList();
             assertEquals(List.of(), pinnedHere, "the probe parked a virtual thread inside a monitor");
             assertEquals(1, stub.hits("/v1/models"));
