@@ -79,9 +79,12 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
      * its connection's session here instead of creating one per poll.
      *
      * <p>An entry names the registration of the resource that holds the connection:
-     * the last one suspended. Only that resource's disconnect saves the connection
-     * and removes the entry; a request that never suspends (a POST of a message) or
-     * an older poll the runtime closes when a fresh one replaces it leaves it. The
+     * the last one that started to suspend. Only that resource's disconnect saves the
+     * connection and removes the entry; a request that never suspends (a POST of a
+     * message) or an older poll the runtime closes when a fresh one replaces it leaves
+     * it. The fresh poll takes the connection over before the runtime closes the older
+     * one, and whether or not it then suspends: a poll answered straight from the
+     * {@code BroadcasterCache} is resumed without ever suspending. The
      * entry's session is fixed until the connection ends: a request presenting
      * another token for a live connection gets that session for itself, and cannot
      * make the connection's later requests feed it.</p>
@@ -268,8 +271,8 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
         var registration = registrations.incrementAndGet();
         var now = System.nanoTime();
         // A connection without an entry is held by this resource. Otherwise the
-        // resource holding it keeps it until this one suspends, and a request
-        // presenting another session's token never takes it over.
+        // resource holding it keeps it until this one starts to suspend, and a
+        // request presenting another session's token never takes it over.
         connections.compute(r.uuid(), (uuid, connection) -> {
             if (connection == null) {
                 return new Connection(token, registration, now);
@@ -285,11 +288,19 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
     }
 
     /**
-     * Makes its resource hold the connection when it suspends, and saves the
-     * connection when it goes. It is an {@link AllowInterceptor}: the
-     * {@code SuspendTrackerInterceptor} hides onSuspend from the other listeners
-     * of every request of a connection after the first, and each long-poll is a
-     * new resource that must take the connection over.
+     * Makes its resource hold the connection when it starts to suspend, and saves
+     * the connection when it goes. It is an {@link AllowInterceptor}: the
+     * {@code SuspendTrackerInterceptor} hides the suspend callbacks from the other
+     * listeners of every request of a connection after the first, and each
+     * long-poll is a new resource that must take the connection over.
+     *
+     * <p>The take-over happens on onPreSuspend: a fresh poll replaces an older
+     * one still held (a dead connection not detected yet) inside its own suspend,
+     * before onSuspend, and the runtime closes the older poll right there. A
+     * poll answered from the {@code BroadcasterCache} never reaches onSuspend at
+     * all. Taking over only on onSuspend let the older poll's close end the
+     * connection, and the client's next poll without the token open a second
+     * durable session.</p>
      */
     private final class SaveOnDisconnect extends AtmosphereResourceEventListenerAdapter
             implements AllowInterceptor {
@@ -303,7 +314,16 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
         }
 
         @Override
+        public void onPreSuspend(AtmosphereResourceEvent event) {
+            holdConnection(event);
+        }
+
+        @Override
         public void onSuspend(AtmosphereResourceEvent event) {
+            holdConnection(event);
+        }
+
+        private void holdConnection(AtmosphereResourceEvent event) {
             connections.compute(event.getResource().uuid(), (uuid, connection) ->
                     connection == null || connection.token().equals(token)
                             ? new Connection(token, registration, System.nanoTime())
