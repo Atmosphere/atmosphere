@@ -532,10 +532,11 @@ public class AiStreamingSession implements StreamingSession {
 
     /**
      * Detach this session's run for {@code grace} when a client can reattach
-     * to it: the run is registered and still live.
+     * to it: the run is registered and still live. A run a reattached client
+     * already listens to is kept going without a grace.
      *
-     * @return the run id when the run was detached, {@code null} when the
-     *         caller must cancel it now
+     * @return the run id when the run was detached or is listened to,
+     *         {@code null} when the caller must cancel it now
      */
     private String detachForReattach(java.time.Duration grace) {
         var id = this.runId;
@@ -543,12 +544,17 @@ public class AiStreamingSession implements StreamingSession {
             return null;
         }
         var registry = org.atmosphere.ai.resume.RunRegistryHolder.get();
-        if (registry.lookup(id).isEmpty()) {
+        var run = registry.lookup(id);
+        if (run.isEmpty()) {
             return null;
         }
+        var buffer = run.get().replayBuffer();
         var bounded = grace.compareTo(registry.ttl()) > 0 ? registry.ttl() : grace;
+        // A client that already reattached on a new connection (the loss of this
+        // one was noticed late) is listening: no grace runs while it does.
         return org.atmosphere.ai.resume.RunDisconnectGrace.detach(id, bounded,
-                () -> cancelInflight(RunCancelledException.Reason.DISCONNECT)) ? id : null;
+                () -> cancelInflight(RunCancelledException.Reason.DISCONNECT),
+                () -> buffer.subscriberCount() > 0) ? id : null;
     }
 
     /**

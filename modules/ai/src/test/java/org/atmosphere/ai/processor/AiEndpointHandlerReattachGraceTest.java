@@ -277,6 +277,97 @@ class AiEndpointHandlerReattachGraceTest {
         assertEquals(1, runtime.cancelled.getCount());
     }
 
+    /**
+     * A blip: the client reconnects and reattaches before the server notices the
+     * original connection is gone (an idle timeout, a failed write). The late
+     * disconnect must not start a grace whose expiry cancels the run under the
+     * client watching it.
+     */
+    @Test
+    void aLateDisconnectOfTheOriginalConnectionLeavesARunAReattachedClientWatches() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "300ms");
+        var runtime = new HeldRuntime();
+        var original = startRun(runtime);
+
+        var out = new StringWriter();
+        RunReattachSupport.replayPendingRun(reattachingResource(RUN_ID.get(), out), RunRegistryHolder.get());
+        handler.onStateChange(new AtmosphereResourceEventImpl(original, true, false));
+        assertFalse(RunDisconnectGrace.isDetached(RUN_ID.get()),
+                "a run a reattached client listens to is not waiting for anyone to come back");
+        assertFalse(runtime.cancelled.await(1_500, TimeUnit.MILLISECONDS),
+                "a run a reattached client is listening to must not be cancelled by the grace");
+
+        runtime.finish();
+        awaitRunEnd();
+        var frames = out.toString().strip().split("\n");
+        assertTrue(frames[frames.length - 1].contains("\"type\":\"complete\""),
+                "the reattached client gets the run through complete: " + out);
+    }
+
+    /** The client watching it leaves after the late disconnect: nobody is left, so it is cancelled. */
+    @Test
+    void theWatchingClientLeavingAfterALateDisconnectCancelsTheRun() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "30s");
+        var runtime = new HeldRuntime();
+        var original = startRun(runtime);
+
+        var listener = new AtomicReference<AtmosphereResourceEventListener>();
+        RunReattachSupport.replayPendingRun(
+                reattachingResource(RUN_ID.get(), new StringWriter(), listener), RunRegistryHolder.get());
+        handler.onStateChange(new AtmosphereResourceEventImpl(original, true, false));
+        assertEquals(1, runtime.cancelled.getCount());
+
+        listener.get().onDisconnect(closeEvent(false, 1000));
+        assertTrue(runtime.cancelled.await(10, TimeUnit.SECONDS),
+                "the run's last client left on purpose: the run is cancelled");
+    }
+
+    /** The same, when the watching client loses its connection in turn: the run is detached for the grace. */
+    @Test
+    void theWatchingClientLosingItsConnectionAfterALateDisconnectDetachesTheRun() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "500ms");
+        var runtime = new HeldRuntime();
+        var original = startRun(runtime);
+
+        var listener = new AtomicReference<AtmosphereResourceEventListener>();
+        RunReattachSupport.replayPendingRun(
+                reattachingResource(RUN_ID.get(), new StringWriter(), listener), RunRegistryHolder.get());
+        handler.onStateChange(new AtmosphereResourceEventImpl(original, true, false));
+
+        listener.get().onDisconnect(closeEvent(true, -1));
+        assertTrue(RunDisconnectGrace.isDetached(RUN_ID.get()),
+                "the run's last client lost its connection: the run waits out the grace");
+        assertTrue(runtime.cancelled.await(10, TimeUnit.SECONDS),
+                "nobody came back within the grace: the run is cancelled");
+    }
+
+    /**
+     * A long-polling client reattaches with a reply of the backlog and no live
+     * subscription: nothing would detach the run again if it never polled
+     * again. Each such poll restarts the grace instead of rescinding it.
+     */
+    @Test
+    void aLongPollingReattachRestartsTheGraceInsteadOfRescindingIt() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "1s");
+        var runtime = new HeldRuntime();
+        var original = startRun(runtime);
+
+        handler.onStateChange(new AtmosphereResourceEventImpl(original, true, false));
+        Thread.sleep(400);
+        var out = new StringWriter();
+        var reattachedAt = System.nanoTime();
+        RunReattachSupport.replayPendingRun(longPollingReattach(RUN_ID.get(), out), RunRegistryHolder.get());
+        assertTrue(out.toString().contains("\"data\":\"partial \""), "the poll gets the backlog: " + out);
+        assertTrue(RunDisconnectGrace.isDetached(RUN_ID.get()),
+                "a long-polling reattach leaves nothing to detach the run again, so it stays detached");
+        assertTrue(runtime.cancelled.await(10, TimeUnit.SECONDS),
+                "a long-polling client that never polls again does not keep the run going");
+        assertTrue(runtime.cancelledAt - reattachedAt >= TimeUnit.MILLISECONDS.toNanos(900),
+                "the poll restarted the grace: the run was cancelled "
+                        + TimeUnit.NANOSECONDS.toMillis(runtime.cancelledAt - reattachedAt)
+                        + " ms after it");
+    }
+
     private static AtmosphereResourceEventImpl closeEvent(boolean cancelled, int closeCode) {
         var event = mock(AtmosphereResourceEventImpl.class);
         when(event.isCancelled()).thenReturn(cancelled);
@@ -317,6 +408,13 @@ class AiEndpointHandlerReattachGraceTest {
         return reattachingResource(runId, out, new AtomicReference<>());
     }
 
+    /** A long-polling poll carrying the run id: its reply is the backlog, written once. */
+    private static AtmosphereResource longPollingReattach(String runId, StringWriter out) throws Exception {
+        var resource = reattachingResource(runId, out);
+        when(resource.transport()).thenReturn(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        return resource;
+    }
+
     /** A reattaching WebSocket whose disconnect listener lands in {@code listener}. */
     private static AtmosphereResource reattachingResource(String runId, StringWriter out,
             AtomicReference<AtmosphereResourceEventListener> listener) throws Exception {
@@ -344,6 +442,8 @@ class AiEndpointHandlerReattachGraceTest {
         final CountDownLatch streaming = new CountDownLatch(1);
         final CountDownLatch cancelled = new CountDownLatch(1);
         volatile CountDownLatch holdBeforeReturning;
+        /** {@link System#nanoTime()} at which the model call was cancelled. */
+        volatile long cancelledAt;
         private volatile StreamingSession session;
         private volatile ExecutionHandle.Settable handle;
 
@@ -373,6 +473,7 @@ class AiEndpointHandlerReattachGraceTest {
         public ExecutionHandle executeWithHandle(AgentExecutionContext context, StreamingSession session) {
             this.session = session;
             var settable = new ExecutionHandle.Settable(() -> {
+                cancelledAt = System.nanoTime();
                 session.complete();
                 cancelled.countDown();
             });

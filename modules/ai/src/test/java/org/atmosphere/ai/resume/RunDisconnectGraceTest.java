@@ -23,7 +23,9 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -143,6 +145,66 @@ class RunDisconnectGraceTest {
                     "iteration " + i + ": rescinded=" + rescinded[0] + " fired=" + fired.get());
             RunDisconnectGrace.runEnded(runId);
         }
+    }
+
+    /** A run a reattached client listens to is tracked, without a grace that would cancel it. */
+    @Test
+    void aWatchedRunRunsNoGraceUntilItsLastListenerLeaves() throws Exception {
+        var count = new AtomicInteger();
+        var listening = new AtomicBoolean(true);
+        assertTrue(RunDisconnectGrace.detach("run-watched", Duration.ofMillis(50),
+                count::incrementAndGet, listening::get), "the caller must not cancel a watched run");
+        assertFalse(RunDisconnectGrace.isDetached("run-watched"));
+        Thread.sleep(200);
+        assertEquals(0, count.get(), "no grace ran for a watched run");
+
+        listening.set(false);
+        assertTrue(RunDisconnectGrace.redetach("run-watched", Duration.ofMillis(50)),
+                "the listener that leaves finds the run tracked and detaches it");
+        var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (count.get() == 0 && System.nanoTime() < deadline) {
+            Thread.sleep(10);
+        }
+        assertEquals(1, count.get(), "nobody came back within the grace");
+    }
+
+    /** A client that reattaches between the arm and the expiry is not cancelled under. */
+    @Test
+    void aGraceThatFindsAListenerWhenItExpiresStandsDown() throws Exception {
+        var count = new AtomicInteger();
+        var listening = new AtomicBoolean();
+        assertTrue(RunDisconnectGrace.detach("run-raced", Duration.ofMillis(100),
+                count::incrementAndGet, listening::get));
+        assertTrue(RunDisconnectGrace.isDetached("run-raced"));
+        listening.set(true);
+        Thread.sleep(400);
+        assertEquals(0, count.get(), "the run is listened to: the expired grace must not cancel it");
+        assertFalse(RunDisconnectGrace.isDetached("run-raced"));
+        RunDisconnectGrace.runEnded("run-raced");
+        assertEquals(0, RunDisconnectGrace.size(), "the run's end forgets a run it tracked unarmed");
+    }
+
+    /** A long-polling client that polls again pushes the deadline back; one that stops polling does not. */
+    @Test
+    void aRestartPushesTheDeadlineBackFromNow() throws Exception {
+        var fired = new CountDownLatch(1);
+        var firedAt = new AtomicLong();
+        RunDisconnectGrace.detach("run-polled", Duration.ofMillis(300), () -> {
+            firedAt.set(System.nanoTime());
+            fired.countDown();
+        });
+        Thread.sleep(200);
+        var restartedAt = System.nanoTime();
+        assertTrue(RunDisconnectGrace.restart("run-polled", Duration.ofMillis(300)));
+        assertTrue(RunDisconnectGrace.isDetached("run-polled"), "a restart keeps the cancel pending");
+        assertTrue(fired.await(5, TimeUnit.SECONDS));
+        assertTrue(firedAt.get() - restartedAt >= TimeUnit.MILLISECONDS.toNanos(290),
+                "the grace runs from the restart: fired "
+                        + TimeUnit.NANOSECONDS.toMillis(firedAt.get() - restartedAt) + " ms after it");
+        assertFalse(RunDisconnectGrace.restart("run-polled", Duration.ofMillis(300)),
+                "an expired grace cannot be restarted");
+        assertFalse(RunDisconnectGrace.restart("run-unknown", Duration.ofMillis(300)),
+                "a run not waiting out a grace is left as it is");
     }
 
     @Test

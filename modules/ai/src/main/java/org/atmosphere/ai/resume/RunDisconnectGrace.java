@@ -29,6 +29,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 
 /**
  * Keeps a run going for a grace period after the client that started it lost
@@ -43,6 +44,13 @@ import java.util.concurrent.atomic.AtomicReference;
  * cancelled, so no cancel ever fires late (the same rule a delayed broadcast
  * follows). A reattached client that loses its connection in turn detaches the
  * run again; one that leaves on purpose cancels it at once.</p>
+ *
+ * <p>A run a reattached client is still listening to is not waiting for anyone:
+ * the server may notice the loss of the original connection only after the
+ * client came back on a new one (an idle timeout, a failed write). Such a run
+ * is tracked, so its last listener leaving detaches or cancels it, but no
+ * grace runs for it; a timer that finds a listener when it fires stands down
+ * rather than cancel the run under it.</p>
  *
  * <p>Only a lost transport is granted the grace ({@link #isTransportLoss}): a
  * client that closes the connection on purpose has left, and its run is
@@ -104,10 +112,31 @@ public final class RunDisconnectGrace {
      *         cancels it now)
      */
     public static boolean detach(String runId, Duration grace, Runnable expiry) {
-        if (runId == null || grace == null || grace.isZero() || grace.isNegative() || expiry == null) {
+        return detach(runId, grace, expiry, () -> false);
+    }
+
+    /**
+     * {@link #detach(String, Duration, Runnable)} a run that reattached clients
+     * may be listening to. While {@code watched} answers {@code true} the run is
+     * only tracked: no grace runs, and a grace that expires while it does is
+     * stood down. A listener that goes away detaches the run again
+     * ({@link #redetach}) or cancels it ({@link #expireNow}).
+     *
+     * @param runId   the run
+     * @param grace   how long to wait; zero or negative disables the grace
+     * @param expiry  cancels the run; runs at most once
+     * @param watched whether a reattached client is listening to the run
+     * @return {@code true} when the run was detached or is watched,
+     *         {@code false} when the grace is disabled or the run already ended
+     *         or expired (the caller cancels it now)
+     */
+    public static boolean detach(String runId, Duration grace, Runnable expiry, BooleanSupplier watched) {
+        if (runId == null || !enabled(grace) || expiry == null || watched == null) {
             return false;
         }
-        var entry = RUNS.computeIfAbsent(runId, id -> new Detached(id, expiry));
+        // The entry exists before the listener count is read, so a listener
+        // leaving after that read finds it and detaches the run again.
+        var entry = RUNS.computeIfAbsent(runId, id -> new Detached(id, expiry, watched));
         return entry.arm(grace);
     }
 
@@ -118,11 +147,29 @@ public final class RunDisconnectGrace {
      * @return {@code true} when the run was detached
      */
     public static boolean redetach(String runId, Duration grace) {
-        if (runId == null || grace == null || grace.isZero() || grace.isNegative()) {
+        if (runId == null || !enabled(grace)) {
             return false;
         }
         var entry = RUNS.get(runId);
         return entry != null && entry.arm(grace);
+    }
+
+    /**
+     * Restart the grace of a detached run from now: a client that cannot stay
+     * subscribed (a long-polling one, answered with the backlog in one reply)
+     * came back for it. Nothing detaches such a run again if the client never
+     * returns, so its pending cancel is pushed back rather than rescinded. A
+     * run not waiting out a grace is left as it is, and so is the pending
+     * deadline when {@code grace} is disabled.
+     *
+     * @return {@code true} when the grace was restarted
+     */
+    public static boolean restart(String runId, Duration grace) {
+        if (runId == null || !enabled(grace)) {
+            return false;
+        }
+        var entry = RUNS.get(runId);
+        return entry != null && entry.restart(grace);
     }
 
     /**
@@ -162,6 +209,10 @@ public final class RunDisconnectGrace {
         if (entry != null) {
             entry.end();
         }
+    }
+
+    private static boolean enabled(Duration grace) {
+        return grace != null && !grace.isZero() && !grace.isNegative();
     }
 
     /** Number of runs tracked. Visible for testing. */
@@ -206,6 +257,8 @@ public final class RunDisconnectGrace {
 
         private final String runId;
         private final Runnable expiry;
+        // Read outside this object's lock: it reaches into the run's replay buffer.
+        private final BooleanSupplier watched;
         private ScheduledFuture<?> timer;
         // Bumped on every arm and disarm, so a timer that fires after its arm was
         // rescinded (it had started before the cancel) finds a stale generation.
@@ -213,9 +266,10 @@ public final class RunDisconnectGrace {
         private boolean armed;
         private boolean done;
 
-        Detached(String runId, Runnable expiry) {
+        Detached(String runId, Runnable expiry, BooleanSupplier watched) {
             this.runId = runId;
             this.expiry = expiry;
+            this.watched = watched;
         }
 
         synchronized long generation() {
@@ -227,12 +281,18 @@ public final class RunDisconnectGrace {
         }
 
         boolean arm(Duration grace) {
+            var listened = watched.getAsBoolean();
             long armedGeneration;
             synchronized (this) {
                 if (done) {
                     return false;
                 }
                 if (armed) {
+                    return true;
+                }
+                if (listened) {
+                    logger.debug("Run {} lost a connection while a reattached client listens to it;"
+                            + " no grace runs", runId);
                     return true;
                 }
                 armed = true;
@@ -256,14 +316,30 @@ public final class RunDisconnectGrace {
             if (done || !armed) {
                 return false;
             }
+            standDown();
+            logger.debug("Run {} reattached within its grace; its cancel is rescinded", runId);
+            return true;
+        }
+
+        boolean restart(Duration grace) {
+            synchronized (this) {
+                if (done || !armed) {
+                    return false;
+                }
+                standDown();
+            }
+            logger.debug("Run {} polled for within its grace; the grace restarts", runId);
+            return arm(grace);
+        }
+
+        /** Drop the pending cancel; a timer already running finds a stale generation. Holds {@code this}. */
+        private void standDown() {
             armed = false;
             generation++;
             if (timer != null) {
                 timer.cancel(false);
                 timer = null;
             }
-            logger.debug("Run {} reattached within its grace; its cancel is rescinded", runId);
-            return true;
         }
 
         /**
@@ -271,8 +347,16 @@ public final class RunDisconnectGrace {
          * (or {@code force}: a reattached client left on purpose).
          */
         boolean fire(long expected, boolean force) {
+            // A client that reattached since the arm listens to the run: the
+            // grace is over for it, and its leaving detaches the run again.
+            var listened = !force && watched.getAsBoolean();
             synchronized (this) {
                 if (done || expected != generation || !armed && !force) {
+                    return false;
+                }
+                if (listened) {
+                    standDown();
+                    logger.debug("Run {} is listened to by a reattached client; its grace stands down", runId);
                     return false;
                 }
                 done = true;

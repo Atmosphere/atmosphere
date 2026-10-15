@@ -304,13 +304,14 @@ public final class RunReattachSupport {
                     resource.uuid(), runId, handle.userId(), resolveCallerUserId(req));
             return 0;
         }
-        if (!handle.isDone()) {
-            // The client is back: the run its disconnect left going is not
-            // cancelled when the grace expires.
-            RunDisconnectGrace.reattached(runId);
-        }
         if (!handle.isDone() && forwardsLiveEvents(resource)) {
             return replayAndForward(resource, runId, handle, reattachGrace(registry));
+        }
+        if (!handle.isDone()) {
+            // A long-polling client gets the backlog in this one reply and no
+            // subscription: nothing would detach the run again if it never polled
+            // again, so its grace restarts from this poll instead of ending.
+            RunDisconnectGrace.restart(runId, reattachGrace(registry));
         }
         var replayed = handle.replayableEvents();
         if (replayed.isEmpty()) {
@@ -400,6 +401,10 @@ public final class RunReattachSupport {
         synchronized (forwarder) {
             var subscription = handle.replayBuffer().subscribe(forwarder::forward);
             forwarder.cancelWith(subscription.cancel());
+            // The client is back: the run its disconnect left going is not
+            // cancelled when the grace expires. After the subscription, so a
+            // disconnect noticed from now on finds a listener and runs no grace.
+            RunDisconnectGrace.reattached(runId);
             var written = 0;
             for (var event : subscription.backlog()) {
                 var outcome = forwarder.write(event);
