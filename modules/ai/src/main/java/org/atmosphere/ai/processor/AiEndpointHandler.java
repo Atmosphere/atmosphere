@@ -155,6 +155,20 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     private final Map<Class<?>, Object> injectables;
     private final PromptMethodInvoker promptInvoker;
     private final PromptRepollGate repollGate;
+    /**
+     * Tracking id of a lost connection -> the release of its conversation memory
+     * and tape state, waiting for the runs its loss detached to end. Bounded by
+     * those runs: an entry is removed when the last of them ends.
+     */
+    private final ConcurrentHashMap<String, DeferredRelease> deferredReleases = new ConcurrentHashMap<>();
+
+    /**
+     * The runs a lost connection's state waits for, and whether a connection
+     * came back under its tracking id meanwhile — atmosphere.js reconnects
+     * under the id it holds, and that connection then owns the state.
+     */
+    private record DeferredRelease(int runs, boolean back) {
+    }
 
     /**
      * @param target       the user's @AiEndpoint instance
@@ -543,6 +557,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             // so a prompt that waited for it may be dispatched to it.
             if (resource.isSuspended()) {
                 repollGate.connectionReady(resource.uuid());
+                // A connection back under the id of a lost one owns the state the
+                // lost one's runs kept: its own departure releases it.
+                deferredReleases.computeIfPresent(resource.uuid(),
+                        (uuid, deferred) -> new DeferredRelease(deferred.runs(), true));
             }
             // A reply parked after this poll looked for one and before it was
             // suspended found no poll to resume: resume this one, empty, so the
@@ -1379,7 +1397,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * reattachable runs the reattach grace ({@link AiConfig#resolveReattachGrace()}):
      * they keep going, and the conversation memory and tape state of the
      * connection are released when the last of them ends — a run completing
-     * within the grace would otherwise record its turn after the release.</p>
+     * within the grace would otherwise record its turn after the release. A
+     * connection back under the same tracking id by then owns that state, and
+     * it is released when that connection goes instead.</p>
      */
     private void cleanupDisconnected(String userIdStr, String uuid, boolean transportLoss) {
         // A closed or cancelled connection does not poll again: until a connection
@@ -1398,18 +1418,43 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // not complete.
         var grace = transportLoss ? AiConfig.resolveReattachGrace() : Duration.ZERO;
         var detached = AiStreamingSession.removeAllForResource(uuid, grace);
-        if (detached.isEmpty()) {
-            releaseConnectionState(uuid);
-            return;
-        }
         var registry = org.atmosphere.ai.resume.RunRegistryHolder.get();
         var ends = detached.stream()
                 .map(registry::lookup)
                 .flatMap(java.util.Optional::stream)
                 .map(run -> run.executionHandle().whenDone())
-                .toArray(java.util.concurrent.CompletableFuture<?>[]::new);
-        java.util.concurrent.CompletableFuture.allOf(ends)
-                .whenComplete((ignored, failure) -> releaseConnectionState(uuid));
+                .toList();
+        // Runs an earlier loss of this id detached may still be going too: the
+        // connection that came back under it is gone now, so the state waits for
+        // the last of them either way.
+        var deferred = deferredReleases.compute(uuid, (id, pending) -> pending == null && ends.isEmpty()
+                ? null
+                : new DeferredRelease((pending != null ? pending.runs() : 0) + ends.size(), false));
+        if (deferred == null) {
+            releaseConnectionState(uuid);
+            return;
+        }
+        for (var end : ends) {
+            end.whenComplete((ignored, failure) -> detachedRunEnded(uuid));
+        }
+    }
+
+    /**
+     * A run a lost connection's state waited for ended: the last one releases
+     * that state, unless a connection came back under the id and owns it now.
+     */
+    private void detachedRunEnded(String uuid) {
+        var release = new java.util.concurrent.atomic.AtomicBoolean();
+        deferredReleases.computeIfPresent(uuid, (id, pending) -> {
+            if (pending.runs() > 1) {
+                return new DeferredRelease(pending.runs() - 1, pending.back());
+            }
+            release.set(!pending.back());
+            return null;
+        });
+        if (release.get()) {
+            releaseConnectionState(uuid);
+        }
     }
 
     /** Release the conversation memory and tape state of a connection that went away. */
@@ -1417,8 +1462,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         if (memory != null) {
             memory.clear(uuid);
         }
-        // Session tape: cancel-mark every open taped run of this resource
-        // (reconnects get a fresh uuid, so this never races a live run). The
+        // Session tape: cancel-mark every open taped run of this resource.
+        // atmosphere.js reconnects under the uuid it holds, so this runs only
+        // once no connection of the uuid is back (see cleanupDisconnected). The
         // writer drains already-queued steps before CANCELLED lands. No-op
         // when nothing is installed.
         org.atmosphere.ai.tape.TapeSupport.resourceDisconnected(uuid);

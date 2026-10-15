@@ -21,6 +21,7 @@ import org.atmosphere.ai.AiCapability;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.ExecutionHandle;
+import org.atmosphere.ai.InMemoryConversationMemory;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
@@ -342,6 +343,61 @@ class AiEndpointHandlerReattachGraceTest {
     }
 
     /**
+     * atmosphere.js reconnects under the tracking id it already holds. The
+     * connection state the lost connection's run deferred releasing belongs to
+     * the reconnected connection by the time the run ends, and is kept.
+     */
+    @Test
+    void aReconnectUnderTheSameTrackingIdKeepsTheConversationTheRunRecorded() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "5s");
+        var memory = new InMemoryConversationMemory();
+        var runtime = new HeldRuntime();
+        var original = startRun(runtime, memory);
+        var uuid = original.uuid();
+        var runId = RUN_ID.get();
+
+        handler.onStateChange(new AtmosphereResourceEventImpl(original, true, false));
+        var out = new StringWriter();
+        var back = reconnect(uuid, runId, out);
+        assertFalse(RunDisconnectGrace.isDetached(runId), "the reconnect reattached to the run");
+
+        runtime.finish();
+        awaitRunEndCallbacks();
+        assertTrue(out.toString().contains("\"type\":\"complete\""), out.toString());
+        var history = memory.getHistory(uuid);
+        assertTrue(history.stream().anyMatch(m -> "user".equals(m.role()) && "explain".equals(m.content())),
+                "the conversation of a client back under its tracking id survives the run's end: " + history);
+        assertTrue(history.stream().anyMatch(m -> "assistant".equals(m.role())),
+                "the turn the run recorded is kept: " + history);
+
+        // The connection that came back owns the state now: its own departure releases it.
+        var leave = mock(org.atmosphere.cpr.AtmosphereResourceEvent.class);
+        when(leave.getResource()).thenReturn(back);
+        when(leave.isClosedByClient()).thenReturn(true);
+        handler.onStateChange(leave);
+        assertEquals(List.of(), memory.getHistory(uuid),
+                "the reconnected connection leaving releases the conversation");
+    }
+
+    /** With nobody back under the tracking id, the state is released once the run ends. */
+    @Test
+    void theConversationOfAConnectionThatDoesNotComeBackIsReleasedWhenItsRunEnds() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "5s");
+        var memory = new InMemoryConversationMemory();
+        var runtime = new HeldRuntime();
+        var original = startRun(runtime, memory);
+        var uuid = original.uuid();
+        var runId = RUN_ID.get();
+
+        handler.onStateChange(new AtmosphereResourceEventImpl(original, true, false));
+        RunReattachSupport.replayPendingRun(reattachingResource(runId, new StringWriter()), RunRegistryHolder.get());
+        runtime.finish();
+        awaitRunEndCallbacks();
+        assertEquals(List.of(), memory.getHistory(uuid),
+                "a connection nobody came back on is released after its run recorded its turn");
+    }
+
+    /**
      * A long-polling client reattaches with a reply of the backlog and no live
      * subscription: nothing would detach the run again if it never polled
      * again. Each such poll restarts the grace instead of rescinding it.
@@ -377,10 +433,15 @@ class AiEndpointHandlerReattachGraceTest {
     }
 
     private AtmosphereResourceImpl startRun(HeldRuntime runtime) throws Exception {
+        return startRun(runtime, null);
+    }
+
+    private AtmosphereResourceImpl startRun(HeldRuntime runtime, InMemoryConversationMemory memory)
+            throws Exception {
         handler = new AiEndpointHandler(new HeldEndpoint(),
                 HeldEndpoint.class.getDeclaredMethod("onPrompt", String.class, StreamingSession.class),
                 30_000L, "", "/ai/grace", runtime, List.<AiInterceptor>of(),
-                null, AnnotatedLifecycle.scan(HeldEndpoint.class));
+                memory, AnnotatedLifecycle.scan(HeldEndpoint.class));
         var original = new AtmosphereResourceImpl(config, room,
                 AtmosphereRequestImpl.newInstance(), AtmosphereResponseImpl.newInstance(),
                 mock(BlockingIOCometSupport.class),
@@ -413,6 +474,37 @@ class AiEndpointHandlerReattachGraceTest {
         var resource = reattachingResource(runId, out);
         when(resource.transport()).thenReturn(AtmosphereResource.TRANSPORT.LONG_POLLING);
         return resource;
+    }
+
+    /**
+     * The client's WebSocket coming back under its own tracking id {@code uuid}
+     * with the run id, as atmosphere.js reconnects: driven through the handler's
+     * connect path, which suspends it and reattaches it to the run.
+     */
+    private AtmosphereResource reconnect(String uuid, String runId, StringWriter out) throws Exception {
+        var resource = mock(AtmosphereResource.class);
+        var request = mock(AtmosphereRequest.class);
+        var response = mock(AtmosphereResponse.class);
+        when(resource.uuid()).thenReturn(uuid);
+        when(resource.getRequest()).thenReturn(request);
+        when(resource.getResponse()).thenReturn(response);
+        when(response.getWriter()).thenReturn(new PrintWriter(out));
+        when(resource.getAtmosphereConfig()).thenReturn(config);
+        when(resource.getBroadcaster()).thenReturn(room);
+        when(resource.transport()).thenReturn(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        when(resource.isSuspended()).thenReturn(true);
+        when(resource.addEventListener(any())).thenReturn(resource);
+        when(resource.suspend(30_000L)).thenReturn(resource);
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getAttribute(RunReattachSupport.RUN_ID_ATTRIBUTE)).thenReturn(runId);
+        handler.onRequest(resource);
+        return resource;
+    }
+
+    /** Wait for the run's end to reach every callback registered on it. */
+    private static void awaitRunEndCallbacks() throws Exception {
+        awaitRunEnd();
+        Thread.sleep(300);
     }
 
     /** A reattaching WebSocket whose disconnect listener lands in {@code listener}. */
