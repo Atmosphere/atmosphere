@@ -763,10 +763,13 @@ mailboxes do not count against `maxParkedReplies`, so a room reply leaves room
 for every other long-polling reply. `maxReplyBytes` and `maxReplyFrames` apply
 to the frames of each reply waiting for a member: the reply that outgrows them
 ends, for that member only, with an `error` frame, nothing more of it reaches
-the member, and the other replies kept for it stay whole. A member follows at
-most 64 replies at once; the frames of a reply that cannot be kept for it (no
-bytes are left, or it follows 64 already) reach it only while a poll of it
-waits. When the room's broadcaster has a `BroadcasterCache`, a frame kept for a
+the member, and the other replies kept for it stay whole. Once no bytes are
+left for a frame of a reply, that frame and the rest of the reply reach the
+member only while a poll of it waits. A member follows at most 64 replies at
+once: a frame of another reply sent while it follows 64 reaches it only while a
+poll of it waits too, and once one of them ends, that reply is kept for it from
+its next frame on, as for a client that becomes a member in the middle of a
+reply. When the room's broadcaster has a `BroadcasterCache`, a frame kept for a
 member is removed from what the cache keeps for that member, so the next poll
 does not receive it twice; the cache still keeps, as its inspectors allow, the
 frames that could not be kept for the member. With

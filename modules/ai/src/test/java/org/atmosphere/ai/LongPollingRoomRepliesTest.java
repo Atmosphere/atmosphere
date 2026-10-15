@@ -510,6 +510,38 @@ class LongPollingRoomRepliesTest {
     }
 
     @Test
+    void aReplyPastTheRepliesAMemberFollowsIsKeptFromItsNextFrameOnceOneEnds() {
+        LongPollingRoomReplies.install(room);
+        var member = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        room.removeAtmosphereResource(member);
+        var socket = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        var followed = new ArrayList<StreamingSession>();
+        for (var i = 0; i < LongPollingRoomReplies.MAX_REPLIES_PER_MEMBER; i++) {
+            var session = StreamingSessions.startRoomBroadcast(socket);
+            session.send("head-" + i + ".");
+            followed.add(session);
+        }
+        var extra = StreamingSessions.startRoomBroadcast(socket);
+        extra.send("extra-head.");
+        followed.get(0).complete();
+        extra.send("extra-tail.");
+        extra.complete();
+        awaitTerminals(socket, 2);
+
+        var received = bySession(nextPollRaw(member));
+        assertEquals(List.of("streaming-text:extra-tail.", "complete"), received.get(extra.sessionId()),
+                "a frame of a reply sent while the member follows as many replies as it may is not kept for it;"
+                        + " once one of them ends, the reply is kept from its next frame on");
+        assertEquals(List.of("streaming-text:head-0.", "complete"), received.get(followed.get(0).sessionId()));
+        for (var session : followed.subList(1, followed.size())) {
+            session.complete();
+        }
+        awaitTerminals(socket, 1 + LongPollingRoomReplies.MAX_REPLIES_PER_MEMBER);
+        assertEquals(LongPollingRoomReplies.MAX_REPLIES_PER_MEMBER - 1, bySession(nextPollRaw(member)).size());
+        assertEquals(reservedBefore, LongPollingReplies.reservedBytes(), "every kept frame is released once taken");
+    }
+
+    @Test
     void aFrameKeptForAMemberStaysOffItsWaitingPollWhileAnotherThreadDeliversTheNextFrame() throws Exception {
         LongPollingRoomReplies.install(room);
         var waiting = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);

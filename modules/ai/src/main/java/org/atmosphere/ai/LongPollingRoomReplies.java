@@ -76,11 +76,13 @@ import java.util.concurrent.locks.ReentrantLock;
  * {@value LongPollingReplies#MAX_REPLY_FRAMES_PARAM}); the reply that would
  * outgrow them is replaced, for that member only, by an {@code error} frame, and
  * the rest of that reply is not kept for it, while the other replies kept for
- * it stay whole. A member follows at most {@value #MAX_REPLIES_PER_MEMBER}
- * replies at once. A frame of a reply that cannot be kept (no room is left, or
- * the member already follows that many replies) reaches that member the way it
- * did before, only while a poll of it waits, and so does the rest of that
- * reply.</p>
+ * it stay whole. Once no room is left for a frame of a reply, that frame and
+ * the rest of that reply reach the member the way they did before, only while a
+ * poll of it waits. A member follows at most {@value #MAX_REPLIES_PER_MEMBER}
+ * replies at once: a frame of another reply sent while it follows that many
+ * reaches it only while a poll of it waits too, and once one of them ends, that
+ * reply is kept for the member from its next frame on, as for a client that
+ * becomes a member in the middle of it.</p>
  *
  * <p>When the room's broadcaster has a {@link BroadcasterCache}, the frame kept
  * for a member is also removed from what the cache keeps for that member, so its
@@ -99,7 +101,10 @@ public final class LongPollingRoomReplies {
     static final String TOO_LARGE_MESSAGE = "The reply is too large to be delivered over long-polling";
     /** Bytes a frame kept for one more member counts, on top of the frame's own bytes, counted once. */
     static final int MEMBER_FRAME_BYTES = 16;
-    /** Replies a member follows at once; the frames of a reply past them are not kept for it. */
+    /**
+     * Replies a member follows at once; a frame of another reply sent while it
+     * follows that many is not kept for it.
+     */
     static final int MAX_REPLIES_PER_MEMBER = 64;
 
     /** Broadcaster -> its room; an entry leaves when its broadcaster is destroyed. */
@@ -715,7 +720,7 @@ public final class LongPollingRoomReplies {
                 replies.values().removeIf(r -> now - r.touchedNanos > limits.parkedTtlNanos());
             }
             if (replies.size() >= MAX_REPLIES_PER_MEMBER) {
-                logger.debug("{} already follows {} room replies; the frames of {} reach it only while a poll"
+                logger.debug("{} already follows {} room replies; this frame of {} reaches it only while a poll"
                         + " of it waits", trackingId, MAX_REPLIES_PER_MEMBER, sessionId);
                 return null;
             }
