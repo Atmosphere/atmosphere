@@ -15,19 +15,55 @@
  */
 package org.atmosphere.ai;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class EmbeddingRuntimeResolverTest {
 
     @BeforeEach
     void resetCache() {
         EmbeddingRuntimeResolver.resetCache();
+    }
+
+    @AfterEach
+    void tearDown() {
+        AiConfig.resetHostConfig();
+        AiConfig.resetForTesting();
+        EmbeddingRuntimeResolver.resetCache();
+    }
+
+    /**
+     * An application whose settings are its own (a Spring Boot starter's
+     * {@code atmosphere.ai.*} settings, a plain servlet's init-params) and the
+     * only one running: the statics resolve its embedding runtimes, as
+     * {@code AiConfig.get()} returns its settings. Resolving the process
+     * default's instead found no settings there and reported no runtime, so
+     * the semantic cache and the embedding guardrails took their no-runtime path.
+     */
+    @Test
+    void theStaticsResolveTheRunningApplicationsEmbeddingRuntimes() {
+        AiConfig.resetForTesting();
+        var environment = AiEnvironment.create(
+                Map.of(AiConfig.EMBEDDING_MODEL_PROPERTY, "text-embedding-3-small")::get);
+        environment.configure("remote", "gpt-4o-mini", "k", "http://127.0.0.1:1/v1");
+        assertNull(AiEnvironment.processDefault().settings(), "the process default has no settings");
+        assertTrue(environment.embeddings().resolve().isPresent(), "the application has an embedding runtime");
+
+        var resolved = EmbeddingRuntimeResolver.resolve();
+
+        assertTrue(resolved.isPresent(), "the statics resolve the application's embedding runtime");
+        assertEquals(environment.embeddings().resolve().get().name(), resolved.get().name());
+        assertEquals(environment.embeddings().resolveAll(), EmbeddingRuntimeResolver.resolveAll());
     }
 
     @Test

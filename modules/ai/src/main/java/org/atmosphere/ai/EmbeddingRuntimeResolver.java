@@ -29,9 +29,11 @@ import java.util.Optional;
  * <p>Results are cached after first resolution — the classpath does not
  * change at runtime so the discovered runtimes are stable.</p>
  *
- * <p>The statics resolve the process default's runtimes
- * ({@link AiEnvironment#processDefault()}); an application's own are
- * {@link AiEnvironment#embeddings()}.</p>
+ * <p>The statics resolve the embedding runtimes of
+ * {@link AiEnvironment#current()}, as {@link AgentRuntimeResolver} does: the
+ * application bound to the calling thread, else the only one running, else
+ * the process default. Framework code that holds an application uses
+ * {@link AiEnvironment#embeddings()} instead.</p>
  */
 public final class EmbeddingRuntimeResolver {
 
@@ -62,7 +64,7 @@ public final class EmbeddingRuntimeResolver {
      * reports unavailable and the next call rescans.
      */
     public static List<EmbeddingRuntime> resolveAll() {
-        return AiEnvironment.processDefault().embeddings().resolveAll();
+        return AiEnvironment.current().embeddings().resolveAll();
     }
 
     /**

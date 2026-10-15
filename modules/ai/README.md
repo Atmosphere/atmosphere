@@ -688,7 +688,7 @@ one drops its runtime instances; the other applications are untouched. Framework
 `AiEnvironment.of(framework.getAtmosphereConfig())` (or `of(resource.getAtmosphereConfig())`).
 
 The static API (`AiConfig.get()`, `AiConfig.knob(...)`, `AiConfig.configure(...)`,
-`AgentRuntimeResolver.resolve()`, ...) reads and writes `AiEnvironment.current()`: the application
+`AgentRuntimeResolver.resolve()`, `EmbeddingRuntimeResolver.resolve()`, ...) reads and writes `AiEnvironment.current()`: the application
 bound to the calling thread — a `@Prompt` method's thread, the worker thread the built-in runtime
 streams on and the one `AbstractAgentRuntime.streamThroughGatewayWithHandle` starts are bound to
 their application — else the only application running, else the
@@ -705,7 +705,9 @@ What is not per application yet: a native client bound with a runtime adapter's 
 (`SpringAiAgentRuntime.setChatClient`, `LangChain4jAgentRuntime.setModel`, ...) is shared by every
 application's instance of that adapter; the adapter runtimes other than the built-in one read some
 settings and knobs through the static API, which is their application's own only on a bound thread;
-`EmbeddingRuntimeResolver`, the admin and console runtime reports, the interactions service,
+the semantic response cache, the embedding scope guardrails and the embedding injection classifier
+(which resolve their runtime through the `EmbeddingRuntimeResolver` statics when they are built),
+the admin and console runtime reports, the interactions service,
 long-term memory and decision-model runtime resolution, the coordinator's LLM result evaluator and
 the channels bridge read the static API.
 
