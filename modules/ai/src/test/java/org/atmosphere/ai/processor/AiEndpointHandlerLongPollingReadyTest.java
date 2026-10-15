@@ -45,9 +45,13 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -120,6 +124,12 @@ class AiEndpointHandlerLongPollingReadyTest {
      */
     private Conn connect(AtmosphereResource.TRANSPORT transport, String trackingId, String token, String user)
             throws Exception {
+        return connect(transport, trackingId, token, user, null);
+    }
+
+    /** As above, presenting {@code cookie} as its {@code Cookie} header (none when null). */
+    private Conn connect(AtmosphereResource.TRANSPORT transport, String trackingId, String token, String user,
+                         String cookie) throws Exception {
         var resource = mock(AtmosphereResourceImpl.class);
         var request = mock(AtmosphereRequest.class);
         var attributes = Collections.synchronizedMap(new HashMap<String, Object>());
@@ -148,6 +158,9 @@ class AiEndpointHandlerLongPollingReadyTest {
         }
         if (user != null) {
             attributes.put(FrameworkConfig.AUTH_PRINCIPAL, (Principal) () -> user);
+        }
+        if (cookie != null) {
+            when(request.getHeader("Cookie")).thenReturn(cookie);
         }
         when(resource.uuid()).thenReturn(trackingId);
         when(resource.getRequest()).thenReturn(request);
@@ -308,6 +321,105 @@ class AiEndpointHandlerLongPollingReadyTest {
         assertEquals(1, handler.longPollingClients());
     }
 
+    /**
+     * Nothing removed a client that stopped polling without a close until the
+     * set was full: each id-less GET, and each client that went away quietly,
+     * kept an entry, with its last poll, until 10,000 had piled up.
+     */
+    @Test
+    void aClientThatStoppedPollingIsDroppedWhenAnotherOneConnects() throws Exception {
+        initParams.put(LongPollingClients.DEPARTURE_GRACE_MS_PARAM, "1");
+        poll(newId(), "t", null).resumed();
+        // Past the grace, and past the once-a-second limit on dropping gone clients.
+        Thread.sleep(1_100);
+
+        poll(newId(), "t", null);
+
+        assertEquals(1, handler.longPollingClients(),
+                "the client gone past its grace must be dropped, not kept until the set is full");
+    }
+
+    @Test
+    void concurrentFirstPollsOfOneClientRunReadyOnce() throws Exception {
+        var id = newId();
+        endpoint.gate = new CountDownLatch(1);
+        var first = Thread.startVirtualThread(() -> pollQuietly(id));
+        awaitTrue(() -> endpoint.entered.get() == 1, "the first poll must be in @Ready");
+
+        var second = Thread.startVirtualThread(() -> pollQuietly(id));
+        // A second @Ready would enter now; one that waits for the first never does.
+        awaitTrue(() -> endpoint.entered.get() == 2 || second.getState() == Thread.State.WAITING
+                || second.getState() == Thread.State.TIMED_WAITING, "the second poll must reach @Ready or wait");
+        Thread.sleep(200);
+        endpoint.gate.countDown();
+        first.join(5_000);
+        second.join(5_000);
+
+        assertEquals(1, endpoint.readyCount(id),
+                "two first polls of one client racing must run @Ready once, as for one connection");
+    }
+
+    /** A pin, not a proof: the interleaving that overshot the bound cannot be forced from here. */
+    @Test
+    void concurrentFirstPollsOfManyClientsStayWithinTheBound() throws Exception {
+        initParams.put(LongPollingClients.MAX_CLIENTS_PARAM, "4");
+        var start = new CountDownLatch(1);
+        var threads = new ArrayList<Thread>();
+        for (int i = 0; i < 32; i++) {
+            threads.add(Thread.startVirtualThread(() -> {
+                try {
+                    start.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                pollQuietly(newId());
+            }));
+        }
+        start.countDown();
+        for (var thread : threads) {
+            thread.join(10_000);
+        }
+
+        assertTrue(handler.longPollingClients() <= 4,
+                "tracked clients must never exceed the bound: " + handler.longPollingClients());
+    }
+
+    /**
+     * The request is compared verbatim, Cookie header included: a cookie whose
+     * value changes on every response opens a connection on every poll. Pins
+     * what the README says of it; the behaviour itself is unchanged.
+     */
+    @Test
+    void aCookieWhoseValueChangesOnEveryPollRunsReadyOnEachPoll() throws Exception {
+        var id = newId();
+        for (int i = 0; i < 3; i++) {
+            connect(AtmosphereResource.TRANSPORT.LONG_POLLING, id, "t", null, "lb=" + i).resumed();
+        }
+        connect(AtmosphereResource.TRANSPORT.LONG_POLLING, id, "t", null, "lb=2").resumed();
+
+        assertEquals(3, endpoint.readyCount(id),
+                "each new cookie value opens a connection; the same value again continues it");
+    }
+
+    private void pollQuietly(String trackingId) {
+        try {
+            poll(trackingId, "t", null);
+        } catch (Exception e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    private static void awaitTrue(java.util.function.BooleanSupplier condition, String message)
+            throws InterruptedException {
+        var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (!condition.getAsBoolean()) {
+            if (System.nanoTime() > deadline) {
+                throw new AssertionError(message);
+            }
+            Thread.sleep(10);
+        }
+    }
+
     @Test
     void everyWebSocketAndSseConnectionRunsReady() throws Exception {
         for (var transport : List.of(AtmosphereResource.TRANSPORT.WEBSOCKET, AtmosphereResource.TRANSPORT.SSE)) {
@@ -331,9 +443,22 @@ class AiEndpointHandlerLongPollingReadyTest {
     @AiEndpoint(path = PATH)
     static class ReadyEndpoint {
         private final Map<String, Integer> ready = new ConcurrentHashMap<>();
+        /** {@code @Ready} calls started. */
+        final AtomicInteger entered = new AtomicInteger();
+        /** When set, {@code @Ready} waits for it before it counts and sets anything. */
+        volatile CountDownLatch gate;
 
         @Ready
         public void onReady(AtmosphereResource resource) {
+            entered.incrementAndGet();
+            var held = gate;
+            if (held != null) {
+                try {
+                    held.await(10, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
             ready.merge(resource.uuid(), 1, Integer::sum);
             var request = resource.getRequest();
             var token = request.getParameter("token");

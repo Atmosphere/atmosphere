@@ -776,7 +776,16 @@ client that comes back afterwards runs `@Ready` again. A client that finds
 its polls, as does a client whose principal cannot be read. A cookie or query
 parameter a client starts sending from its second poll on (a session cookie the
 first response set, an `X-Atmosphere-Session-Token`) makes that poll open the
-connection again, so `@Ready` runs a second time for such a client, then no more.
+connection again, so `@Ready` runs a second time for such a client, then no more
+while those values stay the same. They are compared verbatim: a cookie re-issued
+with a new value on every response (a load-balancer stickiness cookie, a rotating
+session cookie), a query parameter whose value changes per request (an
+atmosphere.js request header given as a function, when it travels in the query
+string) or an `Authorization` / `X-Atmosphere-Auth` value that changes per request
+makes every such poll open a connection of its own, and `@Ready` runs on each of
+them. Concurrent first polls of one tracking id run `@Ready` once: the others wait
+for it to finish and continue the connection it opened (past 5 s of waiting, they
+run `@Ready` themselves).
 
 | Init-param | Default | Meaning |
 |---|---|---|

@@ -24,6 +24,7 @@ import org.atmosphere.cpr.HeaderConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.ref.WeakReference;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -33,8 +34,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * The long-polling clients of one {@code @AiEndpoint} whose connection is open,
@@ -54,7 +57,16 @@ import java.util.concurrent.atomic.AtomicReference;
  * these opens a connection of its own instead: the tracking id is a
  * client-presented bearer token, and what {@code @Ready} derived from one
  * request is never handed to another one. Framework and container attributes
- * ({@code org.atmosphere.*}, {@code jakarta.*}, {@code javax.*}) are not kept.</p>
+ * ({@code org.atmosphere.*}, {@code jakarta.*}, {@code javax.*}) are not kept.
+ * The headers are compared verbatim: a client whose {@code Cookie} header
+ * changes from poll to poll (a cookie re-issued with a new value on every
+ * response) opens a connection, and runs {@code @Ready}, on each such poll.</p>
+ *
+ * <p>Concurrent first polls of one tracking id open one connection: one runs
+ * {@code @Ready}, the others wait for it (at most
+ * {@value #OPENING_WAIT_MS} ms, after which they run {@code @Ready} untracked)
+ * and then continue its connection, or open their own when they present
+ * another request.</p>
  *
  * <p>A connection ends when the client departs: a poll of it is cancelled or
  * closed (the client closed it, or the application did) while it is the
@@ -66,10 +78,12 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * <p>Bounded (Correctness Invariant #3): at most {@value #MAX_CLIENTS_PARAM}
  * (10,000) clients are tracked per endpoint, each with a digest of its first
- * request and the attributes {@code @Ready} set. A full set drops its departed
- * clients, at most once a second; a client that still finds no room is not
- * tracked, and {@code @Ready} runs on each of its polls, as it did before
- * clients were tracked.</p>
+ * request and the attributes {@code @Ready} set; only {@link #open} adds one,
+ * under a lock, so the bound is never overshot. Opening a connection first
+ * drops the clients that are gone, at most once a second; a client that still
+ * finds no room is not tracked, and {@code @Ready} runs on each of its polls,
+ * as it did before clients were tracked. A client's polls are held weakly: a
+ * client that stops polling does not keep its last request in memory.</p>
  */
 final class LongPollingClients {
 
@@ -84,6 +98,9 @@ final class LongPollingClients {
 
     private static final long SWEEP_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(1);
 
+    /** How long a first poll waits for a concurrent one of its tracking id to open the connection, in ms. */
+    static final long OPENING_WAIT_MS = 5_000;
+
     /** Query parameters a client's polls may carry or not without being another request. */
     private static final String RUN_ID_PARAMETER = "X-Atmosphere-Run-Id";
 
@@ -97,8 +114,8 @@ final class LongPollingClients {
         private final Object owner;
         private final byte[] request;
         private final Map<String, Object> readyAttributes;
-        /** The client's latest poll; only its departure ends the connection. */
-        private volatile AtmosphereResource poll;
+        /** The client's latest poll, held weakly; only its departure ends the connection. */
+        private volatile WeakReference<AtmosphereResource> poll;
         /** When a poll of the client last arrived or ended. */
         private volatile long seenNanos;
 
@@ -107,13 +124,24 @@ final class LongPollingClients {
             this.owner = owner;
             this.request = request;
             this.readyAttributes = readyAttributes;
-            this.poll = poll;
+            this.poll = new WeakReference<>(poll);
             this.seenNanos = seenNanos;
+        }
+
+        private boolean isLatest(AtmosphereResource candidate) {
+            return poll.get() == candidate;
         }
     }
 
-    /** Tracking id -> its open connection. Entries change only inside the map's per-key compute. */
+    /**
+     * Tracking id -> its open connection. Entries are added only by {@link #open},
+     * under {@link #openLock}; they change inside the map's per-key compute and
+     * leave there or in the sweep.
+     */
     private final ConcurrentHashMap<String, Client> clients = new ConcurrentHashMap<>();
+    /** Tracking id -> released once the poll opening its connection is done; one per poll in progress. */
+    private final ConcurrentHashMap<String, CountDownLatch> opening = new ConcurrentHashMap<>();
+    private final ReentrantLock openLock = new ReentrantLock();
     private volatile Limits limits;
     private volatile long lastSweepNanos = System.nanoTime() - SWEEP_INTERVAL_NANOS;
 
@@ -136,6 +164,49 @@ final class LongPollingClients {
             watch(trackingId, poll);
             return;
         }
+        // One poll at a time opens a tracking id's connection: a concurrent
+        // first poll waits for it, then continues that connection.
+        var latch = new CountDownLatch(1);
+        CountDownLatch prior;
+        while ((prior = opening.putIfAbsent(trackingId, latch)) != null) {
+            if (!awaitOpening(prior, trackingId)) {
+                onReady.run();
+                return;
+            }
+            if (continues(trackingId, poll, owner, fingerprint, request, l)) {
+                watch(trackingId, poll);
+                return;
+            }
+        }
+        try {
+            if (continues(trackingId, poll, owner, fingerprint, request, l)) {
+                watch(trackingId, poll);
+                return;
+            }
+            openConnection(trackingId, poll, owner, fingerprint, request, l, onReady);
+        } finally {
+            opening.remove(trackingId, latch);
+            latch.countDown();
+        }
+    }
+
+    /** Wait for the poll opening {@code trackingId}'s connection; {@code false} when it took too long. */
+    private static boolean awaitOpening(CountDownLatch prior, String trackingId) {
+        try {
+            if (prior.await(OPENING_WAIT_MS, TimeUnit.MILLISECONDS)) {
+                return true;
+            }
+            logger.debug("Another poll of {} is still opening its connection; @Ready runs on this one", trackingId);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.debug("Interrupted waiting for another poll of {}; @Ready runs on this one", trackingId, e);
+        }
+        return false;
+    }
+
+    /** Run {@code onReady} on the poll opening its client's connection, and track the connection. */
+    private void openConnection(String trackingId, AtmosphereResource poll, Object owner, byte[] fingerprint,
+                                AtmosphereRequest request, Limits l, Runnable onReady) {
         var before = attributes(request);
         onReady.run();
         var after = before != null ? attributes(request) : null;
@@ -163,7 +234,7 @@ final class LongPollingClients {
                 return null;
             }
             if (Objects.equals(client.owner, owner) && Arrays.equals(client.request, fingerprint)) {
-                client.poll = poll;
+                client.poll = new WeakReference<>(poll);
                 client.seenNanos = now;
                 restore.set(client.readyAttributes);
             }
@@ -182,22 +253,29 @@ final class LongPollingClients {
         return true;
     }
 
-    /** Record a connection {@code client} opened, within the bound. */
+    /**
+     * Record a connection {@code client} opened, within the bound, first dropping
+     * the clients that are gone, at most once a second. The only place an entry
+     * is added, under {@link #openLock}: removals elsewhere only make room.
+     */
     private boolean open(String trackingId, Client client, Limits l) {
-        if (clients.size() >= l.maxClients() && !clients.containsKey(trackingId)) {
+        openLock.lock();
+        try {
             var now = System.nanoTime();
             if (now - lastSweepNanos >= SWEEP_INTERVAL_NANOS) {
                 lastSweepNanos = now;
                 clients.entrySet().removeIf(e -> !isOpen(e.getValue(), now, l));
             }
+            if (clients.size() >= l.maxClients() && !clients.containsKey(trackingId)) {
+                logger.debug("{} long-polling clients already tracked; @Ready runs on each poll of {}",
+                        l.maxClients(), trackingId);
+                return false;
+            }
+            clients.put(trackingId, client);
+            return true;
+        } finally {
+            openLock.unlock();
         }
-        if (clients.size() >= l.maxClients() && !clients.containsKey(trackingId)) {
-            logger.debug("{} long-polling clients already tracked; @Ready runs on each poll of {}",
-                    l.maxClients(), trackingId);
-            return false;
-        }
-        clients.put(trackingId, client);
-        return true;
     }
 
     /** End the connection on the departure of its latest poll; note when a poll of it ended. */
@@ -206,7 +284,7 @@ final class LongPollingClients {
             @Override
             public void onResume(AtmosphereResourceEvent event) {
                 clients.computeIfPresent(trackingId, (id, client) -> {
-                    if (client.poll == poll) {
+                    if (client.isLatest(poll)) {
                         client.seenNanos = System.nanoTime();
                     }
                     return client;
@@ -226,13 +304,17 @@ final class LongPollingClients {
     }
 
     private void departed(String trackingId, AtmosphereResource poll) {
-        clients.computeIfPresent(trackingId, (id, client) -> client.poll == poll ? null : client);
+        clients.computeIfPresent(trackingId, (id, client) -> client.isLatest(poll) ? null : client);
     }
 
-    /** Whether {@code client}'s connection is still open: a poll of it is suspended, or one ended within the grace. */
+    /**
+     * Whether {@code client}'s connection is still open: a poll of it is
+     * suspended, or one ended within the grace. A poll no longer reachable is
+     * not suspended.
+     */
     private static boolean isOpen(Client client, long now, Limits l) {
-        var poll = client.poll;
-        if (poll.isSuspended() && !poll.isCancelled()) {
+        var poll = client.poll.get();
+        if (poll != null && poll.isSuspended() && !poll.isCancelled()) {
             return true;
         }
         return now - client.seenNanos <= l.graceNanos();
