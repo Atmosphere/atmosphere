@@ -769,7 +769,10 @@ had on the first poll's resource does not carry over. A poll that differs in any
 of these opens a connection of its own, and `@Ready` runs on it: what `@Ready`
 derived from one request is never handed to another one under the same tracking
 id. The connection ends when the client's latest poll is cancelled or closed (the
-late loss of a poll a newer one replaced does not end it), or when no poll of it
+late loss of a poll a newer one replaced does not end it, nor does the close of a
+poll still suspended when the client polls again, a poll a proxy timed out
+before the server did, which the broadcaster closes while it suspends the new
+one), or when no poll of it
 is suspended and none arrived within `departureGraceMs` of the last one ending; a
 client that comes back afterwards runs `@Ready` again. A client that finds
 `maxTrackedClients` connections open is not tracked, and `@Ready` runs on each of

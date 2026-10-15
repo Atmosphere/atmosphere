@@ -114,6 +114,38 @@ public class AiEndpointLongPollingConnectionTest {
                 "a prompt dispatched to a later poll must read the ai.userId @Ready set for the connection");
     }
 
+    /**
+     * A client that polls again while its previous poll is still suspended on the
+     * server (a proxy whose read timeout is shorter than the suspend made it give
+     * up on that poll): the broadcaster closes the old poll while it suspends the
+     * new one, and that departure, of a poll the new one replaces, must not end
+     * the client's connection and run {@code @Ready} again.
+     */
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    @Test
+    public void aPollReplacingTheClientsStillSuspendedPollDoesNotRunReadyAgain() throws Exception {
+        var id = "lp-" + UUID.randomUUID();
+        var first = poll(id, "alice-token", null);
+        awaitSuspended(id);
+        var firstResource = server.getFramework().atmosphereFactory().findResource(id).orElseThrow();
+
+        var second = poll(id, "alice-token", null);
+        awaitTrue(() -> server.getFramework().atmosphereFactory().findResource(id)
+                .map(r -> r != firstResource && r.isSuspended()).orElse(false), "the second poll must be suspended");
+        var secondResource = server.getFramework().atmosphereFactory().findResource(id).orElseThrow();
+        poll(id, "alice-token", null);
+        awaitTrue(() -> server.getFramework().atmosphereFactory().findResource(id)
+                .map(r -> r != secondResource && r.isSuspended()).orElse(false), "the third poll must be suspended");
+
+        assertEquals(200, first.get(10, TimeUnit.SECONDS).statusCode(), "the server closes the replaced first poll");
+        assertEquals(200, second.get(10, TimeUnit.SECONDS).statusCode(), "the server closes the replaced second poll");
+        assertEquals(1, LongPollingConnectionTestEndpoint.READY.get(id),
+                "@Ready must run once for a client whose polls replace its still suspended ones");
+        assertEquals(200, post(id, "after-replace").get(10, TimeUnit.SECONDS).statusCode());
+        awaitTrue(() -> LongPollingConnectionTestEndpoint.PROMPTS.contains("after-replace|alice-token"),
+                "a prompt dispatched to the latest poll must read the ai.userId @Ready set for the connection");
+    }
+
     @Timeout(value = 60, unit = TimeUnit.SECONDS)
     @Test
     public void aReconnectWithTheRunIdIsAnsweredWithTheReplayAtOnce() throws Exception {

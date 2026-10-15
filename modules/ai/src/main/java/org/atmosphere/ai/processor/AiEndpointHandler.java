@@ -185,7 +185,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     private final ConcurrentHashMap<String, AtmosphereResource> liveConnections = new ConcurrentHashMap<>();
 
     /** The long-polling clients whose connection is open: {@code @Ready} runs once per client. */
-    private final LongPollingClients longPollingClients = new LongPollingClients();
+    private final LongPollingClients longPollingClients = new LongPollingClients(this::replacedByALiveConnection);
 
     /**
      * @param target       the user's @AiEndpoint instance
@@ -1661,6 +1661,16 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     // visible for testing
     Object target() {
         return target;
+    }
+
+    /**
+     * Whether another connection or poll is live under {@code resource}'s
+     * tracking id: tracked from before its suspend, it is live while the
+     * suspend closes {@code resource}, the poll it replaces.
+     */
+    private boolean replacedByALiveConnection(AtmosphereResource resource) {
+        var live = liveConnections.get(resource.uuid());
+        return live != null && live != resource && !live.isCancelled();
     }
 
     /** Long-polling clients whose connection is tracked as open; for tests. */

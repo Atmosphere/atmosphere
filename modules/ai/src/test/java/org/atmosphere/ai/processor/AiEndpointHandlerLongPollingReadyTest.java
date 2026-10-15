@@ -71,6 +71,13 @@ class AiEndpointHandlerLongPollingReadyTest {
 
     private final Map<String, String> initParams = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, AtmosphereResource> registered = new ConcurrentHashMap<>();
+    /** Tracking id -> its poll suspended last. */
+    private final ConcurrentHashMap<String, Conn> suspended = new ConcurrentHashMap<>();
+    /**
+     * Whether suspending a poll closes the poll of its tracking id still
+     * suspended, as {@code DefaultBroadcaster.addAtmosphereResource} does.
+     */
+    private volatile boolean closeReplacedOnSuspend;
     private AtmosphereConfig config;
     private Broadcaster broadcaster;
     private ReadyEndpoint endpoint;
@@ -173,12 +180,16 @@ class AiEndpointHandlerLongPollingReadyTest {
             listeners.add(inv.getArgument(0));
             return resource;
         });
+        var conn = new Conn(resource, attributes, listeners);
         when(resource.suspend(anyLong())).thenAnswer(inv -> {
             when(resource.isSuspended()).thenReturn(true);
+            var previous = suspended.put(trackingId, conn);
+            if (closeReplacedOnSuspend && previous != null && previous.resource().isSuspended()) {
+                previous.departed();
+            }
             registered.put(trackingId, resource);
             return resource;
         });
-        var conn = new Conn(resource, attributes, listeners);
         handler.onRequest(resource);
         return conn;
     }
@@ -260,6 +271,48 @@ class AiEndpointHandlerLongPollingReadyTest {
 
         poll(id, "alice-token", null);
 
+        assertEquals(1, endpoint.readyCount(id));
+    }
+
+    /**
+     * A client that polls again while its previous poll is still suspended on the
+     * server (a proxy that timed the poll out first): suspending the new poll
+     * closes the old one before the new one continues the connection, and that
+     * departure, of a poll the new one replaces, must leave the connection open.
+     */
+    @Test
+    void aPollThatClosesTheClientsStillSuspendedPollLeavesTheClientConnected() throws Exception {
+        closeReplacedOnSuspend = true;
+        var id = newId();
+        var first = poll(id, "alice-token", null);
+        var second = poll(id, "alice-token", null);
+        assertTrue(!first.resource().isSuspended(), "suspending the second poll closes the first one");
+
+        poll(id, "alice-token", null);
+
+        assertTrue(!second.resource().isSuspended(), "suspending the third poll closes the second one");
+        assertEquals(1, endpoint.readyCount(id),
+                "the polls replacing the client's still suspended ones continue its connection");
+        assertEquals("alice-token", suspended.get(id).attributes().get("ai.userId"),
+                "the latest poll reads the identity @Ready set for the connection");
+    }
+
+    /**
+     * The departure-grace clock restarts when a replaced poll departs: the client
+     * polled again, so a poll that was suspended past the grace before it was
+     * replaced does not have its successor taken for a new client.
+     */
+    @Test
+    void aReplacedPollSuspendedPastTheGraceLeavesTheClientConnected() throws Exception {
+        initParams.put(LongPollingClients.DEPARTURE_GRACE_MS_PARAM, "200");
+        closeReplacedOnSuspend = true;
+        var id = newId();
+        var first = poll(id, "alice-token", null);
+        Thread.sleep(400);
+
+        poll(id, "alice-token", null);
+
+        assertTrue(!first.resource().isSuspended(), "suspending the second poll closes the first one");
         assertEquals(1, endpoint.readyCount(id));
     }
 

@@ -38,6 +38,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Predicate;
 
 /**
  * The long-polling clients of one {@code @AiEndpoint} whose connection is open,
@@ -71,8 +72,11 @@ import java.util.concurrent.locks.ReentrantLock;
  * <p>A connection ends when the client departs: a poll of it is cancelled or
  * closed (the client closed it, or the application did) while it is the
  * client's latest poll — the late departure of a poll a newer one replaced
- * leaves the connection alone — or no poll of it is suspended and none arrived
- * within {@value #DEPARTURE_GRACE_MS_PARAM} (30 s) of the last one ending. A
+ * leaves the connection alone, including a poll the client gave up on while it
+ * was still suspended, which the broadcaster closes while it suspends the new
+ * one, before that one continues the connection — or no poll of it is
+ * suspended and none arrived within {@value #DEPARTURE_GRACE_MS_PARAM} (30 s)
+ * of the last one ending. A
  * client that comes back after that opens a new connection, and {@code @Ready}
  * runs again, as for a WebSocket client that reconnects.</p>
  *
@@ -142,8 +146,18 @@ final class LongPollingClients {
     /** Tracking id -> released once the poll opening its connection is done; one per poll in progress. */
     private final ConcurrentHashMap<String, CountDownLatch> opening = new ConcurrentHashMap<>();
     private final ReentrantLock openLock = new ReentrantLock();
+    /** Whether a newer connection or poll of the departing poll's tracking id is live. */
+    private final Predicate<AtmosphereResource> replaced;
     private volatile Limits limits;
     private volatile long lastSweepNanos = System.nanoTime() - SWEEP_INTERVAL_NANOS;
+
+    /**
+     * @param replaced whether a poll's tracking id has a newer connection or
+     *                 poll live, tracked from before its suspend
+     */
+    LongPollingClients(Predicate<AtmosphereResource> replaced) {
+        this.replaced = Objects.requireNonNull(replaced, "replaced");
+    }
 
     /**
      * Run {@code onReady} for {@code poll}, a suspended long-polling poll of an
@@ -303,8 +317,24 @@ final class LongPollingClients {
         });
     }
 
+    /**
+     * The departure of {@code poll} ends its client's connection when it is the
+     * client's latest poll and no newer one is live: a poll the broadcaster
+     * closes while it suspends the client's next poll is still the latest until
+     * that one continues the connection. Its departure then restarts the grace,
+     * as the client did by polling again.
+     */
     private void departed(String trackingId, AtmosphereResource poll) {
-        clients.computeIfPresent(trackingId, (id, client) -> client.isLatest(poll) ? null : client);
+        clients.computeIfPresent(trackingId, (id, client) -> {
+            if (!client.isLatest(poll)) {
+                return client;
+            }
+            if (replaced.test(poll)) {
+                client.seenNanos = System.nanoTime();
+                return client;
+            }
+            return null;
+        });
     }
 
     /**
