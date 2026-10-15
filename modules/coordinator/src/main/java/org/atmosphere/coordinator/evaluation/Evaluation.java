@@ -59,4 +59,32 @@ public record Evaluation(
     public static Evaluation fail(double score, String reason, Map<String, Object> metadata) {
         return new Evaluation(score, false, reason, metadata);
     }
+
+    /** Metadata key marking an evaluation that did not take place (see {@link #skipped()}). */
+    public static final String SKIPPED_KEY = "skipped";
+
+    /**
+     * An evaluation that did not take place — no judge was available, the
+     * judge call failed, or its answer carried no score. It does not hold the
+     * agent's result back ({@link #passed()} is {@code true}, so a refine loop
+     * is not re-dispatched on a missing signal), but it has no score to report:
+     * renderers show it as skipped, never as a passing score.
+     *
+     * @param reason   why the evaluation did not take place
+     * @param metadata the judge artifacts gathered so far, may be {@code null}
+     * @return the skipped evaluation
+     */
+    public static Evaluation skipped(String reason, Map<String, Object> metadata) {
+        var marked = new java.util.HashMap<String, Object>(metadata != null ? metadata : Map.of());
+        marked.put(SKIPPED_KEY, true);
+        return new Evaluation(0.0, true, reason, marked);
+    }
+
+    /**
+     * Whether this evaluation did not take place ({@link #skipped(String, Map)}):
+     * its {@link #score()} carries no information.
+     */
+    public boolean skipped() {
+        return Boolean.TRUE.equals(metadata.get(SKIPPED_KEY));
+    }
 }

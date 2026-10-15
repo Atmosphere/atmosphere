@@ -408,7 +408,7 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
                             new CoordinationEvent.AgentEvaluated(
                                     coordId, result.agentName(), evalName,
                                     eval.score(), eval.passed(), eval.reason(),
-                                    Instant.now())));
+                                    Instant.now(), eval.skipped())));
                     emitEvalActivity(result.agentName(), evalName, eval);
                 }
             } catch (Exception e) {
@@ -422,7 +422,7 @@ public final class JournalingAgentFleet implements AgentFleet, AutoCloseable {
                                    Evaluation eval) {
         var activity = new AgentActivity.Evaluated(
                 agentName, evaluatorName, eval.score(),
-                eval.passed(), eval.reason());
+                eval.passed(), eval.reason(), eval.skipped());
         // Get activity listeners from the delegate fleet
         if (delegate instanceof DefaultAgentFleet daf) {
             for (var listener : daf.activityListeners()) {

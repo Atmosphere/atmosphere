@@ -68,7 +68,16 @@ public sealed interface AgentActivity {
     record Failed(String agentName, String skill, String error,
                   Duration elapsed) implements AgentActivity {}
 
-    /** Agent result was evaluated by a quality judge. */
+    /**
+     * Agent result was evaluated by a quality judge; {@code skipped} marks an
+     * evaluation that did not take place, whose {@code score} means nothing.
+     */
     record Evaluated(String agentName, String evaluatorName, double score,
-                     boolean passed, String reason) implements AgentActivity {}
+                     boolean passed, String reason, boolean skipped) implements AgentActivity {
+        /** An evaluation that took place. */
+        public Evaluated(String agentName, String evaluatorName, double score,
+                         boolean passed, String reason) {
+            this(agentName, evaluatorName, score, passed, reason, false);
+        }
+    }
 }

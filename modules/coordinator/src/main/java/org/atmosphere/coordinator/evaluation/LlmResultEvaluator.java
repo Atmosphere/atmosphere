@@ -39,8 +39,10 @@ import java.util.regex.Pattern;
  * Parses a 0-10 score from the response and normalizes to 0.0-1.0. No hardcoded
  * rules — the LLM evaluates helpfulness, accuracy, and completeness.</p>
  *
- * <p>Requires an LLM API key to be configured. Falls back to pass-through
- * (score 1.0) when no runtime is available or the API call fails.</p>
+ * <p>When no runtime is available, the judge call fails, or its answer
+ * carries no score, the result is {@link Evaluation#skipped(String, Map)}: it
+ * does not hold the agent's result back, and it is reported as not evaluated
+ * rather than as a passing score.</p>
  */
 public final class LlmResultEvaluator implements ResultEvaluator {
 
@@ -97,8 +99,7 @@ public final class LlmResultEvaluator implements ResultEvaluator {
         var rt = resolveRuntime();
         if (rt == null) {
             logger.debug("No AgentRuntime available, skipping LLM evaluation");
-            return Evaluation.pass(1.0, "No LLM runtime available, skipped",
-                    Map.of("skipped", true));
+            return Evaluation.skipped("No LLM runtime available", Map.of());
         }
 
         var judgePrompt = buildJudgePrompt(result, originalCall);
@@ -111,8 +112,8 @@ public final class LlmResultEvaluator implements ResultEvaluator {
         } catch (Exception e) {
             logger.debug("LLM evaluation failed for agent '{}': {}",
                     result.agentName(), e.getMessage());
-            return Evaluation.pass(1.0, "LLM judge error: " + e.getMessage(),
-                    Map.of("error", e.getMessage(),
+            return Evaluation.skipped("LLM judge error: " + e.getMessage(),
+                    Map.of("error", String.valueOf(e.getMessage()),
                             "judgePrompt", judgePrompt,
                             "agent", result.agentName(),
                             "skill", originalCall.skill(),
@@ -142,7 +143,7 @@ public final class LlmResultEvaluator implements ResultEvaluator {
     static Evaluation parseScore(
             String response, AgentResult result, AgentCall originalCall, String judgePrompt, String model) {
         if (response == null || response.isBlank()) {
-            return Evaluation.pass(1.0, "Empty judge response",
+            return Evaluation.skipped("Empty judge response",
                     metadata(judgePrompt, "", null, "empty", result, originalCall, model));
         }
 
@@ -172,7 +173,7 @@ public final class LlmResultEvaluator implements ResultEvaluator {
         }
 
         logger.debug("Could not parse score from LLM response: {}", truncate(cleaned, 200));
-        return Evaluation.pass(0.7, "Unparseable judge response: " + truncate(cleaned, 100),
+        return Evaluation.skipped("Unparseable judge response: " + truncate(cleaned, 100),
                 metadata(judgePrompt, response, null, "fallback", result, originalCall, model));
     }
 

@@ -77,11 +77,28 @@ class LlmResultEvaluatorTest {
 
         var evaluation = LlmResultEvaluator.parseScore("not a score", result, call, "prompt", null);
 
-        assertTrue(evaluation.passed());
-        assertEquals(0.7, evaluation.score());
+        assertTrue(evaluation.skipped(), "an answer without a score is not an evaluation");
+        assertTrue(evaluation.passed(), "a skipped evaluation does not hold the result back");
         assertEquals("fallback", evaluation.metadata().get("scoreSource"));
         assertEquals("", evaluation.metadata().get("model"));
         assertEquals("not a score", evaluation.metadata().get("judgeResponse"));
+    }
+
+    @Test
+    void anEmptyJudgeAnswerIsSkippedNotAPassingScore() {
+        // A judge call that failed upstream reached parseScore as "" and was
+        // journaled as "[llm-judge] 1.0 — Empty judge response  PASS".
+        var evaluation = LlmResultEvaluator.parseScore("", result(), call(), "prompt", "gpt-test");
+
+        assertTrue(evaluation.skipped());
+        assertTrue(evaluation.passed());
+        assertEquals("Empty judge response", evaluation.reason());
+        assertEquals("empty", evaluation.metadata().get("scoreSource"));
+    }
+
+    @Test
+    void aScoredAnswerIsNotSkipped() {
+        assertFalse(LlmResultEvaluator.parseScore("8/10", result(), call(), "prompt", null).skipped());
     }
 
     private static AgentResult result() {

@@ -284,7 +284,11 @@ public final class CoordinatorController {
             case CoordinationEvent.AgentEvaluated e -> {
                 info.put("agentName", e.agentName());
                 info.put("evaluatorName", e.evaluatorName());
-                info.put("score", e.score());
+                if (e.skipped()) {
+                    info.put("skipped", true);
+                } else {
+                    info.put("score", e.score());
+                }
                 info.put("passed", e.passed());
             }
             case CoordinationEvent.AgentHandoff e -> {

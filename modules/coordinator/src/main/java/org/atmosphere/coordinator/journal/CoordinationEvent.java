@@ -88,6 +88,11 @@ public sealed interface CoordinationEvent {
         }
     }
 
+    /**
+     * An agent result was evaluated. {@code skipped} marks an evaluation that
+     * did not take place (no judge, a failed judge call, an answer without a
+     * score): its {@code score} carries no information and renders as skipped.
+     */
     record AgentEvaluated(
             String coordinationId,
             String agentName,
@@ -95,11 +100,18 @@ public sealed interface CoordinationEvent {
             double score,
             boolean passed,
             String reason,
-            Instant timestamp
+            Instant timestamp,
+            boolean skipped
     ) implements CoordinationEvent {
+        /** An evaluation that took place (journals written before {@code skipped} existed). */
+        public AgentEvaluated(String coordinationId, String agentName, String evaluatorName,
+                              double score, boolean passed, String reason, Instant timestamp) {
+            this(coordinationId, agentName, evaluatorName, score, passed, reason, timestamp, false);
+        }
+
         @Override
         public String toLogLine() {
-            var detail = String.format("%.1f", score);
+            var detail = skipped ? "skipped" : String.format("%.1f", score);
             if (reason != null && !reason.isEmpty()) {
                 detail += " — " + (reason.length() > 60
                         ? reason.substring(0, 60) + "..." : reason);

@@ -66,13 +66,16 @@ public interface JournalFormat {
                             row(sb, "FAILED", e.agentName(), e.error(),
                                     e.duration().toMillis() + "ms");
                     case CoordinationEvent.AgentEvaluated e -> {
-                        var detail = String.format("[%s] %.1f", e.evaluatorName(), e.score());
+                        var detail = e.skipped()
+                                ? String.format("[%s] skipped", e.evaluatorName())
+                                : String.format("[%s] %.1f", e.evaluatorName(), e.score());
                         if (e.reason() != null && !e.reason().isEmpty()) {
                             var reason = e.reason().length() > 50
                                     ? e.reason().substring(0, 50) + "..." : e.reason();
                             detail += " — " + reason;
                         }
-                        row(sb, "EVAL", e.agentName(), detail, e.passed() ? "PASS" : "FAIL");
+                        row(sb, "EVAL", e.agentName(), detail,
+                                e.skipped() ? "SKIPPED" : e.passed() ? "PASS" : "FAIL");
                     }
                     case CoordinationEvent.AgentHandoff e ->
                             row(sb, "HANDOFF", e.fromAgent(),
