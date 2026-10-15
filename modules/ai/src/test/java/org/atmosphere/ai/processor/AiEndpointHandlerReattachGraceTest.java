@@ -68,6 +68,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
@@ -505,6 +506,39 @@ class AiEndpointHandlerReattachGraceTest {
     }
 
     /**
+     * A WebSocket or SSE connection whose suspend times out ends without a
+     * departure reaching the handler: it stops being tracked as the live
+     * connection of its tracking id all the same, or every client that times
+     * out and never comes back would stay pinned for good.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"websocket", "sse"})
+    void aConnectionWhoseSuspendTimesOutStopsBeingTracked(String transport) throws Exception {
+        newHandler(new HeldRuntime(), null);
+        var connection = connect(transport);
+        assertSame(connection, handler.liveConnection(connection.uuid()).orElse(null),
+                "the suspended connection is tracked under its tracking id");
+
+        assertTrue(new BlockingIOCometSupport(config).completeLifecycle(connection, false));
+        assertTrue(connection.isCancelled(), "the timed-out connection is gone");
+        assertTrue(handler.liveConnection(connection.uuid()).isEmpty(),
+                "a " + transport + " connection that timed out must not stay tracked");
+    }
+
+    /** The timeout of a connection replaced under its tracking id leaves the live one tracked. */
+    @ParameterizedTest
+    @ValueSource(strings = {"websocket", "sse"})
+    void theTimeoutOfAReplacedConnectionLeavesTheLiveOneTracked(String transport) throws Exception {
+        newHandler(new HeldRuntime(), null);
+        var original = connect(transport);
+        var back = reconnect(original.uuid(), null, new StringWriter());
+
+        assertTrue(new BlockingIOCometSupport(config).completeLifecycle(original, false));
+        assertSame(back, handler.liveConnection(original.uuid()).orElse(null),
+                "the connection live under the tracking id stays tracked");
+    }
+
+    /**
      * A long-polling client reattaches with a reply of the backlog and no live
      * subscription: nothing would detach the run again if it never polled
      * again. Each such poll restarts the grace instead of rescinding it.
@@ -610,12 +644,31 @@ class AiEndpointHandlerReattachGraceTest {
         return startRun(runtime, memory, AtmosphereRequestImpl.newInstance());
     }
 
-    private AtmosphereResourceImpl startRun(HeldRuntime runtime, InMemoryConversationMemory memory,
-            AtmosphereRequest request) throws Exception {
+    private void newHandler(HeldRuntime runtime, InMemoryConversationMemory memory) throws Exception {
         handler = new AiEndpointHandler(new HeldEndpoint(),
                 HeldEndpoint.class.getDeclaredMethod("onPrompt", String.class, StreamingSession.class),
                 30_000L, "", "/ai/grace", runtime, List.<AiInterceptor>of(),
                 memory, AnnotatedLifecycle.scan(HeldEndpoint.class));
+    }
+
+    /**
+     * A {@code transport} connection (the wire value of {@code X-Atmosphere-Transport})
+     * driven through the handler's connect path, which suspends it.
+     */
+    private AtmosphereResourceImpl connect(String transport) throws Exception {
+        var request = new AtmosphereRequestImpl.Builder().method("GET").pathInfo("/ai/grace")
+                .headers(new HashMap<>(Map.of(HeaderConfig.X_ATMOSPHERE_TRANSPORT, transport)))
+                .build();
+        var connection = new AtmosphereResourceImpl(config, room, request, AtmosphereResponseImpl.newInstance(),
+                mock(BlockingIOCometSupport.class), handler);
+        handler.onRequest(connection);
+        assertTrue(connection.isSuspended(), "the " + transport + " connection is suspended");
+        return connection;
+    }
+
+    private AtmosphereResourceImpl startRun(HeldRuntime runtime, InMemoryConversationMemory memory,
+            AtmosphereRequest request) throws Exception {
+        newHandler(runtime, memory);
         var original = new AtmosphereResourceImpl(config, room,
                 request, AtmosphereResponseImpl.newInstance(),
                 mock(BlockingIOCometSupport.class),

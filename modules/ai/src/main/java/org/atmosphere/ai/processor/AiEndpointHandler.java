@@ -47,6 +47,7 @@ import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.AtmosphereResourceHeartbeatEventListener;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
@@ -71,6 +72,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
@@ -176,8 +178,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * notices the connection it replaces is gone (an idle timeout, a failed
      * write): the late departure of the replaced connection then leaves the
      * state keyed by the id to the live one. An entry is removed when its
-     * connection goes; long-polling, whose resumed polls fire no departure, is
-     * not tracked.
+     * connection ends, a suspend timeout or a resume included; long-polling,
+     * whose resumed polls fire no departure, is not tracked.
      */
     private final ConcurrentHashMap<String, AtmosphereResource> liveConnections = new ConcurrentHashMap<>();
 
@@ -570,7 +572,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 repollGate.connectionReady(resource.uuid());
                 if (resource.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
                         || resource.transport() == AtmosphereResource.TRANSPORT.SSE) {
-                    liveConnections.put(resource.uuid(), resource);
+                    trackLiveConnection(resource);
                 }
                 // A connection back under the id of a lost one owns the state the
                 // lost one's runs kept: its own departure releases it.
@@ -586,6 +588,44 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 resource.resume();
             }
         }
+    }
+
+    /**
+     * Track {@code resource} as the connection live under its tracking id until
+     * it ends. A suspend timeout or a resume ends it without a departure reaching
+     * {@link #onStateChange}, so its listener untracks it on every end, and an
+     * end that ran before the listener was added is caught by the state check.
+     */
+    private void trackLiveConnection(AtmosphereResource resource) {
+        var uuid = resource.uuid();
+        liveConnections.put(uuid, resource);
+        resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+            @Override
+            public void onResume(AtmosphereResourceEvent event) {
+                untrackLiveConnection(uuid, resource);
+            }
+
+            @Override
+            public void onDisconnect(AtmosphereResourceEvent event) {
+                untrackLiveConnection(uuid, resource);
+            }
+
+            @Override
+            public void onClose(AtmosphereResourceEvent event) {
+                untrackLiveConnection(uuid, resource);
+            }
+        });
+        if (!resource.isSuspended()) {
+            untrackLiveConnection(uuid, resource);
+        }
+    }
+
+    /**
+     * Stop tracking {@code resource} under {@code uuid}, leaving a connection
+     * that replaced it there: the resource equals any other of its uuid.
+     */
+    private void untrackLiveConnection(String uuid, AtmosphereResource resource) {
+        liveConnections.computeIfPresent(uuid, (id, live) -> live == resource ? null : live);
     }
 
     /**
@@ -1590,6 +1630,11 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     // visible for testing
     Object target() {
         return target;
+    }
+
+    /** The WebSocket or SSE connection tracked as live under {@code uuid}, if any. */
+    Optional<AtmosphereResource> liveConnection(String uuid) {
+        return Optional.ofNullable(liveConnections.get(uuid));
     }
 
     Method promptMethod() {
