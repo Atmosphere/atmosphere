@@ -119,6 +119,11 @@ class DurableSessionCachedPollTest {
             saves.incrementAndGet();
             super.save(session);
         }
+
+        /** Drop the broadcasters saved so far, without counting a save of the interceptor. */
+        void forgetBroadcasters(String token) {
+            super.save(restore(token).orElseThrow().withBroadcasters(Set.of()));
+        }
     }
 
     private AtmosphereFramework framework;
@@ -231,6 +236,10 @@ class DurableSessionCachedPollTest {
         // It read the token: its next poll presents it and is suspended.
         var held = poll(trackingId, token);
         assertTrue(held.request().resource().isSuspended(), "the poll presenting the token is suspended");
+        // The first poll, which the held one replaced, saved the connection's state
+        // when it went: forget it, so what the session holds next was saved when the
+        // poll answered from the cache replaced the held one.
+        store.forgetBroadcasters(token);
 
         // A message is cached for the client, and its write to the held poll is in flight.
         var broadcaster = held.request().resource().getBroadcaster();
