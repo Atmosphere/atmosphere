@@ -15,14 +15,17 @@
  */
 package org.atmosphere.ai.decision;
 
-import org.atmosphere.ai.AgentRuntimeResolver;
+import org.atmosphere.ai.AiEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -36,11 +39,15 @@ import java.util.concurrent.locks.ReentrantLock;
  *   <li>otherwise empty: no model can answer.</li>
  * </ol>
  *
- * <p>The fallback {@link RuntimeDecisionModel} is one instance shared by every
- * consumer that resolves through here (the LLM injection, scope and moderation
- * tiers, and an {@link org.atmosphere.ai.intent.IntentRouting} with no decision
- * model of its own, which asks one question per admitted request), so its
- * concurrency bound is shared too. It allows
+ * <p>Each application resolves its own model ({@link #resolve(AiEnvironment)}):
+ * the fallback runs on that application's runtime, so one application's
+ * questions never go through another's client. {@link #resolve()} resolves for
+ * {@link AiEnvironment#current()}. Within one application the fallback
+ * {@link RuntimeDecisionModel} is one instance shared by every consumer that
+ * resolves through here (the LLM injection, scope and moderation tiers, and an
+ * {@link org.atmosphere.ai.intent.IntentRouting} with no decision model of its
+ * own, which asks one question per admitted request), so its concurrency bound
+ * is shared too. It allows
  * {@link RuntimeDecisionModel#DEFAULT_MAX_CONCURRENCY} questions in flight unless
  * the {@value #MAX_CONCURRENCY_PROPERTY} JVM system property sets another
  * positive integer; the property is read when the fallback is built, the first
@@ -94,7 +101,20 @@ public final class DecisionModelResolver {
 
     private static final ReentrantLock LOCK = new ReentrantLock();
 
-    private static volatile Resolution cached;
+    /** The process default's resolution. */
+    private static final Slot DEFAULT_SLOT = new Slot();
+
+    /**
+     * One resolution per open application. Bounded by the open environments:
+     * a closed one's entry is dropped, and its model released, when a later
+     * resolution scans, and {@link #reset()} drops them all.
+     */
+    private static final ConcurrentHashMap<AiEnvironment, Slot> SLOTS = new ConcurrentHashMap<>();
+
+    /** One application's cached resolution; written under {@link #LOCK}. */
+    private static final class Slot {
+        private volatile Resolution cached;
+    }
 
     /**
      * A cached model; {@code provisional} when it is the fallback chosen while a
@@ -114,9 +134,29 @@ public final class DecisionModelResolver {
     private DecisionModelResolver() {
     }
 
-    /** The decision model to use, or empty when none can answer. */
+    /**
+     * The decision model of {@link AiEnvironment#current()}, or empty when none
+     * can answer.
+     */
     public static Optional<DecisionModel> resolve() {
-        var resolution = cached;
+        return resolve(AiEnvironment.current());
+    }
+
+    /**
+     * The decision model of one application, or empty when none can answer:
+     * the fallback runs on that application's {@link org.atmosphere.ai.AgentRuntime}.
+     *
+     * @param environment the application's environment
+     * @return the model, empty when none can answer or the application stopped
+     */
+    public static Optional<DecisionModel> resolve(AiEnvironment environment) {
+        Objects.requireNonNull(environment, "environment");
+        if (environment.isClosed()) {
+            return Optional.empty();
+        }
+        var slot = environment == AiEnvironment.processDefault()
+                ? DEFAULT_SLOT : SLOTS.computeIfAbsent(environment, e -> new Slot());
+        var resolution = slot.cached;
         if (resolution != null && resolution.current()) {
             return Optional.of(resolution.model());
         }
@@ -130,19 +170,20 @@ public final class DecisionModelResolver {
             LOCK.lock();
         }
         try {
-            resolution = cached;
+            pruneClosed();
+            resolution = slot.cached;
             if (resolution != null && resolution.current()) {
                 return Optional.of(resolution.model());
             }
             var previous = resolution == null ? null : resolution.model();
-            var scan = scan(previous instanceof RuntimeDecisionModel fallback ? fallback : null);
+            var scan = scan(environment, previous instanceof RuntimeDecisionModel fallback ? fallback : null);
             if (scan.model().isEmpty()) {
-                cached = null;
+                slot.cached = null;
                 return Optional.empty();
             }
             var model = scan.model().get();
             var provisional = scan.fallback() && scan.registrationUnavailable();
-            cached = new Resolution(model, provisional,
+            slot.cached = new Resolution(model, provisional,
                     System.nanoTime() + FALLBACK_RECHECK_INTERVAL.toNanos());
             if (model != previous) {
                 logger.info("DecisionModel resolved: {}", model.name());
@@ -154,6 +195,21 @@ public final class DecisionModelResolver {
         }
     }
 
+    /** Drops the resolutions of closed applications and releases their models; the caller holds {@link #LOCK}. */
+    private static void pruneClosed() {
+        var iterator = SLOTS.entrySet().iterator();
+        while (iterator.hasNext()) {
+            var entry = iterator.next();
+            if (entry.getKey().isClosed()) {
+                iterator.remove();
+                var dropped = entry.getValue().cached;
+                if (dropped != null) {
+                    release(dropped.model());
+                }
+            }
+        }
+    }
+
     /**
      * Forget the cached model so the next {@link #resolve()} rescans, and close
      * it when it is {@link AutoCloseable}: the resolver created it, and nothing
@@ -161,16 +217,22 @@ public final class DecisionModelResolver {
      * closed behaviour (a closed registration should fail its questions).
      */
     public static void reset() {
-        Resolution dropped;
+        var dropped = new ArrayList<Resolution>();
         LOCK.lock();
         try {
-            dropped = cached;
-            cached = null;
+            dropped.add(DEFAULT_SLOT.cached);
+            DEFAULT_SLOT.cached = null;
+            for (var slot : SLOTS.values()) {
+                dropped.add(slot.cached);
+            }
+            SLOTS.clear();
         } finally {
             LOCK.unlock();
         }
-        if (dropped != null) {
-            release(dropped.model());
+        for (var resolution : dropped) {
+            if (resolution != null) {
+                release(resolution.model());
+            }
         }
     }
 
@@ -178,12 +240,17 @@ public final class DecisionModelResolver {
     static void expireFallbackRecheck() {
         LOCK.lock();
         try {
-            var resolution = cached;
-            if (resolution != null && resolution.provisional()) {
-                cached = new Resolution(resolution.model(), true, System.nanoTime());
-            }
+            expire(DEFAULT_SLOT);
+            SLOTS.values().forEach(DecisionModelResolver::expire);
         } finally {
             LOCK.unlock();
+        }
+    }
+
+    private static void expire(Slot slot) {
+        var resolution = slot.cached;
+        if (resolution != null && resolution.provisional()) {
+            slot.cached = new Resolution(resolution.model(), true, System.nanoTime());
         }
     }
 
@@ -192,7 +259,7 @@ public final class DecisionModelResolver {
      * when set, is reused instead of a new fallback so a recheck that still ends
      * at the fallback keeps one shared instance.
      */
-    private static Scan scan(RuntimeDecisionModel previousFallback) {
+    private static Scan scan(AiEnvironment environment, RuntimeDecisionModel previousFallback) {
         var registrationUnavailable = false;
         DecisionModel best = null;
         var iterator = ServiceLoader.load(DecisionModel.class).iterator();
@@ -232,7 +299,7 @@ public final class DecisionModelResolver {
             return new Scan(Optional.of(best), false, registrationUnavailable);
         }
         var fallback = previousFallback != null ? previousFallback
-                : new RuntimeDecisionModel(AgentRuntimeResolver.resolve(), fallbackMaxConcurrency(),
+                : new RuntimeDecisionModel(environment.runtimes().resolve(), fallbackMaxConcurrency(),
                         RuntimeDecisionModel.DEFAULT_MIN_OBSERVED_MASS);
         try {
             if (fallback.isAvailable()) {

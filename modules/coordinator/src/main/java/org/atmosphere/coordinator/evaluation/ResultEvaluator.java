@@ -15,6 +15,7 @@
  */
 package org.atmosphere.coordinator.evaluation;
 
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.coordinator.fleet.AgentCall;
 import org.atmosphere.coordinator.fleet.AgentResult;
 
@@ -42,5 +43,16 @@ public interface ResultEvaluator {
     /** Human-readable name of this evaluator. */
     default String name() {
         return getClass().getSimpleName();
+    }
+
+    /**
+     * Attach this evaluator to the application whose coordinator uses it: an
+     * evaluator that asks a model reads that application's settings and
+     * runtimes. The coordinator processor calls it once, right after loading
+     * the evaluator. The default does nothing.
+     *
+     * @param environment the application's environment
+     */
+    default void attach(AiEnvironment environment) {
     }
 }

@@ -26,7 +26,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
-import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.AiPipeline;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.llm.ChatCompletionRequest;
@@ -65,7 +65,26 @@ public class ChannelAiBridge {
                         String systemPrompt, AiPipeline aiPipeline,
                         List<String> allowedChannels) {}
 
+    /**
+     * The application whose LLM settings the raw fallback ({@link #callAiRaw})
+     * uses; {@code null} for a bridge built without one, which reads
+     * {@link AiEnvironment#current()}.
+     */
+    private final AiEnvironment aiEnvironment;
+
     public ChannelAiBridge(List<MessagingChannel> channels, ChannelFilterChain filterChain) {
+        this(channels, filterChain, null);
+    }
+
+    /**
+     * @param channels      the running channels
+     * @param filterChain   the filters every inbound and outbound message passes
+     * @param aiEnvironment the application whose LLM settings the raw fallback
+     *                      uses, {@code null} for {@link AiEnvironment#current()}
+     */
+    public ChannelAiBridge(List<MessagingChannel> channels, ChannelFilterChain filterChain,
+                           AiEnvironment aiEnvironment) {
+        this.aiEnvironment = aiEnvironment;
         this.channelsByType = new ConcurrentHashMap<>();
         this.filterChain = filterChain;
         for (MessagingChannel channel : channels) {
@@ -436,7 +455,7 @@ public class ChannelAiBridge {
      * deployed without atmosphere-agent).
      */
     private String callAiRaw(String userMessage) {
-        var settings = AiConfig.get();
+        var settings = (aiEnvironment != null ? aiEnvironment : AiEnvironment.current()).settings();
         if (settings == null || !settings.hasReachableModel()) {
             return "Hello! I received your message: \"" + userMessage
                     + "\"\n\nI'm in demo mode. Configure atmosphere.ai.api-key to enable real AI responses.";

@@ -130,8 +130,11 @@ public class ChannelsAutoConfiguration {
     @ConditionalOnClass(name = "org.atmosphere.ai.AiConfig")
     public ChannelAiBridge channelAiBridge(List<MessagingChannel> channels,
                                            ChannelFilterChain filterChain,
-                                           ChannelWebhookController webhookController) {
-        var bridge = new ChannelAiBridge(channels, filterChain);
+                                           ChannelWebhookController webhookController,
+                                           ObjectProvider<org.atmosphere.ai.AiEnvironment> aiEnvironment) {
+        // The context's AiEnvironment (the Atmosphere starter registers it):
+        // the raw LLM fallback answers with this application's settings.
+        var bridge = new ChannelAiBridge(channels, filterChain, aiEnvironment.getIfAvailable());
         webhookController.addMessageHandler(bridge::handleMessage);
         return bridge;
     }

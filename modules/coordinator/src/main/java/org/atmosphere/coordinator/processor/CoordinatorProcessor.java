@@ -287,7 +287,7 @@ public class CoordinatorProcessor implements Processor<Object> {
                     GovernancePolicies.installed(framework));
 
             // Step 8: Create AgentFleet and AiEndpointHandler with injectable
-            var evaluators = resolveEvaluators();
+            var evaluators = resolveEvaluators(aiEnvironment);
             var journalResolution = resolveJournal(framework);
             var journal = journalResolution.journal();
             AgentFleet fleet = new DefaultAgentFleet(proxies, evaluators,
@@ -1122,12 +1122,16 @@ public class CoordinatorProcessor implements Processor<Object> {
         }
     }
 
-    private List<ResultEvaluator> resolveEvaluators() {
+    /** The {@link ResultEvaluator}s of one coordinator, each {@linkplain ResultEvaluator#attach attached} to its application. */
+    private List<ResultEvaluator> resolveEvaluators(org.atmosphere.ai.AiEnvironment aiEnvironment) {
         var evaluators = new ArrayList<ResultEvaluator>();
         try {
             ServiceLoader.load(ResultEvaluator.class).forEach(evaluators::add);
         } catch (Exception | ServiceConfigurationError e) {
             logger.debug("No ResultEvaluator providers: {}", e.getMessage());
+        }
+        for (var evaluator : evaluators) {
+            evaluator.attach(aiEnvironment);
         }
         return evaluators;
     }

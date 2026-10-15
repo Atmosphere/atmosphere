@@ -17,7 +17,7 @@ package org.atmosphere.ai.cache;
 
 import org.atmosphere.ai.AiPipeline;
 import org.atmosphere.ai.EmbeddingRuntime;
-import org.atmosphere.ai.EmbeddingRuntimeResolver;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.llm.CacheHint;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.slf4j.Logger;
@@ -102,14 +102,17 @@ public final class ResponseCacheConfig {
     public record Resolved(ResponseCache cache, Duration ttl) { }
 
     /**
-     * Resolve the configured cache, using the classpath-resolved embedding
-     * runtime.
+     * Resolve the configured cache, using the embedding runtime of the
+     * application {@code cfg} belongs to ({@link AiEnvironment#of(AtmosphereConfig)}).
      *
      * @param cfg the framework config (may be {@code null} in tests)
      * @return the cache to install, or empty when disabled or unusable
      */
     public static Optional<Resolved> resolve(AtmosphereConfig cfg) {
-        return resolve(cfg, EmbeddingRuntimeResolver.resolve().orElse(null));
+        if (cfg == null || !cfg.getInitParameter(SEMANTIC_KEY, false)) {
+            return Optional.empty();
+        }
+        return resolve(cfg, AiEnvironment.of(cfg).embeddings().resolve().orElse(null));
     }
 
     /**

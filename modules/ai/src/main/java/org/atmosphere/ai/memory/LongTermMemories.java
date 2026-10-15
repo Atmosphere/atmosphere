@@ -15,7 +15,7 @@
  */
 package org.atmosphere.ai.memory;
 
-import org.atmosphere.ai.AgentRuntimeResolver;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.preset.HarnessPreset;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -135,11 +135,18 @@ public final class LongTermMemories {
         var extended = new ArrayList<>(interceptors);
         extended.add(new LongTermMemoryInterceptor(store,
                 MemoryExtractionStrategy.onSessionClose(),
-                AgentRuntimeResolver.resolve(), 20));
+                runtimeOf(framework), 20));
         preset.updateRuntimeState(HarnessPreset.PRIMITIVE_LONG_TERM_MEMORY,
                 "ACTIVE(" + store.getClass().getName() + ")");
         logger.info("Harness attached long-term memory to {} (store: {})",
                 path, store.getClass().getName());
         return List.copyOf(extended);
+    }
+
+    /** The runtime of the application {@code framework} runs, or of {@link AiEnvironment#current()} without one. */
+    private static org.atmosphere.ai.AgentRuntime runtimeOf(AtmosphereFramework framework) {
+        var environment = framework != null
+                ? AiEnvironment.of(framework.getAtmosphereConfig()) : AiEnvironment.current();
+        return environment.runtimes().resolve();
     }
 }

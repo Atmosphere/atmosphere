@@ -17,8 +17,7 @@ package org.atmosphere.coordinator.evaluation;
 
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AgentRuntime;
-import org.atmosphere.ai.AgentRuntimeResolver;
-import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.InMemoryConversationMemory;
 import org.atmosphere.ai.PromptLoader;
 import org.atmosphere.coordinator.fleet.AgentCall;
@@ -58,6 +57,8 @@ public final class LlmResultEvaluator implements ResultEvaluator {
             + "Score the response 0-10. Respond with JSON: {\"score\": N, \"reason\": \"explanation\"}";
 
     private volatile AgentRuntime runtime;
+    /** The application this evaluator judges for; {@code null} until {@link #attach}. */
+    private volatile AiEnvironment environment;
     private volatile String systemPrompt;
     private final Duration timeout;
     private final String skillName;
@@ -91,6 +92,20 @@ public final class LlmResultEvaluator implements ResultEvaluator {
     }
 
     @Override
+    public void attach(AiEnvironment environment) {
+        this.environment = java.util.Objects.requireNonNull(environment, "environment");
+    }
+
+    /**
+     * The environment whose settings and runtimes this evaluator uses: the one
+     * it was attached to, else {@link AiEnvironment#current()}.
+     */
+    private AiEnvironment environment() {
+        var attached = environment;
+        return attached != null ? attached : AiEnvironment.current();
+    }
+
+    @Override
     public Evaluation evaluate(AgentResult result, AgentCall originalCall) {
         if (!result.success()) {
             return Evaluation.fail(0.0, "Agent call failed: " + result.text());
@@ -103,7 +118,7 @@ public final class LlmResultEvaluator implements ResultEvaluator {
         }
 
         var judgePrompt = buildJudgePrompt(result, originalCall);
-        var settings = AiConfig.get();
+        var settings = environment().settings();
         var model = settings != null ? settings.model() : null;
 
         try {
@@ -130,7 +145,7 @@ public final class LlmResultEvaluator implements ResultEvaluator {
     }
 
     private String callLlm(AgentRuntime rt, String message) {
-        var settings = AiConfig.get();
+        var settings = environment().settings();
         var model = settings != null ? settings.model() : null;
         var context = new AgentExecutionContext(
                 message, systemPrompt(), model, skillName,
@@ -222,16 +237,13 @@ public final class LlmResultEvaluator implements ResultEvaluator {
             return runtime;
         }
         try {
-            var all = AgentRuntimeResolver.resolveAll();
+            var aiEnvironment = environment();
+            var all = aiEnvironment.runtimes().resolveAll();
             if (!all.isEmpty()) {
                 var rt = all.getFirst();
-                var settings = AiConfig.get();
-                if (settings == null) {
-                    settings = AiConfig.fromEnvironment();
-                }
-                if (settings != null) {
-                    rt.configure(settings);
-                }
+                // Settings built here are kept by the application, never by
+                // another one (settingsOrEnvironment).
+                rt.configure(aiEnvironment.settingsOrEnvironment());
                 runtime = rt;
                 logger.info("LlmResultEvaluator using runtime: {}", rt.name());
                 return rt;
