@@ -97,6 +97,40 @@ class FlowControllerTest {
     }
 
     /**
+     * A coordinator's single {@code fleet.agent(..).call()} journals its
+     * dispatch with no CoordinationStarted, before the START of its later
+     * {@code parallel()} under the same coordination id (the startup-team
+     * sample's research step). The edge belongs to that coordinator, not to
+     * "unknown".
+     */
+    @Test
+    void aDispatchJournaledBeforeItsCoordinationStartIsAttributedToTheCoordinator() {
+        var now = Instant.now();
+        var journal = withEvents(List.of(
+                new CoordinationEvent.AgentDispatched("ceo", "research-agent", "web_search",
+                        Map.of(), now),
+                new CoordinationEvent.AgentCompleted("ceo", "research-agent", "web_search",
+                        "ok", Duration.ofMillis(24), now.plusMillis(24)),
+                new CoordinationEvent.CoordinationStarted("ceo", "ceo", now.plusMillis(30)),
+                new CoordinationEvent.AgentDispatched("ceo", "strategy-agent", "analyze_strategy",
+                        Map.of(), now.plusMillis(31))));
+        var graph = new FlowController(journal).renderFlow(0);
+
+        @SuppressWarnings("unchecked")
+        var edges = (List<Map<String, Object>>) graph.get("edges");
+        assertTrue(edges.stream().noneMatch(e -> "unknown".equals(e.get("from"))),
+                "no edge may fall back to unknown: " + edges);
+        var research = edges.stream().filter(e -> "research-agent".equals(e.get("to"))).findFirst()
+                .orElseThrow();
+        assertEquals("ceo", research.get("from"));
+        assertEquals(1, research.get("successes"));
+        assertEquals(24L, research.get("averageDurationMs"));
+        @SuppressWarnings("unchecked")
+        var nodes = (List<Map<String, Object>>) graph.get("nodes");
+        assertTrue(nodes.stream().noneMatch(n -> "unknown".equals(n.get("id"))));
+    }
+
+    /**
      * Regression for the P2 "flow graph attribution is wrong for
      * interleaved/multi-coordination streams" finding. Two concurrent
      * coordinator runs interleave their events in the journal; the graph

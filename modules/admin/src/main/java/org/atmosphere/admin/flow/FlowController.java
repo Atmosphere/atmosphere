@@ -100,19 +100,25 @@ public final class FlowController {
         // calls). Every event carries coordinationId; we look up the
         // coordinator per-event and preserve attribution even when events
         // arrive out of order. Fallback "unknown" only kicks in for
-        // completed/failed events whose CoordinationStarted is outside
-        // the queried window.
+        // events whose CoordinationStarted is outside the queried window.
+        // The map is filled before any edge is built: a coordinator's
+        // single fleet.agent(..).call() journals its dispatch with no
+        // CoordinationStarted of its own, often before the START of a
+        // later parallel() under the same coordinationId.
         Map<String, String> coordinatorByRun = new java.util.HashMap<>();
+        for (var e : events) {
+            if (e instanceof CoordinationEvent.CoordinationStarted started) {
+                coordinatorByRun.putIfAbsent(started.coordinationId(), started.coordinatorName());
+            }
+        }
 
         for (var e : events) {
             if (e == null) {
                 continue;
             }
             switch (e) {
-                case CoordinationEvent.CoordinationStarted started -> {
-                    coordinatorByRun.put(started.coordinationId(), started.coordinatorName());
-                    nodeSet.add(started.coordinatorName());
-                }
+                case CoordinationEvent.CoordinationStarted started ->
+                        nodeSet.add(started.coordinatorName());
                 case CoordinationEvent.AgentDispatched dispatched -> {
                     nodeSet.add(dispatched.agentName());
                     var from = coordinatorByRun.getOrDefault(
