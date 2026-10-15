@@ -362,8 +362,26 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
         nativeClient = createNativeClient(settings);
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The calling thread is bound to this runtime's {@link #environment()}
+     * for the whole dispatch, so code that runs on it and reads the static API
+     * (an installed {@code LlmClient}, an {@code @AiTool} in the tool loop)
+     * sees this runtime's application, as it does on the worker thread of
+     * {@link #executeWithHandle}; the previous binding is restored on return.</p>
+     */
     @Override
     public void execute(AgentExecutionContext context, StreamingSession session) {
+        var binding = AiEnvironment.bind(environment());
+        try {
+            dispatch(context, session);
+        } finally {
+            binding.close();
+        }
+    }
+
+    private void dispatch(AgentExecutionContext context, StreamingSession session) {
         var client = resolveClient(context);
         session.progress("Connecting to " + name() + "...");
         // Install the cross-runtime ToolLoopGuard before fireStart so the guard
@@ -389,9 +407,26 @@ public abstract class AbstractAgentRuntime<C> implements AgentRuntime {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The calling thread is bound to this runtime's {@link #environment()}
+     * while the dispatch starts (a {@link #doExecuteWithHandle} that runs
+     * {@link #doExecute} inline runs bound), as in {@link #execute}; the
+     * previous binding is restored on return.</p>
+     */
     @Override
     public ExecutionHandle executeWithHandle(
             AgentExecutionContext context, StreamingSession session) {
+        var binding = AiEnvironment.bind(environment());
+        try {
+            return dispatchWithHandle(context, session);
+        } finally {
+            binding.close();
+        }
+    }
+
+    private ExecutionHandle dispatchWithHandle(AgentExecutionContext context, StreamingSession session) {
         var client = resolveClient(context);
         session.progress("Connecting to " + name() + "...");
         // Same ToolLoopGuard install as #execute — keeps the cap behavior

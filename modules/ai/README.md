@@ -689,9 +689,10 @@ one drops its runtime instances; the other applications are untouched. Framework
 
 The static API (`AiConfig.get()`, `AiConfig.knob(...)`, `AiConfig.configure(...)`,
 `AgentRuntimeResolver.resolve()`, `EmbeddingRuntimeResolver.resolve()`, ...) reads and writes `AiEnvironment.current()`: the application
-bound to the calling thread — a `@Prompt` method's thread, the worker thread the built-in runtime
-streams on and the one `AbstractAgentRuntime.streamThroughGatewayWithHandle` starts are bound to
-their application — else the only application running, else the
+bound to the calling thread — a `@Prompt` method's thread, the thread an `AbstractAgentRuntime`'s
+`execute` or `executeWithHandle` is called on (for the dispatch), the worker thread the built-in
+runtime streams on and the one `AbstractAgentRuntime.streamThroughGatewayWithHandle` starts are
+bound to their application — else the only application running, else the
 process default (`AiEnvironment.processDefault()`). A single application therefore behaves as it did:
 `AiConfig.configure(...)` in `main()` before the server starts sets the process default, and an
 application with no settings of its own uses them. When several applications run and the thread is

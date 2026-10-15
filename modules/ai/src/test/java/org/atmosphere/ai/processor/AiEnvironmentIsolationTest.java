@@ -24,6 +24,8 @@ import org.atmosphere.ai.CollectingSession;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.ai.llm.ChatCompletionRequest;
+import org.atmosphere.ai.llm.LlmClient;
 import org.atmosphere.ai.resume.RunRegistryHolder;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -56,6 +58,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -254,6 +257,43 @@ class AiEnvironmentIsolationTest {
             assertEquals("model-a", wire(message).get("model").asString(), message);
             assertEquals(0.2, wire(message).get("temperature").asDouble(), 1e-9, message);
         }
+    }
+
+    /**
+     * Code that runs on the dispatch thread and reads the static API (an
+     * installed {@link LlmClient}, an {@code @AiTool} in the tool loop) sees
+     * the runtime's application in {@code execute}, {@code executeWithHandle}
+     * and {@code generate} alike (Correctness Invariant 7), from a thread
+     * bound to no application while two are running.
+     */
+    @Test
+    void everyDispatchModeBindsTheRuntimesApplicationToTheThreadItDispatchesOn() {
+        var a = app("0.2", "model-a");
+        app("0.9", "model-b");
+        var seen = new ConcurrentHashMap<String, AiEnvironment>();
+        a.environment().installClient(new LlmClient() {
+            @Override
+            public void streamChatCompletion(ChatCompletionRequest request, StreamingSession session) {
+                var messages = request.messages();
+                seen.put(messages.get(messages.size() - 1).content(), AiEnvironment.current());
+                session.complete("ok");
+            }
+        });
+        var runtime = a.environment().runtimes().resolve();
+        assertNull(AiEnvironment.bound(), "the test thread is bound to no application");
+
+        var sync = new CollectingSession();
+        runtime.execute(context("bound-execute"), sync);
+        assertTrue(sync.await(Duration.ofSeconds(10)), "execute settles");
+        var withHandle = new CollectingSession();
+        runtime.executeWithHandle(context("bound-handle"), withHandle).whenDone().join();
+        assertTrue(withHandle.await(Duration.ofSeconds(10)), "executeWithHandle settles");
+        runtime.generate(context("bound-generate"), Duration.ofSeconds(10));
+
+        for (var message : List.of("bound-execute", "bound-handle", "bound-generate")) {
+            assertSame(a.environment(), seen.get(message), message + " sees its runtime's application");
+        }
+        assertNull(AiEnvironment.bound(), "the dispatch restored the caller's binding");
     }
 
     private static AgentExecutionContext context(String message) {
