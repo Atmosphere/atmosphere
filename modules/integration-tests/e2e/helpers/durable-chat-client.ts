@@ -30,9 +30,11 @@ export interface DurableChatConnection {
 
 /**
  * Open a WebSocket to `/atmosphere/chat` and resolve once the server delivers
- * broadcasts to it. The readiness message is sent again every 500 ms until its
- * echo arrives, so a frame the server reads before the connection joins the
- * broadcaster cannot leave the check waiting.
+ * broadcasts to it. The readiness message is sent once: the server registers a
+ * connection's message handlers only after its open has run, so the first frame
+ * is read once the connection is a member, and its echo cannot be missed. A
+ * readiness message that never comes back is a server fault, reported at the
+ * deadline instead of being sent again.
  */
 export function connectDurableChat(
   baseUrl: string,
@@ -50,10 +52,8 @@ export function connectDurableChat(
     const headers: Record<string, string> = {};
     const readyTag = `${READY_PREFIX}${randomUUID()}`;
     let ready = false;
-    let resend: ReturnType<typeof setInterval> | undefined;
 
     const fail = (error: Error) => {
-      clearInterval(resend);
       clearTimeout(deadline);
       if (!ready) {
         ws.terminate();
@@ -78,7 +78,6 @@ export function connectDurableChat(
       if (text.includes(READY_PREFIX)) {
         if (!ready && text.includes(readyTag)) {
           ready = true;
-          clearInterval(resend);
           clearTimeout(deadline);
           resolve({ ws, messages, headers, close: () => ws.close() });
         }
@@ -87,11 +86,7 @@ export function connectDurableChat(
       messages.push(text);
     });
 
-    ws.on('open', () => {
-      const sendReady = () => ws.send(JSON.stringify({ author: 'e2e-ready', message: readyTag }));
-      sendReady();
-      resend = setInterval(sendReady, 500);
-    });
+    ws.on('open', () => ws.send(JSON.stringify({ author: 'e2e-ready', message: readyTag })));
     ws.on('error', (error) => fail(error));
     ws.on('close', (code) => {
       if (!ready) {
