@@ -34,6 +34,8 @@ The `@AiEndpoint` annotation replaces the boilerplate of `@ManagedService` + `@R
 
 The `AgentRuntime` interface is the AI-layer equivalent of `AsyncSupport`. Implementations are discovered via `ServiceLoader`, filtered by `isAvailable()`, and the highest `priority()` wins.
 
+To run a runtime other than the highest-priority one, name it with `atmosphere.ai.runtime` (system property, Spring/Quarkus application config) or the `LLM_RUNTIME` environment variable, matched against `AgentRuntime.name()` ignoring case: `built-in`, `anthropic`, `cohere`, `crewai`, `spring-ai`, `spring-ai-alibaba`, `langchain4j`, `google-adk`, `embabel`, `koog`, `semantic-kernel`, `agentscope`, `demo`. It selects among the runtimes on the classpath — the runtime's module must still be a dependency — and that runtime is then the only one `AgentRuntimeResolver` returns, so a `fallbackStrategy` has no other runtime to route to. A name that matches no available runtime makes `AgentRuntimeResolver` throw an `IllegalStateException` naming the requested and the available runtimes (both Spring Boot starters and the Quarkus extension resolve it at startup, so the application fails to start; the Console and admin runtime views report the selected runtime); it never falls back to another runtime. Unset, the priority order applies.
+
 **Mental model.** `atmosphere-ai` is a normalization layer, not a replacement for the frameworks it adapts. It wraps each native runtime (Spring AI, LangChain4j, ADK, Koog, Embabel, Semantic Kernel, AgentScope, …) in one execution contract so Atmosphere can apply transport, governance, memory, replay, approval, and observability consistently across all of them. When a runtime has a native feature, the adapter uses it; when it does not, Atmosphere provides a portable floor where safe (see [Native vs portable floor](#native-vs-portable-floor) below). The capability flags in the table are runtime truth — each is pinned by a contract test — not aspiration.
 
 | Adapter JAR | `AgentRuntime` implementation | Priority | Capabilities |
@@ -599,6 +601,29 @@ export LLM_MODE=local
 export LLM_MODEL=llama3.2
 ```
 
+### Knob precedence
+
+The `atmosphere.ai.*` knobs `AiConfig` reads — `temperature`, `max-tokens`, `top-p`, `stop`,
+`embedding-model`, `prompt-cache-key`, `logprobs`, `native-structured-output`, `planning`,
+`filesystem`, `runtime`; the authoritative list is `AiConfig.knobProperties()` — are resolved in this
+order, first non-blank value wins:
+
+1. the JVM system property (`-Datmosphere.ai.temperature=0.2`);
+2. the knob's environment variable (`LLM_TEMPERATURE=0.2`);
+3. the host application's configuration: `application.yml` / `application.properties` with either
+   Spring Boot starter, `application.properties` with the Quarkus extension (same key, no
+   `quarkus.` prefix).
+
+This is the order Spring Boot and MicroProfile Config give their own sources. The hosts install their
+configuration through `AiConfig.installHostConfig(...)`, which keeps it in `AiConfig` and never writes
+it to the JVM system properties, and they uninstall it when they stop. A plain servlet deployment has
+no host configuration: it uses the system property or the environment variable.
+
+The LLM mode, model, API key and base URL are not knobs: the Spring Boot starters read
+`atmosphere.ai.mode` / `model` / `api-key` / `base-url` first and fall back to `LLM_MODE` /
+`LLM_MODEL` / `LLM_API_KEY` / `LLM_BASE_URL`; elsewhere `AiConfig.fromEnvironment()` reads the
+environment variables.
+
 ### Prompt routing over HTTP transports
 
 An `@AiEndpoint` prompt runs only on the one connection it names, never on every
@@ -773,14 +798,16 @@ framework level instead of hardcoding per-adapter values. All four are
 **opt-in**: when a knob is unset the request body is byte-identical to the
 pre-configuration behavior.
 
-| Sysprop | Env var | Type | Notes |
-|---------|---------|------|-------|
+| Property | Env var | Type | Notes |
+|----------|---------|------|-------|
 | `atmosphere.ai.temperature` | `LLM_TEMPERATURE` | double | clamped to `[0.0, 2.0]` |
 | `atmosphere.ai.max-tokens` | `LLM_MAX_TOKENS` | int | non-positive values ignored |
 | `atmosphere.ai.top-p` | `LLM_TOP_P` | double | clamped to `[0.0, 1.0]` |
 | `atmosphere.ai.stop` | `LLM_STOP` | comma-separated | blank entries dropped |
 
-The sysprop wins over the env var for each knob. **Malformed numeric values are
+Each property is read as a JVM system property, then the env var, then the
+host application's configuration (see [Knob precedence](#knob-precedence)).
+**Malformed numeric values are
 logged and ignored** (the knob stays unset) — they never throw. Values are
 sanitized at the boundary: out-of-range temperature/top-p are clamped and a
 non-positive `max-tokens` is dropped rather than corrupting the request.

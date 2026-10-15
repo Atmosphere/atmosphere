@@ -72,10 +72,12 @@ public final class VertxAtmosphereContainer {
         var config = new RouteServletConfig(initParams);
         config.getServletContext().setAttribute(DefaultAnnotationProcessor.ANNOTATION_ATTRIBUTE,
                 AtmosphereBootstrap.resolveAnnotationMap(annotationClassNames));
-        // Seed the cost guardrail before init freezes each @AiEndpoint's chain,
-        // exactly as QuarkusAtmosphereServlet does.
+        // Seed the AI knobs and the cost guardrail before init freezes each
+        // @AiEndpoint's runtime and chain, exactly as QuarkusAtmosphereServlet does.
+        AtmosphereBootstrap.bridgeAiKnobs(framework);
         AtmosphereBootstrap.bridgeAiCostGuardrail(framework);
         framework.init(config);
+        AtmosphereBootstrap.verifyAiRuntimeSelection();
 
         ThreadFactory threads = Thread.ofVirtual().name("atmosphere-vertx-", 0).factory();
         var executor = Executors.newThreadPerTaskExecutor(threads);

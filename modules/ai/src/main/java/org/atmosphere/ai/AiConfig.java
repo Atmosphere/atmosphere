@@ -31,6 +31,12 @@ import java.util.concurrent.locks.ReentrantLock;
  * environment variables, or programmatically. Environment variables take precedence
  * when using {@link #fromEnvironment()}.</p>
  *
+ * <p>The {@code atmosphere.ai.*} knobs ({@link #knobs()}: generation parameters,
+ * prompt-cache-key, logprobs, native structured output, planning, filesystem,
+ * embedding model, runtime) are read from the JVM system property, then the
+ * {@code LLM_*} environment variable, then the host configuration a Spring Boot
+ * starter or the Quarkus extension installed with {@link #installHostConfig}.</p>
+ *
  * <h3>Atmosphere init-params</h3>
  * <pre>
  * {@literal @}ManagedService(path = "/ai-chat", atmosphereConfig = {
@@ -211,6 +217,19 @@ public final class AiConfig {
     public static final String STOP_PROPERTY = "atmosphere.ai.stop";
     /** Env var for the comma-separated stop sequences. See {@link #STOP_PROPERTY}. */
     public static final String STOP_ENV = "LLM_STOP";
+
+    /**
+     * Names the {@link AgentRuntime} to run, matched against
+     * {@link AgentRuntime#name()} ignoring case and surrounding blanks (for
+     * example {@code built-in}, {@code spring-ai}, {@code langchain4j}). It
+     * selects among the runtimes on the classpath: the runtime's module must
+     * still be a dependency. When it names no available runtime,
+     * {@link AgentRuntimeResolver} fails instead of running another one. Unset,
+     * the highest-priority available runtime runs. Env: {@link #RUNTIME_ENV}.
+     */
+    public static final String RUNTIME_PROPERTY = "atmosphere.ai.runtime";
+    /** Env var naming the {@link AgentRuntime} to run. See {@link #RUNTIME_PROPERTY}. */
+    public static final String RUNTIME_ENV = "LLM_RUNTIME";
 
     // -- Well-known endpoints --
 
@@ -544,7 +563,8 @@ public final class AiConfig {
     /**
      * Resolve the tri-state {@code prompt_cache_key} control from the
      * {@code atmosphere.ai.prompt-cache-key} system property, falling back to
-     * the {@code LLM_PROMPT_CACHE_KEY} environment variable, then to
+     * the {@code LLM_PROMPT_CACHE_KEY} environment variable and the host
+     * configuration (see {@link #knob(String)}), then to
      * {@link PromptCacheKeyMode#AUTO}. Parsing is lenient and never throws (see
      * {@link PromptCacheKeyMode#parse(String)}); the sysprop wins over the env
      * var, mirroring the precedence the per-runtime knobs use elsewhere.
@@ -552,17 +572,14 @@ public final class AiConfig {
      * @return the resolved mode, never {@code null}
      */
     public static PromptCacheKeyMode resolvePromptCacheKeyMode() {
-        var raw = System.getProperty(PROMPT_CACHE_KEY_PROPERTY);
-        if (raw == null || raw.isBlank()) {
-            raw = System.getenv(PROMPT_CACHE_KEY_ENV);
-        }
-        return PromptCacheKeyMode.parse(raw);
+        return PromptCacheKeyMode.parse(rawKnob(PROMPT_CACHE_KEY_PROPERTY, PROMPT_CACHE_KEY_ENV));
     }
 
     /**
      * Resolve the tri-state {@code logprobs} control from the
      * {@code atmosphere.ai.logprobs} system property, falling back to the
-     * {@code LLM_LOGPROBS} environment variable, then to
+     * {@code LLM_LOGPROBS} environment variable and the host
+     * configuration (see {@link #knob(String)}), then to
      * {@link org.atmosphere.ai.llm.LogprobsMode#AUTO}. Parsing is lenient and
      * never throws (see {@link org.atmosphere.ai.llm.LogprobsMode#parse(String)});
      * the sysprop wins over the env var, mirroring
@@ -571,11 +588,7 @@ public final class AiConfig {
      * @return the resolved mode, never {@code null}
      */
     public static org.atmosphere.ai.llm.LogprobsMode resolveLogprobsMode() {
-        var raw = System.getProperty(LOGPROBS_PROPERTY);
-        if (raw == null || raw.isBlank()) {
-            raw = System.getenv(LOGPROBS_ENV);
-        }
-        return org.atmosphere.ai.llm.LogprobsMode.parse(raw);
+        return org.atmosphere.ai.llm.LogprobsMode.parse(rawKnob(LOGPROBS_PROPERTY, LOGPROBS_ENV));
     }
 
     /**
@@ -589,17 +602,14 @@ public final class AiConfig {
      * @return the resolved mode, never {@code null}
      */
     public static NativeStructuredOutputMode resolveNativeStructuredOutputMode() {
-        var raw = System.getProperty(NATIVE_STRUCTURED_OUTPUT_PROPERTY);
-        if (raw == null || raw.isBlank()) {
-            raw = System.getenv(NATIVE_STRUCTURED_OUTPUT_ENV);
-        }
-        return NativeStructuredOutputMode.parse(raw);
+        return NativeStructuredOutputMode.parse(rawKnob(NATIVE_STRUCTURED_OUTPUT_PROPERTY, NATIVE_STRUCTURED_OUTPUT_ENV));
     }
 
     /**
      * Resolve the tri-state planning control from the
      * {@code atmosphere.ai.planning} system property, falling back to the
-     * {@code LLM_PLANNING} environment variable, then to
+     * {@code LLM_PLANNING} environment variable and the host
+     * configuration (see {@link #knob(String)}), then to
      * {@link org.atmosphere.ai.plan.PlanningMode#AUTO}. Parsing is lenient and
      * never throws; the sysprop wins over the env var, mirroring
      * {@link #resolvePromptCacheKeyMode()}.
@@ -607,17 +617,14 @@ public final class AiConfig {
      * @return the resolved mode, never {@code null}
      */
     public static org.atmosphere.ai.plan.PlanningMode resolvePlanningMode() {
-        var raw = System.getProperty(PLANNING_PROPERTY);
-        if (raw == null || raw.isBlank()) {
-            raw = System.getenv(PLANNING_ENV);
-        }
-        return org.atmosphere.ai.plan.PlanningMode.parse(raw);
+        return org.atmosphere.ai.plan.PlanningMode.parse(rawKnob(PLANNING_PROPERTY, PLANNING_ENV));
     }
 
     /**
      * Resolve the tri-state filesystem control from the
      * {@code atmosphere.ai.filesystem} system property, falling back to the
-     * {@code LLM_FILESYSTEM} environment variable, then to
+     * {@code LLM_FILESYSTEM} environment variable and the host
+     * configuration (see {@link #knob(String)}), then to
      * {@link org.atmosphere.ai.fs.FilesystemMode#AUTO}. Parsing is lenient and
      * never throws; the sysprop wins over the env var, mirroring
      * {@link #resolvePromptCacheKeyMode()}.
@@ -625,17 +632,14 @@ public final class AiConfig {
      * @return the resolved mode, never {@code null}
      */
     public static org.atmosphere.ai.fs.FilesystemMode resolveFilesystemMode() {
-        var raw = System.getProperty(FILESYSTEM_PROPERTY);
-        if (raw == null || raw.isBlank()) {
-            raw = System.getenv(FILESYSTEM_ENV);
-        }
-        return org.atmosphere.ai.fs.FilesystemMode.parse(raw);
+        return org.atmosphere.ai.fs.FilesystemMode.parse(rawKnob(FILESYSTEM_PROPERTY, FILESYSTEM_ENV));
     }
 
     /**
      * Resolve the opt-in {@link GenerationParams} (temperature, max-tokens,
      * top-p, stop) from system properties, falling back to the matching
-     * environment variables. The sysprop wins over the env var for each knob,
+     * environment variables and then the host configuration (see
+     * {@link #knob(String)}). The sysprop wins over the env var for each knob,
      * mirroring {@link #resolvePromptCacheKeyMode()}. Malformed numeric values
      * are logged and ignored (the component stays unset) — never thrown
      * (Correctness Invariant #4: catch parse errors at the boundary). When no
@@ -655,7 +659,8 @@ public final class AiConfig {
     /**
      * The embedding model named by the {@code atmosphere.ai.embedding-model}
      * system property, falling back to the {@code LLM_EMBEDDING_MODEL}
-     * environment variable; the sysprop wins, mirroring
+     * environment variable and then the host configuration (see
+     * {@link #knob(String)}); the sysprop wins, mirroring
      * {@link #resolvePromptCacheKeyMode()}. Read on every call, so a value set
      * after startup is seen by the {@code ServiceLoader}-created
      * {@code BuiltInEmbeddingRuntime}.
@@ -666,10 +671,174 @@ public final class AiConfig {
         return java.util.Optional.ofNullable(rawKnob(EMBEDDING_MODEL_PROPERTY, EMBEDDING_MODEL_ENV));
     }
 
+    // -- Knobs and host configuration --
+
+    /**
+     * One {@code atmosphere.ai.*} knob: its property name and the environment
+     * variable that also sets it.
+     *
+     * @param property the property name, e.g. {@code atmosphere.ai.temperature}
+     * @param env      the environment variable, e.g. {@code LLM_TEMPERATURE}
+     */
+    public record Knob(String property, String env) {
+    }
+
+    /**
+     * Every knob this class reads. Hosts bridge their configuration by walking
+     * this list, so a knob missing from it cannot be set from a host's
+     * configuration: add each new knob here.
+     */
+    private static final java.util.List<Knob> KNOBS = java.util.List.of(
+            new Knob(PROMPT_CACHE_KEY_PROPERTY, PROMPT_CACHE_KEY_ENV),
+            new Knob(LOGPROBS_PROPERTY, LOGPROBS_ENV),
+            new Knob(NATIVE_STRUCTURED_OUTPUT_PROPERTY, NATIVE_STRUCTURED_OUTPUT_ENV),
+            new Knob(PLANNING_PROPERTY, PLANNING_ENV),
+            new Knob(FILESYSTEM_PROPERTY, FILESYSTEM_ENV),
+            new Knob(TEMPERATURE_PROPERTY, TEMPERATURE_ENV),
+            new Knob(MAX_TOKENS_PROPERTY, MAX_TOKENS_ENV),
+            new Knob(TOP_P_PROPERTY, TOP_P_ENV),
+            new Knob(EMBEDDING_MODEL_PROPERTY, EMBEDDING_MODEL_ENV),
+            new Knob(STOP_PROPERTY, STOP_ENV),
+            new Knob(RUNTIME_PROPERTY, RUNTIME_ENV));
+
+    private static final java.util.Map<String, Knob> KNOBS_BY_PROPERTY = KNOBS.stream()
+            .collect(java.util.stream.Collectors.toUnmodifiableMap(Knob::property, k -> k));
+
+    /** The host configuration installed by {@link #installHostConfig}, or {@code null}. */
+    private static final java.util.concurrent.atomic.AtomicReference<HostConfig> HOST_CONFIG =
+            new java.util.concurrent.atomic.AtomicReference<>();
+
+    /**
+     * The authoritative list of the knobs this class reads, in a stable order.
+     *
+     * @return every knob, never empty
+     */
+    public static java.util.List<Knob> knobs() {
+        return KNOBS;
+    }
+
+    /**
+     * The property names of {@link #knobs()}: the keys a host reads from its
+     * own configuration and passes to {@link #installHostConfig}.
+     *
+     * @return the knob property names
+     */
+    public static java.util.List<String> knobProperties() {
+        return KNOBS.stream().map(Knob::property).toList();
+    }
+
+    /**
+     * The value of one knob, trimmed. Resolution order, first non-blank wins:
+     * <ol>
+     *   <li>the JVM system property named {@code property} ({@code -D});</li>
+     *   <li>the knob's environment variable ({@code LLM_*});</li>
+     *   <li>the host configuration installed by {@link #installHostConfig}
+     *       (Spring {@code application.yml}/{@code application.properties},
+     *       Quarkus {@code application.properties}).</li>
+     * </ol>
+     * This is the order Spring Boot and MicroProfile Config give their own
+     * sources: system properties, then environment, then the application's
+     * configuration files.
+     *
+     * @param property a knob property name, one of {@link #knobProperties()}
+     * @return the value, or empty when no source sets it
+     * @throws IllegalArgumentException if {@code property} is not a knob
+     */
+    public static java.util.Optional<String> knob(String property) {
+        var knob = KNOBS_BY_PROPERTY.get(property);
+        if (knob == null) {
+            throw new IllegalArgumentException("Not an AiConfig knob: " + property
+                    + " (knobs: " + knobProperties() + ")");
+        }
+        return java.util.Optional.ofNullable(rawKnob(knob.property(), knob.env()));
+    }
+
+    /**
+     * Install the host's configuration as the lowest-precedence source of the
+     * knobs (see {@link #knob(String)}). {@code lookup} is called once per knob
+     * property, now, and the non-blank values are kept: later changes to the
+     * host's configuration are not seen. Nothing is written to the JVM system
+     * properties, so two applications in one JVM, or two tests, do not see each
+     * other's values through them.
+     *
+     * <p>Install before {@link #configure}: the generation parameters and the
+     * prompt-cache-key mode are read when the settings are built. The cached
+     * {@link AgentRuntimeResolver} resolution is dropped, so the
+     * {@link #RUNTIME_PROPERTY} of the new configuration is honoured.</p>
+     *
+     * <p>A later install replaces this one. The returned handle removes the
+     * installation it belongs to, and only that one, so the host that installed
+     * it closes it when it stops.</p>
+     *
+     * @param lookup the host's configuration, by property name; returns
+     *               {@code null} for an unset property
+     * @return the handle that uninstalls this host configuration
+     */
+    public static HostConfig installHostConfig(java.util.function.Function<String, String> lookup) {
+        java.util.Objects.requireNonNull(lookup, "lookup");
+        var values = new java.util.LinkedHashMap<String, String>();
+        for (var knob : KNOBS) {
+            var value = lookup.apply(knob.property());
+            if (value != null && !value.isBlank()) {
+                values.put(knob.property(), value.trim());
+            }
+        }
+        var installed = new HostConfig(java.util.Map.copyOf(values));
+        HOST_CONFIG.set(installed);
+        AgentRuntimeResolver.reset();
+        if (!values.isEmpty()) {
+            logger.info("AI knobs from the host configuration: {}", values.keySet());
+        }
+        return installed;
+    }
+
+    /**
+     * Remove any installed host configuration. Test hook mirroring
+     * {@link AgentRuntimeResolver#reset()}.
+     */
+    public static void resetHostConfig() {
+        HOST_CONFIG.set(null);
+        AgentRuntimeResolver.reset();
+    }
+
+    /**
+     * Knob values a host installed with {@link #installHostConfig}. Closing it
+     * uninstalls it if it is still the installed one; closing it again does
+     * nothing.
+     */
+    public static final class HostConfig implements AutoCloseable {
+
+        private final java.util.Map<String, String> values;
+
+        private HostConfig(java.util.Map<String, String> values) {
+            this.values = values;
+        }
+
+        /**
+         * The knob values this installation carries.
+         *
+         * @return the non-blank values, by knob property name
+         */
+        public java.util.Map<String, String> values() {
+            return values;
+        }
+
+        @Override
+        public void close() {
+            if (HOST_CONFIG.compareAndSet(this, null)) {
+                AgentRuntimeResolver.reset();
+            }
+        }
+    }
+
     private static String rawKnob(String property, String env) {
         var raw = System.getProperty(property);
         if (raw == null || raw.isBlank()) {
             raw = System.getenv(env);
+        }
+        if (raw == null || raw.isBlank()) {
+            var host = HOST_CONFIG.get();
+            raw = host != null ? host.values.get(property) : null;
         }
         return (raw != null && !raw.isBlank()) ? raw.trim() : null;
     }

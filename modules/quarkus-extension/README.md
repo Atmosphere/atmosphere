@@ -71,6 +71,20 @@ All properties are under the `quarkus.atmosphere.*` prefix:
 | `quarkus.atmosphere.vertx.max-body-size` | `10M` | `container=vertx`: largest request body accepted; larger bodies get `413` |
 | `quarkus.atmosphere.vertx.drain-timeout` | `30s` | `container=vertx`: how long a write waits for a full HTTP/WebSocket write queue to drain before the slow client is disconnected |
 
+### AI knobs (`atmosphere.ai.*`)
+
+With `atmosphere-ai` on the classpath, the knobs `AiConfig` reads — `atmosphere.ai.temperature`,
+`max-tokens`, `top-p`, `stop`, `embedding-model`, `prompt-cache-key`, `logprobs`,
+`native-structured-output`, `planning`, `filesystem` and `runtime` (the list is
+`AiConfig.knobProperties()`) — can be set in `application.properties` under those names, without a
+`quarkus.` prefix. The extension installs them before the framework initializes, in both container
+modes. A `-D` system property or the knob's `LLM_*` environment variable (e.g. `LLM_TEMPERATURE`)
+wins over `application.properties`. `atmosphere.ai.runtime=<name>` selects the `AgentRuntime` among
+the runtime modules on the classpath and fails startup when none has that name (see
+[`modules/ai/README.md`](../ai/README.md#agentruntime-spi)). The LLM mode, model, key and base URL are
+not bridged on Quarkus: they come from the `LLM_MODE` / `LLM_MODEL` / `LLM_API_KEY` /
+`LLM_BASE_URL` environment variables.
+
 ## Container modes
 
 `quarkus.atmosphere.container` selects how the Atmosphere mapping (`servlet-path`) is served:

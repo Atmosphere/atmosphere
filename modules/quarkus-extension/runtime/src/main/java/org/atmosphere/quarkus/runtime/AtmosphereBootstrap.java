@@ -100,6 +100,45 @@ public final class AtmosphereBootstrap {
     }
 
     /**
+     * Installs the {@code atmosphere.ai.*} knobs of the Quarkus configuration
+     * as the {@code AiConfig} host configuration before the framework
+     * initializes, so the runtime resolved while the {@code @AiEndpoint} and
+     * {@code @Agent} classes register is the one {@code atmosphere.ai.runtime}
+     * names. A no-op when {@code atmosphere-ai} (an optional dependency) is
+     * absent; no type from it is linked before that check.
+     *
+     * @param framework the framework, created but not yet initialized
+     */
+    public static void bridgeAiKnobs(AtmosphereFramework framework) {
+        if (hasAiConfig()) {
+            AiKnobBridge.install(framework);
+        }
+    }
+
+    /**
+     * Fails startup when {@code atmosphere.ai.runtime} names no available
+     * {@code AgentRuntime}. Called once the framework initialized. A no-op when
+     * {@code atmosphere-ai} is absent or the property is unset.
+     *
+     * @throws IllegalStateException when the name matches no available runtime
+     */
+    public static void verifyAiRuntimeSelection() {
+        if (hasAiConfig()) {
+            AiKnobBridge.verifyRuntimeSelection();
+        }
+    }
+
+    private static boolean hasAiConfig() {
+        try {
+            Class.forName("org.atmosphere.ai.AiConfig", false,
+                    AtmosphereBootstrap.class.getClassLoader());
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false; // atmosphere-ai absent — no knobs to bridge
+        }
+    }
+
+    /**
      * Kept as a separate method so {@code AtmosphereCostAccountantProducer}
      * (whose API surface references optional {@code atmosphere-ai} types) is
      * only linked after the classpath check in

@@ -78,9 +78,82 @@ public class AtmosphereAiAutoConfiguration {
     static final String COMPACTION_PARAM = "org.atmosphere.ai.compaction";
     static final String PROMPT_CACHE_DEFAULT_PARAM = "org.atmosphere.ai.prompt-cache.default";
 
+    /**
+     * Installs the {@code atmosphere.ai.*} knobs of the Spring {@code Environment}
+     * ({@link AiConfig#knobProperties()}: generation parameters, planning,
+     * filesystem, runtime, ...) as the {@link AiConfig} host configuration, so a
+     * value set in {@code application.yml} or {@code application.properties} is
+     * honoured. A JVM system property or the knob's {@code LLM_*} environment
+     * variable still wins over it ({@link AiConfig#knob(String)}). Nothing is
+     * written to the JVM system properties; closing the context uninstalls it.
+     */
+    @Bean
+    @ConditionalOnMissingBean(AiKnobBridge.class)
+    public AiKnobBridge atmosphereAiKnobBridge(org.springframework.core.env.Environment environment) {
+        return AiKnobBridge.install(environment);
+    }
+
+    /**
+     * The {@link AiConfig} host configuration read from a Spring
+     * {@code Environment}. {@code destroy()} uninstalls it, and only it
+     * (Ownership, Correctness Invariant #1).
+     */
+    static final class AiKnobBridge implements org.springframework.beans.factory.DisposableBean {
+
+        private final AiConfig.HostConfig installed;
+
+        private AiKnobBridge(AiConfig.HostConfig installed) {
+            this.installed = installed;
+        }
+
+        static AiKnobBridge install(org.springframework.core.env.Environment environment) {
+            return new AiKnobBridge(AiConfig.installHostConfig(key -> value(environment, key)));
+        }
+
+        /**
+         * The property as a string. A YAML list ({@code stop: [END, STOP]}) has
+         * no value under its own key, so it is bound and joined with commas,
+         * the separator the {@code LLM_*} form of a list knob uses.
+         */
+        private static String value(org.springframework.core.env.Environment environment, String key) {
+            var value = environment.getProperty(key);
+            if (value != null) {
+                return value;
+            }
+            return org.springframework.boot.context.properties.bind.Binder.get(environment)
+                    .bind(key, org.springframework.boot.context.properties.bind.Bindable.listOf(String.class))
+                    .map(list -> String.join(",", list))
+                    .orElse(null);
+        }
+
+        @Override
+        public void destroy() {
+            installed.close();
+        }
+    }
+
+    /**
+     * Resolves the {@code AgentRuntime} once every singleton, the LLM settings
+     * included, exists, when {@code atmosphere.ai.runtime} names one: a name
+     * that matches no available runtime fails startup with the requested and
+     * the available names (Correctness Invariant #5), instead of failing the
+     * first request or running another runtime.
+     */
+    @Bean
+    org.springframework.beans.factory.SmartInitializingSingleton atmosphereAiRuntimeSelection(
+            AiKnobBridge aiKnobBridge) {
+        return () -> AiConfig.knob(AiConfig.RUNTIME_PROPERTY).ifPresent(requested ->
+                logger.info("AgentRuntime '{}' selected by {}={}",
+                        org.atmosphere.ai.AgentRuntimeResolver.resolve().name(),
+                        AiConfig.RUNTIME_PROPERTY, requested));
+    }
+
     @Bean
     @ConditionalOnMissingBean(AiConfig.LlmSettings.class)
-    public AiConfig.LlmSettings atmosphereAiSettings(AtmosphereProperties properties) {
+    public AiConfig.LlmSettings atmosphereAiSettings(AtmosphereProperties properties,
+            // Injected for ordering only: the knobs must be installed before the
+            // settings are built, since configure() reads the generation ones.
+            AiKnobBridge aiKnobBridge) {
         var aiProps = properties.getAi();
         var apiKey = resolveApiKey(aiProps);
         var model = resolveModel(aiProps);
@@ -132,7 +205,10 @@ public class AtmosphereAiAutoConfiguration {
             org.springframework.beans.factory.ObjectProvider<AiConfig.LlmSettings> settingsProvider,
             // Injected for ordering only: the code-exec sysprop bridge must run
             // before anything that could initialize the framework's endpoint scan.
-            CodeExecPropertyBridge codeExecPropertyBridge) {
+            CodeExecPropertyBridge codeExecPropertyBridge,
+            // Likewise for the atmosphere.ai.* knobs, atmosphere.ai.runtime among
+            // them, when the application supplies its own LlmSettings bean.
+            AiKnobBridge aiKnobBridge) {
         var guardrails = guardrailProvider.orderedStream().toList();
         // Bridge the bean list into framework properties so user-defined
         // @AiEndpoint classes (which go through AiEndpointProcessor, not this
@@ -1225,44 +1301,6 @@ public class AtmosphereAiAutoConfiguration {
         registration.addUrlPatterns("/atmosphere/console/*");
         registration.setOrder(0);
         return registration;
-    }
-
-    /**
-     * {@code atmosphere.ai.runtime} is not a runtime selector: the
-     * {@code AgentRuntime} is the highest-priority runtime module on the
-     * classpath. A configured name that differs from the runtime actually
-     * running is configuration intent the deployment does not have, so it is
-     * reported once the context is up (Correctness Invariant #5) rather than
-     * left to the operator to discover from the console.
-     */
-    @Bean
-    ApplicationListener<WebServerInitializedEvent> atmosphereAiRuntimeIntentCheck(
-            org.springframework.core.env.Environment env) {
-        return event -> {
-            var configured = env.getProperty("atmosphere.ai.runtime");
-            if (configured == null || configured.isBlank()) {
-                return;
-            }
-            runtimeIntentWarning(configured,
-                    org.atmosphere.ai.AgentRuntimeResolver.resolve().name())
-                    .ifPresent(logger::warn);
-        };
-    }
-
-    /**
-     * The warning for a configured {@code atmosphere.ai.runtime} that is not
-     * the running runtime, or empty when nothing was configured or it matches.
-     */
-    static java.util.Optional<String> runtimeIntentWarning(String configured, String running) {
-        if (configured == null || configured.isBlank()
-                || configured.trim().equalsIgnoreCase(running)) {
-            return java.util.Optional.empty();
-        }
-        var name = configured.trim();
-        return java.util.Optional.of("atmosphere.ai.runtime=" + name + " is not honored: the "
-                + "running AgentRuntime is '" + running + "'. Atmosphere runs the "
-                + "highest-priority runtime module on the classpath; add the '" + name
-                + "' runtime artifact to the application to run it.");
     }
 
     @Bean

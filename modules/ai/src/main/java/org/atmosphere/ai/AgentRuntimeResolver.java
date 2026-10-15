@@ -30,6 +30,14 @@ import java.util.ServiceLoader;
  * {@link ServiceLoader}. Falls back to {@link BuiltInAgentRuntime} if no
  * higher-priority runtime is available.
  *
+ * <p>When {@link AiConfig#RUNTIME_PROPERTY} ({@code atmosphere.ai.runtime},
+ * env {@code LLM_RUNTIME}, or a host configuration) names a runtime, the
+ * available runtime with that {@link AgentRuntime#name()} is the only one
+ * resolved, whatever its priority. A name that matches no available runtime
+ * fails resolution with an {@link IllegalStateException} naming the requested
+ * and the available runtimes, rather than running a runtime that was not
+ * configured.</p>
+ *
  * @see AgentRuntime
  */
 public final class AgentRuntimeResolver {
@@ -83,8 +91,12 @@ public final class AgentRuntimeResolver {
     }
 
     /**
-     * Returns the highest-priority available runtime, or
-     * {@link BuiltInAgentRuntime} as fallback.
+     * Returns the runtime {@link AiConfig#RUNTIME_PROPERTY} names, else the
+     * highest-priority available runtime, or {@link BuiltInAgentRuntime} as
+     * fallback.
+     *
+     * @throws IllegalStateException when {@link AiConfig#RUNTIME_PROPERTY}
+     *                               names no available runtime
      */
     public static AgentRuntime resolve() {
         return resolveAll().getFirst();
@@ -104,10 +116,14 @@ public final class AgentRuntimeResolver {
     /**
      * Returns all available runtimes sorted by priority (highest first).
      * Falls back to a singleton list with {@link BuiltInAgentRuntime} if
-     * no implementations are discovered.
+     * no implementations are discovered. When {@link AiConfig#RUNTIME_PROPERTY}
+     * is set, returns only the runtime it names.
      *
      * <p>Results are cached after first resolution — the classpath does not
      * change at runtime so the discovered runtimes are stable.</p>
+     *
+     * @throws IllegalStateException when {@link AiConfig#RUNTIME_PROPERTY}
+     *                               names no available runtime
      */
     public static List<AgentRuntime> resolveAll() {
         var result = cachedAll;
@@ -116,6 +132,7 @@ public final class AgentRuntimeResolver {
         }
 
         var all = new ArrayList<AgentRuntime>();
+        var unavailable = new ArrayList<String>();
 
         try {
             for (var runtime : ServiceLoader.load(AgentRuntime.class)) {
@@ -124,6 +141,8 @@ public final class AgentRuntimeResolver {
                         all.add(runtime);
                         logger.debug("AgentRuntime discovered: {} (priority {})",
                                 runtime.name(), runtime.priority());
+                    } else {
+                        unavailable.add(runtime.name());
                     }
                 } catch (Exception e) {
                     logger.warn("AgentRuntime failed availability check: {}",
@@ -141,11 +160,46 @@ public final class AgentRuntimeResolver {
             logger.debug("No AgentRuntime on classpath, using built-in");
         }
 
-        logger.info("AgentRuntime resolution: {} (explicitClientBinding={})",
-                all.stream().map(AgentRuntime::name).toList(), explicitClientBinding);
-
-        result = List.copyOf(all);
+        var requested = AiConfig.knob(AiConfig.RUNTIME_PROPERTY);
+        if (requested.isPresent()) {
+            var selected = select(all, requested.get(), unavailable);
+            logger.info("AgentRuntime resolution: {} selected by {}={} (available: {})",
+                    selected.name(), AiConfig.RUNTIME_PROPERTY, requested.get(),
+                    all.stream().map(AgentRuntime::name).toList());
+            result = List.of(selected);
+        } else {
+            logger.info("AgentRuntime resolution: {} (explicitClientBinding={})",
+                    all.stream().map(AgentRuntime::name).toList(), explicitClientBinding);
+            result = List.copyOf(all);
+        }
         cachedAll = result;
         return result;
+    }
+
+    /**
+     * The available runtime whose name is {@code requested}, ignoring case and
+     * surrounding blanks.
+     *
+     * @throws IllegalStateException when no available runtime has that name
+     */
+    private static AgentRuntime select(List<AgentRuntime> available, String requested,
+                                       List<String> unavailable) {
+        var name = requested.trim();
+        for (var runtime : available) {
+            if (name.equalsIgnoreCase(runtime.name())) {
+                return runtime;
+            }
+        }
+        var message = new StringBuilder()
+                .append(AiConfig.RUNTIME_PROPERTY).append('=').append(name)
+                .append(" names no available AgentRuntime. Available: ")
+                .append(available.stream().map(AgentRuntime::name).toList());
+        if (!unavailable.isEmpty()) {
+            message.append("; on the classpath but not available: ").append(unavailable);
+        }
+        message.append(". Add the runtime's module to the application, or unset ")
+                .append(AiConfig.RUNTIME_PROPERTY).append(" / ").append(AiConfig.RUNTIME_ENV)
+                .append(" to run the highest-priority runtime.");
+        throw new IllegalStateException(message.toString());
     }
 }

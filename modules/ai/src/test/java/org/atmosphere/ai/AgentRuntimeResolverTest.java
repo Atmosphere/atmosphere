@@ -15,12 +15,75 @@
  */
 package org.atmosphere.ai;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AgentRuntimeResolverTest {
+
+    @AfterEach
+    void tearDown() {
+        System.clearProperty(AiConfig.RUNTIME_PROPERTY);
+        AiConfig.resetHostConfig();
+        AgentRuntimeResolver.reset();
+    }
+
+    /**
+     * With nothing configured both runtimes of this module are available: the
+     * demo runtime (highest priority) and the built-in one (priority 0).
+     */
+    private static void unconfigured() {
+        AiConfig.resetForTesting();
+        AgentRuntimeResolver.reset();
+    }
+
+    @Test
+    void unsetRuntimeResolvesByPriority() {
+        unconfigured();
+        assertEquals(List.of("demo", "built-in"),
+                AgentRuntimeResolver.resolveAll().stream().map(AgentRuntime::name).toList());
+        assertEquals("demo", AgentRuntimeResolver.resolve().name());
+    }
+
+    @Test
+    void aNamedRuntimeIsSelectedOverAHigherPriorityOne() {
+        unconfigured();
+        System.setProperty(AiConfig.RUNTIME_PROPERTY, " Built-In ");
+        AgentRuntimeResolver.reset();
+
+        assertEquals("built-in", AgentRuntimeResolver.resolve().name());
+        assertEquals(List.of("built-in"),
+                AgentRuntimeResolver.resolveAll().stream().map(AgentRuntime::name).toList(),
+                "no other runtime is dispatched to when one is named");
+    }
+
+    @Test
+    void theHostConfigurationSelectsTheRuntime() {
+        unconfigured();
+        AiConfig.installHostConfig(Map.of(AiConfig.RUNTIME_PROPERTY, "built-in")::get);
+        assertEquals("built-in", AgentRuntimeResolver.resolve().name());
+    }
+
+    @Test
+    void aNamedRuntimeThatIsAbsentFailsNamingTheAvailableOnes() {
+        unconfigured();
+        System.setProperty(AiConfig.RUNTIME_PROPERTY, "spring-ai");
+        AgentRuntimeResolver.reset();
+
+        var e = assertThrows(IllegalStateException.class, AgentRuntimeResolver::resolve);
+        assertTrue(e.getMessage().contains("atmosphere.ai.runtime=spring-ai"), e.getMessage());
+        assertTrue(e.getMessage().contains("[demo, built-in]"), e.getMessage());
+        assertThrows(IllegalStateException.class, AgentRuntimeResolver::resolveAll,
+                "a failed selection is not cached as a resolution");
+    }
 
     @Test
     void resolveReturnsNonNull() {

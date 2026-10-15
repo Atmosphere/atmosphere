@@ -79,9 +79,11 @@ match a crew member.
 The sample defaults to the Built-in OpenAI-compatible client (no extra runtime
 dependency — it speaks the OpenAI wire format using `OPENAI_API_KEY`). Atmosphere
 discovers runtimes via `ServiceLoader` and runs the highest-priority one on the
-classpath, so switching is a dependency swap — add one runtime artifact to the POM
-(there is no runtime property to set; a stray `atmosphere.ai.runtime` that names a
-runtime other than the one running is reported as a WARN at startup):
+classpath, so switching starts with a dependency — add one runtime artifact to the
+POM. With several runtime artifacts on the classpath, `atmosphere.ai.runtime`
+(or `LLM_RUNTIME`) picks one of them by name, e.g. `atmosphere.ai.runtime=spring-ai`;
+it does not add a runtime, and a name that matches no runtime on the classpath
+fails startup instead of running another one:
 
 - _(default)_ — Built-in OpenAI-compatible client
 - `atmosphere-spring-ai` — Spring AI

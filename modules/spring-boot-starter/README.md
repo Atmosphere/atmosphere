@@ -185,6 +185,19 @@ All properties are under the `atmosphere.ai.*` prefix:
 | `atmosphere.ai.max-history-messages` | `20` | Max messages retained per client |
 | `atmosphere.ai.timeout` | `120000` | Suspend timeout (ms) |
 
+`atmosphere.ai.mode`, `model` and `base-url` fall back to the `LLM_MODE`, `LLM_MODEL` and
+`LLM_BASE_URL` environment variables when unset (the Spring Boot 3 starter does the same).
+
+The knobs `AiConfig` reads are honoured here too: `atmosphere.ai.temperature`, `max-tokens`,
+`top-p`, `stop` (a comma-separated string or a YAML list), `embedding-model`, `prompt-cache-key`,
+`logprobs`, `native-structured-output`, `planning`, `filesystem` and `runtime` (the list is
+`AiConfig.knobProperties()`). For these, a `-D` JVM system property wins, then the knob's `LLM_*`
+environment variable (e.g. `LLM_TEMPERATURE`), then the Spring `Environment` (`application.yml`,
+`application.properties`, and the relaxed `ATMOSPHERE_AI_*` environment variables Spring maps onto
+it). `atmosphere.ai.runtime=<name>` selects the `AgentRuntime` among the runtime modules on the
+classpath, by `AgentRuntime.name()` (`built-in`, `spring-ai`, `langchain4j`, `google-adk`, ...); a
+name that matches no available runtime fails startup with the requested and the available names.
+
 ### How It Works
 
 1. `AtmosphereAiAutoConfiguration` activates when `atmosphere-ai` is on the classpath
