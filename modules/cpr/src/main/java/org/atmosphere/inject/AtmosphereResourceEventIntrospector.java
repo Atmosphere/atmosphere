@@ -19,7 +19,6 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.inject.annotation.RequestScoped;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 
@@ -31,44 +30,13 @@ import java.lang.reflect.Type;
  * shared field just before it runs. While a callback runs, the injected proxy
  * resolves the event of the resource whose callback runs on the calling thread,
  * so concurrent callbacks never read each other's event. Outside a callback (a
- * reference handed to another thread, a broadcast delivery that injects nothing)
- * the proxy acts on the event it was injected for.
- * <p>
- * The framework brackets every callback that may inject with {@link #current()}
- * and {@link #restore(AtmosphereResourceEvent)}, so a pooled thread never keeps
- * the event of a callback it ran earlier.
+ * reference handed to another thread) the proxy acts on the event it was
+ * injected for. See {@link CallbackScope}.
  *
  * @author Jeanfrancois Arcand
  */
 @RequestScoped
 public class AtmosphereResourceEventIntrospector extends InjectIntrospectorAdapter<AtmosphereResourceEvent> {
-
-    private static final ThreadLocal<AtmosphereResourceEvent> CALLBACK_EVENT = new ThreadLocal<>();
-
-    /**
-     * The event injected by the callback running on the calling thread, to be
-     * handed back to {@link #restore(AtmosphereResourceEvent)} when the caller's
-     * own callback ends.
-     *
-     * @return the event the calling thread resolves now, or {@code null}
-     */
-    public static AtmosphereResourceEvent current() {
-        return CALLBACK_EVENT.get();
-    }
-
-    /**
-     * End a callback: the calling thread resolves again what it resolved when
-     * the callback started (an enclosing callback's event, or nothing).
-     *
-     * @param previous the value {@link #current()} returned when the callback started
-     */
-    public static void restore(AtmosphereResourceEvent previous) {
-        if (previous == null) {
-            CALLBACK_EVENT.remove();
-        } else {
-            CALLBACK_EVENT.set(previous);
-        }
-    }
 
     @Override
     public boolean supportedType(Type t) {
@@ -77,19 +45,7 @@ public class AtmosphereResourceEventIntrospector extends InjectIntrospectorAdapt
 
     @Override
     public AtmosphereResourceEvent injectable(AtmosphereResource r) {
-        var injected = r.getAtmosphereResourceEvent();
-        CALLBACK_EVENT.set(injected);
         return (AtmosphereResourceEvent) Proxy.newProxyInstance(getClass().getClassLoader(),
-                new Class<?>[]{AtmosphereResourceEvent.class}, (target, method, args) -> {
-                    var event = CALLBACK_EVENT.get();
-                    if (event == null) {
-                        event = injected;
-                    }
-                    try {
-                        return method.invoke(event, args);
-                    } catch (InvocationTargetException ex) {
-                        throw ex.getTargetException();
-                    }
-                });
+                new Class<?>[]{AtmosphereResourceEvent.class}, CallbackScope.inject(r, CallbackScope.Binding::resolvedEvent));
     }
 }

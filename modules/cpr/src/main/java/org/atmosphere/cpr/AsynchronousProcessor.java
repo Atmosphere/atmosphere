@@ -15,7 +15,7 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.inject.AtmosphereResourceEventIntrospector;
+import org.atmosphere.inject.CallbackScope;
 import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.Utils;
@@ -554,7 +554,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                     AtmosphereHandler atmosphereHandler = r.getAtmosphereHandler();
 
                     if (atmosphereHandler != null && r.isInScope()) {
-                        var callbackEvent = AtmosphereResourceEventIntrospector.current();
+                        var callback = CallbackScope.current();
                         try {
                             try {
                                 Utils.inject(r);
@@ -564,7 +564,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
                             atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
                         } finally {
-                            AtmosphereResourceEventIntrospector.restore(callbackEvent);
+                            CallbackScope.restore(callback);
                         }
                     }
                 }

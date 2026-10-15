@@ -23,7 +23,7 @@ import org.atmosphere.config.FrameworkConfiguration;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
-import org.atmosphere.inject.AtmosphereResourceEventIntrospector;
+import org.atmosphere.inject.CallbackScope;
 import org.atmosphere.inject.InjectableObjectFactory;
 import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.DefaultUUIDProvider;
@@ -1126,8 +1126,8 @@ public class AtmosphereFramework {
 
         if (isDestroyed.get()) return Action.CANCELLED;
 
-        // The callbacks of this request inject their resource's event: end that on return.
-        var callbackEvent = AtmosphereResourceEventIntrospector.current();
+        // The callbacks of this request bind their resource to this thread: end that on return.
+        var callback = CallbackScope.current();
         Action a = null;
         try {
             configureRequestResponse(req, res);
@@ -1149,7 +1149,7 @@ public class AtmosphereFramework {
                     }
                 }
             } finally {
-                AtmosphereResourceEventIntrospector.restore(callbackEvent);
+                CallbackScope.restore(callback);
             }
         }
         return a;

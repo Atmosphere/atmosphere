@@ -19,6 +19,7 @@ package org.atmosphere.cpr;
 import org.atmosphere.cache.BroadcastMessage;
 import org.atmosphere.cache.CacheMessage;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
+import org.atmosphere.inject.CallbackScope;
 import org.atmosphere.interceptor.BackpressureInterceptor;
 import org.atmosphere.lifecycle.LifecycleHandler;
 import org.atmosphere.pool.PoolableBroadcasterFactory;
@@ -1593,6 +1594,8 @@ public class DefaultBroadcaster implements Broadcaster {
     @Override
     public Broadcaster addAtmosphereResource(AtmosphereResource r) {
         Objects.requireNonNull(r, "AtmosphereResource must not be null");
+        // An injected @Inject AtmosphereResource field is a per-thread proxy.
+        r = CallbackScope.unwrap(r);
         try {
             if (destroyed.get()) {
                 logger.debug(DESTROYED, getID(), "addAtmosphereResource(AtmosphereResource r");
@@ -1854,7 +1857,7 @@ public class DefaultBroadcaster implements Broadcaster {
     @Override
     public Broadcaster removeAtmosphereResource(AtmosphereResource r) {
         Objects.requireNonNull(r, "AtmosphereResource must not be null");
-        return removeAtmosphereResource(r, true);
+        return removeAtmosphereResource(CallbackScope.unwrap(r), true);
     }
 
     protected Broadcaster removeAtmosphereResource(AtmosphereResource r, boolean executeDone) {

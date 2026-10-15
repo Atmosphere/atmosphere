@@ -18,10 +18,20 @@ package org.atmosphere.inject;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.inject.annotation.RequestScoped;
 
+import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 
 /**
- * {@link AtmosphereResource} injection using ScopedValues (JDK 21+).
+ * {@link AtmosphereResource} injection implementation support.
+ * <p>
+ * One managed service instance serves every client of its path, and each
+ * callback re-injects its own resource into the shared field just before it
+ * runs. While a callback runs, the injected proxy resolves the resource of the
+ * client whose callback runs on the calling thread, so concurrent callbacks
+ * never read each other's client. Outside a callback the proxy acts on the
+ * resource it was injected for. To keep a client's resource beyond its
+ * callback (a map of connected users), store {@link CallbackScope#unwrap}
+ * of the field, not the field's value. See {@link CallbackScope}.
  *
  * @author Jeanfrancois Arcand
  */
@@ -34,7 +44,8 @@ public class AtmosphereResourceIntrospector extends InjectIntrospectorAdapter<At
     }
 
     @Override
-    public AtmosphereResource injectable(final AtmosphereResource r) {
-        return r;
+    public AtmosphereResource injectable(AtmosphereResource r) {
+        return (AtmosphereResource) Proxy.newProxyInstance(getClass().getClassLoader(),
+                new Class<?>[]{AtmosphereResource.class}, CallbackScope.inject(r, CallbackScope.Binding::resource));
     }
 }

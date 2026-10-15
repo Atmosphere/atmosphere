@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.cache.CacheMessage;
+import org.atmosphere.inject.CallbackScope;
 
 import java.io.Serializable;
 import java.util.Set;
@@ -58,7 +59,8 @@ public class Deliver implements Serializable {
         this.originalMessage = originalMessage;
 
         this.type = type;
-        this.resource = r;
+        // An injected @Inject AtmosphereResource field is a per-thread proxy: deliver to the resource itself.
+        this.resource = r != null ? CallbackScope.unwrap(r) : null;
         this.cache = cache;
         this.resources = resources;
         this.async = async;

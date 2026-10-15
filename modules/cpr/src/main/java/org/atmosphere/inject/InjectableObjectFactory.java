@@ -349,9 +349,15 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                         c.introspectField(instance.getClass(), field);
 
                         if (c.supportedType(field.getType())) {
+                            var value = c.injectable(r);
+                            if (value != null && !field.getType().isInstance(value)) {
+                                // A field of an implementation type cannot hold the
+                                // per-thread proxy: it gets the object itself.
+                                value = CallbackScope.target(value);
+                            }
                             try {
                                 field.setAccessible(true);
-                                field.set(instance, c.injectable(r));
+                                field.set(instance, value);
                             } finally {
                                 field.setAccessible(false);
                             }

@@ -35,7 +35,7 @@ import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
-import org.atmosphere.inject.AtmosphereResourceEventIntrospector;
+import org.atmosphere.inject.CallbackScope;
 import org.atmosphere.util.DefaultEndpointMapper;
 import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.ExecutorsFactory;
@@ -502,11 +502,11 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     @Override
     public void invokeWebSocketProtocol(final WebSocket webSocket, String webSocketMessage) {
-        var callbackEvent = AtmosphereResourceEventIntrospector.current();
+        var callback = CallbackScope.current();
         try {
             invokeText(webSocket, webSocketMessage);
         } finally {
-            AtmosphereResourceEventIntrospector.restore(callbackEvent);
+            CallbackScope.restore(callback);
         }
     }
 
@@ -544,11 +544,11 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     @Override
     public void invokeWebSocketProtocol(WebSocket webSocket, byte[] data, int offset, int length) {
-        var callbackEvent = AtmosphereResourceEventIntrospector.current();
+        var callback = CallbackScope.current();
         try {
             invokeBytes(webSocket, data, offset, length);
         } finally {
-            AtmosphereResourceEventIntrospector.restore(callbackEvent);
+            CallbackScope.restore(callback);
         }
     }
 
@@ -586,11 +586,11 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     @Override
     public void invokeWebSocketProtocol(WebSocket webSocket, InputStream stream) {
-        var callbackEvent = AtmosphereResourceEventIntrospector.current();
+        var callback = CallbackScope.current();
         try {
             invokeStream(webSocket, stream);
         } finally {
-            AtmosphereResourceEventIntrospector.restore(callbackEvent);
+            CallbackScope.restore(callback);
         }
     }
 
@@ -628,11 +628,11 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     @Override
     public void invokeWebSocketProtocol(WebSocket webSocket, Reader reader) {
-        var callbackEvent = AtmosphereResourceEventIntrospector.current();
+        var callback = CallbackScope.current();
         try {
             invokeReader(webSocket, reader);
         } finally {
-            AtmosphereResourceEventIntrospector.restore(callbackEvent);
+            CallbackScope.restore(callback);
         }
     }
 
@@ -1145,7 +1145,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     @Override
     public void onPong(WebSocket webSocket, byte[] payload, int offset, int length) {
-        var callbackEvent = AtmosphereResourceEventIntrospector.current();
+        var callback = CallbackScope.current();
         try {
             WebSocketHandlerProxy webSocketHandler = webSocketHandlerForMessage(webSocket);
 
@@ -1154,13 +1154,13 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 pingPong.onPong(webSocket, payload, offset, length);
             }
         } finally {
-            AtmosphereResourceEventIntrospector.restore(callbackEvent);
+            CallbackScope.restore(callback);
         }
     }
 
     @Override
     public void onPing(WebSocket webSocket, byte[] payload, int offset, int length) {
-        var callbackEvent = AtmosphereResourceEventIntrospector.current();
+        var callback = CallbackScope.current();
         try {
             WebSocketHandlerProxy webSocketHandler = webSocketHandlerForMessage(webSocket);
 
@@ -1169,7 +1169,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 pingPong.onPing(webSocket, payload, offset, length);
             }
         } finally {
-            AtmosphereResourceEventIntrospector.restore(callbackEvent);
+            CallbackScope.restore(callback);
         }
     }
 }

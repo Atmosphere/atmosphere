@@ -38,6 +38,7 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.RawMessage;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.AnnotatedProxy;
+import org.atmosphere.inject.CallbackScope;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
@@ -118,6 +119,15 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
     @Override
     public void onRequest(final AtmosphereResource resource) throws IOException {
+        var callback = CallbackScope.bind(resource, null);
+        try {
+            handleRequest(resource);
+        } finally {
+            CallbackScope.restore(callback);
+        }
+    }
+
+    private void handleRequest(final AtmosphereResource resource) throws IOException {
         AtmosphereRequest request = resource.getRequest();
         String method = request.getMethod();
         boolean polling = Utils.pollableTransport(resource.transport());
@@ -128,7 +138,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 resource.addEventListener(new OnSuspend() {
                     @Override
                     public void onSuspend(AtmosphereResourceEvent event) {
-                        processReady(event.getResource());
+                        inCallback(event, () -> processReady(event.getResource()));
                         resource.removeEventListener(this);
                     }
                 });
@@ -138,7 +148,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 resource.addEventListener(new OnResume() {
                     @Override
                     public void onResume(AtmosphereResourceEvent event) {
-                        invoke(onResumeMethod, event);
+                        inCallback(event, () -> invoke(onResumeMethod, event));
                         resource.removeEventListener(this);
                     }
                 });
@@ -183,6 +193,17 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
     @Override
     public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+        // A broadcast delivery runs on a thread that injected nothing: bind the
+        // resource the shared @Inject fields resolve while its callbacks run.
+        var callback = CallbackScope.bind(event.getResource(), event);
+        try {
+            stateChange(event);
+        } finally {
+            CallbackScope.restore(callback);
+        }
+    }
+
+    private void stateChange(AtmosphereResourceEvent event) throws IOException {
         Object msg = event.getMessage();
 
         // Original Value
@@ -261,11 +282,27 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             return;
         }
         try {
-            invoke(onDisconnectMethod, event);
+            // The thread that claimed the dispatch (a broadcast thread, the close
+            // thread) may not be the one that injected this resource.
+            inCallback(event, () -> invoke(onDisconnectMethod, event));
         } finally {
             if (event instanceof AtmosphereResourceEventImpl impl) {
                 impl.disconnectDispatchDone();
             }
+        }
+    }
+
+    /**
+     * Run a callback of the event's resource with that resource bound to the
+     * calling thread: the shared {@code @Inject} fields of the service resolve
+     * it, whichever thread runs the callback.
+     */
+    private static void inCallback(AtmosphereResourceEvent event, Runnable callback) {
+        var previous = CallbackScope.bind(event.getResource(), event);
+        try {
+            callback.run();
+        } finally {
+            CallbackScope.restore(previous);
         }
     }
 
@@ -448,7 +485,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     @Override
     public void onHeartbeat(final AtmosphereResourceEvent event) {
         if (onHeartbeatMethod != null) {
-            invoke(onHeartbeatMethod, event);
+            inCallback(event, () -> invoke(onHeartbeatMethod, event));
         }
     }
 

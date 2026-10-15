@@ -19,10 +19,18 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.inject.annotation.RequestScoped;
 
+import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 
 /**
- * {@link AtmosphereRequest} injection support.
+ * {@link AtmosphereRequest} injection implementation support.
+ * <p>
+ * One managed service instance serves every client of its path, and each
+ * callback re-injects its own request into the shared field just before it
+ * runs. While a callback runs, the injected proxy resolves the request of the
+ * client whose callback runs on the calling thread, so concurrent callbacks
+ * never read each other's client. Outside a callback the proxy acts on the
+ * request it was injected for. See {@link CallbackScope}.
  *
  * @author Jeanfrancois Arcand
  */
@@ -36,6 +44,7 @@ public class AtmosphereRequestIntrospector extends InjectIntrospectorAdapter<Atm
 
     @Override
     public AtmosphereRequest injectable(AtmosphereResource r) {
-        return r.getRequest();
+        return (AtmosphereRequest) Proxy.newProxyInstance(getClass().getClassLoader(),
+                new Class<?>[]{AtmosphereRequest.class}, CallbackScope.inject(r, CallbackScope.Binding::request));
     }
 }
