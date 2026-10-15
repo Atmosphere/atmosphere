@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
-import WebSocket from 'ws';
+import { connectDurableChat, waitFor } from './helpers/durable-chat-client';
 import { existsSync, statSync } from 'fs';
 import { resolve as repoPath } from 'path';
 
@@ -19,30 +19,6 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   await server?.stop();
 });
-
-/** Open an Atmosphere WebSocket connection with optional session token. */
-function connectAtmosphere(
-  baseUrl: string,
-  opts?: { sessionToken?: string },
-): Promise<{ ws: WebSocket; messages: string[]; token?: string; close: () => void }> {
-  return new Promise((resolve, reject) => {
-    const wsUrl = baseUrl.replace('http', 'ws') + '/atmosphere/chat';
-    const headers: Record<string, string> = {};
-    if (opts?.sessionToken) {
-      headers['X-Atmosphere-Session-Token'] = opts.sessionToken;
-    }
-    const ws = new WebSocket(wsUrl, { headers });
-    const messages: string[] = [];
-
-    ws.on('message', (data) => {
-      const text = data.toString().trim();
-      if (text) messages.push(text);
-    });
-    ws.on('open', () => resolve({ ws, messages, close: () => ws.close() }));
-    ws.on('error', reject);
-    setTimeout(() => reject(new Error('WebSocket connect timeout')), 10_000);
-  });
-}
 
 /**
  * Run one durable-session handshake over the long-polling transport and return
@@ -63,16 +39,6 @@ async function handshakeToken(
     + (sessionToken ? '&X-Atmosphere-Session-Token=' + encodeURIComponent(sessionToken) : '');
   const res = await request.get(url, { timeout: 10_000, failOnStatusCode: false });
   return res.headers()['x-atmosphere-session-token'];
-}
-
-/** Wait for a condition with polling. */
-async function waitFor(fn: () => boolean, timeoutMs = 15_000): Promise<void> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    if (fn()) return;
-    await new Promise(r => setTimeout(r, 200));
-  }
-  throw new Error(`waitFor timed out after ${timeoutMs}ms`);
 }
 
 test.describe('Durable Session Restart', () => {
@@ -103,8 +69,8 @@ test.describe('Durable Session Restart', () => {
   });
 
   test('broadcast resumes after restart', async () => {
-    const clientA = await connectAtmosphere(server.baseUrl);
-    const clientB = await connectAtmosphere(server.baseUrl);
+    const clientA = await connectDurableChat(server.baseUrl);
+    const clientB = await connectDurableChat(server.baseUrl);
 
     // Verify broadcast works before restart
     clientA.ws.send(JSON.stringify({ author: 'A', message: 'pre-restart-msg' }));
@@ -117,9 +83,8 @@ test.describe('Durable Session Restart', () => {
     await server.restart();
 
     // Reconnect both clients
-    const clientA2 = await connectAtmosphere(server.baseUrl);
-    const clientB2 = await connectAtmosphere(server.baseUrl);
-    await new Promise(r => setTimeout(r, 500));
+    const clientA2 = await connectDurableChat(server.baseUrl);
+    const clientB2 = await connectDurableChat(server.baseUrl);
 
     // Verify broadcast works after restart
     clientA2.ws.send(JSON.stringify({ author: 'A', message: 'post-restart-msg' }));
@@ -146,7 +111,7 @@ test.describe('Durable Session Restart', () => {
 
   test('multiple restarts in sequence work correctly', async () => {
     for (let i = 1; i <= 3; i++) {
-      const conn = await connectAtmosphere(server.baseUrl);
+      const conn = await connectDurableChat(server.baseUrl);
       conn.ws.send(JSON.stringify({ author: 'Loop', message: `restart-${i}` }));
       await waitFor(() => conn.messages.some(m => m.includes(`restart-${i}`)));
       conn.close();

@@ -1,45 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
-import WebSocket from 'ws';
-
-/**
- * Helper to open an Atmosphere WebSocket connection.
- * Returns the WebSocket and a promise for collected messages.
- */
-function connectAtmosphere(
-  baseUrl: string,
-  opts?: { sessionToken?: string },
-): Promise<{ ws: WebSocket; messages: string[]; close: () => void }> {
-  return new Promise((resolve, reject) => {
-    const wsUrl = baseUrl.replace('http', 'ws') + '/atmosphere/chat';
-    const headers: Record<string, string> = {};
-    if (opts?.sessionToken) {
-      headers['X-Atmosphere-Session-Token'] = opts.sessionToken;
-    }
-    const ws = new WebSocket(wsUrl, { headers });
-    const messages: string[] = [];
-
-    ws.on('message', (data) => {
-      const text = data.toString().trim();
-      if (text) messages.push(text);
-    });
-
-    ws.on('open', () => resolve({ ws, messages, close: () => ws.close() }));
-    ws.on('error', reject);
-
-    setTimeout(() => reject(new Error('WebSocket connect timeout')), 10_000);
-  });
-}
-
-/** Wait for a condition with polling. */
-async function waitFor(fn: () => boolean, timeoutMs = 15_000): Promise<void> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    if (fn()) return;
-    await new Promise((r) => setTimeout(r, 200));
-  }
-  throw new Error(`waitFor timed out after ${timeoutMs}ms`);
-}
+import { connectDurableChat, waitFor } from './helpers/durable-chat-client';
 
 let server: SampleServer;
 
@@ -54,7 +15,7 @@ test.afterAll(async () => {
 
 test.describe('Durable Sessions', () => {
   test('client can connect and send messages via WebSocket', async () => {
-    const { ws, messages, close } = await connectAtmosphere(server.baseUrl);
+    const { ws, messages, close } = await connectDurableChat(server.baseUrl);
 
     // Send a JSON chat message immediately after connect — @ManagedService
     // may not send an initial handshake to raw WebSocket clients
@@ -68,7 +29,7 @@ test.describe('Durable Sessions', () => {
   });
 
   test('session survives server restart', async () => {
-    const { ws, messages, close } = await connectAtmosphere(server.baseUrl);
+    const { ws, messages, close } = await connectDurableChat(server.baseUrl);
 
     // Send a message to establish session state
     ws.send(JSON.stringify({ author: 'Survivor', message: 'Before restart' }));
@@ -80,7 +41,7 @@ test.describe('Durable Sessions', () => {
     await server.restart();
 
     // Reconnect — the server should recognize the session
-    const conn2 = await connectAtmosphere(server.baseUrl);
+    const conn2 = await connectDurableChat(server.baseUrl);
 
     // Send another message to verify the connection works
     conn2.ws.send(JSON.stringify({ author: 'Survivor', message: 'After restart' }));
@@ -91,7 +52,7 @@ test.describe('Durable Sessions', () => {
 
   test('expired session token is rejected gracefully', async () => {
     // Connect with a clearly invalid/expired session token
-    const { ws, messages, close } = await connectAtmosphere(server.baseUrl, {
+    const { ws, messages, close } = await connectDurableChat(server.baseUrl, {
       sessionToken: 'expired-invalid-token-12345',
     });
 
@@ -104,8 +65,8 @@ test.describe('Durable Sessions', () => {
 
   test('room membership restored after reconnect', async () => {
     // Connect two clients
-    const clientA = await connectAtmosphere(server.baseUrl);
-    const clientB = await connectAtmosphere(server.baseUrl);
+    const clientA = await connectDurableChat(server.baseUrl);
+    const clientB = await connectDurableChat(server.baseUrl);
 
     // Verify they can exchange messages (broadcast)
     clientB.ws.send(JSON.stringify({ author: 'ClientB', message: 'before-disconnect' }));
@@ -118,7 +79,7 @@ test.describe('Durable Sessions', () => {
     await new Promise((r) => setTimeout(r, 1_000));
 
     // Reconnect client A
-    const clientA2 = await connectAtmosphere(server.baseUrl);
+    const clientA2 = await connectDurableChat(server.baseUrl);
 
     // Verify client A2 can still receive messages from client B
     clientB.ws.send(JSON.stringify({ author: 'ClientB', message: 'after-reconnect' }));
@@ -131,9 +92,9 @@ test.describe('Durable Sessions', () => {
   test('concurrent connections don\'t interfere', async () => {
     // Open 3 connections simultaneously
     const [conn1, conn2, conn3] = await Promise.all([
-      connectAtmosphere(server.baseUrl),
-      connectAtmosphere(server.baseUrl),
-      connectAtmosphere(server.baseUrl),
+      connectDurableChat(server.baseUrl),
+      connectDurableChat(server.baseUrl),
+      connectDurableChat(server.baseUrl),
     ]);
 
     // Each sends a unique message

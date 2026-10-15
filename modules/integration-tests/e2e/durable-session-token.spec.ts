@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { startSample, SAMPLES, type SampleServer } from './fixtures/sample-server';
-import WebSocket from 'ws';
+import { connectDurableChat, waitFor } from './helpers/durable-chat-client';
 
 let server: SampleServer;
 
@@ -13,64 +13,9 @@ test.afterAll(async () => {
   await server?.stop();
 });
 
-/**
- * Connect to the durable sessions endpoint with optional session token.
- * Captures the session token from response headers (via WebSocket upgrade).
- */
-function connectDurable(
-  baseUrl: string,
-  opts?: { sessionToken?: string },
-): Promise<{
-  ws: WebSocket;
-  messages: string[];
-  headers: Record<string, string>;
-  close: () => void;
-}> {
-  return new Promise((resolve, reject) => {
-    const wsUrl = baseUrl.replace('http', 'ws') + '/atmosphere/chat';
-    const headers: Record<string, string> = {};
-    if (opts?.sessionToken) {
-      headers['X-Atmosphere-Session-Token'] = opts.sessionToken;
-    }
-    const ws = new WebSocket(wsUrl, { headers });
-    const messages: string[] = [];
-    let upgradeHeaders: Record<string, string> = {};
-
-    ws.on('upgrade', (response) => {
-      // Capture response headers from WebSocket upgrade
-      for (const [key, value] of Object.entries(response.headers)) {
-        if (typeof value === 'string') {
-          upgradeHeaders[key.toLowerCase()] = value;
-        }
-      }
-    });
-
-    ws.on('message', (data) => {
-      const text = data.toString().trim();
-      if (text) messages.push(text);
-    });
-
-    ws.on('open', () =>
-      resolve({ ws, messages, headers: upgradeHeaders, close: () => ws.close() }),
-    );
-    ws.on('error', reject);
-    setTimeout(() => reject(new Error('WebSocket connect timeout')), 10_000);
-  });
-}
-
-/** Wait for a condition with polling. */
-async function waitFor(fn: () => boolean, timeoutMs = 15_000): Promise<void> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    if (fn()) return;
-    await new Promise(r => setTimeout(r, 200));
-  }
-  throw new Error(`waitFor timed out after ${timeoutMs}ms`);
-}
-
 test.describe('Durable Session Token Handling', () => {
   test('server assigns a session token on first connection', async () => {
-    const conn = await connectDurable(server.baseUrl);
+    const conn = await connectDurableChat(server.baseUrl);
 
     // Send a message to trigger full handshake
     conn.ws.send(JSON.stringify({ author: 'TokenTest', message: 'hello' }));
@@ -86,7 +31,7 @@ test.describe('Durable Session Token Handling', () => {
 
   test('client can reconnect with session token after disconnect', async () => {
     // First connection
-    const conn1 = await connectDurable(server.baseUrl);
+    const conn1 = await connectDurableChat(server.baseUrl);
     conn1.ws.send(JSON.stringify({ author: 'Returner', message: 'first-connect' }));
     await waitFor(() => conn1.messages.some(m => m.includes('first-connect')));
     conn1.close();
@@ -95,7 +40,7 @@ test.describe('Durable Session Token Handling', () => {
     await new Promise(r => setTimeout(r, 1_000));
 
     // Reconnect — even without explicit token, the server should handle it
-    const conn2 = await connectDurable(server.baseUrl);
+    const conn2 = await connectDurableChat(server.baseUrl);
     conn2.ws.send(JSON.stringify({ author: 'Returner', message: 'second-connect' }));
     await waitFor(() => conn2.messages.some(m => m.includes('second-connect')));
 
@@ -104,12 +49,12 @@ test.describe('Durable Session Token Handling', () => {
 
   test('messages flow correctly after reconnection', async () => {
     // Connect client A
-    const connA = await connectDurable(server.baseUrl);
+    const connA = await connectDurableChat(server.baseUrl);
     connA.ws.send(JSON.stringify({ author: 'UserA', message: 'before-reconnect' }));
     await waitFor(() => connA.messages.some(m => m.includes('before-reconnect')));
 
     // Connect client B
-    const connB = await connectDurable(server.baseUrl);
+    const connB = await connectDurableChat(server.baseUrl);
 
     // Client A sends another message — B should receive it
     connA.ws.send(JSON.stringify({ author: 'UserA', message: 'hello-B' }));
@@ -120,7 +65,7 @@ test.describe('Durable Session Token Handling', () => {
     await new Promise(r => setTimeout(r, 1_000));
 
     // Reconnect client A
-    const connA2 = await connectDurable(server.baseUrl);
+    const connA2 = await connectDurableChat(server.baseUrl);
 
     // Client B sends to reconnected A
     connB.ws.send(JSON.stringify({ author: 'UserB', message: 'welcome-back' }));
@@ -133,7 +78,7 @@ test.describe('Durable Session Token Handling', () => {
   test('multiple rapid reconnections do not corrupt session state', async () => {
     // Rapidly connect and disconnect 5 times
     for (let i = 0; i < 5; i++) {
-      const conn = await connectDurable(server.baseUrl);
+      const conn = await connectDurableChat(server.baseUrl);
       conn.ws.send(JSON.stringify({ author: 'Rapid', message: `cycle-${i}` }));
       await waitFor(() => conn.messages.some(m => m.includes(`cycle-${i}`)));
       conn.close();
@@ -141,7 +86,7 @@ test.describe('Durable Session Token Handling', () => {
     }
 
     // Final connection should work cleanly
-    const final = await connectDurable(server.baseUrl);
+    const final = await connectDurableChat(server.baseUrl);
     final.ws.send(JSON.stringify({ author: 'Rapid', message: 'final-check' }));
     await waitFor(() => final.messages.some(m => m.includes('final-check')));
 
