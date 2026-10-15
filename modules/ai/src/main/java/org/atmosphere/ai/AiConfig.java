@@ -391,6 +391,14 @@ public final class AiConfig {
 
     private static final ReentrantLock LOCK = new ReentrantLock();
     private static volatile LlmSettings instance;
+    /**
+     * The generation values {@link #instance} was built with that came from
+     * the caller ({@link #configure(String, String, String, String, GenerationParams)},
+     * e.g. a workspace {@code RUNTIME.md}) rather than from the knobs, so
+     * {@link #knobsNotInEffect} does not report them as knobs the settings fail
+     * to apply. Written together with {@link #instance}, under {@link #LOCK}.
+     */
+    private static volatile GenerationParams instancePinned = GenerationParams.defaults();
 
     /**
      * Returns the current LLM settings. Available after {@link #configure} or
@@ -412,6 +420,7 @@ public final class AiConfig {
         LOCK.lock();
         try {
             instance = null;
+            instancePinned = GenerationParams.defaults();
         } finally {
             LOCK.unlock();
         }
@@ -427,9 +436,31 @@ public final class AiConfig {
      * @return the resolved settings
      */
     public static LlmSettings configure(String mode, String model, String apiKey, String baseUrl) {
+        return configure(mode, model, apiKey, baseUrl, GenerationParams.defaults());
+    }
+
+    /**
+     * Configure LLM settings programmatically, with generation values that win
+     * over the generation knobs for these settings only. Each component of
+     * {@code pinned} that is set replaces the value the knob resolves (system
+     * property, then environment variable, then host configuration); an unset
+     * component leaves the knob's value. Nothing is written to the JVM system
+     * properties, so settings built later do not see these values.
+     *
+     * @param mode    {@code remote} or {@code local}
+     * @param model   model name
+     * @param apiKey  API key (may be null for local mode)
+     * @param baseUrl explicit base URL (null for auto-detection)
+     * @param pinned  generation values for these settings, {@code null} for none
+     * @return the resolved settings
+     */
+    public static LlmSettings configure(String mode, String model, String apiKey, String baseUrl,
+                                        GenerationParams pinned) {
+        var pins = pinned != null ? pinned : GenerationParams.defaults();
         LOCK.lock();
         try {
-            instance = buildSettings(mode, model, apiKey, baseUrl);
+            instance = buildSettings(mode, model, apiKey, baseUrl, pins);
+            instancePinned = pins;
             return instance;
         } finally {
             LOCK.unlock();
@@ -450,8 +481,23 @@ public final class AiConfig {
      */
     public static LlmSettings configureForAgent(String agentId, String mode, String model,
                                                 String apiKey, String baseUrl) {
+        return configureForAgent(agentId, mode, model, apiKey, baseUrl, GenerationParams.defaults());
+    }
+
+    /**
+     * As {@link #configureForAgent(String, String, String, String, String)},
+     * with generation values that win over the generation knobs for this
+     * agent's settings only (see
+     * {@link #configure(String, String, String, String, GenerationParams)}).
+     *
+     * @param pinned generation values for this agent, {@code null} for none
+     * @return the resolved agent-scoped settings
+     */
+    public static LlmSettings configureForAgent(String agentId, String mode, String model,
+                                                String apiKey, String baseUrl, GenerationParams pinned) {
         java.util.Objects.requireNonNull(agentId, "agentId");
-        var settings = buildSettings(mode, model, apiKey, baseUrl);
+        var settings = buildSettings(mode, model, apiKey, baseUrl,
+                pinned != null ? pinned : GenerationParams.defaults());
         AGENT_SETTINGS.put(agentId, settings);
         logger.info("AI config scoped to agent '{}': mode={}, model={}", agentId, mode, model);
         return settings;
@@ -480,7 +526,8 @@ public final class AiConfig {
     }
 
     /** Shared construction for the global and agent-scoped configure paths. */
-    private static LlmSettings buildSettings(String mode, String model, String apiKey, String baseUrl) {
+    private static LlmSettings buildSettings(String mode, String model, String apiKey, String baseUrl,
+                                             GenerationParams pinned) {
         // Tri-state prompt-cache-key control is resolved once here from the
         // sysprop (then env) and stored on the settings so every
         // realization site reads the same value via AiConfig.get(). AUTO
@@ -491,8 +538,9 @@ public final class AiConfig {
         // resolved once here from sysprops (then env) and stored on the
         // settings so every realization site reads the same opt-in values.
         // GenerationParams.defaults() (all null) keeps the wire byte-identical
-        // to the pre-feature behavior when nothing is configured.
-        var generation = resolveGenerationParams();
+        // to the pre-feature behavior when nothing is configured. A pinned
+        // component (a workspace RUNTIME.md value) wins for these settings only.
+        var generation = overlay(resolveGenerationParams(), pinned);
 
         if ("fake".equalsIgnoreCase(mode)) {
             logger.info("AI config: mode=fake (using FakeLlmClient — no real API calls)");
@@ -860,7 +908,7 @@ public final class AiConfig {
         if (settings == null) {
             return java.util.List.of();
         }
-        var notInEffect = knobsNotInEffect(settings);
+        var notInEffect = knobsNotInEffect(settings, instancePinned);
         if (!notInEffect.isEmpty()) {
             logger.warn("The AI settings in use were built before the application's configuration was "
                     + "installed and do not apply {}: build them with AiConfig.configure once the "
@@ -882,7 +930,7 @@ public final class AiConfig {
         if (settings == null) {
             return;
         }
-        var notInEffect = knobsNotInEffect(settings);
+        var notInEffect = knobsNotInEffect(settings, instancePinned);
         if (!notInEffect.isEmpty()) {
             logger.warn("An AI host configuration was closed and the previous one is read again, but the "
                     + "AI settings in use were built while the closed one was read and do not apply {}: "
@@ -903,7 +951,16 @@ public final class AiConfig {
      * @return the differing knob property names, in {@link #knobs()} order
      */
     static java.util.List<String> knobsNotInEffect(LlmSettings settings) {
-        var generation = resolveGenerationParams();
+        return knobsNotInEffect(settings, GenerationParams.defaults());
+    }
+
+    /**
+     * As {@link #knobsNotInEffect(LlmSettings)}, leaving out the generation
+     * components {@code pinned} sets: the settings were built with those values
+     * on purpose, over the knobs.
+     */
+    static java.util.List<String> knobsNotInEffect(LlmSettings settings, GenerationParams pinned) {
+        var generation = overlay(resolveGenerationParams(), pinned);
         var baked = settings.generation();
         var differing = new java.util.ArrayList<String>();
         if (resolvePromptCacheKeyMode() != settings.promptCacheKeyMode()) {
@@ -1051,10 +1108,14 @@ public final class AiConfig {
     }
 
     private static Double parseDoubleKnob(String property, String env, String label) {
-        var raw = rawKnob(property, env);
-        if (raw == null) {
+        return parseDouble(rawKnob(property, env), label);
+    }
+
+    private static Double parseDouble(String raw, String label) {
+        if (raw == null || raw.isBlank()) {
             return null;
         }
+        raw = raw.trim();
         try {
             return Double.valueOf(raw);
         } catch (NumberFormatException ex) {
@@ -1064,10 +1125,14 @@ public final class AiConfig {
     }
 
     private static Integer parseIntKnob(String property, String env, String label) {
-        var raw = rawKnob(property, env);
-        if (raw == null) {
+        return parseInt(rawKnob(property, env), label);
+    }
+
+    private static Integer parseInt(String raw, String label) {
+        if (raw == null || raw.isBlank()) {
             return null;
         }
+        raw = raw.trim();
         try {
             return Integer.valueOf(raw);
         } catch (NumberFormatException ex) {
@@ -1077,8 +1142,11 @@ public final class AiConfig {
     }
 
     private static java.util.List<String> parseStopKnob(String property, String env) {
-        var raw = rawKnob(property, env);
-        if (raw == null) {
+        return parseStop(rawKnob(property, env));
+    }
+
+    private static java.util.List<String> parseStop(String raw) {
+        if (raw == null || raw.isBlank()) {
             return null;
         }
         // Comma-separated; GenerationParams' canonical constructor strips blank
@@ -1091,6 +1159,37 @@ public final class AiConfig {
             }
         }
         return parts.isEmpty() ? null : parts;
+    }
+
+    /**
+     * Parse generation values given as text (a workspace {@code RUNTIME.md},
+     * say) with the parsing the generation knobs use: a malformed number is
+     * logged and left unset, never thrown (Correctness Invariant #4), and
+     * {@link GenerationParams} clamps out-of-range values. {@code null} or blank
+     * arguments stay unset.
+     *
+     * @param temperature the temperature, e.g. {@code 0.2}
+     * @param maxTokens   the max-tokens, e.g. {@code 512}
+     * @param topP        the top-p, e.g. {@code 0.9}
+     * @param stop        comma-separated stop sequences
+     * @return the parsed values, never {@code null}
+     */
+    public static GenerationParams parseGenerationParams(String temperature, String maxTokens,
+                                                         String topP, String stop) {
+        return new GenerationParams(parseDouble(temperature, "temperature"),
+                parseInt(maxTokens, "max-tokens"), parseDouble(topP, "top-p"), parseStop(stop));
+    }
+
+    /** {@code base} with each component {@code pinned} sets replaced by the pinned value. */
+    private static GenerationParams overlay(GenerationParams base, GenerationParams pinned) {
+        if (pinned == null || !pinned.hasAny()) {
+            return base;
+        }
+        return new GenerationParams(
+                pinned.temperature() != null ? pinned.temperature() : base.temperature(),
+                pinned.maxTokens() != null ? pinned.maxTokens() : base.maxTokens(),
+                pinned.topP() != null ? pinned.topP() : base.topP(),
+                pinned.stop() != null ? pinned.stop() : base.stop());
     }
 
     /**

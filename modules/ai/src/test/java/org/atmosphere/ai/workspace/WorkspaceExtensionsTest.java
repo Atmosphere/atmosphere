@@ -65,8 +65,8 @@ class WorkspaceExtensionsTest {
 
     @AfterEach
     void clearGenerationSysprops() {
-        // applyRuntime feeds generation knobs through these sysprops; clear them
-        // so they cannot leak into later tests' AiConfig.configure() resolution.
+        // applyRuntime never writes these sysprops; clear them anyway so a test
+        // that sets one cannot leak into later tests' AiConfig.configure().
         System.clearProperty(AiConfig.TEMPERATURE_PROPERTY);
         System.clearProperty(AiConfig.MAX_TOKENS_PROPERTY);
         System.clearProperty(AiConfig.TOP_P_PROPERTY);

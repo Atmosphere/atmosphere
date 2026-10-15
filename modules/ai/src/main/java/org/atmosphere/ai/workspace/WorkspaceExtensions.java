@@ -46,9 +46,9 @@ import java.util.Optional;
  *
  * <ul>
  *   <li>{@code RUNTIME.md} → agent-scoped {@link AiConfig#configureForAgent}
- *       (model / mode / base URL / API key) plus the generation knobs
- *       ({@code temperature}, {@code maxTokens}, {@code topP}, {@code stop}).
- *       The first workspace also seeds the process-wide default; later
+ *       (model / mode / base URL / API key) plus the generation values
+ *       ({@code temperature}, {@code maxTokens}, {@code topP}, {@code stop}),
+ *       pinned on those settings only. The first workspace also seeds the process-wide default; later
  *       workspaces stay scoped to their own agent — see
  *       {@link #applyRuntime(AgentDefinition, String)}.</li>
  *   <li>{@code PERMISSIONS.md} → {@link GovernancePolicy} instances installed
@@ -243,6 +243,14 @@ public final class WorkspaceExtensions {
      * pointing the app at a different model/endpoint via env is not silently
      * overridden by a shipped {@code RUNTIME.md}.</p>
      *
+     * <p><strong>Generation values stay with their settings.</strong>
+     * {@code temperature}, {@code max-tokens}, {@code top-p} and {@code stop}
+     * are pinned on the settings this call builds: there they win over the
+     * matching {@code atmosphere.ai.*} knob (system property, {@code LLM_*}
+     * environment variable, host configuration), and a malformed value is
+     * logged and left to the knob. They are never written to the JVM system
+     * properties, so no other agent's or application's settings see them.</p>
+     *
      * <p><strong>Scoping (registre#39).</strong> With an {@code agentId}, the
      * settings are stored agent-scoped via
      * {@link AiConfig#configureForAgent} — dispatches for that agent resolve
@@ -299,25 +307,26 @@ public final class WorkspaceExtensions {
         var baseUrl = firstNonBlank(overrideBaseUrl, kv.get("base-url"), kv.get("baseurl"),
                 current != null ? current.baseUrl() : null);
 
-        // Generation knobs ride the sysprops AiConfig.configure() already
-        // resolves, reusing its tested parsing + GenerationParams clamping
-        // (boundary validation lives in GenerationParams, not here).
-        applyGenerationSysprop(AiConfig.TEMPERATURE_PROPERTY, kv.get("temperature"));
-        applyGenerationSysprop(AiConfig.MAX_TOKENS_PROPERTY, firstNonBlank(kv.get("max-tokens"), kv.get("maxtokens")));
-        applyGenerationSysprop(AiConfig.TOP_P_PROPERTY, firstNonBlank(kv.get("top-p"), kv.get("topp")));
-        applyGenerationSysprop(AiConfig.STOP_PROPERTY, kv.get("stop"));
+        // Generation values are pinned on the settings this workspace builds,
+        // reusing AiConfig's tested knob parsing + GenerationParams clamping
+        // (boundary validation lives there, not here). They are never written
+        // to the JVM system properties: that would hand them to every agent
+        // and application in the JVM, at the highest precedence.
+        var generation = AiConfig.parseGenerationParams(kv.get("temperature"),
+                firstNonBlank(kv.get("max-tokens"), kv.get("maxtokens")),
+                firstNonBlank(kv.get("top-p"), kv.get("topp")), kv.get("stop"));
 
         if (agentId != null) {
             // Agent-scoped: dispatches for this agent resolve these settings
             // via AiConfig.forAgent; nothing else in the JVM changes.
-            AiConfig.configureForAgent(agentId, mode, model, apiKey, baseUrl);
+            AiConfig.configureForAgent(agentId, mode, model, apiKey, baseUrl, generation);
             // First workspace also seeds the global so single-agent
             // deployments (and paths without an agent id) keep working; a
             // later workspace never overwrites another's global settings.
             var owner = GLOBAL_RUNTIME_WORKSPACE.compareAndSet(null, def.name())
                     ? def.name() : GLOBAL_RUNTIME_WORKSPACE.get();
             if (def.name().equals(owner)) {
-                AiConfig.configure(mode, model, apiKey, baseUrl);
+                AiConfig.configure(mode, model, apiKey, baseUrl, generation);
                 logger.info("Applied RUNTIME.md from workspace '{}': mode={}, model={} "
                         + "(agent '{}' + process default)", def.name(), mode, model, agentId);
             } else {
@@ -342,7 +351,7 @@ public final class WorkspaceExtensions {
                     def.name(), previousWorkspace,
                     current.mode(), mode, current.model(), model);
         }
-        AiConfig.configure(mode, model, apiKey, baseUrl);
+        AiConfig.configure(mode, model, apiKey, baseUrl, generation);
         logger.info("Applied RUNTIME.md from workspace '{}': mode={}, model={} (process-global)",
                 def.name(), mode, model);
         return true;
@@ -355,12 +364,6 @@ public final class WorkspaceExtensions {
     /** Clears the global-settings ownership. Test-only isolation hook. */
     static void resetRuntimeOwnershipForTests() {
         GLOBAL_RUNTIME_WORKSPACE.set(null);
-    }
-
-    private static void applyGenerationSysprop(String property, String value) {
-        if (value != null && !value.isBlank()) {
-            System.setProperty(property, value.trim());
-        }
     }
 
     // -- PERMISSIONS.md → governance policies ---------------------------------
