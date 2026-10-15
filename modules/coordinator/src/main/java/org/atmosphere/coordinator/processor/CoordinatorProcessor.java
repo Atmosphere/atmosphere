@@ -920,7 +920,9 @@ public class CoordinatorProcessor implements Processor<Object> {
         try {
             return ServiceLoader.load(AiMetrics.class)
                     .findFirst().orElse(AiMetrics.NOOP);
-        } catch (Exception | ServiceConfigurationError e) {
+        } catch (Exception | NoClassDefFoundError | ServiceConfigurationError e) {
+            // MicrometerAiMetrics is listed in META-INF/services but micrometer-core
+            // is not on the classpath — fall back to NOOP, as AiEndpointProcessor does
             logger.debug("No AiMetrics provider available: {}", e.getMessage());
             return AiMetrics.NOOP;
         }
