@@ -94,9 +94,11 @@ public final class CompactionConfig {
         var strategy = value.trim();
         if ("summarizing".equalsIgnoreCase(strategy)) {
             var window = cfg.getInitParameter(RECENT_WINDOW_KEY, 0);
-            return window > 0
-                    ? new LlmSummarizingCompaction(window)
-                    : new LlmSummarizingCompaction();
+            // Summarizes on the runtime of the application cfg belongs to,
+            // whichever thread compacts the history.
+            return new LlmSummarizingCompaction(
+                    window > 0 ? window : LlmSummarizingCompaction.DEFAULT_RECENT_WINDOW,
+                    () -> AiEnvironment.resolveRuntime(cfg));
         }
         if (TOKEN_WINDOW.equalsIgnoreCase(strategy)) {
             var effective = effectiveModel(cfg, model);

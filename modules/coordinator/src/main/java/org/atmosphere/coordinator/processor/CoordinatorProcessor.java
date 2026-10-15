@@ -284,7 +284,7 @@ public class CoordinatorProcessor implements Processor<Object> {
             // register (Invariant #5).
             registerPresetDelegation(toolRegistry, preset,
                     features.contains(Harness.DELEGATION), coordinatorName,
-                    GovernancePolicies.installed(framework));
+                    GovernancePolicies.installed(framework), aiEnvironment);
 
             // Step 8: Create AgentFleet and AiEndpointHandler with injectable
             var evaluators = resolveEvaluators(aiEnvironment);
@@ -576,6 +576,20 @@ public class CoordinatorProcessor implements Processor<Object> {
     void registerPresetDelegation(ToolRegistry toolRegistry, HarnessPreset preset,
                                   boolean delegationOn, String coordinatorName,
                                   List<GovernancePolicy> policies) {
+        registerPresetDelegation(toolRegistry, preset, delegationOn, coordinatorName, policies, null);
+    }
+
+    /**
+     * As {@link #registerPresetDelegation(ToolRegistry, HarnessPreset, boolean, String, List)},
+     * the {@code task} tool's subagents running on the runtime of
+     * {@code aiEnvironment}, the coordinator's application ({@code null}: the
+     * runtime of {@link org.atmosphere.ai.AiEnvironment#current()} when a
+     * subagent spawns).
+     */
+    void registerPresetDelegation(ToolRegistry toolRegistry, HarnessPreset preset,
+                                  boolean delegationOn, String coordinatorName,
+                                  List<GovernancePolicy> policies,
+                                  org.atmosphere.ai.AiEnvironment aiEnvironment) {
         if (!delegationOn) {
             return;
         }
@@ -597,7 +611,9 @@ public class CoordinatorProcessor implements Processor<Object> {
         // on demand (deepagents' `task` tool). Governed by the same installed
         // policies as the fleet dispatch edge; a user-declared `task` wins.
         if (toolRegistry.getTool("task").isEmpty()) {
-            toolRegistry.register(new SpawnSubagentTool(policies));
+            toolRegistry.register(aiEnvironment != null
+                    ? new SpawnSubagentTool(policies, aiEnvironment)
+                    : new SpawnSubagentTool(policies));
             logger.info("Harness registered task (dynamic subagent spawn) for coordinator '{}'",
                     coordinatorName);
         }

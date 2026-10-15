@@ -17,7 +17,7 @@ package org.atmosphere.coordinator.fleet;
 
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AgentRuntime;
-import org.atmosphere.ai.AgentRuntimeResolver;
+import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.ExecutionHandle;
@@ -118,11 +118,31 @@ public final class SpawnSubagentTool {
     private final Duration timeout;
 
     /**
+     * A tool whose subagents run on the runtime of {@link AiEnvironment#current()}
+     * when they spawn: the application bound to the calling thread, else the
+     * only one running, else the process default. A coordinator registers the
+     * tool with its own application instead
+     * ({@link #SpawnSubagentTool(List, AiEnvironment)}).
+     *
      * @param policies the installed governance policies (pre-admission is
      *                 evaluated against these); may be empty, never null.
      */
     public SpawnSubagentTool(List<GovernancePolicy> policies) {
-        this(policies, AgentRuntimeResolver::resolve, null, SPAWN_TIMEOUT);
+        this(policies, () -> AiEnvironment.current().runtimes().resolve(), null, SPAWN_TIMEOUT);
+    }
+
+    /**
+     * A tool whose subagents run on the runtime of {@code environment}, the
+     * application of the coordinator that registers it, whichever thread
+     * the tool is called on.
+     *
+     * @param policies    the installed governance policies (pre-admission is
+     *                    evaluated against these); may be empty, never null.
+     * @param environment the coordinator's application
+     */
+    public SpawnSubagentTool(List<GovernancePolicy> policies, AiEnvironment environment) {
+        this(policies, java.util.Objects.requireNonNull(environment, "environment").runtimes()::resolve,
+                null, SPAWN_TIMEOUT);
     }
 
     // visible for testing — inject a stub runtime, a fixed workspace root, and a short timeout

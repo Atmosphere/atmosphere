@@ -28,7 +28,7 @@ import java.util.function.Supplier;
 
 /**
  * {@link SummarizingCompaction} whose summary comes from a one-shot LLM
- * completion on the {@link AgentRuntimeResolver#resolve() resolved runtime} —
+ * completion on the runtime of its application ({@link AiEnvironment#runtimes()}) —
  * the same completion pattern
  * {@link org.atmosphere.ai.memory.LongTermMemoryInterceptor}'s extraction
  * strategies use. Selected via the
@@ -54,20 +54,35 @@ public class LlmSummarizingCompaction extends SummarizingCompaction {
             Conversation:
             %s""";
 
+    /** The messages kept verbatim when no recent window is configured. */
+    static final int DEFAULT_RECENT_WINDOW = 6;
+
     private final Supplier<AgentRuntime> runtimeSupplier;
 
+    /**
+     * A compaction that summarizes on the runtime of {@link AiEnvironment#current()}
+     * when it summarizes, keeping {@value #DEFAULT_RECENT_WINDOW} messages verbatim.
+     */
     public LlmSummarizingCompaction() {
-        this(6);
-    }
-
-    public LlmSummarizingCompaction(int recentWindowSize) {
-        this(recentWindowSize, AgentRuntimeResolver::resolve);
+        this(DEFAULT_RECENT_WINDOW);
     }
 
     /**
-     * Test seam: inject the runtime source instead of the process-wide
-     * resolver so fail-open and success paths are pinnable without mutating
-     * {@link AgentRuntimeResolver} global state.
+     * A compaction that summarizes on the runtime of {@link AiEnvironment#current()}
+     * when it summarizes: the application bound to the calling thread, else the
+     * only one running, else the process default. {@link CompactionConfig}
+     * gives an application's memory its own application's runtime instead.
+     *
+     * @param recentWindowSize the messages kept verbatim
+     */
+    public LlmSummarizingCompaction(int recentWindowSize) {
+        this(recentWindowSize, () -> AiEnvironment.current().runtimes().resolve());
+    }
+
+    /**
+     * Inject the runtime source: {@link CompactionConfig} passes the runtime
+     * of the memory's application, and tests pin the fail-open and success
+     * paths without mutating any application's runtimes.
      */
     LlmSummarizingCompaction(int recentWindowSize, Supplier<AgentRuntime> runtimeSupplier) {
         super(recentWindowSize);

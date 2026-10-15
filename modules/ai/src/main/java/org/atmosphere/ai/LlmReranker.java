@@ -74,19 +74,26 @@ public class LlmReranker implements DocumentReranker {
     private final Supplier<AgentRuntime> runtimeSupplier;
     private final long timeoutMs;
 
+    /**
+     * A reranker that scores on the runtime of {@link AiEnvironment#current()}
+     * when it reranks: the application bound to the calling thread, else the
+     * only one running, else the process default.
+     */
     public LlmReranker() {
-        this(AgentRuntimeResolver::resolve, DEFAULT_TIMEOUT_MS);
+        this(null, DEFAULT_TIMEOUT_MS);
     }
 
     /**
      * @param runtimeSupplier source of the runtime that scores the batch —
-     *                        typically the endpoint's resolved runtime
+     *                        typically the endpoint's resolved runtime;
+     *                        {@code null} for the runtime of
+     *                        {@link AiEnvironment#current()} when it reranks
      * @param timeoutMs       completion bound in milliseconds ({@code <= 0}
      *                        uses {@link #DEFAULT_TIMEOUT_MS})
      */
     public LlmReranker(Supplier<AgentRuntime> runtimeSupplier, long timeoutMs) {
         this.runtimeSupplier = runtimeSupplier != null
-                ? runtimeSupplier : AgentRuntimeResolver::resolve;
+                ? runtimeSupplier : () -> AiEnvironment.current().runtimes().resolve();
         this.timeoutMs = timeoutMs > 0 ? timeoutMs : DEFAULT_TIMEOUT_MS;
     }
 

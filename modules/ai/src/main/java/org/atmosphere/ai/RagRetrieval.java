@@ -103,7 +103,8 @@ public final class RagRetrieval {
      * @param cfg             the framework config (may be {@code null} in tests)
      * @param runtimeSupplier the runtime the {@link LlmReranker} scores through —
      *                        typically the endpoint's resolved runtime;
-     *                        {@code null} falls back to {@link AgentRuntimeResolver#resolve()}
+     *                        {@code null} falls back to the runtime of the
+     *                        application {@code cfg} belongs to
      * @return the policy to hand to {@link AiStreamingSession#setRagRetrieval}
      */
     public static RagRetrieval resolve(AtmosphereConfig cfg, Supplier<AgentRuntime> runtimeSupplier) {
@@ -120,7 +121,9 @@ public final class RagRetrieval {
         }
         var overfetch = cfg.getInitParameter(OVERFETCH_KEY, DEFAULT_OVERFETCH);
         var timeoutMs = cfg.getInitParameter(RERANKER_TIMEOUT_MS_KEY, (int) LlmReranker.DEFAULT_TIMEOUT_MS);
-        return new RagRetrieval(new LlmReranker(runtimeSupplier, timeoutMs), overfetch);
+        Supplier<AgentRuntime> scoring = runtimeSupplier != null
+                ? runtimeSupplier : () -> AiEnvironment.resolveRuntime(cfg);
+        return new RagRetrieval(new LlmReranker(scoring, timeoutMs), overfetch);
     }
 
     /** Whether a configured reranker will actually run on retrieval turns. */

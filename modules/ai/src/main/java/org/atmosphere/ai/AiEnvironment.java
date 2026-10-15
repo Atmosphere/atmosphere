@@ -327,6 +327,22 @@ public final class AiEnvironment implements AutoCloseable {
     }
 
     /**
+     * The runtime of the application {@code config} belongs to, resolved now:
+     * that of the environment attached to it, else that of {@link #current()}
+     * (a framework no {@code @AiEndpoint}, {@code @Agent} or {@code @Coordinator}
+     * registered on). Unlike {@link #of(AtmosphereConfig)}, it never creates an
+     * environment, so it is safe to call after the framework was destroyed.
+     *
+     * @param config a framework's configuration, may be {@code null}
+     * @return the runtime
+     * @throws AgentRuntimeSelectionException when the runtime knob names no
+     *                                         available runtime
+     */
+    static AgentRuntime resolveRuntime(AtmosphereConfig config) {
+        return find(config).orElseGet(AiEnvironment::current).runtimes().resolve();
+    }
+
+    /**
      * Attach this environment to a framework: {@link #of(AtmosphereConfig)}
      * returns it from now on. Attaching it again to the same configuration does
      * nothing.
