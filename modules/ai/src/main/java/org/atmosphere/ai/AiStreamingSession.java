@@ -951,10 +951,11 @@ public class AiStreamingSession implements StreamingSession {
 
     /**
      * End the turn with a scope breach's redirect text, sent verbatim. The
-     * turn ends like a denied one, before the interceptors' pre-processing
-     * and the model, but completes instead of failing: no
-     * {@link AiInterceptor#beforeCompletion} or {@link AiInterceptor#postProcess}
-     * hook fires and nothing is added to the conversation memory.
+     * turn ends like a denied one, before the model (and, for the endpoint
+     * scope, before the interceptors' pre-processing), but completes instead
+     * of failing: no {@link AiInterceptor#beforeCompletion} or
+     * {@link AiInterceptor#postProcess} hook fires and nothing is added to the
+     * conversation memory.
      */
     private void sendScopeRedirect(String redirect) {
         logger.debug("Scope breach on {}: sending the redirect verbatim", resource.uuid());

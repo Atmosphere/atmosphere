@@ -63,7 +63,10 @@ public interface AiInterceptor {
      * request) fails the turn closed with a {@link SecurityException}. It does
      * not see the turn's scope decision, which is taken on the inbound message
      * before the {@code @Prompt} method runs. Its {@link #beforeCompletion} and
-     * {@link #postProcess} hooks run with the others.</p>
+     * {@link #postProcess} hooks run with the others on an admitted turn; on a
+     * turn the admission denies or redirects no hook runs, so its
+     * {@code preProcess} must not acquire anything that only those hooks
+     * release.</p>
      *
      * @return {@code true} to run {@link #preProcess} before admission;
      *         {@code false} (the default) to run it on the admitted request
