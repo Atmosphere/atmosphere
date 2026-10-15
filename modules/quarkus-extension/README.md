@@ -75,7 +75,7 @@ All properties are under the `quarkus.atmosphere.*` prefix:
 
 With `atmosphere-ai` on the classpath, the knobs `AiConfig` reads — `atmosphere.ai.temperature`,
 `max-tokens`, `top-p`, `stop`, `embedding-model`, `prompt-cache-key`, `logprobs`,
-`native-structured-output`, `planning`, `filesystem` and `runtime` (the list is
+`native-structured-output`, `planning`, `filesystem`, `runtime` and `reattach.grace` (the list is
 `AiConfig.knobProperties()`) — can be set in `application.properties` under those names, without a
 `quarkus.` prefix. The extension installs them before the framework initializes, in both container
 modes. A `-D` system property or the knob's `LLM_*` environment variable (e.g. `LLM_TEMPERATURE`)

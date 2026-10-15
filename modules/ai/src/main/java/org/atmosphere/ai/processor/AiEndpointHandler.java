@@ -1334,7 +1334,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 logger.debug("handleDisconnect invoked after resource recycled — reclaiming session "
                         + "state for uuid {} (event.isClosedByClient={}, isCancelled={})",
                         uuid, event.isClosedByClient(), event.isCancelled());
-                cleanupDisconnected(recallRunOwner(uuid), uuid);
+                cleanupDisconnected(recallRunOwner(uuid), uuid,
+                        org.atmosphere.ai.resume.RunDisconnectGrace.isTransportLoss(event));
             }
             lifecycle.onDisconnect(target, event);
             return;
@@ -1343,7 +1344,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         if (ownerAtDisconnect == null) {
             ownerAtDisconnect = recallRunOwner(resource.uuid());
         }
-        cleanupDisconnected(ownerAtDisconnect, resource.uuid());
+        cleanupDisconnected(ownerAtDisconnect, resource.uuid(),
+                org.atmosphere.ai.resume.RunDisconnectGrace.isTransportLoss(event));
         lifecycle.onDisconnect(target, event);
         logger.info(logMessage, resource.uuid());
     }
@@ -1372,24 +1374,49 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * Shared by the normal disconnect path and the recycled-resource path so
      * both reclaim identically (Invariant #7). Interceptors are notified
      * BEFORE memory is cleared so they can extract facts from history.
+     *
+     * <p>A connection lost rather than closed on purpose grants its
+     * reattachable runs the reattach grace ({@link AiConfig#resolveReattachGrace()}):
+     * they keep going, and the conversation memory and tape state of the
+     * connection are released when the last of them ends — a run completing
+     * within the grace would otherwise record its turn after the release.</p>
      */
-    private void cleanupDisconnected(String userIdStr, String uuid) {
+    private void cleanupDisconnected(String userIdStr, String uuid, boolean transportLoss) {
         // A closed or cancelled connection does not poll again: until a connection
         // of its id is suspended again, a prompt naming the id is refused at once
         // instead of waiting for it.
         repollGate.connectionGone(uuid);
         notifyInterceptorsOnDisconnect(userIdStr, uuid);
         forgetRunOwner(uuid);
-        if (memory != null) {
-            memory.clear(uuid);
-        }
         DefaultStreamingSession.cleanupResource(uuid);
         // After the sessions are closed, so none of them parks a reply for the
         // departed client once its parked one is dropped.
         LongPollingReplies.discard(uuid);
-        // Cancels every model call still in flight on the connection; the turn
-        // of a call it cuts short ends with the cancelled frame, not complete.
-        AiStreamingSession.removeAllForResource(uuid);
+        // Cancels every model call still in flight on the connection — at once
+        // for a client that left, after the reattach grace for one whose
+        // connection was lost; a call it cuts short ends in a cancelled frame,
+        // not complete.
+        var grace = transportLoss ? AiConfig.resolveReattachGrace() : Duration.ZERO;
+        var detached = AiStreamingSession.removeAllForResource(uuid, grace);
+        if (detached.isEmpty()) {
+            releaseConnectionState(uuid);
+            return;
+        }
+        var registry = org.atmosphere.ai.resume.RunRegistryHolder.get();
+        var ends = detached.stream()
+                .map(registry::lookup)
+                .flatMap(java.util.Optional::stream)
+                .map(run -> run.executionHandle().whenDone())
+                .toArray(java.util.concurrent.CompletableFuture<?>[]::new);
+        java.util.concurrent.CompletableFuture.allOf(ends)
+                .whenComplete((ignored, failure) -> releaseConnectionState(uuid));
+    }
+
+    /** Release the conversation memory and tape state of a connection that went away. */
+    private void releaseConnectionState(String uuid) {
+        if (memory != null) {
+            memory.clear(uuid);
+        }
         // Session tape: cancel-mark every open taped run of this resource
         // (reconnects get a fresh uuid, so this never races a live run). The
         // writer drains already-queued steps before CANCELLED lands. No-op
@@ -1419,8 +1446,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     }
 
     /**
-     * Framework teardown: stop the shared streaming-session TTL sweeper
-     * (symmetric with its lazy start on session registration — Invariant #1).
+     * Framework teardown: stop the shared streaming-session TTL sweeper and the
+     * reattach grace timer (symmetric with their lazy start — Invariant #1).
      * Idempotent, and the sweeper restarts on the next registration, so
      * multiple endpoint handlers being destroyed in any order is safe. Prompts
      * still waiting for their client's next poll are refused at once rather
@@ -1430,6 +1457,9 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     public void destroy() {
         repollGate.shutdown();
         StreamingSessionSweeper.shutdown();
+        // Runs waiting out a reattach grace are cancelled now, not left to a
+        // timer that stops with the endpoint.
+        org.atmosphere.ai.resume.RunDisconnectGrace.shutdown();
         super.destroy();
     }
 

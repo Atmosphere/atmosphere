@@ -820,6 +820,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         try {
             if (r != null) {
                 var event = ((AtmosphereResourceImpl) r).getAtmosphereResourceEvent();
+                event.webSocketCloseCode(closeCode);
                 // A WebSocket client sends no close message: the close code is what tells a
                 // user who left from a dropped connection, which stays cancelled. A close the
                 // server started reports 1000/1001 too: its initiator marks the event cancelled

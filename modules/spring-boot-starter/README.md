@@ -190,7 +190,7 @@ All properties are under the `atmosphere.ai.*` prefix:
 
 The knobs `AiConfig` reads are honoured here too: `atmosphere.ai.temperature`, `max-tokens`,
 `top-p`, `stop` (a comma-separated string or a YAML list), `embedding-model`, `prompt-cache-key`,
-`logprobs`, `native-structured-output`, `planning`, `filesystem` and `runtime` (the list is
+`logprobs`, `native-structured-output`, `planning`, `filesystem`, `runtime` and `reattach.grace` (the list is
 `AiConfig.knobProperties()`). For these, a `-D` JVM system property wins, then the knob's `LLM_*`
 environment variable (e.g. `LLM_TEMPERATURE`), then the Spring `Environment` (`application.yml`,
 `application.properties`, and the relaxed `ATMOSPHERE_AI_*` environment variables Spring maps onto

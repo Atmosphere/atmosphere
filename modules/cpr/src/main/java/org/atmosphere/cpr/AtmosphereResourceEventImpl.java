@@ -37,6 +37,8 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
     private final AtomicBoolean isClosedByClient = new AtomicBoolean(false);
     private final String uuid;
     private final AtomicBoolean isClosedByApplication = new AtomicBoolean(false);
+    // The status code of the WebSocket close that ended the resource; -1 when none did.
+    private volatile int webSocketCloseCode = -1;
     // The resource's own dispatch, shared by every event built for it.
     private final DisconnectDispatch disconnectDispatch;
 
@@ -172,6 +174,32 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         return this;
     }
 
+    /**
+     * The status code of the WebSocket close that ended this event's resource:
+     * {@code 1000} for a client that closed on purpose, {@code 1001} for a
+     * browser leaving or reloading the page, {@code 1006} for a lost
+     * connection. Both 1000 and 1001 report {@link #isClosedByClient()}; the
+     * code is what tells a client that left from one that may come back.
+     *
+     * @return the close code, or {@code -1} when no WebSocket close ended the
+     *         resource (an HTTP transport, or a resource still open)
+     */
+    public int webSocketCloseCode() {
+        return webSocketCloseCode;
+    }
+
+    /**
+     * Records the status code of the WebSocket close that ends this event's
+     * resource; set before the disconnect is dispatched.
+     *
+     * @param closeCode the WebSocket close status code
+     * @return this
+     */
+    public AtmosphereResourceEventImpl webSocketCloseCode(int closeCode) {
+        this.webSocketCloseCode = closeCode;
+        return this;
+    }
+
     @Override
     public boolean isResumedOnTimeout() {
         return isResumedOnTimeout.get();
@@ -261,6 +289,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
                 " isCancelled=" + isCancelled +
                 " isClosedByClient=" + isClosedByClient +
                 " isClosedByApplication=" + isClosedByApplication +
+                " webSocketCloseCode=" + webSocketCloseCode +
                 " isResumedOnTimeout=" + isResumedOnTimeout +
                 " throwable=" + throwable +
                 " resource=" + uuid +

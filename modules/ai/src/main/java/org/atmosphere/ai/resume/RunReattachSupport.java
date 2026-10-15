@@ -48,10 +48,14 @@ import org.slf4j.LoggerFactory;
  * <p>The events are what {@link RunEventCapturingSession} captures: the text
  * and the terminal frame the client received, whether the {@code @Prompt}
  * method sent them or the runtime streamed them for {@code session.stream(...)}.
- * The disconnect of the client that started the run cancels a runtime call
- * still in flight, so such a run's answer is not continued: a reattached
- * client receives the text streamed before the disconnect, then the
- * {@code cancelled} frame.</p>
+ * A client whose connection was lost, rather than closed on purpose, leaves
+ * its run going for the reattach grace ({@link RunDisconnectGrace}): a reattach
+ * within it rescinds the pending cancel, and the reattached client receives the
+ * whole answer through {@code complete}. When the grace expires first, the
+ * model call is cancelled and a reattached client receives the text streamed
+ * until then, then the {@code cancelled} frame. A reattached client that loses
+ * its own connection detaches the run again; one that leaves on purpose
+ * cancels it.</p>
  */
 public final class RunReattachSupport {
 
@@ -300,8 +304,13 @@ public final class RunReattachSupport {
                     resource.uuid(), runId, handle.userId(), resolveCallerUserId(req));
             return 0;
         }
+        if (!handle.isDone()) {
+            // The client is back: the run its disconnect left going is not
+            // cancelled when the grace expires.
+            RunDisconnectGrace.reattached(runId);
+        }
         if (!handle.isDone() && forwardsLiveEvents(resource)) {
-            return replayAndForward(resource, runId, handle);
+            return replayAndForward(resource, runId, handle, reattachGrace(registry));
         }
         var replayed = handle.replayableEvents();
         if (replayed.isEmpty()) {
@@ -363,6 +372,12 @@ public final class RunReattachSupport {
         return written;
     }
 
+    /** The reattach grace, bounded by the registry TTL (Correctness Invariant #3). */
+    static java.time.Duration reattachGrace(RunRegistry registry) {
+        var grace = org.atmosphere.ai.AiConfig.resolveReattachGrace();
+        return grace.compareTo(registry.ttl()) > 0 ? registry.ttl() : grace;
+    }
+
     /** Transports whose response stays open after a write, so later frames can follow. */
     private static boolean forwardsLiveEvents(AtmosphereResource resource) {
         var transport = resource.transport();
@@ -379,9 +394,9 @@ public final class RunReattachSupport {
      * the backlog, in order.
      */
     private static int replayAndForward(AtmosphereResource resource, String runId,
-                                        AgentResumeHandle handle) {
-        var forwarder = new LiveForwarder(resource, runId, filtersFor(resource),
-                broadcasterIdFor(resource));
+                                        AgentResumeHandle handle, java.time.Duration grace) {
+        var forwarder = new LiveForwarder(resource, handle, filtersFor(resource),
+                broadcasterIdFor(resource), grace);
         synchronized (forwarder) {
             var subscription = handle.replayBuffer().subscribe(forwarder::forward);
             forwarder.cancelWith(subscription.cancel());
@@ -414,29 +429,38 @@ public final class RunReattachSupport {
      * Writes one run's frames to one reattached resource and owns that
      * subscription: it removes the buffer listener and its own resource
      * listener on the terminal frame, on a failed write and on disconnect.
+     * When the resource disconnects while the run is still going and no other
+     * reattached client is listening, the run is detached again for the grace
+     * (a lost connection) or cancelled (a client that left on purpose), as the
+     * disconnect of the client that started it would.
      */
     private static final class LiveForwarder {
 
         private final AtmosphereResource resource;
         private final String runId;
+        private final AgentResumeHandle run;
         private final java.util.List<org.atmosphere.cpr.BroadcastFilter> filters;
         private final String broadcasterId;
+        private final java.time.Duration grace;
         private final org.atmosphere.cpr.AtmosphereResourceEventListener disconnectListener;
         private long seq;
         private boolean cancelled;
         private Runnable unsubscribe = () -> { };
 
-        LiveForwarder(AtmosphereResource resource, String runId,
+        LiveForwarder(AtmosphereResource resource, AgentResumeHandle run,
                       java.util.List<org.atmosphere.cpr.BroadcastFilter> filters,
-                      String broadcasterId) {
+                      String broadcasterId, java.time.Duration grace) {
             this.resource = resource;
-            this.runId = runId;
+            this.runId = run.runId();
+            this.run = run;
             this.filters = filters;
             this.broadcasterId = broadcasterId;
+            this.grace = grace;
             this.disconnectListener = new org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter() {
                 @Override
                 public void onDisconnect(org.atmosphere.cpr.AtmosphereResourceEvent event) {
                     cancel();
+                    clientGone(event);
                 }
 
                 @Override
@@ -444,6 +468,21 @@ public final class RunReattachSupport {
                     cancel();
                 }
             };
+        }
+
+        /** The reattached client went away: the run is detached or cancelled once nobody listens. */
+        private void clientGone(org.atmosphere.cpr.AtmosphereResourceEvent event) {
+            if (run.isDone() || run.replayBuffer().subscriberCount() > 0) {
+                return;
+            }
+            if (RunDisconnectGrace.isTransportLoss(event)) {
+                if (!RunDisconnectGrace.redetach(runId, grace)) {
+                    // Grace disabled: the run's own client is gone for good.
+                    RunDisconnectGrace.expireNow(runId);
+                }
+            } else {
+                RunDisconnectGrace.expireNow(runId);
+            }
         }
 
         synchronized void cancelWith(Runnable unsubscribe) {

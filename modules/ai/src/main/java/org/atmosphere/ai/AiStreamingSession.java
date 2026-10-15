@@ -468,32 +468,56 @@ public class AiStreamingSession implements StreamingSession {
     }
 
     /**
-     * Remove every session registered for a given resource UUID. Called by
-     * {@code AiEndpointHandler#handleDisconnect} when the underlying socket
-     * is going away and all prompts on it are done.
-     *
-     * <p>Each removed session has {@link #cancelInflight()} fired before the
-     * map entry is dropped so any in-flight LLM call is aborted (refunding
-     * tokens for a client that is no longer listening) and any virtual
-     * thread parked on a {@code @RequiresApproval} future unblocks instead
-     * of waiting out its 5-minute timeout. A call it cuts short ends with the
-     * {@code cancelled} frame of {@link RunCancelledException.Reason#DISCONNECT}.
-     * Closes Correctness Invariant #2 (Terminal Path Completeness) for the
-     * disconnect-while-streaming scenario.</p>
+     * Remove every session registered for a given resource UUID and cancel its
+     * in-flight model call at once. Equivalent to
+     * {@link #removeAllForResource(String, java.time.Duration)} with no grace.
      *
      * @param resourceUuid the atmosphere resource UUID (may be null)
      */
     public static void removeAllForResource(String resourceUuid) {
+        removeAllForResource(resourceUuid, java.time.Duration.ZERO);
+    }
+
+    /**
+     * Remove every session registered for a given resource UUID. Called by
+     * {@code AiEndpointHandler#handleDisconnect} when the underlying socket
+     * is going away.
+     *
+     * <p>A session whose run a client can reattach to (the run is live in the
+     * {@link org.atmosphere.ai.resume.RunRegistry}) is detached for
+     * {@code grace}, bounded by the registry TTL: the run keeps going into its
+     * replay buffer, and its model call is cancelled when the grace expires
+     * unless a client reattached meanwhile
+     * ({@link org.atmosphere.ai.resume.RunDisconnectGrace}). Every other
+     * session — and every session when {@code grace} is zero — has
+     * {@link #cancelInflight()} fired at once, so any in-flight LLM call is
+     * aborted (refunding tokens for a client that is no longer listening) and
+     * any virtual thread parked on a {@code @RequiresApproval} future unblocks
+     * instead of waiting out its 5-minute timeout. A cancelled call ends with
+     * the {@code cancelled} frame of {@link RunCancelledException.Reason#DISCONNECT}
+     * (Correctness Invariant #2).</p>
+     *
+     * @param resourceUuid the atmosphere resource UUID (may be null)
+     * @param grace        how long a reattachable run keeps going; zero cancels at once
+     * @return the ids of the runs detached rather than cancelled
+     */
+    public static List<String> removeAllForResource(String resourceUuid, java.time.Duration grace) {
         if (resourceUuid == null) {
-            return;
+            return List.of();
         }
         var sessions = ACTIVE_SESSIONS.remove(resourceUuid);
         if (sessions == null) {
-            return;
+            return List.of();
         }
+        var detached = new java.util.ArrayList<String>();
         for (var session : sessions) {
             try {
-                session.cancelInflight(RunCancelledException.Reason.DISCONNECT);
+                var detachedRun = session.detachForReattach(grace);
+                if (detachedRun != null) {
+                    detached.add(detachedRun);
+                } else {
+                    session.cancelInflight(RunCancelledException.Reason.DISCONNECT);
+                }
             } catch (RuntimeException e) {
                 // Best-effort cleanup. Swallowing here would violate the
                 // project's no-swallow rule, so log at TRACE — the disconnect
@@ -503,6 +527,28 @@ public class AiStreamingSession implements StreamingSession {
                         resourceUuid, e.getMessage(), e);
             }
         }
+        return List.copyOf(detached);
+    }
+
+    /**
+     * Detach this session's run for {@code grace} when a client can reattach
+     * to it: the run is registered and still live.
+     *
+     * @return the run id when the run was detached, {@code null} when the
+     *         caller must cancel it now
+     */
+    private String detachForReattach(java.time.Duration grace) {
+        var id = this.runId;
+        if (id == null || grace == null || grace.isZero() || grace.isNegative()) {
+            return null;
+        }
+        var registry = org.atmosphere.ai.resume.RunRegistryHolder.get();
+        if (registry.lookup(id).isEmpty()) {
+            return null;
+        }
+        var bounded = grace.compareTo(registry.ttl()) > 0 ? registry.ttl() : grace;
+        return org.atmosphere.ai.resume.RunDisconnectGrace.detach(id, bounded,
+                () -> cancelInflight(RunCancelledException.Reason.DISCONNECT)) ? id : null;
     }
 
     /**

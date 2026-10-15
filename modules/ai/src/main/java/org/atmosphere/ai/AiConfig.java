@@ -231,6 +231,21 @@ public final class AiConfig {
     /** Env var naming the {@link AgentRuntime} to run. See {@link #RUNTIME_PROPERTY}. */
     public static final String RUNTIME_ENV = "LLM_RUNTIME";
 
+    /**
+     * Sysprop for how long a run keeps going after the client that started it
+     * loses its connection, waiting for that client to reattach with the run id
+     * before the model call is cancelled. Env: {@link #REATTACH_GRACE_ENV}.
+     * Accepts an ISO-8601 duration ({@code PT30S}), a number with a unit
+     * ({@code 500ms}, {@code 30s}, {@code 2m}, {@code 1h}) or a bare number of
+     * seconds; {@code 0} cancels on the disconnect, as a client that closes the
+     * connection on purpose always is. Default {@link #DEFAULT_REATTACH_GRACE}.
+     */
+    public static final String REATTACH_GRACE_PROPERTY = "atmosphere.ai.reattach.grace";
+    /** Env var for the reattach grace. See {@link #REATTACH_GRACE_PROPERTY}. */
+    public static final String REATTACH_GRACE_ENV = "LLM_REATTACH_GRACE";
+    /** Default reattach grace. See {@link #REATTACH_GRACE_PROPERTY}. */
+    public static final java.time.Duration DEFAULT_REATTACH_GRACE = java.time.Duration.ofSeconds(30);
+
     // -- Well-known endpoints --
 
     public static final String GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/openai";
@@ -699,7 +714,8 @@ public final class AiConfig {
             new Knob(TOP_P_PROPERTY, TOP_P_ENV),
             new Knob(EMBEDDING_MODEL_PROPERTY, EMBEDDING_MODEL_ENV),
             new Knob(STOP_PROPERTY, STOP_ENV),
-            new Knob(RUNTIME_PROPERTY, RUNTIME_ENV));
+            new Knob(RUNTIME_PROPERTY, RUNTIME_ENV),
+            new Knob(REATTACH_GRACE_PROPERTY, REATTACH_GRACE_ENV));
 
     private static final java.util.Map<String, Knob> KNOBS_BY_PROPERTY = KNOBS.stream()
             .collect(java.util.stream.Collectors.toUnmodifiableMap(Knob::property, k -> k));
@@ -828,6 +844,53 @@ public final class AiConfig {
             if (HOST_CONFIG.compareAndSet(this, null)) {
                 AgentRuntimeResolver.reset();
             }
+        }
+    }
+
+    /**
+     * The reattach grace named by the {@code atmosphere.ai.reattach.grace}
+     * system property, falling back to the {@code LLM_REATTACH_GRACE}
+     * environment variable, then to {@link #DEFAULT_REATTACH_GRACE}; the
+     * sysprop wins, mirroring {@link #resolvePromptCacheKeyMode()}. A malformed
+     * or negative value is logged and ignored (the default applies), never
+     * thrown (Correctness Invariant #4). Read on every call.
+     *
+     * @return the grace, {@link java.time.Duration#ZERO} when disabled, never {@code null}
+     */
+    public static java.time.Duration resolveReattachGrace() {
+        var raw = rawKnob(REATTACH_GRACE_PROPERTY, REATTACH_GRACE_ENV);
+        if (raw == null) {
+            return DEFAULT_REATTACH_GRACE;
+        }
+        var parsed = parseDuration(raw);
+        if (parsed == null || parsed.isNegative()) {
+            logger.warn("Ignoring malformed reattach grace '{}' (expected e.g. 30s, 500ms, PT30S "
+                    + "or a number of seconds); using {}", raw, DEFAULT_REATTACH_GRACE);
+            return DEFAULT_REATTACH_GRACE;
+        }
+        return parsed;
+    }
+
+    /** ISO-8601, {@code <n>ms|s|m|h|d}, or a bare number of seconds; null when unparseable. */
+    static java.time.Duration parseDuration(String raw) {
+        var value = raw.trim().toLowerCase(java.util.Locale.ROOT);
+        try {
+            if (value.startsWith("p") || value.startsWith("-p")) {
+                return java.time.Duration.parse(value.toUpperCase(java.util.Locale.ROOT));
+            }
+            if (value.endsWith("ms")) {
+                return java.time.Duration.ofMillis(Long.parseLong(value.substring(0, value.length() - 2).trim()));
+            }
+            var amount = value.isEmpty() ? value : value.substring(0, value.length() - 1).trim();
+            return switch (value.isEmpty() ? ' ' : value.charAt(value.length() - 1)) {
+                case 's' -> java.time.Duration.ofSeconds(Long.parseLong(amount));
+                case 'm' -> java.time.Duration.ofMinutes(Long.parseLong(amount));
+                case 'h' -> java.time.Duration.ofHours(Long.parseLong(amount));
+                case 'd' -> java.time.Duration.ofDays(Long.parseLong(amount));
+                default -> java.time.Duration.ofSeconds(Long.parseLong(value));
+            };
+        } catch (java.time.format.DateTimeParseException | ArithmeticException | NumberFormatException e) {
+            return null;
         }
     }
 

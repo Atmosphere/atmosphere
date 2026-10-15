@@ -60,14 +60,15 @@ import static org.mockito.Mockito.when;
 
 /**
  * An {@code @Prompt} that answers with {@code session.stream(...)} loses the
- * rest of its answer when the client that started it disconnects: the
- * disconnect cancels the in-flight runtime call and the runtime completes
- * normally on that cancel. A client that reattaches with the run id must get
- * the tokens the runtime streamed before the disconnect — they are written to
- * the session below {@code AiStreamingSession}, which the replay capture used
- * to sit above — and be told the run was cancelled, with the {@code cancelled}
- * frame, not handed a {@code complete} frame that makes a cut-short run look
- * finished.
+ * rest of its answer when the client that started it leaves on purpose: the
+ * close cancels the in-flight runtime call at once (a lost connection is given
+ * the reattach grace instead, see {@code AiEndpointHandlerReattachGraceTest})
+ * and the runtime completes normally on that cancel. A client that reattaches
+ * with the run id must get the tokens the runtime streamed before the close —
+ * they are written to the session below {@code AiStreamingSession}, which the
+ * replay capture used to sit above — and be told the run was cancelled, with
+ * the {@code cancelled} frame, not handed a {@code complete} frame that makes a
+ * cut-short run look finished.
  */
 // Constructs a real AtmosphereResourceImpl via the deprecated 6-arg
 // constructor — the same harness AiEndpointHandlerFactsCachePrefixTest uses.
@@ -100,7 +101,7 @@ class AiEndpointHandlerReattachCancelledRunTest {
     }
 
     @Test
-    void aReattachToARunTheDisconnectCancelledEndsInTheCancelledFrame() throws Exception {
+    void aReattachToARunTheClientsCloseCancelledEndsInTheCancelledFrame() throws Exception {
         var runtime = new StreamingUntilCancelledRuntime();
         var handler = new AiEndpointHandler(new StreamingEndpoint(),
                 StreamingEndpoint.class.getDeclaredMethod("onPrompt", String.class, StreamingSession.class),
@@ -115,10 +116,11 @@ class AiEndpointHandlerReattachCancelledRunTest {
         handler.dispatchPrompt(original, "explain");
         assertTrue(runtime.streaming.await(10, TimeUnit.SECONDS), "the model call must be in flight");
 
-        // The client that started the run drops mid-answer.
-        handler.onStateChange(new AtmosphereResourceEventImpl(original, true, false));
+        // The client that started the run closes the connection mid-answer
+        // (Atmosphere's close message: it left on purpose).
+        handler.onStateChange(new AtmosphereResourceEventImpl(original, false, false, true, null));
         assertTrue(runtime.cancelled.await(10, TimeUnit.SECONDS),
-                "the disconnect cancels the in-flight model call");
+                "the close cancels the in-flight model call at once");
         var registry = RunRegistryHolder.get();
         var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
         while (registry.lookup(RUN_ID.get()).isPresent() && System.nanoTime() < deadline) {
@@ -134,7 +136,7 @@ class AiEndpointHandlerReattachCancelledRunTest {
                         && frames[0].contains("\"data\":\"partial answer\""),
                 "the tokens the runtime streamed before the disconnect replay: " + frames[0]);
         assertTrue(frames[1].contains("\"type\":\"cancelled\"") && frames[1].contains("\"data\":\"disconnect\""),
-                "a run the disconnect cut short replays its cancelled frame, not complete: " + frames[1]);
+                "a run the close cut short replays its cancelled frame, not complete: " + frames[1]);
     }
 
     private static AtmosphereResource reattachingResource(String runId, StringWriter out)

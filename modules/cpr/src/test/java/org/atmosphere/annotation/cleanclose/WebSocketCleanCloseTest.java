@@ -26,6 +26,7 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
@@ -68,12 +69,15 @@ class WebSocketCleanCloseTest {
     static final AtomicReference<boolean[]> SEEN = new AtomicReference<>();
     /** How many times {@code @Disconnect} ran. */
     static final AtomicInteger CALLS = new AtomicInteger();
+    /** The WebSocket close code {@code @Disconnect} saw. */
+    static final AtomicInteger CODE = new AtomicInteger();
 
     @ManagedService(path = "/clean-close")
     public static final class LeaveService {
 
         @Disconnect
         public void onDisconnect(AtmosphereResourceEvent event) {
+            CODE.set(event instanceof AtmosphereResourceEventImpl impl ? impl.webSocketCloseCode() : -2);
             SEEN.set(new boolean[] {event.isClosedByClient(), event.isCancelled()});
             CALLS.incrementAndGet();
         }
@@ -85,6 +89,7 @@ class WebSocketCleanCloseTest {
     void setUp() {
         SEEN.set(null);
         CALLS.set(0);
+        CODE.set(0);
     }
 
     private void start(String thinkTimeMillis) throws ServletException {
@@ -156,6 +161,16 @@ class WebSocketCleanCloseTest {
         var seen = openThenClose(closeCode);
         assertTrue(seen[0], "a " + closeCode + " close is the client leaving");
         assertFalse(seen[1], "a " + closeCode + " close is not an unexpected disconnect");
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1000, 1001, 1006})
+    void theCloseCodeReachesTheDisconnect(int closeCode) throws Exception {
+        // 1000 and 1001 both read as closed by the client; the code is what
+        // tells a client that left (1000) from a page that reloads (1001).
+        start(null);
+        openThenClose(closeCode);
+        assertEquals(closeCode, CODE.get(), "@Disconnect sees the close code of the WebSocket");
     }
 
     @ParameterizedTest

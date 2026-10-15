@@ -94,9 +94,13 @@ events in one reply. A run that already finished stays replayable for the
 registry TTL (at most `RunRegistry.MAX_RETAINED_COMPLETED` finished runs are
 kept). The events are the text and terminal frame the client received,
 whether the `@Prompt` method sent them or the runtime streamed them for
-`session.stream(...)`. The original client's disconnect cancels a model call
-still in flight, so a reattach to such a run gets the tokens streamed before
-the disconnect, then the run's `cancelled` frame.
+`session.stream(...)`. A lost connection leaves a model call still in flight
+going for the reattach grace (system property `atmosphere.ai.reattach.grace`
+or env `LLM_REATTACH_GRACE`, default 30s): a
+reattach within it gets the rest of the run through `complete`. When the grace
+expires — or at once when the client closed the connection on purpose — the
+call is cancelled, and a reattach gets the tokens streamed until then, then the
+run's `cancelled` frame.
 
 ## Proof samples
 

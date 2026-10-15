@@ -118,6 +118,15 @@ public final class RunRegistry {
         this.journal = journal != null ? journal : RunJournal.NOOP;
     }
 
+    /**
+     * How long a finished run stays replayable and an unfinished one stays
+     * registered before {@link #sweepExpired} removes it; also the upper bound
+     * of the reattach grace a disconnected run is granted.
+     */
+    public Duration ttl() {
+        return ttl;
+    }
+
     /** The journal backing this registry; {@link RunJournal#NOOP} if none. */
     public RunJournal journal() {
         return journal;
@@ -179,6 +188,9 @@ public final class RunRegistry {
         // the durable journal entry too, closing the terminal path
         // (Invariant #2) so a completed run is not rehydrated after restart.
         executionHandle.whenDone().whenComplete((ok, err) -> {
+            // A run that ended on its own within a reattach grace must not be
+            // cancelled by that grace's timer later.
+            RunDisconnectGrace.runEnded(id);
             endRun(handle, err);
             retire(handle);
             removeFromJournal(id);
