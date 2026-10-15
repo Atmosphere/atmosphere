@@ -635,9 +635,13 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
                 } finally {
                     b.requestLock.unlock();
                 }
-            } catch (NullPointerException ex) {
-                // https://github.com/Atmosphere/atmosphere/issues/1806
-                logger.trace("", ex);
+            } catch (NullPointerException | IllegalStateException ex) {
+                // https://github.com/Atmosphere/atmosphere/issues/1806 (NPE). The container
+                // request is gone (Tomcat's facade throws IllegalStateException once it
+                // was recycled) when work outlives it: a long-polling poll returns while
+                // the reply it carried keeps running against its resource. The value is
+                // already in localAttributes, which getAttribute reads first.
+                logger.trace("Container request recycled, attribute {} kept on the Atmosphere request", s, ex);
             }
         }
     }
@@ -699,6 +703,9 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             b.requestLock.lock();
             try {
                 b.request.removeAttribute(name);
+            } catch (NullPointerException | IllegalStateException ex) {
+                // The container request was recycled (see setAttribute).
+                logger.trace("Container request recycled, attribute {} removed from the Atmosphere request", name, ex);
             } finally {
                 b.requestLock.unlock();
             }

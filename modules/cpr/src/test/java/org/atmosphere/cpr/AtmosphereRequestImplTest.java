@@ -29,6 +29,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -52,6 +55,39 @@ class AtmosphereRequestImplTest {
         AtmosphereRequest wrapped = AtmosphereRequestImpl.wrap(servletRequest);
         assertNotNull(wrapped);
         assertEquals("value1", wrapped.getAttribute("key1"));
+    }
+
+    @Test
+    void attributesSurviveTheContainerRequestBeingRecycledMidReply() {
+        HttpServletRequest container = mock(HttpServletRequest.class);
+        when(container.getAttributeNames()).thenReturn(Collections.emptyEnumeration());
+        when(container.getHeaderNames()).thenReturn(Collections.emptyEnumeration());
+        AtmosphereRequest request = AtmosphereRequestImpl.wrap(container);
+
+        // While the poll is suspended, the reply stamps its state on the request.
+        request.setAttribute("ai.userId", "alice");
+        request.setAttribute("ai.runId", "run-1");
+
+        // The poll returns on the first frame and the container recycles its
+        // request while the reply keeps running: like Tomcat's request facade,
+        // every write that reaches it now throws.
+        var recycled = new IllegalStateException(
+                "The request object has been recycled and is no longer associated with this facade");
+        doThrow(recycled).when(container).setAttribute(anyString(), any());
+        doThrow(recycled).when(container).removeAttribute(anyString());
+
+        assertEquals("alice", request.getAttribute("ai.userId"),
+                "an attribute set before the recycle is still read from the Atmosphere request");
+        request.setAttribute("ai.streamingSession", "session");
+        assertEquals("session", request.getAttribute("ai.streamingSession"),
+                "a write after the recycle is kept on the Atmosphere request");
+        request.removeAttribute("ai.runId");
+        assertFalse(request.localAttributes().containsKey("ai.runId"),
+                "a removal after the recycle applies to the Atmosphere request");
+        request.setAttribute("ai.streamingSession", null);
+        assertFalse(request.localAttributes().containsKey("ai.streamingSession"),
+                "a null write after the recycle removes the attribute");
+        assertEquals("alice", request.getAttribute("ai.userId"));
     }
 
     @Test
