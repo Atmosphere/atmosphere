@@ -375,10 +375,11 @@ export abstract class BaseTransport<T = unknown> {
         /* not a JSON frame — ignore */
       }
     } else if (this.protocol.runId !== null
-        && (body.indexOf('"complete"') !== -1 || body.indexOf('"error"') !== -1)) {
+        && (body.indexOf('"complete"') !== -1 || body.indexOf('"error"') !== -1
+          || body.indexOf('"cancelled"') !== -1)) {
       try {
         const msg = JSON.parse(body);
-        if (msg && (msg.type === 'complete' || msg.type === 'error')) {
+        if (msg && (msg.type === 'complete' || msg.type === 'error' || msg.type === 'cancelled')) {
           this.protocol.runId = null;
         }
       } catch {

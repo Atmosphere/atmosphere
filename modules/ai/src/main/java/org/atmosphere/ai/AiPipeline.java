@@ -506,6 +506,11 @@ public class AiPipeline {
                             runtime != null ? runtime.name() : null,
                             parentRun instanceof String s && !s.isBlank() ? s : null));
         }
+        // A run its caller cancels (by interrupting the dispatching thread) ends
+        // in the cancelled terminal, as on the @AiEndpoint path (Invariant #7);
+        // above the tape so the tape records it too.
+        var cancelSession = new PipelineCancelSession(session);
+        session = cancelSession;
         // Build the initial request metadata from the caller's map plus the
         // pipeline's default cache policy. When both sides carry an
         // {@code ai.cache.hint} the caller wins (putIfAbsent semantics on the
@@ -771,8 +776,9 @@ public class AiPipeline {
         // Session tape mode parity (Invariant #7): record the input prompt as an
         // `input` step BEFORE the cache gate, so both cache-miss and cache-hit
         // turns produce the same self-contained (prompt → completion) tape. The
-        // tape is `session` (wrapped at method entry); no-op when not installed.
-        if (session instanceof org.atmosphere.ai.tape.TapeRecordingSession tape) {
+        // tape is the session the cancel wrapper wraps (both installed at method
+        // entry); no-op when not installed.
+        if (cancelSession.wrapped() instanceof org.atmosphere.ai.tape.TapeRecordingSession tape) {
             tape.recordInput(request.systemPrompt(), history, request.message());
         }
 
@@ -964,8 +970,12 @@ public class AiPipeline {
                 budgetSession.setOnTrip(handle::cancel);
             }
             try {
-                handle.whenDone().join();
+                awaitRun(handle, cancelSession);
+                // A runtime that ends a cancelled call without any terminal
+                // frame still leaves the run ended, as cancelled.
+                cancelSession.endCancelled();
             } catch (java.util.concurrent.CompletionException ce) {
+                cancelSession.endCancelled();
                 // Runtime completed exceptionally — the captured target's
                 // hasErrored() check below skips the commit. The original
                 // error was already routed to session.error() by the runtime.
@@ -994,6 +1004,48 @@ public class AiPipeline {
             throw e;
         } finally {
             turnEvent.commit();
+        }
+    }
+
+    /**
+     * Wait for the runtime to finish. The pipeline's cancel signal is an
+     * interrupt of the dispatching thread (a cancelled batch item, an AG-UI run
+     * whose request went away): one that arrives while the call is in flight —
+     * or arrived before its handle was published — cancels the call, which then
+     * ends with the cancelled terminal of {@link RunCancelledException.Reason#CALLER}.
+     * The interrupt status is restored on return.
+     *
+     * @throws java.util.concurrent.CompletionException when the runtime failed
+     */
+    private static void awaitRun(ExecutionHandle handle, PipelineCancelSession session) {
+        var done = handle.whenDone();
+        var interrupted = Thread.interrupted();
+        if (interrupted && !done.isDone()) {
+            session.cancel(RunCancelledException.Reason.CALLER);
+            handle.cancel();
+        }
+        try {
+            while (true) {
+                try {
+                    done.get();
+                    return;
+                } catch (InterruptedException e) {
+                    interrupted = true;
+                    if (!done.isDone()) {
+                        session.cancel(RunCancelledException.Reason.CALLER);
+                        handle.cancel();
+                    }
+                } catch (java.util.concurrent.ExecutionException e) {
+                    throw new java.util.concurrent.CompletionException(e.getCause());
+                } catch (java.util.concurrent.CancellationException e) {
+                    // The handle's future itself was cancelled: the run is over.
+                    return;
+                }
+            }
+        } finally {
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 

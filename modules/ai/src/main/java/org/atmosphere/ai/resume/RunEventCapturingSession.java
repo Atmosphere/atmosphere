@@ -18,6 +18,7 @@ package org.atmosphere.ai.resume;
 import org.atmosphere.ai.AiEvent;
 import org.atmosphere.ai.Content;
 import org.atmosphere.ai.DelegatingStreamingSession;
+import org.atmosphere.ai.RunCancelledException;
 import org.atmosphere.ai.StreamingSession;
 
 import java.util.Objects;
@@ -35,7 +36,8 @@ import java.util.Objects;
  * streams for {@code session.stream(...)} alike. Text arrives as
  * {@code send}, {@code sendContent} with a text part, or an
  * {@link AiEvent.TextDelta}; the terminal frame as {@code complete},
- * {@code error}, {@link AiEvent.Complete} or {@link AiEvent.Error}. Other
+ * {@code error} (a {@link RunCancelledException} is captured as the
+ * {@code cancelled} frame), {@link AiEvent.Complete} or {@link AiEvent.Error}. Other
  * frames (metadata, progress, tool events) are not captured.</p>
  *
  * <p>The capture happens BEFORE the delegate write so the client sees
@@ -130,8 +132,14 @@ public final class RunEventCapturingSession extends DelegatingStreamingSession {
 
     @Override
     public void error(Throwable t) {
-        buffer.terminate("error", t == null ? "error"
-                : t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName());
+        if (t instanceof RunCancelledException cancelled) {
+            // The run was cut short: a reattached client gets the same
+            // cancelled frame the live client got.
+            buffer.terminate(RunCancelledException.FRAME_TYPE, cancelled.reason().wire());
+        } else {
+            buffer.terminate("error", t == null ? "error"
+                    : t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName());
+        }
         delegate.error(t);
     }
 }

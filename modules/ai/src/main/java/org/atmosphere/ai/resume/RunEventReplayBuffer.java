@@ -63,7 +63,7 @@ import java.util.function.Consumer;
  * nothing falls between the backlog and the first live event and nothing is
  * delivered twice. Listeners are notified outside the lock, are dropped when
  * they throw, and are released once a terminal {@code complete} /
- * {@code error} event is captured. A run that ends without capturing one (its
+ * {@code error} / {@code cancelled} event is captured. A run that ends without capturing one (its
  * {@code @Prompt} returned without completing, threw an {@link Error}, timed
  * out after its client left, or was removed from the {@link RunRegistry}) is
  * closed by {@link #terminate}, which the registry calls on each of those
@@ -145,7 +145,8 @@ public final class RunEventReplayBuffer {
     }
 
     /**
-     * End the run with a terminal {@code complete} or {@code error} event
+     * End the run with a terminal {@code complete}, {@code error} or
+     * {@code cancelled} event
      * unless one was already captured: the event is stored, delivered to every
      * live listener and the listeners are released, exactly as a captured
      * terminal event is. Idempotent; the first terminal event wins.
@@ -160,7 +161,7 @@ public final class RunEventReplayBuffer {
         return append(type, payload, true) != null;
     }
 
-    /** Whether a terminal {@code complete} / {@code error} event was captured. */
+    /** Whether a terminal {@code complete} / {@code error} / {@code cancelled} event was captured. */
     public boolean isTerminated() {
         synchronized (buffer) {
             return terminated;
@@ -240,8 +241,13 @@ public final class RunEventReplayBuffer {
         }
     }
 
-    private static boolean isTerminal(String type) {
-        return "complete".equals(type) || "error".equals(type);
+    /**
+     * Whether {@code type} ends a run: {@code complete}, {@code error} or
+     * {@code cancelled}.
+     */
+    public static boolean isTerminal(String type) {
+        return "complete".equals(type) || "error".equals(type)
+                || org.atmosphere.ai.RunCancelledException.FRAME_TYPE.equals(type);
     }
 
     /**

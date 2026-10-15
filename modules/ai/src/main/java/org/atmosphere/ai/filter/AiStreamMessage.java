@@ -31,10 +31,12 @@ import java.util.LinkedHashMap;
  * {"type":"metadata","key":"model","value":"gpt-4","sessionId":"abc-123","seq":3}
  * {"type":"complete","sessionId":"abc-123","seq":4}
  * {"type":"error","data":"Connection failed","sessionId":"abc-123","seq":6}
+ * {"type":"cancelled","data":"disconnect","sessionId":"abc-123","seq":7}
  * </pre>
  *
- * @param type      message type: "streaming-text", "progress", "metadata", "complete", or "error"
- * @param data      the streaming text data, progress message, or error description (null for bare "complete")
+ * @param type      message type: "streaming-text", "progress", "metadata", "complete", "error" or "cancelled"
+ * @param data      the streaming text data, progress message, error description, or the cancel
+ *                  reason code of a "cancelled" frame (null for bare "complete")
  * @param sessionId the streaming session identifier
  * @param seq       monotonically increasing sequence number within a session
  * @param key       metadata key (only for "metadata" messages, null otherwise)
@@ -121,6 +123,10 @@ public record AiStreamMessage(
 
     public boolean isError() {
         return "error".equals(type);
+    }
+
+    public boolean isCancelled() {
+        return org.atmosphere.ai.RunCancelledException.FRAME_TYPE.equals(type);
     }
 
     public boolean isMetadata() {

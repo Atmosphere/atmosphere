@@ -95,6 +95,20 @@ export function extractTaskFailure(result: unknown): string | null {
   return typeof text === 'string' && text ? text : 'A2A task failed'
 }
 
+/**
+ * The status message of a task the agent canceled (TASK_STATE_CANCELED: the
+ * server cut the run short), or null for any other state.
+ */
+export function extractTaskCancellation(result: unknown): string | null {
+  const task = unwrapTask(result)
+  const status = task?.status as Record<string, unknown> | undefined
+  if (status?.state !== 'TASK_STATE_CANCELED') return null
+  const message = status?.message as Record<string, unknown> | undefined
+  const parts = message?.parts as Array<Record<string, unknown>> | undefined
+  const text = parts?.[0]?.text
+  return typeof text === 'string' && text ? text : 'A2A task canceled'
+}
+
 function unwrapTask(result: unknown): Record<string, unknown> | null {
   const r = result as Record<string, unknown> | null
   if (r && typeof r.task === 'object' && r.task !== null) {
@@ -172,8 +186,12 @@ export class A2aChatTransport implements ChatTransport {
       try {
         const result = await this.rpc('SendMessage', this.messageParams(text), signal)
         const failure = extractTaskFailure(result)
+        const cancellation = extractTaskCancellation(result)
         const reply = extractTaskText(result)
-        if (failure) {
+        if (cancellation) {
+          if (reply) this.handlers.onEvent({ type: 'streaming-text', data: reply })
+          this.handlers.onEvent({ type: 'cancelled', data: cancellation })
+        } else if (failure) {
           this.handlers.onEvent({ type: 'error', data: failure })
         } else if (reply) {
           this.handlers.onEvent({ type: 'streaming-text', data: reply })

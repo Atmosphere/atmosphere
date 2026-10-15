@@ -65,7 +65,8 @@ public class AiResponseCacheListener implements BroadcasterCacheListener {
         if ("streaming-text".equals(type)) {
             streamingTextCounts.computeIfAbsent(sessionId, k -> new AtomicInteger()).incrementAndGet();
             sessionStartTimes.computeIfAbsent(sessionId, k -> System.nanoTime());
-        } else if ("complete".equals(type) || "error".equals(type)) {
+        } else if ("complete".equals(type) || "error".equals(type)
+                || org.atmosphere.ai.RunCancelledException.FRAME_TYPE.equals(type)) {
             var count = streamingTextCounts.remove(sessionId);
             var startNanos = sessionStartTimes.remove(sessionId);
             var totalStreamingTexts = count != null ? count.get() : 0;

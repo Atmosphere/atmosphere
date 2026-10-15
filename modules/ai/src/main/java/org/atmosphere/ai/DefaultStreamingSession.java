@@ -68,6 +68,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * {"type":"complete","sessionId":"abc-123","seq":4}
  * {"type":"complete","data":"Full response","sessionId":"abc-123","seq":5}
  * {"type":"error","data":"Connection failed","sessionId":"abc-123","seq":6}
+ * {"type":"cancelled","data":"disconnect","sessionId":"abc-123","seq":7}
  * </pre>
  */
 public final class DefaultStreamingSession implements StreamingSession {
@@ -327,6 +328,13 @@ public final class DefaultStreamingSession implements StreamingSession {
     public void error(Throwable t) {
         errored.set(true);
         if (closed.compareAndSet(false, true)) {
+            if (t instanceof RunCancelledException cancelled) {
+                // A cut-short run is not a failure: its one terminal frame is
+                // the cancelled frame naming why.
+                logger.debug("Streaming session {} cancelled: {}", sessionId, cancelled.reason().wire());
+                broadcastTerminal(buildMessage(RunCancelledException.FRAME_TYPE, cancelled.reason().wire()));
+                return;
+            }
             logger.error("Streaming session {} error", sessionId, t);
             var message = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
             broadcastTerminal(buildMessage("error", message));

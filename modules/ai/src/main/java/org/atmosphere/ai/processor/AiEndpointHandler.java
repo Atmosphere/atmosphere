@@ -1388,7 +1388,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // departed client once its parked one is dropped.
         LongPollingReplies.discard(uuid);
         // Cancels every model call still in flight on the connection; the turn
-        // of a call it cuts short ends in an error saying so, not complete.
+        // of a call it cuts short ends with the cancelled frame, not complete.
         AiStreamingSession.removeAllForResource(uuid);
         // Session tape: cancel-mark every open taped run of this resource
         // (reconnects get a fresh uuid, so this never races a live run). The

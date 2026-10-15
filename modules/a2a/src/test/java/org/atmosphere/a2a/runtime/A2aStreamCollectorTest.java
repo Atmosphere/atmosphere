@@ -49,6 +49,19 @@ class A2aStreamCollectorTest {
     }
 
     @Test
+    void aCancelledRunIsACanceledTaskNotAFailedOne() {
+        var collector = new A2aStreamCollector(taskCtx, null);
+
+        collector.error(new org.atmosphere.ai.RunCancelledException(
+                org.atmosphere.ai.RunCancelledException.Reason.CALLER));
+        collector.complete();
+
+        verify(taskCtx).cancel(org.atmosphere.ai.RunCancelledException.Reason.CALLER.message());
+        verify(taskCtx, never()).fail(anyString());
+        verify(taskCtx, never()).complete(anyString());
+    }
+
+    @Test
     void sessionIdDelegatesToTaskId() {
         var collector = new A2aStreamCollector(taskCtx, null);
 

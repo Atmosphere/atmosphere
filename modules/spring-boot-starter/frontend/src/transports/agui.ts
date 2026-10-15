@@ -96,6 +96,11 @@ export class AgUiEventTranslator {
         return [{ type: 'complete' }]
       case 'RUN_ERROR': {
         this.toolNames.clear()
+        // AG-UI has no cancel event: the server ends a run it cut short with
+        // RUN_ERROR coded 'cancelled', which the Console renders as cancelled.
+        if (d.code === 'cancelled') {
+          return [{ type: 'cancelled', data: String(d.message ?? '') }]
+        }
         return [{ type: 'error', data: String(d.message ?? 'AG-UI run error') }]
       }
       case 'ACTIVITY_DELTA':
@@ -193,7 +198,7 @@ export class AgUiChatTransport implements ChatTransport {
           if (chunk.done) break
           for (const event of parser.push(decoder.decode(chunk.value, { stream: true }))) {
             for (const msg of translator.translate(event)) {
-              if (msg.type === 'complete' || msg.type === 'error') finished = true
+              if (msg.type === 'complete' || msg.type === 'error' || msg.type === 'cancelled') finished = true
               this.handlers.onEvent(msg)
             }
           }

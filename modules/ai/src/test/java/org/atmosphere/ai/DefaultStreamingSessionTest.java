@@ -109,6 +109,27 @@ public class DefaultStreamingSessionTest {
     }
 
     @Test
+    public void aCancelledRunEndsWithOneCancelledFrameNamingTheReason() {
+        var resource = mock(AtmosphereResource.class);
+        var broadcaster = mock(Broadcaster.class);
+        when(resource.getBroadcaster()).thenReturn(broadcaster);
+        var frames = new ArrayList<String>();
+        when(broadcaster.broadcast(any(), anySet())).thenAnswer(inv -> {
+            frames.add(String.valueOf(((org.atmosphere.cpr.RawMessage) inv.getArgument(0)).message()));
+            return null;
+        });
+        var session = new DefaultStreamingSession("cancelled-frame-" + System.nanoTime(), resource);
+
+        session.error(new RunCancelledException(RunCancelledException.Reason.OPERATOR));
+        session.complete();
+
+        assertEquals(1, frames.size(), "one terminal frame, nothing after it: " + frames);
+        var frame = org.atmosphere.ai.filter.AiStreamMessage.parse(frames.get(0));
+        assertTrue(frame.isCancelled(), frames.get(0));
+        assertEquals("operator", frame.data());
+    }
+
+    @Test
     public void testResourceForSessionReturnsEmptyForUnknown() {
         assertTrue(DefaultStreamingSession.resourceForSession("nonexistent").isEmpty());
     }

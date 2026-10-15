@@ -68,6 +68,13 @@ describe('parseStreamingMessage', () => {
     expect(msg?.data).toBe('Thinking...');
   });
 
+  it('should parse a cancelled message', () => {
+    const raw = '{"type":"cancelled","data":"disconnect","sessionId":"abc-123","seq":7}';
+    const msg = parseStreamingMessage(raw);
+    expect(msg?.type).toBe('cancelled');
+    expect(msg?.data).toBe('disconnect');
+  });
+
   it('should parse an error message', () => {
     const raw = '{"type":"error","data":"Connection failed","sessionId":"abc-123","seq":6}';
     const msg = parseStreamingMessage(raw);
@@ -182,6 +189,61 @@ describe('subscribeStreaming', () => {
     });
 
     expect(onComplete).toHaveBeenCalledWith('Done');
+  });
+
+  it('should end a cancelled run through onCancelled, not onError or onComplete', async () => {
+    const onCancelled = vi.fn();
+    const onComplete = vi.fn();
+    const onError = vi.fn();
+    const onSessionComplete = vi.fn();
+    await subscribeStreaming(
+      mockAtmosphere,
+      { url: '/ai/chat', transport: 'websocket' },
+      { onCancelled, onComplete, onError, onSessionComplete },
+    );
+
+    capturedHandlers.message!({
+      responseBody: '{"type":"cancelled","data":"operator","sessionId":"s1","seq":4}',
+      status: 200,
+      reasonPhrase: 'OK',
+      messages: [],
+      headers: {},
+      state: 'messageReceived',
+      transport: 'websocket',
+      error: null,
+    });
+
+    expect(onCancelled).toHaveBeenCalledWith('operator');
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+    expect(onSessionComplete).toHaveBeenCalledTimes(1);
+    expect(onSessionComplete.mock.calls[0][0].status).toBe('cancelled');
+  });
+
+  it('should end a cancelled run through onComplete when no onCancelled is registered', async () => {
+    const onComplete = vi.fn();
+    const onError = vi.fn();
+    await subscribeStreaming(
+      mockAtmosphere,
+      { url: '/ai/chat', transport: 'websocket' },
+      { onComplete, onError },
+    );
+
+    capturedHandlers.message!({
+      responseBody: '{"type":"cancelled","data":"disconnect","sessionId":"s1","seq":4}',
+      status: 200,
+      reasonPhrase: 'OK',
+      messages: [],
+      headers: {},
+      state: 'messageReceived',
+      transport: 'websocket',
+      error: null,
+    });
+
+    // Code written before the frame existed still stops streaming.
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(onComplete).toHaveBeenCalledWith();
+    expect(onError).not.toHaveBeenCalled();
   });
 
   it('should dispatch error events', async () => {

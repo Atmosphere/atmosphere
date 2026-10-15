@@ -43,7 +43,7 @@ export function parseStreamingMessage(raw: string): StreamingMessage | null {
   }
 }
 
-const STREAMING_TYPES = new Set<string>(['streaming-text', 'complete', 'error', 'progress', 'metadata']);
+const STREAMING_TYPES = new Set<string>(['streaming-text', 'complete', 'error', 'cancelled', 'progress', 'metadata']);
 
 function isStreamingType(type: unknown): type is StreamingMessageType {
   return typeof type === 'string' && STREAMING_TYPES.has(type);

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ConnectionStatus } from 'atmosphere.js'
-import { A2aChatTransport, extractTaskFailure, extractTaskText, parseA2aData } from './a2a'
+import { A2aChatTransport, extractTaskCancellation, extractTaskFailure, extractTaskText, parseA2aData } from './a2a'
 import { createChatTransport } from './index'
 import type { ChatTransportHandlers, ChatTransportOptions } from './types'
 
@@ -124,6 +124,24 @@ describe('extractTaskText', () => {
   it('returns null when the task carries no text', () => {
     expect(extractTaskText({ artifacts: [] })).toBeNull()
     expect(extractTaskText(null)).toBeNull()
+  })
+})
+
+describe('extractTaskCancellation', () => {
+  it('reads the status message of a TASK_STATE_CANCELED task', () => {
+    expect(extractTaskCancellation({
+      task: {
+        status: {
+          state: 'TASK_STATE_CANCELED',
+          message: { parts: [{ text: 'Run cancelled: the caller cancelled the model call before it finished' }] },
+        },
+      },
+    })).toBe('Run cancelled: the caller cancelled the model call before it finished')
+  })
+
+  it('returns null for tasks that were not canceled', () => {
+    expect(extractTaskCancellation({ status: { state: 'TASK_STATE_FAILED' } })).toBeNull()
+    expect(extractTaskCancellation(null)).toBeNull()
   })
 })
 

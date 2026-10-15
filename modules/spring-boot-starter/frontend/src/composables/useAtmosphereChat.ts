@@ -204,6 +204,22 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
     return { message, status, retryDelay }
   }
 
+  /**
+   * The line a cancelled run ends with. `data` is the cancelled frame's reason
+   * code; a protocol bridge that only carries text (AG-UI, A2A) passes its
+   * message, shown as is.
+   */
+  function cancelledNotice(data: unknown): string {
+    switch (data) {
+      case 'disconnect': return 'Run cancelled: the client disconnected before it finished.'
+      case 'operator': return 'Run cancelled by an operator.'
+      case 'sweep': return 'Run cancelled: the session expired.'
+      case 'caller': return 'Run cancelled by the caller.'
+      default:
+        return typeof data === 'string' && data ? data : 'Run cancelled.'
+    }
+  }
+
   function handleStreamingEvent(msg: Record<string, unknown>) {
     const type = (msg.type as string) || (msg.event as string)
 
@@ -260,6 +276,17 @@ export function useAtmosphereChat(endpoint: string = '/atmosphere/ai-chat',
           rendered += `  •  retry in ${retryDelay}`
         }
         appendToAssistant(rendered)
+        finalizeAssistant()
+        break
+      }
+      case 'cancelled': {
+        // The run's one terminal frame when the server cut it short: the
+        // answer so far stays, marked as cut off — not an error.
+        if (discardInFlightStream) {
+          discardInFlightStream = false
+          break
+        }
+        appendToAssistant(`\n\n*${cancelledNotice(msg.data)}*`)
         finalizeAssistant()
         break
       }

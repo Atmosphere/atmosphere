@@ -178,6 +178,18 @@ describe('BaseTransport', () => {
     expect(transport.buildUrlForTest()).not.toContain('X-Atmosphere-Run-Id');
   });
 
+  it('clears the captured run id on a cancelled frame: a cancelled run is finished too', () => {
+    transport.doNotifyOpen(makeResponse());
+    transport.doNotifyMessage(makeResponse({
+      responseBody: '{"type":"metadata","key":"X-Atmosphere-Run-Id","value":"run-78","sessionId":"s1","seq":1}',
+    }));
+    transport.doNotifyMessage(makeResponse({
+      responseBody: '{"type":"cancelled","data":"disconnect","sessionId":"s1","seq":2}',
+    }));
+    expect(transport.capturedRunId).toBeNull();
+    expect(transport.buildUrlForTest()).not.toContain('X-Atmosphere-Run-Id');
+  });
+
   it('ignores non-run-id metadata frames', () => {
     transport.doNotifyOpen(makeResponse());
     transport.doNotifyMessage(makeResponse({

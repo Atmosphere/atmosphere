@@ -27,7 +27,8 @@ import java.util.Objects;
  * (e.g. {@code tool-start}), or one of the tape's own kinds: {@code text}
  * (a coalesced text segment), {@code metadata}, {@code progress},
  * {@code content} (descriptor only — never raw bytes), {@code complete},
- * {@code error}, {@code resumed}.</p>
+ * {@code error}, {@code cancelled} (payload {@code reason}: the cancel
+ * reason code), {@code resumed}.</p>
  *
  * <p>TEXT steps are <em>segments</em> of one logical output — coalescing
  * flushes on semantic boundaries, terminals, the size cap, and the flush

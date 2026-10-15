@@ -120,6 +120,25 @@ describe('assistant streaming is fully rendered', () => {
     expect(rendered(wrapper)).toBe('partial answer')
   })
 
+  it('ends a cancelled run cleanly, keeping its text and saying it was cut short', async () => {
+    // The server ends a run it cut short with one `cancelled` frame. The bubble
+    // must stop streaming and say why — not stay "streaming" waiting for a
+    // complete that never comes, and not read as an error.
+    const { chat, wrapper } = await mountChat()
+    chat.send('hello')
+    await nextTick()
+
+    handlers.onEvent?.({ type: 'streaming-text', data: 'partial ' })
+    await nextTick()
+    handlers.onEvent?.({ type: 'cancelled', data: 'disconnect' })
+    await nextTick()
+
+    expect(chat.isStreaming.value).toBe(false)
+    expect(rendered(wrapper)).toMatch(/^partial /)
+    expect(rendered(wrapper)).toContain('Run cancelled: the client disconnected before it finished.')
+    expect(rendered(wrapper)).not.toContain('Error')
+  })
+
   it('counts every chunk in the session stats', async () => {
     // The counter was already right while the render was wrong — "3 tokens"
     // beside one rendered chunk is what exposed the bug. Pin them together so

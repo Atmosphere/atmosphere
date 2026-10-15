@@ -15,7 +15,7 @@
  */
 
 import type { AtmosphereRequest } from '../../types';
-import type { StreamingHandle, SessionStats, RoutingInfo, SendOptions } from '../../streaming/types';
+import type { StreamingHandle, SessionStats, RoutingInfo, SendOptions, CancelReason } from '../../streaming/types';
 import { subscribeStreaming } from '../../streaming';
 import { Atmosphere } from '../../core/atmosphere';
 import type { Readable } from './atmosphere';
@@ -33,6 +33,8 @@ export interface StreamingStoreState {
   routing: RoutingInfo;
   aiEvents: { event: string; data: Record<string, unknown> }[];
   error: string | null;
+  /** Why the server cut the last run short (its `cancelled` frame), or null; not an error. */
+  cancelled: CancelReason | null;
 }
 
 /**
@@ -69,6 +71,7 @@ export function createStreamingStore(
     routing: {},
     aiEvents: [],
     error: null,
+    cancelled: null,
   };
 
   let handle: StreamingHandle | null = null;
@@ -106,6 +109,9 @@ export function createStreamingStore(
         },
         onComplete: () => {
           update({ isStreaming: false });
+        },
+        onCancelled: (reason) => {
+          update({ cancelled: reason, isStreaming: false, progress: null });
         },
         onError: (err) => {
           update({ error: err, isStreaming: false });
@@ -150,7 +156,7 @@ export function createStreamingStore(
   };
 
   function send(message: string | object, options?: SendOptions) {
-    update({ isStreaming: true, error: null });
+    update({ isStreaming: true, error: null, cancelled: null });
     handle?.send(message, options);
   }
 
@@ -165,6 +171,7 @@ export function createStreamingStore(
       routing: {},
       aiEvents: [],
       error: null,
+      cancelled: null,
     });
   }
 

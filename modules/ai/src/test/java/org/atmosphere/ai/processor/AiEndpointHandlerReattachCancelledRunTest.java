@@ -65,8 +65,9 @@ import static org.mockito.Mockito.when;
  * normally on that cancel. A client that reattaches with the run id must get
  * the tokens the runtime streamed before the disconnect — they are written to
  * the session below {@code AiStreamingSession}, which the replay capture used
- * to sit above — and be told the run was cancelled, not handed a
- * {@code complete} frame that makes a cut-short run look finished.
+ * to sit above — and be told the run was cancelled, with the {@code cancelled}
+ * frame, not handed a {@code complete} frame that makes a cut-short run look
+ * finished.
  */
 // Constructs a real AtmosphereResourceImpl via the deprecated 6-arg
 // constructor — the same harness AiEndpointHandlerFactsCachePrefixTest uses.
@@ -99,7 +100,7 @@ class AiEndpointHandlerReattachCancelledRunTest {
     }
 
     @Test
-    void aReattachToARunTheDisconnectCancelledEndsInACancelledError() throws Exception {
+    void aReattachToARunTheDisconnectCancelledEndsInTheCancelledFrame() throws Exception {
         var runtime = new StreamingUntilCancelledRuntime();
         var handler = new AiEndpointHandler(new StreamingEndpoint(),
                 StreamingEndpoint.class.getDeclaredMethod("onPrompt", String.class, StreamingSession.class),
@@ -132,8 +133,8 @@ class AiEndpointHandlerReattachCancelledRunTest {
         assertTrue(frames[0].contains("\"type\":\"streaming-text\"")
                         && frames[0].contains("\"data\":\"partial answer\""),
                 "the tokens the runtime streamed before the disconnect replay: " + frames[0]);
-        assertTrue(frames[1].contains("\"type\":\"error\"") && frames[1].contains("cancelled"),
-                "a run the disconnect cut short must not replay as complete: " + frames[1]);
+        assertTrue(frames[1].contains("\"type\":\"cancelled\"") && frames[1].contains("\"data\":\"disconnect\""),
+                "a run the disconnect cut short replays its cancelled frame, not complete: " + frames[1]);
     }
 
     private static AtmosphereResource reattachingResource(String runId, StringWriter out)

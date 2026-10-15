@@ -26,6 +26,7 @@ export { subscribeStreaming } from './streaming';
 export type {
   StreamingMessage,
   StreamingMessageType,
+  CancelReason,
   StreamingHandlers,
   StreamingHandle,
   SessionStats,

@@ -16,7 +16,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { AtmosphereRequest } from '../../types';
-import type { StreamingHandle, SessionStats, RoutingInfo, SendOptions } from '../../streaming/types';
+import type { StreamingHandle, SessionStats, RoutingInfo, SendOptions, CancelReason } from '../../streaming/types';
 import { subscribeStreaming } from '../../streaming';
 import { useAtmosphereContext } from './provider';
 import { ConnectionStatus } from '../../resilience';
@@ -122,6 +122,11 @@ export interface UseStreamingResult {
   aiEvents: AiEvent[];
   /** Error message, if any. */
   error: string | null;
+  /**
+   * Why the server cut the last run short (its `cancelled` frame), or `null`.
+   * A cancelled run is over, not failed: {@link UseStreamingResult.error} stays `null`.
+   */
+  cancelled: CancelReason | null;
   /** Send a prompt to the server to start streaming. */
   send: (message: string | object, options?: SendOptions) => void;
   /** Reset the accumulated state for a new conversation turn. */
@@ -184,6 +189,7 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
   const [routing, setRouting] = useState<RoutingInfo>({});
   const [aiEvents, setAiEvents] = useState<AiEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [cancelled, setCancelled] = useState<CancelReason | null>(null);
   const [connectionState, setConnectionState] = useState<StreamingConnectionState>('idle');
 
   // ConnectionStatus instance lives across re-renders; the snapshot is the
@@ -274,6 +280,13 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
               setProgress(null);
             }
           },
+          onCancelled: (reason) => {
+            if (!cancelled) {
+              setCancelled(reason);
+              setIsStreaming(false);
+              setProgress(null);
+            }
+          },
           onError: (err, undelivered) => {
             if (!cancelled) {
               setError(err);
@@ -339,6 +352,7 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
   const send = useCallback((message: string | object, options?: SendOptions) => {
     setIsStreaming(true);
     setError(null);
+    setCancelled(null);
     handleRef.current?.send(message, options);
   }, []);
 
@@ -351,6 +365,7 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
     setRouting({});
     setAiEvents([]);
     setError(null);
+    setCancelled(null);
   }, []);
 
   const close = useCallback(() => {
@@ -364,12 +379,12 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
   return useMemo(
     () => ({
       fullText, streamingTexts, isStreaming, progress, metadata, stats, routing,
-      aiEvents, error, send, reset, close, connectionState, isReconnecting,
+      aiEvents, error, cancelled, send, reset, close, connectionState, isReconnecting,
       connectionStatus,
     }),
     [
       fullText, streamingTexts, isStreaming, progress, metadata, stats, routing,
-      aiEvents, error, send, reset, close, connectionState, isReconnecting,
+      aiEvents, error, cancelled, send, reset, close, connectionState, isReconnecting,
       connectionStatus,
     ],
   );

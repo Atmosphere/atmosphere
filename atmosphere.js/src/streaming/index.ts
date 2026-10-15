@@ -331,6 +331,23 @@ function dispatch(
       handlers.onSessionComplete?.(stats, { ...state.routing });
       break;
     }
+    case 'cancelled': {
+      // The run's one terminal frame: a run cut short is over, not failed.
+      if (handlers.onCancelled) {
+        handlers.onCancelled(msg.data ?? 'unknown');
+      } else {
+        handlers.onComplete?.();
+      }
+      const elapsed = state.startTime ? Date.now() - state.startTime : 0;
+      const stats: SessionStats = {
+        totalStreamingTexts: state.streamingTextCount,
+        elapsedMs: elapsed,
+        status: 'cancelled',
+        streamingTextsPerSecond: elapsed > 0 ? (state.streamingTextCount / elapsed) * 1000 : 0,
+      };
+      handlers.onSessionComplete?.(stats, { ...state.routing });
+      break;
+    }
     case 'metadata':
       if (msg.key !== undefined) {
         extractRouting(msg.key, msg.value, state.routing);

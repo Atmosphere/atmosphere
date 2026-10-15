@@ -108,6 +108,10 @@ final class BroadcasterStreamingSession implements StreamingSession {
     @Override
     public void error(Throwable t) {
         if (closed.compareAndSet(false, true)) {
+            if (t instanceof RunCancelledException cancelled) {
+                broadcastTerminal(buildMessage(RunCancelledException.FRAME_TYPE, cancelled.reason().wire()));
+                return;
+            }
             var message = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
             broadcastTerminal(buildMessage("error", message));
         }

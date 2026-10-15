@@ -51,7 +51,7 @@ export type {
 
 // Export AI streaming support
 export { subscribeStreaming } from './streaming';
-export type { StreamingMessage, StreamingHandlers, StreamingHandle, SessionStats, RoutingInfo, SendOptions } from './streaming/types';
+export type { StreamingMessage, StreamingHandlers, StreamingHandle, SessionStats, RoutingInfo, SendOptions, CancelReason } from './streaming/types';
 
 // Export resilience primitives (transport-fallback + reconnect status tracking)
 export { ConnectionStatus } from './resilience';

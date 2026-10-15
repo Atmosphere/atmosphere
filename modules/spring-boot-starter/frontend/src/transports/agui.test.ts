@@ -108,6 +108,14 @@ describe('AgUiEventTranslator', () => {
       .toEqual([{ type: 'error', data: 'boom' }])
   })
 
+  it('maps a RUN_ERROR coded cancelled to cancelled, not error', () => {
+    // AG-UI has no cancel event: the server ends a cut-short run with RUN_ERROR
+    // coded 'cancelled'.
+    const t = new AgUiEventTranslator()
+    expect(t.translate({ type: 'RUN_ERROR', data: { message: 'Run cancelled: stopped', code: 'cancelled' } }))
+      .toEqual([{ type: 'cancelled', data: 'Run cancelled: stopped' }])
+  })
+
   it('drops lifecycle-only events with no Console mapping', () => {
     const t = new AgUiEventTranslator()
     for (const type of ['RUN_STARTED', 'TEXT_MESSAGE_START', 'TEXT_MESSAGE_END',

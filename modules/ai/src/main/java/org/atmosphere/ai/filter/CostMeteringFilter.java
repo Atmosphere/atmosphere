@@ -52,7 +52,7 @@ public class CostMeteringFilter extends AiStreamBroadcastFilter {
             return handleComplete(broadcasterId, msg, rawMessage);
         }
 
-        if (msg.isError()) {
+        if (msg.isError() || msg.isCancelled()) {
             cleanup(msg.sessionId());
             return new BroadcastAction(rawMessage);
         }

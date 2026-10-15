@@ -77,6 +77,7 @@ public class AiResponseCacheInspector implements BroadcasterCacheInspector {
                 || streamMessage.isMetadata()
                 || streamMessage.isComplete()
                 || streamMessage.isError()
+                || streamMessage.isCancelled()
                 || streamMessage.isProgress())) {
             return false;
         }

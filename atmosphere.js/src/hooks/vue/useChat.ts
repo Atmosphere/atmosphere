@@ -21,7 +21,8 @@ import { useStreaming, type VueStreamingLifecycle } from './useStreaming';
 import { Atmosphere } from '../../core/atmosphere';
 
 export type ChatRole = 'system' | 'user' | 'assistant' | 'tool';
-export type ChatMessageStatus = 'submitted' | 'streaming' | 'complete' | 'error';
+/** `cancelled`: the server cut the run short (its `cancelled` frame); not an error. */
+export type ChatMessageStatus = 'submitted' | 'streaming' | 'complete' | 'error' | 'cancelled';
 
 export interface ChatMessage {
   id: string;
@@ -92,10 +93,12 @@ export function useChat(options: UseChatOptions) {
       return {
         ...message,
         content: streaming.fullText.value,
-        status: streaming.isStreaming.value ? 'streaming' : 'complete',
+        status: streaming.isStreaming.value ? 'streaming'
+          : streaming.cancelled.value ? 'cancelled' : 'complete',
       };
     });
-    if (!streaming.isStreaming.value && (streaming.fullText.value || streaming.error.value)) {
+    if (!streaming.isStreaming.value
+        && (streaming.fullText.value || streaming.error.value || streaming.cancelled.value)) {
       activeAssistantId.value = null;
     }
   };
@@ -126,7 +129,7 @@ export function useChat(options: UseChatOptions) {
     append(prompt);
   };
 
-  watch([streaming.fullText, streaming.isStreaming, streaming.error], syncAssistant);
+  watch([streaming.fullText, streaming.isStreaming, streaming.error, streaming.cancelled], syncAssistant);
 
   return {
     messages,

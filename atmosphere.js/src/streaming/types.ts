@@ -18,7 +18,22 @@
  * Wire protocol message types sent by the server-side
  * {@code DefaultStreamingSession}.
  */
-export type StreamingMessageType = 'streaming-text' | 'complete' | 'error' | 'progress' | 'metadata';
+export type StreamingMessageType =
+  | 'streaming-text' | 'complete' | 'error' | 'cancelled' | 'progress' | 'metadata';
+
+/**
+ * Why the server cut a run short, carried as the `data` of its terminal
+ * `cancelled` frame:
+ *
+ * - `disconnect` — the client that started the run went away and did not
+ *   reattach within the server's reattach grace (or closed on purpose);
+ * - `operator` — an operator cancelled the model call through the admin plane;
+ * - `sweep` — the idle-session sweep reaped the session;
+ * - `caller` — the server-side code that dispatched the run cancelled it.
+ *
+ * A server newer than this client may send another code, hence the open string.
+ */
+export type CancelReason = 'disconnect' | 'operator' | 'sweep' | 'caller' | (string & {});
 
 /**
  * Aggregated statistics for a streaming session, computed client-side
@@ -27,7 +42,7 @@ export type StreamingMessageType = 'streaming-text' | 'complete' | 'error' | 'pr
 export interface SessionStats {
   totalStreamingTexts: number;
   elapsedMs: number;
-  status: 'streaming' | 'complete' | 'error';
+  status: 'streaming' | 'complete' | 'error' | 'cancelled';
   streamingTextsPerSecond: number;
 }
 
@@ -130,6 +145,15 @@ export interface StreamingHandlers {
   /** Called when the stream completes, with an optional summary. */
   onComplete?: (summary?: string) => void;
   /**
+   * Called when the server cut the run short and ended it with its terminal
+   * `cancelled` frame, with the reason. The run is over: no `complete` or
+   * `error` follows. It is not a failure, so {@link #onError} does not fire.
+   * Without this handler a cancelled run ends through {@link #onComplete}
+   * (with no summary), so code written before the frame existed stops its
+   * "streaming" state instead of waiting forever.
+   */
+  onCancelled?: (reason: CancelReason) => void;
+  /**
    * Called on error. `undelivered` is `true` when a sent message was not
    * delivered while the connection stayed up (see `isSendError`).
    */
@@ -153,7 +177,7 @@ export interface StreamingHandlers {
    * fire so existing untyped consumers keep working.
    */
   onToolPart?: (part: ToolPart) => void;
-  /** Called when the session completes or errors, with aggregated stats and routing info. */
+  /** Called when the session completes, errors or is cancelled, with aggregated stats and routing info. */
   onSessionComplete?: (stats: SessionStats, routing: RoutingInfo) => void;
   /**
    * Called when the underlying transport opens (initial connect or reconnect

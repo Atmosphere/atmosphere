@@ -247,6 +247,28 @@ public final class AgUiEventMapper {
         return error != null ? error.toString() : "error";
     }
 
+    /**
+     * The RUN_ERROR {@code code} of a run that ended in {@code failure}:
+     * {@value #CANCELLED_CODE} for a run the framework cut short
+     * ({@link org.atmosphere.ai.RunCancelledException}), otherwise none.
+     *
+     * <p>The AG-UI event set ({@link AgUiEventType}) has no cancel event: its
+     * lifecycle ends a run with RUN_FINISHED or RUN_ERROR, and RUN_FINISHED
+     * would present a cut-short answer as finished. A cancelled run therefore
+     * ends with RUN_ERROR, the protocol's terminal for a run that did not
+     * finish, whose optional {@code code} says it was cancelled and whose
+     * {@code message} says why.</p>
+     *
+     * @param failure the terminal failure, may be null
+     * @return the code, or {@code null}
+     */
+    public static String runErrorCode(Throwable failure) {
+        return failure instanceof org.atmosphere.ai.RunCancelledException ? CANCELLED_CODE : null;
+    }
+
+    /** RUN_ERROR {@code code} of a cancelled run. See {@link #runErrorCode(Throwable)}. */
+    public static final String CANCELLED_CODE = "cancelled";
+
     private static Map<String, Object> patchOp(String op, String path, Object value) {
         var operation = new LinkedHashMap<String, Object>();
         operation.put("op", op);

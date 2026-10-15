@@ -24,7 +24,8 @@ import {
 } from './useStreamingRN';
 
 export type ChatRole = 'system' | 'user' | 'assistant' | 'tool';
-export type ChatMessageStatus = 'submitted' | 'streaming' | 'complete' | 'error';
+/** `cancelled`: the server cut the run short (its `cancelled` frame); not an error. */
+export type ChatMessageStatus = 'submitted' | 'streaming' | 'complete' | 'error' | 'cancelled';
 
 export interface ChatMessage {
   id: string;
@@ -99,13 +100,14 @@ export function useChatRN(options: UseChatRNOptions): UseChatRNResult {
 
   useEffect(() => {
     const assistantId = activeAssistantIdRef.current;
-    if (!assistantId || streaming.isStreaming || (!streaming.fullText && !streaming.error)) return;
+    if (!assistantId || streaming.isStreaming
+      || (!streaming.fullText && !streaming.error && !streaming.cancelled)) return;
     setMessages((previous) => previous.map((message) =>
       message.id === assistantId && (message.status === 'submitted' || message.status === 'streaming')
-        ? { ...message, status: streaming.error ? 'error' : 'complete' }
+        ? { ...message, status: streaming.error ? 'error' : streaming.cancelled ? 'cancelled' : 'complete' }
         : message));
     activeAssistantIdRef.current = null;
-  }, [streaming.error, streaming.fullText, streaming.isStreaming]);
+  }, [streaming.error, streaming.cancelled, streaming.fullText, streaming.isStreaming]);
 
   const normalizeMessage = useCallback((message: ChatInputMessage): ChatMessage => {
     if (typeof message === 'string') {

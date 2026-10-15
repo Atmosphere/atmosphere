@@ -36,8 +36,9 @@ import static org.mockito.Mockito.when;
  * {@code cancel-inflight}, the idle-session sweep, the client's disconnect —
  * is cut short, and the runtime completes normally on the cancel. That
  * {@code complete} presented the cut answer as finished to the client and to
- * the run's replay buffer. The turn must end in an {@code error} that says the
- * run was cancelled, whichever path cancelled it.
+ * the run's replay buffer. The turn must end in the one {@code cancelled}
+ * terminal naming why, whichever path cancelled it — not in a {@code complete},
+ * and not in an {@code error} a client cannot tell from a failure.
  */
 class AiStreamingSessionCancelledTerminalTest {
 
@@ -49,38 +50,47 @@ class AiStreamingSessionCancelledTerminalTest {
     }
 
     @Test
-    void anOperatorCancelEndsTheTurnInACancelledError() throws Exception {
+    void anOperatorCancelEndsTheTurnCancelled() throws Exception {
         var turn = startTurn(new CompletingOnCancelRuntime());
         AiStreamingSession.cancelInflightForResource(UUID);
-        turn.assertEndedInError(AiStreamingSession.CANCELLED_BY_OPERATOR);
+        turn.assertEndedCancelled(RunCancelledException.Reason.OPERATOR);
     }
 
     @Test
-    void theIdleSweepEndsTheTurnInACancelledError() throws Exception {
+    void theIdleSweepEndsTheTurnCancelled() throws Exception {
         var turn = startTurn(new CompletingOnCancelRuntime());
         turn.session.lastActivityMillis = 0L;
         assertEquals(1, AiStreamingSession.sweepExpired(1_000L));
-        turn.assertEndedInError(AiStreamingSession.CANCELLED_BY_SWEEP);
+        turn.assertEndedCancelled(RunCancelledException.Reason.SWEEP);
     }
 
     @Test
-    void aDisconnectEndsTheTurnInACancelledError() throws Exception {
+    void aDisconnectWithoutGraceEndsTheTurnCancelled() throws Exception {
         var turn = startTurn(new CompletingOnCancelRuntime());
         AiStreamingSession.removeAllForResource(UUID);
-        turn.assertEndedInError(AiStreamingSession.CANCELLED_BY_DISCONNECT);
+        turn.assertEndedCancelled(RunCancelledException.Reason.DISCONNECT);
     }
 
     @Test
-    void aRuntimeThatEndsACancelledCallWithoutATerminalFrameStillEndsInError() throws Exception {
+    void aRuntimeThatEndsACancelledCallWithoutATerminalFrameStillEndsCancelled() throws Exception {
         var runtime = new CompletingOnCancelRuntime();
         runtime.completeOnCancel = false;
         var turn = startTurn(runtime);
         AiStreamingSession.cancelInflightForResource(UUID);
-        turn.assertEndedInError(AiStreamingSession.CANCELLED_BY_OPERATOR);
+        turn.assertEndedCancelled(RunCancelledException.Reason.OPERATOR);
     }
 
     @Test
-    void aCancelThatArrivesBeforeTheCallPublishesItsHandleStillEndsInError() throws Exception {
+    void aRuntimeThatReportsTheCancelAsAnErrorStillEndsCancelled() throws Exception {
+        var runtime = new CompletingOnCancelRuntime();
+        runtime.errorOnCancel = true;
+        var turn = startTurn(runtime);
+        AiStreamingSession.cancelInflightForResource(UUID);
+        turn.assertEndedCancelled(RunCancelledException.Reason.OPERATOR);
+    }
+
+    @Test
+    void aCancelThatArrivesBeforeTheCallPublishesItsHandleStillEndsCancelled() throws Exception {
         var runtime = new CompletingOnCancelRuntime();
         runtime.holdBeforeReturning = new java.util.concurrent.CountDownLatch(1);
         var turn = startTurn(runtime, false);
@@ -88,7 +98,7 @@ class AiStreamingSessionCancelledTerminalTest {
         assertEquals(null, turn.session.currentHandle());
         AiStreamingSession.cancelInflightForResource(UUID);
         runtime.holdBeforeReturning.countDown();
-        turn.assertEndedInError(AiStreamingSession.CANCELLED_BY_OPERATOR);
+        turn.assertEndedCancelled(RunCancelledException.Reason.OPERATOR);
     }
 
     private Turn startTurn(CompletingOnCancelRuntime runtime) throws Exception {
@@ -126,14 +136,17 @@ class AiStreamingSessionCancelledTerminalTest {
     private record Turn(AiStreamingSession session, CollectingSession client,
                         RunEventReplayBuffer buffer, CompletableFuture<Void> streamed) {
 
-        void assertEndedInError(String reason) throws Exception {
+        void assertEndedCancelled(RunCancelledException.Reason reason) throws Exception {
             streamed.get(10, TimeUnit.SECONDS);
-            assertTrue(client.failed(), "the client gets an error frame, not complete: " + client.text());
-            assertEquals(reason, client.failure().getMessage());
+            assertTrue(client.failure() instanceof RunCancelledException,
+                    "the client gets the cancelled terminal, not complete or an error: " + client.failure());
+            assertEquals(reason, ((RunCancelledException) client.failure()).reason());
             var events = buffer.snapshot();
             assertEquals("partial", events.get(0).payload());
-            assertEquals("error", events.get(events.size() - 1).type(), events.toString());
-            assertEquals(reason, events.get(events.size() - 1).payload());
+            assertEquals(1, events.stream().filter(e -> RunEventReplayBuffer.isTerminal(e.type())).count(),
+                    "exactly one terminal frame: " + events);
+            assertEquals("cancelled", events.get(events.size() - 1).type(), events.toString());
+            assertEquals(reason.wire(), events.get(events.size() - 1).payload());
         }
     }
 
@@ -141,6 +154,7 @@ class AiStreamingSessionCancelledTerminalTest {
     private static final class CompletingOnCancelRuntime implements AgentRuntime {
         final CompletableFuture<Void> inFlight = new CompletableFuture<>();
         volatile boolean completeOnCancel = true;
+        volatile boolean errorOnCancel;
         volatile java.util.concurrent.CountDownLatch holdBeforeReturning;
 
         @Override public String name() { return "completing-on-cancel"; }
@@ -159,7 +173,9 @@ class AiStreamingSessionCancelledTerminalTest {
         @Override
         public ExecutionHandle executeWithHandle(AgentExecutionContext context, StreamingSession session) {
             var handle = new ExecutionHandle.Settable(() -> {
-                if (completeOnCancel) {
+                if (errorOnCancel) {
+                    session.error(new IllegalStateException("stream closed"));
+                } else if (completeOnCancel) {
                     session.complete();
                 }
             });

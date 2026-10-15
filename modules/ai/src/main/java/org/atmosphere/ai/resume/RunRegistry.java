@@ -51,7 +51,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * completes, and when a run that has not completed is swept, unregistered or
  * rehydrated without its generation, the registry
  * {@linkplain RunEventReplayBuffer#terminate terminates} the buffer unless the
- * run already captured its own {@code complete} / {@code error} frame. A client
+ * run already captured its own {@code complete} / {@code error} /
+ * {@code cancelled} frame. A client
  * that reattached to the run therefore always receives a terminal frame, and
  * its live subscription is released (Correctness Invariant #2).</p>
  *
@@ -231,11 +232,18 @@ public final class RunRegistry {
      * Close the replay buffer of a run whose execution ended, so a reattached
      * client waiting on its live subscription gets a terminal frame even when
      * the run never emitted one: an {@code @Prompt} that returned without
-     * completing ends in {@code complete}, one that failed in {@code error}.
+     * completing ends in {@code complete}, one that failed in {@code error},
+     * one that was cancelled in {@code cancelled}.
      */
     private static void endRun(AgentResumeHandle handle, Throwable failure) {
         if (failure == null) {
             handle.replayBuffer().terminate("complete", "");
+            return;
+        }
+        var cancelled = org.atmosphere.ai.RunCancelledException.reasonOf(failure);
+        if (cancelled.isPresent()) {
+            handle.replayBuffer().terminate(org.atmosphere.ai.RunCancelledException.FRAME_TYPE,
+                    cancelled.get().wire());
             return;
         }
         var cause = failure instanceof java.util.concurrent.CompletionException

@@ -17,7 +17,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { AppState } from 'react-native';
 import type { AtmosphereRequest } from '../../types';
-import type { StreamingHandle, SessionStats, RoutingInfo, SendOptions } from '../../streaming/types';
+import type { StreamingHandle, SessionStats, RoutingInfo, SendOptions, CancelReason } from '../../streaming/types';
 import { subscribeStreaming, buildStreamingPayload } from '../../streaming';
 import { useAtmosphereContext } from '../react/provider';
 import { getRegisteredNetInfo } from '../../react-native/platform';
@@ -108,6 +108,11 @@ export interface UseStreamingRNResult {
   routing: RoutingInfo;
   aiEvents: { event: string; data: Record<string, unknown> }[];
   error: string | null;
+  /**
+   * Why the server cut the last run short (its `cancelled` frame), or `null`.
+   * A cancelled run is over, not failed: `error` stays `null`.
+   */
+  cancelled: CancelReason | null;
   /**
    * Device reachability as reported by NetInfo — and nothing else.
    *
@@ -200,6 +205,7 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
   const [routing, setRouting] = useState<RoutingInfo>({});
   const [aiEvents, setAiEvents] = useState<{ event: string; data: Record<string, unknown> }[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [cancelledRun, setCancelledRun] = useState<CancelReason | null>(null);
   const [isConnected, setIsConnected] = useState(true);
   // True while `backgroundBehavior: 'disconnect'` holds the stream closed
   // because the app is in the background.
@@ -287,6 +293,13 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
           },
           onComplete: () => {
             if (!cancelled) {
+              setIsStreaming(false);
+              setProgress(null);
+            }
+          },
+          onCancelled: (reason) => {
+            if (!cancelled) {
+              setCancelledRun(reason);
               setIsStreaming(false);
               setProgress(null);
             }
@@ -418,6 +431,7 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
     if (canSend && handle) {
       setIsStreaming(true);
       setError(null);
+      setCancelledRun(null);
       handle.send(message, sendOpts);
       return { outcome: 'sent' };
     }
@@ -458,6 +472,7 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
     setRouting({});
     setAiEvents([]);
     setError(null);
+    setCancelledRun(null);
   }, []);
 
   const close = useCallback(() => {
@@ -470,9 +485,9 @@ export function useStreamingRN(options: UseStreamingRNOptions): UseStreamingRNRe
   return useMemo(
     () => ({
       fullText, streamingTexts, isStreaming, progress, metadata, stats, routing, aiEvents,
-      error, isConnected, canSend, connectionStatus, send, reset, close,
+      error, cancelled: cancelledRun, isConnected, canSend, connectionStatus, send, reset, close,
     }),
     [fullText, streamingTexts, isStreaming, progress, metadata, stats, routing, aiEvents,
-     error, isConnected, canSend, connectionStatus, send, reset, close],
+     error, cancelledRun, isConnected, canSend, connectionStatus, send, reset, close],
   );
 }

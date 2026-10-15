@@ -96,7 +96,7 @@ kept). The events are the text and terminal frame the client received,
 whether the `@Prompt` method sent them or the runtime streamed them for
 `session.stream(...)`. The original client's disconnect cancels a model call
 still in flight, so a reattach to such a run gets the tokens streamed before
-the disconnect, then an `error` saying the run was cancelled.
+the disconnect, then the run's `cancelled` frame.
 
 ## Proof samples
 

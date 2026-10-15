@@ -16,7 +16,7 @@
 
 import { ref, computed, onUnmounted, type Ref, type ComputedRef } from 'vue';
 import type { AtmosphereRequest } from '../../types';
-import type { StreamingHandle, SessionStats, RoutingInfo, SendOptions } from '../../streaming/types';
+import type { StreamingHandle, SessionStats, RoutingInfo, SendOptions, CancelReason } from '../../streaming/types';
 import { subscribeStreaming } from '../../streaming';
 import { Atmosphere } from '../../core/atmosphere';
 import { ConnectionStatus } from '../../resilience';
@@ -87,6 +87,8 @@ export function useStreaming(
   const routing: Ref<RoutingInfo> = ref({});
   const aiEvents: Ref<VueAiEvent[]> = ref([]);
   const error: Ref<string | null> = ref(null);
+  /** Why the server cut the last run short (its `cancelled` frame), or null; not an error. */
+  const cancelled: Ref<CancelReason | null> = ref(null);
   const connectionState: Ref<StreamingConnectionState> = ref('idle');
   const isReconnecting: ComputedRef<boolean> = computed(
     () => connectionState.value === 'reconnecting',
@@ -146,6 +148,11 @@ export function useStreaming(
         onComplete: () => {
           isStreaming.value = false;
         },
+        onCancelled: (reason) => {
+          cancelled.value = reason;
+          isStreaming.value = false;
+          progress.value = null;
+        },
         onError: (err, undelivered) => {
           error.value = err;
           isStreaming.value = false;
@@ -182,6 +189,7 @@ export function useStreaming(
   const send = (message: string | object, options?: SendOptions) => {
     isStreaming.value = true;
     error.value = null;
+    cancelled.value = null;
     handle?.send(message, options);
   };
 
@@ -194,6 +202,7 @@ export function useStreaming(
     routing.value = {};
     aiEvents.value = [];
     error.value = null;
+    cancelled.value = null;
   };
 
   const close = () => {
@@ -210,6 +219,6 @@ export function useStreaming(
 
   return {
     fullText, streamingTexts, isStreaming, progress, metadata, stats, routing, aiEvents, error,
-    send, reset, close, connectionState, isReconnecting, connectionStatus,
+    cancelled, send, reset, close, connectionState, isReconnecting, connectionStatus,
   };
 }

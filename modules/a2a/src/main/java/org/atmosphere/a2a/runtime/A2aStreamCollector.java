@@ -17,6 +17,7 @@ package org.atmosphere.a2a.runtime;
 
 import org.atmosphere.a2a.types.TaskState;
 import org.atmosphere.ai.AiPipeline;
+import org.atmosphere.ai.RunCancelledException;
 import org.atmosphere.ai.StreamingSession;
 
 import java.util.Map;
@@ -130,7 +131,13 @@ public class A2aStreamCollector implements StreamingSession {
     public void error(Throwable t) {
         errored.set(true);
         if (finalized.compareAndSet(false, true)) {
-            taskCtx.fail(t.getMessage());
+            if (t instanceof RunCancelledException) {
+                // A run the framework cut short is a canceled task, A2A's own
+                // terminal state for it, not a failed one.
+                taskCtx.cancel(t.getMessage());
+            } else {
+                taskCtx.fail(t.getMessage());
+            }
             completionLatch.countDown();
         }
     }

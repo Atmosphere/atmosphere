@@ -415,7 +415,8 @@ public final class AgUiHandler implements AtmosphereHandler {
 
         @Override
         public void error(Throwable t) {
-            if (terminateWithError(AgUiEventMapper.runErrorMessage(t.getMessage(), t), null)) {
+            if (terminateWithError(AgUiEventMapper.runErrorMessage(t.getMessage(), t),
+                AgUiEventMapper.runErrorCode(t))) {
                 delegate.error(t);
             }
         }

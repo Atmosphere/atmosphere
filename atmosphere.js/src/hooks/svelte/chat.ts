@@ -21,7 +21,8 @@ import type { Readable } from './atmosphere';
 import { createStreamingStore } from './streaming';
 
 export type ChatRole = 'system' | 'user' | 'assistant' | 'tool';
-export type ChatMessageStatus = 'submitted' | 'streaming' | 'complete' | 'error';
+/** `cancelled`: the server cut the run short (its `cancelled` frame); not an error. */
+export type ChatMessageStatus = 'submitted' | 'streaming' | 'complete' | 'error' | 'cancelled';
 
 export interface ChatMessage {
   id: string;
@@ -90,11 +91,12 @@ export function createChatStore(options: CreateChatStoreOptions) {
           return {
             ...message,
             content: state.fullText,
-            status: state.error ? 'error' : state.isStreaming ? 'streaming' : 'complete',
+            status: state.error ? 'error' : state.isStreaming ? 'streaming'
+              : state.cancelled ? 'cancelled' : 'complete',
           };
         }),
       };
-      if (!state.isStreaming && (state.fullText || state.error)) {
+      if (!state.isStreaming && (state.fullText || state.error || state.cancelled)) {
         activeAssistantId = null;
       }
     }

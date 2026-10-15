@@ -102,7 +102,7 @@ public class PiiRedactionFilter extends AiStreamBroadcastFilter {
             return handleStreamingText(msg);
         }
 
-        if (msg.isComplete() || msg.isError()) {
+        if (msg.isComplete() || msg.isError() || msg.isCancelled()) {
             return handleStreamEnd(broadcasterId, msg, rawMessage);
         }
 

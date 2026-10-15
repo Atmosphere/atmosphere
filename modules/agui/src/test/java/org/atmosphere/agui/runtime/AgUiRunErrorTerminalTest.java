@@ -107,6 +107,23 @@ class AgUiRunErrorTerminalTest {
 
     @ParameterizedTest
     @EnumSource(Kind.class)
+    void aCancelledRunEndsWithARunErrorCodedCancelled(Kind kind) throws Exception {
+        var f = fixture(kind);
+        f.session().send("partial ");
+        f.session().error(new org.atmosphere.ai.RunCancelledException(
+                org.atmosphere.ai.RunCancelledException.Reason.DISCONNECT));
+        f.session().complete("done");
+
+        assertEquals(List.of("TEXT_MESSAGE_START", "TEXT_MESSAGE_CONTENT", "RUN_ERROR"), f.types(),
+                "AG-UI has no cancel event: a cancelled run ends with RUN_ERROR, not RUN_FINISHED");
+        var runError = f.output().toString();
+        assertTrue(runError.contains("\"code\":\"cancelled\""),
+                "the RUN_ERROR code says the run was cancelled: " + runError);
+        assertTrue(runError.contains("disconnected"), "its message says why: " + runError);
+    }
+
+    @ParameterizedTest
+    @EnumSource(Kind.class)
     void errorIsCloseOnce(Kind kind) throws Exception {
         var f = fixture(kind);
         f.session().error(new IllegalStateException("boom"));

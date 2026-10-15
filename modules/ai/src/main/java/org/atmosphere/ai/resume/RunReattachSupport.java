@@ -50,8 +50,8 @@ import org.slf4j.LoggerFactory;
  * method sent them or the runtime streamed them for {@code session.stream(...)}.
  * The disconnect of the client that started the run cancels a runtime call
  * still in flight, so such a run's answer is not continued: a reattached
- * client receives the text streamed before the disconnect, then an
- * {@code error} saying the run was cancelled.</p>
+ * client receives the text streamed before the disconnect, then the
+ * {@code cancelled} frame.</p>
  */
 public final class RunReattachSupport {
 
@@ -315,7 +315,7 @@ public final class RunReattachSupport {
         // treats this endpoint as a stream of newline-delimited JSON
         // events; an opaque concatenated-text payload would fail to
         // parse at all. RunEvent.type is captured as the wire-protocol
-        // type name ("streaming-text" / "complete" / "error") so the
+        // type name ("streaming-text" / "complete" / "error" / "cancelled") so the
         // mapping is direct. Sequence numbers restart at 1 for the
         // replay run — the client correlates by sessionId, and the
         // replayed sessionId is the run id so a reconnecting client
@@ -463,8 +463,7 @@ public final class RunReattachSupport {
             if (cancelled) {
                 return;
             }
-            if (write(event) == Write.FAILED
-                    || "complete".equals(event.type()) || "error".equals(event.type())) {
+            if (write(event) == Write.FAILED || RunEventReplayBuffer.isTerminal(event.type())) {
                 cancel();
             }
         }

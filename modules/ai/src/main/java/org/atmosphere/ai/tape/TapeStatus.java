@@ -34,7 +34,9 @@ public enum TapeStatus {
     ERROR,
 
     /**
-     * The client's transport disconnected while the run was still open.
+     * The client's transport disconnected while the run was still open, or
+     * the run ended with a {@code cancelled} terminal (its model call was cut
+     * short by a disconnect, an operator or the idle sweep).
      * Trailing steps may be produced-but-undelivered: the tape records
      * "as-produced at the session boundary, post-decorator", not delivered
      * truth — the leaf drops late writes after disconnect while the tape

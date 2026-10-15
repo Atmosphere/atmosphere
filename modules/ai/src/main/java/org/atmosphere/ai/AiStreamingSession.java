@@ -233,33 +233,31 @@ public class AiStreamingSession implements StreamingSession {
     private final java.util.concurrent.atomic.AtomicBoolean cancelPending =
             new java.util.concurrent.atomic.AtomicBoolean();
 
-    /** Terminal message of a client that disconnected while its model call was in flight. */
-    public static final String CANCELLED_BY_DISCONNECT =
-            "Run cancelled: the client that started it disconnected before the model call finished";
-    /** Terminal message of a model call an operator cancelled through the admin plane. */
-    public static final String CANCELLED_BY_OPERATOR =
-            "Run cancelled: an operator cancelled the model call before it finished";
-    /** Terminal message of a model call the idle-session sweep cancelled. */
-    public static final String CANCELLED_BY_SWEEP =
-            "Run cancelled: the session expired before the model call finished";
+    /** Message of a client that disconnected while its model call was in flight. */
+    public static final String CANCELLED_BY_DISCONNECT = RunCancelledException.Reason.DISCONNECT.message();
+    /** Message of a model call an operator cancelled through the admin plane. */
+    public static final String CANCELLED_BY_OPERATOR = RunCancelledException.Reason.OPERATOR.message();
+    /** Message of a model call the idle-session sweep cancelled. */
+    public static final String CANCELLED_BY_SWEEP = RunCancelledException.Reason.SWEEP.message();
 
     /**
-     * Why {@link #cancelInflight(String)} cut the in-flight model call short,
-     * until the turn's terminal frame consumes it. Runtimes complete normally
-     * on a caller-initiated cancel; a {@code complete} would present the cut
-     * answer as finished, so the first terminal frame after the cancel is sent
-     * as an {@code error} carrying this reason instead — to the client and to
-     * the run's replay buffer alike.
+     * Why {@link #cancelInflight(RunCancelledException.Reason)} cut the
+     * in-flight model call short, until the turn's terminal frame consumes it.
+     * Runtimes complete normally on a caller-initiated cancel; a
+     * {@code complete} would present the cut answer as finished, so the first
+     * terminal frame after the cancel is sent as the {@code cancelled} frame of
+     * this reason instead — to the client and to the run's replay buffer alike.
      */
-    private final java.util.concurrent.atomic.AtomicReference<String> cancelledReason =
+    private final java.util.concurrent.atomic.AtomicReference<RunCancelledException.Reason> cancelledReason =
             new java.util.concurrent.atomic.AtomicReference<>();
 
     /**
-     * The reason of a {@link #cancelInflight(String)} that arrived while no
-     * model call had published its handle yet; {@link #stream(String)} cancels
-     * the call it then publishes under it, so that call ends as cancelled too.
+     * The reason of a {@link #cancelInflight(RunCancelledException.Reason)}
+     * that arrived while no model call had published its handle yet;
+     * {@link #stream(String)} cancels the call it then publishes under it, so
+     * that call ends as cancelled too.
      */
-    private final java.util.concurrent.atomic.AtomicReference<String> pendingCancelReason =
+    private final java.util.concurrent.atomic.AtomicReference<RunCancelledException.Reason> pendingCancelReason =
             new java.util.concurrent.atomic.AtomicReference<>();
 
     /**
@@ -398,7 +396,7 @@ public class AiStreamingSession implements StreamingSession {
                 }
                 removed++;
                 try {
-                    session.cancelInflight(CANCELLED_BY_SWEEP);
+                    session.cancelInflight(RunCancelledException.Reason.SWEEP);
                 } catch (RuntimeException e) {
                     logger.trace("cancelInflight threw during TTL sweep for {}: {}",
                             entry.getKey(), e.getMessage(), e);
@@ -478,9 +476,10 @@ public class AiStreamingSession implements StreamingSession {
      * map entry is dropped so any in-flight LLM call is aborted (refunding
      * tokens for a client that is no longer listening) and any virtual
      * thread parked on a {@code @RequiresApproval} future unblocks instead
-     * of waiting out its 5-minute timeout. Closes Correctness Invariant #2
-     * (Terminal Path Completeness) for the disconnect-while-streaming
-     * scenario.</p>
+     * of waiting out its 5-minute timeout. A call it cuts short ends with the
+     * {@code cancelled} frame of {@link RunCancelledException.Reason#DISCONNECT}.
+     * Closes Correctness Invariant #2 (Terminal Path Completeness) for the
+     * disconnect-while-streaming scenario.</p>
      *
      * @param resourceUuid the atmosphere resource UUID (may be null)
      */
@@ -494,7 +493,7 @@ public class AiStreamingSession implements StreamingSession {
         }
         for (var session : sessions) {
             try {
-                session.cancelInflight(CANCELLED_BY_DISCONNECT);
+                session.cancelInflight(RunCancelledException.Reason.DISCONNECT);
             } catch (RuntimeException e) {
                 // Best-effort cleanup. Swallowing here would violate the
                 // project's no-swallow rule, so log at TRACE — the disconnect
@@ -519,18 +518,19 @@ public class AiStreamingSession implements StreamingSession {
      * is done. Safe to invoke from any thread.</p>
      */
     public void cancelInflight() {
-        cancelInflight("Run cancelled: the model call was cancelled before it finished");
+        cancelInflight(RunCancelledException.Reason.CALLER);
     }
 
     /**
-     * {@link #cancelInflight()}, ending a model call it cuts short with an
-     * {@code error} frame carrying {@code reason} rather than the
+     * {@link #cancelInflight()}, ending a model call it cuts short with the
+     * {@code cancelled} frame of {@code reason} rather than the
      * {@code complete} the runtime sends on a cancel. A call that already
      * finished is not cut short, and its turn ends as it did.
      *
-     * @param reason the terminal error message of a cancelled call
+     * @param reason why the call is cancelled
      */
-    public void cancelInflight(String reason) {
+    public void cancelInflight(RunCancelledException.Reason reason) {
+        java.util.Objects.requireNonNull(reason, "reason");
         // Set the latch BEFORE reading currentHandle so that a concurrent
         // stream() VT publishing its handle after this read still observes
         // the cancel intent and self-cancels post-publish. The reason is
@@ -588,7 +588,7 @@ public class AiStreamingSession implements StreamingSession {
         }
         for (var session : sessions) {
             try {
-                session.cancelInflight(CANCELLED_BY_OPERATOR);
+                session.cancelInflight(RunCancelledException.Reason.OPERATOR);
             } catch (RuntimeException e) {
                 logger.trace("cancelInflight threw during admin cancel-inflight for {}: {}",
                         resourceUuid, e.getMessage(), e);
@@ -1406,7 +1406,7 @@ public class AiStreamingSession implements StreamingSession {
             try {
                 handle.whenDone().join();
                 // A runtime that ends a cancelled call without any terminal
-                // frame still leaves the turn ended, in error.
+                // frame still leaves the turn ended, as cancelled.
                 endCancelledCall();
                 turnEvent.status = streamingTarget.hasErrored() ? "error" : "success";
                 // Persist the captured response only after the runtime returned
@@ -1421,9 +1421,11 @@ public class AiStreamingSession implements StreamingSession {
                 }
             } catch (java.util.concurrent.CompletionException ce) {
                 // Runtime completed exceptionally via Settable.completeExceptionally.
-                cancelledReason.set(null);
                 // The streamingTarget.error(...) path was already invoked by the
-                // runtime, so the client has been notified — no further action.
+                // runtime, so the client has been notified (as cancelled when a
+                // cancel cut the call short). A cancelled call whose runtime
+                // failed without any terminal frame still ends as cancelled.
+                endCancelledCall();
                 turnEvent.status = "error";
                 var cause = ce.getCause();
                 turnEvent.errorType = cause != null ? cause.getClass().getSimpleName() : ce.getClass().getSimpleName();
@@ -1640,16 +1642,17 @@ public class AiStreamingSession implements StreamingSession {
     }
 
     /**
-     * Send the terminal error of a model call {@link #cancelInflight(String)}
-     * cut short, once. Returns {@code true} when it did, so the caller drops
-     * the {@code complete} it was about to send.
+     * Send the {@code cancelled} frame of a model call
+     * {@link #cancelInflight(RunCancelledException.Reason)} cut short, once.
+     * Returns {@code true} when it did, so the caller drops the
+     * {@code complete} it was about to send.
      */
     private boolean endCancelledCall() {
         var reason = cancelledReason.getAndSet(null);
         if (reason == null) {
             return false;
         }
-        error(new java.util.concurrent.CancellationException(reason));
+        error(new RunCancelledException(reason));
         return true;
     }
 
@@ -1700,7 +1703,12 @@ public class AiStreamingSession implements StreamingSession {
         beforeCompletionContext.set(null);
         fireTerminate();
         removeActiveSession(this);
-        delegate.error(t);
+        // A call cut short by cancelInflight ends as cancelled even when its
+        // runtime reports the cancel as a failure of its own: one terminal
+        // frame, the cancelled one.
+        var reason = cancelledReason.getAndSet(null);
+        delegate.error(reason != null && !(t instanceof RunCancelledException)
+                ? new RunCancelledException(reason) : t);
     }
 
     /**
@@ -1756,7 +1764,8 @@ public class AiStreamingSession implements StreamingSession {
     @Override
     public void emit(AiEvent event) {
         lastActivityMillis = System.currentTimeMillis();
-        if (event instanceof AiEvent.Complete && endCancelledCall()) {
+        if ((event instanceof AiEvent.Complete || event instanceof AiEvent.Error)
+                && endCancelledCall()) {
             return;
         }
         delegate.emit(event);

@@ -266,6 +266,14 @@ public final class TapeRecordingSession extends DelegatingStreamingSession {
 
     @Override
     public void error(Throwable t) {
+        if (t instanceof org.atmosphere.ai.RunCancelledException cancelled) {
+            // A cut-short run is taped as cancelled, as the disconnect and
+            // idle-sweep paths already mark it.
+            recordTerminal(TapeStatus.CANCELLED, org.atmosphere.ai.RunCancelledException.FRAME_TYPE,
+                    payload("reason", cancelled.reason().wire()), t);
+            super.error(t);
+            return;
+        }
         String message = null;
         String type = null;
         if (t != null) {
