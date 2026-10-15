@@ -1215,6 +1215,8 @@ public abstract class AbstractAgentRuntimeContractTest {
             var inFirst = runtimeNamed(first, name);
             var inSecond = runtimeNamed(second, name);
             assertNotSame(inFirst, inSecond, name + ": each application must get its own instance");
+            assertSame(first, AiEnvironment.of(inFirst), name + ": an instance belongs to the application that resolved it");
+            assertSame(second, AiEnvironment.of(inSecond), name + ": an instance belongs to the application that resolved it");
             assertThrows(IllegalStateException.class, () -> inFirst.attach(second),
                     name + ": an instance attached to one application must refuse to serve another");
 
