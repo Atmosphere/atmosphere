@@ -471,21 +471,7 @@ class LongPollingRoomRepliesTest {
         var writing = new CountDownLatch(1);
         var release = new CountDownLatch(1);
         var taken = new CopyOnWriteArrayList<String>();
-        var poll = mock(AtmosphereResource.class);
-        when(poll.uuid()).thenReturn(member.uuid());
-        var delivery = CompletableFuture.supplyAsync(() -> LongPollingReplies.deliver(poll, owner -> true,
-                (p, frames) -> {
-                    writing.countDown();
-                    try {
-                        if (!release.await(60, TimeUnit.SECONDS)) {
-                            throw new IOException("the test never released the write");
-                        }
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        throw new IOException(e);
-                    }
-                    taken.addAll(frames);
-                }));
+        var delivery = blockedPoll(member, writing, release, taken, false);
         try {
             assertTrue(writing.await(10, TimeUnit.SECONDS), "the poll's response is being written");
             var second = StreamingSessions.startRoomBroadcast(socket);
@@ -507,6 +493,103 @@ class LongPollingRoomRepliesTest {
                 "the frames kept while the write ran wait for the next poll, once");
         assertTrue(nextPoll(member).isEmpty(), "nothing is handed over twice");
         assertEquals(reservedBefore, LongPollingReplies.reservedBytes(), "every kept frame is released once taken");
+    }
+
+    @Test
+    void theFramesAPollIsWritingNoLongerCountAgainstTheBoundsOfTheirReply() throws Exception {
+        params.put(LongPollingReplies.MAX_REPLY_FRAMES_PARAM, "3");
+        LongPollingRoomReplies.install(room);
+        var member = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        room.removeAtmosphereResource(member);
+        var socket = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        var session = StreamingSessions.startRoomBroadcast(socket);
+        session.send("s1.");
+        session.send("s2.");
+        awaitFrames(socket, 2);
+
+        // The member's next poll takes s1 and s2, and its response blocks: a client that reads it slowly.
+        var release = new CountDownLatch(1);
+        var writing = new CountDownLatch(1);
+        var taken = new CopyOnWriteArrayList<String>();
+        var delivery = blockedPoll(member, writing, release, taken, false);
+        try {
+            assertTrue(writing.await(10, TimeUnit.SECONDS), "the poll's response is being written");
+            session.send("s3.");
+            session.send("s4.");
+            session.complete();
+            awaitTerminals(socket, 1);
+        } finally {
+            release.countDown();
+        }
+        assertTrue(delivery.get(10, TimeUnit.SECONDS), "the poll was answered with the frames kept for it");
+
+        assertEquals(List.of("streaming-text:s1.", "streaming-text:s2."), describe(taken));
+        assertEquals(List.of("streaming-text:s3.", "streaming-text:s4.", "complete"), nextPoll(member),
+                "the frames a poll is writing no longer wait for the member, so they must not count against the"
+                        + " bounds of their reply: no more than 3 frames of it ever waited");
+        assertTrue(nextPoll(member).isEmpty(), "nothing is handed over twice");
+        assertEquals(reservedBefore, LongPollingReplies.reservedBytes(), "every kept frame is released once taken");
+    }
+
+    @Test
+    void theFramesAFailedPollWriteLeavesKeptCountAgainstTheBoundsOfTheirReplyAgain() throws Exception {
+        params.put(LongPollingReplies.MAX_REPLY_FRAMES_PARAM, "3");
+        LongPollingRoomReplies.install(room);
+        var member = subscriber(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        room.removeAtmosphereResource(member);
+        var socket = subscriber(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        var session = StreamingSessions.startRoomBroadcast(socket);
+        session.send("s1.");
+        session.send("s2.");
+        awaitFrames(socket, 2);
+
+        // The member's next poll takes s1 and s2, and the write of its response fails: they stay kept.
+        var release = new CountDownLatch(1);
+        var writing = new CountDownLatch(1);
+        var delivery = blockedPoll(member, writing, release, new CopyOnWriteArrayList<>(), true);
+        try {
+            assertTrue(writing.await(10, TimeUnit.SECONDS), "the poll's response is being written");
+            session.send("s3.");
+            awaitFrames(socket, 3);
+        } finally {
+            release.countDown();
+        }
+        assertFalse(delivery.get(10, TimeUnit.SECONDS), "the poll's response was not written");
+        session.send("s4.");
+        session.complete();
+        awaitTerminals(socket, 1);
+
+        assertEquals(List.of("error:" + LongPollingRoomReplies.TOO_LARGE_MESSAGE), nextPoll(member),
+                "s1, s2 and s3 wait for the member again, so s4 is past the 3 frames of a reply that may wait");
+        assertTrue(nextPoll(member).isEmpty(), "nothing is handed over twice");
+        assertEquals(reservedBefore, LongPollingReplies.reservedBytes(), "every kept frame is released once taken");
+    }
+
+    /**
+     * A poll of {@code member} whose response write blocks until {@code release}
+     * opens, then records the frames in {@code taken} or, when {@code fail}, fails.
+     */
+    private static CompletableFuture<Boolean> blockedPoll(AtmosphereResource member, CountDownLatch writing,
+                                                          CountDownLatch release, List<String> taken,
+                                                          boolean fail) {
+        var poll = mock(AtmosphereResource.class);
+        when(poll.uuid()).thenReturn(member.uuid());
+        return CompletableFuture.supplyAsync(() -> LongPollingReplies.deliver(poll, owner -> true,
+                (p, frames) -> {
+                    writing.countDown();
+                    try {
+                        if (!release.await(60, TimeUnit.SECONDS)) {
+                            throw new IOException("the test never released the write");
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new IOException(e);
+                    }
+                    if (fail) {
+                        throw new IOException("the client went away in the middle of the write");
+                    }
+                    taken.addAll(frames);
+                }));
     }
 
     @Test

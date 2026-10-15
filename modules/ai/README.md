@@ -763,8 +763,9 @@ mailboxes do not count against `maxParkedReplies`, so a room reply leaves room
 for every other long-polling reply. `maxReplyBytes` and `maxReplyFrames` apply
 to the frames of each reply waiting for a member: the reply that outgrows them
 ends, for that member only, with an `error` frame, nothing more of it reaches
-the member, and the other replies kept for it stay whole. Once no bytes are
-left for a frame of a reply, that frame and the rest of the reply reach the
+the member, and the other replies kept for it stay whole; the frames a poll of
+the member is writing no longer wait for it and no longer count. Once no bytes
+are left for a frame of a reply, that frame and the rest of the reply reach the
 member only while a poll of it waits. A member follows at most 64 replies at
 once: a frame of another reply sent while it follows 64 reaches it only while a
 poll of it waits too, and once one of them ends, that reply is kept for it from

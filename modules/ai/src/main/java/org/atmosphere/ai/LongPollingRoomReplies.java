@@ -76,9 +76,10 @@ import java.util.concurrent.locks.ReentrantLock;
  * {@value LongPollingReplies#MAX_REPLY_FRAMES_PARAM}); the reply that would
  * outgrow them is replaced, for that member only, by an {@code error} frame, and
  * the rest of that reply is not kept for it, while the other replies kept for
- * it stay whole. Once no room is left for a frame of a reply, that frame and
- * the rest of that reply reach the member the way they did before, only while a
- * poll of it waits. A member follows at most {@value #MAX_REPLIES_PER_MEMBER}
+ * it stay whole. The frames a poll of the member is writing no longer wait for
+ * it, and no longer count. Once no room is left for a frame of a reply, that
+ * frame and the rest of that reply reach the member the way they did before,
+ * only while a poll of it waits. A member follows at most {@value #MAX_REPLIES_PER_MEMBER}
  * replies at once: a frame of another reply sent while it follows that many
  * reaches it only while a poll of it waits too, and once one of them ends, that
  * reply is kept for the member from its next frame on, as for a client that
@@ -341,6 +342,10 @@ public final class LongPollingRoomReplies {
         private long touchedNanos = System.nanoTime();
     }
 
+    /** A frame a poll is writing, taken off the counts of {@code reply}, of {@code bytes} bytes. */
+    private record Uncounted(Reply reply, long bytes) {
+    }
+
     /**
      * The frame a delivery thread of the room's broadcaster is at, and the members
      * it was kept for, or ended a reply for, so that it is not written to a poll of
@@ -517,6 +522,11 @@ public final class LongPollingRoomReplies {
         private final ReentrantLock delivery = new ReentrantLock();
         /** The frames a poll is writing; guarded by {@link #delivery}. */
         private List<Kept> taking = List.of();
+        /**
+         * The frames of {@link #taking} taken off the counts of their reply;
+         * guarded by {@link #delivery}.
+         */
+        private List<Uncounted> uncounted = List.of();
         private volatile Object owner;
         private volatile AtmosphereConfig config;
         private volatile LongPollingReplies.Limits limits = LongPollingReplies.Limits.DEFAULTS;
@@ -591,13 +601,25 @@ public final class LongPollingRoomReplies {
 
         /**
          * The frames kept for this member so far, which a poll is about to write;
-         * they stay in the mailbox until {@link #taken}. Called holding
-         * {@link #lockDelivery}.
+         * they stay in the mailbox until {@link #taken}, but no longer wait for the
+         * member: they stop counting against the bounds of their reply, so the
+         * frames kept while the poll writes have the room they would have once it
+         * returned. Called holding {@link #lockDelivery}.
          */
         List<String> take() {
             lock.lock();
             try {
                 taking = List.copyOf(mailbox);
+                var off = new ArrayList<Uncounted>();
+                for (var k : taking) {
+                    var reply = replies.get(k.sessionId);
+                    if (reply != null && !reply.abandoned) {
+                        reply.bytes = Math.max(0, reply.bytes - k.size);
+                        reply.frames = Math.max(0, reply.frames - 1);
+                        off.add(new Uncounted(reply, k.size));
+                    }
+                }
+                uncounted = List.copyOf(off);
             } finally {
                 lock.unlock();
             }
@@ -608,9 +630,25 @@ public final class LongPollingRoomReplies {
             return frames;
         }
 
-        /** The poll did not write the frames {@link #take} returned: they stay kept. */
+        /**
+         * The poll did not write the frames {@link #take} returned: they stay
+         * kept, and wait for the member again. Called holding {@link #lockDelivery}.
+         */
         void untaken() {
+            lock.lock();
+            try {
+                // Not the frames an outgrown reply dropped while the poll wrote: they wait no more.
+                for (var u : uncounted) {
+                    if (!u.reply().abandoned) {
+                        u.reply().bytes += u.bytes();
+                        u.reply().frames++;
+                    }
+                }
+            } finally {
+                lock.unlock();
+            }
             taking = List.of();
+            uncounted = List.of();
         }
 
         /**
@@ -622,6 +660,7 @@ public final class LongPollingRoomReplies {
             var written = Collections.newSetFromMap(new IdentityHashMap<Kept, Boolean>());
             written.addAll(taking);
             taking = List.of();
+            uncounted = List.of();
             lock.lock();
             try {
                 // A frame an outgrown reply or a departure dropped while the poll wrote was released then.
@@ -629,13 +668,9 @@ public final class LongPollingRoomReplies {
                     if (!written.contains(k)) {
                         return false;
                     }
+                    // Its reply stopped counting it when the poll took it.
                     k.release();
                     LongPollingReplies.release(MEMBER_FRAME_BYTES);
-                    var reply = replies.get(k.sessionId);
-                    if (reply != null && !reply.abandoned) {
-                        reply.bytes = Math.max(0, reply.bytes - k.size);
-                        reply.frames = Math.max(0, reply.frames - 1);
-                    }
                     return true;
                 });
             } finally {
