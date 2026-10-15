@@ -720,9 +720,16 @@ public final class AiConfig {
     private static final java.util.Map<String, Knob> KNOBS_BY_PROPERTY = KNOBS.stream()
             .collect(java.util.stream.Collectors.toUnmodifiableMap(Knob::property, k -> k));
 
-    /** The host configuration installed by {@link #installHostConfig}, or {@code null}. */
-    private static final java.util.concurrent.atomic.AtomicReference<HostConfig> HOST_CONFIG =
-            new java.util.concurrent.atomic.AtomicReference<>();
+    /**
+     * The host configurations installed by {@link #installHostConfig} and not
+     * closed yet, oldest first; guarded by {@link #HOST_CONFIG_LOCK}. It holds
+     * one entry per host that is running (each host closes its own on stop), so
+     * it is bounded by the applications alive in the JVM.
+     */
+    private static final java.util.ArrayList<HostConfig> HOST_CONFIGS = new java.util.ArrayList<>();
+    private static final ReentrantLock HOST_CONFIG_LOCK = new ReentrantLock();
+    /** The last entry of {@link #HOST_CONFIGS}, the one read; {@code null} when none. */
+    private static volatile HostConfig hostConfig;
 
     /**
      * The authoritative list of the knobs this class reads, in a stable order.
@@ -774,17 +781,22 @@ public final class AiConfig {
      * knobs (see {@link #knob(String)}). {@code lookup} is called once per knob
      * property, now, and the non-blank values are kept: later changes to the
      * host's configuration are not seen. Nothing is written to the JVM system
-     * properties, so two applications in one JVM, or two tests, do not see each
-     * other's values through them.
+     * properties.
      *
      * <p>Install before {@link #configure}: the generation parameters and the
      * prompt-cache-key mode are read when the settings are built. The cached
      * {@link AgentRuntimeResolver} resolution is dropped, so the
      * {@link #RUNTIME_PROPERTY} of the new configuration is honoured.</p>
      *
-     * <p>A later install replaces this one. The returned handle removes the
-     * installation it belongs to, and only that one, so the host that installed
-     * it closes it when it stops.</p>
+     * <p>The knobs are JVM-wide, like the system properties and the environment
+     * they fall back from: there is no per-application scope. While several
+     * installations are open (two applications in one JVM, or Spring's test
+     * context cache keeping several contexts alive), the latest one is the one
+     * every application reads, whole, and a warning names the earlier ones it
+     * shadows. The returned handle removes the installation it belongs to, and
+     * only that one: closing the latest gives the previous, still-open
+     * installation back, so the host that installed it closes it when it
+     * stops.</p>
      *
      * @param lookup the host's configuration, by property name; returns
      *               {@code null} for an unset property
@@ -800,27 +812,45 @@ public final class AiConfig {
             }
         }
         var installed = new HostConfig(java.util.Map.copyOf(values));
-        HOST_CONFIG.set(installed);
+        int shadowed;
+        HOST_CONFIG_LOCK.lock();
+        try {
+            shadowed = HOST_CONFIGS.size();
+            HOST_CONFIGS.add(installed);
+            hostConfig = installed;
+        } finally {
+            HOST_CONFIG_LOCK.unlock();
+        }
         AgentRuntimeResolver.reset();
         if (!values.isEmpty()) {
             logger.info("AI knobs from the host configuration: {}", values.keySet());
+        }
+        if (shadowed > 0) {
+            logger.warn("{} other AI host configuration(s) still installed in this JVM: the knobs are "
+                    + "JVM-wide, so every application now reads this one until it is closed", shadowed);
         }
         return installed;
     }
 
     /**
-     * Remove any installed host configuration. Test hook mirroring
+     * Remove every installed host configuration. Test hook mirroring
      * {@link AgentRuntimeResolver#reset()}.
      */
     public static void resetHostConfig() {
-        HOST_CONFIG.set(null);
+        HOST_CONFIG_LOCK.lock();
+        try {
+            HOST_CONFIGS.clear();
+            hostConfig = null;
+        } finally {
+            HOST_CONFIG_LOCK.unlock();
+        }
         AgentRuntimeResolver.reset();
     }
 
     /**
      * Knob values a host installed with {@link #installHostConfig}. Closing it
-     * uninstalls it if it is still the installed one; closing it again does
-     * nothing.
+     * uninstalls it, and the previous installation still open, if any, is read
+     * again; closing it again does nothing.
      */
     public static final class HostConfig implements AutoCloseable {
 
@@ -841,7 +871,18 @@ public final class AiConfig {
 
         @Override
         public void close() {
-            if (HOST_CONFIG.compareAndSet(this, null)) {
+            boolean wasRead;
+            HOST_CONFIG_LOCK.lock();
+            try {
+                if (!HOST_CONFIGS.remove(this)) {
+                    return;
+                }
+                wasRead = hostConfig == this;
+                hostConfig = HOST_CONFIGS.isEmpty() ? null : HOST_CONFIGS.getLast();
+            } finally {
+                HOST_CONFIG_LOCK.unlock();
+            }
+            if (wasRead) {
                 AgentRuntimeResolver.reset();
             }
         }
@@ -900,7 +941,7 @@ public final class AiConfig {
             raw = System.getenv(env);
         }
         if (raw == null || raw.isBlank()) {
-            var host = HOST_CONFIG.get();
+            var host = hostConfig;
             raw = host != null ? host.values.get(property) : null;
         }
         return (raw != null && !raw.isBlank()) ? raw.trim() : null;

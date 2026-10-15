@@ -109,6 +109,51 @@ class AiConfigKnobsTest {
                 "closing the current installation removes it");
     }
 
+    /**
+     * Two hosts alive in one JVM (Spring's test context cache keeps several):
+     * while both are open the later one is read, and closing it gives the
+     * earlier, still-running one its own values back instead of none.
+     */
+    @Test
+    void closingTheLatestInstallationRestoresTheOneStillOpen() {
+        org.junit.jupiter.api.Assumptions.assumeTrue(System.getenv(AiConfig.TEMPERATURE_ENV) == null
+                && System.getenv(AiConfig.REATTACH_GRACE_ENV) == null, "LLM_* env set");
+        var first = AiConfig.installHostConfig(Map.of(
+                AiConfig.TEMPERATURE_PROPERTY, "0.2",
+                AiConfig.REATTACH_GRACE_PROPERTY, "5s")::get);
+        assertEquals(0.2, AiConfig.resolveGenerationParams().temperature());
+        assertEquals(java.time.Duration.ofSeconds(5), AiConfig.resolveReattachGrace());
+
+        var second = AiConfig.installHostConfig(Map.of(AiConfig.TEMPERATURE_PROPERTY, "0.7")::get);
+        assertEquals(0.7, AiConfig.resolveGenerationParams().temperature(),
+                "the latest open installation is the one read");
+        assertEquals(AiConfig.DEFAULT_REATTACH_GRACE, AiConfig.resolveReattachGrace(),
+                "the latest open installation is read whole, not merged with the earlier one");
+
+        second.close();
+        assertEquals(0.2, AiConfig.resolveGenerationParams().temperature(),
+                "the earlier installation, still open, is read again");
+        assertEquals(java.time.Duration.ofSeconds(5), AiConfig.resolveReattachGrace());
+
+        first.close();
+        assertTrue(AiConfig.knob(AiConfig.TEMPERATURE_PROPERTY).isEmpty(),
+                "no installation is left once both are closed");
+    }
+
+    @Test
+    void closingTheEarlierInstallationFirstKeepsTheLatest() {
+        org.junit.jupiter.api.Assumptions.assumeTrue(System.getenv(AiConfig.TEMPERATURE_ENV) == null,
+                "LLM_TEMPERATURE set");
+        var first = AiConfig.installHostConfig(Map.of(AiConfig.TEMPERATURE_PROPERTY, "0.2")::get);
+        var second = AiConfig.installHostConfig(Map.of(AiConfig.TEMPERATURE_PROPERTY, "0.7")::get);
+        first.close();
+        assertEquals("0.7", AiConfig.knob(AiConfig.TEMPERATURE_PROPERTY).orElse(null));
+        second.close();
+        first.close();
+        assertTrue(AiConfig.knob(AiConfig.TEMPERATURE_PROPERTY).isEmpty(),
+                "closing an already-closed installation again restores nothing");
+    }
+
     @Test
     void onlyKnobsAreKept() {
         var seen = new ArrayList<String>();

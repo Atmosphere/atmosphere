@@ -618,8 +618,12 @@ order, first non-blank value wins:
 
 This is the order Spring Boot and MicroProfile Config give their own sources. The hosts install their
 configuration through `AiConfig.installHostConfig(...)`, which keeps it in `AiConfig` and never writes
-it to the JVM system properties, and they uninstall it when they stop. A plain servlet deployment has
-no host configuration: it uses the system property or the environment variable.
+it to the JVM system properties, and they uninstall it when they stop. Like the system properties,
+the knobs are JVM-wide, not per application: while two hosts are running in one JVM (two
+applications, or contexts kept alive by Spring's test context cache), both read the configuration of
+the one installed last, and a warning says so; when it stops, the earlier one's configuration is read
+again. A plain servlet deployment has no host configuration: it uses the system property or the
+environment variable.
 
 The LLM mode, model, API key and base URL are not knobs: the Spring Boot starters read
 `atmosphere.ai.mode` / `model` / `api-key` / `base-url` first and fall back to `LLM_MODE` /
