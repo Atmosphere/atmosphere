@@ -61,7 +61,7 @@ private val logger = LoggerFactory.getLogger("org.atmosphere.kotlin.ai.AgentRegi
  *    `AgentProcessor` does for `@Agent`.
  */
 fun AtmosphereFramework.registerAgent(spec: AgentSpec): KotlinAgent {
-    val settings = AiConfig.get() ?: AiConfig.fromEnvironment()
+    val settings = AiConfig.getOrConfigureFromEnvironment()
     val runtime = spec.runtime ?: resolveRuntime(settings)
 
     val toolRegistry = DefaultToolRegistry()

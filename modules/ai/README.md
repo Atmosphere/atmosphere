@@ -686,7 +686,11 @@ configuration: it uses the system property or the environment variable.
 The LLM mode, model, API key and base URL are not knobs: the Spring Boot starters read
 `atmosphere.ai.mode` / `model` / `api-key` / `base-url` first and fall back to `LLM_MODE` /
 `LLM_MODEL` / `LLM_API_KEY` / `LLM_BASE_URL`; elsewhere `AiConfig.fromEnvironment()` reads the
-environment variables.
+environment variables. When nothing configured the settings, the `@AiEndpoint`, `@Agent` and
+`@Coordinator` processors and the Kotlin `registerAgent` DSL build them from these variables once and publish them
+(`AiConfig.getOrConfigureFromEnvironment()`, which never replaces settings already configured); the
+per-request runner of the ADK runtime uses them without publishing them
+(`AiConfig.settingsFromEnvironment()`).
 
 ### Prompt routing over HTTP transports
 

@@ -1195,6 +1195,10 @@ public final class AiConfig {
     /**
      * Configure from environment variables ({@code LLM_MODE}, {@code LLM_MODEL},
      * {@code LLM_API_KEY}/{@code OPENAI_API_KEY}/{@code GEMINI_API_KEY}, {@code LLM_BASE_URL}).
+     * The result replaces the JVM-wide settings ({@link #get()}), like
+     * {@link #configure}. Framework code that only needs settings when none are
+     * configured uses {@link #getOrConfigureFromEnvironment()} (never replaces)
+     * or {@link #settingsFromEnvironment()} (never publishes) instead.
      *
      * @return the resolved settings
      */
@@ -1204,6 +1208,47 @@ public final class AiConfig {
         var apiKey = env("LLM_API_KEY", env("OPENAI_API_KEY", env("GEMINI_API_KEY", "")));
         var baseUrl = env("LLM_BASE_URL", "");
         return configure(mode, model, apiKey, baseUrl.isBlank() ? null : baseUrl);
+    }
+
+    /**
+     * Build settings from the environment variables {@link #fromEnvironment()}
+     * reads, for the caller only: the JVM-wide settings ({@link #get()}) are
+     * left as they are. For a request-time fallback, which must read the
+     * settings, never write them.
+     *
+     * @return settings built from the environment, never {@code null}
+     */
+    public static LlmSettings settingsFromEnvironment() {
+        var baseUrl = env("LLM_BASE_URL", "");
+        return buildSettings(env("LLM_MODE", DEFAULT_MODE), env("LLM_MODEL", DEFAULT_MODEL),
+                env("LLM_API_KEY", env("OPENAI_API_KEY", env("GEMINI_API_KEY", ""))),
+                baseUrl.isBlank() ? null : baseUrl, GenerationParams.defaults());
+    }
+
+    /**
+     * The JVM-wide settings ({@link #get()}), or, when none are configured,
+     * settings built from the environment ({@link #fromEnvironment()}) and
+     * published. The check and the publication are one atomic step, so this
+     * never replaces settings another caller configured meanwhile, and
+     * concurrent callers all get the one instance published.
+     *
+     * @return the settings in effect, never {@code null}
+     */
+    public static LlmSettings getOrConfigureFromEnvironment() {
+        var current = instance;
+        if (current != null) {
+            return current;
+        }
+        LOCK.lock();
+        try {
+            if (instance == null) {
+                instance = settingsFromEnvironment();
+                instancePinned = GenerationParams.defaults();
+            }
+            return instance;
+        } finally {
+            LOCK.unlock();
+        }
     }
 
     /**

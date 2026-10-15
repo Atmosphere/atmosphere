@@ -658,11 +658,7 @@ public class AgentProcessor implements Processor<Object> {
     }
 
     private AiConfig.LlmSettings resolveSettings() {
-        var settings = AiConfig.get();
-        if (settings == null) {
-            settings = AiConfig.fromEnvironment();
-        }
-        return settings;
+        return AiConfig.getOrConfigureFromEnvironment();
     }
 
     /**

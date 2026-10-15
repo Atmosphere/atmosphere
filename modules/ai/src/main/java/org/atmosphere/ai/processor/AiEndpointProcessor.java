@@ -669,11 +669,7 @@ public class AiEndpointProcessor implements Processor<Object> {
     }
 
     private AiConfig.LlmSettings resolveSettings() {
-        var settings = AiConfig.get();
-        if (settings == null) {
-            settings = AiConfig.fromEnvironment();
-        }
-        return settings;
+        return AiConfig.getOrConfigureFromEnvironment();
     }
 
     private AgentRuntime resolveRuntimeWithRouting(ModelRouter.FallbackStrategy strategy,

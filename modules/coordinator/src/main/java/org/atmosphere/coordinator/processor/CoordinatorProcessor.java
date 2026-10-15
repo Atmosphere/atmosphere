@@ -862,8 +862,7 @@ public class CoordinatorProcessor implements Processor<Object> {
     // --- AI infrastructure (public APIs from atmosphere-ai) ---
 
     private AiConfig.LlmSettings resolveSettings() {
-        var config = AiConfig.get();
-        return config != null ? config : AiConfig.fromEnvironment();
+        return AiConfig.getOrConfigureFromEnvironment();
     }
 
     private AgentRuntime resolveRuntime(AiConfig.LlmSettings settings) {

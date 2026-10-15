@@ -309,6 +309,24 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
     }
 
     /**
+     * Settings built from the {@code LLM_*} environment, for this runtime's own
+     * requests when nothing configured the JVM-wide settings. Built once, never
+     * published: a request reads the settings, it does not configure them for
+     * every other agent and application in the JVM. Two concurrent first
+     * requests may each build one; either is kept.
+     */
+    private volatile AiConfig.LlmSettings environmentSettings;
+
+    private AiConfig.LlmSettings environmentSettings() {
+        var settings = environmentSettings;
+        if (settings == null) {
+            settings = AiConfig.settingsFromEnvironment();
+            environmentSettings = settings;
+        }
+        return settings;
+    }
+
+    /**
      * Build a per-request {@link Runner} whose tools capture the caller's
      * {@link StreamingSession} and {@link org.atmosphere.ai.approval.ApprovalStrategy}.
      * ADK requires tools at agent construction time, so each streaming request rebuilds
@@ -321,7 +339,7 @@ public class AdkAgentRuntime extends AbstractAgentRuntime<Runner> {
     Runner buildRequestRunner(AgentExecutionContext context, StreamingSession session) {
         var settings = AiConfig.get();
         if (settings == null) {
-            settings = AiConfig.fromEnvironment();
+            settings = environmentSettings();
         }
 
         // When the caller attached a per-request root via AdkRootAgent.attach(),
