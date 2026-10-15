@@ -15,6 +15,7 @@
  */
 package org.atmosphere.spring.boot;
 
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -22,6 +23,7 @@ import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.governance.memory.MemorySafetyConfig;
 import org.atmosphere.ai.governance.rag.RagSafetyConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.util.PathTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.ClassUtils;
@@ -63,13 +65,23 @@ public class AtmosphereConsoleInfoEndpoint {
     @GetMapping("/api/console/info")
     public Map<String, Object> info() {
         var result = new LinkedHashMap<String, Object>();
+        var endpoint = detectEndpoint();
+        var mode = detectMode(endpoint);
         var subtitle = properties.getConsoleSubtitle();
         if (subtitle == null || subtitle.isBlank()) {
-            subtitle = "Runtime: " + detectRuntime();
+            // Mode-aware default, in parity with the Spring Boot 4 starter and
+            // Quarkus: a broadcast endpoint (@ManagedService) does not inherit
+            // the AI runtime label.
+            subtitle = "broadcast".equals(mode)
+                    ? "Multi-client broadcast chat"
+                    : "Runtime: " + detectRuntime();
         }
         result.put("subtitle", subtitle);
-        result.put("endpoint", detectEndpoint());
+        result.put("endpoint", endpoint);
         result.put("runtime", detectRuntime());
+        // ai | broadcast, so the console renders honest empty-state copy; same
+        // field and values as the Spring Boot 4 starter and Quarkus.
+        result.put("mode", mode);
         // Wire transport the console client should use, in parity with the
         // Spring Boot 4 starter (AtmosphereConsoleInfoEndpoint#detectTransport).
         // Validated against the adapter set the console actually ships — an
@@ -218,6 +230,77 @@ public class AtmosphereConsoleInfoEndpoint {
             case "grpc", "a2a", "ag-ui" -> configured.trim().toLowerCase(java.util.Locale.ROOT);
             default -> "atmosphere";
         };
+    }
+
+    /**
+     * Resolve the handler of a path-template service ({@code /rooms/{room}})
+     * that serves {@code endpoint}. Package-visible for unit testing.
+     *
+     * @return the wrapper whose template matches {@code endpoint}, or {@code null}
+     */
+    static <W> W templateWrapper(Map<String, W> handlers, String endpoint) {
+        for (var entry : handlers.entrySet()) {
+            if (!entry.getKey().contains("{")) {
+                continue;
+            }
+            try {
+                if (new PathTemplate(entry.getKey()).match(endpoint, new HashMap<>())) {
+                    return entry.getValue();
+                }
+            } catch (IllegalArgumentException e) {
+                logger.trace("Not a path template: {}", entry.getKey(), e);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Reports whether the handler registered at {@code endpoint} is an
+     * AI-shaped handler ({@code AiEndpointHandler} / {@code AgentHandler})
+     * or a plain broadcast handler (e.g. {@code @ManagedService} →
+     * {@code ManagedAtmosphereHandler}). The frontend uses this to render
+     * honest empty-state copy — "Type a message below to begin chatting
+     * with the AI assistant" is only accurate when an assistant exists.
+     *
+     * <p>Detection is class-name based so this controller doesn't drag in
+     * a hard compile-time dep on {@code modules/ai} or {@code modules/agent}
+     * — the AI Console must keep loading even when those JARs are absent.</p>
+     */
+    private String detectMode(String endpoint) {
+        if (endpoint == null) {
+            return "ai";
+        }
+        try {
+            var handlers = framework.getAtmosphereHandlers();
+            var wrapper = handlers.get(endpoint);
+            if (wrapper == null) {
+                // A path-template service (/rooms/{room}) registers the concrete
+                // path only on its first request: classify by the template it
+                // already serves, not by whether a client has connected yet.
+                wrapper = templateWrapper(handlers, endpoint);
+            }
+            if (wrapper == null) {
+                return "ai";
+            }
+            var handlerClassName = wrapper.atmosphereHandler().getClass().getName();
+            // AiEndpointHandler (modules/ai), AgentHandler (modules/agent),
+            // protocol bridges over agents (A2aHandler, AgUiHandler), and any
+            // handler whose package is under org.atmosphere.{ai,agent,
+            // coordinator,a2a,agui} count as AI-shaped. Everything else
+            // (notably ManagedAtmosphereHandler from modules/cpr) is
+            // broadcast-shaped.
+            if (handlerClassName.startsWith("org.atmosphere.ai.")
+                    || handlerClassName.startsWith("org.atmosphere.agent.")
+                    || handlerClassName.startsWith("org.atmosphere.coordinator.")
+                    || handlerClassName.startsWith("org.atmosphere.a2a.")
+                    || handlerClassName.startsWith("org.atmosphere.agui.")) {
+                return "ai";
+            }
+            return "broadcast";
+        } catch (Exception e) {
+            logger.debug("Could not classify handler mode for {}", endpoint, e);
+            return "ai";
+        }
     }
 
     /**
