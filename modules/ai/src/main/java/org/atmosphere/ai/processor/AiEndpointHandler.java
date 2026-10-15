@@ -543,6 +543,19 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             registerBroadcastFilters(resource.getBroadcaster());
             registerCacheInspector(resource.getBroadcaster());
             resource.suspend(suspendTimeout);
+            // Right away, not once the connection is set up: a late departure of
+            // the connection it replaces, or the end of a run that departure left
+            // going, may land while onReady runs or a run is replayed to it.
+            if (resource.isSuspended()) {
+                if (resource.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
+                        || resource.transport() == AtmosphereResource.TRANSPORT.SSE) {
+                    trackLiveConnection(resource);
+                }
+                // A connection back under the id of a lost one owns the state the
+                // lost one's runs kept: its own departure releases it.
+                deferredReleases.computeIfPresent(resource.uuid(),
+                        (uuid, deferred) -> new DeferredRelease(deferred.runs(), true));
+            }
             if (!systemPrompt.isEmpty()) {
                 resource.getRequest().setAttribute(SYSTEM_PROMPT_ATTRIBUTE, systemPrompt);
             }
@@ -570,14 +583,6 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             // so a prompt that waited for it may be dispatched to it.
             if (resource.isSuspended()) {
                 repollGate.connectionReady(resource.uuid());
-                if (resource.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
-                        || resource.transport() == AtmosphereResource.TRANSPORT.SSE) {
-                    trackLiveConnection(resource);
-                }
-                // A connection back under the id of a lost one owns the state the
-                // lost one's runs kept: its own departure releases it.
-                deferredReleases.computeIfPresent(resource.uuid(),
-                        (uuid, deferred) -> new DeferredRelease(deferred.runs(), true));
             }
             // A reply parked after this poll looked for one and before it was
             // suspended found no poll to resume: resume this one, empty, so the

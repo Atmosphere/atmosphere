@@ -54,6 +54,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.stubbing.Answer;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -64,6 +65,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -506,6 +508,70 @@ class AiEndpointHandlerReattachGraceTest {
     }
 
     /**
+     * The loss of the original connection is noticed while the reconnect under
+     * its tracking id is still being set up: suspended already, looking for a run
+     * to reattach. The reconnect is the live connection by then, and the late
+     * loss of the one it replaced must neither detach nor cancel its run.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"WEBSOCKET", "SSE"})
+    void aLossNoticedWhileTheSameIdReconnectIsSetUpLeavesTheRunsOfTheLiveConnectionGoing(String transport)
+            throws Exception {
+        System.setProperty(GRACE_PROPERTY, "300ms");
+        var runtime = new HeldRuntime();
+        var original = startRun(runtime);
+
+        var noticed = new AtomicBoolean();
+        var back = reconnect(original.uuid(), AtmosphereResource.TRANSPORT.valueOf(transport), inv -> {
+            if (!noticed.getAndSet(true)) {
+                handler.onStateChange(new AtmosphereResourceEventImpl(original, true, false));
+            }
+            return null;
+        }, new StringWriter());
+        assertTrue(noticed.get(), "the loss must be noticed while the reconnect is set up");
+        assertFalse(RunDisconnectGrace.isDetached(RUN_ID.get()),
+                "the loss of a replaced connection must not detach the live connection's run");
+        assertFalse(runtime.cancelled.await(1_500, TimeUnit.MILLISECONDS),
+                "the loss of a replaced connection must not cancel the live connection's run");
+
+        handler.onStateChange(leaving(back));
+        assertTrue(runtime.cancelled.await(10, TimeUnit.SECONDS),
+                "the live connection leaving on purpose cancels its run");
+    }
+
+    /**
+     * The run a lost connection's state waited for ends while the reconnect under
+     * its tracking id is still being set up: the reconnect owns that state by
+     * then, and the run's end must not release the conversation it carries on.
+     */
+    @Test
+    void aDetachedRunEndingWhileTheSameIdReconnectIsSetUpKeepsTheConversation() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "5s");
+        var memory = new InMemoryConversationMemory();
+        var runtime = new HeldRuntime();
+        var original = startRun(runtime, memory);
+        var uuid = original.uuid();
+        handler.onStateChange(new AtmosphereResourceEventImpl(original, true, false));
+
+        var ended = new AtomicBoolean();
+        var back = reconnect(uuid, AtmosphereResource.TRANSPORT.WEBSOCKET, inv -> {
+            if (!ended.getAndSet(true)) {
+                runtime.finish();
+                awaitRunEndCallbacks();
+            }
+            return null;
+        }, new StringWriter());
+        assertTrue(ended.get(), "the run must end while the reconnect is set up");
+        var history = memory.getHistory(uuid);
+        assertTrue(history.stream().anyMatch(m -> "user".equals(m.role()) && "explain".equals(m.content())),
+                "the conversation of a client back under its tracking id survives the run's end: " + history);
+
+        handler.onStateChange(leaving(back));
+        assertEquals(List.of(), memory.getHistory(uuid),
+                "the reconnected connection leaving releases the conversation");
+    }
+
+    /**
      * A WebSocket or SSE connection whose suspend times out ends without a
      * departure reaching the handler: it stops being tracked as the live
      * connection of its tracking id all the same, or every client that times
@@ -709,6 +775,16 @@ class AiEndpointHandlerReattachGraceTest {
      * connect path, which suspends it and reattaches it to the run.
      */
     private AtmosphereResource reconnect(String uuid, String runId, StringWriter out) throws Exception {
+        return reconnect(uuid, AtmosphereResource.TRANSPORT.WEBSOCKET, inv -> runId, out);
+    }
+
+    /**
+     * The client coming back over {@code transport} under its tracking id
+     * {@code uuid}; {@code runId} answers the connect path's read of the run id
+     * it reattaches with, after the connection is suspended.
+     */
+    private AtmosphereResource reconnect(String uuid, AtmosphereResource.TRANSPORT transport, Answer<Object> runId,
+            StringWriter out) throws Exception {
         var resource = mock(AtmosphereResource.class);
         var request = mock(AtmosphereRequest.class);
         var response = mock(AtmosphereResponse.class);
@@ -718,12 +794,12 @@ class AiEndpointHandlerReattachGraceTest {
         when(response.getWriter()).thenReturn(new PrintWriter(out));
         when(resource.getAtmosphereConfig()).thenReturn(config);
         when(resource.getBroadcaster()).thenReturn(room);
-        when(resource.transport()).thenReturn(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        when(resource.transport()).thenReturn(transport);
         when(resource.isSuspended()).thenReturn(true);
         when(resource.addEventListener(any())).thenReturn(resource);
         when(resource.suspend(30_000L)).thenReturn(resource);
         when(request.getMethod()).thenReturn("GET");
-        when(request.getAttribute(RunReattachSupport.RUN_ID_ATTRIBUTE)).thenReturn(runId);
+        when(request.getAttribute(RunReattachSupport.RUN_ID_ATTRIBUTE)).thenAnswer(runId);
         handler.onRequest(resource);
         return resource;
     }
