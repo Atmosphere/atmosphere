@@ -16,7 +16,10 @@
 package org.atmosphere.aienvironment;
 
 import org.atmosphere.admin.ai.AiRuntimeController;
+import org.atmosphere.admin.evals.EvalRunner;
+import org.atmosphere.admin.evals.LlmJudgeLiveScorer;
 import org.atmosphere.ai.AgentRuntime;
+import org.atmosphere.ai.test.LlmJudge;
 import org.atmosphere.interactions.InteractionService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -95,6 +98,33 @@ class TwoApplicationsRuntimeReportTest {
                 "the interactions service's default model is its own application's");
         assertEquals("model-demo", interactionsDefaultModel(demo),
                 "the interactions service's default model is its own application's");
+        // The admin eval runner replays a dataset against, and judges with,
+        // its own application's runtime.
+        assertEquals("built-in", evalTargetRuntime(builtIn), "the eval runner target of the built-in application");
+        assertEquals("demo", evalTargetRuntime(demo), "the eval runner target of the demo application");
+        assertEquals("built-in", evalJudgeRuntime(builtIn), "the eval judge runtime of the built-in application");
+        assertEquals("demo", evalJudgeRuntime(demo), "the eval judge runtime of the demo application");
+    }
+
+    private static String evalTargetRuntime(ConfigurableApplicationContext context) throws Exception {
+        var field = EvalRunner.class.getDeclaredField("targetSupplier");
+        field.setAccessible(true);
+        var target = (java.util.function.Supplier<?>) field.get(context.getBean(EvalRunner.class));
+        return ((AgentRuntime) target.get()).name();
+    }
+
+    private static String evalJudgeRuntime(ConfigurableApplicationContext context) throws Exception {
+        var factoryField = EvalRunner.class.getDeclaredField("scorerFactory");
+        factoryField.setAccessible(true);
+        var factory = factoryField.get(context.getBean(EvalRunner.class));
+        // A blank judge model selects the configured default.
+        var scorer = java.util.function.Function.class.getMethod("apply", Object.class).invoke(factory, "");
+        var judgeField = LlmJudgeLiveScorer.class.getDeclaredField("judge");
+        judgeField.setAccessible(true);
+        var judge = judgeField.get(scorer);
+        var runtimeField = LlmJudge.class.getDeclaredField("judgeRuntime");
+        runtimeField.setAccessible(true);
+        return ((AgentRuntime) runtimeField.get(judge)).name();
     }
 
     private static String interactionsDefaultModel(ConfigurableApplicationContext context) throws Exception {
