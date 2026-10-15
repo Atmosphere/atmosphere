@@ -366,8 +366,9 @@ class IntentRoutingParityTest {
 
         assertEquals(0, fixture.classifications.get(), "a redirected request is not classified");
         assertNull(wire.metadata(IntentRouting.ROUTE_METADATA_KEY));
-        assertEquals(1, fixture.runtimeCalls.get(), "the LLM path renders the redirect");
-        assertEquals("I can only help with math.", fixture.contexts.getFirst().message());
+        assertEquals(0, fixture.runtimeCalls.get(), "the redirect is sent without the model");
+        assertEquals("I can only help with math.", wire.text(), "the client gets it verbatim");
+        assertTrue(wire.completed);
         assertEquals(0, fixture.humanHandoffs.get());
     }
 

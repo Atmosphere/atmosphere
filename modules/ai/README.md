@@ -1364,8 +1364,9 @@ one on a session directly.
   per-request scope no longer see the `Relevant context:` block (see
   *AiInterceptor*). A request a scope policy
   rewrote to its redirect text (`POLITE_REDIRECT` / `CUSTOM_MESSAGE`) is not
-  classified: it continues to the LLM path, which renders the redirect, so no
-  handler route answers an out-of-scope request.
+  classified: the client gets the redirect text verbatim and the turn ends
+  before routing and the LLM, so no handler route answers an out-of-scope
+  request.
 - **Handlers.** An `IntentHandler` returns the reply text; the framework sends
   it and completes the turn, or errors the turn when the handler throws (there
   is no fallback to the LLM). The human route's handler hands the request to

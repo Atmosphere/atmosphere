@@ -64,8 +64,8 @@ import static org.mockito.Mockito.mock;
  * scoped: a coordinator dispatched its whole fleet (and committed a budget) on
  * "write me a python function", and an on-topic market question was redirected
  * because the synthesis prompt it composed quoted a search snippet mentioning
- * Java. The redirected request then reached the model without the
- * scope-confinement block that tells it to answer with the redirect text.
+ * Java. A breach now sends the redirect text to the client verbatim, without
+ * calling the model.
  */
 // A real AtmosphereResourceImpl through the deprecated 6-arg constructor, with
 // a handler that records the frames the broadcaster delivers to it — the
@@ -107,13 +107,12 @@ class AiEndpointHandlerScopeAdmissionTest {
         awaitTerminal(frames, runtime);
         assertEquals(0, endpoint.invocations.get(),
                 "an off-scope prompt must not run the @Prompt method: " + frames);
-        assertEquals(1, runtime.contexts.size(), "the redirect renders through the LLM path");
-        var context = runtime.contexts.get(0);
-        assertEquals(REDIRECT, context.message(), "the model is handed the redirect text");
-        assertTrue(context.systemPrompt().contains("Scope confinement")
-                        && context.systemPrompt().contains(REDIRECT),
-                "the web path fronts the redirected request with the confinement block: "
-                        + context.systemPrompt());
+        assertEquals(0, runtime.contexts.size(), "the redirect is sent without calling the model");
+        assertTrue(frames.stream().anyMatch(f -> f.contains(REDIRECT)),
+                "the client gets the redirect text verbatim: " + frames);
+        assertTrue(frames.stream().anyMatch(f -> f.contains("\"type\":\"complete\""))
+                        && frames.stream().noneMatch(f -> f.contains("\"type\":\"error\"")),
+                "the redirected turn completes cleanly: " + frames);
     }
 
     @Test

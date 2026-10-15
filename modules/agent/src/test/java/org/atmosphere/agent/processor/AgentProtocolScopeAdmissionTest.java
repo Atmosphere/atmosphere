@@ -16,6 +16,7 @@
 package org.atmosphere.agent.processor;
 
 import org.atmosphere.a2a.runtime.TaskContext;
+import org.atmosphere.a2a.types.TaskState;
 import org.atmosphere.agui.runtime.RunContext;
 import org.atmosphere.ai.AgentExecutionContext;
 import org.atmosphere.ai.AgentRuntime;
@@ -60,10 +61,12 @@ class AgentProtocolScopeAdmissionTest {
 
     @Test
     void anOffScopeA2aMessageNeverRunsThePromptMethod() throws Exception {
-        a2a(OFF_SCOPE);
+        var task = a2a(OFF_SCOPE);
 
         assertEquals(0, ceo.invocations.get(), "an off-scope A2A message must not run @Prompt");
-        assertEquals(List.of(REDIRECT), runtime.messages, "the redirect renders through the pipeline");
+        assertEquals(List.of(), runtime.messages, "the redirect is sent without the model");
+        assertEquals(TaskState.COMPLETED, task.state(), "the redirected task completes");
+        assertEquals(REDIRECT, task.statusMessage(), "the A2A task carries the redirect verbatim");
     }
 
     @Test
@@ -77,10 +80,11 @@ class AgentProtocolScopeAdmissionTest {
 
     @Test
     void anOffScopeAgUiMessageNeverRunsThePromptMethod() throws Exception {
-        agUi(OFF_SCOPE);
+        var session = agUi(OFF_SCOPE);
 
         assertEquals(0, ceo.invocations.get(), "an off-scope AG-UI message must not run @Prompt");
-        assertEquals(List.of(REDIRECT), runtime.messages, "the redirect renders through the pipeline");
+        assertEquals(List.of(), runtime.messages, "the redirect is sent without the model");
+        assertEquals(REDIRECT, session.sent.toString(), "the AG-UI client gets the redirect verbatim");
     }
 
     @Test
@@ -92,20 +96,24 @@ class AgentProtocolScopeAdmissionTest {
                 "the synthesis quoting Java reaches the model, not the redirect");
     }
 
-    private void a2a(String message) throws Exception {
+    private TaskContext a2a(String message) throws Exception {
         var bridge = new AgentProcessor.SkillBridge(null, ceo,
                 Ceo.class.getMethod("onPrompt", String.class, StreamingSession.class));
         bridge.setPipeline(pipeline);
-        bridge.handlePrompt(new TaskContext("task-1", "ctx-1"), message);
+        var task = new TaskContext("task-1", "ctx-1");
+        bridge.handlePrompt(task, message);
+        return task;
     }
 
-    private void agUi(String message) throws Exception {
+    private PipelineSession agUi(String message) throws Exception {
         var bridge = new AgentProcessor.AgUiAgentBridge(ceo,
                 Ceo.class.getMethod("onPrompt", String.class, StreamingSession.class), pipeline);
         var context = new RunContext("thread-1", "run-1",
                 List.of(Map.<String, Object>of("role", "user", "content", message)),
                 Map.of(), Map.of(), List.of());
-        bridge.onAction(context, new PipelineSession(pipeline, "thread-1"));
+        var session = new PipelineSession(pipeline, "thread-1");
+        bridge.onAction(context, session);
+        return session;
     }
 
     private static ScopePolicy scope() {
@@ -130,6 +138,7 @@ class AgentProtocolScopeAdmissionTest {
     private static final class PipelineSession implements StreamingSession {
         private final AiPipeline pipeline;
         private final String threadId;
+        final StringBuilder sent = new StringBuilder();
 
         PipelineSession(AiPipeline pipeline, String threadId) {
             this.pipeline = pipeline;
@@ -137,7 +146,7 @@ class AgentProtocolScopeAdmissionTest {
         }
 
         @Override public String sessionId() { return threadId; }
-        @Override public void send(String text) { }
+        @Override public void send(String text) { sent.append(text); }
         @Override public void sendMetadata(String key, Object value) { }
         @Override public void progress(String message) { }
         @Override public void complete() { }

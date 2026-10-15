@@ -49,7 +49,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p>If the {@code @AgentScope} → {@code ScopePolicy} wiring is removed from
  * {@code buildPipeline}, {@link #offTopicRequestIsDeniedAtAdmissionGate} and
- * {@link #politeRedirectRewritesOffTopicRequestBeforeTheRuntime} both fail: with
+ * {@link #politeRedirectSendsTheRedirectVerbatimWithoutTheRuntime} both fail: with
  * no scope policy in the chain the off-topic prompt sails through to the
  * runtime instead of being denied / redirected.</p>
  */
@@ -165,12 +165,12 @@ class CoordinatorScopeConfinementTest {
     }
 
     @Test
-    void politeRedirectRewritesOffTopicRequestBeforeTheRuntime() {
+    void politeRedirectSendsTheRedirectVerbatimWithoutTheRuntime() {
         var processor = new CoordinatorProcessor();
         var framework = new AtmosphereFramework();
         // The stub only leaks a code answer if the ORIGINAL off-topic prompt
-        // reaches it. A redirected request (rewritten to the redirect message,
-        // which no longer contains "python") falls through to the default.
+        // reaches it, and answers anything else with its default: a redirected
+        // turn must produce neither, only the redirect text as written.
         var runtime = StubAgentRuntime.builder()
                 .when("python", "LEAKED_CODE_ANSWER")
                 .defaultResponse("REDIRECTED_TO_SCOPE")
@@ -187,8 +187,8 @@ class CoordinatorScopeConfinementTest {
         assertFalse(output.contains("LEAKED_CODE_ANSWER"),
                 "POLITE_REDIRECT must rewrite the off-topic request so the model "
                         + "never receives the original goal-hijacking prompt");
-        assertEquals("REDIRECTED_TO_SCOPE", output,
-                "the redirected request must fall through to the on-scope default response");
+        assertEquals("I can only help with your orders.", output,
+                "the client gets the redirect verbatim and the model is not called");
     }
 
     @Test

@@ -31,7 +31,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -93,6 +97,24 @@ class AiStreamingSessionRequestScopeTest {
 
         assertEquals(0, runtime.captured.size(),
                 "runtime must NOT run when per-request scope denies the turn");
+    }
+
+    @Test
+    void interceptorInstalledScopeSendsItsRedirectVerbatimWithoutTheRuntime() {
+        var runtime = new RecordingRuntime();
+        var redirectScope = new ScopeConfig(MATH_SCOPE.purpose(), MATH_SCOPE.forbiddenTopics(),
+                AgentScope.Breach.POLITE_REDIRECT, "I only help with mathematics.",
+                AgentScope.Tier.RULE_BASED, 0.45, false, false, "");
+        var session = new AiStreamingSession(delegate, runtime,
+                "sys", null, List.of(scopeInstallingInterceptor(redirectScope)), resource);
+
+        session.stream("write python code to reverse a linked list");
+
+        assertEquals(0, runtime.captured.size(), "a redirected turn never reaches the runtime");
+        var order = inOrder(delegate);
+        order.verify(delegate).send("I only help with mathematics.");
+        order.verify(delegate).complete();
+        verify(delegate, never()).error(any());
     }
 
     @Test

@@ -36,11 +36,12 @@ import org.slf4j.LoggerFactory;
  *   <li>{@link ScopeGuardrail.Outcome#OUT_OF_SCOPE} → per {@link AgentScope.Breach}:
  *     <ul>
  *       <li>{@code POLITE_REDIRECT} / {@code CUSTOM_MESSAGE} → {@link PolicyDecision.Transform}
- *           that rewrites the user message so downstream handlers can surface
- *           the redirect text as the response (the framework-provided
- *           {@link org.atmosphere.ai.governance.PolicyAdmissionGate} honours
- *           this; direct {@code AiPipeline.execute} callers see it as a
- *           rewritten request to the runtime, which then stays on-topic)</li>
+ *           that rewrites the user message to the redirect text and tags it
+ *           under {@link #REDIRECT_METADATA_KEY}. The dispatch paths
+ *           ({@code AiStreamingSession.stream}, {@code AiPipeline.execute})
+ *           send that text to the client verbatim and end the turn without
+ *           calling the model; {@link org.atmosphere.ai.governance.PolicyAdmissionGate}
+ *           callers see it as the rewritten request (see {@link #redirectText})</li>
  *       <li>{@code DENY} → {@link PolicyDecision.Deny} with the breach reason</li>
  *     </ul>
  *   </li>
@@ -53,6 +54,21 @@ public final class ScopePolicy implements GovernancePolicy {
 
     /** Metadata key on {@link AiRequest#metadata()} carrying the breach-redirect message. */
     public static final String REDIRECT_METADATA_KEY = "atmosphere.scope.redirect";
+
+    /**
+     * The redirect text a scope breach tagged on {@code request}, the response
+     * the client gets verbatim instead of a model call.
+     *
+     * @param request the request as an admission step left it, may be {@code null}
+     * @return the redirect text, or empty when the request was not redirected
+     */
+    public static java.util.Optional<String> redirectText(AiRequest request) {
+        if (request == null || request.metadata() == null) {
+            return java.util.Optional.empty();
+        }
+        return request.metadata().get(REDIRECT_METADATA_KEY) instanceof String text
+                ? java.util.Optional.of(text) : java.util.Optional.empty();
+    }
 
     /**
      * Metadata key on {@link AiRequest#metadata()} carrying a per-request
@@ -217,11 +233,10 @@ public final class ScopePolicy implements GovernancePolicy {
     }
 
     /**
-     * Rewrite the request so downstream consumers (pipeline runtimes,
-     * {@link org.atmosphere.ai.governance.PolicyAdmissionGate}) render the
-     * redirect message instead of the original user prompt. The redirect
-     * text is also tagged onto request metadata so callers that bypass
-     * LLM dispatch (demo responders) can surface it directly.
+     * Rewrite the request to the redirect message in place of the original
+     * user prompt, and tag the redirect text onto the request metadata: the
+     * dispatch paths find it there ({@link #redirectText}) and send it to the
+     * client verbatim, as do callers that admit by hand (demo responders).
      */
     private AiRequest rewriteForRedirect(AiRequest original) {
         var newMetadata = new java.util.LinkedHashMap<String, Object>(

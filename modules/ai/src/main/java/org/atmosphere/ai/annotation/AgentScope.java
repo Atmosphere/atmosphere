@@ -168,8 +168,9 @@ public @interface AgentScope {
     enum Breach {
         /**
          * Respond with {@link AgentScope#redirectMessage()} (or a generic
-         * message if blank) and close the turn cleanly. User sees a
-         * helpful on-topic redirect. Default.
+         * message if blank), verbatim and without calling the model, and
+         * close the turn cleanly. User sees a helpful on-topic redirect.
+         * Default.
          */
         POLITE_REDIRECT,
 

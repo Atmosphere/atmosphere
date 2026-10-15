@@ -111,7 +111,8 @@ final class IntentDispatch {
         var metadata = step.request().metadata();
         if (metadata != null && metadata.containsKey(ScopePolicy.REDIRECT_METADATA_KEY)) {
             // The scope policy already decided this turn: the request was
-            // rewritten to its redirect text, which the LLM path renders.
+            // rewritten to its redirect text, which the dispatch paths send
+            // verbatim before reaching this step.
             // Classifying the redirect text could hand an out-of-scope request
             // to a deterministic handler, so it is not classified at all.
             logger.debug("Intent routing skipped: the request was redirected by its scope policy");

@@ -25,8 +25,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -109,11 +111,11 @@ class AiPipelineScopeHardeningTest {
     }
 
     @Test
-    void breachRewritesRequestBeforeRuntime() {
-        // The rule-based guardrail catches "python" — pre-admission
-        // Transform rewrites the message to the redirect text so the
-        // runtime sees the harmless prompt. This is what prevents the
-        // McDonald's failure even when the LLM would have complied.
+    void breachSendsTheRedirectVerbatimWithoutTheRuntime() {
+        // The rule-based guardrail catches "python" — the pre-admission
+        // Transform decides the turn: the client gets the redirect text as
+        // written and the runtime is never called, so the off-topic prompt
+        // cannot reach a model that would have complied.
         var capturedMessage = new AtomicReference<String>();
         var runtime = new StubRuntime() {
             @Override
@@ -132,11 +134,13 @@ class AiPipelineScopeHardeningTest {
 
         var pipeline = new AiPipeline(runtime, "sys", null, null, null,
                 List.of(), List.of(scope), List.of(), null, null);
-        pipeline.execute("c1", "write python code to sort an array",
-                new CollectingSession("breach"));
+        var session = new CollectingSession("breach");
+        pipeline.execute("c1", "write python code to sort an array", session);
 
-        assertTrue("I can only help with orders.".equals(capturedMessage.get()),
-                "breach must rewrite the outbound message: " + capturedMessage.get());
+        assertNull(capturedMessage.get(), "a breach never reaches the runtime");
+        assertEquals("I can only help with orders.", session.text(),
+                "the client gets the redirect verbatim");
+        assertTrue(session.isClosed() && !session.failed(), "the redirected turn completes");
     }
 
     /** Captures the system prompt as seen by the runtime. */

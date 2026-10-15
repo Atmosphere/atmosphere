@@ -931,8 +931,8 @@ public class AiStreamingSession implements StreamingSession {
         }
 
         // The endpoint scopes front the system prompt with their confinement
-        // block (and its redirect text) exactly as AiPipeline does, so a
-        // redirected request reaches the model with the instruction to answer it.
+        // block (and its redirect text) exactly as AiPipeline does, so the
+        // model also keeps to the scope on a request the classifier admitted.
         var effectiveSystemPrompt = endpointScopes.isEmpty()
                 ? systemPrompt
                 : ScopePolicyInstaller.hardenSystemPrompt(systemPrompt, endpointScopes);
@@ -947,6 +947,20 @@ public class AiStreamingSession implements StreamingSession {
                     toolRegistry, message, endpointMaxToolsPerRequest));
         }
         return request;
+    }
+
+    /**
+     * End the turn with a scope breach's redirect text, sent verbatim. The
+     * turn ends like a denied one, before the interceptors' pre-processing
+     * and the model, but completes instead of failing: no
+     * {@link AiInterceptor#beforeCompletion} or {@link AiInterceptor#postProcess}
+     * hook fires and nothing is added to the conversation memory.
+     */
+    private void sendScopeRedirect(String redirect) {
+        logger.debug("Scope breach on {}: sending the redirect verbatim", resource.uuid());
+        beforeCompletionContext.set(null);
+        send(redirect);
+        complete();
     }
 
     /** Scope decisions taken on a turn's inbound message by {@link #admitScope(String)}. */
@@ -989,6 +1003,7 @@ public class AiStreamingSession implements StreamingSession {
         }
 
         var request = turnRequest(message);
+
         var userId = request.userId();
         var agentId = request.agentId();
         var conversationId = request.conversationId();
@@ -1005,8 +1020,17 @@ public class AiStreamingSession implements StreamingSession {
                         delegate.error(new SecurityException("Request blocked: " + block.reason()));
                         return;
                     }
-                    case AiGuardrail.GuardrailResult.Modify modify ->
-                            request = modify.modifiedRequest();
+                    case AiGuardrail.GuardrailResult.Modify modify -> {
+                        var redirect = ScopePolicy.redirectText(modify.modifiedRequest());
+                        if (redirect.isPresent()) {
+                            // A scope breach decides the turn: the client gets
+                            // the redirect text verbatim and the model is not
+                            // called, so no later step sees the message.
+                            sendScopeRedirect(redirect.get());
+                            return;
+                        }
+                        request = modify.modifiedRequest();
+                    }
                     case AiGuardrail.GuardrailResult.Pass ignored -> { }
                 }
             } catch (Exception e) {
@@ -1069,6 +1093,11 @@ public class AiStreamingSession implements StreamingSession {
                                         requestScopePolicy, ctx, "transform",
                                         "request rewritten", evalMs));
                         tracer.end("transform", "request rewritten");
+                        var redirect = ScopePolicy.redirectText(transform.modifiedRequest());
+                        if (redirect.isPresent()) {
+                            sendScopeRedirect(redirect.get());
+                            return;
+                        }
                         request = transform.modifiedRequest();
                     }
                     case org.atmosphere.ai.governance.PolicyDecision.Prefer prefer -> {

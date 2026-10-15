@@ -23,6 +23,7 @@ import org.atmosphere.ai.governance.GovernanceTracer;
 import org.atmosphere.ai.governance.PolicyAsGuardrail;
 import org.atmosphere.ai.governance.PolicyContext;
 import org.atmosphere.ai.governance.PolicyDecision;
+import org.atmosphere.ai.governance.scope.ScopePolicy;
 import org.atmosphere.ai.governance.scope.ScopePolicyInstaller;
 import org.atmosphere.ai.tool.ToolRegistry;
 import org.slf4j.Logger;
@@ -705,8 +706,14 @@ public class AiPipeline {
                         session.error(new SecurityException("Request blocked: " + block.reason()));
                         return;
                     }
-                    case AiGuardrail.GuardrailResult.Modify modify ->
-                            request = modify.modifiedRequest();
+                    case AiGuardrail.GuardrailResult.Modify modify -> {
+                        var redirect = ScopePolicy.redirectText(modify.modifiedRequest());
+                        if (redirect.isPresent()) {
+                            sendScopeRedirect(session, redirect.get());
+                            return;
+                        }
+                        request = modify.modifiedRequest();
+                    }
                     case AiGuardrail.GuardrailResult.Pass ignored -> { }
                 }
             } catch (Exception e) {
@@ -751,6 +758,14 @@ public class AiPipeline {
                                 GovernanceDecisionLog.entry(policy, ctx, "transform",
                                         "request rewritten", evalMs));
                         tracer.end("transform", "request rewritten");
+                        var redirect = ScopePolicy.redirectText(transform.modifiedRequest());
+                        if (redirect.isPresent()) {
+                            // A scope breach decides the turn: the client gets
+                            // the redirect text verbatim and the model is not
+                            // called, so no later policy sees the message.
+                            sendScopeRedirect(session, redirect.get());
+                            return;
+                        }
                         request = transform.modifiedRequest();
                     }
                     case PolicyDecision.Prefer prefer -> {
@@ -1179,6 +1194,17 @@ public class AiPipeline {
             }
         }
         return List.copyOf(history);
+    }
+
+    /**
+     * End the turn with a scope breach's redirect text, sent verbatim, the
+     * counterpart of {@code AiStreamingSession}'s: it ends like a denied turn,
+     * before the model, but completes, and nothing reaches the memory.
+     */
+    private static void sendScopeRedirect(StreamingSession session, String redirect) {
+        logger.debug("Scope breach: sending the redirect verbatim");
+        session.send(redirect);
+        session.complete();
     }
 
     private static List<AiGuardrail> mergeForPostResponse(List<AiGuardrail> guardrails,

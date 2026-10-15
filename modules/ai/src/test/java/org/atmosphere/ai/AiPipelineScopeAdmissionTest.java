@@ -76,26 +76,30 @@ class AiPipelineScopeAdmissionTest {
         pipeline.admitScope("task-1", "Analyze the market for AI agent frameworks on the JVM")
                 .orElseThrow().close();
 
-        pipeline.execute("task-1", COMPOSED, new CollectingSession("closed"));
+        var session = new CollectingSession("closed");
+        pipeline.execute("task-1", COMPOSED, session);
 
-        assertEquals(List.of(REDIRECT), runtime.messages,
+        assertEquals(List.of(), runtime.messages,
                 "once the admission is closed the pipeline scopes every prompt again");
+        assertEquals(REDIRECT, session.text(), "the redirect is sent verbatim");
+        assertTrue(session.isClosed() && !session.failed(), "the redirected turn completes");
     }
 
     @Test
     void theAdmissionHoldsOnlyOnTheThreadThatOpenedIt() throws Exception {
         var admission = pipeline.admitScope("task-1",
                 "Analyze the market for AI agent frameworks on the JVM").orElseThrow();
+        var session = new CollectingSession("other-thread");
         try {
-            var other = Thread.ofVirtual().start(() ->
-                    pipeline.execute("task-1", COMPOSED, new CollectingSession("other-thread")));
+            var other = Thread.ofVirtual().start(() -> pipeline.execute("task-1", COMPOSED, session));
             other.join(5_000);
         } finally {
             admission.close();
         }
 
-        assertEquals(List.of(REDIRECT), runtime.messages,
+        assertEquals(List.of(), runtime.messages,
                 "a prompt streamed from another thread is scoped as before");
+        assertEquals(REDIRECT, session.text(), "and redirected verbatim");
     }
 
     @Test
@@ -105,14 +109,16 @@ class AiPipelineScopeAdmissionTest {
                 null, null, List.of(), List.of(scope()), List.of(), null, null);
         var admission = pipeline.admitScope("task-1",
                 "Analyze the market for AI agent frameworks on the JVM").orElseThrow();
+        var session = new CollectingSession("other-pipeline");
         try {
-            other.execute("task-2", COMPOSED, new CollectingSession("other-pipeline"));
+            other.execute("task-2", COMPOSED, session);
         } finally {
             admission.close();
         }
 
-        assertEquals(List.of(REDIRECT), otherRuntime.messages,
+        assertEquals(List.of(), otherRuntime.messages,
                 "the admission is this pipeline's, not every pipeline's on the thread");
+        assertEquals(REDIRECT, session.text(), "and the other pipeline redirects verbatim");
     }
 
     private static ScopePolicy scope() {

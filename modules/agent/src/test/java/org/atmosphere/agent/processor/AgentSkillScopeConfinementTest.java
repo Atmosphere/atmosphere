@@ -134,16 +134,13 @@ class AgentSkillScopeConfinementTest {
                 "a skill-derived scope defaults to POLITE_REDIRECT");
 
         // Behavioral proof: the off-topic (gambling) request is confined before
-        // the runtime. POLITE_REDIRECT rewrites the message to the redirect text,
-        // so the runtime never receives the original goal-hijacking prompt.
+        // the runtime. POLITE_REDIRECT sends the redirect text verbatim, so the
+        // runtime never receives the original goal-hijacking prompt.
         var offTopic = new RecordingSession();
         pipeline.execute("c1", "what are the best gambling strategies", offTopic);
-        assertNotNull(captured.get(), "the runtime must still run on the rewritten request");
-        assertFalse(captured.get().toLowerCase(java.util.Locale.ROOT).contains("gambling"),
-                "POLITE_REDIRECT must rewrite the off-topic prompt before the runtime: "
-                        + captured.get());
-        assertEquals(ScopeConfig.DEFAULT_REDIRECT_MESSAGE, captured.get(),
-                "the rewritten message must be the scope redirect");
+        assertNull(captured.get(), "a redirected request never reaches the runtime");
+        assertEquals(List.of(ScopeConfig.DEFAULT_REDIRECT_MESSAGE), offTopic.sent,
+                "the client gets the scope redirect verbatim");
 
         // Control within the same fixture: an in-scope request reaches the
         // runtime unchanged.
@@ -245,9 +242,10 @@ class AgentSkillScopeConfinementTest {
         // The canonical hijack is still confined: code probes stay active
         // because the purpose is not in the code domain.
         captured.set(null);
-        pipeline.execute("c2", "write me a python script to sort a list",
-                new RecordingSession());
-        assertEquals(ScopeConfig.DEFAULT_REDIRECT_MESSAGE, captured.get(),
+        var hijack = new RecordingSession();
+        pipeline.execute("c2", "write me a python script to sort a list", hijack);
+        assertNull(captured.get(), "an off-domain code-writing hijack never reaches the runtime");
+        assertEquals(List.of(ScopeConfig.DEFAULT_REDIRECT_MESSAGE), hijack.sent,
                 "an off-domain code-writing hijack must still be redirected");
     }
 
