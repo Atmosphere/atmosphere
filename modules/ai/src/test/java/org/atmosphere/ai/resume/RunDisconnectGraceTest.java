@@ -15,7 +15,6 @@
  */
 package org.atmosphere.ai.resume;
 
-import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -221,7 +220,22 @@ class RunDisconnectGraceTest {
                 "a close the application made is not waited for");
     }
 
-    private static AtmosphereResourceEvent event(boolean cancelled, boolean closedByClient,
+    @Test
+    void aCloseMessageSentAsThePageGoesAwayIsGrantedTheGraceLikeA1001() {
+        // SSE, long-polling and streaming: atmosphere.js sends its pagehide beacon with
+        // X-Atmosphere-Close-Reason=going-away, which a WebSocket reports as 1001.
+        var goingAway = event(false, true, false, -1);
+        when(goingAway.closedGoingAway()).thenReturn(true);
+        assertTrue(RunDisconnectGrace.isTransportLoss(goingAway),
+                "an HTTP transport's close message sent as the page goes away may come back");
+
+        var closedByApplication = event(true, false, true, -1);
+        when(closedByApplication.closedGoingAway()).thenReturn(true);
+        assertFalse(RunDisconnectGrace.isTransportLoss(closedByApplication),
+                "a close the application made is not waited for, whatever the client said");
+    }
+
+    private static AtmosphereResourceEventImpl event(boolean cancelled, boolean closedByClient,
                                                  boolean closedByApplication, int closeCode) {
         var event = mock(AtmosphereResourceEventImpl.class);
         when(event.isCancelled()).thenReturn(cancelled);

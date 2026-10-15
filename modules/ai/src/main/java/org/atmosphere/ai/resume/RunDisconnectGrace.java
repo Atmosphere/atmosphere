@@ -54,7 +54,9 @@ import java.util.function.BooleanSupplier;
  *
  * <p>Only a lost transport is granted the grace ({@link #isTransportLoss}): a
  * client that closes the connection on purpose has left, and its run is
- * cancelled at once.</p>
+ * cancelled at once. A page that reloads or navigates away is a lost transport
+ * on every transport: a WebSocket closes with 1001, an HTTP transport sends its
+ * close message marked going-away.</p>
  *
  * <p>Lifecycle (Correctness Invariant #1): the timer thread is a daemon owned by
  * this class, started on the first detach and stopped by {@link #shutdown()},
@@ -80,10 +82,19 @@ public final class RunDisconnectGrace {
      * Whether {@code event} reports a connection the client may come back on,
      * rather than a client that left on purpose. A WebSocket closed with 1000
      * (atmosphere.js closes with it on an explicit disconnect), an HTTP
-     * transport's close message, and a close the application made are a leave;
-     * a cancelled connection (a lost network, a 1006, an idle eviction, a
-     * container closing it) and a WebSocket closed with 1001 (a browser leaving
-     * or reloading the page) are a transport loss.
+     * transport's close message without a reason (atmosphere.js
+     * {@code close()}), and a close the application made are a leave; a
+     * cancelled connection (a lost network, a 1006, an idle eviction, a
+     * container closing it), a WebSocket closed with 1001 (a browser leaving or
+     * reloading the page) and an HTTP transport's close message marked
+     * {@code X-Atmosphere-Close-Reason: going-away} (the beacon atmosphere.js
+     * sends from {@code pagehide} over SSE, long-polling and streaming) are a
+     * transport loss.
+     *
+     * <p>The going-away mark is the client's word and is not authenticated
+     * beyond the close message itself; it can only turn an immediate cancel into
+     * one after the bounded grace — what dropping the connection gets anyway —
+     * and a reattach is still subject to the run's ownership check.</p>
      *
      * @param event the disconnect event
      * @return {@code true} when the run of the connection is granted the grace
@@ -94,7 +105,7 @@ public final class RunDisconnectGrace {
         }
         if (event.isClosedByClient()) {
             return event instanceof AtmosphereResourceEventImpl impl
-                    && impl.webSocketCloseCode() == GOING_AWAY;
+                    && (impl.webSocketCloseCode() == GOING_AWAY || impl.closedGoingAway());
         }
         return event.isCancelled();
     }

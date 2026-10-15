@@ -30,6 +30,8 @@ import org.atmosphere.ai.resume.RunReattachSupport;
 import org.atmosphere.ai.resume.RunRegistryHolder;
 import org.atmosphere.config.managed.AnnotatedLifecycle;
 import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -37,20 +39,27 @@ import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
+import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.DefaultBroadcasterFactory;
+import org.atmosphere.cpr.HeaderConfig;
+import org.atmosphere.interceptor.OnDisconnectInterceptor;
 import org.atmosphere.util.ExecutorsFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -60,6 +69,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -202,6 +212,47 @@ class AiEndpointHandlerReattachGraceTest {
         handler.onStateChange(new AtmosphereResourceEventImpl(original, false, false, true, null));
         assertTrue(runtime.cancelled.await(10, TimeUnit.SECONDS),
                 "a client that closed on purpose is not waited for");
+    }
+
+    /**
+     * SSE, long-polling and streaming tell the server a reload with the close
+     * message atmosphere.js sends as a beacon on {@code pagehide}, marked
+     * {@code X-Atmosphere-Close-Reason: going-away}. Driven through the real
+     * {@link OnDisconnectInterceptor}: the reload is given the grace a WebSocket
+     * closed with 1001 gets, where the unmarked close message cancelled at once.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"sse", "long-polling", "streaming"})
+    void aCloseMessageSentAsThePageGoesAwayIsGivenTheGrace(String transport) throws Exception {
+        System.setProperty(GRACE_PROPERTY, "30s");
+        var runtime = new HeldRuntime();
+        var original = startRun(runtime);
+
+        sendCloseMessage(original, transport, HeaderConfig.CLOSE_REASON_GOING_AWAY);
+
+        assertTrue(original.getAtmosphereResourceEvent().isClosedByClient());
+        assertTrue(RunDisconnectGrace.isDetached(RUN_ID.get()),
+                "a " + transport + " page going away detaches the run for the grace");
+        assertEquals(1, runtime.cancelled.getCount(), "a reload must find the run still going");
+        handler.destroy();
+        handler = null;
+        assertTrue(runtime.cancelled.await(10, TimeUnit.SECONDS),
+                "destroy cancels detached runs instead of leaving them to a stopped timer");
+    }
+
+    /** {@code subscription.close()} sends the close message without a reason: a leave. */
+    @ParameterizedTest
+    @ValueSource(strings = {"sse", "long-polling", "streaming"})
+    void anExplicitCloseMessageThroughTheInterceptorIsCancelledAtOnce(String transport) throws Exception {
+        System.setProperty(GRACE_PROPERTY, "30s");
+        var runtime = new HeldRuntime();
+        var original = startRun(runtime);
+
+        sendCloseMessage(original, transport, null);
+
+        assertFalse(RunDisconnectGrace.isDetached(RUN_ID.get()), "a client that left is not waited for");
+        assertTrue(runtime.cancelled.await(10, TimeUnit.SECONDS),
+                "a " + transport + " client that closed on purpose is cancelled at once");
     }
 
     @Test
@@ -485,6 +536,44 @@ class AiEndpointHandlerReattachGraceTest {
         when(leave.getResource()).thenReturn(resource);
         when(leave.isClosedByClient()).thenReturn(true);
         return leave;
+    }
+
+    /**
+     * Atmosphere's close message for {@code suspended}, sent over {@code transport}
+     * with {@code reason} as {@code X-Atmosphere-Close-Reason} (none when null),
+     * through the default {@link OnDisconnectInterceptor}; the lifecycle it
+     * completes dispatches the suspended resource's event to the handler.
+     */
+    private void sendCloseMessage(AtmosphereResourceImpl suspended, String transport, String reason)
+            throws Exception {
+        var headers = new HashMap<String, String>();
+        headers.put(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.DISCONNECT_TRANSPORT_MESSAGE);
+        headers.put(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, suspended.uuid());
+        if (reason != null) {
+            headers.put(HeaderConfig.X_ATMOSPHERE_CLOSE_REASON, reason);
+        }
+        var closeRequest = new AtmosphereRequestImpl.Builder().method("POST").headers(headers).build();
+        var closing = mock(AtmosphereResourceImpl.class);
+        when(closing.getRequest(false)).thenReturn(closeRequest);
+        when(closing.uuid()).thenReturn(suspended.uuid());
+
+        var interceptorConfig = mock(AtmosphereConfig.class);
+        var factory = mock(AtmosphereResourceFactory.class);
+        var framework = mock(AtmosphereFramework.class);
+        var async = mock(AsynchronousProcessor.class);
+        when(interceptorConfig.resourcesFactory()).thenReturn(factory);
+        when(factory.findResource(suspended.uuid())).thenReturn(Optional.of(suspended));
+        when(interceptorConfig.framework()).thenReturn(framework);
+        doReturn(async).when(framework).getAsyncSupport();
+        when(async.completeLifecycle(suspended, false)).thenAnswer(inv -> {
+            handler.onStateChange(suspended.getAtmosphereResourceEvent());
+            return true;
+        });
+
+        var interceptor = new OnDisconnectInterceptor();
+        interceptor.configure(interceptorConfig);
+        assertEquals(Action.CANCELLED, interceptor.inspect(closing),
+                "the " + transport + " close message is answered by the interceptor");
     }
 
     private static AtmosphereResourceEventImpl closeEvent(boolean cancelled, int closeCode) {
