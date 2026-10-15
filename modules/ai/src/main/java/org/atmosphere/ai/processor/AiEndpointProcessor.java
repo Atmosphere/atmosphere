@@ -451,6 +451,11 @@ public class AiEndpointProcessor implements Processor<Object> {
                     lifecycle.disconnectMethod() != null ? lifecycle.disconnectMethod().getName() : "none",
                     lifecycle.hasPathParams() ? "yes" : "no");
 
+        } catch (org.atmosphere.ai.AgentRuntimeSelectionException e) {
+            // atmosphere.ai.runtime names no available runtime: fail the
+            // framework's init, as Spring and Quarkus fail their startup,
+            // instead of starting without this endpoint.
+            throw e;
         } catch (Exception e) {
             logger.error("Failed to register AI endpoint from {}", annotatedClass.getName(), e);
         }

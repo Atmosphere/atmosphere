@@ -34,9 +34,9 @@ import java.util.ServiceLoader;
  * env {@code LLM_RUNTIME}, or a host configuration) names a runtime, the
  * available runtime with that {@link AgentRuntime#name()} is the only one
  * resolved, whatever its priority. A name that matches no available runtime
- * fails resolution with an {@link IllegalStateException} naming the requested
- * and the available runtimes, rather than running a runtime that was not
- * configured.</p>
+ * fails resolution with an {@link AgentRuntimeSelectionException} (an
+ * {@link IllegalStateException}) naming the requested and the available
+ * runtimes, rather than running a runtime that was not configured.</p>
  *
  * @see AgentRuntime
  */
@@ -95,8 +95,8 @@ public final class AgentRuntimeResolver {
      * highest-priority available runtime, or {@link BuiltInAgentRuntime} as
      * fallback.
      *
-     * @throws IllegalStateException when {@link AiConfig#RUNTIME_PROPERTY}
-     *                               names no available runtime
+     * @throws AgentRuntimeSelectionException when {@link AiConfig#RUNTIME_PROPERTY}
+     *                                         names no available runtime
      */
     public static AgentRuntime resolve() {
         return resolveAll().getFirst();
@@ -122,8 +122,8 @@ public final class AgentRuntimeResolver {
      * <p>Results are cached after first resolution — the classpath does not
      * change at runtime so the discovered runtimes are stable.</p>
      *
-     * @throws IllegalStateException when {@link AiConfig#RUNTIME_PROPERTY}
-     *                               names no available runtime
+     * @throws AgentRuntimeSelectionException when {@link AiConfig#RUNTIME_PROPERTY}
+     *                                         names no available runtime
      */
     public static List<AgentRuntime> resolveAll() {
         var result = cachedAll;
@@ -180,7 +180,7 @@ public final class AgentRuntimeResolver {
      * The available runtime whose name is {@code requested}, ignoring case and
      * surrounding blanks.
      *
-     * @throws IllegalStateException when no available runtime has that name
+     * @throws AgentRuntimeSelectionException when no available runtime has that name
      */
     private static AgentRuntime select(List<AgentRuntime> available, String requested,
                                        List<String> unavailable) {
@@ -200,6 +200,6 @@ public final class AgentRuntimeResolver {
         message.append(". Add the runtime's module to the application, or unset ")
                 .append(AiConfig.RUNTIME_PROPERTY).append(" / ").append(AiConfig.RUNTIME_ENV)
                 .append(" to run the highest-priority runtime.");
-        throw new IllegalStateException(message.toString());
+        throw new AgentRuntimeSelectionException(message.toString());
     }
 }

@@ -873,6 +873,10 @@ public class CoordinatorProcessor implements Processor<Object> {
                 rt.configure(settings);
             }
             return rt;
+        } catch (org.atmosphere.ai.AgentRuntimeSelectionException e) {
+            // atmosphere.ai.runtime names no available runtime: fail the
+            // registration, as AiEndpointProcessor does, not run without one.
+            throw e;
         } catch (Exception | ServiceConfigurationError e) {
             logger.warn("Failed to resolve AgentRuntime: {}", e.getMessage());
             return null;
