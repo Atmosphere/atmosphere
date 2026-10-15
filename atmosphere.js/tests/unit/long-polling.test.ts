@@ -239,4 +239,38 @@ describe('LongPollingTransport', () => {
     const fetchOpts = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][1];
     expect(fetchOpts.headers['Content-Type']).toBe('text/plain');
   });
+  // A run-id replay answers a poll with several newline-separated frames in one
+  // response, after the padding. The terminal frame among them must clear the
+  // captured run id, or every later poll re-sends it and the server replays the
+  // run to it again.
+  for (const trackMessageLength of [false, true]) {
+    it(`stops re-sending the run id after a multi-frame reply ending the run (trackMessageLength=${trackMessageLength})`, async () => {
+      const bodies = [
+        '{"type":"metadata","key":"X-Atmosphere-Run-Id","value":"run-1","sessionId":"s1","seq":1}',
+        ' '.repeat(64) + '\n{"type":"streaming-text","data":"hi","sessionId":"run-1","seq":1}\n'
+          + '{"type":"complete","sessionId":"run-1","seq":2}\n',
+      ];
+      global.fetch = vi.fn().mockImplementation(() => {
+        const body = bodies.shift();
+        if (body === undefined) {
+          return new Promise(() => {});
+        }
+        return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(body), headers: new Headers() });
+      });
+      const request: AtmosphereRequest = {
+        url: 'http://localhost/test', transport: 'long-polling', trackMessageLength,
+      };
+      const transport = new LongPollingTransport(request, mockHandlers);
+
+      await transport.connect();
+      await vi.waitFor(() => expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.length).toBe(3));
+
+      const calls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls;
+      expect(calls[1][0], 'the poll after the metadata frame carries the run id')
+        .toContain('X-Atmosphere-Run-Id=run-1');
+      expect(calls[2][0], 'the poll after the terminal frame must not carry it')
+        .not.toContain('X-Atmosphere-Run-Id');
+      await transport.disconnect();
+    });
+  }
 });

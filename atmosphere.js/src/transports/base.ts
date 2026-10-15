@@ -362,30 +362,33 @@ export abstract class BaseTransport<T = unknown> {
    * later reconnect does not resume a finished run. Done here, at the transport,
    * so EVERY client benefits — the Atmosphere Console and other direct
    * {@code subscribe()} callers, not only the {@code subscribeStreaming()} helper.
-   * A cheap string pre-check keeps every streaming chunk off the JSON.parse path.
+   * A message may hold several newline-separated frames (a long-polling poll
+   * answered with a run's replay), so each line is read as a frame of its own,
+   * in order. A cheap string pre-check keeps every streaming chunk off the
+   * JSON.parse path.
    */
   private captureRunId(body: unknown): void {
     if (typeof body !== 'string') return;
-    if (body.indexOf('X-Atmosphere-Run-Id') !== -1) {
+    const namesRun = body.indexOf('X-Atmosphere-Run-Id') !== -1;
+    const mayEndRun = this.protocol.runId !== null
+      && (body.indexOf('"complete"') !== -1 || body.indexOf('"error"') !== -1
+        || body.indexOf('"cancelled"') !== -1);
+    if (!namesRun && !mayEndRun) return;
+    for (const line of body.split('\n')) {
+      const frame = line.trim();
+      if (!frame.startsWith('{')) continue;
+      let msg: { type?: unknown; key?: unknown; value?: unknown } | null;
       try {
-        const msg = JSON.parse(body);
-        if (msg && msg.type === 'metadata' && msg.key === 'X-Atmosphere-Run-Id'
-            && typeof msg.value === 'string') {
-          this.protocol.runId = msg.value;
-        }
+        msg = JSON.parse(frame);
       } catch {
-        /* not a JSON frame — ignore */
+        continue; // not a JSON frame — ignore
       }
-    } else if (this.protocol.runId !== null
-        && (body.indexOf('"complete"') !== -1 || body.indexOf('"error"') !== -1
-          || body.indexOf('"cancelled"') !== -1)) {
-      try {
-        const msg = JSON.parse(body);
-        if (msg && (msg.type === 'complete' || msg.type === 'error' || msg.type === 'cancelled')) {
-          this.protocol.runId = null;
-        }
-      } catch {
-        /* ignore */
+      if (!msg) continue;
+      if (msg.type === 'metadata' && msg.key === 'X-Atmosphere-Run-Id' && typeof msg.value === 'string') {
+        this.protocol.runId = msg.value;
+      } else if (this.protocol.runId !== null
+          && (msg.type === 'complete' || msg.type === 'error' || msg.type === 'cancelled')) {
+        this.protocol.runId = null;
       }
     }
   }
