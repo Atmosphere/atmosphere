@@ -123,6 +123,21 @@ final class ClassFileIterator {
     }
 
     /**
+     * Release what an iteration stopped before its end still holds: the ZIP
+     * file being read and the streams not returned yet. The stream last
+     * returned by {@link #next()} is the caller's to close.
+     */
+    void close() {
+        if (zipIterator != null) {
+            zipIterator.close();
+            zipIterator = null;
+        }
+        if (inputStreamIterator != null) {
+            inputStreamIterator.close();
+        }
+    }
+
+    /**
      * Return the next Java ClassFile as an {@code InputStream}.
      * <p/>
      * NOTICE: Client code MUST close the returned {@code InputStream}!

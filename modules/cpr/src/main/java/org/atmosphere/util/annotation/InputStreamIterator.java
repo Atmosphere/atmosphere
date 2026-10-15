@@ -73,6 +73,21 @@ public final class InputStreamIterator {
     }
 
     /**
+     * Close the streams not returned yet, when the caller stops iterating
+     * early. The streams already returned are the caller's to close.
+     */
+    public void close() {
+        while (!stack.isEmpty()) {
+            try {
+                stack.removeLast().close();
+            } catch (IOException ex) {
+                java.util.logging.Logger.getLogger(InputStreamIterator.class.getName())
+                        .log(java.util.logging.Level.FINEST, "IOException closing InputStream", ex);
+            }
+        }
+    }
+
+    /**
      * Add the specified files in reverse order.
      */
     private void addReverse(final InputStream[] files) {

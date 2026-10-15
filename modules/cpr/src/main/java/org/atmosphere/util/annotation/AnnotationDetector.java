@@ -398,10 +398,12 @@ public final class AnnotationDetector {
                     detect(cpBuffer);
                 } // else ignore
             } catch (AtmosphereInitializationException e) {
-                // A reporter asked for the framework's initialization to fail.
+                // A reporter asked for the framework's initialization to fail:
+                // stop here, releasing what the iteration still holds.
                 if (!iterator.isFile()) {
                     stream.close();
                 }
+                iterator.close();
                 throw e;
             } catch (Throwable t) {
                 // catch all errors

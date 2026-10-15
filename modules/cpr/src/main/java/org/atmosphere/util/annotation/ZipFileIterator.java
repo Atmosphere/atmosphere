@@ -97,6 +97,19 @@ final class ZipFileIterator {
         return null;
     }
 
+    /**
+     * Close the ZIP file before its last entry was returned, when the caller
+     * stops iterating early. Closing it again does nothing.
+     */
+    void close() {
+        try {
+            zipFile.close();
+        } catch (IOException ex) {
+            java.util.logging.Logger.getLogger(ZipFileIterator.class.getName())
+                    .log(java.util.logging.Level.FINEST, "IOException closing ZipFile", ex);
+        }
+    }
+
     private boolean accept(final ZipEntry entry) {
         if (entry.isDirectory()) {
             return false;
