@@ -702,11 +702,28 @@ public class AiEndpointProcessor implements Processor<Object> {
         }
 
         if (strategy != ModelRouter.FallbackStrategy.NONE && allBackends.size() <= 1) {
-            logger.warn("fallbackStrategy={} configured but only {} AgentRuntime backend(s) available. "
-                    + "Add more AgentRuntime JARs to enable routing.",
-                    strategy, allBackends.size());
+            logger.warn(routingUnavailableWarning(strategy, allBackends.size(),
+                    AiConfig.knob(AiConfig.RUNTIME_PROPERTY)));
         }
         return allBackends.getFirst();
+    }
+
+    /**
+     * Why a {@code fallbackStrategy} has nothing to route across. A runtime
+     * named by {@link AiConfig#RUNTIME_PROPERTY} is the only one resolved,
+     * however many runtime JARs the application has, so that is the cause to
+     * name then, not a missing JAR.
+     */
+    static String routingUnavailableWarning(ModelRouter.FallbackStrategy strategy, int backends,
+                                            java.util.Optional<String> requestedRuntime) {
+        var prefix = "fallbackStrategy=" + strategy + " configured but only " + backends
+                + " AgentRuntime backend(s) available. ";
+        return requestedRuntime
+                .map(name -> prefix + AiConfig.RUNTIME_PROPERTY + "=" + name
+                        + " selects that runtime alone; unset " + AiConfig.RUNTIME_PROPERTY
+                        + " / " + AiConfig.RUNTIME_ENV
+                        + " to route across the AgentRuntime JARs on the classpath.")
+                .orElse(prefix + "Add more AgentRuntime JARs to enable routing.");
     }
 
     private List<AiInterceptor> instantiateInterceptors(Class<? extends AiInterceptor>[] classes,
