@@ -324,7 +324,7 @@ public final class WorkspaceExtensions {
                 envReader.apply("OPENAI_API_KEY"), envReader.apply("GEMINI_API_KEY"));
         var overrideBaseUrl = knobOverride(AiConfig.LLM_BASE_URL, "LLM_BASE_URL");
 
-        var current = environment != null ? environment.settings() : AiConfig.get();
+        var current = (environment != null ? environment : org.atmosphere.ai.AiEnvironment.current()).settings();
         var mode = firstNonBlank(overrideMode, kv.get("mode"), current != null ? current.mode() : null, AiConfig.DEFAULT_MODE);
         var model = firstNonBlank(overrideModel, kv.get("model"), current != null ? current.model() : null, AiConfig.DEFAULT_MODEL);
         var apiKey = firstNonBlank(overrideApiKey, kv.get("api-key"), kv.get("apikey"),

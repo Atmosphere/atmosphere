@@ -1879,8 +1879,8 @@ public class OpenAiCompatibleClient implements LlmClient {
         /**
          * Set the tri-state {@code prompt_cache_key} control this client applies
          * for its whole life. When unset (or {@code null}), {@link #build()}
-         * reads the {@code atmosphere.ai.prompt-cache-key} knob once
-         * ({@link org.atmosphere.ai.AiConfig#resolvePromptCacheKeyMode()}),
+         * reads the {@code atmosphere.ai.prompt-cache-key} knob once, as
+         * {@link org.atmosphere.ai.AiEnvironment#current()} resolves it,
          * which is {@link PromptCacheKeyMode#AUTO} when the knob is unset.
          */
         public Builder promptCacheKeyMode(PromptCacheKeyMode promptCacheKeyMode) {
@@ -1891,8 +1891,8 @@ public class OpenAiCompatibleClient implements LlmClient {
         /**
          * Set the tri-state {@code logprobs} control this client applies for its
          * whole life. When unset (or {@code null}), {@link #build()} reads the
-         * {@code atmosphere.ai.logprobs} knob once
-         * ({@link org.atmosphere.ai.AiConfig#resolveLogprobsMode()}), which is
+         * {@code atmosphere.ai.logprobs} knob once, as
+         * {@link org.atmosphere.ai.AiEnvironment#current()} resolves it, which is
          * {@link LogprobsMode#AUTO} when the knob is unset.
          */
         public Builder logprobsMode(LogprobsMode logprobsMode) {
@@ -1907,10 +1907,12 @@ public class OpenAiCompatibleClient implements LlmClient {
             var policy = this.retryPolicy != null ? this.retryPolicy
                     : new RetryPolicy(maxRetries, retryBaseDelay, Duration.ofSeconds(30),
                             2.0, RetryPolicy.DEFAULT.retryableErrors());
+            // A client built with no settings (directly, by the application)
+            // belongs to no application: it reads the knobs the static API reads.
             var cacheKeyMode = this.promptCacheKeyMode != null ? this.promptCacheKeyMode
-                    : org.atmosphere.ai.AiConfig.resolvePromptCacheKeyMode();
+                    : org.atmosphere.ai.AiEnvironment.current().resolvePromptCacheKeyMode();
             var logprobs = this.logprobsMode != null ? this.logprobsMode
-                    : org.atmosphere.ai.AiConfig.resolveLogprobsMode();
+                    : org.atmosphere.ai.AiEnvironment.current().resolveLogprobsMode();
             return new OpenAiCompatibleClient(baseUrl, apiKey, client, this.httpClient == null,
                     timeout, policy, java.util.Map.copyOf(customHeaders), generation, cacheKeyMode, logprobs);
         }

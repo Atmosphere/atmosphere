@@ -15,7 +15,6 @@
  */
 package org.atmosphere.quarkus.runtime;
 
-import org.atmosphere.ai.AgentRuntimeResolver;
 import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiEnvironment;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -75,10 +74,7 @@ final class AiKnobBridge {
      * @throws IllegalStateException when the name matches no available runtime
      */
     static void verifyRuntimeSelection() {
-        AiConfig.knob(AiConfig.RUNTIME_PROPERTY).ifPresent(requested ->
-                logger.info("AgentRuntime '{}' selected by {}={}",
-                        AgentRuntimeResolver.resolve().name(), AiConfig.RUNTIME_PROPERTY, requested));
-        AiConfig.reportKnobsNotInEffect();
+        verifyRuntimeSelection(AiEnvironment.current());
     }
 
     /**
@@ -89,11 +85,11 @@ final class AiKnobBridge {
      * @throws IllegalStateException when the name matches no available runtime
      */
     static void verifyRuntimeSelection(AtmosphereFramework framework) {
-        var environment = AiEnvironment.find(framework.getAtmosphereConfig()).orElse(null);
-        if (environment == null) {
-            verifyRuntimeSelection();
-            return;
-        }
+        verifyRuntimeSelection(AiEnvironment.find(framework.getAtmosphereConfig())
+                .orElseGet(AiEnvironment::current));
+    }
+
+    private static void verifyRuntimeSelection(AiEnvironment environment) {
         environment.knob(AiConfig.RUNTIME_PROPERTY).ifPresent(requested ->
                 logger.info("AgentRuntime '{}' selected by {}={}",
                         environment.runtimes().resolve().name(), AiConfig.RUNTIME_PROPERTY, requested));
