@@ -267,6 +267,11 @@ class ScopePolicyResolverTest {
     private static final class PurposelessAgent {
     }
 
+    /** Invalid like {@link PurposelessAgent}, with a topic no skill fixture bans. */
+    @AgentScope(forbiddenTopics = "crypto", tier = AgentScope.Tier.RULE_BASED)
+    private static final class PurposelessCryptoAgent {
+    }
+
     private static final class UnannotatedAgent {
     }
 
@@ -582,6 +587,22 @@ class ScopePolicyResolverTest {
                 + "branch too: " + appender.list);
         assertTrue(errors().get(0).getFormattedMessage().contains(PurposelessAgent.class.getName()),
                 errors().get(0).getFormattedMessage());
+    }
+
+    @Test
+    void invalidAnnotationAddsItsOwnTopicsToAnExplicitSkillScope() {
+        var policy = resolve(EXPLICIT_TIER_SKILL, PurposelessCryptoAgent.class);
+        assertNotNull(policy);
+        assertEquals(List.of("RULE_BASED Order-status support for an online store 0.45"),
+                legs(policy));
+        assertEquals(List.of("gambling", "crypto"), policy.config().forbiddenTopics(),
+                "the invalid annotation's topic bans narrow the explicit skill scope too");
+        assertEquals("skill-guardrails:assistant", policy.source());
+
+        assertTrue(report(EXPLICIT_TIER_SKILL, PurposelessCryptoAgent.class, "skill:support"));
+        assertEquals(1, errors().size(), appender.list.toString());
+        var message = errors().get(0).getFormattedMessage();
+        assertTrue(message.contains("forbidden topics [crypto]"), message);
     }
 
     @Test
