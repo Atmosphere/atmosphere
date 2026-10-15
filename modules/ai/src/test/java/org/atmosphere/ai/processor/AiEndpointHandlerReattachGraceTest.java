@@ -59,6 +59,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -226,7 +227,7 @@ class AiEndpointHandlerReattachGraceTest {
     void aCloseMessageSentAsThePageGoesAwayIsGivenTheGrace(String transport) throws Exception {
         System.setProperty(GRACE_PROPERTY, "30s");
         var runtime = new HeldRuntime();
-        var original = startRun(runtime);
+        var original = startRun(runtime, transport);
 
         sendCloseMessage(original, transport, HeaderConfig.CLOSE_REASON_GOING_AWAY);
 
@@ -246,7 +247,7 @@ class AiEndpointHandlerReattachGraceTest {
     void anExplicitCloseMessageThroughTheInterceptorIsCancelledAtOnce(String transport) throws Exception {
         System.setProperty(GRACE_PROPERTY, "30s");
         var runtime = new HeldRuntime();
-        var original = startRun(runtime);
+        var original = startRun(runtime, transport);
 
         sendCloseMessage(original, transport, null);
 
@@ -585,17 +586,33 @@ class AiEndpointHandlerReattachGraceTest {
     }
 
     private AtmosphereResourceImpl startRun(HeldRuntime runtime) throws Exception {
-        return startRun(runtime, null);
+        return startRun(runtime, (InMemoryConversationMemory) null);
+    }
+
+    /** A run started over {@code transport}, the wire value of {@code X-Atmosphere-Transport}. */
+    private AtmosphereResourceImpl startRun(HeldRuntime runtime, String transport) throws Exception {
+        var request = new AtmosphereRequestImpl.Builder()
+                .headers(new HashMap<>(Map.of(HeaderConfig.X_ATMOSPHERE_TRANSPORT, transport)))
+                .build();
+        var original = startRun(runtime, null, request);
+        assertEquals(transport, original.transport().name().toLowerCase().replace('_', '-'),
+                "the run's connection uses the transport under test");
+        return original;
     }
 
     private AtmosphereResourceImpl startRun(HeldRuntime runtime, InMemoryConversationMemory memory)
             throws Exception {
+        return startRun(runtime, memory, AtmosphereRequestImpl.newInstance());
+    }
+
+    private AtmosphereResourceImpl startRun(HeldRuntime runtime, InMemoryConversationMemory memory,
+            AtmosphereRequest request) throws Exception {
         handler = new AiEndpointHandler(new HeldEndpoint(),
                 HeldEndpoint.class.getDeclaredMethod("onPrompt", String.class, StreamingSession.class),
                 30_000L, "", "/ai/grace", runtime, List.<AiInterceptor>of(),
                 memory, AnnotatedLifecycle.scan(HeldEndpoint.class));
         var original = new AtmosphereResourceImpl(config, room,
-                AtmosphereRequestImpl.newInstance(), AtmosphereResponseImpl.newInstance(),
+                request, AtmosphereResponseImpl.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 new org.atmosphere.handler.AbstractReflectorAtmosphereHandler.Default());
         room.addAtmosphereResource(original);
