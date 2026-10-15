@@ -117,15 +117,18 @@ public final class AtmosphereBootstrap {
     }
 
     /**
-     * Initializes the framework, then checks the AI runtime selection
-     * ({@link #verifyAiRuntimeSelection()}). When either fails, the framework
-     * is destroyed before the failure is rethrown: its shutdown hooks run (the
-     * AI host configuration among them) and its threads stop, since no
-     * shutdown task was registered for a container that did not start, and in
-     * dev mode the JVM outlives the failed start (Correctness Invariant #2).
+     * Runs {@code init}, which bridges the AI configuration
+     * ({@link #bridgeAiKnobs}, {@link #bridgeAiCostGuardrail}) and initializes
+     * the framework, then checks the AI runtime selection
+     * ({@link #verifyAiRuntimeSelection()}). When any of them fails, the
+     * framework is destroyed before the failure is rethrown
+     * ({@link #destroyAfterFailedStart}): its shutdown hooks run (the AI host
+     * configuration among them) and its threads stop, since no shutdown task
+     * was registered for a container that did not start, and in dev mode the
+     * JVM outlives the failed start (Correctness Invariant #2).
      *
      * @param framework the framework {@code init} initializes
-     * @param init      initializes the framework
+     * @param init      bridges the AI configuration and initializes the framework
      * @throws ServletException when the initialization fails
      */
     public static void initFramework(AtmosphereFramework framework, FrameworkInit init)
@@ -134,14 +137,25 @@ public final class AtmosphereBootstrap {
             init.run();
             verifyAiRuntimeSelection();
         } catch (ServletException | RuntimeException | Error e) {
-            try {
-                framework.destroy();
-            } catch (RuntimeException | Error destroyFailure) {
-                // An Error from a shutdown hook is attached too, so the init
-                // failure stays the one reported.
-                e.addSuppressed(destroyFailure);
-            }
+            destroyAfterFailedStart(framework, e);
             throw e;
+        }
+    }
+
+    /**
+     * Destroys a framework whose start failed with {@code failure}. A failure
+     * of the destroy itself, an {@link Error} from a shutdown hook included, is
+     * added to {@code failure} as suppressed, so {@code failure} stays the one
+     * reported.
+     *
+     * @param framework the framework to destroy
+     * @param failure   the failure of the start, rethrown by the caller
+     */
+    static void destroyAfterFailedStart(AtmosphereFramework framework, Throwable failure) {
+        try {
+            framework.destroy();
+        } catch (RuntimeException | Error destroyFailure) {
+            failure.addSuppressed(destroyFailure);
         }
     }
 

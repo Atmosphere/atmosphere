@@ -73,20 +73,31 @@ public final class VertxAtmosphereContainer {
         config.getServletContext().setAttribute(DefaultAnnotationProcessor.ANNOTATION_ATTRIBUTE,
                 AtmosphereBootstrap.resolveAnnotationMap(annotationClassNames));
         // Seed the AI knobs and the cost guardrail before init freezes each
-        // @AiEndpoint's runtime and chain, exactly as QuarkusAtmosphereServlet does.
-        AtmosphereBootstrap.bridgeAiKnobs(framework);
-        AtmosphereBootstrap.bridgeAiCostGuardrail(framework);
-        AtmosphereBootstrap.initFramework(framework, () -> framework.init(config));
+        // @AiEndpoint's runtime and chain, exactly as QuarkusAtmosphereServlet does,
+        // inside initFramework so a failure once the knobs are installed destroys
+        // the framework, whose shutdown hook uninstalls them.
+        AtmosphereBootstrap.initFramework(framework, () -> {
+            AtmosphereBootstrap.bridgeAiKnobs(framework);
+            AtmosphereBootstrap.bridgeAiCostGuardrail(framework);
+            framework.init(config);
+        });
 
         ThreadFactory threads = Thread.ofVirtual().name("atmosphere-vertx-", 0).factory();
         var executor = Executors.newThreadPerTaskExecutor(threads);
-        var processor = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework);
-        var handler = new VertxAtmosphereHandler(framework, processor, executor, threads,
-                servletPrefix(mapping), maxBodyBytes, drainTimeoutMs);
-        LazyAtmosphereConfigurator.setFramework(framework);
-        logger.info("Atmosphere serving {} on the Vert.x router ({})", mapping,
-                framework.getAsyncSupport().getContainerName());
-        return new VertxAtmosphereContainer(framework, executor, handler);
+        try {
+            var processor = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework);
+            var handler = new VertxAtmosphereHandler(framework, processor, executor, threads,
+                    servletPrefix(mapping), maxBodyBytes, drainTimeoutMs);
+            LazyAtmosphereConfigurator.setFramework(framework);
+            logger.info("Atmosphere serving {} on the Vert.x router ({})", mapping,
+                    framework.getAsyncSupport().getContainerName());
+            return new VertxAtmosphereContainer(framework, executor, handler);
+        } catch (RuntimeException | Error e) {
+            // No shutdown task is registered for a container that did not start.
+            executor.shutdownNow();
+            AtmosphereBootstrap.destroyAfterFailedStart(framework, e);
+            throw e;
+        }
     }
 
     Handler<RoutingContext> handler() {
