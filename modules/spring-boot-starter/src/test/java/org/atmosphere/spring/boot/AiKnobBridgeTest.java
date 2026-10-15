@@ -109,6 +109,20 @@ class AiKnobBridgeTest {
     }
 
     @Test
+    void aBeanThatResolvesTheRuntimeWhileCreatedGetsTheNamedOne() {
+        contextRunner.withConfiguration(AutoConfigurations.of(InteractionsAutoConfiguration.class))
+                .withPropertyValues("atmosphere.ai.runtime=built-in")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    var service = context.getBean(org.atmosphere.interactions.InteractionService.class);
+                    var runtime = (org.atmosphere.ai.AgentRuntime)
+                            org.springframework.test.util.ReflectionTestUtils.getField(service, "runtime");
+                    assertThat(runtime).isNotNull();
+                    assertThat(runtime.name()).isEqualTo("built-in");
+                });
+    }
+
+    @Test
     void aRuntimeThatIsNotAvailableFailsStartup() {
         contextRunner.withPropertyValues("atmosphere.ai.runtime=spring-ai").run(context -> {
             assertThat(context).hasFailed();
