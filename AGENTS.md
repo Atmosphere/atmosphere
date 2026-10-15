@@ -156,6 +156,7 @@ cannot fix: copy the header in by hand. Third-party notices go in a separate com
 - **Not enforced (PMD was removed)**: the build no longer runs PMD, and nothing replaced the rules it enforced on main and test sources: unused local variables, unused private fields, unused private methods, unused parameters of private methods, assignments whose value is never read (`UnusedAssignment`), `size() == 0` instead of `isEmpty()` (`UseCollectionIsEmpty`), `ThreadGroup` use (`AvoidThreadGroup`) and calling `Thread.run()` directly (`DontCallThreadRun`). javac `-Xlint:all` has no lint for any of them; catch them in review or in the IDE.
 - **Pre-commit hook**: blocks commits containing unused or duplicate imports in staged Java files, and compiles the Maven module owning each staged Java file (javac `-Werror` plus the Spotless check, so the license header too); root-project Java files (`generator/`, `scripts/`) get `./mvnw -N spotless:check`, and a Java file outside every Spotless include fails its architectural validation
 - All checks can be skipped with `-Pfastinstall` for local iteration, but **you MUST run a full `./mvnw compile` (without `-Pfastinstall`) before committing** to verify zero warnings.
+- **Architectural validation** (`scripts/architectural-validation.sh`, run by the pre-commit hook and CI): among its checks, framework code reading AI state through the process-wide `AiConfig`/`AgentRuntimeResolver` statics or `AiEnvironment.current()` fails unless allowlisted with a reason (see Correctness Invariant #1).
 - **Do NOT introduce new `@SuppressWarnings` annotations** without justification. If a suppression is necessary (e.g., unavoidable raw type from a third-party API), add a comment explaining why.
 
 ## Correctness Invariants (Blocking)
@@ -168,6 +169,11 @@ Violations of these rules are **release-blocking** regardless of feature scope. 
 - Every `start()` must have a symmetric `stop()` that undoes all registrations.
 - Registration actions (listeners/handlers/hooks) MUST have explicit uninstall/removal on stop.
 - Netty/direct buffers MUST be released on all terminal/error/removal paths.
+- **AI state belongs to the application that owns the request.** Each `AtmosphereFramework` owns one `AiEnvironment` (its knobs, LLM settings, per-agent settings, `AgentRuntime`/`EmbeddingRuntime` instances and native-client bindings); the host that creates it closes it.
+  - No new process-wide static may hold AI settings, knobs, runtime selection, runtime instances or native-client bindings.
+  - Framework code that can reach an `AtmosphereFramework`, `AtmosphereConfig`, `AtmosphereResource` or an `AgentRuntime` it was attached to reads AI configuration through that application's environment (`AiEnvironment.of(config)`, a runtime's `environment()`, `runtimes()`, the `AiEnvironment` overloads of the adapters' binders), never through the `AiConfig` / `AgentRuntimeResolver` statics or `AiEnvironment.current()` / `bound()` behind them.
+  - Those statics (deprecated, not for removal) are a façade for code that runs with no framework (tests, CLI, plain library use) and for user code. Framework code never relies on the façade's thread binding: it is set on the `@Prompt` thread, around registry resolution and around each runtime dispatch for user code and third-party runtimes only.
+  - Enforced by `scripts/architectural-validation.sh` (check 15): every `AiConfig`/`AgentRuntimeResolver` state call, every no-argument `EmbeddingRuntimeResolver`/`DecisionModelResolver` `resolve()` and every `AiEnvironment.current()`/`bound()` in a `modules/**/src/main` Java or Kotlin source fails the build unless `[ai_application_state]` in `scripts/validation-patterns.toml` allowlists it (file + regex + reason; an entry that matches nothing fails too). Comments, Javadoc and imports other than static imports are not reads. `scripts/lib/prove_gate.sh` proves the check bites.
 
 ### 2. Terminal Path Completeness: Every exit path must complete/release/reset
 - **Every terminal path (success, failure, cancel, timeout, reject) must leave the system in a completed state.**
@@ -196,6 +202,7 @@ Violations of these rules are **release-blocking** regardless of feature scope. 
 - Info/discovery endpoints must return runtime-resolved values.
 - Feature advertisement (Alt-Svc, transport support) must be suppressed when startup fails.
 - Classpath detection must be gated on runtime evidence, not just `Class.forName()` success.
+- A report about AI (admin, console, `/info`, startup logs) describes the application it serves: its `AiEnvironment`'s runtime, settings and knobs, never the process default's or whichever application started last (see the AI-state rule under #1).
 
 ### 6. Security: Every mutating surface requires explicit authorization
 - **Every mutating/admin endpoint requires explicit authentication and authorization.** Default deny.
@@ -221,7 +228,7 @@ Violations of these rules are **release-blocking** regardless of feature scope. 
 ### Correctness Review Checklist
 Before committing, verify these for every changed file:
 
-1. **Ownership** — Does this code close/release/shutdown only resources it created?
+1. **Ownership** — Does this code close/release/shutdown only resources it created? Does it read AI state through its application's `AiEnvironment`, not the process-wide statics?
 2. **Terminal paths** — Are success/failure/cancel/timeout/reject all handled symmetrically?
 3. **Backpressure** — Are queue-full, rejected-execution, and partial-write signals handled (not ignored)?
 4. **Boundaries** — Are path/URL/shell/wire/content-type inputs validated, encoded, and framed correctly?
