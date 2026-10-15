@@ -371,10 +371,7 @@ class AiEndpointHandlerReattachGraceTest {
                 "the turn the run recorded is kept: " + history);
 
         // The connection that came back owns the state now: its own departure releases it.
-        var leave = mock(org.atmosphere.cpr.AtmosphereResourceEvent.class);
-        when(leave.getResource()).thenReturn(back);
-        when(leave.isClosedByClient()).thenReturn(true);
-        handler.onStateChange(leave);
+        handler.onStateChange(leaving(back));
         assertEquals(List.of(), memory.getHistory(uuid),
                 "the reconnected connection leaving releases the conversation");
     }
@@ -395,6 +392,64 @@ class AiEndpointHandlerReattachGraceTest {
         awaitRunEndCallbacks();
         assertEquals(List.of(), memory.getHistory(uuid),
                 "a connection nobody came back on is released after its run recorded its turn");
+    }
+
+    /**
+     * The client reconnects under its tracking id before the server notices the
+     * original connection is gone, the usual order over WebSocket. The late loss
+     * of the original connection is the departure of a connection the reconnected
+     * one replaced: it must not release the conversation the live connection
+     * carries on.
+     */
+    @Test
+    void aLateNoticedLossAfterASameIdReconnectKeepsTheLiveConnectionsConversation() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "5s");
+        var memory = new InMemoryConversationMemory();
+        var runtime = new HeldRuntime();
+        var original = startRun(runtime, memory);
+        var uuid = original.uuid();
+
+        var out = new StringWriter();
+        var back = reconnect(uuid, RUN_ID.get(), out);
+        handler.onStateChange(new AtmosphereResourceEventImpl(original, true, false));
+        runtime.finish();
+        awaitRunEndCallbacks();
+
+        assertTrue(out.toString().contains("\"type\":\"complete\""), out.toString());
+        var history = memory.getHistory(uuid);
+        assertTrue(history.stream().anyMatch(m -> "user".equals(m.role()) && "explain".equals(m.content())),
+                "the live same-id connection must keep its conversation: " + history);
+        assertTrue(history.stream().anyMatch(m -> "assistant".equals(m.role())),
+                "the turn the run recorded is kept: " + history);
+
+        // The live connection leaving is what releases it.
+        handler.onStateChange(leaving(back));
+        assertEquals(List.of(), memory.getHistory(uuid),
+                "the reconnected connection leaving releases the conversation");
+    }
+
+    /**
+     * The same order, with a client that came back without the run id: nothing
+     * reattached, and the run keeps answering the connection live under its id.
+     * The late loss of the replaced connection must not start a grace that
+     * cancels it; the live connection leaving does.
+     */
+    @Test
+    void aLateNoticedLossAfterASameIdReconnectLeavesTheRunsOfTheLiveConnectionGoing() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "300ms");
+        var runtime = new HeldRuntime();
+        var original = startRun(runtime);
+
+        var back = reconnect(original.uuid(), null, new StringWriter());
+        handler.onStateChange(new AtmosphereResourceEventImpl(original, true, false));
+        assertFalse(RunDisconnectGrace.isDetached(RUN_ID.get()),
+                "the loss of a replaced connection must not detach the live connection's run");
+        assertFalse(runtime.cancelled.await(1_500, TimeUnit.MILLISECONDS),
+                "the loss of a replaced connection must not cancel the live connection's run");
+
+        handler.onStateChange(leaving(back));
+        assertTrue(runtime.cancelled.await(10, TimeUnit.SECONDS),
+                "the live connection leaving on purpose cancels its run");
     }
 
     /**
@@ -422,6 +477,14 @@ class AiEndpointHandlerReattachGraceTest {
                 "the poll restarted the grace: the run was cancelled "
                         + TimeUnit.NANOSECONDS.toMillis(runtime.cancelledAt - reattachedAt)
                         + " ms after it");
+    }
+
+    /** {@code resource}'s client closing it on purpose. */
+    private static org.atmosphere.cpr.AtmosphereResourceEvent leaving(AtmosphereResource resource) {
+        var leave = mock(org.atmosphere.cpr.AtmosphereResourceEvent.class);
+        when(leave.getResource()).thenReturn(resource);
+        when(leave.isClosedByClient()).thenReturn(true);
+        return leave;
     }
 
     private static AtmosphereResourceEventImpl closeEvent(boolean cancelled, int closeCode) {

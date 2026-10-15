@@ -171,6 +171,17 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     }
 
     /**
+     * Tracking id -> the WebSocket or SSE connection suspended under it last.
+     * atmosphere.js reconnects under the id it holds, often before the server
+     * notices the connection it replaces is gone (an idle timeout, a failed
+     * write): the late departure of the replaced connection then leaves the
+     * state keyed by the id to the live one. An entry is removed when its
+     * connection goes; long-polling, whose resumed polls fire no departure, is
+     * not tracked.
+     */
+    private final ConcurrentHashMap<String, AtmosphereResource> liveConnections = new ConcurrentHashMap<>();
+
+    /**
      * @param target       the user's @AiEndpoint instance
      * @param promptMethod the @Prompt-annotated method
      * @param timeout      per-resource suspend timeout in milliseconds
@@ -557,6 +568,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             // so a prompt that waited for it may be dispatched to it.
             if (resource.isSuspended()) {
                 repollGate.connectionReady(resource.uuid());
+                if (resource.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
+                        || resource.transport() == AtmosphereResource.TRANSPORT.SSE) {
+                    liveConnections.put(resource.uuid(), resource);
+                }
                 // A connection back under the id of a lost one owns the state the
                 // lost one's runs kept: its own departure releases it.
                 deferredReleases.computeIfPresent(resource.uuid(),
@@ -1352,20 +1367,54 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 logger.debug("handleDisconnect invoked after resource recycled — reclaiming session "
                         + "state for uuid {} (event.isClosedByClient={}, isCancelled={})",
                         uuid, event.isClosedByClient(), event.isCancelled());
-                cleanupDisconnected(recallRunOwner(uuid), uuid,
-                        org.atmosphere.ai.resume.RunDisconnectGrace.isTransportLoss(event));
+                if (!replacedUnderItsId(null, event, uuid)) {
+                    cleanupDisconnected(recallRunOwner(uuid), uuid,
+                            org.atmosphere.ai.resume.RunDisconnectGrace.isTransportLoss(event));
+                }
             }
             lifecycle.onDisconnect(target, event);
             return;
         }
-        var ownerAtDisconnect = disconnectUserId(resource);
-        if (ownerAtDisconnect == null) {
-            ownerAtDisconnect = recallRunOwner(resource.uuid());
+        if (!replacedUnderItsId(resource, event, resource.uuid())) {
+            var ownerAtDisconnect = disconnectUserId(resource);
+            if (ownerAtDisconnect == null) {
+                ownerAtDisconnect = recallRunOwner(resource.uuid());
+            }
+            cleanupDisconnected(ownerAtDisconnect, resource.uuid(),
+                    org.atmosphere.ai.resume.RunDisconnectGrace.isTransportLoss(event));
         }
-        cleanupDisconnected(ownerAtDisconnect, resource.uuid(),
-                org.atmosphere.ai.resume.RunDisconnectGrace.isTransportLoss(event));
         lifecycle.onDisconnect(target, event);
         logger.info(logMessage, resource.uuid());
+    }
+
+    /**
+     * Whether the departing connection was replaced by another one live under
+     * the same tracking id. The live connection carries the conversation on:
+     * the memory, tape, run ownership, in-flight runs, parked replies and
+     * prompt routing keyed by the id are its own, so the replaced connection's
+     * departure reclaims none of it, and its interceptors are told when the
+     * live connection goes. Otherwise the departing connection stops being
+     * tracked.
+     *
+     * @param resource the departing connection, or {@code null} when it was
+     *                 recycled and only its {@code event} is left
+     */
+    private boolean replacedUnderItsId(AtmosphereResource resource, AtmosphereResourceEvent event, String uuid) {
+        var replaced = new java.util.concurrent.atomic.AtomicBoolean();
+        liveConnections.computeIfPresent(uuid, (id, live) -> {
+            var departing = resource != null ? live == resource : live.getAtmosphereResourceEvent() == event;
+            if (departing || live.isCancelled()) {
+                // A cancelled one is gone too, whether or not its departure has run yet.
+                return null;
+            }
+            replaced.set(true);
+            return live;
+        });
+        if (replaced.get()) {
+            logger.debug("Connection {} left after another connection replaced it under the same tracking id; "
+                    + "its state stays with the live connection", uuid);
+        }
+        return replaced.get();
     }
 
     /**
@@ -1506,6 +1555,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         // Runs waiting out a reattach grace are cancelled now, not left to a
         // timer that stops with the endpoint.
         org.atmosphere.ai.resume.RunDisconnectGrace.shutdown();
+        liveConnections.clear();
         super.destroy();
     }
 
