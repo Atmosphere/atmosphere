@@ -136,7 +136,9 @@ public final class AtmosphereBootstrap {
         } catch (ServletException | RuntimeException | Error e) {
             try {
                 framework.destroy();
-            } catch (RuntimeException destroyFailure) {
+            } catch (RuntimeException | Error destroyFailure) {
+                // An Error from a shutdown hook is attached too, so the init
+                // failure stays the one reported.
                 e.addSuppressed(destroyFailure);
             }
             throw e;

@@ -85,6 +85,29 @@ class FrameworkInitFailureTest {
         assertTrue(hookRan.get(), "the framework's shutdown hooks ran");
     }
 
+    /**
+     * A shutdown hook failing with an {@link Error} while the framework is
+     * destroyed (a class that no longer links after a dev-mode reload) is
+     * attached to the init failure, which stays the one reported.
+     */
+    @Test
+    void anErrorDestroyingTheFrameworkKeepsTheInitFailure() {
+        var framework = new AtmosphereFramework(false, false);
+        var hookFailure = new NoClassDefFoundError("org/example/Gone");
+        framework.getAtmosphereConfig().shutdownHook(() -> {
+            throw hookFailure;
+        });
+        var cause = new ServletException("init failed");
+
+        var failure = assertThrows(ServletException.class,
+                () -> AtmosphereBootstrap.initFramework(framework, () -> {
+                    throw cause;
+                }));
+
+        assertSame(cause, failure);
+        assertSame(hookFailure, failure.getSuppressed()[0]);
+    }
+
     @Test
     void aSuccessfulInitKeepsTheFramework() throws ServletException {
         var framework = new AtmosphereFramework(false, false);
