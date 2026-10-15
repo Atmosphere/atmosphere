@@ -1308,8 +1308,9 @@ public class DefaultBroadcaster implements Broadcaster {
                         "AtmosphereResource {} and Broadcaster {}. Message will be cached {}",
                 ar.uuid(), getID(), String.valueOf(notifyAndCache), t);
 
-        // Remove to prevent other broadcast to re-use it.
-        removeAtmosphereResource(r);
+        // Remove to prevent other broadcast to re-use it. By identity: the write failed on
+        // this resource, not on the client's next poll suspended under the same uuid.
+        removeAtmosphereResource(r, true, true);
 
         if (notifyAndCache) {
             final AtmosphereResourceEventImpl event = r.getAtmosphereResourceEvent();
@@ -1855,12 +1856,14 @@ public class DefaultBroadcaster implements Broadcaster {
 
     /**
      * Remove the resource a write was addressed to, after that write found it
-     * resumed, cancelled or closing, or failed on it. By identity: equality is
-     * by uuid, and every poll of a long-polling client (like a WebSocket that
-     * reconnected under its id) is a resource of its own under the client's one
-     * uuid. A write left over for a poll that already returned must neither
-     * remove the client's next poll, already suspended here, nor drop the
-     * writes queued for it.
+     * resumed, cancelled or closing. By identity: equality is by uuid, and every
+     * poll of a long-polling client (like a WebSocket that reconnected under its
+     * id) is a resource of its own under the client's one uuid. A write left over
+     * for a poll that already returned must neither remove the client's next
+     * poll, already suspended here, nor drop the writes queued for it, nor take
+     * the client off the cache's list of clients to keep messages for.
+     * {@link #onException(Throwable, AtmosphereResource, boolean)}, for a write
+     * that failed on the resource, removes it the same way.
      */
     private void removeWrittenResource(AtmosphereResource r) {
         removeAtmosphereResource(r, false, true);
@@ -1873,8 +1876,11 @@ public class DefaultBroadcaster implements Broadcaster {
         }
 
         boolean removed = byIdentity ? resources.removeIf(member -> member == r) : resources.remove(r);
+        // After an identity removal, a resource still a member under the uuid is the
+        // client's next poll: the uuid's cache entry, write queue and write lock stay its own.
+        boolean uuidStillMember = removed && byIdentity && resources.contains(r);
         if (removed) {
-            if (r.isSuspended()) {
+            if (r.isSuspended() && !uuidStillMember) {
                 logger.trace("Excluded from {} : {}", getID(), r.uuid());
                 bc.getBroadcasterCache().excludeFromCache(getID(), r);
             }
@@ -1893,9 +1899,7 @@ public class DefaultBroadcaster implements Broadcaster {
             completePending(broadcastOnResume);
         }
 
-        // The write queue and the write lock are the uuid's: a resource still a member
-        // under it (the client's next poll, after an identity removal) keeps using them.
-        if (!byIdentity || !resources.contains(r)) {
+        if (!uuidStillMember) {
             // Drain any pending tokens before removing the queue to prevent orphaned message accumulation
             WriteQueue removedQueue = writeQueues.remove(r.uuid());
             if (removedQueue != null) {

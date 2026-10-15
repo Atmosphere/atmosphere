@@ -892,7 +892,12 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     private void unregister() {
-        config.resourcesFactory().remove(uuid());
+        // By identity: equality is by uuid, and the client's next resource (its next
+        // long-polling poll, a reconnected connection) may be registered under it by now.
+        var factory = config.resourcesFactory();
+        if (factory.findResource(uuid()).orElse(null) == this) {
+            factory.remove(uuid());
+        }
     }
 
     public void _destroy() {
