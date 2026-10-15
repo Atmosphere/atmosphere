@@ -62,22 +62,24 @@ public class DeferredStreamEndDeliveryTest {
     private final Broadcaster broadcaster = mock(Broadcaster.class);
     private final AtmosphereResource sender = mock(AtmosphereResource.class);
 
-    /** A broadcaster that runs {@code filter} on each frame, as its filter chain does, then delivers it. */
-    private void wire(AiStreamBroadcastFilter filter) {
+    /** A broadcaster that runs {@code filters} on each frame, in order, as its filter chain does, then delivers it. */
+    private void wire(AiStreamBroadcastFilter... filters) {
         var factory = mock(BroadcasterFactory.class);
         when(factory.<Broadcaster>findBroadcaster("b1")).thenReturn(Optional.of(broadcaster));
         var config = mock(AtmosphereConfig.class);
         when(config.getBroadcasterFactory()).thenReturn(factory);
-        filter.init(config);
+        for (var filter : filters) {
+            filter.init(config);
+        }
 
         when(sender.uuid()).thenReturn("sender");
         when(sender.getBroadcaster()).thenReturn(broadcaster);
         doAnswer(inv -> {
-            deliver(filter, inv.getArgument(0), inv.getArgument(1));
+            deliver(inv.getArgument(0), inv.getArgument(1), filters);
             return null;
         }).when(broadcaster).broadcast(any(), ArgumentMatchers.<Set<AtmosphereResource>>any());
         doAnswer(inv -> {
-            deliver(filter, inv.getArgument(0), null);
+            deliver(inv.getArgument(0), null, filters);
             return null;
         }).when(broadcaster).broadcast(any());
     }
@@ -85,16 +87,20 @@ public class DeferredStreamEndDeliveryTest {
     /** Runs just before a frame enters the filter chain; a test sets it to interleave a disconnect. */
     private volatile Consumer<AiStreamMessage> beforeFilter = m -> { };
 
-    private void deliver(AiStreamBroadcastFilter filter, Object message, Set<AtmosphereResource> targets)
+    private void deliver(Object message, Set<AtmosphereResource> targets, AiStreamBroadcastFilter... filters)
             throws Exception {
         if (message instanceof RawMessage raw && raw.message() instanceof String json) {
             beforeFilter.accept(AiStreamMessage.parse(json));
         }
-        var action = filter.filter("b1", message, message);
-        if (action.action() == BroadcastAction.ACTION.ABORT) {
-            return;
+        var current = message;
+        for (var filter : filters) {
+            var action = filter.filter("b1", message, current);
+            if (action.action() == BroadcastAction.ACTION.ABORT) {
+                return;
+            }
+            current = action.message();
         }
-        var json = (String) ((RawMessage) action.message()).message();
+        var json = (String) ((RawMessage) current).message();
         deliveries.add(new Delivery(AiStreamMessage.parse(json), targets));
     }
 
@@ -218,16 +224,57 @@ public class DeferredStreamEndDeliveryTest {
     }
 
     @Test
+    public void aStreamEndDeferredByTwoFiltersInTurnStillReachesTheSenderOnce() throws Exception {
+        // PII redaction then content safety on one broadcaster, a reply whose
+        // tail ends without a sentence boundary: the PII filter flushes the tail
+        // and defers the complete frame; the safety filter holds that flushed
+        // tail, so when the deferred complete comes back through the chain, the
+        // safety filter flushes it and defers the complete frame once more. By
+        // then the session has ended, yet that frame must still reach the sender.
+        wire(new PiiRedactionFilter(), new ContentSafetyFilter(text -> new ContentSafetyFilter.SafetyResult.Safe()));
+        var session = StreamingSessions.start("chained-" + UUID.randomUUID(), sender);
+
+        session.send("my private reply without full stop");
+        session.complete();
+
+        var terminal = awaitTerminal();
+        assertNotNull(terminal, "the twice-deferred complete frame must be delivered");
+        Thread.sleep(300);
+        var terminals = deliveries.stream().filter(d -> d.message().isComplete()).count();
+        assertEquals(1, terminals, "the complete frame must be delivered exactly once: " + deliveries);
+        var text = deliveries.stream().filter(d -> d.message().isStreamingText())
+                .map(d -> d.message().data()).reduce("", String::concat);
+        assertEquals("my private reply without full stop", text, "the held tail must be delivered");
+        for (var d : deliveries) {
+            assertEquals(Set.of(sender), d.targets(), "every frame must go to the sender only: " + d);
+        }
+    }
+
+    @Test
+    public void aRoomStreamEndDeferredByTwoFiltersInTurnStillReachesTheRoom() throws Exception {
+        wire(new PiiRedactionFilter(), new ContentSafetyFilter(text -> new ContentSafetyFilter.SafetyResult.Safe()));
+        var session = StreamingSessions.startRoomBroadcast(sender);
+
+        session.send("a room reply without full stop");
+        session.complete();
+
+        assertNotNull(awaitTerminal(), "the twice-deferred complete frame must reach the room");
+        for (var d : deliveries) {
+            assertNull(d.targets(), "a room session's frames go to the room: " + d);
+        }
+    }
+
+    @Test
     public void deferredEndOfASessionNobodyCanPlaceIsDropped() throws Exception {
         // A frame no live session sent (or one of a session already gone) has no
         // known recipient: its deferred end is dropped, never sent to everyone.
         var filter = new PiiRedactionFilter();
         wire(filter);
         var sessionId = "unknown-" + UUID.randomUUID();
-        deliver(filter, new RawMessage(new AiStreamMessage("streaming-text", "a reply without full stop",
-                sessionId, 1, null, null).toJson()), Set.of(sender));
-        deliver(filter, new RawMessage(new AiStreamMessage("complete", "a reply without full stop",
-                sessionId, 2, null, null).toJson()), Set.of(sender));
+        deliver(new RawMessage(new AiStreamMessage("streaming-text", "a reply without full stop",
+                sessionId, 1, null, null).toJson()), Set.of(sender), filter);
+        deliver(new RawMessage(new AiStreamMessage("complete", "a reply without full stop",
+                sessionId, 2, null, null).toJson()), Set.of(sender), filter);
 
         Thread.sleep(500);
         for (var d : deliveries) {

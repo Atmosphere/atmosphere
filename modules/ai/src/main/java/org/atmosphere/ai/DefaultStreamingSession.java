@@ -77,8 +77,12 @@ public final class DefaultStreamingSession implements StreamingSession {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final ConcurrentHashMap<String, AtmosphereResource> SESSION_RESOURCES = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, DefaultStreamingSession> SESSION_INSTANCES = new ConcurrentHashMap<>();
-    /** Topic sessions whose terminal frame is being broadcast right now; see {@link #broadcastTopicTerminal}. */
-    private static final Set<String> TOPIC_TERMINALS = ConcurrentHashMap.newKeySet();
+    /**
+     * Where the frames of a session no live instance answers for go while one of
+     * them runs through the broadcaster's filters: a topic session's terminal
+     * frame, or a frame a filter deferred; see {@link #broadcastPlaced}.
+     */
+    private static final ConcurrentHashMap<String, Placement> PLACED = new ConcurrentHashMap<>();
 
     private final String sessionId;
     private final AtmosphereResource resource;
@@ -153,12 +157,23 @@ public final class DefaultStreamingSession implements StreamingSession {
     public record Delivery(AtmosphereResource resource, boolean toRoom) {
     }
 
+    /** One placement of a session's frames; compared by identity, so each one removes only itself. */
+    private static final class Placement {
+        private final Delivery delivery;
+
+        private Placement(Delivery delivery) {
+            this.delivery = delivery;
+        }
+    }
+
     /**
      * How a live session delivers its frames. The session stays registered while
      * its terminal frame runs through the broadcaster's filters, so a filter
      * that defers a frame past the terminal one reads it there; it is empty once
      * the session completed, failed or was cleaned up. A topic session is
-     * answered only while its terminal frame runs through the filters.
+     * answered only while its terminal frame runs through the filters, and a
+     * session whose frame a filter deferred only while that frame runs through
+     * them ({@link #broadcastPlaced}), so the next filter may defer it again.
      *
      * @param sessionId the streaming session identifier
      * @return the delivery, or empty if no active session with that ID
@@ -168,7 +183,30 @@ public final class DefaultStreamingSession implements StreamingSession {
         if (session != null) {
             return Optional.of(new Delivery(session.resource, session.broadcastToRoom));
         }
-        return TOPIC_TERMINALS.contains(sessionId) ? Optional.of(new Delivery(null, true)) : Optional.empty();
+        var placed = sessionId != null ? PLACED.get(sessionId) : null;
+        return placed != null ? Optional.of(placed.delivery) : Optional.empty();
+    }
+
+    /**
+     * Run {@code broadcast}, which sends a frame of session {@code sessionId} to
+     * {@code delivery}'s recipients, with the session known to
+     * {@link #deliveryForSession} as one whose frames go there, so a filter that
+     * defers that frame once more still finds its recipients when the session
+     * has ended meanwhile. Only for the time the broadcaster filters the frame,
+     * so nothing outlives the call.
+     *
+     * @param sessionId the session the frame belongs to
+     * @param delivery  where the session's frames go
+     * @param broadcast the broadcast of the frame
+     */
+    public static void broadcastPlaced(String sessionId, Delivery delivery, Runnable broadcast) {
+        var placement = new Placement(delivery);
+        PLACED.put(sessionId, placement);
+        try {
+            broadcast.run();
+        } finally {
+            PLACED.remove(sessionId, placement);
+        }
     }
 
     /**
@@ -196,12 +234,7 @@ public final class DefaultStreamingSession implements StreamingSession {
      * the broadcaster filters it, so nothing outlives the call.
      */
     static void broadcastTopicTerminal(String sessionId, Runnable broadcast) {
-        TOPIC_TERMINALS.add(sessionId);
-        try {
-            broadcast.run();
-        } finally {
-            TOPIC_TERMINALS.remove(sessionId);
-        }
+        broadcastPlaced(sessionId, new Delivery(null, true), broadcast);
     }
 
     /**

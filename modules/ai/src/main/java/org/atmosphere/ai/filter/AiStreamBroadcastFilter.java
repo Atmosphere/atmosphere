@@ -71,6 +71,8 @@ public abstract class AiStreamBroadcastFilter implements BroadcastFilterLifecycl
      * {@link DefaultStreamingSession} answers until its terminal frame has been
      * filtered): its originating resource only, or every subscriber for a room
      * session or a topic session from {@code StreamingSessions.start(Broadcaster)}.
+     * The frame runs through the filters with those recipients known, so a later
+     * filter that defers it once more sends it to them too.
      * A frame of a session nobody can place (one cleaned up before its terminal
      * frame was filtered, or a frame no streaming session sent) is dropped, never
      * sent to every subscriber: that would hand one user's reply to all of them.
@@ -97,13 +99,17 @@ public abstract class AiStreamBroadcastFilter implements BroadcastFilterLifecycl
                 // Wait for the current filter chain to complete and deliver the flushed streaming text
                 Thread.sleep(50);
                 if (factory != null) {
-                    factory.findBroadcaster(broadcasterId).ifPresent(b -> {
-                        if (delivery.toRoom()) {
-                            b.broadcast(message);
-                        } else {
-                            b.broadcast(message, Set.of(delivery.resource()));
-                        }
-                    });
+                    // Placed while the frame runs through the filters: a filter
+                    // after this one holding text of the session flushes it and
+                    // defers the frame again, to the same recipients.
+                    factory.findBroadcaster(broadcasterId).ifPresent(b -> DefaultStreamingSession.broadcastPlaced(
+                            sessionId, delivery, () -> {
+                                if (delivery.toRoom()) {
+                                    b.broadcast(message);
+                                } else {
+                                    b.broadcast(message, Set.of(delivery.resource()));
+                                }
+                            }));
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
