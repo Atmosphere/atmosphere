@@ -244,6 +244,9 @@ public class ClasspathScanner {
                 logger.debug("Scanning all classes on the classpath");
                 annotationProcessor.scanAll();
             }
+        } catch (AtmosphereInitializationException e) {
+            // A processor asked for the framework's initialization to fail.
+            throw e;
         } catch (Throwable e) {
             logger.error("", e);
         } finally {

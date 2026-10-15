@@ -336,6 +336,8 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                     try {
                         final Class<?> discoveredClass = loadClass(getClass(), className);
                         handler.handleAnnotation(config.framework(), annotation, discoveredClass);
+                    } catch (AtmosphereInitializationException e) {
+                        throw e;
                     } catch (Exception e) {
                         logger.warn("Could not load discovered class", e);
                     }

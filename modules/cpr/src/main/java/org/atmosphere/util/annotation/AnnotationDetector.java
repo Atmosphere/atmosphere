@@ -36,6 +36,7 @@
   */
 package org.atmosphere.util.annotation;
 
+import org.atmosphere.cpr.AtmosphereInitializationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -396,6 +397,12 @@ public final class AnnotationDetector {
                 if (hasCafebabe(cpBuffer)) {
                     detect(cpBuffer);
                 } // else ignore
+            } catch (AtmosphereInitializationException e) {
+                // A reporter asked for the framework's initialization to fail.
+                if (!iterator.isFile()) {
+                    stream.close();
+                }
+                throw e;
             } catch (Throwable t) {
                 // catch all errors
                 if (!iterator.isFile()) {
