@@ -73,6 +73,14 @@ import java.util.function.Consumer;
  * (Correctness Invariant #2). At most {@link #MAX_SUBSCRIBERS} are held per run
  * (Correctness Invariant #3).
  *
+ * <p>A long-polling poll waiting for the run's next event listens through
+ * {@link #awaitNext} instead, apart from those subscribers: it takes none of
+ * their places, so polls waiting on a run never stop a WebSocket, SSE or
+ * streaming reattach from receiving the rest of it. At most one poll per
+ * consumer (a tracking id) waits, the newer taking over from the older, and at
+ * most {@link #MAX_WAITING_POLLS} consumers' polls per run (Correctness
+ * Invariant #3); waiting polls are notified and released like the subscribers.</p>
+ *
  * <h2>Replay positions</h2>
  *
  * A long-polling client gets the run in pieces, one per poll, and re-sends the
@@ -97,6 +105,12 @@ public final class RunEventReplayBuffer {
     public static final int MAX_REPLAY_POSITIONS = 64;
 
     /**
+     * Upper bound on the consumers whose long-polling poll waits for one run's
+     * next event: as many as the consumers whose replay position it remembers.
+     */
+    public static final int MAX_WAITING_POLLS = MAX_REPLAY_POSITIONS;
+
+    /**
      * The backlog a {@link #subscribe} call returned, whether later captures
      * will reach the listener, and the handle that stops them.
      *
@@ -115,6 +129,8 @@ public final class RunEventReplayBuffer {
     private volatile String runId;
     /** Guarded by {@code buffer}. */
     private final List<Consumer<RunEvent>> subscribers = new ArrayList<>();
+    /** Guarded by {@code buffer}: consumer -> the listener of its poll waiting for the next event. */
+    private final Map<String, Consumer<RunEvent>> waitingPolls = new LinkedHashMap<>();
     /** Guarded by {@code buffer}: a terminal event was captured. */
     private boolean terminated;
     /** Guarded by {@code buffer}: consumer -> sequence of the last event handed to it, least recently used first. */
@@ -206,10 +222,11 @@ public final class RunEventReplayBuffer {
             while (buffer.size() > capacity) {
                 buffer.remove(0);
             }
-            listeners = subscribers.isEmpty() ? List.of() : List.copyOf(subscribers);
+            listeners = listeners();
             if (isTerminal(type)) {
                 terminated = true;
                 subscribers.clear();
+                waitingPolls.clear();
             }
         }
         mirrorToJournal(event);
@@ -241,8 +258,8 @@ public final class RunEventReplayBuffer {
                 return new Subscription(backlog, false, () -> { });
             }
             if (subscribers.size() >= MAX_SUBSCRIBERS) {
-                logger.warn("Run {} already has {} live subscribers; this reattach gets the "
-                        + "backlog only", runId, MAX_SUBSCRIBERS);
+                logger.warn("Run {} already has {} live subscribers; this WebSocket, SSE or streaming "
+                        + "reattach gets the backlog only", runId, MAX_SUBSCRIBERS);
                 return new Subscription(backlog, false, () -> { });
             }
             subscribers.add(listener);
@@ -250,16 +267,59 @@ public final class RunEventReplayBuffer {
         }
     }
 
-    /** Number of live subscribers. */
+    /**
+     * Unless the run already ended, deliver every later capture to
+     * {@code listener}, the long-polling poll of {@code consumer} waiting for the
+     * run's next event, in place of an older poll of {@code consumer} still
+     * waiting. Not counted against {@link #MAX_SUBSCRIBERS}; refused when
+     * {@link #MAX_WAITING_POLLS} other consumers' polls wait. Backlog and
+     * registration happen atomically, as for {@link #subscribe}.
+     */
+    public Subscription awaitNext(String consumer, Consumer<RunEvent> listener) {
+        Objects.requireNonNull(consumer, "consumer");
+        Objects.requireNonNull(listener, "listener");
+        synchronized (buffer) {
+            var backlog = List.copyOf(buffer);
+            if (terminated) {
+                return new Subscription(backlog, false, () -> { });
+            }
+            if (waitingPolls.size() >= MAX_WAITING_POLLS && !waitingPolls.containsKey(consumer)) {
+                logger.warn("Run {} already has polls of {} clients waiting for its next event; this poll "
+                        + "waits for a reply or its suspend timeout, and its client's next poll gets what "
+                        + "it missed", runId, MAX_WAITING_POLLS);
+                return new Subscription(backlog, false, () -> { });
+            }
+            waitingPolls.put(consumer, listener);
+            return new Subscription(backlog, true, () -> {
+                synchronized (buffer) {
+                    waitingPolls.remove(consumer, listener);
+                }
+            });
+        }
+    }
+
+    /** Number of live listeners: subscribers and waiting polls. */
     public int subscriberCount() {
         synchronized (buffer) {
-            return subscribers.size();
+            return subscribers.size() + waitingPolls.size();
         }
+    }
+
+    /** Guarded by {@code buffer}: a copy of every live listener. */
+    private List<Consumer<RunEvent>> listeners() {
+        if (subscribers.isEmpty() && waitingPolls.isEmpty()) {
+            return List.of();
+        }
+        var all = new ArrayList<Consumer<RunEvent>>(subscribers.size() + waitingPolls.size());
+        all.addAll(subscribers);
+        all.addAll(waitingPolls.values());
+        return List.copyOf(all);
     }
 
     private void unsubscribe(Consumer<RunEvent> listener) {
         synchronized (buffer) {
             subscribers.remove(listener);
+            waitingPolls.values().remove(listener);
         }
     }
 

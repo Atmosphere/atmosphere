@@ -48,7 +48,11 @@ import org.slf4j.LoggerFactory;
  * the client now rather than at the poll's suspend timeout. When there are
  * none, the poll waits like any other one: for the run's next event, written
  * to it alone and resumed at once, or, for a run that already ended, for a
- * reply or its suspend timeout. Each event goes to a tracking id once
+ * reply or its suspend timeout. Waiting polls take none of the places of the
+ * streaming reattaches ({@link RunEventReplayBuffer#awaitNext}); past
+ * {@link RunEventReplayBuffer#MAX_WAITING_POLLS} tracking ids waiting on one
+ * run, a poll waits for a reply or its suspend timeout too, and its client's
+ * next poll gets what it missed. Each event goes to a tracking id once
  * ({@link RunEventReplayBuffer#claimNew}), so a client that re-sends the run id
  * on every poll, as atmosphere.js does until it reads a terminal frame, is not
  * answered with the same replay over and over.</p>
@@ -390,7 +394,9 @@ public final class RunReattachSupport {
      * Answers one long-polling poll that carries a run id with the events of
      * the run its tracking id was not handed yet. With none, it waits for the
      * run's next event, until the poll ends (a reply, its suspend timeout, a
-     * close) or the run does. Frames carry the event's own sequence, plus one,
+     * close), the run does, or a newer poll of its tracking id takes over the
+     * wait; past {@link RunEventReplayBuffer#MAX_WAITING_POLLS} tracking ids
+     * waiting, it is left to a reply or its suspend timeout. Frames carry the event's own sequence, plus one,
      * so the pieces a client gets over several polls number consistently.
      * While it waits it listens to the run, which keeps a pending grace from
      * firing; when it ends with the run still going and nobody else listening,
@@ -443,8 +449,10 @@ public final class RunReattachSupport {
         /** Answer the poll with what is new, or wait for the run's next event; the events written now. */
         synchronized int start() {
             // Subscribed before claiming: an event captured in between is either
-            // claimed here or delivered to accept, and claimed once.
-            var subscription = buffer.subscribe(this);
+            // claimed here or delivered to accept, and claimed once. A poll with
+            // no tracking id does not wait: it takes what the run holds.
+            var subscription = consumer != null ? buffer.awaitNext(consumer, this)
+                    : new RunEventReplayBuffer.Subscription(buffer.snapshot(), false, () -> { });
             unsubscribe = subscription.cancel();
             var claimed = consumer != null ? buffer.claimNew(consumer) : subscription.backlog();
             var written = claimed.isEmpty() ? 0 : writeAndResume(claimed);

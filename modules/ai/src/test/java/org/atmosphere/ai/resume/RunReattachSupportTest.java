@@ -410,6 +410,139 @@ class RunReattachSupportTest {
         assertTrue(steps.isEmpty(), "nothing is written to a poll that ended: " + steps);
     }
 
+    /**
+     * Long-polling polls waiting for a run's next event must not take the slots
+     * of streaming reattaches: with {@link RunEventReplayBuffer#MAX_SUBSCRIBERS}
+     * polls waiting, an SSE reattach to the same run got its backlog and never
+     * the rest of the run or its terminal frame.
+     */
+    @Test
+    void waitingLongPollingPollsLeaveRoomForAStreamingReattach() {
+        handle.replayBuffer().capture("streaming-text", "first");
+        for (int i = 0; i < RunEventReplayBuffer.MAX_SUBSCRIBERS; i++) {
+            var id = "lp-" + i;
+            RunReattachSupport.replayPendingRun(
+                    suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, new ArrayList<>(),
+                            new java.io.StringWriter(), id), registry);
+            var waiting = new ArrayList<String>();
+            assertEquals(0, RunReattachSupport.replayPendingRun(
+                    suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, waiting,
+                            new java.io.StringWriter(), id), registry));
+            assertTrue(waiting.isEmpty(), "nothing new yet: poll " + id + " waits: " + waiting);
+        }
+        var sse = new java.io.StringWriter();
+
+        assertEquals(1, RunReattachSupport.replayPendingRun(
+                suspendedPoll(AtmosphereResource.TRANSPORT.SSE, new ArrayList<>(), sse, "sse-client"), registry));
+        handle.replayBuffer().capture("streaming-text", "second");
+        handle.replayBuffer().capture("complete", "[complete]");
+
+        assertTrue(sse.toString().contains("\"data\":\"second\""),
+                "the SSE reattach must receive the rest of the run: " + sse);
+        assertTrue(sse.toString().contains("\"type\":\"complete\""),
+                "the SSE reattach must receive the run's terminal frame: " + sse);
+    }
+
+    /**
+     * Every poll waiting for a run's next event is answered with it, past the
+     * streaming reattach cap: the ninth waiting poll was not subscribed and stayed
+     * suspended, unanswered, until its suspend timeout.
+     */
+    @Test
+    void everyWaitingLongPollingPollIsAnsweredWithTheRunsNextEvent() {
+        handle.replayBuffer().capture("streaming-text", "first");
+        var waiters = RunEventReplayBuffer.MAX_SUBSCRIBERS + 2;
+        var steps = new ArrayList<List<String>>();
+        var sinks = new ArrayList<java.io.StringWriter>();
+        for (int i = 0; i < waiters; i++) {
+            var id = "lp-" + i;
+            RunReattachSupport.replayPendingRun(
+                    suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, new ArrayList<>(),
+                            new java.io.StringWriter(), id), registry);
+            var waiting = new ArrayList<String>();
+            var sink = new java.io.StringWriter();
+            RunReattachSupport.replayPendingRun(
+                    suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, waiting, sink, id), registry);
+            steps.add(waiting);
+            sinks.add(sink);
+        }
+
+        handle.replayBuffer().capture("streaming-text", "second");
+
+        for (int i = 0; i < waiters; i++) {
+            assertTrue(steps.get(i).contains("resume"), "waiting poll " + i + " must be answered: " + steps.get(i));
+            assertTrue(sinks.get(i).toString().contains("\"data\":\"second\""),
+                    "waiting poll " + i + " must get the run's next event: " + sinks.get(i));
+        }
+        assertEquals(0, handle.replayBuffer().subscriberCount(), "answered: no poll keeps listening");
+    }
+
+    /**
+     * A newer poll of a tracking id takes over the wait of its older one rather
+     * than a second place: the polls waiting on a run are bounded by its clients.
+     */
+    @Test
+    void aNewerPollOfATrackingIdTakesOverTheWaitOfItsOlderOne() {
+        handle.replayBuffer().capture("streaming-text", "first");
+        RunReattachSupport.replayPendingRun(
+                suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, new ArrayList<>(),
+                        new java.io.StringWriter(), "lp-a"), registry);
+        var older = new ArrayList<String>();
+        RunReattachSupport.replayPendingRun(
+                suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, older, new java.io.StringWriter(), "lp-a"),
+                registry);
+        var newer = new ArrayList<String>();
+        var sink = new java.io.StringWriter();
+        RunReattachSupport.replayPendingRun(
+                suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, newer, sink, "lp-a"), registry);
+
+        assertEquals(1, handle.replayBuffer().subscriberCount(), "one waiting poll per tracking id");
+        handle.replayBuffer().capture("streaming-text", "second");
+
+        assertTrue(newer.contains("resume") && sink.toString().contains("\"data\":\"second\""),
+                "the newer poll gets the run's next event: " + newer + " " + sink);
+        assertTrue(older.isEmpty(), "the older poll is not written: " + older);
+    }
+
+    /**
+     * Past {@link RunEventReplayBuffer#MAX_WAITING_POLLS} tracking ids waiting on
+     * one run, a poll waits for a reply or its suspend timeout instead (it is not
+     * resumed empty, which would have the client poll again at once), and its
+     * client's next poll gets what it missed.
+     */
+    @Test
+    void aPollPastTheWaitingBoundCatchesUpOnItsNextPoll() {
+        handle.replayBuffer().capture("streaming-text", "first");
+        for (int i = 0; i < RunEventReplayBuffer.MAX_WAITING_POLLS; i++) {
+            var id = "lp-" + i;
+            RunReattachSupport.replayPendingRun(
+                    suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, new ArrayList<>(),
+                            new java.io.StringWriter(), id), registry);
+            RunReattachSupport.replayPendingRun(
+                    suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, new ArrayList<>(),
+                            new java.io.StringWriter(), id), registry);
+        }
+        RunReattachSupport.replayPendingRun(
+                suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, new ArrayList<>(),
+                        new java.io.StringWriter(), "lp-late"), registry);
+        var past = new ArrayList<String>();
+        assertEquals(0, RunReattachSupport.replayPendingRun(
+                suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, past, new java.io.StringWriter(), "lp-late"),
+                registry));
+        assertEquals(RunEventReplayBuffer.MAX_WAITING_POLLS, handle.replayBuffer().subscriberCount());
+
+        handle.replayBuffer().capture("streaming-text", "second");
+
+        assertTrue(past.isEmpty(), "past the bound the poll is left suspended, unwritten: " + past);
+        // Past MAX_REPLAY_POSITIONS consumers its position may have been
+        // forgotten, and it is then handed the retained events again.
+        var sink = new java.io.StringWriter();
+        assertTrue(RunReattachSupport.replayPendingRun(
+                suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, new ArrayList<>(), sink, "lp-late"),
+                registry) >= 1);
+        assertTrue(sink.toString().contains("\"data\":\"second\""), "the next poll catches up: " + sink);
+    }
+
     @Test
     void aReplayWhoseWriteFailedIsHandedToTheNextPoll() throws Exception {
         handle.replayBuffer().capture("streaming-text", "first");
@@ -478,6 +611,12 @@ class RunReattachSupportTest {
     /** As above, its response written to {@code sink}. */
     private AtmosphereResource suspendedPoll(AtmosphereResource.TRANSPORT transport, List<String> steps,
                                              java.io.StringWriter sink) {
+        return suspendedPoll(transport, steps, sink, "poll-" + transport);
+    }
+
+    /** As above, under tracking id {@code uuid}. */
+    private AtmosphereResource suspendedPoll(AtmosphereResource.TRANSPORT transport, List<String> steps,
+                                             java.io.StringWriter sink, String uuid) {
         var resource = Mockito.mock(AtmosphereResource.class);
         var request = Mockito.mock(AtmosphereRequest.class);
         var response = Mockito.mock(AtmosphereResponse.class);
@@ -490,7 +629,7 @@ class RunReattachSupportTest {
         when(resource.getRequest()).thenReturn(request);
         when(request.getAttribute(RunReattachSupport.RUN_ID_ATTRIBUTE)).thenReturn(handle.runId());
         when(request.getAttribute("ai.userId")).thenReturn("alice");
-        when(resource.uuid()).thenReturn("poll-" + transport);
+        when(resource.uuid()).thenReturn(uuid);
         when(resource.transport()).thenReturn(transport);
         when(resource.isSuspended()).thenReturn(true);
         when(resource.resume()).thenAnswer(inv -> {
