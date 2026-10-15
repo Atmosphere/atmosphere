@@ -68,8 +68,12 @@ class KoogAgentRuntime : AgentRuntime {
         @Volatile
         private var promptExecutor: PromptExecutor? = null
 
+        /** The model used when nothing set or offered one. */
+        private val FALLBACK_MODEL = LLModel(LLMProvider.OpenAI, "gpt-4o")
+
+        /** The model [setDefaultModel] set for every application; `null` until it is called. */
         @Volatile
-        private var defaultModel: LLModel = LLModel(LLMProvider.OpenAI, "gpt-4o")
+        private var defaultModel: LLModel? = null
 
         @JvmStatic
         fun setPromptExecutor(executor: PromptExecutor) {
@@ -77,14 +81,25 @@ class KoogAgentRuntime : AgentRuntime {
         }
 
         /**
-         * Set the [PromptExecutor] of one application (the Spring
-         * auto-configuration binds its context's executor this way): it wins
-         * over [setPromptExecutor], which applies to every application in the
+         * Set the [PromptExecutor] of one application: it wins over
+         * [setPromptExecutor], which applies to every application in the
          * JVM, for that application. `null` removes the binding.
          */
         @JvmStatic
         fun setPromptExecutor(environment: AiEnvironment, executor: PromptExecutor?) {
             environment.bindClient(KoogAgentRuntime::class.java, PromptExecutor::class.java, executor)
+        }
+
+        /**
+         * Offer the [PromptExecutor] of one application, as the Spring
+         * auto-configuration does with the executor it builds: that
+         * application uses it only when neither it ([setPromptExecutor] with
+         * an environment) nor the JVM ([setPromptExecutor]) set one, and an
+         * executor offered earlier is kept.
+         */
+        @JvmStatic
+        fun offerPromptExecutor(environment: AiEnvironment, executor: PromptExecutor) {
+            environment.offerClient(KoogAgentRuntime::class.java, PromptExecutor::class.java, executor)
         }
 
         @JvmStatic
@@ -99,6 +114,16 @@ class KoogAgentRuntime : AgentRuntime {
         @JvmStatic
         fun setDefaultModel(environment: AiEnvironment, model: LLModel?) {
             environment.bindClient(KoogAgentRuntime::class.java, LLModel::class.java, model)
+        }
+
+        /**
+         * Offer the default [LLModel] of one application, as the Spring
+         * auto-configuration does: used only when neither that application nor
+         * the JVM ([setDefaultModel]) set one, and a model offered earlier is kept.
+         */
+        @JvmStatic
+        fun offerDefaultModel(environment: AiEnvironment, model: LLModel) {
+            environment.offerClient(KoogAgentRuntime::class.java, LLModel::class.java, model)
         }
 
         /**
@@ -176,14 +201,19 @@ class KoogAgentRuntime : AgentRuntime {
 
     /**
      * The executor this instance's application uses: its own binding, else
-     * the JVM's ([setPromptExecutor]).
+     * the JVM's ([setPromptExecutor]), else the one its auto-configuration
+     * offered ([offerPromptExecutor]).
      */
     internal fun applicationExecutor(): PromptExecutor? =
         environment().client(KoogAgentRuntime::class.java, PromptExecutor::class.java, promptExecutor)
 
-    /** The default model of this instance's application: its own binding, else the JVM's ([setDefaultModel]). */
-    private fun applicationDefaultModel(): LLModel =
-        environment().client(KoogAgentRuntime::class.java, LLModel::class.java, null) ?: defaultModel
+    /**
+     * The default model of this instance's application: its own binding, else
+     * the JVM's ([setDefaultModel]), else the one its auto-configuration
+     * offered ([offerDefaultModel]), else `gpt-4o`.
+     */
+    internal fun applicationDefaultModel(): LLModel =
+        environment().client(KoogAgentRuntime::class.java, LLModel::class.java, defaultModel) ?: FALLBACK_MODEL
 
     override fun name(): String = "koog"
 

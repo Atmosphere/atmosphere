@@ -710,11 +710,15 @@ bound to its application (`SpringAiAgentRuntime.setChatClient(environment, clien
 ... — every adapter's binder has an overload that takes the `AiEnvironment`), then the one its static
 setter holds (`SpringAiAgentRuntime.setChatClient(client)`, which every application in the JVM shares),
 then the one its application's auto-configuration offered. The adapters' Spring Boot
-auto-configurations bind or offer their context's beans (`ChatClient`, `StreamingChatModel`, `Runner`,
-`ReActAgent`, `ChatCompletionService`, `ReactAgent` and `ChatModel`, Koog's `PromptExecutor` and default
-model, Embabel's `AgentPlatform`, the Spring AI and Spring AI Alibaba `EmbeddingModel`) to the context's
-`AiEnvironment`, so two Spring contexts with different `ChatClient` beans each dispatch through their
-own; without an `AiEnvironment` bean they use the static setters, as before. The adapters read their
+auto-configurations hand their context's clients to the context's `AiEnvironment`: they offer the Spring
+AI `ChatClient`, the LangChain4j `StreamingChatModel` and the `PromptExecutor` and default model Koog's
+auto-configuration builds itself, so a client the application sets through the static setter wins, and
+they bind the beans the application declares (`Runner`, `ReActAgent`, `ChatCompletionService`,
+`ReactAgent` and `ChatModel`, Embabel's `AgentPlatform`, the Spring AI and Spring AI Alibaba
+`EmbeddingModel`). Two Spring contexts with different `ChatClient` beans each dispatch through their
+own; without an `AiEnvironment` bean they use the static setters, as before. A runtime instance stays
+its application's (`AiEnvironment.of(runtime)`, through `AgentRuntime.attachedEnvironment()` for a
+runtime that implements `AgentRuntime` directly) after that application drops its cached resolution. The adapters read their
 settings and knobs (prompt-cache-key mode, generation values, planning and filesystem modes, the
 Anthropic and Cohere availability keys) from their own application. So do the admin and console
 runtime reports, the interactions service, long-term memory, the endpoint response cache, the

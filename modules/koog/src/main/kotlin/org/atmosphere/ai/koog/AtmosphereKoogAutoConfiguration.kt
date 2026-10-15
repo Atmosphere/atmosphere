@@ -135,13 +135,17 @@ open class AtmosphereKoogAutoConfiguration {
             logger.info("Koog runtime configured: model '{}' via OpenAILLMClient ({})", model.id, resolvedBaseUrl)
         }
 
-        // Bound to this context's AiEnvironment when there is one (the
+        // Offered to this context's AiEnvironment when there is one (the
         // Atmosphere starter registers it), so another context in the JVM
-        // keeps its own executor and model; else to the JVM, as before.
+        // keeps its own executor and model. Offered, not bound: this executor
+        // is built on every start, and an executor the application sets itself
+        // (KoogAgentRuntime.setPromptExecutor, the path for a non-OpenAI
+        // client) must win over it. Without an environment, set for the JVM,
+        // as before.
         val environment = environmentProvider?.getIfAvailable()
         if (environment != null) {
-            KoogAgentRuntime.setPromptExecutor(environment, executor)
-            KoogAgentRuntime.setDefaultModel(environment, model)
+            KoogAgentRuntime.offerPromptExecutor(environment, executor)
+            KoogAgentRuntime.offerDefaultModel(environment, model)
         } else {
             KoogAgentRuntime.setPromptExecutor(executor)
             KoogAgentRuntime.setDefaultModel(model)

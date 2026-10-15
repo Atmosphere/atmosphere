@@ -63,6 +63,11 @@ val executor = MultiLLMPromptExecutor(client)
 KoogAgentRuntime.setPromptExecutor(executor)
 ```
 
+An executor (and a model, `KoogAgentRuntime.setDefaultModel`) set this way, or
+for one application with `setPromptExecutor(environment, executor)`, wins over
+the one the auto-configuration builds: with the Atmosphere starter it only
+offers its executor and model to the context's `AiEnvironment`.
+
 ## Key Classes
 
 | Class | Purpose |

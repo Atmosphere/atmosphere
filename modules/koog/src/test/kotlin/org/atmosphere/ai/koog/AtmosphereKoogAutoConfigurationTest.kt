@@ -15,14 +15,30 @@
  */
 package org.atmosphere.ai.koog
 
+import ai.koog.agents.core.tools.ToolDescriptor
+import ai.koog.prompt.Prompt
+import ai.koog.prompt.dsl.ModerationCategory
+import ai.koog.prompt.dsl.ModerationCategoryResult
+import ai.koog.prompt.dsl.ModerationResult
 import ai.koog.prompt.executor.model.PromptExecutor
+import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
+import ai.koog.prompt.message.Message
+import ai.koog.prompt.message.ResponseMetaInfo
+import ai.koog.prompt.streaming.StreamFrame
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import org.atmosphere.ai.AiConfig
+import org.atmosphere.ai.AiEnvironment
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.support.DefaultListableBeanFactory
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNotSame
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 
 /**
  * Verifies [AtmosphereKoogAutoConfiguration] wires the Koog [PromptExecutor]
@@ -39,10 +55,10 @@ class AtmosphereKoogAutoConfigurationTest {
         return f.get(null) as PromptExecutor?
     }
 
-    private fun defaultModel(): LLModel {
+    private fun defaultModel(): LLModel? {
         val f = KoogAgentRuntime::class.java.getDeclaredField("defaultModel")
         f.isAccessible = true
-        return f.get(null) as LLModel
+        return f.get(null) as LLModel?
     }
 
     private fun clearExecutor() {
@@ -51,8 +67,27 @@ class AtmosphereKoogAutoConfigurationTest {
         f.set(null, null)
     }
 
+    private fun clearDefaultModel() {
+        val f = KoogAgentRuntime::class.java.getDeclaredField("defaultModel")
+        f.isAccessible = true
+        f.set(null, null)
+    }
+
+    private fun providerOf(environment: AiEnvironment): ObjectProvider<AiEnvironment> {
+        val beanFactory = DefaultListableBeanFactory()
+        beanFactory.registerSingleton("aiEnvironment", environment)
+        return beanFactory.getBeanProvider(AiEnvironment::class.java)
+    }
+
+    /** The Koog instance [environment] resolves, as an endpoint of that application gets it. */
+    private fun koogOf(environment: AiEnvironment): KoogAgentRuntime =
+        environment.runtimes().resolveAll().first { it.name() == "koog" } as KoogAgentRuntime
+
     @AfterEach
-    fun reset() = clearExecutor()
+    fun reset() {
+        clearExecutor()
+        clearDefaultModel()
+    }
 
     @Test
     fun `blank api key with no local backend leaves the executor unconfigured`() {
@@ -66,7 +101,7 @@ class AtmosphereKoogAutoConfigurationTest {
     fun `openai mode configures an executor and resolves a known model`() {
         AtmosphereKoogAutoConfiguration().koogAgentRuntime("gpt-4o", "sk-test", "", "")
         assertNotNull(executor(), "OpenAI mode must install a PromptExecutor")
-        assertEquals("gpt-4o", defaultModel().id)
+        assertEquals("gpt-4o", defaultModel()?.id)
     }
 
     @Test
@@ -81,7 +116,7 @@ class AtmosphereKoogAutoConfigurationTest {
             ""
         )
         assertNotNull(executor(), "OpenAI-compatible mode must install a PromptExecutor")
-        assertEquals("gemini-2.5-flash", defaultModel().id,
+        assertEquals("gemini-2.5-flash", defaultModel()?.id,
             "base-url mode must use the requested model id verbatim, not a coerced OpenAI id")
     }
 
@@ -95,7 +130,7 @@ class AtmosphereKoogAutoConfigurationTest {
         AtmosphereKoogAutoConfiguration().koogAgentRuntime("qwen2.5:3b", "", "", "local")
         assertNotNull(executor(),
             "a local backend needs no credential, so a blank key must not suppress the executor")
-        assertEquals("qwen2.5:3b", defaultModel().id)
+        assertEquals("qwen2.5:3b", defaultModel()?.id)
     }
 
     @Test
@@ -106,7 +141,7 @@ class AtmosphereKoogAutoConfigurationTest {
         AtmosphereKoogAutoConfiguration().koogAgentRuntime(
             "qwen2.5:3b", "", "http://gpu-box:8000/v1", "local")
         assertNotNull(executor())
-        assertEquals("qwen2.5:3b", defaultModel().id)
+        assertEquals("qwen2.5:3b", defaultModel()?.id)
     }
 
     @Test
@@ -167,7 +202,66 @@ class AtmosphereKoogAutoConfigurationTest {
         AtmosphereKoogAutoConfiguration().koogAgentRuntime(
             "gemini-2.5-flash", "test-key", "", "remote")
         assertNotNull(executor())
-        assertEquals("gemini-2.5-flash", defaultModel().id,
+        assertEquals("gemini-2.5-flash", defaultModel()?.id,
             "a Gemini id must survive verbatim when no base-url is configured")
+    }
+
+    @Test
+    fun `an executor the application sets itself wins over the one the auto-configuration built`() {
+        // The documented path for a non-OpenAI Koog client (Anthropic, Bedrock,
+        // Ollama) is KoogAgentRuntime.setPromptExecutor(custom), typically from
+        // an ApplicationRunner. The auto-configuration builds its OpenAI
+        // executor on every start, so it must offer it to the context's
+        // environment, never bind it there, or the custom executor is ignored.
+        val environment = AiEnvironment.create { null }
+        try {
+            AtmosphereKoogAutoConfiguration().koogAgentRuntime(
+                "gpt-4o", "sk-test", "", "", providerOf(environment))
+            val auto = koogOf(environment).applicationExecutor()
+            assertNotNull(auto, "with no executor of the application's own, the auto-configured one serves")
+
+            val custom = object : PromptExecutor() {
+                override fun executeStreaming(
+                    prompt: Prompt,
+                    model: LLModel,
+                    tools: List<ToolDescriptor>
+                ): Flow<StreamFrame> = emptyFlow()
+
+                override suspend fun execute(
+                    prompt: Prompt,
+                    model: LLModel,
+                    tools: List<ToolDescriptor>
+                ): Message.Assistant = Message.Assistant(content = "", metaInfo = ResponseMetaInfo.Empty)
+
+                override suspend fun moderate(prompt: Prompt, model: LLModel): ModerationResult =
+                    ModerationResult(false, emptyMap<ModerationCategory, ModerationCategoryResult>())
+
+                override fun close() {}
+            }
+            KoogAgentRuntime.setPromptExecutor(custom)
+            KoogAgentRuntime.setDefaultModel(LLModel(LLMProvider.Anthropic, "claude-custom"))
+
+            val runtime = koogOf(environment)
+            assertSame(custom, runtime.applicationExecutor(),
+                "KoogAgentRuntime.setPromptExecutor(custom) must win over the auto-configured executor")
+            assertNotSame(auto, runtime.applicationExecutor())
+            assertEquals("claude-custom", runtime.applicationDefaultModel().id,
+                "KoogAgentRuntime.setDefaultModel(custom) must win over the auto-configured model")
+        } finally {
+            environment.close()
+        }
+    }
+
+    @Test
+    fun `the auto-configured model serves the application when nothing else is set`() {
+        val environment = AiEnvironment.create { null }
+        try {
+            AtmosphereKoogAutoConfiguration().koogAgentRuntime(
+                "qwen2.5:3b", "", "", "local", providerOf(environment))
+            assertEquals("qwen2.5:3b", koogOf(environment).applicationDefaultModel().id)
+            assertNull(executor(), "an application's executor must not leak into the JVM-wide setter")
+        } finally {
+            environment.close()
+        }
     }
 }
