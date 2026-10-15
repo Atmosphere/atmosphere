@@ -83,6 +83,9 @@ public final class StreamingSessions {
      * handler (the originating resource), so the model is invoked exactly once
      * per prompt — only the reply delivery changes.</p>
      *
+     * <p>The room's long-polling members receive the reply whole, on their next
+     * poll; see {@link LongPollingRoomReplies}.</p>
+     *
      * @param resource the originating atmosphere resource; its broadcaster is
      *                 the room the reply fans out to
      * @return a new streaming session that broadcasts room-wide

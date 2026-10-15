@@ -25,6 +25,7 @@ import org.atmosphere.ai.AgentRuntime;
 import org.atmosphere.ai.ContextProvider;
 import org.atmosphere.ai.DefaultStreamingSession;
 import org.atmosphere.ai.LongPollingReplies;
+import org.atmosphere.ai.LongPollingRoomReplies;
 import org.atmosphere.ai.PostPromptHook;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.StreamingSessionSweeper;
@@ -546,6 +547,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             assignPerPathBroadcaster(resource);
             registerBroadcastFilters(resource.getBroadcaster());
             registerCacheInspector(resource.getBroadcaster());
+            if (broadcastReply) {
+                // Before the suspend: the poll subscribing makes a long-polling client a room member.
+                LongPollingRoomReplies.install(resource.getBroadcaster());
+            }
             // Before the suspend, not once the connection is set up: suspending
             // it closes a connection of its id still subscribed to the
             // broadcaster (a poll the client gave up on), and that departure,

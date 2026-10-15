@@ -362,6 +362,11 @@ public @interface AiEndpoint {
      * would drive N redundant LLM calls and leak streams into tabs that never
      * asked anything.</p>
      *
+     * <p>A long-polling member of the room receives the reply whole on its next
+     * poll, as a client receives its own reply over long-polling, even when none
+     * of its polls waited while the reply ran; see
+     * {@link org.atmosphere.ai.LongPollingRoomReplies}.</p>
+     *
      * <p>Defaults to {@code false} (per-client: the reply streams back only to
      * the originating client). Most useful combined with a path template that
      * carries a room parameter, which gives each room its own broadcaster:</p>

@@ -32,6 +32,7 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterConfig;
+import org.atmosphere.cpr.BroadcasterListener;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.Serializer;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,6 +51,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -234,6 +236,32 @@ class AiEndpointHandlerLongPollingReplyTest {
         handler.onRequest(poll);
 
         verify(poll.getRequest()).getAttribute(RunReattachSupport.RUN_ID_ATTRIBUTE);
+    }
+
+    @Test
+    void aPollOfARoomEndpointMakesItsClientARoomMemberAsItSubscribes() throws Exception {
+        // A room reply reaches a long-polling client between its polls only
+        // through the mailbox the room keeps for its members: the room must be
+        // listening before the poll subscribes, so the poll makes it a member.
+        handler.setBroadcastReply(true);
+        var poll = poll("lp-" + UUID.randomUUID(), null, new ArrayList<>());
+        suspendRegisters(poll);
+
+        handler.onRequest(poll);
+
+        var order = inOrder(broadcaster, poll);
+        order.verify(broadcaster).addBroadcasterListener(any(BroadcasterListener.class));
+        order.verify(poll).suspend(anyLong());
+    }
+
+    @Test
+    void aPollOfAPerClientEndpointLeavesTheBroadcasterAlone() throws Exception {
+        var poll = poll("lp-" + UUID.randomUUID(), null, new ArrayList<>());
+        suspendRegisters(poll);
+
+        handler.onRequest(poll);
+
+        verify(broadcaster, never()).addBroadcasterListener(any(BroadcasterListener.class));
     }
 
     @AiEndpoint(path = PATH)

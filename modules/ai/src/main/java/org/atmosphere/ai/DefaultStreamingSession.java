@@ -58,7 +58,10 @@ import java.util.concurrent.atomic.AtomicLong;
  * through the broadcaster's filters as they are produced, are kept in a bounded
  * buffer, and are handed over complete, at the terminal frame and at an
  * {@code approval-required} frame, to the client's next poll; see
- * {@link LongPollingReplies}.</p>
+ * {@link LongPollingReplies}. A room session broadcasts its frames to the room
+ * whatever its originating resource's transport, and the room keeps them for
+ * each of its long-polling members, the originating client included; see
+ * {@link LongPollingRoomReplies}.</p>
  *
  * <p>Wire protocol:</p>
  * <pre>
@@ -128,6 +131,10 @@ public final class DefaultStreamingSession implements StreamingSession {
         } else {
             this.longPolling = null;
             this.longPollingOwner = null;
+        }
+        if (broadcastToRoom) {
+            // The room's long-polling members receive the reply whole; see LongPollingRoomReplies.
+            installRoom(resource);
         }
         SESSION_RESOURCES.put(sessionId, resource);
         SESSION_INSTANCES.put(sessionId, this);
@@ -505,6 +512,14 @@ public final class DefaultStreamingSession implements StreamingSession {
         }
     }
 
+    private static void installRoom(AtmosphereResource resource) {
+        try {
+            LongPollingRoomReplies.install(resource.getBroadcaster());
+        } catch (RuntimeException e) {
+            logger.debug("Unable to read the room of {}", resource.uuid(), e);
+        }
+    }
+
     private static boolean isLongPolling(AtmosphereResource resource) {
         try {
             return resource.transport() == AtmosphereResource.TRANSPORT.LONG_POLLING;
@@ -515,7 +530,7 @@ public final class DefaultStreamingSession implements StreamingSession {
     }
 
     /** The identity the connection was suspended under, or {@code null} for none or an unreadable request. */
-    private static Object connectionOwner(AtmosphereResource resource) {
+    static Object connectionOwner(AtmosphereResource resource) {
         try {
             var request = resource.getRequest();
             return request != null ? request.getAttribute(LongPollingReplies.CONNECTION_OWNER_ATTRIBUTE) : null;

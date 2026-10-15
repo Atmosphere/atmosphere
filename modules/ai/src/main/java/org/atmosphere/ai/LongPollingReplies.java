@@ -320,10 +320,96 @@ public final class LongPollingReplies {
         }
     }
 
+    /** What became of a frame of a room reply offered to a member's mailbox; see {@link #parkRoomFrame}. */
+    enum RoomFrame {
+        /** Kept for the member's next poll. */
+        PARKED,
+        /** Not kept: the frames waiting for the member would outgrow the bounds of one reply. */
+        TOO_LARGE,
+        /** Not kept: no room is left, or a reply of another identity waits for that client. */
+        REFUSED
+    }
+
+    /**
+     * Parks {@code frame}, one frame of a room reply, for the room member
+     * {@code trackingId}, after the frames already parked for it, reserving its
+     * bytes. The frames waiting for the member are bounded like one reply. The
+     * member's waiting poll is resumed, empty, only when {@code handOver} is set
+     * (the reply ended, or waits for an answer), so its next poll takes the reply
+     * whole; a poll that arrives earlier takes the frames parked so far.
+     *
+     * @param config the framework of the member's connection, to find its poll with
+     * @param owner  the identity the member's connection was suspended under
+     */
+    static RoomFrame parkRoomFrame(AtmosphereConfig config, String trackingId, Object owner, String frame,
+                                   boolean handOver, Limits limits) {
+        var size = frame.getBytes(StandardCharsets.UTF_8).length;
+        if (!reserve(size, limits.maxBufferedBytes())) {
+            logger.warn("Long-polling replies already hold {} bytes; dropping a room frame for {}",
+                    limits.maxBufferedBytes(), trackingId);
+            return RoomFrame.REFUSED;
+        }
+        while (true) {
+            var entry = PARKED.get(trackingId);
+            if (entry == null) {
+                if (PARKED.size() >= limits.maxParkedReplies()) {
+                    sweepExpired();
+                }
+                if (PARKED.size() >= limits.maxParkedReplies()) {
+                    RESERVED.addAndGet(-size);
+                    logger.warn("{} long-polling replies are already waiting for a poll; dropping a room frame for {}",
+                            limits.maxParkedReplies(), trackingId);
+                    return RoomFrame.REFUSED;
+                }
+                var fresh = new Parked(owner, limits.parkedTtlNanos());
+                entry = PARKED.putIfAbsent(trackingId, fresh);
+                if (entry == null) {
+                    entry = fresh;
+                }
+            }
+            entry.lock.lock();
+            try {
+                if (entry.dead) {
+                    continue;
+                }
+                if (!Objects.equals(entry.owner, owner)) {
+                    RESERVED.addAndGet(-size);
+                    logger.warn("A reply of another identity is already parked for {}; dropping a room frame", trackingId);
+                    return RoomFrame.REFUSED;
+                }
+                if (entry.frames.size() >= limits.maxReplyFrames() || entry.bytes + size > limits.maxReplyBytes()) {
+                    RESERVED.addAndGet(-size);
+                    return RoomFrame.TOO_LARGE;
+                }
+                entry.frames.add(frame);
+                entry.bytes += size;
+                entry.touchedNanos = System.nanoTime();
+                if (handOver) {
+                    logger.debug("Parked {} room frame(s) for the next poll of {}", entry.frames.size(), trackingId);
+                    wake(config, trackingId);
+                }
+                return RoomFrame.PARKED;
+            } finally {
+                entry.lock.unlock();
+            }
+        }
+    }
+
     /** Resumes the client's suspended poll, empty, so its next poll takes the parked frames. */
     private static void wake(AtmosphereResource origin, String trackingId) {
+        AtmosphereConfig config;
         try {
-            var config = origin.getAtmosphereConfig();
+            config = origin.getAtmosphereConfig();
+        } catch (RuntimeException e) {
+            // The reply stays parked: the client's next poll takes it.
+            logger.debug("Unable to resume the poll of {}", trackingId, e);
+            return;
+        }
+        wake(config, trackingId);
+    }
+
+    private static void wake(AtmosphereConfig config, String trackingId) {
+        try {
             var factory = config != null ? config.resourcesFactory() : null;
             if (factory == null) {
                 return;
@@ -408,11 +494,20 @@ public final class LongPollingReplies {
         }
     }
 
-    /** Drops the reply parked for a client that went away. */
+    /**
+     * Drops the reply parked for a client that went away; the client is no
+     * longer a long-polling member of any room ({@link LongPollingRoomReplies}).
+     */
     public static void discard(String trackingId) {
         if (trackingId == null) {
             return;
         }
+        LongPollingRoomReplies.forget(trackingId);
+        discardParked(trackingId);
+    }
+
+    /** Drops the reply parked for {@code trackingId}, the client staying a member of its rooms. */
+    static void discardParked(String trackingId) {
         var entry = PARKED.get(trackingId);
         if (entry != null) {
             drop(trackingId, entry);

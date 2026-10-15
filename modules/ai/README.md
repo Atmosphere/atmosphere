@@ -746,6 +746,23 @@ receives them. WebSocket, SSE and streaming keep streaming frame by frame. A
 reply that outgrows a bound ends with an `error` frame in place of its frames;
 one no poll takes within its time to live is dropped.
 
+A `broadcastReply` room reply reaches a long-polling member of the room whole
+too, even when none of its polls waits while the reply runs. A long-polling
+client is a member from the first of its polls the room's broadcaster takes,
+and stays one between its polls, until it leaves or no poll of it is seen for
+`parkedReplyTtlMs` (a room takes at most `maxParkedReplies` members). Each frame
+of the reply runs through the broadcaster's filters once, for every subscriber,
+and what they let through is kept for each member instead of being written to
+its waiting poll. At the terminal frame and at an `approval-required` frame the
+member's waiting poll returns empty and its next poll receives every frame kept
+for it; a poll that arrives earlier receives the frames kept so far. A client
+that becomes a member in the middle of a reply receives it from there on. The
+bounds below apply to the frames waiting for each member, and a reply a member
+outgrows ends, for that member, with an `error` frame. A room whose broadcaster
+has a `BroadcasterCache` configured is left to the cache, as before: the
+`UUIDBroadcasterCache` and `BoundedMemoryCache` keep a frame broadcast to the
+room for each client seen recently and hand it to that client's next poll.
+
 | Init-param | Default | Meaning |
 |---|---|---|
 | `org.atmosphere.ai.longPolling.maxReplyBytes` | `8388608` (8 MiB) | UTF-8 bytes of one long-polling reply |
