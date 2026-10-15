@@ -121,8 +121,13 @@ names, waiting briefly for a long-polling client's next poll. That is done
 before the command runs: when no connection of the sender resolves, the message
 is refused as a prompt would be (`400`, a retryable `503`, or an error frame over
 the socket) and the command does not run, so a client that sends it again does
-not run it twice. The same applies to an `@AiEndpoint` that declares `@Command`
-methods and to an `@Coordinator`, which route commands through the same handler.
+not run it twice. The answer's own session is started then too, once the
+message is known to be a command, before the command method runs: over
+long-polling it reads, from the sender's connection, the identity the answer is
+kept for, so an authenticated client's next poll still takes the answer when the
+poll the command resolved to ends while a slow command runs. The same applies
+to an `@AiEndpoint` that declares `@Command` methods and to an `@Coordinator`,
+which route commands through the same handler.
 
 ## @RequiresApproval
 

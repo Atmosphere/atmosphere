@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -409,5 +410,49 @@ public class CommandRouterTest {
         assertEquals(1, counting.pendingCount(), "handles must not consume the pending confirmation");
         assertInstanceOf(CommandResult.Executed.class, counting.route("client-1", "yes"));
         assertFalse(counting.handles("client-1", "yes"));
+    }
+    @Test
+    public void beforeAnswerRunsBeforeTheCommandExactlyWhenTheMessageIsAnswered() {
+        var events = new ArrayList<String>();
+        var registry = new CommandRegistry();
+        registry.scan(TestAgent.class);
+        var recording = new CommandRouter(registry, new TestAgent() {
+            @Override
+            public String status() {
+                events.add("status");
+                return super.status();
+            }
+
+            @Override
+            public String reset() {
+                events.add("reset");
+                return super.reset();
+            }
+        });
+        Runnable beforeAnswer = () -> events.add("before");
+
+        assertInstanceOf(CommandResult.Executed.class, recording.route("c", "/status", null, beforeAnswer));
+        assertEquals(List.of("before", "status"), events);
+        events.clear();
+        assertInstanceOf(CommandResult.Executed.class, recording.route("c", "/help", null, beforeAnswer));
+        assertEquals(List.of("before"), events);
+        events.clear();
+        assertInstanceOf(CommandResult.ConfirmationRequired.class,
+                recording.route("c", "/reset", null, beforeAnswer));
+        assertEquals(List.of("before"), events);
+        events.clear();
+        assertInstanceOf(CommandResult.Executed.class, recording.route("c", "yes", null, beforeAnswer));
+        assertEquals(List.of("before", "reset"), events);
+        events.clear();
+        recording.route("c", "/reset");
+        assertEquals(new CommandResult.Executed("Command cancelled."), recording.route("c", "no", null, beforeAnswer));
+        assertEquals(List.of("before"), events);
+        events.clear();
+
+        // Nothing to answer here: the message falls through, with nothing set up for it.
+        for (var plain : new String[] {"hello", "/unknown", "yes", "no", "   "}) {
+            assertInstanceOf(CommandResult.NotACommand.class, recording.route("c", plain, null, beforeAnswer));
+        }
+        assertEquals(List.of(), events);
     }
 }

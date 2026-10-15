@@ -46,6 +46,7 @@ import org.mockito.ArgumentCaptor;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -89,6 +90,8 @@ class AgentHandlerReplyDeliveryTest {
     /** An agent whose commands count how often they ran. */
     public static class CountingAgent {
         final AtomicInteger runs = new AtomicInteger();
+        /** What happens on the server while {@code /slow} runs. */
+        volatile Runnable whileSlow = () -> { };
 
         @Command(value = "/ping", description = "Ping")
         public String ping() {
@@ -100,6 +103,13 @@ class AgentHandlerReplyDeliveryTest {
         public String wipe() {
             runs.incrementAndGet();
             return "wiped";
+        }
+
+        @Command(value = "/slow", description = "Slow")
+        public String slow() {
+            runs.incrementAndGet();
+            whileSlow.run();
+            return "slow-done";
         }
     }
 
@@ -165,8 +175,14 @@ class AgentHandlerReplyDeliveryTest {
      */
     private AtmosphereResourceImpl connect(String trackingId, AtmosphereResource.TRANSPORT transport,
                                            List<String> written) throws Exception {
+        return connect(trackingId, transport, written, null);
+    }
+
+    /** A GET as {@link #connect(String, AtmosphereResource.TRANSPORT, List)}, made by {@code user}. */
+    private AtmosphereResourceImpl connect(String trackingId, AtmosphereResource.TRANSPORT transport,
+                                           List<String> written, Principal user) throws Exception {
         var resource = mock(AtmosphereResourceImpl.class);
-        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().method("GET").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().method("GET").principal(user).build();
         when(resource.uuid()).thenReturn(trackingId);
         when(resource.getRequest()).thenReturn(request);
         when(resource.getRequest(false)).thenReturn(request);
@@ -199,6 +215,13 @@ class AgentHandlerReplyDeliveryTest {
     /** An SSE or long-polling POST naming its connection with the tracking-id header. */
     private Post httpPost(String trackingId, AtmosphereResource.TRANSPORT transport, String body) {
         return post(trackingId, trackingId, transport, false, body);
+    }
+
+    /** An SSE or long-polling POST as {@link #httpPost}, made by {@code user}. */
+    private Post httpPost(String trackingId, AtmosphereResource.TRANSPORT transport, String body, Principal user) {
+        var post = post(trackingId, trackingId, transport, false, body);
+        when(post.resource().getRequest().getUserPrincipal()).thenReturn(user);
+        return post;
     }
 
     /** A WebSocket frame: the server-set suspended uuid names its connection, no header. */
@@ -335,6 +358,46 @@ class AgentHandlerReplyDeliveryTest {
         assertNotEquals(first, second);
         assertEquals(1, agent.runs.get());
         verify(broadcaster, never()).broadcast(any());
+    }
+
+    @Test
+    void anAuthenticatedClientsNextPollTakesTheAnswerOfACommandWhosePollEndedWhileItRan() throws Exception {
+        Principal alice = () -> "alice";
+        var id = newTrackingId("lp");
+        var poll = connect(id, AtmosphereResource.TRANSPORT.LONG_POLLING, new ArrayList<>(), alice);
+        // The poll the command resolved to ends while the command runs: the
+        // container cancels it and recycles its request.
+        agent.whileSlow = () -> {
+            pollReturned(poll);
+            when(poll.getRequest()).thenThrow(new IllegalStateException("request recycled"));
+            when(poll.getRequest(false)).thenThrow(new IllegalStateException("request recycled"));
+        };
+
+        handler.onRequest(httpPost(id, AtmosphereResource.TRANSPORT.LONG_POLLING, "/slow", alice).resource());
+
+        assertEquals(1, agent.runs.get());
+        var written = new ArrayList<String>();
+        var next = connect(id, AtmosphereResource.TRANSPORT.LONG_POLLING, written, alice);
+        assertReply(written.stream().map(AgentHandlerReplyDeliveryTest::json).toList(), "slow-done");
+        verify(next).setAction(Action.CANCELLED);
+        verify(next, never()).suspend(anyLong());
+        assertEquals(1, agent.runs.get(), "the answer is taken, not asked for again");
+    }
+
+    @Test
+    void anAuthenticatedClientsCommandAnswerIsNotHandedToAnotherUsersPoll() throws Exception {
+        Principal alice = () -> "alice";
+        var id = newTrackingId("lp");
+        var poll = connect(id, AtmosphereResource.TRANSPORT.LONG_POLLING, new ArrayList<>(), alice);
+        handler.onRequest(httpPost(id, AtmosphereResource.TRANSPORT.LONG_POLLING, "/ping", alice).resource());
+        pollReturned(poll);
+
+        var written = new ArrayList<String>();
+        var mallory = connect(id, AtmosphereResource.TRANSPORT.LONG_POLLING, written, () -> "mallory");
+
+        assertEquals(List.of(), written);
+        verify(mallory).suspend(anyLong());
+        assertTrue(LongPollingReplies.hasParked(id, "alice"::equals));
     }
 
     @Test

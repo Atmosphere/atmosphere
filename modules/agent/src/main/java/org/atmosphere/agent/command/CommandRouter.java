@@ -86,6 +86,29 @@ public final class CommandRouter {
      * @return the routing result
      */
     public CommandResult route(String clientId, String message, IncomingMessage incoming) {
+        return route(clientId, message, incoming, () -> { });
+    }
+
+    /**
+     * Routes a message as {@link #route(String, String, IncomingMessage)} does,
+     * running {@code beforeAnswer} once it is decided that the message is
+     * answered here, before any command method runs. It runs exactly when the
+     * result is not {@link CommandResult.NotACommand}, so a caller can set up
+     * where the answer goes (fixing the state it depends on before a slow command
+     * changes it) without having anything to undo when the message falls through.
+     *
+     * @param clientId     the unique client identifier (must not be null)
+     * @param message      the raw message text
+     * @param incoming     the originating {@link IncomingMessage}; may be null
+     * @param beforeAnswer run once, before the command executes, when the
+     *                     message is answered here (must not be null)
+     * @return the routing result
+     */
+    public CommandResult route(String clientId, String message, IncomingMessage incoming,
+                               Runnable beforeAnswer) {
+        if (beforeAnswer == null) {
+            throw new IllegalArgumentException("beforeAnswer must not be null");
+        }
         if (clientId == null) {
             throw new IllegalArgumentException("clientId must not be null");
         }
@@ -104,7 +127,7 @@ public final class CommandRouter {
         var lock = clientLocks.computeIfAbsent(clientId, k -> new ReentrantLock());
         lock.lock();
         try {
-            return routeUnderLock(clientId, message.trim(), incoming);
+            return routeUnderLock(clientId, message.trim(), incoming, beforeAnswer);
         } finally {
             lock.unlock();
         }
@@ -153,11 +176,13 @@ public final class CommandRouter {
         return pending.size();
     }
 
-    private CommandResult routeUnderLock(String clientId, String trimmed, IncomingMessage incoming) {
+    private CommandResult routeUnderLock(String clientId, String trimmed, IncomingMessage incoming,
+                                         Runnable beforeAnswer) {
         // Check for pending confirmation response
         if (isConfirmation(trimmed)) {
             var pendingCmd = pending.remove(clientId);
             if (pendingCmd != null && !isExpired(pendingCmd)) {
+                beforeAnswer.run();
                 return executeCommand(pendingCmd.command(), pendingCmd.args(), pendingCmd.incoming());
             }
             // Expired or no pending — fall through to LLM
@@ -167,6 +192,7 @@ public final class CommandRouter {
         if (isDenial(trimmed)) {
             var removed = pending.remove(clientId);
             if (removed != null) {
+                beforeAnswer.run();
                 return new CommandResult.Executed("Command cancelled.");
             }
         }
@@ -183,6 +209,7 @@ public final class CommandRouter {
 
         // Handle built-in /help
         if ("/help".equals(prefix)) {
+            beforeAnswer.run();
             return new CommandResult.Executed(registry.generateHelp());
         }
 
@@ -192,6 +219,7 @@ public final class CommandRouter {
         }
 
         var command = entry.get();
+        beforeAnswer.run();
 
         // Confirmation flow
         if (!command.confirm().isEmpty()) {

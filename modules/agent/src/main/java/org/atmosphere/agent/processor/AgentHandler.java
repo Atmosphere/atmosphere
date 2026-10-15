@@ -18,6 +18,7 @@ package org.atmosphere.agent.processor;
 import org.atmosphere.agent.command.CommandResult;
 import org.atmosphere.agent.command.CommandRouter;
 import org.atmosphere.agent.session.AgentSessionRegistry;
+import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.ai.processor.AiEndpointHandler;
 import org.atmosphere.config.managed.Invoker;
@@ -41,6 +42,7 @@ import java.lang.reflect.Method;
 import java.nio.charset.CharacterCodingException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * {@link AtmosphereHandler} that wraps an {@link AiEndpointHandler} with
@@ -167,19 +169,33 @@ public class AgentHandler extends AbstractReflectorAtmosphereHandler
                     if (sender.isEmpty()) {
                         return;
                     }
-                    var result = commandRouter.route(clientId, msg);
+                    // The answer's session is started before the command runs,
+                    // as a prompt's is: it reads, from the connection, the
+                    // identity a long-polling reply is kept for, which a poll
+                    // that ends while a slow command runs no longer yields.
+                    var answer = new AtomicReference<StreamingSession>();
+                    CommandResult result;
+                    try {
+                        result = commandRouter.route(clientId, msg, null,
+                                () -> answer.set(StreamingSessions.start(sender.get())));
+                    } catch (RuntimeException e) {
+                        if (answer.get() != null) {
+                            answer.get().error(e);
+                        }
+                        throw e;
+                    }
                     switch (result) {
                         case CommandResult.Executed exec -> {
                             logger.debug("Command executed for client {}: {}",
                                     clientId, exec.response().substring(
                                             0, Math.min(exec.response().length(), 80)));
-                            sendCommandResponse(sender.get(), exec.response());
+                            sendCommandResponse(answer.get(), exec.response());
                             return;
                         }
                         case CommandResult.ConfirmationRequired confirm -> {
                             logger.debug("Confirmation required for client {}: {}",
                                     clientId, confirm.prompt());
-                            sendCommandResponse(sender.get(), confirm.prompt());
+                            sendCommandResponse(answer.get(), confirm.prompt());
                             return;
                         }
                         case CommandResult.NotACommand ignored -> {
@@ -228,15 +244,15 @@ public class AgentHandler extends AbstractReflectorAtmosphereHandler
      * that tracks frames by session id and sequence takes each command's answer
      * as a new reply.
      *
-     * <p>{@code connection} is the sender's connection ({@link
-     * AiEndpointHandler#resolveSender}), not the POST that carried the command,
-     * whose response an SSE or long-polling client does not read. The reply is
-     * delivered like an AI reply: through the path broadcaster's filters to that
-     * connection over WebSocket and SSE, and over long-polling kept whole for the
-     * client's next poll.</p>
+     * <p>{@code session} was started on the sender's connection ({@link
+     * AiEndpointHandler#resolveSender}), not on the POST that carried the command,
+     * whose response an SSE or long-polling client does not read, before the
+     * command ran. The reply is delivered like an AI reply: through the path
+     * broadcaster's filters to that connection over WebSocket and SSE, and over
+     * long-polling kept whole for the client's next poll made under the identity
+     * the connection had when the command arrived.</p>
      */
-    private void sendCommandResponse(AtmosphereResource connection, String response) {
-        var session = StreamingSessions.start(connection);
+    private void sendCommandResponse(StreamingSession session, String response) {
         session.send(response);
         session.complete();
     }
