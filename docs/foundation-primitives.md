@@ -91,7 +91,8 @@ missed, up to the buffer's bounded capacity (oldest-evicted). On WebSocket,
 SSE and streaming, a reattach to a run still in flight also receives the
 run's later events through its terminal frame; a long-polling poll gets the
 buffered events its tracking id was not sent yet in one reply, at once, and a
-later poll with nothing new waits for the run's next event. A run that already
+later poll with nothing new waits: for the run's next event while the run is
+going, else for a reply or its suspend timeout. A run that already
 finished stays replayable for the
 registry TTL (at most `RunRegistry.MAX_RETAINED_COMPLETED` finished runs are
 kept). The events are the text and terminal frame the client received,
