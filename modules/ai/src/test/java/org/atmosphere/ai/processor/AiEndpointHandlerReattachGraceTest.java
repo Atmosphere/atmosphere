@@ -721,6 +721,38 @@ class AiEndpointHandlerReattachGraceTest {
                         + " ms after it");
     }
 
+    /**
+     * A long-polling poll with nothing new waits for the run's next event,
+     * listening to it, which stands a grace expiring meanwhile down. When the
+     * poll ends with nobody else listening, the run is detached again: a client
+     * that stops polling must not keep its run going.
+     */
+    @Test
+    void aLongPollingPollThatWaitedOutTheGraceDetachesTheRunAgainWhenItEnds() throws Exception {
+        System.setProperty(GRACE_PROPERTY, "300ms");
+        var runtime = new HeldRuntime();
+        var original = startRun(runtime);
+        handler.onStateChange(new AtmosphereResourceEventImpl(original, true, false));
+
+        RunReattachSupport.replayPendingRun(longPollingReattach(RUN_ID.get(), new StringWriter()),
+                RunRegistryHolder.get());
+        var listener = new AtomicReference<AtmosphereResourceEventListener>();
+        var waiting = reattachingResource(RUN_ID.get(), new StringWriter(), listener);
+        when(waiting.transport()).thenReturn(AtmosphereResource.TRANSPORT.LONG_POLLING);
+        when(waiting.isSuspended()).thenReturn(true);
+        assertEquals(0, RunReattachSupport.replayPendingRun(waiting, RunRegistryHolder.get()),
+                "nothing new: the poll waits");
+        assertFalse(runtime.cancelled.await(900, TimeUnit.MILLISECONDS),
+                "a poll waiting for the run's next event listens to it: its grace stands down");
+
+        // The poll ends (its suspend timeout) and the client never polls again.
+        when(waiting.isSuspended()).thenReturn(false);
+        listener.get().onResume(null);
+
+        assertTrue(runtime.cancelled.await(10, TimeUnit.SECONDS),
+                "with nobody listening, the run waits out the grace again and is cancelled");
+    }
+
     /** {@code resource}'s client closing it on purpose. */
     private static org.atmosphere.cpr.AtmosphereResourceEvent leaving(AtmosphereResource resource) {
         var leave = mock(org.atmosphere.cpr.AtmosphereResourceEvent.class);

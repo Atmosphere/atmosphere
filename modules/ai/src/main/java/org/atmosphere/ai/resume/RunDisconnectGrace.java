@@ -167,8 +167,8 @@ public final class RunDisconnectGrace {
 
     /**
      * Restart the grace of a detached run from now: a client that cannot stay
-     * subscribed (a long-polling one, answered with the backlog in one reply)
-     * came back for it. Nothing detaches such a run again if the client never
+     * subscribed (a long-polling one, which listens to the run at most while
+     * one poll waits for its next event) came back for it. Nothing detaches such a run again if the client never
      * returns, so its pending cancel is pushed back rather than rescinded. A
      * run not waiting out a grace is left as it is, and so is the pending
      * deadline when {@code grace} is disabled.

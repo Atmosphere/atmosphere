@@ -63,10 +63,10 @@ test.describe('Mid-stream reattach via X-Atmosphere-Run-Id', () => {
     // the request to RunReattachSupport.replayPendingRun. That drains
     // the 3 text + 1 complete event from the buffer onto the resource.
     //
-    // Long-polling keeps the connection open after the replay, so we
-    // use a raw fetch with AbortController and a short timeout — the
-    // replay lands well before the cap and the bytes we pull are what
-    // we assert on.
+    // Long-polling answers the poll with the replay and resumes it; the
+    // raw request still carries a short cap, so a poll that is not
+    // answered fails the assertions below instead of hanging, and the
+    // bytes we pull are what we assert on.
     const body = await fetchWithAbort(
         `${baseURL}/atmosphere/agent/harness/?X-Atmosphere-Transport=long-polling`,
         runId,
@@ -168,9 +168,10 @@ function parseJsonFrames(body: string): Array<{ type: string; data?: string; ses
 }
 
 /**
- * Long-polling intentionally keeps the connection open after the first
- * flush, so `fetch(...)` buffers the body until connection close and
- * aborting mid-stream discards whatever partial bytes arrived. Drop to
+ * A long-polling poll with nothing to answer (an unknown run id) stays
+ * open until its suspend timeout, so `fetch(...)` buffers the body until
+ * connection close and aborting it discards whatever partial bytes
+ * arrived. Drop to
  * Node's raw `http.request` so we can accumulate chunks as they land
  * and destroy the socket when our cap elapses — keeping what actually
  * came back on the wire, which is the replay payload.

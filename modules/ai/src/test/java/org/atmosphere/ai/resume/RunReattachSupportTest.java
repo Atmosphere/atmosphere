@@ -342,8 +342,85 @@ class RunReattachSupportTest {
         var replayed = RunReattachSupport.replayPendingRun(resource, registry);
 
         assertEquals(2, replayed);
-        assertEquals(List.of("flush", "resume"), steps,
-                "the poll must be resumed once, after the replay was flushed");
+        assertEquals(1, java.util.Collections.frequency(steps, "resume"), "the poll must be resumed once: " + steps);
+        assertEquals("resume", steps.get(steps.size() - 1), "the poll must be resumed after the flush: " + steps);
+        assertTrue(steps.indexOf("flush") >= 0, "the replay must be flushed: " + steps);
+    }
+
+    /**
+     * atmosphere.js re-sends the run id on every poll until it reads a terminal
+     * frame, and a batched replay is not read as one. A second poll of the same
+     * tracking id with nothing new must not be answered with the replay again:
+     * resumed at once, it made a request loop for the registry TTL.
+     */
+    @Test
+    void longPollingRunIdPollWithNothingNewIsNotAnsweredWithTheReplayAgain() {
+        handle.replayBuffer().capture("streaming-text", "missed while away");
+        handle.replayBuffer().capture("complete", "[complete]");
+        var first = new ArrayList<String>();
+        assertEquals(2, RunReattachSupport.replayPendingRun(
+                suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, first), registry));
+
+        var steps = new ArrayList<String>();
+        var replayed = RunReattachSupport.replayPendingRun(
+                suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, steps), registry);
+
+        assertEquals(0, replayed, "nothing new for this tracking id");
+        assertTrue(steps.isEmpty(), "the poll must stay suspended, unwritten: " + steps);
+        assertEquals(0, handle.replayBuffer().subscriberCount(), "a finished run holds no listener");
+    }
+
+    @Test
+    void longPollingRunIdPollOfARunStillGoingIsAnsweredWithItsNextEventOnly() {
+        handle.replayBuffer().capture("streaming-text", "first");
+        RunReattachSupport.replayPendingRun(
+                suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, new ArrayList<>()), registry);
+
+        var steps = new ArrayList<String>();
+        var sink = new java.io.StringWriter();
+        assertEquals(0, RunReattachSupport.replayPendingRun(
+                suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, steps, sink), registry));
+        assertTrue(steps.isEmpty(), "nothing new yet: the poll waits: " + steps);
+
+        handle.replayBuffer().capture("streaming-text", "second");
+
+        assertEquals("resume", steps.get(steps.size() - 1), "the next event answers the poll: " + steps);
+        assertTrue(sink.toString().contains("\"data\":\"second\""), sink.toString());
+        assertTrue(!sink.toString().contains("\"data\":\"first\""), "no event twice: " + sink);
+        assertTrue(sink.toString().contains("\"seq\":2"), "frames number by the run's own sequence: " + sink);
+        assertEquals(0, handle.replayBuffer().subscriberCount(), "answered: the poll stops listening");
+    }
+
+    @Test
+    void aWaitingPollThatEndsStopsListeningToTheRun() {
+        handle.replayBuffer().capture("streaming-text", "first");
+        RunReattachSupport.replayPendingRun(
+                suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, new ArrayList<>()), registry);
+        var steps = new ArrayList<String>();
+        var poll = suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, steps);
+        RunReattachSupport.replayPendingRun(poll, registry);
+        assertEquals(1, handle.replayBuffer().subscriberCount());
+        var listener = org.mockito.ArgumentCaptor.forClass(org.atmosphere.cpr.AtmosphereResourceEventListener.class);
+        Mockito.verify(poll).addEventListener(listener.capture());
+
+        listener.getValue().onResume(null);
+        handle.replayBuffer().capture("streaming-text", "second");
+
+        assertEquals(0, handle.replayBuffer().subscriberCount(), "the poll's end releases its listener");
+        assertTrue(steps.isEmpty(), "nothing is written to a poll that ended: " + steps);
+    }
+
+    @Test
+    void aReplayWhoseWriteFailedIsHandedToTheNextPoll() throws Exception {
+        handle.replayBuffer().capture("streaming-text", "first");
+        var failing = suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, new ArrayList<>());
+        when(failing.getResponse().getWriter()).thenThrow(new java.io.IOException("socket closed"));
+        assertEquals(0, RunReattachSupport.replayPendingRun(failing, registry));
+
+        var sink = new java.io.StringWriter();
+        assertEquals(1, RunReattachSupport.replayPendingRun(
+                suspendedPoll(AtmosphereResource.TRANSPORT.LONG_POLLING, new ArrayList<>(), sink), registry));
+        assertTrue(sink.toString().contains("\"data\":\"first\""), sink.toString());
     }
 
     @Test
@@ -395,10 +472,16 @@ class RunReattachSupportTest {
 
     /** A suspended connection of {@code transport} reattaching to the run; flushes and resumes land in {@code steps}. */
     private AtmosphereResource suspendedPoll(AtmosphereResource.TRANSPORT transport, List<String> steps) {
+        return suspendedPoll(transport, steps, new java.io.StringWriter());
+    }
+
+    /** As above, its response written to {@code sink}. */
+    private AtmosphereResource suspendedPoll(AtmosphereResource.TRANSPORT transport, List<String> steps,
+                                             java.io.StringWriter sink) {
         var resource = Mockito.mock(AtmosphereResource.class);
         var request = Mockito.mock(AtmosphereRequest.class);
         var response = Mockito.mock(AtmosphereResponse.class);
-        var printWriter = new java.io.PrintWriter(new java.io.StringWriter()) {
+        var printWriter = new java.io.PrintWriter(sink) {
             @Override public void flush() {
                 super.flush();
                 steps.add("flush");

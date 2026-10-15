@@ -43,10 +43,15 @@ import org.slf4j.LoggerFactory;
  * frame or when the reconnected resource disconnects. A run that already
  * finished stays replayable for the registry TTL
  * ({@link RunRegistry#lookupReplayable}), so a late reconnect gets the whole
- * tail. Long-polling keeps the single-write drain: the backlog is written
- * to the poll's response in one write, then the poll is resumed so the
- * response reaches the client now rather than at the poll's suspend timeout;
- * there is no open response left to forward later events to.</p>
+ * tail. A long-polling poll is answered once: it gets the events of the run
+ * it was not handed yet, in one write, and is resumed so the response reaches
+ * the client now rather than at the poll's suspend timeout. When there are
+ * none, the poll waits like any other one: for the run's next event, written
+ * to it alone and resumed at once, or, for a run that already ended, for a
+ * reply or its suspend timeout. Each event goes to a tracking id once
+ * ({@link RunEventReplayBuffer#claimNew}), so a client that re-sends the run id
+ * on every poll, as atmosphere.js does until it reads a terminal frame, is not
+ * answered with the same replay over and over.</p>
  *
  * <p>The events are what {@link RunEventCapturingSession} captures: the text
  * and the terminal frame the client received, whether the {@code @Prompt}
@@ -267,9 +272,10 @@ public final class RunReattachSupport {
      * request attribute / header onto {@code resource}. Returns the
      * number of events successfully written; {@code 0} when no run id
      * is present, the run is unknown or completed, or the buffer is
-     * empty. A suspended long-polling poll that events were written to is
-     * resumed, so it answers with them now; one nothing was written to stays
-     * suspended.
+     * empty. A long-polling poll is written only the events not handed to its
+     * tracking id yet, and resumed when any were written; with none it stays
+     * suspended, returns {@code 0}, and is answered with the run's next event,
+     * if the run is still going.
      *
      * @param resource the reconnecting resource
      * @param registry the registry to look the run id up in
@@ -313,10 +319,15 @@ public final class RunReattachSupport {
             return replayAndForward(resource, runId, handle, reattachGrace(registry));
         }
         if (!handle.isDone()) {
-            // A long-polling client gets the backlog in this one reply and no
-            // subscription: nothing would detach the run again if it never polled
+            // A long-polling client listens to the run at most while one poll
+            // waits: nothing would detach the run again if it never polled
             // again, so its grace restarts from this poll instead of ending.
             RunDisconnectGrace.restart(runId, reattachGrace(registry));
+        }
+        var transport = resource.transport();
+        if (transport != null && Utils.resumableTransport(transport)) {
+            return new PollReplay(resource, handle, filtersFor(resource), broadcasterIdFor(resource),
+                    reattachGrace(registry)).start();
         }
         var replayed = handle.replayableEvents();
         if (replayed.isEmpty()) {
@@ -360,8 +371,7 @@ public final class RunReattachSupport {
                     written++;
                 }
             }
-            // Single write: a long-polling poll answers with one response,
-            // so every replayed event goes out in it.
+            // One write of the whole backlog.
             if (batch.length() > 0) {
                 writer.write(batch.toString());
                 writer.flush();
@@ -371,25 +381,164 @@ public final class RunReattachSupport {
                     resource.uuid(), e.getMessage());
             written = 0;
         }
-        if (written > 0) {
-            // Written straight to the response, not broadcast, so no
-            // resume-on-broadcast ends a long-polling poll: resume it here, or
-            // the client sees the replay only at the poll's suspend timeout.
-            resumePoll(resource);
-        }
         logger.info("Reattach run {} for resource {}: replayed {}/{} event(s)",
                 runId, resource.uuid(), written, replayed.size());
         return written;
     }
 
     /**
-     * Ends a suspended long-polling poll that the replay was written to, so its
-     * response goes out now. A connection of any other transport stays open.
+     * Answers one long-polling poll that carries a run id with the events of
+     * the run its tracking id was not handed yet. With none, it waits for the
+     * run's next event, until the poll ends (a reply, its suspend timeout, a
+     * close) or the run does. Frames carry the event's own sequence, plus one,
+     * so the pieces a client gets over several polls number consistently.
+     * While it waits it listens to the run, which keeps a pending grace from
+     * firing; when it ends with the run still going and nobody else listening,
+     * the run is detached again for the grace, so a client that stops polling
+     * still has its run cancelled.
      */
-    private static void resumePoll(AtmosphereResource resource) {
-        var transport = resource.transport();
-        if (transport != null && Utils.resumableTransport(transport) && resource.isSuspended()) {
-            resource.resume();
+    private static final class PollReplay implements java.util.function.Consumer<RunEvent> {
+
+        private final AtmosphereResource resource;
+        private final AgentResumeHandle run;
+        private final String runId;
+        private final String consumer;
+        private final RunEventReplayBuffer buffer;
+        private final java.util.List<org.atmosphere.cpr.BroadcastFilter> filters;
+        private final String broadcasterId;
+        private final java.time.Duration grace;
+        private final org.atmosphere.cpr.AtmosphereResourceEventListener endListener;
+        private boolean ended;
+        private Runnable unsubscribe = () -> { };
+
+        PollReplay(AtmosphereResource resource, AgentResumeHandle run,
+                   java.util.List<org.atmosphere.cpr.BroadcastFilter> filters, String broadcasterId,
+                   java.time.Duration grace) {
+            this.resource = resource;
+            this.run = run;
+            this.runId = run.runId();
+            this.consumer = resource.uuid();
+            this.buffer = run.replayBuffer();
+            this.filters = filters;
+            this.broadcasterId = broadcasterId;
+            this.grace = grace;
+            this.endListener = new org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter() {
+                @Override
+                public void onResume(org.atmosphere.cpr.AtmosphereResourceEvent event) {
+                    end();
+                }
+
+                @Override
+                public void onDisconnect(org.atmosphere.cpr.AtmosphereResourceEvent event) {
+                    end();
+                }
+
+                @Override
+                public void onClose(org.atmosphere.cpr.AtmosphereResourceEvent event) {
+                    end();
+                }
+            };
+        }
+
+        /** Answer the poll with what is new, or wait for the run's next event; the events written now. */
+        synchronized int start() {
+            // Subscribed before claiming: an event captured in between is either
+            // claimed here or delivered to accept, and claimed once.
+            var subscription = buffer.subscribe(this);
+            unsubscribe = subscription.cancel();
+            var claimed = consumer != null ? buffer.claimNew(consumer) : subscription.backlog();
+            var written = claimed.isEmpty() ? 0 : writeAndResume(claimed);
+            if (written != 0 || consumer == null || !subscription.live()) {
+                end();
+                if (written > 0) {
+                    logger.info("Reattach run {} for resource {}: replayed {}/{} new event(s)",
+                            runId, resource.uuid(), written, claimed.size());
+                } else {
+                    logger.debug("Reattach run {} for resource {}: no new event to replay",
+                            runId, resource.uuid());
+                }
+                return Math.max(written, 0);
+            }
+            resource.addEventListener(endListener);
+            if (!resource.isSuspended()) {
+                end();
+            }
+            logger.debug("Reattach run {} for resource {}: nothing new; the poll waits for the run's next event",
+                    runId, resource.uuid());
+            return 0;
+        }
+
+        /** The run's next event: answer the poll with it. */
+        @Override
+        public synchronized void accept(RunEvent event) {
+            if (ended || !resource.isSuspended() || !buffer.claim(consumer, event)) {
+                return;
+            }
+            if (writeAndResume(java.util.List.of(event)) != 0 || RunEventReplayBuffer.isTerminal(event.type())) {
+                end();
+            }
+        }
+
+        /**
+         * One write of {@code events} through the filter chain, then resume the
+         * poll: the events written, or {@code -1} when the write failed (the
+         * events are then given back to the consumer).
+         */
+        private int writeAndResume(java.util.List<RunEvent> events) {
+            var batch = new StringBuilder();
+            var written = 0;
+            for (var event : events) {
+                var msg = new org.atmosphere.ai.filter.AiStreamMessage(
+                        event.type(), event.payload(), runId, event.sequence() + 1, null, null);
+                var json = applyFilters(filters, broadcasterId, msg.toJson());
+                if (json != null) {
+                    batch.append(json).append('\n');
+                    written++;
+                }
+            }
+            if (written == 0) {
+                return 0;
+            }
+            try {
+                var writer = resource.getResponse().getWriter();
+                writer.write(batch.toString());
+                writer.flush();
+                if (writer.checkError()) {
+                    throw new java.io.IOException("writer reported an error");
+                }
+            } catch (java.io.IOException | RuntimeException e) {
+                logger.warn("Replay of run {} to resource {} failed: {}", runId, resource.uuid(), e.getMessage());
+                if (consumer != null) {
+                    buffer.unclaim(consumer, events.get(0).sequence());
+                }
+                return -1;
+            }
+            // Written straight to the response, not broadcast, so no
+            // resume-on-broadcast ends the poll: resume it here, or the client
+            // sees the replay only at the poll's suspend timeout.
+            if (resource.isSuspended()) {
+                resource.resume();
+            }
+            return written;
+        }
+
+        synchronized void end() {
+            if (ended) {
+                return;
+            }
+            ended = true;
+            unsubscribe.run();
+            try {
+                resource.removeEventListener(endListener);
+            } catch (RuntimeException e) {
+                logger.trace("Removing the reattach listener from {} failed", resource.uuid(), e);
+            }
+            // Listening, this poll may have stood a grace down; with nobody
+            // listening now, the run waits out the grace again (a no-op for a
+            // run that was never detached), and the client's next poll restarts it.
+            if (!run.isDone() && buffer.subscriberCount() == 0) {
+                RunDisconnectGrace.redetach(runId, grace);
+            }
         }
     }
 

@@ -25,12 +25,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Counts {@code @Ready} per tracking id and, as the personal-assistant sample
  * does, sets {@code ai.userId} from the {@code token} query parameter there;
  * each prompt records the {@code ai.userId} it runs under and is answered with a
- * reply that names it.
+ * reply that names it. A prompt starting with {@code hold:} sends its first
+ * part, then waits for {@link #RELEASE} before sending the second and completing.
  */
 @AiEndpoint(path = LongPollingConnectionTestEndpoint.PATH)
 public class LongPollingConnectionTestEndpoint {
@@ -42,6 +45,12 @@ public class LongPollingConnectionTestEndpoint {
 
     /** {@code prompt + "|" + ai.userId} for every {@code @Prompt} invocation. */
     public static final List<String> PROMPTS = new CopyOnWriteArrayList<>();
+
+    /** Prompt -> the id of the run it started. */
+    public static final Map<String, String> RUN_IDS = new ConcurrentHashMap<>();
+
+    /** Released to let a {@code hold:} prompt finish. */
+    public static volatile CountDownLatch RELEASE = new CountDownLatch(1);
 
     @Ready
     public void onReady(AtmosphereResource resource) {
@@ -56,6 +65,18 @@ public class LongPollingConnectionTestEndpoint {
     @Prompt
     public void onPrompt(String message, StreamingSession session, AtmosphereResource resource) {
         PROMPTS.add(message + "|" + resource.getRequest().getAttribute("ai.userId"));
+        session.runId().ifPresent(runId -> RUN_IDS.put(message, runId));
+        if (message.startsWith("hold:")) {
+            session.send("part-1:" + message);
+            try {
+                RELEASE.await(30, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            session.send("part-2:" + message);
+            session.complete();
+            return;
+        }
         session.send("reply-to:" + message);
         session.complete();
     }

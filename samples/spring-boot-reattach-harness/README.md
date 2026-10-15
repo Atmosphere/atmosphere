@@ -72,7 +72,7 @@ curl -H 'X-Atmosphere-Run-Id: <runId>' \
 #   {"type":"streaming-text","data":"replay-event-1",…,"seq":2}
 #   {"type":"streaming-text","data":"replay-event-2",…,"seq":3}
 #   {"type":"complete","data":"synthetic",…}
-# and the server logs: `Reattach run <id> for resource <uuid>: replayed 4/4 event(s)`
+# and the server logs: `Reattach run <id> for resource <uuid>: replayed 4/4 new event(s)`
 ```
 
 ## Why a sample, not an integration test

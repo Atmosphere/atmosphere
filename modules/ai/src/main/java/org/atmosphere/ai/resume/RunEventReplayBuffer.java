@@ -21,7 +21,9 @@ import org.slf4j.LoggerFactory;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -70,6 +72,16 @@ import java.util.function.Consumer;
  * paths, so every live listener receives a terminal frame and is released
  * (Correctness Invariant #2). At most {@link #MAX_SUBSCRIBERS} are held per run
  * (Correctness Invariant #3).
+ *
+ * <h2>Replay positions</h2>
+ *
+ * A long-polling client gets the run in pieces, one per poll, and re-sends the
+ * run id on each one until it reads a terminal frame. {@link #claimNew} and
+ * {@link #claim} hand each event to such a consumer once: the buffer remembers,
+ * per consumer (a tracking id), the sequence of the last event it handed over,
+ * for at most {@link #MAX_REPLAY_POSITIONS} consumers per run, the least
+ * recently used forgotten first. A forgotten consumer is handed the retained
+ * events again.
  */
 public final class RunEventReplayBuffer {
 
@@ -80,6 +92,9 @@ public final class RunEventReplayBuffer {
 
     /** Upper bound on live subscribers per run — one per reattached connection. */
     public static final int MAX_SUBSCRIBERS = 8;
+
+    /** Upper bound on the consumers whose replay position one run remembers. */
+    public static final int MAX_REPLAY_POSITIONS = 64;
 
     /**
      * The backlog a {@link #subscribe} call returned, whether later captures
@@ -102,6 +117,13 @@ public final class RunEventReplayBuffer {
     private final List<Consumer<RunEvent>> subscribers = new ArrayList<>();
     /** Guarded by {@code buffer}: a terminal event was captured. */
     private boolean terminated;
+    /** Guarded by {@code buffer}: consumer -> sequence of the last event handed to it, least recently used first. */
+    private final Map<String, Long> positions = new LinkedHashMap<>(16, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, Long> eldest) {
+            return size() > MAX_REPLAY_POSITIONS;
+        }
+    };
 
     public RunEventReplayBuffer() {
         this(DEFAULT_CAPACITY);
@@ -332,6 +354,59 @@ public final class RunEventReplayBuffer {
                 }
             }
             return List.copyOf(out);
+        }
+    }
+
+    /**
+     * The retained events not handed to {@code consumer} yet, oldest first; they
+     * count as handed to it from now on. Two calls for one consumer never
+     * return the same event.
+     */
+    public List<RunEvent> claimNew(String consumer) {
+        Objects.requireNonNull(consumer, "consumer");
+        synchronized (buffer) {
+            var last = positions.getOrDefault(consumer, -1L);
+            var out = new ArrayList<RunEvent>();
+            for (var event : buffer) {
+                if (event.sequence() > last) {
+                    out.add(event);
+                }
+            }
+            if (!out.isEmpty()) {
+                positions.put(consumer, out.get(out.size() - 1).sequence());
+            }
+            return List.copyOf(out);
+        }
+    }
+
+    /**
+     * Whether {@code event} was not handed to {@code consumer} yet; it counts as
+     * handed to it from now on.
+     */
+    public boolean claim(String consumer, RunEvent event) {
+        Objects.requireNonNull(consumer, "consumer");
+        Objects.requireNonNull(event, "event");
+        synchronized (buffer) {
+            if (event.sequence() <= positions.getOrDefault(consumer, -1L)) {
+                return false;
+            }
+            positions.put(consumer, event.sequence());
+            return true;
+        }
+    }
+
+    /**
+     * Give back to {@code consumer} the events it claimed from {@code sequence}
+     * on, because they never reached it: the next {@link #claimNew} hands them
+     * over again.
+     */
+    public void unclaim(String consumer, long sequence) {
+        Objects.requireNonNull(consumer, "consumer");
+        synchronized (buffer) {
+            var last = positions.get(consumer);
+            if (last != null && last >= sequence) {
+                positions.put(consumer, sequence - 1);
+            }
         }
     }
 

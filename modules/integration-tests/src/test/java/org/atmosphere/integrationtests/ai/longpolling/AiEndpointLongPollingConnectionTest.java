@@ -32,11 +32,15 @@ import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.BooleanSupplier;
 import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -44,7 +48,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * {@code @Ready} runs once for it, as for one WebSocket connection, and what it
  * set on the first poll's request is what a prompt dispatched to a later poll
  * reads. A long-polling client reconnecting with a run id is answered with the
- * run's replay at once, not at its poll's suspend timeout.
+ * run's replay at once, not at its poll's suspend timeout, and a later poll
+ * carrying the run id only with what the run added since.
  */
 @Tag("core")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -78,6 +83,9 @@ public class AiEndpointLongPollingConnectionTest {
     public void reset() {
         LongPollingConnectionTestEndpoint.READY.clear();
         LongPollingConnectionTestEndpoint.PROMPTS.clear();
+        LongPollingConnectionTestEndpoint.RUN_IDS.clear();
+        LongPollingConnectionTestEndpoint.RELEASE.countDown();
+        LongPollingConnectionTestEndpoint.RELEASE = new CountDownLatch(1);
     }
 
     @Timeout(value = 60, unit = TimeUnit.SECONDS)
@@ -126,6 +134,63 @@ public class AiEndpointLongPollingConnectionTest {
         assertEquals(200, reattach.statusCode());
         assertTrue(reattach.body().contains("reply-to:replay-me"),
                 "the reattaching poll must be answered with the run's replay: " + reattach.body());
+    }
+
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    @Test
+    public void aSecondRunIdPollWithNothingNewIsNotAnsweredWithTheReplayAgain() throws Exception {
+        var origin = "lp-" + UUID.randomUUID();
+        var first = poll(origin, null, null);
+        awaitSuspended(origin);
+        assertEquals(200, post(origin, "replay-once").get(10, TimeUnit.SECONDS).statusCode());
+        first.get(10, TimeUnit.SECONDS);
+        var runId = runIdOf(poll(origin, null, null).get(10, TimeUnit.SECONDS).body());
+
+        var id = "lp-" + UUID.randomUUID();
+        var replay = poll(id, null, runId).get(10, TimeUnit.SECONDS);
+        assertTrue(replay.body().contains("reply-to:replay-once"), "the first poll gets the replay: " + replay.body());
+
+        // atmosphere.js re-sends the run id on its next poll. The run has nothing
+        // new for this client: the poll must wait like any other one, not come
+        // straight back with the same replay (a request loop for the registry TTL).
+        var again = poll(id, null, runId);
+        assertThrows(TimeoutException.class, () -> again.get(2, TimeUnit.SECONDS),
+                "a run-id poll with nothing new must stay suspended");
+        assertEquals(200, post(id, "next").get(10, TimeUnit.SECONDS).statusCode());
+        var answer = again.get(10, TimeUnit.SECONDS).body();
+        assertFalse(answer.contains("reply-to:replay-once"), "the replay must not be sent twice: " + answer);
+    }
+
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    @Test
+    public void aRunIdPollOfARunStillGoingGetsOnlyWhatTheRunAddedSince() throws Exception {
+        var origin = "lp-" + UUID.randomUUID();
+        poll(origin, null, null);
+        awaitSuspended(origin);
+        assertEquals(200, post(origin, "hold:live").get(10, TimeUnit.SECONDS).statusCode());
+        // Over long-polling the run's own client gets its reply whole at the end; a
+        // client learns the id of a run still going over another transport, before
+        // it falls back to long-polling.
+        awaitTrue(() -> LongPollingConnectionTestEndpoint.RUN_IDS.containsKey("hold:live"), "the run must start");
+        var runId = LongPollingConnectionTestEndpoint.RUN_IDS.get("hold:live");
+
+        var id = "lp-" + UUID.randomUUID();
+        var backlog = poll(id, null, runId).get(10, TimeUnit.SECONDS).body();
+        assertTrue(backlog.contains("part-1:hold:live"), "the reattach gets the backlog: " + backlog);
+
+        var next = poll(id, null, runId);
+        assertThrows(TimeoutException.class, () -> next.get(2, TimeUnit.SECONDS),
+                "nothing new yet: the poll must wait for the run's next frame");
+        LongPollingConnectionTestEndpoint.RELEASE.countDown();
+        var update = next.get(10, TimeUnit.SECONDS).body();
+        assertTrue(update.contains("part-2:hold:live"), "the poll must return with the run's next frame: " + update);
+        assertFalse(update.contains("part-1:hold:live"), "the backlog must not be sent twice: " + update);
+    }
+
+    private static String runIdOf(String body) {
+        var matcher = RUN_ID.matcher(body);
+        assertTrue(matcher.find(), "the reply must name its run: " + body);
+        return matcher.group(1);
     }
 
     private CompletableFuture<HttpResponse<String>> poll(String trackingId, String token, String runId) {
