@@ -21,7 +21,10 @@ public final class AiConfigTestSupport {
     private AiConfigTestSupport() {
     }
 
-    /** Clears the process default's settings, as {@code AiConfig.resetForTesting()} does. */
+    /**
+     * Clears the settings of the process default and of every open
+     * {@link AiEnvironment}, as {@code AiConfig.resetForTesting()} does.
+     */
     public static void resetSettings() {
         AiConfig.resetForTesting();
     }

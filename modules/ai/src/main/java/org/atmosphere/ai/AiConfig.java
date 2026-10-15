@@ -442,13 +442,14 @@ public final class AiConfig {
     }
 
     /**
-     * Clears the resolved settings singleton back to the unconfigured state.
+     * Clears the settings of the process default and of every open
+     * {@link AiEnvironment} back to the unconfigured state.
      * Package-private — exposed only so tests can exercise the
      * {@code installClient}-before-{@code configure} guard deterministically
      * regardless of test ordering. Not part of the public API.
      */
     static void resetForTesting() {
-        AiEnvironment.resetProcessDefaultSettings();
+        AiEnvironment.resetSettingsForTesting();
     }
 
     /**

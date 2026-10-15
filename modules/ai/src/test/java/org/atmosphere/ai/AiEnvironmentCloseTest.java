@@ -21,7 +21,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 /**
@@ -88,5 +90,23 @@ class AiEnvironmentCloseTest {
         a.close();
 
         assertSame(processSettings, AiEnvironment.processDefault().settings());
+    }
+
+    /**
+     * {@code AiConfig.resetForTesting()} clears the settings of a running
+     * application too, not only the process default's: a test that resets the
+     * settings while an application is still open sees none, whatever test
+     * configured that application before.
+     */
+    @Test
+    void theSettingsTestHookClearsARunningApplicationsOwnSettings() {
+        var a = application();
+        a.configure("remote", "model-a", "k", URL);
+        assertNotNull(AiConfig.get());
+
+        AiConfigTestSupport.resetSettings();
+
+        assertNull(a.settings(), "the running application's own settings are cleared");
+        assertNull(AiConfig.get(), "the static API returns no settings after the reset");
     }
 }

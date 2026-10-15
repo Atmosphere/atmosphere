@@ -405,9 +405,15 @@ public final class WorkspaceExtensions {
     private static final java.util.concurrent.atomic.AtomicReference<String>
             GLOBAL_RUNTIME_WORKSPACE = new java.util.concurrent.atomic.AtomicReference<>();
 
-    /** Clears the global-settings ownership. Test-only isolation hook. */
+    /**
+     * Clears the settings ownership of the static API and of every open
+     * {@link org.atmosphere.ai.AiEnvironment}. Test-only isolation hook.
+     */
     static void resetRuntimeOwnershipForTests() {
         GLOBAL_RUNTIME_WORKSPACE.set(null);
+        for (var environment : org.atmosphere.ai.AiEnvironment.live()) {
+            environment.replaceSettingsOwner(null);
+        }
     }
 
     // -- PERMISSIONS.md → governance policies ---------------------------------

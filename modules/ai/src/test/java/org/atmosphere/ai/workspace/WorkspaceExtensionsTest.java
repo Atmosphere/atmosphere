@@ -179,6 +179,35 @@ class WorkspaceExtensionsTest {
         }
     }
 
+    /**
+     * The ownership test hook reaches a running application too: once it ran,
+     * the next workspace applied to that application seeds its settings again,
+     * whatever workspace claimed them before. Before, the hook cleared only the
+     * static API's owner, and the result of a test depended on which test ran
+     * against a still-open application first.
+     */
+    @Test
+    void theOwnershipTestHookForgetsTheOwnerOfARunningApplicationsSettings(@TempDir Path rootA,
+                                                                           @TempDir Path rootB)
+            throws IOException {
+        write(rootA, "RUNTIME.md", "mode: fake\nmodel: model-a");
+        write(rootB, "RUNTIME.md", "mode: fake\nmodel: model-b");
+        var environment = org.atmosphere.ai.AiEnvironment.create(Map.<String, String>of()::get);
+        try {
+            assertTrue(WorkspaceExtensions.applyRuntime(environment, loadFixture(rootA), "agent-a"));
+            assertEquals("model-a", environment.settings().model(), "the first workspace seeds the application");
+
+            WorkspaceExtensions.resetRuntimeOwnershipForTests();
+            assertTrue(WorkspaceExtensions.applyRuntime(environment, loadFixture(rootB), "agent-b"));
+
+            assertEquals("model-b", environment.settings().model(),
+                    "once the owner is forgotten, the next workspace seeds the application");
+        } finally {
+            environment.close();
+            WorkspaceExtensions.resetRuntimeOwnershipForTests();
+        }
+    }
+
     @Test
     void applyRuntimeConfiguresAiConfig(@TempDir Path root) throws IOException {
         write(root, "RUNTIME.md", String.join("\n",

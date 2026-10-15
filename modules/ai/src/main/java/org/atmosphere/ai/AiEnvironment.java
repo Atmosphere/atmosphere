@@ -853,14 +853,25 @@ public final class AiEnvironment implements AutoCloseable {
         }
     }
 
-    /** Clears the process default's settings. Test hook behind {@code AiConfig.resetForTesting()}. */
-    static void resetProcessDefaultSettings() {
-        PROCESS_DEFAULT.lock.lock();
-        try {
-            PROCESS_DEFAULT.store(null, GenerationParams.defaults());
-        } finally {
-            PROCESS_DEFAULT.lock.unlock();
+    /**
+     * Clears the settings of the process default and every open environment,
+     * and which workspace owns them. Test hook behind {@code AiConfig.resetForTesting()}.
+     */
+    static void resetSettingsForTesting() {
+        PROCESS_DEFAULT.clearSettings();
+        for (var environment : live) {
+            environment.clearSettings();
         }
+    }
+
+    private void clearSettings() {
+        lock.lock();
+        try {
+            store(null, GenerationParams.defaults());
+        } finally {
+            lock.unlock();
+        }
+        resetSettingsOwner();
     }
 
     /**
@@ -941,7 +952,7 @@ public final class AiEnvironment implements AutoCloseable {
     /**
      * Give the settings of this environment to a workspace, whoever held them.
      *
-     * @param workspace the workspace name
+     * @param workspace the workspace name, {@code null} to forget the owner
      * @return the workspace that owned them before, or {@code null}
      */
     public String replaceSettingsOwner(String workspace) {
