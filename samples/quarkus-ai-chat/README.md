@@ -35,8 +35,9 @@ mvn quarkus:dev
 This sample always runs the Quarkus LangChain4j bridge runtime.
 `quarkus.langchain4j.openai.api-key` defaults to a `dummy` placeholder, so
 Quarkus LangChain4j always materializes a `StreamingChatModel`; the bridge
-hands it to `LangChain4jAgentRuntime.setModel(...)` at startup, which marks
-an explicit client binding, and the framework's keyless `DemoAgentRuntime`
+offers it to the application's `AiEnvironment`
+(`LangChain4jAgentRuntime.offerModel(environment, model)`) before the
+`@AiEndpoint` classes register, which marks an explicit client binding, and the framework's keyless `DemoAgentRuntime`
 fallback therefore never activates here. Without a real key, prompts still
 reach the provider — carrying the placeholder key — and fail upstream with
 an authentication error. Set `LLM_API_KEY` (or `GEMINI_API_KEY`) for working

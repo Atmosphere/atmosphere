@@ -680,8 +680,8 @@ workspace `RUNTIME.md`) and its own `AgentRuntime` instances, resolved by its ow
 contexts kept alive by Spring's test context cache) do not read each other's knobs, settings or
 runtime clients. The Spring Boot starters create it from the `Environment` before any bean exists,
 attach it to the framework before the endpoint scan, and close it with the context (it is also the
-`AiEnvironment` bean); the Quarkus extension creates it before the framework initializes and closes
-it with the framework; on a plain servlet the first `@AiEndpoint`, `@Agent` or `@Coordinator` that
+`AiEnvironment` bean); the Quarkus extension produces it as a CDI bean (`AiEnvironment`), attaches it
+before the framework initializes and closes it when the CDI container shuts down; on a plain servlet the first `@AiEndpoint`, `@Agent` or `@Coordinator` that
 registers (or the Kotlin `registerAgent` DSL) creates it from the framework's init-params, and the
 framework's destroy closes it. Closing
 one drops its runtime instances and shuts down the HTTP clients of the LLM settings it built itself,
@@ -740,7 +740,11 @@ auto-configuration builds itself, so a client the application sets through the s
 they bind the beans the application declares (`Runner`, `ReActAgent`, `ChatCompletionService`,
 `ReactAgent` and `ChatModel`, Embabel's `AgentPlatform`, the Spring AI and Spring AI Alibaba
 `EmbeddingModel`). Two Spring contexts with different `ChatClient` beans each dispatch through their
-own; without an `AiEnvironment` bean they use the static setters, as before. The static setters that
+own; without an `AiEnvironment` bean they use the static setters, as before. On Quarkus the
+application's `AiEnvironment` is a CDI bean too, fired as a CDI event when the framework attaches it
+(before any `@AiEndpoint` registers): `atmosphere-quarkus-langchain4j` offers the Quarkus LangChain4j
+`StreamingChatModel` to it, and a bean of the application's own binds with
+`void bind(@Observes AiEnvironment environment)` or by injecting it. The static setters that
 have an `AiEnvironment` overload are deprecated (kept as the process-wide fallback through 4.x). A runtime instance stays
 its application's (`AiEnvironment.of(runtime)`, through `AgentRuntime.attachedEnvironment()` for a
 runtime that implements `AgentRuntime` directly) after that application drops its cached resolution. The adapters read their
@@ -756,8 +760,7 @@ application): `DecisionModelResolver.resolve()` and its callers that hold no app
 injection, scope and moderation tiers, `IntentRouting` without a decision model of its own), the
 `InjectionClassifierResolver` cache, which keeps one classifier per tier for the JVM, the semantic
 response cache, embedding scope guardrails and embedding injection classifier built without an
-embedding runtime, and the Quarkus LangChain4j bridge, which binds through the deprecated static
-`LangChain4jAgentRuntime.setModel(model)`. Of these, the scope guardrails reach every `@AgentScope`
+embedding runtime. Of these, the scope guardrails reach every `@AgentScope`
 endpoint or agent: `ScopeGuardrailResolver` keeps one built-in guardrail per tier for the JVM, built
 without an embedding runtime the first time a scope of that tier is resolved (an endpoint or agent
 registering, on a thread bound to no application), so it resolves the embedding runtime through the

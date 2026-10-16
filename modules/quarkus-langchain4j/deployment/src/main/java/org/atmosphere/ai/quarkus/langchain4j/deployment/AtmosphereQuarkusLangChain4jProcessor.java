@@ -30,8 +30,9 @@ import org.atmosphere.ai.quarkus.langchain4j.AtmosphereQuarkusLangChain4jBridge;
  *
  * <ul>
  *   <li>Registers {@link AtmosphereQuarkusLangChain4jBridge} as an
- *       additional CDI bean so its {@code @Observes StartupEvent} hook
- *       fires without the consumer having to declare it.</li>
+ *       additional, unremovable CDI bean so it observes the application's
+ *       {@code AiEnvironment} and starts with the application without the
+ *       consumer having to declare it.</li>
  *   <li>Adds the {@code org.atmosphere.ai.AgentRuntime} ServiceLoader
  *       descriptor and the {@code LangChain4jAgentRuntime} class to the
  *       native image so SPI lookup works on GraalVM native binaries.</li>

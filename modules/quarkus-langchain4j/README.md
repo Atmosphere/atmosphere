@@ -34,14 +34,16 @@ Ollama, Hugging Face, etc.):
    default model is materialized even without `@RegisterAiService` injection
    points.
 3. At runtime, `AtmosphereQuarkusLangChain4jBridge` (`@ApplicationScoped`,
-   `@Startup(PLATFORM_BEFORE)`) looks up that bean via Arc and calls
-   `LangChain4jAgentRuntime.setModel(model)` before the Atmosphere framework
-   starts dispatching prompts. That is the deprecated process-wide binder: the
-   bridge runs before the framework, and the application's `AiEnvironment`, exist
-   (the extension creates the environment when the framework initializes and does
-   not expose it to CDI), so it cannot use the per-application
-   `setModel(AiEnvironment, model)`. The bound model is therefore the JVM-wide
-   one, used by every application that has no model bound to it alone.
+   `@Startup(PLATFORM_BEFORE)`) observes the application's `AiEnvironment`, which
+   `atmosphere-quarkus-extension` produces as a CDI bean and fires as a CDI event
+   when the framework attaches it, before any `@AiEndpoint` registers. It looks up
+   that model bean via Arc and offers it to that environment with
+   `LangChain4jAgentRuntime.offerModel(environment, model)`: the model is this
+   application's, not the JVM's, and a model the application binds itself
+   (`LangChain4jAgentRuntime.setModel(environment, model)`, or the deprecated
+   process-wide `setModel(model)`) wins over it. Without
+   `atmosphere-quarkus-extension` there is no `AiEnvironment` bean, and the bridge
+   binds the model for the JVM with the deprecated `setModel(model)`, as before.
 
 ## Quick Start
 
@@ -68,7 +70,7 @@ quarkus.atmosphere.packages=com.example
 
 | Class | Purpose |
 |-------|---------|
-| `AtmosphereQuarkusLangChain4jBridge` | Looks up the CDI `StreamingChatModel` and installs it on `LangChain4jAgentRuntime` at startup |
+| `AtmosphereQuarkusLangChain4jBridge` | Looks up the CDI `StreamingChatModel` and offers it to the application's `AiEnvironment` for `LangChain4jAgentRuntime` |
 | `AtmosphereQuarkusLangChain4jProcessor` | Build steps: indexes `atmosphere-ai`, requests the default chat-model bean, registers the runtime SPI for native image |
 
 ## Samples
@@ -82,7 +84,8 @@ quarkus.atmosphere.packages=com.example
 - Java 21+
 - Quarkus 3.21+ (tested against 3.39.5)
 - `quarkus-langchain4j` 1.9.x (Quarkiverse)
-- `atmosphere-quarkus-extension` (transitive — provides the Atmosphere servlet)
+- `atmosphere-quarkus-extension` (a separate dependency: it serves the Atmosphere
+  mapping and produces the application's `AiEnvironment`)
 
 ## Notes
 
@@ -93,9 +96,22 @@ quarkus.atmosphere.packages=com.example
   `ModelBuilderCustomizer<OpenAiStreamingChatModel.OpenAiStreamingChatModelBuilder>`
   bean that nulls those fields. See the sample.
 - `atmosphere-quarkus-langchain4j` only auto-wires the **default** chat model.
-  Apps that use multiple named models can call
-  `LangChain4jAgentRuntime.setModel(model)` manually from a `@PostConstruct`
-  bean of their own. That one-argument binder is deprecated (it binds for every
-  application in the JVM) and, as above, there is no per-application one a CDI
-  bean can reach at startup, so the bean needs `@SuppressWarnings("deprecation")`
-  to compile under `-Xlint:all -Werror`.
+  Apps that use multiple named models bind the one Atmosphere dispatches through
+  for the application, from a bean that observes its `AiEnvironment`, so the model
+  is bound before the `@AiEndpoint` classes register:
+
+  ```java
+  @ApplicationScoped
+  public class ModelBinder {
+      @Inject
+      @ModelName("fast")
+      StreamingChatModel model;
+
+      void bind(@Observes AiEnvironment environment) {
+          LangChain4jAgentRuntime.setModel(environment, model);
+      }
+  }
+  ```
+
+  The one-argument `LangChain4jAgentRuntime.setModel(model)` still works, but it
+  is deprecated: it binds for every application in the JVM.

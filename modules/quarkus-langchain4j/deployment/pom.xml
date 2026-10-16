@@ -53,6 +53,21 @@
             <artifactId>quarkus-junit-internal</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Test-scope: the bridge tests boot the Atmosphere extension, which
+             produces the application's AiEnvironment, with a real Quarkus
+             LangChain4j provider supplying the StreamingChatModel bean. -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-quarkus-extension-deployment</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkiverse.langchain4j</groupId>
+            <artifactId>quarkus-langchain4j-openai-deployment</artifactId>
+            <version>${quarkus-langchain4j.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

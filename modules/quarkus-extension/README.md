@@ -78,9 +78,10 @@ With `atmosphere-ai` on the classpath, the knobs `AiConfig` reads — `atmospher
 `native-structured-output`, `planning`, `filesystem`, `runtime` and `reattach.grace` (the list is
 `AiConfig.knobProperties()`) — can be set in `application.properties` under those names, without a
 `quarkus.` prefix. The extension creates the application's `AiEnvironment` from them and attaches it
-to the framework before the framework initializes, in both container modes, and closes it with the
-framework (a dev-mode live reload gets a new one; see
-[`modules/ai/README.md`](../ai/README.md#one-aienvironment-per-application)). A `-D` system property or the knob's `LLM_*` environment variable (e.g. `LLM_TEMPERATURE`)
+to the framework before the framework initializes, in both container modes (see
+[`modules/ai/README.md`](../ai/README.md#one-aienvironment-per-application)). The environment is a
+`@Singleton` CDI bean, so a bean binds a native AI client for this application alone — see
+[The application's `AiEnvironment` bean](#the-applications-aienvironment-bean). A `-D` system property or the knob's `LLM_*` environment variable (e.g. `LLM_TEMPERATURE`)
 wins over `application.properties`. `atmosphere.ai.runtime=<name>` selects the `AgentRuntime` among
 the runtime modules on the classpath and fails startup when none has that name (see
 [`modules/ai/README.md`](../ai/README.md#agentruntime-spi)). LLM settings built before the framework
@@ -89,6 +90,41 @@ initializes (by a startup observer calling `AiConfig.configure`, say) keep the g
 apply. The LLM mode, model, key and base URL are
 not bridged on Quarkus: they come from the `LLM_MODE` / `LLM_MODEL` / `LLM_API_KEY` /
 `LLM_BASE_URL` environment variables.
+
+### The application's `AiEnvironment` bean
+
+With `atmosphere-ai` on the classpath, the extension produces the application's `AiEnvironment` as a
+`@Singleton` CDI bean (`AtmosphereAiEnvironmentProducer`): the one the framework attaches, holding
+the knobs above. It is created the first time a bean injects it, or at the latest when the framework
+initializes, and the CDI container closes it when it shuts down — on a normal stop, on a dev-mode
+live reload (the next application gets a new one) and on a failed start. It is a `@DefaultBean`: an
+`AiEnvironment` bean of the application's own replaces it, and the framework attaches that one.
+
+Once the framework has attached it, the extension fires it as a synchronous CDI event, before any
+`@AiEndpoint`, `@Agent` or `@Coordinator` registers and resolves its `AgentRuntime`. The framework
+initializes while the servlet (or, with `container=vertx`, the Vert.x route) starts, before
+`@Startup` beans are created, so a bean that binds a native client observes the event; an exception
+it throws fails the start. Binding through the environment makes the client this application's,
+instead of every application's in the JVM as the adapters' deprecated one-argument static binders
+do:
+
+```java
+@ApplicationScoped
+public class ModelBinder {
+
+    @Inject
+    StreamingChatModel model;
+
+    void bind(@Observes AiEnvironment environment) {
+        LangChain4jAgentRuntime.setModel(environment, model);
+    }
+}
+```
+
+`atmosphere-quarkus-langchain4j` does this for the Quarkus LangChain4j default model (it offers it, so
+a model the application binds itself wins). A bean can also `@Inject AiEnvironment`; a client it binds
+later applies from the next runtime resolution on, but an `@AiEndpoint` that registered before keeps
+the runtime instance it resolved, with any client that instance already built.
 
 ## Container modes
 
