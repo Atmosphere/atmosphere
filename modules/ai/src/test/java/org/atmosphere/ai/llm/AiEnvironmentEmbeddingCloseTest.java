@@ -13,16 +13,20 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.ai;
+package org.atmosphere.ai.llm;
 
 import com.sun.net.httpserver.HttpServer;
-import org.atmosphere.ai.llm.BuiltInEmbeddingRuntime;
+import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiConfigTestSupport;
+import org.atmosphere.ai.AiEnvironment;
+import org.atmosphere.ai.EmbeddingRuntime;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -30,6 +34,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -49,6 +54,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AiEnvironmentEmbeddingCloseTest {
 
     private static final String REPLY = "{\"data\":[{\"embedding\":[0.1,0.2]}]}";
+    /** How long a client left open is watched for terminating: a shut-down idle client terminates at once. */
+    private static final Duration OPEN = Duration.ofMillis(500);
 
     private HttpServer server;
     private final CountDownLatch slowArrived = new CountDownLatch(1);
@@ -57,7 +64,7 @@ class AiEnvironmentEmbeddingCloseTest {
     @BeforeEach
     void setUp() throws Exception {
         AiConfig.resetHostConfig();
-        AiConfig.resetForTesting();
+        AiConfigTestSupport.resetSettings();
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.setExecutor(Executors.newCachedThreadPool());
         server.createContext("/v1/embeddings", exchange -> {
@@ -84,7 +91,7 @@ class AiEnvironmentEmbeddingCloseTest {
         releaseSlow.countDown();
         server.stop(0);
         AiConfig.resetHostConfig();
-        AiConfig.resetForTesting();
+        AiConfigTestSupport.resetSettings();
     }
 
     private String baseUrl() {
@@ -98,13 +105,13 @@ class AiEnvironmentEmbeddingCloseTest {
         return environment;
     }
 
-    private static EmbeddingRuntime builtIn(AiEnvironment environment) {
-        var runtime = environment.embeddings().resolve().orElseThrow();
+    private static BuiltInEmbeddingRuntime builtIn(AiEnvironment environment) {
+        EmbeddingRuntime runtime = environment.embeddings().resolve().orElseThrow();
         return assertInstanceOf(BuiltInEmbeddingRuntime.class, runtime);
     }
 
     @Test
-    void closingOneApplicationShutsDownOnlyItsBuiltInEmbeddingClient() {
+    void closingOneApplicationShutsDownOnlyItsBuiltInEmbeddingClient() throws Exception {
         var a = application();
         var b = application();
         try {
@@ -113,9 +120,15 @@ class AiEnvironmentEmbeddingCloseTest {
             assertNotSame(ofA, ofB, "each application has its own embedding runtime");
             assertEquals(2, ofA.embed("before").length);
             assertEquals(2, ofB.embed("before").length);
+            var httpOfA = ofA.httpClient();
+            var httpOfB = ofB.httpClient();
 
             a.close();
 
+            assertTrue(httpOfA.awaitTermination(Duration.ofSeconds(5)),
+                    "the closed application's embedding HTTP client is shut down");
+            assertFalse(httpOfB.awaitTermination(OPEN),
+                    "the running application's embedding HTTP client stays open");
             var refused = assertThrows(RuntimeException.class, () -> ofA.embed("after"),
                     "the closed application's embedding client takes no new request");
             assertTrue(String.valueOf(refused.getMessage()).contains("closed"), refused.toString());
@@ -148,15 +161,19 @@ class AiEnvironmentEmbeddingCloseTest {
     }
 
     @Test
-    void closingAnApplicationLeavesAnEmbeddingRuntimeItCreatedItself() {
+    void closingAnApplicationLeavesAnEmbeddingRuntimeItCreatedItself() throws Exception {
         var a = application();
         var own = new BuiltInEmbeddingRuntime();
         own.attach(a);
         try {
             assertEquals(2, own.embed("before").length);
             builtIn(a).embed("before");
+            var httpOfOwn = own.httpClient();
 
             a.close();
+
+            assertFalse(httpOfOwn.awaitTermination(OPEN),
+                    "the HTTP client of a runtime the application created stays open");
 
             assertEquals(2, own.embed("after").length,
                     "a runtime the application created is the application's to close");
