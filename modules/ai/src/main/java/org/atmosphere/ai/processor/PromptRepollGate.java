@@ -180,10 +180,13 @@ final class PromptRepollGate {
 
     /**
      * The server assigned {@code trackingId} in a protocol handshake that suspends
-     * no connection (long-polling): remember the id for the wait only, so a prompt
-     * posted right after the handshake, before the client's first poll, waits for
-     * that poll instead of being refused. The id goes to its own bounded set, so
-     * handshakes alone never crowd connection ids out of the known set.
+     * no connection (long-polling), or is setting up a connection of it, on any
+     * transport, which cannot take a prompt yet (a WebSocket, SSE or streaming
+     * suspend writes the handshake before then): remember the id for the wait only, so a prompt
+     * posted right after the handshake, before the client's first poll or before
+     * the connection is ready, waits for it instead of being refused. The id goes
+     * to its own bounded set, so handshakes alone never crowd connection ids out
+     * of the known set.
      */
     void idAssigned(String trackingId) {
         if (closed || trackingId == null || trackingId.isEmpty()) {

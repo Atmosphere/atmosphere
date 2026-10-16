@@ -114,6 +114,16 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
     static final String CONNECTION_OWNER_ATTRIBUTE = LongPollingReplies.CONNECTION_OWNER_ATTRIBUTE;
 
     /**
+     * Request attribute marking a connection this handler is still setting up:
+     * set before it is suspended, removed once {@code @Ready} ran and it carries
+     * its path params and system prompt. Suspending it writes the protocol
+     * handshake, so its client knows its tracking id, and may post a prompt,
+     * before {@code @Ready} runs; such a prompt waits for the set-up to end
+     * instead of running without what {@code @Ready} sets.
+     */
+    static final String CONNECTION_SETTING_UP_ATTRIBUTE = "org.atmosphere.ai.connectionSettingUp";
+
+    /**
      * Init-param: the largest prompt body, in bytes, an SSE, streaming or
      * long-polling POST may carry; a larger one is answered {@code 413} without
      * being read past the limit. WebSocket frames are bounded by the
@@ -487,7 +497,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                     // recycled (a long-polling poll that just returned): both wait
                     // for the client's next connection, never run on a dead one.
                     if (resource.getRequest().getAttribute(FrameworkConfig.WEBSOCKET_MESSAGE) != null) {
-                        refuseWebSocketFrame(resource);
+                        var frameTarget = awaitWebSocketSetUp(resource, since);
+                        if (frameTarget == null || !dispatchPrompt(frameTarget, msg)) {
+                            refuseWebSocketFrame(resource);
+                        }
                         return;
                     }
                     // An SSE / streaming / long-polling POST names its connection with the header
@@ -545,6 +558,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
                 || resource.transport() == AtmosphereResource.TRANSPORT.STREAMING
                 || resource.transport() == AtmosphereResource.TRANSPORT.LONG_POLLING) {
             resource.getRequest().setAttribute(ENDPOINT_HANDLER_ATTRIBUTE, this);
+            // Until @Ready ran: suspending writes the protocol handshake, and a
+            // prompt naming the id it assigns waits for the set-up to end.
+            resource.getRequest().setAttribute(CONNECTION_SETTING_UP_ATTRIBUTE, Boolean.TRUE);
+            repollGate.idAssigned(resource.uuid());
             var owner = requestIdentity(resource.getRequest());
             if (owner != null) {
                 resource.getRequest().setAttribute(CONNECTION_OWNER_ATTRIBUTE, owner);
@@ -600,6 +617,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             // Last: the connection now carries its path params and system prompt,
             // so a prompt that waited for it may be dispatched to it.
             if (resource.isSuspended()) {
+                resource.getRequest().removeAttribute(CONNECTION_SETTING_UP_ATTRIBUTE);
                 repollGate.connectionReady(resource.uuid());
             }
             // A reply parked after this poll looked for one and before it was
@@ -1955,8 +1973,11 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
             return Optional.of(target);
         }
         if (post.getRequest().getAttribute(FrameworkConfig.WEBSOCKET_MESSAGE) != null) {
-            refuseWebSocketFrame(post);
-            return Optional.empty();
+            var frameTarget = awaitWebSocketSetUp(post, since);
+            if (frameTarget == null) {
+                refuseWebSocketFrame(post);
+            }
+            return Optional.ofNullable(frameTarget);
         }
         var trackingId = headerTrackingId(post.getRequest());
         if (trackingId == null || !isWellFormedTrackingId(trackingId)) {
@@ -2037,7 +2058,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * Refuses a WebSocket prompt frame whose connection resolves to nothing, for
      * instance one the server already unregistered. Unlike a long-polling POST it
      * is not waited for: the frame's own socket is the connection, so no later
-     * poll can bring it back. Nor is it answered with an HTTP status: the
+     * poll can bring it back (a connection still being set up is waited for
+     * first, see {@link #awaitWebSocketSetUp}). Nor is it answered with an HTTP status: the
      * WebSocket processor only logs a status of 400 or more, and the client would
      * wait for a reply forever. The refusal goes back over the socket instead, as
      * {@link #webSocketRefusalFrame}.
@@ -2046,6 +2068,38 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         logger.warn("WebSocket prompt on {} names no registered connection; answering it with an error frame",
                 pathTemplate);
         resource.write(webSocketRefusalFrame(UUID.randomUUID().toString()));
+    }
+
+    /**
+     * The connection a WebSocket {@code frame} arrived on, when that connection
+     * was still being set up as the frame was resolved: the frame waits for the
+     * set-up to end, as a POST does, within the prompt wait. Any other frame
+     * that resolved to nothing is not waited for: no later connection can carry
+     * it. {@code null} when there is no such connection, or the wait ended
+     * without it.
+     */
+    private AtmosphereResource awaitWebSocketSetUp(AtmosphereResource frame, long since) {
+        var uuid = suspendedUuid(frame.getRequest());
+        if (uuid == null) {
+            return null;
+        }
+        var live = liveConnections.get(uuid);
+        if (live == null) {
+            return null;
+        }
+        boolean settingUp;
+        try {
+            settingUp = live.getRequest().getAttribute(CONNECTION_SETTING_UP_ATTRIBUTE) != null;
+        } catch (IllegalStateException e) {
+            logger.debug("Request of connection {} is no longer usable; not a prompt target", uuid, e);
+            return null;
+        }
+        if (!settingUp) {
+            // Set up since the frame was first resolved, or not a target at all.
+            return resolveTrackingId(frame, uuid);
+        }
+        return repollGate.await(uuid, since, () -> resolveTrackingId(frame, uuid),
+                frame.getAtmosphereConfig()).target();
     }
 
     private static String suspendedUuid(AtmosphereRequest req) {
@@ -2075,6 +2129,11 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
      * connection's identity, recorded when it was suspended, must be the
      * prompt's sender's (see {@link #sameIdentity}). Otherwise the prompt would
      * run as that connection's user and stream its reply to them.</p>
+     *
+     * <p>Nor is one still being set up ({@link #CONNECTION_SETTING_UP_ATTRIBUTE}):
+     * its client may post as soon as the protocol handshake gives it its id,
+     * before {@code @Ready}, the path params and the system prompt are on the
+     * connection. The caller then waits for the set-up to end.</p>
      */
     private AtmosphereResource resolveTrackingId(AtmosphereResource resource, String trackingId) {
         var found = resource.getAtmosphereConfig().resourcesFactory().findResource(trackingId).orElse(null);
@@ -2084,6 +2143,10 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         Object owner;
         try {
             if (found.getRequest().getAttribute(ENDPOINT_HANDLER_ATTRIBUTE) != this) {
+                return null;
+            }
+            if (found.getRequest().getAttribute(CONNECTION_SETTING_UP_ATTRIBUTE) != null) {
+                logger.debug("Connection {} is still being set up; not a prompt target yet", trackingId);
                 return null;
             }
             owner = found.getRequest().getAttribute(CONNECTION_OWNER_ATTRIBUTE);
@@ -2200,7 +2263,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler
         @Override
         public Action inspect(AtmosphereResource r) {
             // WebSocket, SSE and streaming handshakes continue to onRequest, which
-            // records the id once the connection is suspended.
+            // records the id before suspending the connection, and again once
+            // it is set up.
             var transport = r.transport();
             if (transport != AtmosphereResource.TRANSPORT.WEBSOCKET
                     && transport != AtmosphereResource.TRANSPORT.SSE

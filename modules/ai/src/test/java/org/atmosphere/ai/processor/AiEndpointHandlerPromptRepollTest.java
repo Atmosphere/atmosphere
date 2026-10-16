@@ -40,6 +40,8 @@ import org.junit.jupiter.api.Test;
 
 import java.security.Principal;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -52,10 +54,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -597,6 +601,104 @@ class AiEndpointHandlerPromptRepollTest {
         assertDispatchedOnce(pollA, "live");
         verify(pathBroadcaster, never()).broadcast(any());
         verify(post.response(), never()).setStatus(anyInt());
+    }
+
+    /**
+     * A {@code transport} connection whose set-up is held in its suspend, where the
+     * protocol handshake writes the client its id: registered and suspended, but
+     * {@code @Ready}, the path params and the system prompt not done yet.
+     * Counting {@code release} down lets the set-up go on.
+     */
+    private AtmosphereResource connectionHeldInSetUp(String trackingId, AtmosphereResource.TRANSPORT transport,
+                                                     CountDownLatch release) throws Exception {
+        var resource = mock(AtmosphereResource.class);
+        var request = mock(AtmosphereRequest.class);
+        when(resource.uuid()).thenReturn(trackingId);
+        when(resource.getRequest()).thenReturn(request);
+        when(resource.getAtmosphereConfig()).thenReturn(config);
+        when(resource.getBroadcaster()).thenReturn(pathBroadcaster);
+        when(resource.transport()).thenReturn(transport);
+        when(resource.isSuspended()).thenReturn(true);
+        when(request.getMethod()).thenReturn("GET");
+        // The request keeps the attributes the handler sets, and drops the ones it removes.
+        var attributes = Collections.synchronizedMap(new HashMap<String, Object>());
+        doAnswer(inv -> attributes.put(inv.getArgument(0), inv.getArgument(1)))
+                .when(request).setAttribute(anyString(), any());
+        doAnswer(inv -> attributes.remove(inv.<String>getArgument(0)))
+                .when(request).removeAttribute(anyString());
+        when(request.getAttribute(anyString())).thenAnswer(inv -> attributes.get(inv.<String>getArgument(0)));
+        var inSuspend = new CountDownLatch(1);
+        when(resource.suspend(30_000L)).thenAnswer(inv -> {
+            registered.put(trackingId, resource);
+            inSuspend.countDown();
+            assertTrue(release.await(10, TimeUnit.SECONDS), "the set-up was never released");
+            return resource;
+        });
+        posts.submit(() -> {
+            handler.onRequest(resource);
+            return null;
+        });
+        assertTrue(inSuspend.await(5, TimeUnit.SECONDS), "the connection must reach its suspend");
+        return resource;
+    }
+
+    @Test
+    void promptPostedWhileItsConnectionIsSetUpRunsOnceTheSetUpEnds() throws Exception {
+        // The handshake gave the client its id as the connection was suspended,
+        // before @Ready ran: the prompt must not run on it yet, nor be refused.
+        // Generous, so a host under load cannot end the wait before the release.
+        handler = newHandler(Map.of(PromptRepollGate.WAIT_MS_PARAM, "10000"));
+        var release = new CountDownLatch(1);
+        var connection = connectionHeldInSetUp("sse-A", AtmosphereResource.TRANSPORT.SSE, release);
+
+        var post = post("sse-A", "early");
+        var sent = send(post);
+        assertThrows(TimeoutException.class, () -> sent.get(500, TimeUnit.MILLISECONDS),
+                () -> "the prompt must wait for the set-up, dispatches: " + dispatches);
+        assertNoDispatch();
+
+        release.countDown();
+        sent.get(5, TimeUnit.SECONDS);
+        assertDispatchedOnce(connection, "early");
+        verify(post.response(), never()).setStatus(anyInt());
+        verify(pathBroadcaster, never()).broadcast(any());
+    }
+
+    @Test
+    void webSocketFrameSentWhileItsConnectionIsSetUpRunsOnceTheSetUpEnds() throws Exception {
+        // Generous, so a host under load cannot end the wait before the release.
+        handler = newHandler(Map.of(PromptRepollGate.WAIT_MS_PARAM, "10000"));
+        var release = new CountDownLatch(1);
+        var connection = connectionHeldInSetUp("ws-A", AtmosphereResource.TRANSPORT.WEBSOCKET, release);
+
+        var frame = webSocketFrame("ws-A", "early");
+        var sent = send(frame);
+        assertThrows(TimeoutException.class, () -> sent.get(500, TimeUnit.MILLISECONDS),
+                () -> "the frame must wait for the set-up, dispatches: " + dispatches);
+        assertNoDispatch();
+
+        release.countDown();
+        sent.get(5, TimeUnit.SECONDS);
+        assertDispatchedOnce(connection, "early");
+        verify(frame.resource(), never()).write(anyString());
+    }
+
+    @Test
+    void senderOfAFrameSentWhileItsConnectionIsSetUpResolvesOnceTheSetUpEnds() throws Exception {
+        // A slash command's answer goes to the connection resolveSender returns.
+        // Generous, so a host under load cannot end the wait before the release.
+        handler = newHandler(Map.of(PromptRepollGate.WAIT_MS_PARAM, "10000"));
+        var release = new CountDownLatch(1);
+        var connection = connectionHeldInSetUp("ws-A", AtmosphereResource.TRANSPORT.WEBSOCKET, release);
+
+        var frame = webSocketFrame("ws-A", "/ping");
+        var resolved = posts.submit(() -> handler.resolveSender(frame.resource()));
+        assertThrows(TimeoutException.class, () -> resolved.get(500, TimeUnit.MILLISECONDS),
+                "the sender must not resolve to a connection still being set up");
+
+        release.countDown();
+        assertEquals(Optional.of(connection), resolved.get(5, TimeUnit.SECONDS));
+        verify(frame.resource(), never()).write(anyString());
     }
 
     @Test

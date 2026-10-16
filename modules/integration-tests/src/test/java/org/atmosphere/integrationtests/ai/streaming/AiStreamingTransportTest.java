@@ -23,6 +23,8 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
@@ -52,7 +54,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * client then POSTs its messages naming that id, and reads every reply from the
  * stream, never from the POST's own response. Prompts to an
  * {@code @AiEndpoint} and to an {@code @Agent}, and an {@code @Agent} slash
- * command, must be answered on that stream, as they are over SSE.
+ * command, must be answered on that stream, as they are over SSE. Where the
+ * streaming and SSE set-up is shared (a prompt posted before {@code @Ready} ran,
+ * the endpoint's suspend timeout), both transports are pinned.
  */
 @Tag("core")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -70,7 +74,9 @@ public class AiStreamingTransportTest {
         server = new EmbeddedAtmosphereServer()
                 .withAnnotationPackage("org.atmosphere.integrationtests.ai.streaming,org.atmosphere.integrationtests.agent")
                 .withInitParam("org.atmosphere.annotation.packages",
-                        "org.atmosphere.agent.processor,org.atmosphere.ai.processor");
+                        "org.atmosphere.agent.processor,org.atmosphere.ai.processor")
+                // Generous, so a host under load cannot end a prompt's wait for its connection's set-up.
+                .withInitParam("org.atmosphere.ai.prompt.repollWaitMs", "10000");
         server.start();
         httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
         // The framework initialises on the first request.
@@ -91,6 +97,9 @@ public class AiStreamingTransportTest {
         StreamingTransportTestEndpoint.RUN_IDS.clear();
         StreamingTransportTestEndpoint.RELEASE.countDown();
         StreamingTransportTestEndpoint.RELEASE = new CountDownLatch(1);
+        HeldReadyTestEndpoint.RELEASE.countDown();
+        HeldReadyTestEndpoint.RELEASE = new CountDownLatch(1);
+        HeldReadyTestEndpoint.ENTERED = new CountDownLatch(1);
     }
 
     @Timeout(value = 60, unit = TimeUnit.SECONDS)
@@ -151,8 +160,60 @@ public class AiStreamingTransportTest {
         reattach.close();
     }
 
+    /**
+     * The protocol handshake writes the assigned id while the connection is
+     * suspended, before {@code @Ready} runs: a prompt posted as soon as the id
+     * arrives must wait for {@code @Ready} (and the path params and system
+     * prompt) and then run under what it set, not run on a connection still
+     * being set up. Over streaming as over SSE.
+     */
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    @ParameterizedTest
+    @ValueSource(strings = {"streaming", "sse"})
+    public void aPromptPostedWhileReadyRunsWaitsForReady(String transport) throws Exception {
+        var stream = open(HeldReadyTestEndpoint.PATH, transport, "held-user", null);
+        var id = stream.assignedId();
+        assertTrue(HeldReadyTestEndpoint.ENTERED.await(10, TimeUnit.SECONDS), "@Ready must have started");
+
+        var response = httpClient.sendAsync(postRequest(HeldReadyTestEndpoint.PATH, transport, id, "hello"),
+                HttpResponse.BodyHandlers.ofString());
+        // Time for the POST to reach the server while @Ready is still held.
+        Thread.sleep(1_000);
+        assertFalse(stream.text().contains("reply-to:hello"),
+                "the prompt must not run before @Ready finished, got: " + stream.text().strip());
+        HeldReadyTestEndpoint.RELEASE.countDown();
+
+        assertEquals(200, response.get(30, TimeUnit.SECONDS).statusCode(), "the prompt POST must be accepted");
+        stream.await(s -> s.contains("reply-to:hello|held-user") && s.contains("\"type\":\"complete\""),
+                "the reply must arrive on the stream, under the ai.userId @Ready set");
+        stream.close();
+    }
+
+    /**
+     * A streaming connection is suspended for the endpoint's {@code timeout()},
+     * as an SSE one is: the server ends its response once that time has passed,
+     * and atmosphere.js reconnects under its tracking id.
+     */
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    @ParameterizedTest
+    @ValueSource(strings = {"streaming", "sse"})
+    public void aConnectionIsEndedAfterTheEndpointTimeout(String transport) throws Exception {
+        var stream = open(ShortTimeoutTestEndpoint.PATH, transport, null, null);
+        stream.assignedId();
+        var since = System.nanoTime();
+
+        assertTrue(stream.ended.await(ShortTimeoutTestEndpoint.TIMEOUT_MS + 10_000, TimeUnit.MILLISECONDS),
+                "the server must end the " + transport + " response after the endpoint timeout");
+        assertTrue(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - since) >= ShortTimeoutTestEndpoint.TIMEOUT_MS / 2,
+                "the response must not end before the endpoint timeout");
+    }
+
     private StreamingConnection open(String path, String token, String runId) {
-        var builder = HttpRequest.newBuilder(uri(path, "0", token)).GET();
+        return open(path, "streaming", token, runId);
+    }
+
+    private StreamingConnection open(String path, String transport, String token, String runId) {
+        var builder = HttpRequest.newBuilder(uri(path, transport, "0", token)).GET();
         if (runId != null) {
             builder.header("X-Atmosphere-Run-Id", runId);
         }
@@ -162,18 +223,23 @@ public class AiStreamingTransportTest {
     }
 
     private HttpResponse<String> post(String path, String trackingId, String message) throws Exception {
-        return httpClient.send(HttpRequest.newBuilder(uri(path, trackingId, null))
-                .header("Content-Type", "text/plain")
-                .POST(HttpRequest.BodyPublishers.ofString(message))
-                .build(), HttpResponse.BodyHandlers.ofString());
+        return httpClient.send(postRequest(path, "streaming", trackingId, message),
+                HttpResponse.BodyHandlers.ofString());
     }
 
-    /** The query string atmosphere.js sends on {@code transport: 'streaming'} with the protocol on. */
-    private URI uri(String path, String trackingId, String token) {
+    private HttpRequest postRequest(String path, String transport, String trackingId, String message) {
+        return HttpRequest.newBuilder(uri(path, transport, trackingId, null))
+                .header("Content-Type", "text/plain")
+                .POST(HttpRequest.BodyPublishers.ofString(message))
+                .build();
+    }
+
+    /** The query string atmosphere.js sends on {@code transport} with the protocol on. */
+    private URI uri(String path, String transport, String trackingId, String token) {
         return URI.create(server.getBaseUrl() + path
                 + "?X-Atmosphere-tracking-id=" + trackingId
                 + "&X-Atmosphere-Framework=5.0.0"
-                + "&X-Atmosphere-Transport=streaming"
+                + "&X-Atmosphere-Transport=" + transport
                 + "&X-Atmosphere-TrackMessageSize=true"
                 + "&X-atmo-protocol=true"
                 + (token != null ? "&token=" + token : ""));
@@ -194,6 +260,8 @@ public class AiStreamingTransportTest {
 
         private final ByteArrayOutputStream received = new ByteArrayOutputStream();
         private final AtomicReference<Flow.Subscription> subscription = new AtomicReference<>();
+        /** Counted down when the response ends. */
+        private final CountDownLatch ended = new CountDownLatch(1);
 
         @Override
         public void onSubscribe(Flow.Subscription s) {
@@ -214,10 +282,12 @@ public class AiStreamingTransportTest {
 
         @Override
         public void onError(Throwable throwable) {
+            ended.countDown();
         }
 
         @Override
         public void onComplete() {
+            ended.countDown();
         }
 
         String text() {

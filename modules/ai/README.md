@@ -814,6 +814,12 @@ names its connection with the server-set suspended uuid; an SSE, streaming or
 long-polling POST names it with the `X-Atmosphere-tracking-id` header. A long-polling client
 that posts between two polls has no registered connection for a moment, so its
 prompt waits for that client's next poll and is answered `503` with `Retry-After: 1` if none arrives.
+A connection the endpoint is still setting up counts as no connection too: the
+protocol handshake hands the client its tracking id as the connection is
+suspended, before `@Ready` runs and the path params and system prompt are set,
+so a prompt (or a slash command) naming it then waits for that set-up to end, and
+runs under what `@Ready` set, or is answered `503` the same way if it does not end
+within the wait.
 A poll that has just returned counts as no connection too, even while the server
 still lists it: a prompt runs only on a connection that is still suspended and
 whose request the container has not recycled.
@@ -932,12 +938,13 @@ it opened (past 5 s of waiting, they run `@Ready` themselves).
 | Init-param | Default | Meaning |
 |---|---|---|
 | `org.atmosphere.ai.prompt.repollWaitMs` | `2000` | How long such a prompt waits for its client's next connection (capped at 30000; `0` refuses at once) |
-| `org.atmosphere.ai.prompt.maxRepollWaiters` | `64` | Prompts that may wait at once across every `@AiEndpoint` of the application (each holds a request thread); one per tracking id. Prompts whose id only a handshake vouches for (no poll of it arrived yet) may hold half of them (at least one) |
+| `org.atmosphere.ai.prompt.maxRepollWaiters` | `64` | Prompts that may wait at once across every `@AiEndpoint` of the application (each holds a request thread); one per tracking id. Prompts whose id only a handshake or a connection still being set up vouches for (no connection of it was ready yet) may hold half of them (at least one) |
 | `org.atmosphere.ai.prompt.maxBytes` | `1048576` (1 MiB) | Largest prompt body an SSE, streaming or long-polling POST may carry. A larger one is answered `413` without being read past the limit (a declared `Content-Length` over it is refused before any read); a body that is not valid text in its character encoding (UTF-8 unless the request names one) is answered `400`. WebSocket frames are bounded by the container's WebSocket message size instead. |
 
 Only a tracking id the endpoint recently suspended a connection for, or assigned
-in a protocol handshake no longer ago than `repollWaitMs` (at most 1024 such ids
-pending at once, kept apart from connection ids), is waited for; any other id is
+in a protocol handshake or started setting up a connection for no longer ago than
+`repollWaitMs` (at most 1024 such ids pending at once, kept apart from connection
+ids), is waited for; any other id is
 refused at once, as is the id of a connection its client closed or that was
 cancelled (until a connection of it is suspended again), and an id that is not
 1-128 letters, digits, `-` or `_` is answered `400`. Prompts still waiting when the application stops are refused at
@@ -1617,8 +1624,8 @@ one on a session directly.
   before the turn deadline`). An unanswered confirmation therefore runs the
   human route on the endpoint as on `AiPipeline`, which has no such deadline and
   waits the full `confirmTimeout`. The cut is against the `@Prompt` watchdog
-  only; a transport's own suspend timeout (a long-polling or SSE connection
-  suspended for `timeout()` from when it connected) is not taken into account.
+  only; a transport's own suspend timeout (a long-polling, SSE or streaming
+  connection suspended for `timeout()` from when it connected) is not taken into account.
 - **Cancellation.** A cancelled turn is never routed: a client disconnect on
   the endpoint (before or during classification, or while a confirmation is
   pending) or an interrupted dispatching thread on either path (a batch item
