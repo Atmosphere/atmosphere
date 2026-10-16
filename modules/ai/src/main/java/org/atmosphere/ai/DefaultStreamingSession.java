@@ -381,7 +381,14 @@ public final class DefaultStreamingSession implements StreamingSession {
                 broadcastTerminal(buildMessage(RunCancelledException.FRAME_TYPE, cancelled.reason().wire()));
                 return;
             }
-            logger.error("Streaming session {} error", sessionId, t);
+            if (t instanceof RequestDeniedException denied) {
+                // A policy or guardrail refused the turn: an expected outcome the
+                // denying code already logged, so one line here and no stack. The
+                // client still gets the same error frame as any other failure.
+                logger.info("Streaming session {} denied: {}", sessionId, denied.getMessage());
+            } else {
+                logger.error("Streaming session {} error", sessionId, t);
+            }
             var message = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
             broadcastTerminal(buildMessage("error", message));
         }

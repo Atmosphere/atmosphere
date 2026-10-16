@@ -1060,7 +1060,7 @@ public class AiStreamingSession implements StreamingSession {
                     case AiGuardrail.GuardrailResult.Block block -> {
                         logger.warn("Request blocked by guardrail {}: {}",
                                 guardrail.getClass().getSimpleName(), block.reason());
-                        delegate.error(new SecurityException("Request blocked: " + block.reason()));
+                        delegate.error(new RequestDeniedException("Request blocked: " + block.reason()));
                         return;
                     }
                     case AiGuardrail.GuardrailResult.Modify modify -> {
@@ -1132,7 +1132,7 @@ public class AiStreamingSession implements StreamingSession {
                                 org.atmosphere.ai.governance.GovernanceDecisionLog.entry(
                                         requestScopePolicy, ctx, "deny", deny.reason(), evalMs));
                         tracer.end("deny", deny.reason());
-                        delegate.error(new SecurityException("Request denied by per-request scope "
+                        delegate.error(new RequestDeniedException("Request denied by per-request scope "
                                 + requestScopePolicy.name() + ": " + deny.reason()));
                         return;
                     }

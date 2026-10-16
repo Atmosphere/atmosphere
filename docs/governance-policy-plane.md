@@ -157,11 +157,13 @@ var ring = PolicyRing.builder("layered-defence")
 var gate = PolicyAdmissionGate.admit(resource, new AiRequest(message));
 switch (gate) {
     case PolicyAdmissionGate.Result.Denied denied ->
-            session.error(new SecurityException("Denied by " + denied.policyName()));
+            session.error(new RequestDeniedException("Denied by " + denied.policyName()));
     case PolicyAdmissionGate.Result.Admitted admitted ->
             // forward admitted.request().message() to your local responder
 }
 ```
+
+`org.atmosphere.ai.RequestDeniedException` is the `SecurityException` the framework itself ends a denied or guardrail-blocked turn with. The client gets the usual `error` frame carrying its message; the streaming session logs it on one line instead of as an `ERROR` with a stack trace, which it keeps for real failures.
 
 ### `GuardrailAsPolicy` and `PolicyAsGuardrail`
 

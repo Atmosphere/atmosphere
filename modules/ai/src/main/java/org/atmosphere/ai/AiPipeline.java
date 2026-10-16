@@ -706,7 +706,7 @@ public class AiPipeline {
                     case AiGuardrail.GuardrailResult.Block block -> {
                         logger.warn("Request blocked by guardrail {}: {}",
                                 guardrail.getClass().getSimpleName(), block.reason());
-                        session.error(new SecurityException("Request blocked: " + block.reason()));
+                        session.error(new RequestDeniedException("Request blocked: " + block.reason()));
                         return;
                     }
                     case AiGuardrail.GuardrailResult.Modify modify -> {
@@ -752,7 +752,7 @@ public class AiPipeline {
                         GovernanceDecisionLog.installed().record(
                                 GovernanceDecisionLog.entry(policy, ctx, "deny", deny.reason(), evalMs));
                         tracer.end("deny", deny.reason());
-                        session.error(new SecurityException("Request denied by policy "
+                        session.error(new RequestDeniedException("Request denied by policy "
                                 + policy.name() + ": " + deny.reason()));
                         return;
                     }

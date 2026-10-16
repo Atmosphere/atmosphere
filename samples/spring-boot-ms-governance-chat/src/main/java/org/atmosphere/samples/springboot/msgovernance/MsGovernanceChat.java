@@ -16,6 +16,7 @@
 package org.atmosphere.samples.springboot.msgovernance;
 
 import org.atmosphere.ai.AiRequest;
+import org.atmosphere.ai.RequestDeniedException;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AgentScope;
 import org.atmosphere.ai.annotation.AiEndpoint;
@@ -132,7 +133,9 @@ public class MsGovernanceChat {
         switch (gate) {
             case PolicyAdmissionGate.Result.Denied denied -> {
                 logger.info("Denied by policy {}: {}", denied.policyName(), denied.reason());
-                session.error(new SecurityException(
+                // The framework's own denial type: same error frame for the
+                // client, one log line instead of an ERROR with a stack trace.
+                session.error(new RequestDeniedException(
                         "Denied by policy '" + denied.policyName() + "': " + denied.reason()));
             }
             case PolicyAdmissionGate.Result.Admitted admitted -> {

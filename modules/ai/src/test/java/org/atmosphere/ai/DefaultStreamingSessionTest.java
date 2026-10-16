@@ -129,6 +129,70 @@ public class DefaultStreamingSessionTest {
         assertEquals("operator", frame.data());
     }
 
+    /**
+     * A policy denial is an expected outcome: the client gets the same error frame as
+     * before, but the server log gets one line, not an ERROR with a stack trace. The
+     * 2026-10-16 sweep found every expected DENY of spring-boot-ms-governance-chat
+     * logged as {@code ERROR Streaming session ... error} plus a SecurityException stack.
+     */
+    @Test
+    public void aDeniedTurnSendsTheSameErrorFrameWithoutAnErrorLogOrStack() {
+        var reason = "Denied by policy 'block-destructive': matched DROP TABLE";
+
+        var denied = captureTerminal(new RequestDeniedException(reason));
+        var failed = captureTerminal(new SecurityException(reason));
+
+        assertEquals(1, denied.frames().size(), "one terminal frame: " + denied.frames());
+        var deniedFrame = org.atmosphere.ai.filter.AiStreamMessage.parse(denied.frames().get(0));
+        var failedFrame = org.atmosphere.ai.filter.AiStreamMessage.parse(failed.frames().get(0));
+        assertTrue(deniedFrame.isError(), denied.frames().get(0));
+        assertEquals(reason, deniedFrame.data());
+        assertEquals(failedFrame.type(), deniedFrame.type(), "a denial must render like any error frame");
+        assertEquals(failedFrame.data(), deniedFrame.data(), "a denial must render like any error frame");
+
+        for (var event : denied.events()) {
+            assertNotEquals(ch.qos.logback.classic.Level.ERROR, event.getLevel(),
+                    "a policy denial was logged as ERROR: " + event.getFormattedMessage());
+            assertNull(event.getThrowableProxy(),
+                    "a policy denial was logged with a stack trace: " + event.getFormattedMessage());
+        }
+        assertTrue(denied.events().stream().anyMatch(e -> e.getFormattedMessage().contains(reason)),
+                "the denial should still be logged with its reason: " + denied.events());
+        // A real failure is still reported as an error with its stack.
+        assertTrue(failed.events().stream().anyMatch(e -> e.getLevel() == ch.qos.logback.classic.Level.ERROR
+                && e.getThrowableProxy() != null), "a plain SecurityException must stay an ERROR with stack");
+    }
+
+    private record Terminal(List<String> frames, List<ch.qos.logback.classic.spi.ILoggingEvent> events) {
+    }
+
+    private static Terminal captureTerminal(Throwable failure) {
+        var resource = mock(AtmosphereResource.class);
+        var broadcaster = mock(Broadcaster.class);
+        when(resource.getBroadcaster()).thenReturn(broadcaster);
+        var frames = new ArrayList<String>();
+        when(broadcaster.broadcast(any(), anySet())).thenAnswer(inv -> {
+            frames.add(String.valueOf(((org.atmosphere.cpr.RawMessage) inv.getArgument(0)).message()));
+            return null;
+        });
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(DefaultStreamingSession.class);
+        var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        var previous = logger.getLevel();
+        logger.setLevel(ch.qos.logback.classic.Level.DEBUG);
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            var session = new DefaultStreamingSession("denied-" + System.nanoTime(), resource);
+            session.error(failure);
+            assertTrue(session.hasErrored(), "a denied turn still ends the session in error");
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+            logger.setLevel(previous);
+        }
+        return new Terminal(frames, List.copyOf(appender.list));
+    }
+
     @Test
     public void testResourceForSessionReturnsEmptyForUnknown() {
         assertTrue(DefaultStreamingSession.resourceForSession("nonexistent").isEmpty());

@@ -270,7 +270,7 @@ AiEndpointHandler (receives each @Prompt)
         ▼
 MsGovernanceChat.onPrompt → PolicyAdmissionGate.admit(resource, request)
         │
-        ├── Denied → session.error(SecurityException(policy.reason))
+        ├── Denied → session.error(RequestDeniedException(policy.reason))
         │      ↓
         │   Built-in console renders as "Error: <message>"
         │

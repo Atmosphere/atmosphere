@@ -202,8 +202,9 @@ class TapeIntegrationTest {
                 "a pre-admission denial is a one-step ERROR tape: " + steps);
         assertTrue(steps.get(0).payload().contains("Request blocked: forbidden content"),
                 steps.get(0).payload());
-        assertTrue(steps.get(0).payload().contains(SecurityException.class.getName()),
-                steps.get(0).payload());
+        // A denial is taped as the framework's denial type (a SecurityException).
+        assertTrue(steps.get(0).payload().contains(
+                org.atmosphere.ai.RequestDeniedException.class.getName()), steps.get(0).payload());
         assertEquals(0, runtime.calls.get(), "the runtime must never fire on a denial");
         assertEquals("model-x", run.model());
         assertEquals("scripted", run.runtimeName());

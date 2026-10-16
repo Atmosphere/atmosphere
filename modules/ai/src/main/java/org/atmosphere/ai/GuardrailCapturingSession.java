@@ -182,7 +182,7 @@ class GuardrailCapturingSession extends DelegatingStreamingSession {
                     logger.warn("Response blocked by guardrail {}: {}",
                             guardrail.getClass().getSimpleName(), block.reason());
                     blocked = true; // field read by isClosed() and other session methods
-                    delegate.error(new SecurityException("Response blocked: " + block.reason()));
+                    delegate.error(new RequestDeniedException("Response blocked: " + block.reason()));
                     return true;
                 }
             } catch (Exception e) {
