@@ -348,9 +348,16 @@ public final class RunReattachSupport {
         // reduces to the runId's own UUID entropy. Any authenticated
         // run MUST match.
         if (!callerOwnsRun(req, handle.userId())) {
-            logger.warn("Reattach refused — resource {} does not own run {} "
-                    + "(run userId={}, caller userId={})",
-                    resource.uuid(), runId, handle.userId(), resolveCallerUserId(req));
+            // Once per (run, tracking id): a member of an authenticated room
+            // polls with the run id of another user's run on every poll.
+            if (handle.replayBuffer().firstRefusal(resource.uuid())) {
+                logger.warn("Reattach refused — resource {} does not own run {} "
+                        + "(run userId={}, caller userId={}); its further refusals for this run log at DEBUG",
+                        resource.uuid(), runId, handle.userId(), resolveCallerUserId(req));
+            } else {
+                logger.debug("Reattach refused — resource {} does not own run {} (run userId={}, caller userId={})",
+                        resource.uuid(), runId, handle.userId(), resolveCallerUserId(req));
+            }
             return 0;
         }
         var own = ownClient(resource, handle);

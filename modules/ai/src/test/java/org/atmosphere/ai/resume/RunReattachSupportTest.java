@@ -161,6 +161,48 @@ class RunReattachSupportTest {
     }
 
     /**
+     * In an authenticated {@code broadcastReply} room every member is handed
+     * the run id of another member's run, and its polls carry it: each poll was
+     * refused with a WARN, so one bystander filled the log with one warning per
+     * poll. A refusal warns once per (run, tracking id), the rest log at DEBUG,
+     * and the tracking ids remembered are bounded.
+     */
+    @Test
+    void aRefusedReattachWarnsOncePerTrackingIdAndRun() {
+        var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        appender.start();
+        var log = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(RunReattachSupport.class);
+        log.addAppender(appender);
+        try {
+            var bounded = registry.register("agent-a", "alice", "sess-2", new ExecutionHandle.Settable(() -> { }),
+                    new RunEventReplayBuffer(null, 16, 2, 2), null);
+            for (var trackingId : List.of("bob-1", "bob-1", "bob-1", "bob-2", "bob-2", "bob-3", "bob-3")) {
+                var resource = mockResourceWithRunIdAndCaller(bounded.runId(), null, "bob", new ArrayList<>());
+                when(resource.uuid()).thenReturn(trackingId);
+                assertEquals(0, RunReattachSupport.replayPendingRun(resource, registry));
+            }
+            var warned = appender.list.stream()
+                    .filter(e -> e.getLevel() == ch.qos.logback.classic.Level.WARN)
+                    .map(e -> e.getArgumentArray()[0])
+                    .toList();
+            assertEquals(List.of("bob-1", "bob-2"), warned, "one warning per tracking id, for at most"
+                    + " maxReplayPositions tracking ids per run");
+            var refusals = appender.list.stream()
+                    .filter(e -> e.getFormattedMessage().startsWith("Reattach refused"))
+                    .count();
+            assertEquals(7, refusals, "every refusal is still logged, past the first at DEBUG");
+
+            var resource = mockResourceWithRunIdAndCaller(handle.runId(), null, "bob", new ArrayList<>());
+            when(resource.uuid()).thenReturn("bob-1");
+            RunReattachSupport.replayPendingRun(resource, registry);
+            assertEquals(3, appender.list.stream().filter(e -> e.getLevel() == ch.qos.logback.classic.Level.WARN)
+                    .count(), "another run warns about the same tracking id once");
+        } finally {
+            log.detachAppender(appender);
+        }
+    }
+
+    /**
      * Anonymous-runner carve-out: a run registered without auth
      * (userId == "anonymous") relies on runId entropy for protection;
      * the reconnecting caller need not be authenticated. This is the

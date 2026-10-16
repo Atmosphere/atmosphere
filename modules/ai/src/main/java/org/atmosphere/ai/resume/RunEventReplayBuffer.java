@@ -239,6 +239,13 @@ public final class RunEventReplayBuffer {
      * {@link #positions}.
      */
     private final Map<String, Long> receipts = new LinkedHashMap<>();
+    /**
+     * Guarded by {@code buffer}: the tracking ids a reattach of which was
+     * refused for not owning the run, each warned about once; at most
+     * {@link #maxReplayPositions} of them, the first ones (Correctness
+     * Invariant #3). One past them is not warned about at all.
+     */
+    private final java.util.Set<String> refused = new java.util.HashSet<>();
 
     public RunEventReplayBuffer() {
         this(DEFAULT_CAPACITY);
@@ -770,6 +777,25 @@ public final class RunEventReplayBuffer {
             if (position(consumer) >= sequence) {
                 claimed(consumer, sequence - 1);
             }
+        }
+    }
+
+    /**
+     * Whether the refusal of a reattach of {@code trackingId} to this run, for
+     * not owning it, is the first one to warn about: {@code true} once per
+     * tracking id, for at most {@link #maxReplayPositions()} tracking ids, then
+     * {@code false}. In an authenticated {@code broadcastReply} room every
+     * member's poll carries the run id of another member's run, and each is
+     * refused; one warning per client says so without flooding the log.
+     */
+    public boolean firstRefusal(String trackingId) {
+        var key = Objects.requireNonNullElse(trackingId, "");
+        synchronized (buffer) {
+            if (refused.contains(key) || refused.size() >= maxReplayPositions) {
+                return false;
+            }
+            refused.add(key);
+            return true;
         }
     }
 
