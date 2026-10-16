@@ -64,8 +64,8 @@ class KeyFreeStartupLogTest {
     }
 
     /**
-     * Turning the AI auto-configuration off also drops the starter's {@code GET /}
-     * redirect to the Console, which lives there; the sample keeps it.
+     * Turning the AI auto-configuration off keeps the starter's {@code GET /}
+     * redirect to the Console, which is registered beside the Console itself.
      */
     @Test
     void rootStillOpensTheConsole() throws Exception {

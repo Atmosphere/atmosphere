@@ -154,6 +154,31 @@ public class AtmosphereAutoConfiguration {
     }
 
     /**
+     * Sends {@code GET /} to the Console when the application serves nothing at
+     * {@code /} (see {@link ConsoleRootRedirectFilter}), so an app without its
+     * own root page does not land on Spring's Whitelabel 404. Registered beside
+     * the Console filter, so every application that gets the Console gets the
+     * redirect, with or without {@code atmosphere-ai}; an application that maps
+     * {@code /} itself (a controller, a view controller, a static
+     * {@code index.html}) keeps its own page.
+     *
+     * <p>Opt out via {@code atmosphere.ai.console.root-redirect=false} (the
+     * property kept its name when the redirect moved out of the AI
+     * auto-configuration).</p>
+     */
+    @Bean
+    @ConditionalOnMissingBean(name = "atmosphereConsoleRootRedirect")
+    @ConditionalOnProperty(name = "atmosphere.ai.console.root-redirect", matchIfMissing = true)
+    org.springframework.boot.web.servlet.FilterRegistrationBean<jakarta.servlet.Filter> atmosphereConsoleRootRedirect() {
+        var registration = new org.springframework.boot.web.servlet.FilterRegistrationBean<jakarta.servlet.Filter>(
+                new ConsoleRootRedirectFilter());
+        registration.addUrlPatterns("/*");
+        registration.setName("atmosphereConsoleRootRedirect");
+        registration.setOrder(org.springframework.core.Ordered.HIGHEST_PRECEDENCE);
+        return registration;
+    }
+
+    /**
      * Opt-in baseline security response headers for an application's own routes
      * (its root SPA + static assets). Off by default; enable with
      * {@code atmosphere.security-headers.enabled=true} (Correctness Invariant #6).

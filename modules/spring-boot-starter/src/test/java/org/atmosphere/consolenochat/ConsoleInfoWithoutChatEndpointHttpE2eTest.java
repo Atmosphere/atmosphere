@@ -76,6 +76,23 @@ class ConsoleInfoWithoutChatEndpointHttpE2eTest {
                 "console info must not name a chat endpoint, got: " + body);
     }
 
+    @Test
+    void rootRedirectsToTheConsoleWithoutTheAiAutoConfiguration() throws Exception {
+        // The root redirect lived in the AI auto-configuration only, so an app
+        // with AI off (passivation-agent, durable-sessions) answered GET / with
+        // the Whitelabel 404 although it serves the Console.
+        try (var client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build()) {
+            var response = client.send(HttpRequest.newBuilder(
+                            URI.create("http://localhost:" + port + "/?token=abc")).GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(302, response.statusCode(), "GET / must redirect, got "
+                    + response.statusCode() + " body=" + response.body());
+            var location = response.headers().firstValue("Location").orElse("");
+            assertTrue(location.endsWith("/atmosphere/console/?token=abc"),
+                    "GET / must land on the Console with its query, Location=" + location);
+        }
+    }
+
     private String consoleInfo() throws Exception {
         try (var client = HttpClient.newHttpClient()) {
             var request = HttpRequest.newBuilder(
